@@ -1,14 +1,21 @@
 # Agrivio
 
+> Working product name pending domain and trademark verification.
+
 Agrivio is a cloud-first Fertilizer POS and Inventory Management web application for fertilizer retailers, seed stores, pesticide and chemical dealers, agricultural-input wholesalers, and dealers and distributors. The first release will initially serve two clients and must support additional organizations later.
 
 ## Current Status
 
-Documentation baseline only. Application implementation has not started.
+Current task: P1-02 review corrections  
+Status: Product requirements and Release 1 scope remain under review
 
 ## Current Phase
 
-Phase 1 — Project Documentation Baseline (`P1-01`)
+Phase 1 — Requirements and Architecture Documentation
+
+## Next Task
+
+`P1-03` — Business rules and domain glossary.
 
 ## Technology Stack
 
