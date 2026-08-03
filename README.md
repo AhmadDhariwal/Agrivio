@@ -6,9 +6,12 @@ Agrivio is a cloud-first Fertilizer POS and Inventory Management web application
 
 ## Current Status
 
-Current task: P1-03 — Business rules and domain glossary  
-Status: P1-02 completed and frozen  
+Current task: P1-03  
+Status: Business rules and domain glossary drafted for review  
+Next task: P1-04 — Architecture and repository structure  
 Application implementation: Not started
+
+P1-01 and P1-02 are complete. P1-03 remains under review.
 
 ## Current Phase
 
@@ -16,7 +19,7 @@ Phase 1 — Requirements and Architecture Documentation
 
 ## Next Task
 
-`P1-03` — Business rules and domain glossary.
+`P1-04` — Architecture and repository structure.
 
 ## Technology Stack
 
