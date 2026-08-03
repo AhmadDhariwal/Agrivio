@@ -5,37 +5,39 @@
 | Field | Value |
 | --- | --- |
 | Document title | Agrivio Product Requirements Document |
-| Product name | Agrivio (working name pending domain and trademark verification) |
-| Document status | Draft for P1-02 review |
-| Current version | 0.1 |
-| Last updated | 2026-08-03 |
+| Product name | Agrivio — working name pending domain and trademark verification |
+| Document status | Frozen for Release 1 |
+| Current version | 1.0 |
+| Last updated | 2026-08-04 |
 | Source of truth | [PROJECT_DECISIONS.md](PROJECT_DECISIONS.md) |
-| Approval status | Not yet frozen |
+| Approval status | Approved for Phase 1 continuation |
 
-This PRD defines product requirements. It does not define database schemas, API routes, folder structures, or implementation code. Finalized decisions remain authoritative in [PROJECT_DECISIONS.md](PROJECT_DECISIONS.md). Release 1 boundaries are defined in [RELEASE_1_SCOPE.md](RELEASE_1_SCOPE.md).
+This PRD defines product requirements. It does not define database schemas, API routes, folder structures, or implementation code. Finalized decisions remain authoritative in [PROJECT_DECISIONS.md](PROJECT_DECISIONS.md). Release 1 boundaries are defined in [RELEASE_1_SCOPE.md](RELEASE_1_SCOPE.md). Features described in this PRD are requirements, not claims of existing functionality.
 
 ## 2. Executive Summary
 
-Agrivio is a cloud-first, multi-tenant agricultural retail and wholesale management platform for fertilizer businesses, seed stores, pesticide and chemical dealers, agricultural-input retailers, wholesalers, dealers, and distributors.
+Agrivio is a cloud-first, multi-tenant agricultural retail and wholesale management platform for fertilizer retailers, seed stores, pesticide and chemical dealers, agricultural-input retailers, wholesalers, dealers, and distributors.
 
-Release 1 focuses on operationally correct sales, purchases, inventory, batch and expiry tracking, customer receivables, supplier payables, cash and bank tracking, reports, and subscription-controlled SaaS access.
+Release 1 focuses on operationally correct sales, purchases, inventory, batch tracking, expiry tracking, customer receivables, supplier payables, cash and digital-account tracking, reports, and subscription-controlled SaaS access.
 
-The first release will initially serve two clients and must support additional organizations without client-specific code forks. Application features described in this document are requirements for delivery, not claims of existing functionality.
+The initial release will serve two clients while supporting future organizations without client-specific code forks. Application features described in this document are requirements for delivery, not claims of existing functionality.
 
 ## 3. Problem Statement
 
 Agricultural retailers and wholesalers commonly face:
 
-* Manual daily sales records that are slow and error-prone
+* Manual and error-prone daily sales records
 * Inaccurate customer credit balances
 * Weak supplier payable tracking
-* Unreliable stock counts
+* Unreliable stock quantities
 * Missing batch and expiry visibility
-* Poor stock valuation
-* Difficulty tracking cash and bank movements
+* Poor inventory valuation
+* Difficulty tracking cash, bank, JazzCash, and Easypaisa movements
 * Limited business reporting
 * Lack of auditability
 * Difficulty scaling from one client to multiple organizations
+* Difficulty migrating existing opening balances and stock
+* Lack of controlled transaction correction and reversal
 
 ## 4. Product Goals
 
@@ -45,21 +47,30 @@ Release 1 must achieve the following verifiable goals:
 * Maintain customer and supplier ledger traceability
 * Support batch-aware and expiry-aware inventory
 * Support cash, credit, partial, and mixed payments
-* Provide branch-wise invoices
-* Support multiple organizations with strict data isolation
-* Provide reports that reconcile with transactional data
-* Provide a maintainable modular codebase
-* Support SaaS subscriptions and dedicated-cloud deployment from the same codebase
+* Provide branch-wise invoice numbering
+* Support multiple organizations with strict tenant isolation
+* Provide reports that reconcile with source transactions
+* Provide a maintainable modular-monolith architecture
+* Support shared SaaS and provider-managed dedicated cloud from the same codebase
 * Support initial clients without creating client-specific code forks
+* Support auditable opening balances
+* Support auditable transaction cancellation and reversal
+* Support atomic stock and financial workflows
+* Support tested backup and restore operations
 
 ## 5. Non-Goals
 
 Release 1 does not aim to provide:
 
 * Offline synchronization
-* Native mobile applications
+* Native Android application
+* Native iOS application
 * Full double-entry accounting
-* Automated recurring payment gateways
+* Full accounting net profit
+* Balance sheet
+* Trial balance
+* General-ledger profit
+* Automated recurring payment gateway
 * WhatsApp Business automation
 * SMS automation
 * Email automation for operational alerts
@@ -71,13 +82,16 @@ Release 1 does not aim to provide:
 * Public coupon engine
 * Self-service on-premise installation
 * Self-service dedicated-environment provisioning
+* Client-managed code forks
+* Separate dedicated-cloud codebase
 * Custom report builder
 * Direct raw USB printer communication
 * Direct LAN printer-protocol integration
 * Silent printing
 * Printer-driver installation
 * Cash-drawer integration
-* Full accounting net profit, balance sheet, trial balance, or general-ledger profit
+
+Architecture compatibility with a future feature must not be described as Release 1 implementation.
 
 See [RELEASE_1_SCOPE.md](RELEASE_1_SCOPE.md) for the binding exclusion boundary and [PROJECT_DECISIONS.md](PROJECT_DECISIONS.md) for the deferred list.
 
@@ -87,7 +101,7 @@ See [RELEASE_1_SCOPE.md](RELEASE_1_SCOPE.md) for the binding exclusion boundary 
 * **Growing dealer or wholesaler** — typically Business plan usage with expanded operational needs
 * **Multi-branch agricultural business** — multiple branches and warehouses under one organization
 * **Distributor or enterprise customer** — higher-volume operations and stronger entitlement needs
-* **Dedicated-cloud customer** — Enterprise option for dedicated-cloud deployment from the same codebase
+* **Provider-managed dedicated-cloud customer** — Enterprise option for dedicated-cloud deployment from the same codebase
 
 Subscription plans remain Starter, Business, and Enterprise as recorded in [PROJECT_DECISIONS.md](PROJECT_DECISIONS.md). This PRD does not create new plans.
 
@@ -106,11 +120,19 @@ Additional role rules:
 * Roles are predefined permission bundles.
 * Backend authorization is permission-based.
 * Direct role-name authorization checks are prohibited except for documented platform-scope boundaries, such as Super Admin-only operations.
-* Branch and warehouse access restrictions must also be enforced by the backend.
-* Frontend route or UI hiding is not sufficient authorization.
-* Owners manage employees only within their organization.
-* Employees may have access to one or multiple branches or warehouses.
-* Exact permission assignments will be finalized before authorization implementation.
+* Branch access must be enforced by the backend.
+* Warehouse access must be enforced by the backend.
+* Frontend route protection and hidden UI controls are not sufficient authorization.
+* Owners can manage employees only within their own organization.
+* Employees may be assigned to one or multiple branches or warehouses.
+* Every active organization must have at least one active Owner.
+
+The following Owner-policy details remain unresolved and must not be implied by requirements:
+
+* Whether multiple Owners are allowed
+* Maximum number of Owners
+* Who may add or remove another Owner
+* How the final Owner may be replaced or removed
 
 A complete permission matrix is out of scope for this document.
 
@@ -125,8 +147,9 @@ The following concepts are summarized here and defined authoritatively by [PROJE
 | Warehouse | Stock storage location; Release 1 starts with one and supports multiple |
 | Product | Sellable or stocked item with configurable category, units, pricing, and tracking mode |
 | Product category | Configurable grouping for products |
-| Unit | Measure used for stock and sales quantities |
-| Unit conversion | Automatic conversion between units; conversion values used in transactions are historically preserved |
+| Base unit | Unit in which inventory quantities are stored |
+| Packaging unit | Product-specific sellable or purchase packaging with a conversion factor to the base unit |
+| Unit conversion | Automatic conversion between packaging and base units; conversion values used in transactions are historically preserved |
 | Batch | Distinct stock lot; mandatory for fertilizers, seeds, pesticides, and chemicals; remains separate for loose stock |
 | Expiry | Optional batch attribute; FEFO applies where expiry is used |
 | Customer | Buyer record; may be walk-in or registered |
@@ -135,43 +158,73 @@ The following concepts are summarized here and defined authoritatively by [PROJE
 | Supplier | Vendor from whom purchases are made |
 | Sale | Customer transaction supporting cash, credit, partial, and mixed payments |
 | Purchase | Supplier transaction that creates stock movements and updates payable |
+| Return | Sales or purchase return that adjusts stock, valuation, and ledger effects |
 | Stock movement | Traceable record for every stock change |
+| Warehouse transfer | Movement of stock between warehouses with preserved product and batch identity |
 | Receivable | Customer amount owed, tracked through ledger activity |
 | Payable | Supplier amount owed, tracked through ledger activity |
 | Payment allocation | Invoice-specific or general; general customer payments allocate to oldest unpaid invoices |
+| Customer advance | Unallocated customer payment remainder held as advance |
+| Supplier advance | Unallocated supplier payment remainder held as advance |
 | Account | Cash, bank, JazzCash, or Easypaisa account used for money movement |
 | Expense | Organization operating expense recorded against accounts |
 | Subscription | Starter, Business, or Enterprise plan controlling entitlements and access |
+| Audit event | Record of actor, timestamp, and reason where applicable for sensitive actions |
+| Corrective transaction | Auditable cancellation or reversal that preserves the original posted transaction |
+| Opening balance | Auditable initial receivable, payable, account, or stock balance |
 
 ## 9. Primary User Workflows
 
 Each workflow describes the expected business outcome. UI screens and API routes are not defined here.
 
 1. **Organization approval and Owner onboarding** — Super Admin creates or approves an organization; Owner gains access to that organization only.
-2. **Owner creates organization employees** — Owner creates employees and assigns roles and branch or warehouse access within the organization.
-3. **Initial branch and warehouse setup** — Organization configures at least one branch and one warehouse, with architecture support for more warehouses.
-4. **Product, category, unit, and price setup** — Organization configures categories, products, units, conversions, tracking modes, and price tiers.
+2. **Owner creates employees** — Owner creates employees and assigns roles and branch or warehouse access within the organization.
+3. **Branch and warehouse setup** — Organization configures at least one branch and one warehouse, with architecture support for more warehouses.
+4. **Product, category, unit, conversion, and pricing setup** — Organization configures categories, products, base units, packaging units, conversions, tracking modes, and price tiers.
 5. **Customer and supplier setup** — Organization creates customers and suppliers with required type, tier, and credit policy fields.
-6. **Opening stock entry** — Organization records opening stock with batch and expiry data where applicable and creates stock movements.
-7. **Purchase with batch, expiry, landed cost, and supplier payable** — Purchase posts stock, preserves conversion and batch data, includes applicable landed costs in average cost, and updates supplier payable.
-8. **Cash sale** — Authorized user completes a fully paid cash sale and stock is reduced with traceable movements.
-9. **Credit or partial-payment sale** — Authorized user completes a credit, partial, or mixed-payment sale according to organization credit policy.
-10. **Loose quantity sale using unit conversion** — Sale uses automatic unit conversion while preserving conversion values historically.
-11. **Customer payment against a selected invoice** — Payment is applied to a specific customer invoice.
-12. **General customer payment allocated to oldest invoices** — General payment allocates automatically to oldest unpaid invoices; remainder may remain as customer advance.
-13. **Supplier payment** — Organization records invoice-specific or general supplier payment and updates payable.
-14. **Sales return** — Return against an original invoice reverses or adjusts stock and financial effects with auditability.
-15. **Return without invoice** — Return without original invoice requires lookup, approval, and audit.
-16. **Purchase return** — Purchase return updates stock, supplier payable, and valuation.
-17. **Warehouse stock transfer** — Stock moves between warehouses with traceable movements and preserved batch identity.
-18. **Stock adjustment** — Authorized adjustment records damaged, expired, lost, or corrected stock with reason and audit.
-19. **Expired-product sale approval** — Expired-product sale requires Manager or Owner approval, warning, reason, and audit entry.
-20. **Negative-stock Owner override** — Negative stock remains blocked by default; Owner override requires reason and audit entry.
-21. **Expense and account transaction entry** — Organization records expenses and account inflows, outflows, and transfers.
-22. **Invoice and receipt printing** — User prints supported formats through browser-based printing.
-23. **Dashboard and report viewing** — Authorized users view operational dashboard metrics and reconciliable reports.
-24. **Excel data import** — Import uses templates, preview validation, and rejects silent acceptance of invalid rows.
-25. **Subscription activation, expiry, grace period, and reactivation** — Organization proceeds through approved trial, active subscription, configured grace period, suspension, and reactivation without deleting existing data for plan-limit excess.
+6. **Customer opening receivable or advance** — Organization records an auditable customer opening receivable or opening advance.
+7. **Supplier opening payable or advance** — Organization records an auditable supplier opening payable or opening advance.
+8. **Cash, bank, JazzCash, and Easypaisa opening balances** — Organization records auditable opening balances for cash and digital accounts.
+9. **Opening stock entry** — Organization records opening stock with batch and expiry data where applicable through an auditable opening-stock transaction.
+10. **Purchase with supplier, warehouse, batch, expiry, and landed cost** — Purchase posts stock to the receiving warehouse, preserves conversion and batch data, includes applicable landed costs in average cost, and updates supplier payable.
+11. **Full or partial purchase payment** — Purchase payment updates the selected cash, bank, JazzCash, or Easypaisa account and reduces payable.
+12. **Cash sale** — Authorized user completes a fully paid cash sale and stock is reduced with traceable movements.
+13. **Credit sale** — Authorized user completes a credit sale according to organization credit policy and creates receivable.
+14. **Partial-payment sale** — Authorized user completes a partially paid sale with receivable for the unpaid amount.
+15. **Mixed-payment sale** — Authorized user allocates one sale across multiple payment methods.
+16. **Loose-quantity sale using unit conversion** — Sale uses automatic unit conversion while preserving conversion values historically.
+17. **Customer invoice-specific payment** — Payment is applied to a specific customer invoice.
+18. **General customer payment allocated to oldest unpaid invoices** — General payment allocates automatically to oldest unpaid invoices; remainder may remain as customer advance.
+19. **Supplier invoice-specific payment** — Payment is applied to a specific supplier invoice.
+20. **General supplier payment** — Organization records a general supplier payment and updates payable.
+21. **Customer advance** — Unallocated customer payment remainder remains as customer advance.
+22. **Supplier advance** — Unallocated supplier payment remainder remains as supplier advance.
+23. **Sales return against invoice** — Return against an original invoice adjusts stock and financial effects within remaining returnable quantity.
+24. **Sales return without invoice** — Return without original invoice requires lookup, approval, reason, and audit.
+25. **Purchase return** — Purchase return updates stock, supplier payable, and valuation within remaining returnable quantity.
+26. **Sellable and unsellable return handling** — Returned stock is classified as sellable or unsellable; unsellable stock does not enter normal sellable inventory.
+27. **Warehouse stock transfer** — Stock moves between warehouses atomically with preserved product and batch identity and traceable outbound and inbound movements.
+28. **Stock adjustment** — Authorized adjustment records damaged, expired, lost, or corrected stock with reason and audit.
+29. **Expired-product sale approval** — Expired-product sale requires Manager or Owner approval, warning, reason, and audit entry.
+30. **Negative-stock Owner override** — Negative stock remains blocked by default; Owner override requires reason and audit entry.
+31. **Sales cancellation or reversal** — Posted sale is cancelled or reversed through an auditable corrective transaction that preserves the original invoice and atomically reverses related effects.
+32. **Purchase cancellation or reversal** — Posted purchase is cancelled or reversed through an auditable corrective transaction that preserves the original purchase and atomically reverses related effects.
+33. **Expense entry** — Organization records an expense against a selected account with auditability.
+34. **Account inflow** — Organization records an account inflow.
+35. **Account outflow** — Organization records an account outflow.
+36. **Account transfer** — Organization transfers funds between accounts.
+37. **Invoice and receipt printing** — User prints supported formats through the browser print dialog using OS-configured printers.
+38. **Dashboard and report viewing** — Authorized users view operational dashboard metrics and reconciliable reports.
+39. **PDF, Excel, and CSV report export** — Authorized users export applicable reports to PDF, Excel, and CSV where tabular export is appropriate.
+40. **Excel data import** — Import validates and previews rows for supported master and opening-balance data and rejects silent acceptance of invalid rows.
+41. **Subscription activation** — Organization activates an approved subscription plan with backend entitlements.
+42. **Subscription expiry** — Expired subscription enters the configured grace behaviour without deleting existing data.
+43. **Grace period** — Organization operates under the configured grace period after expiry.
+44. **Suspension** — Organization access is suspended according to subscription policy.
+45. **Reactivation** — Suspended subscription is reactivated without deleting existing data.
+46. **Backup failure monitoring** — Authorized platform operators can see backup failures.
+47. **Controlled data restore** — Authorized operators restore data under a documented procedure with verification before normal operation.
+48. **Audited corrective transaction** — Sensitive corrections are posted as auditable corrective transactions rather than permanent deletions.
 
 ## 10. Functional Requirements
 
@@ -184,9 +237,6 @@ Requirements are individually numbered, testable, implementation-neutral, and sc
 - **FR-PLATFORM-004:** The system shall prevent one organization from reading, creating, updating, or deleting another organization's data.
 - **FR-PLATFORM-005:** The system shall provide a public landing page describing the product and supported access paths.
 - **FR-PLATFORM-006:** The system shall support onboarding of the initial two clients and additional organizations without client-specific code forks.
-- **FR-PLATFORM-007:** The system shall exclude self-service dedicated-environment provisioning from Release 1.
-- **FR-PLATFORM-008:** The system shall exclude self-service on-premise installation from Release 1.
-- **FR-PLATFORM-009:** The system shall exclude client-managed code forks and a separate dedicated-deployment product codebase from Release 1.
 
 ### Authentication and Authorization
 
@@ -198,12 +248,14 @@ Requirements are individually numbered, testable, implementation-neutral, and sc
 - **FR-AUTH-006:** The system shall enforce branch and warehouse access restrictions on the backend.
 - **FR-AUTH-007:** The system shall not treat frontend route or UI hiding as sufficient authorization.
 - **FR-AUTH-008:** The system shall prohibit direct role-name authorization checks except for documented platform-scope boundaries, such as Super Admin-only operations.
+- **FR-AUTH-009:** The system shall support session expiration for authenticated sessions.
+- **FR-AUTH-010:** The system shall support session invalidation for authenticated sessions.
 
 ### Organization Management
 
 - **FR-ORG-001:** The system shall allow Super Admin to create an organization.
 - **FR-ORG-002:** The system shall allow Super Admin to approve public organization activation requests.
-- **FR-ORG-003:** The system shall require every active organization to have at least one active Owner; additional Owners may be supported according to the finalized permission policy, while the exact maximum number of Owners and Owner-management policy remain unresolved until the permission matrix is defined.
+- **FR-ORG-003:** The system shall require every active organization to have at least one active Owner.
 - **FR-ORG-004:** The system shall prevent an Owner from accessing another organization.
 - **FR-ORG-005:** The system shall allow organization settings required for Release 1 operations to be managed by authorized users.
 
@@ -232,6 +284,12 @@ Requirements are individually numbered, testable, implementation-neutral, and sc
 - **FR-WAREHOUSE-001:** The system shall allow an organization to operate with one warehouse at start.
 - **FR-WAREHOUSE-002:** The system shall support multiple warehouses within an organization.
 - **FR-WAREHOUSE-003:** The system shall allow authorized warehouse stock transfers between warehouses.
+- **FR-WAREHOUSE-004:** The system shall preserve product identity during warehouse stock transfers.
+- **FR-WAREHOUSE-005:** The system shall preserve batch identity during warehouse stock transfers.
+- **FR-WAREHOUSE-006:** The system shall create a traceable outbound stock movement for a warehouse transfer.
+- **FR-WAREHOUSE-007:** The system shall create a traceable inbound stock movement for a warehouse transfer.
+- **FR-WAREHOUSE-008:** The system shall post warehouse transfers atomically.
+- **FR-WAREHOUSE-009:** A failed warehouse transfer shall not leave one-sided stock effects.
 
 ### Users, Roles, and Permissions
 
@@ -264,8 +322,16 @@ Requirements are individually numbered, testable, implementation-neutral, and sc
 - **FR-CUSTOMER-003:** The system shall control walk-in credit by organization policy and permission.
 - **FR-CUSTOMER-004:** The system shall disallow anonymous walk-in credit.
 - **FR-CUSTOMER-005:** The system shall maintain a customer ledger of receivable activity.
+- **FR-CUSTOMER-006:** The system shall support customer opening receivable balances.
+- **FR-CUSTOMER-007:** The system shall support customer opening advances.
+- **FR-CUSTOMER-008:** The system shall create an auditable source transaction for each customer opening receivable or opening advance.
+- **FR-CUSTOMER-009:** The system shall not allow silent mutable initialization of customer balances without an auditable source transaction.
 - **FR-SUPPLIER-001:** The system shall allow creation and maintenance of supplier records.
 - **FR-SUPPLIER-002:** The system shall maintain a supplier ledger of payable activity.
+- **FR-SUPPLIER-003:** The system shall support supplier opening payable balances.
+- **FR-SUPPLIER-004:** The system shall support supplier opening advances.
+- **FR-SUPPLIER-005:** The system shall create an auditable source transaction for each supplier opening payable or opening advance.
+- **FR-SUPPLIER-006:** The system shall not allow unexplained mutable initialization of supplier payables without an auditable source transaction.
 
 ### Inventory and Batches
 
@@ -277,11 +343,14 @@ Requirements are individually numbered, testable, implementation-neutral, and sc
 - **FR-INVENTORY-006:** The system shall create a traceable stock movement for every stock change.
 - **FR-INVENTORY-007:** The system shall maintain weighted-average inventory cost by product and warehouse.
 - **FR-INVENTORY-008:** The system shall include freight, loading, transport, and applicable landed costs in average cost.
-- **FR-INVENTORY-009:** The system shall support stock adjustments for damaged, expired, and lost stock with reason and audit.
+- **FR-INVENTORY-009:** The system shall support stock adjustments for damage, expiry, loss, and correction with reason and audit.
 - **FR-INVENTORY-010:** The system shall block negative stock by default.
 - **FR-INVENTORY-011:** The system shall allow Owner override of negative stock only with a mandatory reason and audit entry.
 - **FR-INVENTORY-012:** The system shall provide stock valuation based on maintained weighted-average cost.
 - **FR-INVENTORY-013:** The system shall support expiry alerts at 30, 60, 90, and custom days.
+- **FR-INVENTORY-014:** The system shall preserve batch identity for tracked products.
+- **FR-INVENTORY-015:** The system shall store expiry data for products whose tracking mode requires expiry.
+- **FR-INVENTORY-016:** The system shall create an auditable opening-stock transaction for opening stock entry.
 
 ### Purchases
 
@@ -301,6 +370,11 @@ Requirements are individually numbered, testable, implementation-neutral, and sc
 - **FR-PURCHASE-014:** The system shall allocate landed costs into inventory cost according to the finalized business rules.
 - **FR-PURCHASE-015:** The system shall update the selected cash, bank, JazzCash, or Easypaisa account when full or partial purchase payments are posted.
 - **FR-PURCHASE-016:** A failed purchase posting operation shall not leave partial purchase, stock, payable, or account records.
+- **FR-PURCHASE-017:** The system shall not permanently delete posted purchases.
+- **FR-PURCHASE-018:** The system shall support auditable purchase cancellation or reversal.
+- **FR-PURCHASE-019:** The system shall preserve the original purchase when a cancellation or reversal is posted.
+- **FR-PURCHASE-020:** The system shall atomically reverse stock, batch, supplier payable, payment, account, valuation, and audit effects for a purchase cancellation or reversal.
+- **FR-PURCHASE-021:** A failed purchase cancellation or reversal shall not leave partial corrective effects.
 
 ### Sales
 
@@ -313,7 +387,7 @@ Requirements are individually numbered, testable, implementation-neutral, and sc
 - **FR-SALE-007:** The system shall generate branch-wise invoice numbers for sales invoices.
 - **FR-SALE-008:** The system shall require the user to select a branch and a permitted warehouse where applicable for a sale.
 - **FR-SALE-009:** The system shall allocate sale products from valid batches.
-- **FR-SALE-010:** The system shall suggest FEFO allocation for products with expiry tracking.
+- **FR-SALE-010:** The system shall allocate stock using FEFO when the product uses expiry tracking.
 - **FR-SALE-011:** The system shall use FIFO allocation where expiry does not apply.
 - **FR-SALE-012:** The system shall validate available stock before posting a sale.
 - **FR-SALE-013:** The system shall keep negative stock blocked unless an authorized Owner override is completed.
@@ -324,6 +398,11 @@ Requirements are individually numbered, testable, implementation-neutral, and sc
 - **FR-SALE-018:** The system shall preserve customer payment allocations for posted sales.
 - **FR-SALE-019:** The system shall post sale invoice, stock, batch-allocation, receivable, payment, account, sequence, and audit effects atomically.
 - **FR-SALE-020:** A failed sale posting operation shall not leave partial sale or stock effects.
+- **FR-SALE-021:** The system shall not permanently delete posted sales.
+- **FR-SALE-022:** The system shall support auditable sale cancellation or reversal.
+- **FR-SALE-023:** The system shall preserve the original sales invoice when a cancellation or reversal is posted.
+- **FR-SALE-024:** The system shall post sale cancellation or reversal as an atomic corrective transaction.
+- **FR-SALE-025:** A failed sale cancellation or reversal shall not leave partial corrective effects.
 
 ### Returns
 
@@ -332,6 +411,23 @@ Requirements are individually numbered, testable, implementation-neutral, and sc
 - **FR-RETURN-003:** The system shall allow purchase returns that update stock, supplier payable, and valuation.
 - **FR-RETURN-004:** The system shall record approval and audit information for returns that require them.
 - **FR-RETURN-005:** The system shall apply the corresponding financial and stock effects when a return is posted.
+- **FR-RETURN-006:** The system shall require a return reason for posted returns.
+- **FR-RETURN-007:** The system shall prevent a return quantity from exceeding the remaining returnable quantity.
+- **FR-RETURN-008:** The system shall prevent a sales return quantity from exceeding the original sold quantity minus previous returns for the same source.
+- **FR-RETURN-009:** The system shall prevent a purchase return quantity from exceeding the original purchased quantity minus previous returns for the same source.
+- **FR-RETURN-010:** The system shall restore the original batch for returned stock where the original batch is identifiable.
+- **FR-RETURN-011:** The system shall support classification of returned stock as sellable.
+- **FR-RETURN-012:** The system shall support classification of returned stock as unsellable.
+- **FR-RETURN-013:** The system shall support handling of expired returned stock.
+- **FR-RETURN-014:** The system shall support handling of damaged returned stock.
+- **FR-RETURN-015:** The system shall support handling of opened or contaminated returned stock.
+- **FR-RETURN-016:** The system shall prevent unsellable returned stock from entering normal sellable inventory.
+- **FR-RETURN-017:** The system shall support return resolution by cash refund.
+- **FR-RETURN-018:** The system shall support return resolution by refund through the relevant bank or digital account.
+- **FR-RETURN-019:** The system shall support return resolution by customer or supplier ledger adjustment.
+- **FR-RETURN-022:** The system shall apply stock, batch, valuation, ledger, refund, account, and audit effects when a return is posted.
+- **FR-RETURN-023:** The system shall post returns atomically.
+- **FR-RETURN-024:** A failed return posting shall not leave partial stock, batch, ledger, valuation, payment, account, or audit effects.
 
 ### Payments and Ledgers
 
@@ -342,6 +438,9 @@ Requirements are individually numbered, testable, implementation-neutral, and sc
 - **FR-PAYMENT-005:** The system shall support invoice-specific supplier payments.
 - **FR-PAYMENT-006:** The system shall support general supplier payments.
 - **FR-PAYMENT-007:** The system shall update customer receivable and supplier payable ledgers according to posted payment activity.
+- **FR-PAYMENT-008:** The system shall support supplier advances for unallocated supplier payment remainder.
+- **FR-PAYMENT-009:** The system shall preserve payment allocations for posted payments.
+- **FR-PAYMENT-010:** The system shall support auditable payment correction.
 
 ### Accounts
 
@@ -352,11 +451,18 @@ Requirements are individually numbered, testable, implementation-neutral, and sc
 - **FR-ACCOUNT-005:** The system shall record account inflows.
 - **FR-ACCOUNT-006:** The system shall record account outflows.
 - **FR-ACCOUNT-007:** The system shall support transfers between accounts.
+- **FR-ACCOUNT-008:** The system shall support opening balances for cash, bank, JazzCash, and Easypaisa accounts.
+- **FR-ACCOUNT-009:** The system shall create an auditable account-opening transaction for each account opening balance.
+- **FR-ACCOUNT-010:** The system shall support account refunds linked to source transactions.
+- **FR-ACCOUNT-011:** The system shall support account reversals linked to corrective transactions.
+- **FR-ACCOUNT-012:** The system shall support reconciliation of account balances to source transactions.
 
 ### Expenses
 
 - **FR-EXPENSE-001:** The system shall support expense categories.
-- **FR-EXPENSE-002:** The system shall allow authorized users to record expenses against accounts.
+- **FR-EXPENSE-002:** The system shall allow authorized users to record expenses against a selected account.
+- **FR-EXPENSE-003:** The system shall allow authorized expense correction.
+- **FR-EXPENSE-004:** The system shall retain auditability for expense recording and correction.
 
 ### Alerts and Notifications
 
@@ -367,14 +473,17 @@ Requirements are individually numbered, testable, implementation-neutral, and sc
 - **FR-ALERT-005:** The system shall support customer-dues alerts.
 - **FR-ALERT-006:** The system shall support supplier-dues alerts.
 - **FR-ALERT-007:** The system shall deliver Release 1 alerts inside the authenticated web application through dashboard alerts and a notification center.
-- **FR-ALERT-008:** The system shall exclude SMS, WhatsApp, email automation, and browser push notifications from Release 1 alert delivery unless separately approved through scope change.
+- **FR-ALERT-009:** The system shall support a configurable low-stock threshold by applicable product and warehouse.
+- **FR-ALERT-010:** The system shall support a configurable dead-stock inactivity period.
+- **FR-ALERT-011:** The system shall calculate alert values from authoritative inventory and sales data.
+- **FR-ALERT-012:** The system shall not silently hardcode the dead-stock inactivity period.
 
 ### Dashboard, Reports, and Exports
 
-- **FR-REPORT-001:** The system shall provide authorized users a Release 1 dashboard with minimum access to today's sales, today's purchases, today's expenses, gross profit, cash balances, bank and digital-wallet balances, customer receivables, supplier payables, low-stock count, upcoming-expiry count, expired-stock count, dead-stock summary, recent sales, and top-selling products, without prescribing visual layout.
+- **FR-REPORT-001:** The system shall provide authorized users a Release 1 dashboard with minimum access to today's sales, today's purchases, today's expenses, gross profit, cash balances, bank balances, JazzCash balance, Easypaisa balance, customer receivables, supplier payables, low-stock count, upcoming-expiry count, expired-stock count, dead-stock summary, recent sales, and top-selling products, without prescribing visual layout.
 - **FR-REPORT-002:** The system shall provide a daily sales report.
 - **FR-REPORT-003:** The system shall provide a daily purchase report.
-- **FR-REPORT-004:** The system shall provide a gross-profit report calculated as net sales revenue minus weighted-average cost of goods sold, accounting for product and invoice discounts, sales returns, reversed or cancelled sales, and weighted-average cost by product and warehouse; Release 1 shall not provide full accounting net profit, balance sheet, trial balance, or general-ledger profit.
+- **FR-REPORT-004:** The system shall provide a gross-profit report calculated from net posted sales revenue minus weighted-average cost of goods sold, accounting for approved price adjustments, sales returns, cancelled sales, reversed sales, and weighted-average cost by product and warehouse.
 - **FR-REPORT-005:** The system shall provide a stock report.
 - **FR-REPORT-006:** The system shall provide a stock valuation report.
 - **FR-REPORT-007:** The system shall provide a stock movement report.
@@ -404,11 +513,6 @@ Requirements are individually numbered, testable, implementation-neutral, and sc
 - **FR-PRINT-003:** The system shall generate A4 layouts.
 - **FR-PRINT-004:** The system shall perform printing through the browser print dialog.
 - **FR-PRINT-005:** The system shall support USB and LAN printers only when those printers are already installed and configured in the user's operating system and available to the browser.
-- **FR-PRINT-006:** The system shall exclude direct raw USB communication from Release 1.
-- **FR-PRINT-007:** The system shall exclude direct LAN printer-protocol integration from Release 1.
-- **FR-PRINT-008:** The system shall exclude silent printing from Release 1.
-- **FR-PRINT-009:** The system shall exclude printer-driver installation from Release 1.
-- **FR-PRINT-010:** The system shall exclude cash-drawer integration from Release 1.
 
 ### Import and Migration
 
@@ -416,6 +520,28 @@ Requirements are individually numbered, testable, implementation-neutral, and sc
 - **FR-IMPORT-002:** The system shall support Excel import using defined templates.
 - **FR-IMPORT-003:** The system shall show import validation errors before final import.
 - **FR-IMPORT-004:** The system shall not silently ignore invalid import rows.
+- **FR-IMPORT-005:** The system shall support Excel import of product categories.
+- **FR-IMPORT-006:** The system shall support Excel import of products.
+- **FR-IMPORT-007:** The system shall support Excel import of product prices.
+- **FR-IMPORT-008:** The system shall support Excel import of customers.
+- **FR-IMPORT-009:** The system shall support Excel import of suppliers.
+- **FR-IMPORT-010:** The system shall support Excel import of customer opening receivables.
+- **FR-IMPORT-011:** The system shall support Excel import of customer opening advances.
+- **FR-IMPORT-012:** The system shall support Excel import of supplier opening payables.
+- **FR-IMPORT-013:** The system shall support Excel import of supplier opening advances.
+- **FR-IMPORT-014:** The system shall support Excel import of cash opening balances.
+- **FR-IMPORT-015:** The system shall support Excel import of bank opening balances.
+- **FR-IMPORT-016:** The system shall support Excel import of JazzCash opening balances.
+- **FR-IMPORT-017:** The system shall support Excel import of Easypaisa opening balances.
+- **FR-IMPORT-018:** The system shall support Excel import of opening stock.
+- **FR-IMPORT-019:** The system shall validate import data before posting.
+- **FR-IMPORT-020:** The system shall show a preview validation of import data before posting.
+- **FR-IMPORT-021:** The system shall identify the invalid row for each failed import validation.
+- **FR-IMPORT-022:** The system shall identify the invalid field for each failed import validation.
+- **FR-IMPORT-023:** The system shall require batch information on opening-stock import when product tracking mode requires batch tracking.
+- **FR-IMPORT-024:** The system shall require expiry information on opening-stock import when product tracking mode requires expiry tracking.
+- **FR-IMPORT-025:** The system shall create auditable source transactions for imported opening balances and opening stock.
+- **FR-IMPORT-026:** The system shall avoid partially posted imports after an unrecoverable import failure.
 
 ### Audit
 
@@ -424,6 +550,11 @@ Requirements are individually numbered, testable, implementation-neutral, and sc
 - **FR-AUDIT-003:** The system shall audit permission-sensitive overrides with actor, timestamp, and reason where applicable.
 - **FR-AUDIT-004:** The system shall audit subscription changes with actor and timestamp.
 - **FR-AUDIT-005:** The system shall retain audit entries required to reconstruct sensitive operational actions.
+- **FR-AUDIT-006:** The system shall audit opening-balance transactions.
+- **FR-AUDIT-007:** The system shall audit stock adjustments.
+- **FR-AUDIT-008:** The system shall audit returns.
+- **FR-AUDIT-009:** The system shall audit cancellations.
+- **FR-AUDIT-010:** The system shall audit reversals.
 
 ### Settings, Backup, and Restore
 
@@ -441,23 +572,24 @@ The functional requirements above cover the following Release 1 areas:
 
 | Coverage area | Requirement IDs |
 | --- | --- |
-| Platform and tenancy | FR-PLATFORM-002 to FR-PLATFORM-009 |
-| Authentication and authorization | FR-AUTH-001 to FR-AUTH-008 |
+| Platform and tenancy | FR-PLATFORM-002 to FR-PLATFORM-006 |
+| Authentication and authorization | FR-AUTH-001 to FR-AUTH-010 |
 | Organization management | FR-ORG-001 to FR-ORG-005 |
 | Subscriptions | FR-SUB-001 to FR-SUB-015 |
-| Branches and warehouses | FR-BRANCH-001 to FR-BRANCH-002; FR-WAREHOUSE-001 to FR-WAREHOUSE-003 |
+| Branches and warehouses | FR-BRANCH-001 to FR-BRANCH-002; FR-WAREHOUSE-001 to FR-WAREHOUSE-009 |
 | Users, roles, and permissions | FR-USER-001 to FR-USER-004 |
 | Products and pricing | FR-PRODUCT-001 to FR-PRODUCT-014 |
-| Customers and suppliers | FR-CUSTOMER-001 to FR-CUSTOMER-005; FR-SUPPLIER-001 to FR-SUPPLIER-002 |
-| Inventory and batches | FR-INVENTORY-001 to FR-INVENTORY-013 |
-| Purchases and suppliers | FR-PURCHASE-001 to FR-PURCHASE-016; FR-PAYMENT-005 to FR-PAYMENT-007 |
-| Sales and customers | FR-SALE-001 to FR-SALE-020; FR-PAYMENT-001 to FR-PAYMENT-004 |
-| Returns | FR-RETURN-001 to FR-RETURN-005 |
-| Accounts and expenses | FR-ACCOUNT-001 to FR-ACCOUNT-007; FR-EXPENSE-001 to FR-EXPENSE-002 |
-| Alerts | FR-ALERT-001 to FR-ALERT-008 |
-| Printing and import | FR-PRINT-001 to FR-PRINT-010; FR-IMPORT-001 to FR-IMPORT-004 |
+| Customers and suppliers | FR-CUSTOMER-001 to FR-CUSTOMER-009; FR-SUPPLIER-001 to FR-SUPPLIER-006 |
+| Inventory and batches | FR-INVENTORY-001 to FR-INVENTORY-016 |
+| Purchases | FR-PURCHASE-001 to FR-PURCHASE-021 |
+| Sales | FR-SALE-001 to FR-SALE-025 |
+| Returns | FR-RETURN-001 to FR-RETURN-019; FR-RETURN-022 to FR-RETURN-024 |
+| Payments and ledgers | FR-PAYMENT-001 to FR-PAYMENT-010 |
+| Accounts and expenses | FR-ACCOUNT-001 to FR-ACCOUNT-012; FR-EXPENSE-001 to FR-EXPENSE-004 |
+| Alerts | FR-ALERT-001 to FR-ALERT-007; FR-ALERT-009 to FR-ALERT-012 |
+| Printing and import | FR-PRINT-001 to FR-PRINT-005; FR-IMPORT-001 to FR-IMPORT-026 |
 | Reports and dashboard | FR-REPORT-001 to FR-REPORT-025 |
-| Audit | FR-AUDIT-001 to FR-AUDIT-005 |
+| Audit | FR-AUDIT-001 to FR-AUDIT-010 |
 | Settings, backup, and restore | FR-SETTINGS-001 to FR-SETTINGS-007 |
 
 ## 12. Non-Functional Requirements
@@ -480,6 +612,9 @@ The functional requirements above cover the following Release 1 areas:
 - **NFR-DATA-004:** The system shall support reconciliation of stock, receivables, payables, and account balances to source transactions.
 - **NFR-DATA-005:** The system shall use stable precision rules for money and quantity values.
 - **NFR-DATA-006:** Gross profit shall derive from authoritative posted sales and weighted-average cost data.
+- **NFR-DATA-007:** The system shall not leave partial reversal effects.
+- **NFR-DATA-008:** The system shall not leave partial return effects.
+- **NFR-DATA-009:** The system shall not leave one-sided warehouse-transfer effects.
 
 ### Performance
 
@@ -500,6 +635,8 @@ The functional requirements above cover the following Release 1 areas:
 - **NFR-REL-001:** The system shall handle failures in a controlled manner without silent data corruption.
 - **NFR-REL-002:** The system shall prevent partial posting of multi-record financial or inventory workflows.
 - **NFR-REL-003:** The system shall apply idempotency controls where retries could duplicate financial effects.
+- **NFR-REL-004:** The system shall support recovery from recoverable operational failures.
+- **NFR-REL-005:** The system shall execute correction workflows atomically.
 
 ### Maintainability
 
@@ -508,7 +645,9 @@ The functional requirements above cover the following Release 1 areas:
 - **NFR-MAINT-003:** The backend shall keep controllers thin and place business logic in services.
 - **NFR-MAINT-004:** Shared code shall be introduced only where genuinely reusable.
 - **NFR-MAINT-005:** Development shall remain documentation-driven against authoritative project documents.
-- **NFR-MAINT-006:** Automated tests shall cover critical business invariants and permission boundaries.
+- **NFR-MAINT-006:** Automated tests shall cover critical business rules and permission boundaries.
+- **NFR-MAINT-007:** Complex reusable data access shall use repositories.
+- **NFR-MAINT-008:** Automated tests shall cover tenant-isolation boundaries.
 
 ### Usability
 
@@ -551,11 +690,17 @@ The following product-level invariants are mandatory:
 ```text
 Current warehouse stock must reconcile with valid posted stock movements.
 
-Customer receivable must reconcile with opening balance, posted credit sales, returns, allocated payments, advances, and credits.
+Customer receivable must reconcile with opening receivable or advance, posted credit sales, returns, allocated payments, advances, credits, cancellations, and reversals.
 
-Supplier payable must reconcile with opening payable, posted purchases, purchase returns, allocated payments, advances, and supplier credits.
+Supplier payable must reconcile with opening payable or advance, posted purchases, purchase returns, allocated payments, advances, supplier credits, cancellations, and reversals.
 
-Cash, bank, and digital-wallet balances must reconcile with opening balances, posted inflows, posted outflows, payments, refunds, and transfers.
+Cash, bank, JazzCash, and Easypaisa balances must reconcile with opening balances, posted inflows, posted outflows, payments, refunds, transfers, cancellations, and reversals.
+
+Warehouse transfers must not create or destroy total organization stock except through a separately authorized stock adjustment.
+
+Returns must not leave partial stock, batch, ledger, valuation, payment, account, or audit effects.
+
+Cancellations and reversals must not leave partial corrective effects.
 
 Gross profit must derive from authoritative posted sales and weighted-average cost data.
 
@@ -564,7 +709,7 @@ Posted financial and stock transactions must not be permanently deleted.
 Cross-organization access must never be permitted.
 ```
 
-Detailed equations and reversal rules remain for the future `BUSINESS_RULES.md`.
+Detailed formulas belong in the future `BUSINESS_RULES.md`.
 
 ## 14. Assumptions and Dependencies
 
@@ -573,15 +718,17 @@ Confirmed assumptions:
 * Cloud access is acceptable for Release 1.
 * Browser printing is acceptable for Release 1.
 * Initial billing is manually verified.
-* Initial language is English.
-* Initial business currency is PKR.
+* Release 1 language is English.
+* Release 1 currency is PKR.
 * Initial clients begin with one warehouse.
 * The provider manages hosting for the initial SaaS offering.
 * Client business data belongs to the client.
-* Product source code and platform intellectual property belong to the provider unless agreed otherwise.
-* Commercial defaults, including proposed annual discount and recoverable retention values, will be finalized in `SUBSCRIPTION_AND_BILLING.md` and are not hardcoded in core product requirements.
+* Product source code and platform intellectual property belong to the provider unless contractually agreed otherwise.
+* Commercial defaults belong in `SUBSCRIPTION_AND_BILLING.md`.
+* Detailed formulas belong in `BUSINESS_RULES.md`.
+* Detailed domain definitions belong in `DOMAIN_GLOSSARY.md`.
 
-No cloud provider, printer model, legal registration, or client data volume is invented here.
+Do not invent cloud provider, printer model, legal registration, client data volumes, browser versions, or performance timings here.
 
 ## 15. Controlled Unresolved Details
 
@@ -589,22 +736,43 @@ These details remain unresolved and must not reopen finalized product decisions:
 
 | Unresolved detail | Resolve before / in |
 | --- | --- |
-| Exact permission matrix | Authorization design and implementation tasks after business-rules documentation |
-| Maximum or allowed number of Owners and Owner-management policy | Permission-matrix definition before authorization implementation |
-| Final invoice fields and layouts | Printing and UI design tasks before print verification |
-| Exact report columns and filter combinations | Reporting specification task before report implementation |
-| Final branding, domain, and trademark verification | Branding and launch-preparation tasks |
-| Hosting provider and production topology | Architecture and deployment tasks |
-| Initial client migration volumes and data quality | Client onboarding and import-preparation tasks |
-| Exact commercial prices | `SUBSCRIPTION_AND_BILLING.md` and commercial packaging tasks before billing go-live |
-| Final support channels | Launch-operations planning |
-| Backup provider, frequency, and storage implementation | Deployment design and backup/operations tasks before production release |
-| Performance acceptance thresholds | Performance-baselines phase before production hardening |
-| Concurrent-user target | Performance-baselines phase before production hardening |
-| Import-volume acceptance target | Performance-baselines phase before production hardening |
-| Accessibility browser and screen-reader verification matrix | UI test planning before release verification |
-| Exact session-expiration policy | Security design before authentication implementation freeze |
-| Selected error-monitoring provider | Observability setup before launch |
+| Exact permission matrix | Before authorization implementation |
+| Multiple-Owner policy | Before authorization implementation |
+| Maximum number of Owners | Before authorization implementation |
+| Owner replacement/removal policy | Before authorization implementation |
+| Release 1 two-factor-authentication policy | Before authentication implementation freeze |
+| Exact session-expiration policy | Before authentication implementation freeze |
+| Final invoice fields and layouts | Before printing implementation |
+| Exact report columns | Before report implementation |
+| Exact report filter combinations | Before report implementation |
+| Final brand, domain, and trademark verification | Before launch |
+| Hosting provider and topology | Architecture and deployment tasks |
+| Dedicated-cloud topology | Architecture and deployment tasks |
+| Initial migration data volumes | Before import implementation |
+| Initial client data quality | Before migration execution |
+| Exact commercial prices | `SUBSCRIPTION_AND_BILLING.md` |
+| Commercial defaults | `SUBSCRIPTION_AND_BILLING.md` |
+| Final support channels | Before launch |
+| Backup provider | Deployment design |
+| Backup frequency | Deployment design |
+| Backup storage | Deployment design |
+| Backup retention implementation | Deployment design |
+| Performance acceptance thresholds | Before production hardening |
+| Concurrent-user target | Before production hardening |
+| Import-volume target | Before import performance testing |
+| Browser and OS support matrix | Before UI acceptance |
+| Viewport and device verification matrix | Before UI acceptance |
+| Accessibility browser/screen-reader matrix | Before accessibility verification |
+| Contrast standard | Before UI design-system freeze |
+| Error-monitoring provider | Before production launch |
+| Warehouse-transfer in-transit policy | `BUSINESS_RULES.md` |
+| Warehouse destination-acceptance policy | `BUSINESS_RULES.md` |
+| One-step versus two-step transfer | `BUSINESS_RULES.md` |
+| Detailed cancellation and reversal formulas | `BUSINESS_RULES.md` |
+| Detailed return formulas | `BUSINESS_RULES.md` |
+| Detailed gross-profit formula | `BUSINESS_RULES.md` |
+| Exact import spreadsheet columns | Import specification task |
+| Whether Release 1 supports separately recorded line-level or invoice-level discounts | `BUSINESS_RULES.md` before sales implementation |
 
 ## 16. Release Acceptance Summary
 
@@ -612,17 +780,30 @@ Release 1 must support this end-to-end workflow:
 
 ```text
 Organization activation
-→ initial setup
-→ product and opening stock
+→ organization setup
+→ branch and warehouse setup
+→ opening customer balances
+→ opening supplier balances
+→ opening account balances
+→ product setup
+→ opening stock
 → purchase
+→ partial purchase payment
 → sale
-→ partial payment
+→ mixed or partial sale payment
 → invoice printing
+→ customer payment
+→ supplier payment
+→ warehouse transfer
 → return
-→ customer and supplier ledger
+→ cancellation or reversal
+→ ledger reconciliation
 → stock valuation
+→ gross-profit report
 → report export
-→ audited correction
+→ backup verification
+→ controlled restore test
+→ audited corrective transaction
 ```
 
 Binding scope and completion criteria are defined in [RELEASE_1_SCOPE.md](RELEASE_1_SCOPE.md).

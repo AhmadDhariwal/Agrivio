@@ -2,16 +2,21 @@
 
 Central navigation for Agrivio documentation.
 
+## Current Status
+
+* P1-02 completed and frozen
+* Application implementation has not started
+* Next task: P1-03 — Business rules and domain glossary
+
 ## Existing Documents
 
 | Document | Purpose |
 | --- | --- |
 | [PROJECT_DECISIONS.md](PROJECT_DECISIONS.md) | Finalized product and technical decisions |
-| [PRD.md](PRD.md) | Product requirements |
-| [RELEASE_1_SCOPE.md](RELEASE_1_SCOPE.md) | Release 1 scope boundary |
+| [PRD.md](PRD.md) | Product requirements (Frozen for Release 1, v1.0) |
+| [RELEASE_1_SCOPE.md](RELEASE_1_SCOPE.md) | Release 1 scope boundary (Frozen for Release 1, v1.0) |
 | [tasks/P1-01.md](tasks/P1-01.md) | Phase 1 task: project documentation baseline |
-| [tasks/P1-02.md](tasks/P1-02.md) | Phase 1 task: product requirements and Release 1 scope |
-| [tasks/P1-02R.md](tasks/P1-02R.md) | Phase 1 review corrections for P1-02 before freeze |
+| [tasks/P1-02.md](tasks/P1-02.md) | Phase 1 task: product requirements and Release 1 scope (complete) |
 | [../README.md](../README.md) | Repository landing page |
 | [../AGENTS.md](../AGENTS.md) | Repository agent and contribution rules |
 
