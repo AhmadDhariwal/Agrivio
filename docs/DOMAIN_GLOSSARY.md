@@ -4,9 +4,9 @@ Authoritative definitions of Agrivio Release 1 business terms.
 
 | Field | Value |
 | --- | --- |
-| Document status | Draft for P1-03 review |
-| Current version | 0.1 |
-| Approval status | Not yet frozen |
+| Document status | Frozen for Release 1 |
+| Current version | 1.0 |
+| Approval status | Approved for Phase 1 continuation |
 | Last updated | 2026-08-04 |
 
 ## Authority

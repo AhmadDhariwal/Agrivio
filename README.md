@@ -6,20 +6,18 @@ Agrivio is a cloud-first Fertilizer POS and Inventory Management web application
 
 ## Current Status
 
-Current task: P1-03  
-Status: Business rules and domain glossary drafted for review  
-Next task: P1-04 — Architecture and repository structure  
-Application implementation: Not started
+Current task: P1-04 complete  
+Status: Architecture, module boundaries, and repository structure approved and frozen  
+Next task: P1-05 — Data, API, Security, and Subscription Design
 
-P1-01 and P1-02 are complete. P1-03 remains under review.
+P1-01 through P1-04 are complete.  
+P1-04 architecture documents are frozen at version 1.0.  
+Application implementation has not started.  
+No application folders or packages have been initialized.
 
 ## Current Phase
 
 Phase 1 — Requirements and Architecture Documentation
-
-## Next Task
-
-`P1-04` — Architecture and repository structure.
 
 ## Technology Stack
 
@@ -38,6 +36,17 @@ Phase 1 — Requirements and Architecture Documentation
 Start at [`docs/PROJECT_INDEX.md`](docs/PROJECT_INDEX.md).
 
 Authoritative finalized decisions are recorded in [`docs/PROJECT_DECISIONS.md`](docs/PROJECT_DECISIONS.md).
+
+Frozen business rules and glossary:
+
+* [`docs/BUSINESS_RULES.md`](docs/BUSINESS_RULES.md) — version 1.0
+* [`docs/DOMAIN_GLOSSARY.md`](docs/DOMAIN_GLOSSARY.md) — version 1.0
+
+Frozen architecture documents (P1-04, version 1.0):
+
+* [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+* [`docs/MODULE_BOUNDARIES.md`](docs/MODULE_BOUNDARIES.md)
+* [`docs/REPOSITORY_STRUCTURE.md`](docs/REPOSITORY_STRUCTURE.md)
 
 ## Contribution Guidance
 
