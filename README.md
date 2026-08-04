@@ -6,20 +6,19 @@ Agrivio is a cloud-first Fertilizer POS and Inventory Management web application
 
 ## Current Status
 
-Current task: P1-07 complete  
-Status: Toolchain and repository initialization specification approved and frozen  
-Next work item: R1-F00-001 — Monorepo workspace bootstrap
+Current task: R1-F00-001 complete  
+Status: Monorepo Nx/pnpm workspace bootstrapped at the existing repository root  
+Next work item: R1-F00-002 — Angular Web Application Scaffold
 
 P1-01 through P1-07 are complete.  
 All four P1-07 toolchain documents are frozen at version 1.0.1.  
-Documentation planning is complete.  
-Application implementation has not started.  
-No application folders or packages have been initialized.  
-F00 may now begin.
+F00 workspace bootstrap (`R1-F00-001`) is complete.  
+Root `package.json`, `pnpm-workspace.yaml`, `nx.json`, and `pnpm-lock.yaml` exist.  
+No application folders or shared packages have been generated yet.
 
 ## Current Phase
 
-Phase 1 documentation is complete. Release 1 implementation begins at F00.
+Release 1 implementation — Stage F00 Toolchain and Repository Bootstrap
 
 ## Technology Stack
 
@@ -81,4 +80,5 @@ Frozen toolchain and initialization documents (P1-07, version 1.0.1):
 3. Do not change finalized product decisions.
 4. Do not initialize frameworks, install packages, or create source-code folders until a work item explicitly requires it.
 5. Prefer linking to authoritative documents over duplicating rules.
-6. F00 starts with `R1-F00-001 — Monorepo workspace bootstrap` and must follow [`docs/REPOSITORY_INITIALIZATION.md`](docs/REPOSITORY_INITIALIZATION.md).
+6. Follow [`docs/REPOSITORY_INITIALIZATION.md`](docs/REPOSITORY_INITIALIZATION.md) for F00. Next scaffold work item is `R1-F00-002`.
+7. Implementation records live under `docs/tasks/` (for example [`docs/tasks/R1-F00-001.md`](docs/tasks/R1-F00-001.md)).
