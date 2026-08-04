@@ -6,12 +6,12 @@ Agrivio is a cloud-first Fertilizer POS and Inventory Management web application
 
 ## Current Status
 
-Current task: P1-05 complete  
-Status: Data, API, security, authorization, subscription, and billing design approved and frozen  
-Next task: P1-06 — Implementation Roadmap and Delivery Plan
+Current task: P1-06 complete  
+Status: Implementation roadmap, delivery plan, and quality gates approved and frozen  
+Next task: P1-07 — Toolchain and Repository Initialization Specification
 
-P1-01 through P1-05 are complete.  
-All four P1-05 technical-design documents are frozen at version 1.0.  
+P1-01 through P1-06 are complete.  
+All three P1-06 planning documents are frozen at version 1.0.  
 Application implementation has not started.  
 No application folders or packages have been initialized.
 
@@ -54,6 +54,12 @@ Frozen technical-design documents (P1-05, version 1.0):
 * [`docs/API_DESIGN.md`](docs/API_DESIGN.md)
 * [`docs/SECURITY_AUTHORIZATION.md`](docs/SECURITY_AUTHORIZATION.md)
 * [`docs/SUBSCRIPTION_AND_BILLING.md`](docs/SUBSCRIPTION_AND_BILLING.md)
+
+Frozen implementation planning documents (P1-06, version 1.0):
+
+* [`docs/IMPLEMENTATION_ROADMAP.md`](docs/IMPLEMENTATION_ROADMAP.md)
+* [`docs/DELIVERY_PLAN.md`](docs/DELIVERY_PLAN.md)
+* [`docs/QUALITY_GATES.md`](docs/QUALITY_GATES.md)
 
 ## Contribution Guidance
 

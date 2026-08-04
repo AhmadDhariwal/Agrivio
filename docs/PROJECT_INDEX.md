@@ -4,12 +4,12 @@ Central navigation for Agrivio documentation.
 
 ## Current Status
 
-* P1-01 through P1-05 are complete
+* P1-01 through P1-06 are complete
 * All four P1-05 technical-design documents are frozen at version 1.0
-* P1-06 is the current next task
+* All three P1-06 planning documents are frozen at version 1.0
 * Application implementation has not started
 * No application folders or packages have been initialized
-* Next task: P1-06 — Implementation Roadmap and Delivery Plan
+* Next task: P1-07 — Toolchain and Repository Initialization Specification
 
 ## Existing Documents
 
@@ -27,11 +27,15 @@ Central navigation for Agrivio documentation.
 | [API_DESIGN.md](API_DESIGN.md) | API conventions and endpoint inventory (Frozen for Release 1, v1.0) |
 | [SECURITY_AUTHORIZATION.md](SECURITY_AUTHORIZATION.md) | Authentication, sessions, permissions, security controls (Frozen for Release 1, v1.0) |
 | [SUBSCRIPTION_AND_BILLING.md](SUBSCRIPTION_AND_BILLING.md) | Subscription lifecycle and manual billing (Frozen for Release 1, v1.0) |
+| [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md) | Release 1 implementation stages and work-item catalog (Frozen for Release 1, v1.0; 10 stages; 109 work items) |
+| [DELIVERY_PLAN.md](DELIVERY_PLAN.md) | Delivery estimates, risks, pilot and rollout (Frozen for Release 1, v1.0) |
+| [QUALITY_GATES.md](QUALITY_GATES.md) | Per-item, per-stage, and release quality gates (Frozen for Release 1, v1.0) |
 | [tasks/P1-01.md](tasks/P1-01.md) | Phase 1 task: project documentation baseline |
 | [tasks/P1-02.md](tasks/P1-02.md) | Phase 1 task: product requirements and Release 1 scope |
 | [tasks/P1-03.md](tasks/P1-03.md) | Phase 1 task: business rules and domain glossary (complete and frozen) |
 | [tasks/P1-04.md](tasks/P1-04.md) | Phase 1 task: architecture and repository structure (complete and frozen) |
 | [tasks/P1-05.md](tasks/P1-05.md) | Phase 1 task: data, API, security, and subscription design (complete and frozen) |
+| [tasks/P1-06.md](tasks/P1-06.md) | Phase 1 task: implementation roadmap and delivery plan (complete and frozen) |
 | [../README.md](../README.md) | Repository landing page |
 | [../AGENTS.md](../AGENTS.md) | Repository agent and contribution rules |
 
@@ -63,5 +67,8 @@ These documents are not created yet. Paths below are reserved targets for later 
 * API design (Frozen for Release 1, v1.0): [API_DESIGN.md](API_DESIGN.md)
 * Security and authorization (Frozen for Release 1, v1.0): [SECURITY_AUTHORIZATION.md](SECURITY_AUTHORIZATION.md)
 * Subscription and billing (Frozen for Release 1, v1.0): [SUBSCRIPTION_AND_BILLING.md](SUBSCRIPTION_AND_BILLING.md)
+* Implementation roadmap (Frozen for Release 1, v1.0): [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md)
+* Delivery plan (Frozen for Release 1, v1.0): [DELIVERY_PLAN.md](DELIVERY_PLAN.md)
+* Quality gates (Frozen for Release 1, v1.0): [QUALITY_GATES.md](QUALITY_GATES.md)
 * Agent and scope rules: [../AGENTS.md](../AGENTS.md)
 * Do not duplicate finalized rules across documents; link here or to the authoritative document instead.
