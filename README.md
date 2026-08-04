@@ -6,18 +6,20 @@ Agrivio is a cloud-first Fertilizer POS and Inventory Management web application
 
 ## Current Status
 
-Current task: P1-06 complete  
-Status: Implementation roadmap, delivery plan, and quality gates approved and frozen  
-Next task: P1-07 — Toolchain and Repository Initialization Specification
+Current task: P1-07 complete  
+Status: Toolchain and repository initialization specification approved and frozen  
+Next work item: R1-F00-001 — Monorepo workspace bootstrap
 
-P1-01 through P1-06 are complete.  
-All three P1-06 planning documents are frozen at version 1.0.  
+P1-01 through P1-07 are complete.  
+All four P1-07 toolchain documents are frozen at version 1.0.1.  
+Documentation planning is complete.  
 Application implementation has not started.  
-No application folders or packages have been initialized.
+No application folders or packages have been initialized.  
+F00 may now begin.
 
 ## Current Phase
 
-Phase 1 — Requirements and Architecture Documentation
+Phase 1 documentation is complete. Release 1 implementation begins at F00.
 
 ## Technology Stack
 
@@ -27,9 +29,13 @@ Phase 1 — Requirements and Architecture Documentation
 | Backend | Node.js, Express and TypeScript |
 | Database | MongoDB with Mongoose |
 | Repository | Monorepo |
+| Package manager | pnpm |
+| Task orchestration | Nx |
 | Architecture | Modular monolith |
 | API | REST |
 | Styling | SCSS with a centralized design system |
+
+Exact versions: [`docs/TOOLCHAIN.md`](docs/TOOLCHAIN.md).
 
 ## Documentation
 
@@ -61,10 +67,18 @@ Frozen implementation planning documents (P1-06, version 1.0):
 * [`docs/DELIVERY_PLAN.md`](docs/DELIVERY_PLAN.md)
 * [`docs/QUALITY_GATES.md`](docs/QUALITY_GATES.md)
 
+Frozen toolchain and initialization documents (P1-07, version 1.0.1):
+
+* [`docs/TOOLCHAIN.md`](docs/TOOLCHAIN.md)
+* [`docs/REPOSITORY_INITIALIZATION.md`](docs/REPOSITORY_INITIALIZATION.md)
+* [`docs/DEVELOPMENT_WORKFLOW.md`](docs/DEVELOPMENT_WORKFLOW.md)
+* [`docs/TEST_STRATEGY.md`](docs/TEST_STRATEGY.md)
+
 ## Contribution Guidance
 
 1. Read `AGENTS.md` before making changes.
-2. Implement only the assigned task.
+2. Implement only the assigned task or roadmap work item.
 3. Do not change finalized product decisions.
-4. Do not initialize frameworks, install packages, or create source-code folders until a later task explicitly requires it.
+4. Do not initialize frameworks, install packages, or create source-code folders until a work item explicitly requires it.
 5. Prefer linking to authoritative documents over duplicating rules.
+6. F00 starts with `R1-F00-001 — Monorepo workspace bootstrap` and must follow [`docs/REPOSITORY_INITIALIZATION.md`](docs/REPOSITORY_INITIALIZATION.md).

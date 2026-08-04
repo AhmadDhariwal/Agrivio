@@ -4,12 +4,13 @@ Central navigation for Agrivio documentation.
 
 ## Current Status
 
-* P1-01 through P1-06 are complete
-* All four P1-05 technical-design documents are frozen at version 1.0
-* All three P1-06 planning documents are frozen at version 1.0
+* P1-01 through P1-07 are complete
+* All four P1-07 toolchain documents are frozen at version 1.0.1
+* Documentation planning is complete
 * Application implementation has not started
 * No application folders or packages have been initialized
-* Next task: P1-07 — Toolchain and Repository Initialization Specification
+* Next work item: R1-F00-001 — Monorepo workspace bootstrap
+* F00 may now begin
 
 ## Existing Documents
 
@@ -30,12 +31,17 @@ Central navigation for Agrivio documentation.
 | [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md) | Release 1 implementation stages and work-item catalog (Frozen for Release 1, v1.0; 10 stages; 109 work items) |
 | [DELIVERY_PLAN.md](DELIVERY_PLAN.md) | Delivery estimates, risks, pilot and rollout (Frozen for Release 1, v1.0) |
 | [QUALITY_GATES.md](QUALITY_GATES.md) | Per-item, per-stage, and release quality gates (Frozen for Release 1, v1.0) |
+| [TOOLCHAIN.md](TOOLCHAIN.md) | Exact Release 1 toolchain versions and policies (Frozen for Release 1, v1.0.1) |
+| [REPOSITORY_INITIALIZATION.md](REPOSITORY_INITIALIZATION.md) | F00 initialization order and bootstrap gates (Frozen for Release 1, v1.0.1) |
+| [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md) | Local commands, branching, PR, and agent workflow (Frozen for Release 1, v1.0.1) |
+| [TEST_STRATEGY.md](TEST_STRATEGY.md) | Test stack, locations, CI layers, and coverage policy (Frozen for Release 1, v1.0.1) |
 | [tasks/P1-01.md](tasks/P1-01.md) | Phase 1 task: project documentation baseline |
 | [tasks/P1-02.md](tasks/P1-02.md) | Phase 1 task: product requirements and Release 1 scope |
 | [tasks/P1-03.md](tasks/P1-03.md) | Phase 1 task: business rules and domain glossary (complete and frozen) |
 | [tasks/P1-04.md](tasks/P1-04.md) | Phase 1 task: architecture and repository structure (complete and frozen) |
 | [tasks/P1-05.md](tasks/P1-05.md) | Phase 1 task: data, API, security, and subscription design (complete and frozen) |
 | [tasks/P1-06.md](tasks/P1-06.md) | Phase 1 task: implementation roadmap and delivery plan (complete and frozen) |
+| [tasks/P1-07.md](tasks/P1-07.md) | Phase 1 task: toolchain and repository initialization specification (complete and frozen) |
 | [../README.md](../README.md) | Repository landing page |
 | [../AGENTS.md](../AGENTS.md) | Repository agent and contribution rules |
 
@@ -48,7 +54,6 @@ These documents are not created yet. Paths below are reserved targets for later 
 | `FRONTEND_ARCHITECTURE.md` | Frontend architecture detail beyond the architecture baseline |
 | `BACKEND_ARCHITECTURE.md` | Backend architecture detail beyond the architecture baseline |
 | `FILE_STRUCTURE.md` | Legacy reserved name; prefer `REPOSITORY_STRUCTURE.md` |
-| `TEST_STRATEGY.md` | Test strategy |
 | `DEFINITION_OF_DONE.md` | Definition of done |
 | `PHASES.md` | Delivery phases |
 | `TASK_CATALOG.md` | Task catalog |
@@ -70,5 +75,9 @@ These documents are not created yet. Paths below are reserved targets for later 
 * Implementation roadmap (Frozen for Release 1, v1.0): [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md)
 * Delivery plan (Frozen for Release 1, v1.0): [DELIVERY_PLAN.md](DELIVERY_PLAN.md)
 * Quality gates (Frozen for Release 1, v1.0): [QUALITY_GATES.md](QUALITY_GATES.md)
+* Toolchain (Frozen for Release 1, v1.0.1): [TOOLCHAIN.md](TOOLCHAIN.md)
+* Repository initialization (Frozen for Release 1, v1.0.1): [REPOSITORY_INITIALIZATION.md](REPOSITORY_INITIALIZATION.md)
+* Development workflow (Frozen for Release 1, v1.0.1): [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md)
+* Test strategy (Frozen for Release 1, v1.0.1): [TEST_STRATEGY.md](TEST_STRATEGY.md)
 * Agent and scope rules: [../AGENTS.md](../AGENTS.md)
 * Do not duplicate finalized rules across documents; link here or to the authoritative document instead.
