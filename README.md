@@ -6,12 +6,12 @@ Agrivio is a cloud-first Fertilizer POS and Inventory Management web application
 
 ## Current Status
 
-Current task: P1-04 complete  
-Status: Architecture, module boundaries, and repository structure approved and frozen  
-Next task: P1-05 — Data, API, Security, and Subscription Design
+Current task: P1-06 complete  
+Status: Implementation roadmap, delivery plan, and quality gates approved and frozen  
+Next task: P1-07 — Toolchain and Repository Initialization Specification
 
-P1-01 through P1-04 are complete.  
-P1-04 architecture documents are frozen at version 1.0.  
+P1-01 through P1-06 are complete.  
+All three P1-06 planning documents are frozen at version 1.0.  
 Application implementation has not started.  
 No application folders or packages have been initialized.
 
@@ -47,6 +47,19 @@ Frozen architecture documents (P1-04, version 1.0):
 * [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 * [`docs/MODULE_BOUNDARIES.md`](docs/MODULE_BOUNDARIES.md)
 * [`docs/REPOSITORY_STRUCTURE.md`](docs/REPOSITORY_STRUCTURE.md)
+
+Frozen technical-design documents (P1-05, version 1.0):
+
+* [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md)
+* [`docs/API_DESIGN.md`](docs/API_DESIGN.md)
+* [`docs/SECURITY_AUTHORIZATION.md`](docs/SECURITY_AUTHORIZATION.md)
+* [`docs/SUBSCRIPTION_AND_BILLING.md`](docs/SUBSCRIPTION_AND_BILLING.md)
+
+Frozen implementation planning documents (P1-06, version 1.0):
+
+* [`docs/IMPLEMENTATION_ROADMAP.md`](docs/IMPLEMENTATION_ROADMAP.md)
+* [`docs/DELIVERY_PLAN.md`](docs/DELIVERY_PLAN.md)
+* [`docs/QUALITY_GATES.md`](docs/QUALITY_GATES.md)
 
 ## Contribution Guidance
 
