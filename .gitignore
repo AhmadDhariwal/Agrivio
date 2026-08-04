@@ -1,0 +1,49 @@
+# Dependencies and package managers
+node_modules/
+.pnpm-store/
+package-lock.json
+yarn.lock
+bun.lock
+bun.lockb
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Builds and caches
+dist/
+tmp/
+out-tsc/
+.nx/cache/
+.nx/workspace-data/
+.angular/
+coverage/
+*.tsbuildinfo
+
+# Test and E2E artifacts
+test-results/
+playwright-report/
+playwright/.cache/
+blob-report/
+
+# Logs and OS
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+*.log
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+
+
+.nx/migrate-runs

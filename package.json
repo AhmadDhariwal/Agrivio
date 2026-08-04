@@ -1,0 +1,32 @@
+{
+  "name": "@agrivio/source",
+  "private": true,
+  "packageManager": "pnpm@11.17.0",
+  "engines": {
+    "node": ">=24.18.0 <25",
+    "pnpm": ">=11.17.0 <12"
+  },
+  "scripts": {
+    "nx": "nx"
+  },
+  "devDependencies": {
+    "@angular-devkit/core": "22.0.8",
+    "@angular-devkit/schematics": "22.0.8",
+    "@nx/angular": "23.1.0",
+    "@nx/devkit": "23.1.0",
+    "@nx/eslint": "23.1.0",
+    "@nx/eslint-plugin": "23.1.0",
+    "@nx/express": "23.1.0",
+    "@nx/js": "23.1.0",
+    "@nx/node": "23.1.0",
+    "@nx/playwright": "23.1.0",
+    "@nx/vitest": "23.1.0",
+    "@nx/web": "23.1.0",
+    "@nx/workspace": "23.1.0",
+    "@schematics/angular": "22.0.8",
+    "eslint": "10.7.0",
+    "nx": "23.1.0",
+    "rxjs": "7.8.2",
+    "typescript": "6.0.3"
+  }
+}

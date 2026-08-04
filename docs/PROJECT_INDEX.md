@@ -6,11 +6,10 @@ Central navigation for Agrivio documentation.
 
 * P1-01 through P1-07 are complete
 * All four P1-07 toolchain documents are frozen at version 1.0.1
-* Documentation planning is complete
-* Application implementation has not started
-* No application folders or packages have been initialized
-* Next work item: R1-F00-001 — Monorepo workspace bootstrap
-* F00 may now begin
+* R1-F00-001 monorepo workspace bootstrap is complete
+* Root Nx/pnpm workspace files and lockfile exist
+* No `apps/` or `packages/` projects have been generated yet
+* Next work item: R1-F00-002 — Angular Web Application Scaffold
 
 ## Existing Documents
 
@@ -42,6 +41,7 @@ Central navigation for Agrivio documentation.
 | [tasks/P1-05.md](tasks/P1-05.md) | Phase 1 task: data, API, security, and subscription design (complete and frozen) |
 | [tasks/P1-06.md](tasks/P1-06.md) | Phase 1 task: implementation roadmap and delivery plan (complete and frozen) |
 | [tasks/P1-07.md](tasks/P1-07.md) | Phase 1 task: toolchain and repository initialization specification (complete and frozen) |
+| [tasks/R1-F00-001.md](tasks/R1-F00-001.md) | F00 work item: monorepo workspace bootstrap (complete) |
 | [../README.md](../README.md) | Repository landing page |
 | [../AGENTS.md](../AGENTS.md) | Repository agent and contribution rules |
 

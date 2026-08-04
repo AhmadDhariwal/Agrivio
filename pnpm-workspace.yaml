@@ -1,0 +1,13 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+saveExact: true
+autoInstallPeers: false
+strictPeerDependencies: true
+
+allowBuilds:
+  nx: true
+  '@parcel/watcher': true
+  less: true
+  unrs-resolver: true
