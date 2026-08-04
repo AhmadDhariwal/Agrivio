@@ -6,16 +6,17 @@ Agrivio is a cloud-first Fertilizer POS and Inventory Management web application
 
 ## Current Status
 
-Current task: R1-F00-002 complete  
-Status: Angular `apps/web` scaffold generated and validated  
-Next work item: R1-F00-003 — Express TypeScript API Scaffold
+Current task: R1-F00-003 complete  
+Status: Express `apps/api` scaffold generated and validated  
+Next work item: R1-F00-004 — Shared Tooling and API Contracts Packages
 
 P1-01 through P1-07 are complete.  
 All four P1-07 toolchain documents are frozen at version 1.0.1.  
 F00 workspace bootstrap (`R1-F00-001`) is complete.  
 Angular web scaffold (`R1-F00-002`) is complete.  
-`apps/web` exists as an empty zoneless Angular application.  
-No API application or shared packages have been generated yet.
+Express API scaffold (`R1-F00-003`) is complete.  
+`apps/web` and `apps/api` exist as empty scaffolds.  
+No shared packages have been generated yet.
 
 ## Current Phase
 
@@ -81,5 +82,5 @@ Frozen toolchain and initialization documents (P1-07, version 1.0.1):
 3. Do not change finalized product decisions.
 4. Do not initialize frameworks, install packages, or create source-code folders until a work item explicitly requires it.
 5. Prefer linking to authoritative documents over duplicating rules.
-6. Follow [`docs/REPOSITORY_INITIALIZATION.md`](docs/REPOSITORY_INITIALIZATION.md) for F00. Next scaffold work item is `R1-F00-003`.
-7. Implementation records live under `docs/tasks/` (for example [`docs/tasks/R1-F00-002.md`](docs/tasks/R1-F00-002.md)).
+6. Follow [`docs/REPOSITORY_INITIALIZATION.md`](docs/REPOSITORY_INITIALIZATION.md) for F00. Next scaffold work item is `R1-F00-004`.
+7. Implementation records live under `docs/tasks/` (for example [`docs/tasks/R1-F00-003.md`](docs/tasks/R1-F00-003.md)).

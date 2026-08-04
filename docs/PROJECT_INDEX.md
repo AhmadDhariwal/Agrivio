@@ -8,8 +8,9 @@ Central navigation for Agrivio documentation.
 * All four P1-07 toolchain documents are frozen at version 1.0.1
 * R1-F00-001 monorepo workspace bootstrap is complete
 * R1-F00-002 Angular web application scaffold is complete
-* `apps/web` exists; no `apps/api` or `packages/` projects yet
-* Next work item: R1-F00-003 — Express TypeScript API Scaffold
+* R1-F00-003 Express TypeScript API scaffold is complete
+* `apps/web` and `apps/api` exist; no `packages/` projects yet
+* Next work item: R1-F00-004 — Shared Tooling and API Contracts Packages
 
 ## Existing Documents
 
@@ -43,6 +44,7 @@ Central navigation for Agrivio documentation.
 | [tasks/P1-07.md](tasks/P1-07.md) | Phase 1 task: toolchain and repository initialization specification (complete and frozen) |
 | [tasks/R1-F00-001.md](tasks/R1-F00-001.md) | F00 work item: monorepo workspace bootstrap (complete) |
 | [tasks/R1-F00-002.md](tasks/R1-F00-002.md) | F00 work item: Angular web application scaffold (complete) |
+| [tasks/R1-F00-003.md](tasks/R1-F00-003.md) | F00 work item: Express TypeScript API scaffold (complete) |
 | [../README.md](../README.md) | Repository landing page |
 | [../AGENTS.md](../AGENTS.md) | Repository agent and contribution rules |
 
