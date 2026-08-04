@@ -8,6 +8,8 @@ This document records decisions. It is not the PRD.
 
 | Decision | Value |
 | --- | --- |
+| Product name | Agrivio |
+| Product name status | Working name pending domain and trademark verification |
 | Product | Cloud-first Fertilizer POS and Inventory Management web application |
 | Target users | Fertilizer retailers; seed stores; pesticide and chemical dealers; agricultural-input wholesalers; dealers and distributors |
 | Initial clients | Two clients in the first release |
