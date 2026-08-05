@@ -6,17 +6,18 @@ Agrivio is a cloud-first Fertilizer POS and Inventory Management web application
 
 ## Current Status
 
-Current task: R1-F00-003 complete  
-Status: Express `apps/api` scaffold generated and validated  
-Next work item: R1-F00-004 — Shared Tooling and API Contracts Packages
+Current task: F00 Batch A complete (`R1-F00-004`, `R1-F00-005`, `R1-F00-007`)  
+Status: Shared packages, root command contract, and env validation foundation are in place  
+Next work item: R1-F00-006 — Local MongoDB Replica-Set Topology
 
 P1-01 through P1-07 are complete.  
 All four P1-07 toolchain documents are frozen at version 1.0.1.  
 F00 workspace bootstrap (`R1-F00-001`) is complete.  
 Angular web scaffold (`R1-F00-002`) is complete.  
 Express API scaffold (`R1-F00-003`) is complete.  
-`apps/web` and `apps/api` exist as empty scaffolds.  
-No shared packages have been generated yet.
+Shared packages `@agrivio/api-contracts` and `@agrivio/tooling-config` exist.  
+Root commands from [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) are wired (`pnpm check`, build/lint/typecheck/test/format/affected).  
+MongoDB/`db:*`, E2E, and `packages/test-support` remain for later F00 items.
 
 ## Current Phase
 
@@ -24,17 +25,17 @@ Release 1 implementation — Stage F00 Toolchain and Repository Bootstrap
 
 ## Technology Stack
 
-| Layer | Choice |
-| --- | --- |
-| Frontend | Angular and TypeScript |
-| Backend | Node.js, Express and TypeScript |
-| Database | MongoDB with Mongoose |
-| Repository | Monorepo |
-| Package manager | pnpm |
-| Task orchestration | Nx |
-| Architecture | Modular monolith |
-| API | REST |
-| Styling | SCSS with a centralized design system |
+| Layer              | Choice                                |
+| ------------------ | ------------------------------------- |
+| Frontend           | Angular and TypeScript                |
+| Backend            | Node.js, Express and TypeScript       |
+| Database           | MongoDB with Mongoose                 |
+| Repository         | Monorepo                              |
+| Package manager    | pnpm                                  |
+| Task orchestration | Nx                                    |
+| Architecture       | Modular monolith                      |
+| API                | REST                                  |
+| Styling            | SCSS with a centralized design system |
 
 Exact versions: [`docs/TOOLCHAIN.md`](docs/TOOLCHAIN.md).
 
@@ -46,34 +47,34 @@ Authoritative finalized decisions are recorded in [`docs/PROJECT_DECISIONS.md`](
 
 Frozen business rules and glossary:
 
-* [`docs/BUSINESS_RULES.md`](docs/BUSINESS_RULES.md) — version 1.0
-* [`docs/DOMAIN_GLOSSARY.md`](docs/DOMAIN_GLOSSARY.md) — version 1.0
+- [`docs/BUSINESS_RULES.md`](docs/BUSINESS_RULES.md) — version 1.0
+- [`docs/DOMAIN_GLOSSARY.md`](docs/DOMAIN_GLOSSARY.md) — version 1.0
 
 Frozen architecture documents (P1-04, version 1.0):
 
-* [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
-* [`docs/MODULE_BOUNDARIES.md`](docs/MODULE_BOUNDARIES.md)
-* [`docs/REPOSITORY_STRUCTURE.md`](docs/REPOSITORY_STRUCTURE.md)
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- [`docs/MODULE_BOUNDARIES.md`](docs/MODULE_BOUNDARIES.md)
+- [`docs/REPOSITORY_STRUCTURE.md`](docs/REPOSITORY_STRUCTURE.md)
 
 Frozen technical-design documents (P1-05, version 1.0):
 
-* [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md)
-* [`docs/API_DESIGN.md`](docs/API_DESIGN.md)
-* [`docs/SECURITY_AUTHORIZATION.md`](docs/SECURITY_AUTHORIZATION.md)
-* [`docs/SUBSCRIPTION_AND_BILLING.md`](docs/SUBSCRIPTION_AND_BILLING.md)
+- [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md)
+- [`docs/API_DESIGN.md`](docs/API_DESIGN.md)
+- [`docs/SECURITY_AUTHORIZATION.md`](docs/SECURITY_AUTHORIZATION.md)
+- [`docs/SUBSCRIPTION_AND_BILLING.md`](docs/SUBSCRIPTION_AND_BILLING.md)
 
 Frozen implementation planning documents (P1-06, version 1.0):
 
-* [`docs/IMPLEMENTATION_ROADMAP.md`](docs/IMPLEMENTATION_ROADMAP.md)
-* [`docs/DELIVERY_PLAN.md`](docs/DELIVERY_PLAN.md)
-* [`docs/QUALITY_GATES.md`](docs/QUALITY_GATES.md)
+- [`docs/IMPLEMENTATION_ROADMAP.md`](docs/IMPLEMENTATION_ROADMAP.md)
+- [`docs/DELIVERY_PLAN.md`](docs/DELIVERY_PLAN.md)
+- [`docs/QUALITY_GATES.md`](docs/QUALITY_GATES.md)
 
 Frozen toolchain and initialization documents (P1-07, version 1.0.1):
 
-* [`docs/TOOLCHAIN.md`](docs/TOOLCHAIN.md)
-* [`docs/REPOSITORY_INITIALIZATION.md`](docs/REPOSITORY_INITIALIZATION.md)
-* [`docs/DEVELOPMENT_WORKFLOW.md`](docs/DEVELOPMENT_WORKFLOW.md)
-* [`docs/TEST_STRATEGY.md`](docs/TEST_STRATEGY.md)
+- [`docs/TOOLCHAIN.md`](docs/TOOLCHAIN.md)
+- [`docs/REPOSITORY_INITIALIZATION.md`](docs/REPOSITORY_INITIALIZATION.md)
+- [`docs/DEVELOPMENT_WORKFLOW.md`](docs/DEVELOPMENT_WORKFLOW.md)
+- [`docs/TEST_STRATEGY.md`](docs/TEST_STRATEGY.md)
 
 ## Contribution Guidance
 
@@ -82,5 +83,5 @@ Frozen toolchain and initialization documents (P1-07, version 1.0.1):
 3. Do not change finalized product decisions.
 4. Do not initialize frameworks, install packages, or create source-code folders until a work item explicitly requires it.
 5. Prefer linking to authoritative documents over duplicating rules.
-6. Follow [`docs/REPOSITORY_INITIALIZATION.md`](docs/REPOSITORY_INITIALIZATION.md) for F00. Next scaffold work item is `R1-F00-004`.
-7. Implementation records live under `docs/tasks/` (for example [`docs/tasks/R1-F00-003.md`](docs/tasks/R1-F00-003.md)).
+6. Follow [`docs/REPOSITORY_INITIALIZATION.md`](docs/REPOSITORY_INITIALIZATION.md) for F00. Next work item is `R1-F00-006`.
+7. Implementation records live under `docs/tasks/` (for example [`docs/tasks/F00-BATCH-A.md`](docs/tasks/F00-BATCH-A.md)).

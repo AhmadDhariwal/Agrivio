@@ -4,13 +4,17 @@
   "projectType": "application",
   "prefix": "agrivio",
   "sourceRoot": "apps/web/src",
-  "tags": [],
+  "tags": ["type:app", "scope:web"],
   "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -b apps/web/tsconfig.json --pretty false"
+      }
+    },
     "build": {
       "executor": "@angular/build:application",
-      "outputs": [
-        "{options.outputPath}"
-      ],
+      "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
         "outputPath": "dist/apps/web",
@@ -23,9 +27,7 @@
             "input": "apps/web/public"
           }
         ],
-        "styles": [
-          "apps/web/src/styles.scss"
-        ]
+        "styles": ["apps/web/src/styles.scss"]
       },
       "configurations": {
         "production": {

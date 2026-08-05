@@ -1,10 +1,17 @@
 import { createApp } from './app.js';
+import { loadApiEnv, redactSecrets, toSafeApiEnvSummary } from './config/env.js';
 
-const host = process.env['HOST'] ?? 'localhost';
-const port = process.env['PORT'] ? Number(process.env['PORT']) : 3000;
+try {
+  const env = loadApiEnv();
+  const app = createApp();
 
-const app = createApp();
-
-app.listen(port, host, () => {
-  console.log(`[ ready ] http://${host}:${port}`);
-});
+  app.listen(env.port, env.host, () => {
+    const summary = toSafeApiEnvSummary(env);
+    console.log(`[ ready ] http://${env.host}:${env.port}`);
+    console.log(`[ config ] ${JSON.stringify(summary)}`);
+  });
+} catch (error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(redactSecrets(message));
+  process.exit(1);
+}

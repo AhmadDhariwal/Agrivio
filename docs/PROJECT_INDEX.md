@@ -9,8 +9,9 @@ Central navigation for Agrivio documentation.
 * R1-F00-001 monorepo workspace bootstrap is complete
 * R1-F00-002 Angular web application scaffold is complete
 * R1-F00-003 Express TypeScript API scaffold is complete
-* `apps/web` and `apps/api` exist; no `packages/` projects yet
-* Next work item: R1-F00-004 — Shared Tooling and API Contracts Packages
+* F00 Batch A complete: `R1-F00-004`, `R1-F00-005`, `R1-F00-007`
+* `packages/api-contracts` and `packages/tooling-config` exist; root command contract wired; env validation foundation in place
+* Next work item: R1-F00-006 — Local MongoDB Replica-Set Topology
 
 ## Existing Documents
 
@@ -45,6 +46,7 @@ Central navigation for Agrivio documentation.
 | [tasks/R1-F00-001.md](tasks/R1-F00-001.md) | F00 work item: monorepo workspace bootstrap (complete) |
 | [tasks/R1-F00-002.md](tasks/R1-F00-002.md) | F00 work item: Angular web application scaffold (complete) |
 | [tasks/R1-F00-003.md](tasks/R1-F00-003.md) | F00 work item: Express TypeScript API scaffold (complete) |
+| [tasks/F00-BATCH-A.md](tasks/F00-BATCH-A.md) | F00 Batch A: shared packages, root commands, env validation (`R1-F00-004`/`005`/`007`, complete) |
 | [../README.md](../README.md) | Repository landing page |
 | [../AGENTS.md](../AGENTS.md) | Repository agent and contribution rules |
 

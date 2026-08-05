@@ -1,6 +1,17 @@
-# Add files here to ignore them from prettier formatting
+# Build and cache outputs
 /dist
 /coverage
 /.nx/cache
 /.nx/workspace-data
 .angular
+.tools
+
+# Lockfiles and generated install metadata
+pnpm-lock.yaml
+
+# Frozen and narrative documentation must not be rewritten by formatters
+/docs
+AGENTS.md
+
+# Prettier shareable-config pointer file
+.prettierrc

@@ -1,0 +1,27 @@
+{
+  "name": "@agrivio/tooling-config",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Shared TypeScript, ESLint, Prettier, and Vitest configuration for Agrivio",
+  "exports": {
+    "./package.json": "./package.json",
+    "./typescript/base.json": "./typescript/base.json",
+    "./typescript/node.json": "./typescript/node.json",
+    "./typescript/angular.json": "./typescript/angular.json",
+    "./prettier": "./prettier/index.json",
+    "./eslint/base": "./eslint/base.mjs",
+    "./vitest/node": {
+      "types": "./vitest/node.d.ts",
+      "import": "./vitest/node.mjs",
+      "default": "./vitest/node.mjs"
+    }
+  },
+  "files": [
+    "typescript",
+    "prettier",
+    "eslint",
+    "vitest",
+    "src"
+  ]
+}

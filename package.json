@@ -7,7 +7,30 @@
     "pnpm": ">=11.17.0 <12"
   },
   "scripts": {
-    "nx": "nx"
+    "nx": "nx",
+    "dev": "nx run-many -t serve -p web,api --parallel=2",
+    "dev:web": "nx serve web",
+    "dev:api": "nx serve api",
+    "build": "nx run-many -t build --all",
+    "build:web": "nx build web",
+    "build:api": "nx build api",
+    "lint": "nx run-many -t lint --all",
+    "typecheck": "nx run-many -t typecheck --all",
+    "test": "pnpm test:unit",
+    "test:unit": "nx run-many -t test --all",
+    "test:integration": "node scripts/deferred-command.mjs test:integration R1-F00-006",
+    "test:architecture": "node scripts/architecture-placeholder.mjs",
+    "e2e": "node scripts/deferred-command.mjs e2e R1-F00-009",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:unit && pnpm test:architecture && pnpm build",
+    "affected:check": "nx affected -t lint,typecheck,test,build",
+    "db:up": "node scripts/deferred-command.mjs db:up R1-F00-006",
+    "db:init": "node scripts/deferred-command.mjs db:init R1-F00-006",
+    "db:status": "node scripts/deferred-command.mjs db:status R1-F00-006",
+    "db:logs": "node scripts/deferred-command.mjs db:logs R1-F00-006",
+    "db:down": "node scripts/deferred-command.mjs db:down R1-F00-006",
+    "db:reset": "node scripts/deferred-command.mjs db:reset R1-F00-006"
   },
   "dependencies": {
     "@angular/common": "22.0.8",
@@ -16,11 +39,13 @@
     "@angular/forms": "22.0.8",
     "@angular/platform-browser": "22.0.8",
     "@angular/router": "22.0.8",
+    "@agrivio/api-contracts": "workspace:*",
     "express": "5.2.1",
     "rxjs": "7.8.2",
     "tslib": "2.8.1"
   },
   "devDependencies": {
+    "@agrivio/tooling-config": "workspace:*",
     "@angular-devkit/core": "22.0.8",
     "@angular-devkit/schematics": "22.0.8",
     "@angular/build": "22.0.8",
@@ -55,6 +80,7 @@
     "eslint-config-prettier": "10.1.8",
     "globals": "17.9.0",
     "jsdom": "30.0.1",
+    "jsonc-eslint-parser": "2.4.2",
     "nx": "23.1.0",
     "prettier": "3.9.6",
     "sass": "1.99.0",
