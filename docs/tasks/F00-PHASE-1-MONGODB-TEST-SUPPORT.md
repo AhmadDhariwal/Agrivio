@@ -2,20 +2,52 @@
 
 ## Task Status
 
-* Status: **Implementation complete** — runtime MongoDB validation blocked in local agent environment (Docker CLI absent)
-* Completed IDs: `R1-F00-006`, `R1-F00-010`
-* Completion date: 2026-08-05
-* Commit hash: `73ee41825056dd8c9f6a88f93d55aa8408c04cc5`
-* Next phase: **F00 Phase 2** — `R1-F00-008` Architecture-boundary testing foundation (not started)
+* Status: **Incomplete** — implementation present; final runtime validation blocked (Docker Compose v2 / Docker CLI absent)
+* Completed IDs (implementation): `R1-F00-006`, `R1-F00-010`
+* Final validation date: 2026-08-05
+* Local implementation commit (prior): `8c783dead9410bdf42ecdd923f2425766dcc8680`
+* Next phase: **F00 Phase 2** — `R1-F00-008` (do not start until this phase validation is green)
 
-## Migration Gate (Node 24.18.0)
+## Final Validation Gate (Node 24.18.0 / pnpm 11.17.0)
 
-Preflight used portable Node `v24.18.0` (`.tools/node-v24.18.0-win-x64`) and pnpm `11.17.0`.
+Runtime: portable Node `.tools/node-v24.18.0-win-x64` → `v24.18.0`; `corepack pnpm` → `11.17.0`.
+
+| Command | Exit | Result |
+| --- | --- | --- |
+| `pnpm db:up` | 1 | Fail — `Docker CLI was not found. Install Docker Compose v2 and ensure docker is on PATH.` |
+| `pnpm db:init` | 1 | Fail — same Docker CLI absence |
+| `pnpm db:status` | 1 | Fail — same Docker CLI absence |
+| `pnpm test:integration` | 1 | Fail — 4 tests timed out connecting to `127.0.0.1:27017`; 1 unavailable-endpoint test passed |
+
+### Required proofs
+
+| Proof | Result |
+| --- | --- |
+| MongoDB `8.2.12` image running | **Not verified** (Compose never started) |
+| Replica set `rs0` | **Not verified** |
+| Member state PRIMARY | **Not verified** |
+| Transaction commit test | **Fail** — `MongoServerSelectionError: Server selection timed out after 5000 ms` |
+| Transaction rollback test | **Fail** — same timeout |
+| Test database cleanup | **Fail** — same timeout (suite never reached live DB) |
+
+### Integration suite detail
+
+```text
+✓ replica-set-unavailable.integration.spec.ts (1 passed)
+× replica-set.integration.spec.ts (2 failed — no MongoDB)
+× transaction.integration.spec.ts (2 failed — no MongoDB)
+Test Files  2 failed | 1 passed (3)
+Tests       4 failed | 1 passed (5)
+```
+
+No implementation defect was identified. Failure is environmental: Docker Desktop / Docker Compose v2 is not installed on this machine (`docker.exe` not present under Program Files or PATH).
+
+## Migration Gate (Node 24.18.0) — earlier in phase
 
 | Step | Result |
 | --- | --- |
 | `pnpm install --frozen-lockfile` | Pass |
-| `pnpm format:check` | Pass (after `pnpm format` normalized CRLF) |
+| `pnpm format:check` | Pass |
 | `pnpm lint` | Pass |
 | `pnpm typecheck` | Pass |
 | `pnpm test:unit` | Pass |
@@ -24,7 +56,7 @@ Preflight used portable Node `v24.18.0` (`.tools/node-v24.18.0-win-x64`) and pnp
 
 ## R1-F00-006 — Local MongoDB Replica-Set Topology
 
-### Topology
+### Topology (configured)
 
 | Setting | Value |
 | --- | --- |
@@ -32,7 +64,7 @@ Preflight used portable Node `v24.18.0` (`.tools/node-v24.18.0-win-x64`) and pnp
 | Compose file | `tools/docker/mongodb/compose.yml` |
 | Replica set | `rs0` |
 | Bind | `127.0.0.1:27017` |
-| Dev database (documented) | `agrivio_dev` |
+| Dev database | `agrivio_dev` |
 | Test DB prefix | `agrivio_test_` |
 
 ### Lifecycle scripts
@@ -46,73 +78,26 @@ Preflight used portable Node `v24.18.0` (`.tools/node-v24.18.0-win-x64`) and pnp
 | `pnpm db:down` | `scripts/mongodb/down.mjs` |
 | `pnpm db:reset` | `scripts/mongodb/reset.mjs` |
 
-`db:init` is idempotent (safe to re-run). `db:status` verifies image tag `8.2.12` and PRIMARY election.
-
-### Runtime validation (this environment)
-
-| Check | Result |
-| --- | --- |
-| `pnpm db:up` | **Fail** — Docker CLI not on PATH |
-| Replica-set init / PRIMARY | Not executed (requires Docker) |
-| Transaction commit/rollback integration | Not executed against live replica set (requires Docker) |
-
 ## R1-F00-010 — Test-Support Package
 
-### Package
+* Package: `@agrivio/test-support` / `packages/test-support`
+* Driver: `mongodb@7.5.0`
+* Unit tests: Pass (3)
+* Integration tests: Require running replica set from `pnpm db:up` + `pnpm db:init`
 
-* Path: `packages/test-support`
-* Name: `@agrivio/test-support`
-* Dependency: `mongodb@7.5.0` (aligned with Mongoose `9.8.0` driver line)
+## Blocker to mark phase complete
 
-### Exported helpers (non-business)
+Install and start **Docker Compose v2**, ensure `docker` is on `PATH`, then re-run:
 
-* MongoDB test URI resolution and client lifecycle
-* Replica-set PRIMARY assertions
-* Isolated `agrivio_test_*` database naming and cleanup
-* Multi-document transaction runner and empty-collection verification
-* Deterministic test/org id builders (no domain rules)
-* `waitForHttpReady` for backend boot tests
-
-### Tests
-
-| Suite | Command | Result (no Docker) |
-| --- | --- | --- |
-| Unit | `nx run test-support:test` | Pass (3 tests) |
-| Integration | `pnpm test:integration` | **Partial** — `replica-set-unavailable` pass; replica-set + transaction tests fail with `MongoServerSelectionError` when stack not running (expected without Docker) |
-
-Integration specs:
-
-* `replica-set.integration.spec.ts` — PRIMARY + DB cleanup
-* `transaction.integration.spec.ts` — commit + rollback
-* `replica-set-unavailable.integration.spec.ts` — clear failure without server
-
-## Commands Executed
-
-```text
-node --version                    # v24.18.0 (portable)
-pnpm --version                    # 11.17.0
-pnpm install --frozen-lockfile
-pnpm format:check / lint / typecheck / test:unit / build
-nx run test-support:test
-nx run test-support:test-integration   # without MongoDB stack
-pnpm db:up                        # failed: no Docker CLI
+```bash
+pnpm db:up
+pnpm db:init
+pnpm db:status
+pnpm test:integration
 ```
 
-## Versions
-
-| Component | Version |
-| --- | --- |
-| Node.js | 24.18.0 |
-| pnpm | 11.17.0 |
-| MongoDB Server (image) | 8.2.12 |
-| mongodb driver | 7.5.0 |
-
-## Risks
-
-* Docker Compose v2 must be installed locally/CI before `db:*` and full integration gates succeed.
-* Default shell Node on this machine remains `v22.22.2`; use `.nvmrc` / `.node-version` (`24.18.0`).
-* Integration tests assume replica set at `mongodb://127.0.0.1:27017/?replicaSet=rs0` (not standalone).
+Do not begin F00 Phase 2 until those four commands pass under Node `24.18.0`.
 
 ## Confirmation
 
-No architecture fixtures (`R1-F00-008`), GitHub Actions (`R1-F00-009`), auth, Mongoose business models, business routes, or F01 work was started. **Nothing was pushed to remote.**
+No Phase 2 / F01 work started. No git commit or push performed for this validation update.
