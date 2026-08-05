@@ -1,9 +1,11 @@
 # Repository Structure
 
 Document status: Frozen for Release 1  
-Current version: 1.0  
-Last updated: 2026-08-04  
+Current version: 1.1.0  
+Last updated: 2026-08-05  
 Approval status: Approved for Phase 1 continuation
+
+> **Amendment 1.1.0 (2026-08-05):** Frontend canonical project: `apps/frontend`. Backend canonical project: `apps/backend`. Backend implementation language: JavaScript ESM. Frontend implementation language: Angular TypeScript. Details: [tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md](tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md).
 
 ## Document Authority
 
@@ -26,8 +28,8 @@ P1-04 does not create the documented folders, packages, source trees, frameworks
 ```text
 Agrivio/
 ├── apps/
-│   ├── web/
-│   └── api/
+│   ├── frontend/
+│   └── backend/
 ├── packages/
 │   ├── api-contracts/
 │   ├── tooling-config/
@@ -99,7 +101,7 @@ Must not contain production business logic.
 ## 3. Backend Target Structure
 
 ```text
-apps/api/
+apps/backend/
 ├── src/
 │   ├── bootstrap/
 │   ├── config/
@@ -201,7 +203,7 @@ Not every module must contain every folder. Empty folders must not be created me
 ## 5. Frontend Target Structure
 
 ```text
-apps/web/
+apps/frontend/
 ├── src/
 │   ├── app/
 │   │   ├── core/
@@ -258,13 +260,13 @@ No feature may import another feature's internal folder.
 
 | Location | Purpose |
 | --- | --- |
-| `apps/api/src/modules/<module>/tests/` | Module unit and module-local integration tests |
-| `apps/api/tests/integration/` | Broader module integration tests |
-| `apps/api/tests/workflows/` | Cross-module workflow tests |
-| `apps/api/tests/architecture/` | Architecture boundary tests |
-| `apps/api/tests/e2e/` | API end-to-end tests |
-| `apps/web/src/app/features/<feature>/tests/` | Feature tests |
-| `apps/web/tests/e2e/` | Frontend end-to-end tests |
+| `apps/backend/src/modules/<module>/tests/` | Module unit and module-local integration tests |
+| `apps/backend/tests/integration/` | Broader module integration tests |
+| `apps/backend/tests/workflows/` | Cross-module workflow tests |
+| `apps/backend/tests/architecture/` | Architecture boundary tests |
+| `apps/backend/tests/e2e/` | API end-to-end tests |
+| `apps/frontend/src/app/features/<feature>/tests/` | Feature tests |
+| `apps/frontend/tests/e2e/` | Frontend end-to-end tests |
 | `packages/test-support/` | Shared test utilities only |
 
 ---

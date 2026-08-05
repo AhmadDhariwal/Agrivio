@@ -10,7 +10,7 @@ try {
     console.log(`[ ready ] http://${env.host}:${env.port}`);
     console.log(`[ config ] ${JSON.stringify(summary)}`);
   });
-} catch (error: unknown) {
+} catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   console.error(redactSecrets(message));
   process.exit(1);

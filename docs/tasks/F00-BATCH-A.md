@@ -1,5 +1,7 @@
 # F00 Batch A — Shared Foundation
 
+> **Post-migration note:** Canonical application paths are `apps/frontend` and `apps/backend` per [F00-APP-NAMING-BACKEND-JS-MIGRATION.md](F00-APP-NAMING-BACKEND-JS-MIGRATION.md). References below to `apps/web` / `apps/api` describe work completed under prior names.
+
 ## Task Status
 
 * Status: Complete

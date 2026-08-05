@@ -1,9 +1,11 @@
 # Implementation Roadmap
 
 Document status: Frozen for Release 1  
-Current version: 1.0  
-Last updated: 2026-08-04  
+Current version: 1.1.0  
+Last updated: 2026-08-05  
 Approval status: Approved for implementation preparation
+
+> **Amendment 1.1.0 (2026-08-05):** Frontend canonical project: `apps/frontend`. Backend canonical project: `apps/backend`. Backend implementation language: JavaScript ESM. Frontend implementation language: Angular TypeScript. Details: [tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md](tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md).
 
 ## Document Authority
 
@@ -173,7 +175,7 @@ Dependency acyclic validation at generation time: passed.
 | Dependencies | None |
 | Frozen sources | REPOSITORY_STRUCTURE.md §1–2; PROJECT_DECISIONS technical stack; ARCHITECTURE.md modular monolith |
 | Backend scope | Create target monorepo workspace layout for apps and packages without business modules. |
-| Frontend scope | Reserve apps/web workspace package only; no feature modules. |
+| Frontend scope | Reserve apps/frontend workspace package only; no feature modules. |
 | Data scope | None beyond local tooling docs for DB connection placeholders. |
 | Security scope | Ensure secrets are not committed; .gitignore for env files. |
 | Tests | Smoke test that workspace install/bootstrap scripts succeed; architecture-boundary harness can load. |
@@ -182,13 +184,13 @@ Dependency acyclic validation at generation time: passed.
 | Risk | Tooling choices later force rework of package boundaries. |
 | Effort | M |
 
-### R1-F00-002 — Angular web application scaffold
+### R1-F00-002 — Angular frontend application scaffold
 
 | Field | Value |
 | --- | --- |
 | ID | R1-F00-002 |
-| Title | Angular web application scaffold |
-| Owning module | Operations (tooling) / apps/web |
+| Title | Angular frontend application scaffold |
+| Owning module | Operations (tooling) / apps/frontend |
 | Dependencies | R1-F00-001 |
 | Frozen sources | REPOSITORY_STRUCTURE.md frontend layout; ARCHITECTURE.md browser client; PROJECT_DECISIONS Angular/TypeScript/SCSS |
 | Backend scope | None. |
@@ -202,21 +204,21 @@ Dependency acyclic validation at generation time: passed.
 | Effort | M |
 
 
-### R1-F00-003 — Express TypeScript API scaffold
+### R1-F00-003 — Express JavaScript backend scaffold
 
 | Field | Value |
 | --- | --- |
 | ID | R1-F00-003 |
-| Title | Express TypeScript API scaffold |
-| Owning module | Operations (tooling) / apps/api |
+| Title | Express JavaScript backend scaffold |
+| Owning module | Operations (tooling) / apps/backend |
 | Dependencies | R1-F00-001 |
 | Frozen sources | REPOSITORY_STRUCTURE.md backend layout; ARCHITECTURE.md API container; API_DESIGN.md base prefix reserved |
-| Backend scope | Executable empty Express/TypeScript API. Create only files and directories required for boot, health/scaffold routes later, and tooling. Do not create empty canonical-module folders or .gitkeep placeholders for every module; introduce a module directory when its first real public interface, test, configuration, or implementation file is added. Architecture tests may validate naming and boundaries using fixtures under test tooling. Frozen target layout remains the eventual structure. |
+| Backend scope | Executable empty Express/JavaScript (native ESM) backend. Create only files and directories required for boot, health/scaffold routes later, and tooling. Do not create empty canonical-module folders or .gitkeep placeholders for every module; introduce a module directory when its first real public interface, test, configuration, or implementation file is added. Architecture tests may validate naming and boundaries using fixtures under test tooling. Frozen target layout remains the eventual structure. |
 | Frontend scope | None. |
 | Data scope | Connection stub only; no collections. |
 | Security scope | No public business endpoints; health may be deferred to F01. |
-| Tests | API boot smoke test; type-check and lint pass; architecture fixture proving forbidden imports without empty production module folders. |
-| Definition of Done | Empty API builds, boots in test mode, lints, and type-checks without empty future-module placeholder folders. |
+| Tests | API boot smoke test; JavaScript static check (`checkJs`) and lint pass; architecture fixture proving forbidden imports without empty production module folders. |
+| Definition of Done | Empty backend builds, boots in test mode, lints, and passes JavaScript static checks without empty future-module placeholder folders. |
 | Out of scope | Business controllers/services; auth; transactions; empty .gitkeep trees for all canonical modules. |
 | Risk | Controller-layer patterns that later violate thin-controller rule. |
 | Effort | M |

@@ -1,15 +1,15 @@
 {
-  "name": "web",
+  "name": "frontend",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
   "prefix": "agrivio",
-  "sourceRoot": "apps/web/src",
-  "tags": ["type:app", "scope:web"],
+  "sourceRoot": "apps/frontend/src",
+  "tags": ["type:app", "scope:frontend"],
   "targets": {
     "typecheck": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "tsc -b apps/web/tsconfig.json --pretty false"
+        "command": "tsc -b apps/frontend/tsconfig.json --pretty false"
       }
     },
     "build": {
@@ -17,17 +17,17 @@
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/apps/web",
-        "browser": "apps/web/src/main.ts",
-        "tsConfig": "apps/web/tsconfig.app.json",
+        "outputPath": "dist/apps/frontend",
+        "browser": "apps/frontend/src/main.ts",
+        "tsConfig": "apps/frontend/tsconfig.app.json",
         "inlineStyleLanguage": "scss",
         "assets": [
           {
             "glob": "**/*",
-            "input": "apps/web/public"
+            "input": "apps/frontend/public"
           }
         ],
-        "styles": ["apps/web/src/styles.scss"]
+        "styles": ["apps/frontend/src/styles.scss"]
       },
       "configurations": {
         "production": {
@@ -58,10 +58,10 @@
       "defaultConfiguration": "development",
       "configurations": {
         "production": {
-          "buildTarget": "web:build:production"
+          "buildTarget": "frontend:build:production"
         },
         "development": {
-          "buildTarget": "web:build:development"
+          "buildTarget": "frontend:build:development"
         }
       }
     },
@@ -78,8 +78,8 @@
       "continuous": true,
       "executor": "@nx/web:file-server",
       "options": {
-        "buildTarget": "web:build",
-        "staticFilePath": "dist/apps/web/browser",
+        "buildTarget": "frontend:build",
+        "staticFilePath": "dist/apps/frontend/browser",
         "spa": true
       }
     }

@@ -1,9 +1,11 @@
 # Development Workflow
 
 Document status: Frozen for Release 1  
-Current version: 1.0.1  
-Last updated: 2026-08-04  
+Current version: 1.1.0  
+Last updated: 2026-08-05  
 Approval status: Approved for repository initialization
+
+> **Amendment 1.1.0 (2026-08-05):** Frontend canonical project: `apps/frontend`. Backend canonical project: `apps/backend`. Backend implementation language: JavaScript ESM. Frontend implementation language: Angular TypeScript. Details: [tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md](tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md).
 
 ## Document Authority
 
@@ -67,12 +69,12 @@ Documented root commands for F00 and later stages:
 
 ```text
 pnpm dev
-pnpm dev:web
-pnpm dev:api
+pnpm dev:frontend
+pnpm dev:backend
 
 pnpm build
-pnpm build:web
-pnpm build:api
+pnpm build:frontend
+pnpm build:backend
 
 pnpm lint
 pnpm typecheck
@@ -103,11 +105,11 @@ Command count: **23**.
 | Command | Responsibility |
 | --- | --- |
 | `pnpm dev` | Start the approved local development composition for web and API |
-| `pnpm dev:web` | Serve `apps/web` only |
-| `pnpm dev:api` | Serve `apps/api` only |
+| `pnpm dev:frontend` | Serve `apps/frontend` only |
+| `pnpm dev:backend` | Serve `apps/backend` only |
 | `pnpm build` | Build all workspace projects required for Release 1 |
-| `pnpm build:web` | Build `apps/web` |
-| `pnpm build:api` | Build `apps/api` |
+| `pnpm build:frontend` | Build `apps/frontend` |
+| `pnpm build:backend` | Build `apps/backend` |
 | `pnpm lint` | Run ESLint across the configured workspace projects |
 | `pnpm typecheck` | Run TypeScript checking across the configured workspace projects |
 | `pnpm test` | Default local test entry; runs the unit suite unless a later stage documents otherwise |

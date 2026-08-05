@@ -1,0 +1,12 @@
+{
+  "extends": "@agrivio/tooling-config/typescript/node.json",
+  "compilerOptions": {
+    "checkJs": true,
+    "allowJs": true,
+    "noEmit": true,
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.js", "vitest.config.mts"],
+  "exclude": ["node_modules", "dist"]
+}

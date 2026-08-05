@@ -1,43 +1,51 @@
+// @ts-check
+
 /**
  * Secret-bearing API environment keys that must never be logged in full.
  */
-export const API_SECRET_ENV_KEYS = ['SESSION_SECRET', 'MONGODB_URI'] as const;
+export const API_SECRET_ENV_KEYS = ['SESSION_SECRET', 'MONGODB_URI'];
 
-export type ApiSecretEnvKey = (typeof API_SECRET_ENV_KEYS)[number];
-
-export type ApiRuntimeProfile = 'local' | 'test' | 'staging' | 'production';
-
-export type ApiNodeEnv = 'development' | 'test' | 'production';
-
-export interface ApiEnv {
-  readonly nodeEnv: ApiNodeEnv;
-  readonly profile: ApiRuntimeProfile;
-  readonly host: string;
-  readonly port: number;
-  readonly mongodbUri: string;
-  readonly mongodbDbName: string;
-  readonly mongodbReplicaSet: string;
-  readonly sessionSecret: string;
-}
+/**
+ * @typedef {'local' | 'test' | 'staging' | 'production'} ApiRuntimeProfile
+ * @typedef {'development' | 'test' | 'production'} ApiNodeEnv
+ * @typedef {{
+ *   nodeEnv: ApiNodeEnv;
+ *   profile: ApiRuntimeProfile;
+ *   host: string;
+ *   port: number;
+ *   mongodbUri: string;
+ *   mongodbDbName: string;
+ *   mongodbReplicaSet: string;
+ *   sessionSecret: string;
+ * }} ApiEnv
+ */
 
 export class EnvValidationError extends Error {
-  readonly issues: readonly string[];
-
-  constructor(issues: readonly string[]) {
+  /**
+   * @param {readonly string[]} issues
+   */
+  constructor(issues) {
     super(`Invalid API environment configuration:\n- ${issues.join('\n- ')}`);
     this.name = 'EnvValidationError';
+    /** @type {readonly string[]} */
     this.issues = issues;
   }
 }
 
-function isNonEmptyString(value: string | undefined): value is string {
+/**
+ * @param {string | undefined} value
+ * @returns {value is string}
+ */
+function isNonEmptyString(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
-function resolveProfile(
-  nodeEnv: ApiNodeEnv,
-  rawProfile: string | undefined,
-): ApiRuntimeProfile | undefined {
+/**
+ * @param {ApiNodeEnv} nodeEnv
+ * @param {string | undefined} rawProfile
+ * @returns {ApiRuntimeProfile | undefined}
+ */
+function resolveProfile(nodeEnv, rawProfile) {
   if (rawProfile === undefined || rawProfile.trim() === '') {
     if (nodeEnv === 'test') {
       return 'test';
@@ -62,8 +70,10 @@ function resolveProfile(
 
 /**
  * Redacts known secret values and secret-bearing keys from text destined for logs.
+ * @param {string} text
+ * @param {NodeJS.ProcessEnv} [env]
  */
-export function redactSecrets(text: string, env: NodeJS.ProcessEnv = process.env): string {
+export function redactSecrets(text, env = process.env) {
   let redacted = text;
 
   for (const key of API_SECRET_ENV_KEYS) {
@@ -83,17 +93,18 @@ export function redactSecrets(text: string, env: NodeJS.ProcessEnv = process.env
 /**
  * Fail-fast validation for API runtime configuration.
  * Test profile permits local placeholder secrets; non-test profiles require real values.
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {ApiEnv}
  */
-export function loadApiEnv(env: NodeJS.ProcessEnv = process.env): ApiEnv {
-  const issues: string[] = [];
+export function loadApiEnv(env = process.env) {
+  const issues = [];
 
   const rawNodeEnv = env['NODE_ENV'] ?? 'development';
   if (rawNodeEnv !== 'development' && rawNodeEnv !== 'test' && rawNodeEnv !== 'production') {
     issues.push('NODE_ENV must be one of development, test, production');
   }
 
-  const nodeEnv: ApiNodeEnv =
-    rawNodeEnv === 'test' || rawNodeEnv === 'production' ? rawNodeEnv : 'development';
+  const nodeEnv = rawNodeEnv === 'test' || rawNodeEnv === 'production' ? rawNodeEnv : 'development';
 
   const profile = resolveProfile(nodeEnv, env['AGRIVIO_APP_PROFILE']);
   if (profile === undefined) {
@@ -142,22 +153,35 @@ export function loadApiEnv(env: NodeJS.ProcessEnv = process.env): ApiEnv {
     throw new EnvValidationError(issues);
   }
 
+  if (
+    profile === undefined ||
+    !isNonEmptyString(host) ||
+    !isNonEmptyString(mongodbUri) ||
+    !isNonEmptyString(mongodbDbName) ||
+    !isNonEmptyString(mongodbReplicaSet) ||
+    !isNonEmptyString(sessionSecret)
+  ) {
+    throw new EnvValidationError(['Internal environment validation failed']);
+  }
+
   return {
     nodeEnv,
-    profile: profile as ApiRuntimeProfile,
-    host: host as string,
+    profile,
+    host,
     port,
-    mongodbUri: mongodbUri as string,
-    mongodbDbName: mongodbDbName as string,
-    mongodbReplicaSet: mongodbReplicaSet as string,
-    sessionSecret: sessionSecret as string,
+    mongodbUri,
+    mongodbDbName,
+    mongodbReplicaSet,
+    sessionSecret,
   };
 }
 
 /**
  * Safe summary for operational logs. Never includes secret values.
+ * @param {ApiEnv} config
+ * @returns {Record<string, string | number>}
  */
-export function toSafeApiEnvSummary(config: ApiEnv): Record<string, string | number> {
+export function toSafeApiEnvSummary(config) {
   return {
     nodeEnv: config.nodeEnv,
     profile: config.profile,

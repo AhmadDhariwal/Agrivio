@@ -6,15 +6,15 @@ Agrivio is a cloud-first Fertilizer POS and Inventory Management web application
 
 ## Current Status
 
-Current task: F00 Batch A complete (`R1-F00-004`, `R1-F00-005`, `R1-F00-007`)  
-Status: Shared packages, root command contract, and env validation foundation are in place  
-Next work item: R1-F00-006 — Local MongoDB Replica-Set Topology
+Current task: F00 application naming and backend JavaScript migration complete; F00 Batch A complete (`R1-F00-004`, `R1-F00-005`, `R1-F00-007`)  
+Status: Canonical apps are `apps/frontend` (Angular TypeScript) and `apps/backend` (Express JavaScript ESM)  
+Next work item: F00 Batch B — `R1-F00-006` Local MongoDB Replica-Set Topology
 
 P1-01 through P1-07 are complete.  
 All four P1-07 toolchain documents are frozen at version 1.0.1.  
 F00 workspace bootstrap (`R1-F00-001`) is complete.  
-Angular web scaffold (`R1-F00-002`) is complete.  
-Express API scaffold (`R1-F00-003`) is complete.  
+Angular frontend scaffold (`R1-F00-002`, historically `apps/web`) is complete.  
+Express backend scaffold (`R1-F00-003`, now JavaScript ESM under `apps/backend`) is complete.  
 Shared packages `@agrivio/api-contracts` and `@agrivio/tooling-config` exist.  
 Root commands from [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) are wired (`pnpm check`, build/lint/typecheck/test/format/affected).  
 MongoDB/`db:*`, E2E, and `packages/test-support` remain for later F00 items.
@@ -25,17 +25,17 @@ Release 1 implementation — Stage F00 Toolchain and Repository Bootstrap
 
 ## Technology Stack
 
-| Layer              | Choice                                |
-| ------------------ | ------------------------------------- |
-| Frontend           | Angular and TypeScript                |
-| Backend            | Node.js, Express and TypeScript       |
-| Database           | MongoDB with Mongoose                 |
-| Repository         | Monorepo                              |
-| Package manager    | pnpm                                  |
-| Task orchestration | Nx                                    |
-| Architecture       | Modular monolith                      |
-| API                | REST                                  |
-| Styling            | SCSS with a centralized design system |
+| Layer              | Choice                                               |
+| ------------------ | ---------------------------------------------------- |
+| Frontend           | Angular and TypeScript (`apps/frontend`)             |
+| Backend            | Node.js, Express and JavaScript ESM (`apps/backend`) |
+| Database           | MongoDB with Mongoose                                |
+| Repository         | Monorepo                                             |
+| Package manager    | pnpm                                                 |
+| Task orchestration | Nx                                                   |
+| Architecture       | Modular monolith                                     |
+| API                | REST                                                 |
+| Styling            | SCSS with a centralized design system                |
 
 Exact versions: [`docs/TOOLCHAIN.md`](docs/TOOLCHAIN.md).
 
@@ -69,7 +69,7 @@ Frozen implementation planning documents (P1-06, version 1.0):
 - [`docs/DELIVERY_PLAN.md`](docs/DELIVERY_PLAN.md)
 - [`docs/QUALITY_GATES.md`](docs/QUALITY_GATES.md)
 
-Frozen toolchain and initialization documents (P1-07, version 1.0.1):
+Frozen toolchain and initialization documents (P1-07, v1.1.0 application-path amendment):
 
 - [`docs/TOOLCHAIN.md`](docs/TOOLCHAIN.md)
 - [`docs/REPOSITORY_INITIALIZATION.md`](docs/REPOSITORY_INITIALIZATION.md)

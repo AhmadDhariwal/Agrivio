@@ -5,15 +5,15 @@ import { agrivioVitestNodeDefaults } from '@agrivio/tooling-config/vitest/node';
 
 export default defineConfig(() => ({
   root: import.meta.dirname,
-  cacheDir: '../../node_modules/.vite/apps/api',
+  cacheDir: '../../node_modules/.vite/apps/backend',
   plugins: [nxViteTsPaths(), nxCopyAssetsPlugin(['*.md'])],
   test: {
     ...agrivioVitestNodeDefaults,
-    name: 'api',
+    name: 'backend',
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     coverage: {
       ...agrivioVitestNodeDefaults.coverage,
-      reportsDirectory: '../../coverage/apps/api',
+      reportsDirectory: '../../coverage/apps/backend',
     },
   },
 }));

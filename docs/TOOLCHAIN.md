@@ -1,9 +1,11 @@
 # Toolchain
 
 Document status: Frozen for Release 1  
-Current version: 1.0.1  
-Last updated: 2026-08-04  
+Current version: 1.1.0  
+Last updated: 2026-08-05  
 Approval status: Approved for repository initialization
+
+> **Amendment 1.1.0 (2026-08-05):** Frontend canonical project: `apps/frontend`. Backend canonical project: `apps/backend`. Backend implementation language: JavaScript ESM. Frontend implementation language: Angular TypeScript. Details: [tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md](tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md).
 
 ## Document Authority
 
@@ -43,8 +45,8 @@ This document freezes the Release 1 toolchain. It does not install packages, ini
 | `@nx/web` | `23.1.0` | Web tooling dependency of `@nx/angular` |
 | Angular core packages | `22.0.8` | Frontend framework (`@angular/core`, `@angular/common`, `@angular/compiler`, `@angular/forms`, `@angular/platform-browser`, `@angular/router`, and matching framework packages) |
 | Angular CLI / build line | `22.0.8` | `@angular/cli`, `@angular/build`, `@angular/compiler-cli`, `@schematics/angular`, `@angular-devkit/core`, `@angular-devkit/schematics`, `@angular-devkit/build-angular` |
-| TypeScript | `6.0.3` | Language and type-checker for all TypeScript packages |
-| Express | `5.2.1` | HTTP framework for `apps/api` |
+| TypeScript | `6.0.3` | Language and type-checker for Angular, shared packages, and backend `checkJs` static analysis |
+| Express | `5.2.1` | HTTP framework for `apps/backend` |
 | Mongoose | `9.8.0` | MongoDB ODM for persistence implementations |
 | MongoDB Server | `8.2.12` | Local and CI database server image/binary |
 | Vitest | `4.1.10` | Unit, component, integration, architecture, and API test runner |
@@ -85,7 +87,7 @@ Mongoose `9.8.0` depends on the MongoDB Node.js driver line `mongodb@~7.5`. That
 
 ### Zone.js policy
 
-`@angular/core@22.0.8` marks `zone.js` as an optional peer dependency. Release 1 uses zoneless change detection. Do not install or enable Zone.js change detection for `apps/web`.
+`@angular/core@22.0.8` marks `zone.js` as an optional peer dependency. Release 1 uses zoneless change detection. Do not install or enable Zone.js change detection for `apps/frontend`.
 
 ---
 
@@ -184,9 +186,9 @@ Rules:
 | Internal package directory | `packages/` |
 | Package scope | `@agrivio` |
 | API module format | Native ESM (`"type": "module"`) |
-| API TypeScript target | `ES2024` |
-| API TypeScript module | `NodeNext` |
-| API moduleResolution | `NodeNext` |
+| Backend source language | JavaScript (`.js`) with `// @ts-check` and `apps/backend/jsconfig.json` |
+| Backend static analysis | TypeScript `6.0.3` in `checkJs` mode via `jsconfig.json` (no backend `.ts` implementation sources) |
+| Angular / shared packages | TypeScript `6.0.3` with shared strict compiler settings |
 | Frontend styling | SCSS |
 | Frontend change detection | Zoneless |
 | Nx Cloud | Disabled for Release 1 bootstrap |

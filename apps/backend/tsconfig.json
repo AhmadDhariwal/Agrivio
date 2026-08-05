@@ -1,0 +1,5 @@
+{
+  "extends": "./jsconfig.json",
+  "files": [],
+  "include": []
+}

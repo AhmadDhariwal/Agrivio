@@ -1,9 +1,9 @@
 {
-  "name": "api",
+  "name": "backend",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "apps/api/src",
+  "sourceRoot": "apps/backend/src",
   "projectType": "application",
-  "tags": ["type:app", "scope:api"],
+  "tags": ["type:app", "scope:backend"],
   "targets": {
     "lint": {
       "executor": "@nx/eslint:lint"
@@ -11,7 +11,7 @@
     "typecheck": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "tsc -b apps/api/tsconfig.json --pretty false"
+        "command": "tsc -p apps/backend/jsconfig.json --pretty false"
       }
     },
     "build": {
@@ -20,12 +20,13 @@
       "defaultConfiguration": "production",
       "options": {
         "platform": "node",
-        "outputPath": "dist/apps/api",
+        "outputPath": "dist/apps/backend",
         "format": ["esm"],
-        "bundle": false,
-        "main": "apps/api/src/main.ts",
-        "tsConfig": "apps/api/tsconfig.app.json",
-        "assets": ["apps/api/src/assets"],
+        "bundle": true,
+        "thirdParty": false,
+        "main": "apps/backend/src/main.js",
+        "tsConfig": "apps/backend/jsconfig.json",
+        "assets": ["apps/backend/src/assets"],
         "generatePackageJson": true,
         "esbuildOptions": {
           "sourcemap": true,
@@ -51,8 +52,8 @@
       "cache": true,
       "executor": "@nx/js:prune-lockfile",
       "outputs": [
-        "{workspaceRoot}/dist/apps/api/package.json",
-        "{workspaceRoot}/dist/apps/api/pnpm-lock.yaml"
+        "{workspaceRoot}/dist/apps/backend/package.json",
+        "{workspaceRoot}/dist/apps/backend/pnpm-lock.yaml"
       ],
       "options": {
         "buildTarget": "build"
@@ -61,7 +62,7 @@
     "copy-workspace-modules": {
       "dependsOn": ["build"],
       "cache": true,
-      "outputs": ["{workspaceRoot}/dist/apps/api/workspace_modules"],
+      "outputs": ["{workspaceRoot}/dist/apps/backend/workspace_modules"],
       "executor": "@nx/js:copy-workspace-modules",
       "options": {
         "buildTarget": "build"
@@ -77,15 +78,15 @@
       "defaultConfiguration": "development",
       "dependsOn": ["build"],
       "options": {
-        "buildTarget": "api:build",
+        "buildTarget": "backend:build",
         "runBuildTargetDependencies": false
       },
       "configurations": {
         "development": {
-          "buildTarget": "api:build:development"
+          "buildTarget": "backend:build:development"
         },
         "production": {
-          "buildTarget": "api:build:production"
+          "buildTarget": "backend:build:production"
         }
       }
     },
@@ -93,7 +94,7 @@
       "executor": "@nx/vitest:test",
       "outputs": ["{options.reportsDirectory}"],
       "options": {
-        "reportsDirectory": "coverage/apps/api"
+        "reportsDirectory": "coverage/apps/backend"
       }
     }
   }
