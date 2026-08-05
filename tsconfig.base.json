@@ -23,6 +23,7 @@
     "forceConsistentCasingInFileNames": true,
     "paths": {
       "@agrivio/api-contracts": ["./packages/api-contracts/src/index.ts"],
+      "@agrivio/test-support": ["./packages/test-support/src/index.ts"],
       "@agrivio/tooling-config": ["./packages/tooling-config/src/index.ts"]
     }
   },

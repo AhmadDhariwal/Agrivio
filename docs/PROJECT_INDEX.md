@@ -12,7 +12,9 @@ Central navigation for Agrivio documentation.
 * F00 application naming and backend JavaScript migration complete — see [tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md](tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md)
 * F00 Batch A complete: `R1-F00-004`, `R1-F00-005`, `R1-F00-007`
 * `packages/api-contracts` and `packages/tooling-config` exist; root command contract wired; env validation foundation in place
-* Next work item: F00 Batch B — `R1-F00-006` Local MongoDB Replica-Set Topology
+* F00 Phase 1 complete (`R1-F00-006`, `R1-F00-010`) — see [tasks/F00-PHASE-1-MONGODB-TEST-SUPPORT.md](tasks/F00-PHASE-1-MONGODB-TEST-SUPPORT.md)
+* `packages/test-support` (`@agrivio/test-support`) provides MongoDB/transaction test helpers
+* Next work item: F00 Phase 2 — `R1-F00-008` Architecture-boundary testing foundation
 
 ## Existing Documents
 
@@ -49,6 +51,7 @@ Central navigation for Agrivio documentation.
 | [tasks/R1-F00-003.md](tasks/R1-F00-003.md) | F00 work item: Express backend scaffold (complete; historically TypeScript `apps/api`) |
 | [tasks/F00-BATCH-A.md](tasks/F00-BATCH-A.md) | F00 Batch A: shared packages, root commands, env validation (`R1-F00-004`/`005`/`007`, complete) |
 | [tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md](tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md) | F00 amendment: `apps/frontend` / `apps/backend` naming and backend JavaScript ESM migration (complete) |
+| [tasks/F00-PHASE-1-MONGODB-TEST-SUPPORT.md](tasks/F00-PHASE-1-MONGODB-TEST-SUPPORT.md) | F00 Phase 1: MongoDB replica-set tooling + test-support (`R1-F00-006`/`010`) |
 | [../README.md](../README.md) | Repository landing page |
 | [../AGENTS.md](../AGENTS.md) | Repository agent and contribution rules |
 

@@ -1,0 +1,44 @@
+{
+  "name": "test-support",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/test-support/src",
+  "projectType": "library",
+  "tags": ["type:test-support", "scope:shared"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -b packages/test-support/tsconfig.json --pretty false"
+      }
+    },
+    "test": {
+      "executor": "@nx/vitest:test",
+      "outputs": ["{options.reportsDirectory}"],
+      "options": {
+        "reportsDirectory": "coverage/packages/test-support",
+        "configFile": "packages/test-support/vitest.config.mts"
+      }
+    },
+    "test-integration": {
+      "executor": "@nx/vitest:test",
+      "outputs": ["{options.reportsDirectory}"],
+      "options": {
+        "reportsDirectory": "coverage/packages/test-support-integration",
+        "configFile": "packages/test-support/vitest.integration.config.mts"
+      }
+    },
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/packages/test-support",
+        "main": "packages/test-support/src/index.ts",
+        "tsConfig": "packages/test-support/tsconfig.lib.json",
+        "assets": []
+      }
+    }
+  }
+}
