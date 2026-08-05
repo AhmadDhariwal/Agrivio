@@ -5,7 +5,7 @@
 * Status: Complete
 * Completed roadmap IDs: `R1-F00-004`, `R1-F00-005`, `R1-F00-007`
 * Completion date: 2026-08-05
-* Commit: _(filled after commit)_
+* Commit: 4df103bad49804be1b3ff594ff95ecfcedafc546
 * Next batch: `R1-F00-006` — Local MongoDB replica-set topology (with later `R1-F00-008` architecture harness, `R1-F00-010` test-support)
 
 ## Goal
