@@ -12,6 +12,43 @@ For assigned work, read only:
 
 Do not scan the entire repository unless the task cannot be completed otherwise.
 
+## Git Ownership
+
+The coding agent must:
+
+* Work only on the currently checked-out branch
+* Never create, rename, delete, or switch branches
+* Never run `git commit`
+* Never run `git push`
+* Never force-push
+* Never create a pull request
+* Never rewrite Git history
+* Never run destructive Git cleanup commands
+
+The user owns branch creation, commits, pushes, tags, and pull requests.
+
+## Implementation Workflow
+
+For each requested phase:
+
+1. Read only the relevant frozen specifications and current implementation.
+2. Implement the requested work-item IDs.
+3. Run focused tests during implementation.
+4. Run the complete applicable phase gate once at the end.
+5. Fix implementation failures within scope.
+6. Update only the named phase task record and concise progress navigation.
+7. Return a compact completion report and suggested commit message.
+
+Do not create extra planning, correction, review, or summary documents unless explicitly requested.
+
+Do not repeat requirements already defined in frozen documents.
+
+Do not begin later work-item IDs.
+
+Do not modify unrelated files.
+
+Documentation-only warnings must not block implementation unless they affect correctness, security, data integrity, or executable validation.
+
 ## Scope Control
 
 Implement only the assigned task.
@@ -69,3 +106,4 @@ Return only:
 * Documentation updated
 * Remaining risks or blockers
 * Confirmation that no unrelated changes were made
+* Suggested commit message (when implementation work is complete; the user creates the commit)
