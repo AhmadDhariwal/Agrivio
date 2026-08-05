@@ -1,9 +1,11 @@
 # Test Strategy
 
 Document status: Frozen for Release 1  
-Current version: 1.0.1  
-Last updated: 2026-08-04  
+Current version: 1.1.0  
+Last updated: 2026-08-05  
 Approval status: Approved for repository initialization
+
+> **Amendment 1.1.0 (2026-08-05):** Frontend canonical project: `apps/frontend`. Backend canonical project: `apps/backend`. Backend implementation language: JavaScript ESM. Frontend implementation language: Angular TypeScript. Details: [tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md](tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md).
 
 ## Document Authority
 
@@ -54,7 +56,7 @@ Mocks may be used for pure unit tests. Transaction, index, tenant-isolation, con
 ## 2. Unit-Test Stack
 
 * Runner: Vitest `4.1.10`
-* Angular unit and component tests use Angular’s supported Vitest integration through `@angular/build` and `@nx/vitest`, selected with `--unitTestRunner=vitest-angular` for `apps/web`
+* Angular unit and component tests use Angular’s supported Vitest integration through `@angular/build` and `@nx/vitest`, selected with `--unitTestRunner=vitest-angular` for `apps/frontend`
 * API and shared-package Vitest suites use `--unitTestRunner=vitest` where applicable
 * Playwright remains a separate workspace E2E setup and is not the Angular unit-test runner
 * DOM environment for Angular tests: `jsdom@30.0.1`
@@ -159,18 +161,18 @@ Use frozen repository boundaries.
 ### Backend
 
 ```text
-apps/api/src/modules/<module>/tests/
-apps/api/tests/integration/
-apps/api/tests/workflows/
-apps/api/tests/architecture/
-apps/api/tests/e2e/
+apps/backend/src/modules/<module>/tests/
+apps/backend/tests/integration/
+apps/backend/tests/workflows/
+apps/backend/tests/architecture/
+apps/backend/tests/e2e/
 ```
 
 ### Frontend
 
 ```text
-apps/web/src/app/features/<feature>/tests/
-apps/web/tests/e2e/
+apps/frontend/src/app/features/<feature>/tests/
+apps/frontend/tests/e2e/
 ```
 
 ### Shared reusable test support

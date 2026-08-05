@@ -1,9 +1,11 @@
 # Repository Initialization
 
 Document status: Frozen for Release 1  
-Current version: 1.0.1  
-Last updated: 2026-08-04  
+Current version: 1.1.0  
+Last updated: 2026-08-05  
 Approval status: Approved for repository initialization
+
+> **Amendment 1.1.0 (2026-08-05):** Frontend canonical project: `apps/frontend`. Backend canonical project: `apps/backend`. Backend implementation language: JavaScript ESM. Frontend implementation language: Angular TypeScript. Details: [tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md](tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md).
 
 ## Document Authority
 
@@ -56,8 +58,8 @@ Execute F00 in this exact order:
 6. Initialize Nx in the existing documentation repository.
 7. Set `appsDir=apps` and `libsDir=packages`.
 8. Run Nx generator `--help` for Angular application, Node application, and JS library generators.
-9. Dry-run and then generate `apps/web` with approved Angular options.
-10. Dry-run and then generate `apps/api` with approved Express/Node options.
+9. Dry-run and then generate `apps/frontend` with approved Angular options.
+10. Dry-run and then generate `apps/backend` with approved Express/Node options.
 11. Dry-run and then create the three approved non-empty shared packages.
 12. Configure root TypeScript, ESLint, and Prettier.
 13. Add root command contract.
@@ -176,8 +178,8 @@ Deterministic Nx project and package names:
 
 | Path | Nx project name | Package name |
 | --- | --- | --- |
-| `apps/web` | `web` | `@agrivio/web` |
-| `apps/api` | `api` | `@agrivio/api` |
+| `apps/frontend` | `frontend` | `@agrivio/frontend` |
+| `apps/backend` | `backend` | `@agrivio/backend` |
 | `packages/api-contracts` | `api-contracts` | `@agrivio/api-contracts` |
 | `packages/tooling-config` | `tooling-config` | `@agrivio/tooling-config` |
 | `packages/test-support` | `test-support` | `@agrivio/test-support` |
@@ -186,7 +188,7 @@ Deterministic Nx project and package names:
 
 ## 5. Angular Generation Configuration
 
-Generate `apps/web` with:
+Generate `apps/frontend` with:
 
 ```text
 Angular 22.0.8
@@ -207,8 +209,8 @@ No global state-management library
 Generation command:
 
 ```bash
-pnpm exec nx g @nx/angular:application apps/web \
-  --name=web \
+pnpm exec nx g @nx/angular:application apps/frontend \
+  --name=frontend \
   --bundler=esbuild \
   --style=scss \
   --routing=true \
@@ -224,7 +226,7 @@ pnpm exec nx g @nx/angular:application apps/web \
 
 Rules:
 
-* Do not use `--directory=apps/web`.
+* Do not use `--directory=apps/frontend`.
 * Do not use `--unitTestRunner=vitest` for the Angular application.
 * Angular unit/component testing remains the native Angular Vitest integration.
 * Playwright remains a separate workspace E2E setup.
@@ -277,16 +279,15 @@ Only execute the real generator after its dry-run diff matches the frozen intent
 
 ---
 
-## 6. Express API Generation Configuration
+## 6. Express Backend Generation Configuration
 
-Generate `apps/api` with:
+Generate `apps/backend` with:
 
 ```text
 Node.js 24
 Express 5.2.1
-TypeScript 6.0.3
-Native ESM
-Strict TypeScript
+JavaScript source (native ESM)
+checkJs static analysis via apps/backend/jsconfig.json
 Nx Node application with `@nx/express@23.1.0`
 Vitest
 No business routes
@@ -298,8 +299,8 @@ No module placeholders
 Generation command:
 
 ```bash
-pnpm exec nx g @nx/node:application apps/api \
-  --name=api \
+pnpm exec nx g @nx/node:application apps/backend \
+  --name=backend \
   --framework=express \
   --bundler=esbuild \
   --unitTestRunner=vitest \
@@ -309,8 +310,8 @@ pnpm exec nx g @nx/node:application apps/api \
 
 Rules:
 
-* Do not use `--directory=apps/api`.
-* Keep native ESM, ES2024, NodeNext, Express `5.2.1`, and strict TypeScript requirements.
+* Do not use `--directory=apps/backend`.
+* Keep native ESM, Express `5.2.1`, JavaScript implementation sources, and `checkJs` validation via `jsconfig.json`.
 * Ensure `@nx/express@23.1.0` is installed explicitly during F00 rather than relying on an unpinned generator-added version.
 * Before actual generation, F00 must run the pinned generator with `--help` and `--dry-run`.
 
@@ -517,8 +518,8 @@ pnpm typecheck
 pnpm test:unit
 pnpm test:architecture
 pnpm build
-pnpm build:web
-pnpm build:api
+pnpm build:frontend
+pnpm build:backend
 pnpm db:up
 pnpm db:init
 pnpm db:status

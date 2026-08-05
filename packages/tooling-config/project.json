@@ -1,0 +1,18 @@
+{
+  "name": "tooling-config",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/tooling-config/src",
+  "projectType": "library",
+  "tags": ["type:tooling", "scope:shared"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -b packages/tooling-config/tsconfig.json --pretty false"
+      }
+    }
+  }
+}
