@@ -6,22 +6,21 @@ Agrivio is a cloud-first Fertilizer POS and Inventory Management web application
 
 ## Current Status
 
-Current task: F00 Phase 1 complete (`R1-F00-006`, `R1-F00-010`) — MongoDB replica-set tooling and `@agrivio/test-support`  
-Status: `db:*` commands and integration tests implemented; requires Docker Compose v2 + Node `24.18.0` to run live replica-set/transaction proofs  
-Next work item: F00 Phase 2 — `R1-F00-008` Architecture-boundary testing foundation
+Current task: **F00 complete** (`R1-F00-001`–`R1-F00-010`)  
+Status: Workspace, empty apps, shared packages, MongoDB replica-set tooling, architecture-boundary tests, and GitHub Actions CI foundations are in place  
+Next stage: **F01 Phase 1 — Platform Runtime Foundation**
 
 P1-01 through P1-07 are complete.  
-All four P1-07 toolchain documents are frozen at version 1.0.1.  
-F00 workspace bootstrap (`R1-F00-001`) is complete.  
-Angular frontend scaffold (`R1-F00-002`, historically `apps/web`) is complete.  
-Express backend scaffold (`R1-F00-003`, now JavaScript ESM under `apps/backend`) is complete.  
-Shared packages `@agrivio/api-contracts`, `@agrivio/tooling-config`, and `@agrivio/test-support` exist.  
-Root commands from [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) are wired (`pnpm check`, build/lint/typecheck/test/format/affected, `db:*`, `test:integration`).  
-E2E and CI remain for later F00 items.
+All four P1-07 toolchain documents are frozen at version 1.1.0.  
+F00 workspace bootstrap through CI foundation is complete — see [docs/tasks/F00-PHASE-2-ARCHITECTURE-CI.md](docs/tasks/F00-PHASE-2-ARCHITECTURE-CI.md).  
+Applications: `apps/frontend` (Angular TypeScript) and `apps/backend` (Express JavaScript ESM).  
+Shared packages: `@agrivio/api-contracts`, `@agrivio/tooling-config`, `@agrivio/test-support`.  
+Root commands from [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) are wired, including `pnpm check`, `pnpm test:architecture`, `pnpm test:integration`, `pnpm e2e`, and `db:*`.  
+CI workflows: `.github/workflows/quality.yml`, `integration.yml`, `e2e-smoke.yml`.
 
 ## Current Phase
 
-Release 1 implementation — Stage F00 Toolchain and Repository Bootstrap
+Release 1 implementation — Stage F01 Platform Runtime Foundation (next)
 
 ## Technology Stack
 
@@ -83,5 +82,5 @@ Frozen toolchain and initialization documents (P1-07, v1.1.0 application-path am
 3. Do not change finalized product decisions.
 4. Do not initialize frameworks, install packages, or create source-code folders until a work item explicitly requires it.
 5. Prefer linking to authoritative documents over duplicating rules.
-6. Follow [`docs/REPOSITORY_INITIALIZATION.md`](docs/REPOSITORY_INITIALIZATION.md) for F00. Next work item is `R1-F00-006`.
-7. Implementation records live under `docs/tasks/` (for example [`docs/tasks/F00-BATCH-A.md`](docs/tasks/F00-BATCH-A.md)).
+6. Follow [`docs/REPOSITORY_INITIALIZATION.md`](docs/REPOSITORY_INITIALIZATION.md) for F00 history. Next stage is F01.
+7. Implementation records live under `docs/tasks/` (for example [`docs/tasks/F00-PHASE-2-ARCHITECTURE-CI.md`](docs/tasks/F00-PHASE-2-ARCHITECTURE-CI.md)).

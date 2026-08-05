@@ -1,0 +1,57 @@
+name: Integration
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: integration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration:
+    name: MongoDB replica-set integration and transaction smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.17.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify toolchain pins
+        run: |
+          node --version | grep -F 'v24.18.0'
+          pnpm --version | grep -F '11.17.0'
+
+      - name: Start MongoDB 8.2.12 replica-set topology
+        run: pnpm db:up
+
+      - name: Initialize replica set rs0 and wait for PRIMARY
+        run: pnpm db:init
+
+      - name: Prove replica-set status
+        run: pnpm db:status
+
+      - name: Integration and transaction smoke tests
+        run: pnpm test:integration
+        env:
+          MONGODB_URI: mongodb://127.0.0.1:27017/?replicaSet=rs0
+          MONGODB_REPLICA_SET: rs0
+
+      - name: Stop MongoDB Compose stack
+        if: always()
+        run: pnpm db:down

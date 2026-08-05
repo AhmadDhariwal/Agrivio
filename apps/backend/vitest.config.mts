@@ -11,6 +11,13 @@ export default defineConfig(() => ({
     ...agrivioVitestNodeDefaults,
     name: 'backend',
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    exclude: [
+      '**/node_modules/**',
+      '**/*.architecture.spec.ts',
+      '**/*.integration.spec.ts',
+      '**/*.e2e.spec.ts',
+      '**/tests/architecture/**',
+    ],
     coverage: {
       ...agrivioVitestNodeDefaults.coverage,
       reportsDirectory: '../../coverage/apps/backend',

@@ -14,7 +14,9 @@ Central navigation for Agrivio documentation.
 * `packages/api-contracts` and `packages/tooling-config` exist; root command contract wired; env validation foundation in place
 * F00 Phase 1 complete (`R1-F00-006`, `R1-F00-010`) — see [tasks/F00-PHASE-1-MONGODB-TEST-SUPPORT.md](tasks/F00-PHASE-1-MONGODB-TEST-SUPPORT.md)
 * `packages/test-support` (`@agrivio/test-support`) provides MongoDB/transaction test helpers
-* Next work item: F00 Phase 2 — `R1-F00-008` Architecture-boundary testing foundation
+* F00 Phase 2 complete (`R1-F00-008`, `R1-F00-009`) — see [tasks/F00-PHASE-2-ARCHITECTURE-CI.md](tasks/F00-PHASE-2-ARCHITECTURE-CI.md)
+* Architecture-boundary suite and GitHub Actions quality/integration/E2E smoke workflows exist
+* **F00 complete** — next stage: F01 Phase 1 — Platform Runtime Foundation
 
 ## Existing Documents
 
@@ -52,6 +54,7 @@ Central navigation for Agrivio documentation.
 | [tasks/F00-BATCH-A.md](tasks/F00-BATCH-A.md) | F00 Batch A: shared packages, root commands, env validation (`R1-F00-004`/`005`/`007`, complete) |
 | [tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md](tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md) | F00 amendment: `apps/frontend` / `apps/backend` naming and backend JavaScript ESM migration (complete) |
 | [tasks/F00-PHASE-1-MONGODB-TEST-SUPPORT.md](tasks/F00-PHASE-1-MONGODB-TEST-SUPPORT.md) | F00 Phase 1: MongoDB replica-set tooling + test-support (`R1-F00-006`/`010`) |
+| [tasks/F00-PHASE-2-ARCHITECTURE-CI.md](tasks/F00-PHASE-2-ARCHITECTURE-CI.md) | F00 Phase 2: architecture-boundary tests + GitHub Actions CI (`R1-F00-008`/`009`) |
 | [../README.md](../README.md) | Repository landing page |
 | [../AGENTS.md](../AGENTS.md) | Repository agent and contribution rules |
 

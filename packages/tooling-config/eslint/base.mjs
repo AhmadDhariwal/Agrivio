@@ -15,11 +15,49 @@ export const agrivioModuleBoundaryRules = {
       'error',
       {
         enforceBuildableLibDependency: true,
-        allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
+        allow: [
+          '^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$',
+          '^.*/vitest\\.config\\.[cm]?[jt]s$',
+          '^.*/vitest\\..+\\.config\\.[cm]?[jt]s$',
+          '^.*/tools/architecture/.*$',
+        ],
         depConstraints: [
           {
-            sourceTag: '*',
-            onlyDependOnLibsWithTags: ['*'],
+            sourceTag: 'scope:frontend',
+            onlyDependOnLibsWithTags: ['type:contracts', 'type:tooling'],
+            notDependOnLibsWithTags: ['scope:backend', 'type:test-support'],
+          },
+          {
+            sourceTag: 'scope:backend',
+            onlyDependOnLibsWithTags: ['type:contracts', 'type:tooling', 'type:test-support'],
+            notDependOnLibsWithTags: ['scope:frontend'],
+          },
+          {
+            sourceTag: 'type:contracts',
+            onlyDependOnLibsWithTags: ['type:contracts'],
+            notDependOnLibsWithTags: [
+              'type:app',
+              'type:test-support',
+              'type:tooling',
+              'scope:frontend',
+              'scope:backend',
+            ],
+          },
+          {
+            sourceTag: 'type:tooling',
+            onlyDependOnLibsWithTags: ['type:tooling'],
+            notDependOnLibsWithTags: [
+              'type:app',
+              'type:contracts',
+              'type:test-support',
+              'scope:frontend',
+              'scope:backend',
+            ],
+          },
+          {
+            sourceTag: 'type:test-support',
+            onlyDependOnLibsWithTags: ['type:test-support', 'type:contracts', 'type:tooling'],
+            notDependOnLibsWithTags: ['scope:frontend', 'scope:backend', 'type:app'],
           },
         ],
       },
