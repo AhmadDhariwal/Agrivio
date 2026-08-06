@@ -10,5 +10,5 @@
     "types": ["node"]
   },
   "include": ["src/**/*.js", "vitest.config.mts"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", "src/**/*.spec.js"]
 }

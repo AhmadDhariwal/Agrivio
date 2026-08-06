@@ -40,8 +40,25 @@ export const ApiTransportErrorCode = {
   Forbidden: 'FORBIDDEN',
   NotFound: 'NOT_FOUND',
   Conflict: 'CONFLICT',
+  VersionConflict: 'VERSION_CONFLICT',
+  IdempotencyConflict: 'IDEMPOTENCY_CONFLICT',
   InternalError: 'INTERNAL_ERROR',
 } as const;
+
+/** HTTP header for idempotent mutating requests (API_DESIGN.md §8). */
+export const API_IDEMPOTENCY_KEY_HEADER = 'Idempotency-Key' as const;
+
+/** Field-level validation detail returned with `VALIDATION_FAILED`. */
+export interface ApiValidationErrorDetail {
+  readonly field: string;
+  readonly message: string;
+}
+
+/** Optimistic concurrency conflict detail returned with `VERSION_CONFLICT`. */
+export interface ApiVersionConflictDetail {
+  readonly expectedVersion: number;
+  readonly actualVersion?: number;
+}
 
 export type ApiTransportErrorCode =
   (typeof ApiTransportErrorCode)[keyof typeof ApiTransportErrorCode];

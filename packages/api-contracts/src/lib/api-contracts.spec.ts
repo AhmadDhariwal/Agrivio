@@ -6,6 +6,7 @@ import {
   API_HEALTH_LIVENESS_PATH,
   API_OPERATIONS_READINESS_PATH,
   API_REQUEST_ID_HEADER,
+  API_IDEMPOTENCY_KEY_HEADER,
   API_V1_PREFIX,
   ApiTransportErrorCode,
   createApiErrorEnvelope,
@@ -53,6 +54,9 @@ describe('api-contracts transport surface', () => {
     expect(health.status).toBe('ok');
     expect(readiness.status).toBe('ready');
     expect(ApiTransportErrorCode.NotFound).toBe('NOT_FOUND');
+    expect(ApiTransportErrorCode.VersionConflict).toBe('VERSION_CONFLICT');
+    expect(ApiTransportErrorCode.IdempotencyConflict).toBe('IDEMPOTENCY_CONFLICT');
+    expect(API_IDEMPOTENCY_KEY_HEADER).toBe('Idempotency-Key');
   });
 
   it('builds frozen success and error envelopes', () => {

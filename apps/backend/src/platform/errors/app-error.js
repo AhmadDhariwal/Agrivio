@@ -47,3 +47,19 @@ export function forbidden(message = 'Forbidden') {
 export function conflict(message = 'Conflict') {
   return new AppError(ApiTransportErrorCode.Conflict, message, 409);
 }
+
+/**
+ * @param {string} [message]
+ * @param {import('@agrivio/api-contracts').ApiVersionConflictDetail[]} [details]
+ */
+export function versionConflict(message = 'Version conflict', details) {
+  return new AppError(ApiTransportErrorCode.VersionConflict, message, 409, details);
+}
+
+/**
+ * @param {string} [message]
+ * @param {readonly unknown[]} [details]
+ */
+export function idempotencyConflict(message = 'Idempotency key conflict', details) {
+  return new AppError(ApiTransportErrorCode.IdempotencyConflict, message, 409, details);
+}
