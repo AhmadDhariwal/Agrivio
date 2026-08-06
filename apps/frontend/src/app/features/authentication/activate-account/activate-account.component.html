@@ -1,0 +1,59 @@
+<section class="page-activate-account">
+  <h1>Activate Your Account</h1>
+
+  @if (hasTokenError) {
+    <div class="error-banner" role="alert">
+      <strong>Invalid activation link.</strong>
+      <p>
+        This link appears to be missing required information. Please check the link in your
+        activation message.
+      </p>
+    </div>
+  } @else if (isSuccess) {
+    <div class="success-banner" role="alert">
+      <strong>Account activated successfully!</strong>
+      <p>Your password has been set. You can now <a routerLink="/login">sign in</a>.</p>
+    </div>
+  } @else {
+    <p>Set a password to activate your account. Your password must be at least 12 characters.</p>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="field">
+        <label for="password">Password <span aria-hidden="true">*</span></label>
+        <input
+          id="password"
+          type="password"
+          formControlName="password"
+          autocomplete="new-password"
+          required
+          minlength="12"
+        />
+        @if (form.controls.password.invalid && form.controls.password.touched) {
+          <span class="field-error">Password must be between 12 and 128 characters.</span>
+        }
+      </div>
+
+      <div class="field">
+        <label for="confirmPassword">Confirm Password <span aria-hidden="true">*</span></label>
+        <input
+          id="confirmPassword"
+          type="password"
+          formControlName="confirmPassword"
+          autocomplete="new-password"
+          required
+        />
+        @if (form.hasError('passwordMismatch') && form.controls.confirmPassword.touched) {
+          <span class="field-error">Passwords do not match.</span>
+        }
+      </div>
+
+      @if (errorMessage()) {
+        <div class="error-banner" role="alert">{{ errorMessage() }}</div>
+      }
+
+      <button type="submit" [disabled]="isSubmitting || form.invalid">
+        {{ isSubmitting ? 'Activating…' : 'Activate Account' }}
+      </button>
+    </form>
+  }
+</section>

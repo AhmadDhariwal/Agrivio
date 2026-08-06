@@ -14,6 +14,16 @@ export const API_HEALTH_LIVENESS_PATH = `${API_V1_PREFIX}/health` as const;
 export const API_OPERATIONS_READINESS_PATH =
   `${API_V1_PREFIX}/platform/operations/readiness` as const;
 
+/** Public endpoint: submit organization activation request. */
+export const API_ONBOARDING_REQUEST_PATH =
+  `${API_V1_PREFIX}/organization-activation-requests` as const;
+
+/** Public endpoint: consume one-time activation token and set initial password. */
+export const API_AUTH_ACTIVATE_PATH = `${API_V1_PREFIX}/auth/activate` as const;
+
+/** Platform endpoint: list / create / view organizations. */
+export const API_PLATFORM_ORGANIZATIONS_PATH = `${API_V1_PREFIX}/platform/organizations` as const;
+
 /**
  * Transport-level health payload used by public liveness checks.
  * Must not expose topology, secrets, or environment configuration.
@@ -43,6 +53,12 @@ export const ApiTransportErrorCode = {
   VersionConflict: 'VERSION_CONFLICT',
   IdempotencyConflict: 'IDEMPOTENCY_CONFLICT',
   InternalError: 'INTERNAL_ERROR',
+  /** Activation token has passed its expiry date. */
+  TokenExpired: 'TOKEN_EXPIRED',
+  /** Activation token has already been consumed. */
+  TokenAlreadyUsed: 'TOKEN_ALREADY_USED',
+  /** A pending or active request already exists for this applicant. */
+  DuplicateRequest: 'DUPLICATE_REQUEST',
 } as const;
 
 /** HTTP header for idempotent mutating requests (API_DESIGN.md §8). */

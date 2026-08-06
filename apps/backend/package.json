@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@agrivio/api-contracts": "workspace:*",
+    "argon2": "0.45.1",
     "mongoose": "8.15.0"
   }
 }

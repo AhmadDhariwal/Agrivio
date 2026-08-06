@@ -1,0 +1,72 @@
+<section class="page-org-request">
+  <h1>Request Organization Access</h1>
+  <p>
+    Fill in the details below to request access for your organization. A platform administrator will
+    review your request.
+  </p>
+
+  @if (isSuccess) {
+    <div class="success-banner" role="alert">
+      <strong>Request submitted successfully.</strong>
+      <p>
+        Your request ID: <code>{{ organizationId() }}</code>
+      </p>
+      <p>
+        You will receive an activation link once your request is approved by a platform
+        administrator.
+      </p>
+    </div>
+  } @else {
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="field">
+        <label for="orgName">Organization Name <span aria-hidden="true">*</span></label>
+        <input
+          id="orgName"
+          type="text"
+          formControlName="orgName"
+          autocomplete="organization"
+          required
+        />
+        @if (form.controls.orgName.invalid && form.controls.orgName.touched) {
+          <span class="field-error">Organization name is required (max 200 characters).</span>
+        }
+      </div>
+
+      <div class="field">
+        <label for="ownerName">Owner Full Name <span aria-hidden="true">*</span></label>
+        <input
+          id="ownerName"
+          type="text"
+          formControlName="ownerName"
+          autocomplete="name"
+          required
+        />
+        @if (form.controls.ownerName.invalid && form.controls.ownerName.touched) {
+          <span class="field-error">Owner name is required (max 200 characters).</span>
+        }
+      </div>
+
+      <div class="field">
+        <label for="ownerEmail">Owner Email Address <span aria-hidden="true">*</span></label>
+        <input
+          id="ownerEmail"
+          type="email"
+          formControlName="ownerEmail"
+          autocomplete="email"
+          required
+        />
+        @if (form.controls.ownerEmail.invalid && form.controls.ownerEmail.touched) {
+          <span class="field-error">A valid email address is required.</span>
+        }
+      </div>
+
+      @if (errorMessage()) {
+        <div class="error-banner" role="alert">{{ errorMessage() }}</div>
+      }
+
+      <button type="submit" [disabled]="isSubmitting || form.invalid">
+        {{ isSubmitting ? 'Submitting…' : 'Submit Request' }}
+      </button>
+    </form>
+  }
+</section>

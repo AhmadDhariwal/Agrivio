@@ -9,7 +9,6 @@ import { createHash } from 'node:crypto';
  *   organizationId?: string;
  *   actorId: string;
  *   operation: string;
- *   key: string;
  * }} IdempotencyScope
  * @typedef {{
  *   statusCode: number;
