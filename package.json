@@ -19,7 +19,7 @@
     "test": "pnpm test:unit",
     "test:unit": "nx run-many -t test --all",
     "test:integration": "nx run test-support:test-integration",
-    "test:architecture": "node scripts/architecture-placeholder.mjs",
+    "test:architecture": "node scripts/run-architecture-tests.mjs",
     "e2e": "node scripts/deferred-command.mjs e2e R1-F00-009",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

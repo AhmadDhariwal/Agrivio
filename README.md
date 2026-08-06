@@ -6,9 +6,9 @@ Agrivio is a cloud-first Fertilizer POS and Inventory Management web application
 
 ## Current Status
 
-Current task: F00 Phase 1 complete (`R1-F00-006`, `R1-F00-010`) — MongoDB replica-set tooling and `@agrivio/test-support`  
-Status: `db:*` commands and integration tests implemented; requires Docker Compose v2 + Node `24.18.0` to run live replica-set/transaction proofs  
-Next work item: F00 Phase 2 — `R1-F00-008` Architecture-boundary testing foundation
+Current task: **F01 complete** — platform runtime + transactional foundation (`R1-F01-001`–`R1-F01-011`)  
+Status: Unit/architecture gates pass on Node `24.18.0`; live MongoDB transaction proofs still require Docker Compose v2  
+Next work item: **F02 Phase 1 — Organization Onboarding and Authentication**
 
 P1-01 through P1-07 are complete.  
 All four P1-07 toolchain documents are frozen at version 1.0.1.  
@@ -21,7 +21,7 @@ E2E and CI remain for later F00 items.
 
 ## Current Phase
 
-Release 1 implementation — Stage F00 Toolchain and Repository Bootstrap
+Release 1 implementation — Stage F01 Platform Foundation complete; Stage F02 next
 
 ## Technology Stack
 

@@ -21,6 +21,28 @@ export function mapErrorToHttpResponse(error, nodeEnv) {
     };
   }
 
+  if (error instanceof Error) {
+    if (error.name === 'IdempotencyConflictError') {
+      return {
+        statusCode: 409,
+        body: {
+          code: ApiTransportErrorCode.IdempotencyConflict,
+          message: error.message,
+        },
+      };
+    }
+
+    if (error.name === 'TenantScopeError') {
+      return {
+        statusCode: 403,
+        body: {
+          code: ApiTransportErrorCode.Forbidden,
+          message: error.message,
+        },
+      };
+    }
+  }
+
   const exposeInternalMessage = nodeEnv === 'development' || nodeEnv === 'test';
   const message =
     exposeInternalMessage && error instanceof Error ? error.message : GENERIC_INTERNAL_MESSAGE;

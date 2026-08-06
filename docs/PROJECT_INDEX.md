@@ -14,7 +14,10 @@ Central navigation for Agrivio documentation.
 * `packages/api-contracts` and `packages/tooling-config` exist; root command contract wired; env validation foundation in place
 * F00 Phase 1 complete (`R1-F00-006`, `R1-F00-010`) — see [tasks/F00-PHASE-1-MONGODB-TEST-SUPPORT.md](tasks/F00-PHASE-1-MONGODB-TEST-SUPPORT.md)
 * `packages/test-support` (`@agrivio/test-support`) provides MongoDB/transaction test helpers
-* Next work item: F00 Phase 2 — `R1-F00-008` Architecture-boundary testing foundation
+* F01 Phase 1 complete (`R1-F01-001`–`R1-F01-005`) — see [tasks/F01-PHASE-1-PLATFORM-RUNTIME.md](tasks/F01-PHASE-1-PLATFORM-RUNTIME.md)
+* F01 Phase 2 complete (`R1-F01-006`–`R1-F01-011`) — see [tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md](tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md); **F01 stage exit satisfied** (unit-level)
+* Architecture-boundary tests runnable via `pnpm test:architecture` (replaces F00 placeholder)
+* Next work item: **F02 Phase 1 — Organization Onboarding and Authentication**
 
 ## Existing Documents
 
@@ -51,7 +54,8 @@ Central navigation for Agrivio documentation.
 | [tasks/R1-F00-003.md](tasks/R1-F00-003.md) | F00 work item: Express backend scaffold (complete; historically TypeScript `apps/api`) |
 | [tasks/F00-BATCH-A.md](tasks/F00-BATCH-A.md) | F00 Batch A: shared packages, root commands, env validation (`R1-F00-004`/`005`/`007`, complete) |
 | [tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md](tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md) | F00 amendment: `apps/frontend` / `apps/backend` naming and backend JavaScript ESM migration (complete) |
-| [tasks/F00-PHASE-1-MONGODB-TEST-SUPPORT.md](tasks/F00-PHASE-1-MONGODB-TEST-SUPPORT.md) | F00 Phase 1: MongoDB replica-set tooling + test-support (`R1-F00-006`/`010`) |
+| [tasks/F01-PHASE-1-PLATFORM-RUNTIME.md](tasks/F01-PHASE-1-PLATFORM-RUNTIME.md) | F01 Phase 1: platform runtime foundation |
+| [tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md](tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md) | F01 Phase 2: transactional platform foundation (completes F01) |
 | [../README.md](../README.md) | Repository landing page |
 | [../AGENTS.md](../AGENTS.md) | Repository agent and contribution rules |
 
