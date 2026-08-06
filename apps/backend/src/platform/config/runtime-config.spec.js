@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { EnvValidationError, loadApiEnv, redactSecrets, toSafeApiEnvSummary } from './env.js';
+import {
+  EnvValidationError,
+  loadApiEnv,
+  redactSecrets,
+  toSafeApiEnvSummary,
+} from './runtime-config.js';
 
 describe('loadApiEnv', () => {
   it('accepts a complete non-test configuration', () => {

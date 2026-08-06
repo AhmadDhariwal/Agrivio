@@ -5,6 +5,8 @@
     "allowJs": true,
     "noEmit": true,
     "rootDir": ".",
+    "skipLibCheck": true,
+    "maxNodeModuleJsDepth": 0,
     "types": ["node"]
   },
   "include": ["src/**/*.js", "vitest.config.mts"],

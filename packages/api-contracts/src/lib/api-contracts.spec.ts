@@ -2,7 +2,17 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { API_V1_PREFIX, ApiTransportErrorCode, type ApiHealthResponse } from './api-contracts';
+import {
+  API_HEALTH_LIVENESS_PATH,
+  API_OPERATIONS_READINESS_PATH,
+  API_REQUEST_ID_HEADER,
+  API_V1_PREFIX,
+  ApiTransportErrorCode,
+  createApiErrorEnvelope,
+  createApiSuccessEnvelope,
+  type ApiHealthResponse,
+  type ApiReadinessResponse,
+} from './api-contracts';
 
 const packageSrcRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -35,9 +45,31 @@ function collectTypeScriptFiles(directory: string): string[] {
 describe('api-contracts transport surface', () => {
   it('exposes the stable API v1 prefix and health contract', () => {
     const health: ApiHealthResponse = { status: 'ok' };
+    const readiness: ApiReadinessResponse = { status: 'ready' };
     expect(API_V1_PREFIX).toBe('/api/v1');
+    expect(API_REQUEST_ID_HEADER).toBe('X-Request-Id');
+    expect(API_HEALTH_LIVENESS_PATH).toBe('/api/v1/health');
+    expect(API_OPERATIONS_READINESS_PATH).toBe('/api/v1/platform/operations/readiness');
     expect(health.status).toBe('ok');
+    expect(readiness.status).toBe('ready');
     expect(ApiTransportErrorCode.NotFound).toBe('NOT_FOUND');
+  });
+
+  it('builds frozen success and error envelopes', () => {
+    const success = createApiSuccessEnvelope('req-12345678', { status: 'ok' });
+    const error = createApiErrorEnvelope('req-12345678', {
+      code: ApiTransportErrorCode.InternalError,
+      message: 'Unexpected',
+    });
+
+    expect(success).toEqual({
+      data: { status: 'ok' },
+      requestId: 'req-12345678',
+    });
+    expect(error).toEqual({
+      error: { code: 'INTERNAL_ERROR', message: 'Unexpected' },
+      requestId: 'req-12345678',
+    });
   });
 
   it('contains no Express, Angular, Mongoose, or NestJS imports', () => {

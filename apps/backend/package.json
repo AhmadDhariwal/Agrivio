@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@agrivio/api-contracts": "workspace:*"
+    "@agrivio/api-contracts": "workspace:*",
+    "mongoose": "8.15.0"
   }
 }
