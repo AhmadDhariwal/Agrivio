@@ -1,6 +1,5 @@
 // @ts-check
-import { redactLogFields } from '../logging/redact-log-fields.js';
-
+const { redactLogFields } = require('../logging/redact-log-fields');
 /**
  * @typedef {{
  *   organizationId?: string;
@@ -18,7 +17,7 @@ import { redactLogFields } from '../logging/redact-log-fields.js';
  * @param {AuditEventInput} input
  * @returns {Record<string, unknown>}
  */
-export function sanitizeAuditEvent(input) {
+function sanitizeAuditEvent(input) {
   return redactLogFields({
     organizationId: input.organizationId,
     actorId: input.actorId,
@@ -41,7 +40,7 @@ export function sanitizeAuditEvent(input) {
 /**
  * @returns {AuditEventStore}
  */
-export function createInMemoryAuditEventStore() {
+function createInMemoryAuditEventStore() {
   /** @type {Record<string, unknown>[]} */
   const events = [];
 
@@ -58,7 +57,7 @@ export function createInMemoryAuditEventStore() {
 /**
  * @param {AuditEventStore} store
  */
-export function createAuditWriter(store) {
+function createAuditWriter(store) {
   return {
     /**
      * Append-only business audit event inside the authoritative transaction.
@@ -71,3 +70,9 @@ export function createAuditWriter(store) {
     },
   };
 }
+
+module.exports = {
+  sanitizeAuditEvent,
+  createInMemoryAuditEventStore,
+  createAuditWriter,
+};

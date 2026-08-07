@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createMockDatabaseLifecycle } from './mongo-connection.js';
-
+import { createMockDatabaseLifecycle } from './mongo-connection';
 describe('createMockDatabaseLifecycle', () => {
   it('tracks connect and disconnect state', async () => {
     const database = createMockDatabaseLifecycle({ ready: true });

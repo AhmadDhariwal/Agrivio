@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createIdempotencyService, createInMemoryIdempotencyStore } from './idempotency-service.js';
-
+import { createIdempotencyService, createInMemoryIdempotencyStore } from './idempotency-service';
 const scope = {
   scopeType: 'organization',
   organizationId: 'org-12345678',

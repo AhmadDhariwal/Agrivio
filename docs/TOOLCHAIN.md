@@ -1,11 +1,13 @@
 # Toolchain
 
 Document status: Frozen for Release 1  
-Current version: 1.1.0  
-Last updated: 2026-08-05  
+Current version: 1.2.0  
+Last updated: 2026-08-08  
 Approval status: Approved for repository initialization
 
-> **Amendment 1.1.0 (2026-08-05):** Frontend canonical project: `apps/frontend`. Backend canonical project: `apps/backend`. Backend implementation language: JavaScript ESM. Frontend implementation language: Angular TypeScript. Details: [tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md](tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md).
+> **Amendment 1.1.0 (2026-08-05):** Frontend canonical project: `apps/frontend`. Backend canonical project: `apps/backend`. Backend implementation language was JavaScript ESM. Frontend implementation language: Angular TypeScript. Details: [tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md](tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md).
+>
+> **Amendment 1.2.0 (2026-08-08):** Backend implementation language: JavaScript CommonJS (`require` / `module.exports`). Frontend remains Angular TypeScript. Shared packages remain TypeScript. Details: [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md).
 
 ## Document Authority
 
@@ -185,7 +187,7 @@ Rules:
 | Application directory | `apps/` |
 | Internal package directory | `packages/` |
 | Package scope | `@agrivio` |
-| API module format | Native ESM (`"type": "module"`) |
+| API module format | CommonJS (`require` / `module.exports`; no backend `"type": "module"`) |
 | Backend source language | JavaScript (`.js`) with `// @ts-check` and `apps/backend/jsconfig.json` |
 | Backend static analysis | TypeScript `6.0.3` in `checkJs` mode via `jsconfig.json` (no backend `.ts` implementation sources) |
 | Angular / shared packages | TypeScript `6.0.3` with shared strict compiler settings |

@@ -1,0 +1,32 @@
+<section class="onboarding">
+  <h1>Request organization access</h1>
+  <p>Submit your organization details for Super Admin review.</p>
+
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <label>
+      Organization name
+      <input formControlName="organizationName" autocomplete="organization" />
+    </label>
+    <label>
+      Owner email
+      <input formControlName="ownerEmail" type="email" autocomplete="email" />
+    </label>
+    <label>
+      Owner display name
+      <input formControlName="ownerDisplayName" autocomplete="name" />
+    </label>
+    <label>
+      Timezone
+      <input formControlName="timezone" />
+    </label>
+
+    @if (errorMessage(); as error) {
+      <p class="error" role="alert">{{ error }}</p>
+    }
+    @if (successMessage(); as success) {
+      <p class="success" role="status">{{ success }}</p>
+    }
+
+    <button type="submit" [disabled]="submitting()">Submit request</button>
+  </form>
+</section>

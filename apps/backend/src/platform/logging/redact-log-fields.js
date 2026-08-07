@@ -1,6 +1,5 @@
 // @ts-check
-import { redactSecrets, API_SECRET_ENV_KEYS } from '../config/runtime-config.js';
-
+const { redactSecrets, API_SECRET_ENV_KEYS } = require('../config/runtime-config');
 const SENSITIVE_LOG_KEY_PATTERN =
   /(password|secret|token|authorization|cookie|csrf|credential|mongodb_uri|session_secret)/i;
 
@@ -37,7 +36,7 @@ function redactValue(value, env) {
  * @param {NodeJS.ProcessEnv} [env]
  * @returns {Record<string, unknown>}
  */
-export function redactLogFields(fields, env = process.env) {
+function redactLogFields(fields, env = process.env) {
   /** @type {Record<string, unknown>} */
   const redacted = {};
 
@@ -51,3 +50,7 @@ export function redactLogFields(fields, env = process.env) {
 
   return redacted;
 }
+
+module.exports = {
+  redactLogFields,
+};

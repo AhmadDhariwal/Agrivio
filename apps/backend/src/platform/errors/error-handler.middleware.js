@@ -1,14 +1,13 @@
 // @ts-check
-import { createApiErrorEnvelope } from '@agrivio/api-contracts';
-import { mapErrorToHttpResponse } from './map-http-error.js';
-import { AppError, notFound } from './app-error.js';
-
+const { createApiErrorEnvelope } = require('@agrivio/api-contracts');
+const { mapErrorToHttpResponse } = require('./map-http-error');
+const { AppError, notFound } = require('./app-error');
 /**
- * @param {import('../config/runtime-config.js').ApiNodeEnv} nodeEnv
- * @param {import('../logging/structured-logger.js').StructuredLogger} logger
+ * @param {import('../config/runtime-config').ApiNodeEnv} nodeEnv
+ * @param {import('../logging/structured-logger').StructuredLogger} logger
  * @returns {import('express').ErrorRequestHandler}
  */
-export function createErrorHandlerMiddleware(nodeEnv, logger) {
+function createErrorHandlerMiddleware(nodeEnv, logger) {
   return (error, req, res, next) => {
     if (res.headersSent) {
       next(error);
@@ -30,10 +29,10 @@ export function createErrorHandlerMiddleware(nodeEnv, logger) {
 }
 
 /**
- * @param {import('../config/runtime-config.js').ApiNodeEnv} nodeEnv
+ * @param {import('../config/runtime-config').ApiNodeEnv} nodeEnv
  * @returns {import('express').RequestHandler}
  */
-export function createNotFoundMiddleware(nodeEnv) {
+function createNotFoundMiddleware(nodeEnv) {
   return (req, res) => {
     const requestId = resolveRequestIdFromRequest(req, res);
     const appError = notFound();
@@ -61,4 +60,8 @@ function resolveRequestIdFromRequest(req, res) {
   return 'unknown-request-id';
 }
 
-export { AppError };
+module.exports = {
+  createErrorHandlerMiddleware,
+  createNotFoundMiddleware,
+  AppError,
+};

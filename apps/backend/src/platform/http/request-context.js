@@ -1,6 +1,5 @@
 // @ts-check
-import { AsyncLocalStorage } from 'node:async_hooks';
-
+const { AsyncLocalStorage } = require('node:async_hooks');
 /**
  * @typedef {{
  *   requestId: string;
@@ -15,20 +14,26 @@ const storage = new AsyncLocalStorage();
  * @param {RequestContext} context
  * @param {() => void} fn
  */
-export function runWithRequestContext(context, fn) {
+function runWithRequestContext(context, fn) {
   storage.run(context, fn);
 }
 
 /**
  * @returns {RequestContext | undefined}
  */
-export function getRequestContext() {
+function getRequestContext() {
   return storage.getStore();
 }
 
 /**
  * @returns {string | undefined}
  */
-export function getRequestId() {
+function getRequestId() {
   return storage.getStore()?.requestId;
 }
+
+module.exports = {
+  runWithRequestContext,
+  getRequestContext,
+  getRequestId,
+};

@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ApiTransportErrorCode } from '@agrivio/api-contracts';
-import { AppError, notFound } from './app-error.js';
-import { mapErrorToHttpResponse } from './map-http-error.js';
-
+import { AppError, notFound } from './app-error';
+import { mapErrorToHttpResponse } from './map-http-error';
 describe('mapErrorToHttpResponse', () => {
   it('maps application errors to frozen transport codes', () => {
     const mapped = mapErrorToHttpResponse(notFound('Missing route'), 'test');

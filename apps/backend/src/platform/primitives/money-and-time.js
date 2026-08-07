@@ -3,12 +3,12 @@
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Money is stored as integer minor units (paisa) for PKR (2 decimal places). */
-export const MONEY_MINOR_UNIT_SCALE = 2n;
-export const MONEY_MINOR_UNIT_FACTOR = 100n;
+const MONEY_MINOR_UNIT_SCALE = 2n;
+const MONEY_MINOR_UNIT_FACTOR = 100n;
 
 /** Quantity minor scale supports four decimal places (BR-COMMON-017/025). */
-export const QUANTITY_MINOR_UNIT_SCALE = 4n;
-export const QUANTITY_MINOR_UNIT_FACTOR = 10000n;
+const QUANTITY_MINOR_UNIT_SCALE = 4n;
+const QUANTITY_MINOR_UNIT_FACTOR = 10000n;
 
 /**
  * @param {bigint} numerator
@@ -28,7 +28,7 @@ function divRoundHalfUp(numerator, denominator) {
  * @param {string} raw
  * @returns {bigint}
  */
-export function parseMoneyMinorUnits(raw) {
+function parseMoneyMinorUnits(raw) {
   const value = raw.trim();
   if (!/^-?\d+(\.\d{1,2})?$/.test(value)) {
     throw new Error('Invalid monetary value');
@@ -49,7 +49,7 @@ export function parseMoneyMinorUnits(raw) {
  * @param {bigint} minorUnits
  * @returns {string}
  */
-export function formatMoneyMinorUnits(minorUnits) {
+function formatMoneyMinorUnits(minorUnits) {
   const negative = minorUnits < 0n;
   const absolute = negative ? -minorUnits : minorUnits;
   const whole = absolute / MONEY_MINOR_UNIT_FACTOR;
@@ -62,7 +62,7 @@ export function formatMoneyMinorUnits(minorUnits) {
  * @param {bigint} left
  * @param {bigint} right
  */
-export function addMoneyMinorUnits(left, right) {
+function addMoneyMinorUnits(left, right) {
   return left + right;
 }
 
@@ -71,7 +71,7 @@ export function addMoneyMinorUnits(left, right) {
  * @param {bigint} multiplier
  * @param {bigint} divisor
  */
-export function multiplyMoneyMinorUnits(value, multiplier, divisor) {
+function multiplyMoneyMinorUnits(value, multiplier, divisor) {
   return divRoundHalfUp(value * multiplier, divisor);
 }
 
@@ -79,7 +79,7 @@ export function multiplyMoneyMinorUnits(value, multiplier, divisor) {
  * @param {string} raw
  * @returns {bigint}
  */
-export function parseQuantityMinorUnits(raw) {
+function parseQuantityMinorUnits(raw) {
   const value = raw.trim();
   if (!/^-?\d+(\.\d{1,4})?$/.test(value)) {
     throw new Error('Invalid quantity value');
@@ -105,7 +105,7 @@ export function parseQuantityMinorUnits(raw) {
  * @param {string} raw
  * @returns {boolean}
  */
-export function isValidDateOnlyString(raw) {
+function isValidDateOnlyString(raw) {
   if (!DATE_ONLY_PATTERN.test(raw)) {
     return false;
   }
@@ -124,7 +124,7 @@ export function isValidDateOnlyString(raw) {
  * @param {string} raw
  * @returns {string}
  */
-export function parseDateOnly(raw) {
+function parseDateOnly(raw) {
   const value = raw.trim();
   if (!isValidDateOnlyString(value)) {
     throw new Error('Invalid date-only value; expected YYYY-MM-DD');
@@ -136,7 +136,7 @@ export function parseDateOnly(raw) {
  * @param {string} raw
  * @returns {Date}
  */
-export function parseUtcTimestamp(raw) {
+function parseUtcTimestamp(raw) {
   const value = raw.trim();
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(value)) {
     throw new Error('Timestamps must be ISO 8601 UTC');
@@ -149,3 +149,18 @@ export function parseUtcTimestamp(raw) {
 
   return date;
 }
+
+module.exports = {
+  MONEY_MINOR_UNIT_SCALE,
+  MONEY_MINOR_UNIT_FACTOR,
+  QUANTITY_MINOR_UNIT_SCALE,
+  QUANTITY_MINOR_UNIT_FACTOR,
+  parseMoneyMinorUnits,
+  formatMoneyMinorUnits,
+  addMoneyMinorUnits,
+  multiplyMoneyMinorUnits,
+  parseQuantityMinorUnits,
+  isValidDateOnlyString,
+  parseDateOnly,
+  parseUtcTimestamp,
+};

@@ -1,10 +1,9 @@
 // @ts-check
-import {
+const {
   isNonRetryableTransactionFailure,
   isTransientTransactionError,
-} from './transaction-errors.js';
-import { createDefaultRetryPolicy, waitForRetry } from './retry-policy.js';
-
+} = require('./transaction-errors');
+const { createDefaultRetryPolicy, waitForRetry } = require('./retry-policy');
 /**
  * @typedef {import('mongoose').ClientSession} ClientSession
  * @typedef {{
@@ -15,14 +14,14 @@ import { createDefaultRetryPolicy, waitForRetry } from './retry-policy.js';
  *   ) => Promise<unknown>;
  *   endSession: (session: ClientSession) => Promise<void>;
  * }} TransactionSessionPort
- * @typedef {import('./retry-policy.js').RetryPolicy} RetryPolicy
+ * @typedef {import('./retry-policy').RetryPolicy} RetryPolicy
  */
 
 /**
  * @param {TransactionSessionPort} port
  * @param {{ retryPolicy?: RetryPolicy; sleep?: (ms: number) => Promise<void> }} [options]
  */
-export function createTransactionRunner(port, options = {}) {
+function createTransactionRunner(port, options = {}) {
   const retryPolicy = options.retryPolicy ?? createDefaultRetryPolicy();
   const sleep = options.sleep;
 
@@ -82,7 +81,7 @@ export function createTransactionRunner(port, options = {}) {
  *   transientFailuresBeforeSuccess?: number;
  * }} [options]
  */
-export function createMockTransactionSessionPort(options = {}) {
+function createMockTransactionSessionPort(options = {}) {
   let transientRemaining = options.transientFailuresBeforeSuccess ?? 0;
   let committed = false;
   let aborted = false;
@@ -135,3 +134,8 @@ export function createMockTransactionSessionPort(options = {}) {
     },
   };
 }
+
+module.exports = {
+  createTransactionRunner,
+  createMockTransactionSessionPort,
+};

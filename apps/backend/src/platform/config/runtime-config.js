@@ -3,7 +3,7 @@
 /**
  * Secret-bearing API environment keys that must never be logged in full.
  */
-export const API_SECRET_ENV_KEYS = ['SESSION_SECRET', 'MONGODB_URI'];
+const API_SECRET_ENV_KEYS = ['SESSION_SECRET', 'MONGODB_URI'];
 
 /**
  * @typedef {'local' | 'test' | 'staging' | 'production'} ApiRuntimeProfile
@@ -20,7 +20,7 @@ export const API_SECRET_ENV_KEYS = ['SESSION_SECRET', 'MONGODB_URI'];
  * }} ApiEnv
  */
 
-export class EnvValidationError extends Error {
+class EnvValidationError extends Error {
   /**
    * @param {readonly string[]} issues
    */
@@ -73,7 +73,7 @@ function resolveProfile(nodeEnv, rawProfile) {
  * @param {string} text
  * @param {NodeJS.ProcessEnv} [env]
  */
-export function redactSecrets(text, env = process.env) {
+function redactSecrets(text, env = process.env) {
   let redacted = text;
 
   for (const key of API_SECRET_ENV_KEYS) {
@@ -96,7 +96,7 @@ export function redactSecrets(text, env = process.env) {
  * @param {NodeJS.ProcessEnv} [env]
  * @returns {ApiEnv}
  */
-export function loadApiEnv(env = process.env) {
+function loadApiEnv(env = process.env) {
   const issues = [];
 
   const rawNodeEnv = env['NODE_ENV'] ?? 'development';
@@ -181,7 +181,7 @@ export function loadApiEnv(env = process.env) {
  * @param {ApiEnv} config
  * @returns {Record<string, string | number>}
  */
-export function toSafeApiEnvSummary(config) {
+function toSafeApiEnvSummary(config) {
   return {
     nodeEnv: config.nodeEnv,
     profile: config.profile,
@@ -193,3 +193,11 @@ export function toSafeApiEnvSummary(config) {
     sessionSecretConfigured: 'yes',
   };
 }
+
+module.exports = {
+  API_SECRET_ENV_KEYS,
+  redactSecrets,
+  loadApiEnv,
+  toSafeApiEnvSummary,
+  EnvValidationError,
+};

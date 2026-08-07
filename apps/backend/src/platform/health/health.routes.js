@@ -1,13 +1,15 @@
 // @ts-check
-import { Router } from 'express';
-import { API_HEALTH_LIVENESS_PATH, API_OPERATIONS_READINESS_PATH } from '@agrivio/api-contracts';
-import { sendSuccessEnvelope } from '../http/response-envelope.js';
-
+const { Router } = require('express');
+const {
+  API_HEALTH_LIVENESS_PATH,
+  API_OPERATIONS_READINESS_PATH,
+} = require('@agrivio/api-contracts');
+const { sendSuccessEnvelope } = require('../http/response-envelope');
 /**
- * @typedef {import('../database/mongo-connection.js').MongoDatabaseLifecycle} MongoDatabaseLifecycle
+ * @typedef {import('../database/mongo-connection').MongoDatabaseLifecycle} MongoDatabaseLifecycle
  * @param {{ database: MongoDatabaseLifecycle }} deps
  */
-export function registerHealthRoutes(deps) {
+function registerHealthRoutes(deps) {
   const router = Router();
 
   router.get(API_HEALTH_LIVENESS_PATH, (_req, res) => {
@@ -26,3 +28,7 @@ export function registerHealthRoutes(deps) {
 
   return router;
 }
+
+module.exports = {
+  registerHealthRoutes,
+};

@@ -2,14 +2,17 @@
 
 ## Task Status
 
-* Status: Complete
+* Status: Complete (historical)
 * Completion date: 2026-08-05
 * Commit hash: `74419da7bb9d5660982a509f07411dec5a128017`
-* Next batch: **F00 Batch B** — `R1-F00-006` Local MongoDB Replica-Set Topology
+* Module-format follow-up: [BACKEND-COMMONJS-MIGRATION.md](BACKEND-COMMONJS-MIGRATION.md) — backend runtime is now JavaScript CommonJS
+* Next batch at the time: **F00 Batch B** — `R1-F00-006` Local MongoDB Replica-Set Topology
 
 ## Reason
 
 Deliberate architecture amendment before F00 Batch B: align application directory and Nx project names with frontend/backend roles, and implement the backend in native JavaScript ESM while keeping Angular and shared packages on TypeScript.
+
+> **Historical note:** Backend module format in this record is JavaScript ESM. The later CommonJS simplification supersedes the ESM runtime decision; see [BACKEND-COMMONJS-MIGRATION.md](BACKEND-COMMONJS-MIGRATION.md).
 
 ## Canonical Name Changes
 

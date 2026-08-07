@@ -1,11 +1,10 @@
 // @ts-check
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
-
+const { readFileSync, readdirSync, statSync } = require('node:fs');
+const { join } = require('node:path');
 /**
  * @param {string} filePath
  */
-export function extractImportSpecifiers(filePath) {
+function extractImportSpecifiers(filePath) {
   const contents = readFileSync(filePath, 'utf8');
   /** @type {string[]} */
   const specifiers = [];
@@ -29,7 +28,7 @@ export function extractImportSpecifiers(filePath) {
  * @param {string} directory
  * @returns {string[]}
  */
-export function collectSourceFiles(directory) {
+function collectSourceFiles(directory) {
   /** @type {string[]} */
   const files = [];
   for (const entry of readdirSync(directory)) {
@@ -53,14 +52,14 @@ export function collectSourceFiles(directory) {
 /**
  * @param {string} specifier
  */
-export function isForbiddenPersistenceImport(specifier) {
+function isForbiddenPersistenceImport(specifier) {
   return specifier === 'mongoose' || specifier.startsWith('mongoose/');
 }
 
 /**
  * @param {string} rootDirectory
  */
-export function scanControllerPersistenceViolations(rootDirectory) {
+function scanControllerPersistenceViolations(rootDirectory) {
   const files = collectSourceFiles(rootDirectory);
   /** @type {string[]} */
   const violations = [];
@@ -84,7 +83,7 @@ export function scanControllerPersistenceViolations(rootDirectory) {
 /**
  * @param {string} rootDirectory
  */
-export function scanApiContractsDependencyViolations(rootDirectory) {
+function scanApiContractsDependencyViolations(rootDirectory) {
   const files = collectSourceFiles(rootDirectory);
   /** @type {string[]} */
   const violations = [];
@@ -103,3 +102,11 @@ export function scanApiContractsDependencyViolations(rootDirectory) {
 
   return violations;
 }
+
+module.exports = {
+  extractImportSpecifiers,
+  collectSourceFiles,
+  isForbiddenPersistenceImport,
+  scanControllerPersistenceViolations,
+  scanApiContractsDependencyViolations,
+};

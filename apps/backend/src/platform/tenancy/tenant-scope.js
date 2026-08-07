@@ -1,6 +1,6 @@
 // @ts-check
 
-export class TenantScopeError extends Error {
+class TenantScopeError extends Error {
   /**
    * @param {string} message
    */
@@ -11,7 +11,7 @@ export class TenantScopeError extends Error {
 }
 
 /** Explicit marker for audited platform/system persistence bypasses. */
-export const SYSTEM_SCOPE = /** @type {const} */ ('__agrivio_system_scope__');
+const SYSTEM_SCOPE = /** @type {const} */ ('__agrivio_system_scope__');
 
 /**
  * @typedef {{
@@ -28,7 +28,7 @@ export const SYSTEM_SCOPE = /** @type {const} */ ('__agrivio_system_scope__');
  * @param {string | undefined} organizationId
  * @returns {PersistenceScope}
  */
-export function createOrganizationScope(organizationId) {
+function createOrganizationScope(organizationId) {
   if (typeof organizationId !== 'string' || organizationId.trim().length === 0) {
     throw new TenantScopeError('organizationId is required for tenant-scoped persistence');
   }
@@ -40,7 +40,7 @@ export function createOrganizationScope(organizationId) {
  * @param {string} reason
  * @param {typeof SYSTEM_SCOPE} token
  */
-export function createSystemScope(reason, token) {
+function createSystemScope(reason, token) {
   if (token !== SYSTEM_SCOPE) {
     throw new TenantScopeError('Invalid system scope bypass token');
   }
@@ -55,7 +55,7 @@ export function createSystemScope(reason, token) {
  * @param {PersistenceScope} scope
  * @param {Record<string, unknown>} [filter]
  */
-export function composeTenantFilter(scope, filter = {}) {
+function composeTenantFilter(scope, filter = {}) {
   if (scope.mode === 'system') {
     return { ...filter, __systemScope: true, __systemScopeReason: scope.reason };
   }
@@ -70,7 +70,7 @@ export function composeTenantFilter(scope, filter = {}) {
  * @param {PersistenceScope} scope
  * @param {Record<string, unknown>} document
  */
-export function assertTenantWriteDocument(scope, document) {
+function assertTenantWriteDocument(scope, document) {
   if (scope.mode === 'system') {
     return;
   }
@@ -84,7 +84,7 @@ export function assertTenantWriteDocument(scope, document) {
  * @param {PersistenceScope} scope
  * @param {Record<string, unknown>} filter
  */
-export function assertTenantReadFilter(scope, filter) {
+function assertTenantReadFilter(scope, filter) {
   if (scope.mode === 'system') {
     return;
   }
@@ -104,7 +104,7 @@ export function assertTenantReadFilter(scope, filter) {
  *   };
  * }} deps
  */
-export function createSampleTenantRepository(deps) {
+function createSampleTenantRepository(deps) {
   return {
     async findById(/** @type {string} */ id) {
       const filter = composeTenantFilter(deps.scope, { _id: id });
@@ -119,3 +119,14 @@ export function createSampleTenantRepository(deps) {
     },
   };
 }
+
+module.exports = {
+  SYSTEM_SCOPE,
+  createOrganizationScope,
+  createSystemScope,
+  composeTenantFilter,
+  assertTenantWriteDocument,
+  assertTenantReadFilter,
+  createSampleTenantRepository,
+  TenantScopeError,
+};

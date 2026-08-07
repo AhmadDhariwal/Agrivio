@@ -1,11 +1,13 @@
 # Module Boundaries
 
 Document status: Frozen for Release 1  
-Current version: 1.1.0  
-Last updated: 2026-08-05  
+Current version: 1.2.0  
+Last updated: 2026-08-08  
 Approval status: Approved for Phase 1 continuation
 
-> **Amendment 1.1.0 (2026-08-05):** Frontend canonical project: `apps/frontend`. Backend canonical project: `apps/backend`. Backend implementation language: JavaScript ESM. Frontend implementation language: Angular TypeScript. Details: [tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md](tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md).
+> **Amendment 1.1.0 (2026-08-05):** Frontend canonical project: `apps/frontend`. Backend canonical project: `apps/backend`. Backend implementation language was JavaScript ESM. Frontend implementation language: Angular TypeScript. Details: [tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md](tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md).
+>
+> **Amendment 1.2.0 (2026-08-08):** Backend implementation language: JavaScript CommonJS (`require` / `module.exports`). Frontend remains Angular TypeScript. Shared packages remain TypeScript. Details: [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md).
 
 ## Document Authority
 
@@ -319,6 +321,14 @@ Other modules must not import:
 The public interface may later be represented through an explicit module entry point such as `modules/<module>/public/`.
 
 Exact TypeScript interface definitions belong in P1-05 or implementation tasks.
+
+Backend coding conventions (Amendment 1.2.0):
+
+* Backend implementation uses JavaScript CommonJS (`require` / `module.exports`).
+* Backend files use kebab-case names (`organization.service.js`, `auth.routes.js`).
+* Business request flow: Route → Middleware → Controller → Service → Repository when useful → Mongoose Model.
+* Repositories are optional and used only when they own meaningful persistence, tenant enforcement, or reusable query complexity.
+* Do not introduce ports, adapters, command/query layers, use-case classes, factories, facades, or generic repository frameworks.
 
 ---
 

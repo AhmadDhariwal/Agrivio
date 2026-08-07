@@ -1,13 +1,12 @@
 // @ts-check
-import { API_REQUEST_ID_HEADER } from '@agrivio/api-contracts';
-import { getRequestContext, runWithRequestContext } from './request-context.js';
-import { resolveRequestId } from './request-id.js';
-
+const { API_REQUEST_ID_HEADER } = require('@agrivio/api-contracts');
+const { getRequestContext, runWithRequestContext } = require('./request-context');
+const { resolveRequestId } = require('./request-id');
 /**
  * Generates or accepts a valid request id, stores it on the response, and binds request context.
  * @returns {import('express').RequestHandler}
  */
-export function createRequestIdMiddleware() {
+function createRequestIdMiddleware() {
   return (req, res, next) => {
     const headerValue = req.header(API_REQUEST_ID_HEADER) ?? undefined;
     const requestId = resolveRequestId(headerValue);
@@ -26,7 +25,7 @@ export function createRequestIdMiddleware() {
  * @param {import('express').Response} [res]
  * @returns {string}
  */
-export function requireRequestIdFromContext(res) {
+function requireRequestIdFromContext(res) {
   const fromContext = getRequestContext()?.requestId;
   if (fromContext !== undefined) {
     return fromContext;
@@ -41,3 +40,8 @@ export function requireRequestIdFromContext(res) {
 
   throw new Error('Request id is unavailable outside the request pipeline');
 }
+
+module.exports = {
+  createRequestIdMiddleware,
+  requireRequestIdFromContext,
+};

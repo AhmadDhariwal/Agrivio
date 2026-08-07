@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { redactLogFields } from './redact-log-fields.js';
-
+import { redactLogFields } from './redact-log-fields';
 describe('redactLogFields', () => {
   it('redacts sensitive keys and nested secret values', () => {
     const redacted = redactLogFields({

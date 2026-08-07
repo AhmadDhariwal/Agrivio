@@ -1,16 +1,16 @@
-import { createApp } from './app.js';
-import { createMongooseDatabaseLifecycle } from './platform/database/mongo-connection.js';
-import {
+const { createApp } = require('./app');
+const { createMongooseDatabaseLifecycle } = require('./platform/database/mongo-connection');
+const {
   loadApiEnv,
   redactSecrets,
   toSafeApiEnvSummary,
-} from './platform/config/runtime-config.js';
-import { createStructuredLogger } from './platform/logging/structured-logger.js';
+} = require('./platform/config/runtime-config');
+const { createStructuredLogger } = require('./platform/logging/structured-logger');
 
 /** @type {import('node:http').Server | undefined} */
 let server;
 
-/** @type {import('./platform/database/mongo-connection.js').MongoDatabaseLifecycle | undefined} */
+/** @type {import('./platform/database/mongo-connection').MongoDatabaseLifecycle | undefined} */
 let database;
 
 /**
@@ -32,7 +32,7 @@ async function shutdown(signal) {
   process.exit(0);
 }
 
-try {
+async function start() {
   const env = loadApiEnv();
   const logger = createStructuredLogger({ service: 'backend' });
   database = createMongooseDatabaseLifecycle();
@@ -51,8 +51,10 @@ try {
   process.once('SIGTERM', () => {
     void shutdown('SIGTERM');
   });
-} catch (error) {
+}
+
+start().catch((error) => {
   const message = error instanceof Error ? error.message : String(error);
   console.error(redactSecrets(message));
   process.exit(1);
-}
+});

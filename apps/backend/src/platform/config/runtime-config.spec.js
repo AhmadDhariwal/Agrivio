@@ -4,8 +4,7 @@ import {
   loadApiEnv,
   redactSecrets,
   toSafeApiEnvSummary,
-} from './runtime-config.js';
-
+} from './runtime-config';
 describe('loadApiEnv', () => {
   it('accepts a complete non-test configuration', () => {
     const config = loadApiEnv({

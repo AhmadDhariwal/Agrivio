@@ -1,4 +1,4 @@
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
@@ -6,7 +6,7 @@ import {
   scanControllerPersistenceViolations,
 } from '../../src/platform/architecture/boundary-scan.js';
 
-const testDir = dirname(fileURLToPath(import.meta.url));
+const testDir = fileURLToPath(new URL('.', import.meta.url));
 const backendRoot = join(testDir, '../../src');
 const repoRoot = join(testDir, '../../../..');
 const apiContractsRoot = join(repoRoot, 'packages/api-contracts/src');

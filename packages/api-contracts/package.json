@@ -3,12 +3,13 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "main": "./src/index.js",
+  "main": "./src/require-entry.cjs",
   "types": "./src/index.d.ts",
   "exports": {
     "./package.json": "./package.json",
     ".": {
       "types": "./src/index.ts",
+      "require": "./src/require-entry.cjs",
       "import": "./src/index.ts",
       "default": "./src/index.ts"
     }

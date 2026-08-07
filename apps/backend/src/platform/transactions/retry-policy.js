@@ -8,7 +8,7 @@
  */
 
 /** @returns {RetryPolicy} */
-export function createDefaultRetryPolicy() {
+function createDefaultRetryPolicy() {
   return {
     maxAttempts: 3,
     delayMs: (attempt) => Math.min(50 * 2 ** (attempt - 1), 200),
@@ -19,7 +19,7 @@ export function createDefaultRetryPolicy() {
  * @param {{ delaysMs?: readonly number[] }} [options]
  * @returns {RetryPolicy}
  */
-export function createDeterministicRetryPolicy(options = {}) {
+function createDeterministicRetryPolicy(options = {}) {
   const delaysMs = options.delaysMs ?? [0, 0, 0];
   return {
     maxAttempts: delaysMs.length + 1,
@@ -32,7 +32,7 @@ export function createDeterministicRetryPolicy(options = {}) {
  * @param {number} attempt
  * @param {(ms: number) => Promise<void>} [sleep]
  */
-export async function waitForRetry(policy, attempt, sleep = defaultSleep) {
+async function waitForRetry(policy, attempt, sleep = defaultSleep) {
   const delay = policy.delayMs(attempt);
   if (delay > 0) {
     await sleep(delay);
@@ -48,4 +48,9 @@ async function defaultSleep(ms) {
   });
 }
 
-export { defaultSleep as sleepMs };
+module.exports = {
+  createDefaultRetryPolicy,
+  createDeterministicRetryPolicy,
+  waitForRetry,
+  sleepMs: defaultSleep,
+};

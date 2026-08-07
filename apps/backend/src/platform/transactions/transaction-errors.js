@@ -2,7 +2,7 @@
 
 /** @typedef {readonly string[]} MongoErrorLabels */
 
-export const TRANSIENT_TRANSACTION_ERROR_LABELS = /** @type {const} */ ([
+const TRANSIENT_TRANSACTION_ERROR_LABELS = /** @type {const} */ ([
   'TransientTransactionError',
   'UnknownTransactionCommitResult',
 ]);
@@ -11,7 +11,7 @@ export const TRANSIENT_TRANSACTION_ERROR_LABELS = /** @type {const} */ ([
  * @param {unknown} error
  * @returns {boolean}
  */
-export function isTransientTransactionError(error) {
+function isTransientTransactionError(error) {
   if (error === null || typeof error !== 'object') {
     return false;
   }
@@ -29,7 +29,7 @@ export function isTransientTransactionError(error) {
  * @param {unknown} error
  * @returns {boolean}
  */
-export function isNonRetryableTransactionFailure(error) {
+function isNonRetryableTransactionFailure(error) {
   if (error instanceof Error) {
     const name = error.name;
     if (
@@ -44,3 +44,9 @@ export function isNonRetryableTransactionFailure(error) {
 
   return !isTransientTransactionError(error);
 }
+
+module.exports = {
+  TRANSIENT_TRANSACTION_ERROR_LABELS,
+  isTransientTransactionError,
+  isNonRetryableTransactionFailure,
+};

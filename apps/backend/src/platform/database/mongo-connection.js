@@ -1,8 +1,7 @@
 // @ts-check
-import mongoose from 'mongoose';
-
+const mongoose = require('mongoose');
 /**
- * @typedef {import('../config/runtime-config.js').ApiEnv} ApiEnv
+ * @typedef {import('../config/runtime-config').ApiEnv} ApiEnv
  * @typedef {{
  *   connect: (config?: ApiEnv) => Promise<void>;
  *   disconnect: () => Promise<void>;
@@ -13,7 +12,7 @@ import mongoose from 'mongoose';
 /**
  * @returns {MongoDatabaseLifecycle}
  */
-export function createMongooseDatabaseLifecycle() {
+function createMongooseDatabaseLifecycle() {
   return {
     async connect(config) {
       if (config === undefined) {
@@ -60,7 +59,7 @@ export function createMongooseDatabaseLifecycle() {
  * @param {{ ready?: boolean }} [options]
  * @returns {MongoDatabaseLifecycle}
  */
-export function createMockDatabaseLifecycle(options = {}) {
+function createMockDatabaseLifecycle(options = {}) {
   let connected = false;
   const ready = options.ready ?? true;
 
@@ -77,4 +76,8 @@ export function createMockDatabaseLifecycle(options = {}) {
   };
 }
 
-export { mongoose };
+module.exports = {
+  createMongooseDatabaseLifecycle,
+  createMockDatabaseLifecycle,
+  mongoose,
+};

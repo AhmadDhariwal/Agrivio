@@ -14,6 +14,20 @@ export const API_HEALTH_LIVENESS_PATH = `${API_V1_PREFIX}/health` as const;
 export const API_OPERATIONS_READINESS_PATH =
   `${API_V1_PREFIX}/platform/operations/readiness` as const;
 
+/** Public organization activation request intake (R1-F02-005). */
+export const API_ORGANIZATION_ACTIVATION_REQUESTS_PATH =
+  `${API_V1_PREFIX}/organization-activation-requests` as const;
+
+/** Owner account activation (R1-F02-006). */
+export const API_AUTH_ACTIVATE_PATH = `${API_V1_PREFIX}/auth/activate` as const;
+
+/** Platform organization list/detail base path. */
+export const API_PLATFORM_ORGANIZATIONS_PATH =
+  `${API_V1_PREFIX}/platform/organizations` as const;
+
+/** Development-only Super Admin actor header. Must never authorize production traffic. */
+export const API_PLATFORM_ACTOR_HEADER = 'X-Platform-Actor' as const;
+
 /**
  * Transport-level health payload used by public liveness checks.
  * Must not expose topology, secrets, or environment configuration.

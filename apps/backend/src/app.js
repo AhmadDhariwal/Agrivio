@@ -1,20 +1,23 @@
 // @ts-check
-import express from 'express';
-import {
+const express = require('express');
+const {
   createErrorHandlerMiddleware,
   createNotFoundMiddleware,
-} from './platform/errors/error-handler.middleware.js';
-import { registerHealthRoutes } from './platform/health/health.routes.js';
-import { createRequestIdMiddleware } from './platform/http/request-id.middleware.js';
-import { createStructuredLogger } from './platform/logging/structured-logger.js';
+} = require('./platform/errors/error-handler.middleware');
+const { registerHealthRoutes } = require('./platform/health/health.routes');
+const { createRequestIdMiddleware } = require('./platform/http/request-id.middleware');
+const { createStructuredLogger } = require('./platform/logging/structured-logger');
+const { createOnboardingModule } = require('./modules/onboarding/onboarding.module');
 
 /**
- * @typedef {import('./platform/config/runtime-config.js').ApiEnv} ApiEnv
- * @typedef {import('./platform/database/mongo-connection.js').MongoDatabaseLifecycle} MongoDatabaseLifecycle
+ * @typedef {import('./platform/config/runtime-config').ApiEnv} ApiEnv
+ * @typedef {import('./platform/database/mongo-connection').MongoDatabaseLifecycle} MongoDatabaseLifecycle
  * @typedef {{
  *   config: ApiEnv;
  *   database: MongoDatabaseLifecycle;
- *   logger?: import('./platform/logging/structured-logger.js').StructuredLogger;
+ *   logger?: import('./platform/logging/structured-logger').StructuredLogger;
+ *   onboarding?: ReturnType<typeof createOnboardingModule>;
+ *   onboardingPersistence?: 'memory' | 'mongoose';
  * }} CreateAppOptions
  */
 
@@ -22,9 +25,16 @@ import { createStructuredLogger } from './platform/logging/structured-logger.js'
  * @param {CreateAppOptions} options
  * @returns {import('express').Express}
  */
-export function createApp(options) {
+function createApp(options) {
   const { config, database } = options;
   const logger = options.logger ?? createStructuredLogger({ service: 'backend' });
+
+  const onboarding =
+    options.onboarding ??
+    createOnboardingModule({
+      config,
+      persistence: options.onboardingPersistence ?? (config.nodeEnv === 'test' ? 'memory' : 'mongoose'),
+    });
 
   const app = express();
   app.disable('x-powered-by');
@@ -33,9 +43,14 @@ export function createApp(options) {
   app.use(express.json({ limit: '1mb' }));
 
   app.use(registerHealthRoutes({ database }));
+  app.use(onboarding.routes);
 
   app.use(createNotFoundMiddleware(config.nodeEnv));
   app.use(createErrorHandlerMiddleware(config.nodeEnv, logger));
 
   return app;
 }
+
+module.exports = {
+  createApp,
+};

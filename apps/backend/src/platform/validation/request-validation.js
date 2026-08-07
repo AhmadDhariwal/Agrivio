@@ -1,6 +1,5 @@
 // @ts-check
-import { validationFailed, versionConflict } from '../errors/app-error.js';
-
+const { validationFailed, versionConflict } = require('../errors/app-error');
 /**
  * @typedef {{ field: string; message: string }} ValidationIssue
  * @typedef {{ field: string; value?: unknown; message?: string; required?: boolean; maxLength?: number }} FieldRule
@@ -10,7 +9,7 @@ import { validationFailed, versionConflict } from '../errors/app-error.js';
  * @param {readonly FieldRule[]} rules
  * @param {Record<string, unknown>} body
  */
-export function validateRequestFields(rules, body) {
+function validateRequestFields(rules, body) {
   /** @type {ValidationIssue[]} */
   const issues = [];
 
@@ -42,7 +41,7 @@ export function validateRequestFields(rules, body) {
  * @param {{ version?: number }} document
  * @param {number} expectedVersion
  */
-export function assertOptimisticVersion(document, expectedVersion) {
+function assertOptimisticVersion(document, expectedVersion) {
   const actualVersion = document.version;
   if (typeof actualVersion !== 'number' || actualVersion !== expectedVersion) {
     throw versionConflict('Version conflict', [
@@ -50,3 +49,8 @@ export function assertOptimisticVersion(document, expectedVersion) {
     ]);
   }
 }
+
+module.exports = {
+  validateRequestFields,
+  assertOptimisticVersion,
+};

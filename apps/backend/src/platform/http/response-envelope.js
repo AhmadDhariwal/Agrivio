@@ -1,7 +1,6 @@
 // @ts-check
-import { createApiErrorEnvelope, createApiSuccessEnvelope } from '@agrivio/api-contracts';
-import { requireRequestIdFromContext } from './request-id.middleware.js';
-
+const { createApiErrorEnvelope, createApiSuccessEnvelope } = require('@agrivio/api-contracts');
+const { requireRequestIdFromContext } = require('./request-id.middleware');
 /**
  * @template TData
  * @param {import('express').Response} res
@@ -9,7 +8,7 @@ import { requireRequestIdFromContext } from './request-id.middleware.js';
  * @param {TData} data
  * @param {Record<string, unknown>} [meta]
  */
-export function sendSuccessEnvelope(res, statusCode, data, meta) {
+function sendSuccessEnvelope(res, statusCode, data, meta) {
   const requestId = requireRequestIdFromContext(res);
   const body = createApiSuccessEnvelope(requestId, data, meta);
   res.status(statusCode).json(body);
@@ -20,8 +19,13 @@ export function sendSuccessEnvelope(res, statusCode, data, meta) {
  * @param {number} statusCode
  * @param {import('@agrivio/api-contracts').ApiErrorBody} error
  */
-export function sendErrorEnvelope(res, statusCode, error) {
+function sendErrorEnvelope(res, statusCode, error) {
   const requestId = requireRequestIdFromContext(res);
   const body = createApiErrorEnvelope(requestId, error);
   res.status(statusCode).json(body);
 }
+
+module.exports = {
+  sendSuccessEnvelope,
+  sendErrorEnvelope,
+};

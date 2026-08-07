@@ -21,7 +21,7 @@
       "options": {
         "platform": "node",
         "outputPath": "dist/apps/backend",
-        "format": ["esm"],
+        "format": ["cjs"],
         "bundle": true,
         "thirdParty": false,
         "main": "apps/backend/src/main.js",

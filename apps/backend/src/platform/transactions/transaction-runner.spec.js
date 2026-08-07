@@ -1,10 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AppError } from '../errors/app-error.js';
+import { AppError } from '../errors/app-error';
 import { ApiTransportErrorCode } from '@agrivio/api-contracts';
-import { createMockTransactionSessionPort, createTransactionRunner } from './transaction-runner.js';
-import { createDeterministicRetryPolicy } from './retry-policy.js';
-import { isTransientTransactionError } from './transaction-errors.js';
-
+import { createMockTransactionSessionPort, createTransactionRunner } from './transaction-runner';
+import { createDeterministicRetryPolicy } from './retry-policy';
+import { isTransientTransactionError } from './transaction-errors';
 describe('transaction runner', () => {
   it('commits work and ends the session', async () => {
     const mock = createMockTransactionSessionPort();

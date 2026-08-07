@@ -1,6 +1,5 @@
 // @ts-check
-import { createHash } from 'node:crypto';
-
+const { createHash } = require('node:crypto');
 /**
  * @typedef {'organization' | 'platform' | 'public_onboarding'} IdempotencyScopeType
  * @typedef {'in_progress' | 'completed' | 'failed'} IdempotencyState
@@ -31,7 +30,7 @@ import { createHash } from 'node:crypto';
 /**
  * @param {string} value
  */
-export function hashIdempotencyValue(value) {
+function hashIdempotencyValue(value) {
   return createHash('sha256').update(value, 'utf8').digest('hex');
 }
 
@@ -39,7 +38,7 @@ export function hashIdempotencyValue(value) {
  * @param {IdempotencyScope} scope
  * @param {string} key
  */
-export function buildIdempotencyKeyHash(scope, key) {
+function buildIdempotencyKeyHash(scope, key) {
   const parts = [scope.scopeType, scope.organizationId ?? '', scope.actorId, scope.operation, key];
   return hashIdempotencyValue(parts.join('::'));
 }
@@ -47,7 +46,7 @@ export function buildIdempotencyKeyHash(scope, key) {
 /**
  * @param {unknown} requestFingerprintInput
  */
-export function buildRequestFingerprint(requestFingerprintInput) {
+function buildRequestFingerprint(requestFingerprintInput) {
   return hashIdempotencyValue(JSON.stringify(requestFingerprintInput));
 }
 
@@ -71,7 +70,7 @@ export function buildRequestFingerprint(requestFingerprintInput) {
 /**
  * @returns {IdempotencyStore}
  */
-export function createInMemoryIdempotencyStore() {
+function createInMemoryIdempotencyStore() {
   /** @type {Map<string, IdempotencyRecord>} */
   const records = new Map();
   /** @type {Map<string, Promise<void>>} */
@@ -165,7 +164,7 @@ export function createInMemoryIdempotencyStore() {
 /**
  * @param {IdempotencyStore} store
  */
-export function createIdempotencyService(store) {
+function createIdempotencyService(store) {
   return {
     /**
      * @param {IdempotencyScope} scope
@@ -214,3 +213,11 @@ export function createIdempotencyService(store) {
     },
   };
 }
+
+module.exports = {
+  hashIdempotencyValue,
+  buildIdempotencyKeyHash,
+  buildRequestFingerprint,
+  createInMemoryIdempotencyStore,
+  createIdempotencyService,
+};

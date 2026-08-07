@@ -6,15 +6,15 @@ Agrivio is a cloud-first Fertilizer POS and Inventory Management web application
 
 ## Current Status
 
-Current task: **F01 complete** — platform runtime + transactional foundation (`R1-F01-001`–`R1-F01-011`)  
-Status: Unit/architecture gates pass on Node `24.18.0`; live MongoDB transaction proofs still require Docker Compose v2  
-Next work item: **F02 Phase 1 — Organization Onboarding and Authentication**
+Current task: **F02 Phase 1 complete** — organization onboarding (`R1-F02-005`, `R1-F02-006`) on CommonJS backend  
+Status: Unit/architecture gates targeted on Node `24.18.0`; live MongoDB transaction proofs still require Docker Compose v2  
+Next work item: **F02 Phase 2 — Session Authentication**
 
 P1-01 through P1-07 are complete.  
 All four P1-07 toolchain documents are frozen at version 1.0.1.  
 F00 workspace bootstrap (`R1-F00-001`) is complete.  
 Angular frontend scaffold (`R1-F00-002`, historically `apps/web`) is complete.  
-Express backend scaffold (`R1-F00-003`, now JavaScript ESM under `apps/backend`) is complete.  
+Express backend scaffold (`R1-F00-003`, now JavaScript CommonJS under `apps/backend`) is complete.  
 Shared packages `@agrivio/api-contracts`, `@agrivio/tooling-config`, and `@agrivio/test-support` exist.  
 Root commands from [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) are wired (`pnpm check`, build/lint/typecheck/test/format/affected, `db:*`, `test:integration`).  
 E2E and CI remain for later F00 items.
@@ -25,17 +25,17 @@ Release 1 implementation — Stage F01 Platform Foundation complete; Stage F02 n
 
 ## Technology Stack
 
-| Layer              | Choice                                               |
-| ------------------ | ---------------------------------------------------- |
-| Frontend           | Angular and TypeScript (`apps/frontend`)             |
-| Backend            | Node.js, Express and JavaScript ESM (`apps/backend`) |
-| Database           | MongoDB with Mongoose                                |
-| Repository         | Monorepo                                             |
-| Package manager    | pnpm                                                 |
-| Task orchestration | Nx                                                   |
-| Architecture       | Modular monolith                                     |
-| API                | REST                                                 |
-| Styling            | SCSS with a centralized design system                |
+| Layer              | Choice                                                    |
+| ------------------ | --------------------------------------------------------- |
+| Frontend           | Angular and TypeScript (`apps/frontend`)                  |
+| Backend            | Node.js, Express and JavaScript CommonJS (`apps/backend`) |
+| Database           | MongoDB with Mongoose                                     |
+| Repository         | Monorepo                                                  |
+| Package manager    | pnpm                                                      |
+| Task orchestration | Nx                                                        |
+| Architecture       | Modular monolith                                          |
+| API                | REST                                                      |
+| Styling            | SCSS with a centralized design system                     |
 
 Exact versions: [`docs/TOOLCHAIN.md`](docs/TOOLCHAIN.md).
 

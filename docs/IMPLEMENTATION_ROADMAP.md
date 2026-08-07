@@ -1,11 +1,13 @@
 # Implementation Roadmap
 
 Document status: Frozen for Release 1  
-Current version: 1.1.0  
-Last updated: 2026-08-05  
+Current version: 1.2.0  
+Last updated: 2026-08-08  
 Approval status: Approved for implementation preparation
 
-> **Amendment 1.1.0 (2026-08-05):** Frontend canonical project: `apps/frontend`. Backend canonical project: `apps/backend`. Backend implementation language: JavaScript ESM. Frontend implementation language: Angular TypeScript. Details: [tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md](tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md).
+> **Amendment 1.1.0 (2026-08-05):** Frontend canonical project: `apps/frontend`. Backend canonical project: `apps/backend`. Backend implementation language was JavaScript ESM. Frontend implementation language: Angular TypeScript. Details: [tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md](tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md).
+>
+> **Amendment 1.2.0 (2026-08-08):** Backend implementation language: JavaScript CommonJS (`require` / `module.exports`). Frontend remains Angular TypeScript. Shared packages remain TypeScript. Details: [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md).
 
 ## Document Authority
 
@@ -213,7 +215,7 @@ Dependency acyclic validation at generation time: passed.
 | Owning module | Operations (tooling) / apps/backend |
 | Dependencies | R1-F00-001 |
 | Frozen sources | REPOSITORY_STRUCTURE.md backend layout; ARCHITECTURE.md API container; API_DESIGN.md base prefix reserved |
-| Backend scope | Executable empty Express/JavaScript (native ESM) backend. Create only files and directories required for boot, health/scaffold routes later, and tooling. Do not create empty canonical-module folders or .gitkeep placeholders for every module; introduce a module directory when its first real public interface, test, configuration, or implementation file is added. Architecture tests may validate naming and boundaries using fixtures under test tooling. Frozen target layout remains the eventual structure. |
+| Backend scope | Executable empty Express/JavaScript (CommonJS) backend. Create only files and directories required for boot, health/scaffold routes later, and tooling. Do not create empty canonical-module folders or .gitkeep placeholders for every module; introduce a module directory when its first real public interface, test, configuration, or implementation file is added. Architecture tests may validate naming and boundaries using fixtures under test tooling. Frozen target layout remains the eventual structure. |
 | Frontend scope | None. |
 | Data scope | Connection stub only; no collections. |
 | Security scope | No public business endpoints; health may be deferred to F01. |

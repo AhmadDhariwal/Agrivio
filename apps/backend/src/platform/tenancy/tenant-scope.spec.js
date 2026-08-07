@@ -6,8 +6,7 @@ import {
   createSampleTenantRepository,
   createSystemScope,
   TenantScopeError,
-} from './tenant-scope.js';
-
+} from './tenant-scope';
 describe('tenant scope', () => {
   it('rejects missing organization context', () => {
     expect(() => createOrganizationScope(undefined)).toThrow(TenantScopeError);

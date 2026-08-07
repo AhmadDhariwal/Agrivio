@@ -1,7 +1,6 @@
 // @ts-check
-import { ApiTransportErrorCode } from '@agrivio/api-contracts';
-
-export class AppError extends Error {
+const { ApiTransportErrorCode } = require('@agrivio/api-contracts');
+class AppError extends Error {
   /**
    * @param {import('@agrivio/api-contracts').ApiTransportErrorCode} code
    * @param {string} message
@@ -24,27 +23,27 @@ export class AppError extends Error {
  * @param {string} message
  * @param {readonly unknown[]} [details]
  */
-export function validationFailed(message, details) {
+function validationFailed(message, details) {
   return new AppError(ApiTransportErrorCode.ValidationFailed, message, 400, details);
 }
 
 /** @param {string} [message] */
-export function notFound(message = 'Resource not found') {
+function notFound(message = 'Resource not found') {
   return new AppError(ApiTransportErrorCode.NotFound, message, 404);
 }
 
 /** @param {string} [message] */
-export function unauthorized(message = 'Unauthorized') {
+function unauthorized(message = 'Unauthorized') {
   return new AppError(ApiTransportErrorCode.Unauthorized, message, 401);
 }
 
 /** @param {string} [message] */
-export function forbidden(message = 'Forbidden') {
+function forbidden(message = 'Forbidden') {
   return new AppError(ApiTransportErrorCode.Forbidden, message, 403);
 }
 
 /** @param {string} [message] */
-export function conflict(message = 'Conflict') {
+function conflict(message = 'Conflict') {
   return new AppError(ApiTransportErrorCode.Conflict, message, 409);
 }
 
@@ -52,7 +51,7 @@ export function conflict(message = 'Conflict') {
  * @param {string} [message]
  * @param {import('@agrivio/api-contracts').ApiVersionConflictDetail[]} [details]
  */
-export function versionConflict(message = 'Version conflict', details) {
+function versionConflict(message = 'Version conflict', details) {
   return new AppError(ApiTransportErrorCode.VersionConflict, message, 409, details);
 }
 
@@ -60,6 +59,17 @@ export function versionConflict(message = 'Version conflict', details) {
  * @param {string} [message]
  * @param {readonly unknown[]} [details]
  */
-export function idempotencyConflict(message = 'Idempotency key conflict', details) {
+function idempotencyConflict(message = 'Idempotency key conflict', details) {
   return new AppError(ApiTransportErrorCode.IdempotencyConflict, message, 409, details);
 }
+
+module.exports = {
+  validationFailed,
+  notFound,
+  unauthorized,
+  forbidden,
+  conflict,
+  versionConflict,
+  idempotencyConflict,
+  AppError,
+};

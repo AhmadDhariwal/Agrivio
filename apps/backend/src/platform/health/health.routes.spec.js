@@ -5,12 +5,11 @@ import {
   API_OPERATIONS_READINESS_PATH,
   API_REQUEST_ID_HEADER,
 } from '@agrivio/api-contracts';
-import { createApp } from '../../app.js';
-import { loadApiEnv } from '../config/runtime-config.js';
-import { createMockDatabaseLifecycle } from '../database/mongo-connection.js';
-
+import { createApp } from '../../app';
+import { loadApiEnv } from '../config/runtime-config';
+import { createMockDatabaseLifecycle } from '../database/mongo-connection';
 /**
- * @param {import('../database/mongo-connection.js').MongoDatabaseLifecycle} database
+ * @param {import('../database/mongo-connection').MongoDatabaseLifecycle} database
  */
 function createTestApp(database) {
   const config = loadApiEnv({ NODE_ENV: 'test' });

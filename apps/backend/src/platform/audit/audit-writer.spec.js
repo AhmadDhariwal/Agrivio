@@ -3,12 +3,11 @@ import {
   createAuditWriter,
   createInMemoryAuditEventStore,
   sanitizeAuditEvent,
-} from './audit-writer.js';
+} from './audit-writer';
 import {
   createMockTransactionSessionPort,
   createTransactionRunner,
-} from '../transactions/transaction-runner.js';
-
+} from '../transactions/transaction-runner';
 describe('audit writer', () => {
   it('redacts sensitive audit metadata', () => {
     const sanitized = sanitizeAuditEvent({

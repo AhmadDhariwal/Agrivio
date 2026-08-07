@@ -1,8 +1,7 @@
 // @ts-check
-import { redactSecrets } from '../config/runtime-config.js';
-import { getRequestId } from '../http/request-context.js';
-import { redactLogFields } from './redact-log-fields.js';
-
+const { redactSecrets } = require('../config/runtime-config');
+const { getRequestId } = require('../http/request-context');
+const { redactLogFields } = require('./redact-log-fields');
 /**
  * @typedef {'debug' | 'info' | 'warn' | 'error'} LogLevel
  * @typedef {(level: LogLevel, message: string, fields?: Record<string, unknown>) => void} StructuredLogger
@@ -25,7 +24,7 @@ function writeLogLine(level, entry) {
  * @param {Record<string, unknown>} [baseFields]
  * @returns {StructuredLogger}
  */
-export function createStructuredLogger(baseFields = {}) {
+function createStructuredLogger(baseFields = {}) {
   return (level, message, fields = {}) => {
     const requestId = getRequestId();
     const payload = redactLogFields({
@@ -39,3 +38,7 @@ export function createStructuredLogger(baseFields = {}) {
     writeLogLine(level, payload);
   };
 }
+
+module.exports = {
+  createStructuredLogger,
+};

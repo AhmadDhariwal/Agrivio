@@ -1,10 +1,9 @@
 import { createServer } from 'node:http';
 import { describe, expect, it } from 'vitest';
 import { API_REQUEST_ID_HEADER, ApiTransportErrorCode } from '@agrivio/api-contracts';
-import { createApp } from './app.js';
-import { loadApiEnv } from './platform/config/runtime-config.js';
-import { createMockDatabaseLifecycle } from './platform/database/mongo-connection.js';
-
+import { createApp } from './app';
+import { loadApiEnv } from './platform/config/runtime-config';
+import { createMockDatabaseLifecycle } from './platform/database/mongo-connection';
 describe('API boot smoke', () => {
   it('boots an Express application and accepts a connection', async () => {
     const config = loadApiEnv({ NODE_ENV: 'test' });

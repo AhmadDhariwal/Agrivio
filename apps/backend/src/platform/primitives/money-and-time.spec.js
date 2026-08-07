@@ -8,8 +8,7 @@ import {
   parseMoneyMinorUnits,
   parseQuantityMinorUnits,
   parseUtcTimestamp,
-} from './money-and-time.js';
-
+} from './money-and-time';
 describe('money primitives', () => {
   it('parses and formats PKR amounts using minor units', () => {
     const minor = parseMoneyMinorUnits('1250.50');

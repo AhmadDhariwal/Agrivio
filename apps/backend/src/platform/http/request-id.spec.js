@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveRequestId } from './request-id.js';
-
+import { resolveRequestId } from './request-id';
 describe('resolveRequestId', () => {
   it('accepts a valid opaque client request id', () => {
     const clientId = 'client-correlation-12345678';

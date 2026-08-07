@@ -41,6 +41,7 @@
     "@angular/forms": "22.0.8",
     "@angular/platform-browser": "22.0.8",
     "@angular/router": "22.0.8",
+    "argon2": "0.41.1",
     "express": "5.2.1",
     "mongoose": "8.15.0",
     "rxjs": "7.8.2",
