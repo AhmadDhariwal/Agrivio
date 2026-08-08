@@ -1,4 +1,3 @@
-// @ts-check
 const mongoose = require('mongoose');
 
 const auditEventSchema = new mongoose.Schema(
@@ -15,13 +14,9 @@ const auditEventSchema = new mongoose.Schema(
   { timestamps: false, collection: 'audit_events' },
 );
 
-/** @type {import('mongoose').Model<any>} */
 const AuditEventModel =
   mongoose.models['AuditEvent'] || mongoose.model('AuditEvent', auditEventSchema);
 
-/**
- * @returns {{ append: (session: unknown, event: Record<string, unknown>) => Promise<void> }}
- */
 function createMongooseAuditEventStore() {
   return {
     async append(session, event) {

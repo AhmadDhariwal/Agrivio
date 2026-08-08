@@ -1,15 +1,7 @@
-// @ts-check
 const { validationFailed } = require('../../platform/errors/app-error');
-const {
-  normalizeEmail,
-  normalizeOrganizationName,
-} = require('../identity/crypto-tokens');
+const { normalizeEmail, normalizeOrganizationName } = require('../identity/crypto-tokens');
 
-/**
- * @param {Record<string, unknown>} body
- */
 function parseOrganizationActivationRequest(body) {
-  /** @type {{ field: string; message: string }[]} */
   const issues = [];
 
   const organizationNameRaw = body['organizationName'];
@@ -35,10 +27,7 @@ function parseOrganizationActivationRequest(body) {
     issues.push({ field: 'ownerDisplayName', message: 'ownerDisplayName exceeds maximum length' });
   }
 
-  if (
-    timezoneRaw !== undefined &&
-    (typeof timezoneRaw !== 'string' || timezoneRaw.trim() === '')
-  ) {
+  if (timezoneRaw !== undefined && (typeof timezoneRaw !== 'string' || timezoneRaw.trim() === '')) {
     issues.push({ field: 'timezone', message: 'timezone must be a non-empty IANA identifier' });
   }
 
@@ -47,9 +36,9 @@ function parseOrganizationActivationRequest(body) {
   }
 
   return {
-    organizationName: normalizeOrganizationName(/** @type {string} */ (organizationNameRaw)),
-    ownerEmail: normalizeEmail(/** @type {string} */ (ownerEmailRaw)),
-    ownerDisplayName: /** @type {string} */ (ownerDisplayNameRaw).trim().replace(/\s+/g, ' '),
+    organizationName: normalizeOrganizationName(organizationNameRaw),
+    ownerEmail: normalizeEmail(ownerEmailRaw),
+    ownerDisplayName: ownerDisplayNameRaw.trim().replace(/\s+/g, ' '),
     timezone:
       typeof timezoneRaw === 'string' && timezoneRaw.trim() !== ''
         ? timezoneRaw.trim()
@@ -57,11 +46,7 @@ function parseOrganizationActivationRequest(body) {
   };
 }
 
-/**
- * @param {Record<string, unknown>} body
- */
 function parseActivationBody(body) {
-  /** @type {{ field: string; message: string }[]} */
   const issues = [];
   const token = body['token'];
   const password = body['password'];
@@ -78,14 +63,11 @@ function parseActivationBody(body) {
   }
 
   return {
-    token: /** @type {string} */ (token).trim(),
-    password: /** @type {string} */ (password),
+    token: token.trim(),
+    password: password,
   };
 }
 
-/**
- * @param {Record<string, unknown>} body
- */
 function parseRejectionBody(body) {
   const reason = body['reason'];
   if (typeof reason !== 'string' || reason.trim() === '') {

@@ -1,13 +1,11 @@
-// @ts-check
 const { API_PLATFORM_ACTOR_HEADER } = require('@agrivio/api-contracts');
 const { forbidden, unauthorized } = require('../../platform/errors/app-error');
+const { permissionsForPlatformAccess } = require('../identity/role-permissions');
 
 /**
- * Development/test-only Super Admin actor header.
- * Production must never accept this bypass.
- *
- * @param {{ nodeEnv: 'development' | 'test' | 'production' }} config
- * @returns {import('express').RequestHandler}
+ * Platform authorization for Super Admin routes.
+ * Prefer authenticated platform session context. X-Platform-Actor remains a
+ * development/test-only bypass and is impossible in production.
  */
 function createPlatformActorMiddleware(config) {
   return (req, _res, next) => {
@@ -18,39 +16,43 @@ function createPlatformActorMiddleware(config) {
         next(forbidden('X-Platform-Actor is not permitted in production'));
         return;
       }
-      next(unauthorized('Platform authentication is not available yet'));
+    } else if (typeof headerValue === 'string' && headerValue.trim() !== '') {
+      req.platformActor = {
+        actorId: headerValue.trim(),
+        permissions: [...permissionsForPlatformAccess('super_admin')],
+      };
+      next();
       return;
     }
 
-    if (typeof headerValue !== 'string' || headerValue.trim() === '') {
-      next(unauthorized('X-Platform-Actor is required outside production until session auth exists'));
+    const auth = req.auth;
+
+    if (auth === undefined) {
+      next(unauthorized('Platform authentication required'));
       return;
     }
 
-    const actorId = headerValue.trim();
-    /** @type {import('express').Request & { platformActor?: { actorId: string; permissions: string[] } }} */
-    (req).platformActor = {
-      actorId,
-      permissions: [
-        'platform.organizations.view',
-        'platform.organizations.create',
-        'platform.organizations.approve',
-        'platform.organizations.suspend',
-      ],
+    if (auth.session.activeContextType !== 'platform') {
+      next(forbidden('Platform context is required'));
+      return;
+    }
+
+    if (auth.user['platformAccess'] !== 'super_admin') {
+      next(forbidden('Missing platform authorization'));
+      return;
+    }
+
+    req.platformActor = {
+      actorId: String(auth.user['_id']),
+      permissions: [...permissionsForPlatformAccess('super_admin')],
     };
     next();
   };
 }
 
-/**
- * @param {string} permission
- * @returns {import('express').RequestHandler}
- */
 function requirePlatformPermission(permission) {
   return (req, _res, next) => {
-    const actor = /** @type {{ platformActor?: { actorId: string; permissions: string[] } }} */ (
-      req
-    ).platformActor;
+    const actor = req.platformActor;
     if (actor === undefined) {
       next(unauthorized('Platform actor is required'));
       return;

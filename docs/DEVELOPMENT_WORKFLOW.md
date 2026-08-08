@@ -1,13 +1,15 @@
 # Development Workflow
 
 Document status: Frozen for Release 1  
-Current version: 1.2.0  
+Current version: 1.3.0  
 Last updated: 2026-08-08  
 Approval status: Approved for repository initialization
 
 > **Amendment 1.1.0 (2026-08-05):** Frontend canonical project: `apps/frontend`. Backend canonical project: `apps/backend`. Backend implementation language was JavaScript ESM. Frontend implementation language: Angular TypeScript. Details: [tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md](tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md).
 >
 > **Amendment 1.2.0 (2026-08-08):** Backend implementation language: JavaScript CommonJS (`require` / `module.exports`). Frontend remains Angular TypeScript. Shared packages remain TypeScript. Details: [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md).
+>
+> **Amendment 1.3.0 (2026-08-08):** Backend coding style is plain CommonJS JavaScript. Do not add `// @ts-check` or JSDoc type annotations to backend application source. Rely on ESLint, runtime validation, and tests. Details: [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md) and [../AGENTS.md](../AGENTS.md).
 
 ## Document Authority
 
@@ -113,7 +115,7 @@ Command count: **23**.
 | `pnpm build:frontend` | Build `apps/frontend` |
 | `pnpm build:backend` | Build `apps/backend` |
 | `pnpm lint` | Run ESLint across the configured workspace projects |
-| `pnpm typecheck` | Run TypeScript checking across the configured workspace projects |
+| `pnpm typecheck` | Run TypeScript checking for Angular and shared TypeScript packages (backend plain JavaScript is not type-checked via `checkJs`) |
 | `pnpm test` | Default local test entry; runs the unit suite unless a later stage documents otherwise |
 | `pnpm test:unit` | Unit and Angular component tests via Vitest |
 | `pnpm test:integration` | API integration and transaction tests against the local replica set |

@@ -1,7 +1,7 @@
 {
   "extends": "@agrivio/tooling-config/typescript/node.json",
   "compilerOptions": {
-    "checkJs": true,
+    "checkJs": false,
     "allowJs": true,
     "noEmit": true,
     "rootDir": ".",

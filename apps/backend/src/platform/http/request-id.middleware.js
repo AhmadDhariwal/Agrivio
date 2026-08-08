@@ -1,10 +1,8 @@
-// @ts-check
 const { API_REQUEST_ID_HEADER } = require('@agrivio/api-contracts');
 const { getRequestContext, runWithRequestContext } = require('./request-context');
 const { resolveRequestId } = require('./request-id');
 /**
  * Generates or accepts a valid request id, stores it on the response, and binds request context.
- * @returns {import('express').RequestHandler}
  */
 function createRequestIdMiddleware() {
   return (req, res, next) => {
@@ -13,7 +11,7 @@ function createRequestIdMiddleware() {
 
     res.setHeader(API_REQUEST_ID_HEADER, requestId);
     res.locals['requestId'] = requestId;
-    /** @type {import('express').Request & { requestId: string }} */ (req).requestId = requestId;
+    req.requestId = requestId;
 
     runWithRequestContext({ requestId }, () => {
       next();
@@ -21,10 +19,6 @@ function createRequestIdMiddleware() {
   };
 }
 
-/**
- * @param {import('express').Response} [res]
- * @returns {string}
- */
 function requireRequestIdFromContext(res) {
   const fromContext = getRequestContext()?.requestId;
   if (fromContext !== undefined) {

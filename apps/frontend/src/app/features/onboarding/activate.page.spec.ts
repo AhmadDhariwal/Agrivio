@@ -20,7 +20,7 @@ describe('ActivatePage', () => {
     fixture.detectChanges();
   });
 
-  it('posts activation token and password', () => {
+  it('activates an owner account with CSRF', () => {
     const page = fixture.componentInstance;
     page.form.setValue({
       token: 'activation-token',
@@ -28,12 +28,12 @@ describe('ActivatePage', () => {
     });
     page.submit();
 
+    const csrf = http.expectOne(`${environment.publicApiBaseUrl}/api/v1/auth/csrf`);
+    csrf.flush({ data: { csrfToken: 'csrf-test' }, requestId: 'test' });
+
     const req = http.expectOne(`${environment.publicApiBaseUrl}/api/v1/auth/activate`);
     expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({
-      token: 'activation-token',
-      password: 'a-strong-passphrase',
-    });
+    expect(req.request.headers.get('X-CSRF-Token')).toBe('csrf-test');
     req.flush({ data: { status: 'active' }, requestId: 'test' });
     expect(page.successMessage()).toContain('activated');
   });

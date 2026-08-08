@@ -1,11 +1,12 @@
-// @ts-check
 const argon2 = require('argon2');
 const { validationFailed } = require('../../platform/errors/app-error');
 
 const MIN_PASSWORD_LENGTH = 12;
 const MAX_PASSWORD_LENGTH = 128;
 
-/** Minimal common-password denylist for Release 1. */
+/**
+ * Minimal common-password denylist for Release 1.
+ */
 const COMMON_PASSWORDS = new Set([
   'password',
   'password123',
@@ -18,9 +19,6 @@ const COMMON_PASSWORDS = new Set([
   'welcome12345',
 ]);
 
-/**
- * @param {string} password
- */
 function assertPasswordPolicy(password) {
   if (typeof password !== 'string') {
     throw validationFailed('Validation failed', [
@@ -44,20 +42,11 @@ function assertPasswordPolicy(password) {
   }
 }
 
-/**
- * @param {string} password
- * @returns {Promise<string>}
- */
 async function hashPassword(password) {
   assertPasswordPolicy(password);
   return argon2.hash(password, { type: argon2.argon2id });
 }
 
-/**
- * @param {string} hash
- * @param {string} password
- * @returns {Promise<boolean>}
- */
 async function verifyPassword(hash, password) {
   try {
     return await argon2.verify(hash, password);

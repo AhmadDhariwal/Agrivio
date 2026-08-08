@@ -6,11 +6,12 @@ Central navigation for Agrivio documentation.
 
 * P1-01 through P1-07 are complete
 * R1-F00-001 monorepo workspace bootstrap is complete
-* All four P1-07 toolchain documents are frozen at version 1.2.0 (application naming, backend JavaScript, and CommonJS amendments)
+* All four P1-07 toolchain documents are frozen at version 1.3.0 (application naming, backend JavaScript, CommonJS, and plain-JS coding-style amendments)
 * R1-F00-002 Angular frontend application scaffold is complete (historically `apps/web`)
 * R1-F00-003 Express backend scaffold is complete (historically `apps/api`; now JavaScript CommonJS under `apps/backend`)
 * F00 application naming and backend JavaScript migration complete — see [tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md](tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md)
 * Backend CommonJS simplification migration complete — see [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md)
+* Backend plain-JavaScript coding-style cleanup complete (no `// @ts-check` / JSDoc typing; `checkJs` disabled) — see [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md) final amendment
 * F00 Batch A complete: `R1-F00-004`, `R1-F00-005`, `R1-F00-007`
 * `packages/api-contracts` and `packages/tooling-config` exist; root command contract wired; env validation foundation in place
 * F00 Phase 1 complete (`R1-F00-006`, `R1-F00-010`) — see [tasks/F00-PHASE-1-MONGODB-TEST-SUPPORT.md](tasks/F00-PHASE-1-MONGODB-TEST-SUPPORT.md)
@@ -18,7 +19,6 @@ Central navigation for Agrivio documentation.
 * F01 Phase 1 complete (`R1-F01-001`–`R1-F01-005`) — see [tasks/F01-PHASE-1-PLATFORM-RUNTIME.md](tasks/F01-PHASE-1-PLATFORM-RUNTIME.md)
 * F01 Phase 2 complete (`R1-F01-006`–`R1-F01-011`) — see [tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md](tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md); **F01 stage exit satisfied** (unit-level)
 * Architecture-boundary tests runnable via `pnpm test:architecture` (replaces F00 placeholder)
-* Backend CommonJS simplification migration complete — see [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md)
 * F02 Phase 1 complete (`R1-F02-005`, `R1-F02-006`) — see [tasks/F02-PHASE-1-ORGANIZATION-ONBOARDING.md](tasks/F02-PHASE-1-ORGANIZATION-ONBOARDING.md)
 * Next work item: **F02 Phase 2 — Session Authentication**
 

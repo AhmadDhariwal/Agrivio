@@ -12,6 +12,14 @@ For assigned work, read only:
 
 Do not scan the entire repository unless the task cannot be completed otherwise.
 
+## Backend Coding Convention
+
+Agrivio backend application code under `apps/backend/` is plain CommonJS JavaScript (`require` / `module.exports`, async/await, plain functions and objects).
+
+Do **not** add `// @ts-check` or JSDoc type annotations (`@param`, `@returns`, `@typedef`, `@type`, `@template`, `@satisfies`, and similar) to normal backend source. Prefer simple readable JavaScript and rely on runtime validation, ESLint, and meaningful automated tests.
+
+Do not convert the frontend or shared TypeScript packages to JavaScript for stylistic consistency.
+
 ## Git Ownership
 
 The coding agent must:

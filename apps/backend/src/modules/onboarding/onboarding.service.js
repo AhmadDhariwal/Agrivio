@@ -1,9 +1,4 @@
-// @ts-check
-const {
-  conflict,
-  forbidden,
-  notFound,
-} = require('../../platform/errors/app-error');
+const { conflict, forbidden, notFound } = require('../../platform/errors/app-error');
 const { createAuditWriter } = require('../../platform/audit/audit-writer');
 const {
   buildApplicantFingerprint,
@@ -20,15 +15,6 @@ const {
 const DEFAULT_ACTIVATION_TTL_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_TRIAL_DAYS = 14;
 
-/**
- * @param {{
- *   store: import('./onboarding.types').OnboardingStore;
- *   transactionRunner: { run: <T>(work: (session: unknown) => Promise<T>) => Promise<T> };
- *   now?: () => Date;
- *   activationTtlMs?: number;
- *   trialDays?: number;
- * }} deps
- */
 function createOnboardingService(deps) {
   const store = deps.store;
   const now = deps.now ?? (() => new Date());
@@ -41,7 +27,6 @@ function createOnboardingService(deps) {
   return {
     /**
      * Public organization activation request (R1-F02-005).
-     * @param {Record<string, unknown>} body
      */
     async submitActivationRequest(body) {
       const input = parseOrganizationActivationRequest(body);
@@ -121,17 +106,11 @@ function createOnboardingService(deps) {
       });
     },
 
-    /**
-     * @param {{ status?: string }} [filter]
-     */
     async listOrganizations(filter = {}) {
       const organizations = await store.listOrganizations(filter);
       return organizations.map(toOrganizationSummary);
     },
 
-    /**
-     * @param {string} organizationId
-     */
     async getOrganization(organizationId) {
       const organization = await store.findOrganizationById(organizationId);
       if (organization === null) {
@@ -158,8 +137,6 @@ function createOnboardingService(deps) {
 
     /**
      * Approve pending organization and issue Owner activation token (R1-F02-006).
-     * @param {string} organizationId
-     * @param {{ actorId: string }} actor
      */
     async approveOrganization(organizationId, actor) {
       return deps.transactionRunner.run(async (session) => {
@@ -229,9 +206,6 @@ function createOnboardingService(deps) {
 
     /**
      * Reject pending organization. Route name matches behaviour.
-     * @param {string} organizationId
-     * @param {Record<string, unknown>} body
-     * @param {{ actorId: string }} actor
      */
     async rejectOrganization(organizationId, body, actor) {
       const { reason } = parseRejectionBody(body);
@@ -254,7 +228,9 @@ function createOnboardingService(deps) {
 
         const subscription = await store.findSubscriptionByOrganizationId(organizationId);
         if (subscription !== null) {
-          await store.updateSubscription(session, String(subscription['_id']), { status: 'rejected' });
+          await store.updateSubscription(session, String(subscription['_id']), {
+            status: 'rejected',
+          });
         }
 
         await auditWriter.appendBusinessEvent(session, {
@@ -277,7 +253,6 @@ function createOnboardingService(deps) {
 
     /**
      * Consume one-time activation token and set Owner password.
-     * @param {Record<string, unknown>} body
      */
     async activateOwner(body) {
       const { token, password } = parseActivationBody(body);
@@ -335,9 +310,6 @@ function createOnboardingService(deps) {
   };
 }
 
-/**
- * @param {Record<string, unknown>} organization
- */
 function toOrganizationSummary(organization) {
   return {
     id: String(organization['_id']),
@@ -351,9 +323,6 @@ function toOrganizationSummary(organization) {
   };
 }
 
-/**
- * @param {Record<string, unknown>} user
- */
 function toUserSummary(user) {
   return {
     id: String(user['_id']),

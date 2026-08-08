@@ -1,14 +1,9 @@
-// @ts-check
 const { Router } = require('express');
 const {
   API_HEALTH_LIVENESS_PATH,
   API_OPERATIONS_READINESS_PATH,
 } = require('@agrivio/api-contracts');
 const { sendSuccessEnvelope } = require('../http/response-envelope');
-/**
- * @typedef {import('../database/mongo-connection').MongoDatabaseLifecycle} MongoDatabaseLifecycle
- * @param {{ database: MongoDatabaseLifecycle }} deps
- */
 function registerHealthRoutes(deps) {
   const router = Router();
 

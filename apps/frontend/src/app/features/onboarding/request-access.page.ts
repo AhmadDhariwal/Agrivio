@@ -1,6 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
+import { AuthApi } from '../auth/auth.api';
 import { environment } from '../../../environments/environment';
 
 @Component({
@@ -12,7 +12,7 @@ import { environment } from '../../../environments/environment';
 })
 export class RequestAccessPage {
   private readonly formBuilder = inject(FormBuilder);
-  private readonly http = inject(HttpClient);
+  private readonly authApi = inject(AuthApi);
 
   readonly submitting = signal(false);
   readonly successMessage = signal<string | null>(null);
@@ -35,8 +35,11 @@ export class RequestAccessPage {
     }
 
     this.submitting.set(true);
-    this.http
-      .post(`${environment.publicApiBaseUrl}/api/v1/organization-activation-requests`, this.form.getRawValue())
+    this.authApi
+      .postWithCsrf(
+        `${environment.publicApiBaseUrl}/api/v1/organization-activation-requests`,
+        this.form.getRawValue(),
+      )
       .subscribe({
         next: () => {
           this.submitting.set(false);

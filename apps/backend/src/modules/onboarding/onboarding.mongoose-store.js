@@ -1,4 +1,3 @@
-// @ts-check
 const mongoose = require('mongoose');
 const { OrganizationModel } = require('../organizations/organization.model');
 const {
@@ -9,16 +8,12 @@ const {
 const { SubscriptionModel } = require('../subscriptions/subscription.model');
 const { AuditEventModel } = require('../audit/audit-event.model');
 
-/**
- * @param {unknown} session
- */
 function withSession(session) {
-  return session ? { session: /** @type {import('mongoose').ClientSession} */ (session) } : {};
+  return session ? { session: session } : {};
 }
 
 /**
  * Mongoose-backed onboarding persistence using frozen canonical collections only.
- * @returns {import('./onboarding.types').OnboardingStore}
  */
 function createMongooseOnboardingStore() {
   return {
@@ -34,7 +29,6 @@ function createMongooseOnboardingStore() {
     },
 
     async listOrganizations(filter = {}) {
-      /** @type {Record<string, unknown>} */
       const query = {};
       if (filter.status !== undefined) {
         query['status'] = filter.status;
@@ -48,10 +42,14 @@ function createMongooseOnboardingStore() {
     },
 
     async updateOrganization(session, id, patch) {
-      return OrganizationModel.findByIdAndUpdate(id, { $set: patch }, {
-        new: true,
-        ...withSession(session),
-      })
+      return OrganizationModel.findByIdAndUpdate(
+        id,
+        { $set: patch },
+        {
+          new: true,
+          ...withSession(session),
+        },
+      )
         .lean()
         .exec();
     },
@@ -73,10 +71,14 @@ function createMongooseOnboardingStore() {
     },
 
     async updateUser(session, id, patch) {
-      return UserModel.findByIdAndUpdate(id, { $set: patch }, {
-        new: true,
-        ...withSession(session),
-      })
+      return UserModel.findByIdAndUpdate(
+        id,
+        { $set: patch },
+        {
+          new: true,
+          ...withSession(session),
+        },
+      )
         .lean()
         .exec();
     },
@@ -85,16 +87,31 @@ function createMongooseOnboardingStore() {
       return OrganizationMembershipModel.findOne({ organizationId, userId }).lean().exec();
     },
 
+    async listMembershipsByUserId(userId) {
+      return OrganizationMembershipModel.find({ userId }).lean().exec();
+    },
+
+    async findMembershipById(id) {
+      if (!mongoose.isValidObjectId(id)) {
+        return null;
+      }
+      return OrganizationMembershipModel.findById(id).lean().exec();
+    },
+
     async insertMembership(session, doc) {
       const [created] = await OrganizationMembershipModel.create([doc], withSession(session));
       return created.toObject();
     },
 
     async updateMembership(session, id, patch) {
-      return OrganizationMembershipModel.findByIdAndUpdate(id, { $set: patch }, {
-        new: true,
-        ...withSession(session),
-      })
+      return OrganizationMembershipModel.findByIdAndUpdate(
+        id,
+        { $set: patch },
+        {
+          new: true,
+          ...withSession(session),
+        },
+      )
         .lean()
         .exec();
     },
@@ -109,10 +126,14 @@ function createMongooseOnboardingStore() {
     },
 
     async updateSubscription(session, id, patch) {
-      return SubscriptionModel.findByIdAndUpdate(id, { $set: patch }, {
-        new: true,
-        ...withSession(session),
-      })
+      return SubscriptionModel.findByIdAndUpdate(
+        id,
+        { $set: patch },
+        {
+          new: true,
+          ...withSession(session),
+        },
+      )
         .lean()
         .exec();
     },
@@ -127,10 +148,14 @@ function createMongooseOnboardingStore() {
     },
 
     async updateActivationToken(session, id, patch) {
-      return AccountActivationTokenModel.findByIdAndUpdate(id, { $set: patch }, {
-        new: true,
-        ...withSession(session),
-      })
+      return AccountActivationTokenModel.findByIdAndUpdate(
+        id,
+        { $set: patch },
+        {
+          new: true,
+          ...withSession(session),
+        },
+      )
         .lean()
         .exec();
     },
@@ -146,16 +171,9 @@ function createMongooseTransactionSessionPort() {
     async startSession() {
       return mongoose.startSession();
     },
-    /**
-     * @param {import('mongoose').ClientSession} session
-     * @param {(activeSession: import('mongoose').ClientSession) => Promise<unknown>} fn
-     */
     async withTransaction(session, fn) {
       return session.withTransaction(async () => fn(session));
     },
-    /**
-     * @param {import('mongoose').ClientSession} session
-     */
     async endSession(session) {
       await session.endSession();
     },

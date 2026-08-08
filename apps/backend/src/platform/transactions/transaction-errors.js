@@ -1,23 +1,14 @@
-// @ts-check
-
-/** @typedef {readonly string[]} MongoErrorLabels */
-
-const TRANSIENT_TRANSACTION_ERROR_LABELS = /** @type {const} */ ([
+const TRANSIENT_TRANSACTION_ERROR_LABELS = [
   'TransientTransactionError',
   'UnknownTransactionCommitResult',
-]);
+];
 
-/**
- * @param {unknown} error
- * @returns {boolean}
- */
 function isTransientTransactionError(error) {
   if (error === null || typeof error !== 'object') {
     return false;
   }
 
-  const hasErrorLabel = /** @type {{ hasErrorLabel?: (label: string) => boolean }} */ (error)
-    .hasErrorLabel;
+  const hasErrorLabel = error.hasErrorLabel;
   if (typeof hasErrorLabel !== 'function') {
     return false;
   }
@@ -25,10 +16,6 @@ function isTransientTransactionError(error) {
   return TRANSIENT_TRANSACTION_ERROR_LABELS.some((label) => hasErrorLabel.call(error, label));
 }
 
-/**
- * @param {unknown} error
- * @returns {boolean}
- */
 function isNonRetryableTransactionFailure(error) {
   if (error instanceof Error) {
     const name = error.name;

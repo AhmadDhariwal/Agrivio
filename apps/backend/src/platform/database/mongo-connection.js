@@ -1,17 +1,5 @@
-// @ts-check
 const mongoose = require('mongoose');
-/**
- * @typedef {import('../config/runtime-config').ApiEnv} ApiEnv
- * @typedef {{
- *   connect: (config?: ApiEnv) => Promise<void>;
- *   disconnect: () => Promise<void>;
- *   isReady: () => Promise<boolean>;
- * }} MongoDatabaseLifecycle
- */
 
-/**
- * @returns {MongoDatabaseLifecycle}
- */
 function createMongooseDatabaseLifecycle() {
   return {
     async connect(config) {
@@ -56,8 +44,6 @@ function createMongooseDatabaseLifecycle() {
 
 /**
  * In-memory lifecycle adapter for unit tests.
- * @param {{ ready?: boolean }} [options]
- * @returns {MongoDatabaseLifecycle}
  */
 function createMockDatabaseLifecycle(options = {}) {
   let connected = false;

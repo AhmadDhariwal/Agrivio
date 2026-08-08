@@ -219,8 +219,8 @@ Dependency acyclic validation at generation time: passed.
 | Frontend scope | None. |
 | Data scope | Connection stub only; no collections. |
 | Security scope | No public business endpoints; health may be deferred to F01. |
-| Tests | API boot smoke test; JavaScript static check (`checkJs`) and lint pass; architecture fixture proving forbidden imports without empty production module folders. |
-| Definition of Done | Empty backend builds, boots in test mode, lints, and passes JavaScript static checks without empty future-module placeholder folders. |
+| Tests | API boot smoke test; lint pass; architecture fixture proving forbidden imports without empty production module folders. (Historical `checkJs` gate superseded by plain-JS + ESLint convention — see [BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md) final amendment.) |
+| Definition of Done | Empty backend builds, boots in test mode, and lints without empty future-module placeholder folders. |
 | Out of scope | Business controllers/services; auth; transactions; empty .gitkeep trees for all canonical modules. |
 | Risk | Controller-layer patterns that later violate thin-controller rule. |
 | Effort | M |

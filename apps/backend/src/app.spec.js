@@ -27,9 +27,7 @@ describe('API boot smoke', () => {
       expect(address.port).toBeGreaterThan(0);
 
       const response = await fetch(`http://127.0.0.1:${address.port}/unknown-route`);
-      const body = /** @type {{ error: { code: string }; requestId: string }} */ (
-        await response.json()
-      );
+      const body = await response.json();
 
       expect(response.status).toBe(404);
       expect(body.error.code).toBe(ApiTransportErrorCode.NotFound);

@@ -1,22 +1,14 @@
-// @ts-check
 const { randomUUID } = require('node:crypto');
 
 /**
  * In-memory persistence for F02 Phase 1 unit tests (no invented activation-request collection).
- * @returns {import('./onboarding.types').OnboardingStore}
  */
 function createInMemoryOnboardingStore() {
-  /** @type {Map<string, Record<string, unknown>>} */
   const organizations = new Map();
-  /** @type {Map<string, Record<string, unknown>>} */
   const users = new Map();
-  /** @type {Map<string, Record<string, unknown>>} */
   const memberships = new Map();
-  /** @type {Map<string, Record<string, unknown>>} */
   const subscriptions = new Map();
-  /** @type {Map<string, Record<string, unknown>>} */
   const activationTokens = new Map();
-  /** @type {Record<string, unknown>[]} */
   const auditEvents = [];
 
   return {
@@ -95,14 +87,22 @@ function createInMemoryOnboardingStore() {
 
     async findMembership(organizationId, userId) {
       for (const membership of memberships.values()) {
-        if (
-          membership['organizationId'] === organizationId &&
-          membership['userId'] === userId
-        ) {
+        if (membership['organizationId'] === organizationId && membership['userId'] === userId) {
           return { ...membership };
         }
       }
       return null;
+    },
+
+    async listMembershipsByUserId(userId) {
+      return [...memberships.values()]
+        .filter((membership) => membership['userId'] === userId)
+        .map((membership) => ({ ...membership }));
+    },
+
+    async findMembershipById(id) {
+      const membership = memberships.get(String(id));
+      return membership === undefined ? null : { ...membership };
     },
 
     async insertMembership(_session, doc) {

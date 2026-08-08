@@ -1,12 +1,7 @@
-// @ts-check
 const { readFileSync, readdirSync, statSync } = require('node:fs');
 const { join } = require('node:path');
-/**
- * @param {string} filePath
- */
 function extractImportSpecifiers(filePath) {
   const contents = readFileSync(filePath, 'utf8');
-  /** @type {string[]} */
   const specifiers = [];
   const importPattern = /\bfrom\s+['"]([^'"]+)['"]/g;
   const requirePattern = /\brequire\(\s*['"]([^'"]+)['"]\s*\)/g;
@@ -24,12 +19,7 @@ function extractImportSpecifiers(filePath) {
   return specifiers;
 }
 
-/**
- * @param {string} directory
- * @returns {string[]}
- */
 function collectSourceFiles(directory) {
-  /** @type {string[]} */
   const files = [];
   for (const entry of readdirSync(directory)) {
     const fullPath = join(directory, entry);
@@ -49,19 +39,12 @@ function collectSourceFiles(directory) {
   return files;
 }
 
-/**
- * @param {string} specifier
- */
 function isForbiddenPersistenceImport(specifier) {
   return specifier === 'mongoose' || specifier.startsWith('mongoose/');
 }
 
-/**
- * @param {string} rootDirectory
- */
 function scanControllerPersistenceViolations(rootDirectory) {
   const files = collectSourceFiles(rootDirectory);
-  /** @type {string[]} */
   const violations = [];
 
   for (const filePath of files) {
@@ -80,12 +63,8 @@ function scanControllerPersistenceViolations(rootDirectory) {
   return violations;
 }
 
-/**
- * @param {string} rootDirectory
- */
 function scanApiContractsDependencyViolations(rootDirectory) {
   const files = collectSourceFiles(rootDirectory);
-  /** @type {string[]} */
   const violations = [];
 
   for (const filePath of files) {

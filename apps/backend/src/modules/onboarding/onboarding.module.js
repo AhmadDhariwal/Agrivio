@@ -1,4 +1,3 @@
-// @ts-check
 const {
   createMockTransactionSessionPort,
   createTransactionRunner,
@@ -11,19 +10,13 @@ const {
 const { createOnboardingService } = require('./onboarding.service');
 const { registerOnboardingRoutes } = require('./onboarding.routes');
 
-/**
- * @param {{
- *   config: { nodeEnv: 'development' | 'test' | 'production' };
- *   persistence?: 'memory' | 'mongoose';
- *   store?: import('./onboarding.types').OnboardingStore;
- *   now?: () => Date;
- * }} options
- */
 function createOnboardingModule(options) {
   const persistence = options.persistence ?? 'memory';
   const store =
     options.store ??
-    (persistence === 'mongoose' ? createMongooseOnboardingStore() : createInMemoryOnboardingStore());
+    (persistence === 'mongoose'
+      ? createMongooseOnboardingStore()
+      : createInMemoryOnboardingStore());
 
   const sessionPort =
     persistence === 'mongoose'
@@ -43,6 +36,8 @@ function createOnboardingModule(options) {
     routes: registerOnboardingRoutes({
       config: options.config,
       onboardingService,
+      ...(options.requireCsrf === undefined ? {} : { requireCsrf: options.requireCsrf }),
+      ...(options.optionalAuth === undefined ? {} : { optionalAuth: options.optionalAuth }),
     }),
   };
 }

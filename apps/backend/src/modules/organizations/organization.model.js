@@ -1,12 +1,6 @@
-// @ts-check
 const mongoose = require('mongoose');
 
-const ORGANIZATION_STATUSES = /** @type {const} */ ([
-  'pending_approval',
-  'approved',
-  'rejected',
-  'suspended',
-]);
+const ORGANIZATION_STATUSES = ['pending_approval', 'approved', 'rejected', 'suspended'];
 
 const organizationSchema = new mongoose.Schema(
   {
@@ -30,7 +24,6 @@ const organizationSchema = new mongoose.Schema(
   { timestamps: true, collection: 'organizations' },
 );
 
-/** @type {import('mongoose').Model<any>} */
 const OrganizationModel =
   mongoose.models['Organization'] || mongoose.model('Organization', organizationSchema);
 

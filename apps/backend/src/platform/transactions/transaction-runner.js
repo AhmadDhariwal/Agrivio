@@ -1,39 +1,16 @@
-// @ts-check
 const {
   isNonRetryableTransactionFailure,
   isTransientTransactionError,
 } = require('./transaction-errors');
 const { createDefaultRetryPolicy, waitForRetry } = require('./retry-policy');
-/**
- * @typedef {import('mongoose').ClientSession} ClientSession
- * @typedef {{
- *   startSession: () => Promise<ClientSession>;
- *   withTransaction: (
- *     session: ClientSession,
- *     fn: (session: ClientSession) => Promise<unknown>,
- *   ) => Promise<unknown>;
- *   endSession: (session: ClientSession) => Promise<void>;
- * }} TransactionSessionPort
- * @typedef {import('./retry-policy').RetryPolicy} RetryPolicy
- */
 
-/**
- * @param {TransactionSessionPort} port
- * @param {{ retryPolicy?: RetryPolicy; sleep?: (ms: number) => Promise<void> }} [options]
- */
 function createTransactionRunner(port, options = {}) {
   const retryPolicy = options.retryPolicy ?? createDefaultRetryPolicy();
   const sleep = options.sleep;
 
   return {
-    /**
-     * @template T
-     * @param {(session: ClientSession) => Promise<T>} work
-     * @returns {Promise<T>}
-     */
     async run(work) {
       let attempt = 0;
-      /** @type {unknown} */
       let lastError;
 
       while (attempt < retryPolicy.maxAttempts) {
@@ -41,7 +18,6 @@ function createTransactionRunner(port, options = {}) {
         const session = await port.startSession();
 
         try {
-          /** @type {T | undefined} */
           let result;
           await port.withTransaction(session, async (activeSession) => {
             result = await work(activeSession);
@@ -75,11 +51,6 @@ function createTransactionRunner(port, options = {}) {
 
 /**
  * In-memory session port for unit tests.
- * @param {{
- *   onCommit?: () => void;
- *   onAbort?: () => void;
- *   transientFailuresBeforeSuccess?: number;
- * }} [options]
  */
 function createMockTransactionSessionPort(options = {}) {
   let transientRemaining = options.transientFailuresBeforeSuccess ?? 0;
@@ -87,10 +58,7 @@ function createMockTransactionSessionPort(options = {}) {
   let aborted = false;
   let sessionEnded = false;
 
-  /** @type {import('mongoose').ClientSession} */
-  const session = /** @type {import('mongoose').ClientSession} */ (
-    /** @type {unknown} */ ({ id: 'mock-session' })
-  );
+  const session = { id: 'mock-session' };
 
   return {
     port: {
@@ -100,15 +68,12 @@ function createMockTransactionSessionPort(options = {}) {
         sessionEnded = false;
         return session;
       },
-      async withTransaction(
-        /** @type {ClientSession} */ _session,
-        /** @type {(session: ClientSession) => Promise<unknown>} */ fn,
-      ) {
+      async withTransaction(_session, fn) {
         if (transientRemaining > 0) {
           transientRemaining -= 1;
           const error = new Error('Transient transaction failure');
           Object.assign(error, {
-            hasErrorLabel: (/** @type {string} */ label) =>
+            hasErrorLabel: (label) =>
               label === 'TransientTransactionError' || label === 'UnknownTransactionCommitResult',
           });
           throw error;

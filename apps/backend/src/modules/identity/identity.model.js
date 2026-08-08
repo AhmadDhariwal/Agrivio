@@ -1,4 +1,3 @@
-// @ts-check
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema(
@@ -12,6 +11,14 @@ const userSchema = new mongoose.Schema(
       required: true,
       enum: ['pending_activation', 'active', 'deactivated'],
       default: 'pending_activation',
+    },
+    /**
+     * Platform Super Admin access; omit/undefined means no platform context.
+     */
+    platformAccess: {
+      type: String,
+      enum: ['super_admin'],
+      required: false,
     },
     version: { type: Number, required: true, default: 1 },
   },
@@ -61,19 +68,59 @@ const activationTokenSchema = new mongoose.Schema(
 
 activationTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-/** @type {import('mongoose').Model<any>} */
+const authSessionSchema = new mongoose.Schema(
+  {
+    tokenHash: { type: String, required: true, unique: true },
+    csrfHash: { type: String, required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
+    activeContextType: {
+      type: String,
+      required: true,
+      enum: ['none', 'platform', 'organization'],
+      default: 'none',
+    },
+    activeMembershipId: { type: mongoose.Schema.Types.ObjectId },
+    activeOrganizationId: { type: mongoose.Schema.Types.ObjectId, index: true },
+    absoluteExpiresAt: { type: Date, required: true },
+    lastSeenAt: { type: Date, required: true },
+    expiresAt: { type: Date, required: true },
+    revokedAt: { type: Date },
+  },
+  { timestamps: true, collection: 'auth_sessions' },
+);
+
+authSessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+authSessionSchema.index({ userId: 1, revokedAt: 1 });
+
+const passwordResetTokenSchema = new mongoose.Schema(
+  {
+    userId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'User', index: true },
+    tokenHash: { type: String, required: true, unique: true },
+    expiresAt: { type: Date, required: true },
+    consumedAt: { type: Date },
+  },
+  { timestamps: true, collection: 'password_reset_tokens' },
+);
+
+passwordResetTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
 const UserModel = mongoose.models['User'] || mongoose.model('User', userSchema);
-/** @type {import('mongoose').Model<any>} */
 const OrganizationMembershipModel =
   mongoose.models['OrganizationMembership'] ||
   mongoose.model('OrganizationMembership', membershipSchema);
-/** @type {import('mongoose').Model<any>} */
 const AccountActivationTokenModel =
   mongoose.models['AccountActivationToken'] ||
   mongoose.model('AccountActivationToken', activationTokenSchema);
+const AuthSessionModel =
+  mongoose.models['AuthSession'] || mongoose.model('AuthSession', authSessionSchema);
+const PasswordResetTokenModel =
+  mongoose.models['PasswordResetToken'] ||
+  mongoose.model('PasswordResetToken', passwordResetTokenSchema);
 
 module.exports = {
   UserModel,
   OrganizationMembershipModel,
   AccountActivationTokenModel,
+  AuthSessionModel,
+  PasswordResetTokenModel,
 };

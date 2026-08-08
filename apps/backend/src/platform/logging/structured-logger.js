@@ -1,16 +1,7 @@
-// @ts-check
 const { redactSecrets } = require('../config/runtime-config');
 const { getRequestId } = require('../http/request-context');
 const { redactLogFields } = require('./redact-log-fields');
-/**
- * @typedef {'debug' | 'info' | 'warn' | 'error'} LogLevel
- * @typedef {(level: LogLevel, message: string, fields?: Record<string, unknown>) => void} StructuredLogger
- */
 
-/**
- * @param {LogLevel} level
- * @param {Record<string, unknown>} entry
- */
 function writeLogLine(level, entry) {
   const line = JSON.stringify({ level, ...entry });
   if (level === 'error' || level === 'warn') {
@@ -20,10 +11,6 @@ function writeLogLine(level, entry) {
   console.log(redactSecrets(line));
 }
 
-/**
- * @param {Record<string, unknown>} [baseFields]
- * @returns {StructuredLogger}
- */
 function createStructuredLogger(baseFields = {}) {
   return (level, message, fields = {}) => {
     const requestId = getRequestId();
