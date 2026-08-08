@@ -1,12 +1,6 @@
-// @ts-check
 const { createApiErrorEnvelope } = require('@agrivio/api-contracts');
 const { mapErrorToHttpResponse } = require('./map-http-error');
 const { AppError, notFound } = require('./app-error');
-/**
- * @param {import('../config/runtime-config').ApiNodeEnv} nodeEnv
- * @param {import('../logging/structured-logger').StructuredLogger} logger
- * @returns {import('express').ErrorRequestHandler}
- */
 function createErrorHandlerMiddleware(nodeEnv, logger) {
   return (error, req, res, next) => {
     if (res.headersSent) {
@@ -28,10 +22,6 @@ function createErrorHandlerMiddleware(nodeEnv, logger) {
   };
 }
 
-/**
- * @param {import('../config/runtime-config').ApiNodeEnv} nodeEnv
- * @returns {import('express').RequestHandler}
- */
 function createNotFoundMiddleware(nodeEnv) {
   return (req, res) => {
     const requestId = resolveRequestIdFromRequest(req, res);
@@ -41,18 +31,13 @@ function createNotFoundMiddleware(nodeEnv) {
   };
 }
 
-/**
- * @param {import('express').Request} req
- * @param {import('express').Response} res
- * @returns {string}
- */
 function resolveRequestIdFromRequest(req, res) {
   const fromLocals = res.locals['requestId'];
   if (typeof fromLocals === 'string' && fromLocals.length > 0) {
     return fromLocals;
   }
 
-  const fromRequest = /** @type {{ requestId?: string }} */ (req).requestId;
+  const fromRequest = req.requestId;
   if (typeof fromRequest === 'string' && fromRequest.length > 0) {
     return fromRequest;
   }

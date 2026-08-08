@@ -1,27 +1,19 @@
-// @ts-check
 const { ApiTransportErrorCode } = require('@agrivio/api-contracts');
 
 const GENERIC_INTERNAL_MESSAGE = 'An unexpected error occurred';
 
 /**
  * Duck-type AppError so mapping remains correct across CJS/ESM module boundaries.
- * @param {unknown} error
- * @returns {error is import('./app-error').AppError}
  */
 function isAppError(error) {
   return (
     error instanceof Error &&
     error.name === 'AppError' &&
-    typeof (/** @type {{ statusCode?: unknown }} */ (error).statusCode) === 'number' &&
-    typeof (/** @type {{ code?: unknown }} */ (error).code) === 'string'
+    typeof error.statusCode === 'number' &&
+    typeof error.code === 'string'
   );
 }
 
-/**
- * @param {unknown} error
- * @param {'development' | 'test' | 'production'} nodeEnv
- * @returns {{ statusCode: number; body: import('@agrivio/api-contracts').ApiErrorBody }}
- */
 function mapErrorToHttpResponse(error, nodeEnv) {
   if (isAppError(error)) {
     return {

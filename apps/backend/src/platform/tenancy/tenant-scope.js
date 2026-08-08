@@ -1,33 +1,15 @@
-// @ts-check
-
 class TenantScopeError extends Error {
-  /**
-   * @param {string} message
-   */
   constructor(message) {
     super(message);
     this.name = 'TenantScopeError';
   }
 }
 
-/** Explicit marker for audited platform/system persistence bypasses. */
-const SYSTEM_SCOPE = /** @type {const} */ ('__agrivio_system_scope__');
-
 /**
- * @typedef {{
- *   mode: 'organization';
- *   organizationId: string;
- * } | {
- *   mode: 'system';
- *   reason: string;
- *   token: typeof SYSTEM_SCOPE;
- * }} PersistenceScope
+ * Explicit marker for audited platform/system persistence bypasses.
  */
+const SYSTEM_SCOPE = '__agrivio_system_scope__';
 
-/**
- * @param {string | undefined} organizationId
- * @returns {PersistenceScope}
- */
 function createOrganizationScope(organizationId) {
   if (typeof organizationId !== 'string' || organizationId.trim().length === 0) {
     throw new TenantScopeError('organizationId is required for tenant-scoped persistence');
@@ -36,10 +18,6 @@ function createOrganizationScope(organizationId) {
   return { mode: 'organization', organizationId: organizationId.trim() };
 }
 
-/**
- * @param {string} reason
- * @param {typeof SYSTEM_SCOPE} token
- */
 function createSystemScope(reason, token) {
   if (token !== SYSTEM_SCOPE) {
     throw new TenantScopeError('Invalid system scope bypass token');
@@ -51,10 +29,6 @@ function createSystemScope(reason, token) {
   return { mode: 'system', reason: reason.trim(), token: SYSTEM_SCOPE };
 }
 
-/**
- * @param {PersistenceScope} scope
- * @param {Record<string, unknown>} [filter]
- */
 function composeTenantFilter(scope, filter = {}) {
   if (scope.mode === 'system') {
     return { ...filter, __systemScope: true, __systemScopeReason: scope.reason };
@@ -66,10 +40,6 @@ function composeTenantFilter(scope, filter = {}) {
   };
 }
 
-/**
- * @param {PersistenceScope} scope
- * @param {Record<string, unknown>} document
- */
 function assertTenantWriteDocument(scope, document) {
   if (scope.mode === 'system') {
     return;
@@ -80,10 +50,6 @@ function assertTenantWriteDocument(scope, document) {
   }
 }
 
-/**
- * @param {PersistenceScope} scope
- * @param {Record<string, unknown>} filter
- */
 function assertTenantReadFilter(scope, filter) {
   if (scope.mode === 'system') {
     return;
@@ -96,23 +62,16 @@ function assertTenantReadFilter(scope, filter) {
 
 /**
  * Sample module-owned repository helper for tests and architecture guidance.
- * @param {{
- *   scope: PersistenceScope;
- *   collection: {
- *     findOne: (filter: Record<string, unknown>) => Promise<Record<string, unknown> | null>;
- *     insertOne: (doc: Record<string, unknown>) => Promise<void>;
- *   };
- * }} deps
  */
 function createSampleTenantRepository(deps) {
   return {
-    async findById(/** @type {string} */ id) {
+    async findById(id) {
       const filter = composeTenantFilter(deps.scope, { _id: id });
       assertTenantReadFilter(deps.scope, filter);
       return deps.collection.findOne(filter);
     },
 
-    async insert(/** @type {Record<string, unknown>} */ document) {
+    async insert(document) {
       assertTenantWriteDocument(deps.scope, document);
       const scoped = composeTenantFilter(deps.scope, document);
       await deps.collection.insertOne(scoped);

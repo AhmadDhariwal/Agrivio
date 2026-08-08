@@ -1,13 +1,15 @@
 # Toolchain
 
 Document status: Frozen for Release 1  
-Current version: 1.2.0  
+Current version: 1.3.0  
 Last updated: 2026-08-08  
 Approval status: Approved for repository initialization
 
 > **Amendment 1.1.0 (2026-08-05):** Frontend canonical project: `apps/frontend`. Backend canonical project: `apps/backend`. Backend implementation language was JavaScript ESM. Frontend implementation language: Angular TypeScript. Details: [tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md](tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md).
 >
 > **Amendment 1.2.0 (2026-08-08):** Backend implementation language: JavaScript CommonJS (`require` / `module.exports`). Frontend remains Angular TypeScript. Shared packages remain TypeScript. Details: [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md).
+>
+> **Amendment 1.3.0 (2026-08-08):** Backend coding style is plain CommonJS JavaScript without `// @ts-check` or JSDoc type annotations. Backend validation is ESLint + tests (not `checkJs`). Details: [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md).
 
 ## Document Authority
 
@@ -47,7 +49,7 @@ This document freezes the Release 1 toolchain. It does not install packages, ini
 | `@nx/web` | `23.1.0` | Web tooling dependency of `@nx/angular` |
 | Angular core packages | `22.0.8` | Frontend framework (`@angular/core`, `@angular/common`, `@angular/compiler`, `@angular/forms`, `@angular/platform-browser`, `@angular/router`, and matching framework packages) |
 | Angular CLI / build line | `22.0.8` | `@angular/cli`, `@angular/build`, `@angular/compiler-cli`, `@schematics/angular`, `@angular-devkit/core`, `@angular-devkit/schematics`, `@angular-devkit/build-angular` |
-| TypeScript | `6.0.3` | Language and type-checker for Angular, shared packages, and backend `checkJs` static analysis |
+| TypeScript | `6.0.3` | Language and type-checker for Angular and shared TypeScript packages (not required for plain backend JavaScript) |
 | Express | `5.2.1` | HTTP framework for `apps/backend` |
 | Mongoose | `9.8.0` | MongoDB ODM for persistence implementations |
 | MongoDB Server | `8.2.12` | Local and CI database server image/binary |
@@ -188,8 +190,8 @@ Rules:
 | Internal package directory | `packages/` |
 | Package scope | `@agrivio` |
 | API module format | CommonJS (`require` / `module.exports`; no backend `"type": "module"`) |
-| Backend source language | JavaScript (`.js`) with `// @ts-check` and `apps/backend/jsconfig.json` |
-| Backend static analysis | TypeScript `6.0.3` in `checkJs` mode via `jsconfig.json` (no backend `.ts` implementation sources) |
+| Backend source language | Plain JavaScript (`.js`) CommonJS — no `// @ts-check`, no JSDoc type annotations |
+| Backend static analysis | ESLint; runtime validation; meaningful automated tests. `jsconfig.json` remains only as an Nx/esbuild/Vitest allowJs shim (`checkJs: false`) |
 | Angular / shared packages | TypeScript `6.0.3` with shared strict compiler settings |
 | Frontend styling | SCSS |
 | Frontend change detection | Zoneless |

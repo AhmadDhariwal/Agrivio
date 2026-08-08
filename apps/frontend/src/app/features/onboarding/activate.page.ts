@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
+import { AuthApi } from '../auth/auth.api';
 import { environment } from '../../../environments/environment';
 
 @Component({
@@ -13,7 +13,7 @@ import { environment } from '../../../environments/environment';
 })
 export class ActivatePage implements OnInit {
   private readonly formBuilder = inject(FormBuilder);
-  private readonly http = inject(HttpClient);
+  private readonly authApi = inject(AuthApi);
   private readonly route = inject(ActivatedRoute);
 
   readonly submitting = signal(false);
@@ -42,16 +42,18 @@ export class ActivatePage implements OnInit {
     }
 
     this.submitting.set(true);
-    this.http.post(`${environment.publicApiBaseUrl}/api/v1/auth/activate`, this.form.getRawValue()).subscribe({
-      next: () => {
-        this.submitting.set(false);
-        this.successMessage.set('Owner account activated. You can sign in once session authentication is available.');
-        this.form.patchValue({ password: '' });
-      },
-      error: () => {
-        this.submitting.set(false);
-        this.errorMessage.set('Activation failed. The token may be invalid, expired, or already used.');
-      },
-    });
+    this.authApi
+      .postWithCsrf(`${environment.publicApiBaseUrl}/api/v1/auth/activate`, this.form.getRawValue())
+      .subscribe({
+        next: () => {
+          this.submitting.set(false);
+          this.successMessage.set('Owner account activated. You can continue with your signed-in session.');
+          this.form.patchValue({ password: '' });
+        },
+        error: () => {
+          this.submitting.set(false);
+          this.errorMessage.set('Activation failed. The token may be invalid, expired, or already used.');
+        },
+      });
   }
 }

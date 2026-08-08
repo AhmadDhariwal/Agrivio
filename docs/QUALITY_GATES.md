@@ -1,13 +1,15 @@
 # Quality Gates
 
 Document status: Frozen for Release 1  
-Current version: 1.2.0  
+Current version: 1.3.0  
 Last updated: 2026-08-08  
 Approval status: Approved for implementation preparation
 
 > **Amendment 1.1.0 (2026-08-05):** Frontend canonical project: `apps/frontend`. Backend canonical project: `apps/backend`. Backend implementation language was JavaScript ESM. Frontend implementation language: Angular TypeScript. Details: [tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md](tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md).
 >
 > **Amendment 1.2.0 (2026-08-08):** Backend implementation language: JavaScript CommonJS (`require` / `module.exports`). Frontend remains Angular TypeScript. Shared packages remain TypeScript. Details: [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md).
+>
+> **Amendment 1.3.0 (2026-08-08):** Backend coding style is plain CommonJS JavaScript without `// @ts-check` or JSDoc type annotations. Backend quality gates use ESLint and tests (not `checkJs`). Details: [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md).
 
 ## Document Authority
 

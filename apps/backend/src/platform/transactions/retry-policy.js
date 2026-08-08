@@ -1,13 +1,3 @@
-// @ts-check
-
-/**
- * @typedef {{
- *   maxAttempts: number;
- *   delayMs: (attempt: number) => number;
- * }} RetryPolicy
- */
-
-/** @returns {RetryPolicy} */
 function createDefaultRetryPolicy() {
   return {
     maxAttempts: 3,
@@ -15,10 +5,6 @@ function createDefaultRetryPolicy() {
   };
 }
 
-/**
- * @param {{ delaysMs?: readonly number[] }} [options]
- * @returns {RetryPolicy}
- */
 function createDeterministicRetryPolicy(options = {}) {
   const delaysMs = options.delaysMs ?? [0, 0, 0];
   return {
@@ -27,11 +13,6 @@ function createDeterministicRetryPolicy(options = {}) {
   };
 }
 
-/**
- * @param {RetryPolicy} policy
- * @param {number} attempt
- * @param {(ms: number) => Promise<void>} [sleep]
- */
 async function waitForRetry(policy, attempt, sleep = defaultSleep) {
   const delay = policy.delayMs(attempt);
   if (delay > 0) {
@@ -39,9 +20,6 @@ async function waitForRetry(policy, attempt, sleep = defaultSleep) {
   }
 }
 
-/**
- * @param {number} ms
- */
 async function defaultSleep(ms) {
   await new Promise((resolve) => {
     setTimeout(resolve, ms);

@@ -8,9 +8,6 @@ import {
 import { createApp } from '../../app';
 import { loadApiEnv } from '../config/runtime-config';
 import { createMockDatabaseLifecycle } from '../database/mongo-connection';
-/**
- * @param {import('../database/mongo-connection').MongoDatabaseLifecycle} database
- */
 function createTestApp(database) {
   const config = loadApiEnv({ NODE_ENV: 'test' });
   return createApp({ config, database });
@@ -24,9 +21,7 @@ describe('health routes', () => {
 
     try {
       const response = await fetch(`http://127.0.0.1:${portOf(server)}${API_HEALTH_LIVENESS_PATH}`);
-      const body = /** @type {{ data: { status: string }; requestId: string }} */ (
-        await response.json()
-      );
+      const body = await response.json();
 
       expect(response.status).toBe(200);
       expect(body.data).toEqual({ status: 'ok' });
@@ -46,9 +41,7 @@ describe('health routes', () => {
       const response = await fetch(
         `http://127.0.0.1:${portOf(server)}${API_OPERATIONS_READINESS_PATH}`,
       );
-      const body = /** @type {{ data: { status: string }; requestId: string }} */ (
-        await response.json()
-      );
+      const body = await response.json();
 
       expect(response.status).toBe(503);
       expect(body.data).toEqual({ status: 'not_ready' });
@@ -68,9 +61,7 @@ describe('health routes', () => {
       const response = await fetch(
         `http://127.0.0.1:${portOf(server)}${API_OPERATIONS_READINESS_PATH}`,
       );
-      const body = /** @type {{ data: { status: string }; requestId: string }} */ (
-        await response.json()
-      );
+      const body = await response.json();
 
       expect(response.status).toBe(200);
       expect(body.data).toEqual({ status: 'ready' });
@@ -94,9 +85,7 @@ describe('request id propagation', () => {
           headers: { [API_REQUEST_ID_HEADER]: clientRequestId },
         },
       );
-      const body = /** @type {{ data: { status: string }; requestId: string }} */ (
-        await response.json()
-      );
+      const body = await response.json();
 
       expect(response.headers.get(API_REQUEST_ID_HEADER)).toBe(clientRequestId);
       expect(body.requestId).toBe(clientRequestId);
@@ -106,9 +95,6 @@ describe('request id propagation', () => {
   });
 });
 
-/**
- * @param {import('node:http').Server} server
- */
 function portOf(server) {
   const address = server.address();
   if (address === null || typeof address === 'string') {
@@ -117,9 +103,6 @@ function portOf(server) {
   return address.port;
 }
 
-/**
- * @param {import('node:http').Server} server
- */
 function listen(server) {
   return new Promise((resolve, reject) => {
     server.once('error', reject);
@@ -127,9 +110,6 @@ function listen(server) {
   });
 }
 
-/**
- * @param {import('node:http').Server} server
- */
 function close(server) {
   return new Promise((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve(undefined)));

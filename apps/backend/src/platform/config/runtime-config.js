@@ -1,50 +1,20 @@
-// @ts-check
-
 /**
  * Secret-bearing API environment keys that must never be logged in full.
  */
 const API_SECRET_ENV_KEYS = ['SESSION_SECRET', 'MONGODB_URI'];
 
-/**
- * @typedef {'local' | 'test' | 'staging' | 'production'} ApiRuntimeProfile
- * @typedef {'development' | 'test' | 'production'} ApiNodeEnv
- * @typedef {{
- *   nodeEnv: ApiNodeEnv;
- *   profile: ApiRuntimeProfile;
- *   host: string;
- *   port: number;
- *   mongodbUri: string;
- *   mongodbDbName: string;
- *   mongodbReplicaSet: string;
- *   sessionSecret: string;
- * }} ApiEnv
- */
-
 class EnvValidationError extends Error {
-  /**
-   * @param {readonly string[]} issues
-   */
   constructor(issues) {
     super(`Invalid API environment configuration:\n- ${issues.join('\n- ')}`);
     this.name = 'EnvValidationError';
-    /** @type {readonly string[]} */
     this.issues = issues;
   }
 }
 
-/**
- * @param {string | undefined} value
- * @returns {value is string}
- */
 function isNonEmptyString(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
-/**
- * @param {ApiNodeEnv} nodeEnv
- * @param {string | undefined} rawProfile
- * @returns {ApiRuntimeProfile | undefined}
- */
 function resolveProfile(nodeEnv, rawProfile) {
   if (rawProfile === undefined || rawProfile.trim() === '') {
     if (nodeEnv === 'test') {
@@ -70,8 +40,6 @@ function resolveProfile(nodeEnv, rawProfile) {
 
 /**
  * Redacts known secret values and secret-bearing keys from text destined for logs.
- * @param {string} text
- * @param {NodeJS.ProcessEnv} [env]
  */
 function redactSecrets(text, env = process.env) {
   let redacted = text;
@@ -93,8 +61,6 @@ function redactSecrets(text, env = process.env) {
 /**
  * Fail-fast validation for API runtime configuration.
  * Test profile permits local placeholder secrets; non-test profiles require real values.
- * @param {NodeJS.ProcessEnv} [env]
- * @returns {ApiEnv}
  */
 function loadApiEnv(env = process.env) {
   const issues = [];
@@ -178,8 +144,6 @@ function loadApiEnv(env = process.env) {
 
 /**
  * Safe summary for operational logs. Never includes secret values.
- * @param {ApiEnv} config
- * @returns {Record<string, string | number>}
  */
 function toSafeApiEnvSummary(config) {
   return {

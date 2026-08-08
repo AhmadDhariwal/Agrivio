@@ -1,7 +1,5 @@
-// @ts-check
 const { Router } = require('express');
 const {
-  API_AUTH_ACTIVATE_PATH,
   API_ORGANIZATION_ACTIVATION_REQUESTS_PATH,
   API_PLATFORM_ORGANIZATIONS_PATH,
   API_V1_PREFIX,
@@ -15,28 +13,23 @@ const {
   createPlatformOrganizationController,
 } = require('./onboarding.controller');
 
-/**
- * @param {{
- *   config: { nodeEnv: 'development' | 'test' | 'production' };
- *   onboardingService: ReturnType<import('./onboarding.service').createOnboardingService>;
- * }} deps
- */
 function registerOnboardingRoutes(deps) {
   const router = Router();
   const publicController = createOnboardingController(deps);
   const platformController = createPlatformOrganizationController(deps);
   const platformActor = createPlatformActorMiddleware(deps.config);
+  const requireCsrf = deps.requireCsrf ?? ((_req, _res, next) => next());
+  const optionalAuth = deps.optionalAuth ?? ((_req, _res, next) => next());
 
-  router.post(API_ORGANIZATION_ACTIVATION_REQUESTS_PATH, (req, res, next) => {
+  router.post(API_ORGANIZATION_ACTIVATION_REQUESTS_PATH, requireCsrf, (req, res, next) => {
     void publicController.submitActivationRequest(req, res, next);
   });
 
-  router.post(API_AUTH_ACTIVATE_PATH, (req, res, next) => {
-    void publicController.activateOwner(req, res, next);
-  });
+  // Activation lives under the auth module routes (`/api/v1/auth/activate`).
 
   router.get(
     API_PLATFORM_ORGANIZATIONS_PATH,
+    optionalAuth,
     platformActor,
     requirePlatformPermission('platform.organizations.view'),
     (req, res, next) => {
@@ -46,6 +39,7 @@ function registerOnboardingRoutes(deps) {
 
   router.get(
     `${API_PLATFORM_ORGANIZATIONS_PATH}/:id`,
+    optionalAuth,
     platformActor,
     requirePlatformPermission('platform.organizations.view'),
     (req, res, next) => {
@@ -55,6 +49,8 @@ function registerOnboardingRoutes(deps) {
 
   router.post(
     `${API_PLATFORM_ORGANIZATIONS_PATH}/:id/approve`,
+    optionalAuth,
+    requireCsrf,
     platformActor,
     requirePlatformPermission('platform.organizations.approve'),
     (req, res, next) => {
@@ -64,6 +60,8 @@ function registerOnboardingRoutes(deps) {
 
   router.post(
     `${API_PLATFORM_ORGANIZATIONS_PATH}/:id/reject`,
+    optionalAuth,
+    requireCsrf,
     platformActor,
     requirePlatformPermission('platform.organizations.approve'),
     (req, res, next) => {
@@ -71,7 +69,6 @@ function registerOnboardingRoutes(deps) {
     },
   );
 
-  // Guard against accidental mount under wrong prefix during wiring reviews.
   void API_V1_PREFIX;
 
   return router;

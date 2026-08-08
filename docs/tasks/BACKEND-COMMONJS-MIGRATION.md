@@ -5,7 +5,7 @@
 * Status: Complete
 * Completion date: 2026-08-08
 * Scope: Coding-style and cleanup migration only (no F02 Phase 2, no new business functionality)
-* Next phase: **F02 Phase 1 — Organization Onboarding and Authentication** (session authentication follows in later F02 items)
+* Next phase: **F02 Phase 2 — Session Authentication**
 
 ## Previous Backend Format
 
@@ -150,3 +150,18 @@ Route → Middleware → Controller → Service → Repository when needed → M
 ```
 
 Do not introduce another repository/module-system migration later without a genuine blocker.
+
+## Final Coding-Style Amendment (2026-08-08)
+
+After the CommonJS migration, backend application/runtime code was cleaned to plain JavaScript style:
+
+* Removed `// @ts-check` and JSDoc type annotations (`@param`, `@returns`, `@typedef`, `@type`, `@template`, `@satisfies`, and similar) from `apps/backend` sources
+* Removed obsolete typedef-only shims (`auth.types.js`, `onboarding.types.js`)
+* Disabled backend `checkJs` (`apps/backend/jsconfig.json` keeps `checkJs: false` as an Nx/esbuild/Vitest allowJs shim only)
+* Removed the backend `typecheck` Nx target that ran `tsc -p apps/backend/jsconfig.json`
+* Backend validation remains ESLint + meaningful automated tests + runtime validation
+* Frontend and shared TypeScript packages are unchanged
+
+**Convention for future agents:** Agrivio backend application code is plain CommonJS JavaScript. Do not add `// @ts-check` or JSDoc type annotations to normal backend source. Use simple readable JavaScript and rely on runtime validation, ESLint and meaningful automated tests.
+
+See also: [../../AGENTS.md](../../AGENTS.md), [../TOOLCHAIN.md](../TOOLCHAIN.md) amendment 1.3.0.

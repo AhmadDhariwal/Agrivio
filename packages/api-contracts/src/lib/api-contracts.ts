@@ -21,12 +21,41 @@ export const API_ORGANIZATION_ACTIVATION_REQUESTS_PATH =
 /** Owner account activation (R1-F02-006). */
 export const API_AUTH_ACTIVATE_PATH = `${API_V1_PREFIX}/auth/activate` as const;
 
+/** Issue/refresh CSRF binding (R1-F02-003). */
+export const API_AUTH_CSRF_PATH = `${API_V1_PREFIX}/auth/csrf` as const;
+
+/** Browser sign-in (R1-F02-003). */
+export const API_AUTH_LOGIN_PATH = `${API_V1_PREFIX}/auth/login` as const;
+
+/** Browser sign-out (R1-F02-003). */
+export const API_AUTH_LOGOUT_PATH = `${API_V1_PREFIX}/auth/logout` as const;
+
+/** Current authenticated session snapshot (R1-F02-003). */
+export const API_AUTH_SESSION_PATH = `${API_V1_PREFIX}/auth/session` as const;
+
+/** Select authorized active context; rotates session id and CSRF (R1-F02-003/007). */
+export const API_AUTH_SESSION_CONTEXT_PATH = `${API_V1_PREFIX}/auth/session/context` as const;
+
+/** Password reset request (R1-F02-004). */
+export const API_AUTH_PASSWORD_RESET_REQUEST_PATH =
+  `${API_V1_PREFIX}/auth/password-reset/request` as const;
+
+/** Password reset confirmation (R1-F02-004). */
+export const API_AUTH_PASSWORD_RESET_CONFIRM_PATH =
+  `${API_V1_PREFIX}/auth/password-reset/confirm` as const;
+
 /** Platform organization list/detail base path. */
 export const API_PLATFORM_ORGANIZATIONS_PATH =
   `${API_V1_PREFIX}/platform/organizations` as const;
 
 /** Development-only Super Admin actor header. Must never authorize production traffic. */
 export const API_PLATFORM_ACTOR_HEADER = 'X-Platform-Actor' as const;
+
+/** CSRF token header for browser-originated state-changing requests. */
+export const API_CSRF_HEADER = 'X-CSRF-Token' as const;
+
+/** Opaque HttpOnly session cookie name. Frontend must never read this value. */
+export const API_SESSION_COOKIE_NAME = 'agrivio_session' as const;
 
 /**
  * Transport-level health payload used by public liveness checks.

@@ -1,4 +1,3 @@
-// @ts-check
 const mongoose = require('mongoose');
 
 const subscriptionSchema = new mongoose.Schema(
@@ -12,15 +11,7 @@ const subscriptionSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: [
-        'pending_approval',
-        'trial',
-        'active',
-        'grace',
-        'suspended',
-        'cancelled',
-        'rejected',
-      ],
+      enum: ['pending_approval', 'trial', 'active', 'grace', 'suspended', 'cancelled', 'rejected'],
       default: 'pending_approval',
     },
     planCode: { type: String, required: true, default: 'Starter' },
@@ -31,7 +22,6 @@ const subscriptionSchema = new mongoose.Schema(
   { timestamps: true, collection: 'subscriptions' },
 );
 
-/** @type {import('mongoose').Model<any>} */
 const SubscriptionModel =
   mongoose.models['Subscription'] || mongoose.model('Subscription', subscriptionSchema);
 

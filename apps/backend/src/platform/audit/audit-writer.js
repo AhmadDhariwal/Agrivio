@@ -1,22 +1,5 @@
-// @ts-check
 const { redactLogFields } = require('../logging/redact-log-fields');
-/**
- * @typedef {{
- *   organizationId?: string;
- *   actorId: string;
- *   action: string;
- *   resourceType: string;
- *   resourceId?: string;
- *   reason?: string;
- *   metadata?: Record<string, unknown>;
- *   occurredAt?: Date;
- * }} AuditEventInput
- */
 
-/**
- * @param {AuditEventInput} input
- * @returns {Record<string, unknown>}
- */
 function sanitizeAuditEvent(input) {
   return redactLogFields({
     organizationId: input.organizationId,
@@ -30,18 +13,7 @@ function sanitizeAuditEvent(input) {
   });
 }
 
-/**
- * @typedef {{
- *   append: (session: unknown, event: Record<string, unknown>) => Promise<void>;
- *   listForTest?: () => readonly Record<string, unknown>[];
- * }} AuditEventStore
- */
-
-/**
- * @returns {AuditEventStore}
- */
 function createInMemoryAuditEventStore() {
-  /** @type {Record<string, unknown>[]} */
   const events = [];
 
   return {
@@ -54,15 +26,10 @@ function createInMemoryAuditEventStore() {
   };
 }
 
-/**
- * @param {AuditEventStore} store
- */
 function createAuditWriter(store) {
   return {
     /**
      * Append-only business audit event inside the authoritative transaction.
-     * @param {unknown} session
-     * @param {AuditEventInput} input
      */
     async appendBusinessEvent(session, input) {
       const sanitized = sanitizeAuditEvent(input);

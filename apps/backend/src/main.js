@@ -7,15 +7,10 @@ const {
 } = require('./platform/config/runtime-config');
 const { createStructuredLogger } = require('./platform/logging/structured-logger');
 
-/** @type {import('node:http').Server | undefined} */
 let server;
 
-/** @type {import('./platform/database/mongo-connection').MongoDatabaseLifecycle | undefined} */
 let database;
 
-/**
- * @param {NodeJS.Signals} signal
- */
 async function shutdown(signal) {
   const logger = createStructuredLogger({ service: 'backend' });
   logger('info', 'shutdown signal received', { signal });
