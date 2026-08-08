@@ -1,0 +1,16 @@
+<section class="workspace" data-testid="authenticated-shell">
+  <h1>Workspace</h1>
+  <p>Authenticated application shell. Backend permission and subscription checks remain authoritative.</p>
+
+  @if (session(); as current) {
+    <p data-testid="signed-in-user">Signed in as {{ current.user.email }}</p>
+  }
+
+  @if (canViewOrganization()) {
+    <p class="hint">organization.view is available in the active context.</p>
+  } @else {
+    <p class="hint">organization.view is hidden in this UI context (non-authoritative).</p>
+  }
+
+  <p><a routerLink="/context">Manage active context</a></p>
+</section>

@@ -150,6 +150,21 @@ export class AuthApi {
     );
   }
 
+  logout(): Observable<unknown> {
+    return this.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http.post(
+          `${environment.publicApiBaseUrl}/api/v1/auth/logout`,
+          {},
+          {
+            withCredentials: true,
+            headers: new HttpHeaders({ 'X-CSRF-Token': csrfToken }),
+          },
+        ),
+      ),
+    );
+  }
+
   postWithCsrf(url: string, body: unknown): Observable<unknown> {
     return this.ensureCsrf().pipe(
       switchMap(({ csrfToken }) =>

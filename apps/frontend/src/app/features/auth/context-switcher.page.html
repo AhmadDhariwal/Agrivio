@@ -3,7 +3,7 @@
   <p>Select the authorized organization, branch, and warehouse context for this session.</p>
 
   @if (activeContext(); as active) {
-    <p class="active">
+    <p class="active" data-testid="context-active">
       Active: {{ contextLabel(active) }}
       @if (active.branchId) {
         · Branch {{ active.branchId }}
@@ -12,12 +12,17 @@
         · Warehouse {{ active.warehouseId }}
       }
     </p>
+    <p>
+      <button type="button" data-testid="continue-workspace" (click)="continueToWorkspace()">
+        Continue to workspace
+      </button>
+    </p>
   }
 
   <form [formGroup]="form" (ngSubmit)="submit()">
     <label>
       Context
-      <select formControlName="contextKey">
+      <select formControlName="contextKey" data-testid="context-select">
         <option value="">Select context</option>
         @for (context of availableContexts(); track contextKey(context)) {
           <option [value]="contextKey(context)">{{ contextLabel(context) }}</option>
@@ -35,7 +40,9 @@
       <input formControlName="warehouseId" autocomplete="off" />
     </label>
 
-    <button type="submit" [disabled]="submitting()">Switch context</button>
+    <button type="submit" [disabled]="submitting()" data-testid="switch-context">
+      Switch context
+    </button>
   </form>
 
   @if (canViewOrganization()) {

@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthSessionStore } from './auth-session.store';
 import { AuthSessionContext, SessionContextSelection } from './auth.api';
 
@@ -14,6 +14,7 @@ import { AuthSessionContext, SessionContextSelection } from './auth.api';
 export class ContextSwitcherPage {
   private readonly formBuilder = inject(FormBuilder);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly router = inject(Router);
 
   readonly submitting = signal(false);
   readonly errorMessage = signal<string | null>(null);
@@ -75,6 +76,7 @@ export class ContextSwitcherPage {
       next: () => {
         this.submitting.set(false);
         this.successMessage.set('Active context updated.');
+        void this.router.navigateByUrl('/app');
       },
       error: () => {
         this.submitting.set(false);
@@ -83,6 +85,10 @@ export class ContextSwitcherPage {
         );
       },
     });
+  }
+
+  continueToWorkspace(): void {
+    void this.router.navigateByUrl('/app');
   }
 
   private toSelection(

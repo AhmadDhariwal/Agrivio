@@ -5,11 +5,16 @@
   <form [formGroup]="form" (ngSubmit)="submit()">
     <label>
       Activation token
-      <input formControlName="token" autocomplete="one-time-code" />
+      <input formControlName="token" autocomplete="one-time-code" data-testid="activation-token-input" />
     </label>
     <label>
       Password
-      <input formControlName="password" type="password" autocomplete="new-password" />
+      <input
+        formControlName="password"
+        type="password"
+        autocomplete="new-password"
+        data-testid="activation-password-input"
+      />
     </label>
 
     @if (errorMessage(); as error) {
@@ -19,6 +24,8 @@
       <p class="success" role="status">{{ success }}</p>
     }
 
-    <button type="submit" [disabled]="submitting()">Activate</button>
+    <button type="submit" [disabled]="submitting()" data-testid="activate-submit">Activate</button>
   </form>
+
+  <p><a routerLink="/login">Sign in</a> · <a routerLink="/">Back to landing</a></p>
 </section>

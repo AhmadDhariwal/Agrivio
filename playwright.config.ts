@@ -1,23 +1,24 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * F00 Chromium E2E smoke foundation.
- * Proves frontend and backend can start together; not business-feature coverage.
+ * Chromium E2E foundation for F00 smoke + F02 onboarding vertical slice.
+ * Backend uses in-memory persistence under NODE_ENV=test.
+ * AGRIVIO_SKIP_MONGO allows local runs without Docker replica-set evidence.
  */
 export default defineConfig({
   testDir: './apps/frontend/tests/e2e',
   testMatch: '**/*.e2e.spec.ts',
-  fullyParallel: true,
+  fullyParallel: false,
   forbidOnly: !!process.env['CI'],
   retries: process.env['CI'] ? 1 : 0,
-  workers: process.env['CI'] ? 1 : undefined,
+  workers: 1,
   reporter: [['list']],
-  timeout: 60_000,
+  timeout: 120_000,
   expect: {
-    timeout: 10_000,
+    timeout: 15_000,
   },
   use: {
-    baseURL: 'http://127.0.0.1:4200',
+    baseURL: 'http://localhost:4200',
     trace: 'on-first-retry',
   },
   projects: [
@@ -29,14 +30,16 @@ export default defineConfig({
   webServer: [
     {
       command: 'node ./apps/backend/index.js',
-      port: 3000,
+      url: 'http://localhost:3000/api/v1/health',
       reuseExistingServer: !process.env['CI'],
       timeout: 60_000,
       env: {
         ...process.env,
         NODE_ENV: 'test',
         AGRIVIO_APP_PROFILE: 'test',
-        HOST: '127.0.0.1',
+        AGRIVIO_ALLOW_E2E_BOOTSTRAP: 'true',
+        AGRIVIO_SKIP_MONGO: 'true',
+        HOST: 'localhost',
         PORT: '3000',
         MONGODB_URI: 'mongodb://127.0.0.1:27017/?replicaSet=rs0',
         MONGODB_DB_NAME: 'agrivio_test_e2e',
@@ -46,8 +49,8 @@ export default defineConfig({
       },
     },
     {
-      command: 'npx nx serve frontend --configuration=development --host=127.0.0.1 --port=4200',
-      url: 'http://127.0.0.1:4200',
+      command: 'npx nx serve frontend --configuration=development --host=localhost --port=4200',
+      url: 'http://localhost:4200',
       reuseExistingServer: !process.env['CI'],
       timeout: 180_000,
       env: {

@@ -1,12 +1,13 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { AuthApi } from '../auth/auth.api';
 import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'agrivio-request-access-page',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './request-access.page.html',
   styleUrl: './request-access.page.scss',
 })

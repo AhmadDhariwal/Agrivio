@@ -3,6 +3,7 @@ const { createMongooseAuthStore } = require('./auth.mongoose-store');
 const { createAuthService } = require('./auth.service');
 const { registerAuthRoutes } = require('./auth.routes');
 const {
+  createCorsMiddleware,
   createOriginGuardMiddleware,
   createRequireCsrfMiddleware,
   createAuthTransportMiddleware,
@@ -44,6 +45,7 @@ function createAuthModule(options) {
         : { onboardingService: options.onboardingService }),
     }),
     middlewares: {
+      cors: createCorsMiddleware(options.config),
       originGuard: createOriginGuardMiddleware(options.config),
       authTransport: createAuthTransportMiddleware(),
       requireCsrf: createRequireCsrfMiddleware({ authService }),

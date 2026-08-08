@@ -5,28 +5,45 @@
   <form [formGroup]="form" (ngSubmit)="submit()">
     <label>
       Organization name
-      <input formControlName="organizationName" autocomplete="organization" />
+      <input
+        formControlName="organizationName"
+        autocomplete="organization"
+        data-testid="org-name"
+      />
     </label>
     <label>
       Owner email
-      <input formControlName="ownerEmail" type="email" autocomplete="email" />
+      <input
+        formControlName="ownerEmail"
+        type="email"
+        autocomplete="email"
+        data-testid="owner-email"
+      />
     </label>
     <label>
       Owner display name
-      <input formControlName="ownerDisplayName" autocomplete="name" />
+      <input
+        formControlName="ownerDisplayName"
+        autocomplete="name"
+        data-testid="owner-display-name"
+      />
     </label>
     <label>
       Timezone
-      <input formControlName="timezone" />
+      <input formControlName="timezone" data-testid="timezone" />
     </label>
 
     @if (errorMessage(); as error) {
       <p class="error" role="alert">{{ error }}</p>
     }
     @if (successMessage(); as success) {
-      <p class="success" role="status">{{ success }}</p>
+      <p class="success" role="status" data-testid="request-success">{{ success }}</p>
     }
 
-    <button type="submit" [disabled]="submitting()">Submit request</button>
+    <button type="submit" [disabled]="submitting()" data-testid="request-submit">
+      Submit request
+    </button>
   </form>
+
+  <p><a routerLink="/">Back to landing</a> · <a routerLink="/login">Sign in</a></p>
 </section>

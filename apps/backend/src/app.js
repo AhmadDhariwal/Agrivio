@@ -99,6 +99,7 @@ function createApp(options) {
   app.disable('x-powered-by');
 
   app.use(createRequestIdMiddleware());
+  app.use(auth.middlewares.cors);
   app.use(express.json({ limit: '1mb' }));
   app.use(auth.middlewares.originGuard);
   app.use(auth.middlewares.authTransport);
@@ -115,7 +116,20 @@ function createApp(options) {
       requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
       requirePermission: auth.middlewares.requirePermission,
       requireOrganizationContext: auth.middlewares.requireOrganizationContext,
+      requireBranchAccess: auth.middlewares.requireBranchAccess,
+      requireWarehouseAccess: auth.middlewares.requireWarehouseAccess,
+      requireCsrf: auth.middlewares.requireCsrf,
     });
+  }
+
+  if (config.allowE2eBootstrap === true) {
+    const { registerE2eBootstrapRoutes } = require('./platform/testing/e2e-bootstrap.routes');
+    app.use(
+      registerE2eBootstrapRoutes({
+        config,
+        authStore: auth.store,
+      }),
+    );
   }
 
   app.use(createNotFoundMiddleware(config.nodeEnv));

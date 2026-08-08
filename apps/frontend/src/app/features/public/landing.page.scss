@@ -1,0 +1,70 @@
+.landing {
+  min-height: 100vh;
+  display: grid;
+  align-content: center;
+  gap: 1rem;
+  padding: 2rem 1.25rem 3rem;
+  max-width: 40rem;
+  margin: 0 auto;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(63, 111, 82, 0.18), transparent 42%),
+    linear-gradient(165deg, #f4f8f5 0%, #e7efe9 48%, #f7f5ef 100%);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #1f2a24;
+}
+
+.eyebrow {
+  margin: 0;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  color: #3f6f52;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2.6rem, 8vw, 4rem);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+.lede {
+  margin: 0;
+  max-width: 34rem;
+  line-height: 1.5;
+  color: #33433a;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.actions a {
+  display: inline-block;
+  padding: 0.75rem 1.1rem;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.primary {
+  background: #2f5d44;
+  color: #f7faf8;
+}
+
+.secondary {
+  background: transparent;
+  border-color: #2f5d44;
+  color: #2f5d44;
+}
+
+.hint {
+  margin-top: 1.5rem;
+  color: #4a5a51;
+}
+
+.hint a {
+  color: #2f5d44;
+}

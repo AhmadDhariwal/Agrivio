@@ -1,0 +1,47 @@
+<section class="panel" data-testid="platform-organizations">
+  <h1>Organization requests</h1>
+  <p>Super Admin review for organization activation requests.</p>
+
+  <button type="button" (click)="reload()">Refresh</button>
+
+  <ul>
+    @for (item of items(); track item.id) {
+      <li data-testid="org-row">
+        <div>
+          <strong>{{ item.name }}</strong> · {{ item.status }}
+          @if (item.ownerEmail) {
+            · {{ item.ownerEmail }}
+          }
+        </div>
+        <div class="actions">
+          @if (item.status === 'pending_approval') {
+            <button type="button" data-testid="approve-org" (click)="approve(item)">Approve</button>
+            <button type="button" (click)="reject(item)">Reject</button>
+          }
+        </div>
+      </li>
+    }
+  </ul>
+
+  <form [formGroup]="rejectForm">
+    <label>
+      Rejection reason
+      <input type="text" formControlName="reason" />
+    </label>
+  </form>
+
+  @if (activationToken(); as token) {
+    <p class="token" data-testid="activation-token">
+      One-time activation token (shown once):
+      <code>{{ token }}</code>
+    </p>
+    <p><a routerLink="/activate" [queryParams]="{ token }">Open activation</a></p>
+  }
+
+  @if (successMessage(); as success) {
+    <p class="success">{{ success }}</p>
+  }
+  @if (errorMessage(); as error) {
+    <p class="error">{{ error }}</p>
+  }
+</section>
