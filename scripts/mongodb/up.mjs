@@ -12,4 +12,4 @@ if (up.status !== 0) {
 }
 
 console.log(`[agrivio] MongoDB replica-set container started (${MONGO_IMAGE}).`);
-console.log('[agrivio] Run `pnpm db:init` to initialize replica set rs0 and wait for PRIMARY.');
+console.log('[agrivio] Run `npm run db:init` to initialize replica set rs0 and wait for PRIMARY.');

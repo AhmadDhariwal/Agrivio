@@ -1,7 +1,7 @@
 # Test Strategy
 
 Document status: Frozen for Release 1  
-Current version: 1.3.0  
+Current version: 1.4.0  
 Last updated: 2026-08-08  
 Approval status: Approved for repository initialization
 
@@ -10,6 +10,8 @@ Approval status: Approved for repository initialization
 > **Amendment 1.2.0 (2026-08-08):** Backend implementation language: JavaScript CommonJS (`require` / `module.exports`). Frontend remains Angular TypeScript. Shared packages remain TypeScript. Details: [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md).
 >
 > **Amendment 1.3.0 (2026-08-08):** Backend coding style is plain CommonJS JavaScript without `// @ts-check` or JSDoc type annotations. Details: [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md).
+>
+> **Amendment 1.4.0 (2026-08-08):** Package manager migrated from pnpm to npm workspaces. CI and local test commands use npm. Details: [tasks/NPM-WORKSPACE-MIGRATION.md](tasks/NPM-WORKSPACE-MIGRATION.md).
 
 ## Document Authority
 
@@ -224,7 +226,7 @@ Guidance:
 | Integration | Replica-set startup, API integration tests, transaction smoke, tenant-isolation smoke |
 | E2E smoke | MongoDB, API, web, Chromium Playwright smoke |
 
-CI installs with `pnpm install --frozen-lockfile` and never modifies the lockfile.
+CI installs with `npm ci` and never modifies the lockfile.
 
 Details: [REPOSITORY_INITIALIZATION.md](REPOSITORY_INITIALIZATION.md), [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md).
 
@@ -293,7 +295,7 @@ F00 must include at least:
 | Web scaffold unit test | Angular Vitest harness runs for a trivial component |
 | API boot smoke | API process boots in test/smoke mode |
 | Architecture-boundary fixture | Forbidden-import fixture fails as expected |
-| Replica-set primary election | `pnpm db:status` or equivalent proves primary |
+| Replica-set primary election | `npm run db:status` or equivalent proves primary |
 | Transaction commit | Multi-document transaction commits successfully |
 | Transaction rollback | Multi-document transaction aborts with no partial residue |
 | CI quality | Empty-app quality job is green |
@@ -308,8 +310,8 @@ F00 must not include business feature tests that imply business routes, schemas,
 
 | Quality concern | Test strategy response |
 | --- | --- |
-| WI-G03 Type checking | `pnpm typecheck` |
-| WI-G04 Linting | `pnpm lint` |
+| WI-G03 Type checking | `npm run typecheck` |
+| WI-G04 Linting | `npm run lint` |
 | WI-G05 Unit tests | Vitest unit/component suites |
 | WI-G06 Module integration | Vitest + real MongoDB replica set |
 | WI-G07 Architecture | Nx boundaries + architecture specs |
