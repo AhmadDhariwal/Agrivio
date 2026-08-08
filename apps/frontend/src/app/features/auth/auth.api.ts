@@ -28,7 +28,18 @@ export interface AuthSessionSnapshot {
   availableContexts: AuthSessionContext[];
   branchAssignments: Array<{ targetId: string }>;
   warehouseAssignments: Array<{ targetId: string }>;
-  subscriptionAccessState: unknown;
+  subscriptionAccessState: {
+    status: string | null;
+    accessLevel?: string;
+    operationalWriteAllowed?: boolean;
+    billingAccessAllowed?: boolean;
+    planCode?: string | null;
+    planVersion?: number | null;
+    trialEndsAt?: string | null;
+    graceEndsAt?: string | null;
+    periodEndsAt?: string | null;
+    warnings?: Array<{ code: string; message: string; endsAt?: string }>;
+  } | null;
 }
 
 export interface SessionContextSelection {

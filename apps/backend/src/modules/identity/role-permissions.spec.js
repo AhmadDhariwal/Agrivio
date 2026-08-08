@@ -23,6 +23,12 @@ describe('role permission catalog', () => {
     expect(owner).toContain('inventory.negative-stock.override');
     expect(owner).not.toContain('platform.organizations.view');
 
+    const manager = permissionsForMembershipRole('Manager');
+    expect(manager).toContain('sales.create');
+    expect(manager).not.toContain('users.create');
+    expect(manager).not.toContain('inventory.negative-stock.override');
+    expect(permissionsForMembershipRole('Manager', ['audit.view'])).toContain('audit.view');
+
     const cashier = permissionsForMembershipRole('Cashier');
     expect(cashier).toContain('sales.create');
     expect(cashier).not.toContain('pricing.override');
@@ -30,6 +36,10 @@ describe('role permission catalog', () => {
       'pricing.override',
     );
     expect(permissionsForMembershipRole('Cashier', ['sales.cancel'])).not.toContain('sales.cancel');
+
+    const storeKeeper = permissionsForMembershipRole('StoreKeeper');
+    expect(storeKeeper).toContain('purchases.create');
+    expect(storeKeeper).not.toContain('sales.create');
 
     const platform = permissionsForPlatformAccess('super_admin');
     expect(platform).toContain('platform.organizations.approve');

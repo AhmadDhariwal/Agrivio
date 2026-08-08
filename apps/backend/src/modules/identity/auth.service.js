@@ -6,6 +6,7 @@ const {
   permissionsForMembershipRole,
   permissionsForPlatformAccess,
 } = require('./role-permissions');
+const { assertAssignmentSelection } = require('./assignment-scope');
 const {
   parseLoginBody,
   parsePasswordResetConfirmBody,
@@ -76,35 +77,6 @@ function createAuthService(deps) {
     return { branchAssignments, warehouseAssignments };
   }
 
-  function assertScopeSelection(role, organizationId, assignments, branchId, warehouseId) {
-    const { branchAssignments, warehouseAssignments } = splitAssignments(assignments);
-    const orgWide = role === 'Owner';
-
-    if (branchId !== undefined && branchId !== null) {
-      const allowed =
-        orgWide ||
-        branchAssignments.some(
-          (item) =>
-            item.targetId === branchId && String(item.organizationId) === String(organizationId),
-        );
-      if (!allowed) {
-        throw forbidden('Requested branch is outside the authorized assignment scope');
-      }
-    }
-
-    if (warehouseId !== undefined && warehouseId !== null) {
-      const allowed =
-        orgWide ||
-        warehouseAssignments.some(
-          (item) =>
-            item.targetId === warehouseId && String(item.organizationId) === String(organizationId),
-        );
-      if (!allowed) {
-        throw forbidden('Requested warehouse is outside the authorized assignment scope');
-      }
-    }
-  }
-
   function assertPersistedScopeStillValid(role, organizationId, assignments, session) {
     const branchId =
       session.activeBranchId === undefined || session.activeBranchId === null
@@ -116,10 +88,10 @@ function createAuthService(deps) {
         : String(session.activeWarehouseId);
 
     if (branchId !== null) {
-      assertScopeSelection(role, organizationId, assignments, branchId, null);
+      assertAssignmentSelection(role, organizationId, assignments, branchId, null);
     }
     if (warehouseId !== null) {
-      assertScopeSelection(role, organizationId, assignments, null, warehouseId);
+      assertAssignmentSelection(role, organizationId, assignments, null, warehouseId);
     }
   }
 
@@ -300,6 +272,8 @@ function createAuthService(deps) {
       contextType: active.contextType,
       permissions: [...(active.permissions ?? [])],
       role: active.role,
+      branchAssignments: active.branchAssignments ?? [],
+      warehouseAssignments: active.warehouseAssignments ?? [],
       ...(active.membershipId === undefined ? {} : { membershipId: active.membershipId }),
       ...(active.organizationId === undefined ? {} : { organizationId: active.organizationId }),
       ...(active.branchId === undefined || active.branchId === null
@@ -514,7 +488,7 @@ function createAuthService(deps) {
           ? input.warehouseId
           : null;
 
-        assertScopeSelection(
+        assertAssignmentSelection(
           String(selected['role']),
           String(selected['organizationId']),
           assignments,
@@ -679,6 +653,29 @@ function createAuthService(deps) {
                 : { warehouseId: String(session.activeWarehouseId) }),
             };
 
+      let subscriptionAccessState = null;
+      if (
+        activeContext?.contextType === 'organization' &&
+        typeof deps.resolveSubscriptionAccessState === 'function' &&
+        activeContext.organizationId !== undefined
+      ) {
+        const access = await deps.resolveSubscriptionAccessState(
+          String(activeContext.organizationId),
+        );
+        subscriptionAccessState = {
+          status: access.status,
+          accessLevel: access.accessLevel,
+          operationalWriteAllowed: access.operationalWriteAllowed,
+          billingAccessAllowed: access.billingAccessAllowed,
+          planCode: access.planCode ?? null,
+          planVersion: access.planVersion ?? null,
+          trialEndsAt: access.trialEndsAt ?? null,
+          graceEndsAt: access.graceEndsAt ?? null,
+          periodEndsAt: access.periodEndsAt ?? null,
+          warnings: access.warnings ?? [],
+        };
+      }
+
       return {
         user: {
           id: String(user['_id']),
@@ -690,7 +687,7 @@ function createAuthService(deps) {
         availableContexts,
         branchAssignments: active?.branchAssignments ?? [],
         warehouseAssignments: active?.warehouseAssignments ?? [],
-        subscriptionAccessState: null,
+        subscriptionAccessState,
       };
     },
   };

@@ -1,7 +1,7 @@
 # Repository Initialization
 
 Document status: Frozen for Release 1  
-Current version: 1.3.0  
+Current version: 1.4.0  
 Last updated: 2026-08-08  
 Approval status: Approved for repository initialization
 
@@ -10,6 +10,8 @@ Approval status: Approved for repository initialization
 > **Amendment 1.2.0 (2026-08-08):** Backend implementation language: JavaScript CommonJS (`require` / `module.exports`). Frontend remains Angular TypeScript. Shared packages remain TypeScript. Details: [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md).
 >
 > **Amendment 1.3.0 (2026-08-08):** Backend coding style is plain CommonJS JavaScript without `// @ts-check` or JSDoc type annotations. Backend gates use ESLint and tests; `checkJs` is not required. Details: [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md).
+>
+> **Amendment 1.4.0 (2026-08-08):** Package manager migrated from pnpm to npm workspaces. Active install/lockfile/commands use npm. Historical F00 bootstrap evidence that used pnpm remains historical. Details: [tasks/NPM-WORKSPACE-MIGRATION.md](tasks/NPM-WORKSPACE-MIGRATION.md).
 
 ## Document Authority
 
@@ -42,7 +44,7 @@ Before F00 begins, verify all of the following:
 2. Working tree is clean except for the intentional F00 branch changes in progress.
 3. Current branch is dedicated to the active F00 work item (starting with `task/R1-F00-001`).
 4. Node.js reports exactly `24.18.0`.
-5. pnpm reports exactly `11.17.0`, or Corepack is prepared to activate `pnpm@11.17.0` from `packageManager`.
+5. npm reports exactly `11.16.0` (bundled with Node `24.18.0`), or an equivalent install matching `packageManager`.
 6. Docker Compose v2 is available for the local MongoDB replica set.
 7. No `package.json`, lockfile, `apps/`, `packages/`, or Nx workspace already exists unless created by the active F00 sequence itself.
 8. Frozen P1-02 through P1-06 documents are not modified.
@@ -55,9 +57,9 @@ Before F00 begins, verify all of the following:
 Execute F00 in this exact order:
 
 1. Verify P1-07 freeze tag and clean working tree.
-2. Verify Node.js and pnpm versions.
+2. Verify Node.js and npm versions.
 3. Create root package metadata and version files.
-4. Create `pnpm-workspace.yaml`.
+4. Declare npm `workspaces` in root `package.json` (`apps/*`, `packages/*`).
 5. Install exact Nx core and plugins, including `@nx/express@23.1.0`.
 6. Initialize Nx in the existing documentation repository.
 7. Set `appsDir=apps` and `libsDir=packages`.
@@ -99,8 +101,7 @@ Create these root files during F00 bootstrap:
 
 ```text
 package.json
-pnpm-workspace.yaml
-pnpm-lock.yaml
+package-lock.json
 nx.json
 tsconfig.base.json
 eslint.config.mjs
@@ -114,17 +115,20 @@ eslint.config.mjs
 .gitignore updates as required for env secrets, coverage, dist, and Playwright artifacts
 ```
 
+> Historical note: F00 originally created `pnpm-workspace.yaml` / `pnpm-lock.yaml`. After amendment 1.4.0 those are replaced by npm `workspaces` and `package-lock.json`. See [tasks/NPM-WORKSPACE-MIGRATION.md](tasks/NPM-WORKSPACE-MIGRATION.md).
+
 ### Root `package.json` baseline
 
 ```json
 {
   "name": "@agrivio/source",
   "private": true,
-  "packageManager": "pnpm@11.17.0",
+  "packageManager": "npm@11.16.0",
   "engines": {
     "node": ">=24.18.0 <25",
-    "pnpm": ">=11.17.0 <12"
-  }
+    "npm": ">=11.16.0 <12"
+  },
+  "workspaces": ["apps/*", "packages/*"]
 }
 ```
 
@@ -139,19 +143,12 @@ eslint.config.mjs
 
 ```text
 save-exact=true
-auto-install-peers=false
-strict-peer-dependencies=true
+strict-peer-deps=true
 ```
 
-Every required direct peer must be explicitly pinned in `package.json`. Do not allow pnpm to silently select an unreviewed peer version. Missing optional peers such as Zone.js must remain absent when the application is intentionally zoneless. A genuine peer conflict is a bootstrap blocker; do not silence it globally. Use a narrow documented package-specific override only when an upstream metadata defect is proven.
+Every required direct peer must be explicitly pinned in `package.json`. Do not allow npm to silently select an unreviewed peer version. Missing optional peers such as Zone.js must remain absent when the application is intentionally zoneless. A genuine peer conflict is a bootstrap blocker; do not silence it globally. Use a narrow documented package-specific override only when an upstream metadata defect is proven.
 
-### `pnpm-workspace.yaml`
-
-```yaml
-packages:
-  - 'apps/*'
-  - 'packages/*'
-```
+npm workspaces are declared in root `package.json` (`workspaces: ["apps/*", "packages/*"]`). Do not use `pnpm-workspace.yaml`.
 
 ---
 
@@ -213,7 +210,7 @@ No global state-management library
 Generation command:
 
 ```bash
-pnpm exec nx g @nx/angular:application apps/frontend \
+npx nx g @nx/angular:application apps/frontend \
   --name=frontend \
   --bundler=esbuild \
   --style=scss \
@@ -256,9 +253,9 @@ If Nx generator help shows a renamed but semantically equivalent option on Nx `2
 Before any Nx generation during F00, require:
 
 ```bash
-pnpm exec nx g @nx/angular:application --help
-pnpm exec nx g @nx/node:application --help
-pnpm exec nx g @nx/js:library --help
+npx nx g @nx/angular:application --help
+npx nx g @nx/node:application --help
+npx nx g @nx/js:library --help
 ```
 
 Then run each approved generator command with:
@@ -303,7 +300,7 @@ No module placeholders
 Generation command:
 
 ```bash
-pnpm exec nx g @nx/node:application apps/backend \
+npx nx g @nx/node:application apps/backend \
   --name=backend \
   --framework=express \
   --bundler=esbuild \
@@ -400,21 +397,21 @@ F00 content: minimal helpers needed for replica-set and architecture smoke tests
 Generation commands:
 
 ```bash
-pnpm exec nx g @nx/js:library packages/api-contracts \
+npx nx g @nx/js:library packages/api-contracts \
   --name=api-contracts \
   --importPath=@agrivio/api-contracts \
   --unitTestRunner=vitest \
   --bundler=tsc \
   --linter=eslint
 
-pnpm exec nx g @nx/js:library packages/tooling-config \
+npx nx g @nx/js:library packages/tooling-config \
   --name=tooling-config \
   --importPath=@agrivio/tooling-config \
   --unitTestRunner=none \
   --bundler=none \
   --linter=eslint
 
-pnpm exec nx g @nx/js:library packages/test-support \
+npx nx g @nx/js:library packages/test-support \
   --name=test-support \
   --importPath=@agrivio/test-support \
   --unitTestRunner=vitest \
@@ -451,12 +448,12 @@ scripts/mongodb/
 Required commands after F00:
 
 ```text
-pnpm db:up
-pnpm db:init
-pnpm db:status
-pnpm db:logs
-pnpm db:down
-pnpm db:reset
+npm run db:up
+npm run db:init
+npm run db:status
+npm run db:logs
+npm run db:down
+npm run db:reset
 ```
 
 Rules:
@@ -491,8 +488,8 @@ CI baseline:
 ```text
 Ubuntu runner
 Node.js 24.18.0
-pnpm 11.17.0
-pnpm install --frozen-lockfile
+npm 11.16.0
+npm ci
 Nx local cache
 MongoDB 8.2.12 replica-set service through Docker Compose
 Playwright browsers installed through the official Playwright command
@@ -514,26 +511,26 @@ After initialization, the following must succeed:
 
 ```bash
 node --version                # v24.18.0
-pnpm --version                # 11.17.0
-pnpm install --frozen-lockfile
-pnpm exec nx show projects
-pnpm format:check
-pnpm lint
-pnpm typecheck
-pnpm test:unit
-pnpm test:architecture
-pnpm build
-pnpm build:frontend
-pnpm build:backend
-pnpm db:up
-pnpm db:init
-pnpm db:status
-pnpm test:integration
-pnpm e2e
-pnpm check
+npm --version                # 11.16.0
+npm ci
+npx nx show projects
+npm run format:check
+npm run lint
+npm run typecheck
+npm run test:unit
+npm run test:architecture
+npm run build
+npm run build:frontend
+npm run build:backend
+npm run db:up
+npm run db:init
+npm run db:status
+npm run test:integration
+npm run e2e
+npm run check
 ```
 
-`pnpm check` order:
+`npm run check` order:
 
 ```text
 format check
@@ -568,8 +565,8 @@ Agrivio/
 ├── .github/
 │   └── workflows/
 ├── package.json
-├── pnpm-lock.yaml
-├── pnpm-workspace.yaml
+├── package-lock.json
+├── package.json (includes workspaces)
 ├── nx.json
 ├── tsconfig.base.json
 ├── eslint.config.mjs
@@ -595,7 +592,7 @@ Create a module or feature directory only when its first real implementation, pu
 F00 is complete only when all of the following are proven:
 
 * Exact Node version check
-* Exact pnpm version check
+* Exact npm version check
 * Frozen lockfile
 * Explicit `@nx/express@23.1.0` install aligned with `nx@23.1.0`
 * Generator `--help` and `--dry-run` gates completed before each real generation
@@ -627,7 +624,7 @@ F00 is complete only when all of the following are proven:
 
 If initialization fails before a clean F00 gate:
 
-1. Stop all local processes started by the failed attempt (`pnpm db:down`, stop served apps).
+1. Stop all local processes started by the failed attempt (`npm run db:down`, stop served apps).
 2. Do not push a broken bootstrap branch as complete.
 3. Prefer reversing uncommitted generated files with a clean restore of the pre-F00 documentation state when no valuable reviewed work exists.
 4. If partial reviewed commits exist, create a revert commit rather than rewriting shared history.

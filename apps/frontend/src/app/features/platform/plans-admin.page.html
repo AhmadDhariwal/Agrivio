@@ -1,0 +1,48 @@
+<section class="panel">
+  <h1>Subscription plans</h1>
+  <p>Platform-managed plan versions. Commercial values stay data-driven.</p>
+
+  <form [formGroup]="form" (ngSubmit)="createVersion()">
+    <label>
+      Plan code
+      <select formControlName="planCode">
+        <option value="Starter">Starter</option>
+        <option value="Business">Business</option>
+        <option value="Enterprise">Enterprise</option>
+      </select>
+    </label>
+    <label>
+      Monthly price (minor units)
+      <input type="number" formControlName="monthlyPriceMinorUnits" />
+    </label>
+    <label>
+      Annual price (minor units)
+      <input type="number" formControlName="annualPriceMinorUnits" />
+    </label>
+    <label>
+      Annual discount percent
+      <input type="number" formControlName="annualDiscountPercent" />
+    </label>
+    <label class="checkbox">
+      <input type="checkbox" formControlName="activate" />
+      Activate as selectable version
+    </label>
+    <button type="submit">Create plan version</button>
+  </form>
+
+  <ul>
+    @for (plan of plans(); track plan.id) {
+      <li>
+        {{ plan.planCode }} v{{ plan.planVersion }} · {{ plan.status }} ·
+        monthly={{ plan.monthlyPriceMinorUnits ?? 'unset' }}
+      </li>
+    }
+  </ul>
+
+  @if (successMessage(); as success) {
+    <p class="success">{{ success }}</p>
+  }
+  @if (errorMessage(); as error) {
+    <p class="error">{{ error }}</p>
+  }
+</section>

@@ -12,6 +12,8 @@ const {
 const {
   createRequirePermissionMiddleware,
   createRequireOrganizationContextMiddleware,
+  createRequireBranchAccessMiddleware,
+  createRequireWarehouseAccessMiddleware,
 } = require('./permission.middleware');
 
 function createAuthModule(options) {
@@ -24,6 +26,9 @@ function createAuthModule(options) {
     store,
     nodeEnv: options.config.nodeEnv,
     ...(options.now === undefined ? {} : { now: options.now }),
+    ...(options.resolveSubscriptionAccessState === undefined
+      ? {}
+      : { resolveSubscriptionAccessState: options.resolveSubscriptionAccessState }),
   });
 
   const requireAuth = createRequireAuthMiddleware({ authService });
@@ -46,6 +51,8 @@ function createAuthModule(options) {
       optionalAuth: createOptionalAuthMiddleware({ authService }),
       requirePermission: createRequirePermissionMiddleware,
       requireOrganizationContext: createRequireOrganizationContextMiddleware(),
+      requireBranchAccess: createRequireBranchAccessMiddleware,
+      requireWarehouseAccess: createRequireWarehouseAccessMiddleware,
     },
   };
 }

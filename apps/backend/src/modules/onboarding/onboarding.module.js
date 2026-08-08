@@ -27,6 +27,9 @@ function createOnboardingModule(options) {
   const onboardingService = createOnboardingService({
     store,
     transactionRunner,
+    ...(options.subscriptionStore === undefined
+      ? {}
+      : { subscriptionStore: options.subscriptionStore }),
     ...(options.now === undefined ? {} : { now: options.now }),
   });
 

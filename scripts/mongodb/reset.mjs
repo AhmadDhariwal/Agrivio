@@ -12,4 +12,4 @@ if (up.status !== 0) {
   process.exit(up.status ?? 1);
 }
 
-console.log('[agrivio] Local MongoDB stack reset. Run `pnpm db:init` before integration tests.');
+console.log('[agrivio] Local MongoDB stack reset. Run `npm run db:init` before integration tests.');

@@ -18,6 +18,8 @@ describe('AuthSessionStore', () => {
     store.applySession(snapshot('org-1'));
     expect(store.activeContext()?.organizationId).toBe('org-1');
     expect(store.hasPermission('organization.view')).toBe(true);
+    expect(store.canSelectBranch('branch-a')).toBe(true);
+    expect(store.canSelectBranch('branch-b')).toBe(false);
 
     store.switchContext({ contextType: 'organization', organizationId: 'org-2' }).subscribe();
     expect(store.activeContext()?.organizationId).toBe('org-2');
@@ -37,8 +39,11 @@ function snapshot(organizationId: string): AuthSessionSnapshot {
       contextType: 'organization',
       organizationId,
       membershipId: `m-${organizationId}`,
-      role: organizationId === 'org-1' ? 'Owner' : 'Cashier',
+      role: organizationId === 'org-1' ? 'Cashier' : 'Cashier',
       permissions: organizationId === 'org-1' ? ['organization.view'] : ['sales.create'],
+      branchAssignments:
+        organizationId === 'org-1' ? [{ targetId: 'branch-a' }] : [{ targetId: 'branch-x' }],
+      warehouseAssignments: [],
     },
     availableContexts: [],
     branchAssignments: [],

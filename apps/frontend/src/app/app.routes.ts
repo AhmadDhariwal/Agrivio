@@ -29,4 +29,19 @@ export const appRoutes: Route[] = [
     path: 'activate',
     loadComponent: () => import('./features/onboarding/activate.page').then((m) => m.ActivatePage),
   },
+  {
+    path: 'subscription/billing',
+    loadComponent: () =>
+      import('./features/subscriptions/billing-evidence.page').then((m) => m.BillingEvidencePage),
+  },
+  {
+    path: 'platform/plans',
+    loadComponent: () =>
+      import('./features/platform/plans-admin.page').then((m) => m.PlatformPlansPage),
+  },
+  {
+    path: 'platform/billing-review',
+    loadComponent: () =>
+      import('./features/platform/billing-review.page').then((m) => m.PlatformBillingReviewPage),
+  },
 ];

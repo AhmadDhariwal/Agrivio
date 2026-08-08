@@ -1,0 +1,64 @@
+<agrivio-subscription-status-banner [accessState]="accessState()" />
+
+<section class="panel">
+  <h1>Submit billing evidence</h1>
+  <p>Manual bank transfer, JazzCash, or Easypaisa evidence. Store only an opaque evidence reference.</p>
+
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <label>
+      Payment method
+      <select formControlName="paymentMethod">
+        <option value="bank_transfer">Bank transfer</option>
+        <option value="jazzcash">JazzCash</option>
+        <option value="easypaisa">Easypaisa</option>
+      </select>
+    </label>
+
+    <label>
+      Billing period
+      <select formControlName="billingPeriod">
+        <option value="monthly">Monthly</option>
+        <option value="annual">Annual</option>
+      </select>
+    </label>
+
+    <label>
+      Amount (minor units, PKR)
+      <input type="number" formControlName="submittedAmountMinorUnits" />
+    </label>
+
+    <label>
+      Payment reference
+      <input type="text" formControlName="paymentReference" />
+    </label>
+
+    <label>
+      Evidence storage reference
+      <input type="text" formControlName="evidenceStorageRef" placeholder="evidence://..." />
+    </label>
+
+    <label>
+      Original file name
+      <input type="text" formControlName="evidenceOriginalFileName" />
+    </label>
+
+    <label>
+      Requested plan
+      <input type="text" formControlName="requestedPlanCode" />
+    </label>
+
+    <label>
+      Plan version
+      <input type="number" formControlName="requestedPlanVersion" />
+    </label>
+
+    <button type="submit" [disabled]="submitting()">Submit evidence</button>
+  </form>
+
+  @if (successMessage(); as success) {
+    <p class="success">{{ success }}</p>
+  }
+  @if (errorMessage(); as error) {
+    <p class="error">{{ error }}</p>
+  }
+</section>

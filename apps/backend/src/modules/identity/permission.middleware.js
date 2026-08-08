@@ -1,6 +1,12 @@
 const { forbidden, unauthorized } = require('../../platform/errors/app-error');
 const { enterRequestContext, getRequestContext } = require('../../platform/http/request-context');
 const { hasPermission, isKnownPermission } = require('./role-permissions');
+const {
+  assertBranchAccess,
+  assertWarehouseAccess,
+  resolveBranchIdFromRequest,
+  resolveWarehouseIdFromRequest,
+} = require('./assignment-scope');
 
 function attachAuthContextToRequest(req, authContext) {
   req.authContext = authContext;
@@ -16,8 +22,6 @@ function attachAuthContextToRequest(req, authContext) {
   } else {
     delete store.organizationId;
   }
-  // Request-scoped mirror so downstream handlers share context even if ALS
-  // is split across module instances under the Vitest runner.
   req.requestContext = store;
 }
 
@@ -64,8 +68,48 @@ function createRequireOrganizationContextMiddleware() {
   };
 }
 
+function createRequireBranchAccessMiddleware(options = {}) {
+  return (req, _res, next) => {
+    try {
+      const authContext = req.authContext;
+      if (authContext === undefined) {
+        throw unauthorized('Authentication required');
+      }
+      const branchId =
+        typeof options.resolve === 'function'
+          ? options.resolve(req)
+          : resolveBranchIdFromRequest(req);
+      assertBranchAccess(authContext, branchId);
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+function createRequireWarehouseAccessMiddleware(options = {}) {
+  return (req, _res, next) => {
+    try {
+      const authContext = req.authContext;
+      if (authContext === undefined) {
+        throw unauthorized('Authentication required');
+      }
+      const warehouseId =
+        typeof options.resolve === 'function'
+          ? options.resolve(req)
+          : resolveWarehouseIdFromRequest(req);
+      assertWarehouseAccess(authContext, warehouseId);
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
 module.exports = {
   attachAuthContextToRequest,
   createRequirePermissionMiddleware,
   createRequireOrganizationContextMiddleware,
+  createRequireBranchAccessMiddleware,
+  createRequireWarehouseAccessMiddleware,
 };

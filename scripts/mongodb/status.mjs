@@ -17,7 +17,7 @@ function verifyRunningImageTag() {
   );
 
   if (inspect.status !== 0) {
-    throw new Error('MongoDB container is not running. Run `pnpm db:up` first.');
+    throw new Error('MongoDB container is not running. Run `npm run db:up` first.');
   }
 
   const imageRef = inspect.stdout.trim();
@@ -49,7 +49,7 @@ try {
   );
 
   if (!summary.primaryElected) {
-    console.error('[agrivio] Replica set is not PRIMARY-ready. Run `pnpm db:init`.');
+    console.error('[agrivio] Replica set is not PRIMARY-ready. Run `npm run db:init`.');
     process.exit(1);
   }
 } catch (error) {
