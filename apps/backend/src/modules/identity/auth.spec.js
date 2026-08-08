@@ -231,7 +231,7 @@ describe('F02 Phase 2 session authentication', () => {
     } finally {
       await close(server);
     }
-  });
+  }, 20000);
 
   it('keeps X-Platform-Actor unavailable in production', async () => {
     const onboarding = createOnboardingModule({

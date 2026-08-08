@@ -12,6 +12,8 @@ const {
 const {
   createRequirePermissionMiddleware,
   createRequireOrganizationContextMiddleware,
+  createRequireBranchAccessMiddleware,
+  createRequireWarehouseAccessMiddleware,
 } = require('./permission.middleware');
 
 function createAuthModule(options) {
@@ -46,6 +48,8 @@ function createAuthModule(options) {
       optionalAuth: createOptionalAuthMiddleware({ authService }),
       requirePermission: createRequirePermissionMiddleware,
       requireOrganizationContext: createRequireOrganizationContextMiddleware(),
+      requireBranchAccess: createRequireBranchAccessMiddleware,
+      requireWarehouseAccess: createRequireWarehouseAccessMiddleware,
     },
   };
 }
