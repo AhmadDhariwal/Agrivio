@@ -1,6 +1,6 @@
 const { API_PLATFORM_ACTOR_HEADER } = require('@agrivio/api-contracts');
 const { forbidden, unauthorized } = require('../../platform/errors/app-error');
-const { permissionsForPlatformAccess } = require('../identity/role-permissions');
+const { hasPermission, permissionsForPlatformAccess } = require('../identity/role-permissions');
 
 /**
  * Platform authorization for Super Admin routes.
@@ -26,13 +26,14 @@ function createPlatformActorMiddleware(config) {
     }
 
     const auth = req.auth;
+    const authContext = req.authContext;
 
     if (auth === undefined) {
       next(unauthorized('Platform authentication required'));
       return;
     }
 
-    if (auth.session.activeContextType !== 'platform') {
+    if (authContext?.contextType !== 'platform' && auth.session.activeContextType !== 'platform') {
       next(forbidden('Platform context is required'));
       return;
     }
@@ -44,7 +45,7 @@ function createPlatformActorMiddleware(config) {
 
     req.platformActor = {
       actorId: String(auth.user['_id']),
-      permissions: [...permissionsForPlatformAccess('super_admin')],
+      permissions: [...(authContext?.permissions ?? permissionsForPlatformAccess('super_admin'))],
     };
     next();
   };
@@ -57,7 +58,7 @@ function requirePlatformPermission(permission) {
       next(unauthorized('Platform actor is required'));
       return;
     }
-    if (!actor.permissions.includes(permission)) {
+    if (!hasPermission(actor.permissions, permission)) {
       next(forbidden(`Missing permission ${permission}`));
       return;
     }

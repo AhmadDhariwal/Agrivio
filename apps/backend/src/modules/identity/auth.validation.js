@@ -49,6 +49,22 @@ function parsePasswordResetConfirmBody(body) {
   };
 }
 
+function optionalScopedId(body, field) {
+  if (!Object.prototype.hasOwnProperty.call(body, field)) {
+    return undefined;
+  }
+  const value = body[field];
+  if (value === null) {
+    return null;
+  }
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw validationFailed('Validation failed', [
+      { field, message: `${field} must be a non-empty string or null` },
+    ]);
+  }
+  return value.trim();
+}
+
 function parseSessionContextBody(body) {
   const contextType = body['contextType'];
   if (contextType !== 'platform' && contextType !== 'organization') {
@@ -72,10 +88,15 @@ function parseSessionContextBody(body) {
     ]);
   }
 
+  const branchId = optionalScopedId(body, 'branchId');
+  const warehouseId = optionalScopedId(body, 'warehouseId');
+
   return {
     contextType: 'organization',
-    ...(typeof membershipId === 'string' ? { membershipId } : {}),
-    ...(typeof organizationId === 'string' ? { organizationId } : {}),
+    ...(typeof membershipId === 'string' ? { membershipId: membershipId.trim() } : {}),
+    ...(typeof organizationId === 'string' ? { organizationId: organizationId.trim() } : {}),
+    ...(branchId === undefined ? {} : { branchId }),
+    ...(warehouseId === undefined ? {} : { warehouseId }),
   };
 }
 

@@ -7,6 +7,7 @@ function createBridgedAuthStore(deps) {
   const identity = deps.identityStore;
   const sessions = new Map();
   const resetTokens = new Map();
+  const accessAssignments = new Map();
 
   async function listMembershipsByUserId(userId) {
     if (typeof identity.listMembershipsByUserId === 'function') {
@@ -22,6 +23,13 @@ function createBridgedAuthStore(deps) {
     return null;
   }
 
+  async function updateMembership(session, id, patch) {
+    if (typeof identity.updateMembership === 'function') {
+      return identity.updateMembership(session, id, patch);
+    }
+    return null;
+  }
+
   return {
     findUserByEmailNormalized: (email) => identity.findUserByEmailNormalized(email),
     findUserById: (id) => identity.findUserById(id),
@@ -30,6 +38,21 @@ function createBridgedAuthStore(deps) {
     listMembershipsByUserId,
     findMembershipById,
     insertMembership: (session, doc) => identity.insertMembership(session, doc),
+    updateMembership,
+
+    async listAccessAssignmentsByMembershipId(membershipId) {
+      return [...accessAssignments.values()].filter(
+        (item) =>
+          String(item['membershipId']) === String(membershipId) && item['status'] === 'active',
+      );
+    },
+
+    async insertAccessAssignment(_session, doc) {
+      const id = randomUUID();
+      const record = { _id: id, ...doc };
+      accessAssignments.set(id, record);
+      return record;
+    },
 
     async findSessionByTokenHash(tokenHash) {
       return sessions.get(tokenHash) ?? null;

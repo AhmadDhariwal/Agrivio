@@ -3,7 +3,12 @@ const { AsyncLocalStorage } = require('node:async_hooks');
 const storage = new AsyncLocalStorage();
 
 function runWithRequestContext(context, fn) {
-  storage.run(context, fn);
+  return storage.run(context, fn);
+}
+
+function enterRequestContext(context) {
+  storage.enterWith(context);
+  return context;
 }
 
 function getRequestContext() {
@@ -16,6 +21,7 @@ function getRequestId() {
 
 module.exports = {
   runWithRequestContext,
+  enterRequestContext,
   getRequestContext,
   getRequestId,
 };

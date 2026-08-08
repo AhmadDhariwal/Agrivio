@@ -81,6 +81,8 @@ const authSessionSchema = new mongoose.Schema(
     },
     activeMembershipId: { type: mongoose.Schema.Types.ObjectId },
     activeOrganizationId: { type: mongoose.Schema.Types.ObjectId, index: true },
+    activeBranchId: { type: String },
+    activeWarehouseId: { type: String },
     absoluteExpiresAt: { type: Date, required: true },
     lastSeenAt: { type: Date, required: true },
     expiresAt: { type: Date, required: true },

@@ -9,6 +9,10 @@ const {
   createRequireAuthMiddleware,
   createOptionalAuthMiddleware,
 } = require('./auth.middleware');
+const {
+  createRequirePermissionMiddleware,
+  createRequireOrganizationContextMiddleware,
+} = require('./permission.middleware');
 
 function createAuthModule(options) {
   const persistence = options.persistence ?? 'memory';
@@ -21,6 +25,8 @@ function createAuthModule(options) {
     nodeEnv: options.config.nodeEnv,
     ...(options.now === undefined ? {} : { now: options.now }),
   });
+
+  const requireAuth = createRequireAuthMiddleware({ authService });
 
   return {
     store,
@@ -36,8 +42,10 @@ function createAuthModule(options) {
       originGuard: createOriginGuardMiddleware(options.config),
       authTransport: createAuthTransportMiddleware(),
       requireCsrf: createRequireCsrfMiddleware({ authService }),
-      requireAuth: createRequireAuthMiddleware({ authService }),
+      requireAuth,
       optionalAuth: createOptionalAuthMiddleware({ authService }),
+      requirePermission: createRequirePermissionMiddleware,
+      requireOrganizationContext: createRequireOrganizationContextMiddleware(),
     },
   };
 }

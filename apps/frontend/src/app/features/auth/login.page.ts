@@ -1,7 +1,8 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthApi } from './auth.api';
+import { AuthSessionStore } from './auth-session.store';
 
 @Component({
   selector: 'agrivio-login-page',
@@ -13,6 +14,8 @@ import { AuthApi } from './auth.api';
 export class LoginPage {
   private readonly formBuilder = inject(FormBuilder);
   private readonly authApi = inject(AuthApi);
+  private readonly sessionStore = inject(AuthSessionStore);
+  private readonly router = inject(Router);
 
   readonly submitting = signal(false);
   readonly successMessage = signal<string | null>(null);
@@ -35,10 +38,12 @@ export class LoginPage {
     this.submitting.set(true);
     const { email, password } = this.form.getRawValue();
     this.authApi.login(email, password).subscribe({
-      next: () => {
+      next: (result) => {
+        this.sessionStore.applySession(result.session);
         this.submitting.set(false);
         this.successMessage.set('Signed in. Session cookie authentication is active.');
         this.form.patchValue({ password: '' });
+        void this.router.navigateByUrl('/context');
       },
       error: () => {
         this.submitting.set(false);

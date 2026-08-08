@@ -6,6 +6,7 @@ const {
   UserModel,
 } = require('./identity.model');
 const { AuditEventModel } = require('../audit/audit-event.model');
+const { AccessAssignmentModel } = require('../locations/access-assignment.model');
 
 function withSession(session) {
   return session ? { session: session } : {};
@@ -55,6 +56,30 @@ function createMongooseAuthStore() {
 
     async insertMembership(session, doc) {
       const [created] = await OrganizationMembershipModel.create([doc], withSession(session));
+      return created.toObject();
+    },
+
+    async updateMembership(session, id, patch) {
+      return OrganizationMembershipModel.findByIdAndUpdate(
+        id,
+        { $set: patch },
+        { new: true, ...withSession(session) },
+      )
+        .lean()
+        .exec();
+    },
+
+    async listAccessAssignmentsByMembershipId(membershipId) {
+      return AccessAssignmentModel.find({
+        membershipId,
+        status: 'active',
+      })
+        .lean()
+        .exec();
+    },
+
+    async insertAccessAssignment(session, doc) {
+      const [created] = await AccessAssignmentModel.create([doc], withSession(session));
       return created.toObject();
     },
 
