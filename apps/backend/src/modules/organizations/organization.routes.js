@@ -12,12 +12,15 @@ function registerOrganizationRoutes(deps) {
   const requireAuth = deps.requireAuth;
   const requireOrganizationContext = createRequireOrganizationContextMiddleware();
   const requireOrganizationView = createRequirePermissionMiddleware('organization.view');
+  const requireBillingAccess =
+    deps.requireBillingAccess ?? ((_req, _res, next) => next());
 
   router.get(
     API_ORGANIZATION_PATH,
     requireAuth,
     requireOrganizationContext,
     requireOrganizationView,
+    requireBillingAccess,
     (req, res, next) => {
       void controller.getCurrent(req, res, next);
     },
