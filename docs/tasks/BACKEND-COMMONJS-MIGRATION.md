@@ -165,3 +165,7 @@ After the CommonJS migration, backend application/runtime code was cleaned to pl
 **Convention for future agents:** Agrivio backend application code is plain CommonJS JavaScript. Do not add `// @ts-check` or JSDoc type annotations to normal backend source. Use simple readable JavaScript and rely on runtime validation, ESLint and meaningful automated tests.
 
 See also: [../../AGENTS.md](../../AGENTS.md), [../TOOLCHAIN.md](../TOOLCHAIN.md) amendment 1.3.0.
+
+## npm Workspace Amendment (2026-08-08)
+
+Package manager later migrated from pnpm to npm workspaces while preserving this CommonJS backend convention and Nx orchestration. See [NPM-WORKSPACE-MIGRATION.md](NPM-WORKSPACE-MIGRATION.md) and [../TOOLCHAIN.md](../TOOLCHAIN.md) amendment 1.4.0.

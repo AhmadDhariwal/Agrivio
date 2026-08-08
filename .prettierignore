@@ -8,6 +8,7 @@
 
 # Lockfiles and generated install metadata
 pnpm-lock.yaml
+package-lock.json
 
 # Frozen and narrative documentation must not be rewritten by formatters
 /docs

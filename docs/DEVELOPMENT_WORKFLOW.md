@@ -1,7 +1,7 @@
 # Development Workflow
 
 Document status: Frozen for Release 1  
-Current version: 1.3.0  
+Current version: 1.4.0  
 Last updated: 2026-08-08  
 Approval status: Approved for repository initialization
 
@@ -10,6 +10,8 @@ Approval status: Approved for repository initialization
 > **Amendment 1.2.0 (2026-08-08):** Backend implementation language: JavaScript CommonJS (`require` / `module.exports`). Frontend remains Angular TypeScript. Shared packages remain TypeScript. Details: [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md).
 >
 > **Amendment 1.3.0 (2026-08-08):** Backend coding style is plain CommonJS JavaScript. Do not add `// @ts-check` or JSDoc type annotations to backend application source. Rely on ESLint, runtime validation, and tests. Details: [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md) and [../AGENTS.md](../AGENTS.md).
+>
+> **Amendment 1.4.0 (2026-08-08):** Package manager migrated from pnpm to npm workspaces. Local apps may also start without Nx knowledge via `apps/frontend` `npm start` and `apps/backend` `node index.js`. Details: [tasks/NPM-WORKSPACE-MIGRATION.md](tasks/NPM-WORKSPACE-MIGRATION.md).
 
 ## Document Authority
 
@@ -34,12 +36,12 @@ Required before development:
 | Prerequisite | Exact requirement |
 | --- | --- |
 | Node.js | `24.18.0` |
-| pnpm | `11.17.0` via Corepack or an equivalent exact install |
+| npm | `11.16.0` (bundled with Node `24.18.0`) |
 | Git | Available and authenticated for the repository remote |
 | Docker Compose | v2 available for MongoDB replica-set commands |
 | OS support | Windows, macOS, or Linux able to run Node 24 and Docker Compose |
 
-Do not rely on globally installed Nx, Angular CLI, TypeScript, or pnpm executables for project work. Use workspace-local binaries through `pnpm` scripts and `pnpm exec`.
+Do not rely on globally installed Nx, Angular CLI, or TypeScript executables for project work. Use workspace-local binaries through `npm` scripts and `npx`.
 
 ---
 
@@ -50,17 +52,19 @@ After F00 exists:
 ```bash
 git checkout <task-branch>
 node --version
-pnpm --version
-pnpm install --frozen-lockfile
-pnpm db:up
-pnpm db:init
-pnpm db:status
+npm --version
+npm ci
+npm run db:up
+npm run db:init
+npm run db:status
 ```
+
+First-time install without a lockfile checkout uses `npm install` once; thereafter prefer `npm ci`.
 
 First-time Playwright setup when E2E is needed:
 
 ```bash
-pnpm exec playwright install --with-deps chromium
+npx playwright install --with-deps chromium
 ```
 
 Firefox and WebKit installation is reserved for release/nightly matrix jobs unless a work item explicitly requires them locally.
@@ -72,62 +76,73 @@ Firefox and WebKit installation is reserved for release/nightly matrix jobs unle
 Documented root commands for F00 and later stages:
 
 ```text
-pnpm dev
-pnpm dev:frontend
-pnpm dev:backend
+npm start
+npm run dev
+npm run dev:frontend
+npm run dev:backend
 
-pnpm build
-pnpm build:frontend
-pnpm build:backend
+npm run build
+npm run build:frontend
+npm run build:backend
 
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm test:unit
-pnpm test:integration
-pnpm test:architecture
-pnpm e2e
+npm run lint
+npm run typecheck
+npm test
+npm run test:unit
+npm run test:integration
+npm run test:architecture
+npm run e2e
 
-pnpm format
-pnpm format:check
+npm run format
+npm run format:check
 
-pnpm check
-pnpm affected:check
+npm run check
+npm run affected:check
 
-pnpm db:up
-pnpm db:init
-pnpm db:status
-pnpm db:logs
-pnpm db:down
-pnpm db:reset
+npm run db:up
+npm run db:init
+npm run db:status
+npm run db:logs
+npm run db:down
+npm run db:reset
 ```
 
-Command count: **23**.
+### Manual app startup (no Nx knowledge required)
+
+```bash
+cd apps/frontend
+npm start
+
+cd apps/backend
+node index.js
+# or, with auto-reload:
+npm run dev
+```
 
 ### Command responsibilities
 
 | Command | Responsibility |
 | --- | --- |
-| `pnpm dev` | Start the approved local development composition for web and API |
-| `pnpm dev:frontend` | Serve `apps/frontend` only |
-| `pnpm dev:backend` | Serve `apps/backend` only |
-| `pnpm build` | Build all workspace projects required for Release 1 |
-| `pnpm build:frontend` | Build `apps/frontend` |
-| `pnpm build:backend` | Build `apps/backend` |
-| `pnpm lint` | Run ESLint across the configured workspace projects |
-| `pnpm typecheck` | Run TypeScript checking for Angular and shared TypeScript packages (backend plain JavaScript is not type-checked via `checkJs`) |
-| `pnpm test` | Default local test entry; runs the unit suite unless a later stage documents otherwise |
-| `pnpm test:unit` | Unit and Angular component tests via Vitest |
-| `pnpm test:integration` | API integration and transaction tests against the local replica set |
-| `pnpm test:architecture` | Architecture-boundary tests |
-| `pnpm e2e` | Playwright end-to-end suite |
-| `pnpm format` | Write Prettier formatting |
-| `pnpm format:check` | Verify Prettier formatting |
-| `pnpm check` | Deterministic full local quality gate |
-| `pnpm affected:check` | Nx affected quality gate for changed projects |
-| `pnpm db:*` | Local MongoDB replica-set lifecycle |
+| `npm start` / `npm run dev` | Start the approved local development composition for frontend and backend |
+| `npm run dev:frontend` | Serve `apps/frontend` only |
+| `npm run dev:backend` | Serve `apps/backend` only |
+| `npm run build` | Build all workspace projects required for Release 1 |
+| `npm run build:frontend` | Build `apps/frontend` |
+| `npm run build:backend` | Build `apps/backend` |
+| `npm run lint` | Run ESLint across the configured workspace projects |
+| `npm run typecheck` | Run TypeScript checking for Angular and shared TypeScript packages (backend plain JavaScript is not type-checked via `checkJs`) |
+| `npm test` | Default local test entry; runs the unit suite unless a later stage documents otherwise |
+| `npm run test:unit` | Unit and Angular component tests via Vitest |
+| `npm run test:integration` | API integration and transaction tests against the local replica set |
+| `npm run test:architecture` | Architecture-boundary tests |
+| `npm run e2e` | Playwright end-to-end suite |
+| `npm run format` | Write Prettier formatting |
+| `npm run format:check` | Verify Prettier formatting |
+| `npm run check` | Deterministic full local quality gate |
+| `npm run affected:check` | Nx affected quality gate for changed projects |
+| `npm run db:*` | Local MongoDB replica-set lifecycle |
 
-### `pnpm check` order
+### `npm run check` order
 
 ```text
 format check
@@ -146,12 +161,12 @@ Transaction integration and E2E suites remain separate because of environment st
 
 | Command | Behaviour |
 | --- | --- |
-| `pnpm db:up` | Start the local MongoDB `8.2.12` replica-set Compose stack |
-| `pnpm db:init` | Initialize replica set `rs0` and wait for primary election |
-| `pnpm db:status` | Show replica-set and connectivity status |
-| `pnpm db:logs` | Tail MongoDB container logs |
-| `pnpm db:down` | Stop the local Compose stack without claiming production safety |
-| `pnpm db:reset` | Destructive local reset of containers/volumes for development data only |
+| `npm run db:up` | Start the local MongoDB `8.2.12` replica-set Compose stack |
+| `npm run db:init` | Initialize replica set `rs0` and wait for primary election |
+| `npm run db:status` | Show replica-set and connectivity status |
+| `npm run db:logs` | Tail MongoDB container logs |
+| `npm run db:down` | Stop the local Compose stack without claiming production safety |
+| `npm run db:reset` | Destructive local reset of containers/volumes for development data only |
 
 Rules:
 
@@ -242,7 +257,7 @@ Practical workflow:
 1. Create `chore/<dependency>-upgrade`.
 2. Change only the intended manifests and lockfile.
 3. Review changelogs and migration notes.
-4. Run `pnpm check` and applicable integration/E2E jobs.
+4. Run `npm run check` and applicable integration/E2E jobs.
 5. For Nx or Angular migrations, review every generated file.
 6. Open a dedicated PR that does not include feature work.
 
@@ -276,7 +291,7 @@ P1-07 documents variable categories only. Exact application environment-variable
 ### Variable categories
 
 | Category | Examples of concern | Client visibility |
-| --- | --- | --- |
+| --- | --- |
 | Runtime mode | `NODE_ENV`, application profile | Server only |
 | API listen binding | Host and port | Server only |
 | MongoDB connection | URI, database name, replica-set name | Server only |
@@ -290,15 +305,15 @@ P1-07 documents variable categories only. Exact application environment-variable
 
 Allowed local troubleshooting:
 
-* Reinstall with `pnpm install --frozen-lockfile`
-* Restart MongoDB through `pnpm db:down` / `pnpm db:up` / `pnpm db:init`
+* Reinstall with `npm ci`
+* Restart MongoDB through `npm run db:down` / `npm run db:up` / `npm run db:init`
 * Clear local Nx cache when cache corruption is suspected
 * Reinstall Playwright browsers for the pinned Playwright version
-* Compare local Node and pnpm versions against the pinned baseline
+* Compare local Node and npm versions against the pinned baseline
 
 Not allowed as silent fixes:
 
-* Switching to npm, Yarn, or Bun
+* Switching to pnpm, Yarn, or Bun
 * Replacing Nx, Angular, Express, MongoDB, Vitest, or Playwright
 * Using standalone MongoDB instead of the replica set
 * Using prerelease packages

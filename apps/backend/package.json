@@ -2,8 +2,12 @@
   "name": "@agrivio/backend",
   "version": "0.0.1",
   "private": true,
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
   "dependencies": {
-    "@agrivio/api-contracts": "workspace:*",
+    "@agrivio/api-contracts": "*",
     "mongoose": "8.15.0"
   }
 }
