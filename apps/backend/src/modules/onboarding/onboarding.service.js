@@ -17,14 +17,24 @@ const DEFAULT_TRIAL_DAYS = 14;
 
 function createOnboardingService(deps) {
   const store = deps.store;
+  let subscriptionStore = deps.subscriptionStore ?? store;
   const now = deps.now ?? (() => new Date());
   const activationTtlMs = deps.activationTtlMs ?? DEFAULT_ACTIVATION_TTL_MS;
   const trialDays = deps.trialDays ?? DEFAULT_TRIAL_DAYS;
   const auditWriter = createAuditWriter({
     append: (session, event) => store.appendAuditEvent(session, event),
   });
+  let subscriptionBridge = deps.subscriptionBridge ?? null;
 
   return {
+    setSubscriptionBridge(bridge) {
+      subscriptionBridge = bridge;
+    },
+
+    setSubscriptionStore(nextStore) {
+      subscriptionStore = nextStore;
+    },
+
     /**
      * Public organization activation request (R1-F02-005).
      */
@@ -77,11 +87,17 @@ function createOnboardingService(deps) {
           version: 1,
         });
 
-        await store.insertSubscription(session, {
+        const planRef =
+          subscriptionBridge === null
+            ? { planCode: 'Starter', planVersion: 1, planId: null }
+            : await subscriptionBridge.resolveTrialPlanReference('Starter');
+
+        await subscriptionStore.insertSubscription(session, {
           organizationId: organization['_id'],
           status: 'pending_approval',
-          planCode: 'Starter',
-          planVersion: 1,
+          planCode: planRef.planCode,
+          planVersion: planRef.planVersion,
+          planId: planRef.planId,
           version: 1,
         });
 
@@ -118,7 +134,8 @@ function createOnboardingService(deps) {
       }
 
       const owner = await store.findUserById(String(organization['ownerUserId']));
-      const subscription = await store.findSubscriptionByOrganizationId(organizationId);
+      const subscription =
+        await subscriptionStore.findSubscriptionByOrganizationId(organizationId);
       return {
         ...toOrganizationSummary(organization),
         owner: owner === null ? null : toUserSummary(owner),
@@ -166,14 +183,31 @@ function createOnboardingService(deps) {
         });
         await store.updateMembership(session, String(membership['_id']), { status: 'active' });
 
-        const subscription = await store.findSubscriptionByOrganizationId(organizationId);
+        const subscription =
+          await subscriptionStore.findSubscriptionByOrganizationId(organizationId);
         if (subscription === null) {
           throw conflict('Subscription record is missing');
         }
-        await store.updateSubscription(session, String(subscription['_id']), {
+        await subscriptionStore.updateSubscription(session, String(subscription['_id']), {
           status: 'trial',
           trialEndsAt,
+          planCode: subscription['planCode'],
+          planVersion: subscription['planVersion'],
+          ...(subscription['planId'] ? { planId: subscription['planId'] } : {}),
+          version: Number(subscription['version'] ?? 1) + 1,
         });
+
+        if (
+          subscriptionBridge !== null &&
+          typeof subscriptionBridge.markReferencedPlan === 'function'
+        ) {
+          await subscriptionBridge.markReferencedPlan(
+            subscription['planCode'],
+            subscription['planVersion'],
+            session,
+            approvedAt,
+          );
+        }
 
         await store.insertActivationToken(session, {
           userId: ownerUserId,
@@ -226,10 +260,12 @@ function createOnboardingService(deps) {
           rejectedAt,
         });
 
-        const subscription = await store.findSubscriptionByOrganizationId(organizationId);
+        const subscription =
+          await subscriptionStore.findSubscriptionByOrganizationId(organizationId);
         if (subscription !== null) {
-          await store.updateSubscription(session, String(subscription['_id']), {
+          await subscriptionStore.updateSubscription(session, String(subscription['_id']), {
             status: 'rejected',
+            version: Number(subscription['version'] ?? 1) + 1,
           });
         }
 

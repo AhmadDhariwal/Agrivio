@@ -1,0 +1,38 @@
+<section class="panel">
+  <h1>Billing evidence review</h1>
+  <p>Super Admin review queue for manual payment evidence.</p>
+
+  <button type="button" (click)="reload()">Refresh</button>
+
+  <ul>
+    @for (item of items(); track item.id) {
+      <li>
+        <div>
+          <strong>{{ item.paymentMethod }}</strong> · {{ item.status }} ·
+          {{ item.paymentReferenceNormalized }}
+          @if (item.paymentReferenceDuplicateWarning) {
+            <span class="warn">duplicate reference warning</span>
+          }
+        </div>
+        <div class="actions">
+          <button type="button" (click)="approve(item)">Approve</button>
+          <button type="button" (click)="reject(item)">Reject</button>
+        </div>
+      </li>
+    }
+  </ul>
+
+  <form [formGroup]="rejectForm">
+    <label>
+      Rejection reason
+      <input type="text" formControlName="reason" />
+    </label>
+  </form>
+
+  @if (successMessage(); as success) {
+    <p class="success">{{ success }}</p>
+  }
+  @if (errorMessage(); as error) {
+    <p class="error">{{ error }}</p>
+  }
+</section>

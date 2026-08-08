@@ -653,6 +653,29 @@ function createAuthService(deps) {
                 : { warehouseId: String(session.activeWarehouseId) }),
             };
 
+      let subscriptionAccessState = null;
+      if (
+        activeContext?.contextType === 'organization' &&
+        typeof deps.resolveSubscriptionAccessState === 'function' &&
+        activeContext.organizationId !== undefined
+      ) {
+        const access = await deps.resolveSubscriptionAccessState(
+          String(activeContext.organizationId),
+        );
+        subscriptionAccessState = {
+          status: access.status,
+          accessLevel: access.accessLevel,
+          operationalWriteAllowed: access.operationalWriteAllowed,
+          billingAccessAllowed: access.billingAccessAllowed,
+          planCode: access.planCode ?? null,
+          planVersion: access.planVersion ?? null,
+          trialEndsAt: access.trialEndsAt ?? null,
+          graceEndsAt: access.graceEndsAt ?? null,
+          periodEndsAt: access.periodEndsAt ?? null,
+          warnings: access.warnings ?? [],
+        };
+      }
+
       return {
         user: {
           id: String(user['_id']),
@@ -664,7 +687,7 @@ function createAuthService(deps) {
         availableContexts,
         branchAssignments: active?.branchAssignments ?? [],
         warehouseAssignments: active?.warehouseAssignments ?? [],
-        subscriptionAccessState: null,
+        subscriptionAccessState,
       };
     },
   };

@@ -26,6 +26,9 @@ function createAuthModule(options) {
     store,
     nodeEnv: options.config.nodeEnv,
     ...(options.now === undefined ? {} : { now: options.now }),
+    ...(options.resolveSubscriptionAccessState === undefined
+      ? {}
+      : { resolveSubscriptionAccessState: options.resolveSubscriptionAccessState }),
   });
 
   const requireAuth = createRequireAuthMiddleware({ authService });
