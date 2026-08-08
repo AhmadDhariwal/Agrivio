@@ -48,6 +48,81 @@ function createAuthService(deps) {
     }
   }
 
+  async function loadAssignments(membershipId) {
+    if (typeof store.listAccessAssignmentsByMembershipId !== 'function') {
+      return [];
+    }
+    return store.listAccessAssignmentsByMembershipId(String(membershipId));
+  }
+
+  function splitAssignments(assignments) {
+    const branchAssignments = [];
+    const warehouseAssignments = [];
+    for (const assignment of assignments) {
+      if (assignment['status'] !== undefined && assignment['status'] !== 'active') {
+        continue;
+      }
+      const entry = {
+        id: String(assignment['_id'] ?? assignment['targetId']),
+        targetId: String(assignment['targetId']),
+        organizationId: String(assignment['organizationId']),
+      };
+      if (assignment['assignmentType'] === 'branch') {
+        branchAssignments.push(entry);
+      } else if (assignment['assignmentType'] === 'warehouse') {
+        warehouseAssignments.push(entry);
+      }
+    }
+    return { branchAssignments, warehouseAssignments };
+  }
+
+  function assertScopeSelection(role, organizationId, assignments, branchId, warehouseId) {
+    const { branchAssignments, warehouseAssignments } = splitAssignments(assignments);
+    const orgWide = role === 'Owner';
+
+    if (branchId !== undefined && branchId !== null) {
+      const allowed =
+        orgWide ||
+        branchAssignments.some(
+          (item) =>
+            item.targetId === branchId && String(item.organizationId) === String(organizationId),
+        );
+      if (!allowed) {
+        throw forbidden('Requested branch is outside the authorized assignment scope');
+      }
+    }
+
+    if (warehouseId !== undefined && warehouseId !== null) {
+      const allowed =
+        orgWide ||
+        warehouseAssignments.some(
+          (item) =>
+            item.targetId === warehouseId && String(item.organizationId) === String(organizationId),
+        );
+      if (!allowed) {
+        throw forbidden('Requested warehouse is outside the authorized assignment scope');
+      }
+    }
+  }
+
+  function assertPersistedScopeStillValid(role, organizationId, assignments, session) {
+    const branchId =
+      session.activeBranchId === undefined || session.activeBranchId === null
+        ? null
+        : String(session.activeBranchId);
+    const warehouseId =
+      session.activeWarehouseId === undefined || session.activeWarehouseId === null
+        ? null
+        : String(session.activeWarehouseId);
+
+    if (branchId !== null) {
+      assertScopeSelection(role, organizationId, assignments, branchId, null);
+    }
+    if (warehouseId !== null) {
+      assertScopeSelection(role, organizationId, assignments, null, warehouseId);
+    }
+  }
+
   async function buildAvailableContexts(user) {
     const contexts = [];
     if (user['platformAccess'] === 'super_admin') {
@@ -63,6 +138,8 @@ function createAuthService(deps) {
       if (membership['status'] !== 'active') {
         continue;
       }
+      const assignments = await loadAssignments(membership['_id']);
+      const { branchAssignments, warehouseAssignments } = splitAssignments(assignments);
       contexts.push({
         contextType: 'organization',
         membershipId: String(membership['_id']),
@@ -72,6 +149,8 @@ function createAuthService(deps) {
           String(membership['role']),
           membership['conditionalPermissionGrants'] ?? [],
         ),
+        branchAssignments,
+        warehouseAssignments,
       });
     }
     return contexts;
@@ -92,6 +171,23 @@ function createAuthService(deps) {
     return first;
   }
 
+  function sessionFieldsForContext(context) {
+    const fields = {
+      activeContextType: context['contextType'],
+    };
+    if (context['contextType'] === 'organization') {
+      fields.activeMembershipId = context['membershipId'];
+      fields.activeOrganizationId = context['organizationId'];
+      if (context['branchId'] !== undefined && context['branchId'] !== null) {
+        fields.activeBranchId = context['branchId'];
+      }
+      if (context['warehouseId'] !== undefined && context['warehouseId'] !== null) {
+        fields.activeWarehouseId = context['warehouseId'];
+      }
+    }
+    return fields;
+  }
+
   async function createAuthenticatedSession(user, context, at) {
     const sessionToken = generateOpaqueToken();
     const csrfToken = generateOpaqueToken();
@@ -102,13 +198,7 @@ function createAuthService(deps) {
       tokenHash: sessionToken.tokenHash,
       csrfHash: csrfToken.tokenHash,
       userId: user['_id'],
-      activeContextType: context['contextType'],
-      ...(context['membershipId'] === undefined
-        ? {}
-        : { activeMembershipId: context['membershipId'] }),
-      ...(context['organizationId'] === undefined
-        ? {}
-        : { activeOrganizationId: context['organizationId'] }),
+      ...sessionFieldsForContext(context),
       absoluteExpiresAt,
       lastSeenAt: at,
       expiresAt,
@@ -136,10 +226,94 @@ function createAuthService(deps) {
     return createAuthenticatedSession(user, context, at);
   }
 
+  async function assertActiveMembership(user, session) {
+    if (session.activeContextType === 'platform') {
+      if (user['platformAccess'] !== 'super_admin') {
+        throw unauthorized('Platform context is no longer authorized');
+      }
+      return {
+        contextType: 'platform',
+        role: 'Super Admin',
+        permissions: permissionsForPlatformAccess('super_admin'),
+        branchAssignments: [],
+        warehouseAssignments: [],
+      };
+    }
+
+    if (session.activeContextType !== 'organization') {
+      throw unauthorized('Authentication required');
+    }
+
+    const membershipId = session.activeMembershipId;
+    if (membershipId === undefined || membershipId === null) {
+      throw unauthorized('Organization context is no longer authorized');
+    }
+
+    const membership = await store.findMembershipById(String(membershipId));
+    if (membership === null || membership['status'] !== 'active') {
+      throw unauthorized('Organization membership is no longer active');
+    }
+    if (String(membership['userId']) !== String(user['_id'])) {
+      throw unauthorized('Organization membership is no longer authorized');
+    }
+    if (
+      session.activeOrganizationId !== undefined &&
+      String(membership['organizationId']) !== String(session.activeOrganizationId)
+    ) {
+      throw unauthorized('Organization membership is no longer authorized');
+    }
+
+    const assignments = await loadAssignments(membership['_id']);
+    assertPersistedScopeStillValid(
+      String(membership['role']),
+      String(membership['organizationId']),
+      assignments,
+      session,
+    );
+    const { branchAssignments, warehouseAssignments } = splitAssignments(assignments);
+
+    return {
+      contextType: 'organization',
+      membershipId: String(membership['_id']),
+      organizationId: String(membership['organizationId']),
+      role: membership['role'],
+      permissions: permissionsForMembershipRole(
+        String(membership['role']),
+        membership['conditionalPermissionGrants'] ?? [],
+      ),
+      branchAssignments,
+      warehouseAssignments,
+      branchId:
+        session.activeBranchId === undefined || session.activeBranchId === null
+          ? null
+          : String(session.activeBranchId),
+      warehouseId:
+        session.activeWarehouseId === undefined || session.activeWarehouseId === null
+          ? null
+          : String(session.activeWarehouseId),
+    };
+  }
+
+  function buildAuthContext(user, session, active) {
+    return {
+      userId: String(user['_id']),
+      contextType: active.contextType,
+      permissions: [...(active.permissions ?? [])],
+      role: active.role,
+      ...(active.membershipId === undefined ? {} : { membershipId: active.membershipId }),
+      ...(active.organizationId === undefined ? {} : { organizationId: active.organizationId }),
+      ...(active.branchId === undefined || active.branchId === null
+        ? {}
+        : { branchId: active.branchId }),
+      ...(active.warehouseId === undefined || active.warehouseId === null
+        ? {}
+        : { warehouseId: active.warehouseId }),
+      isPlatformSuperAdmin:
+        active.contextType === 'platform' && user['platformAccess'] === 'super_admin',
+    };
+  }
+
   return {
-    /**
-     * Issue or refresh a CSRF binding (pre-auth or authenticated).
-     */
     async issueCsrf(sessionToken) {
       const at = now();
       if (typeof sessionToken === 'string' && sessionToken !== '') {
@@ -221,8 +395,11 @@ function createAuthService(deps) {
       if (user === null || user['status'] !== 'active') {
         throw unauthorized('Authentication required');
       }
+
+      const active = await assertActiveMembership(user, session);
       await touchSession(session, at);
-      return { session, user };
+      const authContext = buildAuthContext(user, session, active);
+      return { session, user, active, authContext };
     },
 
     async login(body, transport) {
@@ -327,15 +504,52 @@ function createAuthService(deps) {
         throw forbidden('Requested session context is not authorized');
       }
 
-      const rotated = await rotateSession(session, user, selected, at);
+      let nextContext = { ...selected };
+      if (selected['contextType'] === 'organization') {
+        const assignments = await loadAssignments(selected['membershipId']);
+        const branchId = Object.prototype.hasOwnProperty.call(input, 'branchId')
+          ? input.branchId
+          : null;
+        const warehouseId = Object.prototype.hasOwnProperty.call(input, 'warehouseId')
+          ? input.warehouseId
+          : null;
+
+        assertScopeSelection(
+          String(selected['role']),
+          String(selected['organizationId']),
+          assignments,
+          branchId,
+          warehouseId,
+        );
+
+        nextContext = {
+          ...selected,
+          ...(branchId === null ? {} : { branchId }),
+          ...(warehouseId === null ? {} : { warehouseId }),
+        };
+      }
+
+      const rotated = await rotateSession(session, user, nextContext, at);
       await auditWriter.appendBusinessEvent(null, {
         actorId: String(user['_id']),
         action: 'auth.session_context_switched',
         resourceType: 'auth_session',
         resourceId: String(rotated.sessionRecord['_id']),
-        ...(selected['organizationId'] === undefined
+        ...(nextContext['organizationId'] === undefined
           ? {}
-          : { organizationId: String(selected['organizationId']) }),
+          : { organizationId: String(nextContext['organizationId']) }),
+        metadata: {
+          contextType: nextContext['contextType'],
+          ...(nextContext['membershipId'] === undefined
+            ? {}
+            : { membershipId: String(nextContext['membershipId']) }),
+          ...(nextContext['branchId'] === undefined
+            ? {}
+            : { branchId: String(nextContext['branchId']) }),
+          ...(nextContext['warehouseId'] === undefined
+            ? {}
+            : { warehouseId: String(nextContext['warehouseId']) }),
+        },
       });
 
       return {
@@ -423,9 +637,6 @@ function createAuthService(deps) {
       };
     },
 
-    /**
-     * Establish authenticated session after Owner activation.
-     */
     async establishSessionForUser(userId) {
       const user = await store.findUserById(userId);
       if (user === null || user['status'] !== 'active') {
@@ -455,6 +666,19 @@ function createAuthService(deps) {
           return false;
         }) ?? null;
 
+      const activeContext =
+        active === null
+          ? null
+          : {
+              ...active,
+              ...(session.activeBranchId === undefined || session.activeBranchId === null
+                ? {}
+                : { branchId: String(session.activeBranchId) }),
+              ...(session.activeWarehouseId === undefined || session.activeWarehouseId === null
+                ? {}
+                : { warehouseId: String(session.activeWarehouseId) }),
+            };
+
       return {
         user: {
           id: String(user['_id']),
@@ -462,10 +686,10 @@ function createAuthService(deps) {
           displayName: user['displayName'],
           status: user['status'],
         },
-        activeContext: active,
+        activeContext,
         availableContexts,
-        branchAssignments: [],
-        warehouseAssignments: [],
+        branchAssignments: active?.branchAssignments ?? [],
+        warehouseAssignments: active?.warehouseAssignments ?? [],
         subscriptionAccessState: null,
       };
     },

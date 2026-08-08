@@ -1,6 +1,7 @@
 const { API_CSRF_HEADER } = require('@agrivio/api-contracts');
 const { forbidden, unauthorized } = require('../../platform/errors/app-error');
 const { readSessionToken } = require('./auth.cookies');
+const { attachAuthContextToRequest } = require('./permission.middleware');
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -12,9 +13,6 @@ function clientKey(req) {
   return req.socket.remoteAddress ?? 'unknown';
 }
 
-/**
- * Validate Origin/Referer for browser-originated state-changing requests.
- */
 function createOriginGuardMiddleware(config) {
   const allowed = new Set(
     config.allowedOrigins ??
@@ -60,7 +58,6 @@ function createOriginGuardMiddleware(config) {
       }
     }
 
-    // Non-browser clients (focused tests / tooling) may omit Origin when not production.
     if (config.nodeEnv === 'production') {
       next(forbidden('Origin or Referer is required'));
       return;
@@ -90,18 +87,15 @@ function createRequireAuthMiddleware(deps) {
     const sessionToken = readSessionToken(req);
     void deps.authService
       .resolveAuthenticatedSession(sessionToken)
-      .then(({ session, user }) => {
+      .then(({ session, user, authContext }) => {
         req.auth = { session, user };
+        attachAuthContextToRequest(req, authContext);
         next();
       })
       .catch((error) => next(error));
   };
 }
 
-/**
- * Load authenticated session when present; do not fail when absent.
- * Used so development platform-actor bypass can co-exist with real sessions.
- */
 function createOptionalAuthMiddleware(deps) {
   return (req, _res, next) => {
     const sessionToken = readSessionToken(req);
@@ -111,20 +105,17 @@ function createOptionalAuthMiddleware(deps) {
     }
     void deps.authService
       .resolveAuthenticatedSession(sessionToken)
-      .then(({ session, user }) => {
+      .then(({ session, user, authContext }) => {
         req.auth = { session, user };
+        attachAuthContextToRequest(req, authContext);
         next();
       })
       .catch(() => {
-        // Invalid cookie should not block the optional path; protected handlers decide.
         next();
       });
   };
 }
 
-/**
- * Attach request auth transport helpers.
- */
 function createAuthTransportMiddleware() {
   return (req, _res, next) => {
     const sessionToken = readSessionToken(req);

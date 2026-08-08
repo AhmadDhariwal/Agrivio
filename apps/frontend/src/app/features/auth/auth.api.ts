@@ -3,6 +3,42 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, map, switchMap, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
+export interface AuthSessionUser {
+  id: string;
+  email: string;
+  displayName: string;
+  status: string;
+}
+
+export interface AuthSessionContext {
+  contextType: 'platform' | 'organization';
+  membershipId?: string;
+  organizationId?: string;
+  role: string;
+  permissions: string[];
+  branchId?: string;
+  warehouseId?: string;
+  branchAssignments?: Array<{ targetId: string }>;
+  warehouseAssignments?: Array<{ targetId: string }>;
+}
+
+export interface AuthSessionSnapshot {
+  user: AuthSessionUser;
+  activeContext: AuthSessionContext | null;
+  availableContexts: AuthSessionContext[];
+  branchAssignments: Array<{ targetId: string }>;
+  warehouseAssignments: Array<{ targetId: string }>;
+  subscriptionAccessState: unknown;
+}
+
+export interface SessionContextSelection {
+  contextType: 'platform' | 'organization';
+  membershipId?: string;
+  organizationId?: string;
+  branchId?: string | null;
+  warehouseId?: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthApi {
   private readonly http = inject(HttpClient);
@@ -23,11 +59,14 @@ export class AuthApi {
       );
   }
 
-  login(email: string, password: string): Observable<unknown> {
+  login(
+    email: string,
+    password: string,
+  ): Observable<{ csrfToken: string; session: AuthSessionSnapshot }> {
     return this.ensureCsrf().pipe(
       switchMap(({ csrfToken }) =>
         this.http
-          .post(
+          .post<{ data: { csrfToken: string; session: AuthSessionSnapshot } }>(
             `${environment.publicApiBaseUrl}/api/v1/auth/login`,
             { email, password },
             {
@@ -37,11 +76,41 @@ export class AuthApi {
           )
           .pipe(
             tap((response) => {
-              const body = response as { data?: { csrfToken?: string } };
-              if (typeof body.data?.csrfToken === 'string') {
-                this.csrfToken = body.data.csrfToken;
-              }
+              this.csrfToken = response.data.csrfToken;
             }),
+            map((response) => response.data),
+          ),
+      ),
+    );
+  }
+
+  getSession(): Observable<AuthSessionSnapshot> {
+    return this.http
+      .get<{ data: AuthSessionSnapshot }>(`${environment.publicApiBaseUrl}/api/v1/auth/session`, {
+        withCredentials: true,
+      })
+      .pipe(map((response) => response.data));
+  }
+
+  switchContext(
+    selection: SessionContextSelection,
+  ): Observable<{ csrfToken: string; session: AuthSessionSnapshot }> {
+    return this.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: { csrfToken: string; session: AuthSessionSnapshot } }>(
+            `${environment.publicApiBaseUrl}/api/v1/auth/session/context`,
+            selection,
+            {
+              withCredentials: true,
+              headers: new HttpHeaders({ 'X-CSRF-Token': csrfToken }),
+            },
+          )
+          .pipe(
+            tap((response) => {
+              this.csrfToken = response.data.csrfToken;
+            }),
+            map((response) => response.data),
           ),
       ),
     );

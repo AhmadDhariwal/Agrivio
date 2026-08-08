@@ -6,6 +6,11 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./features/auth/login.page').then((m) => m.LoginPage),
   },
   {
+    path: 'context',
+    loadComponent: () =>
+      import('./features/auth/context-switcher.page').then((m) => m.ContextSwitcherPage),
+  },
+  {
     path: 'password-reset',
     loadComponent: () =>
       import('./features/auth/password-reset-request.page').then((m) => m.PasswordResetRequestPage),

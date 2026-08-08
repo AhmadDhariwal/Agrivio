@@ -48,6 +48,9 @@ export const API_AUTH_PASSWORD_RESET_CONFIRM_PATH =
 export const API_PLATFORM_ORGANIZATIONS_PATH =
   `${API_V1_PREFIX}/platform/organizations` as const;
 
+/** Current organization profile for the authenticated membership context (R1-F02-008 sample). */
+export const API_ORGANIZATION_PATH = `${API_V1_PREFIX}/organization` as const;
+
 /** Development-only Super Admin actor header. Must never authorize production traffic. */
 export const API_PLATFORM_ACTOR_HEADER = 'X-Platform-Actor' as const;
 

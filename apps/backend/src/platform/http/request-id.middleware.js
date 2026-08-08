@@ -1,8 +1,10 @@
 const { API_REQUEST_ID_HEADER } = require('@agrivio/api-contracts');
-const { getRequestContext, runWithRequestContext } = require('./request-context');
+const { enterRequestContext, getRequestContext } = require('./request-context');
 const { resolveRequestId } = require('./request-id');
+
 /**
  * Generates or accepts a valid request id, stores it on the response, and binds request context.
+ * Uses enterWith so Express async middleware (auth) retains ALS context.
  */
 function createRequestIdMiddleware() {
   return (req, res, next) => {
@@ -13,9 +15,8 @@ function createRequestIdMiddleware() {
     res.locals['requestId'] = requestId;
     req.requestId = requestId;
 
-    runWithRequestContext({ requestId }, () => {
-      next();
-    });
+    enterRequestContext({ requestId });
+    next();
   };
 }
 

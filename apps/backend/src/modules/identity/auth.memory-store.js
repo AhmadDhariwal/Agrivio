@@ -5,6 +5,7 @@ function createInMemoryAuthStore() {
   const memberships = new Map();
   const sessions = new Map();
   const resetTokens = new Map();
+  const accessAssignments = new Map();
   const audits = [];
 
   return {
@@ -50,6 +51,30 @@ function createInMemoryAuthStore() {
       const id = randomUUID();
       const record = { _id: id, ...doc };
       memberships.set(id, record);
+      return record;
+    },
+
+    async updateMembership(_session, id, patch) {
+      const existing = memberships.get(String(id));
+      if (existing === undefined) {
+        return null;
+      }
+      const updated = { ...existing, ...patch };
+      memberships.set(String(id), updated);
+      return updated;
+    },
+
+    async listAccessAssignmentsByMembershipId(membershipId) {
+      return [...accessAssignments.values()].filter(
+        (item) =>
+          String(item['membershipId']) === String(membershipId) && item['status'] === 'active',
+      );
+    },
+
+    async insertAccessAssignment(_session, doc) {
+      const id = randomUUID();
+      const record = { _id: id, ...doc };
+      accessAssignments.set(id, record);
       return record;
     },
 
@@ -127,9 +152,6 @@ function createInMemoryAuthStore() {
       return audits;
     },
 
-    /**
-     * Test helper: seed an active user.
-     */
     seedUser(doc) {
       const id = String(doc['_id'] ?? randomUUID());
       const record = { ...doc, _id: id };
@@ -137,9 +159,6 @@ function createInMemoryAuthStore() {
       return record;
     },
 
-    /**
-     * Test helper: seed a membership.
-     */
     seedMembership(doc) {
       const id = String(doc['_id'] ?? randomUUID());
       const record = { ...doc, _id: id };

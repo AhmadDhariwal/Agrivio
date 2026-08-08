@@ -11,6 +11,7 @@ const { registerOnboardingRoutes } = require('./modules/onboarding/onboarding.ro
 const { createAuthModule } = require('./modules/identity/auth.module');
 const { createBridgedAuthStore } = require('./modules/identity/auth.bridge-store');
 const { createMongooseAuthStore } = require('./modules/identity/auth.mongoose-store');
+const { registerOrganizationRoutes } = require('./modules/organizations/organization.routes');
 
 function createApp(options) {
   const { config, database } = options;
@@ -45,6 +46,11 @@ function createApp(options) {
     optionalAuth: auth.middlewares.optionalAuth,
   });
 
+  const organizationRoutes = registerOrganizationRoutes({
+    requireAuth: auth.middlewares.requireAuth,
+    findOrganizationById: (id) => onboardingCore.store.findOrganizationById(id),
+  });
+
   const app = express();
   app.disable('x-powered-by');
 
@@ -56,6 +62,7 @@ function createApp(options) {
   app.use(registerHealthRoutes({ database }));
   app.use(auth.routes);
   app.use(onboardingRoutes);
+  app.use(organizationRoutes);
 
   app.use(createNotFoundMiddleware(config.nodeEnv));
   app.use(createErrorHandlerMiddleware(config.nodeEnv, logger));

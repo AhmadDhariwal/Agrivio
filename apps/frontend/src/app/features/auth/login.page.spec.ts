@@ -12,7 +12,11 @@ describe('LoginPage', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [LoginPage],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([{ path: 'context', children: [] }]),
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(LoginPage);
@@ -36,7 +40,22 @@ describe('LoginPage', () => {
     expect(login.request.method).toBe('POST');
     expect(login.request.headers.get('X-CSRF-Token')).toBe('csrf-test');
     login.flush({
-      data: { csrfToken: 'csrf-next', session: { user: { email: 'owner@example.com' } } },
+      data: {
+        csrfToken: 'csrf-next',
+        session: {
+          user: { id: 'u1', email: 'owner@example.com', displayName: 'Owner', status: 'active' },
+          activeContext: {
+            contextType: 'organization',
+            organizationId: 'org-1',
+            role: 'Owner',
+            permissions: ['organization.view'],
+          },
+          availableContexts: [],
+          branchAssignments: [],
+          warehouseAssignments: [],
+          subscriptionAccessState: null,
+        },
+      },
       requestId: 'test',
     });
     expect(page.successMessage()).toContain('Signed in');
