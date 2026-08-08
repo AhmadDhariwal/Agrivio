@@ -35,6 +35,10 @@ npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+frontend-start.out
+frontend-start.err
+backend-boot.out
+backend-boot.err
 .DS_Store
 Thumbs.db
 *.log
