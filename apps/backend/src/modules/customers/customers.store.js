@@ -20,6 +20,13 @@ function createMongooseCustomersStore() {
       return CustomerModel.countDocuments({ organizationId }).exec();
     },
 
+    async countCustomersWithOpening(organizationId) {
+      return CustomerModel.countDocuments({
+        organizationId,
+        'openingBalance.status': 'posted',
+      }).exec();
+    },
+
     async findCustomerById(organizationId, id) {
       if (!mongoose.isValidObjectId(id)) {
         return null;
@@ -77,6 +84,15 @@ function createInMemoryCustomersStore() {
     async countCustomers(organizationId) {
       return [...customers.values()].filter(
         (item) => String(item.organizationId) === String(organizationId),
+      ).length;
+    },
+
+    async countCustomersWithOpening(organizationId) {
+      return [...customers.values()].filter(
+        (item) =>
+          String(item.organizationId) === String(organizationId) &&
+          item.openingBalance &&
+          item.openingBalance.status === 'posted',
       ).length;
     },
 

@@ -57,6 +57,29 @@ function registerAccountsRoutes(deps) {
     },
   );
 
+  router.post(
+    `${API_ACCOUNTS_PATH}/:id/opening-balance`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('accounts.opening-balance.post'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.postOpeningBalance(req, res, next);
+    },
+  );
+
+  router.get(
+    `${API_ACCOUNTS_PATH}/:id/movements`,
+    deps.requireAuth,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('accounts.view'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.listAccountMovements(req, res, next);
+    },
+  );
+
   return router;
 }
 

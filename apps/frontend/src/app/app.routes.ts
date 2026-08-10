@@ -87,6 +87,13 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'organization/setup',
+        loadComponent: () =>
+          import('./features/organization/pages/setup/organization-setup.page').then(
+            (m) => m.OrganizationSetupPage,
+          ),
+      },
+      {
         path: 'branches',
         loadComponent: () =>
           import('./features/branches-warehouses/pages/branches/branches.page').then(

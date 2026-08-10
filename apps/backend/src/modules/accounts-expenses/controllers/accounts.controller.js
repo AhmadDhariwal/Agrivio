@@ -58,6 +58,33 @@ function createAccountsController(deps) {
         next(error);
       }
     },
+
+    async postOpeningBalance(req, res, next) {
+      try {
+        const result = await deps.accountsService.postOpeningBalance(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.body,
+          { actorId: String(req.authContext.userId) },
+          req.get('Idempotency-Key'),
+        );
+        sendSuccessEnvelope(res, result.statusCode ?? 201, result.data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async listAccountMovements(req, res, next) {
+      try {
+        const data = await deps.accountsService.listAccountMovements(
+          requireOrganizationId(req),
+          String(req.params.id),
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
   };
 }
 

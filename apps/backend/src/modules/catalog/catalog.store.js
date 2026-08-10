@@ -26,6 +26,10 @@ function createMongooseCatalogStore() {
       return ProductCategoryModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
     },
 
+    async countCategories(organizationId) {
+      return ProductCategoryModel.countDocuments({ organizationId }).exec();
+    },
+
     async findCategoryById(organizationId, id) {
       if (!mongoose.isValidObjectId(id)) {
         return null;
@@ -62,6 +66,17 @@ function createMongooseCatalogStore() {
 
     async countProducts(organizationId) {
       return ProductModel.countDocuments({ organizationId }).exec();
+    },
+
+    async countPackagingUnits(organizationId) {
+      return ProductPackagingUnitModel.countDocuments({
+        organizationId,
+        status: 'active',
+      }).exec();
+    },
+
+    async countProductPrices(organizationId) {
+      return ProductPriceModel.countDocuments({ organizationId }).exec();
     },
 
     async findProductById(organizationId, id) {
@@ -248,6 +263,12 @@ function createInMemoryCatalogStore() {
         .map((item) => ({ ...item }));
     },
 
+    async countCategories(organizationId) {
+      return [...categories.values()].filter(
+        (item) => String(item.organizationId) === String(organizationId),
+      ).length;
+    },
+
     async findCategoryById(organizationId, id) {
       const record = categories.get(id);
       if (record === undefined || String(record.organizationId) !== String(organizationId)) {
@@ -283,6 +304,19 @@ function createInMemoryCatalogStore() {
 
     async countProducts(organizationId) {
       return [...products.values()].filter(
+        (item) => String(item.organizationId) === String(organizationId),
+      ).length;
+    },
+
+    async countPackagingUnits(organizationId) {
+      return [...packagingUnits.values()].filter(
+        (item) =>
+          String(item.organizationId) === String(organizationId) && item.status === 'active',
+      ).length;
+    },
+
+    async countProductPrices(organizationId) {
+      return [...prices.values()].filter(
         (item) => String(item.organizationId) === String(organizationId),
       ).length;
     },

@@ -1,0 +1,24 @@
+.setup-list {
+  margin-top: 1rem;
+}
+
+.setup-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.notes {
+  margin-top: 1.25rem;
+  padding-left: 1.25rem;
+}
+
+@media (max-width: 640px) {
+  .setup-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

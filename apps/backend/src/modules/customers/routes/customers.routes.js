@@ -69,6 +69,18 @@ function registerCustomersRoutes(deps) {
     },
   );
 
+  router.post(
+    `${API_CUSTOMERS_PATH}/:id/opening-balance`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('customers.opening-balance.post'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.postOpeningBalance(req, res, next);
+    },
+  );
+
   return router;
 }
 

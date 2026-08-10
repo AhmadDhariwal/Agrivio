@@ -8,6 +8,20 @@ export interface MoneyAmount {
   currency: string;
 }
 
+export interface CustomerOpeningBalance {
+  kind: 'receivable' | 'advance' | string;
+  amount: MoneyAmount;
+  postedAt: string;
+  postedBy: string;
+  ledgerEffectId: string;
+  status: 'posted' | string;
+}
+
+export interface CustomerDerivedBalances {
+  receivable: MoneyAmount;
+  advance: MoneyAmount;
+}
+
 export interface CustomerRecord {
   id: string;
   organizationId: string;
@@ -20,4 +34,13 @@ export interface CustomerRecord {
   creditLimitBehaviour: CreditLimitBehaviour | string;
   status: EntityStatus;
   version: number;
+  openingBalance?: CustomerOpeningBalance;
+  derivedBalances?: CustomerDerivedBalances;
+  softWarning?: {
+    softWarning?: boolean;
+    reason?: string;
+    limit?: number;
+    currentUsage?: number;
+    remaining?: number;
+  };
 }

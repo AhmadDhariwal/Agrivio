@@ -56,4 +56,33 @@
       <a class="ag-btn ag-btn--secondary" routerLink="/app/accounts">Cancel</a>
     </div>
   </form>
+
+  @if (accountId() && canPostOpening()) {
+    <section class="ag-stack form" data-testid="account-opening-section">
+      <h2>Opening balance</h2>
+      @if (openingPosted()) {
+        <p class="ag-muted" data-testid="account-opening-posted">
+          Opening already posted.
+          @if (derivedBalance(); as balance) {
+            Balance {{ balance }} PKR.
+          }
+        </p>
+      } @else {
+        <form class="ag-stack" [formGroup]="openingForm" (ngSubmit)="postOpening()">
+          <label>
+            Amount (PKR)
+            <input formControlName="amount" data-testid="account-opening-amount" />
+          </label>
+          <button
+            class="ag-btn"
+            type="submit"
+            [disabled]="postingOpening()"
+            data-testid="account-opening-save"
+          >
+            Post opening
+          </button>
+        </form>
+      }
+    </section>
+  }
 }
