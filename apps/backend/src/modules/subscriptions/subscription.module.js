@@ -8,7 +8,7 @@ const {
   createMongooseTransactionSessionPort,
 } = require('./subscription.mongoose-store');
 const { createSubscriptionService } = require('./subscription.service');
-const { registerSubscriptionRoutes } = require('./subscription.routes');
+const { registerSubscriptionRoutes } = require('./routes/subscription.routes');
 const { createRequireSubscriptionAccessMiddleware } = require('./entitlement.middleware');
 
 function createSubscriptionModule(options) {

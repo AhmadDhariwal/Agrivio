@@ -1,7 +1,7 @@
 const { createInMemoryAuthStore } = require('./auth.memory-store');
 const { createMongooseAuthStore } = require('./auth.mongoose-store');
 const { createAuthService } = require('./auth.service');
-const { registerAuthRoutes } = require('./auth.routes');
+const { registerAuthRoutes } = require('./routes/auth.routes');
 const {
   createCorsMiddleware,
   createOriginGuardMiddleware,

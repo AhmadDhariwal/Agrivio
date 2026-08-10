@@ -7,13 +7,13 @@ const { registerHealthRoutes } = require('./platform/health/health.routes');
 const { createRequestIdMiddleware } = require('./platform/http/request-id.middleware');
 const { createStructuredLogger } = require('./platform/logging/structured-logger');
 const { createOnboardingModule } = require('./modules/onboarding/onboarding.module');
-const { registerOnboardingRoutes } = require('./modules/onboarding/onboarding.routes');
+const { registerOnboardingRoutes } = require('./modules/onboarding/routes/onboarding.routes');
 const { createAuthModule } = require('./modules/identity/auth.module');
 const { createBridgedAuthStore } = require('./modules/identity/auth.bridge-store');
 const { createMongooseAuthStore } = require('./modules/identity/auth.mongoose-store');
-const { registerOrganizationRoutes } = require('./modules/organizations/organization.routes');
+const { registerOrganizationRoutes } = require('./modules/organizations/routes/organization.routes');
 const { createSubscriptionModule } = require('./modules/subscriptions/subscription.module');
-const { registerSubscriptionRoutes } = require('./modules/subscriptions/subscription.routes');
+const { registerSubscriptionRoutes } = require('./modules/subscriptions/routes/subscription.routes');
 const { createInMemorySubscriptionStore } = require('./modules/subscriptions/subscription.memory-store');
 const {
   createMongooseSubscriptionStore,

@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { catchError, map, of } from 'rxjs';
-import { AuthSessionStore } from '../../features/auth/auth-session.store';
+import { AuthSessionStore } from '../../features/auth/data-access/auth-session.store';
 
 /**
  * Non-authoritative session presence check for UX routing only.
