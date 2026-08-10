@@ -1,0 +1,59 @@
+<agrivio-ui-page-header
+  [title]="accountId() ? 'Edit account' : 'Create account'"
+  eyebrow="Cash & bank"
+  lede="Configure cash, bank, JazzCash, or Easypaisa accounts."
+/>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading account…" />
+} @else if (!canManage()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to manage accounts." />
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+  <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="account-form">
+    <label>
+      Account type
+      <select formControlName="accountType" data-testid="account-type">
+        <option value="cash">Cash</option>
+        <option value="bank">Bank</option>
+        <option value="jazzcash">JazzCash</option>
+        <option value="easypaisa">Easypaisa</option>
+      </select>
+    </label>
+    <label>
+      Name
+      <input formControlName="name" data-testid="account-name" />
+    </label>
+    @if (accountType() === 'bank') {
+      <label>
+        Bank name
+        <input formControlName="bankName" data-testid="account-bank-name" />
+      </label>
+      <label>
+        Account number (masked, optional)
+        <input formControlName="accountNumberMasked" data-testid="account-number-masked" />
+      </label>
+    }
+    @if (accountType() === 'jazzcash' || accountType() === 'easypaisa') {
+      <label>
+        Wallet identifier
+        <input formControlName="walletIdentifier" data-testid="account-wallet-identifier" />
+      </label>
+    }
+    @if (accountId()) {
+      <label>
+        Status
+        <select formControlName="status" data-testid="account-status">
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </label>
+    }
+    <div class="ag-inline">
+      <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="account-save">Save</button>
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/accounts">Cancel</a>
+    </div>
+  </form>
+}

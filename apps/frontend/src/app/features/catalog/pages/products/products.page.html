@@ -1,0 +1,44 @@
+<agrivio-ui-page-header
+  title="Products"
+  eyebrow="Catalog"
+  lede="Maintain sellable products, packaging units, and catalog identity."
+>
+  @if (canManage()) {
+    <a class="ag-btn" routerLink="/app/products/new" data-testid="product-create-link">Create product</a>
+  }
+</agrivio-ui-page-header>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading products…" />
+} @else if (errorMessage(); as error) {
+  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+} @else if (items().length === 0) {
+  <agrivio-ui-empty-state
+    title="No products yet"
+    message="Create the first product to define SKUs, units, and packaging."
+  />
+} @else {
+  <div class="ag-stack" data-testid="products-list">
+    @for (item of items(); track item.id) {
+      <article class="row">
+        <div>
+          <strong>{{ item.name }}</strong>
+          <p class="ag-muted">
+            {{ item.sku || 'No SKU' }} · {{ item.baseUnitCode }} · {{ item.trackingMode }}
+          </p>
+        </div>
+        <div class="ag-inline">
+          <agrivio-ui-status-badge [label]="item.status" [tone]="item.status === 'active' ? 'success' : 'neutral'" />
+          @if (canManage()) {
+            <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/products', item.id]">Edit</a>
+          }
+          @if (canManagePricing()) {
+            <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/products', item.id, 'pricing']">
+              Pricing
+            </a>
+          }
+        </div>
+      </article>
+    }
+  </div>
+}
