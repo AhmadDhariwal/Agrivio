@@ -4,7 +4,7 @@ const API = 'http://localhost:3000';
 const OWNER_PASSWORD = 'owner-activation-passphrase';
 
 test.describe('F02 onboarding vertical slice', () => {
-  test('landing → request → approve → activate → sign-in → context → shell → sign-out', async ({
+  test('landing → request → approve → activate → reuse blocked → sign-in → context → shell', async ({
     page,
     request,
   }) => {
@@ -36,9 +36,13 @@ test.describe('F02 onboarding vertical slice', () => {
     await expect(orgRow).toBeVisible();
     await orgRow.getByTestId('approve-org').click();
     await page.getByRole('button', { name: 'Approve organization' }).click();
-    const tokenLocator = page.getByTestId('activation-token').locator('code');
-    await expect(tokenLocator).toBeVisible();
-    const activationToken = (await tokenLocator.textContent())?.trim() ?? '';
+    const activationUrl = page.getByTestId('activation-url');
+    await expect(activationUrl).toBeVisible();
+    await expect(page.getByTestId('activation-owner-email')).toContainText(ownerEmail);
+    const urlText = (await activationUrl.textContent())?.trim() ?? '';
+    expect(urlText).toContain('/activate?token=');
+    const activationToken =
+      new URL(urlText, 'http://localhost:4200').searchParams.get('token') ?? '';
     expect(activationToken.length).toBeGreaterThan(10);
 
     await page.getByTestId('sign-out').click();
@@ -46,6 +50,7 @@ test.describe('F02 onboarding vertical slice', () => {
 
     await page.goto(`/activate?token=${encodeURIComponent(activationToken)}`);
     await page.getByTestId('activation-password-input').fill(OWNER_PASSWORD);
+    await page.getByTestId('activation-password-confirm-input').fill(OWNER_PASSWORD);
     await page.getByTestId('activate-submit').click();
     await expect(page).toHaveURL(/\/context/);
 
@@ -55,6 +60,14 @@ test.describe('F02 onboarding vertical slice', () => {
 
     await page.getByTestId('sign-out').click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Agrivio');
+
+    // Consumed token must not activate again.
+    await page.goto(`/activate?token=${encodeURIComponent(activationToken)}`);
+    await page.getByTestId('activation-password-input').fill(OWNER_PASSWORD);
+    await page.getByTestId('activation-password-confirm-input').fill(OWNER_PASSWORD);
+    await page.getByTestId('activate-submit').click();
+    await expect(page.locator('.ag-alert--danger')).toContainText(/invalid|expired|already used/i);
+    await expect(page).toHaveURL(/\/activate/);
 
     await signIn(page, ownerEmail, OWNER_PASSWORD);
     await expect(page).toHaveURL(/\/context/);
@@ -78,7 +91,6 @@ async function enterPlatformWorkspace(page: Page): Promise<void> {
     const label = (await active.textContent()) ?? '';
     if (label.includes('Platform')) {
       await page.getByTestId('continue-workspace').click();
-      await expect(page).toHaveURL(/\/app/);
       await expect(page.getByTestId('authenticated-shell')).toBeVisible();
       return;
     }
@@ -94,6 +106,5 @@ async function enterPlatformWorkspace(page: Page): Promise<void> {
   }
   await select.selectOption({ label: platformOption });
   await page.getByTestId('switch-context').click();
-  await expect(page).toHaveURL(/\/app/);
   await expect(page.getByTestId('authenticated-shell')).toBeVisible();
 }

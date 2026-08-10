@@ -27,6 +27,7 @@ function createOnboardingModule(options) {
   const onboardingService = createOnboardingService({
     store,
     transactionRunner,
+    publicWebBaseUrl: options.config?.publicWebBaseUrl ?? 'http://localhost:4200',
     ...(options.subscriptionStore === undefined
       ? {}
       : { subscriptionStore: options.subscriptionStore }),

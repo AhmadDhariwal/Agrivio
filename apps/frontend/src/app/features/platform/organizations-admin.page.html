@@ -2,7 +2,7 @@
   <agrivio-ui-page-header
     eyebrow="Platform"
     title="Organization requests"
-    lede="Super Admin review for organization activation requests. Approval issues a one-time Owner activation token."
+    lede="Super Admin review for organization activation requests. Approval issues a one-time Owner activation link for manual delivery."
   />
 
   <div class="ag-actions">
@@ -40,8 +40,8 @@
               </td>
               <td>{{ item.ownerEmail || '—' }}</td>
               <td>
-                @if (item.status === 'pending_approval') {
-                  <div class="ag-actions">
+                <div class="ag-actions">
+                  @if (item.status === 'pending_approval') {
                     <button
                       type="button"
                       class="ag-btn ag-btn--primary ag-btn--sm"
@@ -57,8 +57,18 @@
                     >
                       Reject
                     </button>
-                  </div>
-                }
+                  }
+                  @if (item.status === 'approved' && item.ownerNeedsActivation) {
+                    <button
+                      type="button"
+                      class="ag-btn ag-btn--secondary ag-btn--sm"
+                      data-testid="reissue-activation"
+                      (click)="askReissue(item)"
+                    >
+                      Reissue activation
+                    </button>
+                  }
+                </div>
               </td>
             </tr>
           }
@@ -78,11 +88,66 @@
     </form>
   </div>
 
-  @if (activationToken(); as token) {
-    <div class="ag-alert ag-alert--success" data-testid="activation-token">
-      <strong>One-time activation token (shown once)</strong>
-      <p><code>{{ token }}</code></p>
-      <p><a routerLink="/activate" [queryParams]="{ token }">Open activation</a></p>
+  @if (activationHandoff(); as handoff) {
+    <div class="ag-card ag-stack" data-testid="activation-handoff">
+      <div class="ag-alert ag-alert--success" data-testid="activation-token">
+        <strong>One-time Owner activation link (shown once)</strong>
+        <p>
+          Copy and send this link out-of-band. Agrivio does not email it. The plaintext token is not
+          stored and cannot be recovered later—use Reissue activation if the link is lost before the
+          Owner sets a password.
+        </p>
+      </div>
+
+      <dl class="ag-stack ag-stack--tight">
+        <div>
+          <dt class="ag-muted">Owner</dt>
+          <dd data-testid="activation-owner-email">
+            {{ handoff.ownerDisplayName || 'Owner' }}
+            @if (handoff.ownerEmail) {
+              &lt;{{ handoff.ownerEmail }}&gt;
+            }
+          </dd>
+        </div>
+        <div>
+          <dt class="ag-muted">Activation URL</dt>
+          <dd>
+            <code data-testid="activation-url">{{ handoff.activationUrl }}</code>
+          </dd>
+        </div>
+        <div>
+          <dt class="ag-muted">Expires</dt>
+          <dd>{{ handoff.activationTokenExpiresAt }}</dd>
+        </div>
+      </dl>
+
+      <div class="ag-actions">
+        <button
+          type="button"
+          class="ag-btn ag-btn--primary"
+          data-testid="copy-activation-url"
+          (click)="copyActivationUrl()"
+        >
+          Copy activation link
+        </button>
+        <a
+          class="ag-btn ag-btn--secondary"
+          [routerLink]="'/activate'"
+          [queryParams]="{ token: handoff.activationToken }"
+          data-testid="open-activation"
+        >
+          Open activation
+        </a>
+      </div>
+
+      @if (copyFeedback(); as copied) {
+        <agrivio-ui-alert [message]="copied" tone="success" />
+      }
+
+      <details>
+        <summary>Show raw token</summary>
+        <p><code data-testid="activation-token-value">{{ handoff.activationToken }}</code></p>
+      </details>
     </div>
   }
 

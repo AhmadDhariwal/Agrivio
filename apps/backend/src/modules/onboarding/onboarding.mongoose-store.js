@@ -142,6 +142,15 @@ function createMongooseOnboardingStore() {
       return AccountActivationTokenModel.findOne({ tokenHash }).lean().exec();
     },
 
+    async listOpenActivationTokens(filter) {
+      const query = {
+        userId: filter.userId,
+        organizationId: filter.organizationId,
+        $or: [{ consumedAt: null }, { consumedAt: { $exists: false } }],
+      };
+      return AccountActivationTokenModel.find(query).lean().exec();
+    },
+
     async insertActivationToken(session, doc) {
       const [created] = await AccountActivationTokenModel.create([doc], withSession(session));
       return created.toObject();

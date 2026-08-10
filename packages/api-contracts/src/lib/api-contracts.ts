@@ -48,6 +48,10 @@ export const API_AUTH_PASSWORD_RESET_CONFIRM_PATH =
 export const API_PLATFORM_ORGANIZATIONS_PATH =
   `${API_V1_PREFIX}/platform/organizations` as const;
 
+/** Reissue Owner activation token for approved org without usable credentials. */
+export const API_PLATFORM_ORGANIZATION_REISSUE_ACTIVATION_SUFFIX =
+  'reissue-activation' as const;
+
 /** Current organization profile for the authenticated membership context (R1-F02-008 sample). */
 export const API_ORGANIZATION_PATH = `${API_V1_PREFIX}/organization` as const;
 

@@ -128,6 +128,23 @@ function loadApiEnv(env = process.env) {
     issues.push('AGRIVIO_SKIP_MONGO is only permitted when NODE_ENV=test');
   }
 
+  const publicWebBaseUrlRaw = env['AGRIVIO_PUBLIC_WEB_BASE_URL'] ?? 'http://localhost:4200';
+  let publicWebBaseUrl = publicWebBaseUrlRaw;
+  if (!isNonEmptyString(publicWebBaseUrlRaw)) {
+    issues.push('AGRIVIO_PUBLIC_WEB_BASE_URL must be a non-empty string when set');
+  } else {
+    try {
+      const parsed = new URL(publicWebBaseUrlRaw);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        issues.push('AGRIVIO_PUBLIC_WEB_BASE_URL must be an absolute http(s) URL');
+      } else {
+        publicWebBaseUrl = parsed.origin;
+      }
+    } catch {
+      issues.push('AGRIVIO_PUBLIC_WEB_BASE_URL must be an absolute http(s) URL');
+    }
+  }
+
   if (issues.length > 0) {
     throw new EnvValidationError(issues);
   }
@@ -138,7 +155,8 @@ function loadApiEnv(env = process.env) {
     !isNonEmptyString(mongodbUri) ||
     !isNonEmptyString(mongodbDbName) ||
     !isNonEmptyString(mongodbReplicaSet) ||
-    !isNonEmptyString(sessionSecret)
+    !isNonEmptyString(sessionSecret) ||
+    !isNonEmptyString(publicWebBaseUrl)
   ) {
     throw new EnvValidationError(['Internal environment validation failed']);
   }
@@ -152,6 +170,7 @@ function loadApiEnv(env = process.env) {
     mongodbDbName,
     mongodbReplicaSet,
     sessionSecret,
+    publicWebBaseUrl,
     allowE2eBootstrap: allowE2eBootstrap && nodeEnv !== 'production',
     skipMongo: skipMongo && nodeEnv === 'test',
   };
@@ -168,6 +187,7 @@ function toSafeApiEnvSummary(config) {
     port: config.port,
     mongodbDbName: config.mongodbDbName,
     mongodbReplicaSet: config.mongodbReplicaSet,
+    publicWebBaseUrl: config.publicWebBaseUrl,
     mongodbUriConfigured: 'yes',
     sessionSecretConfigured: 'yes',
   };

@@ -59,6 +59,19 @@ function createPlatformOrganizationController(deps) {
       }
     },
 
+    async reissueActivation(req, res, next) {
+      try {
+        const id = String(req.params['id'] ?? '');
+        const actor = req.platformActor;
+        const result = await deps.onboardingService.reissueOwnerActivationToken(id, {
+          actorId: actor?.actorId ?? 'unknown',
+        });
+        sendSuccessEnvelope(res, 200, result);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     /**
      * Explicit reject route — name matches behaviour.
      */

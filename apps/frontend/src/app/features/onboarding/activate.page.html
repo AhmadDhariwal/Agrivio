@@ -40,6 +40,20 @@
         <p class="ag-field__error">Password must be 12–128 characters.</p>
       }
     </div>
+    <div class="ag-field">
+      <label class="ag-field__label" for="activation-password-confirm">Confirm password</label>
+      <input
+        id="activation-password-confirm"
+        class="ag-input"
+        [type]="showPassword() ? 'text' : 'password'"
+        formControlName="confirmPassword"
+        autocomplete="new-password"
+        data-testid="activation-password-confirm-input"
+      />
+      @if (form.touched && form.hasError('passwordMismatch')) {
+        <p class="ag-field__error">Password and confirmation must match.</p>
+      }
+    </div>
 
     @if (errorMessage(); as error) {
       <agrivio-ui-alert [message]="error" tone="danger" role="alert" />

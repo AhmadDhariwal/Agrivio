@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
+  PlatformOrganizationActivationHandoff,
   PlatformOrganizationSummary,
   PlatformOrganizationsApi,
 } from './platform-organizations.api';
@@ -36,7 +37,8 @@ export class PlatformOrganizationsPage {
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
-  readonly activationToken = signal<string | null>(null);
+  readonly activationHandoff = signal<PlatformOrganizationActivationHandoff | null>(null);
+  readonly copyFeedback = signal<string | null>(null);
 
   readonly confirmOpen = signal(false);
   readonly confirmTitle = signal('Confirm action');
@@ -84,11 +86,22 @@ export class PlatformOrganizationsPage {
   askApprove(item: PlatformOrganizationSummary): void {
     this.confirmTitle.set(`Approve ${item.name}?`);
     this.confirmMessage.set(
-      'This grants organization approval and issues a one-time Owner activation token.',
+      'This grants organization approval and issues a one-time Owner activation link. The plaintext token is shown once for manual delivery.',
     );
     this.confirmLabel.set('Approve organization');
     this.confirmDanger.set(false);
     this.pendingAction = () => this.approve(item);
+    this.confirmOpen.set(true);
+  }
+
+  askReissue(item: PlatformOrganizationSummary): void {
+    this.confirmTitle.set(`Reissue activation for ${item.name}?`);
+    this.confirmMessage.set(
+      'This invalidates any unused Owner activation token and issues a new one-time link. Use only when the Owner has not set a password yet.',
+    );
+    this.confirmLabel.set('Reissue activation link');
+    this.confirmDanger.set(false);
+    this.pendingAction = () => this.reissue(item);
     this.confirmOpen.set(true);
   }
 
@@ -116,14 +129,35 @@ export class PlatformOrganizationsPage {
   approve(item: PlatformOrganizationSummary): void {
     this.errorMessage.set(null);
     this.successMessage.set(null);
-    this.activationToken.set(null);
+    this.activationHandoff.set(null);
+    this.copyFeedback.set(null);
     this.api.approve(item.id).subscribe({
       next: (result) => {
-        this.successMessage.set(`Approved ${item.name}`);
-        this.activationToken.set(result.activationToken);
+        this.successMessage.set(`Approved ${item.name}. Deliver the activation link to the Owner.`);
+        this.activationHandoff.set(this.withBrowserOriginFallback(result));
         this.reload();
       },
       error: () => this.errorMessage.set('Approve failed.'),
+    });
+  }
+
+  reissue(item: PlatformOrganizationSummary): void {
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    this.activationHandoff.set(null);
+    this.copyFeedback.set(null);
+    this.api.reissueActivation(item.id).subscribe({
+      next: (result) => {
+        this.successMessage.set(
+          `Reissued activation for ${item.name}. Deliver the new one-time link to the Owner.`,
+        );
+        this.activationHandoff.set(this.withBrowserOriginFallback(result));
+        this.reload();
+      },
+      error: () =>
+        this.errorMessage.set(
+          'Reissue failed. The Owner may already be activated, or the organization is not eligible.',
+        ),
     });
   }
 
@@ -142,5 +176,30 @@ export class PlatformOrganizationsPage {
       },
       error: () => this.errorMessage.set('Reject failed.'),
     });
+  }
+
+  async copyActivationUrl(): Promise<void> {
+    const handoff = this.activationHandoff();
+    if (handoff === null) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(handoff.activationUrl);
+      this.copyFeedback.set('Activation link copied.');
+    } catch {
+      this.copyFeedback.set('Copy failed. Select and copy the link manually.');
+    }
+  }
+
+  private withBrowserOriginFallback(
+    result: PlatformOrganizationActivationHandoff,
+  ): PlatformOrganizationActivationHandoff {
+    if (result.activationUrl.startsWith('http://') || result.activationUrl.startsWith('https://')) {
+      return result;
+    }
+    return {
+      ...result,
+      activationUrl: `${window.location.origin}${result.activationPath}`,
+    };
   }
 }

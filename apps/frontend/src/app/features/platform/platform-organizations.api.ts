@@ -10,13 +10,20 @@ export interface PlatformOrganizationSummary {
   status: string;
   timezone?: string;
   ownerEmail?: string;
+  ownerStatus?: string;
+  ownerNeedsActivation?: boolean;
 }
 
-export interface PlatformOrganizationApproveResult {
+export interface PlatformOrganizationActivationHandoff {
   organizationId: string;
   status: string;
+  ownerEmail: string;
+  ownerDisplayName: string;
   activationToken: string;
   activationTokenExpiresAt: string;
+  activationPath: string;
+  activationUrl: string;
+  reissued?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -39,33 +46,21 @@ export class PlatformOrganizationsApi {
             status: String(item['status'] ?? ''),
             ...(typeof item['timezone'] === 'string' ? { timezone: item['timezone'] } : {}),
             ...(typeof item['ownerEmail'] === 'string' ? { ownerEmail: item['ownerEmail'] } : {}),
+            ...(typeof item['ownerStatus'] === 'string' ? { ownerStatus: item['ownerStatus'] } : {}),
+            ...(typeof item['ownerNeedsActivation'] === 'boolean'
+              ? { ownerNeedsActivation: item['ownerNeedsActivation'] }
+              : {}),
           })),
         ),
       );
   }
 
-  approve(organizationId: string): Observable<PlatformOrganizationApproveResult> {
-    return this.authApi.ensureCsrf().pipe(
-      switchMap(({ csrfToken }) =>
-        this.http
-          .post<{ data: Record<string, unknown> }>(
-            `${environment.publicApiBaseUrl}/api/v1/platform/organizations/${organizationId}/approve`,
-            {},
-            {
-              withCredentials: true,
-              headers: { 'X-CSRF-Token': csrfToken },
-            },
-          )
-          .pipe(
-            map((response) => ({
-              organizationId: String(response.data['organizationId'] ?? organizationId),
-              status: String(response.data['status'] ?? 'approved'),
-              activationToken: String(response.data['activationToken'] ?? ''),
-              activationTokenExpiresAt: String(response.data['activationTokenExpiresAt'] ?? ''),
-            })),
-          ),
-      ),
-    );
+  approve(organizationId: string): Observable<PlatformOrganizationActivationHandoff> {
+    return this.postActivationAction(organizationId, 'approve');
+  }
+
+  reissueActivation(organizationId: string): Observable<PlatformOrganizationActivationHandoff> {
+    return this.postActivationAction(organizationId, 'reissue-activation');
   }
 
   reject(organizationId: string, reason: string): Observable<unknown> {
@@ -82,4 +77,51 @@ export class PlatformOrganizationsApi {
       ),
     );
   }
+
+  private postActivationAction(
+    organizationId: string,
+    action: 'approve' | 'reissue-activation',
+  ): Observable<PlatformOrganizationActivationHandoff> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: Record<string, unknown> }>(
+            `${environment.publicApiBaseUrl}/api/v1/platform/organizations/${organizationId}/${action}`,
+            {},
+            {
+              withCredentials: true,
+              headers: { 'X-CSRF-Token': csrfToken },
+            },
+          )
+          .pipe(map((response) => mapActivationHandoff(response.data, organizationId))),
+      ),
+    );
+  }
+}
+
+function mapActivationHandoff(
+  data: Record<string, unknown>,
+  organizationId: string,
+): PlatformOrganizationActivationHandoff {
+  const activationToken = String(data['activationToken'] ?? '');
+  const activationPath =
+    typeof data['activationPath'] === 'string' && data['activationPath'].length > 0
+      ? data['activationPath']
+      : `/activate?token=${encodeURIComponent(activationToken)}`;
+  const activationUrl =
+    typeof data['activationUrl'] === 'string' && data['activationUrl'].length > 0
+      ? data['activationUrl']
+      : `${window.location.origin}${activationPath}`;
+
+  return {
+    organizationId: String(data['organizationId'] ?? organizationId),
+    status: String(data['status'] ?? 'approved'),
+    ownerEmail: String(data['ownerEmail'] ?? ''),
+    ownerDisplayName: String(data['ownerDisplayName'] ?? ''),
+    activationToken,
+    activationTokenExpiresAt: String(data['activationTokenExpiresAt'] ?? ''),
+    activationPath,
+    activationUrl,
+    ...(data['reissued'] === true ? { reissued: true } : {}),
+  };
 }

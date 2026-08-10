@@ -29,6 +29,7 @@ describe('ActivatePage', () => {
     page.form.setValue({
       token: 'activation-token',
       password: 'a-strong-passphrase',
+      confirmPassword: 'a-strong-passphrase',
     });
     page.submit();
 
