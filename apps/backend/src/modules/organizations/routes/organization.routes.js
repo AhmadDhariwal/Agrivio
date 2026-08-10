@@ -12,8 +12,12 @@ function registerOrganizationRoutes(deps) {
   const requireAuth = deps.requireAuth;
   const requireOrganizationContext = createRequireOrganizationContextMiddleware();
   const requireOrganizationView = createRequirePermissionMiddleware('organization.view');
+  const requireOrganizationUpdate = createRequirePermissionMiddleware('organization.update');
   const requireBillingAccess =
     deps.requireBillingAccess ?? ((_req, _res, next) => next());
+  const requireOperationalAccess =
+    deps.requireOperationalAccess ?? ((_req, _res, next) => next());
+  const requireCsrf = deps.requireCsrf ?? ((_req, _res, next) => next());
 
   router.get(
     API_ORGANIZATION_PATH,
@@ -23,6 +27,18 @@ function registerOrganizationRoutes(deps) {
     requireBillingAccess,
     (req, res, next) => {
       void controller.getCurrent(req, res, next);
+    },
+  );
+
+  router.patch(
+    API_ORGANIZATION_PATH,
+    requireAuth,
+    requireCsrf,
+    requireOrganizationContext,
+    requireOrganizationUpdate,
+    requireOperationalAccess,
+    (req, res, next) => {
+      void controller.patchCurrent(req, res, next);
     },
   );
 

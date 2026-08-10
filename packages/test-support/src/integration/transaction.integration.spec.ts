@@ -20,6 +20,7 @@ describe('MongoDB transactions', () => {
         const collection = client.db(databaseName).collection(TRANSACTION_PROBE_COLLECTION);
         await collection.insertOne({ step: 1 }, { session });
         await collection.insertOne({ step: 2 }, { session });
+        return { committed: true };
       });
 
       const count = await client

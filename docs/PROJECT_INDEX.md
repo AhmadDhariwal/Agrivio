@@ -31,7 +31,8 @@ Central navigation for Agrivio documentation.
 * Local runtime finalization (pre-F03) complete — see [tasks/LOCAL-RUNTIME-BEFORE-F03.md](tasks/LOCAL-RUNTIME-BEFORE-F03.md); native/Docker `rs0`, startup diagnostics, Angular CLI serve workspace file
 * F02 Owner activation handoff fix complete — see [tasks/F02-OWNER-ACTIVATION-HANDOFF.md](tasks/F02-OWNER-ACTIVATION-HANDOFF.md); approve/reissue absolute activation URL + copy UI
 * Pre-F03 architecture cleanup + Super Admin bootstrap complete — see [tasks/PRE-F03-SOURCE-LAYOUT-AND-SUPER-ADMIN-BOOTSTRAP.md](tasks/PRE-F03-SOURCE-LAYOUT-AND-SUPER-ADMIN-BOOTSTRAP.md); Angular cohesive page folders, shallow backend module layout, `npm run bootstrap:super-admin`
-* Next work item: **F03** after F02 stage verification is recorded
+* F03 Phase 1 complete (`R1-F03-001`–`R1-F03-004`) — see [tasks/F03-PHASE-1-ORG-SETUP.md](tasks/F03-PHASE-1-ORG-SETUP.md); organization settings, branches, warehouses, employees/access
+* Next work item: **F03 P2** (`R1-F03-005`+) after F03 Phase 1 acceptance
 
 ## Existing Documents
 
@@ -77,6 +78,7 @@ Central navigation for Agrivio documentation.
 | [tasks/LOCAL-RUNTIME-BEFORE-F03.md](tasks/LOCAL-RUNTIME-BEFORE-F03.md) | Pre-F03 local runtime: native/Docker Mongo `rs0`, backend diagnostics, serve paths |
 | [tasks/F02-OWNER-ACTIVATION-HANDOFF.md](tasks/F02-OWNER-ACTIVATION-HANDOFF.md) | F02 Owner activation approve/reissue handoff URL and UI |
 | [tasks/PRE-F03-SOURCE-LAYOUT-AND-SUPER-ADMIN-BOOTSTRAP.md](tasks/PRE-F03-SOURCE-LAYOUT-AND-SUPER-ADMIN-BOOTSTRAP.md) | Pre-F03 source-layout conventions + operational Super Admin bootstrap CLI |
+| [tasks/F03-PHASE-1-ORG-SETUP.md](tasks/F03-PHASE-1-ORG-SETUP.md) | F03 Phase 1: organization settings, branches, warehouses, employees/access (`R1-F03-001`–`004`) |
 | [tasks/F01-PHASE-1-PLATFORM-RUNTIME.md](tasks/F01-PHASE-1-PLATFORM-RUNTIME.md) | F01 Phase 1: platform runtime foundation |
 | [tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md](tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md) | F01 Phase 2: transactional platform foundation (completes F01) |
 | [../README.md](../README.md) | Repository landing page |
