@@ -4,7 +4,11 @@ const {
 } = require('../../platform/transactions/transaction-runner');
 const { createAuditWriter } = require('../../platform/audit/audit-writer');
 const { assertOptimisticVersion } = require('../../platform/validation/request-validation');
-const { conflict, forbidden, notFound } = require('../../platform/errors/app-error');
+const { conflict, notFound } = require('../../platform/errors/app-error');
+const {
+  assertCreationLimit,
+  attachSoftWarning,
+} = require('../subscriptions/creation-limit');
 const {
   generateActivationToken,
   normalizeEmail,
@@ -115,19 +119,12 @@ function createEmployeesService(deps) {
       const input = parseEmployeeCreate(body);
       const emailNormalized = normalizeEmail(input.email);
       const currentUsage = await store.countActiveUsers(organizationId);
-
-      if (typeof evaluateEntitlement === 'function') {
-        const entitlement = await evaluateEntitlement(organizationId, {
-          label: 'operational+limit',
-          limitKey: 'activeUsers',
-          currentUsage,
-        });
-        if (!entitlement.allowed && entitlement.reason === 'limit_reached') {
-          throw forbidden('Plan limit reached for activeUsers', [
-            { limitKey: 'activeUsers', reason: entitlement.reason, ...(entitlement.limit ?? {}) },
-          ]);
-        }
-      }
+      const entitlement = await assertCreationLimit(
+        evaluateEntitlement,
+        organizationId,
+        'activeUsers',
+        currentUsage,
+      );
 
       return transactionRunner.run(async (session) => {
         let user = await store.findUserByEmailNormalized(emailNormalized);
@@ -212,7 +209,8 @@ function createEmployeesService(deps) {
         });
 
         const dto = toEmployeeDto(membership, user, []);
-        return activationHandoff === null ? dto : { ...dto, ...activationHandoff };
+        const withHandoff = activationHandoff === null ? dto : { ...dto, ...activationHandoff };
+        return attachSoftWarning(withHandoff, entitlement);
       });
     },
 

@@ -25,6 +25,9 @@
         <a routerLink="/context">Switch context</a>
         @if (canViewSettings()) {
           <a routerLink="/app/organization/settings" routerLinkActive="active">Settings</a>
+          <a routerLink="/app/organization/setup" routerLinkActive="active" data-testid="nav-setup">
+            Setup
+          </a>
         }
         @if (canViewBranches()) {
           <a routerLink="/app/branches" routerLinkActive="active">Branches</a>
@@ -34,6 +37,19 @@
         }
         @if (canViewEmployees()) {
           <a routerLink="/app/employees" routerLinkActive="active">Employees</a>
+        }
+        @if (canViewCatalog()) {
+          <a routerLink="/app/categories" routerLinkActive="active">Categories</a>
+          <a routerLink="/app/products" routerLinkActive="active">Products</a>
+        }
+        @if (canViewCustomers()) {
+          <a routerLink="/app/customers" routerLinkActive="active">Customers</a>
+        }
+        @if (canViewSuppliers()) {
+          <a routerLink="/app/suppliers" routerLinkActive="active">Suppliers</a>
+        }
+        @if (canViewAccounts()) {
+          <a routerLink="/app/accounts" routerLinkActive="active">Accounts</a>
         }
         @if (canSubmitBilling()) {
           <a routerLink="/app/subscription/billing" routerLinkActive="active">Billing</a>

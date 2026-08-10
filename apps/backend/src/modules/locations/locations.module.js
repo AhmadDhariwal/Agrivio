@@ -4,7 +4,11 @@ const {
 } = require('../../platform/transactions/transaction-runner');
 const { createAuditWriter } = require('../../platform/audit/audit-writer');
 const { assertOptimisticVersion } = require('../../platform/validation/request-validation');
-const { conflict, forbidden, notFound, validationFailed } = require('../../platform/errors/app-error');
+const { conflict, notFound, validationFailed } = require('../../platform/errors/app-error');
+const {
+  assertCreationLimit,
+  attachSoftWarning,
+} = require('../subscriptions/creation-limit');
 const {
   parseBranchCreate,
   parseBranchPatch,
@@ -52,24 +56,6 @@ function createLocationsService(deps) {
   const transactionRunner = deps.transactionRunner;
   const now = deps.now ?? (() => new Date());
 
-  async function assertCreationLimit(organizationId, limitKey, currentUsage) {
-    if (typeof evaluateEntitlement !== 'function') {
-      return;
-    }
-    const result = await evaluateEntitlement(organizationId, {
-      label: 'operational+limit',
-      limitKey,
-      currentUsage,
-    });
-    if (!result.allowed && result.reason === 'limit_reached') {
-      throw forbidden(`Plan limit reached for ${limitKey}`, [
-        { limitKey, reason: result.reason, ...(result.limit ?? {}) },
-      ]);
-    }
-    // plan_missing / limit_unconfigured: do not invent commercial limits (SUBSCRIPTION_AND_BILLING).
-    return result;
-  }
-
   return {
     async listBranches(organizationId) {
       const items = await store.listBranches(organizationId);
@@ -87,7 +73,12 @@ function createLocationsService(deps) {
     async createBranch(organizationId, body, actor) {
       const input = parseBranchCreate(body);
       const currentUsage = await store.countBranches(organizationId);
-      const entitlement = await assertCreationLimit(organizationId, 'branches', currentUsage);
+      const entitlement = await assertCreationLimit(
+        evaluateEntitlement,
+        organizationId,
+        'branches',
+        currentUsage,
+      );
 
       try {
         return await transactionRunner.run(async (session) => {
@@ -105,10 +96,7 @@ function createLocationsService(deps) {
             metadata: { invoicePrefix: created.invoicePrefix },
           });
           const dto = toBranchDto(created);
-          if (entitlement?.limit?.softWarning === true) {
-            return { ...dto, softWarning: entitlement.limit };
-          }
-          return dto;
+          return attachSoftWarning(dto, entitlement);
         });
       } catch (error) {
         mapDuplicate(error, 'Branch name or invoice prefix already exists in this organization');
@@ -159,7 +147,12 @@ function createLocationsService(deps) {
     async createWarehouse(organizationId, body, actor) {
       const input = parseWarehouseCreate(body);
       const currentUsage = await store.countWarehouses(organizationId);
-      const entitlement = await assertCreationLimit(organizationId, 'warehouses', currentUsage);
+      const entitlement = await assertCreationLimit(
+        evaluateEntitlement,
+        organizationId,
+        'warehouses',
+        currentUsage,
+      );
 
       try {
         return await transactionRunner.run(async (session) => {
@@ -176,10 +169,7 @@ function createLocationsService(deps) {
             resourceId: String(created['_id']),
           });
           const dto = toWarehouseDto(created);
-          if (entitlement?.limit?.softWarning === true) {
-            return { ...dto, softWarning: entitlement.limit };
-          }
-          return dto;
+          return attachSoftWarning(dto, entitlement);
         });
       } catch (error) {
         mapDuplicate(error, 'Warehouse name already exists in this organization');

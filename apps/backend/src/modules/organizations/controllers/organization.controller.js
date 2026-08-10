@@ -114,6 +114,24 @@ function createOrganizationController(deps) {
         next(error);
       }
     },
+
+    async getSetupProgress(req, res, next) {
+      try {
+        const organizationId = req.authContext?.organizationId;
+        if (typeof organizationId !== 'string' || organizationId === '') {
+          throw notFound('Organization not found');
+        }
+        if (typeof deps.setupProgressService?.getSetupProgress !== 'function') {
+          throw forbidden('Setup progress is unavailable');
+        }
+        const data = await deps.setupProgressService.getSetupProgress(organizationId, {
+          permissions: req.authContext?.permissions ?? [],
+        });
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
   };
 }
 

@@ -87,6 +87,13 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'organization/setup',
+        loadComponent: () =>
+          import('./features/organization/pages/setup/organization-setup.page').then(
+            (m) => m.OrganizationSetupPage,
+          ),
+      },
+      {
         path: 'branches',
         loadComponent: () =>
           import('./features/branches-warehouses/pages/branches/branches.page').then(
@@ -145,6 +152,110 @@ export const appRoutes: Route[] = [
         loadComponent: () =>
           import('./features/users-access/pages/employee-form/employee-form.page').then(
             (m) => m.EmployeeFormPage,
+          ),
+      },
+      {
+        path: 'categories',
+        loadComponent: () =>
+          import('./features/catalog/pages/categories/categories.page').then((m) => m.CategoriesPage),
+      },
+      {
+        path: 'categories/new',
+        loadComponent: () =>
+          import('./features/catalog/pages/category-form/category-form.page').then(
+            (m) => m.CategoryFormPage,
+          ),
+      },
+      {
+        path: 'categories/:id',
+        loadComponent: () =>
+          import('./features/catalog/pages/category-form/category-form.page').then(
+            (m) => m.CategoryFormPage,
+          ),
+      },
+      {
+        path: 'products',
+        loadComponent: () =>
+          import('./features/catalog/pages/products/products.page').then((m) => m.ProductsPage),
+      },
+      {
+        path: 'products/new',
+        loadComponent: () =>
+          import('./features/catalog/pages/product-form/product-form.page').then(
+            (m) => m.ProductFormPage,
+          ),
+      },
+      {
+        path: 'products/:id/pricing',
+        loadComponent: () =>
+          import('./features/catalog/pages/product-pricing/product-pricing.page').then(
+            (m) => m.ProductPricingPage,
+          ),
+      },
+      {
+        path: 'products/:id',
+        loadComponent: () =>
+          import('./features/catalog/pages/product-form/product-form.page').then(
+            (m) => m.ProductFormPage,
+          ),
+      },
+      {
+        path: 'customers',
+        loadComponent: () =>
+          import('./features/customers/pages/customers/customers.page').then((m) => m.CustomersPage),
+      },
+      {
+        path: 'customers/new',
+        loadComponent: () =>
+          import('./features/customers/pages/customer-form/customer-form.page').then(
+            (m) => m.CustomerFormPage,
+          ),
+      },
+      {
+        path: 'customers/:id',
+        loadComponent: () =>
+          import('./features/customers/pages/customer-form/customer-form.page').then(
+            (m) => m.CustomerFormPage,
+          ),
+      },
+      {
+        path: 'suppliers',
+        loadComponent: () =>
+          import('./features/suppliers/pages/suppliers/suppliers.page').then((m) => m.SuppliersPage),
+      },
+      {
+        path: 'suppliers/new',
+        loadComponent: () =>
+          import('./features/suppliers/pages/supplier-form/supplier-form.page').then(
+            (m) => m.SupplierFormPage,
+          ),
+      },
+      {
+        path: 'suppliers/:id',
+        loadComponent: () =>
+          import('./features/suppliers/pages/supplier-form/supplier-form.page').then(
+            (m) => m.SupplierFormPage,
+          ),
+      },
+      {
+        path: 'accounts',
+        loadComponent: () =>
+          import('./features/accounts-expenses/pages/accounts/accounts.page').then(
+            (m) => m.AccountsPage,
+          ),
+      },
+      {
+        path: 'accounts/new',
+        loadComponent: () =>
+          import('./features/accounts-expenses/pages/account-form/account-form.page').then(
+            (m) => m.AccountFormPage,
+          ),
+      },
+      {
+        path: 'accounts/:id',
+        loadComponent: () =>
+          import('./features/accounts-expenses/pages/account-form/account-form.page').then(
+            (m) => m.AccountFormPage,
           ),
       },
     ],

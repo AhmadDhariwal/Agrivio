@@ -67,6 +67,25 @@ export const API_WAREHOUSES_PATH = `${API_V1_PREFIX}/warehouses` as const;
 /** Organization employees / memberships (R1-F03-004). */
 export const API_USERS_PATH = `${API_V1_PREFIX}/users` as const;
 
+/** Product categories (R1-F03-005). */
+export const API_PRODUCT_CATEGORIES_PATH = `${API_V1_PREFIX}/product-categories` as const;
+
+/** Products (R1-F03-005/006/007). */
+export const API_PRODUCTS_PATH = `${API_V1_PREFIX}/products` as const;
+
+/** Customers (R1-F03-008). */
+export const API_CUSTOMERS_PATH = `${API_V1_PREFIX}/customers` as const;
+
+/** Suppliers (R1-F03-009). */
+export const API_SUPPLIERS_PATH = `${API_V1_PREFIX}/suppliers` as const;
+
+/** Accounts master data (R1-F03-010). */
+export const API_ACCOUNTS_PATH = `${API_V1_PREFIX}/accounts` as const;
+
+/** Guided organization setup progress (R1-F03-013). */
+export const API_ORGANIZATION_SETUP_PROGRESS_PATH =
+  `${API_V1_PREFIX}/organization/setup-progress` as const;
+
 /** Organization subscription status and entitlements (R1-F02-010/011). */
 export const API_SUBSCRIPTION_PATH = `${API_V1_PREFIX}/subscription` as const;
 

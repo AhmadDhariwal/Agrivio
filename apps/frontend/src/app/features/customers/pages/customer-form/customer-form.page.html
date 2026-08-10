@@ -1,0 +1,115 @@
+<agrivio-ui-page-header
+  [title]="customerId() ? 'Edit customer' : 'Create customer'"
+  eyebrow="Sales"
+  lede="Capture customer type, price tier, and credit policy."
+/>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading customer…" />
+} @else if (!canManage()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to manage customers." />
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+  @if (softWarning(); as warning) {
+    <agrivio-ui-alert tone="warning" [message]="warning" data-testid="plan-soft-warning" />
+  }
+  <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="customer-form">
+    <label>
+      Name
+      <input formControlName="name" data-testid="customer-name" />
+    </label>
+    <label>
+      Phone
+      <input formControlName="phone" data-testid="customer-phone" />
+    </label>
+    <label>
+      Customer type
+      <select formControlName="customerType" data-testid="customer-type">
+        <option value="walk_in">Walk-in</option>
+        <option value="farmer">Farmer</option>
+        <option value="individual">Individual</option>
+        <option value="business">Business</option>
+        <option value="corporate">Corporate</option>
+      </select>
+    </label>
+    <label>
+      Price tier
+      <select formControlName="priceTier" data-testid="customer-price-tier">
+        <option value="retail">Retail</option>
+        <option value="wholesale">Wholesale</option>
+        <option value="dealer">Dealer</option>
+        <option value="distributor">Distributor</option>
+      </select>
+    </label>
+    <label class="checkbox">
+      <input type="checkbox" formControlName="creditEnabled" data-testid="customer-credit-enabled" />
+      Credit enabled
+    </label>
+    <label>
+      Credit limit (PKR)
+      <input formControlName="creditLimitAmount" data-testid="customer-credit-limit" />
+    </label>
+    <label>
+      Credit limit behaviour
+      <select formControlName="creditLimitBehaviour" data-testid="customer-credit-behaviour">
+        <option value="warning">Warning</option>
+        <option value="manager_approval">Manager approval</option>
+        <option value="block">Block</option>
+      </select>
+    </label>
+    @if (customerId()) {
+      <label>
+        Status
+        <select formControlName="status" data-testid="customer-status">
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </label>
+    }
+    <div class="ag-inline">
+      <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="customer-save">Save</button>
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/customers">Cancel</a>
+    </div>
+  </form>
+
+  @if (customerId() && canPostOpening()) {
+    <section class="ag-stack form" data-testid="customer-opening-section">
+      <h2>Opening balance</h2>
+      @if (openingPosted()) {
+        <p class="ag-muted" data-testid="customer-opening-posted">
+          Opening already posted.
+          @if (derivedReceivable(); as receivable) {
+            Receivable {{ receivable }} PKR.
+          }
+          @if (derivedAdvance(); as advance) {
+            Advance {{ advance }} PKR.
+          }
+        </p>
+      } @else {
+        <form class="ag-stack" [formGroup]="openingForm" (ngSubmit)="postOpening()">
+          <label>
+            Kind
+            <select formControlName="kind" data-testid="customer-opening-kind">
+              <option value="receivable">Receivable</option>
+              <option value="advance">Advance</option>
+            </select>
+          </label>
+          <label>
+            Amount (PKR)
+            <input formControlName="amount" data-testid="customer-opening-amount" />
+          </label>
+          <button
+            class="ag-btn"
+            type="submit"
+            [disabled]="postingOpening()"
+            data-testid="customer-opening-save"
+          >
+            Post opening
+          </button>
+        </form>
+      }
+    </section>
+  }
+}

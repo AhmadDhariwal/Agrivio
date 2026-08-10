@@ -1,0 +1,89 @@
+<agrivio-ui-page-header
+  [title]="productId() ? 'Edit product' : 'Create product'"
+  eyebrow="Catalog"
+  lede="Define product identity, tracking mode, base unit, and packaging conversions."
+/>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading product…" />
+} @else if (!canManage()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to manage products." />
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+  <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="product-form">
+    <label>
+      Category
+      <select formControlName="categoryId" data-testid="product-category">
+        <option value="" disabled>Select category</option>
+        @for (category of categories(); track category.id) {
+          <option [value]="category.id">{{ category.name }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Name
+      <input formControlName="name" data-testid="product-name" />
+    </label>
+    <label>
+      SKU (optional)
+      <input formControlName="sku" data-testid="product-sku" />
+    </label>
+    <label>
+      Tracking mode
+      <select formControlName="trackingMode" data-testid="product-tracking-mode">
+        <option value="none">None</option>
+        <option value="batch">Batch</option>
+        <option value="batch_expiry">Batch + expiry</option>
+      </select>
+    </label>
+    <label>
+      Base unit code
+      <input formControlName="baseUnitCode" data-testid="product-base-unit" />
+    </label>
+    <label>
+      Measurement dimension
+      <select formControlName="measurementDimension" data-testid="product-measurement-dimension">
+        <option value="mass">Mass</option>
+        <option value="volume">Volume</option>
+      </select>
+    </label>
+    @if (productId()) {
+      <label>
+        Status
+        <select formControlName="status" data-testid="product-status">
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </label>
+    }
+
+    <fieldset class="packaging" formArrayName="packagingUnits">
+      <legend>Packaging units</legend>
+      @for (unit of packagingUnits.controls; track $index; let i = $index) {
+        <div class="packaging-row" [formGroupName]="i">
+          <label>
+            Name
+            <input formControlName="name" data-testid="packaging-unit-name" />
+          </label>
+          <label>
+            Conversion factor
+            <input formControlName="conversionFactor" data-testid="packaging-conversion" />
+          </label>
+          <button class="ag-btn ag-btn--secondary" type="button" (click)="removePackagingUnit(i)">
+            Remove
+          </button>
+        </div>
+      }
+      <button class="ag-btn ag-btn--secondary" type="button" (click)="addPackagingUnit()">
+        Add packaging unit
+      </button>
+    </fieldset>
+
+    <div class="ag-inline">
+      <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="product-save">Save</button>
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/products">Cancel</a>
+    </div>
+  </form>
+}

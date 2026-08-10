@@ -1,0 +1,54 @@
+<agrivio-ui-page-header
+  title="Organization setup"
+  eyebrow="Getting started"
+  lede="Complete these steps to prepare your organization for operations. Inventory and trading workflows come later."
+>
+  <button type="button" class="ag-btn ag-btn--secondary" data-testid="setup-refresh" (click)="reload()">
+    Refresh
+  </button>
+</agrivio-ui-page-header>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading setup progress…" />
+} @else if (errorMessage(); as error) {
+  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+} @else if (progress(); as data) {
+  @if (data.readyForOperations) {
+    <agrivio-ui-alert
+      tone="success"
+      message="F03 setup steps are complete. Inventory, purchases, and sales are not in scope yet."
+      data-testid="setup-ready"
+    />
+  }
+
+  @if (data.steps.length === 0) {
+    <agrivio-ui-empty-state title="No setup steps" message="Setup steps could not be derived." />
+  } @else {
+    <div class="ag-stack setup-list" data-testid="setup-steps">
+      @for (step of data.steps; track step.id) {
+        <article class="setup-row" [attr.data-testid]="'setup-step-' + step.id">
+          <div>
+            <strong>{{ step.title }}</strong>
+            <p class="ag-muted">{{ step.id }}</p>
+          </div>
+          <div class="ag-inline">
+            <agrivio-ui-status-badge [label]="step.status" [tone]="toneFor(step)" />
+            @if (step.status !== 'blocked') {
+              <a class="ag-btn ag-btn--secondary" [routerLink]="step.href" [attr.data-testid]="'setup-link-' + step.id">
+                Open
+              </a>
+            }
+          </div>
+        </article>
+      }
+    </div>
+  }
+
+  @if (data.notes.length > 0) {
+    <ul class="notes" data-testid="setup-notes">
+      @for (note of data.notes; track note) {
+        <li class="ag-muted">{{ note }}</li>
+      }
+    </ul>
+  }
+}
