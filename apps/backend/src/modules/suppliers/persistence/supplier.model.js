@@ -22,6 +22,22 @@ const supplierSchema = new mongoose.Schema(
       enum: SUPPLIER_STATUSES,
       default: 'active',
     },
+    openingBalance: {
+      type: {
+        kind: { type: String, enum: ['payable', 'advance'], required: true },
+        amountMinorUnits: { type: String, required: true },
+        currency: { type: String, required: true, default: 'PKR', enum: ['PKR'] },
+        postedAt: { type: Date, required: true },
+        postedBy: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'User' },
+        ledgerEffectId: {
+          type: mongoose.Schema.Types.ObjectId,
+          required: true,
+          ref: 'LedgerEffect',
+        },
+        status: { type: String, required: true, enum: ['posted'], default: 'posted' },
+      },
+      default: undefined,
+    },
     version: { type: Number, required: true, default: 1 },
   },
   { timestamps: true, collection: 'suppliers' },

@@ -9,6 +9,7 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { mapPlanLimitError } from '../../../../core/plan-limits/plan-limit-feedback';
 
 @Component({
   selector: 'agrivio-product-form-page',
@@ -198,6 +199,6 @@ export class ProductFormPage {
     if (error.error?.error?.code === 'VERSION_CONFLICT') {
       return 'This product changed elsewhere. Reload and try again.';
     }
-    return error.error?.error?.message ?? fallback;
+    return mapPlanLimitError(error, error.error?.error?.message ?? fallback);
   }
 }

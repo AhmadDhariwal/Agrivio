@@ -103,4 +103,28 @@ export class CustomersApi {
       ),
     );
   }
+
+  postOpeningBalance(
+    id: string,
+    payload: { kind: string; amount: { amount: string; currency: string } },
+    idempotencyKey: string,
+  ): Observable<CustomerRecord> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: CustomerRecord }>(
+            `${environment.publicApiBaseUrl}/api/v1/customers/${id}/opening-balance`,
+            payload,
+            {
+              withCredentials: true,
+              headers: {
+                'X-CSRF-Token': csrfToken,
+                'Idempotency-Key': idempotencyKey,
+              },
+            },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
 }

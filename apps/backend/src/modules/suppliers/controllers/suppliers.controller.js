@@ -58,6 +58,21 @@ function createSuppliersController(deps) {
         next(error);
       }
     },
+
+    async postOpeningBalance(req, res, next) {
+      try {
+        const result = await deps.suppliersService.postOpeningBalance(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.body,
+          { actorId: String(req.authContext.userId) },
+          req.get('Idempotency-Key'),
+        );
+        sendSuccessEnvelope(res, result.statusCode ?? 201, result.data);
+      } catch (error) {
+        next(error);
+      }
+    },
   };
 }
 

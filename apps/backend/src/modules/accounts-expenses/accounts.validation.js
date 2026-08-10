@@ -149,8 +149,9 @@ function parseAccountPatch(body) {
   return { expectedVersion, patch };
 }
 
-function toAccountDto(record) {
-  return {
+function toAccountDto(record, derivedBalances) {
+  const opening = record['openingBalance'];
+  const dto = {
     id: String(record['_id']),
     organizationId: String(record['organizationId']),
     accountType: String(record['accountType']),
@@ -161,12 +162,101 @@ function toAccountDto(record) {
     status: String(record['status']),
     version: Number(record['version'] ?? 1),
   };
+  if (opening && opening.status === 'posted') {
+    dto.openingBalance = {
+      kind: String(opening.kind ?? 'balance'),
+      amount: {
+        amount: require('../../platform/primitives/money-and-time').formatMoneyMinorUnits(
+          BigInt(String(opening.amountMinorUnits ?? '0')),
+        ),
+        currency: String(opening.currency ?? 'PKR'),
+      },
+      postedAt:
+        opening.postedAt instanceof Date
+          ? opening.postedAt.toISOString()
+          : String(opening.postedAt),
+      postedBy: String(opening.postedBy),
+      accountMovementId: String(opening.accountMovementId),
+      status: 'posted',
+    };
+  }
+  if (derivedBalances !== undefined) {
+    dto.derivedBalances = derivedBalances;
+  }
+  return dto;
+}
+
+function parsePositiveMoneyInput(value, field) {
+  const { parseMoneyMinorUnits } = require('../../platform/primitives/money-and-time');
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw validationFailed(`${field} must be a money object`, [
+      { field, message: `${field} must be { amount, currency }` },
+    ]);
+  }
+  if (typeof value.amount !== 'string') {
+    throw validationFailed(`${field}.amount must be a decimal string`, [
+      { field: `${field}.amount`, message: 'amount must be a decimal string' },
+    ]);
+  }
+  const currency = value.currency === undefined ? 'PKR' : value.currency;
+  if (currency !== 'PKR') {
+    throw validationFailed('Only PKR is supported in Release 1', [
+      { field: `${field}.currency`, message: 'currency must be PKR' },
+    ]);
+  }
+  let minor;
+  try {
+    minor = parseMoneyMinorUnits(value.amount);
+  } catch {
+    throw validationFailed(`${field}.amount is invalid`, [
+      { field: `${field}.amount`, message: 'amount must have up to two decimal places' },
+    ]);
+  }
+  if (minor <= 0n) {
+    throw validationFailed(`${field}.amount must be greater than zero`, [
+      { field: `${field}.amount`, message: 'amount must be greater than zero' },
+    ]);
+  }
+  return { amountMinorUnits: minor.toString(), currency: 'PKR' };
+}
+
+function parseAccountOpeningBalance(body) {
+  assertObjectBody(body);
+  const money = parsePositiveMoneyInput(body.amount, 'amount');
+  return {
+    amountMinorUnits: money.amountMinorUnits,
+    currency: money.currency,
+  };
+}
+
+function toAccountMovementDto(record) {
+  return {
+    id: String(record['_id']),
+    organizationId: String(record['organizationId']),
+    accountId: String(record['accountId']),
+    signedAmount: {
+      amount: require('../../platform/primitives/money-and-time').formatMoneyMinorUnits(
+        BigInt(String(record['signedAmountMinorUnits'] ?? '0')),
+      ),
+      currency: String(record['currency'] ?? 'PKR'),
+    },
+    sourceType: String(record['sourceType']),
+    sourceId: String(record['sourceId']),
+    status: String(record['status']),
+    postedAt:
+      record['postedAt'] instanceof Date
+        ? record['postedAt'].toISOString()
+        : String(record['postedAt']),
+    postedBy: String(record['postedBy']),
+  };
 }
 
 module.exports = {
   parseExpectedVersion,
   parseAccountCreate,
   parseAccountPatch,
+  parseAccountOpeningBalance,
   toAccountDto,
+  toAccountMovementDto,
   ACCOUNT_TYPES,
 };

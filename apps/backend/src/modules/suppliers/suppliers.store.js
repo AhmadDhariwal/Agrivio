@@ -20,6 +20,13 @@ function createMongooseSuppliersStore() {
       return SupplierModel.countDocuments({ organizationId }).exec();
     },
 
+    async countSuppliersWithOpening(organizationId) {
+      return SupplierModel.countDocuments({
+        organizationId,
+        'openingBalance.status': 'posted',
+      }).exec();
+    },
+
     async findSupplierById(organizationId, id) {
       if (!mongoose.isValidObjectId(id)) {
         return null;
@@ -93,6 +100,15 @@ function createInMemorySuppliersStore() {
     async countSuppliers(organizationId) {
       return [...suppliers.values()].filter(
         (item) => String(item.organizationId) === String(organizationId),
+      ).length;
+    },
+
+    async countSuppliersWithOpening(organizationId) {
+      return [...suppliers.values()].filter(
+        (item) =>
+          String(item.organizationId) === String(organizationId) &&
+          item.openingBalance &&
+          item.openingBalance.status === 'posted',
       ).length;
     },
 

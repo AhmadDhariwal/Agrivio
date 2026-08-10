@@ -25,6 +25,9 @@
         <a routerLink="/context">Switch context</a>
         @if (canViewSettings()) {
           <a routerLink="/app/organization/settings" routerLinkActive="active">Settings</a>
+          <a routerLink="/app/organization/setup" routerLinkActive="active" data-testid="nav-setup">
+            Setup
+          </a>
         }
         @if (canViewBranches()) {
           <a routerLink="/app/branches" routerLinkActive="active">Branches</a>

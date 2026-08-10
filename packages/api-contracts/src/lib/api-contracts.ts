@@ -82,6 +82,10 @@ export const API_SUPPLIERS_PATH = `${API_V1_PREFIX}/suppliers` as const;
 /** Accounts master data (R1-F03-010). */
 export const API_ACCOUNTS_PATH = `${API_V1_PREFIX}/accounts` as const;
 
+/** Guided organization setup progress (R1-F03-013). */
+export const API_ORGANIZATION_SETUP_PROGRESS_PATH =
+  `${API_V1_PREFIX}/organization/setup-progress` as const;
+
 /** Organization subscription status and entitlements (R1-F02-010/011). */
 export const API_SUBSCRIPTION_PATH = `${API_V1_PREFIX}/subscription` as const;
 

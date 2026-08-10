@@ -4,7 +4,11 @@ const {
 } = require('../../platform/transactions/transaction-runner');
 const { createAuditWriter } = require('../../platform/audit/audit-writer');
 const { assertOptimisticVersion } = require('../../platform/validation/request-validation');
-const { conflict, forbidden, notFound } = require('../../platform/errors/app-error');
+const { conflict, notFound } = require('../../platform/errors/app-error');
+const {
+  assertCreationLimit,
+  attachSoftWarning,
+} = require('../subscriptions/creation-limit');
 const {
   parseCategoryCreate,
   parseCategoryPatch,
@@ -49,23 +53,6 @@ function createCatalogService(deps) {
     append: (session, event) => store.appendAuditEvent(session, event),
   });
   const transactionRunner = deps.transactionRunner;
-
-  async function assertCreationLimit(organizationId, limitKey, currentUsage) {
-    if (typeof evaluateEntitlement !== 'function') {
-      return;
-    }
-    const result = await evaluateEntitlement(organizationId, {
-      label: 'operational+limit',
-      limitKey,
-      currentUsage,
-    });
-    if (!result.allowed && result.reason === 'limit_reached') {
-      throw forbidden(`Plan limit reached for ${limitKey}`, [
-        { limitKey, reason: result.reason, ...(result.limit ?? {}) },
-      ]);
-    }
-    return result;
-  }
 
   async function requireCategory(organizationId, categoryId) {
     const category = await store.findCategoryById(organizationId, categoryId);
@@ -161,7 +148,12 @@ function createCatalogService(deps) {
       const category = await requireCategory(organizationId, input.categoryId);
       assertTrackingModeAllowed(category.productClass, input.trackingMode);
       const currentUsage = await store.countProducts(organizationId);
-      const entitlement = await assertCreationLimit(organizationId, 'products', currentUsage);
+      const entitlement = await assertCreationLimit(
+        evaluateEntitlement,
+        organizationId,
+        'products',
+        currentUsage,
+      );
 
       try {
         return await transactionRunner.run(async (session) => {
@@ -182,10 +174,7 @@ function createCatalogService(deps) {
             },
           });
           const dto = toProductDto(created);
-          if (entitlement?.limit?.softWarning === true) {
-            return { ...dto, softWarning: entitlement.limit };
-          }
-          return dto;
+          return attachSoftWarning(dto, entitlement);
         });
       } catch (error) {
         mapDuplicate(error, 'Product SKU already exists in this organization');

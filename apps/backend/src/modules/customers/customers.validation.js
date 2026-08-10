@@ -235,8 +235,9 @@ function parseCreditPolicyPatch(body) {
   return { expectedVersion, patch };
 }
 
-function toCustomerDto(record) {
-  return {
+function toCustomerDto(record, derivedBalances) {
+  const opening = record['openingBalance'];
+  const dto = {
     id: String(record['_id']),
     organizationId: String(record['organizationId']),
     name: String(record['name']),
@@ -252,6 +253,52 @@ function toCustomerDto(record) {
     status: String(record['status']),
     version: Number(record['version'] ?? 1),
   };
+  if (opening && opening.status === 'posted') {
+    dto.openingBalance = {
+      kind: String(opening.kind),
+      amount: {
+        amount: formatMoneyMinorUnits(BigInt(String(opening.amountMinorUnits ?? '0'))),
+        currency: String(opening.currency ?? 'PKR'),
+      },
+      postedAt:
+        opening.postedAt instanceof Date
+          ? opening.postedAt.toISOString()
+          : String(opening.postedAt),
+      postedBy: String(opening.postedBy),
+      ledgerEffectId: String(opening.ledgerEffectId),
+      status: 'posted',
+    };
+  }
+  if (derivedBalances !== undefined) {
+    dto.derivedBalances = derivedBalances;
+  }
+  return dto;
+}
+
+function parsePositiveMoneyInput(value, field) {
+  const money = parseMoneyInput(value, field);
+  if (BigInt(money.amountMinorUnits) <= 0n) {
+    throw validationFailed(`${field}.amount must be greater than zero`, [
+      { field: `${field}.amount`, message: 'amount must be greater than zero' },
+    ]);
+  }
+  return money;
+}
+
+function parseCustomerOpeningBalance(body) {
+  assertObjectBody(body);
+  const kind = body.kind;
+  if (kind !== 'receivable' && kind !== 'advance') {
+    throw validationFailed('kind must be receivable or advance', [
+      { field: 'kind', message: 'kind must be receivable or advance' },
+    ]);
+  }
+  const money = parsePositiveMoneyInput(body.amount, 'amount');
+  return {
+    kind,
+    amountMinorUnits: money.amountMinorUnits,
+    currency: money.currency,
+  };
 }
 
 module.exports = {
@@ -259,6 +306,7 @@ module.exports = {
   parseCustomerCreate,
   parseCustomerPatch,
   parseCreditPolicyPatch,
+  parseCustomerOpeningBalance,
   assertWalkInCreditPolicy,
   toCustomerDto,
   CUSTOMER_TYPES,

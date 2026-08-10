@@ -40,6 +40,8 @@ const { createSuppliersModule } = require('./modules/suppliers/suppliers.module'
 const { registerSuppliersRoutes } = require('./modules/suppliers/routes/suppliers.routes');
 const { createAccountsModule } = require('./modules/accounts-expenses/accounts.module');
 const { registerAccountsRoutes } = require('./modules/accounts-expenses/routes/accounts.routes');
+const { createLedgersModule } = require('./modules/payments-ledgers/ledgers.module');
+const { createSetupProgressService } = require('./modules/settings/setup-progress.service');
 
 function createApp(options) {
   const { config, database } = options;
@@ -153,12 +155,20 @@ function createApp(options) {
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
+  const ledgers =
+    options.ledgers ??
+    createLedgersModule({
+      persistence,
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+
   const customers =
     options.customers ??
     createCustomersModule({
       persistence,
       evaluateEntitlement: (organizationId, entitlementOptions) =>
         subscriptions.subscriptionService.evaluateEntitlement(organizationId, entitlementOptions),
+      ledgersService: options.ledgersService ?? ledgers.ledgersService,
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
@@ -168,6 +178,7 @@ function createApp(options) {
       persistence,
       evaluateEntitlement: (organizationId, entitlementOptions) =>
         subscriptions.subscriptionService.evaluateEntitlement(organizationId, entitlementOptions),
+      ledgersService: options.ledgersService ?? ledgers.ledgersService,
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
@@ -176,6 +187,33 @@ function createApp(options) {
     createAccountsModule({
       persistence,
       ...(options.now === undefined ? {} : { now: options.now }),
+    });
+
+  const setupProgressService =
+    options.setupProgressService ??
+    createSetupProgressService({
+      findOrganizationById: (id) => onboardingCore.store.findOrganizationById(id),
+      findSettingsByOrganizationId: (organizationId) =>
+        settings.store.findByOrganizationId(organizationId),
+      countBranches: (organizationId) => locations.store.countBranches(organizationId),
+      countWarehouses: (organizationId) => locations.store.countWarehouses(organizationId),
+      countActiveMemberships: async (organizationId) => {
+        const memberships = await employees.store.listMembershipsByOrganizationId(organizationId);
+        return memberships.filter((item) => item.status === 'active').length;
+      },
+      countCategories: (organizationId) => catalog.store.countCategories(organizationId),
+      countProducts: (organizationId) => catalog.store.countProducts(organizationId),
+      countPackagingUnits: (organizationId) => catalog.store.countPackagingUnits(organizationId),
+      countProductPrices: (organizationId) => catalog.store.countProductPrices(organizationId),
+      countCustomers: (organizationId) => customers.store.countCustomers(organizationId),
+      countSuppliers: (organizationId) => suppliers.store.countSuppliers(organizationId),
+      countAccounts: (organizationId) => accounts.store.countAccounts(organizationId),
+      countCustomersWithOpening: (organizationId) =>
+        customers.store.countCustomersWithOpening(organizationId),
+      countSuppliersWithOpening: (organizationId) =>
+        suppliers.store.countSuppliersWithOpening(organizationId),
+      countAccountsWithOpening: (organizationId) =>
+        accounts.store.countAccountsWithOpening(organizationId),
     });
 
   const onboardingRoutes = registerOnboardingRoutes({
@@ -198,6 +236,7 @@ function createApp(options) {
     },
     requireBillingAccess: subscriptions.middlewares.requireBillingAccess,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+    setupProgressService,
   });
 
   const subscriptionRoutes = registerSubscriptionRoutes({
@@ -316,6 +355,8 @@ function createApp(options) {
     customers,
     suppliers,
     accounts,
+    ledgers,
+    setupProgressService,
   };
 
   return app;

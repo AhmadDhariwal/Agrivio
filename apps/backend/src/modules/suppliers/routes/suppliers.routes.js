@@ -57,6 +57,18 @@ function registerSuppliersRoutes(deps) {
     },
   );
 
+  router.post(
+    `${API_SUPPLIERS_PATH}/:id/opening-balance`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('suppliers.opening-balance.post'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.postOpeningBalance(req, res, next);
+    },
+  );
+
   return router;
 }
 

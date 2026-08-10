@@ -7,6 +7,7 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { AccountRecord } from '../../models/accounts.models';
 
 @Component({
   selector: 'agrivio-account-form-page',
@@ -31,8 +32,14 @@ export class AccountFormPage {
   readonly accountId = signal<string | null>(null);
   readonly loading = signal(false);
   readonly saving = signal(false);
+  readonly postingOpening = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly openingPosted = signal(false);
+  readonly derivedBalance = signal<string | null>(null);
   readonly canManage = computed(() => this.sessionStore.hasPermission('accounts.manage'));
+  readonly canPostOpening = computed(() =>
+    this.sessionStore.hasPermission('accounts.opening-balance.post'),
+  );
   readonly accountType = signal('cash');
   private version = 1;
 
@@ -43,6 +50,10 @@ export class AccountFormPage {
     accountNumberMasked: [''],
     walletIdentifier: [''],
     status: ['active'],
+  });
+
+  readonly openingForm = this.formBuilder.nonNullable.group({
+    amount: ['', [Validators.required]],
   });
 
   constructor() {
@@ -56,17 +67,7 @@ export class AccountFormPage {
       this.loading.set(true);
       this.api.getAccount(id).subscribe({
         next: (account) => {
-          this.version = account.version;
-          this.accountType.set(account.accountType);
-          this.form.patchValue({
-            accountType: account.accountType,
-            name: account.name,
-            bankName: account.bankName,
-            accountNumberMasked: account.accountNumberMasked,
-            walletIdentifier: account.walletIdentifier,
-            status: account.status,
-          });
-          this.form.controls.accountType.disable();
+          this.applyAccount(account);
           this.loading.set(false);
         },
         error: (error: unknown) => {
@@ -141,6 +142,53 @@ export class AccountFormPage {
           this.errorMessage.set(this.mapError(error, 'Unable to save account.'));
         },
       });
+  }
+
+  postOpening(): void {
+    const id = this.accountId();
+    if (!id || !this.canPostOpening() || this.openingForm.invalid || this.openingPosted()) {
+      this.openingForm.markAllAsTouched();
+      return;
+    }
+    this.postingOpening.set(true);
+    this.errorMessage.set(null);
+    const value = this.openingForm.getRawValue();
+    this.api
+      .postOpeningBalance(
+        id,
+        { amount: { amount: value.amount.trim(), currency: 'PKR' } },
+        crypto.randomUUID(),
+      )
+      .subscribe({
+        next: (account) => {
+          this.postingOpening.set(false);
+          this.applyAccount(account);
+        },
+        error: (error: unknown) => {
+          this.postingOpening.set(false);
+          this.errorMessage.set(this.mapError(error, 'Unable to post opening balance.'));
+        },
+      });
+  }
+
+  private applyAccount(account: AccountRecord): void {
+    this.version = account.version;
+    this.accountType.set(account.accountType);
+    this.form.patchValue({
+      accountType: account.accountType,
+      name: account.name,
+      bankName: account.bankName,
+      accountNumberMasked: account.accountNumberMasked,
+      walletIdentifier: account.walletIdentifier,
+      status: account.status,
+    });
+    this.form.controls.accountType.disable();
+    this.openingPosted.set(Boolean(account.openingBalance));
+    this.derivedBalance.set(account.derivedBalances?.balance.amount ?? null);
+    if (account.openingBalance) {
+      this.openingForm.patchValue({ amount: account.openingBalance.amount.amount });
+      this.openingForm.disable();
+    }
   }
 
   private mapError(error: unknown, fallback: string): string {
