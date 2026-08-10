@@ -106,6 +106,18 @@ function createMongooseEmployeesStore() {
       return AccessAssignmentModel.find({ membershipId, status: 'active' }).lean().exec();
     },
 
+    async revokeAccessAssignmentsForMembership(session, membershipId, revokedAt) {
+      await AccessAssignmentModel.updateMany(
+        { membershipId, status: 'active' },
+        {
+          $set: { status: 'revoked' },
+          $inc: { version: 1 },
+        },
+        withSession(session),
+      ).exec();
+      return revokedAt;
+    },
+
     async revokeAllSessionsForUser(session, userId, revokedAt) {
       await AuthSessionModel.updateMany(
         { userId, revokedAt: { $exists: false } },
@@ -247,6 +259,21 @@ function createInMemoryEmployeesStore(options = {}) {
           (item) => String(item.membershipId) === String(membershipId) && item.status === 'active',
         )
         .map((item) => ({ ...item }));
+    },
+
+    async revokeAccessAssignmentsForMembership(_session, membershipId) {
+      for (const [id, assignment] of assignments.entries()) {
+        if (
+          String(assignment.membershipId) === String(membershipId) &&
+          assignment.status === 'active'
+        ) {
+          assignments.set(id, {
+            ...assignment,
+            status: 'revoked',
+            version: Number(assignment.version ?? 1) + 1,
+          });
+        }
+      }
     },
 
     async revokeAllSessionsForUser(_session, userId, revokedAt) {
