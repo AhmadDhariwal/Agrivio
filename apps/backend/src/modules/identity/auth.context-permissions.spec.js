@@ -325,7 +325,7 @@ describe('F02 Phase 3 active context and permissions', () => {
   });
 
   it('keeps API permission enforcement independent of frontend UI checks', () => {
-    const routesPath = join(here, '../organizations/organization.routes.js');
+    const routesPath = join(here, '../organizations/routes/organization.routes.js');
     const source = readFileSync(routesPath, 'utf8');
     expect(source).toContain("createRequirePermissionMiddleware('organization.view')");
     expect(source).toContain('createRequireOrganizationContextMiddleware');

@@ -4,9 +4,9 @@ const {
   OrganizationMembershipModel,
   PasswordResetTokenModel,
   UserModel,
-} = require('./identity.model');
-const { AuditEventModel } = require('../audit/audit-event.model');
-const { AccessAssignmentModel } = require('../locations/access-assignment.model');
+} = require('./persistence/identity.model');
+const { AuditEventModel } = require('../audit/persistence/audit-event.model');
+const { AccessAssignmentModel } = require('../locations/persistence/access-assignment.model');
 
 function withSession(session) {
   return session ? { session: session } : {};

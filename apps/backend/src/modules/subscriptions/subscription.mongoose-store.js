@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
-const { SubscriptionPlanModel } = require('./subscription-plan.model');
-const { SubscriptionModel } = require('./subscription.model');
-const { SubscriptionBillingRecordModel } = require('./subscription-billing-record.model');
-const { AuditEventModel } = require('../audit/audit-event.model');
+const { SubscriptionPlanModel } = require('./persistence/subscription-plan.model');
+const { SubscriptionModel } = require('./persistence/subscription.model');
+const { SubscriptionBillingRecordModel } = require('./persistence/subscription-billing-record.model');
+const { AuditEventModel } = require('../audit/persistence/audit-event.model');
 
 function withSession(session) {
   return session ? { session } : {};

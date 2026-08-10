@@ -30,6 +30,7 @@ Central navigation for Agrivio documentation.
 * F02 UI/UX hardening complete — see [tasks/F02-UI-UX-HARDENING.md](tasks/F02-UI-UX-HARDENING.md); **13** user-facing F02 pages/views polished; local `.env.local` auto-load for backend startup
 * Local runtime finalization (pre-F03) complete — see [tasks/LOCAL-RUNTIME-BEFORE-F03.md](tasks/LOCAL-RUNTIME-BEFORE-F03.md); native/Docker `rs0`, startup diagnostics, Angular CLI serve workspace file
 * F02 Owner activation handoff fix complete — see [tasks/F02-OWNER-ACTIVATION-HANDOFF.md](tasks/F02-OWNER-ACTIVATION-HANDOFF.md); approve/reissue absolute activation URL + copy UI
+* Pre-F03 architecture cleanup + Super Admin bootstrap complete — see [tasks/PRE-F03-SOURCE-LAYOUT-AND-SUPER-ADMIN-BOOTSTRAP.md](tasks/PRE-F03-SOURCE-LAYOUT-AND-SUPER-ADMIN-BOOTSTRAP.md); Angular cohesive page folders, shallow backend module layout, `npm run bootstrap:super-admin`
 * Next work item: **F03** after F02 stage verification is recorded
 
 ## Existing Documents
@@ -75,6 +76,7 @@ Central navigation for Agrivio documentation.
 | [tasks/F02-UI-UX-HARDENING.md](tasks/F02-UI-UX-HARDENING.md) | F02 final UI/UX hardening: visual system, routing, local env startup, frontend quality |
 | [tasks/LOCAL-RUNTIME-BEFORE-F03.md](tasks/LOCAL-RUNTIME-BEFORE-F03.md) | Pre-F03 local runtime: native/Docker Mongo `rs0`, backend diagnostics, serve paths |
 | [tasks/F02-OWNER-ACTIVATION-HANDOFF.md](tasks/F02-OWNER-ACTIVATION-HANDOFF.md) | F02 Owner activation approve/reissue handoff URL and UI |
+| [tasks/PRE-F03-SOURCE-LAYOUT-AND-SUPER-ADMIN-BOOTSTRAP.md](tasks/PRE-F03-SOURCE-LAYOUT-AND-SUPER-ADMIN-BOOTSTRAP.md) | Pre-F03 source-layout conventions + operational Super Admin bootstrap CLI |
 | [tasks/F01-PHASE-1-PLATFORM-RUNTIME.md](tasks/F01-PHASE-1-PLATFORM-RUNTIME.md) | F01 Phase 1: platform runtime foundation |
 | [tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md](tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md) | F01 Phase 2: transactional platform foundation (completes F01) |
 | [../README.md](../README.md) | Repository landing page |

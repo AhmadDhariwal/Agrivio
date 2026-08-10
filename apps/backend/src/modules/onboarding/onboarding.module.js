@@ -8,7 +8,7 @@ const {
   createMongooseTransactionSessionPort,
 } = require('./onboarding.mongoose-store');
 const { createOnboardingService } = require('./onboarding.service');
-const { registerOnboardingRoutes } = require('./onboarding.routes');
+const { registerOnboardingRoutes } = require('./routes/onboarding.routes');
 
 function createOnboardingModule(options) {
   const persistence = options.persistence ?? 'memory';

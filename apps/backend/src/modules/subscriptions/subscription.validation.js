@@ -1,6 +1,6 @@
 const { validationFailed } = require('../../platform/errors/app-error');
-const { PLAN_CODES } = require('./subscription-plan.model');
-const { PAYMENT_METHODS } = require('./subscription-billing-record.model');
+const { PLAN_CODES } = require('./persistence/subscription-plan.model');
+const { PAYMENT_METHODS } = require('./persistence/subscription-billing-record.model');
 
 function requireObject(body, label = 'body') {
   if (body === null || typeof body !== 'object' || Array.isArray(body)) {
