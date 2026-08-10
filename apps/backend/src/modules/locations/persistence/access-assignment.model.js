@@ -19,7 +19,10 @@ const accessAssignmentSchema = new mongoose.Schema(
       required: true,
       enum: ['branch', 'warehouse'],
     },
-    targetId: { type: String, required: true },
+    targetId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+    },
     status: {
       type: String,
       required: true,

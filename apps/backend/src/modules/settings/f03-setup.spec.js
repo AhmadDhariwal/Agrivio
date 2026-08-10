@@ -191,6 +191,8 @@ describe('F03 P1 settings/branches/warehouses/employees', () => {
       );
       expect(deactivate.status).toBe(200);
       expect(deactivate.body.data.status).toBe('deactivated');
+      expect(deactivate.body.data.branchIds).toEqual([]);
+      expect(deactivate.body.data.warehouseIds).toEqual([]);
 
       // Activate employee then confirm unauthorized role cannot manage users.
       await login(baseUrl, jar, 'f03-owner-a@example.com', 'a-strong-passphrase');

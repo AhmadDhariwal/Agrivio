@@ -299,6 +299,14 @@ function createEmployeesService(deps) {
           version: Number(membership['version']) + 1,
         });
 
+        if (typeof store.revokeAccessAssignmentsForMembership === 'function') {
+          await store.revokeAccessAssignmentsForMembership(
+            session,
+            String(membership['_id']),
+            now(),
+          );
+        }
+
         await store.revokeAllSessionsForUser(session, String(user['_id']), now());
 
         await auditWriter.appendBusinessEvent(session, {
@@ -309,7 +317,7 @@ function createEmployeesService(deps) {
           resourceId: String(membership['_id']),
         });
 
-        return toEmployeeDto(updatedMembership, user, loaded.assignments);
+        return toEmployeeDto(updatedMembership, user, []);
       });
     },
 
