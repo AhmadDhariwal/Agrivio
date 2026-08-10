@@ -1,0 +1,46 @@
+<agrivio-ui-page-header
+  [title]="supplierId() ? 'Edit supplier' : 'Create supplier'"
+  eyebrow="Purchasing"
+  lede="Record supplier name and contact details."
+/>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading supplier…" />
+} @else if (!canManage()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to manage suppliers." />
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+  <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="supplier-form">
+    <label>
+      Name
+      <input formControlName="name" data-testid="supplier-name" />
+    </label>
+    <label>
+      Phone
+      <input formControlName="phone" data-testid="supplier-phone" />
+    </label>
+    <label>
+      Contact name
+      <input formControlName="contactName" data-testid="supplier-contact-name" />
+    </label>
+    <label>
+      Email
+      <input formControlName="email" data-testid="supplier-email" />
+    </label>
+    @if (supplierId()) {
+      <label>
+        Status
+        <select formControlName="status" data-testid="supplier-status">
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </label>
+    }
+    <div class="ag-inline">
+      <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="supplier-save">Save</button>
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/suppliers">Cancel</a>
+    </div>
+  </form>
+}

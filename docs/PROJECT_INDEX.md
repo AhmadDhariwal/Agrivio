@@ -33,7 +33,8 @@ Central navigation for Agrivio documentation.
 * Pre-F03 architecture cleanup + Super Admin bootstrap complete — see [tasks/PRE-F03-SOURCE-LAYOUT-AND-SUPER-ADMIN-BOOTSTRAP.md](tasks/PRE-F03-SOURCE-LAYOUT-AND-SUPER-ADMIN-BOOTSTRAP.md); Angular cohesive page folders, shallow backend module layout, `npm run bootstrap:super-admin`
 * F03 Phase 1 complete (`R1-F03-001`–`R1-F03-004`) — see [tasks/F03-PHASE-1-ORG-SETUP.md](tasks/F03-PHASE-1-ORG-SETUP.md); organization settings, branches, warehouses, employees/access
 * Pre-F03 P2 implemented-model audit complete — see [tasks/PRE-F03-P2-IMPLEMENTED-MODEL-AUDIT.md](tasks/PRE-F03-P2-IMPLEMENTED-MODEL-AUDIT.md) and [MODEL_REVIEW_CHECKLIST.md](MODEL_REVIEW_CHECKLIST.md)
-* Next work item: **F03 P2** (`R1-F03-005`+) after model-audit acceptance
+* F03 Phase 2 complete (`R1-F03-005`–`R1-F03-010`) — see [tasks/F03-PHASE-2-MASTER-DATA.md](tasks/F03-PHASE-2-MASTER-DATA.md); categories/products/units/pricing, customers/credit policy, suppliers, accounts master data
+* Next work item: **F03 P3** (`R1-F03-011`+) openings / signed ledger foundations after F03 P2 acceptance
 
 ## Existing Documents
 
@@ -82,6 +83,7 @@ Central navigation for Agrivio documentation.
 | [tasks/PRE-F03-SOURCE-LAYOUT-AND-SUPER-ADMIN-BOOTSTRAP.md](tasks/PRE-F03-SOURCE-LAYOUT-AND-SUPER-ADMIN-BOOTSTRAP.md) | Pre-F03 source-layout conventions + operational Super Admin bootstrap CLI |
 | [tasks/F03-PHASE-1-ORG-SETUP.md](tasks/F03-PHASE-1-ORG-SETUP.md) | F03 Phase 1: organization settings, branches, warehouses, employees/access (`R1-F03-001`–`004`) |
 | [tasks/PRE-F03-P2-IMPLEMENTED-MODEL-AUDIT.md](tasks/PRE-F03-P2-IMPLEMENTED-MODEL-AUDIT.md) | Pre-F03 P2 implemented-model completeness/ownership/utilization audit |
+| [tasks/F03-PHASE-2-MASTER-DATA.md](tasks/F03-PHASE-2-MASTER-DATA.md) | F03 Phase 2: catalog/pricing, customers/credit, suppliers, accounts master (`R1-F03-005`–`010`) |
 | [tasks/F01-PHASE-1-PLATFORM-RUNTIME.md](tasks/F01-PHASE-1-PLATFORM-RUNTIME.md) | F01 Phase 1: platform runtime foundation |
 | [tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md](tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md) | F01 Phase 2: transactional platform foundation (completes F01) |
 | [../README.md](../README.md) | Repository landing page |

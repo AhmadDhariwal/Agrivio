@@ -32,6 +32,14 @@ const {
 } = require('./modules/identity/employees.module');
 const { createBridgedEmployeesStore } = require('./modules/identity/employees.bridge-store');
 const { registerEmployeesRoutes } = require('./modules/identity/routes/employees.routes');
+const { createCatalogModule } = require('./modules/catalog/catalog.module');
+const { registerCatalogRoutes } = require('./modules/catalog/routes/catalog.routes');
+const { createCustomersModule } = require('./modules/customers/customers.module');
+const { registerCustomersRoutes } = require('./modules/customers/routes/customers.routes');
+const { createSuppliersModule } = require('./modules/suppliers/suppliers.module');
+const { registerSuppliersRoutes } = require('./modules/suppliers/routes/suppliers.routes');
+const { createAccountsModule } = require('./modules/accounts-expenses/accounts.module');
+const { registerAccountsRoutes } = require('./modules/accounts-expenses/routes/accounts.routes');
 
 function createApp(options) {
   const { config, database } = options;
@@ -136,6 +144,40 @@ function createApp(options) {
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
+  const catalog =
+    options.catalog ??
+    createCatalogModule({
+      persistence,
+      evaluateEntitlement: (organizationId, entitlementOptions) =>
+        subscriptions.subscriptionService.evaluateEntitlement(organizationId, entitlementOptions),
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+
+  const customers =
+    options.customers ??
+    createCustomersModule({
+      persistence,
+      evaluateEntitlement: (organizationId, entitlementOptions) =>
+        subscriptions.subscriptionService.evaluateEntitlement(organizationId, entitlementOptions),
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+
+  const suppliers =
+    options.suppliers ??
+    createSuppliersModule({
+      persistence,
+      evaluateEntitlement: (organizationId, entitlementOptions) =>
+        subscriptions.subscriptionService.evaluateEntitlement(organizationId, entitlementOptions),
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+
+  const accounts =
+    options.accounts ??
+    createAccountsModule({
+      persistence,
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+
   const onboardingRoutes = registerOnboardingRoutes({
     config,
     onboardingService: onboardingCore.onboardingService,
@@ -188,6 +230,34 @@ function createApp(options) {
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
   });
 
+  const catalogRoutes = registerCatalogRoutes({
+    catalogService: catalog.catalogService,
+    requireAuth: auth.middlewares.requireAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
+    requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+  });
+
+  const customersRoutes = registerCustomersRoutes({
+    customersService: customers.customersService,
+    requireAuth: auth.middlewares.requireAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
+    requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+  });
+
+  const suppliersRoutes = registerSuppliersRoutes({
+    suppliersService: suppliers.suppliersService,
+    requireAuth: auth.middlewares.requireAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
+    requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+  });
+
+  const accountsRoutes = registerAccountsRoutes({
+    accountsService: accounts.accountsService,
+    requireAuth: auth.middlewares.requireAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
+    requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+  });
+
   const app = express();
   app.disable('x-powered-by');
 
@@ -205,6 +275,10 @@ function createApp(options) {
   app.use(settingsRoutes);
   app.use(locationsRoutes);
   app.use(employeesRoutes);
+  app.use(catalogRoutes);
+  app.use(customersRoutes);
+  app.use(suppliersRoutes);
+  app.use(accountsRoutes);
 
   if (typeof options.registerOperationalProbe === 'function') {
     options.registerOperationalProbe(app, {
@@ -238,6 +312,10 @@ function createApp(options) {
     settings,
     locations,
     employees,
+    catalog,
+    customers,
+    suppliers,
+    accounts,
   };
 
   return app;

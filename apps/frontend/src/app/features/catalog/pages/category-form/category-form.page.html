@@ -1,0 +1,44 @@
+<agrivio-ui-page-header
+  [title]="categoryId() ? 'Edit category' : 'Create category'"
+  eyebrow="Catalog"
+  lede="Categories group products and constrain tracking rules by product class."
+/>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading category…" />
+} @else if (!canManage()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to manage categories." />
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+  <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="category-form">
+    <label>
+      Name
+      <input formControlName="name" data-testid="category-name" />
+    </label>
+    <label>
+      Product class
+      <select formControlName="productClass" data-testid="category-product-class">
+        <option value="general">General</option>
+        <option value="fertilizer">Fertilizer</option>
+        <option value="seed">Seed</option>
+        <option value="pesticide">Pesticide</option>
+        <option value="chemical">Chemical</option>
+      </select>
+    </label>
+    @if (categoryId()) {
+      <label>
+        Status
+        <select formControlName="status" data-testid="category-status">
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </label>
+    }
+    <div class="ag-inline">
+      <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="category-save">Save</button>
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/categories">Cancel</a>
+    </div>
+  </form>
+}

@@ -56,6 +56,7 @@ export default defineConfig({
       env: {
         ...process.env,
         NODE_OPTIONS: '',
+        PORT: '4200',
       },
     },
   ],

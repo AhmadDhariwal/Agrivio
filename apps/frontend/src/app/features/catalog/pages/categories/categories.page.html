@@ -1,0 +1,37 @@
+<agrivio-ui-page-header
+  title="Categories"
+  eyebrow="Catalog"
+  lede="Organize products by category and product class."
+>
+  @if (canManage()) {
+    <a class="ag-btn" routerLink="/app/categories/new" data-testid="category-create-link">Create category</a>
+  }
+</agrivio-ui-page-header>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading categories…" />
+} @else if (errorMessage(); as error) {
+  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+} @else if (items().length === 0) {
+  <agrivio-ui-empty-state
+    title="No categories yet"
+    message="Create the first product category to classify catalog items."
+  />
+} @else {
+  <div class="ag-stack" data-testid="categories-list">
+    @for (item of items(); track item.id) {
+      <article class="row">
+        <div>
+          <strong>{{ item.name }}</strong>
+          <p class="ag-muted">{{ item.productClass }}</p>
+        </div>
+        <div class="ag-inline">
+          <agrivio-ui-status-badge [label]="item.status" [tone]="item.status === 'active' ? 'success' : 'neutral'" />
+          @if (canManage()) {
+            <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/categories', item.id]">Edit</a>
+          }
+        </div>
+      </article>
+    }
+  </div>
+}

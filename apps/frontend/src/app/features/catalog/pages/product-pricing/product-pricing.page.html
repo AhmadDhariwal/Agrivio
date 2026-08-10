@@ -1,0 +1,44 @@
+<agrivio-ui-page-header
+  [title]="'Pricing · ' + productName()"
+  eyebrow="Catalog"
+  lede="Set retail, wholesale, dealer, and distributor prices for this product."
+/>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading pricing…" />
+} @else if (!canManage()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to manage product pricing." />
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+  <form
+    class="ag-stack form"
+    [formGroup]="form"
+    (ngSubmit)="save()"
+    data-testid="product-pricing"
+  >
+    <label>
+      Retail
+      <input formControlName="retail" data-testid="price-retail" />
+    </label>
+    <label>
+      Wholesale
+      <input formControlName="wholesale" data-testid="price-wholesale" />
+    </label>
+    <label>
+      Dealer
+      <input formControlName="dealer" data-testid="price-dealer" />
+    </label>
+    <label>
+      Distributor
+      <input formControlName="distributor" data-testid="price-distributor" />
+    </label>
+    <div class="ag-inline">
+      <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="product-pricing-save">
+        Save
+      </button>
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/products">Cancel</a>
+    </div>
+  </form>
+}
