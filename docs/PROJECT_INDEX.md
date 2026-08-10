@@ -32,7 +32,8 @@ Central navigation for Agrivio documentation.
 * F02 Owner activation handoff fix complete — see [tasks/F02-OWNER-ACTIVATION-HANDOFF.md](tasks/F02-OWNER-ACTIVATION-HANDOFF.md); approve/reissue absolute activation URL + copy UI
 * Pre-F03 architecture cleanup + Super Admin bootstrap complete — see [tasks/PRE-F03-SOURCE-LAYOUT-AND-SUPER-ADMIN-BOOTSTRAP.md](tasks/PRE-F03-SOURCE-LAYOUT-AND-SUPER-ADMIN-BOOTSTRAP.md); Angular cohesive page folders, shallow backend module layout, `npm run bootstrap:super-admin`
 * F03 Phase 1 complete (`R1-F03-001`–`R1-F03-004`) — see [tasks/F03-PHASE-1-ORG-SETUP.md](tasks/F03-PHASE-1-ORG-SETUP.md); organization settings, branches, warehouses, employees/access
-* Next work item: **F03 P2** (`R1-F03-005`+) after F03 Phase 1 acceptance
+* Pre-F03 P2 implemented-model audit complete — see [tasks/PRE-F03-P2-IMPLEMENTED-MODEL-AUDIT.md](tasks/PRE-F03-P2-IMPLEMENTED-MODEL-AUDIT.md) and [MODEL_REVIEW_CHECKLIST.md](MODEL_REVIEW_CHECKLIST.md)
+* Next work item: **F03 P2** (`R1-F03-005`+) after model-audit acceptance
 
 ## Existing Documents
 
@@ -47,6 +48,7 @@ Central navigation for Agrivio documentation.
 | [MODULE_BOUNDARIES.md](MODULE_BOUNDARIES.md) | Canonical modules, ownership, and dependency rules (Frozen for Release 1, v1.2.0) |
 | [REPOSITORY_STRUCTURE.md](REPOSITORY_STRUCTURE.md) | Target monorepo and module/feature layout (Frozen for Release 1, v1.2.0) |
 | [DATA_MODEL.md](DATA_MODEL.md) | Data model, collections, indexes, transactions (Frozen for Release 1, v1.0) |
+| [MODEL_REVIEW_CHECKLIST.md](MODEL_REVIEW_CHECKLIST.md) | Mandatory completeness checklist for every new/changed persisted model (F03 P2+) |
 | [API_DESIGN.md](API_DESIGN.md) | API conventions and endpoint inventory (Frozen for Release 1, v1.0) |
 | [SECURITY_AUTHORIZATION.md](SECURITY_AUTHORIZATION.md) | Authentication, sessions, permissions, security controls (Frozen for Release 1, v1.0) |
 | [SUBSCRIPTION_AND_BILLING.md](SUBSCRIPTION_AND_BILLING.md) | Subscription lifecycle and manual billing (Frozen for Release 1, v1.0) |
@@ -79,6 +81,7 @@ Central navigation for Agrivio documentation.
 | [tasks/F02-OWNER-ACTIVATION-HANDOFF.md](tasks/F02-OWNER-ACTIVATION-HANDOFF.md) | F02 Owner activation approve/reissue handoff URL and UI |
 | [tasks/PRE-F03-SOURCE-LAYOUT-AND-SUPER-ADMIN-BOOTSTRAP.md](tasks/PRE-F03-SOURCE-LAYOUT-AND-SUPER-ADMIN-BOOTSTRAP.md) | Pre-F03 source-layout conventions + operational Super Admin bootstrap CLI |
 | [tasks/F03-PHASE-1-ORG-SETUP.md](tasks/F03-PHASE-1-ORG-SETUP.md) | F03 Phase 1: organization settings, branches, warehouses, employees/access (`R1-F03-001`–`004`) |
+| [tasks/PRE-F03-P2-IMPLEMENTED-MODEL-AUDIT.md](tasks/PRE-F03-P2-IMPLEMENTED-MODEL-AUDIT.md) | Pre-F03 P2 implemented-model completeness/ownership/utilization audit |
 | [tasks/F01-PHASE-1-PLATFORM-RUNTIME.md](tasks/F01-PHASE-1-PLATFORM-RUNTIME.md) | F01 Phase 1: platform runtime foundation |
 | [tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md](tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md) | F01 Phase 2: transactional platform foundation (completes F01) |
 | [../README.md](../README.md) | Repository landing page |
@@ -108,6 +111,7 @@ These documents are not created yet. Paths below are reserved targets for later 
 * Module boundaries (Frozen for Release 1, v1.2.0): [MODULE_BOUNDARIES.md](MODULE_BOUNDARIES.md)
 * Target repository layout (Frozen for Release 1, v1.2.0): [REPOSITORY_STRUCTURE.md](REPOSITORY_STRUCTURE.md)
 * Data model (Frozen for Release 1, v1.0): [DATA_MODEL.md](DATA_MODEL.md)
+* Model review checklist for new/changed persistence (active): [MODEL_REVIEW_CHECKLIST.md](MODEL_REVIEW_CHECKLIST.md)
 * API design (Frozen for Release 1, v1.0): [API_DESIGN.md](API_DESIGN.md)
 * Security and authorization (Frozen for Release 1, v1.0): [SECURITY_AUTHORIZATION.md](SECURITY_AUTHORIZATION.md)
 * Subscription and billing (Frozen for Release 1, v1.0): [SUBSCRIPTION_AND_BILLING.md](SUBSCRIPTION_AND_BILLING.md)

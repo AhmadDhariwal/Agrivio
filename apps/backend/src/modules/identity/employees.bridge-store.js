@@ -78,6 +78,34 @@ function createBridgedEmployeesStore(deps) {
       return [];
     },
 
+    async revokeAccessAssignmentsForMembership(session, membershipId, revokedAt) {
+      if (typeof this.listAccessAssignmentsByMembershipId !== 'function') {
+        return;
+      }
+      const active = await this.listAccessAssignmentsByMembershipId(membershipId);
+      if (
+        locationsStore &&
+        typeof locationsStore.updateAccessAssignment === 'function'
+      ) {
+        for (const assignment of active) {
+          await locationsStore.updateAccessAssignment(session, String(assignment['_id']), {
+            status: 'revoked',
+            version: Number(assignment['version'] ?? 1) + 1,
+          });
+        }
+        return revokedAt;
+      }
+      if (typeof authStore.updateAccessAssignment === 'function') {
+        for (const assignment of active) {
+          await authStore.updateAccessAssignment(session, String(assignment['_id']), {
+            status: 'revoked',
+            version: Number(assignment['version'] ?? 1) + 1,
+          });
+        }
+      }
+      return revokedAt;
+    },
+
     async revokeAllSessionsForUser(session, userId, revokedAt) {
       return authStore.revokeAllSessionsForUser(session, userId, revokedAt);
     },

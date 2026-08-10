@@ -9,7 +9,13 @@ function redactValue(value, env) {
   if (Array.isArray(value)) {
     return value.map((entry) => redactValue(entry, env));
   }
+  if (value instanceof Date) {
+    return value;
+  }
   if (value !== null && typeof value === 'object') {
+    if (typeof value._bsontype === 'string') {
+      return value;
+    }
     const result = {};
     for (const [key, nested] of Object.entries(value)) {
       if (SENSITIVE_LOG_KEY_PATTERN.test(key)) {
