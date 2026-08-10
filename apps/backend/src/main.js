@@ -62,6 +62,13 @@ async function start() {
 
 start().catch((error) => {
   const message = error instanceof Error ? error.message : String(error);
+  const code =
+    error && typeof error === 'object' && typeof error.code === 'string'
+      ? error.code
+      : undefined;
+  if (code) {
+    console.error(redactSecrets(`[agrivio] Mongo startup failed (${code})`));
+  }
   console.error(redactSecrets(message));
   process.exit(1);
 });

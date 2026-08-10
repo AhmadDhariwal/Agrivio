@@ -9,12 +9,12 @@ const DOCKER_CANDIDATES = [
 ];
 
 /**
- * @returns {string}
+ * @returns {string | null}
  */
-export function resolveDockerBinary() {
+export function resolveDockerBinaryOrNull() {
   for (const candidate of DOCKER_CANDIDATES) {
     if (candidate === 'docker') {
-      const probe = spawnSync(candidate, ['--version'], { encoding: 'utf8', shell: true });
+      const probe = spawnSync(candidate, ['--version'], { encoding: 'utf8' });
       if (probe.status === 0) {
         return candidate;
       }
@@ -24,9 +24,23 @@ export function resolveDockerBinary() {
       return candidate;
     }
   }
+  return null;
+}
+
+/**
+ * @returns {string}
+ */
+export function resolveDockerBinary() {
+  const docker = resolveDockerBinaryOrNull();
+  if (docker) {
+    return docker;
+  }
 
   throw new Error(
-    'Docker CLI was not found. Install Docker Compose v2 and ensure `docker` is on PATH.',
+    [
+      'Docker CLI was not found.',
+      'Install Docker Compose v2, or use a locally installed MongoDB single-node rs0 and run `npm run db:status` / `npm run db:init` against 127.0.0.1:27017.',
+    ].join(' '),
   );
 }
 
@@ -41,7 +55,6 @@ export function dockerCompose(args, options = {}) {
   const result = spawnSync(docker, ['compose', '-f', COMPOSE_FILE, ...args], {
     encoding: 'utf8',
     stdio,
-    shell: true,
   });
 
   if (result.error) {

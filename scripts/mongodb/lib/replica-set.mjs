@@ -1,10 +1,27 @@
-import { dockerComposeExec } from './docker.mjs';
+import { dockerComposeExec, resolveDockerBinaryOrNull } from './docker.mjs';
 import { LOCAL_MONGODB_HOST, LOCAL_MONGODB_PORT, REPLICA_SET_NAME } from './constants.mjs';
+import {
+  formatNativeWindowsReplicaSetInstructions,
+  initializeNativeReplicaSet,
+  readNativeTopology,
+} from './native-client.mjs';
 
 /**
  * @returns {Promise<void>}
  */
 export async function waitForMongodPing({ attempts = 60, delayMs = 1000 } = {}) {
+  const docker = resolveDockerBinaryOrNull();
+  if (!docker) {
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      const topology = await readNativeTopology();
+      if (topology.reachable) {
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+    throw new Error('MongoDB did not respond to ping within the expected startup window.');
+  }
+
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     const result = dockerComposeExec("db.adminCommand('ping')", { stdio: 'pipe' });
     if (result.status === 0) {
@@ -17,9 +34,9 @@ export async function waitForMongodPing({ attempts = 60, delayMs = 1000 } = {}) 
 }
 
 /**
- * @returns {{ initiated: boolean; primaryElected: boolean; state?: string }}
+ * @returns {{ initiated: boolean; primaryElected: boolean; state?: string; setName?: string | null }}
  */
-export function readReplicaSetSummary() {
+export function readDockerReplicaSetSummary() {
   const statusResult = dockerComposeExec('JSON.stringify(rs.status())', { stdio: 'pipe' });
   if (statusResult.status !== 0) {
     return { initiated: false, primaryElected: false };
@@ -33,6 +50,7 @@ export function readReplicaSetSummary() {
       initiated: true,
       primaryElected: state === 'PRIMARY',
       state,
+      setName: typeof status.set === 'string' ? status.set : REPLICA_SET_NAME,
     };
   } catch {
     return { initiated: false, primaryElected: false };
@@ -40,12 +58,35 @@ export function readReplicaSetSummary() {
 }
 
 /**
+ * Prefer Docker Compose when available; otherwise use a locally installed mongod.
+ */
+export async function readReplicaSetSummary() {
+  if (resolveDockerBinaryOrNull()) {
+    try {
+      return readDockerReplicaSetSummary();
+    } catch {
+      // Fall through to native probe when Compose is installed but unused.
+    }
+  }
+  return readNativeTopology();
+}
+
+/**
  * Idempotent replica-set initialization for the local single-node topology.
  */
 export async function initializeReplicaSet() {
+  if (!resolveDockerBinaryOrNull()) {
+    try {
+      return await initializeNativeReplicaSet();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`${message}\n${formatNativeWindowsReplicaSetInstructions()}`);
+    }
+  }
+
   await waitForMongodPing();
 
-  const summary = readReplicaSetSummary();
+  const summary = readDockerReplicaSetSummary();
   if (summary.primaryElected) {
     return summary;
   }
@@ -67,7 +108,7 @@ export async function initializeReplicaSet() {
   }
 
   for (let attempt = 1; attempt <= 60; attempt += 1) {
-    const current = readReplicaSetSummary();
+    const current = readDockerReplicaSetSummary();
     if (current.primaryElected) {
       return current;
     }

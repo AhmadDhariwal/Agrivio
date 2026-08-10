@@ -97,7 +97,7 @@ function loadApiEnv(env = process.env) {
   }
 
   const mongodbDbName =
-    env['MONGODB_DB_NAME'] ?? (isTestProfile ? 'agrivio_test_default' : 'agrivio_dev');
+    env['MONGODB_DB_NAME'] ?? (isTestProfile ? 'agrivio_test_default' : 'Agrivio');
   if (!isNonEmptyString(mongodbDbName)) {
     issues.push('MONGODB_DB_NAME must be a non-empty string');
   }

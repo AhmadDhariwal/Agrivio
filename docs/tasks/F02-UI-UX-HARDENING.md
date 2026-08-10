@@ -92,7 +92,7 @@ AGRIVIO_APP_PROFILE=local
 HOST=localhost
 PORT=3000
 MONGODB_URI=mongodb://127.0.0.1:27017/?replicaSet=rs0
-MONGODB_DB_NAME=agrivio_dev
+MONGODB_DB_NAME=Agrivio
 MONGODB_REPLICA_SET=rs0
 SESSION_SECRET=replace-with-a-long-local-development-secret-at-least-32-chars
 AGRIVIO_PUBLIC_API_BASE_URL=http://localhost:3000
@@ -156,7 +156,7 @@ Protected shell/platform/billing pages still require authenticated data for full
 ## Pages requiring authenticated data for visual review
 
 * `/context`, `/app`, billing, and all platform pages require a real signed-in session
-* Minimum setup: local Mongo replica-set (`agrivio_dev` / `rs0`) **or** documented test bootstrap under `NODE_ENV=test` + `AGRIVIO_ALLOW_E2E_BOOTSTRAP=true` (not for normal development DB bypass)
+* Minimum setup: local Mongo replica-set (`Agrivio` / `rs0`) **or** documented test bootstrap under `NODE_ENV=test` + `AGRIVIO_ALLOW_E2E_BOOTSTRAP=true` (not for normal development DB bypass)
 * Platform pages additionally require Super Admin platform context
 * Billing review requires at least one submitted billing evidence record
 

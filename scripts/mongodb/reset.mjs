@@ -1,4 +1,16 @@
-import { dockerCompose } from './lib/docker.mjs';
+import { dockerCompose, resolveDockerBinaryOrNull } from './lib/docker.mjs';
+
+const docker = resolveDockerBinaryOrNull();
+if (!docker) {
+  console.error(
+    [
+      '[agrivio] db:reset is Docker Compose volume destruction only.',
+      'Docker is unavailable, so this command refuses to run.',
+      'It never resets a locally installed MongoDB service/data directory automatically.',
+    ].join(' '),
+  );
+  process.exit(1);
+}
 
 console.warn('[agrivio] db:reset destroys local MongoDB Docker volumes and data.');
 
