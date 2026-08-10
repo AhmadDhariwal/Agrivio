@@ -8,11 +8,17 @@ const auditEventSchema = new mongoose.Schema(
     resourceType: { type: String, required: true },
     resourceId: { type: String },
     reason: { type: String },
+    requestId: { type: String },
     metadata: { type: mongoose.Schema.Types.Mixed },
     occurredAt: { type: Date, required: true, default: Date.now },
   },
   { timestamps: false, collection: 'audit_events' },
 );
+
+auditEventSchema.index({ organizationId: 1, occurredAt: -1 });
+auditEventSchema.index({ organizationId: 1, actorId: 1, occurredAt: -1 });
+auditEventSchema.index({ organizationId: 1, resourceType: 1, resourceId: 1 });
+auditEventSchema.index({ occurredAt: -1 });
 
 const AuditEventModel =
   mongoose.models['AuditEvent'] || mongoose.model('AuditEvent', auditEventSchema);

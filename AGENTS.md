@@ -84,6 +84,7 @@ Do not:
 * Every tenant-owned operation must enforce tenant isolation.
 * Financial and inventory workflows must use database transactions where multiple records are affected.
 * Posted financial and stock transactions must never be permanently deleted.
+* Every new or changed persisted model must pass `docs/MODEL_REVIEW_CHECKLIST.md` before the owning roadmap task is considered complete.
 
 ## Documentation Rules
 

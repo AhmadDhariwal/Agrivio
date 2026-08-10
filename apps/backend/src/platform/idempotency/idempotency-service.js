@@ -1,5 +1,7 @@
 const { createHash } = require('node:crypto');
 
+const DEFAULT_IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
+
 function hashIdempotencyValue(value) {
   return createHash('sha256').update(value, 'utf8').digest('hex');
 }
@@ -13,9 +15,33 @@ function buildRequestFingerprint(requestFingerprintInput) {
   return hashIdempotencyValue(JSON.stringify(requestFingerprintInput));
 }
 
-function createInMemoryIdempotencyStore() {
+function resolveClaimOutcome(existing, record) {
+  if (existing.requestHash !== record.requestHash) {
+    return { kind: 'conflict', reason: 'Idempotency key reused with a different request' };
+  }
+
+  if (existing.state === 'completed' && existing.responseStatus !== undefined && existing.responseStatus !== null) {
+    return {
+      kind: 'replay',
+      response: {
+        statusCode: existing.responseStatus,
+        body: existing.responseBody,
+      },
+    };
+  }
+
+  if (existing.state === 'in_progress') {
+    return { kind: 'in_progress' };
+  }
+
+  return { kind: 'reclaim' };
+}
+
+function createInMemoryIdempotencyStore(options = {}) {
   const records = new Map();
   const claimLocks = new Map();
+  const ttlMs = options.ttlMs ?? DEFAULT_IDEMPOTENCY_TTL_MS;
+  const now = options.now ?? (() => new Date());
 
   return {
     async claim(record) {
@@ -42,6 +68,7 @@ function createInMemoryIdempotencyStore() {
             keyHash: record.keyHash,
             requestHash: record.requestHash,
             state: 'in_progress',
+            expiresAt: new Date(now().getTime() + ttlMs),
             ...(record.organizationId === undefined
               ? {}
               : { organizationId: record.organizationId }),
@@ -49,26 +76,20 @@ function createInMemoryIdempotencyStore() {
           return { kind: 'claimed' };
         }
 
-        if (existing.requestHash !== record.requestHash) {
-          return { kind: 'conflict', reason: 'Idempotency key reused with a different request' };
+        const outcome = resolveClaimOutcome(existing, record);
+        if (outcome.kind === 'reclaim') {
+          records.set(record.keyHash, {
+            ...existing,
+            requestHash: record.requestHash,
+            state: 'in_progress',
+            responseStatus: null,
+            responseBody: null,
+            completedAt: null,
+            expiresAt: new Date(now().getTime() + ttlMs),
+          });
+          return { kind: 'claimed' };
         }
-
-        if (existing.state === 'completed' && existing.responseStatus !== undefined) {
-          return {
-            kind: 'replay',
-            response: {
-              statusCode: existing.responseStatus,
-              body: existing.responseBody,
-            },
-          };
-        }
-
-        if (existing.state === 'in_progress') {
-          return { kind: 'in_progress' };
-        }
-
-        records.set(record.keyHash, { ...record, state: 'in_progress' });
-        return { kind: 'claimed' };
+        return outcome;
       } finally {
         claimLocks.delete(lockKey);
         if (typeof releaseLock === 'function') {
@@ -88,6 +109,7 @@ function createInMemoryIdempotencyStore() {
         state: 'completed',
         responseStatus: response.statusCode,
         responseBody: response.body,
+        completedAt: now(),
       });
     },
 
@@ -96,7 +118,139 @@ function createInMemoryIdempotencyStore() {
       if (existing === undefined || existing.requestHash !== requestHash) {
         return;
       }
-      records.set(keyHash, { ...existing, state: 'failed' });
+      records.set(keyHash, { ...existing, state: 'failed', completedAt: now() });
+    },
+  };
+}
+
+function createMongooseIdempotencyStore(options = {}) {
+  const mongoose = require('mongoose');
+  const { IdempotencyRecordModel } = require('./persistence/idempotency-record.model');
+  const ttlMs = options.ttlMs ?? DEFAULT_IDEMPOTENCY_TTL_MS;
+  const now = options.now ?? (() => new Date());
+
+  function asObjectIdOrNull(value) {
+    if (value === undefined || value === null || value === '') {
+      return null;
+    }
+    if (value instanceof mongoose.Types.ObjectId) {
+      return value;
+    }
+    if (mongoose.isValidObjectId(value)) {
+      return new mongoose.Types.ObjectId(String(value));
+    }
+    return value;
+  }
+
+  function findExistingQuery(record) {
+    if (record.scopeType === 'organization') {
+      return {
+        scopeType: 'organization',
+        organizationId: asObjectIdOrNull(record.organizationId),
+        actorId: record.actorId,
+        operation: record.operation,
+        keyHash: record.keyHash,
+      };
+    }
+    return {
+      scopeType: record.scopeType,
+      actorId: record.actorId,
+      operation: record.operation,
+      keyHash: record.keyHash,
+    };
+  }
+
+  return {
+    async claim(record) {
+      const expiresAt = new Date(now().getTime() + ttlMs);
+      const organizationId = asObjectIdOrNull(record.organizationId);
+      try {
+        await IdempotencyRecordModel.create([
+          {
+            scopeType: record.scopeType,
+            actorId: record.actorId,
+            operation: record.operation,
+            keyHash: record.keyHash,
+            requestHash: record.requestHash,
+            state: 'in_progress',
+            expiresAt,
+            ...(organizationId === null ? {} : { organizationId }),
+          },
+        ]);
+        return { kind: 'claimed' };
+      } catch (error) {
+        if (!(error && (error.code === 11000 || error.code === 11001))) {
+          throw error;
+        }
+      }
+
+      const existing = await IdempotencyRecordModel.findOne(findExistingQuery(record)).lean().exec();
+      if (existing === null) {
+        throw new Error('Idempotency claim conflict without existing record');
+      }
+
+      const outcome = resolveClaimOutcome(existing, record);
+      if (outcome.kind !== 'reclaim') {
+        return outcome;
+      }
+
+      const reclaimed = await IdempotencyRecordModel.findOneAndUpdate(
+        {
+          ...findExistingQuery(record),
+          state: { $in: ['failed'] },
+          requestHash: existing.requestHash,
+        },
+        {
+          $set: {
+            requestHash: record.requestHash,
+            state: 'in_progress',
+            responseStatus: null,
+            responseBody: null,
+            completedAt: null,
+            expiresAt,
+          },
+        },
+        { new: true },
+      )
+        .lean()
+        .exec();
+
+      if (reclaimed === null) {
+        return { kind: 'in_progress' };
+      }
+      return { kind: 'claimed' };
+    },
+
+    async complete(keyHash, requestHash, response) {
+      const updated = await IdempotencyRecordModel.findOneAndUpdate(
+        { keyHash, requestHash, state: 'in_progress' },
+        {
+          $set: {
+            state: 'completed',
+            responseStatus: response.statusCode,
+            responseBody: response.body,
+            completedAt: now(),
+          },
+        },
+        { new: true },
+      )
+        .lean()
+        .exec();
+      if (updated === null) {
+        throw new Error('Cannot complete unknown idempotency claim');
+      }
+    },
+
+    async fail(keyHash, requestHash) {
+      await IdempotencyRecordModel.findOneAndUpdate(
+        { keyHash, requestHash, state: 'in_progress' },
+        {
+          $set: {
+            state: 'failed',
+            completedAt: now(),
+          },
+        },
+      ).exec();
     },
   };
 }
@@ -146,9 +300,11 @@ function createIdempotencyService(store) {
 }
 
 module.exports = {
+  DEFAULT_IDEMPOTENCY_TTL_MS,
   hashIdempotencyValue,
   buildIdempotencyKeyHash,
   buildRequestFingerprint,
   createInMemoryIdempotencyStore,
+  createMongooseIdempotencyStore,
   createIdempotencyService,
 };
