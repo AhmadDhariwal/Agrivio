@@ -1,0 +1,33 @@
+:host {
+  display: block;
+}
+
+.form {
+  max-width: 36rem;
+}
+
+label,
+fieldset {
+  display: grid;
+  gap: 0.35rem;
+}
+
+fieldset {
+  border: 1px solid var(--ag-border, #d7ddd4);
+  border-radius: 0.75rem;
+  padding: 0.85rem;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+input,
+select {
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--ag-border, #cfd6cb);
+  font: inherit;
+}

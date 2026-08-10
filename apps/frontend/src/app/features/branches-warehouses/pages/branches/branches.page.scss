@@ -1,0 +1,19 @@
+:host {
+  display: block;
+}
+
+.branch-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--ag-border, #d7ddd4);
+}
+
+@media (max-width: 720px) {
+  .branch-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

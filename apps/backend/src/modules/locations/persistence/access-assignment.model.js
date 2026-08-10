@@ -31,6 +31,7 @@ const accessAssignmentSchema = new mongoose.Schema(
   { timestamps: true, collection: 'access_assignments' },
 );
 
+accessAssignmentSchema.index({ organizationId: 1, membershipId: 1, status: 1 });
 accessAssignmentSchema.index(
   { membershipId: 1, assignmentType: 1, targetId: 1 },
   { unique: true },

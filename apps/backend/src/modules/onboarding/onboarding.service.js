@@ -402,6 +402,15 @@ function createOnboardingService(deps) {
           passwordHash,
           status: 'active',
         });
+
+        const membership = await store.findMembership(organizationId, userId);
+        if (membership !== null && membership['status'] === 'pending') {
+          await store.updateMembership(session, String(membership['_id']), {
+            status: 'active',
+            version: Number(membership['version'] ?? 1) + 1,
+          });
+        }
+
         await store.updateActivationToken(session, String(activation['_id']), {
           consumedAt: now(),
         });
@@ -412,6 +421,9 @@ function createOnboardingService(deps) {
           action: 'user.activated',
           resourceType: 'user',
           resourceId: userId,
+          metadata: {
+            purpose: activation['purpose'] ?? 'owner_activation',
+          },
         });
 
         return {

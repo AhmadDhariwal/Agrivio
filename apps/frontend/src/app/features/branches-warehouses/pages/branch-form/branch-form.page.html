@@ -1,0 +1,42 @@
+<agrivio-ui-page-header
+  [title]="branchId() ? 'Edit branch' : 'Create branch'"
+  eyebrow="Locations"
+  lede="Invoice prefixes are owned by Locations and must stay unique within the organization."
+/>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading branch…" />
+} @else if (!canManage()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to manage branches." />
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+  <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="branch-form">
+    <label>
+      Name
+      <input formControlName="name" data-testid="branch-name" />
+    </label>
+    <label>
+      Invoice prefix
+      <input formControlName="invoicePrefix" data-testid="branch-invoice-prefix" />
+    </label>
+    <label>
+      Code (optional)
+      <input formControlName="code" data-testid="branch-code" />
+    </label>
+    @if (branchId()) {
+      <label>
+        Status
+        <select formControlName="status" data-testid="branch-status">
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </label>
+    }
+    <div class="ag-inline">
+      <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="branch-save">Save</button>
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/branches">Cancel</a>
+    </div>
+  </form>
+}

@@ -1,0 +1,55 @@
+<agrivio-ui-page-header
+  title="Employees & access"
+  eyebrow="Organization"
+  lede="Owner-managed employees stay inside this organization. Roles are predefined bundles; Super Admin is platform-only."
+>
+  @if (canCreate()) {
+    <a class="ag-btn" routerLink="/app/employees/new" data-testid="employee-create-link">Add employee</a>
+  }
+</agrivio-ui-page-header>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading employees…" />
+} @else if (errorMessage(); as error) {
+  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+} @else if (items().length === 0) {
+  <agrivio-ui-empty-state title="No employees yet" message="Add cashiers, managers, or store keepers for this organization." />
+} @else {
+  @if (successMessage(); as success) {
+    <agrivio-ui-alert tone="success" [message]="success" />
+  }
+  <div class="ag-stack" data-testid="employees-list">
+    @for (item of items(); track item.id) {
+      <article class="row">
+        <div>
+          <strong>{{ item.displayName }}</strong>
+          <p class="ag-muted">{{ item.email }} · {{ item.role }}</p>
+        </div>
+        <div class="ag-inline">
+          <agrivio-ui-status-badge
+            [label]="item.status"
+            [tone]="item.status === 'active' ? 'success' : item.status === 'pending' ? 'warning' : 'neutral'"
+          />
+          @if (canUpdate()) {
+            <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/employees', item.id]">Edit</a>
+          }
+          @if (canDeactivate() && item.status !== 'deactivated') {
+            <button type="button" class="ag-btn ag-btn--secondary" (click)="askDeactivate(item)">
+              Deactivate
+            </button>
+          }
+        </div>
+      </article>
+    }
+  </div>
+}
+
+<agrivio-ui-confirm-dialog
+  [open]="confirmOpen()"
+  title="Deactivate employee?"
+  message="This immediately ends organization access for the employee and invalidates their sessions."
+  confirmLabel="Deactivate"
+  [danger]="true"
+  (confirmed)="confirmDeactivate()"
+  (dismiss)="confirmOpen.set(false)"
+/>

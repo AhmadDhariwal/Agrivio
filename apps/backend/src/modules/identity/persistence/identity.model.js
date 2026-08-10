@@ -61,7 +61,12 @@ const activationTokenSchema = new mongoose.Schema(
     tokenHash: { type: String, required: true, unique: true },
     expiresAt: { type: Date, required: true },
     consumedAt: { type: Date },
-    purpose: { type: String, required: true, default: 'owner_activation' },
+    purpose: {
+      type: String,
+      required: true,
+      enum: ['owner_activation', 'employee_activation'],
+      default: 'owner_activation',
+    },
   },
   { timestamps: true, collection: 'account_activation_tokens' },
 );

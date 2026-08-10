@@ -1,0 +1,66 @@
+<agrivio-ui-page-header
+  title="Organization settings"
+  eyebrow="Setup"
+  lede="Manage residual operational settings for this organization. Specialized policies stay with their owning modules."
+/>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading settings…" />
+} @else if (permissionDenied()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to view organization settings." />
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+  @if (successMessage(); as success) {
+    <agrivio-ui-alert tone="success" [message]="success" />
+  }
+
+  <section class="ag-stack" data-testid="organization-settings">
+    <form class="ag-card ag-stack" [formGroup]="profileForm" (ngSubmit)="saveProfile()">
+      <h2>Organization profile</h2>
+      <label>
+        Legal name
+        <input formControlName="name" data-testid="org-profile-name" />
+      </label>
+      <label>
+        Business timezone (IANA)
+        <input formControlName="timezone" data-testid="org-profile-timezone" />
+      </label>
+      @if (canUpdateOrg()) {
+        <button class="ag-btn" type="submit" [disabled]="saving()">Save profile</button>
+      }
+    </form>
+
+    <form class="ag-card ag-stack" [formGroup]="settingsForm" (ngSubmit)="saveSettings()">
+      <h2>Residual settings</h2>
+      <label>
+        Trading name
+        <input formControlName="tradingName" data-testid="settings-trading-name" />
+      </label>
+      <label>
+        Contact phone
+        <input formControlName="contactPhone" data-testid="settings-contact-phone" />
+      </label>
+      <label>
+        Contact email
+        <input formControlName="contactEmail" data-testid="settings-contact-email" />
+      </label>
+      <label>
+        Address
+        <input formControlName="addressLine" data-testid="settings-address" />
+      </label>
+      <label>
+        Document footer note
+        <textarea formControlName="documentFooterNote" rows="3" data-testid="settings-footer"></textarea>
+      </label>
+      @if (canManage()) {
+        <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="settings-save">
+          Save settings
+        </button>
+      } @else {
+        <agrivio-ui-alert tone="info" message="You can view settings but cannot change them." />
+      }
+    </form>
+  </section>
+}

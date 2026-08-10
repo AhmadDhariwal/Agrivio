@@ -91,6 +91,10 @@ function createMongooseOnboardingStore() {
       return OrganizationMembershipModel.find({ userId }).lean().exec();
     },
 
+    async listMembershipsByOrganizationId(organizationId) {
+      return OrganizationMembershipModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
+    },
+
     async findMembershipById(id) {
       if (!mongoose.isValidObjectId(id)) {
         return null;

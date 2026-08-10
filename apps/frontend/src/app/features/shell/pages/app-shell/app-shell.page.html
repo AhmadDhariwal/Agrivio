@@ -23,6 +23,18 @@
           Workspace
         </a>
         <a routerLink="/context">Switch context</a>
+        @if (canViewSettings()) {
+          <a routerLink="/app/organization/settings" routerLinkActive="active">Settings</a>
+        }
+        @if (canViewBranches()) {
+          <a routerLink="/app/branches" routerLinkActive="active">Branches</a>
+        }
+        @if (canViewWarehouses()) {
+          <a routerLink="/app/warehouses" routerLinkActive="active">Warehouses</a>
+        }
+        @if (canViewEmployees()) {
+          <a routerLink="/app/employees" routerLinkActive="active">Employees</a>
+        }
         @if (canSubmitBilling()) {
           <a routerLink="/app/subscription/billing" routerLinkActive="active">Billing</a>
         }

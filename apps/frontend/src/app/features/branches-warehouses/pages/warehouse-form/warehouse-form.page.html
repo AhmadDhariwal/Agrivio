@@ -1,0 +1,38 @@
+<agrivio-ui-page-header
+  [title]="warehouseId() ? 'Edit warehouse' : 'Create warehouse'"
+  eyebrow="Locations"
+  lede="Warehouses belong to the organization and can grow beyond the initial single warehouse."
+/>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading warehouse…" />
+} @else if (!canManage()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to manage warehouses." />
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+  <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="warehouse-form">
+    <label>
+      Name
+      <input formControlName="name" data-testid="warehouse-name" />
+    </label>
+    <label>
+      Code (optional)
+      <input formControlName="code" data-testid="warehouse-code" />
+    </label>
+    @if (warehouseId()) {
+      <label>
+        Status
+        <select formControlName="status" data-testid="warehouse-status">
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </label>
+    }
+    <div class="ag-inline">
+      <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="warehouse-save">Save</button>
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/warehouses">Cancel</a>
+    </div>
+  </form>
+}

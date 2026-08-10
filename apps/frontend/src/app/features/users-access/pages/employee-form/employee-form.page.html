@@ -1,0 +1,73 @@
+<agrivio-ui-page-header
+  [title]="employeeId() ? 'Edit employee' : 'Add employee'"
+  eyebrow="Organization"
+  lede="Assign predefined roles and branch/warehouse access. First-password activation uses a one-time token for manual handoff."
+/>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading employee…" />
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+  @if (activationHandoff(); as url) {
+    <agrivio-ui-alert
+      tone="success"
+      [message]="'Employee created. Copy this one-time activation link for manual delivery: ' + url"
+    />
+    <a class="ag-btn" routerLink="/app/employees">Back to employees</a>
+  } @else {
+    <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="employee-form">
+      <label>
+        Email
+        <input formControlName="email" data-testid="employee-email" />
+      </label>
+      <label>
+        Display name
+        <input formControlName="displayName" data-testid="employee-display-name" />
+      </label>
+      <label>
+        Role
+        <select formControlName="role" data-testid="employee-role">
+          @for (role of roles; track role) {
+            <option [value]="role">{{ role === 'StoreKeeper' ? 'Store Keeper' : role }}</option>
+          }
+        </select>
+      </label>
+
+      @if (canAssign()) {
+        <fieldset>
+          <legend>Branch assignments</legend>
+          @for (branch of branches(); track branch.id) {
+            <label class="check">
+              <input
+                type="checkbox"
+                [checked]="isBranchChecked(branch.id)"
+                (change)="toggleBranch(branch.id, $any($event.target).checked)"
+              />
+              {{ branch.name }}
+            </label>
+          }
+        </fieldset>
+        <fieldset>
+          <legend>Warehouse assignments</legend>
+          @for (warehouse of warehouses(); track warehouse.id) {
+            <label class="check">
+              <input
+                type="checkbox"
+                [checked]="isWarehouseChecked(warehouse.id)"
+                (change)="toggleWarehouse(warehouse.id, $any($event.target).checked)"
+              />
+              {{ warehouse.name }}
+            </label>
+          }
+        </fieldset>
+      }
+
+      <div class="ag-inline">
+        <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="employee-save">Save</button>
+        <a class="ag-btn ag-btn--secondary" routerLink="/app/employees">Cancel</a>
+      </div>
+    </form>
+  }
+}

@@ -21,8 +21,8 @@ function unauthorized(message = 'Unauthorized') {
   return new AppError(ApiTransportErrorCode.Unauthorized, message, 401);
 }
 
-function forbidden(message = 'Forbidden') {
-  return new AppError(ApiTransportErrorCode.Forbidden, message, 403);
+function forbidden(message = 'Forbidden', details) {
+  return new AppError(ApiTransportErrorCode.Forbidden, message, 403, details);
 }
 
 function conflict(message = 'Conflict') {

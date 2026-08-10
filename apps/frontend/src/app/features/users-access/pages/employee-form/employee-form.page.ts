@@ -1,0 +1,242 @@
+import { Component, computed, inject, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import { forkJoin } from 'rxjs';
+import {
+  AssignmentTarget,
+  EmployeeRecord,
+  OrganizationRole,
+  UsersAccessApi,
+} from '../../data-access/users-access.api';
+import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
+import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
+import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+
+@Component({
+  selector: 'agrivio-employee-form-page',
+  standalone: true,
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    UiPageHeaderComponent,
+    UiAlertComponent,
+    UiLoadingStateComponent,
+  ],
+  templateUrl: './employee-form.page.html',
+  styleUrl: './employee-form.page.scss',
+})
+export class EmployeeFormPage {
+  private readonly api = inject(UsersAccessApi);
+  private readonly sessionStore = inject(AuthSessionStore);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly formBuilder = inject(FormBuilder);
+
+  readonly employeeId = signal<string | null>(null);
+  readonly loading = signal(true);
+  readonly saving = signal(false);
+  readonly errorMessage = signal<string | null>(null);
+  readonly activationHandoff = signal<string | null>(null);
+  readonly branches = signal<AssignmentTarget[]>([]);
+  readonly warehouses = signal<AssignmentTarget[]>([]);
+  readonly canCreate = computed(() => this.sessionStore.hasPermission('users.create'));
+  readonly canUpdate = computed(() => this.sessionStore.hasPermission('users.update'));
+  readonly canAssign = computed(() => this.sessionStore.hasPermission('users.assign-access'));
+  private version = 1;
+
+  readonly form = this.formBuilder.nonNullable.group({
+    email: ['', [Validators.required, Validators.email]],
+    displayName: ['', [Validators.required, Validators.minLength(2)]],
+    role: ['Cashier' as OrganizationRole, [Validators.required]],
+    branchIds: this.formBuilder.nonNullable.control<string[]>([]),
+    warehouseIds: this.formBuilder.nonNullable.control<string[]>([]),
+  });
+
+  readonly roles: OrganizationRole[] = ['Owner', 'Manager', 'Cashier', 'StoreKeeper'];
+
+  constructor() {
+    const id = this.route.snapshot.paramMap.get('id');
+    const locations$ = forkJoin({
+      branches: this.api.listAssignmentBranches(),
+      warehouses: this.api.listAssignmentWarehouses(),
+    });
+
+    if (id && id !== 'new') {
+      this.employeeId.set(id);
+      forkJoin({
+        employee: this.api.getEmployee(id),
+        locations: locations$,
+      }).subscribe({
+        next: ({ employee, locations }) => {
+          this.branches.set(locations.branches);
+          this.warehouses.set(locations.warehouses);
+          this.applyEmployee(employee);
+          this.form.controls.email.disable();
+          this.loading.set(false);
+        },
+        error: (error: unknown) => {
+          this.loading.set(false);
+          this.errorMessage.set(this.mapError(error, 'Unable to load employee.'));
+        },
+      });
+    } else {
+      locations$.subscribe({
+        next: (locations) => {
+          this.branches.set(locations.branches);
+          this.warehouses.set(locations.warehouses);
+          this.loading.set(false);
+        },
+        error: () => {
+          this.loading.set(false);
+          this.errorMessage.set('Unable to load branches and warehouses for assignment.');
+        },
+      });
+    }
+  }
+
+  toggleBranch(id: string, checked: boolean): void {
+    const current = new Set(this.form.controls.branchIds.value);
+    if (checked) {
+      current.add(id);
+    } else {
+      current.delete(id);
+    }
+    this.form.controls.branchIds.setValue([...current]);
+  }
+
+  toggleWarehouse(id: string, checked: boolean): void {
+    const current = new Set(this.form.controls.warehouseIds.value);
+    if (checked) {
+      current.add(id);
+    } else {
+      current.delete(id);
+    }
+    this.form.controls.warehouseIds.setValue([...current]);
+  }
+
+  isBranchChecked(id: string): boolean {
+    return this.form.controls.branchIds.value.includes(id);
+  }
+
+  isWarehouseChecked(id: string): boolean {
+    return this.form.controls.warehouseIds.value.includes(id);
+  }
+
+  save(): void {
+    const creating = this.employeeId() === null;
+    if ((creating && !this.canCreate()) || (!creating && !this.canUpdate())) {
+      this.errorMessage.set('You do not have permission for this action.');
+      return;
+    }
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+
+    this.saving.set(true);
+    this.errorMessage.set(null);
+    const value = this.form.getRawValue();
+
+    if (creating) {
+      this.api
+        .createEmployee({
+          email: value.email,
+          displayName: value.displayName,
+          role: value.role,
+        })
+        .subscribe({
+          next: (created) => {
+            this.activationHandoff.set(created.activationUrl ?? null);
+            if (this.canAssign()) {
+              this.api
+                .replaceAccessAssignments(created.id, {
+                  branchIds: value.branchIds,
+                  warehouseIds: value.warehouseIds,
+                })
+                .subscribe({
+                  next: () => {
+                    this.saving.set(false);
+                    if (!created.activationUrl) {
+                      void this.router.navigateByUrl('/app/employees');
+                    }
+                  },
+                  error: (error: unknown) => {
+                    this.saving.set(false);
+                    this.errorMessage.set(this.mapError(error, 'Employee created but assignments failed.'));
+                  },
+                });
+            } else {
+              this.saving.set(false);
+              if (!created.activationUrl) {
+                void this.router.navigateByUrl('/app/employees');
+              }
+            }
+          },
+          error: (error: unknown) => {
+            this.saving.set(false);
+            this.errorMessage.set(this.mapError(error, 'Unable to create employee.'));
+          },
+        });
+      return;
+    }
+
+    this.api
+      .updateEmployee(this.employeeId()!, {
+        expectedVersion: this.version,
+        displayName: value.displayName,
+        role: value.role,
+      })
+      .subscribe({
+        next: (updated) => {
+          this.version = updated.version;
+          if (!this.canAssign()) {
+            this.saving.set(false);
+            void this.router.navigateByUrl('/app/employees');
+            return;
+          }
+          this.api
+            .replaceAccessAssignments(updated.id, {
+              branchIds: value.branchIds,
+              warehouseIds: value.warehouseIds,
+            })
+            .subscribe({
+              next: () => {
+                this.saving.set(false);
+                void this.router.navigateByUrl('/app/employees');
+              },
+              error: (error: unknown) => {
+                this.saving.set(false);
+                this.errorMessage.set(this.mapError(error, 'Profile saved but assignments failed.'));
+              },
+            });
+        },
+        error: (error: unknown) => {
+          this.saving.set(false);
+          this.errorMessage.set(this.mapError(error, 'Unable to update employee.'));
+        },
+      });
+  }
+
+  private applyEmployee(employee: EmployeeRecord): void {
+    this.version = employee.version;
+    this.form.patchValue({
+      email: employee.email,
+      displayName: employee.displayName,
+      role: employee.role as OrganizationRole,
+      branchIds: employee.branchIds,
+      warehouseIds: employee.warehouseIds,
+    });
+  }
+
+  private mapError(error: unknown, fallback: string): string {
+    if (!(error instanceof HttpErrorResponse)) {
+      return fallback;
+    }
+    if (error.error?.error?.code === 'VERSION_CONFLICT') {
+      return 'This employee changed elsewhere. Reload and try again.';
+    }
+    return error.error?.error?.message ?? fallback;
+  }
+}

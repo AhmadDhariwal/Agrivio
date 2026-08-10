@@ -47,6 +47,11 @@ export class AppShellPage {
   readonly canSubmitBilling = computed(() =>
     this.sessionStore.hasPermission('subscription.billing-evidence.submit'),
   );
+  readonly canViewSettings = computed(() => this.sessionStore.hasPermission('settings.view'));
+  readonly canViewBranches = computed(() => this.sessionStore.hasPermission('branches.view'));
+  readonly canViewWarehouses = computed(() => this.sessionStore.hasPermission('warehouses.view'));
+  readonly canViewEmployees = computed(() => this.sessionStore.hasPermission('users.view'));
+
 
   constructor() {
     if (this.sessionStore.session() === null) {
