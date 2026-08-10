@@ -1,24 +1,79 @@
-<section class="onboarding">
-  <h1>Activate owner account</h1>
-  <p>Set your initial password using the one-time activation token.</p>
-
-  <form [formGroup]="form" (ngSubmit)="submit()">
-    <label>
-      Activation token
-      <input formControlName="token" autocomplete="one-time-code" />
-    </label>
-    <label>
-      Password
-      <input formControlName="password" type="password" autocomplete="new-password" />
-    </label>
+<agrivio-auth-layout
+  title="Activate owner account"
+  subtitle="Set your initial password with the one-time activation token from Super Admin approval."
+>
+  <form class="ag-form" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="ag-field">
+      <label class="ag-field__label" for="activation-token">Activation token</label>
+      <input
+        id="activation-token"
+        class="ag-input"
+        formControlName="token"
+        autocomplete="one-time-code"
+        data-testid="activation-token-input"
+      />
+      @if (form.controls.token.touched && form.controls.token.invalid) {
+        <p class="ag-field__error">Activation token is required.</p>
+      }
+    </div>
+    <div class="ag-field">
+      <label class="ag-field__label" for="activation-password">Password</label>
+      <div class="ag-control-wrap">
+        <input
+          id="activation-password"
+          class="ag-input"
+          [type]="showPassword() ? 'text' : 'password'"
+          formControlName="password"
+          autocomplete="new-password"
+          data-testid="activation-password-input"
+        />
+        <button
+          type="button"
+          class="ag-control-wrap__action"
+          (click)="showPassword.set(!showPassword())"
+          [attr.aria-pressed]="showPassword()"
+        >
+          {{ showPassword() ? 'Hide' : 'Show' }}
+        </button>
+      </div>
+      @if (form.controls.password.touched && form.controls.password.invalid) {
+        <p class="ag-field__error">Password must be 12–128 characters.</p>
+      }
+    </div>
+    <div class="ag-field">
+      <label class="ag-field__label" for="activation-password-confirm">Confirm password</label>
+      <input
+        id="activation-password-confirm"
+        class="ag-input"
+        [type]="showPassword() ? 'text' : 'password'"
+        formControlName="confirmPassword"
+        autocomplete="new-password"
+        data-testid="activation-password-confirm-input"
+      />
+      @if (form.touched && form.hasError('passwordMismatch')) {
+        <p class="ag-field__error">Password and confirmation must match.</p>
+      }
+    </div>
 
     @if (errorMessage(); as error) {
-      <p class="error" role="alert">{{ error }}</p>
+      <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
     }
     @if (successMessage(); as success) {
-      <p class="success" role="status">{{ success }}</p>
+      <agrivio-ui-alert [message]="success" tone="success" />
     }
 
-    <button type="submit" [disabled]="submitting()">Activate</button>
+    <button
+      type="submit"
+      class="ag-btn ag-btn--primary"
+      [disabled]="submitting() || form.invalid"
+      data-testid="activate-submit"
+    >
+      {{ submitting() ? 'Activating…' : 'Activate' }}
+    </button>
   </form>
-</section>
+
+  <div class="ag-auth-links">
+    <a routerLink="/login">Sign in</a>
+    <a routerLink="/">Back to landing</a>
+  </div>
+</agrivio-auth-layout>

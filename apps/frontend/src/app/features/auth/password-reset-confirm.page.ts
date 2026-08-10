@@ -2,11 +2,13 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthApi } from './auth.api';
+import { AuthLayoutComponent } from '../../shared/ui/auth-layout.component';
+import { UiAlertComponent } from '../../shared/ui/ui-alert.component';
 
 @Component({
   selector: 'agrivio-password-reset-confirm-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, AuthLayoutComponent, UiAlertComponent],
   templateUrl: './password-reset-confirm.page.html',
   styleUrl: './password-reset-confirm.page.scss',
 })
@@ -16,6 +18,7 @@ export class PasswordResetConfirmPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
 
   readonly submitting = signal(false);
+  readonly showPassword = signal(false);
   readonly successMessage = signal<string | null>(null);
   readonly errorMessage = signal<string | null>(null);
 

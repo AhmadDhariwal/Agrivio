@@ -1,11 +1,23 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { SubscriptionApi, SubscriptionPlanSummary } from '../subscriptions/subscription.api';
+import { UiPageHeaderComponent } from '../../shared/ui/ui-page-header.component';
+import { UiAlertComponent } from '../../shared/ui/ui-alert.component';
+import { UiEmptyStateComponent } from '../../shared/ui/ui-empty-state.component';
+import { UiLoadingStateComponent } from '../../shared/ui/ui-loading-state.component';
+import { UiStatusBadgeComponent, UiBadgeTone } from '../../shared/ui/ui-status-badge.component';
 
 @Component({
   selector: 'agrivio-platform-plans-page',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [
+    ReactiveFormsModule,
+    UiPageHeaderComponent,
+    UiAlertComponent,
+    UiEmptyStateComponent,
+    UiLoadingStateComponent,
+    UiStatusBadgeComponent,
+  ],
   templateUrl: './plans-admin.page.html',
   styleUrl: './plans-admin.page.scss',
 })
@@ -14,6 +26,8 @@ export class PlatformPlansPage {
   private readonly formBuilder = inject(FormBuilder);
 
   readonly plans = signal<SubscriptionPlanSummary[]>([]);
+  readonly loading = signal(true);
+  readonly submitting = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
 
@@ -29,10 +43,21 @@ export class PlatformPlansPage {
     this.reload();
   }
 
+  statusTone(status: string): UiBadgeTone {
+    return status === 'active' ? 'success' : 'neutral';
+  }
+
   reload(): void {
+    this.loading.set(true);
     this.subscriptionApi.listPlatformPlans().subscribe({
-      next: (plans) => this.plans.set(plans),
-      error: () => this.errorMessage.set('Unable to load plans.'),
+      next: (plans) => {
+        this.plans.set(plans);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.loading.set(false);
+        this.errorMessage.set('Unable to load plans.');
+      },
     });
   }
 
@@ -44,6 +69,7 @@ export class PlatformPlansPage {
       return;
     }
     const raw = this.form.getRawValue();
+    this.submitting.set(true);
     this.subscriptionApi
       .createPlatformPlan({
         planCode: raw.planCode,
@@ -54,10 +80,14 @@ export class PlatformPlansPage {
       })
       .subscribe({
         next: (plan) => {
+          this.submitting.set(false);
           this.successMessage.set(`Created ${plan.planCode} v${plan.planVersion}`);
           this.reload();
         },
-        error: () => this.errorMessage.set('Unable to create plan version.'),
+        error: () => {
+          this.submitting.set(false);
+          this.errorMessage.set('Unable to create plan version.');
+        },
       });
   }
 }

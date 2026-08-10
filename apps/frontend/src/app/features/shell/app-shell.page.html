@@ -1,0 +1,83 @@
+@if (sessionRestoring()) {
+  <div class="ag-auth-layout">
+    <agrivio-ui-loading-state label="Restoring your session…" />
+  </div>
+} @else {
+  <div class="ag-shell">
+    <aside class="ag-shell__sidebar" [class.is-open]="navOpen()" aria-label="Application navigation">
+      <div>
+        <a routerLink="/app" class="ag-shell__brand">Agrivio</a>
+        <div class="ag-shell__meta" style="margin-top: 0.75rem">
+          <span data-testid="active-context">{{ contextLabel() }}</span>
+          @if (session(); as current) {
+            <span>{{ current.user.email }}</span>
+            @if (activeContext(); as active) {
+              <span>{{ active.role }}</span>
+            }
+          }
+        </div>
+      </div>
+
+      <nav class="ag-shell__nav">
+        <a routerLink="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+          Workspace
+        </a>
+        <a routerLink="/context">Switch context</a>
+        @if (canSubmitBilling()) {
+          <a routerLink="/app/subscription/billing" routerLinkActive="active">Billing</a>
+        }
+        @if (canManagePlatformOrgs()) {
+          <a routerLink="/app/platform/organizations" routerLinkActive="active">Organizations</a>
+        }
+        @if (canManagePlans()) {
+          <a routerLink="/app/platform/plans" routerLinkActive="active">Plans</a>
+        }
+        @if (canReviewBilling()) {
+          <a routerLink="/app/platform/billing-review" routerLinkActive="active">Billing review</a>
+        }
+      </nav>
+
+      <button
+        type="button"
+        class="ag-btn ag-btn--secondary"
+        data-testid="sign-out"
+        [disabled]="signingOut()"
+        (click)="signOut()"
+      >
+        {{ signingOut() ? 'Signing out…' : 'Sign out' }}
+      </button>
+    </aside>
+
+    <div class="ag-shell__main">
+      <header class="ag-shell__topbar">
+        <div class="ag-inline">
+          <button
+            type="button"
+            class="ag-btn ag-btn--secondary ag-shell__menu-toggle"
+            (click)="navOpen.set(!navOpen())"
+            [attr.aria-expanded]="navOpen()"
+          >
+            Menu
+          </button>
+          <div>
+            <strong>Workspace</strong>
+            <p class="ag-muted" style="font-size: 0.875rem">{{ contextLabel() }}</p>
+          </div>
+        </div>
+        @if (session(); as current) {
+          <p class="ag-muted" style="font-size: 0.875rem">{{ current.user.displayName }}</p>
+        }
+      </header>
+
+      <div class="ag-shell__content">
+        <agrivio-subscription-status-banner [accessState]="subscriptionAccessState()" />
+
+        @if (errorMessage(); as error) {
+          <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
+        }
+
+        <router-outlet></router-outlet>
+      </div>
+    </div>
+  </div>
+}

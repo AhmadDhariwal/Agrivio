@@ -126,6 +126,14 @@ describe('F02 Phase 1 organization onboarding', () => {
       expect(approved.body.data.status).toBe('approved');
       expect(approved.body.data.subscriptionStatus).toBe('trial');
       expect(typeof approved.body.data.activationToken).toBe('string');
+      expect(approved.body.data.ownerEmail).toBe('owner2@example.com');
+      expect(approved.body.data.activationPath).toBe(
+        `/activate?token=${encodeURIComponent(approved.body.data.activationToken)}`,
+      );
+      expect(approved.body.data.activationUrl).toBe(
+        `http://localhost:4200/activate?token=${encodeURIComponent(approved.body.data.activationToken)}`,
+      );
+      expect(JSON.stringify(approved.body)).not.toMatch(/passwordHash|tokenHash/i);
 
       const tokenHash = hashToken(approved.body.data.activationToken);
       const storedToken = await store.findActivationTokenByHash(tokenHash);
@@ -263,6 +271,85 @@ describe('F02 Phase 1 organization onboarding', () => {
         jar,
       );
       expect(reuse.status).toBe(409);
+    } finally {
+      await close(server);
+    }
+  });
+
+  it('reissues activation for approved owner without password and invalidates prior token', async () => {
+    const { server, baseUrl, store, onboardingService, jar } = await boot();
+
+    try {
+      const created = await onboardingService.submitActivationRequest({
+        organizationName: 'Reissue Co',
+        ownerEmail: 'reissue@example.com',
+        ownerDisplayName: 'Reissue Owner',
+      });
+      const approved = await onboardingService.approveOrganization(created.organizationId, {
+        actorId: 'super-admin-1',
+      });
+      const firstToken = approved.activationToken;
+
+      const reissued = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_PLATFORM_ORGANIZATIONS_PATH}/${created.organizationId}/reissue-activation`,
+        {},
+        {
+          [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+          [API_PLATFORM_ACTOR_HEADER]: 'super-admin-1',
+        },
+        jar,
+      );
+      expect(reissued.status).toBe(200);
+      expect(reissued.body.data.reissued).toBe(true);
+      expect(reissued.body.data.ownerEmail).toBe('reissue@example.com');
+      expect(typeof reissued.body.data.activationToken).toBe('string');
+      expect(reissued.body.data.activationToken).not.toBe(firstToken);
+      expect(reissued.body.data.activationUrl).toContain('/activate?token=');
+
+      const oldHash = hashToken(firstToken);
+      const oldStored = await store.findActivationTokenByHash(oldHash);
+      expect(oldStored?.consumedAt).toBeTruthy();
+
+      const stale = await fetchJson(
+        baseUrl,
+        'POST',
+        API_AUTH_ACTIVATE_PATH,
+        {
+          token: firstToken,
+          password: 'a-strong-passphrase',
+        },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      expect(stale.status).toBe(409);
+
+      const ok = await fetchJson(
+        baseUrl,
+        'POST',
+        API_AUTH_ACTIVATE_PATH,
+        {
+          token: reissued.body.data.activationToken,
+          password: 'a-strong-passphrase',
+        },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      expect(ok.status).toBe(200);
+
+      const blocked = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_PLATFORM_ORGANIZATIONS_PATH}/${created.organizationId}/reissue-activation`,
+        {},
+        {
+          [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+          [API_PLATFORM_ACTOR_HEADER]: 'super-admin-1',
+        },
+        jar,
+      );
+      expect(blocked.status).toBe(409);
     } finally {
       await close(server);
     }

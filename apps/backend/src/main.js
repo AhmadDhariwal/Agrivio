@@ -1,11 +1,17 @@
 const { createApp } = require('./app');
-const { createMongooseDatabaseLifecycle } = require('./platform/database/mongo-connection');
+const {
+  createMongooseDatabaseLifecycle,
+  createMockDatabaseLifecycle,
+} = require('./platform/database/mongo-connection');
 const {
   loadApiEnv,
   redactSecrets,
   toSafeApiEnvSummary,
 } = require('./platform/config/runtime-config');
+const { loadLocalDevelopmentEnv } = require('./platform/config/load-local-env');
 const { createStructuredLogger } = require('./platform/logging/structured-logger');
+
+loadLocalDevelopmentEnv();
 
 let server;
 
@@ -30,14 +36,20 @@ async function shutdown(signal) {
 async function start() {
   const env = loadApiEnv();
   const logger = createStructuredLogger({ service: 'backend' });
-  database = createMongooseDatabaseLifecycle();
+  database = env.skipMongo
+    ? createMockDatabaseLifecycle({ ready: true })
+    : createMongooseDatabaseLifecycle();
 
   await database.connect(env);
 
   const app = createApp({ config: env, database, logger });
   server = app.listen(env.port, env.host, () => {
     const summary = toSafeApiEnvSummary(env);
-    logger('info', 'backend ready', summary);
+    logger('info', 'backend ready', {
+      ...summary,
+      skipMongo: env.skipMongo === true,
+      allowE2eBootstrap: env.allowE2eBootstrap === true,
+    });
   });
 
   process.once('SIGINT', () => {
@@ -50,6 +62,13 @@ async function start() {
 
 start().catch((error) => {
   const message = error instanceof Error ? error.message : String(error);
+  const code =
+    error && typeof error === 'object' && typeof error.code === 'string'
+      ? error.code
+      : undefined;
+  if (code) {
+    console.error(redactSecrets(`[agrivio] Mongo startup failed (${code})`));
+  }
   console.error(redactSecrets(message));
   process.exit(1);
 });

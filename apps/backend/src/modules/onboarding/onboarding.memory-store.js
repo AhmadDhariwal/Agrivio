@@ -157,6 +157,20 @@ function createInMemoryOnboardingStore() {
       return null;
     },
 
+    async listOpenActivationTokens(filter) {
+      return [...activationTokens.values()]
+        .filter((token) => {
+          if (String(token['userId']) !== String(filter.userId)) {
+            return false;
+          }
+          if (String(token['organizationId']) !== String(filter.organizationId)) {
+            return false;
+          }
+          return token['consumedAt'] === undefined || token['consumedAt'] === null;
+        })
+        .map((token) => ({ ...token }));
+    },
+
     async insertActivationToken(_session, doc) {
       const id = String(doc['_id'] ?? randomUUID());
       const record = { ...doc, _id: id };

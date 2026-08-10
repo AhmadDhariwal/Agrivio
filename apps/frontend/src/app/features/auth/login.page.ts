@@ -3,11 +3,13 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthApi } from './auth.api';
 import { AuthSessionStore } from './auth-session.store';
+import { AuthLayoutComponent } from '../../shared/ui/auth-layout.component';
+import { UiAlertComponent } from '../../shared/ui/ui-alert.component';
 
 @Component({
   selector: 'agrivio-login-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, AuthLayoutComponent, UiAlertComponent],
   templateUrl: './login.page.html',
   styleUrl: './login.page.scss',
 })
@@ -18,6 +20,7 @@ export class LoginPage {
   private readonly router = inject(Router);
 
   readonly submitting = signal(false);
+  readonly showPassword = signal(false);
   readonly successMessage = signal<string | null>(null);
   readonly errorMessage = signal<string | null>(null);
 
@@ -41,7 +44,7 @@ export class LoginPage {
       next: (result) => {
         this.sessionStore.applySession(result.session);
         this.submitting.set(false);
-        this.successMessage.set('Signed in. Session cookie authentication is active.');
+        this.successMessage.set('Signed in successfully.');
         this.form.patchValue({ password: '' });
         void this.router.navigateByUrl('/context');
       },

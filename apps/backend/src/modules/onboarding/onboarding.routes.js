@@ -59,6 +59,17 @@ function registerOnboardingRoutes(deps) {
   );
 
   router.post(
+    `${API_PLATFORM_ORGANIZATIONS_PATH}/:id/reissue-activation`,
+    optionalAuth,
+    requireCsrf,
+    platformActor,
+    requirePlatformPermission('platform.organizations.approve'),
+    (req, res, next) => {
+      void platformController.reissueActivation(req, res, next);
+    },
+  );
+
+  router.post(
     `${API_PLATFORM_ORGANIZATIONS_PATH}/:id/reject`,
     optionalAuth,
     requireCsrf,

@@ -6,9 +6,9 @@ Agrivio is a cloud-first Fertilizer POS and Inventory Management web application
 
 ## Current Status
 
-Current task: **npm workspace migration complete** — package manager is npm; Nx retained  
-Status: Unit/architecture gates targeted on Node `24.18.0` / npm `11.16.0`; live MongoDB transaction proofs still require Docker Compose v2  
-Next work item: **F02 Phase 5**
+Current task: **local runtime finalization (pre-F03)** — native/Docker Mongo `rs0`, backend startup diagnostics, frontend serve paths  
+Status: Unit/architecture gates targeted on Node `24.18.0` / npm `11.16.0`; live Mongo requires single-node replica set `rs0` (Docker Compose **or** locally installed mongod)  
+Next work item: **F03** after F02 stage verification is recorded
 
 P1-01 through P1-07 are complete.  
 All four P1-07 toolchain documents are frozen at version 1.4.0 (npm workspace amendment).  
@@ -17,9 +17,10 @@ Angular frontend scaffold (`R1-F00-002`, historically `apps/web`) is complete.
 Express backend scaffold (`R1-F00-003`, now JavaScript CommonJS under `apps/backend`) is complete.  
 Shared packages `@agrivio/api-contracts`, `@agrivio/tooling-config`, and `@agrivio/test-support` exist.  
 Root commands from [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) are wired (`npm run check`, build/lint/typecheck/test/format/affected, `db:*`, `test:integration`).  
-Manual app startup: `cd apps/frontend && npm start`, `cd apps/backend && node index.js`.  
+Manual app startup: `cd apps/frontend && npm start`, `cd apps/backend && node index.js` (or `npm run dev`).  
+Local Mongo: `127.0.0.1:27017`, database `Agrivio`, replica set `rs0` — see [docs/tasks/LOCAL-RUNTIME-BEFORE-F03.md](docs/tasks/LOCAL-RUNTIME-BEFORE-F03.md).  
 E2E and CI foundation workflows exist under `.github/workflows/` (quality, integration, E2E smoke) using npm `ci`.  
-Docker-dependent integration/E2E execution still requires Docker Compose v2 locally.
+Docker-dependent Compose commands still require Docker Compose v2; native mongod `rs0` is supported when Docker is absent.
 
 ## Current Phase
 

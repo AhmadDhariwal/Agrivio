@@ -13,7 +13,11 @@ describe('ContextSwitcherPage', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [ContextSwitcherPage],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([{ path: 'app', children: [] }]),
+      ],
     }).compileComponents();
 
     const store = TestBed.inject(AuthSessionStore);

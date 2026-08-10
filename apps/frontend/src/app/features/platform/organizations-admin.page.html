@@ -1,0 +1,170 @@
+<section class="ag-stack" data-testid="platform-organizations">
+  <agrivio-ui-page-header
+    eyebrow="Platform"
+    title="Organization requests"
+    lede="Super Admin review for organization activation requests. Approval issues a one-time Owner activation link for manual delivery."
+  />
+
+  <div class="ag-actions">
+    <button type="button" class="ag-btn ag-btn--secondary" [disabled]="loading()" (click)="reload()">
+      Refresh
+    </button>
+  </div>
+
+  @if (loading()) {
+    <agrivio-ui-loading-state label="Loading organizations…" />
+  } @else if (items().length === 0) {
+    <agrivio-ui-empty-state
+      title="No organization requests"
+      message="New public access requests will appear here for review."
+    />
+  } @else {
+    <div class="ag-table-wrap">
+      <table class="ag-table">
+        <thead>
+          <tr>
+            <th>Organization</th>
+            <th>Status</th>
+            <th>Owner</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of items(); track item.id) {
+            <tr data-testid="org-row">
+              <td>
+                <strong>{{ item.name }}</strong>
+              </td>
+              <td>
+                <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+              </td>
+              <td>{{ item.ownerEmail || '—' }}</td>
+              <td>
+                <div class="ag-actions">
+                  @if (item.status === 'pending_approval') {
+                    <button
+                      type="button"
+                      class="ag-btn ag-btn--primary ag-btn--sm"
+                      data-testid="approve-org"
+                      (click)="askApprove(item)"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      class="ag-btn ag-btn--danger ag-btn--sm"
+                      (click)="askReject(item)"
+                    >
+                      Reject
+                    </button>
+                  }
+                  @if (item.status === 'approved' && item.ownerNeedsActivation) {
+                    <button
+                      type="button"
+                      class="ag-btn ag-btn--secondary ag-btn--sm"
+                      data-testid="reissue-activation"
+                      (click)="askReissue(item)"
+                    >
+                      Reissue activation
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="ag-card ag-stack ag-stack--tight">
+    <h2>Rejection reason</h2>
+    <p class="ag-muted">Required before rejecting a request.</p>
+    <form class="ag-form" [formGroup]="rejectForm">
+      <div class="ag-field">
+        <label class="ag-field__label" for="reject-reason">Reason</label>
+        <input id="reject-reason" class="ag-input" type="text" formControlName="reason" />
+      </div>
+    </form>
+  </div>
+
+  @if (activationHandoff(); as handoff) {
+    <div class="ag-card ag-stack" data-testid="activation-handoff">
+      <div class="ag-alert ag-alert--success" data-testid="activation-token">
+        <strong>One-time Owner activation link (shown once)</strong>
+        <p>
+          Copy and send this link out-of-band. Agrivio does not email it. The plaintext token is not
+          stored and cannot be recovered later—use Reissue activation if the link is lost before the
+          Owner sets a password.
+        </p>
+      </div>
+
+      <dl class="ag-stack ag-stack--tight">
+        <div>
+          <dt class="ag-muted">Owner</dt>
+          <dd data-testid="activation-owner-email">
+            {{ handoff.ownerDisplayName || 'Owner' }}
+            @if (handoff.ownerEmail) {
+              &lt;{{ handoff.ownerEmail }}&gt;
+            }
+          </dd>
+        </div>
+        <div>
+          <dt class="ag-muted">Activation URL</dt>
+          <dd>
+            <code data-testid="activation-url">{{ handoff.activationUrl }}</code>
+          </dd>
+        </div>
+        <div>
+          <dt class="ag-muted">Expires</dt>
+          <dd>{{ handoff.activationTokenExpiresAt }}</dd>
+        </div>
+      </dl>
+
+      <div class="ag-actions">
+        <button
+          type="button"
+          class="ag-btn ag-btn--primary"
+          data-testid="copy-activation-url"
+          (click)="copyActivationUrl()"
+        >
+          Copy activation link
+        </button>
+        <a
+          class="ag-btn ag-btn--secondary"
+          [routerLink]="'/activate'"
+          [queryParams]="{ token: handoff.activationToken }"
+          data-testid="open-activation"
+        >
+          Open activation
+        </a>
+      </div>
+
+      @if (copyFeedback(); as copied) {
+        <agrivio-ui-alert [message]="copied" tone="success" />
+      }
+
+      <details>
+        <summary>Show raw token</summary>
+        <p><code data-testid="activation-token-value">{{ handoff.activationToken }}</code></p>
+      </details>
+    </div>
+  }
+
+  @if (successMessage(); as success) {
+    <agrivio-ui-alert [message]="success" tone="success" />
+  }
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
+  }
+
+  <agrivio-ui-confirm-dialog
+    [open]="confirmOpen()"
+    [title]="confirmTitle()"
+    [message]="confirmMessage()"
+    [confirmLabel]="confirmLabel()"
+    [danger]="confirmDanger()"
+    (confirmed)="runConfirmedAction()"
+    (dismiss)="confirmOpen.set(false)"
+  />
+</section>

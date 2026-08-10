@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   e2e-smoke:
-    name: Chromium Playwright empty-app smoke
+    name: Chromium Playwright E2E smoke + F02 onboarding
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

@@ -22,7 +22,15 @@ Central navigation for Agrivio documentation.
 * F01 Phase 2 complete (`R1-F01-006`–`R1-F01-011`) — see [tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md](tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md); **F01 stage exit satisfied** (unit-level)
 * Architecture-boundary tests runnable via `npm run test:architecture` (replaces F00 placeholder)
 * F02 Phase 1 complete (`R1-F02-005`, `R1-F02-006`) — see [tasks/F02-PHASE-1-ORGANIZATION-ONBOARDING.md](tasks/F02-PHASE-1-ORGANIZATION-ONBOARDING.md)
-* Next work item: **F02 Phase 5**
+* F02 Phase 2 complete (`R1-F02-003`, `R1-F02-004`) — see [tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md](tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md)
+* F02 Phase 3 complete (`R1-F02-007`, `R1-F02-008`) — see [tasks/F02-PHASE-3-CONTEXT-PERMISSIONS.md](tasks/F02-PHASE-3-CONTEXT-PERMISSIONS.md)
+* F02 Phase 4 complete (`R1-F02-001`, `R1-F02-002`, `R1-F02-009`) — see [tasks/F02-PHASE-4-ACCESS-ASSIGNMENTS.md](tasks/F02-PHASE-4-ACCESS-ASSIGNMENTS.md)
+* F02 Phase 5 complete (`R1-F02-010`, `R1-F02-011`, `R1-F02-012`) — see [tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md](tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md)
+* F02 Phase 6 implementation complete (`R1-F02-013`, `R1-F02-014`) — see [tasks/F02-PHASE-6-STAGE-CLOSURE.md](tasks/F02-PHASE-6-STAGE-CLOSURE.md); **F02 implementation complete — stage verification pending** (CI/Docker evidence outstanding)
+* F02 UI/UX hardening complete — see [tasks/F02-UI-UX-HARDENING.md](tasks/F02-UI-UX-HARDENING.md); **13** user-facing F02 pages/views polished; local `.env.local` auto-load for backend startup
+* Local runtime finalization (pre-F03) complete — see [tasks/LOCAL-RUNTIME-BEFORE-F03.md](tasks/LOCAL-RUNTIME-BEFORE-F03.md); native/Docker `rs0`, startup diagnostics, Angular CLI serve workspace file
+* F02 Owner activation handoff fix complete — see [tasks/F02-OWNER-ACTIVATION-HANDOFF.md](tasks/F02-OWNER-ACTIVATION-HANDOFF.md); approve/reissue absolute activation URL + copy UI
+* Next work item: **F03** after F02 stage verification is recorded
 
 ## Existing Documents
 
@@ -62,6 +70,11 @@ Central navigation for Agrivio documentation.
 | [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md) | Backend coding-style migration: JavaScript ESM → CommonJS (complete) |
 | [tasks/NPM-WORKSPACE-MIGRATION.md](tasks/NPM-WORKSPACE-MIGRATION.md) | Tooling migration: pnpm → npm workspaces; simplified app startup (complete) |
 | [tasks/F02-PHASE-1-ORGANIZATION-ONBOARDING.md](tasks/F02-PHASE-1-ORGANIZATION-ONBOARDING.md) | F02 Phase 1: organization onboarding and Owner activation (complete; CommonJS) |
+| [tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md](tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md) | F02 Phase 5: plans, subscription lifecycle, and manual billing |
+| [tasks/F02-PHASE-6-STAGE-CLOSURE.md](tasks/F02-PHASE-6-STAGE-CLOSURE.md) | F02 Phase 6: onboarding E2E, tenant isolation, stage closure (implementation complete — verification pending) |
+| [tasks/F02-UI-UX-HARDENING.md](tasks/F02-UI-UX-HARDENING.md) | F02 final UI/UX hardening: visual system, routing, local env startup, frontend quality |
+| [tasks/LOCAL-RUNTIME-BEFORE-F03.md](tasks/LOCAL-RUNTIME-BEFORE-F03.md) | Pre-F03 local runtime: native/Docker Mongo `rs0`, backend diagnostics, serve paths |
+| [tasks/F02-OWNER-ACTIVATION-HANDOFF.md](tasks/F02-OWNER-ACTIVATION-HANDOFF.md) | F02 Owner activation approve/reissue handoff URL and UI |
 | [tasks/F01-PHASE-1-PLATFORM-RUNTIME.md](tasks/F01-PHASE-1-PLATFORM-RUNTIME.md) | F01 Phase 1: platform runtime foundation |
 | [tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md](tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md) | F01 Phase 2: transactional platform foundation (completes F01) |
 | [../README.md](../README.md) | Repository landing page |

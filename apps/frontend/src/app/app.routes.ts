@@ -1,12 +1,22 @@
 import { Route } from '@angular/router';
+import {
+  requirePlatformContextGuard,
+  requireSessionGuard,
+} from './core/guards/session.guards';
 
 export const appRoutes: Route[] = [
+  {
+    path: '',
+    loadComponent: () =>
+      import('./features/public/landing.page').then((m) => m.LandingPage),
+  },
   {
     path: 'login',
     loadComponent: () => import('./features/auth/login.page').then((m) => m.LoginPage),
   },
   {
     path: 'context',
+    canActivate: [requireSessionGuard],
     loadComponent: () =>
       import('./features/auth/context-switcher.page').then((m) => m.ContextSwitcherPage),
   },
@@ -30,18 +40,70 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./features/onboarding/activate.page').then((m) => m.ActivatePage),
   },
   {
-    path: 'subscription/billing',
+    path: 'app',
+    canActivate: [requireSessionGuard],
     loadComponent: () =>
-      import('./features/subscriptions/billing-evidence.page').then((m) => m.BillingEvidencePage),
+      import('./features/shell/app-shell.page').then((m) => m.AppShellPage),
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./features/shell/workspace-home.page').then((m) => m.WorkspaceHomePage),
+      },
+      {
+        path: 'subscription/billing',
+        loadComponent: () =>
+          import('./features/subscriptions/billing-evidence.page').then(
+            (m) => m.BillingEvidencePage,
+          ),
+      },
+      {
+        path: 'platform/organizations',
+        canActivate: [requirePlatformContextGuard],
+        loadComponent: () =>
+          import('./features/platform/organizations-admin.page').then(
+            (m) => m.PlatformOrganizationsPage,
+          ),
+      },
+      {
+        path: 'platform/plans',
+        canActivate: [requirePlatformContextGuard],
+        loadComponent: () =>
+          import('./features/platform/plans-admin.page').then((m) => m.PlatformPlansPage),
+      },
+      {
+        path: 'platform/billing-review',
+        canActivate: [requirePlatformContextGuard],
+        loadComponent: () =>
+          import('./features/platform/billing-review.page').then(
+            (m) => m.PlatformBillingReviewPage,
+          ),
+      },
+    ],
+  },
+  {
+    path: 'subscription/billing',
+    redirectTo: 'app/subscription/billing',
+    pathMatch: 'full',
+  },
+  {
+    path: 'platform/organizations',
+    redirectTo: 'app/platform/organizations',
+    pathMatch: 'full',
   },
   {
     path: 'platform/plans',
-    loadComponent: () =>
-      import('./features/platform/plans-admin.page').then((m) => m.PlatformPlansPage),
+    redirectTo: 'app/platform/plans',
+    pathMatch: 'full',
   },
   {
     path: 'platform/billing-review',
+    redirectTo: 'app/platform/billing-review',
+    pathMatch: 'full',
+  },
+  {
+    path: '**',
     loadComponent: () =>
-      import('./features/platform/billing-review.page').then((m) => m.PlatformBillingReviewPage),
+      import('./features/public/not-found.page').then((m) => m.NotFoundPage),
   },
 ];

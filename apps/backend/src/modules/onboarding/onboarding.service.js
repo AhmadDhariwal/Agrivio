@@ -21,6 +21,9 @@ function createOnboardingService(deps) {
   const now = deps.now ?? (() => new Date());
   const activationTtlMs = deps.activationTtlMs ?? DEFAULT_ACTIVATION_TTL_MS;
   const trialDays = deps.trialDays ?? DEFAULT_TRIAL_DAYS;
+  const publicWebBaseUrl = normalizePublicWebBaseUrl(
+    deps.publicWebBaseUrl ?? 'http://localhost:4200',
+  );
   const auditWriter = createAuditWriter({
     append: (session, event) => store.appendAuditEvent(session, event),
   });
@@ -124,7 +127,11 @@ function createOnboardingService(deps) {
 
     async listOrganizations(filter = {}) {
       const organizations = await store.listOrganizations(filter);
-      return organizations.map(toOrganizationSummary);
+      const summaries = [];
+      for (const organization of organizations) {
+        summaries.push(await toOrganizationListItem(store, organization));
+      }
+      return summaries;
     },
 
     async getOrganization(organizationId) {
@@ -137,7 +144,7 @@ function createOnboardingService(deps) {
       const subscription =
         await subscriptionStore.findSubscriptionByOrganizationId(organizationId);
       return {
-        ...toOrganizationSummary(organization),
+        ...(await toOrganizationListItem(store, organization, owner)),
         owner: owner === null ? null : toUserSummary(owner),
         subscription:
           subscription === null
@@ -166,6 +173,10 @@ function createOnboardingService(deps) {
         }
 
         const ownerUserId = String(organization['ownerUserId']);
+        const owner = await store.findUserById(ownerUserId);
+        if (owner === null) {
+          throw conflict('Owner user is missing');
+        }
         const membership = await store.findMembership(organizationId, ownerUserId);
         if (membership === null) {
           throw conflict('Owner membership is missing');
@@ -173,6 +184,7 @@ function createOnboardingService(deps) {
 
         const approvedAt = now();
         const trialEndsAt = new Date(approvedAt.getTime() + trialDays * 24 * 60 * 60 * 1000);
+        const expiresAt = new Date(approvedAt.getTime() + activationTtlMs);
         const { token, tokenHash } = generateActivationToken();
 
         await store.updateOrganization(session, organizationId, {
@@ -213,7 +225,7 @@ function createOnboardingService(deps) {
           userId: ownerUserId,
           organizationId,
           tokenHash,
-          expiresAt: new Date(approvedAt.getTime() + activationTtlMs),
+          expiresAt,
           purpose: 'owner_activation',
         });
 
@@ -226,15 +238,81 @@ function createOnboardingService(deps) {
           metadata: { trialEndsAt: trialEndsAt.toISOString() },
         });
 
-        return {
+        return buildActivationHandoff({
           organizationId,
           status: 'approved',
           subscriptionStatus: 'trial',
           trialEndsAt: trialEndsAt.toISOString(),
-          // Plaintext token returned once for out-of-band delivery; never stored.
-          activationToken: token,
-          activationTokenExpiresAt: new Date(approvedAt.getTime() + activationTtlMs).toISOString(),
-        };
+          owner,
+          token,
+          expiresAt,
+          publicWebBaseUrl,
+        });
+      });
+    },
+
+    /**
+     * Reissue one-time Owner activation token for approved org with no usable password yet.
+     * Invalidates prior unconsumed tokens. Plaintext returned once only.
+     */
+    async reissueOwnerActivationToken(organizationId, actor) {
+      return deps.transactionRunner.run(async (session) => {
+        const organization = await store.findOrganizationById(organizationId);
+        if (organization === null) {
+          throw notFound('Organization not found');
+        }
+        if (organization['status'] !== 'approved') {
+          throw conflict('Activation tokens can only be reissued for approved organizations');
+        }
+
+        const ownerUserId = String(organization['ownerUserId']);
+        const owner = await store.findUserById(ownerUserId);
+        if (owner === null) {
+          throw conflict('Owner user is missing');
+        }
+        if (!ownerNeedsActivation(owner)) {
+          throw conflict('Owner already has usable credentials; activation reissue is not allowed');
+        }
+
+        const issuedAt = now();
+        const expiresAt = new Date(issuedAt.getTime() + activationTtlMs);
+        const openTokens = await store.listOpenActivationTokens({
+          userId: ownerUserId,
+          organizationId,
+        });
+        for (const openToken of openTokens) {
+          await store.updateActivationToken(session, String(openToken['_id']), {
+            consumedAt: issuedAt,
+          });
+        }
+
+        const { token, tokenHash } = generateActivationToken();
+        await store.insertActivationToken(session, {
+          userId: ownerUserId,
+          organizationId,
+          tokenHash,
+          expiresAt,
+          purpose: 'owner_activation',
+        });
+
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: actor.actorId,
+          action: 'organization.activation_token_reissued',
+          resourceType: 'organization',
+          resourceId: organizationId,
+          metadata: { ownerUserId },
+        });
+
+        return buildActivationHandoff({
+          organizationId,
+          status: organization['status'],
+          owner,
+          token,
+          expiresAt,
+          publicWebBaseUrl,
+          reissued: true,
+        });
       });
     },
 
@@ -346,6 +424,60 @@ function createOnboardingService(deps) {
   };
 }
 
+function normalizePublicWebBaseUrl(value) {
+  const parsed = new URL(value);
+  return parsed.origin;
+}
+
+function buildActivationPath(token) {
+  return `/activate?token=${encodeURIComponent(token)}`;
+}
+
+function buildActivationUrl(publicWebBaseUrl, token) {
+  return `${publicWebBaseUrl}${buildActivationPath(token)}`;
+}
+
+function buildActivationHandoff(input) {
+  const ownerEmail = String(input.owner['email'] ?? '');
+  const ownerDisplayName = String(input.owner['displayName'] ?? '');
+  return {
+    organizationId: input.organizationId,
+    status: input.status,
+    ...(input.subscriptionStatus === undefined
+      ? {}
+      : { subscriptionStatus: input.subscriptionStatus }),
+    ...(input.trialEndsAt === undefined ? {} : { trialEndsAt: input.trialEndsAt }),
+    ...(input.reissued === true ? { reissued: true } : {}),
+    ownerEmail,
+    ownerDisplayName,
+    // Plaintext token returned once for out-of-band delivery; never stored.
+    activationToken: input.token,
+    activationTokenExpiresAt: input.expiresAt.toISOString(),
+    activationPath: buildActivationPath(input.token),
+    activationUrl: buildActivationUrl(input.publicWebBaseUrl, input.token),
+  };
+}
+
+function ownerNeedsActivation(owner) {
+  if (owner['status'] !== 'pending_activation') {
+    return false;
+  }
+  return !(typeof owner['passwordHash'] === 'string' && owner['passwordHash'].length > 0);
+}
+
+async function toOrganizationListItem(store, organization, preloadedOwner) {
+  const owner =
+    preloadedOwner === undefined
+      ? await store.findUserById(String(organization['ownerUserId']))
+      : preloadedOwner;
+  return {
+    ...toOrganizationSummary(organization),
+    ownerEmail: owner === null ? null : owner['email'],
+    ownerStatus: owner === null ? null : owner['status'],
+    ownerNeedsActivation: owner === null ? false : ownerNeedsActivation(owner),
+  };
+}
+
 function toOrganizationSummary(organization) {
   return {
     id: String(organization['_id']),
@@ -373,4 +505,6 @@ module.exports = {
   createOnboardingService,
   DEFAULT_ACTIVATION_TTL_MS,
   DEFAULT_TRIAL_DAYS,
+  buildActivationPath,
+  buildActivationUrl,
 };

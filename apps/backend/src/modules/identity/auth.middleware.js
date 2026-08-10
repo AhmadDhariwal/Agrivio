@@ -2,6 +2,7 @@ const { API_CSRF_HEADER } = require('@agrivio/api-contracts');
 const { forbidden, unauthorized } = require('../../platform/errors/app-error');
 const { readSessionToken } = require('./auth.cookies');
 const { attachAuthContextToRequest } = require('./permission.middleware');
+const { resolveAllowedOrigins } = require('./cors-origins');
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -13,18 +14,35 @@ function clientKey(req) {
   return req.socket.remoteAddress ?? 'unknown';
 }
 
+/**
+ * Explicit CORS allowlist with credentials. Credentials are never permitted
+ * from arbitrary origins.
+ */
+function createCorsMiddleware(config) {
+  const allowed = resolveAllowedOrigins(config);
+
+  return (req, res, next) => {
+    const origin = req.headers.origin;
+    if (typeof origin === 'string' && origin !== '' && allowed.has(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader('Vary', 'Origin');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-CSRF-Token');
+      res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS');
+      res.setHeader('Access-Control-Max-Age', '600');
+    }
+
+    if (req.method === 'OPTIONS') {
+      res.status(204).end();
+      return;
+    }
+
+    next();
+  };
+}
+
 function createOriginGuardMiddleware(config) {
-  const allowed = new Set(
-    config.allowedOrigins ??
-      (config.nodeEnv === 'production'
-        ? []
-        : [
-            'http://localhost:4200',
-            'http://127.0.0.1:4200',
-            'http://localhost:3000',
-            'http://127.0.0.1:3000',
-          ]),
-  );
+  const allowed = resolveAllowedOrigins(config);
 
   return (req, _res, next) => {
     if (SAFE_METHODS.has(req.method)) {
@@ -141,6 +159,7 @@ function requireAuthContext(req) {
 }
 
 module.exports = {
+  createCorsMiddleware,
   createOriginGuardMiddleware,
   createRequireCsrfMiddleware,
   createRequireAuthMiddleware,

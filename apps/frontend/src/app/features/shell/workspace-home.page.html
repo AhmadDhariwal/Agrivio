@@ -1,0 +1,58 @@
+<section class="ag-stack" data-testid="authenticated-shell">
+  <agrivio-ui-page-header
+    eyebrow="Workspace"
+    title="Welcome to Agrivio"
+    lede="Authenticated application shell. Backend permission and subscription checks remain authoritative. Future operational modules arrive in later stages."
+  />
+
+  <div class="ag-card ag-stack">
+    @if (session(); as current) {
+      <p data-testid="signed-in-user">
+        Signed in as <strong>{{ current.user.email }}</strong>
+        ({{ current.user.displayName }})
+      </p>
+    }
+
+    @if (activeContext(); as active) {
+      <p class="ag-muted">
+        Active context:
+        @if (active.contextType === 'platform') {
+          Platform · {{ active.role }}
+        } @else {
+          Organization {{ active.organizationId }} · {{ active.role }}
+        }
+      </p>
+    }
+
+    @if (subscriptionAccessState(); as access) {
+      <div class="ag-inline">
+        <span class="ag-muted">Subscription</span>
+        <agrivio-ui-status-badge
+          [label]="access.status ?? 'unknown'"
+          [tone]="subscriptionTone(access.status)"
+        />
+        @if (access.planCode) {
+          <span>
+            {{ access.planCode }}
+            @if (access.planVersion) {
+              <span>v{{ access.planVersion }}</span>
+            }
+          </span>
+        }
+      </div>
+    }
+
+    @if (canViewOrganization()) {
+      <p class="ag-muted">organization.view is available in the active context.</p>
+    } @else {
+      <p class="ag-muted">organization.view is hidden in this UI context (non-authoritative).</p>
+    }
+
+    <div class="ag-actions">
+      <a routerLink="/context" class="ag-btn ag-btn--secondary">Manage active context</a>
+      @if (canSubmitBilling()) {
+        <a routerLink="/app/subscription/billing" class="ag-btn ag-btn--primary">Billing evidence</a>
+      }
+    </div>
+  </div>
+</section>
