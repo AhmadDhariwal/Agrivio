@@ -79,6 +79,74 @@ export const appRoutes: Route[] = [
             (m) => m.PlatformBillingReviewPage,
           ),
       },
+      {
+        path: 'organization/settings',
+        loadComponent: () =>
+          import('./features/organization/pages/organization-settings/organization-settings.page').then(
+            (m) => m.OrganizationSettingsPage,
+          ),
+      },
+      {
+        path: 'branches',
+        loadComponent: () =>
+          import('./features/branches-warehouses/pages/branches/branches.page').then(
+            (m) => m.BranchesPage,
+          ),
+      },
+      {
+        path: 'branches/new',
+        loadComponent: () =>
+          import('./features/branches-warehouses/pages/branch-form/branch-form.page').then(
+            (m) => m.BranchFormPage,
+          ),
+      },
+      {
+        path: 'branches/:id',
+        loadComponent: () =>
+          import('./features/branches-warehouses/pages/branch-form/branch-form.page').then(
+            (m) => m.BranchFormPage,
+          ),
+      },
+      {
+        path: 'warehouses',
+        loadComponent: () =>
+          import('./features/branches-warehouses/pages/warehouses/warehouses.page').then(
+            (m) => m.WarehousesPage,
+          ),
+      },
+      {
+        path: 'warehouses/new',
+        loadComponent: () =>
+          import('./features/branches-warehouses/pages/warehouse-form/warehouse-form.page').then(
+            (m) => m.WarehouseFormPage,
+          ),
+      },
+      {
+        path: 'warehouses/:id',
+        loadComponent: () =>
+          import('./features/branches-warehouses/pages/warehouse-form/warehouse-form.page').then(
+            (m) => m.WarehouseFormPage,
+          ),
+      },
+      {
+        path: 'employees',
+        loadComponent: () =>
+          import('./features/users-access/pages/employees/employees.page').then((m) => m.EmployeesPage),
+      },
+      {
+        path: 'employees/new',
+        loadComponent: () =>
+          import('./features/users-access/pages/employee-form/employee-form.page').then(
+            (m) => m.EmployeeFormPage,
+          ),
+      },
+      {
+        path: 'employees/:id',
+        loadComponent: () =>
+          import('./features/users-access/pages/employee-form/employee-form.page').then(
+            (m) => m.EmployeeFormPage,
+          ),
+      },
     ],
   },
   {

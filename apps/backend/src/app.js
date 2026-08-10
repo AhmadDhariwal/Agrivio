@@ -18,6 +18,20 @@ const { createInMemorySubscriptionStore } = require('./modules/subscriptions/sub
 const {
   createMongooseSubscriptionStore,
 } = require('./modules/subscriptions/subscription.mongoose-store');
+const { createSettingsModule } = require('./modules/settings/settings.module');
+const { registerSettingsRoutes } = require('./modules/settings/routes/settings.routes');
+const {
+  createLocationsModule,
+  createInMemoryLocationsStore,
+  createMongooseLocationsStore,
+} = require('./modules/locations/locations.module');
+const { registerLocationsRoutes } = require('./modules/locations/routes/locations.routes');
+const {
+  createEmployeesModule,
+  createMongooseEmployeesStore,
+} = require('./modules/identity/employees.module');
+const { createBridgedEmployeesStore } = require('./modules/identity/employees.bridge-store');
+const { registerEmployeesRoutes } = require('./modules/identity/routes/employees.routes');
 
 function createApp(options) {
   const { config, database } = options;
@@ -59,6 +73,10 @@ function createApp(options) {
       subscriptions.subscriptionService.markReferencedPlan(planCode, planVersion, session, at),
   });
 
+  const locationsStore =
+    options.locationsStore ??
+    (persistence === 'mongoose' ? createMongooseLocationsStore() : createInMemoryLocationsStore());
+
   const auth =
     options.auth ??
     createAuthModule({
@@ -67,10 +85,55 @@ function createApp(options) {
       store:
         authPersistence === 'mongoose'
           ? createMongooseAuthStore()
-          : createBridgedAuthStore({ identityStore: onboardingCore.store }),
+          : createBridgedAuthStore({
+              identityStore: onboardingCore.store,
+              locationsStore,
+            }),
       onboardingService: onboardingCore.onboardingService,
       resolveSubscriptionAccessState: (organizationId) =>
         subscriptions.subscriptionService.resolveAccessState(organizationId),
+    });
+
+  const settings =
+    options.settings ??
+    createSettingsModule({
+      persistence,
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+
+  const employeesStore =
+    options.employeesStore ??
+    (persistence === 'mongoose'
+      ? createMongooseEmployeesStore()
+      : createBridgedEmployeesStore({
+          identityStore: onboardingCore.store,
+          authStore: auth.store,
+          locationsStore,
+        }));
+
+  const employees =
+    options.employees ??
+    createEmployeesModule({
+      persistence,
+      store: employeesStore,
+      publicWebBaseUrl: config.publicWebBaseUrl,
+      evaluateEntitlement: (organizationId, entitlementOptions) =>
+        subscriptions.subscriptionService.evaluateEntitlement(organizationId, entitlementOptions),
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+
+  const locations =
+    options.locations ??
+    createLocationsModule({
+      persistence,
+      store: locationsStore,
+      evaluateEntitlement: (organizationId, entitlementOptions) =>
+        subscriptions.subscriptionService.evaluateEntitlement(organizationId, entitlementOptions),
+      findMembershipInOrganization: (organizationId, userId) =>
+        employees.employeesService.findMembershipInOrganization(organizationId, userId),
+      revokeSessionsForUser: (session, userId, revokedAt) =>
+        auth.store.revokeAllSessionsForUser(session, userId, revokedAt),
+      ...(options.now === undefined ? {} : { now: options.now }),
     });
 
   const onboardingRoutes = registerOnboardingRoutes({
@@ -82,7 +145,15 @@ function createApp(options) {
 
   const organizationRoutes = registerOrganizationRoutes({
     requireAuth: auth.middlewares.requireAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
     findOrganizationById: (id) => onboardingCore.store.findOrganizationById(id),
+    updateOrganization: async (id, patch) => onboardingCore.store.updateOrganization(null, id, patch),
+    appendOrganizationAudit: async (event) => {
+      await onboardingCore.store.appendAuditEvent(null, {
+        ...event,
+        occurredAt: new Date().toISOString(),
+      });
+    },
     requireBillingAccess: subscriptions.middlewares.requireBillingAccess,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
   });
@@ -93,6 +164,28 @@ function createApp(options) {
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     optionalAuth: auth.middlewares.optionalAuth,
+  });
+
+  const settingsRoutes = registerSettingsRoutes({
+    settingsService: settings.settingsService,
+    requireAuth: auth.middlewares.requireAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
+    requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+  });
+
+  const locationsRoutes = registerLocationsRoutes({
+    locationsService: locations.locationsService,
+    requireAuth: auth.middlewares.requireAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
+    requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+  });
+
+  const employeesRoutes = registerEmployeesRoutes({
+    employeesService: employees.employeesService,
+    locationsService: locations.locationsService,
+    requireAuth: auth.middlewares.requireAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
+    requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
   });
 
   const app = express();
@@ -109,6 +202,9 @@ function createApp(options) {
   app.use(onboardingRoutes);
   app.use(organizationRoutes);
   app.use(subscriptionRoutes);
+  app.use(settingsRoutes);
+  app.use(locationsRoutes);
+  app.use(employeesRoutes);
 
   if (typeof options.registerOperationalProbe === 'function') {
     options.registerOperationalProbe(app, {
@@ -139,6 +235,9 @@ function createApp(options) {
     onboarding: onboardingCore,
     subscriptions,
     auth,
+    settings,
+    locations,
+    employees,
   };
 
   return app;

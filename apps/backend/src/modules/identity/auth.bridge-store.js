@@ -1,5 +1,3 @@
-const { randomUUID } = require('node:crypto');
-
 /**
  * Bridge onboarding identity collections with auth session/reset collections.
  */
@@ -7,7 +5,9 @@ function createBridgedAuthStore(deps) {
   const identity = deps.identityStore;
   const sessions = new Map();
   const resetTokens = new Map();
-  const accessAssignments = new Map();
+  const accessAssignments = deps.accessAssignments ?? new Map();
+  const locationsStore = deps.locationsStore;
+  const { randomUUID } = require('node:crypto');
 
   async function listMembershipsByUserId(userId) {
     if (typeof identity.listMembershipsByUserId === 'function') {
@@ -41,6 +41,12 @@ function createBridgedAuthStore(deps) {
     updateMembership,
 
     async listAccessAssignmentsByMembershipId(membershipId) {
+      if (
+        locationsStore &&
+        typeof locationsStore.listAccessAssignmentsByMembershipOnly === 'function'
+      ) {
+        return locationsStore.listAccessAssignmentsByMembershipOnly(membershipId);
+      }
       return [...accessAssignments.values()].filter(
         (item) =>
           String(item['membershipId']) === String(membershipId) && item['status'] === 'active',
@@ -48,6 +54,9 @@ function createBridgedAuthStore(deps) {
     },
 
     async insertAccessAssignment(_session, doc) {
+      if (locationsStore && typeof locationsStore.insertAccessAssignment === 'function') {
+        return locationsStore.insertAccessAssignment(_session, doc);
+      }
       const id = randomUUID();
       const record = { _id: id, ...doc };
       accessAssignments.set(id, record);

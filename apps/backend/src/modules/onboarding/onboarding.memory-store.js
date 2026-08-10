@@ -100,6 +100,12 @@ function createInMemoryOnboardingStore() {
         .map((membership) => ({ ...membership }));
     },
 
+    async listMembershipsByOrganizationId(organizationId) {
+      return [...memberships.values()]
+        .filter((membership) => String(membership['organizationId']) === String(organizationId))
+        .map((membership) => ({ ...membership }));
+    },
+
     async findMembershipById(id) {
       const membership = memberships.get(String(id));
       return membership === undefined ? null : { ...membership };

@@ -55,6 +55,18 @@ export const API_PLATFORM_ORGANIZATION_REISSUE_ACTIVATION_SUFFIX =
 /** Current organization profile for the authenticated membership context (R1-F02-008 sample). */
 export const API_ORGANIZATION_PATH = `${API_V1_PREFIX}/organization` as const;
 
+/** Residual organization settings (R1-F03-001). */
+export const API_SETTINGS_PATH = `${API_V1_PREFIX}/settings` as const;
+
+/** Organization branches (R1-F03-002). */
+export const API_BRANCHES_PATH = `${API_V1_PREFIX}/branches` as const;
+
+/** Organization warehouses (R1-F03-003). */
+export const API_WAREHOUSES_PATH = `${API_V1_PREFIX}/warehouses` as const;
+
+/** Organization employees / memberships (R1-F03-004). */
+export const API_USERS_PATH = `${API_V1_PREFIX}/users` as const;
+
 /** Organization subscription status and entitlements (R1-F02-010/011). */
 export const API_SUBSCRIPTION_PATH = `${API_V1_PREFIX}/subscription` as const;
 
