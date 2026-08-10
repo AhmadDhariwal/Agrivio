@@ -1,0 +1,79 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--ag-font-sans);
+  font-size: var(--ag-text-md);
+  line-height: var(--ag-leading-normal);
+  color: var(--ag-color-text);
+  background:
+    radial-gradient(ellipse at 0% 0%, rgba(27, 90, 60, 0.08), transparent 42%),
+    radial-gradient(ellipse at 100% 0%, rgba(20, 70, 48, 0.05), transparent 36%),
+    linear-gradient(180deg, var(--ag-color-bg) 0%, var(--ag-color-bg-accent) 100%);
+  background-attachment: fixed;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--ag-font-display);
+  line-height: var(--ag-leading-tight);
+  color: var(--ag-color-text);
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(1.75rem, 3vw, var(--ag-text-3xl));
+  font-weight: 700;
+}
+
+h2 {
+  font-size: var(--ag-text-xl);
+  font-weight: 650;
+}
+
+h3 {
+  font-size: var(--ag-text-lg);
+  font-weight: 600;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--ag-color-primary);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
+}
+
+a:hover {
+  color: var(--ag-color-primary-hover);
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--ag-focus-ring);
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}

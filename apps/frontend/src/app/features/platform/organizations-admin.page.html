@@ -1,47 +1,105 @@
-<section class="panel" data-testid="platform-organizations">
-  <h1>Organization requests</h1>
-  <p>Super Admin review for organization activation requests.</p>
+<section class="ag-stack" data-testid="platform-organizations">
+  <agrivio-ui-page-header
+    eyebrow="Platform"
+    title="Organization requests"
+    lede="Super Admin review for organization activation requests. Approval issues a one-time Owner activation token."
+  />
 
-  <button type="button" (click)="reload()">Refresh</button>
+  <div class="ag-actions">
+    <button type="button" class="ag-btn ag-btn--secondary" [disabled]="loading()" (click)="reload()">
+      Refresh
+    </button>
+  </div>
 
-  <ul>
-    @for (item of items(); track item.id) {
-      <li data-testid="org-row">
-        <div>
-          <strong>{{ item.name }}</strong> · {{ item.status }}
-          @if (item.ownerEmail) {
-            · {{ item.ownerEmail }}
+  @if (loading()) {
+    <agrivio-ui-loading-state label="Loading organizations…" />
+  } @else if (items().length === 0) {
+    <agrivio-ui-empty-state
+      title="No organization requests"
+      message="New public access requests will appear here for review."
+    />
+  } @else {
+    <div class="ag-table-wrap">
+      <table class="ag-table">
+        <thead>
+          <tr>
+            <th>Organization</th>
+            <th>Status</th>
+            <th>Owner</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of items(); track item.id) {
+            <tr data-testid="org-row">
+              <td>
+                <strong>{{ item.name }}</strong>
+              </td>
+              <td>
+                <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+              </td>
+              <td>{{ item.ownerEmail || '—' }}</td>
+              <td>
+                @if (item.status === 'pending_approval') {
+                  <div class="ag-actions">
+                    <button
+                      type="button"
+                      class="ag-btn ag-btn--primary ag-btn--sm"
+                      data-testid="approve-org"
+                      (click)="askApprove(item)"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      class="ag-btn ag-btn--danger ag-btn--sm"
+                      (click)="askReject(item)"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                }
+              </td>
+            </tr>
           }
-        </div>
-        <div class="actions">
-          @if (item.status === 'pending_approval') {
-            <button type="button" data-testid="approve-org" (click)="approve(item)">Approve</button>
-            <button type="button" (click)="reject(item)">Reject</button>
-          }
-        </div>
-      </li>
-    }
-  </ul>
+        </tbody>
+      </table>
+    </div>
+  }
 
-  <form [formGroup]="rejectForm">
-    <label>
-      Rejection reason
-      <input type="text" formControlName="reason" />
-    </label>
-  </form>
+  <div class="ag-card ag-stack ag-stack--tight">
+    <h2>Rejection reason</h2>
+    <p class="ag-muted">Required before rejecting a request.</p>
+    <form class="ag-form" [formGroup]="rejectForm">
+      <div class="ag-field">
+        <label class="ag-field__label" for="reject-reason">Reason</label>
+        <input id="reject-reason" class="ag-input" type="text" formControlName="reason" />
+      </div>
+    </form>
+  </div>
 
   @if (activationToken(); as token) {
-    <p class="token" data-testid="activation-token">
-      One-time activation token (shown once):
-      <code>{{ token }}</code>
-    </p>
-    <p><a routerLink="/activate" [queryParams]="{ token }">Open activation</a></p>
+    <div class="ag-alert ag-alert--success" data-testid="activation-token">
+      <strong>One-time activation token (shown once)</strong>
+      <p><code>{{ token }}</code></p>
+      <p><a routerLink="/activate" [queryParams]="{ token }">Open activation</a></p>
+    </div>
   }
 
   @if (successMessage(); as success) {
-    <p class="success">{{ success }}</p>
+    <agrivio-ui-alert [message]="success" tone="success" />
   }
   @if (errorMessage(); as error) {
-    <p class="error">{{ error }}</p>
+    <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
   }
+
+  <agrivio-ui-confirm-dialog
+    [open]="confirmOpen()"
+    [title]="confirmTitle()"
+    [message]="confirmMessage()"
+    [confirmLabel]="confirmLabel()"
+    [danger]="confirmDanger()"
+    (confirmed)="runConfirmedAction()"
+    (dismiss)="confirmOpen.set(false)"
+  />
 </section>

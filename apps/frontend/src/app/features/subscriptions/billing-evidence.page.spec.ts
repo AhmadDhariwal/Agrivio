@@ -29,6 +29,13 @@ describe('BillingEvidencePage', () => {
     fixture = TestBed.createComponent(BillingEvidencePage);
     http = TestBed.inject(HttpTestingController);
     fixture.detectChanges();
+
+    http
+      .expectOne(`${environment.publicApiBaseUrl}/api/v1/subscription/billing-records`)
+      .flush({ data: { items: [] }, requestId: 'test' });
+    http
+      .expectOne(`${environment.publicApiBaseUrl}/api/v1/subscription`)
+      .flush({ data: { status: 'grace', planCode: 'Starter' }, requestId: 'test' });
   });
 
   it('submits CSRF-protected billing evidence with opaque storage ref', () => {
@@ -49,9 +56,10 @@ describe('BillingEvidencePage', () => {
     csrf.flush({ data: { csrfToken: 'csrf-billing' }, requestId: 'test' });
 
     const submit = http.expectOne(
-      `${environment.publicApiBaseUrl}/api/v1/subscription/billing-records`,
+      (request) =>
+        request.url === `${environment.publicApiBaseUrl}/api/v1/subscription/billing-records` &&
+        request.method === 'POST',
     );
-    expect(submit.request.method).toBe('POST');
     expect(submit.request.headers.get('X-CSRF-Token')).toBe('csrf-billing');
     expect(submit.request.body.evidenceStorageRef).toBe('evidence://opaque/abc');
     submit.flush({
@@ -68,6 +76,10 @@ describe('BillingEvidencePage', () => {
       },
       requestId: 'test',
     });
+
+    http
+      .expectOne(`${environment.publicApiBaseUrl}/api/v1/subscription/billing-records`)
+      .flush({ data: { items: [] }, requestId: 'test' });
 
     expect(page.successMessage()).toContain('submitted');
   });

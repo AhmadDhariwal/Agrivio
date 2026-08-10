@@ -1,17 +1,22 @@
-import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { LandingPage } from './landing.page';
+import { provideRouter } from '@angular/router';
 
 describe('LandingPage', () => {
-  it('renders Agrivio brand and access paths', async () => {
+  let fixture: ComponentFixture<LandingPage>;
+
+  beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [LandingPage],
       providers: [provideRouter([])],
     }).compileComponents();
 
-    const fixture = TestBed.createComponent(LandingPage);
+    fixture = TestBed.createComponent(LandingPage);
     fixture.detectChanges();
-    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+  });
+
+  it('renders Agrivio brand and primary actions', () => {
+    const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('Agrivio');
     expect(text).toContain('Sign in');
     expect(text).toContain('Request organization access');

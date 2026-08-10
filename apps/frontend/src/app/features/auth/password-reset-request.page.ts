@@ -2,11 +2,13 @@ import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthApi } from './auth.api';
+import { AuthLayoutComponent } from '../../shared/ui/auth-layout.component';
+import { UiAlertComponent } from '../../shared/ui/ui-alert.component';
 
 @Component({
   selector: 'agrivio-password-reset-request-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, AuthLayoutComponent, UiAlertComponent],
   templateUrl: './password-reset-request.page.html',
   styleUrl: './password-reset-request.page.scss',
 })

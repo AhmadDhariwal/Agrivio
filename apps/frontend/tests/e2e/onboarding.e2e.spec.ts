@@ -35,6 +35,7 @@ test.describe('F02 onboarding vertical slice', () => {
     const orgRow = page.getByTestId('org-row').filter({ hasText: organizationName });
     await expect(orgRow).toBeVisible();
     await orgRow.getByTestId('approve-org').click();
+    await page.getByRole('button', { name: 'Approve organization' }).click();
     const tokenLocator = page.getByTestId('activation-token').locator('code');
     await expect(tokenLocator).toBeVisible();
     const activationToken = (await tokenLocator.textContent())?.trim() ?? '';
@@ -65,9 +66,9 @@ test.describe('F02 onboarding vertical slice', () => {
 
 async function signIn(page: Page, email: string, password: string): Promise<void> {
   await page.goto('/login');
-  await page.getByTestId('login-email').fill(email);
-  await page.getByTestId('login-password').fill(password);
-  await page.getByTestId('login-submit').click();
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Password', { exact: true }).fill(password);
+  await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/context/);
 }
 

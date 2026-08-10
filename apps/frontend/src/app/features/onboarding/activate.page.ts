@@ -4,11 +4,13 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthApi, AuthSessionSnapshot } from '../auth/auth.api';
 import { AuthSessionStore } from '../auth/auth-session.store';
 import { environment } from '../../../environments/environment';
+import { AuthLayoutComponent } from '../../shared/ui/auth-layout.component';
+import { UiAlertComponent } from '../../shared/ui/ui-alert.component';
 
 @Component({
   selector: 'agrivio-activate-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, AuthLayoutComponent, UiAlertComponent],
   templateUrl: './activate.page.html',
   styleUrl: './activate.page.scss',
 })
@@ -20,6 +22,7 @@ export class ActivatePage implements OnInit {
   private readonly router = inject(Router);
 
   readonly submitting = signal(false);
+  readonly showPassword = signal(false);
   readonly successMessage = signal<string | null>(null);
   readonly errorMessage = signal<string | null>(null);
 

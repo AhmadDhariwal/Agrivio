@@ -27,6 +27,7 @@ Central navigation for Agrivio documentation.
 * F02 Phase 4 complete (`R1-F02-001`, `R1-F02-002`, `R1-F02-009`) — see [tasks/F02-PHASE-4-ACCESS-ASSIGNMENTS.md](tasks/F02-PHASE-4-ACCESS-ASSIGNMENTS.md)
 * F02 Phase 5 complete (`R1-F02-010`, `R1-F02-011`, `R1-F02-012`) — see [tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md](tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md)
 * F02 Phase 6 implementation complete (`R1-F02-013`, `R1-F02-014`) — see [tasks/F02-PHASE-6-STAGE-CLOSURE.md](tasks/F02-PHASE-6-STAGE-CLOSURE.md); **F02 implementation complete — stage verification pending** (CI/Docker evidence outstanding)
+* F02 UI/UX hardening complete — see [tasks/F02-UI-UX-HARDENING.md](tasks/F02-UI-UX-HARDENING.md); **13** user-facing F02 pages/views polished; local `.env.local` auto-load for backend startup
 * Next work item: **F03** after F02 stage verification is recorded
 
 ## Existing Documents
@@ -69,6 +70,7 @@ Central navigation for Agrivio documentation.
 | [tasks/F02-PHASE-1-ORGANIZATION-ONBOARDING.md](tasks/F02-PHASE-1-ORGANIZATION-ONBOARDING.md) | F02 Phase 1: organization onboarding and Owner activation (complete; CommonJS) |
 | [tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md](tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md) | F02 Phase 5: plans, subscription lifecycle, and manual billing |
 | [tasks/F02-PHASE-6-STAGE-CLOSURE.md](tasks/F02-PHASE-6-STAGE-CLOSURE.md) | F02 Phase 6: onboarding E2E, tenant isolation, stage closure (implementation complete — verification pending) |
+| [tasks/F02-UI-UX-HARDENING.md](tasks/F02-UI-UX-HARDENING.md) | F02 final UI/UX hardening: visual system, routing, local env startup, frontend quality |
 | [tasks/F01-PHASE-1-PLATFORM-RUNTIME.md](tasks/F01-PHASE-1-PLATFORM-RUNTIME.md) | F01 Phase 1: platform runtime foundation |
 | [tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md](tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md) | F01 Phase 2: transactional platform foundation (completes F01) |
 | [../README.md](../README.md) | Repository landing page |

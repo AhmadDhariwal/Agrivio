@@ -8,7 +8,10 @@ const {
   redactSecrets,
   toSafeApiEnvSummary,
 } = require('./platform/config/runtime-config');
+const { loadLocalDevelopmentEnv } = require('./platform/config/load-local-env');
 const { createStructuredLogger } = require('./platform/logging/structured-logger');
+
+loadLocalDevelopmentEnv();
 
 let server;
 

@@ -1,4 +1,8 @@
 import { Route } from '@angular/router';
+import {
+  requirePlatformContextGuard,
+  requireSessionGuard,
+} from './core/guards/session.guards';
 
 export const appRoutes: Route[] = [
   {
@@ -12,6 +16,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'context',
+    canActivate: [requireSessionGuard],
     loadComponent: () =>
       import('./features/auth/context-switcher.page').then((m) => m.ContextSwitcherPage),
   },
@@ -36,6 +41,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'app',
+    canActivate: [requireSessionGuard],
     loadComponent: () =>
       import('./features/shell/app-shell.page').then((m) => m.AppShellPage),
     children: [
@@ -53,6 +59,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'platform/organizations',
+        canActivate: [requirePlatformContextGuard],
         loadComponent: () =>
           import('./features/platform/organizations-admin.page').then(
             (m) => m.PlatformOrganizationsPage,
@@ -60,11 +67,13 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'platform/plans',
+        canActivate: [requirePlatformContextGuard],
         loadComponent: () =>
           import('./features/platform/plans-admin.page').then((m) => m.PlatformPlansPage),
       },
       {
         path: 'platform/billing-review',
+        canActivate: [requirePlatformContextGuard],
         loadComponent: () =>
           import('./features/platform/billing-review.page').then(
             (m) => m.PlatformBillingReviewPage,
@@ -78,6 +87,11 @@ export const appRoutes: Route[] = [
     pathMatch: 'full',
   },
   {
+    path: 'platform/organizations',
+    redirectTo: 'app/platform/organizations',
+    pathMatch: 'full',
+  },
+  {
     path: 'platform/plans',
     redirectTo: 'app/platform/plans',
     pathMatch: 'full',
@@ -86,5 +100,10 @@ export const appRoutes: Route[] = [
     path: 'platform/billing-review',
     redirectTo: 'app/platform/billing-review',
     pathMatch: 'full',
+  },
+  {
+    path: '**',
+    loadComponent: () =>
+      import('./features/public/not-found.page').then((m) => m.NotFoundPage),
   },
 ];

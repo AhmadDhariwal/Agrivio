@@ -1,0 +1,74 @@
+// Agrivio design tokens — keep component styles on these variables.
+:root {
+  // Surfaces
+  --ag-color-bg: #eef3ef;
+  --ag-color-bg-accent: #e4ebe5;
+  --ag-color-surface: #ffffff;
+  --ag-color-surface-elevated: #f7faf8;
+  --ag-color-border: #cfdad3;
+  --ag-color-border-strong: #a8b9af;
+
+  // Brand / primary
+  --ag-color-primary: #1b5a3c;
+  --ag-color-primary-hover: #14462f;
+  --ag-color-primary-muted: #d8ebe1;
+  --ag-color-primary-contrast: #f5faf7;
+
+  // Text
+  --ag-color-text: #14241b;
+  --ag-color-text-muted: #55665c;
+  --ag-color-text-inverse: #f5faf7;
+
+  // Status
+  --ag-color-success: #1f7a45;
+  --ag-color-success-bg: #e8f6ee;
+  --ag-color-warning: #9a6700;
+  --ag-color-warning-bg: #fff6e5;
+  --ag-color-danger: #b42318;
+  --ag-color-danger-bg: #fef3f2;
+  --ag-color-info: #175cd3;
+  --ag-color-info-bg: #eff6ff;
+
+  // Focus
+  --ag-color-focus: #2f7d55;
+  --ag-focus-ring: 0 0 0 3px rgba(27, 90, 60, 0.28);
+
+  // Spacing scale
+  --ag-space-1: 0.25rem;
+  --ag-space-2: 0.5rem;
+  --ag-space-3: 0.75rem;
+  --ag-space-4: 1rem;
+  --ag-space-5: 1.25rem;
+  --ag-space-6: 1.5rem;
+  --ag-space-8: 2rem;
+  --ag-space-10: 2.5rem;
+  --ag-space-12: 3rem;
+
+  // Radius / shadow
+  --ag-radius-sm: 0.375rem;
+  --ag-radius-md: 0.625rem;
+  --ag-radius-lg: 0.875rem;
+  --ag-shadow-sm: 0 1px 2px rgba(20, 36, 27, 0.06);
+  --ag-shadow-md: 0 8px 24px rgba(20, 36, 27, 0.08);
+  --ag-shadow-lg: 0 16px 40px rgba(20, 36, 27, 0.1);
+
+  // Typography
+  --ag-font-sans: 'Manrope', 'Segoe UI', sans-serif;
+  --ag-font-display: 'Source Serif 4', Georgia, serif;
+  --ag-text-xs: 0.75rem;
+  --ag-text-sm: 0.875rem;
+  --ag-text-md: 1rem;
+  --ag-text-lg: 1.125rem;
+  --ag-text-xl: 1.375rem;
+  --ag-text-2xl: 1.75rem;
+  --ag-text-3xl: 2.25rem;
+  --ag-leading-tight: 1.2;
+  --ag-leading-normal: 1.5;
+
+  // Controls
+  --ag-control-height: 2.75rem;
+  --ag-control-height-sm: 2.25rem;
+  --ag-sidebar-width: 16.5rem;
+  --ag-content-max: 72rem;
+  --ag-auth-max: 26rem;
+}
