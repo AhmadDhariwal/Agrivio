@@ -6,22 +6,25 @@ Agrivio is a cloud-first Fertilizer POS and Inventory Management web application
 
 ## Current Status
 
-Current task: **F02 Phase 1 complete** — organization onboarding (`R1-F02-005`, `R1-F02-006`) on CommonJS backend  
-Status: Unit/architecture gates targeted on Node `24.18.0`; live MongoDB transaction proofs still require Docker Compose v2  
-Next work item: **F02 Phase 2 — Session Authentication**
+Current task: **local runtime finalization (pre-F03)** — native/Docker Mongo `rs0`, backend startup diagnostics, frontend serve paths  
+Status: Unit/architecture gates targeted on Node `24.18.0` / npm `11.16.0`; live Mongo requires single-node replica set `rs0` (Docker Compose **or** locally installed mongod)  
+Next work item: **F03** after F02 stage verification is recorded
 
 P1-01 through P1-07 are complete.  
-All four P1-07 toolchain documents are frozen at version 1.0.1.  
+All four P1-07 toolchain documents are frozen at version 1.4.0 (npm workspace amendment).  
 F00 workspace bootstrap (`R1-F00-001`) is complete.  
 Angular frontend scaffold (`R1-F00-002`, historically `apps/web`) is complete.  
 Express backend scaffold (`R1-F00-003`, now JavaScript CommonJS under `apps/backend`) is complete.  
 Shared packages `@agrivio/api-contracts`, `@agrivio/tooling-config`, and `@agrivio/test-support` exist.  
-Root commands from [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) are wired (`pnpm check`, build/lint/typecheck/test/format/affected, `db:*`, `test:integration`).  
-E2E and CI remain for later F00 items.
+Root commands from [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) are wired (`npm run check`, build/lint/typecheck/test/format/affected, `db:*`, `test:integration`).  
+Manual app startup: `cd apps/frontend && npm start`, `cd apps/backend && node index.js` (or `npm run dev`).  
+Local Mongo: `127.0.0.1:27017`, database `Agrivio`, replica set `rs0` — see [docs/tasks/LOCAL-RUNTIME-BEFORE-F03.md](docs/tasks/LOCAL-RUNTIME-BEFORE-F03.md).  
+E2E and CI foundation workflows exist under `.github/workflows/` (quality, integration, E2E smoke) using npm `ci`.  
+Docker-dependent Compose commands still require Docker Compose v2; native mongod `rs0` is supported when Docker is absent.
 
 ## Current Phase
 
-Release 1 implementation — Stage F01 Platform Foundation complete; Stage F02 next
+Release 1 implementation — Stage F02 Identity & Access (after F01 Platform Foundation)
 
 ## Technology Stack
 
@@ -31,7 +34,7 @@ Release 1 implementation — Stage F01 Platform Foundation complete; Stage F02 n
 | Backend            | Node.js, Express and JavaScript CommonJS (`apps/backend`) |
 | Database           | MongoDB with Mongoose                                     |
 | Repository         | Monorepo                                                  |
-| Package manager    | pnpm                                                      |
+| Package manager    | npm workspaces                                            |
 | Task orchestration | Nx                                                        |
 | Architecture       | Modular monolith                                          |
 | API                | REST                                                      |
@@ -69,7 +72,7 @@ Frozen implementation planning documents (P1-06, version 1.0):
 - [`docs/DELIVERY_PLAN.md`](docs/DELIVERY_PLAN.md)
 - [`docs/QUALITY_GATES.md`](docs/QUALITY_GATES.md)
 
-Frozen toolchain and initialization documents (P1-07, v1.1.0 application-path amendment):
+Frozen toolchain and initialization documents (P1-07, v1.4.0 npm workspace amendment):
 
 - [`docs/TOOLCHAIN.md`](docs/TOOLCHAIN.md)
 - [`docs/REPOSITORY_INITIALIZATION.md`](docs/REPOSITORY_INITIALIZATION.md)
@@ -83,5 +86,5 @@ Frozen toolchain and initialization documents (P1-07, v1.1.0 application-path am
 3. Do not change finalized product decisions.
 4. Do not initialize frameworks, install packages, or create source-code folders until a work item explicitly requires it.
 5. Prefer linking to authoritative documents over duplicating rules.
-6. Follow [`docs/REPOSITORY_INITIALIZATION.md`](docs/REPOSITORY_INITIALIZATION.md) for F00. Next work item is `R1-F00-006`.
-7. Implementation records live under `docs/tasks/` (for example [`docs/tasks/F00-BATCH-A.md`](docs/tasks/F00-BATCH-A.md)).
+6. Follow [`docs/DEVELOPMENT_WORKFLOW.md`](docs/DEVELOPMENT_WORKFLOW.md) for day-to-day commands.
+7. Implementation records live under `docs/tasks/` (for example [`docs/tasks/NPM-WORKSPACE-MIGRATION.md`](docs/tasks/NPM-WORKSPACE-MIGRATION.md)).

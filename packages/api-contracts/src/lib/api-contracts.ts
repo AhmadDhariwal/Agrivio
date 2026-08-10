@@ -48,8 +48,34 @@ export const API_AUTH_PASSWORD_RESET_CONFIRM_PATH =
 export const API_PLATFORM_ORGANIZATIONS_PATH =
   `${API_V1_PREFIX}/platform/organizations` as const;
 
+/** Reissue Owner activation token for approved org without usable credentials. */
+export const API_PLATFORM_ORGANIZATION_REISSUE_ACTIVATION_SUFFIX =
+  'reissue-activation' as const;
+
 /** Current organization profile for the authenticated membership context (R1-F02-008 sample). */
 export const API_ORGANIZATION_PATH = `${API_V1_PREFIX}/organization` as const;
+
+/** Organization subscription status and entitlements (R1-F02-010/011). */
+export const API_SUBSCRIPTION_PATH = `${API_V1_PREFIX}/subscription` as const;
+
+/** Selectable active plan versions for organizations. */
+export const API_SUBSCRIPTION_PLANS_PATH = `${API_V1_PREFIX}/subscription/plans` as const;
+
+/** Organization billing evidence submission and listing. */
+export const API_SUBSCRIPTION_BILLING_RECORDS_PATH =
+  `${API_V1_PREFIX}/subscription/billing-records` as const;
+
+/** Platform subscription overview and lifecycle actions. */
+export const API_PLATFORM_SUBSCRIPTIONS_PATH =
+  `${API_V1_PREFIX}/platform/subscriptions` as const;
+
+/** Platform plan definition versioning. */
+export const API_PLATFORM_SUBSCRIPTION_PLANS_PATH =
+  `${API_V1_PREFIX}/platform/subscription-plans` as const;
+
+/** Platform billing evidence review queue. */
+export const API_PLATFORM_BILLING_RECORDS_PATH =
+  `${API_V1_PREFIX}/platform/billing-records` as const;
 
 /** Development-only Super Admin actor header. Must never authorize production traffic. */
 export const API_PLATFORM_ACTOR_HEADER = 'X-Platform-Actor' as const;

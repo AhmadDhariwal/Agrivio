@@ -26,14 +26,19 @@ const here = fileURLToPath(new URL('.', import.meta.url));
 
 describe('F02 Phase 3 active context and permissions', () => {
   it('selects authorized org/branch/warehouse context and rejects inaccessible selections', async () => {
-    const { server, baseUrl, jar, authStore, onboarding } = await boot();
+    const { server, baseUrl, jar, authStore, onboarding, subscriptionStore } = await boot();
 
     try {
-      const seeded = await seedMultiOrgUser(authStore, onboarding.store, {
-        email: 'cashier@example.com',
-        password: 'a-strong-passphrase',
-        role: 'Cashier',
-      });
+      const seeded = await seedMultiOrgUser(
+        authStore,
+        onboarding.store,
+        {
+          email: 'cashier@example.com',
+          password: 'a-strong-passphrase',
+          role: 'Cashier',
+        },
+        subscriptionStore,
+      );
 
       const session = await login(baseUrl, jar, 'cashier@example.com', 'a-strong-passphrase');
       expect(session.activeContext.contextType).toBe('organization');
@@ -91,14 +96,19 @@ describe('F02 Phase 3 active context and permissions', () => {
   });
 
   it('fails immediately when membership is deactivated and clears inaccessible context on switch', async () => {
-    const { server, baseUrl, jar, authStore, onboarding } = await boot();
+    const { server, baseUrl, jar, authStore, onboarding, subscriptionStore } = await boot();
 
     try {
-      const seeded = await seedMultiOrgUser(authStore, onboarding.store, {
-        email: 'member@example.com',
-        password: 'a-strong-passphrase',
-        role: 'Cashier',
-      });
+      const seeded = await seedMultiOrgUser(
+        authStore,
+        onboarding.store,
+        {
+          email: 'member@example.com',
+          password: 'a-strong-passphrase',
+          role: 'Cashier',
+        },
+        subscriptionStore,
+      );
       await login(baseUrl, jar, 'member@example.com', 'a-strong-passphrase');
       await switchContext(baseUrl, jar, {
         contextType: 'organization',
@@ -135,24 +145,34 @@ describe('F02 Phase 3 active context and permissions', () => {
   });
 
   it('enforces permissions with stable 401/403 and Super Admin platform separation', async () => {
-    const { server, baseUrl, jar, authStore, onboarding } = await boot();
+    const { server, baseUrl, jar, authStore, onboarding, subscriptionStore } = await boot();
 
     try {
-      await seedMultiOrgUser(authStore, onboarding.store, {
-        email: 'cashier@example.com',
-        password: 'a-strong-passphrase',
-        role: 'Cashier',
-      });
+      await seedMultiOrgUser(
+        authStore,
+        onboarding.store,
+        {
+          email: 'cashier@example.com',
+          password: 'a-strong-passphrase',
+          role: 'Cashier',
+        },
+        subscriptionStore,
+      );
       await seedSuperAdmin(authStore, {
         email: 'admin@example.com',
         password: 'a-strong-passphrase',
       });
-      await seedOwnerWithOrg(authStore, onboarding.store, {
-        email: 'owner@example.com',
-        password: 'a-strong-passphrase',
-        organizationId: 'org-owner',
-        organizationName: 'Owner Org',
-      });
+      await seedOwnerWithOrg(
+        authStore,
+        onboarding.store,
+        {
+          email: 'owner@example.com',
+          password: 'a-strong-passphrase',
+          organizationId: 'org-owner',
+          organizationName: 'Owner Org',
+        },
+        subscriptionStore,
+      );
 
       const unauthenticated = await fetchJson(
         baseUrl,
@@ -305,10 +325,11 @@ describe('F02 Phase 3 active context and permissions', () => {
   });
 
   it('keeps API permission enforcement independent of frontend UI checks', () => {
-    const routesPath = join(here, '../organizations/organization.routes.js');
+    const routesPath = join(here, '../organizations/routes/organization.routes.js');
     const source = readFileSync(routesPath, 'utf8');
     expect(source).toContain("createRequirePermissionMiddleware('organization.view')");
     expect(source).toContain('createRequireOrganizationContextMiddleware');
+    expect(source).toContain('requireBillingAccess');
   });
 });
 
@@ -344,6 +365,7 @@ async function boot() {
     authStore,
     auth,
     onboarding,
+    subscriptionStore: app.agrivio.subscriptions.store,
   };
 }
 
@@ -386,7 +408,7 @@ async function seedOrganization(orgStore, input) {
   });
 }
 
-async function seedMultiOrgUser(authStore, orgStore, input) {
+async function seedMultiOrgUser(authStore, orgStore, input, subscriptionStore) {
   const passwordHash = await hashPassword(input.password);
   const user = await authStore.insertUser(null, {
     email: input.email,
@@ -451,6 +473,11 @@ async function seedMultiOrgUser(authStore, orgStore, input) {
     version: 1,
   });
 
+  if (subscriptionStore !== undefined) {
+    await seedTrialSubscription(subscriptionStore, 'org-a');
+    await seedTrialSubscription(subscriptionStore, 'org-b');
+  }
+
   return {
     user,
     orgA: 'org-a',
@@ -473,7 +500,7 @@ async function seedSuperAdmin(authStore, input) {
   });
 }
 
-async function seedOwnerWithOrg(authStore, orgStore, input) {
+async function seedOwnerWithOrg(authStore, orgStore, input, subscriptionStore) {
   const passwordHash = await hashPassword(input.password);
   const user = await authStore.insertUser(null, {
     email: input.email,
@@ -497,7 +524,21 @@ async function seedOwnerWithOrg(authStore, orgStore, input) {
     conditionalPermissionGrants: [],
     version: 1,
   });
+  if (subscriptionStore !== undefined) {
+    await seedTrialSubscription(subscriptionStore, input.organizationId);
+  }
   return user;
+}
+
+async function seedTrialSubscription(subscriptionStore, organizationId) {
+  await subscriptionStore.insertSubscription(null, {
+    organizationId,
+    status: 'trial',
+    planCode: 'Starter',
+    planVersion: 1,
+    trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+    version: 1,
+  });
 }
 
 function createCookieJar() {

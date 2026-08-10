@@ -1,6 +1,6 @@
 const { redactSecrets, API_SECRET_ENV_KEYS } = require('../config/runtime-config');
 const SENSITIVE_LOG_KEY_PATTERN =
-  /(password|secret|token|authorization|cookie|csrf|credential|mongodb_uri|session_secret)/i;
+  /(password|secret|token|authorization|cookie|csrf|credential|mongodb_uri|session_secret|evidence|paymentreference|payment_reference|storageref|storage_ref)/i;
 
 function redactValue(value, env) {
   if (typeof value === 'string') {

@@ -1,12 +1,12 @@
 const mongoose = require('mongoose');
-const { OrganizationModel } = require('../organizations/organization.model');
+const { OrganizationModel } = require('../organizations/persistence/organization.model');
 const {
   AccountActivationTokenModel,
   OrganizationMembershipModel,
   UserModel,
-} = require('../identity/identity.model');
-const { SubscriptionModel } = require('../subscriptions/subscription.model');
-const { AuditEventModel } = require('../audit/audit-event.model');
+} = require('../identity/persistence/identity.model');
+const { SubscriptionModel } = require('../subscriptions/persistence/subscription.model');
+const { AuditEventModel } = require('../audit/persistence/audit-event.model');
 
 function withSession(session) {
   return session ? { session: session } : {};
@@ -140,6 +140,15 @@ function createMongooseOnboardingStore() {
 
     async findActivationTokenByHash(tokenHash) {
       return AccountActivationTokenModel.findOne({ tokenHash }).lean().exec();
+    },
+
+    async listOpenActivationTokens(filter) {
+      const query = {
+        userId: filter.userId,
+        organizationId: filter.organizationId,
+        $or: [{ consumedAt: null }, { consumedAt: { $exists: false } }],
+      };
+      return AccountActivationTokenModel.find(query).lean().exec();
     },
 
     async insertActivationToken(session, doc) {

@@ -13,7 +13,7 @@ describe('loadApiEnv', () => {
       HOST: '127.0.0.1',
       PORT: '4000',
       MONGODB_URI: 'mongodb://127.0.0.1:27017/?replicaSet=rs0',
-      MONGODB_DB_NAME: 'agrivio_dev',
+      MONGODB_DB_NAME: 'Agrivio',
       MONGODB_REPLICA_SET: 'rs0',
       SESSION_SECRET: 'abcdefghijklmnopqrstuvwxyz012345',
     });
@@ -21,6 +21,16 @@ describe('loadApiEnv', () => {
     expect(config.port).toBe(4000);
     expect(config.host).toBe('127.0.0.1');
     expect(config.profile).toBe('local');
+    expect(config.mongodbDbName).toBe('Agrivio');
+  });
+
+  it('defaults non-test MONGODB_DB_NAME to Agrivio when unset', () => {
+    const config = loadApiEnv({
+      NODE_ENV: 'development',
+      MONGODB_URI: 'mongodb://127.0.0.1:27017/?replicaSet=rs0',
+      SESSION_SECRET: 'abcdefghijklmnopqrstuvwxyz012345',
+    });
+    expect(config.mongodbDbName).toBe('Agrivio');
   });
 
   it('fails fast when required secrets are missing outside test', () => {

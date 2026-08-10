@@ -1,8 +1,9 @@
 const { createInMemoryAuthStore } = require('./auth.memory-store');
 const { createMongooseAuthStore } = require('./auth.mongoose-store');
 const { createAuthService } = require('./auth.service');
-const { registerAuthRoutes } = require('./auth.routes');
+const { registerAuthRoutes } = require('./routes/auth.routes');
 const {
+  createCorsMiddleware,
   createOriginGuardMiddleware,
   createRequireCsrfMiddleware,
   createAuthTransportMiddleware,
@@ -12,6 +13,8 @@ const {
 const {
   createRequirePermissionMiddleware,
   createRequireOrganizationContextMiddleware,
+  createRequireBranchAccessMiddleware,
+  createRequireWarehouseAccessMiddleware,
 } = require('./permission.middleware');
 
 function createAuthModule(options) {
@@ -24,6 +27,9 @@ function createAuthModule(options) {
     store,
     nodeEnv: options.config.nodeEnv,
     ...(options.now === undefined ? {} : { now: options.now }),
+    ...(options.resolveSubscriptionAccessState === undefined
+      ? {}
+      : { resolveSubscriptionAccessState: options.resolveSubscriptionAccessState }),
   });
 
   const requireAuth = createRequireAuthMiddleware({ authService });
@@ -39,6 +45,7 @@ function createAuthModule(options) {
         : { onboardingService: options.onboardingService }),
     }),
     middlewares: {
+      cors: createCorsMiddleware(options.config),
       originGuard: createOriginGuardMiddleware(options.config),
       authTransport: createAuthTransportMiddleware(),
       requireCsrf: createRequireCsrfMiddleware({ authService }),
@@ -46,6 +53,8 @@ function createAuthModule(options) {
       optionalAuth: createOptionalAuthMiddleware({ authService }),
       requirePermission: createRequirePermissionMiddleware,
       requireOrganizationContext: createRequireOrganizationContextMiddleware(),
+      requireBranchAccess: createRequireBranchAccessMiddleware,
+      requireWarehouseAccess: createRequireWarehouseAccessMiddleware,
     },
   };
 }

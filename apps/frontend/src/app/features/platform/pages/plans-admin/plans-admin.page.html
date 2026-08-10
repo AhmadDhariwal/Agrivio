@@ -1,0 +1,83 @@
+<section class="ag-stack">
+  <agrivio-ui-page-header
+    eyebrow="Platform"
+    title="Subscription plans"
+    lede="Platform-managed plan versions. Commercial prices stay data-driven — no hardcoded commercial decisions."
+  />
+
+  <div class="ag-card">
+    <form class="ag-form" [formGroup]="form" (ngSubmit)="createVersion()">
+      <div class="ag-field">
+        <label class="ag-field__label" for="plan-code">Plan code</label>
+        <select id="plan-code" class="ag-select" formControlName="planCode">
+          <option value="Starter">Starter</option>
+          <option value="Business">Business</option>
+          <option value="Enterprise">Enterprise</option>
+        </select>
+      </div>
+      <div class="ag-field">
+        <label class="ag-field__label" for="monthly-price">Monthly price (minor units)</label>
+        <input id="monthly-price" class="ag-input" type="number" formControlName="monthlyPriceMinorUnits" />
+      </div>
+      <div class="ag-field">
+        <label class="ag-field__label" for="annual-price">Annual price (minor units)</label>
+        <input id="annual-price" class="ag-input" type="number" formControlName="annualPriceMinorUnits" />
+      </div>
+      <div class="ag-field">
+        <label class="ag-field__label" for="discount">Annual discount percent</label>
+        <input id="discount" class="ag-input" type="number" formControlName="annualDiscountPercent" />
+      </div>
+      <label class="ag-checkbox">
+        <input type="checkbox" formControlName="activate" />
+        Activate as selectable version
+      </label>
+      <button type="submit" class="ag-btn ag-btn--primary" [disabled]="submitting() || form.invalid">
+        {{ submitting() ? 'Creating…' : 'Create plan version' }}
+      </button>
+    </form>
+  </div>
+
+  <section class="ag-stack">
+    <h2>Plan versions</h2>
+    @if (loading()) {
+      <agrivio-ui-loading-state label="Loading plans…" />
+    } @else if (plans().length === 0) {
+      <agrivio-ui-empty-state
+        title="No plan versions"
+        message="Create the first selectable plan version for organizations."
+      />
+    } @else {
+      <div class="ag-table-wrap">
+        <table class="ag-table">
+          <thead>
+            <tr>
+              <th>Plan</th>
+              <th>Version</th>
+              <th>Status</th>
+              <th>Monthly</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (plan of plans(); track plan.id) {
+              <tr>
+                <td>{{ plan.planCode }}</td>
+                <td>v{{ plan.planVersion }}</td>
+                <td>
+                  <agrivio-ui-status-badge [label]="plan.status" [tone]="statusTone(plan.status)" />
+                </td>
+                <td>{{ plan.monthlyPriceMinorUnits ?? 'unset' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+
+  @if (successMessage(); as success) {
+    <agrivio-ui-alert [message]="success" tone="success" />
+  }
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
+  }
+</section>

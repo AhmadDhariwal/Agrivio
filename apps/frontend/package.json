@@ -1,0 +1,11 @@
+{
+  "name": "@agrivio/frontend",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "start": "nx serve frontend",
+    "build": "nx build frontend",
+    "test": "nx test frontend",
+    "lint": "nx lint frontend"
+  }
+}

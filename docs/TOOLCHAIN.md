@@ -1,7 +1,7 @@
 # Toolchain
 
 Document status: Frozen for Release 1  
-Current version: 1.3.0  
+Current version: 1.4.0  
 Last updated: 2026-08-08  
 Approval status: Approved for repository initialization
 
@@ -10,6 +10,8 @@ Approval status: Approved for repository initialization
 > **Amendment 1.2.0 (2026-08-08):** Backend implementation language: JavaScript CommonJS (`require` / `module.exports`). Frontend remains Angular TypeScript. Shared packages remain TypeScript. Details: [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md).
 >
 > **Amendment 1.3.0 (2026-08-08):** Backend coding style is plain CommonJS JavaScript without `// @ts-check` or JSDoc type annotations. Backend validation is ESLint + tests (not `checkJs`). Details: [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md).
+>
+> **Amendment 1.4.0 (2026-08-08):** Package manager migrated from pnpm to npm workspaces. Sole package manager: npm (pinned with Node `24.18.0`). Nx remains the task orchestrator. Details: [tasks/NPM-WORKSPACE-MIGRATION.md](tasks/NPM-WORKSPACE-MIGRATION.md).
 
 ## Document Authority
 
@@ -34,7 +36,7 @@ This document freezes the Release 1 toolchain. It does not install packages, ini
 | Tool / package | Approved version | Role |
 | --- | --- | --- |
 | Node.js | `24.18.0` | Runtime for API, tooling, CI, and local development |
-| pnpm | `11.17.0` | Sole package manager and workspace installer |
+| npm | `11.16.0` | Sole package manager and workspace installer (bundled with Node `24.18.0`) |
 | Nx | `23.1.0` | Monorepo task orchestration |
 | `@nx/angular` | `23.1.0` | Angular application generation and executors |
 | `@nx/node` | `23.1.0` | Node application generation and executors |
@@ -102,7 +104,7 @@ Official registry and release checks performed for P1-07:
 | Check | Result |
 | --- | --- |
 | Node.js `24.18.0` LTS release exists | Pass — Node.js Krypton LTS release published |
-| pnpm `11.17.0` exists on npm | Pass |
+| npm `11.16.0` ships with Node.js `24.18.0` | Pass — detected and pinned from the approved Node runtime |
 | Nx `23.1.0` and all listed `@nx/*@23.1.0` packages exist | Pass |
 | `@nx/express@23.1.0` exists and matches `nx@23.1.0` | Pass — approved Express Nx plugin; does not replace Express or `@nx/node` |
 | Angular framework and CLI packages at `22.0.8` exist | Pass |
@@ -131,20 +133,20 @@ Root metadata must use:
 ```json
 {
   "private": true,
-  "packageManager": "pnpm@11.17.0",
+  "packageManager": "npm@11.16.0",
   "engines": {
     "node": ">=24.18.0 <25",
-    "pnpm": ">=11.17.0 <12"
-  }
+    "npm": ">=11.16.0 <12"
+  },
+  "workspaces": ["apps/*", "packages/*"]
 }
 ```
 
-Required after F00:
+Required after F00 / npm migration:
 
 ```text
 package.json
-pnpm-lock.yaml
-pnpm-workspace.yaml
+package-lock.json
 nx.json
 .nvmrc
 .node-version
@@ -155,8 +157,7 @@ nx.json
 
 ```text
 save-exact=true
-auto-install-peers=false
-strict-peer-dependencies=true
+strict-peer-deps=true
 ```
 
 Rules:
@@ -164,19 +165,21 @@ Rules:
 * `.nvmrc` and `.node-version` contain exactly `24.18.0`.
 * `.npmrc` uses the baseline above.
 * Every required direct peer must be explicitly pinned in `package.json`.
-* Do not allow pnpm to silently select an unreviewed peer version.
+* Do not allow npm to silently select an unreviewed peer version.
 * Missing optional peers such as Zone.js must remain absent when the application is intentionally zoneless.
 * A genuine peer conflict is a bootstrap blocker; do not silence it globally.
 * Use a narrow documented package-specific override only when an upstream metadata defect is proven.
 * Direct dependencies and direct devDependencies use exact versions.
-* Commit `pnpm-lock.yaml`.
-* CI installs with `pnpm install --frozen-lockfile`.
-* Do not commit `package-lock.json`, `yarn.lock`, or Bun lockfiles.
-* Internal packages use the pnpm workspace protocol (`workspace:`).
-* Do not use `latest`, `*`, broad major ranges, or unbounded dependency ranges in committed manifests.
+* Commit `package-lock.json`.
+* CI installs with `npm ci` once the lockfile exists.
+* Do not commit `pnpm-lock.yaml`, `yarn.lock`, or Bun lockfiles.
+* Internal packages resolve through npm workspaces (`workspaces` in root `package.json`; dependency versions may use `*` for workspace packages).
+* Do not use `latest`, broad major ranges, or unbounded dependency ranges in committed manifests (workspace `*` for internal packages is the approved exception).
 * Dependency updates occur only through dedicated reviewed commits.
 * Lockfile changes must not be mixed invisibly into unrelated feature work.
 * Install `@nx/express@23.1.0` explicitly during F00; do not rely on an unpinned generator-added version.
+* npm `allowScripts` must explicitly allow required install scripts for `nx`, `esbuild`, `lmdb`, `less`, `unrs-resolver`, `msgpackr-extract`, and `@parcel/watcher`. Keep `argon2` denied (prebuilds / no local native compile), matching the former pnpm `allowBuilds` posture.
+* Documented override: `@babel/helper-define-polyfill-provider@0.6.8` for an upstream Nx/babel peer-resolution defect under npm `strict-peer-deps`.
 
 ---
 
@@ -184,7 +187,7 @@ Rules:
 
 | Concern | Decision |
 | --- | --- |
-| Package manager | pnpm workspaces |
+| Package manager | npm workspaces |
 | Task orchestration | Nx integrated workspace |
 | Application directory | `apps/` |
 | Internal package directory | `packages/` |
@@ -279,9 +282,9 @@ Final newline required
 Required commands:
 
 ```bash
-pnpm format
-pnpm format:check
-pnpm lint
+npm run format
+npm run format:check
+npm run lint
 ```
 
 Architecture linting must later support:
@@ -357,9 +360,9 @@ Do not select or introduce during Release 1 bootstrap:
 * Next.js
 * React
 * Vue
-* npm as package manager
 * Yarn
 * Bun
+* pnpm
 * Turborepo
 * Lerna
 * Jest

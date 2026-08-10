@@ -1,0 +1,74 @@
+<agrivio-auth-layout
+  title="Request organization access"
+  subtitle="Submit organization details for Super Admin review. Access is not granted until approval and Owner activation."
+>
+  <form class="ag-form" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="ag-field">
+      <label class="ag-field__label" for="org-name">Organization name</label>
+      <input
+        id="org-name"
+        class="ag-input"
+        formControlName="organizationName"
+        autocomplete="organization"
+        data-testid="org-name"
+      />
+      @if (form.controls.organizationName.touched && form.controls.organizationName.invalid) {
+        <p class="ag-field__error">Organization name is required.</p>
+      }
+    </div>
+    <div class="ag-field">
+      <label class="ag-field__label" for="owner-email">Owner email</label>
+      <input
+        id="owner-email"
+        class="ag-input"
+        formControlName="ownerEmail"
+        type="email"
+        autocomplete="email"
+        data-testid="owner-email"
+      />
+      @if (form.controls.ownerEmail.touched && form.controls.ownerEmail.invalid) {
+        <p class="ag-field__error">Enter a valid owner email.</p>
+      }
+    </div>
+    <div class="ag-field">
+      <label class="ag-field__label" for="owner-display-name">Owner display name</label>
+      <input
+        id="owner-display-name"
+        class="ag-input"
+        formControlName="ownerDisplayName"
+        autocomplete="name"
+        data-testid="owner-display-name"
+      />
+      @if (form.controls.ownerDisplayName.touched && form.controls.ownerDisplayName.invalid) {
+        <p class="ag-field__error">Owner display name is required.</p>
+      }
+    </div>
+    <div class="ag-field">
+      <label class="ag-field__label" for="timezone">Timezone</label>
+      <input id="timezone" class="ag-input" formControlName="timezone" data-testid="timezone" />
+    </div>
+
+    @if (errorMessage(); as error) {
+      <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
+    }
+    @if (successMessage(); as success) {
+      <div data-testid="request-success">
+        <agrivio-ui-alert [message]="success" tone="success" />
+      </div>
+    }
+
+    <button
+      type="submit"
+      class="ag-btn ag-btn--primary"
+      [disabled]="submitting() || form.invalid"
+      data-testid="request-submit"
+    >
+      {{ submitting() ? 'Submitting…' : 'Submit request' }}
+    </button>
+  </form>
+
+  <div class="ag-auth-links">
+    <a routerLink="/">Back to landing</a>
+    <a routerLink="/login">Sign in</a>
+  </div>
+</agrivio-auth-layout>

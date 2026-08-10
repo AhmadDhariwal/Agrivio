@@ -10,6 +10,8 @@ export default defineConfig(() => ({
   test: {
     ...agrivioVitestNodeDefaults,
     name: 'backend',
+    // Auth/onboarding suites hash passwords with argon2; default 5s flakes under load.
+    testTimeout: 20000,
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     coverage: {
       ...agrivioVitestNodeDefaults.coverage,

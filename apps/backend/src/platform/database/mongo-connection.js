@@ -1,4 +1,9 @@
 const mongoose = require('mongoose');
+const {
+  assertMongoConnectionContract,
+  diagnoseMongoStartupFailure,
+  assertConnectedReplicaSetReady,
+} = require('./mongo-startup-diagnostics');
 
 function createMongooseDatabaseLifecycle() {
   return {
@@ -6,14 +11,40 @@ function createMongooseDatabaseLifecycle() {
       if (config === undefined) {
         throw new Error('MongoDB configuration is required to connect');
       }
+
+      const contract = assertMongoConnectionContract(config);
+      if (!contract.ok) {
+        const error = new Error(contract.message);
+        error.code = contract.code;
+        throw error;
+      }
+
       if (mongoose.connection.readyState !== 0) {
+        await assertConnectedReplicaSetReady(config);
         return;
       }
 
-      await mongoose.connect(config.mongodbUri, {
-        dbName: config.mongodbDbName,
-        serverSelectionTimeoutMS: 10_000,
-      });
+      try {
+        await mongoose.connect(config.mongodbUri, {
+          dbName: config.mongodbDbName,
+          serverSelectionTimeoutMS: 10_000,
+        });
+        await assertConnectedReplicaSetReady(config);
+      } catch (error) {
+        if (mongoose.connection.readyState !== 0) {
+          await mongoose.disconnect().catch(() => undefined);
+        }
+
+        if (error && typeof error === 'object' && error.code) {
+          throw error;
+        }
+
+        const diagnosis = await diagnoseMongoStartupFailure(config, error);
+        const wrapped = new Error(diagnosis.message);
+        wrapped.code = diagnosis.code;
+        wrapped.cause = error;
+        throw wrapped;
+      }
     },
 
     async disconnect() {

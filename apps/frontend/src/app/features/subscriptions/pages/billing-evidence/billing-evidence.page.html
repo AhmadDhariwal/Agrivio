@@ -1,0 +1,140 @@
+<section class="ag-stack">
+  <agrivio-ui-page-header
+    eyebrow="Subscriptions"
+    title="Billing evidence"
+    lede="Submit manual bank transfer, JazzCash, or Easypaisa evidence. Store only an opaque evidence reference — no payment gateway is integrated."
+  />
+
+  <agrivio-subscription-status-banner [accessState]="accessState()" />
+
+  @if (subscriptionDetail(); as detail) {
+    <div class="ag-card ag-stack ag-stack--tight">
+      <h2>Current subscription</h2>
+      <div class="ag-inline">
+        <agrivio-ui-status-badge
+          [label]="statusLabel(detail['status'])"
+          [tone]="statusTone(detail['status'])"
+        />
+        @if (detail['planCode']) {
+          <span>{{ detail['planCode'] }}</span>
+        }
+      </div>
+      <p class="ag-muted">
+        Plan and lifecycle details are informational. Server entitlement checks remain authoritative.
+      </p>
+    </div>
+  }
+
+  <div class="ag-card">
+    <form class="ag-form" [formGroup]="form" (ngSubmit)="submit()">
+      <div class="ag-field">
+        <label class="ag-field__label" for="payment-method">Payment method</label>
+        <select id="payment-method" class="ag-select" formControlName="paymentMethod">
+          <option value="bank_transfer">Bank transfer</option>
+          <option value="jazzcash">JazzCash</option>
+          <option value="easypaisa">Easypaisa</option>
+        </select>
+      </div>
+
+      <div class="ag-field">
+        <label class="ag-field__label" for="billing-period">Billing period</label>
+        <select id="billing-period" class="ag-select" formControlName="billingPeriod">
+          <option value="monthly">Monthly</option>
+          <option value="annual">Annual</option>
+        </select>
+      </div>
+
+      <div class="ag-field">
+        <label class="ag-field__label" for="amount">Amount (minor units, PKR)</label>
+        <input id="amount" class="ag-input" type="number" formControlName="submittedAmountMinorUnits" />
+        @if (form.controls.submittedAmountMinorUnits.touched && form.controls.submittedAmountMinorUnits.invalid) {
+          <p class="ag-field__error">Enter an amount greater than zero.</p>
+        }
+      </div>
+
+      <div class="ag-field">
+        <label class="ag-field__label" for="payment-reference">Payment reference</label>
+        <input id="payment-reference" class="ag-input" type="text" formControlName="paymentReference" />
+        @if (form.controls.paymentReference.touched && form.controls.paymentReference.invalid) {
+          <p class="ag-field__error">Payment reference is required.</p>
+        }
+      </div>
+
+      <div class="ag-field">
+        <label class="ag-field__label" for="evidence-ref">Evidence storage reference</label>
+        <input
+          id="evidence-ref"
+          class="ag-input"
+          type="text"
+          formControlName="evidenceStorageRef"
+          placeholder="evidence://..."
+        />
+      </div>
+
+      <div class="ag-field">
+        <label class="ag-field__label" for="evidence-name">Original file name</label>
+        <input id="evidence-name" class="ag-input" type="text" formControlName="evidenceOriginalFileName" />
+      </div>
+
+      <div class="ag-field">
+        <label class="ag-field__label" for="plan-code">Requested plan</label>
+        <input id="plan-code" class="ag-input" type="text" formControlName="requestedPlanCode" />
+      </div>
+
+      <div class="ag-field">
+        <label class="ag-field__label" for="plan-version">Plan version</label>
+        <input id="plan-version" class="ag-input" type="number" formControlName="requestedPlanVersion" />
+      </div>
+
+      <button type="submit" class="ag-btn ag-btn--primary" [disabled]="submitting() || form.invalid">
+        {{ submitting() ? 'Submitting…' : 'Submit evidence' }}
+      </button>
+    </form>
+  </div>
+
+  <section class="ag-stack">
+    <h2>Billing history</h2>
+    @if (loadingHistory()) {
+      <agrivio-ui-loading-state label="Loading billing records…" />
+    } @else if (historyError(); as error) {
+      <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
+    } @else if (records().length === 0) {
+      <agrivio-ui-empty-state
+        title="No billing records yet"
+        message="Submitted evidence will appear here after the first successful submission."
+      />
+    } @else {
+      <div class="ag-table-wrap">
+        <table class="ag-table">
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Status</th>
+              <th>Reference</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of records(); track item.id) {
+              <tr>
+                <td>{{ item.paymentMethod }}</td>
+                <td>
+                  <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+                </td>
+                <td>{{ item.paymentReferenceNormalized }}</td>
+                <td>{{ item.submittedAmountMinorUnits }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+
+  @if (successMessage(); as success) {
+    <agrivio-ui-alert [message]="success" tone="success" />
+  }
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
+  }
+</section>

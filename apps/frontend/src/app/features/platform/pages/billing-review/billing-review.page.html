@@ -1,0 +1,98 @@
+<section class="ag-stack">
+  <agrivio-ui-page-header
+    eyebrow="Platform"
+    title="Billing evidence review"
+    lede="Super Admin review queue for manual payment evidence. Approving or rejecting changes subscription review status."
+  />
+
+  <div class="ag-actions">
+    <button type="button" class="ag-btn ag-btn--secondary" [disabled]="loading()" (click)="reload()">
+      Refresh
+    </button>
+  </div>
+
+  @if (loading()) {
+    <agrivio-ui-loading-state label="Loading billing review queue…" />
+  } @else if (items().length === 0) {
+    <agrivio-ui-empty-state
+      title="Queue is empty"
+      message="Submitted organization billing evidence will appear here for review."
+    />
+  } @else {
+    <div class="ag-table-wrap">
+      <table class="ag-table">
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Status</th>
+            <th>Reference</th>
+            <th>Amount</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of items(); track item.id) {
+            <tr>
+              <td>
+                <strong>{{ item.paymentMethod }}</strong>
+                @if (item.paymentReferenceDuplicateWarning) {
+                  <span class="ag-badge ag-badge--warning">duplicate reference</span>
+                }
+              </td>
+              <td>
+                <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+              </td>
+              <td>{{ item.paymentReferenceNormalized }}</td>
+              <td>{{ item.submittedAmountMinorUnits }}</td>
+              <td>
+                <div class="ag-actions">
+                  <button
+                    type="button"
+                    class="ag-btn ag-btn--primary ag-btn--sm"
+                    (click)="askApprove(item)"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    type="button"
+                    class="ag-btn ag-btn--danger ag-btn--sm"
+                    (click)="askReject(item)"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="ag-card ag-stack ag-stack--tight">
+    <h2>Rejection reason</h2>
+    <form class="ag-form" [formGroup]="rejectForm">
+      <div class="ag-field">
+        <label class="ag-field__label" for="billing-reject-reason">Reason</label>
+        <input id="billing-reject-reason" class="ag-input" type="text" formControlName="reason" />
+      </div>
+    </form>
+  </div>
+
+  @if (successMessage(); as success) {
+    <agrivio-ui-alert [message]="success" tone="success" />
+  }
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
+  }
+
+  <agrivio-ui-confirm-dialog
+    [open]="confirmOpen()"
+    [title]="confirmTitle()"
+    [message]="confirmMessage()"
+    [confirmLabel]="confirmLabel()"
+    [danger]="confirmDanger()"
+    (confirmed)="runConfirmedAction()"
+    (dismiss)="confirmOpen.set(false)"
+  />
+</section>

@@ -6,21 +6,32 @@ Central navigation for Agrivio documentation.
 
 * P1-01 through P1-07 are complete
 * R1-F00-001 monorepo workspace bootstrap is complete
-* All four P1-07 toolchain documents are frozen at version 1.3.0 (application naming, backend JavaScript, CommonJS, and plain-JS coding-style amendments)
+* All four P1-07 toolchain documents are frozen at version 1.4.0 (application naming, backend JavaScript, CommonJS, plain-JS coding-style, and npm workspace amendments)
 * R1-F00-002 Angular frontend application scaffold is complete (historically `apps/web`)
 * R1-F00-003 Express backend scaffold is complete (historically `apps/api`; now JavaScript CommonJS under `apps/backend`)
 * F00 application naming and backend JavaScript migration complete — see [tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md](tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md)
 * Backend CommonJS simplification migration complete — see [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md)
 * Backend plain-JavaScript coding-style cleanup complete (no `// @ts-check` / JSDoc typing; `checkJs` disabled) — see [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md) final amendment
+* npm workspace migration complete (pnpm removed; npm `11.16.0` + workspaces; Nx retained) — see [tasks/NPM-WORKSPACE-MIGRATION.md](tasks/NPM-WORKSPACE-MIGRATION.md)
+* F00 CI foundation workflows restored under `.github/workflows/` (quality, integration, E2E smoke; npm `ci`)
 * F00 Batch A complete: `R1-F00-004`, `R1-F00-005`, `R1-F00-007`
 * `packages/api-contracts` and `packages/tooling-config` exist; root command contract wired; env validation foundation in place
 * F00 Phase 1 complete (`R1-F00-006`, `R1-F00-010`) — see [tasks/F00-PHASE-1-MONGODB-TEST-SUPPORT.md](tasks/F00-PHASE-1-MONGODB-TEST-SUPPORT.md)
 * `packages/test-support` (`@agrivio/test-support`) provides MongoDB/transaction test helpers
 * F01 Phase 1 complete (`R1-F01-001`–`R1-F01-005`) — see [tasks/F01-PHASE-1-PLATFORM-RUNTIME.md](tasks/F01-PHASE-1-PLATFORM-RUNTIME.md)
 * F01 Phase 2 complete (`R1-F01-006`–`R1-F01-011`) — see [tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md](tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md); **F01 stage exit satisfied** (unit-level)
-* Architecture-boundary tests runnable via `pnpm test:architecture` (replaces F00 placeholder)
+* Architecture-boundary tests runnable via `npm run test:architecture` (replaces F00 placeholder)
 * F02 Phase 1 complete (`R1-F02-005`, `R1-F02-006`) — see [tasks/F02-PHASE-1-ORGANIZATION-ONBOARDING.md](tasks/F02-PHASE-1-ORGANIZATION-ONBOARDING.md)
-* Next work item: **F02 Phase 2 — Session Authentication**
+* F02 Phase 2 complete (`R1-F02-003`, `R1-F02-004`) — see [tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md](tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md)
+* F02 Phase 3 complete (`R1-F02-007`, `R1-F02-008`) — see [tasks/F02-PHASE-3-CONTEXT-PERMISSIONS.md](tasks/F02-PHASE-3-CONTEXT-PERMISSIONS.md)
+* F02 Phase 4 complete (`R1-F02-001`, `R1-F02-002`, `R1-F02-009`) — see [tasks/F02-PHASE-4-ACCESS-ASSIGNMENTS.md](tasks/F02-PHASE-4-ACCESS-ASSIGNMENTS.md)
+* F02 Phase 5 complete (`R1-F02-010`, `R1-F02-011`, `R1-F02-012`) — see [tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md](tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md)
+* F02 Phase 6 implementation complete (`R1-F02-013`, `R1-F02-014`) — see [tasks/F02-PHASE-6-STAGE-CLOSURE.md](tasks/F02-PHASE-6-STAGE-CLOSURE.md); **F02 implementation complete — stage verification pending** (CI/Docker evidence outstanding)
+* F02 UI/UX hardening complete — see [tasks/F02-UI-UX-HARDENING.md](tasks/F02-UI-UX-HARDENING.md); **13** user-facing F02 pages/views polished; local `.env.local` auto-load for backend startup
+* Local runtime finalization (pre-F03) complete — see [tasks/LOCAL-RUNTIME-BEFORE-F03.md](tasks/LOCAL-RUNTIME-BEFORE-F03.md); native/Docker `rs0`, startup diagnostics, Angular CLI serve workspace file
+* F02 Owner activation handoff fix complete — see [tasks/F02-OWNER-ACTIVATION-HANDOFF.md](tasks/F02-OWNER-ACTIVATION-HANDOFF.md); approve/reissue absolute activation URL + copy UI
+* Pre-F03 architecture cleanup + Super Admin bootstrap complete — see [tasks/PRE-F03-SOURCE-LAYOUT-AND-SUPER-ADMIN-BOOTSTRAP.md](tasks/PRE-F03-SOURCE-LAYOUT-AND-SUPER-ADMIN-BOOTSTRAP.md); Angular cohesive page folders, shallow backend module layout, `npm run bootstrap:super-admin`
+* Next work item: **F03** after F02 stage verification is recorded
 
 ## Existing Documents
 
@@ -40,11 +51,11 @@ Central navigation for Agrivio documentation.
 | [SUBSCRIPTION_AND_BILLING.md](SUBSCRIPTION_AND_BILLING.md) | Subscription lifecycle and manual billing (Frozen for Release 1, v1.0) |
 | [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md) | Release 1 implementation stages and work-item catalog (Frozen for Release 1, v1.2.0; 10 stages; 109 work items) |
 | [DELIVERY_PLAN.md](DELIVERY_PLAN.md) | Delivery estimates, risks, pilot and rollout (Frozen for Release 1, v1.0) |
-| [QUALITY_GATES.md](QUALITY_GATES.md) | Per-item, per-stage, and release quality gates (Frozen for Release 1, v1.2.0) |
-| [TOOLCHAIN.md](TOOLCHAIN.md) | Exact Release 1 toolchain versions and policies (Frozen for Release 1, v1.2.0) |
-| [REPOSITORY_INITIALIZATION.md](REPOSITORY_INITIALIZATION.md) | F00 initialization order and bootstrap gates (Frozen for Release 1, v1.2.0) |
-| [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md) | Local commands, branching, PR, and agent workflow (Frozen for Release 1, v1.2.0) |
-| [TEST_STRATEGY.md](TEST_STRATEGY.md) | Test stack, locations, CI layers, and coverage policy (Frozen for Release 1, v1.2.0) |
+| [QUALITY_GATES.md](QUALITY_GATES.md) | Per-item, per-stage, and release quality gates (Frozen for Release 1, v1.4.0) |
+| [TOOLCHAIN.md](TOOLCHAIN.md) | Exact Release 1 toolchain versions and policies (Frozen for Release 1, v1.4.0) |
+| [REPOSITORY_INITIALIZATION.md](REPOSITORY_INITIALIZATION.md) | F00 initialization order and bootstrap gates (Frozen for Release 1, v1.4.0) |
+| [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md) | Local commands, branching, PR, and agent workflow (Frozen for Release 1, v1.4.0) |
+| [TEST_STRATEGY.md](TEST_STRATEGY.md) | Test stack, locations, CI layers, and coverage policy (Frozen for Release 1, v1.4.0) |
 | [tasks/P1-01.md](tasks/P1-01.md) | Phase 1 task: project documentation baseline |
 | [tasks/P1-02.md](tasks/P1-02.md) | Phase 1 task: product requirements and Release 1 scope |
 | [tasks/P1-03.md](tasks/P1-03.md) | Phase 1 task: business rules and domain glossary (complete and frozen) |
@@ -58,7 +69,14 @@ Central navigation for Agrivio documentation.
 | [tasks/F00-BATCH-A.md](tasks/F00-BATCH-A.md) | F00 Batch A: shared packages, root commands, env validation (`R1-F00-004`/`005`/`007`, complete) |
 | [tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md](tasks/F00-APP-NAMING-BACKEND-JS-MIGRATION.md) | F00 amendment: `apps/frontend` / `apps/backend` naming and backend JavaScript ESM migration (complete; superseded for module format by CommonJS migration) |
 | [tasks/BACKEND-COMMONJS-MIGRATION.md](tasks/BACKEND-COMMONJS-MIGRATION.md) | Backend coding-style migration: JavaScript ESM → CommonJS (complete) |
+| [tasks/NPM-WORKSPACE-MIGRATION.md](tasks/NPM-WORKSPACE-MIGRATION.md) | Tooling migration: pnpm → npm workspaces; simplified app startup (complete) |
 | [tasks/F02-PHASE-1-ORGANIZATION-ONBOARDING.md](tasks/F02-PHASE-1-ORGANIZATION-ONBOARDING.md) | F02 Phase 1: organization onboarding and Owner activation (complete; CommonJS) |
+| [tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md](tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md) | F02 Phase 5: plans, subscription lifecycle, and manual billing |
+| [tasks/F02-PHASE-6-STAGE-CLOSURE.md](tasks/F02-PHASE-6-STAGE-CLOSURE.md) | F02 Phase 6: onboarding E2E, tenant isolation, stage closure (implementation complete — verification pending) |
+| [tasks/F02-UI-UX-HARDENING.md](tasks/F02-UI-UX-HARDENING.md) | F02 final UI/UX hardening: visual system, routing, local env startup, frontend quality |
+| [tasks/LOCAL-RUNTIME-BEFORE-F03.md](tasks/LOCAL-RUNTIME-BEFORE-F03.md) | Pre-F03 local runtime: native/Docker Mongo `rs0`, backend diagnostics, serve paths |
+| [tasks/F02-OWNER-ACTIVATION-HANDOFF.md](tasks/F02-OWNER-ACTIVATION-HANDOFF.md) | F02 Owner activation approve/reissue handoff URL and UI |
+| [tasks/PRE-F03-SOURCE-LAYOUT-AND-SUPER-ADMIN-BOOTSTRAP.md](tasks/PRE-F03-SOURCE-LAYOUT-AND-SUPER-ADMIN-BOOTSTRAP.md) | Pre-F03 source-layout conventions + operational Super Admin bootstrap CLI |
 | [tasks/F01-PHASE-1-PLATFORM-RUNTIME.md](tasks/F01-PHASE-1-PLATFORM-RUNTIME.md) | F01 Phase 1: platform runtime foundation |
 | [tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md](tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md) | F01 Phase 2: transactional platform foundation (completes F01) |
 | [../README.md](../README.md) | Repository landing page |
@@ -93,10 +111,10 @@ These documents are not created yet. Paths below are reserved targets for later 
 * Subscription and billing (Frozen for Release 1, v1.0): [SUBSCRIPTION_AND_BILLING.md](SUBSCRIPTION_AND_BILLING.md)
 * Implementation roadmap (Frozen for Release 1, v1.2.0): [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md)
 * Delivery plan (Frozen for Release 1, v1.0): [DELIVERY_PLAN.md](DELIVERY_PLAN.md)
-* Quality gates (Frozen for Release 1, v1.2.0): [QUALITY_GATES.md](QUALITY_GATES.md)
-* Toolchain (Frozen for Release 1, v1.2.0): [TOOLCHAIN.md](TOOLCHAIN.md)
-* Repository initialization (Frozen for Release 1, v1.2.0): [REPOSITORY_INITIALIZATION.md](REPOSITORY_INITIALIZATION.md)
-* Development workflow (Frozen for Release 1, v1.2.0): [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md)
-* Test strategy (Frozen for Release 1, v1.2.0): [TEST_STRATEGY.md](TEST_STRATEGY.md)
+* Quality gates (Frozen for Release 1, v1.4.0): [QUALITY_GATES.md](QUALITY_GATES.md)
+* Toolchain (Frozen for Release 1, v1.4.0): [TOOLCHAIN.md](TOOLCHAIN.md)
+* Repository initialization (Frozen for Release 1, v1.4.0): [REPOSITORY_INITIALIZATION.md](REPOSITORY_INITIALIZATION.md)
+* Development workflow (Frozen for Release 1, v1.4.0): [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md)
+* Test strategy (Frozen for Release 1, v1.4.0): [TEST_STRATEGY.md](TEST_STRATEGY.md)
 * Agent and scope rules: [../AGENTS.md](../AGENTS.md)
 * Do not duplicate finalized rules across documents; link here or to the authoritative document instead.

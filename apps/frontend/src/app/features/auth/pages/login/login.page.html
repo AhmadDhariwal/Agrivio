@@ -1,0 +1,73 @@
+<agrivio-auth-layout
+  title="Sign in"
+  subtitle="Use your organization or platform credentials. Session cookies authenticate the browser."
+>
+  <form class="ag-form" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="ag-field">
+      <label class="ag-field__label" for="login-email">Email</label>
+      <input
+        id="login-email"
+        class="ag-input"
+        type="email"
+        formControlName="email"
+        autocomplete="username"
+        data-testid="login-email"
+      />
+      @if (form.controls.email.touched && form.controls.email.invalid) {
+        <p class="ag-field__error">Enter a valid email address.</p>
+      }
+    </div>
+
+    <div class="ag-field">
+      <label class="ag-field__label" for="login-password">Password</label>
+      <div class="ag-control-wrap">
+        <input
+          id="login-password"
+          class="ag-input"
+          [type]="showPassword() ? 'text' : 'password'"
+          formControlName="password"
+          autocomplete="current-password"
+          data-testid="login-password"
+        />
+        <button
+          type="button"
+          class="ag-control-wrap__action"
+          (click)="showPassword.set(!showPassword())"
+          [attr.aria-pressed]="showPassword()"
+        >
+          {{ showPassword() ? 'Hide' : 'Show' }}
+        </button>
+      </div>
+      @if (form.controls.password.touched && form.controls.password.invalid) {
+        <p class="ag-field__error">Password is required (minimum 12 characters).</p>
+      }
+    </div>
+
+    <button
+      type="submit"
+      class="ag-btn ag-btn--primary"
+      [disabled]="submitting() || form.invalid"
+      data-testid="login-submit"
+    >
+      {{ submitting() ? 'Signing in…' : 'Sign in' }}
+    </button>
+  </form>
+
+  @if (successMessage(); as message) {
+    <agrivio-ui-alert class="ag-stack" style="display: block; margin-top: 1rem" [message]="message" tone="success" />
+  }
+  @if (errorMessage(); as message) {
+    <agrivio-ui-alert
+      style="display: block; margin-top: 1rem"
+      [message]="message"
+      tone="danger"
+      role="alert"
+    />
+  }
+
+  <div class="ag-auth-links">
+    <a routerLink="/password-reset">Forgot password?</a>
+    <a routerLink="/request-access">Request access</a>
+    <a routerLink="/">Landing</a>
+  </div>
+</agrivio-auth-layout>

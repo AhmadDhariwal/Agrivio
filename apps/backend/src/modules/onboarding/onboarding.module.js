@@ -8,7 +8,7 @@ const {
   createMongooseTransactionSessionPort,
 } = require('./onboarding.mongoose-store');
 const { createOnboardingService } = require('./onboarding.service');
-const { registerOnboardingRoutes } = require('./onboarding.routes');
+const { registerOnboardingRoutes } = require('./routes/onboarding.routes');
 
 function createOnboardingModule(options) {
   const persistence = options.persistence ?? 'memory';
@@ -27,6 +27,10 @@ function createOnboardingModule(options) {
   const onboardingService = createOnboardingService({
     store,
     transactionRunner,
+    publicWebBaseUrl: options.config?.publicWebBaseUrl ?? 'http://localhost:4200',
+    ...(options.subscriptionStore === undefined
+      ? {}
+      : { subscriptionStore: options.subscriptionStore }),
     ...(options.now === undefined ? {} : { now: options.now }),
   });
 

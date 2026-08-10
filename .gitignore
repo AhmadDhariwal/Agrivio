@@ -1,7 +1,8 @@
 # Dependencies and package managers
 node_modules/
 .pnpm-store/
-package-lock.json
+pnpm-lock.yaml
+pnpm-workspace.yaml
 yarn.lock
 bun.lock
 bun.lockb

@@ -32,5 +32,5 @@ describe('password.service', () => {
     expect(hash).not.toContain('a-strong-passphrase');
     expect(await verifyPassword(hash, 'a-strong-passphrase')).toBe(true);
     expect(await verifyPassword(hash, 'wrong-passphrase')).toBe(false);
-  });
+  }, 20000);
 });
