@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-const { applyInboundWac } = require('./wac');
+const { applyInboundWac, applyOutboundWac } = require('./wac');
 const {
   convertEnteredQuantityToBaseMinorUnits,
   computeUnitCostMinorUnits,
@@ -83,5 +83,17 @@ describe('BR-COST weighted-average cost', () => {
       parseQuantityMinorUnits('3'),
     );
     expect(formatMoneyMinorUnits(unit)).toBe('3.33');
+  });
+
+  it('applies outbound WAC without changing historical WAC snapshot', () => {
+    const prior = {
+      quantityBaseMinorUnits: parseQuantityMinorUnits('10'),
+      inventoryValueMinorUnits: parseMoneyMinorUnits('100.00'),
+      weightedAverageCostMinorUnits: parseMoneyMinorUnits('10.00'),
+    };
+    const next = applyOutboundWac(prior, parseQuantityMinorUnits('4'));
+    expect(formatQuantityMinorUnits(next.quantityBaseMinorUnits)).toBe('6.0000');
+    expect(formatMoneyMinorUnits(next.inventoryValueMinorUnits)).toBe('60.00');
+    expect(formatMoneyMinorUnits(next.weightedAverageCostMinorUnits)).toBe('10.00');
   });
 });

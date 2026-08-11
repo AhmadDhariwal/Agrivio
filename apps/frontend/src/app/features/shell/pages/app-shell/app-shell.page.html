@@ -62,6 +62,16 @@
           >
             Opening stock
           </a>
+          <a routerLink="/app/inventory/expiry" routerLinkActive="active" data-testid="nav-expiry">
+            Expiry
+          </a>
+          <a
+            routerLink="/app/inventory/adjustments"
+            routerLinkActive="active"
+            data-testid="nav-adjustments"
+          >
+            Adjustments
+          </a>
         }
         @if (canSubmitBilling()) {
           <a routerLink="/app/subscription/billing" routerLinkActive="active">Billing</a>

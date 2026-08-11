@@ -4,9 +4,11 @@ import { Observable, map, switchMap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
 import {
+  ExpiryInventoryRecord,
   InventoryBalanceRecord,
   OpeningStockResult,
   ProductBatchRecord,
+  StockAdjustmentRecord,
   StockMovementRecord,
 } from '../models/inventory.models';
 
@@ -92,6 +94,125 @@ export class InventoryApi {
         this.http
           .post<{ data: OpeningStockResult }>(
             `${environment.publicApiBaseUrl}/api/v1/inventory/opening-stock`,
+            payload,
+            {
+              withCredentials: true,
+              headers: {
+                'X-CSRF-Token': csrfToken,
+                'Idempotency-Key': idempotencyKey,
+              },
+            },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
+  listExpiry(query?: {
+    warehouseId?: string;
+    productId?: string;
+    classification?: string;
+  }): Observable<{ items: ExpiryInventoryRecord[]; businessDate: string; thresholdDays: number }> {
+    const params: Record<string, string> = {};
+    if (query?.warehouseId) {
+      params['warehouseId'] = query.warehouseId;
+    }
+    if (query?.productId) {
+      params['productId'] = query.productId;
+    }
+    if (query?.classification) {
+      params['classification'] = query.classification;
+    }
+    return this.http
+      .get<{
+        data: { items: ExpiryInventoryRecord[]; businessDate: string; thresholdDays: number };
+      }>(`${environment.publicApiBaseUrl}/api/v1/inventory/expiry`, {
+        withCredentials: true,
+        params,
+      })
+      .pipe(map((response) => response.data));
+  }
+
+  listAdjustments(query?: { warehouseId?: string; status?: string }): Observable<StockAdjustmentRecord[]> {
+    const params: Record<string, string> = {};
+    if (query?.warehouseId) {
+      params['warehouseId'] = query.warehouseId;
+    }
+    if (query?.status) {
+      params['status'] = query.status;
+    }
+    return this.http
+      .get<{ data: { items: StockAdjustmentRecord[] } }>(
+        `${environment.publicApiBaseUrl}/api/v1/stock-adjustments`,
+        { withCredentials: true, params },
+      )
+      .pipe(map((response) => response.data.items));
+  }
+
+  createAdjustmentDraft(payload: {
+    warehouseId: string;
+    productId: string;
+    adjustmentType: string;
+    quantity: string;
+    direction?: string;
+    batchId?: string;
+    reason?: string;
+    inventoryValue?: { amount: string; currency: string };
+  }): Observable<StockAdjustmentRecord> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: StockAdjustmentRecord }>(
+            `${environment.publicApiBaseUrl}/api/v1/stock-adjustments`,
+            payload,
+            {
+              withCredentials: true,
+              headers: { 'X-CSRF-Token': csrfToken },
+            },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
+  postAdjustment(
+    id: string,
+    payload: {
+      reason: string;
+      negativeStockOverride?: boolean;
+      negativeStockOverrideReason?: string;
+    },
+    idempotencyKey: string,
+  ): Observable<StockAdjustmentRecord> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: StockAdjustmentRecord }>(
+            `${environment.publicApiBaseUrl}/api/v1/stock-adjustments/${id}/post`,
+            payload,
+            {
+              withCredentials: true,
+              headers: {
+                'X-CSRF-Token': csrfToken,
+                'Idempotency-Key': idempotencyKey,
+              },
+            },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
+  reverseAdjustment(
+    id: string,
+    payload: { reason: string },
+    idempotencyKey: string,
+  ): Observable<StockAdjustmentRecord> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: StockAdjustmentRecord }>(
+            `${environment.publicApiBaseUrl}/api/v1/stock-adjustments/${id}/reverse`,
             payload,
             {
               withCredentials: true,

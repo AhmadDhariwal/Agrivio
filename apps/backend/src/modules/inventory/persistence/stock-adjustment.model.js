@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
 
-const MOVEMENT_DIRECTIONS = ['inbound', 'outbound'];
-const MOVEMENT_SOURCE_TYPES = ['opening_stock', 'stock_adjustment', 'stock_adjustment_reversal'];
-const MOVEMENT_STATUSES = ['posted'];
+const ADJUSTMENT_TYPES = ['damage', 'expiry', 'loss', 'correction'];
+const ADJUSTMENT_STATUSES = ['draft', 'posted', 'reversed'];
+const ADJUSTMENT_DIRECTIONS = ['inbound', 'outbound'];
 
-const stockMovementSchema = new mongoose.Schema(
+const stockAdjustmentSchema = new mongoose.Schema(
   {
     organizationId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -27,13 +27,18 @@ const stockMovementSchema = new mongoose.Schema(
       ref: 'ProductBatch',
       default: null,
     },
+    adjustmentType: {
+      type: String,
+      required: true,
+      enum: ADJUSTMENT_TYPES,
+    },
     direction: {
       type: String,
       required: true,
-      enum: MOVEMENT_DIRECTIONS,
+      enum: ADJUSTMENT_DIRECTIONS,
     },
-    quantityBaseMinorUnits: { type: String, required: true },
     enteredQuantityMinorUnits: { type: String, required: true },
+    quantityBaseMinorUnits: { type: String, required: true },
     unitCode: { type: String, required: true },
     conversionFactorSnapshot: { type: String, required: true },
     packagingUnitId: {
@@ -42,37 +47,34 @@ const stockMovementSchema = new mongoose.Schema(
       default: null,
     },
     inventoryValueMinorUnits: { type: String, default: null },
-    unitCostMinorUnits: { type: String, default: null },
-    sourceType: {
-      type: String,
-      required: true,
-      enum: MOVEMENT_SOURCE_TYPES,
-    },
-    sourceId: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: true,
-    },
+    reason: { type: String, default: null },
     status: {
       type: String,
       required: true,
-      enum: MOVEMENT_STATUSES,
-      default: 'posted',
+      enum: ADJUSTMENT_STATUSES,
+      default: 'draft',
     },
-    postedAt: { type: Date, required: true },
+    postedAt: { type: Date, default: null },
     postedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
       ref: 'User',
+      default: null,
     },
-    correctionOfId: {
+    postedMovementId: {
       type: mongoose.Schema.Types.ObjectId,
+      ref: 'StockMovement',
       default: null,
     },
     reversalOfId: {
       type: mongoose.Schema.Types.ObjectId,
+      ref: 'StockAdjustment',
       default: null,
     },
-    reason: { type: String, default: null },
+    reversedByAdjustmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'StockAdjustment',
+      default: null,
+    },
     negativeStockOverride: { type: Boolean, default: false },
     negativeStockOverrideReason: { type: String, default: null },
     negativeStockOverrideBy: {
@@ -80,27 +82,22 @@ const stockMovementSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    version: { type: Number, required: true, default: 1 },
   },
-  { timestamps: true, collection: 'stock_movements' },
+  { timestamps: true, collection: 'stock_adjustments' },
 );
 
-stockMovementSchema.index({
-  organizationId: 1,
-  warehouseId: 1,
-  productId: 1,
-  batchId: 1,
-  postedAt: -1,
-});
-stockMovementSchema.index({ organizationId: 1, sourceType: 1, sourceId: 1 });
-stockMovementSchema.index({ organizationId: 1, warehouseId: 1, postedAt: -1 });
-stockMovementSchema.index({ organizationId: 1, productId: 1, postedAt: -1 });
+stockAdjustmentSchema.index({ organizationId: 1, status: 1, createdAt: -1 });
+stockAdjustmentSchema.index({ organizationId: 1, warehouseId: 1, createdAt: -1 });
+stockAdjustmentSchema.index({ organizationId: 1, reversalOfId: 1 });
 
-const StockMovementModel =
-  mongoose.models['StockMovement'] || mongoose.model('StockMovement', stockMovementSchema);
+const StockAdjustmentModel =
+  mongoose.models['StockAdjustment'] ||
+  mongoose.model('StockAdjustment', stockAdjustmentSchema);
 
 module.exports = {
-  MOVEMENT_DIRECTIONS,
-  MOVEMENT_SOURCE_TYPES,
-  MOVEMENT_STATUSES,
-  StockMovementModel,
+  ADJUSTMENT_TYPES,
+  ADJUSTMENT_STATUSES,
+  ADJUSTMENT_DIRECTIONS,
+  StockAdjustmentModel,
 };

@@ -232,11 +232,174 @@ function toOpeningStockResultDto({ movement, batch, balance, costState }) {
   };
 }
 
+function parseAdjustmentDraft(body, options = {}) {
+  assertObjectBody(body);
+  const partial = options.partial === true;
+
+  const warehouseId =
+    body.warehouseId === undefined
+      ? undefined
+      : requireIdString(body.warehouseId, 'warehouseId');
+  const productId =
+    body.productId === undefined ? undefined : requireIdString(body.productId, 'productId');
+
+  let enteredQuantityMinorUnits = undefined;
+  if (body.quantity !== undefined) {
+    if (typeof body.quantity !== 'string') {
+      throw validationFailed('quantity must be a decimal string', [
+        { field: 'quantity', message: 'quantity must be a decimal string' },
+      ]);
+    }
+    try {
+      enteredQuantityMinorUnits = parseQuantityMinorUnits(body.quantity);
+    } catch (error) {
+      throw validationFailed(error.message || 'quantity is invalid', [
+        { field: 'quantity', message: error.message || 'quantity is invalid' },
+      ]);
+    }
+    if (enteredQuantityMinorUnits <= 0n) {
+      throw validationFailed('quantity must be greater than zero', [
+        { field: 'quantity', message: 'quantity must be greater than zero' },
+      ]);
+    }
+    enteredQuantityMinorUnits = enteredQuantityMinorUnits.toString();
+  } else if (!partial) {
+    throw validationFailed('quantity is required', [{ field: 'quantity', message: 'quantity is required' }]);
+  }
+
+  const packagingUnitId =
+    body.packagingUnitId === undefined || body.packagingUnitId === null || body.packagingUnitId === ''
+      ? null
+      : requireIdString(body.packagingUnitId, 'packagingUnitId');
+
+  const batchId =
+    body.batchId === undefined || body.batchId === null || body.batchId === ''
+      ? null
+      : requireIdString(body.batchId, 'batchId');
+
+  const adjustmentType =
+    body.adjustmentType === undefined
+      ? undefined
+      : typeof body.adjustmentType === 'string'
+        ? body.adjustmentType.trim()
+        : null;
+  if (!partial && (adjustmentType === null || adjustmentType === '')) {
+    throw validationFailed('adjustmentType is required', [
+      { field: 'adjustmentType', message: 'adjustmentType is required' },
+    ]);
+  }
+
+  const direction =
+    body.direction === undefined || body.direction === null || body.direction === ''
+      ? null
+      : typeof body.direction === 'string'
+        ? body.direction.trim()
+        : null;
+
+  let inventoryValueMinorUnits = null;
+  if (body.inventoryValue !== undefined && body.inventoryValue !== null) {
+    inventoryValueMinorUnits = parseNonNegativeMoneyInput(body.inventoryValue, 'inventoryValue').amountMinorUnits;
+  }
+
+  const reason =
+    body.reason === undefined || body.reason === null
+      ? null
+      : typeof body.reason === 'string'
+        ? body.reason.trim()
+        : null;
+
+  return {
+    warehouseId,
+    productId,
+    enteredQuantityMinorUnits,
+    packagingUnitId,
+    batchId,
+    adjustmentType,
+    direction,
+    inventoryValueMinorUnits,
+    reason,
+  };
+}
+
+function parseAdjustmentPostOptions(body) {
+  assertObjectBody(body);
+  return {
+    reason:
+      body.reason === undefined || body.reason === null
+        ? null
+        : typeof body.reason === 'string'
+          ? body.reason.trim()
+          : null,
+    negativeStockOverride: body.negativeStockOverride === true,
+    negativeStockOverrideReason:
+      body.negativeStockOverrideReason === undefined || body.negativeStockOverrideReason === null
+        ? null
+        : typeof body.negativeStockOverrideReason === 'string'
+          ? body.negativeStockOverrideReason.trim()
+          : null,
+  };
+}
+
+function toAdjustmentDto(record) {
+  return {
+    id: String(record['_id']),
+    organizationId: String(record['organizationId']),
+    warehouseId: String(record['warehouseId']),
+    productId: String(record['productId']),
+    batchId: record['batchId'] ? String(record['batchId']) : null,
+    adjustmentType: String(record['adjustmentType']),
+    direction: String(record['direction']),
+    quantityBase: quantityDto(record['quantityBaseMinorUnits']),
+    enteredQuantity: quantityDto(record['enteredQuantityMinorUnits']),
+    unitCode: String(record['unitCode']),
+    conversionFactorSnapshot: String(record['conversionFactorSnapshot']),
+    packagingUnitId: record['packagingUnitId'] ? String(record['packagingUnitId']) : null,
+    inventoryValue:
+      record['inventoryValueMinorUnits'] === null || record['inventoryValueMinorUnits'] === undefined
+        ? null
+        : moneyDto(record['inventoryValueMinorUnits']),
+    reason: record['reason'] ?? null,
+    status: String(record['status']),
+    postedAt:
+      record['postedAt'] === null || record['postedAt'] === undefined
+        ? null
+        : record['postedAt'] instanceof Date
+          ? record['postedAt'].toISOString()
+          : String(record['postedAt']),
+    postedBy: record['postedBy'] ? String(record['postedBy']) : null,
+    postedMovementId: record['postedMovementId'] ? String(record['postedMovementId']) : null,
+    reversalOfId: record['reversalOfId'] ? String(record['reversalOfId']) : null,
+    reversedByAdjustmentId: record['reversedByAdjustmentId']
+      ? String(record['reversedByAdjustmentId'])
+      : null,
+    negativeStockOverride: record['negativeStockOverride'] === true,
+    version: Number(record['version'] ?? 1),
+  };
+}
+
+function toExpiryItemDto(record) {
+  return {
+    warehouseId: String(record.warehouseId),
+    productId: String(record.productId),
+    batchId: record.batchId ? String(record.batchId) : null,
+    batchNumber: record.batchNumber ?? null,
+    expiryDate: record.expiryDate ?? null,
+    quantityBase: quantityDto(record.quantityBaseMinorUnits),
+    classification: record.classification,
+    businessDate: record.businessDate,
+    thresholdDays: record.thresholdDays,
+  };
+}
+
 module.exports = {
   parseOpeningStock,
+  parseAdjustmentDraft,
+  parseAdjustmentPostOptions,
   toBatchDto,
   toMovementDto,
   toBalanceDto,
   toCostStateDto,
   toOpeningStockResultDto,
+  toAdjustmentDto,
+  toExpiryItemDto,
 };

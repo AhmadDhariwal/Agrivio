@@ -65,3 +65,40 @@ export interface OpeningStockResult {
     version: number;
   };
 }
+
+export interface ExpiryInventoryRecord {
+  warehouseId: string;
+  productId: string;
+  batchId: string | null;
+  batchNumber: string | null;
+  expiryDate: string | null;
+  quantityBase: string;
+  classification: 'expired' | 'upcoming' | 'normal';
+  businessDate: string;
+  thresholdDays: number;
+}
+
+export interface StockAdjustmentRecord {
+  id: string;
+  organizationId: string;
+  warehouseId: string;
+  productId: string;
+  batchId: string | null;
+  adjustmentType: 'damage' | 'expiry' | 'loss' | 'correction';
+  direction: 'inbound' | 'outbound';
+  quantityBase: string;
+  enteredQuantity: string;
+  unitCode: string;
+  conversionFactorSnapshot: string;
+  packagingUnitId: string | null;
+  inventoryValue: MoneyAmount | null;
+  reason: string | null;
+  status: 'draft' | 'posted' | 'reversed';
+  postedAt: string | null;
+  postedBy: string | null;
+  postedMovementId: string | null;
+  reversalOfId: string | null;
+  reversedByAdjustmentId: string | null;
+  negativeStockOverride: boolean;
+  version: number;
+}
