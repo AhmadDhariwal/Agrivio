@@ -40,7 +40,8 @@ Central navigation for Agrivio documentation.
 * F04 Phase 3 complete (`R1-F04-009`–`R1-F04-012`) — see [tasks/F04-PHASE-3-INVENTORY-TRANSFERS-RECONCILIATION.md](tasks/F04-PHASE-3-INVENTORY-TRANSFERS-RECONCILIATION.md); warehouse transfers/reversals, reconciliation, inventory Angular workflows, shared Inventory/Payments/Accounts/Audit contracts; **F04 stage exit ready pending acceptance**
 * F05 Phase 1 complete (`R1-F05-001`–`R1-F05-003`) — see [tasks/F05-PHASE-1-PURCHASES-FOUNDATION.md](tasks/F05-PHASE-1-PURCHASES-FOUNDATION.md); supplier payment/ledger foundation, account movement reuse, purchase drafts only (no posting)
 * F05 Phase 2 complete (`R1-F05-004`–`R1-F05-006`) — see [tasks/F05-PHASE-2-PURCHASE-POSTING.md](tasks/F05-PHASE-2-PURCHASE-POSTING.md); atomic purchase posting, landed-cost WAC, full/partial/mixed purchase payments
-* Next work item: **F05 P3** (`R1-F05-007+` standalone supplier payments / cancellation / returns) or **F06 Sales/POS** after F04 exit acceptance
+* F05 Phase 3 complete (`R1-F05-007`–`R1-F05-010`) — see [tasks/F05-PHASE-3-SUPPLIER-PAYMENTS-CANCEL-RETURNS.md](tasks/F05-PHASE-3-SUPPLIER-PAYMENTS-CANCEL-RETURNS.md); standalone supplier payments/advances, purchase cancellation, purchase returns, supplier ledger reconciliation, Purchases Angular completion; **F05 stage exit ready pending acceptance**
+* Next work item: **F06 Sales/POS** (`R1-F06-001+`) after F04 exit acceptance (does not require F05)
 
 ## Existing Documents
 
@@ -96,6 +97,7 @@ Central navigation for Agrivio documentation.
 | [tasks/F04-PHASE-3-INVENTORY-TRANSFERS-RECONCILIATION.md](tasks/F04-PHASE-3-INVENTORY-TRANSFERS-RECONCILIATION.md) | F04 Phase 3: transfers, reconciliation, Angular workflows, shared contracts (`R1-F04-009`–`012`) |
 | [tasks/F05-PHASE-1-PURCHASES-FOUNDATION.md](tasks/F05-PHASE-1-PURCHASES-FOUNDATION.md) | F05 Phase 1: supplier payments foundation, account movements, purchase drafts (`R1-F05-001`–`003`) |
 | [tasks/F05-PHASE-2-PURCHASE-POSTING.md](tasks/F05-PHASE-2-PURCHASE-POSTING.md) | F05 Phase 2: purchase posting, landed-cost WAC, full/partial/mixed payments (`R1-F05-004`–`006`) |
+| [tasks/F05-PHASE-3-SUPPLIER-PAYMENTS-CANCEL-RETURNS.md](tasks/F05-PHASE-3-SUPPLIER-PAYMENTS-CANCEL-RETURNS.md) | F05 Phase 3: standalone supplier payments, cancellation, returns, reconciliation (`R1-F05-007`–`010`) |
 | [tasks/F01-PHASE-1-PLATFORM-RUNTIME.md](tasks/F01-PHASE-1-PLATFORM-RUNTIME.md) | F01 Phase 1: platform runtime foundation |
 | [tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md](tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md) | F01 Phase 2: transactional platform foundation (completes F01) |
 | [../README.md](../README.md) | Repository landing page |

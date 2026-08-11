@@ -1,5 +1,8 @@
 const { conflict, insufficientStock } = require('../../platform/errors/app-error');
-const { applyInboundWac, applyOutboundWac } = require('./wac');
+const {
+  computeUnitCostMinorUnits,
+} = require('../../platform/primitives/money-and-time');
+const { applyInboundWac, applyOutboundWac, applyOutboundWacAtValue } = require('./wac');
 
 function mapDuplicate(storeErrorHandler, error, message) {
   return storeErrorHandler(error, message);
@@ -219,9 +222,82 @@ async function applyCostOutbound(store, session, organizationId, scope, outbound
   };
 }
 
+async function applyCostOutboundAtValue(
+  store,
+  session,
+  organizationId,
+  scope,
+  outboundQuantityBaseMinorUnits,
+  outboundValueMinorUnits,
+) {
+  const existing = await store.findCostState(organizationId, scope.warehouseId, scope.productId);
+  const prior = existing
+    ? {
+        quantityBaseMinorUnits: BigInt(String(existing.quantityBaseMinorUnits)),
+        inventoryValueMinorUnits: BigInt(String(existing.inventoryValueMinorUnits)),
+        weightedAverageCostMinorUnits: BigInt(String(existing.weightedAverageCostMinorUnits)),
+      }
+    : {
+        quantityBaseMinorUnits: 0n,
+        inventoryValueMinorUnits: 0n,
+        weightedAverageCostMinorUnits: 0n,
+      };
+
+  const next = applyOutboundWacAtValue(
+    prior,
+    outboundQuantityBaseMinorUnits,
+    outboundValueMinorUnits,
+  );
+
+  if (existing === null) {
+    return {
+      costState: await store.insertCostState(session, {
+        organizationId,
+        warehouseId: scope.warehouseId,
+        productId: scope.productId,
+        quantityBaseMinorUnits: next.quantityBaseMinorUnits.toString(),
+        inventoryValueMinorUnits: next.inventoryValueMinorUnits.toString(),
+        weightedAverageCostMinorUnits: next.weightedAverageCostMinorUnits.toString(),
+        lastWeightedAverageCostMinorUnits: next.lastWeightedAverageCostMinorUnits.toString(),
+        version: 1,
+      }),
+      outboundValueMinorUnits: next.outboundValueMinorUnits,
+      unitCostMinorUnits:
+        outboundQuantityBaseMinorUnits > 0n
+          ? computeUnitCostMinorUnits(next.outboundValueMinorUnits, outboundQuantityBaseMinorUnits)
+          : 0n,
+    };
+  }
+
+  const updated = await store.updateCostStateConditional(
+    session,
+    organizationId,
+    existing['_id'],
+    Number(existing.version),
+    {
+      quantityBaseMinorUnits: next.quantityBaseMinorUnits.toString(),
+      inventoryValueMinorUnits: next.inventoryValueMinorUnits.toString(),
+      weightedAverageCostMinorUnits: next.weightedAverageCostMinorUnits.toString(),
+      lastWeightedAverageCostMinorUnits: next.lastWeightedAverageCostMinorUnits.toString(),
+    },
+  );
+  if (updated === null) {
+    throw conflict('Concurrent inventory cost update detected');
+  }
+  return {
+    costState: updated,
+    outboundValueMinorUnits: next.outboundValueMinorUnits,
+    unitCostMinorUnits: computeUnitCostMinorUnits(
+      next.outboundValueMinorUnits,
+      outboundQuantityBaseMinorUnits,
+    ),
+  };
+}
+
 module.exports = {
   applyBalanceInbound,
   applyBalanceOutbound,
   applyCostInbound,
   applyCostOutbound,
+  applyCostOutboundAtValue,
 };

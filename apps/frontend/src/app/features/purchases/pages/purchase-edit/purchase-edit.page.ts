@@ -8,13 +8,15 @@ import {
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin } from 'rxjs';
+import { forkJoin, switchMap } from 'rxjs';
 import { PurchasesApi } from '../../data-access/purchases.api';
+import { ReturnsApi } from '../../data-access/returns.api';
 import {
   PurchaseDraftInput,
   PurchaseLineInput,
   PurchasePaymentInput,
   PurchaseRecord,
+  PurchaseReturnLineInput,
 } from '../../models/purchases.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
@@ -46,6 +48,7 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
 })
 export class PurchaseEditPage {
   private readonly api = inject(PurchasesApi);
+  private readonly returnsApi = inject(ReturnsApi);
   private readonly catalogApi = inject(CatalogApi);
   private readonly locationsApi = inject(BranchesWarehousesApi);
   private readonly suppliersApi = inject(SuppliersApi);
@@ -61,6 +64,8 @@ export class PurchaseEditPage {
   readonly saving = signal(false);
   readonly discarding = signal(false);
   readonly posting = signal(false);
+  readonly cancelling = signal(false);
+  readonly submittingReturn = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly products = signal<ProductRecord[]>([]);
@@ -71,7 +76,13 @@ export class PurchaseEditPage {
   readonly canCreate = computed(() => this.sessionStore.hasPermission('purchases.create'));
   readonly canPost = computed(() => this.sessionStore.hasPermission('purchases.post'));
   readonly canView = computed(() => this.sessionStore.hasPermission('purchases.view'));
+  readonly canCancel = computed(() => this.sessionStore.hasPermission('purchases.cancel'));
+  readonly canReturn = computed(() =>
+    this.sessionStore.hasPermission('purchases.return') &&
+    this.sessionStore.hasPermission('returns.post'),
+  );
   readonly isPosted = computed(() => this.purchase()?.status === 'posted');
+  readonly isCancelled = computed(() => this.purchase()?.status === 'cancelled');
   readonly isDraft = computed(() => {
     const record = this.purchase();
     return record === null || record.status === 'draft';
@@ -92,12 +103,25 @@ export class PurchaseEditPage {
     payments: this.formBuilder.array<FormGroup>([]),
   });
 
+  readonly cancelForm = this.formBuilder.nonNullable.group({
+    reason: ['', Validators.required],
+  });
+
+  readonly returnForm = this.formBuilder.nonNullable.group({
+    reason: [''],
+    returnLines: this.formBuilder.array<FormGroup>([]),
+  });
+
   get lines(): FormArray {
     return this.form.controls.lines;
   }
 
   get payments(): FormArray {
     return this.form.controls.payments;
+  }
+
+  get returnLines(): FormArray {
+    return this.returnForm.controls.returnLines;
   }
 
   constructor() {
@@ -211,6 +235,116 @@ export class PurchaseEditPage {
       return;
     }
     this.payments.removeAt(index);
+  }
+
+  returnLineGroup(index: number): FormGroup {
+    return this.returnLines.at(index) as FormGroup;
+  }
+
+  cancel(): void {
+    const id = this.purchaseId();
+    if (!id || !this.canCancel() || !this.isPosted() || this.cancelling()) {
+      return;
+    }
+    if (this.cancelForm.invalid) {
+      this.cancelForm.markAllAsTouched();
+      this.errorMessage.set('A cancellation reason is required.');
+      return;
+    }
+    this.cancelling.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    const { reason } = this.cancelForm.getRawValue();
+    this.api
+      .cancelPurchase(id, { reason, expectedVersion: this.version }, crypto.randomUUID())
+      .subscribe({
+        next: (record) => {
+          this.cancelling.set(false);
+          this.successMessage.set('Purchase cancelled.');
+          this.applyPurchase(record);
+        },
+        error: (error: unknown) => {
+          this.cancelling.set(false);
+          this.errorMessage.set(this.mapError(error, 'Unable to cancel purchase.'));
+        },
+      });
+  }
+
+  submitReturn(): void {
+    const id = this.purchaseId();
+    if (!id || !this.canReturn() || !this.isPosted() || this.submittingReturn()) {
+      return;
+    }
+    const rawLines = this.returnLines.getRawValue() as Array<{
+      originalLineIndex: number | string;
+      quantity: string;
+    }>;
+    const lines: PurchaseReturnLineInput[] = rawLines
+      .map((line) => ({
+        originalLineIndex: Number(line.originalLineIndex),
+        quantity: String(line.quantity ?? '').trim(),
+      }))
+      .filter(
+        (line) =>
+          Number.isInteger(line.originalLineIndex) &&
+          line.originalLineIndex >= 0 &&
+          line.quantity !== '' &&
+          line.quantity !== '0',
+      );
+    if (lines.length === 0) {
+      this.errorMessage.set('Add at least one return line with quantity > 0.');
+      return;
+    }
+    const { reason } = this.returnForm.getRawValue();
+    this.submittingReturn.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    const trimmedReason = reason.trim();
+    this.returnsApi
+      .createReturn(id, trimmedReason ? { lines, reason: trimmedReason } : { lines })
+      .pipe(
+        switchMap((ret) =>
+          this.returnsApi.postReturn(
+            ret.id,
+            { reason: reason.trim() || 'purchase return', expectedVersion: ret.version, resolution: 'ledger_adjustment' },
+            crypto.randomUUID(),
+          ),
+        ),
+      )
+      .subscribe({
+        next: () => {
+          this.submittingReturn.set(false);
+          this.successMessage.set('Return created and posted successfully.');
+          this.returnLines.clear();
+          this.returnForm.patchValue({ reason: '' });
+          if (id) {
+            this.api.getPurchase(id).subscribe({
+              next: (record) => this.applyPurchase(record),
+            });
+          }
+        },
+        error: (error: unknown) => {
+          this.submittingReturn.set(false);
+          this.errorMessage.set(this.mapError(error, 'Unable to submit return.'));
+        },
+      });
+  }
+
+  addReturnLine(): void {
+    const purchase = this.purchase();
+    if (!purchase || !purchase.lines || purchase.lines.length === 0) {
+      return;
+    }
+    this.returnLines.push(
+      this.formBuilder.nonNullable.group({
+        originalLineIndex: [0, Validators.required],
+        quantity: ['', Validators.required],
+      }),
+    );
+  }
+
+  removeReturnLine(index: number): void {
+    this.returnLines.removeAt(index);
   }
 
   save(): void {
@@ -409,7 +543,8 @@ export class PurchaseEditPage {
     }
 
     this.payments.clear();
-    if (posted) {
+    const locked = purchase.status === 'posted' || purchase.status === 'cancelled';
+    if (locked) {
       for (const payment of purchase.payments ?? []) {
         this.payments.push(
           this.createPaymentGroup({

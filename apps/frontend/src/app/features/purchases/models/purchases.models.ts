@@ -43,12 +43,13 @@ export interface PurchaseRecord {
   organizationId: string;
   branchId: string | null;
   warehouseId: string;
+  warehouseNameSnapshot?: string;
   supplierId: string;
   supplierNameSnapshot: string;
   supplierInvoiceReference: string;
   purchaseDate: string;
   notes: string;
-  status: 'draft' | 'posted' | string;
+  status: 'draft' | 'posted' | 'cancelled' | string;
   lines: PurchaseLineRecord[];
   landedCosts: PurchaseLandedCosts;
   goodsTotal?: MoneyAmount | null;
@@ -63,6 +64,9 @@ export interface PurchaseRecord {
   updatedAt: string | null;
   postedAt: string | null;
   postedBy?: string | null;
+  cancelledAt?: string | null;
+  cancelledBy?: string | null;
+  cancellationReason?: string | null;
 }
 
 export interface PurchaseLineInput {
@@ -103,4 +107,35 @@ export interface PurchasePaymentInput {
 export interface PurchasePostInput {
   expectedVersion: number;
   payments?: PurchasePaymentInput[];
+}
+
+export interface PurchaseCancelInput {
+  reason: string;
+  expectedVersion: number;
+}
+
+export interface PurchaseReturnLineInput {
+  originalLineIndex: number;
+  quantity: string;
+}
+
+export interface PurchaseReturnCreateInput {
+  lines: PurchaseReturnLineInput[];
+  reason?: string;
+}
+
+export interface PurchaseReturnRecord {
+  id: string;
+  purchaseId: string | null;
+  status: string;
+  lines: Array<{
+    productId: string;
+    productNameSnapshot: string;
+    quantity: string;
+    quantityBase: string;
+    originalLineIndex: number;
+  }>;
+  reason: string;
+  version: number;
+  createdAt: string | null;
 }

@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { PurchaseEditPage } from './purchase-edit.page';
 import { PurchasesApi } from '../../data-access/purchases.api';
+import { ReturnsApi } from '../../data-access/returns.api';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
 import { BranchesWarehousesApi } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { SuppliersApi } from '../../../suppliers/data-access/suppliers.api';
@@ -23,6 +24,14 @@ describe('PurchaseEditPage', () => {
             updatePurchase: () => of({}),
             discardPurchase: () => of({}),
             postPurchase: () => of({}),
+            cancelPurchase: () => of({}),
+          },
+        },
+        {
+          provide: ReturnsApi,
+          useValue: {
+            createReturn: () => of({ id: 'ret-1', version: 1 }),
+            postReturn: () => of({}),
           },
         },
         {
@@ -50,7 +59,10 @@ describe('PurchaseEditPage', () => {
             hasPermission: (permission: string) =>
               permission === 'purchases.create' ||
               permission === 'purchases.post' ||
-              permission === 'purchases.view',
+              permission === 'purchases.view' ||
+              permission === 'purchases.cancel' ||
+              permission === 'purchases.return' ||
+              permission === 'returns.post',
           },
         },
       ],

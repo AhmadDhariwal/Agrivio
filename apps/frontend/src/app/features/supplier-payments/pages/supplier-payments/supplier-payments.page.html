@@ -12,6 +12,11 @@
       Post payment
     </a>
   }
+  @if (canView()) {
+    <a class="ag-btn ag-btn--secondary" routerLink="/app/supplier-payments/ledger" data-testid="supplier-ledger-link">
+      Supplier ledger
+    </a>
+  }
 </agrivio-ui-page-header>
 
 @if (loading()) {

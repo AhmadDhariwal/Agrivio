@@ -70,6 +70,21 @@ function createMongoosePurchasesStore() {
         .exec();
     },
 
+    async updatePurchaseIfPosted(session, organizationId, id, expectedVersion, patch) {
+      return PurchaseModel.findOneAndUpdate(
+        {
+          _id: id,
+          organizationId,
+          status: 'posted',
+          version: expectedVersion,
+        },
+        { $set: { ...patch, version: expectedVersion + 1 } },
+        { new: true, ...withSession(session) },
+      )
+        .lean()
+        .exec();
+    },
+
     async deletePurchase(session, organizationId, id) {
       const result = await PurchaseModel.deleteOne(
         { _id: id, organizationId, status: 'draft' },
@@ -177,6 +192,20 @@ function createInMemoryPurchasesStore() {
         return null;
       }
       if (current.status !== 'draft' || Number(current.version) !== Number(expectedVersion)) {
+        return null;
+      }
+      return this.updatePurchase(_session, organizationId, id, {
+        ...patch,
+        version: expectedVersion + 1,
+      });
+    },
+
+    async updatePurchaseIfPosted(_session, organizationId, id, expectedVersion, patch) {
+      const current = await this.findPurchaseById(organizationId, id);
+      if (current === null) {
+        return null;
+      }
+      if (current.status !== 'posted' || Number(current.version) !== Number(expectedVersion)) {
         return null;
       }
       return this.updatePurchase(_session, organizationId, id, {

@@ -6,10 +6,12 @@
 const { createLedgersModule, createLedgersService } = require('../ledgers.module');
 const { createPaymentsService } = require('../payments.service');
 const { allocateGeneralSupplierPayment } = require('../supplier-allocation');
+const { reconcileSupplierLedgerState } = require('../supplier-reconciliation');
 
 module.exports = {
   createLedgersModule,
   createLedgersService,
   createPaymentsService,
   allocateGeneralSupplierPayment,
+  reconcileSupplierLedgerState,
 };

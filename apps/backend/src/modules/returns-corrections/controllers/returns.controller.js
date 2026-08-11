@@ -9,11 +9,11 @@ function requireOrganizationId(req) {
   return organizationId;
 }
 
-function createPurchasesController(deps) {
+function createReturnsController(deps) {
   return {
-    async listPurchases(req, res, next) {
+    async listReturns(req, res, next) {
       try {
-        const data = await deps.purchasesService.listPurchases(
+        const data = await deps.returnsService.listReturns(
           requireOrganizationId(req),
           {
             status:
@@ -28,6 +28,10 @@ function createPurchasesController(deps) {
               typeof req.query.warehouseId === 'string' && req.query.warehouseId.trim() !== ''
                 ? req.query.warehouseId.trim()
                 : undefined,
+            purchaseId:
+              typeof req.query.purchaseId === 'string' && req.query.purchaseId.trim() !== ''
+                ? req.query.purchaseId.trim()
+                : undefined,
           },
           req.authContext,
         );
@@ -37,9 +41,9 @@ function createPurchasesController(deps) {
       }
     },
 
-    async getPurchase(req, res, next) {
+    async getReturn(req, res, next) {
       try {
-        const data = await deps.purchasesService.getPurchase(
+        const data = await deps.returnsService.getReturn(
           requireOrganizationId(req),
           String(req.params.id),
           req.authContext,
@@ -50,10 +54,13 @@ function createPurchasesController(deps) {
       }
     },
 
-    async createPurchase(req, res, next) {
+    async createPurchaseReturn(req, res, next) {
       try {
-        const data = await deps.purchasesService.createPurchaseDraft(
-          requireOrganizationId(req),
+        const organizationId = requireOrganizationId(req);
+        const purchaseId = String(req.params.purchaseId ?? req.body?.purchaseId ?? '');
+        const data = await deps.returnsService.createPurchaseReturnDraft(
+          organizationId,
+          purchaseId,
           req.body,
           req.authContext,
         );
@@ -63,9 +70,24 @@ function createPurchasesController(deps) {
       }
     },
 
-    async updatePurchase(req, res, next) {
+    async createReturn(req, res, next) {
       try {
-        const data = await deps.purchasesService.updatePurchaseDraft(
+        const organizationId = requireOrganizationId(req);
+        const data = await deps.returnsService.createPurchaseReturnDraft(
+          organizationId,
+          String(req.body?.purchaseId ?? ''),
+          req.body,
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 201, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async updateReturn(req, res, next) {
+      try {
+        const data = await deps.returnsService.updateReturnDraft(
           requireOrganizationId(req),
           String(req.params.id),
           req.body,
@@ -77,37 +99,9 @@ function createPurchasesController(deps) {
       }
     },
 
-    async discardPurchase(req, res, next) {
+    async postReturn(req, res, next) {
       try {
-        const data = await deps.purchasesService.discardPurchaseDraft(
-          requireOrganizationId(req),
-          String(req.params.id),
-          req.authContext,
-        );
-        sendSuccessEnvelope(res, 200, data);
-      } catch (error) {
-        next(error);
-      }
-    },
-
-    async postPurchase(req, res, next) {
-      try {
-        const result = await deps.purchasesService.postPurchase(
-          requireOrganizationId(req),
-          String(req.params.id),
-          req.body,
-          req.authContext,
-          req.get('Idempotency-Key'),
-        );
-        sendSuccessEnvelope(res, result.statusCode ?? 200, result.data);
-      } catch (error) {
-        next(error);
-      }
-    },
-
-    async cancelPurchase(req, res, next) {
-      try {
-        const result = await deps.purchasesService.cancelPurchase(
+        const result = await deps.returnsService.postReturn(
           requireOrganizationId(req),
           String(req.params.id),
           req.body,
@@ -123,5 +117,5 @@ function createPurchasesController(deps) {
 }
 
 module.exports = {
-  createPurchasesController,
+  createReturnsController,
 };

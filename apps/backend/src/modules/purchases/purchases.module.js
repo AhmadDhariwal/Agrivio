@@ -22,6 +22,7 @@ const {
 const {
   parsePurchaseDraft,
   parsePurchasePost,
+  parsePurchaseCancel,
   computeLineProductAmount,
   toPurchaseDto,
 } = require('./purchases.validation');
@@ -710,15 +711,242 @@ function createPurchasesService(deps) {
         status: 'posted',
         supplierId,
       });
-      return items
-        .filter((item) => BigInt(String(item.payableTotalMinorUnits ?? '0')) > 0n)
-        .map((item) => ({
+      const result = [];
+      for (const item of items) {
+        if (!item.purchaseTotalMinorUnits) {
+          continue;
+        }
+        const purchaseTotal = BigInt(String(item.purchaseTotalMinorUnits));
+        const allocations =
+          paymentsService && typeof paymentsService.listPurchaseAllocations === 'function'
+            ? await paymentsService.listPurchaseAllocations(organizationId, String(item['_id']))
+            : [];
+        const allocated = allocations.reduce(
+          (sum, a) => sum + BigInt(a.allocatedAmountMinorUnits),
+          0n,
+        );
+        let outstanding = purchaseTotal - allocated;
+        if (typeof deps.listPurchaseReturnCredits === 'function') {
+          const returnCredit = BigInt(
+            String(
+              (await deps.listPurchaseReturnCredits(organizationId, String(item['_id']))) ?? '0',
+            ),
+          );
+          outstanding -= returnCredit;
+        }
+        if (outstanding <= 0n) {
+          continue;
+        }
+        result.push({
           id: String(item['_id']),
-          outstandingMinorUnits: String(item.payableTotalMinorUnits ?? '0'),
+          outstandingMinorUnits: outstanding.toString(),
           purchaseDate: String(item.purchaseDate),
           dueDate: null,
-          sequence: item.createdAt instanceof Date ? item.createdAt.toISOString() : String(item.createdAt ?? ''),
-        }));
+          sequence:
+            item.createdAt instanceof Date
+              ? item.createdAt.toISOString()
+              : String(item.createdAt ?? ''),
+        });
+      }
+      return result;
+    },
+
+    async getPurchaseSourceForReturn(organizationId, purchaseId) {
+      const record = await store.findPurchaseById(organizationId, purchaseId);
+      if (record === null) {
+        throw notFound('Purchase not found');
+      }
+      if (record.status !== 'posted') {
+        throw conflict('Purchase must be posted to be used as a return source');
+      }
+      return {
+        id: String(record['_id']),
+        status: String(record['status']),
+        supplierId: String(record['supplierId']),
+        warehouseId: String(record['warehouseId']),
+        purchaseDate: String(record['purchaseDate']),
+        purchaseTotalMinorUnits: String(record['purchaseTotalMinorUnits']),
+        lines: (record.lines ?? []).map((line) => ({
+          productId: String(line.productId),
+          productNameSnapshot: String(line.productNameSnapshot),
+          trackingModeSnapshot: String(line.trackingModeSnapshot),
+          packagingUnitId: line.packagingUnitId ? String(line.packagingUnitId) : null,
+          unitCodeSnapshot: String(line.unitCodeSnapshot),
+          conversionFactorSnapshot: String(line.conversionFactorSnapshot),
+          quantityBaseMinorUnits: String(line.quantityBaseMinorUnits),
+          enteredQuantityMinorUnits: String(line.enteredQuantityMinorUnits),
+          unitCostMinorUnits: String(line.unitCostMinorUnits),
+          receiptInventoryValueMinorUnits: String(line.receiptInventoryValueMinorUnits ?? '0'),
+          receiptUnitCostMinorUnits: String(line.receiptUnitCostMinorUnits ?? '0'),
+          batchNumber: line.batchNumber ?? null,
+          manufacturingDate: line.manufacturingDate ?? null,
+          expiryDate: line.expiryDate ?? null,
+          batchId: line.batchIdSnapshot ? String(line.batchIdSnapshot) : null,
+        })),
+      };
+    },
+
+    async cancelPurchase(organizationId, purchaseId, body, authContext, idempotencyKey) {
+      if (!inventoryService || !paymentsService || !accountsService) {
+        throw validationFailed('Purchase cancellation dependencies are not configured');
+      }
+
+      const key = requireIdempotencyKey(idempotencyKey);
+      const input = parsePurchaseCancel(body);
+      const actor = { actorId: String(authContext.userId) };
+
+      const result = await idempotency.execute(
+        {
+          scopeType: 'organization',
+          organizationId,
+          actorId: actor.actorId,
+          operation: 'purchases.cancel',
+        },
+        key,
+        {
+          purchaseId,
+          expectedVersion: input.expectedVersion,
+          reason: input.reason,
+        },
+        async () => {
+          const dto = await transactionRunner.run(async (session) => {
+            const existing = await store.findPurchaseById(organizationId, purchaseId);
+            if (existing === null) {
+              throw notFound('Purchase not found');
+            }
+            if (existing.status !== 'posted') {
+              throw conflict('Only posted purchases can be cancelled');
+            }
+            if (Number(existing.version) !== Number(input.expectedVersion)) {
+              throw conflict('Purchase was modified by another request');
+            }
+
+            if (
+              typeof deps.canAccessWarehouse === 'function' &&
+              !deps.canAccessWarehouse(authContext, String(existing.warehouseId))
+            ) {
+              throw notFound('Purchase not found');
+            }
+
+            if (typeof deps.listPostedReturnsByPurchase === 'function') {
+              const dependentReturns = await deps.listPostedReturnsByPurchase(
+                organizationId,
+                purchaseId,
+              );
+              if (Array.isArray(dependentReturns) && dependentReturns.length > 0) {
+                throw conflict(
+                  'Purchase cannot be cancelled because posted purchase returns exist; use approved corrective workflows',
+                );
+              }
+            }
+
+            const cancelledAt = now();
+            const purchaseTotal = BigInt(String(existing.purchaseTotalMinorUnits));
+
+            for (const line of existing.lines) {
+              await inventoryService.postOutboundIssueInSession(session, organizationId, actor, {
+                warehouseId: String(existing.warehouseId),
+                productId: String(line.productId),
+                batchId: line.batchIdSnapshot ? String(line.batchIdSnapshot) : null,
+                quantityBaseMinorUnits: String(line.quantityBaseMinorUnits),
+                enteredQuantityMinorUnits: String(line.enteredQuantityMinorUnits),
+                unitCode: String(line.unitCodeSnapshot),
+                conversionFactorSnapshot: String(line.conversionFactorSnapshot),
+                packagingUnitId: line.packagingUnitId ? String(line.packagingUnitId) : null,
+                inventoryValueMinorUnits: String(line.receiptInventoryValueMinorUnits),
+                useExplicitOutboundValue: true,
+                sourceType: 'purchase_cancellation',
+                sourceId: purchaseId,
+                reason: input.reason,
+                postedAt: cancelledAt,
+              });
+            }
+
+            await paymentsService.postSupplierPayableEffect(session, {
+              organizationId,
+              supplierId: String(existing.supplierId),
+              signedAmountMinorUnits: `-${purchaseTotal.toString()}`,
+              sourceType: 'purchase_cancellation',
+              sourceId: purchaseId,
+              postedAt: cancelledAt,
+              postedBy: actor.actorId,
+            });
+
+            const priorAllocations = await paymentsService.listPurchaseAllocations(
+              organizationId,
+              purchaseId,
+            );
+
+            for (const allocation of priorAllocations) {
+              await paymentsService.postSupplierPayableEffect(session, {
+                organizationId,
+                supplierId: String(existing.supplierId),
+                signedAmountMinorUnits: allocation.allocatedAmountMinorUnits,
+                sourceType: 'purchase_cancellation_allocation_reversal',
+                sourceId: String(allocation['_id']),
+                postedAt: cancelledAt,
+                postedBy: actor.actorId,
+              });
+
+              const payment = await paymentsService.getSupplierPaymentRaw(
+                organizationId,
+                String(allocation.paymentId),
+              );
+              if (payment) {
+                await accountsService.postAccountMovement(session, {
+                  organizationId,
+                  accountId: String(payment.accountId),
+                  signedAmountMinorUnits: allocation.allocatedAmountMinorUnits,
+                  sourceType: 'purchase_cancellation_refund',
+                  sourceId: String(allocation['_id']),
+                  postedAt: cancelledAt,
+                  postedBy: actor.actorId,
+                });
+              }
+            }
+
+            const updated = await store.updatePurchaseIfPosted(
+              session,
+              organizationId,
+              purchaseId,
+              input.expectedVersion,
+              {
+                status: 'cancelled',
+                cancellationReason: input.reason,
+                cancelledAt,
+                cancelledBy: actor.actorId,
+                updatedAt: cancelledAt,
+              },
+            );
+            if (updated === null) {
+              throw conflict('Purchase was already cancelled or modified concurrently');
+            }
+
+            await auditWriter.appendBusinessEvent(session, {
+              organizationId,
+              actorId: actor.actorId,
+              action: 'purchase.cancelled',
+              resourceType: 'purchase',
+              resourceId: purchaseId,
+              metadata: {
+                reason: input.reason,
+                purchaseTotalMinorUnits: purchaseTotal.toString(),
+                priorAllocationsCount: priorAllocations.length,
+              },
+            });
+
+            return toPurchaseDto(updated);
+          });
+
+          return { statusCode: 200, body: dto };
+        },
+      );
+
+      return {
+        replay: result.replay,
+        data: result.response.body,
+        statusCode: result.response.statusCode,
+      };
     },
   };
 }
@@ -748,6 +976,12 @@ function createPurchasesModule(options = {}) {
     accountsService: options.accountsService,
     canAccessWarehouse: options.canAccessWarehouse,
     canAccessBranch: options.canAccessBranch,
+    ...(options.listPurchaseReturnCredits === undefined
+      ? {}
+      : { listPurchaseReturnCredits: options.listPurchaseReturnCredits }),
+    ...(options.listPostedReturnsByPurchase === undefined
+      ? {}
+      : { listPostedReturnsByPurchase: options.listPostedReturnsByPurchase }),
     ...(options.idempotency === undefined ? {} : { idempotency: options.idempotency }),
     ...(options.now === undefined ? {} : { now: options.now }),
   });

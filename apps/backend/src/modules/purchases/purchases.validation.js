@@ -386,6 +386,13 @@ function toPurchaseDto(record) {
         : String(record['postedAt'])
       : null,
     postedBy: record['postedBy'] ? String(record['postedBy']) : null,
+    cancellationReason: record['cancellationReason'] ?? null,
+    cancelledAt: record['cancelledAt']
+      ? record['cancelledAt'] instanceof Date
+        ? record['cancelledAt'].toISOString()
+        : String(record['cancelledAt'])
+      : null,
+    cancelledBy: record['cancelledBy'] ? String(record['cancelledBy']) : null,
   };
 }
 
@@ -416,9 +423,25 @@ function parsePurchasePost(body) {
   return { expectedVersion, payments };
 }
 
+function parsePurchaseCancel(body) {
+  assertObjectBody(body);
+  const expectedVersion = parseExpectedVersion(body);
+  if (typeof body.reason !== 'string' || body.reason.trim() === '') {
+    throw validationFailed('reason is required', [{ field: 'reason', message: 'reason is required' }]);
+  }
+  const reason = body.reason.trim();
+  if (reason.length > 1000) {
+    throw validationFailed('reason exceeds maximum length', [
+      { field: 'reason', message: 'reason must be at most 1000 characters' },
+    ]);
+  }
+  return { expectedVersion, reason };
+}
+
 module.exports = {
   parsePurchaseDraft,
   parsePurchasePost,
+  parsePurchaseCancel,
   parseExpectedVersion,
   computeLineProductAmount,
   toPurchaseDto,
