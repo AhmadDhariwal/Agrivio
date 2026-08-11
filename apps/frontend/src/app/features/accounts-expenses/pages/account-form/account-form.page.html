@@ -63,9 +63,6 @@
       @if (openingPosted()) {
         <p class="ag-muted" data-testid="account-opening-posted">
           Opening already posted.
-          @if (derivedBalance(); as balance) {
-            Balance {{ balance }} PKR.
-          }
         </p>
       } @else {
         <form class="ag-stack" [formGroup]="openingForm" (ngSubmit)="postOpening()">
@@ -82,6 +79,35 @@
             Post opening
           </button>
         </form>
+      }
+    </section>
+  }
+
+  @if (accountId()) {
+    <section class="ag-stack form movements">
+      <h2>Account movements</h2>
+      @if (derivedBalance(); as balance) {
+        <p data-testid="account-derived-balance">
+          Derived balance: <strong>{{ balance }} PKR</strong>
+        </p>
+      } @else {
+        <p class="ag-muted" data-testid="account-derived-balance">Derived balance: —</p>
+      }
+
+      @if (movements().length === 0) {
+        <p class="ag-muted">No movements recorded yet.</p>
+      } @else {
+        <div class="ag-stack" data-testid="account-movements-list">
+          @for (item of movements(); track item.id) {
+            <article class="movement-row" data-testid="account-movement-row">
+              <div>
+                <strong>{{ item.sourceType }}</strong>
+                <p class="ag-muted">{{ item.postedAt }}</p>
+              </div>
+              <span>{{ item.signedAmount.amount }} {{ item.signedAmount.currency }}</span>
+            </article>
+          }
+        </div>
       }
     </section>
   }

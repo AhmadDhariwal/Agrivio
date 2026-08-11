@@ -259,6 +259,39 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'purchases',
+        loadComponent: () =>
+          import('./features/purchases/pages/purchases/purchases.page').then((m) => m.PurchasesPage),
+      },
+      {
+        path: 'purchases/new',
+        loadComponent: () =>
+          import('./features/purchases/pages/purchase-edit/purchase-edit.page').then(
+            (m) => m.PurchaseEditPage,
+          ),
+      },
+      {
+        path: 'purchases/:id',
+        loadComponent: () =>
+          import('./features/purchases/pages/purchase-edit/purchase-edit.page').then(
+            (m) => m.PurchaseEditPage,
+          ),
+      },
+      {
+        path: 'supplier-payments',
+        loadComponent: () =>
+          import('./features/supplier-payments/pages/supplier-payments/supplier-payments.page').then(
+            (m) => m.SupplierPaymentsPage,
+          ),
+      },
+      {
+        path: 'supplier-payments/new',
+        loadComponent: () =>
+          import(
+            './features/supplier-payments/pages/supplier-payment-form/supplier-payment-form.page'
+          ).then((m) => m.SupplierPaymentFormPage),
+      },
+      {
         path: 'inventory/stock',
         loadComponent: () =>
           import('./features/inventory/pages/stock/stock-inquiry.page').then(

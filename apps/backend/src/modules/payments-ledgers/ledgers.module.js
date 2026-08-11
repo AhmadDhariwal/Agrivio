@@ -174,7 +174,48 @@ function createLedgersModule(options = {}) {
   const transactionRunner = options.transactionRunner ?? createTransactionRunner(sessionPort);
   const ledgersService = createLedgersService({ store, transactionRunner });
 
-  return { store, ledgersService, transactionRunner };
+  const {
+    createInMemoryPaymentsStore,
+    createMongoosePaymentsStore,
+  } = require('./payments.store');
+  const { createPaymentsService } = require('./payments.service');
+
+  const paymentsStore =
+    options.paymentsStore ??
+    (persistence === 'mongoose' ? createMongoosePaymentsStore() : createInMemoryPaymentsStore());
+
+  const paymentsService =
+    options.paymentsService ??
+    (options.accountsService && options.suppliersService
+      ? createPaymentsService({
+          store: paymentsStore,
+          ledgersService,
+          accountsService: options.accountsService,
+          suppliersService: options.suppliersService,
+          listUnpaidSupplierPurchases: options.listUnpaidSupplierPurchases,
+          transactionRunner,
+          persistence,
+          ...(options.now === undefined ? {} : { now: options.now }),
+        })
+      : null);
+
+  return {
+    store,
+    paymentsStore,
+    ledgersService,
+    paymentsService,
+    transactionRunner,
+    createPaymentsService(deps) {
+      return createPaymentsService({
+        store: paymentsStore,
+        ledgersService,
+        transactionRunner,
+        persistence,
+        ...(options.now === undefined ? {} : { now: options.now }),
+        ...deps,
+      });
+    },
+  };
 }
 
 module.exports = {

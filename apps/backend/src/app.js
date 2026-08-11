@@ -41,10 +41,13 @@ const { registerSuppliersRoutes } = require('./modules/suppliers/routes/supplier
 const { createAccountsModule } = require('./modules/accounts-expenses/accounts.module');
 const { registerAccountsRoutes } = require('./modules/accounts-expenses/routes/accounts.routes');
 const { createLedgersModule } = require('./modules/payments-ledgers/ledgers.module');
+const { registerPaymentsRoutes } = require('./modules/payments-ledgers/routes/payments.routes');
 const { createInventoryModule } = require('./modules/inventory/inventory.module');
 const { registerInventoryRoutes } = require('./modules/inventory/routes/inventory.routes');
+const { createPurchasesModule } = require('./modules/purchases/purchases.module');
+const { registerPurchasesRoutes } = require('./modules/purchases/routes/purchases.routes');
 const { createSetupProgressService } = require('./modules/settings/setup-progress.service');
-const { canAccessWarehouse } = require('./modules/identity/assignment-scope');
+const { canAccessBranch, canAccessWarehouse } = require('./modules/identity/assignment-scope');
 const { hasPermission } = require('./modules/identity/role-permissions');
 
 function createApp(options) {
@@ -193,6 +196,14 @@ function createApp(options) {
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
+  if (!ledgers.paymentsService) {
+    ledgers.paymentsService = ledgers.createPaymentsService({
+      accountsService: accounts.accountsService,
+      suppliersService: suppliers.suppliersService,
+      listUnpaidSupplierPurchases: options.listUnpaidSupplierPurchases,
+    });
+  }
+
   const inventory =
     options.inventory ??
     createInventoryModule({
@@ -206,6 +217,18 @@ function createApp(options) {
         const organization = await onboardingCore.store.findOrganizationById(organizationId);
         return organization?.timezone ?? 'Asia/Karachi';
       },
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+
+  const purchases =
+    options.purchases ??
+    createPurchasesModule({
+      persistence,
+      catalogService: catalog.catalogService,
+      suppliersService: suppliers.suppliersService,
+      locationsService: locations.locationsService,
+      canAccessWarehouse,
+      canAccessBranch,
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
@@ -324,6 +347,20 @@ function createApp(options) {
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
   });
 
+  const paymentsRoutes = registerPaymentsRoutes({
+    paymentsService: ledgers.paymentsService,
+    requireAuth: auth.middlewares.requireAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
+    requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+  });
+
+  const purchasesRoutes = registerPurchasesRoutes({
+    purchasesService: purchases.purchasesService,
+    requireAuth: auth.middlewares.requireAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
+    requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+  });
+
   const app = express();
   app.disable('x-powered-by');
 
@@ -346,6 +383,8 @@ function createApp(options) {
   app.use(suppliersRoutes);
   app.use(accountsRoutes);
   app.use(inventoryRoutes);
+  app.use(paymentsRoutes);
+  app.use(purchasesRoutes);
 
   if (typeof options.registerOperationalProbe === 'function') {
     options.registerOperationalProbe(app, {
@@ -384,6 +423,7 @@ function createApp(options) {
     suppliers,
     accounts,
     inventory,
+    purchases,
     ledgers,
     setupProgressService,
   };

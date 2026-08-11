@@ -1,11 +1,15 @@
 /**
- * Payments and Ledgers public contract for F05/F06 (R1-F04-012).
- * Exposes signed ledger-effect posting without persistence leakage.
+ * Payments and Ledgers public contract for F05/F06 (R1-F04-012 / R1-F05-001).
+ * Exposes signed ledger-effect posting and supplier payment services without persistence leakage.
  */
 
 const { createLedgersModule, createLedgersService } = require('../ledgers.module');
+const { createPaymentsService } = require('../payments.service');
+const { allocateGeneralSupplierPayment } = require('../supplier-allocation');
 
 module.exports = {
   createLedgersModule,
   createLedgersService,
+  createPaymentsService,
+  allocateGeneralSupplierPayment,
 };

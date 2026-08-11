@@ -1,0 +1,43 @@
+<agrivio-ui-page-header
+  title="Supplier payments"
+  eyebrow="Purchasing"
+  lede="Record general supplier payments. Unallocated remainder becomes supplier advance when no unpaid purchases apply."
+>
+  @if (canPost()) {
+    <a
+      class="ag-btn"
+      routerLink="/app/supplier-payments/new"
+      data-testid="supplier-payment-create-link"
+    >
+      Post payment
+    </a>
+  }
+</agrivio-ui-page-header>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading supplier payments…" />
+} @else if (errorMessage(); as error) {
+  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+} @else if (items().length === 0) {
+  <agrivio-ui-empty-state
+    title="No supplier payments yet"
+    message="Post a general supplier payment to settle payables or create an advance."
+  />
+} @else {
+  <div class="ag-stack" data-testid="supplier-payments-list">
+    @for (item of items(); track item.id) {
+      <article class="row">
+        <div>
+          <strong>{{ item.amount.amount }} {{ item.amount.currency }}</strong>
+          <p class="ag-muted">
+            {{ item.paymentDate }} · {{ item.allocationMode }}
+            @if (item.notes) {
+              · {{ item.notes }}
+            }
+          </p>
+        </div>
+        <agrivio-ui-status-badge [label]="item.status" tone="success" />
+      </article>
+    }
+  </div>
+}

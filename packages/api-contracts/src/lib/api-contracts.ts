@@ -82,6 +82,12 @@ export const API_SUPPLIERS_PATH = `${API_V1_PREFIX}/suppliers` as const;
 /** Accounts master data (R1-F03-010). */
 export const API_ACCOUNTS_PATH = `${API_V1_PREFIX}/accounts` as const;
 
+/** Supplier payments (R1-F05-001). */
+export const API_SUPPLIER_PAYMENTS_PATH = `${API_V1_PREFIX}/supplier-payments` as const;
+
+/** Purchase drafts and posted purchases (R1-F05-003+). */
+export const API_PURCHASES_PATH = `${API_V1_PREFIX}/purchases` as const;
+
 /** Inventory balances inquiry (R1-F04-003). */
 export const API_INVENTORY_BALANCES_PATH = `${API_V1_PREFIX}/inventory/balances` as const;
 
