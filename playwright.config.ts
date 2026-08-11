@@ -24,7 +24,11 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        // Prefer installed Google Chrome when Playwright browser cache is unavailable.
+        channel: 'chrome',
+      },
     },
   ],
   webServer: [

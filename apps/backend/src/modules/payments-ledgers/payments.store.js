@@ -63,6 +63,18 @@ function createMongoosePaymentsStore() {
         .exec();
     },
 
+    async listAllocationsByTarget(organizationId, targetType, targetId) {
+      return PaymentAllocationModel.find({
+        organizationId,
+        targetType,
+        targetId,
+        status: 'posted',
+      })
+        .sort({ createdAt: 1 })
+        .lean()
+        .exec();
+    },
+
     async appendAuditEvent(session, event) {
       await AuditEventModel.create([event], withSession(session));
     },
@@ -123,6 +135,18 @@ function createInMemoryPaymentsStore() {
           (item) =>
             String(item.organizationId) === String(organizationId) &&
             String(item.paymentId) === String(paymentId) &&
+            item.status === 'posted',
+        )
+        .map((item) => ({ ...item }));
+    },
+
+    async listAllocationsByTarget(organizationId, targetType, targetId) {
+      return [...allocations.values()]
+        .filter(
+          (item) =>
+            String(item.organizationId) === String(organizationId) &&
+            item.targetType === targetType &&
+            String(item.targetId) === String(targetId) &&
             item.status === 'posted',
         )
         .map((item) => ({ ...item }));

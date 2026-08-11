@@ -71,3 +71,4 @@ Gates: lint, typecheck, test:unit, test:architecture, build, test:integration, e
 ## Next
 
 * F05 P2 complete — see [F05-PHASE-2-PURCHASE-POSTING.md](F05-PHASE-2-PURCHASE-POSTING.md)
+* F05 P3 complete — see [F05-PHASE-3-SUPPLIER-PAYMENTS-CANCEL-RETURNS.md](F05-PHASE-3-SUPPLIER-PAYMENTS-CANCEL-RETURNS.md)

@@ -81,6 +81,18 @@ function registerPurchasesRoutes(deps) {
     },
   );
 
+  router.post(
+    `${API_PURCHASES_PATH}/:id/cancel`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('purchases.cancel'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.cancelPurchase(req, res, next);
+    },
+  );
+
   return router;
 }
 

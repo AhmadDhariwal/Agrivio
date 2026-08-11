@@ -94,6 +94,7 @@ describe('F04 P3 shared posting contracts', () => {
       resolveOrganizationTimezone: async () => 'Asia/Karachi',
     });
     expect(typeof module.inventoryService.postInboundReceiptInSession).toBe('function');
+    expect(typeof module.inventoryService.postOutboundIssueInSession).toBe('function');
   });
 
   it('Payments and Purchases public entries do not leak persistence paths', () => {

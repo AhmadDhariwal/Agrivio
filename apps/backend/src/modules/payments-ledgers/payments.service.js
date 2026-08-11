@@ -11,6 +11,11 @@ const {
 } = require('../../platform/idempotency/idempotency-service');
 const { allocateGeneralSupplierPayment } = require('./supplier-allocation');
 const { parseSupplierPayment, toPaymentDto } = require('./payments.validation');
+const { reconcileSupplierLedgerState } = require('./supplier-reconciliation');
+const {
+  formatMoneyMinorUnits,
+  parseMoneyMinorUnits,
+} = require('../../platform/primitives/money-and-time');
 
 function requireIdempotencyKey(idempotencyKey) {
   if (typeof idempotencyKey !== 'string' || idempotencyKey.trim() === '') {
@@ -212,6 +217,34 @@ function createPaymentsService(deps) {
     postSupplierPaymentInSession,
     postSupplierPayableEffect,
 
+    async listPurchaseAllocations(organizationId, purchaseId) {
+      return store.listAllocationsByTarget(organizationId, 'purchase', purchaseId);
+    },
+
+    async getSupplierPaymentRaw(organizationId, paymentId) {
+      return store.findPaymentById(organizationId, paymentId);
+    },
+
+    async listUnpaidPurchasesForSupplier(organizationId, supplierId) {
+      if (typeof listUnpaidSupplierPurchases !== 'function') {
+        return { items: [] };
+      }
+      const items = await listUnpaidSupplierPurchases(organizationId, supplierId);
+      return {
+        items: items.map((item) => ({
+          id: String(item.id),
+          purchaseDate: String(item.purchaseDate),
+          dueDate: item.dueDate ?? null,
+          sequence: item.sequence ?? null,
+          outstanding: {
+            amount: formatMoneyMinorUnits(BigInt(String(item.outstandingMinorUnits ?? '0'))),
+            currency: 'PKR',
+          },
+          outstandingMinorUnits: String(item.outstandingMinorUnits ?? '0'),
+        })),
+      };
+    },
+
     async listSupplierPayments(organizationId, query = {}) {
       const items = await store.listPayments(organizationId, {
         supplierId: query.supplierId,
@@ -238,6 +271,91 @@ function createPaymentsService(deps) {
         await suppliersService.getSupplier(organizationId, supplierId);
       }
       return ledgersService.listSupplierEffects(organizationId, supplierId);
+    },
+
+    async reconcileSupplierLedger(organizationId, supplierId, options = {}) {
+      if (suppliersService) {
+        await suppliersService.getSupplier(organizationId, supplierId);
+      }
+
+      const ledger = await ledgersService.listSupplierEffects(organizationId, supplierId);
+      const payments = await store.listPayments(organizationId, { supplierId });
+      const allocations = [];
+      for (const payment of payments) {
+        const items = await store.listAllocationsByPayment(organizationId, String(payment['_id']));
+        for (const item of items) {
+          allocations.push(item);
+        }
+      }
+
+      const effects = (ledger.items ?? []).map((item) => ({
+        status: item.status,
+        effectKind: item.effectKind,
+        sourceType: item.sourceType,
+        signedAmountMinorUnits: parseMoneyMinorUnits(String(item.signedAmount.amount)).toString(),
+      }));
+
+      let accountMovements = [];
+      if (accountsService && typeof accountsService.listAccountMovements === 'function') {
+        const accountIds = [...new Set(payments.map((item) => String(item.accountId)))];
+        for (const accountId of accountIds) {
+          const movements = await accountsService.listAccountMovements(organizationId, accountId);
+          for (const movement of movements.items ?? movements ?? []) {
+            accountMovements.push({
+              status: movement.status,
+              sourceType: movement.sourceType,
+              sourceId: movement.sourceId ?? movement.id,
+              signedAmountMinorUnits: parseMoneyMinorUnits(
+                String(movement.signedAmount?.amount ?? movement.amount?.amount ?? '0'),
+              ).toString(),
+            });
+          }
+        }
+        const paymentIds = new Set(payments.map((item) => String(item['_id'])));
+        const allocationIds = new Set(allocations.map((item) => String(item['_id'])));
+        accountMovements = accountMovements.filter((item) => {
+          const sourceId = String(item.sourceId);
+          return (
+            paymentIds.has(sourceId) ||
+            allocationIds.has(sourceId) ||
+            String(item.sourceType) === 'purchase_cancellation_refund' ||
+            String(item.sourceType) === 'purchase_return_refund'
+          );
+        });
+      }
+
+      const result = reconcileSupplierLedgerState({
+        effects,
+        allocations,
+        accountMovements,
+        expectedPayableMinorUnits: options.expectedPayableMinorUnits,
+        expectedAdvanceMinorUnits: options.expectedAdvanceMinorUnits,
+        expectedAllocationTotalMinorUnits: options.expectedAllocationTotalMinorUnits,
+        expectedAccountMovementTotalMinorUnits: options.expectedAccountMovementTotalMinorUnits,
+        detectInternalInconsistency: options.detectInternalInconsistency !== false,
+      });
+
+      return {
+        supplierId,
+        ok: result.ok,
+        payable: {
+          amount: formatMoneyMinorUnits(BigInt(result.payableMinorUnits)),
+          currency: 'PKR',
+        },
+        advance: {
+          amount: formatMoneyMinorUnits(BigInt(result.advanceMinorUnits)),
+          currency: 'PKR',
+        },
+        allocationTotal: {
+          amount: formatMoneyMinorUnits(BigInt(result.allocationTotalMinorUnits)),
+          currency: 'PKR',
+        },
+        accountMovementTotal: {
+          amount: formatMoneyMinorUnits(BigInt(result.accountMovementTotalMinorUnits)),
+          currency: 'PKR',
+        },
+        findings: result.findings,
+      };
     },
 
     async postSupplierPayment(organizationId, body, actor, idempotencyKey) {
@@ -285,13 +403,16 @@ function createPaymentsService(deps) {
             }
 
             let unpaidPurchases = [];
+            let unpaidById = new Map();
+
             if (input.allocationMode === 'general' && typeof listUnpaidSupplierPurchases === 'function') {
               unpaidPurchases = await listUnpaidSupplierPurchases(organizationId, input.supplierId);
+              unpaidById = new Map(unpaidPurchases.map((item) => [String(item.id), item]));
             }
 
             if (input.allocationMode === 'invoice_specific' && typeof listUnpaidSupplierPurchases === 'function') {
               unpaidPurchases = await listUnpaidSupplierPurchases(organizationId, input.supplierId);
-              const unpaidById = new Map(unpaidPurchases.map((item) => [String(item.id), item]));
+              unpaidById = new Map(unpaidPurchases.map((item) => [String(item.id), item]));
               for (const allocation of input.invoiceAllocations) {
                 const unpaid = unpaidById.get(allocation.purchaseId);
                 if (!unpaid) {
@@ -310,6 +431,23 @@ function createPaymentsService(deps) {
                     },
                   ]);
                 }
+              }
+            }
+
+            // Pre-fetch prior allocation totals so post-check can compute purchaseTotal.
+            const priorAllocTotals = new Map();
+            if (input.allocationMode === 'invoice_specific' && typeof listUnpaidSupplierPurchases === 'function') {
+              for (const item of input.invoiceAllocations) {
+                const existing = await store.listAllocationsByTarget(
+                  organizationId,
+                  'purchase',
+                  item.purchaseId,
+                );
+                const total = existing.reduce(
+                  (sum, a) => sum + BigInt(a.allocatedAmountMinorUnits),
+                  0n,
+                );
+                priorAllocTotals.set(String(item.purchaseId), total);
               }
             }
 
@@ -335,6 +473,30 @@ function createPaymentsService(deps) {
               });
             } catch (error) {
               mapDuplicate(error, 'Supplier payment effects already exist for this source');
+            }
+
+            // Post-allocation outstanding validation for invoice-specific payments.
+            if (input.allocationMode === 'invoice_specific' && typeof listUnpaidSupplierPurchases === 'function') {
+              for (const alloc of plan.purchaseAllocations) {
+                const purchaseUnpaid = unpaidById.get(String(alloc.purchaseId));
+                if (!purchaseUnpaid) {
+                  continue;
+                }
+                const priorTotal = priorAllocTotals.get(String(alloc.purchaseId)) ?? 0n;
+                const purchaseTotal = priorTotal + BigInt(purchaseUnpaid.outstandingMinorUnits);
+                const currentAllocs = await store.listAllocationsByTarget(
+                  organizationId,
+                  'purchase',
+                  alloc.purchaseId,
+                );
+                const currentTotal = currentAllocs.reduce(
+                  (sum, a) => sum + BigInt(a.allocatedAmountMinorUnits),
+                  0n,
+                );
+                if (currentTotal > purchaseTotal) {
+                  throw conflict('Payment allocation exceeds outstanding payable');
+                }
+              }
             }
 
             return toPaymentDto(posted.payment, posted.allocations);

@@ -4,6 +4,7 @@ import { Observable, map, switchMap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
 import {
+  PurchaseCancelInput,
   PurchaseDraftInput,
   PurchaseDraftUpdateInput,
   PurchasePostInput,
@@ -91,6 +92,30 @@ export class PurchasesApi {
         this.http
           .post<{ data: PurchaseRecord }>(
             `${environment.publicApiBaseUrl}/api/v1/purchases/${id}/post`,
+            payload,
+            {
+              withCredentials: true,
+              headers: {
+                'X-CSRF-Token': csrfToken,
+                'Idempotency-Key': idempotencyKey,
+              },
+            },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
+  cancelPurchase(
+    id: string,
+    payload: PurchaseCancelInput,
+    idempotencyKey: string,
+  ): Observable<PurchaseRecord> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: PurchaseRecord }>(
+            `${environment.publicApiBaseUrl}/api/v1/purchases/${id}/cancel`,
             payload,
             {
               withCredentials: true,

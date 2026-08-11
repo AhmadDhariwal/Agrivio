@@ -1,7 +1,7 @@
 <agrivio-ui-page-header
   title="Post supplier payment"
   eyebrow="Purchasing"
-  lede="General allocation settles unpaid purchases oldest-first. Any remainder becomes supplier advance."
+  lede="Choose general allocation (oldest-first) or invoice-specific to target a particular purchase."
 />
 
 @if (loading()) {
@@ -16,10 +16,22 @@
     <agrivio-ui-alert tone="success" [message]="success" data-testid="supplier-payment-success" />
   }
 
-  <p class="ag-muted tip">
-    Allocation mode is fixed to general for this foundation screen. Unallocated remainder becomes
-    supplier advance when no unpaid purchases remain.
-  </p>
+  @if (lastPayment(); as payment) {
+    @if (payment.allocations && payment.allocations.length > 0) {
+      <section class="ag-stack allocations" data-testid="payment-allocations">
+        <h2>Allocations</h2>
+        @for (alloc of payment.allocations; track alloc.id) {
+          <article class="ledger-row">
+            <div>
+              <strong>{{ alloc.targetType === 'supplier_advance' ? 'Supplier advance' : alloc.targetType }}</strong>
+              <p class="ag-muted">{{ alloc.targetId }}</p>
+            </div>
+            <span>{{ alloc.allocatedAmount.amount }} {{ alloc.allocatedAmount.currency }}</span>
+          </article>
+        }
+      </section>
+    }
+  }
 
   <form
     class="ag-stack form"
@@ -47,6 +59,47 @@
       </select>
     </label>
 
+    <fieldset class="ag-stack">
+      <legend>Allocation mode</legend>
+      <label class="radio-label">
+        <input type="radio" formControlName="allocationMode" value="general" data-testid="alloc-mode-general" />
+        General — oldest unpaid purchase first; remainder becomes supplier advance
+      </label>
+      <label class="radio-label">
+        <input type="radio" formControlName="allocationMode" value="invoice_specific" data-testid="alloc-mode-invoice" />
+        Invoice-specific — select a specific unpaid purchase to allocate
+      </label>
+    </fieldset>
+
+    @if (isInvoiceSpecific()) {
+      <section class="ag-stack invoice-alloc" data-testid="invoice-alloc-section">
+        <h2>Invoice allocation</h2>
+        @if (loadingUnpaid()) {
+          <agrivio-ui-loading-state label="Loading unpaid purchases…" />
+        } @else if (unpaidPurchases().length === 0) {
+          <p class="ag-muted">No unpaid purchases for this supplier.</p>
+        } @else {
+          <div [formGroup]="invoiceAllocationForm" class="ag-stack">
+            <label>
+              Purchase invoice
+              <select formControlName="purchaseId" data-testid="alloc-purchase-select">
+                <option value="">Select purchase</option>
+                @for (p of unpaidPurchases(); track p.id) {
+                  <option [value]="p.id">
+                    {{ p.purchaseDate }} — outstanding {{ p.outstanding.amount }} PKR
+                  </option>
+                }
+              </select>
+            </label>
+            <label>
+              Allocation amount (PKR)
+              <input formControlName="allocationAmount" data-testid="alloc-amount-input" />
+            </label>
+          </div>
+        }
+      </section>
+    }
+
     <label>
       Amount (PKR)
       <input formControlName="amount" data-testid="supplier-payment-amount" />
@@ -67,12 +120,13 @@
         {{ saving() ? 'Posting…' : 'Post payment' }}
       </button>
       <a class="ag-btn ag-btn--secondary" routerLink="/app/supplier-payments">Back to list</a>
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/supplier-payments/ledger">Supplier ledger</a>
     </div>
   </form>
 
   @if (ledgerItems().length > 0) {
     <section class="ag-stack ledger">
-      <h2>Supplier ledger</h2>
+      <h2>Supplier ledger preview</h2>
       @for (item of ledgerItems(); track item.id) {
         <article class="ledger-row">
           <div>

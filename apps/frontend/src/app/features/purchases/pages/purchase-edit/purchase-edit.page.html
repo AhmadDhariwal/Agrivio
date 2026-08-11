@@ -1,10 +1,12 @@
 <agrivio-ui-page-header
-  [title]="isPosted() ? 'Posted purchase' : purchaseId() ? 'Edit purchase draft' : 'Create purchase draft'"
+  [title]="isCancelled() ? 'Cancelled purchase' : isPosted() ? 'Posted purchase' : purchaseId() ? 'Edit purchase draft' : 'Create purchase draft'"
   eyebrow="Purchasing"
   [lede]="
-    isPosted()
-      ? 'Posted purchases are immutable. Totals and snapshots below are authoritative.'
-      : 'Drafts are unposted. Saving does not update inventory or supplier payables until you post.'
+    isCancelled()
+      ? 'This purchase was cancelled. All inventory and payable effects have been reversed.'
+      : isPosted()
+        ? 'Posted purchases are immutable. Totals and snapshots below are authoritative.'
+        : 'Drafts are unposted. Saving does not update inventory or supplier payables until you post.'
   "
 />
 
@@ -13,7 +15,17 @@
 } @else if (!canView() && !canCreate()) {
   <agrivio-ui-alert tone="warning" message="You do not have permission to view or edit purchases." />
 } @else {
-  @if (isPosted()) {
+  @if (isCancelled()) {
+    <div class="cancelled-banner" data-testid="purchase-cancelled-banner">
+      Cancelled — all effects have been reversed.
+      @if (purchase()?.cancellationReason) {
+        Reason: {{ purchase()!.cancellationReason }}
+      }
+      @if (purchase()?.cancelledAt) {
+        · {{ purchase()!.cancelledAt }}
+      }
+    </div>
+  } @else if (isPosted()) {
     <div class="posted-banner" data-testid="purchase-posted-banner">
       Posted — inventory, payable, and payment effects are locked.
     </div>
@@ -30,9 +42,15 @@
     <agrivio-ui-alert tone="success" [message]="success" data-testid="purchase-success" />
   }
 
-  @if (isPosted() && purchase(); as posted) {
+  @if ((isPosted() || isCancelled()) && purchase(); as posted) {
     <section class="ag-stack totals" data-testid="purchase-posted-totals">
-      <h2>Posted totals</h2>
+      <h2>Purchase details</h2>
+      @if (posted.supplierNameSnapshot) {
+        <p>Supplier: <strong>{{ posted.supplierNameSnapshot }}</strong></p>
+      }
+      @if (posted.warehouseNameSnapshot) {
+        <p>Warehouse: <strong>{{ posted.warehouseNameSnapshot }}</strong></p>
+      }
       <p>Goods: {{ posted.goodsTotal?.amount ?? '0.00' }} PKR</p>
       <p>Landed: {{ posted.landedCostTotal?.amount ?? '0.00' }} PKR</p>
       <p>Purchase total: {{ posted.purchaseTotal?.amount ?? '0.00' }} PKR</p>
@@ -42,6 +60,21 @@
         <p class="ag-muted">Posted at {{ posted.postedAt }}</p>
       }
     </section>
+
+    @if (posted.payments && posted.payments.length > 0) {
+      <section class="ag-stack" data-testid="purchase-payment-snapshots">
+        <h2>Payment snapshots</h2>
+        @for (payment of posted.payments; track payment.paymentId) {
+          <article class="ledger-row">
+            <div>
+              <strong>{{ payment.accountNameSnapshot }}</strong>
+              <p class="ag-muted">{{ payment.accountTypeSnapshot }}</p>
+            </div>
+            <span>{{ payment.amount.amount }} {{ payment.amount.currency }}</span>
+          </article>
+        }
+      </section>
+    }
   }
 
   <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="purchase-form">
@@ -211,12 +244,12 @@
     </section>
 
     <div class="ag-inline">
-      @if (!isPosted() && canCreate()) {
+      @if (!isPosted() && !isCancelled() && canCreate()) {
         <button class="ag-btn" type="submit" [disabled]="saving() || posting()" data-testid="purchase-save">
           {{ saving() ? 'Saving…' : 'Save draft' }}
         </button>
       }
-      @if (!isPosted() && purchaseId() && canPost()) {
+      @if (!isPosted() && !isCancelled() && purchaseId() && canPost()) {
         <button
           class="ag-btn"
           type="button"
@@ -227,7 +260,7 @@
           {{ posting() ? 'Posting…' : 'Post purchase' }}
         </button>
       }
-      @if (!isPosted() && purchaseId() && canCreate()) {
+      @if (!isPosted() && !isCancelled() && purchaseId() && canCreate()) {
         <button
           class="ag-btn ag-btn--secondary"
           type="button"
@@ -241,4 +274,81 @@
       <a class="ag-btn ag-btn--secondary" routerLink="/app/purchases">Back to list</a>
     </div>
   </form>
+
+  @if (isPosted() && canCancel()) {
+    <section class="ag-stack cancel-section" data-testid="purchase-cancel-section">
+      <h2>Cancel purchase</h2>
+      <p class="ag-muted">Cancelling reverses all inventory and payable effects. This cannot be undone.</p>
+      <form class="ag-stack" [formGroup]="cancelForm" (ngSubmit)="cancel()">
+        <label>
+          Cancellation reason
+          <input formControlName="reason" data-testid="cancel-reason-input" placeholder="Required" />
+        </label>
+        <div>
+          <button
+            class="ag-btn ag-btn--danger"
+            type="submit"
+            [disabled]="cancelling()"
+            data-testid="purchase-cancel-btn"
+          >
+            {{ cancelling() ? 'Cancelling…' : 'Cancel purchase' }}
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+
+  @if (isPosted() && canReturn()) {
+    <section class="ag-stack return-section" data-testid="purchase-return-section">
+      <h2>Create return</h2>
+      <p class="ag-muted">Select quantities to return. The return will be posted immediately as a ledger adjustment.</p>
+      <form class="ag-stack" [formGroup]="returnForm" (ngSubmit)="submitReturn()">
+        <label>
+          Reason (optional)
+          <input formControlName="reason" data-testid="return-reason-input" />
+        </label>
+
+        <div class="ag-stack">
+          @for (line of returnLines.controls; track $index; let index = $index) {
+            <fieldset class="line" [formGroup]="returnLineGroup(index)">
+              <legend>Return line {{ index + 1 }}</legend>
+              <label>
+                Purchase line
+                <select formControlName="originalLineIndex" data-testid="return-line-product">
+                  @for (pl of purchase()?.lines ?? []; track $index; let lineIndex = $index) {
+                    <option [value]="lineIndex">
+                      {{ pl.productNameSnapshot }} (line {{ lineIndex + 1 }})
+                    </option>
+                  }
+                </select>
+              </label>
+              <label>
+                Return quantity
+                <input formControlName="quantity" data-testid="return-line-qty" />
+              </label>
+              <button class="ag-btn ag-btn--secondary" type="button" (click)="removeReturnLine(index)">
+                Remove
+              </button>
+            </fieldset>
+          }
+        </div>
+
+        <div class="ag-inline">
+          <button class="ag-btn ag-btn--secondary" type="button" (click)="addReturnLine()" data-testid="add-return-line">
+            Add return line
+          </button>
+          @if (returnLines.length > 0) {
+            <button
+              class="ag-btn"
+              type="submit"
+              [disabled]="submittingReturn()"
+              data-testid="submit-return-btn"
+            >
+              {{ submittingReturn() ? 'Submitting…' : 'Submit return' }}
+            </button>
+          }
+        </div>
+      </form>
+    </section>
+  }
 }

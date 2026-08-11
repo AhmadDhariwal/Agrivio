@@ -62,6 +62,30 @@ function createPaymentsController(deps) {
         next(error);
       }
     },
+
+    async listUnpaidPurchasesForSupplier(req, res, next) {
+      try {
+        const data = await deps.paymentsService.listUnpaidPurchasesForSupplier(
+          requireOrganizationId(req),
+          String(req.params.id),
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async reconcileSupplierLedger(req, res, next) {
+      try {
+        const data = await deps.paymentsService.reconcileSupplierLedger(
+          requireOrganizationId(req),
+          String(req.params.id),
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
   };
 }
 

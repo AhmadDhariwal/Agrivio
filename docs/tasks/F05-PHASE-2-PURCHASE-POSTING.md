@@ -49,4 +49,4 @@ Gates: lint, typecheck, test:unit, test:architecture, build, test:integration, e
 
 ## Next
 
-* F05 P3: `R1-F05-007` standalone supplier payments/advances, then cancellation/returns
+* F05 P3 complete — see [F05-PHASE-3-SUPPLIER-PAYMENTS-CANCEL-RETURNS.md](F05-PHASE-3-SUPPLIER-PAYMENTS-CANCEL-RETURNS.md)

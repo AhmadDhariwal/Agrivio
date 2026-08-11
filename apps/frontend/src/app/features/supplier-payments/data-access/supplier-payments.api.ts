@@ -7,6 +7,8 @@ import {
   SupplierLedgerEffectRecord,
   SupplierPaymentCreateInput,
   SupplierPaymentRecord,
+  SupplierReconciliationRecord,
+  UnpaidPurchaseRecord,
 } from '../models/supplier-payments.models';
 
 @Injectable({ providedIn: 'root' })
@@ -53,5 +55,23 @@ export class SupplierPaymentsApi {
         { withCredentials: true },
       )
       .pipe(map((response) => response.data.items));
+  }
+
+  listUnpaidPurchases(supplierId: string): Observable<UnpaidPurchaseRecord[]> {
+    return this.http
+      .get<{ data: { items: UnpaidPurchaseRecord[] } }>(
+        `${environment.publicApiBaseUrl}/api/v1/suppliers/${supplierId}/unpaid-purchases`,
+        { withCredentials: true },
+      )
+      .pipe(map((response) => response.data.items));
+  }
+
+  reconcileSupplier(supplierId: string): Observable<SupplierReconciliationRecord> {
+    return this.http
+      .get<{ data: SupplierReconciliationRecord }>(
+        `${environment.publicApiBaseUrl}/api/v1/suppliers/${supplierId}/reconciliation`,
+        { withCredentials: true },
+      )
+      .pipe(map((response) => response.data));
   }
 }

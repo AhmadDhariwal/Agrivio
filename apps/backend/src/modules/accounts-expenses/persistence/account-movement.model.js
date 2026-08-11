@@ -4,6 +4,8 @@ const MOVEMENT_SOURCE_TYPES = [
   'account_opening',
   'supplier_payment',
   'purchase_payment',
+  'purchase_cancellation_refund',
+  'purchase_return_refund',
 ];
 const MOVEMENT_STATUSES = ['posted'];
 
@@ -64,7 +66,14 @@ accountMovementSchema.index(
   {
     unique: true,
     partialFilterExpression: {
-      sourceType: { $in: ['supplier_payment', 'purchase_payment'] },
+      sourceType: {
+        $in: [
+          'supplier_payment',
+          'purchase_payment',
+          'purchase_cancellation_refund',
+          'purchase_return_refund',
+        ],
+      },
       status: 'posted',
     },
     name: 'account_movements_payment_source_unique',

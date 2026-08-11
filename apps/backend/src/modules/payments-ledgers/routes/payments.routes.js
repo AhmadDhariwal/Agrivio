@@ -56,6 +56,28 @@ function registerPaymentsRoutes(deps) {
     },
   );
 
+  router.get(
+    `${API_SUPPLIERS_PATH}/:id/unpaid-purchases`,
+    deps.requireAuth,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('supplier-payments.view'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.listUnpaidPurchasesForSupplier(req, res, next);
+    },
+  );
+
+  router.get(
+    `${API_SUPPLIERS_PATH}/:id/reconciliation`,
+    deps.requireAuth,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('supplier-payments.view'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.reconcileSupplierLedger(req, res, next);
+    },
+  );
+
   return router;
 }
 

@@ -292,6 +292,13 @@ export const appRoutes: Route[] = [
           ).then((m) => m.SupplierPaymentFormPage),
       },
       {
+        path: 'supplier-payments/ledger',
+        loadComponent: () =>
+          import('./features/supplier-payments/pages/supplier-ledger/supplier-ledger.page').then(
+            (m) => m.SupplierLedgerPage,
+          ),
+      },
+      {
         path: 'inventory/stock',
         loadComponent: () =>
           import('./features/inventory/pages/stock/stock-inquiry.page').then(

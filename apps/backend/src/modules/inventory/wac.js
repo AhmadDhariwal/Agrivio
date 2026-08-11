@@ -101,7 +101,56 @@ function applyOutboundWac(existing, outboundQuantityBaseMinorUnits) {
   };
 }
 
+/**
+ * Outbound at an explicit inventory value (purchase return / purchase cancellation).
+ * Remaining WAC is recalculated from remaining stock value ÷ remaining quantity (BR-RETURN-012/013).
+ */
+function applyOutboundWacAtValue(existing, outboundQuantityBaseMinorUnits, outboundValueMinorUnits) {
+  const existingQty = existing.quantityBaseMinorUnits;
+  const existingValue = existing.inventoryValueMinorUnits;
+  const priorWac = existing.weightedAverageCostMinorUnits;
+  const outboundQty = outboundQuantityBaseMinorUnits;
+  const outboundValue = outboundValueMinorUnits;
+
+  if (outboundQty <= 0n) {
+    throw new Error('Outbound quantity must be positive');
+  }
+  if (outboundValue < 0n) {
+    throw new Error('Outbound value cannot be negative');
+  }
+
+  const nextQty = existingQty - outboundQty;
+  if (nextQty < 0n) {
+    throw new Error('Outbound quantity exceeds existing cost-state quantity');
+  }
+
+  if (nextQty === 0n) {
+    return {
+      quantityBaseMinorUnits: 0n,
+      inventoryValueMinorUnits: 0n,
+      weightedAverageCostMinorUnits: priorWac,
+      lastWeightedAverageCostMinorUnits: priorWac,
+      outboundValueMinorUnits: outboundValue,
+    };
+  }
+
+  let nextValue = existingValue - outboundValue;
+  if (nextValue < 0n) {
+    nextValue = 0n;
+  }
+  const nextWac = divRoundHalfUp(nextValue * QUANTITY_MINOR_UNIT_FACTOR, nextQty);
+
+  return {
+    quantityBaseMinorUnits: nextQty,
+    inventoryValueMinorUnits: nextValue,
+    weightedAverageCostMinorUnits: nextWac,
+    lastWeightedAverageCostMinorUnits: nextWac,
+    outboundValueMinorUnits: outboundValue,
+  };
+}
+
 module.exports = {
   applyInboundWac,
   applyOutboundWac,
+  applyOutboundWacAtValue,
 };
