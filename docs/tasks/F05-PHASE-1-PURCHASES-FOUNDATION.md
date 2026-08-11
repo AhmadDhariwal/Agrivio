@@ -70,4 +70,4 @@ Gates: lint, typecheck, test:unit, test:architecture, build, test:integration, e
 
 ## Next
 
-* F05 P2: `R1-F05-004` purchase posting and onward
+* F05 P2 complete — see [F05-PHASE-2-PURCHASE-POSTING.md](F05-PHASE-2-PURCHASE-POSTING.md)

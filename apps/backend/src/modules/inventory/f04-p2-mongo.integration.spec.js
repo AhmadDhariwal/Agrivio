@@ -4,6 +4,7 @@ const { StockAdjustmentModel } = require('./persistence/stock-adjustment.model')
 const { InventorySettingsModel } = require('./persistence/inventory-settings.model');
 const { createInventoryModule } = require('./inventory.module');
 const { createMongooseIdempotencyStore } = require('../../platform/idempotency/idempotency-service');
+const { IdempotencyRecordModel } = require('../../platform/idempotency/persistence/idempotency-record.model');
 const { permissionsForMembershipRole } = require('../identity/role-permissions');
 
 async function isReplicaSetPrimary() {
@@ -39,7 +40,11 @@ describe('F04 P2 inventory Mongo concurrency, idempotency, reversal', () => {
       await mongoose.disconnect();
       return;
     }
-    await Promise.all([StockAdjustmentModel.syncIndexes(), InventorySettingsModel.syncIndexes()]);
+    await Promise.all([
+      StockAdjustmentModel.syncIndexes(),
+      InventorySettingsModel.syncIndexes(),
+      IdempotencyRecordModel.syncIndexes(),
+    ]);
   }, 60000);
 
   afterAll(async () => {
@@ -133,6 +138,7 @@ describe('F04 P2 inventory Mongo concurrency, idempotency, reversal', () => {
     );
     expect(posted.data.status).toBe('posted');
 
+    await ensureConnection();
     const replay = await inventory.inventoryService.postAdjustment(
       organizationId,
       draft.id,

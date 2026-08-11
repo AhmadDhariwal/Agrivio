@@ -26,6 +26,6 @@ describe('PurchasesPage', () => {
   it('shows empty state', () => {
     const fixture: ComponentFixture<PurchasesPage> = TestBed.createComponent(PurchasesPage);
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('No purchase drafts');
+    expect(fixture.nativeElement.textContent).toContain('No purchases');
   });
 });

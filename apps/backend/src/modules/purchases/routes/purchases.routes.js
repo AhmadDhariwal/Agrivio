@@ -69,6 +69,18 @@ function registerPurchasesRoutes(deps) {
     },
   );
 
+  router.post(
+    `${API_PURCHASES_PATH}/:id/post`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('purchases.post'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.postPurchase(req, res, next);
+    },
+  );
+
   return router;
 }
 

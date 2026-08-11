@@ -2,14 +2,28 @@
   display: block;
 }
 
-.draft-banner {
+.draft-banner,
+.posted-banner {
   margin-bottom: 1rem;
   padding: 0.75rem 1rem;
   border-radius: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.draft-banner {
   background: color-mix(in srgb, #c47b2b 14%, transparent);
   border: 1px solid color-mix(in srgb, #c47b2b 35%, transparent);
   color: #6b3f0f;
-  font-size: 0.95rem;
+}
+
+.posted-banner {
+  background: color-mix(in srgb, #2f6b3a 14%, transparent);
+  border: 1px solid color-mix(in srgb, #2f6b3a 35%, transparent);
+  color: #1f4d28;
+}
+
+.totals {
+  margin-bottom: 1rem;
 }
 
 .form {

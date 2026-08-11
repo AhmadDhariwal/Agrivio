@@ -45,7 +45,7 @@ export class PurchasesPage {
       return;
     }
     this.loading.set(true);
-    this.api.listPurchases({ status: 'draft' }).subscribe({
+    this.api.listPurchases().subscribe({
       next: (items) => {
         this.items.set(items);
         this.loading.set(false);
@@ -62,7 +62,17 @@ export class PurchasesPage {
   }
 
   statusLabel(status: string): string {
-    return status === 'draft' ? 'Draft (unposted)' : status;
+    if (status === 'draft') {
+      return 'Draft (unposted)';
+    }
+    if (status === 'posted') {
+      return 'Posted';
+    }
+    return status;
+  }
+
+  actionLabel(status: string): string {
+    return status === 'posted' ? 'View' : 'Edit draft';
   }
 
   statusTone(status: string): 'warning' | 'success' | 'neutral' {

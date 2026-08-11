@@ -21,9 +21,21 @@ export interface PurchaseLineRecord {
   quantityBase: string;
   unitCost: MoneyAmount;
   lineProductAmount: MoneyAmount;
+  allocatedLandedCost?: MoneyAmount;
+  receiptInventoryValue?: MoneyAmount | null;
+  receiptUnitCost?: MoneyAmount | null;
   batchNumber: string | null;
   manufacturingDate: string | null;
   expiryDate: string | null;
+  batchId?: string | null;
+}
+
+export interface PurchasePaymentSnapshot {
+  accountId: string;
+  accountNameSnapshot: string;
+  accountTypeSnapshot: string;
+  amount: MoneyAmount;
+  paymentId: string | null;
 }
 
 export interface PurchaseRecord {
@@ -39,11 +51,18 @@ export interface PurchaseRecord {
   status: 'draft' | 'posted' | string;
   lines: PurchaseLineRecord[];
   landedCosts: PurchaseLandedCosts;
+  goodsTotal?: MoneyAmount | null;
+  landedCostTotal?: MoneyAmount | null;
+  purchaseTotal?: MoneyAmount | null;
+  paidTotal?: MoneyAmount | null;
+  payableTotal?: MoneyAmount | null;
+  payments?: PurchasePaymentSnapshot[];
   version: number;
   createdBy: string;
   createdAt: string | null;
   updatedAt: string | null;
   postedAt: string | null;
+  postedBy?: string | null;
 }
 
 export interface PurchaseLineInput {
@@ -74,4 +93,14 @@ export interface PurchaseDraftInput {
 
 export interface PurchaseDraftUpdateInput extends PurchaseDraftInput {
   expectedVersion: number;
+}
+
+export interface PurchasePaymentInput {
+  accountId: string;
+  amount: MoneyAmount;
+}
+
+export interface PurchasePostInput {
+  expectedVersion: number;
+  payments?: PurchasePaymentInput[];
 }
