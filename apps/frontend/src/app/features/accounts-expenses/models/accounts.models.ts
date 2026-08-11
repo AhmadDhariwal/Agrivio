@@ -15,6 +15,18 @@ export interface AccountOpeningBalance {
   status: 'posted' | string;
 }
 
+export interface AccountMovementRecord {
+  id: string;
+  organizationId: string;
+  accountId: string;
+  signedAmount: MoneyAmount;
+  sourceType: string;
+  sourceId: string;
+  status: string;
+  postedAt: string;
+  postedBy: string;
+}
+
 export interface AccountRecord {
   id: string;
   organizationId: string;

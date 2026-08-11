@@ -1,0 +1,49 @@
+<agrivio-ui-page-header
+  title="Purchases"
+  eyebrow="Purchasing"
+  lede="Create and edit purchase drafts. Drafts are unposted and do not affect stock or payables."
+>
+  @if (canCreate()) {
+    <a class="ag-btn" routerLink="/app/purchases/new" data-testid="purchase-create-link">
+      Create purchase draft
+    </a>
+  }
+</agrivio-ui-page-header>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading purchase drafts…" />
+} @else if (errorMessage(); as error) {
+  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+} @else if (items().length === 0) {
+  <div data-testid="purchases-empty">
+    <agrivio-ui-empty-state
+      title="No purchase drafts"
+      message="Create a draft to prepare a purchase before posting."
+    />
+  </div>
+} @else {
+  <div class="ag-stack" data-testid="purchases-list">
+    @for (item of items(); track item.id) {
+      <article class="row" data-testid="purchase-row">
+        <div>
+          <strong>{{ item.supplierNameSnapshot || 'Purchase draft' }}</strong>
+          <p class="ag-muted">
+            {{ item.purchaseDate }}
+            @if (item.supplierInvoiceReference) {
+              · Ref {{ item.supplierInvoiceReference }}
+            }
+          </p>
+        </div>
+        <div class="ag-inline">
+          <agrivio-ui-status-badge
+            [label]="statusLabel(item.status)"
+            [tone]="statusTone(item.status)"
+          />
+          @if (canCreate()) {
+            <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/purchases', item.id]">Edit draft</a>
+          }
+        </div>
+      </article>
+    }
+  </div>
+}

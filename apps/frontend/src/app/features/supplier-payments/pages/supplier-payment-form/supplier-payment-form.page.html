@@ -1,0 +1,87 @@
+<agrivio-ui-page-header
+  title="Post supplier payment"
+  eyebrow="Purchasing"
+  lede="General allocation settles unpaid purchases oldest-first. Any remainder becomes supplier advance."
+/>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading payment form…" />
+} @else if (!canPost()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to post supplier payments." />
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+  @if (successMessage(); as success) {
+    <agrivio-ui-alert tone="success" [message]="success" data-testid="supplier-payment-success" />
+  }
+
+  <p class="ag-muted tip">
+    Allocation mode is fixed to general for this foundation screen. Unallocated remainder becomes
+    supplier advance when no unpaid purchases remain.
+  </p>
+
+  <form
+    class="ag-stack form"
+    [formGroup]="form"
+    (ngSubmit)="save()"
+    data-testid="supplier-payment-form"
+  >
+    <label>
+      Supplier
+      <select formControlName="supplierId" data-testid="supplier-payment-supplier">
+        <option value="">Select supplier</option>
+        @for (supplier of suppliers(); track supplier.id) {
+          <option [value]="supplier.id">{{ supplier.name }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Pay from account
+      <select formControlName="accountId" data-testid="supplier-payment-account">
+        <option value="">Select account</option>
+        @for (account of accounts(); track account.id) {
+          <option [value]="account.id">{{ account.name }} ({{ account.accountType }})</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Amount (PKR)
+      <input formControlName="amount" data-testid="supplier-payment-amount" />
+    </label>
+
+    <label>
+      Payment date
+      <input type="date" formControlName="paymentDate" data-testid="supplier-payment-date" />
+    </label>
+
+    <label>
+      Notes (optional)
+      <textarea formControlName="notes" rows="3"></textarea>
+    </label>
+
+    <div class="ag-inline">
+      <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="supplier-payment-save">
+        {{ saving() ? 'Posting…' : 'Post payment' }}
+      </button>
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/supplier-payments">Back to list</a>
+    </div>
+  </form>
+
+  @if (ledgerItems().length > 0) {
+    <section class="ag-stack ledger">
+      <h2>Supplier ledger</h2>
+      @for (item of ledgerItems(); track item.id) {
+        <article class="ledger-row">
+          <div>
+            <strong>{{ item.effectKind }}</strong>
+            <p class="ag-muted">{{ item.sourceType }} · {{ item.postedAt }}</p>
+          </div>
+          <span>{{ item.signedAmount.amount }} {{ item.signedAmount.currency }}</span>
+        </article>
+      }
+    </section>
+  }
+}

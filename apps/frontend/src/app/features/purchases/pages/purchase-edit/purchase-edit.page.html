@@ -1,0 +1,163 @@
+<agrivio-ui-page-header
+  [title]="purchaseId() ? 'Edit purchase draft' : 'Create purchase draft'"
+  eyebrow="Purchasing"
+  lede="Drafts are unposted. Saving does not update inventory or supplier payables."
+/>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading purchase draft…" />
+} @else if (!canCreate()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to create purchase drafts." />
+} @else {
+  <div class="draft-banner" data-testid="purchase-draft-banner">
+    Draft (unposted) — no stock or payable effects until this purchase is posted later.
+  </div>
+
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+  @if (successMessage(); as success) {
+    <agrivio-ui-alert tone="success" [message]="success" data-testid="purchase-success" />
+  }
+
+  <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="purchase-form">
+    <label>
+      Warehouse
+      <select formControlName="warehouseId" data-testid="purchase-warehouse">
+        <option value="">Select warehouse</option>
+        @for (warehouse of warehouses(); track warehouse.id) {
+          <option [value]="warehouse.id">{{ warehouse.name }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Supplier
+      <select formControlName="supplierId" data-testid="purchase-supplier">
+        <option value="">Select supplier</option>
+        @for (supplier of suppliers(); track supplier.id) {
+          <option [value]="supplier.id">{{ supplier.name }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Purchase date
+      <input type="date" formControlName="purchaseDate" data-testid="purchase-date" />
+    </label>
+
+    <label>
+      Supplier invoice reference (optional)
+      <input formControlName="supplierInvoiceReference" data-testid="purchase-reference" />
+    </label>
+
+    <label>
+      Notes (optional)
+      <textarea formControlName="notes" rows="3" data-testid="purchase-notes"></textarea>
+    </label>
+
+    <section class="ag-stack lines">
+      <div class="ag-inline lines__header">
+        <h2>Lines</h2>
+        <button class="ag-btn ag-btn--secondary" type="button" (click)="addLine()" data-testid="purchase-add-line">
+          Add line
+        </button>
+      </div>
+
+      @for (line of lines.controls; track $index; let index = $index) {
+        <fieldset class="line" [formGroup]="lineGroup(index)">
+          <legend>Line {{ index + 1 }}</legend>
+          <label>
+            Product
+            <select formControlName="productId" data-testid="purchase-line-product">
+              <option value="">Select product</option>
+              @for (product of products(); track product.id) {
+                <option [value]="product.id">{{ product.name }} ({{ product.trackingMode }})</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            Packaging (optional)
+            <select formControlName="packagingUnitId">
+              <option value="">Base unit</option>
+              @for (unit of packagingUnitsForLine(index); track unit.id) {
+                <option [value]="unit.id">{{ unit.name }} (×{{ unit.conversionFactor }})</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            Quantity
+            <input formControlName="quantity" data-testid="purchase-line-quantity" />
+          </label>
+
+          <label>
+            Unit cost (PKR)
+            <input formControlName="unitCost" data-testid="purchase-line-unit-cost" />
+          </label>
+
+          @if (trackingModeForLine(index) !== 'none') {
+            <label>
+              Batch number
+              <input formControlName="batchNumber" data-testid="purchase-line-batch" />
+            </label>
+            <label>
+              Manufacturing date (optional)
+              <input type="date" formControlName="manufacturingDate" />
+            </label>
+          }
+
+          @if (trackingModeForLine(index) === 'batch_expiry') {
+            <label>
+              Expiry date
+              <input type="date" formControlName="expiryDate" data-testid="purchase-line-expiry" />
+            </label>
+          }
+
+          <button class="ag-btn ag-btn--secondary" type="button" (click)="removeLine(index)">
+            Remove line
+          </button>
+        </fieldset>
+      }
+    </section>
+
+    <section class="ag-stack">
+      <h2>Landed costs (optional)</h2>
+      <label>
+        Freight (PKR)
+        <input formControlName="freight" />
+      </label>
+      <label>
+        Loading (PKR)
+        <input formControlName="loadingCost" />
+      </label>
+      <label>
+        Transport (PKR)
+        <input formControlName="transport" />
+      </label>
+      <label>
+        Other (PKR)
+        <input formControlName="other" />
+      </label>
+    </section>
+
+    <div class="ag-inline">
+      <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="purchase-save">
+        {{ saving() ? 'Saving…' : 'Save draft' }}
+      </button>
+      @if (purchaseId()) {
+        <button
+          class="ag-btn ag-btn--secondary"
+          type="button"
+          [disabled]="discarding()"
+          (click)="discard()"
+          data-testid="purchase-discard"
+        >
+          {{ discarding() ? 'Discarding…' : 'Discard draft' }}
+        </button>
+      }
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/purchases">Back to list</a>
+    </div>
+  </form>
+}

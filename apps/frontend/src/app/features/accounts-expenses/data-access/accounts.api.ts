@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, map, switchMap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
-import { AccountRecord } from '../models/accounts.models';
+import { AccountMovementRecord, AccountRecord } from '../models/accounts.models';
 
 @Injectable({ providedIn: 'root' })
 export class AccountsApi {
@@ -24,6 +24,15 @@ export class AccountsApi {
         withCredentials: true,
       })
       .pipe(map((response) => response.data));
+  }
+
+  listMovements(accountId: string): Observable<AccountMovementRecord[]> {
+    return this.http
+      .get<{ data: { items: AccountMovementRecord[] } }>(
+        `${environment.publicApiBaseUrl}/api/v1/accounts/${accountId}/movements`,
+        { withCredentials: true },
+      )
+      .pipe(map((response) => response.data.items));
   }
 
   createAccount(payload: {

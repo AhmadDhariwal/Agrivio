@@ -15,6 +15,7 @@ describe('AccountFormPage', () => {
           provide: AccountsApi,
           useValue: {
             getAccount: () => of(null),
+            listMovements: () => of([]),
             createAccount: () => of({}),
             updateAccount: () => of({}),
           },
