@@ -1,0 +1,55 @@
+<agrivio-ui-page-header
+  title="Stock movements"
+  eyebrow="Inventory"
+  lede="Authoritative movement history. Posted movements are not deleted."
+/>
+
+@if (!canView()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to view inventory." />
+} @else if (loading()) {
+  <agrivio-ui-loading-state label="Loading movements…" />
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+
+  <div class="ag-inline" style="margin-bottom: 1rem">
+    <button class="ag-btn ag-btn--secondary" type="button" data-testid="movements-refresh" (click)="reload()">
+      Refresh
+    </button>
+    <a class="ag-btn ag-btn--secondary" routerLink="/app/inventory/stock">Stock</a>
+  </div>
+
+  @if (movements().length === 0) {
+    <p class="ag-muted" data-testid="movements-empty">No stock movements yet.</p>
+  } @else {
+    <div class="ag-table-wrap" data-testid="movements-list">
+      <table class="ag-table">
+        <thead>
+          <tr>
+            <th>Posted</th>
+            <th>Direction</th>
+            <th>Source</th>
+            <th>Qty (base)</th>
+            <th>Unit</th>
+            <th>Value</th>
+            <th>Batch</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of movements(); track row.id) {
+            <tr data-testid="movement-row">
+              <td>{{ row.postedAt }}</td>
+              <td>{{ row.direction }}</td>
+              <td>{{ row.sourceType }}</td>
+              <td>{{ row.quantityBase }}</td>
+              <td>{{ row.unitCode }} (×{{ row.conversionFactorSnapshot }})</td>
+              <td>{{ row.inventoryValue?.amount ?? '—' }}</td>
+              <td>{{ row.batchId ?? '—' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+}

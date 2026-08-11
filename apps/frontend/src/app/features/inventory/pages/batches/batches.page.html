@@ -1,0 +1,51 @@
+<agrivio-ui-page-header
+  title="Product batches"
+  eyebrow="Inventory"
+  lede="Batch identity inquiry. Distinct lots remain separate."
+/>
+
+@if (!canView()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to view inventory." />
+} @else if (loading()) {
+  <agrivio-ui-loading-state label="Loading batches…" />
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+
+  <div class="ag-inline" style="margin-bottom: 1rem">
+    <button class="ag-btn ag-btn--secondary" type="button" data-testid="batches-refresh" (click)="reload()">
+      Refresh
+    </button>
+    <a class="ag-btn ag-btn--secondary" routerLink="/app/inventory/stock">Stock</a>
+  </div>
+
+  @if (batches().length === 0) {
+    <p class="ag-muted" data-testid="batches-empty">No batches yet.</p>
+  } @else {
+    <div class="ag-table-wrap" data-testid="batches-list">
+      <table class="ag-table">
+        <thead>
+          <tr>
+            <th>Batch number</th>
+            <th>Product</th>
+            <th>Manufacture</th>
+            <th>Expiry</th>
+            <th>First received</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of batches(); track row.id) {
+            <tr data-testid="batch-row">
+              <td>{{ row.batchNumber }}</td>
+              <td>{{ row.productId }}</td>
+              <td>{{ row.manufacturingDate ?? '—' }}</td>
+              <td>{{ row.expiryDate ?? '—' }}</td>
+              <td>{{ row.firstReceivedAt }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+}

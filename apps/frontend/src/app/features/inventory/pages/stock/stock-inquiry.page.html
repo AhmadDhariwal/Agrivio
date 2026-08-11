@@ -1,0 +1,59 @@
+<agrivio-ui-page-header
+  title="Stock on hand"
+  eyebrow="Inventory"
+  lede="Current warehouse/product stock with valuation from weighted-average cost."
+/>
+
+@if (!canView()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to view inventory." />
+} @else if (loading()) {
+  <agrivio-ui-loading-state label="Loading stock…" />
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+
+  <div class="ag-inline" style="margin-bottom: 1rem">
+    <button class="ag-btn ag-btn--secondary" type="button" data-testid="stock-refresh" (click)="reload()">
+      Refresh
+    </button>
+    @if (canPostOpening()) {
+      <a class="ag-btn" routerLink="/app/inventory/opening-stock" data-testid="stock-opening-link">
+        Post opening stock
+      </a>
+    }
+    <a class="ag-btn ag-btn--secondary" routerLink="/app/inventory/movements">Movements</a>
+    <a class="ag-btn ag-btn--secondary" routerLink="/app/inventory/batches">Batches</a>
+  </div>
+
+  @if (balances().length === 0) {
+    <p class="ag-muted" data-testid="stock-empty">No stock balances yet.</p>
+  } @else {
+    <div class="ag-table-wrap" data-testid="stock-list">
+      <table class="ag-table">
+        <thead>
+          <tr>
+            <th>Warehouse</th>
+            <th>Product</th>
+            <th>Batch</th>
+            <th>Qty (base)</th>
+            <th>WAC</th>
+            <th>Inventory value</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of balances(); track row.id) {
+            <tr data-testid="stock-row">
+              <td>{{ warehouseLabel(row.warehouseId) }}</td>
+              <td>{{ productLabel(row.productId) }}</td>
+              <td>{{ row.batchId ?? '—' }}</td>
+              <td>{{ row.quantityBase }}</td>
+              <td>{{ row.valuation?.weightedAverageCost?.amount ?? '0.00' }}</td>
+              <td>{{ row.valuation?.inventoryValue?.amount ?? '0.00' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+}

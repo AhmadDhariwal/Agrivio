@@ -1,0 +1,106 @@
+<agrivio-ui-page-header
+  title="Opening stock"
+  eyebrow="Inventory"
+  lede="Post auditable opening stock with batch and expiry when product tracking requires them."
+/>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading opening stock form…" />
+} @else if (!canPost()) {
+  <agrivio-ui-alert
+    tone="warning"
+    message="You do not have permission to post opening stock."
+  />
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+  @if (successMessage(); as success) {
+    <agrivio-ui-alert tone="success" [message]="success" data-testid="opening-stock-success" />
+  }
+
+  <form
+    class="ag-stack form"
+    [formGroup]="form"
+    (ngSubmit)="submit()"
+    data-testid="opening-stock-form"
+  >
+    <label>
+      Warehouse
+      <select formControlName="warehouseId" data-testid="opening-warehouse">
+        <option value="">Select warehouse</option>
+        @for (warehouse of warehouses(); track warehouse.id) {
+          <option [value]="warehouse.id">{{ warehouse.name }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Product
+      <select formControlName="productId" data-testid="opening-product">
+        <option value="">Select product</option>
+        @for (product of products(); track product.id) {
+          <option [value]="product.id">
+            {{ product.name }} ({{ product.trackingMode }})
+          </option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Quantity
+      <input formControlName="quantity" data-testid="opening-quantity" />
+    </label>
+
+    <label>
+      Packaging unit (optional — blank uses base unit)
+      <select formControlName="packagingUnitId" data-testid="opening-packaging">
+        <option value="">Base unit</option>
+        @for (unit of packagingUnits(); track unit.id) {
+          <option [value]="unit.id">
+            {{ unit.name }} (×{{ unit.conversionFactor }})
+          </option>
+        }
+      </select>
+    </label>
+
+    @if (selectedTrackingMode() !== 'none') {
+      <label>
+        Batch number
+        <input formControlName="batchNumber" data-testid="opening-batch-number" />
+      </label>
+      <label>
+        Manufacturing date (optional)
+        <input
+          type="date"
+          formControlName="manufacturingDate"
+          data-testid="opening-manufacturing-date"
+        />
+      </label>
+    }
+
+    @if (selectedTrackingMode() === 'batch_expiry') {
+      <label>
+        Expiry date
+        <input type="date" formControlName="expiryDate" data-testid="opening-expiry-date" />
+      </label>
+    }
+
+    <label>
+      Opening inventory value (PKR)
+      <input formControlName="inventoryValue" data-testid="opening-inventory-value" />
+    </label>
+
+    <div class="ag-inline">
+      <button
+        class="ag-btn"
+        type="submit"
+        [disabled]="saving()"
+        data-testid="opening-stock-save"
+      >
+        {{ saving() ? 'Posting…' : 'Post opening stock' }}
+      </button>
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/inventory/stock">View stock</a>
+    </div>
+  </form>
+}

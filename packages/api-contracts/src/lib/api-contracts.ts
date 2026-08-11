@@ -82,6 +82,25 @@ export const API_SUPPLIERS_PATH = `${API_V1_PREFIX}/suppliers` as const;
 /** Accounts master data (R1-F03-010). */
 export const API_ACCOUNTS_PATH = `${API_V1_PREFIX}/accounts` as const;
 
+/** Inventory balances inquiry (R1-F04-003). */
+export const API_INVENTORY_BALANCES_PATH = `${API_V1_PREFIX}/inventory/balances` as const;
+
+/** Inventory stock movements inquiry (R1-F04-003). */
+export const API_INVENTORY_MOVEMENTS_PATH = `${API_V1_PREFIX}/inventory/movements` as const;
+
+/** Product batch inquiry (R1-F04-001). */
+export const API_INVENTORY_BATCHES_PATH = `${API_V1_PREFIX}/inventory/batches` as const;
+
+/** Opening stock posting (R1-F04-002). */
+export const API_INVENTORY_OPENING_STOCK_PATH =
+  `${API_V1_PREFIX}/inventory/opening-stock` as const;
+
+/** Expiry-oriented inventory query (R1-F04-006). */
+export const API_INVENTORY_EXPIRY_PATH = `${API_V1_PREFIX}/inventory/expiry` as const;
+
+/** Stock adjustments (R1-F04-008). */
+export const API_STOCK_ADJUSTMENTS_PATH = `${API_V1_PREFIX}/stock-adjustments` as const;
+
 /** Guided organization setup progress (R1-F03-013). */
 export const API_ORGANIZATION_SETUP_PROGRESS_PATH =
   `${API_V1_PREFIX}/organization/setup-progress` as const;

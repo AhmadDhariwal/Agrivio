@@ -78,6 +78,50 @@ function parseQuantityMinorUnits(raw) {
   return minor;
 }
 
+function formatQuantityMinorUnits(minorUnits) {
+  const negative = minorUnits < 0n;
+  const absolute = negative ? -minorUnits : minorUnits;
+  const whole = absolute / QUANTITY_MINOR_UNIT_FACTOR;
+  const fraction = absolute % QUANTITY_MINOR_UNIT_FACTOR;
+  const fractionText = fraction.toString().padStart(Number(QUANTITY_MINOR_UNIT_SCALE), '0');
+  return `${negative ? '-' : ''}${whole.toString()}.${fractionText}`;
+}
+
+/**
+ * Convert entered packaging quantity to base quantity using a conversion-factor snapshot.
+ * Intermediate precision is retained; final base quantity is round-half-up to 4 decimals.
+ */
+function convertEnteredQuantityToBaseMinorUnits(enteredQuantityMinorUnits, conversionFactor) {
+  const factorText = String(conversionFactor).trim();
+  if (!/^\d+(\.\d{1,6})?$/.test(factorText) || /^0+(\.0+)?$/.test(factorText)) {
+    throw new Error('Invalid conversion factor');
+  }
+  const [whole, fraction = ''] = factorText.split('.');
+  const scale = BigInt(fraction.length);
+  const factorNumerator = BigInt(whole + fraction);
+  const factorDenominator = 10n ** scale;
+  const product = enteredQuantityMinorUnits * factorNumerator;
+  const baseMinor = divRoundHalfUp(product, factorDenominator);
+  if (enteredQuantityMinorUnits > 0n && baseMinor === 0n) {
+    throw new Error('Non-zero entered quantity cannot round to zero base quantity');
+  }
+  return baseMinor;
+}
+
+/**
+ * Unit cost (money minor units per base unit) from inventory value and base quantity.
+ * Uses unrounded intermediate ratio then round-half-up to money scale (BR-COST-005/012).
+ */
+function computeUnitCostMinorUnits(inventoryValueMinorUnits, quantityBaseMinorUnits) {
+  if (quantityBaseMinorUnits <= 0n) {
+    throw new Error('Cannot compute unit cost with non-positive quantity');
+  }
+  return divRoundHalfUp(
+    inventoryValueMinorUnits * QUANTITY_MINOR_UNIT_FACTOR,
+    quantityBaseMinorUnits,
+  );
+}
+
 function isValidDateOnlyString(raw) {
   if (!DATE_ONLY_PATTERN.test(raw)) {
     return false;
@@ -125,6 +169,10 @@ module.exports = {
   addMoneyMinorUnits,
   multiplyMoneyMinorUnits,
   parseQuantityMinorUnits,
+  formatQuantityMinorUnits,
+  convertEnteredQuantityToBaseMinorUnits,
+  computeUnitCostMinorUnits,
+  divRoundHalfUp,
   isValidDateOnlyString,
   parseDateOnly,
   parseUtcTimestamp,

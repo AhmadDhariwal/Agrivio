@@ -1,0 +1,13 @@
+.form {
+  max-width: 32rem;
+}
+
+label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+input,
+select {
+  width: 100%;
+}
