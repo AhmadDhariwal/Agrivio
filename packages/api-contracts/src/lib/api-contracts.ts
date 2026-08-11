@@ -101,6 +101,13 @@ export const API_INVENTORY_EXPIRY_PATH = `${API_V1_PREFIX}/inventory/expiry` as 
 /** Stock adjustments (R1-F04-008). */
 export const API_STOCK_ADJUSTMENTS_PATH = `${API_V1_PREFIX}/stock-adjustments` as const;
 
+/** Warehouse transfers (R1-F04-009). */
+export const API_WAREHOUSE_TRANSFERS_PATH = `${API_V1_PREFIX}/warehouse-transfers` as const;
+
+/** Inventory reconciliation inquiry (R1-F04-010). */
+export const API_INVENTORY_RECONCILIATION_PATH =
+  `${API_V1_PREFIX}/inventory/reconciliation` as const;
+
 /** Guided organization setup progress (R1-F03-013). */
 export const API_ORGANIZATION_SETUP_PROGRESS_PATH =
   `${API_V1_PREFIX}/organization/setup-progress` as const;

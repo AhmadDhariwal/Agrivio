@@ -1,7 +1,13 @@
 const mongoose = require('mongoose');
 
 const MOVEMENT_DIRECTIONS = ['inbound', 'outbound'];
-const MOVEMENT_SOURCE_TYPES = ['opening_stock', 'stock_adjustment', 'stock_adjustment_reversal'];
+const MOVEMENT_SOURCE_TYPES = [
+  'opening_stock',
+  'stock_adjustment',
+  'stock_adjustment_reversal',
+  'warehouse_transfer',
+  'warehouse_transfer_reversal',
+];
 const MOVEMENT_STATUSES = ['posted'];
 
 const stockMovementSchema = new mongoose.Schema(

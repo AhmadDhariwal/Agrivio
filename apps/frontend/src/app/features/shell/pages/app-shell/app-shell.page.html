@@ -72,6 +72,20 @@
           >
             Adjustments
           </a>
+          <a
+            routerLink="/app/inventory/transfers"
+            routerLinkActive="active"
+            data-testid="nav-transfers"
+          >
+            Transfers
+          </a>
+          <a
+            routerLink="/app/inventory/reconciliation"
+            routerLinkActive="active"
+            data-testid="nav-reconciliation"
+          >
+            Reconciliation
+          </a>
         }
         @if (canSubmitBilling()) {
           <a routerLink="/app/subscription/billing" routerLinkActive="active">Billing</a>

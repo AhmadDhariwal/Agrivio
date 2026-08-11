@@ -172,6 +172,103 @@ function createInventoryController(deps) {
         next(error);
       }
     },
+
+    async listTransfers(req, res, next) {
+      try {
+        const data = await deps.inventoryService.listTransfers(
+          requireOrganizationId(req),
+          req.query,
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async createTransfer(req, res, next) {
+      try {
+        const data = await deps.inventoryService.createTransferDraft(
+          requireOrganizationId(req),
+          req.body,
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 201, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async getTransfer(req, res, next) {
+      try {
+        const data = await deps.inventoryService.getTransfer(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async updateTransfer(req, res, next) {
+      try {
+        const data = await deps.inventoryService.updateTransferDraft(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.body,
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async postTransfer(req, res, next) {
+      try {
+        const result = await deps.inventoryService.postTransfer(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.body,
+          { actorId: String(req.authContext.userId) },
+          req.authContext,
+          req.get('Idempotency-Key'),
+        );
+        sendSuccessEnvelope(res, result.statusCode ?? 200, result.data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async reverseTransfer(req, res, next) {
+      try {
+        const result = await deps.inventoryService.reverseTransfer(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.body,
+          { actorId: String(req.authContext.userId) },
+          req.authContext,
+          req.get('Idempotency-Key'),
+        );
+        sendSuccessEnvelope(res, result.statusCode ?? 200, result.data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async reconcileInventory(req, res, next) {
+      try {
+        const data = await deps.inventoryService.reconcileInventory(
+          requireOrganizationId(req),
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
   };
 }
 

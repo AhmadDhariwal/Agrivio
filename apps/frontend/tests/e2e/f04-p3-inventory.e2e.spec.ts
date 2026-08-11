@@ -3,11 +3,11 @@ import { expect, test, type Page } from '@playwright/test';
 const API = 'http://localhost:3000';
 const OWNER_PASSWORD = 'owner-activation-passphrase';
 
-test.describe('F04 P2 inventory vertical slice', () => {
-  test('opening stock → expiry → adjustment → reverse reconciles stock', async ({ page, request }) => {
+test.describe('F04 P3 inventory transfer vertical slice', () => {
+  test('transfer → verify warehouses → reverse → reconcile healthy', async ({ page, request }) => {
     const stamp = Date.now();
-    const organizationName = `F04 P2 E2E Org ${stamp}`;
-    const ownerEmail = `f04p2-owner-${stamp}@example.com`;
+    const organizationName = `F04 P3 E2E Org ${stamp}`;
+    const ownerEmail = `f04p3-owner-${stamp}@example.com`;
 
     const bootstrap = await request.post(`${API}/api/v1/test/e2e/bootstrap`);
     expect(bootstrap.status()).toBe(200);
@@ -18,7 +18,7 @@ test.describe('F04 P2 inventory vertical slice', () => {
     await page.goto('/request-access');
     await page.getByTestId('org-name').fill(organizationName);
     await page.getByTestId('owner-email').fill(ownerEmail);
-    await page.getByTestId('owner-display-name').fill('F04 P2 Owner');
+    await page.getByTestId('owner-display-name').fill('F04 P3 Owner');
     await page.getByTestId('request-submit').click();
     await expect(page.getByTestId('request-success')).toBeVisible();
 
@@ -44,82 +44,68 @@ test.describe('F04 P2 inventory vertical slice', () => {
 
     await page.getByRole('link', { name: 'Warehouses' }).click();
     await page.getByTestId('warehouse-create-link').click();
-    await page.getByTestId('warehouse-name').fill('P2 Warehouse');
+    await page.getByTestId('warehouse-name').fill('P3 Source');
     await page.getByTestId('warehouse-save').click();
-    await expect(page.getByTestId('warehouses-list')).toContainText('P2 Warehouse');
+    await expect(page.getByTestId('warehouses-list')).toContainText('P3 Source');
+    await page.getByTestId('warehouse-create-link').click();
+    await page.getByTestId('warehouse-name').fill('P3 Dest');
+    await page.getByTestId('warehouse-save').click();
+    await expect(page.getByTestId('warehouses-list')).toContainText('P3 Dest');
 
     await page.getByRole('link', { name: 'Categories' }).click();
     await page.getByTestId('category-create-link').click();
-    await page.getByTestId('category-name').fill('P2 Fertilizers');
-    await page.getByTestId('category-product-class').selectOption('fertilizer');
-    await page.getByTestId('category-save').click();
-    await expect(page.getByTestId('categories-list')).toContainText('P2 Fertilizers');
-
-    await page.getByTestId('category-create-link').click();
-    await page.getByTestId('category-name').fill('P2 Equipment');
+    await page.getByTestId('category-name').fill('P3 Equipment');
     await page.getByTestId('category-product-class').selectOption('general');
     await page.getByTestId('category-save').click();
-    await expect(page.getByTestId('categories-list')).toContainText('P2 Equipment');
+    await expect(page.getByTestId('categories-list')).toContainText('P3 Equipment');
 
     await page.getByRole('link', { name: 'Products' }).click();
     await page.getByTestId('product-create-link').click();
-    await page.getByTestId('product-name').fill('P2 Urea');
-    await page.getByTestId('product-category').selectOption({ label: 'P2 Fertilizers' });
-    await page.getByTestId('product-tracking-mode').selectOption('batch_expiry');
-    await page.getByTestId('product-base-unit').fill('KG');
-    await page.getByTestId('product-measurement-dimension').selectOption('mass');
-    await page.getByTestId('product-save').click();
-    await expect(page.getByTestId('products-list')).toContainText('P2 Urea');
-
-    await page.getByTestId('product-create-link').click();
-    await page.getByTestId('product-name').fill('P2 Bag');
-    await page.getByTestId('product-category').selectOption({ label: 'P2 Equipment' });
+    await page.getByTestId('product-name').fill('P3 Bag');
+    await page.getByTestId('product-category').selectOption({ label: 'P3 Equipment' });
     await page.getByTestId('product-tracking-mode').selectOption('none');
     await page.getByTestId('product-base-unit').fill('EA');
     await page.getByTestId('product-measurement-dimension').selectOption('mass');
     await page.getByTestId('product-save').click();
-    await expect(page.getByTestId('products-list')).toContainText('P2 Bag');
+    await expect(page.getByTestId('products-list')).toContainText('P3 Bag');
 
     await page.getByTestId('nav-opening-stock').click();
-    await page.getByTestId('opening-warehouse').selectOption({ label: 'P2 Warehouse' });
-    await page.getByTestId('opening-product').selectOption({ label: 'P2 Urea (batch_expiry)' });
-    await page.getByTestId('opening-quantity').fill('2');
-    await page.getByTestId('opening-batch-number').fill('P2-LOT');
-    await page.getByTestId('opening-expiry-date').fill('2027-12-31');
-    await page.getByTestId('opening-inventory-value').fill('100.00');
+    await page.getByTestId('opening-warehouse').selectOption({ label: 'P3 Source' });
+    await page.getByTestId('opening-product').selectOption({ label: 'P3 Bag (none)' });
+    await page.getByTestId('opening-quantity').fill('4');
+    await page.getByTestId('opening-inventory-value').fill('40.00');
     await page.getByTestId('opening-stock-save').click();
     await expect(page.getByTestId('opening-stock-success')).toBeVisible();
 
-    await page.getByTestId('nav-opening-stock').click();
-    await page.getByTestId('opening-warehouse').selectOption({ label: 'P2 Warehouse' });
-    await page.getByTestId('opening-product').selectOption({ label: 'P2 Bag (none)' });
-    await page.getByTestId('opening-quantity').fill('2');
-    await page.getByTestId('opening-inventory-value').fill('20.00');
-    await page.getByTestId('opening-stock-save').click();
-    await expect(page.getByTestId('opening-stock-success')).toBeVisible();
-
-    await page.getByTestId('nav-expiry').click();
-    await expect(page.getByTestId('expiry-list')).toBeVisible();
-    await expect(page.getByTestId('expiry-row').first()).toContainText('normal');
-
-    await page.getByTestId('nav-adjustments').click();
-    await page.getByTestId('adjustment-warehouse').selectOption({ label: 'P2 Warehouse' });
-    await page.getByTestId('adjustment-product').selectOption({ label: 'P2 Bag' });
-    await page.getByTestId('adjustment-type').selectOption('damage');
-    await page.getByTestId('adjustment-quantity').fill('1');
-    await page.getByTestId('adjustment-reason').fill('Damaged bag');
-    await page.getByTestId('adjustment-submit').click();
-    await expect(page.getByTestId('adjustment-success')).toBeVisible();
+    await page.getByTestId('nav-transfers').click();
+    await page.getByTestId('transfer-source').selectOption({ label: 'P3 Source' });
+    await page.getByTestId('transfer-destination').selectOption({ label: 'P3 Dest' });
+    await page.getByTestId('transfer-product').selectOption({ label: 'P3 Bag' });
+    await page.getByTestId('transfer-quantity').fill('1');
+    await page.getByTestId('transfer-reason').fill('E2E transfer');
+    await page.getByTestId('transfer-submit').click();
+    await expect(page.getByTestId('transfer-success')).toBeVisible();
 
     await page.getByTestId('nav-inventory').click();
+    await page.getByTestId('stock-refresh').click();
+    await expect(page.getByTestId('stock-list')).toContainText('3.0000');
     await expect(page.getByTestId('stock-list')).toContainText('1.0000');
 
-    await page.getByTestId('nav-adjustments').click();
-    await page.getByTestId('adjustment-reverse').first().click();
-    await expect(page.getByTestId('adjustment-success')).toBeVisible();
+    await page.getByRole('link', { name: 'Movements' }).click();
+    await expect(page.getByTestId('movements-list')).toBeVisible();
+    await expect(page.getByTestId('movement-row').filter({ hasText: 'warehouse_transfer' }).first()).toBeVisible();
+
+    await page.getByTestId('nav-transfers').click();
+    await page.getByTestId('transfer-reverse').first().click();
+    await expect(page.getByTestId('transfer-success')).toBeVisible();
 
     await page.getByTestId('nav-inventory').click();
-    await expect(page.getByTestId('stock-list')).toContainText('2.0000');
+    await page.getByTestId('stock-refresh').click();
+    await expect(page.getByTestId('stock-list')).toContainText('4.0000');
+
+    await page.getByTestId('nav-reconciliation').click();
+    await expect(page.getByTestId('reconciliation-view')).toBeVisible();
+    await expect(page.getByTestId('reconciliation-ok')).toContainText(/healthy|ok|true/i);
   });
 });
 

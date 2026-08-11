@@ -1,0 +1,54 @@
+<agrivio-ui-page-header
+  title="Inventory reconciliation"
+  subtitle="Compare movements, balances, and cost state for integrity findings."
+/>
+
+@if (!canView()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to view inventory." />
+} @else if (loading()) {
+  <agrivio-ui-loading-state label="Loading reconciliation…" />
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" />
+  }
+
+  <div data-testid="reconciliation-view">
+    <button
+      class="ag-btn ag-btn--secondary"
+      type="button"
+      data-testid="reconciliation-refresh"
+      (click)="reload()"
+    >
+      Refresh
+    </button>
+
+    @if (result(); as recon) {
+      <p data-testid="reconciliation-ok">Status: {{ recon.ok ? 'OK' : 'Findings present' }}</p>
+
+      <div class="ag-table-wrap">
+        <table class="ag-table" data-testid="reconciliation-findings">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Detail</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (finding of recon.findings; track $index) {
+              <tr>
+                <td>{{ finding.code }}</td>
+                <td>{{ finding | json }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="2">No findings.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+}
+
+<p><a routerLink="/app/inventory/stock">Back to stock</a></p>
