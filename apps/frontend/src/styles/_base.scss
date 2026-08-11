@@ -5,12 +5,13 @@
 }
 
 html {
+  height: 100%;
   -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
-  min-height: 100vh;
+  min-height: 100%;
   font-family: var(--ag-font-sans);
   font-size: var(--ag-text-md);
   line-height: var(--ag-leading-normal);
@@ -20,6 +21,12 @@ body {
     radial-gradient(ellipse at 100% 0%, rgba(20, 70, 48, 0.05), transparent 36%),
     linear-gradient(180deg, var(--ag-color-bg) 0%, var(--ag-color-bg-accent) 100%);
   background-attachment: fixed;
+}
+
+/* Lock document scroll while the authenticated shell owns its panes. */
+body:has(.ag-shell) {
+  overflow: hidden;
+  height: 100%;
 }
 
 h1,

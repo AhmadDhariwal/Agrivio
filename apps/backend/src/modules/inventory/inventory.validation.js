@@ -391,10 +391,145 @@ function toExpiryItemDto(record) {
   };
 }
 
+function parseTransferDraft(body, options = {}) {
+  assertObjectBody(body);
+  const partial = options.partial === true;
+
+  const sourceWarehouseId =
+    body.sourceWarehouseId === undefined
+      ? undefined
+      : requireIdString(body.sourceWarehouseId, 'sourceWarehouseId');
+  const destinationWarehouseId =
+    body.destinationWarehouseId === undefined
+      ? undefined
+      : requireIdString(body.destinationWarehouseId, 'destinationWarehouseId');
+  const productId =
+    body.productId === undefined ? undefined : requireIdString(body.productId, 'productId');
+
+  let enteredQuantityMinorUnits = undefined;
+  if (body.quantity !== undefined) {
+    if (typeof body.quantity !== 'string') {
+      throw validationFailed('quantity must be a decimal string', [
+        { field: 'quantity', message: 'quantity must be a decimal string' },
+      ]);
+    }
+    try {
+      enteredQuantityMinorUnits = parseQuantityMinorUnits(body.quantity);
+    } catch (error) {
+      throw validationFailed(error.message || 'quantity is invalid', [
+        { field: 'quantity', message: error.message || 'quantity is invalid' },
+      ]);
+    }
+    if (enteredQuantityMinorUnits <= 0n) {
+      throw validationFailed('quantity must be greater than zero', [
+        { field: 'quantity', message: 'quantity must be greater than zero' },
+      ]);
+    }
+    enteredQuantityMinorUnits = enteredQuantityMinorUnits.toString();
+  } else if (!partial) {
+    throw validationFailed('quantity is required', [{ field: 'quantity', message: 'quantity is required' }]);
+  }
+
+  const packagingUnitId =
+    body.packagingUnitId === undefined || body.packagingUnitId === null || body.packagingUnitId === ''
+      ? null
+      : requireIdString(body.packagingUnitId, 'packagingUnitId');
+
+  const batchId =
+    body.batchId === undefined || body.batchId === null || body.batchId === ''
+      ? null
+      : requireIdString(body.batchId, 'batchId');
+
+  const reason =
+    body.reason === undefined || body.reason === null
+      ? null
+      : typeof body.reason === 'string'
+        ? body.reason.trim()
+        : null;
+
+  if (!partial) {
+    if (!sourceWarehouseId) {
+      throw validationFailed('sourceWarehouseId is required', [
+        { field: 'sourceWarehouseId', message: 'sourceWarehouseId is required' },
+      ]);
+    }
+    if (!destinationWarehouseId) {
+      throw validationFailed('destinationWarehouseId is required', [
+        { field: 'destinationWarehouseId', message: 'destinationWarehouseId is required' },
+      ]);
+    }
+    if (!productId) {
+      throw validationFailed('productId is required', [
+        { field: 'productId', message: 'productId is required' },
+      ]);
+    }
+  }
+
+  return {
+    sourceWarehouseId,
+    destinationWarehouseId,
+    productId,
+    enteredQuantityMinorUnits,
+    packagingUnitId,
+    batchId,
+    reason,
+  };
+}
+
+function parseTransferPostOptions(body) {
+  return parseAdjustmentPostOptions(body ?? {});
+}
+
+function toTransferDto(record) {
+  return {
+    id: String(record['_id']),
+    organizationId: String(record['organizationId']),
+    sourceWarehouseId: String(record['sourceWarehouseId']),
+    destinationWarehouseId: String(record['destinationWarehouseId']),
+    productId: String(record['productId']),
+    batchId: record['batchId'] ? String(record['batchId']) : null,
+    quantityBase: quantityDto(record['quantityBaseMinorUnits']),
+    enteredQuantity: quantityDto(record['enteredQuantityMinorUnits']),
+    unitCode: String(record['unitCode']),
+    conversionFactorSnapshot: String(record['conversionFactorSnapshot']),
+    packagingUnitId: record['packagingUnitId'] ? String(record['packagingUnitId']) : null,
+    transferValue:
+      record['transferValueMinorUnits'] === null || record['transferValueMinorUnits'] === undefined
+        ? null
+        : moneyDto(record['transferValueMinorUnits']),
+    reason: record['reason'] ?? null,
+    status: String(record['status']),
+    postedAt:
+      record['postedAt'] === null || record['postedAt'] === undefined
+        ? null
+        : record['postedAt'] instanceof Date
+          ? record['postedAt'].toISOString()
+          : String(record['postedAt']),
+    postedBy: record['postedBy'] ? String(record['postedBy']) : null,
+    outboundMovementId: record['outboundMovementId'] ? String(record['outboundMovementId']) : null,
+    inboundMovementId: record['inboundMovementId'] ? String(record['inboundMovementId']) : null,
+    reversalOfId: record['reversalOfId'] ? String(record['reversalOfId']) : null,
+    reversedByTransferId: record['reversedByTransferId']
+      ? String(record['reversedByTransferId'])
+      : null,
+    negativeStockOverride: record['negativeStockOverride'] === true,
+    version: Number(record['version'] ?? 1),
+  };
+}
+
+function toReconciliationDto(result) {
+  return {
+    ok: result.ok === true,
+    findings: Array.isArray(result.findings) ? result.findings : [],
+  };
+}
+
 module.exports = {
   parseOpeningStock,
   parseAdjustmentDraft,
   parseAdjustmentPostOptions,
+  parseTransferDraft,
+  parseTransferPostOptions,
   toBatchDto,
   toMovementDto,
   toBalanceDto,
@@ -402,4 +537,6 @@ module.exports = {
   toOpeningStockResultDto,
   toAdjustmentDto,
   toExpiryItemDto,
+  toTransferDto,
+  toReconciliationDto,
 };

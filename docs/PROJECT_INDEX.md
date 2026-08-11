@@ -37,7 +37,8 @@ Central navigation for Agrivio documentation.
 * F03 Phase 3 complete (`R1-F03-011`–`R1-F03-013`) — see [tasks/F03-PHASE-3-OPENINGS-SETUP.md](tasks/F03-PHASE-3-OPENINGS-SETUP.md); opening balances / signed ledger+account foundations, centralized plan limits, guided organization setup
 * F04 Phase 1 complete (`R1-F04-001`–`R1-F04-004`) — see [tasks/F04-PHASE-1-INVENTORY-ENGINE.md](tasks/F04-PHASE-1-INVENTORY-ENGINE.md); product batches, opening stock, movements/balances, WAC
 * F04 Phase 2 complete (`R1-F04-005`–`R1-F04-008`) — see [tasks/F04-PHASE-2-INVENTORY-ALLOCATION-ADJUSTMENTS.md](tasks/F04-PHASE-2-INVENTORY-ALLOCATION-ADJUSTMENTS.md); FEFO/FIFO, expiry inquiry, negative-stock enforcement, adjustments/reversals
-* Next work item: **F04 Phase 3** (`R1-F04-009`+) after F04 P2 acceptance
+* F04 Phase 3 complete (`R1-F04-009`–`R1-F04-012`) — see [tasks/F04-PHASE-3-INVENTORY-TRANSFERS-RECONCILIATION.md](tasks/F04-PHASE-3-INVENTORY-TRANSFERS-RECONCILIATION.md); warehouse transfers/reversals, reconciliation, inventory Angular workflows, shared Inventory/Payments/Accounts/Audit contracts; **F04 stage exit ready pending acceptance**
+* Next work item: **F05 Purchases** or **F06 Sales/POS** after F04 exit acceptance (`R1-F03-011` and `R1-F04-012` complete)
 
 ## Existing Documents
 
@@ -90,6 +91,7 @@ Central navigation for Agrivio documentation.
 | [tasks/F03-PHASE-3-OPENINGS-SETUP.md](tasks/F03-PHASE-3-OPENINGS-SETUP.md) | F03 Phase 3: openings / signed ledger+account foundations, plan limits, guided setup (`R1-F03-011`–`013`) |
 | [tasks/F04-PHASE-1-INVENTORY-ENGINE.md](tasks/F04-PHASE-1-INVENTORY-ENGINE.md) | F04 Phase 1: batches, opening stock, movements/balances, WAC (`R1-F04-001`–`004`) |
 | [tasks/F04-PHASE-2-INVENTORY-ALLOCATION-ADJUSTMENTS.md](tasks/F04-PHASE-2-INVENTORY-ALLOCATION-ADJUSTMENTS.md) | F04 Phase 2: FEFO/FIFO, expiry, negative stock, adjustments (`R1-F04-005`–`008`) |
+| [tasks/F04-PHASE-3-INVENTORY-TRANSFERS-RECONCILIATION.md](tasks/F04-PHASE-3-INVENTORY-TRANSFERS-RECONCILIATION.md) | F04 Phase 3: transfers, reconciliation, Angular workflows, shared contracts (`R1-F04-009`–`012`) |
 | [tasks/F01-PHASE-1-PLATFORM-RUNTIME.md](tasks/F01-PHASE-1-PLATFORM-RUNTIME.md) | F01 Phase 1: platform runtime foundation |
 | [tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md](tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md) | F01 Phase 2: transactional platform foundation (completes F01) |
 | [../README.md](../README.md) | Repository landing page |

@@ -28,6 +28,8 @@ const {
   parseAdjustmentDraft,
   parseAdjustmentPostOptions,
   parseOpeningStock,
+  parseTransferDraft,
+  parseTransferPostOptions,
   toAdjustmentDto,
   toBatchDto,
   toBalanceDto,
@@ -35,8 +37,11 @@ const {
   toExpiryItemDto,
   toMovementDto,
   toOpeningStockResultDto,
+  toReconciliationDto,
+  toTransferDto,
 } = require('./inventory.validation');
 const { ADJUSTMENT_DIRECTIONS } = require('./persistence/stock-adjustment.model');
+const { reconcileInventoryState } = require('./reconciliation');
 
 function mapDuplicate(error, message) {
   if (error && error.agrivioDuplicate === true) {
@@ -286,10 +291,12 @@ function createInventoryService(deps) {
       movementUnitCost = costResult.receiptUnitCostMinorUnits.toString();
       movementInventoryValue = payload.inventoryValueMinorUnits.toString();
     } else {
-      costResult = await applyCostOutbound(store, session, organizationId, scope, quantity);
+      // Enforce availability before mutating cost so insufficient-stock failures
+      // cannot leave a one-sided cost-state change outside a true rollback.
       balance = await applyBalanceOutbound(store, session, organizationId, scope, quantity, {
         allowNegativeStockOverride: payload.allowNegativeStockOverride,
       });
+      costResult = await applyCostOutbound(store, session, organizationId, scope, quantity);
       movementInventoryValue = costResult.outboundValueMinorUnits.toString();
       movementUnitCost = costResult.unitCostMinorUnits.toString();
     }
@@ -1082,6 +1089,585 @@ function createInventoryService(deps) {
         data: result.response.body,
         statusCode: result.response.statusCode,
       };
+    },
+
+    async listTransfers(organizationId, query, authContext) {
+      const filters = {};
+      if (typeof query?.status === 'string' && query.status.trim() !== '') {
+        filters.status = query.status.trim();
+      }
+      if (typeof query?.sourceWarehouseId === 'string' && query.sourceWarehouseId.trim() !== '') {
+        filters.sourceWarehouseId = query.sourceWarehouseId.trim();
+      }
+      if (
+        typeof query?.destinationWarehouseId === 'string' &&
+        query.destinationWarehouseId.trim() !== ''
+      ) {
+        filters.destinationWarehouseId = query.destinationWarehouseId.trim();
+      }
+      const items = await store.listTransfers(organizationId, filters);
+      return {
+        items: items
+          .filter((item) => {
+            if (typeof deps.canAccessWarehouse !== 'function') {
+              return true;
+            }
+            return (
+              deps.canAccessWarehouse(authContext, String(item.sourceWarehouseId)) &&
+              deps.canAccessWarehouse(authContext, String(item.destinationWarehouseId))
+            );
+          })
+          .map(toTransferDto),
+      };
+    },
+
+    async getTransfer(organizationId, transferId, authContext) {
+      const record = await store.findTransferById(organizationId, transferId);
+      if (record === null) {
+        throw notFound('Warehouse transfer not found');
+      }
+      if (
+        typeof deps.canAccessWarehouse === 'function' &&
+        (!deps.canAccessWarehouse(authContext, String(record.sourceWarehouseId)) ||
+          !deps.canAccessWarehouse(authContext, String(record.destinationWarehouseId)))
+      ) {
+        throw notFound('Warehouse transfer not found');
+      }
+      return toTransferDto(record);
+    },
+
+    async createTransferDraft(organizationId, body, authContext) {
+      const input = parseTransferDraft(body);
+      if (String(input.sourceWarehouseId) === String(input.destinationWarehouseId)) {
+        throw validationFailed('source and destination warehouses must differ', [
+          { field: 'destinationWarehouseId', message: 'destination must differ from source' },
+        ]);
+      }
+
+      const product = await catalogService.getProduct(organizationId, input.productId);
+      assertActiveProduct(product);
+      const sourceWarehouse = await locationsService.getWarehouse(
+        organizationId,
+        input.sourceWarehouseId,
+      );
+      assertActiveWarehouse(sourceWarehouse);
+      const destinationWarehouse = await locationsService.getWarehouse(
+        organizationId,
+        input.destinationWarehouseId,
+      );
+      assertActiveWarehouse(destinationWarehouse);
+
+      if (typeof deps.canAccessWarehouse === 'function') {
+        if (!deps.canAccessWarehouse(authContext, String(input.sourceWarehouseId))) {
+          throw forbidden('Source warehouse assignment is required');
+        }
+        if (!deps.canAccessWarehouse(authContext, String(input.destinationWarehouseId))) {
+          throw forbidden('Destination warehouse assignment is required');
+        }
+      }
+
+      if (product.trackingMode !== 'none' && input.batchId === null) {
+        throw validationFailed('batchId is required for batch-tracked products', [
+          { field: 'batchId', message: 'batchId is required' },
+        ]);
+      }
+      if (product.trackingMode === 'none' && input.batchId !== null) {
+        throw validationFailed('batchId is not allowed for products without batch tracking', [
+          { field: 'batchId', message: 'batchId is not allowed for trackingMode none' },
+        ]);
+      }
+      if (input.batchId !== null) {
+        const batch = await store.findBatchById(organizationId, input.batchId);
+        if (batch === null || String(batch.productId) !== String(product.id)) {
+          throw notFound('Batch not found');
+        }
+      }
+
+      const unitSnapshot = await resolveUnitSnapshot(
+        catalogService,
+        organizationId,
+        product,
+        input.packagingUnitId,
+      );
+      const quantityBaseMinorUnits = convertEnteredQuantityToBaseMinorUnits(
+        BigInt(input.enteredQuantityMinorUnits),
+        unitSnapshot.conversionFactorSnapshot,
+      );
+
+      const created = await store.insertTransfer(null, {
+        organizationId,
+        sourceWarehouseId: input.sourceWarehouseId,
+        destinationWarehouseId: input.destinationWarehouseId,
+        productId: input.productId,
+        batchId: input.batchId,
+        enteredQuantityMinorUnits: input.enteredQuantityMinorUnits,
+        quantityBaseMinorUnits: quantityBaseMinorUnits.toString(),
+        unitCode: unitSnapshot.unitCode,
+        conversionFactorSnapshot: unitSnapshot.conversionFactorSnapshot,
+        packagingUnitId: unitSnapshot.packagingUnitId,
+        reason: input.reason,
+        status: 'draft',
+        version: 1,
+      });
+      return toTransferDto(created);
+    },
+
+    async updateTransferDraft(organizationId, transferId, body, authContext) {
+      const existing = await store.findTransferById(organizationId, transferId);
+      if (existing === null) {
+        throw notFound('Warehouse transfer not found');
+      }
+      if (existing.status !== 'draft') {
+        throw conflict('Only draft transfers can be updated');
+      }
+      if (
+        typeof deps.canAccessWarehouse === 'function' &&
+        (!deps.canAccessWarehouse(authContext, String(existing.sourceWarehouseId)) ||
+          !deps.canAccessWarehouse(authContext, String(existing.destinationWarehouseId)))
+      ) {
+        throw notFound('Warehouse transfer not found');
+      }
+
+      const input = parseTransferDraft(body, { partial: true });
+      const sourceWarehouseId = input.sourceWarehouseId ?? String(existing.sourceWarehouseId);
+      const destinationWarehouseId =
+        input.destinationWarehouseId ?? String(existing.destinationWarehouseId);
+      if (String(sourceWarehouseId) === String(destinationWarehouseId)) {
+        throw validationFailed('source and destination warehouses must differ', [
+          { field: 'destinationWarehouseId', message: 'destination must differ from source' },
+        ]);
+      }
+
+      const product = await catalogService.getProduct(
+        organizationId,
+        input.productId ?? String(existing.productId),
+      );
+      assertActiveProduct(product);
+      assertActiveWarehouse(await locationsService.getWarehouse(organizationId, sourceWarehouseId));
+      assertActiveWarehouse(
+        await locationsService.getWarehouse(organizationId, destinationWarehouseId),
+      );
+
+      const unitSnapshot = await resolveUnitSnapshot(
+        catalogService,
+        organizationId,
+        product,
+        input.packagingUnitId === undefined ? existing.packagingUnitId : input.packagingUnitId,
+      );
+      const enteredQuantityMinorUnits =
+        input.enteredQuantityMinorUnits ?? String(existing.enteredQuantityMinorUnits);
+      const quantityBaseMinorUnits = convertEnteredQuantityToBaseMinorUnits(
+        BigInt(enteredQuantityMinorUnits),
+        unitSnapshot.conversionFactorSnapshot,
+      );
+      const batchId = input.batchId === undefined ? existing.batchId : input.batchId;
+
+      const updated = await store.updateTransferConditional(
+        null,
+        organizationId,
+        existing['_id'],
+        Number(existing.version),
+        {
+          sourceWarehouseId,
+          destinationWarehouseId,
+          productId: product.id,
+          batchId,
+          enteredQuantityMinorUnits,
+          quantityBaseMinorUnits: quantityBaseMinorUnits.toString(),
+          unitCode: unitSnapshot.unitCode,
+          conversionFactorSnapshot: unitSnapshot.conversionFactorSnapshot,
+          packagingUnitId: unitSnapshot.packagingUnitId,
+          reason: input.reason === undefined ? existing.reason : input.reason,
+        },
+      );
+      if (updated === null) {
+        throw versionConflict('Transfer version conflict', {
+          expectedVersion: Number(existing.version),
+        });
+      }
+      return toTransferDto(updated);
+    },
+
+    async postTransfer(organizationId, transferId, body, actor, authContext, idempotencyKey) {
+      const key = requireIdempotencyKey(idempotencyKey);
+      const options = parseTransferPostOptions(body ?? {});
+
+      const result = await idempotency.execute(
+        {
+          scopeType: 'organization',
+          organizationId,
+          actorId: actor.actorId,
+          operation: 'inventory.warehouse-transfer.post',
+        },
+        key,
+        {
+          transferId,
+          reason: options.reason,
+          negativeStockOverride: options.negativeStockOverride === true,
+          negativeStockOverrideReason: options.negativeStockOverrideReason,
+        },
+        async () => {
+          const dto = await transactionRunner.run(async (session) => {
+            const existing = await store.findTransferById(organizationId, transferId);
+            if (existing === null) {
+              throw notFound('Warehouse transfer not found');
+            }
+            if (existing.status !== 'draft') {
+              throw conflict('Only draft transfers can be posted');
+            }
+            if (
+              typeof deps.canAccessWarehouse === 'function' &&
+              (!deps.canAccessWarehouse(authContext, String(existing.sourceWarehouseId)) ||
+                !deps.canAccessWarehouse(authContext, String(existing.destinationWarehouseId)))
+            ) {
+              throw notFound('Warehouse transfer not found');
+            }
+            if (String(existing.sourceWarehouseId) === String(existing.destinationWarehouseId)) {
+              throw validationFailed('source and destination warehouses must differ', [
+                {
+                  field: 'destinationWarehouseId',
+                  message: 'destination must differ from source',
+                },
+              ]);
+            }
+
+            const product = await catalogService.getProduct(
+              organizationId,
+              String(existing.productId),
+            );
+            assertActiveProduct(product);
+            assertActiveWarehouse(
+              await locationsService.getWarehouse(
+                organizationId,
+                String(existing.sourceWarehouseId),
+              ),
+            );
+            assertActiveWarehouse(
+              await locationsService.getWarehouse(
+                organizationId,
+                String(existing.destinationWarehouseId),
+              ),
+            );
+
+            let batchId = existing.batchId ? String(existing.batchId) : null;
+            if (product.trackingMode === 'none') {
+              batchId = null;
+            } else {
+              if (batchId === null) {
+                throw validationFailed('batchId is required for batch-tracked products', [
+                  { field: 'batchId', message: 'batchId is required' },
+                ]);
+              }
+              const batch = await store.findBatchById(organizationId, batchId);
+              if (batch === null || String(batch.productId) !== String(product.id)) {
+                throw notFound('Batch not found');
+              }
+              batchId = String(batch['_id']);
+            }
+
+            const override = assertNegativeStockOverride(authContext, options);
+            const quantityBaseMinorUnits = BigInt(String(existing.quantityBaseMinorUnits));
+            const postedAt = now();
+            const transferSourceId = existing['_id'];
+
+            const outbound = await postStockMovementEffects(session, organizationId, actor, {
+              warehouseId: String(existing.sourceWarehouseId),
+              productId: String(existing.productId),
+              batchId,
+              direction: 'outbound',
+              quantityBaseMinorUnits,
+              enteredQuantityMinorUnits: String(existing.enteredQuantityMinorUnits),
+              unitCode: String(existing.unitCode),
+              conversionFactorSnapshot: String(existing.conversionFactorSnapshot),
+              packagingUnitId: existing.packagingUnitId,
+              inventoryValueMinorUnits: 0n,
+              sourceType: 'warehouse_transfer',
+              sourceId: transferSourceId,
+              postedAt,
+              reason: existing.reason,
+              allowNegativeStockOverride: override.allowNegativeStockOverride,
+              negativeStockOverrideReason: override.reason,
+              negativeStockOverrideBy: override.actorId,
+            });
+
+            const transferValueMinorUnits = BigInt(
+              String(outbound.movement.inventoryValueMinorUnits ?? '0'),
+            );
+
+            const inbound = await postStockMovementEffects(session, organizationId, actor, {
+              warehouseId: String(existing.destinationWarehouseId),
+              productId: String(existing.productId),
+              batchId,
+              direction: 'inbound',
+              quantityBaseMinorUnits,
+              enteredQuantityMinorUnits: String(existing.enteredQuantityMinorUnits),
+              unitCode: String(existing.unitCode),
+              conversionFactorSnapshot: String(existing.conversionFactorSnapshot),
+              packagingUnitId: existing.packagingUnitId,
+              inventoryValueMinorUnits: transferValueMinorUnits,
+              sourceType: 'warehouse_transfer',
+              sourceId: transferSourceId,
+              postedAt,
+              reason: existing.reason,
+              allowNegativeStockOverride: false,
+            });
+
+            const posted = await store.updateTransferConditional(
+              session,
+              organizationId,
+              existing['_id'],
+              Number(existing.version),
+              {
+                batchId,
+                status: 'posted',
+                postedAt,
+                postedBy: actor.actorId,
+                outboundMovementId: outbound.movement['_id'],
+                inboundMovementId: inbound.movement['_id'],
+                transferValueMinorUnits: transferValueMinorUnits.toString(),
+                negativeStockOverride: override.allowNegativeStockOverride,
+                negativeStockOverrideReason: override.reason,
+                negativeStockOverrideBy: override.actorId,
+              },
+            );
+            if (posted === null) {
+              throw versionConflict('Transfer version conflict', {
+                expectedVersion: Number(existing.version),
+              });
+            }
+
+            await auditWriter.appendBusinessEvent(session, {
+              organizationId,
+              actorId: actor.actorId,
+              action: 'inventory.warehouse_transfer.posted',
+              resourceType: 'warehouse_transfer',
+              resourceId: String(posted['_id']),
+              metadata: {
+                sourceWarehouseId: String(posted.sourceWarehouseId),
+                destinationWarehouseId: String(posted.destinationWarehouseId),
+                productId: String(posted.productId),
+                batchId: batchId ? String(batchId) : null,
+                quantityBase: formatQuantityMinorUnits(quantityBaseMinorUnits),
+                transferValueMinorUnits: transferValueMinorUnits.toString(),
+                outboundMovementId: String(outbound.movement['_id']),
+                inboundMovementId: String(inbound.movement['_id']),
+                negativeStockOverride: override.allowNegativeStockOverride,
+              },
+            });
+
+            if (override.allowNegativeStockOverride) {
+              await auditWriter.appendBusinessEvent(session, {
+                organizationId,
+                actorId: actor.actorId,
+                action: 'inventory.negative_stock.override',
+                resourceType: 'stock_movement',
+                resourceId: String(outbound.movement['_id']),
+                metadata: {
+                  reason: override.reason,
+                  warehouseId: String(posted.sourceWarehouseId),
+                  productId: String(posted.productId),
+                  batchId: batchId ? String(batchId) : null,
+                  quantityBase: formatQuantityMinorUnits(quantityBaseMinorUnits),
+                },
+              });
+            }
+
+            return toTransferDto(posted);
+          });
+
+          return { statusCode: 200, body: dto };
+        },
+      );
+
+      return {
+        replay: result.replay,
+        data: result.response.body,
+        statusCode: result.response.statusCode,
+      };
+    },
+
+    async reverseTransfer(organizationId, transferId, body, actor, authContext, idempotencyKey) {
+      const key = requireIdempotencyKey(idempotencyKey);
+      const options = parseTransferPostOptions(body ?? {});
+
+      const result = await idempotency.execute(
+        {
+          scopeType: 'organization',
+          organizationId,
+          actorId: actor.actorId,
+          operation: 'inventory.warehouse-transfer.reverse',
+        },
+        key,
+        {
+          transferId,
+          reason: options.reason,
+          negativeStockOverride: options.negativeStockOverride === true,
+          negativeStockOverrideReason: options.negativeStockOverrideReason,
+        },
+        async () => {
+          const dto = await transactionRunner.run(async (session) => {
+            const original = await store.findTransferById(organizationId, transferId);
+            if (original === null) {
+              throw notFound('Warehouse transfer not found');
+            }
+            if (original.status !== 'posted') {
+              throw conflict('Only posted transfers can be reversed');
+            }
+            if (
+              original.reversedByTransferId !== null &&
+              original.reversedByTransferId !== undefined
+            ) {
+              throw conflict('Transfer has already been reversed');
+            }
+            if (
+              typeof deps.canAccessWarehouse === 'function' &&
+              (!deps.canAccessWarehouse(authContext, String(original.sourceWarehouseId)) ||
+                !deps.canAccessWarehouse(authContext, String(original.destinationWarehouseId)))
+            ) {
+              throw notFound('Warehouse transfer not found');
+            }
+
+            const reason =
+              typeof options.reason === 'string' && options.reason.trim() !== ''
+                ? options.reason.trim()
+                : `Reversal of transfer ${String(original['_id'])}`;
+            const override = assertNegativeStockOverride(authContext, options);
+            const quantityBaseMinorUnits = BigInt(String(original.quantityBaseMinorUnits));
+            const postedAt = now();
+            const batchId = original.batchId ? String(original.batchId) : null;
+
+            const reversalDraft = await store.insertTransfer(session, {
+              organizationId,
+              sourceWarehouseId: original.destinationWarehouseId,
+              destinationWarehouseId: original.sourceWarehouseId,
+              productId: original.productId,
+              batchId: original.batchId,
+              enteredQuantityMinorUnits: original.enteredQuantityMinorUnits,
+              quantityBaseMinorUnits: original.quantityBaseMinorUnits,
+              unitCode: original.unitCode,
+              conversionFactorSnapshot: original.conversionFactorSnapshot,
+              packagingUnitId: original.packagingUnitId,
+              reason,
+              status: 'posted',
+              postedAt,
+              postedBy: actor.actorId,
+              reversalOfId: original['_id'],
+              negativeStockOverride: override.allowNegativeStockOverride,
+              negativeStockOverrideReason: override.reason,
+              negativeStockOverrideBy: override.actorId,
+              version: 1,
+            });
+
+            const outbound = await postStockMovementEffects(session, organizationId, actor, {
+              warehouseId: String(original.destinationWarehouseId),
+              productId: String(original.productId),
+              batchId,
+              direction: 'outbound',
+              quantityBaseMinorUnits,
+              enteredQuantityMinorUnits: String(original.enteredQuantityMinorUnits),
+              unitCode: String(original.unitCode),
+              conversionFactorSnapshot: String(original.conversionFactorSnapshot),
+              packagingUnitId: original.packagingUnitId,
+              inventoryValueMinorUnits: 0n,
+              sourceType: 'warehouse_transfer_reversal',
+              sourceId: reversalDraft['_id'],
+              postedAt,
+              reason,
+              reversalOfId: original.inboundMovementId,
+              allowNegativeStockOverride: override.allowNegativeStockOverride,
+              negativeStockOverrideReason: override.reason,
+              negativeStockOverrideBy: override.actorId,
+            });
+
+            const transferValueMinorUnits = BigInt(
+              String(outbound.movement.inventoryValueMinorUnits ?? '0'),
+            );
+
+            const inbound = await postStockMovementEffects(session, organizationId, actor, {
+              warehouseId: String(original.sourceWarehouseId),
+              productId: String(original.productId),
+              batchId,
+              direction: 'inbound',
+              quantityBaseMinorUnits,
+              enteredQuantityMinorUnits: String(original.enteredQuantityMinorUnits),
+              unitCode: String(original.unitCode),
+              conversionFactorSnapshot: String(original.conversionFactorSnapshot),
+              packagingUnitId: original.packagingUnitId,
+              inventoryValueMinorUnits: transferValueMinorUnits,
+              sourceType: 'warehouse_transfer_reversal',
+              sourceId: reversalDraft['_id'],
+              postedAt,
+              reason,
+              reversalOfId: original.outboundMovementId,
+              allowNegativeStockOverride: false,
+            });
+
+            const markedOriginal = await store.updateTransferConditional(
+              session,
+              organizationId,
+              original['_id'],
+              Number(original.version),
+              {
+                status: 'reversed',
+                reversedByTransferId: reversalDraft['_id'],
+              },
+            );
+            if (markedOriginal === null) {
+              throw versionConflict('Transfer version conflict', {
+                expectedVersion: Number(original.version),
+              });
+            }
+
+            const linkedReversal = await store.updateTransferConditional(
+              session,
+              organizationId,
+              reversalDraft['_id'],
+              1,
+              {
+                outboundMovementId: outbound.movement['_id'],
+                inboundMovementId: inbound.movement['_id'],
+                transferValueMinorUnits: transferValueMinorUnits.toString(),
+              },
+            );
+
+            await auditWriter.appendBusinessEvent(session, {
+              organizationId,
+              actorId: actor.actorId,
+              action: 'inventory.warehouse_transfer.reversed',
+              resourceType: 'warehouse_transfer',
+              resourceId: String(reversalDraft['_id']),
+              metadata: {
+                reversalOfId: String(original['_id']),
+                reason,
+                outboundMovementId: String(outbound.movement['_id']),
+                inboundMovementId: String(inbound.movement['_id']),
+              },
+            });
+
+            return toTransferDto(linkedReversal ?? reversalDraft);
+          });
+
+          return { statusCode: 200, body: dto };
+        },
+      );
+
+      return {
+        replay: result.replay,
+        data: result.response.body,
+        statusCode: result.response.statusCode,
+      };
+    },
+
+    async reconcileInventory(organizationId, authContext) {
+      void authContext;
+      const [movements, balances, costStates] = await Promise.all([
+        store.listAllMovements(organizationId),
+        store.listAllBalances(organizationId),
+        store.listAllCostStates(organizationId),
+      ]);
+      return toReconciliationDto(
+        reconcileInventoryState({ movements, balances, costStates }),
+      );
     },
   };
 }

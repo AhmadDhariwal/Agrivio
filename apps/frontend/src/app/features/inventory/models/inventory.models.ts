@@ -102,3 +102,28 @@ export interface StockAdjustmentRecord {
   negativeStockOverride: boolean;
   version: number;
 }
+
+export interface WarehouseTransferRecord {
+  id: string;
+  organizationId: string;
+  sourceWarehouseId: string;
+  destinationWarehouseId: string;
+  productId: string;
+  batchId: string | null;
+  quantityBase: string;
+  enteredQuantity: string;
+  unitCode: string;
+  transferValue: MoneyAmount | null;
+  reason: string | null;
+  status: 'draft' | 'posted' | 'reversed';
+  outboundMovementId: string | null;
+  inboundMovementId: string | null;
+  reversalOfId: string | null;
+  reversedByTransferId: string | null;
+  version: number;
+}
+
+export interface ReconciliationResult {
+  ok: boolean;
+  findings: Array<{ code: string; [key: string]: unknown }>;
+}

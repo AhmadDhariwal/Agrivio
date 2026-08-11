@@ -10,10 +10,14 @@ import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-p
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
-import { InventoryBalanceRecord, StockAdjustmentRecord } from '../../models/inventory.models';
+import {
+  InventoryBalanceRecord,
+  ProductBatchRecord,
+  WarehouseTransferRecord,
+} from '../../models/inventory.models';
 
 @Component({
-  selector: 'agrivio-adjustments-page',
+  selector: 'agrivio-transfers-page',
   standalone: true,
   imports: [
     ReactiveFormsModule,
@@ -22,10 +26,10 @@ import { InventoryBalanceRecord, StockAdjustmentRecord } from '../../models/inve
     UiAlertComponent,
     UiLoadingStateComponent,
   ],
-  templateUrl: './adjustments.page.html',
-  styleUrl: './adjustments.page.scss',
+  templateUrl: './transfers.page.html',
+  styleUrl: './transfers.page.scss',
 })
-export class AdjustmentsPage {
+export class TransfersPage {
   private readonly inventoryApi = inject(InventoryApi);
   private readonly catalogApi = inject(CatalogApi);
   private readonly locationsApi = inject(BranchesWarehousesApi);
@@ -36,51 +40,48 @@ export class AdjustmentsPage {
   readonly saving = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
-  readonly adjustments = signal<StockAdjustmentRecord[]>([]);
+  readonly transfers = signal<WarehouseTransferRecord[]>([]);
   readonly products = signal<ProductRecord[]>([]);
   readonly warehouses = signal<WarehouseRecord[]>([]);
   readonly batchOptions = signal<Array<{ batchId: string; label: string }>>([]);
   readonly selectedTrackingMode = signal<string>('none');
-  readonly canAdjust = computed(() => this.sessionStore.hasPermission('inventory.adjust'));
-  readonly canReverse = computed(() => this.sessionStore.hasPermission('inventory.adjust.reverse'));
-  readonly canOverride = computed(() => this.sessionStore.hasPermission('inventory.negative-stock.override'));
+  readonly canTransfer = computed(() => this.sessionStore.hasPermission('inventory.transfer'));
+  readonly canReverse = computed(() =>
+    this.sessionStore.hasPermission('inventory.transfer.reverse'),
+  );
 
   readonly form = this.formBuilder.nonNullable.group({
-    warehouseId: ['', Validators.required],
+    sourceWarehouseId: ['', Validators.required],
+    destinationWarehouseId: ['', Validators.required],
     productId: ['', Validators.required],
     batchId: [''],
-    adjustmentType: ['damage', Validators.required],
-    direction: ['outbound'],
     quantity: ['', Validators.required],
     reason: ['', Validators.required],
-    inventoryValue: [''],
-    negativeStockOverride: [false],
-    negativeStockOverrideReason: [''],
   });
 
   constructor() {
-    if (!this.canAdjust()) {
+    if (!this.canTransfer()) {
       this.loading.set(false);
       return;
     }
     forkJoin({
       products: this.catalogApi.listProducts(),
       warehouses: this.locationsApi.listWarehouses(),
-      adjustments: this.inventoryApi.listAdjustments(),
+      transfers: this.inventoryApi.listTransfers(),
     }).subscribe({
-      next: ({ products, warehouses, adjustments }) => {
+      next: ({ products, warehouses, transfers }) => {
         this.products.set(products.filter((item) => item.status === 'active'));
         this.warehouses.set(warehouses.filter((item) => item.status === 'active'));
-        this.adjustments.set(adjustments);
+        this.transfers.set(transfers);
         this.loading.set(false);
       },
       error: () => {
         this.loading.set(false);
-        this.errorMessage.set('Unable to load adjustments.');
+        this.errorMessage.set('Unable to load transfers.');
       },
     });
 
-    this.form.controls.warehouseId.valueChanges.subscribe(() => this.reloadBatchOptions());
+    this.form.controls.sourceWarehouseId.valueChanges.subscribe(() => this.reloadBatchOptions());
     this.form.controls.productId.valueChanges.subscribe((productId) => {
       const product = this.products().find((item) => item.id === productId);
       this.selectedTrackingMode.set(product?.trackingMode ?? 'none');
@@ -98,86 +99,72 @@ export class AdjustmentsPage {
     this.errorMessage.set(null);
     this.successMessage.set(null);
     const value = this.form.getRawValue();
-    const payload: Parameters<InventoryApi['createAdjustmentDraft']>[0] = {
-      warehouseId: value.warehouseId,
+    const payload: Parameters<InventoryApi['createTransferDraft']>[0] = {
+      sourceWarehouseId: value.sourceWarehouseId,
+      destinationWarehouseId: value.destinationWarehouseId,
       productId: value.productId,
-      adjustmentType: value.adjustmentType,
       quantity: value.quantity,
       reason: value.reason,
     };
     if (this.selectedTrackingMode() !== 'none' && value.batchId.trim() !== '') {
       payload.batchId = value.batchId;
     }
-    if (value.adjustmentType === 'correction') {
-      payload.direction = value.direction;
-      if (value.direction === 'inbound' && value.inventoryValue.trim() !== '') {
-        payload.inventoryValue = { amount: value.inventoryValue.trim(), currency: 'PKR' };
-      }
-    }
 
-    this.inventoryApi.createAdjustmentDraft(payload).subscribe({
+    this.inventoryApi.createTransferDraft(payload).subscribe({
       next: (draft) => {
-        const postPayload: {
-          reason: string;
-          negativeStockOverride?: boolean;
-          negativeStockOverrideReason?: string;
-        } = { reason: value.reason };
-        if (value.negativeStockOverride) {
-          postPayload.negativeStockOverride = true;
-          if (value.negativeStockOverrideReason.trim() !== '') {
-            postPayload.negativeStockOverrideReason = value.negativeStockOverrideReason.trim();
-          }
-        }
         this.inventoryApi
-          .postAdjustment(draft.id, postPayload, `adj-post-${draft.id}-${Date.now()}`)
+          .postTransfer(draft.id, { reason: value.reason }, `xfer-post-${draft.id}-${Date.now()}`)
           .subscribe({
             next: () => {
-              this.successMessage.set('Adjustment posted.');
+              this.successMessage.set('Transfer posted.');
               this.saving.set(false);
-              this.reloadAdjustments();
+              this.reloadTransfers();
             },
             error: (error: unknown) => {
               this.saving.set(false);
-              this.errorMessage.set(this.mapError(error, 'Unable to post adjustment.'));
+              this.errorMessage.set(this.mapError(error, 'Unable to post transfer.'));
             },
           });
       },
       error: (error: unknown) => {
         this.saving.set(false);
-        this.errorMessage.set(this.mapError(error, 'Unable to create adjustment draft.'));
+        this.errorMessage.set(this.mapError(error, 'Unable to create transfer draft.'));
       },
     });
   }
 
-  reverse(adjustment: StockAdjustmentRecord): void {
-    if (!this.canReverse() || adjustment.status !== 'posted') {
+  reverse(transfer: WarehouseTransferRecord): void {
+    if (!this.canReverse() || transfer.status !== 'posted') {
       return;
     }
     this.inventoryApi
-      .reverseAdjustment(
-        adjustment.id,
+      .reverseTransfer(
+        transfer.id,
         { reason: 'UI reversal' },
-        `adj-reverse-${adjustment.id}-${Date.now()}`,
+        `xfer-reverse-${transfer.id}-${Date.now()}`,
       )
       .subscribe({
         next: () => {
-          this.successMessage.set('Adjustment reversed.');
-          this.reloadAdjustments();
+          this.successMessage.set('Transfer reversed.');
+          this.reloadTransfers();
         },
-        error: () => this.errorMessage.set('Unable to reverse adjustment.'),
+        error: () => this.errorMessage.set('Unable to reverse transfer.'),
       });
   }
 
   private reloadBatchOptions(): void {
-    const warehouseId = this.form.controls.warehouseId.value;
+    const warehouseId = this.form.controls.sourceWarehouseId.value;
     const productId = this.form.controls.productId.value;
     if (!warehouseId || !productId || this.selectedTrackingMode() === 'none') {
       this.batchOptions.set([]);
       return;
     }
-    this.inventoryApi.listBalances({ warehouseId, productId }).subscribe({
-      next: (balances) => {
-        this.batchOptions.set(this.buildBatchOptions(balances));
+    forkJoin({
+      balances: this.inventoryApi.listBalances({ warehouseId, productId }),
+      batches: this.inventoryApi.listBatches({ productId }),
+    }).subscribe({
+      next: ({ balances, batches }) => {
+        this.batchOptions.set(this.buildBatchOptions(balances, batches));
       },
       error: () => this.batchOptions.set([]),
     });
@@ -185,18 +172,22 @@ export class AdjustmentsPage {
 
   private buildBatchOptions(
     balances: InventoryBalanceRecord[],
+    batches: ProductBatchRecord[],
   ): Array<{ batchId: string; label: string }> {
+    const batchById = new Map(batches.map((batch) => [batch.id, batch]));
     return balances
       .filter((balance) => balance.batchId !== null && Number(balance.quantityBase) > 0)
       .map((balance) => {
         const batchId = String(balance.batchId);
-        return { batchId, label: `${batchId} (${balance.quantityBase})` };
+        const batch = batchById.get(batchId);
+        const name = batch?.batchNumber ?? batchId;
+        return { batchId, label: `${name} (${balance.quantityBase})` };
       });
   }
 
-  private reloadAdjustments(): void {
-    this.inventoryApi.listAdjustments().subscribe({
-      next: (items) => this.adjustments.set(items),
+  private reloadTransfers(): void {
+    this.inventoryApi.listTransfers().subscribe({
+      next: (items) => this.transfers.set(items),
     });
   }
 
