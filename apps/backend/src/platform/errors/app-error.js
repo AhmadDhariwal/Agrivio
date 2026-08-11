@@ -37,6 +37,10 @@ function idempotencyConflict(message = 'Idempotency key conflict', details) {
   return new AppError(ApiTransportErrorCode.IdempotencyConflict, message, 409, details);
 }
 
+function insufficientStock(message = 'Insufficient stock available', details) {
+  return new AppError(ApiTransportErrorCode.Conflict, message, 409, details);
+}
+
 module.exports = {
   validationFailed,
   notFound,
@@ -45,5 +49,6 @@ module.exports = {
   conflict,
   versionConflict,
   idempotencyConflict,
+  insufficientStock,
   AppError,
 };

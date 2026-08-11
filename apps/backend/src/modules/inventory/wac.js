@@ -59,6 +59,49 @@ function applyInboundWac(existing, receipt) {
   };
 }
 
+/**
+ * Apply an outbound quantity at current WAC (sales/adjustments/transfers outbound).
+ */
+function applyOutboundWac(existing, outboundQuantityBaseMinorUnits) {
+  const existingQty = existing.quantityBaseMinorUnits;
+  const existingValue = existing.inventoryValueMinorUnits;
+  const wac = existing.weightedAverageCostMinorUnits;
+
+  if (outboundQuantityBaseMinorUnits <= 0n) {
+    throw new Error('Outbound quantity must be positive');
+  }
+
+  const outboundValue = divRoundHalfUp(
+    outboundQuantityBaseMinorUnits * wac,
+    QUANTITY_MINOR_UNIT_FACTOR,
+  );
+  const nextQty = existingQty - outboundQuantityBaseMinorUnits;
+
+  if (nextQty <= 0n) {
+    return {
+      quantityBaseMinorUnits: 0n,
+      inventoryValueMinorUnits: 0n,
+      weightedAverageCostMinorUnits: wac,
+      lastWeightedAverageCostMinorUnits: wac,
+      outboundValueMinorUnits: existingQty <= 0n ? 0n : existingValue,
+    };
+  }
+
+  let nextValue = existingValue - outboundValue;
+  if (nextValue < 0n) {
+    nextValue = 0n;
+  }
+
+  return {
+    quantityBaseMinorUnits: nextQty,
+    inventoryValueMinorUnits: nextValue,
+    weightedAverageCostMinorUnits: wac,
+    lastWeightedAverageCostMinorUnits: wac,
+    outboundValueMinorUnits: outboundValue,
+  };
+}
+
 module.exports = {
   applyInboundWac,
+  applyOutboundWac,
 };

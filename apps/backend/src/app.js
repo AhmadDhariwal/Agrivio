@@ -45,6 +45,7 @@ const { createInventoryModule } = require('./modules/inventory/inventory.module'
 const { registerInventoryRoutes } = require('./modules/inventory/routes/inventory.routes');
 const { createSetupProgressService } = require('./modules/settings/setup-progress.service');
 const { canAccessWarehouse } = require('./modules/identity/assignment-scope');
+const { hasPermission } = require('./modules/identity/role-permissions');
 
 function createApp(options) {
   const { config, database } = options;
@@ -199,6 +200,12 @@ function createApp(options) {
       catalogService: catalog.catalogService,
       locationsService: locations.locationsService,
       canAccessWarehouse,
+      hasPermission: (authContext, permission) =>
+        hasPermission(authContext?.permissions ?? [], permission),
+      resolveOrganizationTimezone: async (organizationId) => {
+        const organization = await onboardingCore.store.findOrganizationById(organizationId);
+        return organization?.timezone ?? 'Asia/Karachi';
+      },
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 

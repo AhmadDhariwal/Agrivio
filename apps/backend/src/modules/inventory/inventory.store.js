@@ -3,6 +3,8 @@ const { ProductBatchModel } = require('./persistence/product-batch.model');
 const { StockMovementModel } = require('./persistence/stock-movement.model');
 const { InventoryBalanceModel } = require('./persistence/inventory-balance.model');
 const { InventoryCostStateModel } = require('./persistence/inventory-cost-state.model');
+const { StockAdjustmentModel } = require('./persistence/stock-adjustment.model');
+const { InventorySettingsModel } = require('./persistence/inventory-settings.model');
 const { AuditEventModel } = require('../audit/persistence/audit-event.model');
 
 function withSession(session) {
@@ -186,6 +188,93 @@ function createMongooseInventoryStore() {
     async appendAuditEvent(session, event) {
       await AuditEventModel.create([event], withSession(session));
     },
+
+    async findInventorySettings(organizationId) {
+      return InventorySettingsModel.findOne({ organizationId }).lean().exec();
+    },
+
+    async upsertInventorySettings(session, organizationId, patch) {
+      const updated = await InventorySettingsModel.findOneAndUpdate(
+        { organizationId },
+        { $set: patch, $setOnInsert: { organizationId, version: 1 } },
+        { upsert: true, new: true, ...withSession(session) },
+      )
+        .lean()
+        .exec();
+      return updated;
+    },
+
+    async findAdjustmentById(organizationId, id) {
+      if (!mongoose.isValidObjectId(id)) {
+        return null;
+      }
+      return StockAdjustmentModel.findOne({ _id: id, organizationId }).lean().exec();
+    },
+
+    async listAdjustments(organizationId, filters) {
+      const query = { organizationId };
+      if (filters.status) {
+        query.status = filters.status;
+      }
+      if (filters.warehouseId) {
+        query.warehouseId = filters.warehouseId;
+      }
+      return StockAdjustmentModel.find(query).sort({ createdAt: -1 }).lean().exec();
+    },
+
+    async insertAdjustment(session, doc) {
+      try {
+        const [created] = await StockAdjustmentModel.create([doc], withSession(session));
+        return created.toObject();
+      } catch (error) {
+        throw markDuplicate(error);
+      }
+    },
+
+    async updateAdjustmentConditional(session, organizationId, id, expectedVersion, patch) {
+      const updated = await StockAdjustmentModel.findOneAndUpdate(
+        { _id: id, organizationId, version: expectedVersion },
+        { $set: { ...patch, version: expectedVersion + 1 } },
+        { new: true, ...withSession(session) },
+      )
+        .lean()
+        .exec();
+      return updated;
+    },
+
+    async listPositiveBalancesWithBatchFacts(organizationId, filters) {
+      const balanceQuery = { organizationId };
+      if (filters.warehouseId) {
+        balanceQuery.warehouseId = filters.warehouseId;
+      }
+      if (filters.productId) {
+        balanceQuery.productId = filters.productId;
+      }
+      const balances = await InventoryBalanceModel.find(balanceQuery).lean().exec();
+      const positive = balances.filter((row) => BigInt(String(row.quantityBaseMinorUnits ?? '0')) > 0n);
+
+      const batchIds = positive
+        .map((row) => row.batchId)
+        .filter((batchId) => batchId !== null && batchId !== undefined);
+      const batches =
+        batchIds.length === 0
+          ? []
+          : await ProductBatchModel.find({ organizationId, _id: { $in: batchIds } }).lean().exec();
+      const batchById = new Map(batches.map((row) => [String(row['_id']), row]));
+
+      return positive.map((balance) => {
+        const batch = balance.batchId ? batchById.get(String(balance.batchId)) : null;
+        return {
+          batchId: balance.batchId ?? null,
+          batchNumber: batch ? batch.batchNumber : null,
+          expiryDate: batch ? batch.expiryDate : null,
+          firstReceivedAt: batch ? batch.firstReceivedAt : balance.createdAt,
+          quantityBaseMinorUnits: balance.quantityBaseMinorUnits,
+          warehouseId: balance.warehouseId,
+          productId: balance.productId,
+        };
+      });
+    },
   };
 }
 
@@ -194,6 +283,8 @@ function createInMemoryInventoryStore() {
   const movements = new Map();
   const balances = new Map();
   const costStates = new Map();
+  const adjustments = new Map();
+  const inventorySettings = new Map();
   const audits = [];
   let seq = 1;
 
@@ -459,11 +550,121 @@ function createInMemoryInventoryStore() {
       audits.push({ ...event, _id: nextId() });
     },
 
+    async findInventorySettings(organizationId) {
+      const record = inventorySettings.get(String(organizationId));
+      return record ? { ...record } : null;
+    },
+
+    async upsertInventorySettings(session, organizationId, patch) {
+      void session;
+      const existing = inventorySettings.get(String(organizationId));
+      const updated = {
+        organizationId,
+        expiryThresholdDays: 30,
+        version: 1,
+        ...existing,
+        ...patch,
+        updatedAt: new Date(),
+        createdAt: existing?.createdAt ?? new Date(),
+        _id: existing?._id ?? nextId(),
+      };
+      inventorySettings.set(String(organizationId), updated);
+      return { ...updated };
+    },
+
+    async findAdjustmentById(organizationId, id) {
+      const record = adjustments.get(String(id));
+      if (!record || String(record.organizationId) !== String(organizationId)) {
+        return null;
+      }
+      return { ...record };
+    },
+
+    async listAdjustments(organizationId, filters) {
+      return [...adjustments.values()]
+        .filter((item) => {
+          if (String(item.organizationId) !== String(organizationId)) {
+            return false;
+          }
+          if (filters.status && item.status !== filters.status) {
+            return false;
+          }
+          if (filters.warehouseId && String(item.warehouseId) !== String(filters.warehouseId)) {
+            return false;
+          }
+          return true;
+        })
+        .sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)))
+        .map((item) => ({ ...item }));
+    },
+
+    async insertAdjustment(session, doc) {
+      void session;
+      const created = {
+        _id: doc._id ?? nextId(),
+        ...doc,
+        version: doc.version ?? 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      adjustments.set(String(created._id), created);
+      return { ...created };
+    },
+
+    async updateAdjustmentConditional(session, organizationId, id, expectedVersion, patch) {
+      void session;
+      const record = adjustments.get(String(id));
+      if (!record || String(record.organizationId) !== String(organizationId)) {
+        return null;
+      }
+      if (Number(record.version) !== Number(expectedVersion)) {
+        return null;
+      }
+      const updated = {
+        ...record,
+        ...patch,
+        version: expectedVersion + 1,
+        updatedAt: new Date(),
+      };
+      adjustments.set(String(id), updated);
+      return { ...updated };
+    },
+
+    async listPositiveBalancesWithBatchFacts(organizationId, filters) {
+      const rows = [...balances.values()].filter((item) => {
+        if (String(item.organizationId) !== String(organizationId)) {
+          return false;
+        }
+        if (filters.warehouseId && String(item.warehouseId) !== String(filters.warehouseId)) {
+          return false;
+        }
+        if (filters.productId && String(item.productId) !== String(filters.productId)) {
+          return false;
+        }
+        return BigInt(String(item.quantityBaseMinorUnits ?? '0')) > 0n;
+      });
+
+      return rows.map((balance) => {
+        const batch = balance.batchId ? batches.get(String(balance.batchId)) : null;
+        return {
+          batchId: balance.batchId ?? null,
+          batchNumber: batch ? batch.batchNumber : null,
+          expiryDate: batch ? batch.expiryDate : null,
+          firstReceivedAt: batch ? batch.firstReceivedAt : balance.createdAt,
+          quantityBaseMinorUnits: balance.quantityBaseMinorUnits,
+          warehouseId: balance.warehouseId,
+          productId: balance.productId,
+        };
+      });
+    },
+
     _debug: {
       batches,
       movements,
       balances,
       costStates,
+      adjustments,
+      inventorySettings,
       audits,
     },
   };

@@ -282,6 +282,20 @@ export const appRoutes: Route[] = [
         loadComponent: () =>
           import('./features/inventory/pages/batches/batches.page').then((m) => m.BatchesPage),
       },
+      {
+        path: 'inventory/expiry',
+        loadComponent: () =>
+          import('./features/inventory/pages/expiry/expiry-inquiry.page').then(
+            (m) => m.ExpiryInquiryPage,
+          ),
+      },
+      {
+        path: 'inventory/adjustments',
+        loadComponent: () =>
+          import('./features/inventory/pages/adjustments/adjustments.page').then(
+            (m) => m.AdjustmentsPage,
+          ),
+      },
     ],
   },
   {
