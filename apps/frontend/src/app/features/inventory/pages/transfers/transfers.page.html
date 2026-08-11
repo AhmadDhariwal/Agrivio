@@ -1,0 +1,96 @@
+<agrivio-ui-page-header
+  title="Warehouse transfers"
+  subtitle="Move stock between warehouses with preserved batch and cost."
+/>
+
+@if (!canTransfer()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to transfer stock." />
+} @else {
+  @if (loading()) {
+    <agrivio-ui-loading-state label="Loading transfers…" />
+  } @else {
+    @if (errorMessage(); as error) {
+      <agrivio-ui-alert tone="danger" [message]="error" />
+    }
+    @if (successMessage(); as success) {
+      <agrivio-ui-alert tone="success" [message]="success" data-testid="transfer-success" />
+    }
+
+    <form [formGroup]="form" (ngSubmit)="submit()" data-testid="transfer-form" class="ag-form">
+      <label>Source warehouse
+        <select formControlName="sourceWarehouseId" data-testid="transfer-source">
+          <option value="">Select source warehouse</option>
+          @for (warehouse of warehouses(); track warehouse.id) {
+            <option [value]="warehouse.id">{{ warehouse.name }}</option>
+          }
+        </select>
+      </label>
+      <label>Destination warehouse
+        <select formControlName="destinationWarehouseId" data-testid="transfer-destination">
+          <option value="">Select destination warehouse</option>
+          @for (warehouse of warehouses(); track warehouse.id) {
+            <option [value]="warehouse.id">{{ warehouse.name }}</option>
+          }
+        </select>
+      </label>
+      <label>Product
+        <select formControlName="productId" data-testid="transfer-product">
+          <option value="">Select product</option>
+          @for (product of products(); track product.id) {
+            <option [value]="product.id">{{ product.name }}</option>
+          }
+        </select>
+      </label>
+      @if (selectedTrackingMode() !== 'none') {
+        <label>Batch
+          <select formControlName="batchId" data-testid="transfer-batch">
+            <option value="">Select batch</option>
+            @for (option of batchOptions(); track option.batchId) {
+              <option [value]="option.batchId">{{ option.label }}</option>
+            }
+          </select>
+        </label>
+      }
+      <label>Quantity
+        <input formControlName="quantity" data-testid="transfer-quantity" />
+      </label>
+      <label>Reason
+        <input formControlName="reason" data-testid="transfer-reason" />
+      </label>
+      <button type="submit" [disabled]="saving()" data-testid="transfer-submit">Post transfer</button>
+    </form>
+
+    <div class="ag-table-wrap">
+      <table class="ag-table" data-testid="transfers-list">
+        <thead>
+          <tr>
+            <th>Source</th>
+            <th>Destination</th>
+            <th>Qty</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of transfers(); track item.id) {
+            <tr data-testid="transfer-row">
+              <td>{{ item.sourceWarehouseId }}</td>
+              <td>{{ item.destinationWarehouseId }}</td>
+              <td>{{ item.quantityBase }}</td>
+              <td>{{ item.status }}</td>
+              <td>
+                @if (canReverse() && item.status === 'posted') {
+                  <button type="button" data-testid="transfer-reverse" (click)="reverse(item)">
+                    Reverse
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+}
+
+<p><a routerLink="/app/inventory/stock">Back to stock</a></p>

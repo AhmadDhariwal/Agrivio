@@ -296,6 +296,20 @@ export const appRoutes: Route[] = [
             (m) => m.AdjustmentsPage,
           ),
       },
+      {
+        path: 'inventory/transfers',
+        loadComponent: () =>
+          import('./features/inventory/pages/transfers/transfers.page').then(
+            (m) => m.TransfersPage,
+          ),
+      },
+      {
+        path: 'inventory/reconciliation',
+        loadComponent: () =>
+          import('./features/inventory/pages/reconciliation/reconciliation.page').then(
+            (m) => m.ReconciliationPage,
+          ),
+      },
     ],
   },
   {

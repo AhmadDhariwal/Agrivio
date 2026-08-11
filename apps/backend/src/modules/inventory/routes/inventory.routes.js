@@ -5,7 +5,9 @@ const {
   API_INVENTORY_BATCHES_PATH,
   API_INVENTORY_EXPIRY_PATH,
   API_INVENTORY_OPENING_STOCK_PATH,
+  API_INVENTORY_RECONCILIATION_PATH,
   API_STOCK_ADJUSTMENTS_PATH,
+  API_WAREHOUSE_TRANSFERS_PATH,
 } = require('@agrivio/api-contracts');
 const {
   createRequireOrganizationContextMiddleware,
@@ -71,6 +73,17 @@ function registerInventoryRoutes(deps) {
     deps.requireOperationalAccess,
     (req, res, next) => {
       void controller.queryExpiry(req, res, next);
+    },
+  );
+
+  router.get(
+    API_INVENTORY_RECONCILIATION_PATH,
+    deps.requireAuth,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('inventory.view'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.reconcileInventory(req, res, next);
     },
   );
 
@@ -156,6 +169,76 @@ function registerInventoryRoutes(deps) {
     deps.requireOperationalAccess,
     (req, res, next) => {
       void controller.reverseAdjustment(req, res, next);
+    },
+  );
+
+  router.get(
+    API_WAREHOUSE_TRANSFERS_PATH,
+    deps.requireAuth,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('inventory.view'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.listTransfers(req, res, next);
+    },
+  );
+
+  router.post(
+    API_WAREHOUSE_TRANSFERS_PATH,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('inventory.transfer'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.createTransfer(req, res, next);
+    },
+  );
+
+  router.get(
+    `${API_WAREHOUSE_TRANSFERS_PATH}/:id`,
+    deps.requireAuth,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('inventory.view'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.getTransfer(req, res, next);
+    },
+  );
+
+  router.patch(
+    `${API_WAREHOUSE_TRANSFERS_PATH}/:id`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('inventory.transfer'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.updateTransfer(req, res, next);
+    },
+  );
+
+  router.post(
+    `${API_WAREHOUSE_TRANSFERS_PATH}/:id/post`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('inventory.transfer'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.postTransfer(req, res, next);
+    },
+  );
+
+  router.post(
+    `${API_WAREHOUSE_TRANSFERS_PATH}/:id/reverse`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('inventory.transfer.reverse'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.reverseTransfer(req, res, next);
     },
   );
 

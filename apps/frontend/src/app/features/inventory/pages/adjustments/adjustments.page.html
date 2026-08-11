@@ -4,7 +4,7 @@
 />
 
 @if (!canAdjust()) {
-  <agrivio-ui-alert variant="warning">You do not have permission to adjust stock.</agrivio-ui-alert>
+  <agrivio-ui-alert tone="warning" message="You do not have permission to adjust stock." />
 } @else {
   @if (loading()) {
     <agrivio-ui-loading-state label="Loading adjustments…" />
@@ -33,6 +33,16 @@
           }
         </select>
       </label>
+      @if (selectedTrackingMode() !== 'none') {
+        <label>Batch
+          <select formControlName="batchId" data-testid="adjustment-batch">
+            <option value="">Select batch</option>
+            @for (option of batchOptions(); track option.batchId) {
+              <option [value]="option.batchId">{{ option.label }}</option>
+            }
+          </select>
+        </label>
+      }
       <label>Type
         <select formControlName="adjustmentType" data-testid="adjustment-type">
           <option value="damage">Damage</option>

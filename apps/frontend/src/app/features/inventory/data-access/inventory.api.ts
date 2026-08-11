@@ -8,8 +8,10 @@ import {
   InventoryBalanceRecord,
   OpeningStockResult,
   ProductBatchRecord,
+  ReconciliationResult,
   StockAdjustmentRecord,
   StockMovementRecord,
+  WarehouseTransferRecord,
 } from '../models/inventory.models';
 
 @Injectable({ providedIn: 'root' })
@@ -225,5 +227,114 @@ export class InventoryApi {
           .pipe(map((response) => response.data)),
       ),
     );
+  }
+
+  listTransfers(query?: {
+    status?: string;
+    sourceWarehouseId?: string;
+    destinationWarehouseId?: string;
+  }): Observable<WarehouseTransferRecord[]> {
+    const params: Record<string, string> = {};
+    if (query?.status) {
+      params['status'] = query.status;
+    }
+    if (query?.sourceWarehouseId) {
+      params['sourceWarehouseId'] = query.sourceWarehouseId;
+    }
+    if (query?.destinationWarehouseId) {
+      params['destinationWarehouseId'] = query.destinationWarehouseId;
+    }
+    return this.http
+      .get<{ data: { items: WarehouseTransferRecord[] } }>(
+        `${environment.publicApiBaseUrl}/api/v1/warehouse-transfers`,
+        { withCredentials: true, params },
+      )
+      .pipe(map((response) => response.data.items));
+  }
+
+  createTransferDraft(payload: {
+    sourceWarehouseId: string;
+    destinationWarehouseId: string;
+    productId: string;
+    quantity: string;
+    batchId?: string;
+    reason?: string;
+    packagingUnitId?: string;
+  }): Observable<WarehouseTransferRecord> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: WarehouseTransferRecord }>(
+            `${environment.publicApiBaseUrl}/api/v1/warehouse-transfers`,
+            payload,
+            {
+              withCredentials: true,
+              headers: { 'X-CSRF-Token': csrfToken },
+            },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
+  postTransfer(
+    id: string,
+    payload: {
+      reason: string;
+      negativeStockOverride?: boolean;
+      negativeStockOverrideReason?: string;
+    },
+    idempotencyKey: string,
+  ): Observable<WarehouseTransferRecord> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: WarehouseTransferRecord }>(
+            `${environment.publicApiBaseUrl}/api/v1/warehouse-transfers/${id}/post`,
+            payload,
+            {
+              withCredentials: true,
+              headers: {
+                'X-CSRF-Token': csrfToken,
+                'Idempotency-Key': idempotencyKey,
+              },
+            },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
+  reverseTransfer(
+    id: string,
+    payload: { reason: string },
+    idempotencyKey: string,
+  ): Observable<WarehouseTransferRecord> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: WarehouseTransferRecord }>(
+            `${environment.publicApiBaseUrl}/api/v1/warehouse-transfers/${id}/reverse`,
+            payload,
+            {
+              withCredentials: true,
+              headers: {
+                'X-CSRF-Token': csrfToken,
+                'Idempotency-Key': idempotencyKey,
+              },
+            },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
+  reconcileInventory(): Observable<ReconciliationResult> {
+    return this.http
+      .get<{ data: ReconciliationResult }>(
+        `${environment.publicApiBaseUrl}/api/v1/inventory/reconciliation`,
+        { withCredentials: true },
+      )
+      .pipe(map((response) => response.data));
   }
 }

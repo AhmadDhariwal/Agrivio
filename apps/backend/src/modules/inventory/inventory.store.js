@@ -5,6 +5,7 @@ const { InventoryBalanceModel } = require('./persistence/inventory-balance.model
 const { InventoryCostStateModel } = require('./persistence/inventory-cost-state.model');
 const { StockAdjustmentModel } = require('./persistence/stock-adjustment.model');
 const { InventorySettingsModel } = require('./persistence/inventory-settings.model');
+const { WarehouseTransferModel } = require('./persistence/warehouse-transfer.model');
 const { AuditEventModel } = require('../audit/persistence/audit-event.model');
 
 function withSession(session) {
@@ -275,6 +276,59 @@ function createMongooseInventoryStore() {
         };
       });
     },
+
+    async findTransferById(organizationId, id) {
+      if (!mongoose.isValidObjectId(id)) {
+        return null;
+      }
+      return WarehouseTransferModel.findOne({ _id: id, organizationId }).lean().exec();
+    },
+
+    async listTransfers(organizationId, filters) {
+      const query = { organizationId };
+      if (filters.status) {
+        query.status = filters.status;
+      }
+      if (filters.sourceWarehouseId) {
+        query.sourceWarehouseId = filters.sourceWarehouseId;
+      }
+      if (filters.destinationWarehouseId) {
+        query.destinationWarehouseId = filters.destinationWarehouseId;
+      }
+      return WarehouseTransferModel.find(query).sort({ createdAt: -1 }).lean().exec();
+    },
+
+    async insertTransfer(session, doc) {
+      try {
+        const [created] = await WarehouseTransferModel.create([doc], withSession(session));
+        return created.toObject();
+      } catch (error) {
+        throw markDuplicate(error);
+      }
+    },
+
+    async updateTransferConditional(session, organizationId, id, expectedVersion, patch) {
+      const updated = await WarehouseTransferModel.findOneAndUpdate(
+        { _id: id, organizationId, version: expectedVersion },
+        { $set: { ...patch, version: expectedVersion + 1 } },
+        { new: true, ...withSession(session) },
+      )
+        .lean()
+        .exec();
+      return updated;
+    },
+
+    async listAllBalances(organizationId) {
+      return InventoryBalanceModel.find({ organizationId }).lean().exec();
+    },
+
+    async listAllCostStates(organizationId) {
+      return InventoryCostStateModel.find({ organizationId }).lean().exec();
+    },
+
+    async listAllMovements(organizationId) {
+      return StockMovementModel.find({ organizationId, status: 'posted' }).lean().exec();
+    },
   };
 }
 
@@ -284,6 +338,7 @@ function createInMemoryInventoryStore() {
   const balances = new Map();
   const costStates = new Map();
   const adjustments = new Map();
+  const transfers = new Map();
   const inventorySettings = new Map();
   const audits = [];
   let seq = 1;
@@ -658,12 +713,101 @@ function createInMemoryInventoryStore() {
       });
     },
 
+    async findTransferById(organizationId, id) {
+      const record = transfers.get(String(id));
+      if (!record || String(record.organizationId) !== String(organizationId)) {
+        return null;
+      }
+      return { ...record };
+    },
+
+    async listTransfers(organizationId, filters) {
+      return [...transfers.values()]
+        .filter((item) => {
+          if (String(item.organizationId) !== String(organizationId)) {
+            return false;
+          }
+          if (filters.status && item.status !== filters.status) {
+            return false;
+          }
+          if (
+            filters.sourceWarehouseId &&
+            String(item.sourceWarehouseId) !== String(filters.sourceWarehouseId)
+          ) {
+            return false;
+          }
+          if (
+            filters.destinationWarehouseId &&
+            String(item.destinationWarehouseId) !== String(filters.destinationWarehouseId)
+          ) {
+            return false;
+          }
+          return true;
+        })
+        .sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)))
+        .map((item) => ({ ...item }));
+    },
+
+    async insertTransfer(session, doc) {
+      void session;
+      const created = {
+        _id: doc._id ?? nextId(),
+        ...doc,
+        version: doc.version ?? 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      transfers.set(String(created._id), created);
+      return { ...created };
+    },
+
+    async updateTransferConditional(session, organizationId, id, expectedVersion, patch) {
+      void session;
+      const record = transfers.get(String(id));
+      if (!record || String(record.organizationId) !== String(organizationId)) {
+        return null;
+      }
+      if (Number(record.version) !== Number(expectedVersion)) {
+        return null;
+      }
+      const updated = {
+        ...record,
+        ...patch,
+        version: expectedVersion + 1,
+        updatedAt: new Date(),
+      };
+      transfers.set(String(id), updated);
+      return { ...updated };
+    },
+
+    async listAllBalances(organizationId) {
+      return [...balances.values()]
+        .filter((item) => String(item.organizationId) === String(organizationId))
+        .map((item) => ({ ...item }));
+    },
+
+    async listAllCostStates(organizationId) {
+      return [...costStates.values()]
+        .filter((item) => String(item.organizationId) === String(organizationId))
+        .map((item) => ({ ...item }));
+    },
+
+    async listAllMovements(organizationId) {
+      return [...movements.values()]
+        .filter(
+          (item) =>
+            String(item.organizationId) === String(organizationId) && item.status === 'posted',
+        )
+        .map((item) => ({ ...item }));
+    },
+
     _debug: {
       batches,
       movements,
       balances,
       costStates,
       adjustments,
+      transfers,
       inventorySettings,
       audits,
     },
