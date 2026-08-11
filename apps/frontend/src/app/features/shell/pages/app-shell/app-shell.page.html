@@ -51,6 +51,18 @@
         @if (canViewAccounts()) {
           <a routerLink="/app/accounts" routerLinkActive="active">Accounts</a>
         }
+        @if (canViewInventory()) {
+          <a routerLink="/app/inventory/stock" routerLinkActive="active" data-testid="nav-inventory">
+            Inventory
+          </a>
+          <a
+            routerLink="/app/inventory/opening-stock"
+            routerLinkActive="active"
+            data-testid="nav-opening-stock"
+          >
+            Opening stock
+          </a>
+        }
         @if (canSubmitBilling()) {
           <a routerLink="/app/subscription/billing" routerLinkActive="active">Billing</a>
         }

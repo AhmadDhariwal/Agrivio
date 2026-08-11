@@ -41,7 +41,10 @@ const { registerSuppliersRoutes } = require('./modules/suppliers/routes/supplier
 const { createAccountsModule } = require('./modules/accounts-expenses/accounts.module');
 const { registerAccountsRoutes } = require('./modules/accounts-expenses/routes/accounts.routes');
 const { createLedgersModule } = require('./modules/payments-ledgers/ledgers.module');
+const { createInventoryModule } = require('./modules/inventory/inventory.module');
+const { registerInventoryRoutes } = require('./modules/inventory/routes/inventory.routes');
 const { createSetupProgressService } = require('./modules/settings/setup-progress.service');
+const { canAccessWarehouse } = require('./modules/identity/assignment-scope');
 
 function createApp(options) {
   const { config, database } = options;
@@ -189,6 +192,16 @@ function createApp(options) {
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
+  const inventory =
+    options.inventory ??
+    createInventoryModule({
+      persistence,
+      catalogService: catalog.catalogService,
+      locationsService: locations.locationsService,
+      canAccessWarehouse,
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+
   const setupProgressService =
     options.setupProgressService ??
     createSetupProgressService({
@@ -297,6 +310,13 @@ function createApp(options) {
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
   });
 
+  const inventoryRoutes = registerInventoryRoutes({
+    inventoryService: inventory.inventoryService,
+    requireAuth: auth.middlewares.requireAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
+    requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+  });
+
   const app = express();
   app.disable('x-powered-by');
 
@@ -318,6 +338,7 @@ function createApp(options) {
   app.use(customersRoutes);
   app.use(suppliersRoutes);
   app.use(accountsRoutes);
+  app.use(inventoryRoutes);
 
   if (typeof options.registerOperationalProbe === 'function') {
     options.registerOperationalProbe(app, {
@@ -355,6 +376,7 @@ function createApp(options) {
     customers,
     suppliers,
     accounts,
+    inventory,
     ledgers,
     setupProgressService,
   };
