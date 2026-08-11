@@ -128,7 +128,7 @@ export class OpeningStockPage {
     if (value.manufacturingDate.trim() !== '') {
       payload.manufacturingDate = value.manufacturingDate.trim();
     }
-    if (mode === 'batch_expiry' || value.expiryDate.trim() !== '') {
+    if (mode === 'batch_expiry' && value.expiryDate.trim() !== '') {
       payload.expiryDate = value.expiryDate.trim();
     }
 

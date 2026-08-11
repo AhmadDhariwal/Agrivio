@@ -9,11 +9,11 @@
   @if (loading()) {
     <agrivio-ui-loading-state label="Loading adjustments…" />
   } @else {
-    @if (errorMessage()) {
-      <agrivio-ui-alert variant="error">{{ errorMessage() }}</agrivio-ui-alert>
+    @if (errorMessage(); as error) {
+      <agrivio-ui-alert tone="danger" [message]="error" />
     }
-    @if (successMessage()) {
-      <agrivio-ui-alert variant="success" data-testid="adjustment-success">{{ successMessage() }}</agrivio-ui-alert>
+    @if (successMessage(); as success) {
+      <agrivio-ui-alert tone="success" [message]="success" data-testid="adjustment-success" />
     }
 
     <form [formGroup]="form" (ngSubmit)="submit()" data-testid="adjustment-form" class="ag-form">

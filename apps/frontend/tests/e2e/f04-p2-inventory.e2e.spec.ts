@@ -38,18 +38,28 @@ test.describe('F04 P2 inventory vertical slice', () => {
     await page.getByTestId('activation-password-input').fill(OWNER_PASSWORD);
     await page.getByTestId('activation-password-confirm-input').fill(OWNER_PASSWORD);
     await page.getByTestId('activate-submit').click();
+    await expect(page).toHaveURL(/\/context/);
     await page.getByTestId('continue-workspace').click();
+    await expect(page.getByTestId('authenticated-shell')).toBeVisible();
 
     await page.getByRole('link', { name: 'Warehouses' }).click();
     await page.getByTestId('warehouse-create-link').click();
     await page.getByTestId('warehouse-name').fill('P2 Warehouse');
     await page.getByTestId('warehouse-save').click();
+    await expect(page.getByTestId('warehouses-list')).toContainText('P2 Warehouse');
 
     await page.getByRole('link', { name: 'Categories' }).click();
     await page.getByTestId('category-create-link').click();
     await page.getByTestId('category-name').fill('P2 Fertilizers');
     await page.getByTestId('category-product-class').selectOption('fertilizer');
     await page.getByTestId('category-save').click();
+    await expect(page.getByTestId('categories-list')).toContainText('P2 Fertilizers');
+
+    await page.getByTestId('category-create-link').click();
+    await page.getByTestId('category-name').fill('P2 Equipment');
+    await page.getByTestId('category-product-class').selectOption('general');
+    await page.getByTestId('category-save').click();
+    await expect(page.getByTestId('categories-list')).toContainText('P2 Equipment');
 
     await page.getByRole('link', { name: 'Products' }).click();
     await page.getByTestId('product-create-link').click();
@@ -59,14 +69,16 @@ test.describe('F04 P2 inventory vertical slice', () => {
     await page.getByTestId('product-base-unit').fill('KG');
     await page.getByTestId('product-measurement-dimension').selectOption('mass');
     await page.getByTestId('product-save').click();
+    await expect(page.getByTestId('products-list')).toContainText('P2 Urea');
 
     await page.getByTestId('product-create-link').click();
     await page.getByTestId('product-name').fill('P2 Bag');
-    await page.getByTestId('product-category').selectOption({ label: 'P2 Fertilizers' });
+    await page.getByTestId('product-category').selectOption({ label: 'P2 Equipment' });
     await page.getByTestId('product-tracking-mode').selectOption('none');
     await page.getByTestId('product-base-unit').fill('EA');
-    await page.getByTestId('product-measurement-dimension').selectOption('count');
+    await page.getByTestId('product-measurement-dimension').selectOption('mass');
     await page.getByTestId('product-save').click();
+    await expect(page.getByTestId('products-list')).toContainText('P2 Bag');
 
     await page.getByTestId('nav-opening-stock').click();
     await page.getByTestId('opening-warehouse').selectOption({ label: 'P2 Warehouse' });
@@ -79,6 +91,7 @@ test.describe('F04 P2 inventory vertical slice', () => {
     await expect(page.getByTestId('opening-stock-success')).toBeVisible();
 
     await page.getByTestId('nav-opening-stock').click();
+    await page.getByTestId('opening-warehouse').selectOption({ label: 'P2 Warehouse' });
     await page.getByTestId('opening-product').selectOption({ label: 'P2 Bag (none)' });
     await page.getByTestId('opening-quantity').fill('2');
     await page.getByTestId('opening-inventory-value').fill('20.00');
@@ -111,17 +124,34 @@ test.describe('F04 P2 inventory vertical slice', () => {
 });
 
 async function seedStarterPlan(request: import('@playwright/test').APIRequestContext) {
-  const response = await request.post(`${API}/api/v1/test/e2e/seed-starter-plan`);
-  expect(response.status()).toBeLessThan(500);
+  const csrf = await request.post(`${API}/api/v1/auth/csrf`);
+  const csrfBody = await csrf.json();
+  const token = csrfBody.data.csrfToken as string;
+  await request.post(`${API}/api/v1/platform/subscription-plans`, {
+    headers: {
+      'X-CSRF-Token': token,
+      'X-Platform-Actor': 'super-admin',
+    },
+    data: {
+      planCode: 'Starter',
+      activate: true,
+      monthlyPriceMinorUnits: 1000,
+      limits: { customers: 50, suppliers: 50, products: 50, warehouses: 20, users: 20 },
+    },
+  });
 }
 
 async function signIn(page: Page, email: string, password: string) {
-  await page.goto('/sign-in');
-  await page.getByTestId('sign-in-email').fill(email);
-  await page.getByTestId('sign-in-password').fill(password);
-  await page.getByTestId('sign-in-submit').click();
+  await page.goto('/login');
+  await page.getByTestId('login-email').fill(email);
+  await page.getByTestId('login-password').fill(password);
+  await page.getByTestId('login-submit').click();
+  await expect(page).toHaveURL(/\/(context|app)/);
 }
 
 async function enterPlatformWorkspace(page: Page) {
-  await page.getByTestId('platform-workspace-link').click();
+  if (page.url().includes('/context')) {
+    await page.getByTestId('continue-workspace').click();
+  }
+  await expect(page.getByTestId('authenticated-shell')).toBeVisible();
 }
