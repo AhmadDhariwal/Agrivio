@@ -1,7 +1,7 @@
 <agrivio-ui-page-header
   title="Purchases"
   eyebrow="Purchasing"
-  lede="Create and edit purchase drafts. Drafts are unposted and do not affect stock or payables."
+  lede="Create drafts, post purchases, and review posted purchase history."
 >
   @if (canCreate()) {
     <a class="ag-btn" routerLink="/app/purchases/new" data-testid="purchase-create-link">
@@ -17,7 +17,7 @@
 } @else if (items().length === 0) {
   <div data-testid="purchases-empty">
     <agrivio-ui-empty-state
-      title="No purchase drafts"
+      title="No purchases"
       message="Create a draft to prepare a purchase before posting."
     />
   </div>
@@ -26,7 +26,7 @@
     @for (item of items(); track item.id) {
       <article class="row" data-testid="purchase-row">
         <div>
-          <strong>{{ item.supplierNameSnapshot || 'Purchase draft' }}</strong>
+          <strong>{{ item.supplierNameSnapshot || 'Purchase' }}</strong>
           <p class="ag-muted">
             {{ item.purchaseDate }}
             @if (item.supplierInvoiceReference) {
@@ -39,8 +39,10 @@
             [label]="statusLabel(item.status)"
             [tone]="statusTone(item.status)"
           />
-          @if (canCreate()) {
-            <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/purchases', item.id]">Edit draft</a>
+          @if (canView() || canCreate()) {
+            <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/purchases', item.id]">
+              {{ actionLabel(item.status) }}
+            </a>
           }
         </div>
       </article>

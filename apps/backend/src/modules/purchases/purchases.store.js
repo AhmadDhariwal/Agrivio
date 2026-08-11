@@ -55,6 +55,21 @@ function createMongoosePurchasesStore() {
         .exec();
     },
 
+    async updatePurchaseIfDraft(session, organizationId, id, expectedVersion, patch) {
+      return PurchaseModel.findOneAndUpdate(
+        {
+          _id: id,
+          organizationId,
+          status: 'draft',
+          version: expectedVersion,
+        },
+        { $set: { ...patch, version: expectedVersion + 1 } },
+        { new: true, ...withSession(session) },
+      )
+        .lean()
+        .exec();
+    },
+
     async deletePurchase(session, organizationId, id) {
       const result = await PurchaseModel.deleteOne(
         { _id: id, organizationId, status: 'draft' },
@@ -142,6 +157,9 @@ function createInMemoryPurchasesStore() {
         ...patch,
         lines: (patch.lines ?? current.lines).map((line) => ({ ...line })),
         landedCosts: { ...(patch.landedCosts ?? current.landedCosts) },
+        paymentSnapshots: (patch.paymentSnapshots ?? current.paymentSnapshots ?? []).map((item) => ({
+          ...item,
+        })),
         updatedAt: new Date(),
       };
       purchases.set(id, next);
@@ -149,7 +167,22 @@ function createInMemoryPurchasesStore() {
         ...next,
         lines: next.lines.map((line) => ({ ...line })),
         landedCosts: { ...next.landedCosts },
+        paymentSnapshots: (next.paymentSnapshots ?? []).map((item) => ({ ...item })),
       };
+    },
+
+    async updatePurchaseIfDraft(_session, organizationId, id, expectedVersion, patch) {
+      const current = await this.findPurchaseById(organizationId, id);
+      if (current === null) {
+        return null;
+      }
+      if (current.status !== 'draft' || Number(current.version) !== Number(expectedVersion)) {
+        return null;
+      }
+      return this.updatePurchase(_session, organizationId, id, {
+        ...patch,
+        version: expectedVersion + 1,
+      });
     },
 
     async deletePurchase(_session, organizationId, id) {

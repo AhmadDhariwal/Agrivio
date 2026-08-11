@@ -22,9 +22,17 @@ const purchaseLineSchema = new mongoose.Schema(
     quantityBaseMinorUnits: { type: String, required: true },
     unitCostMinorUnits: { type: String, required: true },
     lineProductAmountMinorUnits: { type: String, required: true },
+    allocatedLandedCostMinorUnits: { type: String, default: '0' },
+    receiptInventoryValueMinorUnits: { type: String, default: null },
+    receiptUnitCostMinorUnits: { type: String, default: null },
     batchNumber: { type: String, default: null },
     manufacturingDate: { type: String, default: null },
     expiryDate: { type: String, default: null },
+    batchIdSnapshot: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ProductBatch',
+      default: null,
+    },
   },
   { _id: false },
 );
@@ -35,6 +43,25 @@ const landedCostSchema = new mongoose.Schema(
     loadingMinorUnits: { type: String, default: '0' },
     transportMinorUnits: { type: String, default: '0' },
     otherMinorUnits: { type: String, default: '0' },
+  },
+  { _id: false },
+);
+
+const purchasePaymentSnapshotSchema = new mongoose.Schema(
+  {
+    accountId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      ref: 'Account',
+    },
+    accountNameSnapshot: { type: String, required: true },
+    accountTypeSnapshot: { type: String, required: true },
+    amountMinorUnits: { type: String, required: true },
+    paymentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Payment',
+      default: null,
+    },
   },
   { _id: false },
 );
@@ -52,11 +79,13 @@ const purchaseSchema = new mongoose.Schema(
       ref: 'Branch',
       default: null,
     },
+    branchNameSnapshot: { type: String, default: null },
     warehouseId: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
       ref: 'Warehouse',
     },
+    warehouseNameSnapshot: { type: String, default: null },
     supplierId: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
@@ -85,6 +114,15 @@ const purchaseSchema = new mongoose.Schema(
         transportMinorUnits: '0',
         otherMinorUnits: '0',
       }),
+    },
+    goodsTotalMinorUnits: { type: String, default: null },
+    landedCostTotalMinorUnits: { type: String, default: null },
+    purchaseTotalMinorUnits: { type: String, default: null },
+    paidTotalMinorUnits: { type: String, default: null },
+    payableTotalMinorUnits: { type: String, default: null },
+    paymentSnapshots: {
+      type: [purchasePaymentSnapshotSchema],
+      default: [],
     },
     status: {
       type: String,

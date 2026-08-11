@@ -1669,6 +1669,72 @@ function createInventoryService(deps) {
         reconcileInventoryState({ movements, balances, costStates }),
       );
     },
+
+    /**
+     * Session-scoped inbound receipt for purchase (and similar) orchestration.
+     * Caller owns the transaction; Inventory must not commit independently.
+     */
+    async postInboundReceiptInSession(session, organizationId, actor, input) {
+      const product = await catalogService.getProduct(organizationId, input.productId);
+      assertActiveProduct(product);
+
+      if (product.trackingMode === 'none') {
+        if (input.batchNumber) {
+          throw validationFailed('batchNumber is not allowed for products without batch tracking', [
+            { field: 'batchNumber', message: 'batchNumber is not allowed' },
+          ]);
+        }
+      } else if (!input.batchNumber) {
+        throw validationFailed('batchNumber is required for batch-tracked products', [
+          { field: 'batchNumber', message: 'batchNumber is required' },
+        ]);
+      }
+
+      if (product.trackingMode === 'batch_expiry' && !input.expiryDate) {
+        throw validationFailed('expiryDate is required for batch_expiry tracking', [
+          { field: 'expiryDate', message: 'expiryDate is required' },
+        ]);
+      }
+
+      const postedAt = input.postedAt ?? now();
+      const batch = await resolveOrCreateBatch(
+        session,
+        organizationId,
+        product,
+        {
+          batchNumber: input.batchNumber ?? null,
+          manufacturingDate: input.manufacturingDate ?? null,
+          expiryDate: input.expiryDate ?? null,
+        },
+        postedAt,
+      );
+      const batchId = batch ? batch['_id'] : null;
+
+      const effects = await postStockMovementEffects(session, organizationId, actor, {
+        movementId: input.movementId,
+        warehouseId: input.warehouseId,
+        productId: input.productId,
+        batchId,
+        direction: 'inbound',
+        quantityBaseMinorUnits: BigInt(String(input.quantityBaseMinorUnits)),
+        enteredQuantityMinorUnits: String(input.enteredQuantityMinorUnits),
+        unitCode: input.unitCode,
+        conversionFactorSnapshot: String(input.conversionFactorSnapshot),
+        packagingUnitId: input.packagingUnitId ?? null,
+        inventoryValueMinorUnits: BigInt(String(input.inventoryValueMinorUnits)),
+        sourceType: input.sourceType,
+        sourceId: input.sourceId,
+        postedAt,
+      });
+
+      return {
+        movement: effects.movement,
+        balance: effects.balance,
+        costState: effects.costState,
+        batch,
+        batchId: batchId ? String(batchId) : null,
+      };
+    },
   };
 }
 

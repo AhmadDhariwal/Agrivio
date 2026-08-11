@@ -12,16 +12,36 @@ const {
 } = require('../../platform/errors/app-error');
 const {
   convertEnteredQuantityToBaseMinorUnits,
+  computeUnitCostMinorUnits,
 } = require('../../platform/primitives/money-and-time');
 const {
+  createIdempotencyService,
+  createInMemoryIdempotencyStore,
+  createMongooseIdempotencyStore,
+} = require('../../platform/idempotency/idempotency-service');
+const {
   parsePurchaseDraft,
+  parsePurchasePost,
   computeLineProductAmount,
   toPurchaseDto,
 } = require('./purchases.validation');
 const {
+  allocateLandedCosts,
+  sumLandedCostComponents,
+} = require('./landed-cost-allocation');
+const {
   createInMemoryPurchasesStore,
   createMongoosePurchasesStore,
 } = require('./purchases.store');
+
+function requireIdempotencyKey(idempotencyKey) {
+  if (typeof idempotencyKey !== 'string' || idempotencyKey.trim() === '') {
+    throw validationFailed('Idempotency-Key header is required', [
+      { field: 'Idempotency-Key', message: 'Idempotency-Key header is required' },
+    ]);
+  }
+  return idempotencyKey.trim();
+}
 
 function createMongooseTransactionSessionPort() {
   const mongoose = require('mongoose');
@@ -171,8 +191,18 @@ function createPurchasesService(deps) {
   const catalogService = deps.catalogService;
   const suppliersService = deps.suppliersService;
   const locationsService = deps.locationsService;
+  const inventoryService = deps.inventoryService;
+  const paymentsService = deps.paymentsService;
+  const accountsService = deps.accountsService;
   const transactionRunner = deps.transactionRunner;
   const now = deps.now ?? (() => new Date());
+  const idempotency =
+    deps.idempotency ??
+    createIdempotencyService(
+      deps.persistence === 'mongoose'
+        ? createMongooseIdempotencyStore()
+        : createInMemoryIdempotencyStore(),
+    );
   const auditWriter = createAuditWriter({
     append: (session, event) => store.appendAuditEvent(session, event),
   });
@@ -204,8 +234,9 @@ function createPurchasesService(deps) {
     const supplier = await suppliersService.getSupplier(organizationId, input.supplierId);
     assertActiveSupplier(supplier);
 
+    let branch = null;
     if (input.branchId) {
-      const branch = await locationsService.getBranch(organizationId, input.branchId);
+      branch = await locationsService.getBranch(organizationId, input.branchId);
       if (branch.status !== 'active') {
         throw validationFailed('Branch must be active', [
           { field: 'branchId', message: 'branch must be active' },
@@ -214,7 +245,51 @@ function createPurchasesService(deps) {
       await assertBranchAccess(authContext, input.branchId);
     }
 
-    return { warehouse, supplier };
+    return { warehouse, supplier, branch };
+  }
+
+  async function refreshLineSnapshotsForPost(organizationId, lines) {
+    const refreshed = [];
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index];
+      const product = await catalogService.getProduct(organizationId, String(line.productId));
+      assertActiveProduct(product);
+      assertBatchExpiryFacts(
+        product,
+        {
+          batchNumber: line.batchNumber ?? null,
+          manufacturingDate: line.manufacturingDate ?? null,
+          expiryDate: line.expiryDate ?? null,
+        },
+        `lines[${index}]`,
+      );
+
+      const packagingUnitId = line.packagingUnitId ? String(line.packagingUnitId) : null;
+      if (packagingUnitId !== null) {
+        const packaging = await catalogService.listPackagingUnits(organizationId, product.id);
+        const unit = packaging.items.find((item) => item.id === packagingUnitId);
+        if (unit === undefined) {
+          throw notFound('Packaging unit not found');
+        }
+      }
+
+      refreshed.push({
+        productId: product.id,
+        productNameSnapshot: String(line.productNameSnapshot || product.name),
+        trackingModeSnapshot: product.trackingMode,
+        packagingUnitId,
+        unitCodeSnapshot: String(line.unitCodeSnapshot),
+        conversionFactorSnapshot: String(line.conversionFactorSnapshot),
+        enteredQuantityMinorUnits: String(line.enteredQuantityMinorUnits),
+        quantityBaseMinorUnits: String(line.quantityBaseMinorUnits),
+        unitCostMinorUnits: String(line.unitCostMinorUnits),
+        lineProductAmountMinorUnits: String(line.lineProductAmountMinorUnits),
+        batchNumber: line.batchNumber ?? null,
+        manufacturingDate: line.manufacturingDate ?? null,
+        expiryDate: line.expiryDate ?? null,
+      });
+    }
+    return refreshed;
   }
 
   return {
@@ -254,11 +329,7 @@ function createPurchasesService(deps) {
     async createPurchaseDraft(organizationId, body, authContext) {
       const input = parsePurchaseDraft(body);
       const { supplier } = await resolveHeaderMasters(organizationId, input, authContext);
-      const lines = await buildResolvedLines(
-        { catalogService },
-        organizationId,
-        input.lines,
-      );
+      const lines = await buildResolvedLines({ catalogService }, organizationId, input.lines);
 
       return transactionRunner.run(async (session) => {
         const created = await store.insertPurchase(session, {
@@ -274,6 +345,8 @@ function createPurchasesService(deps) {
           lines,
           landedCosts: input.landedCosts,
           status: 'draft',
+          postedAt: null,
+          postedBy: null,
           createdBy: authContext.userId,
           version: 1,
         });
@@ -407,6 +480,246 @@ function createPurchasesService(deps) {
         return { id: purchaseId, discarded: true };
       });
     },
+
+    async postPurchase(organizationId, purchaseId, body, authContext, idempotencyKey) {
+      if (!inventoryService || !paymentsService || !accountsService) {
+        throw validationFailed('Purchase posting dependencies are not configured');
+      }
+
+      const key = requireIdempotencyKey(idempotencyKey);
+      const input = parsePurchasePost(body);
+      const actor = { actorId: String(authContext.userId) };
+
+      const result = await idempotency.execute(
+        {
+          scopeType: 'organization',
+          organizationId,
+          actorId: actor.actorId,
+          operation: 'purchases.post',
+        },
+        key,
+        {
+          purchaseId,
+          expectedVersion: input.expectedVersion,
+          payments: input.payments,
+        },
+        async () => {
+          const dto = await transactionRunner.run(async (session) => {
+            const existing = await store.findPurchaseById(organizationId, purchaseId);
+            if (existing === null) {
+              throw notFound('Purchase not found');
+            }
+            if (existing.status !== 'draft') {
+              throw conflict('Only draft purchases can be posted');
+            }
+            assertOptimisticVersion(existing, input.expectedVersion);
+            if (
+              typeof deps.canAccessWarehouse === 'function' &&
+              !deps.canAccessWarehouse(authContext, String(existing.warehouseId))
+            ) {
+              throw notFound('Purchase not found');
+            }
+
+            const { warehouse, supplier, branch } = await resolveHeaderMasters(
+              organizationId,
+              {
+                warehouseId: String(existing.warehouseId),
+                supplierId: String(existing.supplierId),
+                branchId: existing.branchId ? String(existing.branchId) : null,
+              },
+              authContext,
+            );
+
+            const lines = await refreshLineSnapshotsForPost(organizationId, existing.lines);
+            const goodsTotal = lines.reduce(
+              (sum, line) => sum + BigInt(line.lineProductAmountMinorUnits),
+              0n,
+            );
+            const landedCostTotal = BigInt(sumLandedCostComponents(existing.landedCosts));
+            const landedAllocations = allocateLandedCosts(lines, landedCostTotal.toString());
+            const purchaseTotal = goodsTotal + landedCostTotal;
+
+            let paidTotal = 0n;
+            for (const payment of input.payments) {
+              paidTotal += BigInt(payment.amountMinorUnits);
+            }
+            if (paidTotal > purchaseTotal) {
+              throw validationFailed('Payment total cannot exceed purchase total', [
+                { field: 'payments', message: 'paid amount cannot exceed purchase total' },
+              ]);
+            }
+            const payableTotal = purchaseTotal - paidTotal;
+            const postedAt = now();
+            const postedLines = [];
+
+            for (let index = 0; index < lines.length; index += 1) {
+              const line = lines[index];
+              const allocatedLanded = BigInt(landedAllocations[index]);
+              const receiptInventoryValue =
+                BigInt(line.lineProductAmountMinorUnits) + allocatedLanded;
+              const receiptUnitCost = computeUnitCostMinorUnits(
+                receiptInventoryValue,
+                BigInt(line.quantityBaseMinorUnits),
+              );
+
+              const receipt = await inventoryService.postInboundReceiptInSession(
+                session,
+                organizationId,
+                actor,
+                {
+                  warehouseId: String(existing.warehouseId),
+                  productId: line.productId,
+                  batchNumber: line.batchNumber,
+                  manufacturingDate: line.manufacturingDate,
+                  expiryDate: line.expiryDate,
+                  quantityBaseMinorUnits: line.quantityBaseMinorUnits,
+                  enteredQuantityMinorUnits: line.enteredQuantityMinorUnits,
+                  unitCode: line.unitCodeSnapshot,
+                  conversionFactorSnapshot: line.conversionFactorSnapshot,
+                  packagingUnitId: line.packagingUnitId,
+                  inventoryValueMinorUnits: receiptInventoryValue.toString(),
+                  sourceType: 'purchase',
+                  sourceId: purchaseId,
+                  postedAt,
+                },
+              );
+
+              postedLines.push({
+                ...line,
+                allocatedLandedCostMinorUnits: allocatedLanded.toString(),
+                receiptInventoryValueMinorUnits: receiptInventoryValue.toString(),
+                receiptUnitCostMinorUnits: receiptUnitCost.toString(),
+                batchIdSnapshot: receipt.batchId,
+              });
+            }
+
+            await paymentsService.postSupplierPayableEffect(session, {
+              organizationId,
+              supplierId: String(existing.supplierId),
+              signedAmountMinorUnits: purchaseTotal.toString(),
+              sourceType: 'purchase_payable',
+              sourceId: purchaseId,
+              postedAt,
+              postedBy: actor.actorId,
+            });
+
+            const paymentSnapshots = [];
+            for (const payment of input.payments) {
+              const account = await accountsService.getAccount(organizationId, payment.accountId);
+              if (account.status !== 'active') {
+                throw validationFailed('Account must be active', [
+                  { field: 'payments', message: 'account must be active' },
+                ]);
+              }
+
+              const paymentResult = await paymentsService.postSupplierPaymentInSession(session, {
+                organizationId,
+                supplierId: String(existing.supplierId),
+                accountId: payment.accountId,
+                allocationMode: 'invoice_specific',
+                amountMinorUnits: payment.amountMinorUnits,
+                paymentDate: String(existing.purchaseDate),
+                notes: '',
+                purchaseAllocations: [
+                  {
+                    purchaseId,
+                    allocatedAmountMinorUnits: payment.amountMinorUnits,
+                  },
+                ],
+                advanceAmountMinorUnits: '0',
+                postedAt,
+                postedBy: actor.actorId,
+                postAccountMovement: false,
+              });
+
+              await accountsService.postAccountMovement(session, {
+                organizationId,
+                accountId: payment.accountId,
+                signedAmountMinorUnits: `-${payment.amountMinorUnits}`,
+                sourceType: 'purchase_payment',
+                sourceId: String(paymentResult.payment['_id']),
+                postedAt,
+                postedBy: actor.actorId,
+              });
+
+              paymentSnapshots.push({
+                accountId: payment.accountId,
+                accountNameSnapshot: account.name,
+                accountTypeSnapshot: account.accountType,
+                amountMinorUnits: payment.amountMinorUnits,
+                paymentId: paymentResult.payment['_id'],
+              });
+            }
+
+            const updated = await store.updatePurchaseIfDraft(
+              session,
+              organizationId,
+              purchaseId,
+              input.expectedVersion,
+              {
+                supplierNameSnapshot: supplier.name,
+                warehouseNameSnapshot: warehouse.name,
+                branchNameSnapshot: branch ? branch.name : null,
+                lines: postedLines,
+                goodsTotalMinorUnits: goodsTotal.toString(),
+                landedCostTotalMinorUnits: landedCostTotal.toString(),
+                purchaseTotalMinorUnits: purchaseTotal.toString(),
+                paidTotalMinorUnits: paidTotal.toString(),
+                payableTotalMinorUnits: payableTotal.toString(),
+                paymentSnapshots,
+                status: 'posted',
+                postedAt,
+                postedBy: actor.actorId,
+                updatedAt: postedAt,
+              },
+            );
+            if (updated === null) {
+              throw conflict('Purchase was already posted or modified concurrently');
+            }
+
+            await auditWriter.appendBusinessEvent(session, {
+              organizationId,
+              actorId: actor.actorId,
+              action: 'purchase.posted',
+              resourceType: 'purchase',
+              resourceId: purchaseId,
+              metadata: {
+                purchaseTotalMinorUnits: purchaseTotal.toString(),
+                paidTotalMinorUnits: paidTotal.toString(),
+                payableTotalMinorUnits: payableTotal.toString(),
+                lineCount: postedLines.length,
+              },
+            });
+
+            return toPurchaseDto(updated);
+          });
+
+          return { statusCode: 200, body: dto };
+        },
+      );
+
+      return {
+        replay: result.replay,
+        data: result.response.body,
+        statusCode: result.response.statusCode,
+      };
+    },
+
+    async listUnpaidSupplierPurchases(organizationId, supplierId) {
+      const items = await store.listPurchases(organizationId, {
+        status: 'posted',
+        supplierId,
+      });
+      return items
+        .filter((item) => BigInt(String(item.payableTotalMinorUnits ?? '0')) > 0n)
+        .map((item) => ({
+          id: String(item['_id']),
+          outstandingMinorUnits: String(item.payableTotalMinorUnits ?? '0'),
+          purchaseDate: String(item.purchaseDate),
+          dueDate: null,
+          sequence: item.createdAt instanceof Date ? item.createdAt.toISOString() : String(item.createdAt ?? ''),
+        }));
+    },
   };
 }
 
@@ -425,12 +738,17 @@ function createPurchasesModule(options = {}) {
   const transactionRunner = options.transactionRunner ?? createTransactionRunner(sessionPort);
   const purchasesService = createPurchasesService({
     store,
+    persistence,
     transactionRunner,
     catalogService: options.catalogService,
     suppliersService: options.suppliersService,
     locationsService: options.locationsService,
+    inventoryService: options.inventoryService,
+    paymentsService: options.paymentsService,
+    accountsService: options.accountsService,
     canAccessWarehouse: options.canAccessWarehouse,
     canAccessBranch: options.canAccessBranch,
+    ...(options.idempotency === undefined ? {} : { idempotency: options.idempotency }),
     ...(options.now === undefined ? {} : { now: options.now }),
   });
 

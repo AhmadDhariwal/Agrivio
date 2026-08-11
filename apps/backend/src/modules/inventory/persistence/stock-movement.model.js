@@ -7,6 +7,7 @@ const MOVEMENT_SOURCE_TYPES = [
   'stock_adjustment_reversal',
   'warehouse_transfer',
   'warehouse_transfer_reversal',
+  'purchase',
 ];
 const MOVEMENT_STATUSES = ['posted'];
 

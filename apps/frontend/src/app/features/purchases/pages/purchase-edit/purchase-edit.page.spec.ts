@@ -6,6 +6,7 @@ import { PurchasesApi } from '../../data-access/purchases.api';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
 import { BranchesWarehousesApi } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { SuppliersApi } from '../../../suppliers/data-access/suppliers.api';
+import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 
 describe('PurchaseEditPage', () => {
@@ -21,6 +22,7 @@ describe('PurchaseEditPage', () => {
             createPurchase: () => of({}),
             updatePurchase: () => of({}),
             discardPurchase: () => of({}),
+            postPurchase: () => of({}),
           },
         },
         {
@@ -39,8 +41,17 @@ describe('PurchaseEditPage', () => {
           useValue: { listSuppliers: () => of([]) },
         },
         {
+          provide: AccountsApi,
+          useValue: { listAccounts: () => of([]) },
+        },
+        {
           provide: AuthSessionStore,
-          useValue: { hasPermission: () => true },
+          useValue: {
+            hasPermission: (permission: string) =>
+              permission === 'purchases.create' ||
+              permission === 'purchases.post' ||
+              permission === 'purchases.view',
+          },
         },
       ],
     }).compileComponents();
@@ -51,5 +62,6 @@ describe('PurchaseEditPage', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('[data-testid="purchase-form"]')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('[data-testid="purchase-draft-banner"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="purchase-payments"]')).toBeTruthy();
   });
 });

@@ -66,6 +66,36 @@ describe('F04 P3 shared posting contracts', () => {
     expect(typeof module.accountsService.listAccountMovements).toBe('function');
   });
 
+  it('Inventory service exposes session inbound receipt for purchase orchestration', () => {
+    const inventoryPublic = require('./public');
+    const module = inventoryPublic.createInventoryModule({
+      persistence: 'memory',
+      catalogService: {
+        async getProduct() {
+          return {
+            id: 'p1',
+            name: 'P',
+            trackingMode: 'none',
+            baseUnitCode: 'EA',
+            status: 'active',
+          };
+        },
+        async listPackagingUnits() {
+          return { items: [] };
+        },
+      },
+      locationsService: {
+        async getWarehouse() {
+          return { id: 'w1', status: 'active', name: 'WH' };
+        },
+      },
+      canAccessWarehouse: () => true,
+      hasPermission: () => true,
+      resolveOrganizationTimezone: async () => 'Asia/Karachi',
+    });
+    expect(typeof module.inventoryService.postInboundReceiptInSession).toBe('function');
+  });
+
   it('Payments and Purchases public entries do not leak persistence paths', () => {
     const entry = join(backendRoot, 'modules/payments-ledgers/public/index.js');
     const contents = readFileSync(entry, 'utf8');

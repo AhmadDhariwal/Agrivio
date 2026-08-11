@@ -13,6 +13,7 @@ import { PurchasesApi } from '../../data-access/purchases.api';
 import {
   PurchaseDraftInput,
   PurchaseLineInput,
+  PurchasePaymentInput,
   PurchaseRecord,
 } from '../../models/purchases.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
@@ -24,6 +25,8 @@ import {
 import { SuppliersApi } from '../../../suppliers/data-access/suppliers.api';
 import { SupplierRecord } from '../../../suppliers/models/suppliers.models';
 import { PackagingUnitRecord, ProductRecord } from '../../../catalog/models/catalog.models';
+import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
+import { AccountRecord } from '../../../accounts-expenses/models/accounts.models';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
@@ -46,22 +49,33 @@ export class PurchaseEditPage {
   private readonly catalogApi = inject(CatalogApi);
   private readonly locationsApi = inject(BranchesWarehousesApi);
   private readonly suppliersApi = inject(SuppliersApi);
+  private readonly accountsApi = inject(AccountsApi);
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
 
   readonly purchaseId = signal<string | null>(null);
+  readonly purchase = signal<PurchaseRecord | null>(null);
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly discarding = signal(false);
+  readonly posting = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly products = signal<ProductRecord[]>([]);
   readonly warehouses = signal<WarehouseRecord[]>([]);
   readonly suppliers = signal<SupplierRecord[]>([]);
+  readonly accounts = signal<AccountRecord[]>([]);
   readonly packagingByLine = signal<Record<number, PackagingUnitRecord[]>>({});
   readonly canCreate = computed(() => this.sessionStore.hasPermission('purchases.create'));
+  readonly canPost = computed(() => this.sessionStore.hasPermission('purchases.post'));
+  readonly canView = computed(() => this.sessionStore.hasPermission('purchases.view'));
+  readonly isPosted = computed(() => this.purchase()?.status === 'posted');
+  readonly isDraft = computed(() => {
+    const record = this.purchase();
+    return record === null || record.status === 'draft';
+  });
   private version = 1;
 
   readonly form = this.formBuilder.nonNullable.group({
@@ -75,10 +89,15 @@ export class PurchaseEditPage {
     transport: ['0.00'],
     other: ['0.00'],
     lines: this.formBuilder.array([this.createLineGroup()]),
+    payments: this.formBuilder.array<FormGroup>([]),
   });
 
   get lines(): FormArray {
     return this.form.controls.lines;
+  }
+
+  get payments(): FormArray {
+    return this.form.controls.payments;
   }
 
   constructor() {
@@ -88,7 +107,7 @@ export class PurchaseEditPage {
       this.purchaseId.set(id);
     }
 
-    if (!this.canCreate()) {
+    if (!this.canView() && !this.canCreate()) {
       this.loading.set(false);
       return;
     }
@@ -97,6 +116,7 @@ export class PurchaseEditPage {
       products: this.catalogApi.listProducts(),
       warehouses: this.locationsApi.listWarehouses(),
       suppliers: this.suppliersApi.listSuppliers(),
+      accounts: this.accountsApi.listAccounts(),
     });
 
     if (isEdit && id) {
@@ -111,10 +131,14 @@ export class PurchaseEditPage {
         },
         error: (error: unknown) => {
           this.loading.set(false);
-          this.errorMessage.set(this.mapError(error, 'Unable to load purchase draft.'));
+          this.errorMessage.set(this.mapError(error, 'Unable to load purchase.'));
         },
       });
     } else {
+      if (!this.canCreate()) {
+        this.loading.set(false);
+        return;
+      }
       masters$.subscribe({
         next: (masters) => {
           this.applyMasters(masters);
@@ -132,6 +156,10 @@ export class PurchaseEditPage {
     return this.lines.at(index) as FormGroup;
   }
 
+  paymentGroup(index: number): FormGroup {
+    return this.payments.at(index) as FormGroup;
+  }
+
   trackingModeForLine(index: number): string {
     const productId = String(this.lineGroup(index).get('productId')?.value ?? '');
     return this.products().find((item) => item.id === productId)?.trackingMode ?? 'none';
@@ -142,12 +170,18 @@ export class PurchaseEditPage {
   }
 
   addLine(): void {
+    if (this.isPosted()) {
+      return;
+    }
     const index = this.lines.length;
     this.lines.push(this.createLineGroup());
     this.bindLineProductChanges(index);
   }
 
   removeLine(index: number): void {
+    if (this.isPosted()) {
+      return;
+    }
     if (this.lines.length <= 1) {
       this.lines.at(0).reset({
         productId: '',
@@ -165,8 +199,22 @@ export class PurchaseEditPage {
     this.rebuildPackagingMap();
   }
 
+  addPayment(): void {
+    if (this.isPosted()) {
+      return;
+    }
+    this.payments.push(this.createPaymentGroup());
+  }
+
+  removePayment(index: number): void {
+    if (this.isPosted()) {
+      return;
+    }
+    this.payments.removeAt(index);
+  }
+
   save(): void {
-    if (!this.canCreate() || this.form.invalid) {
+    if (!this.canCreate() || this.isPosted() || this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
@@ -184,7 +232,7 @@ export class PurchaseEditPage {
     request$.subscribe({
       next: (record) => {
         this.saving.set(false);
-        this.successMessage.set('Purchase draft saved. It remains unposted.');
+        this.successMessage.set('Purchase draft saved. It remains unposted until you post it.');
         if (id === null) {
           this.purchaseId.set(record.id);
           this.version = record.version;
@@ -202,7 +250,7 @@ export class PurchaseEditPage {
 
   discard(): void {
     const id = this.purchaseId();
-    if (!id || !this.canCreate()) {
+    if (!id || !this.canCreate() || this.isPosted()) {
       return;
     }
     this.discarding.set(true);
@@ -217,6 +265,54 @@ export class PurchaseEditPage {
         this.errorMessage.set(this.mapError(error, 'Unable to discard purchase draft.'));
       },
     });
+  }
+
+  post(): void {
+    const id = this.purchaseId();
+    if (!id || !this.canPost() || this.isPosted() || this.posting()) {
+      return;
+    }
+    for (const control of this.payments.controls) {
+      if (control.invalid) {
+        control.markAllAsTouched();
+        this.errorMessage.set('Fix payment lines before posting.');
+        return;
+      }
+    }
+    this.posting.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    const payments: PurchasePaymentInput[] = this.payments.controls.map((control) => {
+      const value = (control as FormGroup).getRawValue() as {
+        accountId: string;
+        amount: string;
+      };
+      return {
+        accountId: value.accountId,
+        amount: { amount: value.amount.trim(), currency: 'PKR' },
+      };
+    });
+
+    this.api
+      .postPurchase(
+        id,
+        {
+          expectedVersion: this.version,
+          payments,
+        },
+        crypto.randomUUID(),
+      )
+      .subscribe({
+        next: (record) => {
+          this.posting.set(false);
+          this.successMessage.set('Purchase posted successfully.');
+          this.applyPurchase(record);
+        },
+        error: (error: unknown) => {
+          this.posting.set(false);
+          this.errorMessage.set(this.mapError(error, 'Unable to post purchase.'));
+        },
+      });
   }
 
   private createLineGroup(
@@ -241,22 +337,36 @@ export class PurchaseEditPage {
     });
   }
 
+  private createPaymentGroup(
+    values: {
+      accountId?: string;
+      amount?: string;
+    } = {},
+  ): FormGroup {
+    return this.formBuilder.nonNullable.group({
+      accountId: [values.accountId ?? '', Validators.required],
+      amount: [values.amount ?? '', Validators.required],
+    });
+  }
+
   private applyMasters(masters: {
     products: ProductRecord[];
     warehouses: WarehouseRecord[];
     suppliers: SupplierRecord[];
+    accounts: AccountRecord[];
   }): void {
     this.products.set(masters.products.filter((item) => item.status === 'active'));
     this.warehouses.set(masters.warehouses.filter((item) => item.status === 'active'));
     this.suppliers.set(masters.suppliers.filter((item) => item.status === 'active'));
+    this.accounts.set(masters.accounts.filter((item) => item.status === 'active'));
     this.bindLineProductChanges(0);
   }
 
   private applyPurchase(purchase: PurchaseRecord): void {
-    if (purchase.status !== 'draft') {
-      this.errorMessage.set('Only unposted drafts can be edited here.');
-    }
+    this.purchase.set(purchase);
     this.version = purchase.version;
+    const posted = purchase.status === 'posted';
+
     this.form.patchValue({
       warehouseId: purchase.warehouseId,
       supplierId: purchase.supplierId,
@@ -283,17 +393,34 @@ export class PurchaseEditPage {
           expiryDate: line.expiryDate ?? '',
         }),
       );
-      this.bindLineProductChanges(index);
-      this.catalogApi.listPackagingUnits(line.productId).subscribe({
-        next: (units) => {
-          nextPackaging[index] = units.filter((item) => item.status === 'active');
-          this.packagingByLine.set({ ...this.packagingByLine(), ...nextPackaging });
-        },
-      });
+      if (!posted) {
+        this.bindLineProductChanges(index);
+        this.catalogApi.listPackagingUnits(line.productId).subscribe({
+          next: (units) => {
+            nextPackaging[index] = units.filter((item) => item.status === 'active');
+            this.packagingByLine.set({ ...this.packagingByLine(), ...nextPackaging });
+          },
+        });
+      }
     });
     if (this.lines.length === 0) {
       this.lines.push(this.createLineGroup());
       this.bindLineProductChanges(0);
+    }
+
+    this.payments.clear();
+    if (posted) {
+      for (const payment of purchase.payments ?? []) {
+        this.payments.push(
+          this.createPaymentGroup({
+            accountId: payment.accountId,
+            amount: payment.amount.amount,
+          }),
+        );
+      }
+      this.form.disable({ emitEvent: false });
+    } else {
+      this.form.enable({ emitEvent: false });
     }
   }
 
@@ -398,7 +525,7 @@ export class PurchaseEditPage {
       return fallback;
     }
     if (error.error?.error?.code === 'VERSION_CONFLICT') {
-      return 'This purchase draft changed elsewhere. Reload and try again.';
+      return 'This purchase changed elsewhere. Reload and try again.';
     }
     return error.error?.error?.message ?? fallback;
   }

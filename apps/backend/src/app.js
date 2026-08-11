@@ -196,11 +196,20 @@ function createApp(options) {
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
+  const unpaidPurchasesLookup = {
+    fn: options.listUnpaidSupplierPurchases ?? null,
+  };
+
   if (!ledgers.paymentsService) {
     ledgers.paymentsService = ledgers.createPaymentsService({
       accountsService: accounts.accountsService,
       suppliersService: suppliers.suppliersService,
-      listUnpaidSupplierPurchases: options.listUnpaidSupplierPurchases,
+      listUnpaidSupplierPurchases: async (organizationId, supplierId) => {
+        if (typeof unpaidPurchasesLookup.fn !== 'function') {
+          return [];
+        }
+        return unpaidPurchasesLookup.fn(organizationId, supplierId);
+      },
     });
   }
 
@@ -227,10 +236,18 @@ function createApp(options) {
       catalogService: catalog.catalogService,
       suppliersService: suppliers.suppliersService,
       locationsService: locations.locationsService,
+      inventoryService: inventory.inventoryService,
+      paymentsService: ledgers.paymentsService,
+      accountsService: accounts.accountsService,
       canAccessWarehouse,
       canAccessBranch,
       ...(options.now === undefined ? {} : { now: options.now }),
     });
+
+  if (typeof unpaidPurchasesLookup.fn !== 'function') {
+    unpaidPurchasesLookup.fn = (organizationId, supplierId) =>
+      purchases.purchasesService.listUnpaidSupplierPurchases(organizationId, supplierId);
+  }
 
   const setupProgressService =
     options.setupProgressService ??

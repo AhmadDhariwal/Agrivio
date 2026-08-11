@@ -299,17 +299,39 @@ function toPurchaseDto(record) {
     quantityBase: formatQuantityMinorUnits(BigInt(String(line.quantityBaseMinorUnits))),
     unitCost: toMoneyDto(line.unitCostMinorUnits),
     lineProductAmount: toMoneyDto(line.lineProductAmountMinorUnits),
+    allocatedLandedCost: toMoneyDto(line.allocatedLandedCostMinorUnits ?? '0'),
+    receiptInventoryValue:
+      line.receiptInventoryValueMinorUnits === null || line.receiptInventoryValueMinorUnits === undefined
+        ? null
+        : toMoneyDto(line.receiptInventoryValueMinorUnits),
+    receiptUnitCost:
+      line.receiptUnitCostMinorUnits === null || line.receiptUnitCostMinorUnits === undefined
+        ? null
+        : toMoneyDto(line.receiptUnitCostMinorUnits),
     batchNumber: line.batchNumber ?? null,
     manufacturingDate: line.manufacturingDate ?? null,
     expiryDate: line.expiryDate ?? null,
+    batchId: line.batchIdSnapshot ? String(line.batchIdSnapshot) : null,
   }));
 
   const landed = record.landedCosts ?? {};
+  const paymentSnapshots = (record.paymentSnapshots ?? []).map((payment) => ({
+    accountId: String(payment.accountId),
+    accountNameSnapshot: String(payment.accountNameSnapshot),
+    accountTypeSnapshot: String(payment.accountTypeSnapshot),
+    amount: toMoneyDto(payment.amountMinorUnits),
+    paymentId: payment.paymentId ? String(payment.paymentId) : null,
+  }));
+
   return {
     id: String(record['_id']),
     organizationId: String(record['organizationId']),
     branchId: record['branchId'] ? String(record['branchId']) : null,
+    branchNameSnapshot: record['branchNameSnapshot'] ? String(record['branchNameSnapshot']) : null,
     warehouseId: String(record['warehouseId']),
+    warehouseNameSnapshot: record['warehouseNameSnapshot']
+      ? String(record['warehouseNameSnapshot'])
+      : null,
     supplierId: String(record['supplierId']),
     supplierNameSnapshot: String(record['supplierNameSnapshot']),
     supplierInvoiceReference: String(record['supplierInvoiceReference'] ?? ''),
@@ -323,6 +345,27 @@ function toPurchaseDto(record) {
       transport: toMoneyDto(landed.transportMinorUnits ?? '0'),
       other: toMoneyDto(landed.otherMinorUnits ?? '0'),
     },
+    goodsTotal:
+      record['goodsTotalMinorUnits'] === null || record['goodsTotalMinorUnits'] === undefined
+        ? null
+        : toMoneyDto(record['goodsTotalMinorUnits']),
+    landedCostTotal:
+      record['landedCostTotalMinorUnits'] === null || record['landedCostTotalMinorUnits'] === undefined
+        ? null
+        : toMoneyDto(record['landedCostTotalMinorUnits']),
+    purchaseTotal:
+      record['purchaseTotalMinorUnits'] === null || record['purchaseTotalMinorUnits'] === undefined
+        ? null
+        : toMoneyDto(record['purchaseTotalMinorUnits']),
+    paidTotal:
+      record['paidTotalMinorUnits'] === null || record['paidTotalMinorUnits'] === undefined
+        ? null
+        : toMoneyDto(record['paidTotalMinorUnits']),
+    payableTotal:
+      record['payableTotalMinorUnits'] === null || record['payableTotalMinorUnits'] === undefined
+        ? null
+        : toMoneyDto(record['payableTotalMinorUnits']),
+    payments: paymentSnapshots,
     version: Number(record['version']),
     createdBy: String(record['createdBy']),
     createdAt:
@@ -342,11 +385,40 @@ function toPurchaseDto(record) {
         ? record['postedAt'].toISOString()
         : String(record['postedAt'])
       : null,
+    postedBy: record['postedBy'] ? String(record['postedBy']) : null,
   };
+}
+
+function parsePurchasePost(body) {
+  assertObjectBody(body);
+  const expectedVersion = parseExpectedVersion(body);
+  const paymentsRaw = body.payments === undefined || body.payments === null ? [] : body.payments;
+  if (!Array.isArray(paymentsRaw)) {
+    throw validationFailed('payments must be an array', [
+      { field: 'payments', message: 'payments must be an array' },
+    ]);
+  }
+
+  const payments = paymentsRaw.map((item, index) => {
+    if (item === null || typeof item !== 'object' || Array.isArray(item)) {
+      throw validationFailed(`payments[${index}] must be an object`, [
+        { field: `payments[${index}]`, message: 'payment line must be an object' },
+      ]);
+    }
+    const accountId = requireIdString(item.accountId, `payments[${index}].accountId`);
+    const amount = parsePositiveMoneyInput(item.amount, `payments[${index}].amount`);
+    return {
+      accountId,
+      amountMinorUnits: amount.amountMinorUnits,
+    };
+  });
+
+  return { expectedVersion, payments };
 }
 
 module.exports = {
   parsePurchaseDraft,
+  parsePurchasePost,
   parseExpectedVersion,
   computeLineProductAmount,
   toPurchaseDto,

@@ -6,6 +6,7 @@ import { AuthApi } from '../../auth/data-access/auth.api';
 import {
   PurchaseDraftInput,
   PurchaseDraftUpdateInput,
+  PurchasePostInput,
   PurchaseRecord,
 } from '../models/purchases.models';
 
@@ -76,6 +77,30 @@ export class PurchasesApi {
           withCredentials: true,
           headers: { 'X-CSRF-Token': csrfToken },
         }),
+      ),
+    );
+  }
+
+  postPurchase(
+    id: string,
+    payload: PurchasePostInput,
+    idempotencyKey: string,
+  ): Observable<PurchaseRecord> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: PurchaseRecord }>(
+            `${environment.publicApiBaseUrl}/api/v1/purchases/${id}/post`,
+            payload,
+            {
+              withCredentials: true,
+              headers: {
+                'X-CSRF-Token': csrfToken,
+                'Idempotency-Key': idempotencyKey,
+              },
+            },
+          )
+          .pipe(map((response) => response.data)),
       ),
     );
   }
