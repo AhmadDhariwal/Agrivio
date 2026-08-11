@@ -258,6 +258,44 @@ export const appRoutes: Route[] = [
             (m) => m.AccountFormPage,
           ),
       },
+      {
+        path: 'inventory/stock',
+        loadComponent: () =>
+          import('./features/inventory/pages/stock/stock-inquiry.page').then(
+            (m) => m.StockInquiryPage,
+          ),
+      },
+      {
+        path: 'inventory/opening-stock',
+        loadComponent: () =>
+          import('./features/inventory/pages/opening-stock/opening-stock.page').then(
+            (m) => m.OpeningStockPage,
+          ),
+      },
+      {
+        path: 'inventory/movements',
+        loadComponent: () =>
+          import('./features/inventory/pages/movements/movements.page').then((m) => m.MovementsPage),
+      },
+      {
+        path: 'inventory/batches',
+        loadComponent: () =>
+          import('./features/inventory/pages/batches/batches.page').then((m) => m.BatchesPage),
+      },
+      {
+        path: 'inventory/expiry',
+        loadComponent: () =>
+          import('./features/inventory/pages/expiry/expiry-inquiry.page').then(
+            (m) => m.ExpiryInquiryPage,
+          ),
+      },
+      {
+        path: 'inventory/adjustments',
+        loadComponent: () =>
+          import('./features/inventory/pages/adjustments/adjustments.page').then(
+            (m) => m.AdjustmentsPage,
+          ),
+      },
     ],
   },
   {

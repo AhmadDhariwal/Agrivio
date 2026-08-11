@@ -1,0 +1,45 @@
+<agrivio-ui-page-header
+  title="Expiry inquiry"
+  subtitle="Authoritative batch expiry classification from inventory balances."
+/>
+
+@if (!canView()) {
+  <agrivio-ui-alert variant="warning">You do not have permission to view expiry inquiry.</agrivio-ui-alert>
+} @else {
+  @if (loading()) {
+    <agrivio-ui-loading-state label="Loading expiry stock…" />
+  } @else {
+    @if (errorMessage()) {
+      <agrivio-ui-alert variant="error">{{ errorMessage() }}</agrivio-ui-alert>
+    } @else {
+      <p data-testid="expiry-meta">
+        Business date {{ businessDate() }} · threshold {{ thresholdDays() }} days
+      </p>
+      <div class="ag-table-wrap">
+        <table class="ag-table" data-testid="expiry-list">
+          <thead>
+            <tr>
+              <th>Batch</th>
+              <th>Expiry</th>
+              <th>Qty</th>
+              <th>Classification</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of items(); track item.batchId ?? item.productId) {
+              <tr data-testid="expiry-row">
+                <td>{{ item.batchNumber ?? '—' }}</td>
+                <td>{{ item.expiryDate ?? '—' }}</td>
+                <td>{{ item.quantityBase }}</td>
+                <td>{{ item.classification }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <button type="button" data-testid="expiry-refresh" (click)="reload()">Refresh</button>
+    }
+  }
+}
+
+<p><a routerLink="/app/inventory/stock">Back to stock</a></p>

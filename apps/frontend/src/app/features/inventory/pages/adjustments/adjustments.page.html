@@ -1,0 +1,104 @@
+<agrivio-ui-page-header
+  title="Stock adjustments"
+  subtitle="Post damage, expiry, loss, or correction adjustments with audit."
+/>
+
+@if (!canAdjust()) {
+  <agrivio-ui-alert variant="warning">You do not have permission to adjust stock.</agrivio-ui-alert>
+} @else {
+  @if (loading()) {
+    <agrivio-ui-loading-state label="Loading adjustments…" />
+  } @else {
+    @if (errorMessage()) {
+      <agrivio-ui-alert variant="error">{{ errorMessage() }}</agrivio-ui-alert>
+    }
+    @if (successMessage()) {
+      <agrivio-ui-alert variant="success" data-testid="adjustment-success">{{ successMessage() }}</agrivio-ui-alert>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="submit()" data-testid="adjustment-form" class="ag-form">
+      <label>Warehouse
+        <select formControlName="warehouseId" data-testid="adjustment-warehouse">
+          <option value="">Select warehouse</option>
+          @for (warehouse of warehouses(); track warehouse.id) {
+            <option [value]="warehouse.id">{{ warehouse.name }}</option>
+          }
+        </select>
+      </label>
+      <label>Product
+        <select formControlName="productId" data-testid="adjustment-product">
+          <option value="">Select product</option>
+          @for (product of products(); track product.id) {
+            <option [value]="product.id">{{ product.name }}</option>
+          }
+        </select>
+      </label>
+      <label>Type
+        <select formControlName="adjustmentType" data-testid="adjustment-type">
+          <option value="damage">Damage</option>
+          <option value="expiry">Expiry</option>
+          <option value="loss">Loss</option>
+          <option value="correction">Correction</option>
+        </select>
+      </label>
+      @if (form.controls.adjustmentType.value === 'correction') {
+        <label>Direction
+          <select formControlName="direction" data-testid="adjustment-direction">
+            <option value="outbound">Outbound</option>
+            <option value="inbound">Inbound</option>
+          </select>
+        </label>
+        @if (form.controls.direction.value === 'inbound') {
+          <label>Inventory value (PKR)
+            <input formControlName="inventoryValue" data-testid="adjustment-inventory-value" />
+          </label>
+        }
+      }
+      <label>Quantity
+        <input formControlName="quantity" data-testid="adjustment-quantity" />
+      </label>
+      <label>Reason
+        <input formControlName="reason" data-testid="adjustment-reason" />
+      </label>
+      @if (canOverride()) {
+        <label>
+          <input type="checkbox" formControlName="negativeStockOverride" data-testid="adjustment-override" />
+          Allow negative stock override
+        </label>
+        <label>Override reason
+          <input formControlName="negativeStockOverrideReason" data-testid="adjustment-override-reason" />
+        </label>
+      }
+      <button type="submit" [disabled]="saving()" data-testid="adjustment-submit">Post adjustment</button>
+    </form>
+
+    <div class="ag-table-wrap">
+      <table class="ag-table" data-testid="adjustments-list">
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Qty</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of adjustments(); track item.id) {
+            <tr data-testid="adjustment-row">
+              <td>{{ item.adjustmentType }}</td>
+              <td>{{ item.quantityBase }}</td>
+              <td>{{ item.status }}</td>
+              <td>
+                @if (canReverse() && item.status === 'posted') {
+                  <button type="button" data-testid="adjustment-reverse" (click)="reverse(item)">Reverse</button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+}
+
+<p><a routerLink="/app/inventory/stock">Back to stock</a></p>

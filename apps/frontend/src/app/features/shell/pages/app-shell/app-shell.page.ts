@@ -55,6 +55,7 @@ export class AppShellPage {
   readonly canViewCustomers = computed(() => this.sessionStore.hasPermission('customers.view'));
   readonly canViewSuppliers = computed(() => this.sessionStore.hasPermission('suppliers.view'));
   readonly canViewAccounts = computed(() => this.sessionStore.hasPermission('accounts.view'));
+  readonly canViewInventory = computed(() => this.sessionStore.hasPermission('inventory.view'));
 
 
   constructor() {
