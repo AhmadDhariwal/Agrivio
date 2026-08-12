@@ -160,6 +160,7 @@ function toPaymentDto(record, allocations = []) {
       id: String(item['_id']),
       targetType: String(item['targetType']),
       targetId: String(item['targetId']),
+      allocatedAmountMinorUnits: String(item['allocatedAmountMinorUnits']),
       allocatedAmount: toMoneyDto(item['allocatedAmountMinorUnits']),
       status: String(item['status']),
     })),

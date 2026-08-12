@@ -2,6 +2,21 @@ const mongoose = require('mongoose');
 
 const SALE_STATUSES = ['draft', 'posted', 'cancelled'];
 
+const stockAllocationSchema = new mongoose.Schema(
+  {
+    batchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ProductBatch',
+      default: null,
+    },
+    batchNumber: { type: String, default: null },
+    expiryDate: { type: String, default: null },
+    quantityBaseMinorUnits: { type: String, required: true },
+    cogsMinorUnits: { type: String, required: true },
+  },
+  { _id: false },
+);
+
 const saleLineSchema = new mongoose.Schema(
   {
     productId: {
@@ -10,6 +25,7 @@ const saleLineSchema = new mongoose.Schema(
       ref: 'Product',
     },
     productNameSnapshot: { type: String, required: true },
+    trackingModeSnapshot: { type: String, default: null },
     packagingUnitId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'ProductPackagingUnit',
@@ -21,6 +37,33 @@ const saleLineSchema = new mongoose.Schema(
     quantityBaseMinorUnits: { type: String, required: true },
     unitPriceMinorUnits: { type: String, required: true },
     lineProductAmountMinorUnits: { type: String, required: true },
+    priceTierSnapshot: { type: String, default: null },
+    catalogPriceMinorUnits: { type: String, default: null },
+    priceOverrideReason: { type: String, default: null },
+    cogsTotalMinorUnits: { type: String, default: null },
+    stockAllocations: {
+      type: [stockAllocationSchema],
+      default: [],
+    },
+  },
+  { _id: false },
+);
+
+const salePaymentSnapshotSchema = new mongoose.Schema(
+  {
+    accountId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      ref: 'Account',
+    },
+    accountNameSnapshot: { type: String, required: true },
+    accountTypeSnapshot: { type: String, required: true },
+    amountMinorUnits: { type: String, required: true },
+    paymentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Payment',
+      default: null,
+    },
   },
   { _id: false },
 );
@@ -51,6 +94,7 @@ const saleSchema = new mongoose.Schema(
       default: null,
     },
     customerNameSnapshot: { type: String, default: null },
+    priceTierSnapshot: { type: String, default: null },
     saleDate: { type: String, required: true },
     notes: { type: String, default: '' },
     lines: {
@@ -62,6 +106,14 @@ const saleSchema = new mongoose.Schema(
         },
         message: 'Sale must contain at least one line',
       },
+    },
+    saleTotalMinorUnits: { type: String, default: null },
+    paidTotalMinorUnits: { type: String, default: null },
+    receivableTotalMinorUnits: { type: String, default: null },
+    cogsTotalMinorUnits: { type: String, default: null },
+    paymentSnapshots: {
+      type: [salePaymentSnapshotSchema],
+      default: [],
     },
     invoiceNumber: { type: String, default: null },
     invoiceSequenceNumber: { type: Number, default: null },

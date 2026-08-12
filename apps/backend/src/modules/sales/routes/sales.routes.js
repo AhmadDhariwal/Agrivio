@@ -69,6 +69,18 @@ function registerSalesRoutes(deps) {
     },
   );
 
+  router.post(
+    `${API_SALES_PATH}/:id/post`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('sales.post'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.postSale(req, res, next);
+    },
+  );
+
   return router;
 }
 

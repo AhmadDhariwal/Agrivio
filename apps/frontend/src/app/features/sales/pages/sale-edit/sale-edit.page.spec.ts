@@ -6,6 +6,7 @@ import { SalesApi } from '../../data-access/sales.api';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
 import { BranchesWarehousesApi } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { CustomersApi } from '../../../customers/data-access/customers.api';
+import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 
 describe('SaleEditPage', () => {
@@ -21,6 +22,7 @@ describe('SaleEditPage', () => {
             createSale: () => of({}),
             updateSale: () => of({}),
             discardSale: () => of({}),
+            postSale: () => of({}),
           },
         },
         {
@@ -28,6 +30,7 @@ describe('SaleEditPage', () => {
           useValue: {
             listProducts: () => of([]),
             listPackagingUnits: () => of([]),
+            listPrices: () => of([]),
           },
         },
         {
@@ -42,10 +45,14 @@ describe('SaleEditPage', () => {
           useValue: { listCustomers: () => of([]) },
         },
         {
+          provide: AccountsApi,
+          useValue: { listAccounts: () => of([]) },
+        },
+        {
           provide: AuthSessionStore,
           useValue: {
             hasPermission: (permission: string) =>
-              permission === 'sales.create' || permission === 'sales.view',
+              permission === 'sales.create' || permission === 'sales.view' || permission === 'sales.post',
           },
         },
       ],
@@ -57,5 +64,6 @@ describe('SaleEditPage', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('[data-testid="sale-form"]')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('[data-testid="sale-draft-banner"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="sale-payments"]')).toBeTruthy();
   });
 });

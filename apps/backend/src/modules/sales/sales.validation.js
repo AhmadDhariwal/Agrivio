@@ -187,6 +187,69 @@ function toMoneyDto(amountMinorUnits) {
   };
 }
 
+function parseSalePost(body) {
+  assertObjectBody(body);
+  const expectedVersion = parseExpectedVersion(body);
+  const paymentsRaw = body.payments === undefined || body.payments === null ? [] : body.payments;
+  if (!Array.isArray(paymentsRaw)) {
+    throw validationFailed('payments must be an array', [
+      { field: 'payments', message: 'payments must be an array' },
+    ]);
+  }
+
+  const payments = paymentsRaw.map((item, index) => {
+    if (item === null || typeof item !== 'object' || Array.isArray(item)) {
+      throw validationFailed(`payments[${index}] must be an object`, [
+        { field: `payments[${index}]`, message: 'payment line must be an object' },
+      ]);
+    }
+    const accountId = requireIdString(item.accountId, `payments[${index}].accountId`);
+    const amount = parsePositiveMoneyInput(item.amount, `payments[${index}].amount`);
+    return {
+      accountId,
+      amountMinorUnits: amount.amountMinorUnits,
+    };
+  });
+
+  const linePriceOverridesRaw =
+    body.linePriceOverrides === undefined || body.linePriceOverrides === null
+      ? []
+      : body.linePriceOverrides;
+  if (!Array.isArray(linePriceOverridesRaw)) {
+    throw validationFailed('linePriceOverrides must be an array', [
+      { field: 'linePriceOverrides', message: 'linePriceOverrides must be an array' },
+    ]);
+  }
+
+  const linePriceOverrides = linePriceOverridesRaw.map((item, index) => {
+    if (item === null || typeof item !== 'object' || Array.isArray(item)) {
+      throw validationFailed(`linePriceOverrides[${index}] must be an object`, [
+        { field: `linePriceOverrides[${index}]`, message: 'override entry must be an object' },
+      ]);
+    }
+    const lineIndex = item.lineIndex;
+    if (typeof lineIndex !== 'number' || !Number.isInteger(lineIndex) || lineIndex < 0) {
+      throw validationFailed(`linePriceOverrides[${index}].lineIndex must be a non-negative integer`, [
+        { field: `linePriceOverrides[${index}].lineIndex`, message: 'lineIndex must be a non-negative integer' },
+      ]);
+    }
+    if (typeof item.reason !== 'string' || item.reason.trim() === '') {
+      throw validationFailed(`linePriceOverrides[${index}].reason is required`, [
+        { field: `linePriceOverrides[${index}].reason`, message: 'reason is required' },
+      ]);
+    }
+    const reason = item.reason.trim();
+    if (reason.length > 1000) {
+      throw validationFailed(`linePriceOverrides[${index}].reason exceeds maximum length`, [
+        { field: `linePriceOverrides[${index}].reason`, message: 'reason must be at most 1000 characters' },
+      ]);
+    }
+    return { lineIndex, reason };
+  });
+
+  return { expectedVersion, payments, linePriceOverrides };
+}
+
 function toSaleDto(record) {
   const lines = (record.lines ?? []).map((line) => ({
     productId: String(line.productId),
@@ -198,6 +261,31 @@ function toSaleDto(record) {
     quantityBase: formatQuantityMinorUnits(BigInt(String(line.quantityBaseMinorUnits))),
     unitPrice: toMoneyDto(line.unitPriceMinorUnits),
     lineProductAmount: toMoneyDto(line.lineProductAmountMinorUnits),
+    priceTierSnapshot: line.priceTierSnapshot ? String(line.priceTierSnapshot) : null,
+    catalogPrice:
+      line.catalogPriceMinorUnits === null || line.catalogPriceMinorUnits === undefined
+        ? null
+        : toMoneyDto(line.catalogPriceMinorUnits),
+    priceOverrideReason: line.priceOverrideReason ? String(line.priceOverrideReason) : null,
+    cogsTotal:
+      line.cogsTotalMinorUnits === null || line.cogsTotalMinorUnits === undefined
+        ? null
+        : toMoneyDto(line.cogsTotalMinorUnits),
+    stockAllocations: (line.stockAllocations ?? []).map((allocation) => ({
+      batchId: allocation.batchId ? String(allocation.batchId) : null,
+      batchNumber: allocation.batchNumber ? String(allocation.batchNumber) : null,
+      expiryDate: allocation.expiryDate ? String(allocation.expiryDate) : null,
+      quantityBase: formatQuantityMinorUnits(BigInt(String(allocation.quantityBaseMinorUnits))),
+      cogs: toMoneyDto(allocation.cogsMinorUnits),
+    })),
+  }));
+
+  const paymentSnapshots = (record.paymentSnapshots ?? []).map((payment) => ({
+    accountId: String(payment.accountId),
+    accountNameSnapshot: String(payment.accountNameSnapshot),
+    accountTypeSnapshot: String(payment.accountTypeSnapshot),
+    amount: toMoneyDto(payment.amountMinorUnits),
+    paymentId: payment.paymentId ? String(payment.paymentId) : null,
   }));
 
   return {
@@ -211,10 +299,28 @@ function toSaleDto(record) {
       : null,
     customerId: record['customerId'] ? String(record['customerId']) : null,
     customerNameSnapshot: record['customerNameSnapshot'] ? String(record['customerNameSnapshot']) : null,
+    priceTierSnapshot: record['priceTierSnapshot'] ? String(record['priceTierSnapshot']) : null,
     saleDate: String(record['saleDate']),
     notes: String(record['notes'] ?? ''),
     status: String(record['status']),
     invoiceNumber: record['invoiceNumber'] ? String(record['invoiceNumber']) : null,
+    saleTotal:
+      record['saleTotalMinorUnits'] === null || record['saleTotalMinorUnits'] === undefined
+        ? null
+        : toMoneyDto(record['saleTotalMinorUnits']),
+    paidTotal:
+      record['paidTotalMinorUnits'] === null || record['paidTotalMinorUnits'] === undefined
+        ? null
+        : toMoneyDto(record['paidTotalMinorUnits']),
+    receivableTotal:
+      record['receivableTotalMinorUnits'] === null || record['receivableTotalMinorUnits'] === undefined
+        ? null
+        : toMoneyDto(record['receivableTotalMinorUnits']),
+    cogsTotal:
+      record['cogsTotalMinorUnits'] === null || record['cogsTotalMinorUnits'] === undefined
+        ? null
+        : toMoneyDto(record['cogsTotalMinorUnits']),
+    payments: paymentSnapshots,
     lines,
     version: Number(record['version']),
     postedAt:
@@ -236,6 +342,7 @@ function toSaleDto(record) {
 
 module.exports = {
   parseSaleDraft,
+  parseSalePost,
   computeLineProductAmount,
   toSaleDto,
 };

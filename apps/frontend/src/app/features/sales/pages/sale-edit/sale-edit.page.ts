@@ -10,7 +10,13 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { forkJoin } from 'rxjs';
 import { SalesApi } from '../../data-access/sales.api';
-import { SaleDraftInput, SaleLineInput, SaleRecord } from '../../models/sales.models';
+import {
+  SaleDraftInput,
+  SaleLineInput,
+  SaleLinePriceOverrideInput,
+  SalePaymentInput,
+  SaleRecord,
+} from '../../models/sales.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
 import {
@@ -20,6 +26,8 @@ import {
 } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { CustomersApi } from '../../../customers/data-access/customers.api';
 import { CustomerRecord } from '../../../customers/models/customers.models';
+import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
+import { AccountRecord } from '../../../accounts-expenses/models/accounts.models';
 import { PackagingUnitRecord, ProductRecord } from '../../../catalog/models/catalog.models';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
@@ -43,6 +51,7 @@ export class SaleEditPage {
   private readonly catalogApi = inject(CatalogApi);
   private readonly locationsApi = inject(BranchesWarehousesApi);
   private readonly customersApi = inject(CustomersApi);
+  private readonly accountsApi = inject(AccountsApi);
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -52,6 +61,7 @@ export class SaleEditPage {
   readonly sale = signal<SaleRecord | null>(null);
   readonly loading = signal(true);
   readonly saving = signal(false);
+  readonly posting = signal(false);
   readonly discarding = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
@@ -59,9 +69,12 @@ export class SaleEditPage {
   readonly branches = signal<BranchRecord[]>([]);
   readonly warehouses = signal<WarehouseRecord[]>([]);
   readonly customers = signal<CustomerRecord[]>([]);
+  readonly accounts = signal<AccountRecord[]>([]);
   readonly packagingByLine = signal<Record<number, PackagingUnitRecord[]>>({});
   readonly canCreate = computed(() => this.sessionStore.hasPermission('sales.create'));
+  readonly canPost = computed(() => this.sessionStore.hasPermission('sales.post'));
   readonly canView = computed(() => this.sessionStore.hasPermission('sales.view'));
+  readonly canOverridePrice = computed(() => this.sessionStore.hasPermission('pricing.override'));
   readonly isPosted = computed(() => this.sale()?.status === 'posted');
   readonly isDraft = computed(() => {
     const record = this.sale();
@@ -76,10 +89,15 @@ export class SaleEditPage {
     saleDate: ['', Validators.required],
     notes: [''],
     lines: this.formBuilder.array([this.createLineGroup()]),
+    payments: this.formBuilder.array<FormGroup>([]),
   });
 
   get lines(): FormArray {
     return this.form.controls.lines;
+  }
+
+  get payments(): FormArray {
+    return this.form.controls.payments;
   }
 
   constructor() {
@@ -99,6 +117,7 @@ export class SaleEditPage {
       branches: this.locationsApi.listBranches(),
       warehouses: this.locationsApi.listWarehouses(),
       customers: this.customersApi.listCustomers(),
+      accounts: this.accountsApi.listAccounts(),
     });
 
     if (isEdit && id) {
@@ -138,6 +157,10 @@ export class SaleEditPage {
     return this.lines.at(index) as FormGroup;
   }
 
+  paymentGroup(index: number): FormGroup {
+    return this.payments.at(index) as FormGroup;
+  }
+
   packagingUnitsForLine(index: number): PackagingUnitRecord[] {
     return this.packagingByLine()[index] ?? [];
   }
@@ -161,12 +184,27 @@ export class SaleEditPage {
         packagingUnitId: '',
         quantity: '',
         unitPrice: '',
+        priceOverrideReason: '',
       });
       this.packagingByLine.update((current) => ({ ...current, [0]: [] }));
       return;
     }
     this.lines.removeAt(index);
     this.rebuildPackagingMap();
+  }
+
+  addPayment(): void {
+    if (this.isPosted()) {
+      return;
+    }
+    this.payments.push(this.createPaymentGroup());
+  }
+
+  removePayment(index: number): void {
+    if (this.isPosted()) {
+      return;
+    }
+    this.payments.removeAt(index);
   }
 
   save(): void {
@@ -188,7 +226,7 @@ export class SaleEditPage {
     request$.subscribe({
       next: (record) => {
         this.saving.set(false);
-        this.successMessage.set('Sale draft saved. Posting is available in a later release.');
+        this.successMessage.set('Sale draft saved. Post when ready to apply stock and receivable effects.');
         if (id === null) {
           this.saleId.set(record.id);
           this.version = record.version;
@@ -202,6 +240,64 @@ export class SaleEditPage {
         this.errorMessage.set(this.mapError(error, 'Unable to save sale draft.'));
       },
     });
+  }
+
+  post(): void {
+    const id = this.saleId();
+    if (!id || !this.canPost() || this.isPosted() || this.posting()) {
+      return;
+    }
+    for (const control of this.payments.controls) {
+      if (control.invalid) {
+        control.markAllAsTouched();
+        this.errorMessage.set('Fix payment lines before posting.');
+        return;
+      }
+    }
+    this.posting.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+
+    const payments: SalePaymentInput[] = this.payments.controls.map((control) => {
+      const value = (control as FormGroup).getRawValue() as {
+        accountId: string;
+        amount: string;
+      };
+      return {
+        accountId: value.accountId,
+        amount: { amount: value.amount.trim(), currency: 'PKR' },
+      };
+    });
+
+    const linePriceOverrides: SaleLinePriceOverrideInput[] = [];
+    this.lines.controls.forEach((control, index) => {
+      const reason = String((control as FormGroup).get('priceOverrideReason')?.value ?? '').trim();
+      if (reason !== '') {
+        linePriceOverrides.push({ lineIndex: index, reason });
+      }
+    });
+
+    this.api
+      .postSale(
+        id,
+        {
+          expectedVersion: this.version,
+          payments,
+          ...(linePriceOverrides.length > 0 ? { linePriceOverrides } : {}),
+        },
+        crypto.randomUUID(),
+      )
+      .subscribe({
+        next: (record) => {
+          this.posting.set(false);
+          this.successMessage.set('Sale posted successfully.');
+          this.applySale(record);
+        },
+        error: (error: unknown) => {
+          this.posting.set(false);
+          this.errorMessage.set(this.mapError(error, 'Unable to post sale.'));
+        },
+      });
   }
 
   discard(): void {
@@ -229,6 +325,7 @@ export class SaleEditPage {
       packagingUnitId?: string;
       quantity?: string;
       unitPrice?: string;
+      priceOverrideReason?: string;
     } = {},
   ): FormGroup {
     return this.formBuilder.nonNullable.group({
@@ -236,6 +333,19 @@ export class SaleEditPage {
       packagingUnitId: [values.packagingUnitId ?? ''],
       quantity: [values.quantity ?? '', Validators.required],
       unitPrice: [values.unitPrice ?? '', Validators.required],
+      priceOverrideReason: [values.priceOverrideReason ?? ''],
+    });
+  }
+
+  private createPaymentGroup(
+    values: {
+      accountId?: string;
+      amount?: string;
+    } = {},
+  ): FormGroup {
+    return this.formBuilder.nonNullable.group({
+      accountId: [values.accountId ?? '', Validators.required],
+      amount: [values.amount ?? '', Validators.required],
     });
   }
 
@@ -244,12 +354,17 @@ export class SaleEditPage {
     branches: BranchRecord[];
     warehouses: WarehouseRecord[];
     customers: CustomerRecord[];
+    accounts: AccountRecord[];
   }): void {
     this.products.set(masters.products.filter((item) => item.status === 'active'));
     this.branches.set(masters.branches.filter((item) => item.status === 'active'));
     this.warehouses.set(masters.warehouses.filter((item) => item.status === 'active'));
     this.customers.set(masters.customers.filter((item) => item.status === 'active'));
+    this.accounts.set(masters.accounts.filter((item) => item.status === 'active'));
     this.bindLineProductChanges(0);
+    this.form.controls.customerId.valueChanges.subscribe(() => {
+      this.refreshTierPricesForAllLines();
+    });
   }
 
   private applySale(sale: SaleRecord): void {
@@ -274,6 +389,7 @@ export class SaleEditPage {
           packagingUnitId: line.packagingUnitId ?? '',
           quantity: line.quantity,
           unitPrice: line.unitPrice.amount,
+          priceOverrideReason: line.priceOverrideReason ?? '',
         }),
       );
       if (!posted) {
@@ -289,6 +405,18 @@ export class SaleEditPage {
     if (this.lines.length === 0) {
       this.lines.push(this.createLineGroup());
       this.bindLineProductChanges(0);
+    }
+
+    this.payments.clear();
+    if (posted) {
+      for (const payment of sale.payments ?? []) {
+        this.payments.push(
+          this.createPaymentGroup({
+            accountId: payment.accountId,
+            amount: payment.amount.amount,
+          }),
+        );
+      }
     }
 
     if (posted) {
@@ -320,6 +448,34 @@ export class SaleEditPage {
           this.packagingByLine.update((current) => ({ ...current, [index]: [] }));
         },
       });
+      this.refreshTierPriceForLine(index);
+    });
+  }
+
+  private refreshTierPricesForAllLines(): void {
+    for (let index = 0; index < this.lines.length; index += 1) {
+      this.refreshTierPriceForLine(index);
+    }
+  }
+
+  private refreshTierPriceForLine(index: number): void {
+    const productId = String(this.lineGroup(index).get('productId')?.value ?? '');
+    if (!productId) {
+      return;
+    }
+    const customerId = this.form.controls.customerId.value.trim();
+    const customer = this.customers().find((item) => item.id === customerId);
+    const priceTier = customer?.priceTier ?? 'retail';
+    this.catalogApi.listPrices(productId).subscribe({
+      next: (prices) => {
+        const active = prices.filter((item) => item.status === 'active');
+        const tier = active.find((item) => item.priceTier === priceTier);
+        const retail = active.find((item) => item.priceTier === 'retail');
+        const selected = tier ?? retail;
+        if (selected) {
+          this.lineGroup(index).patchValue({ unitPrice: selected.price.amount }, { emitEvent: false });
+        }
+      },
     });
   }
 
