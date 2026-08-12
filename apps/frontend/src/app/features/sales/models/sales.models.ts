@@ -3,6 +3,14 @@ export interface MoneyAmount {
   currency: string;
 }
 
+export interface SaleStockAllocationRecord {
+  batchId: string | null;
+  batchNumber: string | null;
+  expiryDate: string | null;
+  quantityBase: string;
+  cogs: MoneyAmount;
+}
+
 export interface SaleLineRecord {
   productId: string;
   productNameSnapshot: string;
@@ -13,6 +21,19 @@ export interface SaleLineRecord {
   quantityBase: string;
   unitPrice: MoneyAmount;
   lineProductAmount: MoneyAmount;
+  priceTierSnapshot?: string | null;
+  catalogPrice?: MoneyAmount | null;
+  priceOverrideReason?: string | null;
+  cogsTotal?: MoneyAmount | null;
+  stockAllocations?: SaleStockAllocationRecord[];
+}
+
+export interface SalePaymentSnapshot {
+  accountId: string;
+  accountNameSnapshot: string;
+  accountTypeSnapshot: string;
+  amount: MoneyAmount;
+  paymentId: string | null;
 }
 
 export interface SaleRecord {
@@ -24,10 +45,16 @@ export interface SaleRecord {
   warehouseNameSnapshot?: string | null;
   customerId: string | null;
   customerNameSnapshot?: string | null;
+  priceTierSnapshot?: string | null;
   saleDate: string;
   notes: string;
   status: 'draft' | 'posted' | string;
   invoiceNumber: string | null;
+  saleTotal?: MoneyAmount | null;
+  paidTotal?: MoneyAmount | null;
+  receivableTotal?: MoneyAmount | null;
+  cogsTotal?: MoneyAmount | null;
+  payments?: SalePaymentSnapshot[];
   lines: SaleLineRecord[];
   version: number;
   postedAt: string | null;
@@ -53,4 +80,20 @@ export interface SaleDraftInput {
 
 export interface SaleDraftUpdateInput extends SaleDraftInput {
   expectedVersion: number;
+}
+
+export interface SalePaymentInput {
+  accountId: string;
+  amount: MoneyAmount;
+}
+
+export interface SaleLinePriceOverrideInput {
+  lineIndex: number;
+  reason: string;
+}
+
+export interface SalePostInput {
+  expectedVersion: number;
+  payments: SalePaymentInput[];
+  linePriceOverrides?: SaleLinePriceOverrideInput[];
 }

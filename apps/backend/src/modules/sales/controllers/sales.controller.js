@@ -93,6 +93,21 @@ function createSalesController(deps) {
         next(error);
       }
     },
+
+    async postSale(req, res, next) {
+      try {
+        const result = await deps.salesService.postSale(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.body,
+          req.authContext,
+          req.get('Idempotency-Key'),
+        );
+        sendSuccessEnvelope(res, result.statusCode ?? 200, result.data);
+      } catch (error) {
+        next(error);
+      }
+    },
   };
 }
 

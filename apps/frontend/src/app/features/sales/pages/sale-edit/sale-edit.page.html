@@ -33,6 +33,9 @@
   @if (isPosted() && sale(); as posted) {
     <section class="ag-stack totals" data-testid="sale-posted-details">
       <h2>Sale details</h2>
+      @if (posted.invoiceNumber) {
+        <p>Invoice: <strong>{{ posted.invoiceNumber }}</strong></p>
+      }
       @if (posted.customerNameSnapshot) {
         <p>Customer: <strong>{{ posted.customerNameSnapshot }}</strong></p>
       }
@@ -42,8 +45,25 @@
       @if (posted.warehouseNameSnapshot) {
         <p>Warehouse: <strong>{{ posted.warehouseNameSnapshot }}</strong></p>
       }
+      @if (posted.saleTotal) {
+        <p>Sale total: <strong>{{ posted.saleTotal.amount }} {{ posted.saleTotal.currency }}</strong></p>
+      }
+      @if (posted.paidTotal) {
+        <p>Paid: <strong>{{ posted.paidTotal.amount }} {{ posted.paidTotal.currency }}</strong></p>
+      }
+      @if (posted.receivableTotal) {
+        <p>Receivable: <strong>{{ posted.receivableTotal.amount }} {{ posted.receivableTotal.currency }}</strong></p>
+      }
       @if (posted.postedAt) {
         <p class="ag-muted">Posted at {{ posted.postedAt }}</p>
+      }
+      @if (posted.payments && posted.payments.length > 0) {
+        <h3>Payments</h3>
+        <ul>
+          @for (payment of posted.payments; track payment.paymentId ?? payment.accountId) {
+            <li>{{ payment.accountNameSnapshot }} — {{ payment.amount.amount }} {{ payment.amount.currency }}</li>
+          }
+        </ul>
       }
     </section>
   }
@@ -74,7 +94,7 @@
       <select formControlName="customerId" data-testid="sale-customer">
         <option value="">Walk-in / no customer</option>
         @for (customer of customers(); track customer.id) {
-          <option [value]="customer.id">{{ customer.name }}</option>
+          <option [value]="customer.id">{{ customer.name }} ({{ customer.priceTier }})</option>
         }
       </select>
     </label>
@@ -132,9 +152,52 @@
             <input formControlName="unitPrice" data-testid="sale-line-unit-price" />
           </label>
 
+          @if (!isPosted() && canOverridePrice()) {
+            <label>
+              Price override reason (required if price differs from tier)
+              <input formControlName="priceOverrideReason" data-testid="sale-line-override-reason" />
+            </label>
+          }
+
           @if (!isPosted()) {
             <button class="ag-btn ag-btn--secondary" type="button" (click)="removeLine(index)">
               Remove line
+            </button>
+          }
+        </fieldset>
+      }
+    </section>
+
+    <section class="ag-stack" data-testid="sale-payments">
+      <div class="ag-inline lines__header">
+        <h2>Payments at post</h2>
+        @if (!isPosted()) {
+          <button class="ag-btn ag-btn--secondary" type="button" (click)="addPayment()" data-testid="sale-add-payment">
+            Add payment
+          </button>
+        }
+      </div>
+      <p class="ag-muted">Leave empty for full credit when a customer is selected. Walk-in sales require full payment.</p>
+
+      @for (payment of payments.controls; track $index; let index = $index) {
+        <fieldset class="line" [formGroup]="paymentGroup(index)">
+          <legend>Payment {{ index + 1 }}</legend>
+          <label>
+            Account
+            <select formControlName="accountId" data-testid="sale-payment-account">
+              <option value="">Select account</option>
+              @for (account of accounts(); track account.id) {
+                <option [value]="account.id">{{ account.name }} ({{ account.accountType }})</option>
+              }
+            </select>
+          </label>
+          <label>
+            Amount (PKR)
+            <input formControlName="amount" data-testid="sale-payment-amount" />
+          </label>
+          @if (!isPosted()) {
+            <button class="ag-btn ag-btn--secondary" type="button" (click)="removePayment(index)">
+              Remove payment
             </button>
           }
         </fieldset>
@@ -147,15 +210,15 @@
           {{ saving() ? 'Saving…' : 'Save draft' }}
         </button>
       }
-      @if (!isPosted() && saleId()) {
+      @if (!isPosted() && saleId() && canPost()) {
         <button
           class="ag-btn"
           type="button"
-          disabled
-          title="Posting available in a later release"
+          [disabled]="posting()"
+          (click)="post()"
           data-testid="sale-post"
         >
-          Posting available in a later release
+          {{ posting() ? 'Posting…' : 'Post sale' }}
         </button>
       }
       @if (!isPosted() && saleId() && canCreate()) {
