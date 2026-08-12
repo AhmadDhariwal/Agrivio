@@ -10,7 +10,8 @@ const {
   createMongooseIdempotencyStore,
 } = require('../../platform/idempotency/idempotency-service');
 const { allocateGeneralSupplierPayment } = require('./supplier-allocation');
-const { parseSupplierPayment, toPaymentDto } = require('./payments.validation');
+const { allocateGeneralCustomerPayment } = require('./customer-allocation');
+const { parseSupplierPayment, parseCustomerPayment, toPaymentDto } = require('./payments.validation');
 const { reconcileSupplierLedgerState } = require('./supplier-reconciliation');
 const {
   formatMoneyMinorUnits,
@@ -38,7 +39,9 @@ function createPaymentsService(deps) {
   const ledgersService = deps.ledgersService;
   const accountsService = deps.accountsService;
   const suppliersService = deps.suppliersService;
+  const customersService = deps.customersService;
   const listUnpaidSupplierPurchases = deps.listUnpaidSupplierPurchases;
+  const listUnpaidCustomerSales = deps.listUnpaidCustomerSales;
   const transactionRunner = deps.transactionRunner;
   const now = deps.now ?? (() => new Date());
   const idempotency =
@@ -51,6 +54,34 @@ function createPaymentsService(deps) {
   const auditWriter = createAuditWriter({
     append: (session, event) => store.appendAuditEvent(session, event),
   });
+
+  async function resolveCustomerAllocationPlan(input, unpaidSales) {
+    if (input.allocationMode === 'invoice_specific') {
+      let totalAllocated = 0n;
+      for (const item of input.invoiceAllocations) {
+        totalAllocated += BigInt(item.allocatedAmountMinorUnits);
+      }
+      const paymentAmount = BigInt(input.amountMinorUnits);
+      if (totalAllocated > paymentAmount) {
+        throw validationFailed('Allocated amount exceeds payment amount', [
+          { field: 'allocations', message: 'allocations cannot exceed payment amount' },
+        ]);
+      }
+      return {
+        saleAllocations: input.invoiceAllocations,
+        advanceAmountMinorUnits: (paymentAmount - totalAllocated).toString(),
+      };
+    }
+
+    const plan = allocateGeneralCustomerPayment(unpaidSales ?? [], input.amountMinorUnits);
+    return {
+      saleAllocations: plan.allocations.map((item) => ({
+        saleId: item.saleId,
+        allocatedAmountMinorUnits: item.allocatedAmountMinorUnits,
+      })),
+      advanceAmountMinorUnits: plan.advanceAmountMinorUnits,
+    };
+  }
 
   async function resolveAllocationPlan(input, unpaidPurchases) {
     if (input.allocationMode === 'invoice_specific') {
@@ -212,10 +243,137 @@ function createPaymentsService(deps) {
     });
   }
 
+  async function postCustomerPaymentInSession(session, input) {
+    const payment = await store.insertPayment(session, {
+      organizationId: input.organizationId,
+      partyType: 'customer',
+      supplierId: null,
+      customerId: input.customerId,
+      accountId: input.accountId,
+      allocationMode: input.allocationMode,
+      amountMinorUnits: input.amountMinorUnits,
+      currency: input.currency ?? 'PKR',
+      paymentDate: input.paymentDate,
+      notes: input.notes ?? '',
+      status: 'posted',
+      postedAt: input.postedAt,
+      postedBy: input.postedBy,
+    });
+
+    const paymentId = String(payment['_id']);
+    const createdAllocations = [];
+
+    for (const item of input.saleAllocations) {
+      const allocation = await store.insertAllocation(session, {
+        organizationId: input.organizationId,
+        paymentId,
+        targetType: 'sale',
+        targetId: item.saleId,
+        allocatedAmountMinorUnits: item.allocatedAmountMinorUnits,
+        currency: input.currency ?? 'PKR',
+        status: 'posted',
+        postedAt: input.postedAt,
+      });
+      createdAllocations.push(allocation);
+
+      await ledgersService.postLedgerEffect(session, {
+        organizationId: input.organizationId,
+        partyType: 'customer',
+        customerId: input.customerId,
+        effectKind: 'receivable',
+        signedAmountMinorUnits: `-${item.allocatedAmountMinorUnits}`,
+        currency: input.currency ?? 'PKR',
+        sourceType: 'customer_payment_allocation',
+        sourceId: String(allocation['_id']),
+        postedAt: input.postedAt,
+        postedBy: input.postedBy,
+      });
+    }
+
+    const advanceAmount = BigInt(input.advanceAmountMinorUnits ?? '0');
+    if (advanceAmount > 0n) {
+      const advanceAllocation = await store.insertAllocation(session, {
+        organizationId: input.organizationId,
+        paymentId,
+        targetType: 'customer_advance',
+        targetId: paymentId,
+        allocatedAmountMinorUnits: advanceAmount.toString(),
+        currency: input.currency ?? 'PKR',
+        status: 'posted',
+        postedAt: input.postedAt,
+      });
+      createdAllocations.push(advanceAllocation);
+
+      await ledgersService.postLedgerEffect(session, {
+        organizationId: input.organizationId,
+        partyType: 'customer',
+        customerId: input.customerId,
+        effectKind: 'advance',
+        signedAmountMinorUnits: advanceAmount.toString(),
+        currency: input.currency ?? 'PKR',
+        sourceType: 'customer_payment_advance',
+        sourceId: paymentId,
+        postedAt: input.postedAt,
+        postedBy: input.postedBy,
+      });
+    }
+
+    if (input.postAccountMovement === true) {
+      if (!accountsService) {
+        throw validationFailed('Accounts service is required to post payment account movements');
+      }
+      await accountsService.postAccountMovement(session, {
+        organizationId: input.organizationId,
+        accountId: input.accountId,
+        signedAmountMinorUnits: String(input.amountMinorUnits),
+        currency: input.currency ?? 'PKR',
+        sourceType: 'customer_payment',
+        sourceId: paymentId,
+        postedAt: input.postedAt,
+        postedBy: input.postedBy,
+      });
+    }
+
+    await auditWriter.appendBusinessEvent(session, {
+      organizationId: input.organizationId,
+      actorId: input.postedBy,
+      action: 'customer_payment.posted',
+      resourceType: 'payment',
+      resourceId: paymentId,
+      metadata: {
+        customerId: input.customerId,
+        accountId: input.accountId,
+        amountMinorUnits: input.amountMinorUnits,
+        allocationMode: input.allocationMode,
+        advanceAmountMinorUnits: advanceAmount.toString(),
+      },
+    });
+
+    return { payment, allocations: createdAllocations };
+  }
+
+  async function postCustomerReceivableEffect(session, input) {
+    return ledgersService.postLedgerEffect(session, {
+      organizationId: input.organizationId,
+      partyType: 'customer',
+      customerId: input.customerId,
+      effectKind: 'receivable',
+      signedAmountMinorUnits: String(input.signedAmountMinorUnits),
+      currency: input.currency ?? 'PKR',
+      sourceType: input.sourceType ?? 'sale_receivable',
+      sourceId: input.sourceId,
+      postedAt: input.postedAt,
+      postedBy: input.postedBy,
+    });
+  }
+
   return {
     allocateGeneralSupplierPayment,
+    allocateGeneralCustomerPayment,
     postSupplierPaymentInSession,
     postSupplierPayableEffect,
+    postCustomerPaymentInSession,
+    postCustomerReceivableEffect,
 
     async listPurchaseAllocations(organizationId, purchaseId) {
       return store.listAllocationsByTarget(organizationId, 'purchase', purchaseId);
@@ -247,6 +405,7 @@ function createPaymentsService(deps) {
 
     async listSupplierPayments(organizationId, query = {}) {
       const items = await store.listPayments(organizationId, {
+        partyType: 'supplier',
         supplierId: query.supplierId,
       });
       const mapped = [];
@@ -497,6 +656,171 @@ function createPaymentsService(deps) {
                   throw conflict('Payment allocation exceeds outstanding payable');
                 }
               }
+            }
+
+            return toPaymentDto(posted.payment, posted.allocations);
+          });
+
+          return { statusCode: 201, body: dto };
+        },
+      );
+
+      return {
+        replay: result.replay,
+        data: result.response.body,
+        statusCode: result.response.statusCode,
+      };
+    },
+
+    async listSaleAllocations(organizationId, saleId) {
+      return store.listAllocationsByTarget(organizationId, 'sale', saleId);
+    },
+
+    async listCustomerPayments(organizationId, query = {}) {
+      const items = await store.listPayments(organizationId, {
+        partyType: 'customer',
+        customerId: query.customerId,
+      });
+      const mapped = [];
+      for (const item of items) {
+        const allocations = await store.listAllocationsByPayment(organizationId, String(item['_id']));
+        mapped.push(toPaymentDto(item, allocations));
+      }
+      return { items: mapped };
+    },
+
+    async getCustomerPayment(organizationId, paymentId) {
+      const payment = await store.findPaymentById(organizationId, paymentId);
+      if (payment === null || payment.partyType !== 'customer') {
+        throw notFound('Customer payment not found');
+      }
+      const allocations = await store.listAllocationsByPayment(organizationId, paymentId);
+      return toPaymentDto(payment, allocations);
+    },
+
+    async listCustomerLedger(organizationId, customerId) {
+      if (customersService) {
+        await customersService.getCustomer(organizationId, customerId);
+      }
+      return ledgersService.listCustomerEffects(organizationId, customerId);
+    },
+
+    async listUnpaidSalesForCustomer(organizationId, customerId) {
+      if (typeof listUnpaidCustomerSales !== 'function') {
+        return { items: [] };
+      }
+      const items = await listUnpaidCustomerSales(organizationId, customerId);
+      return {
+        items: items.map((item) => ({
+          id: String(item.id),
+          invoiceDate: String(item.invoiceDate),
+          dueDate: item.dueDate ?? null,
+          sequence: item.sequence ?? null,
+          outstanding: {
+            amount: formatMoneyMinorUnits(BigInt(String(item.outstandingMinorUnits ?? '0'))),
+            currency: 'PKR',
+          },
+          outstandingMinorUnits: String(item.outstandingMinorUnits ?? '0'),
+        })),
+      };
+    },
+
+    async postCustomerPayment(organizationId, body, actor, idempotencyKey) {
+      const key = requireIdempotencyKey(idempotencyKey);
+      const input = parseCustomerPayment(body);
+
+      if (!customersService) {
+        throw validationFailed('Customers service is required');
+      }
+      if (!accountsService) {
+        throw validationFailed('Accounts service is required');
+      }
+
+      const result = await idempotency.execute(
+        {
+          scopeType: 'organization',
+          organizationId,
+          actorId: actor.actorId,
+          operation: 'customer-payments.post',
+        },
+        key,
+        {
+          customerId: input.customerId,
+          accountId: input.accountId,
+          amountMinorUnits: input.amountMinorUnits,
+          paymentDate: input.paymentDate,
+          allocationMode: input.allocationMode,
+          invoiceAllocations: input.invoiceAllocations,
+          notes: input.notes,
+        },
+        async () => {
+          const dto = await transactionRunner.run(async (session) => {
+            const customer = await customersService.getCustomer(organizationId, input.customerId);
+            if (customer.status !== 'active') {
+              throw validationFailed('Customer must be active', [
+                { field: 'customerId', message: 'customer must be active' },
+              ]);
+            }
+
+            const account = await accountsService.getAccount(organizationId, input.accountId);
+            if (account.status !== 'active') {
+              throw validationFailed('Account must be active', [
+                { field: 'accountId', message: 'account must be active' },
+              ]);
+            }
+
+            let unpaidSales = [];
+            let unpaidById = new Map();
+
+            if (typeof listUnpaidCustomerSales === 'function') {
+              unpaidSales = await listUnpaidCustomerSales(organizationId, input.customerId);
+              unpaidById = new Map(unpaidSales.map((item) => [String(item.id), item]));
+            }
+
+            if (input.allocationMode === 'invoice_specific' && typeof listUnpaidCustomerSales === 'function') {
+              for (const allocation of input.invoiceAllocations) {
+                const unpaid = unpaidById.get(allocation.saleId);
+                if (!unpaid) {
+                  throw validationFailed('Sale is not an unpaid receivable target', [
+                    {
+                      field: 'allocations',
+                      message: `sale ${allocation.saleId} has no outstanding receivable`,
+                    },
+                  ]);
+                }
+                if (BigInt(allocation.allocatedAmountMinorUnits) > BigInt(unpaid.outstandingMinorUnits)) {
+                  throw validationFailed('Allocation exceeds outstanding sale receivable', [
+                    {
+                      field: 'allocations',
+                      message: `allocation for ${allocation.saleId} exceeds outstanding`,
+                    },
+                  ]);
+                }
+              }
+            }
+
+            const plan = await resolveCustomerAllocationPlan(input, unpaidSales);
+            const postedAt = now();
+
+            let posted;
+            try {
+              posted = await postCustomerPaymentInSession(session, {
+                organizationId,
+                customerId: input.customerId,
+                accountId: input.accountId,
+                amountMinorUnits: input.amountMinorUnits,
+                currency: input.currency,
+                paymentDate: input.paymentDate,
+                allocationMode: input.allocationMode,
+                saleAllocations: plan.saleAllocations,
+                advanceAmountMinorUnits: plan.advanceAmountMinorUnits,
+                notes: input.notes,
+                postedAt,
+                postedBy: actor.actorId,
+                postAccountMovement: true,
+              });
+            } catch (error) {
+              mapDuplicate(error, 'Customer payment effects already exist for this source');
             }
 
             return toPaymentDto(posted.payment, posted.allocations);

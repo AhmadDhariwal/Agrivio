@@ -45,9 +45,12 @@ function createMongoosePaymentsStore() {
     },
 
     async listPayments(organizationId, filter = {}) {
-      const query = { organizationId, partyType: 'supplier', status: 'posted' };
-      if (filter.supplierId) {
+      const query = { organizationId, status: 'posted', partyType: filter.partyType ?? 'supplier' };
+      if (filter.partyType === 'supplier' && filter.supplierId) {
         query.supplierId = filter.supplierId;
+      }
+      if (filter.partyType === 'customer' && filter.customerId) {
+        query.customerId = filter.customerId;
       }
       return PaymentModel.find(query).sort({ postedAt: -1 }).lean().exec();
     },
@@ -112,15 +115,19 @@ function createInMemoryPaymentsStore() {
     },
 
     async listPayments(organizationId, filter = {}) {
+      const partyType = filter.partyType ?? 'supplier';
       return [...payments.values()]
         .filter((item) => {
           if (String(item.organizationId) !== String(organizationId)) {
             return false;
           }
-          if (item.partyType !== 'supplier' || item.status !== 'posted') {
+          if (item.partyType !== partyType || item.status !== 'posted') {
             return false;
           }
-          if (filter.supplierId && String(item.supplierId) !== String(filter.supplierId)) {
+          if (partyType === 'supplier' && filter.supplierId && String(item.supplierId) !== String(filter.supplierId)) {
+            return false;
+          }
+          if (partyType === 'customer' && filter.customerId && String(item.customerId) !== String(filter.customerId)) {
             return false;
           }
           return true;

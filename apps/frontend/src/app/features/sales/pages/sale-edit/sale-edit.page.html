@@ -1,0 +1,175 @@
+<agrivio-ui-page-header
+  [title]="isPosted() ? 'Posted sale' : saleId() ? 'Edit sale draft' : 'Create sale draft'"
+  eyebrow="Sales"
+  [lede]="
+    isPosted()
+      ? 'Posted sales are immutable. Totals and snapshots below are authoritative.'
+      : 'Drafts are unposted. Saving does not update inventory or receivables until you post.'
+  "
+/>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading sale…" />
+} @else if (!canView() && !canCreate()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to view or edit sales." />
+} @else {
+  @if (isPosted()) {
+    <div class="posted-banner" data-testid="sale-posted-banner">
+      Posted — inventory and receivable effects are locked.
+    </div>
+  } @else {
+    <div class="draft-banner" data-testid="sale-draft-banner">
+      Draft (unposted) — no stock or receivable effects until this sale is posted.
+    </div>
+  }
+
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+  @if (successMessage(); as success) {
+    <agrivio-ui-alert tone="success" [message]="success" data-testid="sale-success" />
+  }
+
+  @if (isPosted() && sale(); as posted) {
+    <section class="ag-stack totals" data-testid="sale-posted-details">
+      <h2>Sale details</h2>
+      @if (posted.customerNameSnapshot) {
+        <p>Customer: <strong>{{ posted.customerNameSnapshot }}</strong></p>
+      }
+      @if (posted.branchNameSnapshot) {
+        <p>Branch: <strong>{{ posted.branchNameSnapshot }}</strong></p>
+      }
+      @if (posted.warehouseNameSnapshot) {
+        <p>Warehouse: <strong>{{ posted.warehouseNameSnapshot }}</strong></p>
+      }
+      @if (posted.postedAt) {
+        <p class="ag-muted">Posted at {{ posted.postedAt }}</p>
+      }
+    </section>
+  }
+
+  <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="sale-form">
+    <label>
+      Branch
+      <select formControlName="branchId" data-testid="sale-branch">
+        <option value="">Select branch</option>
+        @for (branch of branches(); track branch.id) {
+          <option [value]="branch.id">{{ branch.name }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Warehouse
+      <select formControlName="warehouseId" data-testid="sale-warehouse">
+        <option value="">Select warehouse</option>
+        @for (warehouse of warehouses(); track warehouse.id) {
+          <option [value]="warehouse.id">{{ warehouse.name }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Customer (optional)
+      <select formControlName="customerId" data-testid="sale-customer">
+        <option value="">Walk-in / no customer</option>
+        @for (customer of customers(); track customer.id) {
+          <option [value]="customer.id">{{ customer.name }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Sale date
+      <input type="date" formControlName="saleDate" data-testid="sale-date" />
+    </label>
+
+    <label>
+      Notes (optional)
+      <textarea formControlName="notes" rows="3" data-testid="sale-notes"></textarea>
+    </label>
+
+    <section class="ag-stack lines">
+      <div class="ag-inline lines__header">
+        <h2>Lines</h2>
+        @if (!isPosted()) {
+          <button class="ag-btn ag-btn--secondary" type="button" (click)="addLine()" data-testid="sale-add-line">
+            Add line
+          </button>
+        }
+      </div>
+
+      @for (line of lines.controls; track $index; let index = $index) {
+        <fieldset class="line" [formGroup]="lineGroup(index)">
+          <legend>Line {{ index + 1 }}</legend>
+          <label>
+            Product
+            <select formControlName="productId" data-testid="sale-line-product">
+              <option value="">Select product</option>
+              @for (product of products(); track product.id) {
+                <option [value]="product.id">{{ product.name }}</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            Packaging (optional)
+            <select formControlName="packagingUnitId" data-testid="sale-line-packaging">
+              <option value="">Base unit</option>
+              @for (unit of packagingUnitsForLine(index); track unit.id) {
+                <option [value]="unit.id">{{ unit.name }} (×{{ unit.conversionFactor }})</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            Quantity
+            <input formControlName="quantity" data-testid="sale-line-quantity" />
+          </label>
+
+          <label>
+            Unit price (PKR)
+            <input formControlName="unitPrice" data-testid="sale-line-unit-price" />
+          </label>
+
+          @if (!isPosted()) {
+            <button class="ag-btn ag-btn--secondary" type="button" (click)="removeLine(index)">
+              Remove line
+            </button>
+          }
+        </fieldset>
+      }
+    </section>
+
+    <div class="ag-inline">
+      @if (!isPosted() && canCreate()) {
+        <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="sale-save">
+          {{ saving() ? 'Saving…' : 'Save draft' }}
+        </button>
+      }
+      @if (!isPosted() && saleId()) {
+        <button
+          class="ag-btn"
+          type="button"
+          disabled
+          title="Posting available in a later release"
+          data-testid="sale-post"
+        >
+          Posting available in a later release
+        </button>
+      }
+      @if (!isPosted() && saleId() && canCreate()) {
+        <button
+          class="ag-btn ag-btn--secondary"
+          type="button"
+          [disabled]="discarding()"
+          (click)="discard()"
+          data-testid="sale-discard"
+        >
+          {{ discarding() ? 'Discarding…' : 'Discard draft' }}
+        </button>
+      }
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/sales">Back to list</a>
+    </div>
+  </form>
+}

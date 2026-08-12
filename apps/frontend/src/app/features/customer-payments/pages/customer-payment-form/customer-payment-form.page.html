@@ -1,0 +1,127 @@
+<agrivio-ui-page-header
+  title="Post customer payment"
+  eyebrow="Sales"
+  lede="Choose general allocation (oldest-first) or invoice-specific to target a particular sale."
+/>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading payment form…" />
+} @else if (!canPost()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to post customer payments." />
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+  @if (successMessage(); as success) {
+    <agrivio-ui-alert tone="success" [message]="success" data-testid="customer-payment-success" />
+  }
+
+  @if (lastPayment(); as payment) {
+    @if (payment.allocations && payment.allocations.length > 0) {
+      <section class="ag-stack allocations" data-testid="payment-allocations">
+        <h2>Allocations</h2>
+        @for (alloc of payment.allocations; track alloc.id) {
+          <article class="ledger-row">
+            <div>
+              <strong>{{ alloc.targetType === 'customer_advance' ? 'Customer advance' : alloc.targetType }}</strong>
+              <p class="ag-muted">{{ alloc.targetId }}</p>
+            </div>
+            <span>{{ alloc.allocatedAmount.amount }} {{ alloc.allocatedAmount.currency }}</span>
+          </article>
+        }
+      </section>
+    }
+  }
+
+  <form
+    class="ag-stack form"
+    [formGroup]="form"
+    (ngSubmit)="save()"
+    data-testid="customer-payment-form"
+  >
+    <label>
+      Customer
+      <select formControlName="customerId" data-testid="customer-payment-customer">
+        <option value="">Select customer</option>
+        @for (customer of customers(); track customer.id) {
+          <option [value]="customer.id">{{ customer.name }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Receive into account
+      <select formControlName="accountId" data-testid="customer-payment-account">
+        <option value="">Select account</option>
+        @for (account of accounts(); track account.id) {
+          <option [value]="account.id">{{ account.name }} ({{ account.accountType }})</option>
+        }
+      </select>
+    </label>
+
+    <fieldset class="ag-stack">
+      <legend>Allocation mode</legend>
+      <label class="radio-label">
+        <input type="radio" formControlName="allocationMode" value="general" data-testid="alloc-mode-general" />
+        General — oldest unpaid sale first; remainder becomes customer advance
+      </label>
+      <label class="radio-label">
+        <input type="radio" formControlName="allocationMode" value="invoice_specific" data-testid="alloc-mode-invoice" />
+        Invoice-specific — target a specific unpaid sale by ID
+      </label>
+    </fieldset>
+
+    @if (isInvoiceSpecific()) {
+      <section class="ag-stack invoice-alloc" data-testid="invoice-alloc-section">
+        <h2>Invoice allocation</h2>
+        <div [formGroup]="invoiceAllocationForm" class="ag-stack">
+          <label>
+            Sale ID
+            <input formControlName="saleId" data-testid="alloc-sale-input" placeholder="Posted sale ID" />
+          </label>
+          <label>
+            Allocation amount (PKR)
+            <input formControlName="allocationAmount" data-testid="alloc-amount-input" />
+          </label>
+        </div>
+      </section>
+    }
+
+    <label>
+      Amount (PKR)
+      <input formControlName="amount" data-testid="customer-payment-amount" />
+    </label>
+
+    <label>
+      Payment date
+      <input type="date" formControlName="paymentDate" data-testid="customer-payment-date" />
+    </label>
+
+    <label>
+      Notes (optional)
+      <textarea formControlName="notes" rows="3"></textarea>
+    </label>
+
+    <div class="ag-inline">
+      <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="customer-payment-save">
+        {{ saving() ? 'Posting…' : 'Post payment' }}
+      </button>
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/customer-payments">Back to list</a>
+    </div>
+  </form>
+
+  @if (ledgerItems().length > 0) {
+    <section class="ag-stack ledger">
+      <h2>Customer ledger preview</h2>
+      @for (item of ledgerItems(); track item.id) {
+        <article class="ledger-row">
+          <div>
+            <strong>{{ item.effectKind }}</strong>
+            <p class="ag-muted">{{ item.sourceType }} · {{ item.postedAt }}</p>
+          </div>
+          <span>{{ item.signedAmount.amount }} {{ item.signedAmount.currency }}</span>
+        </article>
+      }
+    </section>
+  }
+}
