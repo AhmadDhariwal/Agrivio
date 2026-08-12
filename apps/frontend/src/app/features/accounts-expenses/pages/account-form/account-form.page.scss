@@ -18,3 +18,15 @@ select {
   border: 1px solid var(--ag-border, #cfd6cb);
   font: inherit;
 }
+
+.movements {
+  margin-top: 1.5rem;
+}
+
+.movement-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--ag-border, #d7ddd4);
+}

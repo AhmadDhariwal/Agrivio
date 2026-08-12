@@ -1,6 +1,12 @@
 const mongoose = require('mongoose');
 
-const MOVEMENT_SOURCE_TYPES = ['account_opening'];
+const MOVEMENT_SOURCE_TYPES = [
+  'account_opening',
+  'supplier_payment',
+  'purchase_payment',
+  'purchase_cancellation_refund',
+  'purchase_return_refund',
+];
 const MOVEMENT_STATUSES = ['posted'];
 
 const accountMovementSchema = new mongoose.Schema(
@@ -53,6 +59,24 @@ accountMovementSchema.index(
       status: 'posted',
     },
     name: 'account_movements_opening_unique',
+  },
+);
+accountMovementSchema.index(
+  { organizationId: 1, sourceType: 1, sourceId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      sourceType: {
+        $in: [
+          'supplier_payment',
+          'purchase_payment',
+          'purchase_cancellation_refund',
+          'purchase_return_refund',
+        ],
+      },
+      status: 'posted',
+    },
+    name: 'account_movements_payment_source_unique',
   },
 );
 

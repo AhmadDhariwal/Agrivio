@@ -161,8 +161,19 @@ function createAccountsService(deps) {
 
     /**
      * Public Accounts interface: post a signed account movement within a session.
+     * Validates organization ownership and active status for purchase/payment reuse.
      */
     async postAccountMovement(session, input) {
+      const account = await store.findAccountById(input.organizationId, input.accountId);
+      if (account === null) {
+        throw notFound('Account not found');
+      }
+      if (account.status !== 'active') {
+        throw validationFailed('Account must be active for movement posting', [
+          { field: 'accountId', message: 'account must be active' },
+        ]);
+      }
+
       try {
         return await store.insertAccountMovement(session, {
           organizationId: input.organizationId,
@@ -176,7 +187,12 @@ function createAccountsService(deps) {
           postedBy: input.postedBy,
         });
       } catch (error) {
-        mapDuplicate(error, 'Opening account movement already exists for this account');
+        mapDuplicate(
+          error,
+          input.sourceType === 'account_opening'
+            ? 'Opening account movement already exists for this account'
+            : 'Account movement already exists for this source',
+        );
       }
     },
 

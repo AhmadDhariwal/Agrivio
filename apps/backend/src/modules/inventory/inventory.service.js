@@ -23,6 +23,7 @@ const {
   applyBalanceOutbound,
   applyCostInbound,
   applyCostOutbound,
+  applyCostOutboundAtValue,
 } = require('./inventory-posting');
 const {
   parseAdjustmentDraft,
@@ -296,7 +297,22 @@ function createInventoryService(deps) {
       balance = await applyBalanceOutbound(store, session, organizationId, scope, quantity, {
         allowNegativeStockOverride: payload.allowNegativeStockOverride,
       });
-      costResult = await applyCostOutbound(store, session, organizationId, scope, quantity);
+      if (
+        payload.inventoryValueMinorUnits !== undefined &&
+        payload.inventoryValueMinorUnits !== null &&
+        payload.useExplicitOutboundValue === true
+      ) {
+        costResult = await applyCostOutboundAtValue(
+          store,
+          session,
+          organizationId,
+          scope,
+          quantity,
+          BigInt(String(payload.inventoryValueMinorUnits)),
+        );
+      } else {
+        costResult = await applyCostOutbound(store, session, organizationId, scope, quantity);
+      }
       movementInventoryValue = costResult.outboundValueMinorUnits.toString();
       movementUnitCost = costResult.unitCostMinorUnits.toString();
     }
@@ -1668,6 +1684,133 @@ function createInventoryService(deps) {
       return toReconciliationDto(
         reconcileInventoryState({ movements, balances, costStates }),
       );
+    },
+
+    /**
+     * Session-scoped inbound receipt for purchase (and similar) orchestration.
+     * Caller owns the transaction; Inventory must not commit independently.
+     */
+    async postInboundReceiptInSession(session, organizationId, actor, input) {
+      const product = await catalogService.getProduct(organizationId, input.productId);
+      assertActiveProduct(product);
+
+      if (product.trackingMode === 'none') {
+        if (input.batchNumber) {
+          throw validationFailed('batchNumber is not allowed for products without batch tracking', [
+            { field: 'batchNumber', message: 'batchNumber is not allowed' },
+          ]);
+        }
+      } else if (!input.batchNumber) {
+        throw validationFailed('batchNumber is required for batch-tracked products', [
+          { field: 'batchNumber', message: 'batchNumber is required' },
+        ]);
+      }
+
+      if (product.trackingMode === 'batch_expiry' && !input.expiryDate) {
+        throw validationFailed('expiryDate is required for batch_expiry tracking', [
+          { field: 'expiryDate', message: 'expiryDate is required' },
+        ]);
+      }
+
+      const postedAt = input.postedAt ?? now();
+      const batch = await resolveOrCreateBatch(
+        session,
+        organizationId,
+        product,
+        {
+          batchNumber: input.batchNumber ?? null,
+          manufacturingDate: input.manufacturingDate ?? null,
+          expiryDate: input.expiryDate ?? null,
+        },
+        postedAt,
+      );
+      const batchId = batch ? batch['_id'] : null;
+
+      const effects = await postStockMovementEffects(session, organizationId, actor, {
+        movementId: input.movementId,
+        warehouseId: input.warehouseId,
+        productId: input.productId,
+        batchId,
+        direction: 'inbound',
+        quantityBaseMinorUnits: BigInt(String(input.quantityBaseMinorUnits)),
+        enteredQuantityMinorUnits: String(input.enteredQuantityMinorUnits),
+        unitCode: input.unitCode,
+        conversionFactorSnapshot: String(input.conversionFactorSnapshot),
+        packagingUnitId: input.packagingUnitId ?? null,
+        inventoryValueMinorUnits: BigInt(String(input.inventoryValueMinorUnits)),
+        sourceType: input.sourceType,
+        sourceId: input.sourceId,
+        postedAt,
+      });
+
+      return {
+        movement: effects.movement,
+        balance: effects.balance,
+        costState: effects.costState,
+        batch,
+        batchId: batchId ? String(batchId) : null,
+      };
+    },
+
+    /**
+     * Session-scoped outbound issue for purchase cancellation / purchase return.
+     * Uses explicit inventory value from original receipt cost when provided (BR-RETURN-012/013).
+     * Negative-stock override is never allowed for purchase-return orchestration.
+     */
+    async postOutboundIssueInSession(session, organizationId, actor, input) {
+      const product = await catalogService.getProduct(organizationId, input.productId);
+      assertActiveProduct(product);
+
+      const batchId = input.batchId ?? null;
+      if (product.trackingMode === 'none') {
+        if (batchId) {
+          throw validationFailed('batchId is not allowed for products without batch tracking', [
+            { field: 'batchId', message: 'batchId is not allowed' },
+          ]);
+        }
+      } else if (!batchId) {
+        throw validationFailed('batchId is required for batch-tracked products', [
+          { field: 'batchId', message: 'batchId is required' },
+        ]);
+      }
+
+      if (batchId) {
+        const batch = await store.findBatchById(organizationId, batchId);
+        if (batch === null || String(batch.productId) !== String(input.productId)) {
+          throw validationFailed('batchId does not match product', [
+            { field: 'batchId', message: 'batch must belong to the product' },
+          ]);
+        }
+      }
+
+      const postedAt = input.postedAt ?? now();
+      const effects = await postStockMovementEffects(session, organizationId, actor, {
+        movementId: input.movementId,
+        warehouseId: input.warehouseId,
+        productId: input.productId,
+        batchId,
+        direction: 'outbound',
+        quantityBaseMinorUnits: BigInt(String(input.quantityBaseMinorUnits)),
+        enteredQuantityMinorUnits: String(input.enteredQuantityMinorUnits),
+        unitCode: input.unitCode,
+        conversionFactorSnapshot: String(input.conversionFactorSnapshot),
+        packagingUnitId: input.packagingUnitId ?? null,
+        inventoryValueMinorUnits: input.inventoryValueMinorUnits,
+        useExplicitOutboundValue: input.useExplicitOutboundValue === true,
+        sourceType: input.sourceType,
+        sourceId: input.sourceId,
+        postedAt,
+        reason: input.reason ?? null,
+        correctionOfId: input.correctionOfId ?? null,
+        allowNegativeStockOverride: false,
+      });
+
+      return {
+        movement: effects.movement,
+        balance: effects.balance,
+        costState: effects.costState,
+        batchId: batchId ? String(batchId) : null,
+      };
     },
   };
 }

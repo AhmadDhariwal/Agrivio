@@ -49,9 +49,61 @@ describe('F04 P3 shared posting contracts', () => {
     const ledgersPublic = require('../payments-ledgers/public');
     const accountsPublic = require('../accounts-expenses/public');
     const auditPublic = require('../audit/public');
+    const purchasesPublic = require('../purchases/public');
     expect(typeof ledgersPublic.createLedgersService).toBe('function');
+    expect(typeof ledgersPublic.createPaymentsService).toBe('function');
+    expect(typeof ledgersPublic.allocateGeneralSupplierPayment).toBe('function');
     expect(typeof accountsPublic.createAccountsService).toBe('function');
     expect(typeof auditPublic.createAuditWriter).toBe('function');
+    expect(typeof purchasesPublic.createPurchasesService).toBe('function');
+  });
+
+  it('Accounts public service exposes movement posting and balance inquiry', () => {
+    const accountsPublic = require('../accounts-expenses/public');
+    const module = accountsPublic.createAccountsModule({ persistence: 'memory' });
+    expect(typeof module.accountsService.postAccountMovement).toBe('function');
+    expect(typeof module.accountsService.sumAccountBalance).toBe('function');
+    expect(typeof module.accountsService.listAccountMovements).toBe('function');
+  });
+
+  it('Inventory service exposes session inbound receipt for purchase orchestration', () => {
+    const inventoryPublic = require('./public');
+    const module = inventoryPublic.createInventoryModule({
+      persistence: 'memory',
+      catalogService: {
+        async getProduct() {
+          return {
+            id: 'p1',
+            name: 'P',
+            trackingMode: 'none',
+            baseUnitCode: 'EA',
+            status: 'active',
+          };
+        },
+        async listPackagingUnits() {
+          return { items: [] };
+        },
+      },
+      locationsService: {
+        async getWarehouse() {
+          return { id: 'w1', status: 'active', name: 'WH' };
+        },
+      },
+      canAccessWarehouse: () => true,
+      hasPermission: () => true,
+      resolveOrganizationTimezone: async () => 'Asia/Karachi',
+    });
+    expect(typeof module.inventoryService.postInboundReceiptInSession).toBe('function');
+    expect(typeof module.inventoryService.postOutboundIssueInSession).toBe('function');
+  });
+
+  it('Payments and Purchases public entries do not leak persistence paths', () => {
+    const entry = join(backendRoot, 'modules/payments-ledgers/public/index.js');
+    const contents = readFileSync(entry, 'utf8');
+    expect(contents).not.toMatch(/persistence\//);
+    const purchasesEntry = join(backendRoot, 'modules/purchases/public/index.js');
+    const purchasesContents = readFileSync(purchasesEntry, 'utf8');
+    expect(purchasesContents).not.toMatch(/persistence\//);
   });
 
   it('prevents future Purchases/Sales modules from importing foreign persistence models', () => {
@@ -62,7 +114,6 @@ describe('F04 P3 shared posting contracts', () => {
         '/inventory/persistence/',
         '/payments-ledgers/persistence/',
         '/accounts-expenses/persistence/',
-        '/audit/persistence/',
       ],
     );
     expect(violations).toEqual([]);

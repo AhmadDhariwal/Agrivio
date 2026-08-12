@@ -7,6 +7,19 @@ const SOURCE_TYPES = [
   'customer_opening_advance',
   'supplier_opening_payable',
   'supplier_opening_advance',
+  'purchase_payable',
+  'supplier_payment_allocation',
+  'supplier_payment_advance',
+  'supplier_advance_application',
+  'purchase_cancellation',
+  'purchase_cancellation_allocation_reversal',
+  'purchase_return',
+];
+const OPENING_SOURCE_TYPES = [
+  'customer_opening_receivable',
+  'customer_opening_advance',
+  'supplier_opening_payable',
+  'supplier_opening_advance',
 ];
 const EFFECT_STATUSES = ['posted'];
 
@@ -72,17 +85,31 @@ ledgerEffectSchema.index(
   {
     unique: true,
     partialFilterExpression: {
+      sourceType: { $in: OPENING_SOURCE_TYPES },
+      status: 'posted',
+    },
+    name: 'ledger_effects_opening_unique',
+  },
+);
+ledgerEffectSchema.index(
+  { organizationId: 1, sourceType: 1, sourceId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
       sourceType: {
         $in: [
-          'customer_opening_receivable',
-          'customer_opening_advance',
-          'supplier_opening_payable',
-          'supplier_opening_advance',
+          'purchase_payable',
+          'supplier_payment_allocation',
+          'supplier_payment_advance',
+          'supplier_advance_application',
+          'purchase_cancellation',
+          'purchase_cancellation_allocation_reversal',
+          'purchase_return',
         ],
       },
       status: 'posted',
     },
-    name: 'ledger_effects_opening_unique',
+    name: 'ledger_effects_operational_source_unique',
   },
 );
 
@@ -93,6 +120,7 @@ module.exports = {
   PARTY_TYPES,
   EFFECT_KINDS,
   SOURCE_TYPES,
+  OPENING_SOURCE_TYPES,
   EFFECT_STATUSES,
   LedgerEffectModel,
 };

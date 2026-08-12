@@ -9,6 +9,7 @@ const {
   applyBalanceOutbound,
   applyCostInbound,
   applyCostOutbound,
+  applyCostOutboundAtValue,
 } = require('../inventory-posting');
 const { createInventoryModule, createInventoryService } = require('../inventory.module');
 
@@ -18,6 +19,7 @@ module.exports = {
   applyBalanceOutbound,
   applyCostInbound,
   applyCostOutbound,
+  applyCostOutboundAtValue,
   createInventoryModule,
   createInventoryService,
 };

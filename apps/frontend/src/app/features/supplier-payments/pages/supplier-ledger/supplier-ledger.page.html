@@ -1,0 +1,95 @@
+<agrivio-ui-page-header
+  title="Supplier ledger & reconciliation"
+  eyebrow="Purchasing"
+  lede="View ledger effects and reconciliation status for any active supplier."
+>
+  <a class="ag-btn ag-btn--secondary" routerLink="/app/supplier-payments">Back to payments</a>
+</agrivio-ui-page-header>
+
+@if (!canView()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to view supplier payments." />
+} @else if (loadingSuppliers()) {
+  <agrivio-ui-loading-state label="Loading suppliers…" />
+} @else {
+  <form class="ag-stack form" [formGroup]="form" data-testid="ledger-supplier-form">
+    <label>
+      Supplier
+      <select formControlName="supplierId" data-testid="ledger-supplier-select">
+        <option value="">Select supplier</option>
+        @for (supplier of suppliers(); track supplier.id) {
+          <option [value]="supplier.id">{{ supplier.name }}</option>
+        }
+      </select>
+    </label>
+  </form>
+
+  @if (selectedSupplierId()) {
+    @if (errorMessage(); as error) {
+      <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+    }
+
+    @if (loadingRecon()) {
+      <agrivio-ui-loading-state label="Loading reconciliation…" />
+    } @else if (reconciliation(); as recon) {
+      <section class="ag-stack recon" data-testid="reconciliation-panel">
+        <h2>Reconciliation status</h2>
+        <p>
+          Status:
+          <strong
+            data-testid="supplier-ledger-reconciliation-status"
+            [class.recon-ok]="recon.ok"
+            [class.recon-findings]="!recon.ok"
+          >
+            {{ recon.ok ? 'Healthy' : 'Findings' }}
+          </strong>
+        </p>
+        <p>Payable: {{ recon.payable.amount }} {{ recon.payable.currency }}</p>
+        <p>Advance: {{ recon.advance.amount }} {{ recon.advance.currency }}</p>
+        <p>Allocation total: {{ recon.allocationTotal.amount }} {{ recon.allocationTotal.currency }}</p>
+        <p>
+          Account movement total: {{ recon.accountMovementTotal.amount }}
+          {{ recon.accountMovementTotal.currency }}
+        </p>
+        @if (recon.findings && recon.findings.length > 0) {
+          <ul class="findings-list">
+            @for (finding of recon.findings; track $index) {
+              <li>{{ finding.code }}</li>
+            }
+          </ul>
+        }
+      </section>
+    } @else if (reconErrorMessage(); as reconErr) {
+      <agrivio-ui-alert tone="warning" [message]="reconErr" />
+    }
+
+    @if (loadingLedger()) {
+      <agrivio-ui-loading-state label="Loading ledger…" />
+    } @else if (ledgerItems().length === 0) {
+      <agrivio-ui-empty-state
+        title="No ledger entries"
+        message="No ledger effects found for this supplier."
+      />
+    } @else {
+      <section class="ag-stack ledger" data-testid="ledger-effects-table">
+        <h2>Ledger effects</h2>
+        <div class="ledger-header ledger-row">
+          <span>Kind</span>
+          <span>Source</span>
+          <span>Date</span>
+          <span>Amount</span>
+        </div>
+        @for (item of ledgerItems(); track item.id) {
+          <article class="ledger-row">
+            <span>{{ effectKindLabel(item.effectKind) }}</span>
+            <span class="ag-muted">{{ sourceTypeLabel(item.sourceType) }}</span>
+            <span class="ag-muted">{{ item.postedAt }}</span>
+            <span [class.amount-positive]="!item.signedAmount.amount.startsWith('-')"
+                  [class.amount-negative]="item.signedAmount.amount.startsWith('-')">
+              {{ item.signedAmount.amount }} {{ item.signedAmount.currency }}
+            </span>
+          </article>
+        }
+      </section>
+    }
+  }
+}

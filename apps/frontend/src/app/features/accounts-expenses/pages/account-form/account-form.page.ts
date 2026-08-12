@@ -7,7 +7,8 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
-import { AccountRecord } from '../../models/accounts.models';
+import { AccountMovementRecord, AccountRecord } from '../../models/accounts.models';
+import { forkJoin, of } from 'rxjs';
 
 @Component({
   selector: 'agrivio-account-form-page',
@@ -36,7 +37,9 @@ export class AccountFormPage {
   readonly errorMessage = signal<string | null>(null);
   readonly openingPosted = signal(false);
   readonly derivedBalance = signal<string | null>(null);
+  readonly movements = signal<AccountMovementRecord[]>([]);
   readonly canManage = computed(() => this.sessionStore.hasPermission('accounts.manage'));
+  readonly canView = computed(() => this.sessionStore.hasPermission('accounts.view'));
   readonly canPostOpening = computed(() =>
     this.sessionStore.hasPermission('accounts.opening-balance.post'),
   );
@@ -65,9 +68,13 @@ export class AccountFormPage {
     if (id && id !== 'new') {
       this.accountId.set(id);
       this.loading.set(true);
-      this.api.getAccount(id).subscribe({
-        next: (account) => {
+      forkJoin({
+        account: this.api.getAccount(id),
+        movements: this.canView() ? this.api.listMovements(id) : of([]),
+      }).subscribe({
+        next: ({ account, movements }) => {
           this.applyAccount(account);
+          this.movements.set(movements);
           this.loading.set(false);
         },
         error: (error: unknown) => {
@@ -163,6 +170,9 @@ export class AccountFormPage {
         next: (account) => {
           this.postingOpening.set(false);
           this.applyAccount(account);
+          this.api.listMovements(id).subscribe({
+            next: (movements) => this.movements.set(movements),
+          });
         },
         error: (error: unknown) => {
           this.postingOpening.set(false);
