@@ -86,6 +86,58 @@ function createPaymentsController(deps) {
         next(error);
       }
     },
+
+    async listCustomerPayments(req, res, next) {
+      try {
+        const data = await deps.paymentsService.listCustomerPayments(requireOrganizationId(req), {
+          customerId:
+            typeof req.query.customerId === 'string' && req.query.customerId.trim() !== ''
+              ? req.query.customerId.trim()
+              : undefined,
+        });
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async getCustomerPayment(req, res, next) {
+      try {
+        const data = await deps.paymentsService.getCustomerPayment(
+          requireOrganizationId(req),
+          String(req.params.id),
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async postCustomerPayment(req, res, next) {
+      try {
+        const result = await deps.paymentsService.postCustomerPayment(
+          requireOrganizationId(req),
+          req.body,
+          { actorId: String(req.authContext.userId) },
+          req.get('Idempotency-Key'),
+        );
+        sendSuccessEnvelope(res, result.statusCode ?? 201, result.data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async listCustomerLedger(req, res, next) {
+      try {
+        const data = await deps.paymentsService.listCustomerLedger(
+          requireOrganizationId(req),
+          String(req.params.id),
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
   };
 }
 

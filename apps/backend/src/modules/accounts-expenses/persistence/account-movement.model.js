@@ -4,6 +4,7 @@ const MOVEMENT_SOURCE_TYPES = [
   'account_opening',
   'supplier_payment',
   'purchase_payment',
+  'customer_payment',
   'purchase_cancellation_refund',
   'purchase_return_refund',
 ];

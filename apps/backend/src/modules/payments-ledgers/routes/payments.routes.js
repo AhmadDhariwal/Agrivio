@@ -1,5 +1,10 @@
 const { Router } = require('express');
-const { API_SUPPLIER_PAYMENTS_PATH, API_SUPPLIERS_PATH } = require('@agrivio/api-contracts');
+const {
+  API_SUPPLIER_PAYMENTS_PATH,
+  API_CUSTOMER_PAYMENTS_PATH,
+  API_SUPPLIERS_PATH,
+  API_CUSTOMERS_PATH,
+} = require('@agrivio/api-contracts');
 const {
   createRequireOrganizationContextMiddleware,
   createRequirePermissionMiddleware,
@@ -75,6 +80,51 @@ function registerPaymentsRoutes(deps) {
     deps.requireOperationalAccess,
     (req, res, next) => {
       void controller.reconcileSupplierLedger(req, res, next);
+    },
+  );
+
+  router.get(
+    API_CUSTOMER_PAYMENTS_PATH,
+    deps.requireAuth,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('customer-payments.view'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.listCustomerPayments(req, res, next);
+    },
+  );
+
+  router.post(
+    API_CUSTOMER_PAYMENTS_PATH,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('customer-payments.post'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.postCustomerPayment(req, res, next);
+    },
+  );
+
+  router.get(
+    `${API_CUSTOMER_PAYMENTS_PATH}/:id`,
+    deps.requireAuth,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('customer-payments.view'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.getCustomerPayment(req, res, next);
+    },
+  );
+
+  router.get(
+    `${API_CUSTOMERS_PATH}/:id/ledger`,
+    deps.requireAuth,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('customer-payments.view'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.listCustomerLedger(req, res, next);
     },
   );
 

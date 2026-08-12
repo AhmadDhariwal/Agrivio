@@ -88,6 +88,12 @@ export const API_SUPPLIER_PAYMENTS_PATH = `${API_V1_PREFIX}/supplier-payments` a
 /** Purchase drafts and posted purchases (R1-F05-003+). */
 export const API_PURCHASES_PATH = `${API_V1_PREFIX}/purchases` as const;
 
+/** Sale drafts and posted sales (R1-F06-002+). */
+export const API_SALES_PATH = `${API_V1_PREFIX}/sales` as const;
+
+/** Customer payments (R1-F06-001). */
+export const API_CUSTOMER_PAYMENTS_PATH = `${API_V1_PREFIX}/customer-payments` as const;
+
 /** Purchase returns and corrections (R1-F05-006+). */
 export const API_RETURNS_PATH = `${API_V1_PREFIX}/returns` as const;
 
