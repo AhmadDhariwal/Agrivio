@@ -85,6 +85,76 @@ function createAccountsController(deps) {
         next(error);
       }
     },
+
+    async postManualAccountTransaction(req, res, next) {
+      try {
+        const result = await deps.accountsService.postManualAccountTransaction(
+          requireOrganizationId(req),
+          req.body,
+          { actorId: String(req.authContext.userId) },
+          req.get('Idempotency-Key'),
+        );
+        sendSuccessEnvelope(res, result.statusCode ?? 201, result.data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async getManualAccountTransaction(req, res, next) {
+      try {
+        const data = await deps.accountsService.getManualAccountTransaction(
+          requireOrganizationId(req),
+          String(req.params.id),
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async reverseManualAccountTransaction(req, res, next) {
+      try {
+        const result = await deps.accountsService.reverseManualAccountTransaction(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.body,
+          { actorId: String(req.authContext.userId) },
+          req.get('Idempotency-Key'),
+        );
+        sendSuccessEnvelope(res, result.statusCode ?? 200, result.data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async postAccountTransfer(req, res, next) {
+      try {
+        const result = await deps.accountsService.postAccountTransfer(
+          requireOrganizationId(req),
+          req.body,
+          { actorId: String(req.authContext.userId) },
+          req.get('Idempotency-Key'),
+        );
+        sendSuccessEnvelope(res, result.statusCode ?? 201, result.data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async reverseAccountTransfer(req, res, next) {
+      try {
+        const result = await deps.accountsService.reverseAccountTransfer(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.body,
+          { actorId: String(req.authContext.userId) },
+          req.get('Idempotency-Key'),
+        );
+        sendSuccessEnvelope(res, result.statusCode ?? 200, result.data);
+      } catch (error) {
+        next(error);
+      }
+    },
   };
 }
 

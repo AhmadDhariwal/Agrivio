@@ -11,6 +11,7 @@ const {
 const {
   convertEnteredQuantityToBaseMinorUnits,
   formatQuantityMinorUnits,
+  computeUnitCostMinorUnits,
 } = require('../../platform/primitives/money-and-time');
 const { allocateStock } = require('./allocation');
 const {
@@ -20,7 +21,9 @@ const {
 } = require('./expiry');
 const {
   applyBalanceInbound,
+  applyBalanceUnsellableInbound,
   applyBalanceOutbound,
+  applyBalanceUnsellableOutbound,
   applyCostInbound,
   applyCostOutbound,
   applyCostOutboundAtValue,
@@ -283,7 +286,41 @@ function createInventoryService(deps) {
     let movementInventoryValue;
     let movementUnitCost;
 
-    if (payload.direction === 'inbound') {
+    const stockCondition = payload.stockCondition === 'unsellable' ? 'unsellable' : 'sellable';
+
+    if (payload.direction === 'inbound' && stockCondition === 'unsellable') {
+      costResult = {
+        costState: await store.findCostState(organizationId, scope.warehouseId, scope.productId),
+        receiptUnitCostMinorUnits: computeUnitCostMinorUnits(
+          payload.inventoryValueMinorUnits,
+          quantity,
+        ),
+      };
+      balance = await applyBalanceUnsellableInbound(
+        store,
+        session,
+        organizationId,
+        scope,
+        quantity,
+      );
+      movementUnitCost = costResult.receiptUnitCostMinorUnits.toString();
+      movementInventoryValue = payload.inventoryValueMinorUnits.toString();
+    } else if (payload.direction === 'outbound' && stockCondition === 'unsellable') {
+      const unsellableValue = BigInt(String(payload.inventoryValueMinorUnits ?? '0'));
+      costResult = {
+        costState: await store.findCostState(organizationId, scope.warehouseId, scope.productId),
+        receiptUnitCostMinorUnits: computeUnitCostMinorUnits(unsellableValue, quantity),
+      };
+      balance = await applyBalanceUnsellableOutbound(
+        store,
+        session,
+        organizationId,
+        scope,
+        quantity,
+      );
+      movementUnitCost = costResult.receiptUnitCostMinorUnits.toString();
+      movementInventoryValue = unsellableValue.toString();
+    } else if (payload.direction === 'inbound') {
       costResult = await applyCostInbound(store, session, organizationId, scope, {
         quantityBaseMinorUnits: quantity,
         inventoryValueMinorUnits: payload.inventoryValueMinorUnits,
@@ -336,6 +373,7 @@ function createInventoryService(deps) {
         unitCostMinorUnits: movementUnitCost,
         sourceType: payload.sourceType,
         sourceId: payload.sourceId,
+        stockCondition,
         status: 'posted',
         postedAt: payload.postedAt,
         postedBy: actor.actorId,
@@ -435,6 +473,34 @@ function createInventoryService(deps) {
         })
         .map(toMovementDto);
       return { items };
+    },
+
+    async listMovementsBySource(organizationId, sourceType, sourceId, session) {
+      const movements = await store.listMovements(organizationId, {
+        sourceType,
+        sourceId,
+        session,
+      });
+      return movements.map((item) => ({
+        id: String(item['_id']),
+        warehouseId: String(item.warehouseId),
+        productId: String(item.productId),
+        batchId: item.batchId ? String(item.batchId) : null,
+        direction: String(item.direction),
+        quantityBaseMinorUnits: String(item.quantityBaseMinorUnits),
+        enteredQuantityMinorUnits: String(item.enteredQuantityMinorUnits),
+        unitCode: String(item.unitCode),
+        conversionFactorSnapshot: String(item.conversionFactorSnapshot),
+        packagingUnitId: item.packagingUnitId ? String(item.packagingUnitId) : null,
+        inventoryValueMinorUnits:
+          item.inventoryValueMinorUnits === null || item.inventoryValueMinorUnits === undefined
+            ? '0'
+            : String(item.inventoryValueMinorUnits),
+        stockCondition: String(item.stockCondition ?? 'sellable'),
+        sourceType: String(item.sourceType),
+        sourceId: String(item.sourceId),
+        reversalOfId: item.reversalOfId ? String(item.reversalOfId) : null,
+      }));
     },
 
     async queryExpiry(organizationId, query, authContext) {
@@ -1763,9 +1829,11 @@ function createInventoryService(deps) {
         inventoryValueMinorUnits: BigInt(String(input.inventoryValueMinorUnits)),
         sourceType: input.sourceType,
         sourceId: input.sourceId,
+        stockCondition: input.stockCondition === 'unsellable' ? 'unsellable' : 'sellable',
         postedAt,
         reason: input.reason ?? null,
         correctionOfId: input.correctionOfId ?? null,
+        reversalOfId: input.reversalOfId ?? null,
       });
 
       return {
@@ -1825,9 +1893,11 @@ function createInventoryService(deps) {
         useExplicitOutboundValue: input.useExplicitOutboundValue === true,
         sourceType: input.sourceType,
         sourceId: input.sourceId,
+        stockCondition: input.stockCondition === 'unsellable' ? 'unsellable' : 'sellable',
         postedAt,
         reason: input.reason ?? null,
         correctionOfId: input.correctionOfId ?? null,
+        reversalOfId: input.reversalOfId ?? null,
         allowNegativeStockOverride,
         negativeStockOverrideReason: allowNegativeStockOverride
           ? input.negativeStockOverrideReason ?? null
@@ -1842,6 +1912,26 @@ function createInventoryService(deps) {
         balance: effects.balance,
         costState: effects.costState,
         batchId: batchId ? String(batchId) : null,
+      };
+    },
+
+    async getWarehouseProductCostState(organizationId, warehouseId, productId) {
+      const cost = await store.findCostState(organizationId, warehouseId, productId);
+      if (cost === null) {
+        return {
+          warehouseId: String(warehouseId),
+          productId: String(productId),
+          quantityBaseMinorUnits: '0',
+          inventoryValueMinorUnits: '0',
+          weightedAverageCostMinorUnits: '0',
+        };
+      }
+      return {
+        warehouseId: String(cost.warehouseId),
+        productId: String(cost.productId),
+        quantityBaseMinorUnits: String(cost.quantityBaseMinorUnits ?? '0'),
+        inventoryValueMinorUnits: String(cost.inventoryValueMinorUnits ?? '0'),
+        weightedAverageCostMinorUnits: String(cost.weightedAverageCostMinorUnits ?? '0'),
       };
     },
   };

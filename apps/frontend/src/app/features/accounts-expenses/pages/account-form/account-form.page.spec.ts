@@ -16,6 +16,7 @@ describe('AccountFormPage', () => {
           useValue: {
             getAccount: () => of(null),
             listMovements: () => of([]),
+            listAccounts: () => of([]),
             createAccount: () => of({}),
             updateAccount: () => of({}),
           },

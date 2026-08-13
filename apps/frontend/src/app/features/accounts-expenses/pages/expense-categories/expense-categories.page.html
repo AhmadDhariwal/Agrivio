@@ -1,0 +1,35 @@
+<agrivio-ui-page-header
+  title="Expense categories"
+  eyebrow="Accounts"
+  lede="Categories used when recording expenses."
+>
+  @if (canPost()) {
+    <a class="ag-btn" routerLink="/app/expense-categories/new" data-testid="expense-category-create-link">
+      Create category
+    </a>
+  }
+</agrivio-ui-page-header>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading categories…" />
+} @else if (errorMessage(); as error) {
+  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+} @else if (items().length === 0) {
+  <agrivio-ui-empty-state title="No expense categories yet" message="Create a category before recording expenses." />
+} @else {
+  <div class="ag-stack" data-testid="expense-categories-list">
+    @for (item of items(); track item.id) {
+      <article class="row">
+        <div>
+          <strong>{{ item.name }}</strong>
+        </div>
+        <div class="ag-inline">
+          <agrivio-ui-status-badge [label]="item.status" [tone]="item.status === 'active' ? 'success' : 'neutral'" />
+          @if (canPost()) {
+            <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/expense-categories', item.id]">Edit</a>
+          }
+        </div>
+      </article>
+    }
+  </div>
+}

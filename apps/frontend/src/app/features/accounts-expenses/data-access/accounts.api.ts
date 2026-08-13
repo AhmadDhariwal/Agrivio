@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, map, switchMap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
-import { AccountMovementRecord, AccountRecord } from '../models/accounts.models';
+import { AccountMovementRecord, AccountRecord, AccountTransactionRecord, AccountTransferRecord } from '../models/accounts.models';
 
 @Injectable({ providedIn: 'root' })
 export class AccountsApi {
@@ -91,6 +91,112 @@ export class AccountsApi {
         this.http
           .post<{ data: AccountRecord }>(
             `${environment.publicApiBaseUrl}/api/v1/accounts/${id}/opening-balance`,
+            payload,
+            {
+              withCredentials: true,
+              headers: {
+                'X-CSRF-Token': csrfToken,
+                'Idempotency-Key': idempotencyKey,
+              },
+            },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
+  postManualTransaction(
+    payload: {
+      accountId: string;
+      direction: 'inflow' | 'outflow';
+      amount: { amount: string; currency: string };
+      purpose: string;
+      reference?: string;
+    },
+    idempotencyKey: string,
+  ): Observable<AccountTransactionRecord> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: AccountTransactionRecord }>(
+            `${environment.publicApiBaseUrl}/api/v1/account-transactions`,
+            payload,
+            {
+              withCredentials: true,
+              headers: {
+                'X-CSRF-Token': csrfToken,
+                'Idempotency-Key': idempotencyKey,
+              },
+            },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
+  reverseManualTransaction(
+    id: string,
+    payload: { reason: string },
+    idempotencyKey: string,
+  ): Observable<AccountTransactionRecord> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: AccountTransactionRecord }>(
+            `${environment.publicApiBaseUrl}/api/v1/account-transactions/${id}/reverse`,
+            payload,
+            {
+              withCredentials: true,
+              headers: {
+                'X-CSRF-Token': csrfToken,
+                'Idempotency-Key': idempotencyKey,
+              },
+            },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
+  postTransfer(
+    payload: {
+      sourceAccountId: string;
+      destinationAccountId: string;
+      amount: { amount: string; currency: string };
+      purpose?: string;
+      reference?: string;
+    },
+    idempotencyKey: string,
+  ): Observable<AccountTransferRecord> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: AccountTransferRecord }>(
+            `${environment.publicApiBaseUrl}/api/v1/account-transfers`,
+            payload,
+            {
+              withCredentials: true,
+              headers: {
+                'X-CSRF-Token': csrfToken,
+                'Idempotency-Key': idempotencyKey,
+              },
+            },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
+  reverseTransfer(
+    id: string,
+    payload: { reason: string },
+    idempotencyKey: string,
+  ): Observable<AccountTransferRecord> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: AccountTransferRecord }>(
+            `${environment.publicApiBaseUrl}/api/v1/account-transfers/${id}/reverse`,
             payload,
             {
               withCredentials: true,

@@ -1,61 +1,74 @@
 <agrivio-ui-page-header
-  [title]="accountId() ? 'Edit account' : 'Create account'"
+  [title]="accountId() ? (canManage() ? 'Edit account' : 'Account') : 'Create account'"
   eyebrow="Cash & bank"
-  lede="Configure cash, bank, JazzCash, or Easypaisa accounts."
+  lede="Balances come from signed account movements. Posted movements are never overwritten."
 />
 
 @if (loading()) {
   <agrivio-ui-loading-state label="Loading account…" />
-} @else if (!canManage()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to manage accounts." />
+} @else if (!canView() && !canManage()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to view accounts." />
 } @else {
   @if (errorMessage(); as error) {
     <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
   }
-  <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="account-form">
-    <label>
-      Account type
-      <select formControlName="accountType" data-testid="account-type">
-        <option value="cash">Cash</option>
-        <option value="bank">Bank</option>
-        <option value="jazzcash">JazzCash</option>
-        <option value="easypaisa">Easypaisa</option>
-      </select>
-    </label>
-    <label>
-      Name
-      <input formControlName="name" data-testid="account-name" />
-    </label>
-    @if (accountType() === 'bank') {
+  @if (successMessage(); as success) {
+    <agrivio-ui-alert tone="success" [message]="success" data-testid="account-success" />
+  }
+
+  @if (!accountId() && !canManage()) {
+    <agrivio-ui-alert tone="warning" message="You do not have permission to manage accounts." />
+  } @else if (canManage()) {
+    <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="account-form">
       <label>
-        Bank name
-        <input formControlName="bankName" data-testid="account-bank-name" />
-      </label>
-      <label>
-        Account number (masked, optional)
-        <input formControlName="accountNumberMasked" data-testid="account-number-masked" />
-      </label>
-    }
-    @if (accountType() === 'jazzcash' || accountType() === 'easypaisa') {
-      <label>
-        Wallet identifier
-        <input formControlName="walletIdentifier" data-testid="account-wallet-identifier" />
-      </label>
-    }
-    @if (accountId()) {
-      <label>
-        Status
-        <select formControlName="status" data-testid="account-status">
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
+        Account type
+        <select formControlName="accountType" data-testid="account-type">
+          <option value="cash">Cash</option>
+          <option value="bank">Bank</option>
+          <option value="jazzcash">JazzCash</option>
+          <option value="easypaisa">Easypaisa</option>
         </select>
       </label>
-    }
-    <div class="ag-inline">
-      <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="account-save">Save</button>
-      <a class="ag-btn ag-btn--secondary" routerLink="/app/accounts">Cancel</a>
-    </div>
-  </form>
+      <label>
+        Name
+        <input formControlName="name" data-testid="account-name" />
+      </label>
+      @if (accountType() === 'bank') {
+        <label>
+          Bank name
+          <input formControlName="bankName" data-testid="account-bank-name" />
+        </label>
+        <label>
+          Account number (masked, optional)
+          <input formControlName="accountNumberMasked" data-testid="account-number-masked" />
+        </label>
+      }
+      @if (accountType() === 'jazzcash' || accountType() === 'easypaisa') {
+        <label>
+          Wallet identifier
+          <input formControlName="walletIdentifier" data-testid="account-wallet-identifier" />
+        </label>
+      }
+      @if (accountId()) {
+        <label>
+          Status
+          <select formControlName="status" data-testid="account-status">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </label>
+      }
+      <div class="ag-inline">
+        <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="account-save">Save</button>
+        <a class="ag-btn ag-btn--secondary" routerLink="/app/accounts">Cancel</a>
+      </div>
+    </form>
+  } @else if (accountId()) {
+    <section class="ag-stack form" data-testid="account-inquiry">
+      <p><strong>{{ form.controls.name.value }}</strong> ({{ accountType() }})</p>
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/accounts">Back</a>
+    </section>
+  }
 
   @if (accountId() && canPostOpening()) {
     <section class="ag-stack form" data-testid="account-opening-section">
@@ -83,7 +96,99 @@
     </section>
   }
 
-  @if (accountId()) {
+  @if (accountId() && canPostTransaction()) {
+    <section class="ag-stack form" data-testid="account-transaction-section">
+      <h2>Manual inflow / outflow</h2>
+      <form class="ag-stack" [formGroup]="transactionForm" (ngSubmit)="postTransaction()">
+        <label>
+          Direction
+          <select formControlName="direction" data-testid="account-tx-direction">
+            <option value="inflow">Inflow</option>
+            <option value="outflow">Outflow</option>
+          </select>
+        </label>
+        <label>
+          Amount (PKR)
+          <input formControlName="amount" data-testid="account-tx-amount" />
+        </label>
+        <label>
+          Purpose
+          <input formControlName="purpose" data-testid="account-tx-purpose" />
+        </label>
+        <label>
+          Reference (optional)
+          <input formControlName="reference" data-testid="account-tx-reference" />
+        </label>
+        <button
+          class="ag-btn"
+          type="submit"
+          [disabled]="postingTransaction()"
+          data-testid="account-tx-save"
+        >
+          {{ postingTransaction() ? 'Posting…' : 'Post transaction' }}
+        </button>
+      </form>
+    </section>
+  }
+
+  @if (accountId() && canTransfer()) {
+    <section class="ag-stack form" data-testid="account-transfer-section">
+      <h2>Transfer to another account</h2>
+      <form class="ag-stack" [formGroup]="transferForm" (ngSubmit)="postTransfer()">
+        <label>
+          Destination
+          <select formControlName="destinationAccountId" data-testid="account-transfer-destination">
+            <option value="">Select account</option>
+            @for (item of destinationAccounts(); track item.id) {
+              <option [value]="item.id">{{ item.name }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Amount (PKR)
+          <input formControlName="amount" data-testid="account-transfer-amount" />
+        </label>
+        <label>
+          Purpose (optional)
+          <input formControlName="purpose" data-testid="account-transfer-purpose" />
+        </label>
+        <label>
+          Reference (optional)
+          <input formControlName="reference" data-testid="account-transfer-reference" />
+        </label>
+        <button
+          class="ag-btn"
+          type="submit"
+          [disabled]="postingTransfer()"
+          data-testid="account-transfer-save"
+        >
+          {{ postingTransfer() ? 'Posting…' : 'Post transfer' }}
+        </button>
+      </form>
+    </section>
+  }
+
+  @if (accountId() && reverseTarget(); as target) {
+    <section class="ag-stack form" data-testid="account-reverse-section">
+      <h2>Reverse {{ target.kind }}</h2>
+      <form class="ag-stack" [formGroup]="reverseForm" (ngSubmit)="confirmReverse()">
+        <label>
+          Reason
+          <input formControlName="reason" data-testid="account-reverse-reason" />
+        </label>
+        <div class="ag-inline">
+          <button class="ag-btn" type="submit" [disabled]="reversing()" data-testid="account-reverse-save">
+            {{ reversing() ? 'Reversing…' : 'Confirm reverse' }}
+          </button>
+          <button class="ag-btn ag-btn--secondary" type="button" (click)="reverseTarget.set(null)">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+
+  @if (accountId() && canView()) {
     <section class="ag-stack form movements">
       <h2>Account movements</h2>
       @if (derivedBalance(); as balance) {
@@ -102,9 +207,37 @@
             <article class="movement-row" data-testid="account-movement-row">
               <div>
                 <strong>{{ item.sourceType }}</strong>
+                @if (item.purpose) {
+                  <p class="ag-muted">{{ item.purpose }}</p>
+                }
                 <p class="ag-muted">{{ item.postedAt }}</p>
+                @if (item.reversalOfId || isReversed(item)) {
+                  <p class="ag-muted">{{ item.reversalOfId ? 'Corrective movement' : 'Original (preserved)' }}</p>
+                }
               </div>
-              <span>{{ item.signedAmount.amount }} {{ item.signedAmount.currency }}</span>
+              <div class="ag-inline">
+                <span>{{ item.signedAmount.amount }} {{ item.signedAmount.currency }}</span>
+                @if (canReverseManual(item)) {
+                  <button
+                    class="ag-btn ag-btn--secondary"
+                    type="button"
+                    (click)="startReverse('transaction', item.id)"
+                    data-testid="account-tx-reverse"
+                  >
+                    Reverse
+                  </button>
+                }
+                @if (canReverseTransferMovement(item)) {
+                  <button
+                    class="ag-btn ag-btn--secondary"
+                    type="button"
+                    (click)="startReverse('transfer', item.sourceId)"
+                    data-testid="account-transfer-reverse"
+                  >
+                    Reverse transfer
+                  </button>
+                }
+              </div>
             </article>
           }
         </div>

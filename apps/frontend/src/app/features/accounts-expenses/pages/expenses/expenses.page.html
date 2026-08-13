@@ -1,0 +1,44 @@
+<agrivio-ui-page-header
+  title="Expenses"
+  eyebrow="Accounts"
+  lede="Record operating expenses against a selected account. Posted expenses are corrected, not deleted."
+>
+  @if (canPost()) {
+    <a class="ag-btn ag-btn--secondary" routerLink="/app/expense-categories" data-testid="expense-categories-link">
+      Categories
+    </a>
+    <a class="ag-btn" routerLink="/app/expenses/new" data-testid="expense-create-link">Record expense</a>
+  }
+</agrivio-ui-page-header>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading expenses…" />
+} @else if (errorMessage(); as error) {
+  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+} @else if (items().length === 0) {
+  <agrivio-ui-empty-state
+    title="No expenses yet"
+    message="Create a category, then record an expense against an active account."
+  />
+} @else {
+  <div class="ag-stack" data-testid="expenses-list">
+    @for (item of items(); track item.id) {
+      <article class="row">
+        <div>
+          <strong>{{ item.purpose }}</strong>
+          <p class="ag-muted">
+            {{ categoryName(item.categoryId) }} · {{ item.expenseDate }} ·
+            {{ item.amount.amount }} {{ item.amount.currency }}
+          </p>
+        </div>
+        <div class="ag-inline">
+          <agrivio-ui-status-badge
+            [label]="item.status"
+            [tone]="item.status === 'posted' ? 'success' : item.status === 'corrected' ? 'warning' : 'neutral'"
+          />
+          <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/expenses', item.id]" data-testid="expense-open">Open</a>
+        </div>
+      </article>
+    }
+  </div>
+}

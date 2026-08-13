@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { API_RETURNS_PATH, API_PURCHASES_PATH } = require('@agrivio/api-contracts');
+const { API_RETURNS_PATH, API_PURCHASES_PATH, API_SALES_PATH } = require('@agrivio/api-contracts');
 const {
   createRequireOrganizationContextMiddleware,
   createRequirePermissionMiddleware,
@@ -31,6 +31,18 @@ function registerReturnsRoutes(deps) {
     deps.requireOperationalAccess,
     (req, res, next) => {
       void controller.createReturn(req, res, next);
+    },
+  );
+
+  router.post(
+    `${API_RETURNS_PATH}/without-invoice`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('returns.post'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.createWithoutInvoiceReturn(req, res, next);
     },
   );
 
@@ -70,6 +82,18 @@ function registerReturnsRoutes(deps) {
   );
 
   router.post(
+    `${API_RETURNS_PATH}/:id/reverse`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('returns.reverse'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.reverseReturn(req, res, next);
+    },
+  );
+
+  router.post(
     `${API_PURCHASES_PATH}/:purchaseId/returns`,
     deps.requireAuth,
     deps.requireCsrf,
@@ -78,6 +102,18 @@ function registerReturnsRoutes(deps) {
     deps.requireOperationalAccess,
     (req, res, next) => {
       void controller.createPurchaseReturn(req, res, next);
+    },
+  );
+
+  router.post(
+    `${API_SALES_PATH}/:saleId/returns`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('returns.post'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.createSalesReturn(req, res, next);
     },
   );
 

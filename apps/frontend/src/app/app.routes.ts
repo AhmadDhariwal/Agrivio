@@ -259,6 +259,48 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'expenses',
+        loadComponent: () =>
+          import('./features/accounts-expenses/pages/expenses/expenses.page').then(
+            (m) => m.ExpensesPage,
+          ),
+      },
+      {
+        path: 'expenses/new',
+        loadComponent: () =>
+          import('./features/accounts-expenses/pages/expense-form/expense-form.page').then(
+            (m) => m.ExpenseFormPage,
+          ),
+      },
+      {
+        path: 'expenses/:id',
+        loadComponent: () =>
+          import('./features/accounts-expenses/pages/expense-form/expense-form.page').then(
+            (m) => m.ExpenseFormPage,
+          ),
+      },
+      {
+        path: 'expense-categories',
+        loadComponent: () =>
+          import(
+            './features/accounts-expenses/pages/expense-categories/expense-categories.page'
+          ).then((m) => m.ExpenseCategoriesPage),
+      },
+      {
+        path: 'expense-categories/new',
+        loadComponent: () =>
+          import(
+            './features/accounts-expenses/pages/expense-category-form/expense-category-form.page'
+          ).then((m) => m.ExpenseCategoryFormPage),
+      },
+      {
+        path: 'expense-categories/:id',
+        loadComponent: () =>
+          import(
+            './features/accounts-expenses/pages/expense-category-form/expense-category-form.page'
+          ).then((m) => m.ExpenseCategoryFormPage),
+      },
+      {
         path: 'purchases',
         loadComponent: () =>
           import('./features/purchases/pages/purchases/purchases.page').then((m) => m.PurchasesPage),
@@ -310,6 +352,27 @@ export const appRoutes: Route[] = [
         path: 'sales/:id',
         loadComponent: () =>
           import('./features/sales/pages/sale-edit/sale-edit.page').then((m) => m.SaleEditPage),
+      },
+      {
+        path: 'returns/without-invoice',
+        loadComponent: () =>
+          import(
+            './features/returns/pages/return-without-invoice/return-without-invoice.page'
+          ).then((m) => m.ReturnWithoutInvoicePage),
+      },
+      {
+        path: 'returns/:id',
+        loadComponent: () =>
+          import('./features/returns/pages/return-detail/return-detail.page').then(
+            (m) => m.ReturnDetailPage,
+          ),
+      },
+      {
+        path: 'returns',
+        loadComponent: () =>
+          import('./features/returns/pages/returns-list/returns-list.page').then(
+            (m) => m.ReturnsListPage,
+          ),
       },
       {
         path: 'customer-payments',

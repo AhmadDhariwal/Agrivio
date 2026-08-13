@@ -24,5 +24,12 @@ describe('appRoutes F02 routing', () => {
 
     const print = app?.children?.find((route) => route.path === 'sales/:id/print');
     expect(print).toBeTruthy();
+
+    const returns = app?.children?.find((route) => route.path === 'returns');
+    expect(returns).toBeTruthy();
+    const withoutInvoice = app?.children?.find((route) => route.path === 'returns/without-invoice');
+    expect(withoutInvoice).toBeTruthy();
+    const returnDetail = app?.children?.find((route) => route.path === 'returns/:id');
+    expect(returnDetail).toBeTruthy();
   });
 });

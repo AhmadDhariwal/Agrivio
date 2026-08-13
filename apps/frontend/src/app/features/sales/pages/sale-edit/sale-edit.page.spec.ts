@@ -7,6 +7,9 @@ import { SalesApi } from '../../data-access/sales.api';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
 import { BranchesWarehousesApi } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { CustomersApi } from '../../../customers/data-access/customers.api';
+import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
+import { SalesReturnsApi } from '../../data-access/sales-returns.api';
+import { ReturnsApi } from '../../../returns/data-access/returns.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { SaleRecord } from '../../models/sales.models';
 
@@ -92,6 +95,18 @@ describe('SaleEditPage', () => {
           useValue: { listCustomers: () => of([]) },
         },
         {
+          provide: AccountsApi,
+          useValue: { listAccounts: () => of([]) },
+        },
+        {
+          provide: SalesReturnsApi,
+          useValue: { createLinkedReturn: () => of({ id: 'r1', version: 1 }), postReturn: () => of({}) },
+        },
+        {
+          provide: ReturnsApi,
+          useValue: { listReturns: () => of([]) },
+        },
+        {
           provide: AuthSessionStore,
           useValue: sessionStoreMock(['sales.create', 'sales.view', 'sales.post']),
         },
@@ -145,6 +160,18 @@ describe('SaleEditPage', () => {
           useValue: { listCustomers: () => of([]) },
         },
         {
+          provide: AccountsApi,
+          useValue: { listAccounts: () => of([]) },
+        },
+        {
+          provide: SalesReturnsApi,
+          useValue: { createLinkedReturn: () => of({ id: 'r1', version: 1 }), postReturn: () => of({}) },
+        },
+        {
+          provide: ReturnsApi,
+          useValue: { listReturns: () => of([]) },
+        },
+        {
           provide: AuthSessionStore,
           useValue: sessionStoreMock(['sales.view', 'sales.post', 'sales.cancel']),
         },
@@ -194,6 +221,18 @@ describe('SaleEditPage', () => {
         {
           provide: CustomersApi,
           useValue: { listCustomers: () => of([]) },
+        },
+        {
+          provide: AccountsApi,
+          useValue: { listAccounts: () => of([]) },
+        },
+        {
+          provide: SalesReturnsApi,
+          useValue: { createLinkedReturn: () => of({ id: 'r1', version: 1 }), postReturn: () => of({}) },
+        },
+        {
+          provide: ReturnsApi,
+          useValue: { listReturns: () => of([]) },
         },
         {
           provide: AuthSessionStore,

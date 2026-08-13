@@ -22,9 +22,47 @@ export interface AccountMovementRecord {
   signedAmount: MoneyAmount;
   sourceType: string;
   sourceId: string;
+  purpose?: string | null;
+  reference?: string | null;
+  reversalOfId?: string | null;
   status: string;
   postedAt: string;
   postedBy: string;
+}
+
+export interface AccountTransactionRecord {
+  id: string;
+  organizationId: string;
+  accountId: string;
+  direction: 'inflow' | 'outflow' | string;
+  amount: MoneyAmount;
+  signedAmount: MoneyAmount;
+  purpose: string | null;
+  reference: string | null;
+  sourceType: string;
+  sourceId: string;
+  reversalOfId: string | null;
+  reversedByMovementId: string | null;
+  status: string;
+  postedAt: string;
+  postedBy: string;
+}
+
+export interface AccountTransferRecord {
+  id: string;
+  sourceAccountId: string;
+  destinationAccountId: string;
+  amount: MoneyAmount;
+  purpose: string | null;
+  reference: string | null;
+  outboundMovementId: string;
+  inboundMovementId: string;
+  reversalOutboundMovementId: string | null;
+  reversalInboundMovementId: string | null;
+  status: string;
+  postedAt: string;
+  postedBy: string;
+  reason?: string | null;
 }
 
 export interface AccountRecord {

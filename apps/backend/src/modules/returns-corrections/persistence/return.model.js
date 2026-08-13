@@ -1,8 +1,23 @@
 const mongoose = require('mongoose');
 
 const RETURN_STATUSES = ['draft', 'posted', 'reversed'];
-const RETURN_TYPES = ['purchase'];
+const RETURN_TYPES = ['purchase', 'sales', 'sales_without_invoice'];
 const RETURN_RESOLUTIONS = ['ledger_adjustment', 'account_refund'];
+const STOCK_CONDITIONS = ['sellable', 'unsellable'];
+const UNSELLABLE_REASONS = ['expired', 'damaged', 'opened', 'contaminated', 'other'];
+
+const approvalSnapshotSchema = new mongoose.Schema(
+  {
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      ref: 'User',
+    },
+    approvedAt: { type: Date, required: true },
+    reason: { type: String, required: true },
+  },
+  { _id: false },
+);
 
 const returnLineSchema = new mongoose.Schema(
   {
@@ -29,9 +44,21 @@ const returnLineSchema = new mongoose.Schema(
     batchNumber: { type: String, default: null },
     manufacturingDate: { type: String, default: null },
     expiryDate: { type: String, default: null },
-    originalLineIndex: { type: Number, required: true },
+    originalLineIndex: { type: Number, default: null },
+    stockCondition: {
+      type: String,
+      enum: STOCK_CONDITIONS,
+      default: null,
+    },
+    unsellableReason: {
+      type: String,
+      enum: UNSELLABLE_REASONS,
+      default: null,
+    },
     returnInventoryValueMinorUnits: { type: String, default: null },
     receiptUnitCostMinorUnits: { type: String, default: null },
+    returnRevenueMinorUnits: { type: String, default: null },
+    documentedUnitCostMinorUnits: { type: String, default: null },
   },
   { _id: false },
 );
@@ -54,11 +81,23 @@ const returnSchema = new mongoose.Schema(
       ref: 'Purchase',
       default: null,
     },
+    saleId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Sale',
+      default: null,
+    },
     supplierId: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
       ref: 'Supplier',
+      default: null,
     },
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Customer',
+      default: null,
+    },
+    customerIdentifyingName: { type: String, default: null },
+    customerIdentifyingPhone: { type: String, default: null },
     warehouseId: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
@@ -74,6 +113,11 @@ const returnSchema = new mongoose.Schema(
     refundAccountId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Account',
+      default: null,
+    },
+    approvedReturnValueMinorUnits: { type: String, default: null },
+    withoutInvoiceApproval: {
+      type: approvalSnapshotSchema,
       default: null,
     },
     status: {
@@ -100,6 +144,17 @@ const returnSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    reversedByCorrectiveTransactionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CorrectiveTransaction',
+      default: null,
+    },
+    reversedAt: { type: Date, default: null },
+    reversedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
@@ -112,7 +167,11 @@ const returnSchema = new mongoose.Schema(
 
 returnSchema.index({ organizationId: 1, status: 1, createdAt: -1 });
 returnSchema.index({ organizationId: 1, purchaseId: 1 });
+returnSchema.index({ organizationId: 1, saleId: 1 });
 returnSchema.index({ organizationId: 1, supplierId: 1 });
+returnSchema.index({ organizationId: 1, customerId: 1 });
+returnSchema.index({ organizationId: 1, warehouseId: 1, createdAt: -1 });
+returnSchema.index({ organizationId: 1, reversedByCorrectiveTransactionId: 1 });
 
 const ReturnModel = mongoose.models['Return'] || mongoose.model('Return', returnSchema);
 
@@ -120,5 +179,7 @@ module.exports = {
   RETURN_STATUSES,
   RETURN_TYPES,
   RETURN_RESOLUTIONS,
+  STOCK_CONDITIONS,
+  UNSELLABLE_REASONS,
   ReturnModel,
 };

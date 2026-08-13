@@ -1,0 +1,83 @@
+<agrivio-ui-page-header
+  title="Returns"
+  eyebrow="Returns and Corrections"
+  lede="Posted sales and purchase returns. Reverse through a linked corrective transaction — originals stay immutable. There is no generic correction screen."
+/>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading returns…" />
+} @else if (!canView()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to view returns." />
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" />
+  }
+  @if (successMessage(); as success) {
+    <agrivio-ui-alert tone="success" [message]="success" />
+  }
+
+  <div class="ag-inline">
+    @if (canPost() && canApproveWithoutInvoice()) {
+      <a class="ag-btn" routerLink="/app/returns/without-invoice" data-testid="without-invoice-link">
+        Return without invoice
+      </a>
+    }
+    <a class="ag-btn ag-btn--secondary" routerLink="/app/sales">Linked return from a sale</a>
+    <a class="ag-btn ag-btn--secondary" routerLink="/app/purchases">Purchase return from a purchase</a>
+  </div>
+
+  @if (canReverse()) {
+    <label>
+      Reversal reason
+      <input
+        [value]="reverseReason()"
+        (input)="onReverseReasonInput($event)"
+        data-testid="return-reverse-reason"
+        placeholder="Required to reverse a posted return"
+      />
+    </label>
+  }
+
+  <div data-testid="returns-list">
+    @if (items().length === 0) {
+      <p class="ag-muted">No returns yet.</p>
+    } @else {
+      @for (item of items(); track item.id) {
+        <article class="return-row">
+          <div>
+            <strong>{{ typeLabel(item.returnType) }}</strong>
+            · {{ productLabel(item) }}
+            · {{ warehouseName(item.warehouseId) }}
+            @if (item.returnTotal) {
+              · {{ item.returnTotal.amount }} {{ item.returnTotal.currency }}
+            }
+            @if (item.reason) {
+              · {{ item.reason }}
+            }
+          </div>
+          <div class="ag-inline">
+            <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+            <a
+              class="ag-btn ag-btn--secondary"
+              [routerLink]="['/app/returns', item.id]"
+              data-testid="return-open"
+            >
+              Open
+            </a>
+            @if (canReverse() && item.status === 'posted') {
+              <button
+                type="button"
+                class="ag-btn ag-btn--secondary"
+                data-testid="return-reverse"
+                [disabled]="reversingId() === item.id"
+                (click)="reverse(item)"
+              >
+                {{ reversingId() === item.id ? 'Reversing…' : 'Reverse' }}
+              </button>
+            }
+          </div>
+        </article>
+      }
+    }
+  </div>
+}

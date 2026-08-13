@@ -45,7 +45,11 @@ Central navigation for Agrivio documentation.
 * F06 Phase 2 complete (`R1-F06-004`–`R1-F06-006`) — see [tasks/F06-PHASE-2-SALE-POSTING.md](tasks/F06-PHASE-2-SALE-POSTING.md); sale posting, tier pricing, cash/credit/partial/mixed payments
 * F06 Phase 3 complete (`R1-F06-007`–`R1-F06-009`) — see [tasks/F06-PHASE-3-SALE-APPROVALS-CANCEL.md](tasks/F06-PHASE-3-SALE-APPROVALS-CANCEL.md); sale approvals, walk-in/customer handling, sale cancellation
 * F06 Phase 4 complete (`R1-F06-010`, `R1-F06-011`) — see [tasks/F06-PHASE-4-PRINTING-POS.md](tasks/F06-PHASE-4-PRINTING-POS.md); printing (58mm/80mm/A4) and cashier POS E2E; **F06 stage exit ready pending acceptance**
-* Next work item: **F07** after F06 P4 acceptance
+* F07 Phase 1 complete (`R1-F07-001`–`R1-F07-003`) — see [tasks/F07-PHASE-1-SALES-RETURNS.md](tasks/F07-PHASE-1-SALES-RETURNS.md); linked sales returns, return-without-invoice approval, sellable/unsellable + refund/ledger resolution
+* F07 Phase 2 complete (`R1-F07-004`, `R1-F07-005`) — see [tasks/F07-PHASE-2-RETURN-REVERSAL.md](tasks/F07-PHASE-2-RETURN-REVERSAL.md); linked return reversal, shared correction validation, purchase-return integration
+* F07 Phase 3 complete (`R1-F07-006`–`R1-F07-008`) — see [tasks/F07-PHASE-3-ACCOUNT-TRANSACTIONS-EXPENSES.md](tasks/F07-PHASE-3-ACCOUNT-TRANSACTIONS-EXPENSES.md); manual account inflow/outflow/transfer, account reversal, expenses/expense correction
+* F07 Phase 4 complete (`R1-F07-009`) — see [tasks/F07-PHASE-4-ACCOUNTS-EXPENSES-RETURNS-SLICE.md](tasks/F07-PHASE-4-ACCOUNTS-EXPENSES-RETURNS-SLICE.md); returns/accounts/expenses Angular vertical slice, stage-exit reconciliation and E2E; **F07 stage exit ready pending acceptance**
+* Next work item: **F08** (`R1-F08-001`) Low stock / expiry / expired / dead-stock alerts
 
 ## Existing Documents
 
@@ -106,6 +110,10 @@ Central navigation for Agrivio documentation.
 | [tasks/F06-PHASE-2-SALE-POSTING.md](tasks/F06-PHASE-2-SALE-POSTING.md) | F06 Phase 2: sale posting, tier pricing, payments (`R1-F06-004`–`006`) |
 | [tasks/F06-PHASE-3-SALE-APPROVALS-CANCEL.md](tasks/F06-PHASE-3-SALE-APPROVALS-CANCEL.md) | F06 Phase 3: approvals, walk-in/customer, sale cancellation (`R1-F06-007`–`009`) |
 | [tasks/F06-PHASE-4-PRINTING-POS.md](tasks/F06-PHASE-4-PRINTING-POS.md) | F06 Phase 4: printing 58mm/80mm/A4 and POS cashier E2E (`R1-F06-010`/`011`) |
+| [tasks/F07-PHASE-1-SALES-RETURNS.md](tasks/F07-PHASE-1-SALES-RETURNS.md) | F07 Phase 1: linked sales returns, without-invoice approval, sellable/unsellable + refund/ledger (`R1-F07-001`–`003`) |
+| [tasks/F07-PHASE-2-RETURN-REVERSAL.md](tasks/F07-PHASE-2-RETURN-REVERSAL.md) | F07 Phase 2: return reversal and purchase-return integration (`R1-F07-004`, `R1-F07-005`) |
+| [tasks/F07-PHASE-3-ACCOUNT-TRANSACTIONS-EXPENSES.md](tasks/F07-PHASE-3-ACCOUNT-TRANSACTIONS-EXPENSES.md) | F07 Phase 3: manual account transactions, reversals, expenses (`R1-F07-006`–`R1-F07-008`) |
+| [tasks/F07-PHASE-4-ACCOUNTS-EXPENSES-RETURNS-SLICE.md](tasks/F07-PHASE-4-ACCOUNTS-EXPENSES-RETURNS-SLICE.md) | F07 Phase 4: accounts/expenses/returns Angular vertical slice and stage-exit E2E (`R1-F07-009`) |
 | [tasks/F01-PHASE-1-PLATFORM-RUNTIME.md](tasks/F01-PHASE-1-PLATFORM-RUNTIME.md) | F01 Phase 1: platform runtime foundation |
 | [tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md](tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md) | F01 Phase 2: transactional platform foundation (completes F01) |
 | [../README.md](../README.md) | Repository landing page |

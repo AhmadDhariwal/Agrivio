@@ -12,7 +12,11 @@ const MOVEMENT_SOURCE_TYPES = [
   'purchase_return',
   'sale',
   'sale_cancellation',
+  'sales_return',
+  'purchase_return_reversal',
+  'sales_return_reversal',
 ];
+const STOCK_CONDITIONS = ['sellable', 'unsellable'];
 const MOVEMENT_STATUSES = ['posted'];
 
 const stockMovementSchema = new mongoose.Schema(
@@ -83,6 +87,11 @@ const stockMovementSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       default: null,
     },
+    stockCondition: {
+      type: String,
+      enum: STOCK_CONDITIONS,
+      default: 'sellable',
+    },
     reason: { type: String, default: null },
     negativeStockOverride: { type: Boolean, default: false },
     negativeStockOverrideReason: { type: String, default: null },
@@ -113,5 +122,6 @@ module.exports = {
   MOVEMENT_DIRECTIONS,
   MOVEMENT_SOURCE_TYPES,
   MOVEMENT_STATUSES,
+  STOCK_CONDITIONS,
   StockMovementModel,
 };

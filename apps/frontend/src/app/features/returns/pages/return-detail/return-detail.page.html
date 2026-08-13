@@ -1,0 +1,113 @@
+<agrivio-ui-page-header
+  title="Return detail"
+  eyebrow="Returns and Corrections"
+  lede="Posted returns stay immutable. Reversal posts a linked corrective transaction."
+>
+  <a class="ag-btn ag-btn--secondary" routerLink="/app/returns">Back to returns</a>
+</agrivio-ui-page-header>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading return…" />
+} @else if (!canView()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to view returns." />
+} @else if (!record()) {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  } @else {
+    <agrivio-ui-alert tone="warning" message="Return not found." />
+  }
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+  @if (successMessage(); as success) {
+    <agrivio-ui-alert tone="success" [message]="success" data-testid="return-detail-success" />
+  }
+
+  @if (record(); as item) {
+    <section class="ag-stack" data-testid="return-detail">
+      <div class="ag-inline">
+        <strong data-testid="return-type-label">{{ typeLabel(item.returnType) }}</strong>
+        <agrivio-ui-status-badge
+          [label]="item.status"
+          [tone]="statusTone(item.status)"
+        />
+      </div>
+      <p data-testid="return-status">Status: {{ item.status }}</p>
+      <p>Warehouse: {{ warehouseName(item.warehouseId) }}</p>
+      <p>Party: {{ partyLabel(item) }}</p>
+      <p>Resolution: {{ resolutionLabel(item.resolution) }}</p>
+      @if (item.resolution === 'account_refund') {
+        <p>Refund account: {{ refundAccountName(item.refundAccountId) }}</p>
+      }
+      @if (item.reason) {
+        <p>Reason: {{ item.reason }}</p>
+      }
+      @if (item.returnTotal) {
+        <p data-testid="return-total">
+          Return total: <strong>{{ item.returnTotal.amount }} {{ item.returnTotal.currency }}</strong>
+        </p>
+      }
+      @if (item.saleId) {
+        <p>
+          <a [routerLink]="['/app/sales', item.saleId]">Open original sale</a>
+        </p>
+      }
+      @if (item.purchaseId) {
+        <p>
+          <a [routerLink]="['/app/purchases', item.purchaseId]">Open original purchase</a>
+        </p>
+      }
+      @if (item.status === 'reversed') {
+        <p class="ag-muted" data-testid="return-reversed">
+          Reversed with a linked corrective transaction. The original return is preserved.
+        </p>
+      }
+
+      <h2>Lines</h2>
+      <div class="ag-stack" data-testid="return-lines">
+        @for (line of item.lines; track $index) {
+          <article class="line-row">
+            <strong>{{ line.productNameSnapshot }}</strong>
+            <p class="ag-muted">
+              Qty {{ line.quantity }} {{ line.unitCodeSnapshot }}
+              · {{ line.stockCondition ?? 'unclassified' }}
+              @if (line.batchNumber) {
+                · Batch {{ line.batchNumber }}
+              }
+              @if (line.unsellableReason) {
+                · {{ line.unsellableReason }}
+              }
+            </p>
+          </article>
+        }
+      </div>
+
+      @if (canReverse() && item.status === 'posted') {
+        <section class="ag-stack" data-testid="return-reverse-section">
+          <h2>Reverse return</h2>
+          <p class="ag-muted">
+            Requires a reason. Compensating stock and money effects are posted; the original is not edited.
+          </p>
+          <label>
+            Reversal reason
+            <input
+              [value]="reverseReason()"
+              (input)="onReverseReasonInput($event)"
+              data-testid="return-reverse-reason"
+            />
+          </label>
+          <button
+            type="button"
+            class="ag-btn"
+            data-testid="return-reverse"
+            [disabled]="reversing()"
+            (click)="reverse()"
+          >
+            {{ reversing() ? 'Reversing…' : 'Reverse return' }}
+          </button>
+        </section>
+      }
+    </section>
+  }
+}

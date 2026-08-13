@@ -101,7 +101,7 @@ test.describe('F06 P4 printing and cashier POS', () => {
       .click();
     await page.getByTestId('price-retail').fill('100.00');
     await page.getByTestId('product-pricing-save').click();
-    await expect(page.getByTestId('product-pricing')).toBeVisible();
+    await expect(page.getByTestId('products-list')).toBeVisible();
 
     await page.goto('/app/inventory/opening-stock');
     await expect(page.getByTestId('opening-stock-form')).toBeVisible();

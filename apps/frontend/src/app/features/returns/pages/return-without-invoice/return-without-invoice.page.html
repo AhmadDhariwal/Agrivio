@@ -1,0 +1,145 @@
+<agrivio-ui-page-header
+  title="Return without invoice"
+  eyebrow="Returns and Corrections"
+  lede="Lookup product, warehouse, and customer (or identifying details). Manager/Owner approval, reason, and explicit stock/refund resolution are required."
+/>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading lookup data…" />
+} @else if (!canPost()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to post returns." />
+} @else if (!canApprove()) {
+  <agrivio-ui-alert
+    tone="warning"
+    message="Return without invoice requires the separate approval permission."
+  />
+} @else {
+  @if (errorMessage(); as error) {
+    <div data-testid="without-invoice-error">
+      <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+    </div>
+  }
+
+  <form class="ag-stack" [formGroup]="form" (ngSubmit)="submit()" data-testid="without-invoice-form">
+    <label>
+      Warehouse
+      <select formControlName="warehouseId" data-testid="without-invoice-warehouse">
+        <option value="">Select warehouse</option>
+        @for (warehouse of warehouses(); track warehouse.id) {
+          <option [value]="warehouse.id">{{ warehouse.name }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Customer lookup
+      <select formControlName="customerId" data-testid="without-invoice-customer">
+        <option value="">No registered customer</option>
+        @for (customer of customers(); track customer.id) {
+          <option [value]="customer.id">{{ customer.name }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Identifying name
+      <input formControlName="customerIdentifyingName" data-testid="without-invoice-name" />
+    </label>
+    <label>
+      Identifying phone
+      <input formControlName="customerIdentifyingPhone" data-testid="without-invoice-phone" />
+    </label>
+
+    @for (line of lines.controls; track $index; let index = $index) {
+      <fieldset class="line" [formGroup]="lineGroup(index)">
+        <legend>Returned product {{ index + 1 }}</legend>
+        <label>
+          Product
+          <select
+            formControlName="productId"
+            data-testid="without-invoice-product"
+            (change)="onProductChange(index)"
+          >
+            <option value="">Select product</option>
+            @for (product of products(); track product.id) {
+              <option [value]="product.id">{{ product.name }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Quantity
+          <input formControlName="quantity" data-testid="without-invoice-qty" />
+        </label>
+        @if (productNeedsBatch(index)) {
+          <label>
+            Batch
+            <select formControlName="batchId" data-testid="without-invoice-batch">
+              <option value="">Select batch</option>
+              @for (batch of batchesForLine(index); track batch.id) {
+                <option [value]="batch.id">{{ batch.batchNumber }}</option>
+              }
+            </select>
+          </label>
+        }
+        <label>
+          Stock condition
+          <select formControlName="stockCondition" data-testid="without-invoice-condition">
+            <option value="sellable">Sellable</option>
+            <option value="unsellable">Unsellable</option>
+          </select>
+        </label>
+        <label>
+          Unsellable reason
+          <select formControlName="unsellableReason" data-testid="without-invoice-unsellable-reason">
+            <option value="expired">Expired</option>
+            <option value="damaged">Damaged</option>
+            <option value="opened">Opened</option>
+            <option value="contaminated">Contaminated</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <button class="ag-btn ag-btn--secondary" type="button" (click)="removeLine(index)">
+          Remove
+        </button>
+      </fieldset>
+    }
+
+    <button class="ag-btn ag-btn--secondary" type="button" (click)="addLine()">Add product</button>
+
+    <label>
+      Return reason
+      <input formControlName="reason" data-testid="without-invoice-reason" />
+    </label>
+    <label>
+      Approved refund / credit value (PKR)
+      <input formControlName="approvedReturnValue" data-testid="without-invoice-value" />
+    </label>
+    <label>
+      Financial resolution
+      <select formControlName="resolution" data-testid="without-invoice-resolution">
+        <option value="ledger_adjustment">Customer ledger adjustment</option>
+        <option value="account_refund">Cash / bank / digital refund</option>
+      </select>
+    </label>
+    <label>
+      Refund account
+      <select formControlName="refundAccountId" data-testid="without-invoice-refund-account">
+        <option value="">None</option>
+        @for (account of accounts(); track account.id) {
+          <option [value]="account.id">{{ account.name }} ({{ account.accountType }})</option>
+        }
+      </select>
+    </label>
+
+    <div class="ag-inline">
+      <button
+        class="ag-btn"
+        type="submit"
+        [disabled]="submitting()"
+        data-testid="without-invoice-submit"
+      >
+        {{ submitting() ? 'Posting…' : 'Approve and post return' }}
+      </button>
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/returns">Cancel</a>
+    </div>
+  </form>
+}

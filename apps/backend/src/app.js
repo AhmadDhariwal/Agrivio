@@ -40,6 +40,7 @@ const { createSuppliersModule } = require('./modules/suppliers/suppliers.module'
 const { registerSuppliersRoutes } = require('./modules/suppliers/routes/suppliers.routes');
 const { createAccountsModule } = require('./modules/accounts-expenses/accounts.module');
 const { registerAccountsRoutes } = require('./modules/accounts-expenses/routes/accounts.routes');
+const { registerExpensesRoutes } = require('./modules/accounts-expenses/routes/expenses.routes');
 const { createLedgersModule } = require('./modules/payments-ledgers/ledgers.module');
 const { registerPaymentsRoutes } = require('./modules/payments-ledgers/routes/payments.routes');
 const { createInventoryModule } = require('./modules/inventory/inventory.module');
@@ -309,6 +310,10 @@ function createApp(options) {
       paymentsService: ledgers.paymentsService,
       accountsService: accounts.accountsService,
       purchasesService: purchases.purchasesService,
+      salesService: sales.salesService,
+      catalogService: catalog.catalogService,
+      customersService: customers.customersService,
+      locationsService: locations.locationsService,
       canAccessWarehouse,
       ...(options.now === undefined ? {} : { now: options.now }),
     });
@@ -426,6 +431,13 @@ function createApp(options) {
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
   });
 
+  const expensesRoutes = registerExpensesRoutes({
+    accountsService: accounts.accountsService,
+    requireAuth: auth.middlewares.requireAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
+    requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+  });
+
   const inventoryRoutes = registerInventoryRoutes({
     inventoryService: inventory.inventoryService,
     requireAuth: auth.middlewares.requireAuth,
@@ -482,6 +494,7 @@ function createApp(options) {
   app.use(customersRoutes);
   app.use(suppliersRoutes);
   app.use(accountsRoutes);
+  app.use(expensesRoutes);
   app.use(inventoryRoutes);
   app.use(paymentsRoutes);
   app.use(purchasesRoutes);

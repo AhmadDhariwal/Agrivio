@@ -43,7 +43,23 @@ export class AccountFormPage {
   readonly canPostOpening = computed(() =>
     this.sessionStore.hasPermission('accounts.opening-balance.post'),
   );
+  readonly canPostTransaction = computed(() =>
+    this.sessionStore.hasPermission('accounts.transaction.post'),
+  );
+  readonly canCorrectTransaction = computed(() =>
+    this.sessionStore.hasPermission('accounts.transaction.correct'),
+  );
+  readonly canTransfer = computed(() => this.sessionStore.hasPermission('accounts.transfer'));
+  readonly canReverseTransfer = computed(() =>
+    this.sessionStore.hasPermission('accounts.transfer.reverse'),
+  );
   readonly accountType = signal('cash');
+  readonly destinationAccounts = signal<AccountRecord[]>([]);
+  readonly postingTransaction = signal(false);
+  readonly postingTransfer = signal(false);
+  readonly reversing = signal(false);
+  readonly successMessage = signal<string | null>(null);
+  readonly reverseTarget = signal<{ kind: 'transaction' | 'transfer'; id: string } | null>(null);
   private version = 1;
 
   readonly form = this.formBuilder.nonNullable.group({
@@ -59,6 +75,24 @@ export class AccountFormPage {
     amount: ['', [Validators.required]],
   });
 
+  readonly transactionForm = this.formBuilder.nonNullable.group({
+    direction: ['inflow' as 'inflow' | 'outflow', [Validators.required]],
+    amount: ['', [Validators.required]],
+    purpose: ['', [Validators.required]],
+    reference: [''],
+  });
+
+  readonly transferForm = this.formBuilder.nonNullable.group({
+    destinationAccountId: ['', [Validators.required]],
+    amount: ['', [Validators.required]],
+    purpose: [''],
+    reference: [''],
+  });
+
+  readonly reverseForm = this.formBuilder.nonNullable.group({
+    reason: ['', [Validators.required]],
+  });
+
   constructor() {
     this.form.controls.accountType.valueChanges.subscribe((value) => {
       this.accountType.set(value);
@@ -71,10 +105,12 @@ export class AccountFormPage {
       forkJoin({
         account: this.api.getAccount(id),
         movements: this.canView() ? this.api.listMovements(id) : of([]),
+        accounts: this.api.listAccounts(),
       }).subscribe({
-        next: ({ account, movements }) => {
+        next: ({ account, movements, accounts }) => {
           this.applyAccount(account);
           this.movements.set(movements);
+          this.destinationAccounts.set(accounts.filter((item) => item.id !== id && item.status === 'active'));
           this.loading.set(false);
         },
         error: (error: unknown) => {
@@ -92,6 +128,7 @@ export class AccountFormPage {
     }
     this.saving.set(true);
     this.errorMessage.set(null);
+    this.successMessage.set(null);
     const value = this.form.getRawValue();
 
     if (this.accountId() === null) {
@@ -159,6 +196,7 @@ export class AccountFormPage {
     }
     this.postingOpening.set(true);
     this.errorMessage.set(null);
+    this.successMessage.set(null);
     const value = this.openingForm.getRawValue();
     this.api
       .postOpeningBalance(
@@ -179,6 +217,162 @@ export class AccountFormPage {
           this.errorMessage.set(this.mapError(error, 'Unable to post opening balance.'));
         },
       });
+  }
+
+  postTransaction(): void {
+    const id = this.accountId();
+    if (!id || !this.canPostTransaction() || this.transactionForm.invalid) {
+      this.transactionForm.markAllAsTouched();
+      return;
+    }
+    this.postingTransaction.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    const value = this.transactionForm.getRawValue();
+    this.api
+      .postManualTransaction(
+        {
+          accountId: id,
+          direction: value.direction,
+          amount: { amount: value.amount.trim(), currency: 'PKR' },
+          purpose: value.purpose.trim(),
+          ...(value.reference.trim() === '' ? {} : { reference: value.reference.trim() }),
+        },
+        crypto.randomUUID(),
+      )
+      .subscribe({
+        next: () => {
+          this.postingTransaction.set(false);
+          this.successMessage.set(
+            value.direction === 'inflow' ? 'Manual inflow posted.' : 'Manual outflow posted.',
+          );
+          this.transactionForm.reset({ direction: 'inflow', amount: '', purpose: '', reference: '' });
+          this.reloadAccountState(id);
+        },
+        error: (error: unknown) => {
+          this.postingTransaction.set(false);
+          this.errorMessage.set(this.mapError(error, 'Unable to post account transaction.'));
+        },
+      });
+  }
+
+  postTransfer(): void {
+    const id = this.accountId();
+    if (!id || !this.canTransfer() || this.transferForm.invalid) {
+      this.transferForm.markAllAsTouched();
+      return;
+    }
+    this.postingTransfer.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    const value = this.transferForm.getRawValue();
+    this.api
+      .postTransfer(
+        {
+          sourceAccountId: id,
+          destinationAccountId: value.destinationAccountId,
+          amount: { amount: value.amount.trim(), currency: 'PKR' },
+          ...(value.purpose.trim() === '' ? {} : { purpose: value.purpose.trim() }),
+          ...(value.reference.trim() === '' ? {} : { reference: value.reference.trim() }),
+        },
+        crypto.randomUUID(),
+      )
+      .subscribe({
+        next: () => {
+          this.postingTransfer.set(false);
+          this.successMessage.set('Transfer posted to both accounts.');
+          this.transferForm.reset({
+            destinationAccountId: '',
+            amount: '',
+            purpose: '',
+            reference: '',
+          });
+          this.reloadAccountState(id);
+        },
+        error: (error: unknown) => {
+          this.postingTransfer.set(false);
+          this.errorMessage.set(this.mapError(error, 'Unable to post account transfer.'));
+        },
+      });
+  }
+
+  startReverse(kind: 'transaction' | 'transfer', id: string): void {
+    this.reverseTarget.set({ kind, id });
+    this.reverseForm.reset({ reason: '' });
+  }
+
+  confirmReverse(): void {
+    const accountId = this.accountId();
+    const target = this.reverseTarget();
+    if (!accountId || !target || this.reverseForm.invalid) {
+      this.reverseForm.markAllAsTouched();
+      return;
+    }
+    this.reversing.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    const reason = this.reverseForm.getRawValue().reason.trim();
+    const key = crypto.randomUUID();
+    const onSuccess = (): void => {
+      this.reversing.set(false);
+      this.reverseTarget.set(null);
+      this.successMessage.set(
+        target.kind === 'transfer'
+          ? 'Transfer reversed on both accounts. Original movements are preserved.'
+          : 'Transaction reversed. Original movement is preserved.',
+      );
+      this.reloadAccountState(accountId);
+    };
+    const onError = (error: unknown): void => {
+      this.reversing.set(false);
+      this.errorMessage.set(this.mapError(error, 'Unable to reverse the posted movement.'));
+    };
+    if (target.kind === 'transaction') {
+      this.api.reverseManualTransaction(target.id, { reason }, key).subscribe({
+        next: onSuccess,
+        error: onError,
+      });
+      return;
+    }
+    this.api.reverseTransfer(target.id, { reason }, key).subscribe({
+      next: onSuccess,
+      error: onError,
+    });
+  }
+
+  isReversed(item: AccountMovementRecord): boolean {
+    return this.movements().some((candidate) => candidate.reversalOfId === item.id);
+  }
+
+  canReverseManual(item: AccountMovementRecord): boolean {
+    return (
+      this.canCorrectTransaction() &&
+      (item.sourceType === 'manual_inflow' || item.sourceType === 'manual_outflow') &&
+      !this.isReversed(item)
+    );
+  }
+
+  canReverseTransferMovement(item: AccountMovementRecord): boolean {
+    return (
+      this.canReverseTransfer() &&
+      item.sourceType === 'account_transfer_out' &&
+      !this.isReversed(item)
+    );
+  }
+
+  private reloadAccountState(id: string): void {
+    forkJoin({
+      account: this.api.getAccount(id),
+      movements: this.api.listMovements(id),
+    }).subscribe({
+      next: ({ account, movements }) => {
+        this.applyAccount(account);
+        this.movements.set(movements);
+      },
+      error: (error: unknown) => {
+        this.errorMessage.set(this.mapError(error, 'Unable to reload account.'));
+      },
+    });
   }
 
   private applyAccount(account: AccountRecord): void {
@@ -207,6 +401,9 @@ export class AccountFormPage {
     }
     if (error.error?.error?.code === 'VERSION_CONFLICT') {
       return 'This account changed elsewhere. Reload and try again.';
+    }
+    if (error.status === 403) {
+      return error.error?.error?.message ?? 'You do not have permission for this action.';
     }
     return error.error?.error?.message ?? fallback;
   }

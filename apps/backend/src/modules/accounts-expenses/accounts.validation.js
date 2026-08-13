@@ -242,6 +242,9 @@ function toAccountMovementDto(record) {
     },
     sourceType: String(record['sourceType']),
     sourceId: String(record['sourceId']),
+    purpose: record['purpose'] ? String(record['purpose']) : null,
+    reference: record['reference'] ? String(record['reference']) : null,
+    reversalOfId: record['reversalOfId'] ? String(record['reversalOfId']) : null,
     status: String(record['status']),
     postedAt:
       record['postedAt'] instanceof Date
@@ -251,12 +254,151 @@ function toAccountMovementDto(record) {
   };
 }
 
+const MANUAL_DIRECTIONS = ['inflow', 'outflow'];
+const MAX_PURPOSE = 500;
+const MAX_REFERENCE = 120;
+const MAX_REASON = 1000;
+
+function requireIdString(value, field) {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw validationFailed(`${field} is required`, [{ field, message: `${field} is required` }]);
+  }
+  return value.trim();
+}
+
+function parseRequiredText(value, field, maxLength) {
+  const trimmed = requireTrimmedString(value, field, maxLength);
+  return trimmed;
+}
+
+function parseOptionalText(value, field, maxLength) {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+  return optionalTrimmedString(value, field, maxLength) || null;
+}
+
+function parseManualAccountTransaction(body) {
+  assertObjectBody(body);
+  const direction = body.direction;
+  if (typeof direction !== 'string' || !MANUAL_DIRECTIONS.includes(direction)) {
+    throw validationFailed('direction must be inflow or outflow', [
+      { field: 'direction', message: 'direction must be inflow or outflow' },
+    ]);
+  }
+  const money = parsePositiveMoneyInput(body.amount, 'amount');
+  return {
+    accountId: requireIdString(body.accountId, 'accountId'),
+    direction,
+    amountMinorUnits: money.amountMinorUnits,
+    currency: money.currency,
+    purpose: parseRequiredText(body.purpose, 'purpose', MAX_PURPOSE),
+    reference: parseOptionalText(body.reference, 'reference', MAX_REFERENCE),
+  };
+}
+
+function parseAccountTransfer(body) {
+  assertObjectBody(body);
+  const money = parsePositiveMoneyInput(body.amount, 'amount');
+  const sourceAccountId = requireIdString(body.sourceAccountId, 'sourceAccountId');
+  const destinationAccountId = requireIdString(body.destinationAccountId, 'destinationAccountId');
+  if (sourceAccountId === destinationAccountId) {
+    throw validationFailed('Source and destination account must differ', [
+      { field: 'destinationAccountId', message: 'destination account must differ from source' },
+    ]);
+  }
+  return {
+    sourceAccountId,
+    destinationAccountId,
+    amountMinorUnits: money.amountMinorUnits,
+    currency: money.currency,
+    purpose: parseOptionalText(body.purpose, 'purpose', MAX_PURPOSE),
+    reference: parseOptionalText(body.reference, 'reference', MAX_REFERENCE),
+  };
+}
+
+function parseReversalReason(body) {
+  assertObjectBody(body);
+  return {
+    reason: parseRequiredText(body.reason, 'reason', MAX_REASON),
+  };
+}
+
+function toManualAccountTransactionDto(record, extras) {
+  const signed = BigInt(String(record['signedAmountMinorUnits'] ?? '0'));
+  const absolute = signed < 0n ? -signed : signed;
+  const direction =
+    extras?.direction ??
+    (record['sourceType'] === 'manual_outflow' || record['sourceType'] === 'manual_outflow_reversal'
+      ? 'outflow'
+      : 'inflow');
+  return {
+    id: String(record['_id']),
+    organizationId: String(record['organizationId']),
+    accountId: String(record['accountId']),
+    direction,
+    amount: {
+      amount: require('../../platform/primitives/money-and-time').formatMoneyMinorUnits(absolute),
+      currency: String(record['currency'] ?? 'PKR'),
+    },
+    signedAmount: {
+      amount: require('../../platform/primitives/money-and-time').formatMoneyMinorUnits(signed),
+      currency: String(record['currency'] ?? 'PKR'),
+    },
+    purpose: record['purpose'] ? String(record['purpose']) : null,
+    reference: record['reference'] ? String(record['reference']) : null,
+    sourceType: String(record['sourceType']),
+    sourceId: String(record['sourceId']),
+    reversalOfId: record['reversalOfId'] ? String(record['reversalOfId']) : null,
+    reversedByMovementId: extras?.reversedByMovementId ?? null,
+    status: String(record['status']),
+    postedAt:
+      record['postedAt'] instanceof Date
+        ? record['postedAt'].toISOString()
+        : String(record['postedAt']),
+    postedBy: String(record['postedBy']),
+  };
+}
+
+function toAccountTransferDto(input) {
+  const { formatMoneyMinorUnits } = require('../../platform/primitives/money-and-time');
+  return {
+    id: String(input.id),
+    sourceAccountId: String(input.sourceAccountId),
+    destinationAccountId: String(input.destinationAccountId),
+    amount: {
+      amount: formatMoneyMinorUnits(BigInt(String(input.amountMinorUnits))),
+      currency: String(input.currency ?? 'PKR'),
+    },
+    purpose: input.purpose ?? null,
+    reference: input.reference ?? null,
+    outboundMovementId: String(input.outboundMovementId),
+    inboundMovementId: String(input.inboundMovementId),
+    reversalOutboundMovementId: input.reversalOutboundMovementId
+      ? String(input.reversalOutboundMovementId)
+      : null,
+    reversalInboundMovementId: input.reversalInboundMovementId
+      ? String(input.reversalInboundMovementId)
+      : null,
+    status: String(input.status ?? 'posted'),
+    postedAt:
+      input.postedAt instanceof Date ? input.postedAt.toISOString() : String(input.postedAt),
+    postedBy: String(input.postedBy),
+    reason: input.reason ?? null,
+  };
+}
+
 module.exports = {
   parseExpectedVersion,
   parseAccountCreate,
   parseAccountPatch,
   parseAccountOpeningBalance,
+  parseManualAccountTransaction,
+  parseAccountTransfer,
+  parseReversalReason,
   toAccountDto,
   toAccountMovementDto,
+  toManualAccountTransactionDto,
+  toAccountTransferDto,
   ACCOUNT_TYPES,
 };

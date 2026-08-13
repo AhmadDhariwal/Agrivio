@@ -32,6 +32,18 @@ function createReturnsController(deps) {
               typeof req.query.purchaseId === 'string' && req.query.purchaseId.trim() !== ''
                 ? req.query.purchaseId.trim()
                 : undefined,
+            saleId:
+              typeof req.query.saleId === 'string' && req.query.saleId.trim() !== ''
+                ? req.query.saleId.trim()
+                : undefined,
+            customerId:
+              typeof req.query.customerId === 'string' && req.query.customerId.trim() !== ''
+                ? req.query.customerId.trim()
+                : undefined,
+            returnType:
+              typeof req.query.returnType === 'string' && req.query.returnType.trim() !== ''
+                ? req.query.returnType.trim()
+                : undefined,
           },
           req.authContext,
         );
@@ -61,6 +73,35 @@ function createReturnsController(deps) {
         const data = await deps.returnsService.createPurchaseReturnDraft(
           organizationId,
           purchaseId,
+          req.body,
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 201, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async createSalesReturn(req, res, next) {
+      try {
+        const organizationId = requireOrganizationId(req);
+        const saleId = String(req.params.saleId ?? req.body?.saleId ?? '');
+        const data = await deps.returnsService.createSalesReturnDraft(
+          organizationId,
+          saleId,
+          req.body,
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 201, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async createWithoutInvoiceReturn(req, res, next) {
+      try {
+        const data = await deps.returnsService.createWithoutInvoiceDraft(
+          requireOrganizationId(req),
           req.body,
           req.authContext,
         );
@@ -102,6 +143,21 @@ function createReturnsController(deps) {
     async postReturn(req, res, next) {
       try {
         const result = await deps.returnsService.postReturn(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.body,
+          req.authContext,
+          req.get('Idempotency-Key'),
+        );
+        sendSuccessEnvelope(res, result.statusCode ?? 200, result.data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async reverseReturn(req, res, next) {
+      try {
+        const result = await deps.returnsService.reverseReturn(
           requireOrganizationId(req),
           String(req.params.id),
           req.body,
