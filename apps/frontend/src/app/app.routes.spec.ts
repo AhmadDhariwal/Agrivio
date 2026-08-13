@@ -21,5 +21,8 @@ describe('appRoutes F02 routing', () => {
 
     const context = appRoutes.find((route) => route.path === 'context');
     expect(context?.canActivate?.length).toBeGreaterThan(0);
+
+    const print = app?.children?.find((route) => route.path === 'sales/:id/print');
+    expect(print).toBeTruthy();
   });
 });

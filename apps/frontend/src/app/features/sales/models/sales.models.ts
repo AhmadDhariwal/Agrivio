@@ -125,3 +125,45 @@ export interface SaleCancelInput {
   expectedVersion: number;
   reason: string;
 }
+
+export type InvoicePrintLayout = '58mm' | '80mm' | 'a4';
+
+export const INVOICE_PRINT_LAYOUTS: InvoicePrintLayout[] = ['58mm', '80mm', 'a4'];
+
+export interface PosPaymentAccount {
+  id: string;
+  name: string;
+  accountType: string;
+}
+
+export interface SalePrintLine {
+  productNameSnapshot: string;
+  unitCodeSnapshot: string;
+  conversionFactorSnapshot: string;
+  quantity: string;
+  unitPrice: MoneyAmount;
+  lineProductAmount: MoneyAmount;
+}
+
+export interface SalePrintPayment {
+  accountNameSnapshot: string;
+  accountTypeSnapshot: string;
+  amount: MoneyAmount;
+}
+
+export interface SalePrintInvoice {
+  invoiceNumber: string | null;
+  status: string;
+  saleDate: string;
+  postedAt: string | null;
+  branchNameSnapshot: string | null;
+  warehouseNameSnapshot: string | null;
+  customerNameSnapshot: string | null;
+  priceTierSnapshot: string | null;
+  notes: string;
+  saleTotal: MoneyAmount | null;
+  paidTotal: MoneyAmount | null;
+  receivableTotal: MoneyAmount | null;
+  lines: SalePrintLine[];
+  payments: SalePrintPayment[];
+}

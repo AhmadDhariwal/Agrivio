@@ -54,6 +54,28 @@ function createSalesController(deps) {
       }
     },
 
+    async getSalePrintInvoice(req, res, next) {
+      try {
+        const data = await deps.salesService.getSalePrintInvoice(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async listPosPaymentAccounts(req, res, next) {
+      try {
+        const data = await deps.salesService.listPosPaymentAccounts(requireOrganizationId(req));
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async createSale(req, res, next) {
       try {
         const data = await deps.salesService.createSaleDraft(

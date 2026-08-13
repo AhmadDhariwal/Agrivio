@@ -14,7 +14,7 @@
       ? 'Original invoice is preserved. Compensating stock, receivable, and payment effects were posted.'
       : isPosted()
         ? 'Posted sales are immutable except via cancellation. Totals and snapshots below are authoritative.'
-        : 'Drafts are unposted. Saving does not update inventory or receivables until you post.'
+        : 'POS sale: select branch, warehouse, customer or walk-in, products, and payment. Drafts do not affect stock until you post.'
   "
 />
 
@@ -44,7 +44,9 @@
   }
 
   @if (errorMessage(); as error) {
-    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+    <div data-testid="sale-error">
+      <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+    </div>
   }
   @if (successMessage(); as success) {
     <agrivio-ui-alert tone="success" [message]="success" data-testid="sale-success" />
@@ -54,7 +56,7 @@
     <section class="ag-stack totals" data-testid="sale-posted-details">
       <h2>Sale details</h2>
       @if (posted.invoiceNumber) {
-        <p>Invoice: <strong>{{ posted.invoiceNumber }}</strong></p>
+        <p data-testid="sale-invoice-number">Invoice: <strong>{{ posted.invoiceNumber }}</strong></p>
       }
       @if (posted.customerNameSnapshot) {
         <p>Customer: <strong>{{ posted.customerNameSnapshot }}</strong></p>
@@ -85,6 +87,15 @@
           }
         </ul>
       }
+      @if (canPrint() && posted.invoiceNumber) {
+        <a
+          class="ag-btn"
+          [routerLink]="['/app/sales', posted.id, 'print']"
+          data-testid="sale-print-link"
+        >
+          Print invoice
+        </a>
+      }
     </section>
   }
 
@@ -110,9 +121,9 @@
     </label>
 
     <label>
-      Customer (optional)
+      Customer
       <select formControlName="customerId" data-testid="sale-customer">
-        <option value="">Walk-in / no customer</option>
+        <option value="">Walk-in (cash only)</option>
         @for (customer of customers(); track customer.id) {
           <option [value]="customer.id">{{ customer.name }} ({{ customer.priceTier }})</option>
         }
@@ -197,7 +208,31 @@
           </button>
         }
       </div>
-      <p class="ag-muted">Leave empty for full credit when a credit-enabled customer is selected. Walk-in sales require full payment.</p>
+      @if (isDraft()) {
+        <p class="ag-muted" data-testid="sale-cart-estimate">
+          Cart total (draft estimate): {{ cartEstimate() }} PKR. Posted totals come from the server.
+        </p>
+        <div class="ag-inline">
+          <button class="ag-btn ag-btn--secondary" type="button" (click)="fillFullCash()" data-testid="sale-fill-cash">
+            Full cash
+          </button>
+          <button
+            class="ag-btn ag-btn--secondary"
+            type="button"
+            (click)="clearPaymentsForCredit()"
+            data-testid="sale-fill-credit"
+          >
+            Credit (no payment)
+          </button>
+        </div>
+      }
+      <p class="ag-muted">
+        Leave empty for full credit when a credit-enabled customer is selected. Walk-in sales require full payment.
+        Use Add payment for partial or mixed tenders. The server is authoritative.
+      </p>
+      @if (isDraft() && accounts().length === 0) {
+        <agrivio-ui-alert tone="warning" message="No payment accounts are available for this POS context." />
+      }
 
       @for (payment of payments.controls; track $index; let index = $index) {
         <fieldset class="line" [formGroup]="paymentGroup(index)">

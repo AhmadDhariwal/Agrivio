@@ -302,6 +302,11 @@ export const appRoutes: Route[] = [
           import('./features/sales/pages/sale-edit/sale-edit.page').then((m) => m.SaleEditPage),
       },
       {
+        path: 'sales/:id/print',
+        loadComponent: () =>
+          import('./features/sales/pages/sale-print/sale-print.page').then((m) => m.SalePrintPage),
+      },
+      {
         path: 'sales/:id',
         loadComponent: () =>
           import('./features/sales/pages/sale-edit/sale-edit.page').then((m) => m.SaleEditPage),

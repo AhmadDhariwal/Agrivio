@@ -1,11 +1,11 @@
 <agrivio-ui-page-header
-  title="Sales"
+  title="Sales / POS"
   eyebrow="Sales"
-  lede="Create sale drafts and review sale history. Posting is available in a later release."
+  lede="Create drafts, post cashier sales, and print posted invoices. Posted values come from sale snapshots."
 >
   @if (canCreate()) {
     <a class="ag-btn" routerLink="/app/sales/new" data-testid="sale-create-link">
-      Create sale draft
+      New POS sale
     </a>
   }
 </agrivio-ui-page-header>
@@ -29,6 +29,9 @@
           <strong>{{ displayTitle(item) }}</strong>
           <p class="ag-muted">
             {{ item.saleDate }}
+            @if (item.invoiceNumber) {
+              · {{ item.invoiceNumber }}
+            }
             @if (item.branchNameSnapshot) {
               · {{ item.branchNameSnapshot }}
             }
@@ -42,6 +45,15 @@
           @if (canView() || canCreate()) {
             <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/sales', item.id]">
               {{ actionLabel(item.status) }}
+            </a>
+          }
+          @if (canView() && (item.status === 'posted' || item.status === 'cancelled') && item.invoiceNumber) {
+            <a
+              class="ag-btn ag-btn--secondary"
+              [routerLink]="['/app/sales', item.id, 'print']"
+              data-testid="sale-list-print"
+            >
+              Print
             </a>
           }
         </div>

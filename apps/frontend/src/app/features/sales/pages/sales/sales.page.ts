@@ -68,19 +68,28 @@ export class SalesPage {
     if (status === 'posted') {
       return 'Posted';
     }
+    if (status === 'cancelled') {
+      return 'Cancelled';
+    }
     return status;
   }
 
   actionLabel(status: string): string {
-    return status === 'posted' ? 'View' : 'Edit draft';
+    if (status === 'posted' || status === 'cancelled') {
+      return 'View';
+    }
+    return 'Edit draft';
   }
 
-  statusTone(status: string): 'warning' | 'success' | 'neutral' {
+  statusTone(status: string): 'warning' | 'success' | 'neutral' | 'danger' {
     if (status === 'draft') {
       return 'warning';
     }
     if (status === 'posted') {
       return 'success';
+    }
+    if (status === 'cancelled') {
+      return 'danger';
     }
     return 'neutral';
   }
