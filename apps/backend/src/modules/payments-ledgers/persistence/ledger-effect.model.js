@@ -18,6 +18,8 @@ const SOURCE_TYPES = [
   'customer_payment_allocation',
   'customer_payment_advance',
   'customer_advance_application',
+  'sale_cancellation',
+  'sale_cancellation_allocation_reversal',
 ];
 const OPENING_SOURCE_TYPES = [
   'customer_opening_receivable',
@@ -113,6 +115,8 @@ ledgerEffectSchema.index(
           'customer_payment_allocation',
           'customer_payment_advance',
           'customer_advance_application',
+          'sale_cancellation',
+          'sale_cancellation_allocation_reversal',
         ],
       },
       status: 'posted',

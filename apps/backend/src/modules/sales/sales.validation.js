@@ -187,6 +187,29 @@ function toMoneyDto(amountMinorUnits) {
   };
 }
 
+function parseApprovalReason(raw, field) {
+  if (raw === undefined || raw === null) {
+    return null;
+  }
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw validationFailed(`${field} must be an object`, [
+      { field, message: `${field} must be an object with reason` },
+    ]);
+  }
+  if (typeof raw.reason !== 'string' || raw.reason.trim() === '') {
+    throw validationFailed(`${field}.reason is required`, [
+      { field: `${field}.reason`, message: 'reason is required' },
+    ]);
+  }
+  const reason = raw.reason.trim();
+  if (reason.length > 1000) {
+    throw validationFailed(`${field}.reason exceeds maximum length`, [
+      { field: `${field}.reason`, message: 'reason must be at most 1000 characters' },
+    ]);
+  }
+  return { reason };
+}
+
 function parseSalePost(body) {
   assertObjectBody(body);
   const expectedVersion = parseExpectedVersion(body);
@@ -247,7 +270,52 @@ function parseSalePost(body) {
     return { lineIndex, reason };
   });
 
-  return { expectedVersion, payments, linePriceOverrides };
+  const approvalsRaw =
+    body.approvals === undefined || body.approvals === null ? {} : body.approvals;
+  if (approvalsRaw === null || typeof approvalsRaw !== 'object' || Array.isArray(approvalsRaw)) {
+    throw validationFailed('approvals must be an object', [
+      { field: 'approvals', message: 'approvals must be an object' },
+    ]);
+  }
+
+  const approvals = {
+    creditLimit: parseApprovalReason(approvalsRaw.creditLimit, 'approvals.creditLimit'),
+    expiredStock: parseApprovalReason(approvalsRaw.expiredStock, 'approvals.expiredStock'),
+    negativeStock: parseApprovalReason(approvalsRaw.negativeStock, 'approvals.negativeStock'),
+  };
+
+  return { expectedVersion, payments, linePriceOverrides, approvals };
+}
+
+function parseSaleCancel(body) {
+  assertObjectBody(body);
+  const expectedVersion = parseExpectedVersion(body);
+  if (typeof body.reason !== 'string' || body.reason.trim() === '') {
+    throw validationFailed('reason is required', [{ field: 'reason', message: 'reason is required' }]);
+  }
+  const reason = body.reason.trim();
+  if (reason.length > 1000) {
+    throw validationFailed('reason exceeds maximum length', [
+      { field: 'reason', message: 'reason must be at most 1000 characters' },
+    ]);
+  }
+  return { expectedVersion, reason };
+}
+
+function toApprovalDto(record) {
+  if (!record) {
+    return null;
+  }
+  return {
+    reason: String(record.reason),
+    approvedBy: String(record.approvedBy),
+    approvedAt:
+      record.approvedAt instanceof Date
+        ? record.approvedAt.toISOString()
+        : record.approvedAt
+          ? String(record.approvedAt)
+          : null,
+  };
 }
 
 function toSaleDto(record) {
@@ -322,6 +390,17 @@ function toSaleDto(record) {
         : toMoneyDto(record['cogsTotalMinorUnits']),
     payments: paymentSnapshots,
     lines,
+    creditLimitApproval: toApprovalDto(record['creditLimitApproval']),
+    expiredStockApproval: toApprovalDto(record['expiredStockApproval']),
+    negativeStockOverride: toApprovalDto(record['negativeStockOverride']),
+    cancellationReason: record['cancellationReason'] ? String(record['cancellationReason']) : null,
+    cancelledAt:
+      record['cancelledAt'] instanceof Date
+        ? record['cancelledAt'].toISOString()
+        : record['cancelledAt']
+          ? String(record['cancelledAt'])
+          : null,
+    cancelledBy: record['cancelledBy'] ? String(record['cancelledBy']) : null,
     version: Number(record['version']),
     postedAt:
       record['postedAt'] instanceof Date
@@ -343,6 +422,7 @@ function toSaleDto(record) {
 module.exports = {
   parseSaleDraft,
   parseSalePost,
+  parseSaleCancel,
   computeLineProductAmount,
   toSaleDto,
 };

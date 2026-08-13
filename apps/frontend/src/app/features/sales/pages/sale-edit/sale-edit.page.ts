@@ -15,6 +15,7 @@ import {
   SaleLineInput,
   SaleLinePriceOverrideInput,
   SalePaymentInput,
+  SalePostApprovalsInput,
   SaleRecord,
 } from '../../models/sales.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
@@ -62,6 +63,7 @@ export class SaleEditPage {
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly posting = signal(false);
+  readonly cancelling = signal(false);
   readonly discarding = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
@@ -73,9 +75,20 @@ export class SaleEditPage {
   readonly packagingByLine = signal<Record<number, PackagingUnitRecord[]>>({});
   readonly canCreate = computed(() => this.sessionStore.hasPermission('sales.create'));
   readonly canPost = computed(() => this.sessionStore.hasPermission('sales.post'));
+  readonly canCancel = computed(() => this.sessionStore.hasPermission('sales.cancel'));
   readonly canView = computed(() => this.sessionStore.hasPermission('sales.view'));
   readonly canOverridePrice = computed(() => this.sessionStore.hasPermission('pricing.override'));
+  readonly canApproveCreditLimit = computed(() =>
+    this.sessionStore.hasPermission('sales.credit-limit.approve'),
+  );
+  readonly canApproveExpiredStock = computed(() =>
+    this.sessionStore.hasPermission('sales.expired-stock.approve'),
+  );
+  readonly canOverrideNegativeStock = computed(() =>
+    this.sessionStore.hasPermission('inventory.negative-stock.override'),
+  );
   readonly isPosted = computed(() => this.sale()?.status === 'posted');
+  readonly isCancelled = computed(() => this.sale()?.status === 'cancelled');
   readonly isDraft = computed(() => {
     const record = this.sale();
     return record === null || record.status === 'draft';
@@ -90,6 +103,13 @@ export class SaleEditPage {
     notes: [''],
     lines: this.formBuilder.array([this.createLineGroup()]),
     payments: this.formBuilder.array<FormGroup>([]),
+    creditLimitApprovalReason: [''],
+    expiredStockApprovalReason: [''],
+    negativeStockOverrideReason: [''],
+  });
+
+  readonly cancelForm = this.formBuilder.nonNullable.group({
+    reason: ['', Validators.required],
   });
 
   get lines(): FormArray {
@@ -277,6 +297,20 @@ export class SaleEditPage {
       }
     });
 
+    const approvals: SalePostApprovalsInput = {};
+    const creditReason = this.form.controls.creditLimitApprovalReason.value.trim();
+    const expiredReason = this.form.controls.expiredStockApprovalReason.value.trim();
+    const negativeReason = this.form.controls.negativeStockOverrideReason.value.trim();
+    if (creditReason !== '') {
+      approvals.creditLimit = { reason: creditReason };
+    }
+    if (expiredReason !== '') {
+      approvals.expiredStock = { reason: expiredReason };
+    }
+    if (negativeReason !== '') {
+      approvals.negativeStock = { reason: negativeReason };
+    }
+
     this.api
       .postSale(
         id,
@@ -284,6 +318,7 @@ export class SaleEditPage {
           expectedVersion: this.version,
           payments,
           ...(linePriceOverrides.length > 0 ? { linePriceOverrides } : {}),
+          ...(Object.keys(approvals).length > 0 ? { approvals } : {}),
         },
         crypto.randomUUID(),
       )
@@ -296,6 +331,35 @@ export class SaleEditPage {
         error: (error: unknown) => {
           this.posting.set(false);
           this.errorMessage.set(this.mapError(error, 'Unable to post sale.'));
+        },
+      });
+  }
+
+  cancel(): void {
+    const id = this.saleId();
+    if (!id || !this.canCancel() || !this.isPosted() || this.cancelling()) {
+      return;
+    }
+    if (this.cancelForm.invalid) {
+      this.cancelForm.markAllAsTouched();
+      this.errorMessage.set('A cancellation reason is required.');
+      return;
+    }
+    this.cancelling.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    const { reason } = this.cancelForm.getRawValue();
+    this.api
+      .cancelSale(id, { reason, expectedVersion: this.version }, crypto.randomUUID())
+      .subscribe({
+        next: (record) => {
+          this.cancelling.set(false);
+          this.successMessage.set('Sale cancelled.');
+          this.applySale(record);
+        },
+        error: (error: unknown) => {
+          this.cancelling.set(false);
+          this.errorMessage.set(this.mapError(error, 'Unable to cancel sale.'));
         },
       });
   }
@@ -370,7 +434,7 @@ export class SaleEditPage {
   private applySale(sale: SaleRecord): void {
     this.sale.set(sale);
     this.version = sale.version;
-    const posted = sale.status === 'posted';
+    const locked = sale.status === 'posted' || sale.status === 'cancelled';
 
     this.form.patchValue({
       branchId: sale.branchId,
@@ -392,7 +456,7 @@ export class SaleEditPage {
           priceOverrideReason: line.priceOverrideReason ?? '',
         }),
       );
-      if (!posted) {
+      if (!locked) {
         this.bindLineProductChanges(index);
         this.catalogApi.listPackagingUnits(line.productId).subscribe({
           next: (units) => {
@@ -408,7 +472,7 @@ export class SaleEditPage {
     }
 
     this.payments.clear();
-    if (posted) {
+    if (locked) {
       for (const payment of sale.payments ?? []) {
         this.payments.push(
           this.createPaymentGroup({
@@ -419,7 +483,7 @@ export class SaleEditPage {
       }
     }
 
-    if (posted) {
+    if (locked) {
       this.form.disable({ emitEvent: false });
     } else {
       this.form.enable({ emitEvent: false });

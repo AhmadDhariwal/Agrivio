@@ -4,7 +4,7 @@ import { Observable, map, switchMap } from 'rxjs';
 import { API_SALES_PATH } from '@agrivio/api-contracts';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
-import { SaleDraftInput, SaleDraftUpdateInput, SalePostInput, SaleRecord } from '../models/sales.models';
+import { SaleDraftInput, SaleDraftUpdateInput, SalePostInput, SaleCancelInput, SaleRecord } from '../models/sales.models';
 
 @Injectable({ providedIn: 'root' })
 export class SalesApi {
@@ -69,6 +69,22 @@ export class SalesApi {
       switchMap(({ csrfToken }) =>
         this.http
           .post<{ data: SaleRecord }>(`${this.baseUrl}/${id}/post`, payload, {
+            withCredentials: true,
+            headers: {
+              'X-CSRF-Token': csrfToken,
+              'Idempotency-Key': idempotencyKey,
+            },
+          })
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
+  cancelSale(id: string, payload: SaleCancelInput, idempotencyKey: string): Observable<SaleRecord> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: SaleRecord }>(`${this.baseUrl}/${id}/cancel`, payload, {
             withCredentials: true,
             headers: {
               'X-CSRF-Token': csrfToken,

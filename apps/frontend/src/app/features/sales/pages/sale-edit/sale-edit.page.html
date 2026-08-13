@@ -1,10 +1,20 @@
 <agrivio-ui-page-header
-  [title]="isPosted() ? 'Posted sale' : saleId() ? 'Edit sale draft' : 'Create sale draft'"
+  [title]="
+    isCancelled()
+      ? 'Cancelled sale'
+      : isPosted()
+        ? 'Posted sale'
+        : saleId()
+          ? 'Edit sale draft'
+          : 'Create sale draft'
+  "
   eyebrow="Sales"
   [lede]="
-    isPosted()
-      ? 'Posted sales are immutable. Totals and snapshots below are authoritative.'
-      : 'Drafts are unposted. Saving does not update inventory or receivables until you post.'
+    isCancelled()
+      ? 'Original invoice is preserved. Compensating stock, receivable, and payment effects were posted.'
+      : isPosted()
+        ? 'Posted sales are immutable except via cancellation. Totals and snapshots below are authoritative.'
+        : 'Drafts are unposted. Saving does not update inventory or receivables until you post.'
   "
 />
 
@@ -13,7 +23,17 @@
 } @else if (!canView() && !canCreate()) {
   <agrivio-ui-alert tone="warning" message="You do not have permission to view or edit sales." />
 } @else {
-  @if (isPosted()) {
+  @if (isCancelled()) {
+    <div class="cancelled-banner" data-testid="sale-cancelled-banner">
+      Cancelled — original invoice preserved.
+      @if (sale()?.cancellationReason) {
+        Reason: {{ sale()!.cancellationReason }}
+      }
+      @if (sale()?.cancelledAt) {
+        · {{ sale()!.cancelledAt }}
+      }
+    </div>
+  } @else if (isPosted()) {
     <div class="posted-banner" data-testid="sale-posted-banner">
       Posted — inventory and receivable effects are locked.
     </div>
@@ -30,7 +50,7 @@
     <agrivio-ui-alert tone="success" [message]="success" data-testid="sale-success" />
   }
 
-  @if (isPosted() && sale(); as posted) {
+  @if ((isPosted() || isCancelled()) && sale(); as posted) {
     <section class="ag-stack totals" data-testid="sale-posted-details">
       <h2>Sale details</h2>
       @if (posted.invoiceNumber) {
@@ -112,7 +132,7 @@
     <section class="ag-stack lines">
       <div class="ag-inline lines__header">
         <h2>Lines</h2>
-        @if (!isPosted()) {
+        @if (isDraft()) {
           <button class="ag-btn ag-btn--secondary" type="button" (click)="addLine()" data-testid="sale-add-line">
             Add line
           </button>
@@ -152,14 +172,14 @@
             <input formControlName="unitPrice" data-testid="sale-line-unit-price" />
           </label>
 
-          @if (!isPosted() && canOverridePrice()) {
+          @if (isDraft() && canOverridePrice()) {
             <label>
               Price override reason (required if price differs from tier)
               <input formControlName="priceOverrideReason" data-testid="sale-line-override-reason" />
             </label>
           }
 
-          @if (!isPosted()) {
+          @if (isDraft()) {
             <button class="ag-btn ag-btn--secondary" type="button" (click)="removeLine(index)">
               Remove line
             </button>
@@ -171,13 +191,13 @@
     <section class="ag-stack" data-testid="sale-payments">
       <div class="ag-inline lines__header">
         <h2>Payments at post</h2>
-        @if (!isPosted()) {
+        @if (isDraft()) {
           <button class="ag-btn ag-btn--secondary" type="button" (click)="addPayment()" data-testid="sale-add-payment">
             Add payment
           </button>
         }
       </div>
-      <p class="ag-muted">Leave empty for full credit when a customer is selected. Walk-in sales require full payment.</p>
+      <p class="ag-muted">Leave empty for full credit when a credit-enabled customer is selected. Walk-in sales require full payment.</p>
 
       @for (payment of payments.controls; track $index; let index = $index) {
         <fieldset class="line" [formGroup]="paymentGroup(index)">
@@ -195,7 +215,7 @@
             Amount (PKR)
             <input formControlName="amount" data-testid="sale-payment-amount" />
           </label>
-          @if (!isPosted()) {
+          @if (isDraft()) {
             <button class="ag-btn ag-btn--secondary" type="button" (click)="removePayment(index)">
               Remove payment
             </button>
@@ -204,13 +224,38 @@
       }
     </section>
 
+    @if (isDraft() && canPost()) {
+      <section class="ag-stack" data-testid="sale-approvals">
+        <h2>Approvals (when required)</h2>
+        <p class="ag-muted">Provide a reason only when credit-limit, expired-stock, or negative-stock override applies.</p>
+        @if (canApproveCreditLimit()) {
+          <label>
+            Credit-limit approval reason
+            <input formControlName="creditLimitApprovalReason" data-testid="sale-credit-limit-reason" />
+          </label>
+        }
+        @if (canApproveExpiredStock()) {
+          <label>
+            Expired-stock approval reason
+            <input formControlName="expiredStockApprovalReason" data-testid="sale-expired-stock-reason" />
+          </label>
+        }
+        @if (canOverrideNegativeStock()) {
+          <label>
+            Negative-stock override reason
+            <input formControlName="negativeStockOverrideReason" data-testid="sale-negative-stock-reason" />
+          </label>
+        }
+      </section>
+    }
+
     <div class="ag-inline">
-      @if (!isPosted() && canCreate()) {
+      @if (isDraft() && canCreate()) {
         <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="sale-save">
           {{ saving() ? 'Saving…' : 'Save draft' }}
         </button>
       }
-      @if (!isPosted() && saleId() && canPost()) {
+      @if (isDraft() && saleId() && canPost()) {
         <button
           class="ag-btn"
           type="button"
@@ -221,7 +266,7 @@
           {{ posting() ? 'Posting…' : 'Post sale' }}
         </button>
       }
-      @if (!isPosted() && saleId() && canCreate()) {
+      @if (isDraft() && saleId() && canCreate()) {
         <button
           class="ag-btn ag-btn--secondary"
           type="button"
@@ -235,4 +280,24 @@
       <a class="ag-btn ag-btn--secondary" routerLink="/app/sales">Back to list</a>
     </div>
   </form>
+
+  @if (isPosted() && canCancel()) {
+    <section class="ag-stack cancel-section" data-testid="sale-cancel-section">
+      <h2>Cancel sale</h2>
+      <form class="ag-stack" [formGroup]="cancelForm" (ngSubmit)="cancel()">
+        <label>
+          Cancellation reason
+          <input formControlName="reason" data-testid="cancel-reason-input" placeholder="Required" />
+        </label>
+        <button
+          class="ag-btn"
+          type="submit"
+          [disabled]="cancelling()"
+          data-testid="sale-cancel-btn"
+        >
+          {{ cancelling() ? 'Cancelling…' : 'Cancel sale' }}
+        </button>
+      </form>
+    </section>
+  }
 }

@@ -108,6 +108,21 @@ function createSalesController(deps) {
         next(error);
       }
     },
+
+    async cancelSale(req, res, next) {
+      try {
+        const result = await deps.salesService.cancelSale(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.body,
+          req.authContext,
+          req.get('Idempotency-Key'),
+        );
+        sendSuccessEnvelope(res, result.statusCode ?? 200, result.data);
+      } catch (error) {
+        next(error);
+      }
+    },
   };
 }
 

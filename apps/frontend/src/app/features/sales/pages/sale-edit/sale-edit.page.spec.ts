@@ -23,6 +23,7 @@ describe('SaleEditPage', () => {
             updateSale: () => of({}),
             discardSale: () => of({}),
             postSale: () => of({}),
+            cancelSale: () => of({}),
           },
         },
         {

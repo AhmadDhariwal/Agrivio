@@ -12,6 +12,7 @@ const {
   applyCostOutboundAtValue,
 } = require('../inventory-posting');
 const { createInventoryModule, createInventoryService } = require('../inventory.module');
+const { isExpiredOnBusinessDate } = require('../allocation');
 
 module.exports = {
   allocateStock,
@@ -22,4 +23,5 @@ module.exports = {
   applyCostOutboundAtValue,
   createInventoryModule,
   createInventoryService,
+  isExpiredOnBusinessDate,
 };

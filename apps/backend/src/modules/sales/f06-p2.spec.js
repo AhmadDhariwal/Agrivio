@@ -129,6 +129,9 @@ describe('F06 P2 sale posting, tier pricing, and payments', () => {
         customerType: 'farmer',
         priceTier: 'wholesale',
         phone: '03001234567',
+        creditEnabled: true,
+        creditLimit: { amount: '100000.00', currency: 'PKR' },
+        creditLimitBehaviour: 'warning',
       });
       expect(customer.status).toBe(201);
 
