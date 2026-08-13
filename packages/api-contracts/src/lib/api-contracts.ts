@@ -82,6 +82,18 @@ export const API_SUPPLIERS_PATH = `${API_V1_PREFIX}/suppliers` as const;
 /** Accounts master data (R1-F03-010). */
 export const API_ACCOUNTS_PATH = `${API_V1_PREFIX}/accounts` as const;
 
+/** Manual account inflow/outflow posting (R1-F07-006/007). */
+export const API_ACCOUNT_TRANSACTIONS_PATH = `${API_V1_PREFIX}/account-transactions` as const;
+
+/** Account-to-account transfers (R1-F07-006/007). */
+export const API_ACCOUNT_TRANSFERS_PATH = `${API_V1_PREFIX}/account-transfers` as const;
+
+/** Expense categories (R1-F07-008). */
+export const API_EXPENSE_CATEGORIES_PATH = `${API_V1_PREFIX}/expense-categories` as const;
+
+/** Expenses (R1-F07-008). */
+export const API_EXPENSES_PATH = `${API_V1_PREFIX}/expenses` as const;
+
 /** Supplier payments (R1-F05-001). */
 export const API_SUPPLIER_PAYMENTS_PATH = `${API_V1_PREFIX}/supplier-payments` as const;
 

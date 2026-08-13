@@ -51,6 +51,9 @@
         @if (canViewAccounts()) {
           <a routerLink="/app/accounts" routerLinkActive="active">Accounts</a>
         }
+        @if (canViewExpenses()) {
+          <a routerLink="/app/expenses" routerLinkActive="active" data-testid="nav-expenses">Expenses</a>
+        }
         @if (canViewPurchases()) {
           <a routerLink="/app/purchases" routerLinkActive="active" data-testid="nav-purchases">
             Purchases

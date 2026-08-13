@@ -47,7 +47,8 @@ Central navigation for Agrivio documentation.
 * F06 Phase 4 complete (`R1-F06-010`, `R1-F06-011`) — see [tasks/F06-PHASE-4-PRINTING-POS.md](tasks/F06-PHASE-4-PRINTING-POS.md); printing (58mm/80mm/A4) and cashier POS E2E; **F06 stage exit ready pending acceptance**
 * F07 Phase 1 complete (`R1-F07-001`–`R1-F07-003`) — see [tasks/F07-PHASE-1-SALES-RETURNS.md](tasks/F07-PHASE-1-SALES-RETURNS.md); linked sales returns, return-without-invoice approval, sellable/unsellable + refund/ledger resolution
 * F07 Phase 2 complete (`R1-F07-004`, `R1-F07-005`) — see [tasks/F07-PHASE-2-RETURN-REVERSAL.md](tasks/F07-PHASE-2-RETURN-REVERSAL.md); linked return reversal, shared correction validation, purchase-return integration
-* Next work item: **F07 P3** (`R1-F07-006`+) after F07 P2 acceptance
+* F07 Phase 3 complete (`R1-F07-006`–`R1-F07-008`) — see [tasks/F07-PHASE-3-ACCOUNT-TRANSACTIONS-EXPENSES.md](tasks/F07-PHASE-3-ACCOUNT-TRANSACTIONS-EXPENSES.md); manual account inflow/outflow/transfer, account reversal, expenses/expense correction
+* Next work item: **F07 P4** (`R1-F07-009`) Accounts/expenses/returns Angular vertical slice and stage-exit E2E
 
 ## Existing Documents
 
@@ -110,6 +111,7 @@ Central navigation for Agrivio documentation.
 | [tasks/F06-PHASE-4-PRINTING-POS.md](tasks/F06-PHASE-4-PRINTING-POS.md) | F06 Phase 4: printing 58mm/80mm/A4 and POS cashier E2E (`R1-F06-010`/`011`) |
 | [tasks/F07-PHASE-1-SALES-RETURNS.md](tasks/F07-PHASE-1-SALES-RETURNS.md) | F07 Phase 1: linked sales returns, without-invoice approval, sellable/unsellable + refund/ledger (`R1-F07-001`–`003`) |
 | [tasks/F07-PHASE-2-RETURN-REVERSAL.md](tasks/F07-PHASE-2-RETURN-REVERSAL.md) | F07 Phase 2: return reversal and purchase-return integration (`R1-F07-004`, `R1-F07-005`) |
+| [tasks/F07-PHASE-3-ACCOUNT-TRANSACTIONS-EXPENSES.md](tasks/F07-PHASE-3-ACCOUNT-TRANSACTIONS-EXPENSES.md) | F07 Phase 3: manual account transactions, reversals, expenses (`R1-F07-006`–`R1-F07-008`) |
 | [tasks/F01-PHASE-1-PLATFORM-RUNTIME.md](tasks/F01-PHASE-1-PLATFORM-RUNTIME.md) | F01 Phase 1: platform runtime foundation |
 | [tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md](tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md) | F01 Phase 2: transactional platform foundation (completes F01) |
 | [../README.md](../README.md) | Repository landing page |
