@@ -144,6 +144,17 @@ const returnSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    reversedByCorrectiveTransactionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CorrectiveTransaction',
+      default: null,
+    },
+    reversedAt: { type: Date, default: null },
+    reversedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
@@ -160,6 +171,7 @@ returnSchema.index({ organizationId: 1, saleId: 1 });
 returnSchema.index({ organizationId: 1, supplierId: 1 });
 returnSchema.index({ organizationId: 1, customerId: 1 });
 returnSchema.index({ organizationId: 1, warehouseId: 1, createdAt: -1 });
+returnSchema.index({ organizationId: 1, reversedByCorrectiveTransactionId: 1 });
 
 const ReturnModel = mongoose.models['Return'] || mongoose.model('Return', returnSchema);
 

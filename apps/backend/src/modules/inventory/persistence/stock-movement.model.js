@@ -13,6 +13,8 @@ const MOVEMENT_SOURCE_TYPES = [
   'sale',
   'sale_cancellation',
   'sales_return',
+  'purchase_return_reversal',
+  'sales_return_reversal',
 ];
 const STOCK_CONDITIONS = ['sellable', 'unsellable'];
 const MOVEMENT_STATUSES = ['posted'];

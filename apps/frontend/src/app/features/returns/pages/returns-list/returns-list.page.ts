@@ -26,6 +26,10 @@ export class ReturnsListPage {
   readonly canApproveWithoutInvoice = computed(() =>
     this.sessionStore.hasPermission('returns.without-invoice.approve'),
   );
+  readonly canReverse = computed(() => this.sessionStore.hasPermission('returns.reverse'));
+  readonly reverseReason = signal('');
+  readonly reversingId = signal<string | null>(null);
+  readonly successMessage = signal<string | null>(null);
 
   constructor() {
     if (!this.canView()) {
@@ -42,5 +46,42 @@ export class ReturnsListPage {
         this.loading.set(false);
       },
     });
+  }
+
+  reverse(item: SalesReturnRecord): void {
+    if (!this.canReverse() || item.status !== 'posted' || this.reversingId()) {
+      return;
+    }
+    const reason = this.reverseReason().trim();
+    if (reason === '') {
+      this.errorMessage.set('A reversal reason is required.');
+      return;
+    }
+    this.reversingId.set(item.id);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    this.api
+      .reverseReturn(
+        item.id,
+        { reason, expectedVersion: item.version },
+        `return-reverse-${item.id}-${Date.now()}`,
+      )
+      .subscribe({
+        next: (updated) => {
+          this.items.update((rows) => rows.map((row) => (row.id === updated.id ? updated : row)));
+          this.reversingId.set(null);
+          this.reverseReason.set('');
+          this.successMessage.set('Return reversed with a linked corrective transaction.');
+        },
+        error: () => {
+          this.reversingId.set(null);
+          this.errorMessage.set('Unable to reverse return.');
+        },
+      });
+  }
+
+  onReverseReasonInput(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.reverseReason.set(target.value);
   }
 }

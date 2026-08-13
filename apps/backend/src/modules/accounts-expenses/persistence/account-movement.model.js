@@ -9,6 +9,8 @@ const MOVEMENT_SOURCE_TYPES = [
   'purchase_return_refund',
   'sale_cancellation_refund',
   'sales_return_refund',
+  'purchase_return_refund_reversal',
+  'sales_return_refund_reversal',
 ];
 const MOVEMENT_STATUSES = ['posted'];
 
@@ -48,6 +50,10 @@ const accountMovementSchema = new mongoose.Schema(
       required: true,
       ref: 'User',
     },
+    reversalOfId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+    },
   },
   { timestamps: true, collection: 'account_movements' },
 );
@@ -76,6 +82,8 @@ accountMovementSchema.index(
           'purchase_cancellation_refund',
           'purchase_return_refund',
           'sale_cancellation_refund',
+          'purchase_return_refund_reversal',
+          'sales_return_refund_reversal',
         ],
       },
       status: 'posted',

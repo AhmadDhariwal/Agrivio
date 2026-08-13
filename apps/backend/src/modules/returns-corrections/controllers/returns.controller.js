@@ -154,6 +154,21 @@ function createReturnsController(deps) {
         next(error);
       }
     },
+
+    async reverseReturn(req, res, next) {
+      try {
+        const result = await deps.returnsService.reverseReturn(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.body,
+          req.authContext,
+          req.get('Idempotency-Key'),
+        );
+        sendSuccessEnvelope(res, result.statusCode ?? 200, result.data);
+      } catch (error) {
+        next(error);
+      }
+    },
   };
 }
 

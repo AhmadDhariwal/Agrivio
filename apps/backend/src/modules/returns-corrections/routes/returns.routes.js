@@ -82,6 +82,18 @@ function registerReturnsRoutes(deps) {
   );
 
   router.post(
+    `${API_RETURNS_PATH}/:id/reverse`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('returns.reverse'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.reverseReturn(req, res, next);
+    },
+  );
+
+  router.post(
     `${API_PURCHASES_PATH}/:purchaseId/returns`,
     deps.requireAuth,
     deps.requireCsrf,

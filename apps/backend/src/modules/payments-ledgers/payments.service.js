@@ -238,6 +238,7 @@ function createPaymentsService(deps) {
       currency: input.currency ?? 'PKR',
       sourceType: input.sourceType ?? 'purchase_payable',
       sourceId: input.sourceId,
+      reversalOfId: input.reversalOfId ?? null,
       postedAt: input.postedAt,
       postedBy: input.postedBy,
     });
@@ -362,6 +363,7 @@ function createPaymentsService(deps) {
       currency: input.currency ?? 'PKR',
       sourceType: input.sourceType ?? 'sale_receivable',
       sourceId: input.sourceId,
+      reversalOfId: input.reversalOfId ?? null,
       postedAt: input.postedAt,
       postedBy: input.postedBy,
     });
@@ -374,6 +376,10 @@ function createPaymentsService(deps) {
     postSupplierPayableEffect,
     postCustomerPaymentInSession,
     postCustomerReceivableEffect,
+
+    async listLedgerEffectsBySource(organizationId, sourceType, sourceId, session) {
+      return ledgersService.listEffectsBySource(organizationId, sourceType, sourceId, session);
+    },
 
     async listPurchaseAllocations(organizationId, purchaseId) {
       return store.listAllocationsByTarget(organizationId, 'purchase', purchaseId);

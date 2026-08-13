@@ -62,4 +62,28 @@ export class ReturnsApi {
       ),
     );
   }
+
+  reverseReturn(
+    returnId: string,
+    payload: { reason: string; expectedVersion: number },
+    idempotencyKey: string,
+  ): Observable<PurchaseReturnRecord> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: PurchaseReturnRecord }>(
+            `${environment.publicApiBaseUrl}/api/v1/returns/${returnId}/reverse`,
+            payload,
+            {
+              withCredentials: true,
+              headers: {
+                'X-CSRF-Token': csrfToken,
+                'Idempotency-Key': idempotencyKey,
+              },
+            },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
 }

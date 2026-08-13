@@ -21,6 +21,8 @@ const SOURCE_TYPES = [
   'sale_cancellation',
   'sale_cancellation_allocation_reversal',
   'sales_return',
+  'purchase_return_reversal',
+  'sales_return_reversal',
 ];
 const OPENING_SOURCE_TYPES = [
   'customer_opening_receivable',
@@ -81,6 +83,10 @@ const ledgerEffectSchema = new mongoose.Schema(
       required: true,
       ref: 'User',
     },
+    reversalOfId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+    },
   },
   { timestamps: true, collection: 'ledger_effects' },
 );
@@ -118,6 +124,8 @@ ledgerEffectSchema.index(
           'customer_advance_application',
           'sale_cancellation',
           'sale_cancellation_allocation_reversal',
+          'purchase_return_reversal',
+          'sales_return_reversal',
         ],
       },
       status: 'posted',
