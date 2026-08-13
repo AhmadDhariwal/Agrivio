@@ -259,6 +259,48 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'expenses',
+        loadComponent: () =>
+          import('./features/accounts-expenses/pages/expenses/expenses.page').then(
+            (m) => m.ExpensesPage,
+          ),
+      },
+      {
+        path: 'expenses/new',
+        loadComponent: () =>
+          import('./features/accounts-expenses/pages/expense-form/expense-form.page').then(
+            (m) => m.ExpenseFormPage,
+          ),
+      },
+      {
+        path: 'expenses/:id',
+        loadComponent: () =>
+          import('./features/accounts-expenses/pages/expense-form/expense-form.page').then(
+            (m) => m.ExpenseFormPage,
+          ),
+      },
+      {
+        path: 'expense-categories',
+        loadComponent: () =>
+          import(
+            './features/accounts-expenses/pages/expense-categories/expense-categories.page'
+          ).then((m) => m.ExpenseCategoriesPage),
+      },
+      {
+        path: 'expense-categories/new',
+        loadComponent: () =>
+          import(
+            './features/accounts-expenses/pages/expense-category-form/expense-category-form.page'
+          ).then((m) => m.ExpenseCategoryFormPage),
+      },
+      {
+        path: 'expense-categories/:id',
+        loadComponent: () =>
+          import(
+            './features/accounts-expenses/pages/expense-category-form/expense-category-form.page'
+          ).then((m) => m.ExpenseCategoryFormPage),
+      },
+      {
         path: 'purchases',
         loadComponent: () =>
           import('./features/purchases/pages/purchases/purchases.page').then((m) => m.PurchasesPage),

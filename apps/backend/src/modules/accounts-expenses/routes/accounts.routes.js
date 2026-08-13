@@ -1,5 +1,9 @@
 const { Router } = require('express');
-const { API_ACCOUNTS_PATH } = require('@agrivio/api-contracts');
+const {
+  API_ACCOUNTS_PATH,
+  API_ACCOUNT_TRANSACTIONS_PATH,
+  API_ACCOUNT_TRANSFERS_PATH,
+} = require('@agrivio/api-contracts');
 const {
   createRequireOrganizationContextMiddleware,
   createRequirePermissionMiddleware,
@@ -77,6 +81,65 @@ function registerAccountsRoutes(deps) {
     deps.requireOperationalAccess,
     (req, res, next) => {
       void controller.listAccountMovements(req, res, next);
+    },
+  );
+
+  router.post(
+    API_ACCOUNT_TRANSACTIONS_PATH,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('accounts.transaction.post'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.postManualAccountTransaction(req, res, next);
+    },
+  );
+
+  router.get(
+    `${API_ACCOUNT_TRANSACTIONS_PATH}/:id`,
+    deps.requireAuth,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('accounts.view'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.getManualAccountTransaction(req, res, next);
+    },
+  );
+
+  router.post(
+    `${API_ACCOUNT_TRANSACTIONS_PATH}/:id/reverse`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('accounts.transaction.correct'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.reverseManualAccountTransaction(req, res, next);
+    },
+  );
+
+  router.post(
+    API_ACCOUNT_TRANSFERS_PATH,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('accounts.transfer'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.postAccountTransfer(req, res, next);
+    },
+  );
+
+  router.post(
+    `${API_ACCOUNT_TRANSFERS_PATH}/:id/reverse`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('accounts.transfer.reverse'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.reverseAccountTransfer(req, res, next);
     },
   );
 

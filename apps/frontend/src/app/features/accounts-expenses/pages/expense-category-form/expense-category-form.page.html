@@ -1,0 +1,34 @@
+<agrivio-ui-page-header
+  [title]="categoryId() ? 'Edit expense category' : 'Create expense category'"
+  eyebrow="Accounts"
+  lede="Expense categories classify operating expenses."
+/>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading category…" />
+} @else if (!canPost()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to manage expense categories." />
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+  <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="expense-category-form">
+    <label>
+      Name
+      <input formControlName="name" data-testid="expense-category-name" />
+    </label>
+    @if (categoryId()) {
+      <label>
+        Status
+        <select formControlName="status" data-testid="expense-category-status">
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </label>
+    }
+    <div class="ag-inline">
+      <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="expense-category-save">Save</button>
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/expense-categories">Cancel</a>
+    </div>
+  </form>
+}

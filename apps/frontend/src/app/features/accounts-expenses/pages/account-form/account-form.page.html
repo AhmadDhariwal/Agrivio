@@ -83,6 +83,98 @@
     </section>
   }
 
+  @if (accountId() && canPostTransaction()) {
+    <section class="ag-stack form" data-testid="account-transaction-section">
+      <h2>Manual inflow / outflow</h2>
+      <form class="ag-stack" [formGroup]="transactionForm" (ngSubmit)="postTransaction()">
+        <label>
+          Direction
+          <select formControlName="direction" data-testid="account-tx-direction">
+            <option value="inflow">Inflow</option>
+            <option value="outflow">Outflow</option>
+          </select>
+        </label>
+        <label>
+          Amount (PKR)
+          <input formControlName="amount" data-testid="account-tx-amount" />
+        </label>
+        <label>
+          Purpose
+          <input formControlName="purpose" data-testid="account-tx-purpose" />
+        </label>
+        <label>
+          Reference (optional)
+          <input formControlName="reference" data-testid="account-tx-reference" />
+        </label>
+        <button
+          class="ag-btn"
+          type="submit"
+          [disabled]="postingTransaction()"
+          data-testid="account-tx-save"
+        >
+          Post transaction
+        </button>
+      </form>
+    </section>
+  }
+
+  @if (accountId() && canTransfer()) {
+    <section class="ag-stack form" data-testid="account-transfer-section">
+      <h2>Transfer to another account</h2>
+      <form class="ag-stack" [formGroup]="transferForm" (ngSubmit)="postTransfer()">
+        <label>
+          Destination
+          <select formControlName="destinationAccountId" data-testid="account-transfer-destination">
+            <option value="">Select account</option>
+            @for (item of destinationAccounts(); track item.id) {
+              <option [value]="item.id">{{ item.name }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Amount (PKR)
+          <input formControlName="amount" data-testid="account-transfer-amount" />
+        </label>
+        <label>
+          Purpose (optional)
+          <input formControlName="purpose" data-testid="account-transfer-purpose" />
+        </label>
+        <label>
+          Reference (optional)
+          <input formControlName="reference" data-testid="account-transfer-reference" />
+        </label>
+        <button
+          class="ag-btn"
+          type="submit"
+          [disabled]="postingTransfer()"
+          data-testid="account-transfer-save"
+        >
+          Post transfer
+        </button>
+      </form>
+    </section>
+  }
+
+  @if (accountId() && reverseTarget(); as target) {
+    <section class="ag-stack form" data-testid="account-reverse-section">
+      <h2>Reverse {{ target.kind }}</h2>
+      <form class="ag-stack" [formGroup]="reverseForm" (ngSubmit)="confirmReverse()">
+        <label>
+          Reason
+          <input formControlName="reason" data-testid="account-reverse-reason" />
+        </label>
+        <div class="ag-inline">
+          <button class="ag-btn" type="submit" [disabled]="reversing()" data-testid="account-reverse-save">
+            Confirm reverse
+          </button>
+          <button class="ag-btn ag-btn--secondary" type="button" (click)="reverseTarget.set(null)">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+
   @if (accountId()) {
     <section class="ag-stack form movements">
       <h2>Account movements</h2>
@@ -104,7 +196,29 @@
                 <strong>{{ item.sourceType }}</strong>
                 <p class="ag-muted">{{ item.postedAt }}</p>
               </div>
-              <span>{{ item.signedAmount.amount }} {{ item.signedAmount.currency }}</span>
+              <div class="ag-inline">
+                <span>{{ item.signedAmount.amount }} {{ item.signedAmount.currency }}</span>
+                @if (canReverseManual(item)) {
+                  <button
+                    class="ag-btn ag-btn--secondary"
+                    type="button"
+                    (click)="startReverse('transaction', item.id)"
+                    data-testid="account-tx-reverse"
+                  >
+                    Reverse
+                  </button>
+                }
+                @if (canReverseTransferMovement(item)) {
+                  <button
+                    class="ag-btn ag-btn--secondary"
+                    type="button"
+                    (click)="startReverse('transfer', item.sourceId)"
+                    data-testid="account-transfer-reverse"
+                  >
+                    Reverse transfer
+                  </button>
+                }
+              </div>
             </article>
           }
         </div>
