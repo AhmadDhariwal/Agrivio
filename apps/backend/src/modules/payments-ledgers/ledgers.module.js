@@ -95,6 +95,7 @@ function createLedgersService(deps) {
           currency: input.currency ?? 'PKR',
           sourceType: input.sourceType,
           sourceId: input.sourceId,
+          reversalOfId: input.reversalOfId ?? null,
           status: 'posted',
           postedAt: input.postedAt,
           postedBy: input.postedBy,
@@ -113,6 +114,27 @@ function createLedgersService(deps) {
     async listSupplierEffects(organizationId, supplierId) {
       const items = await store.listEffectsBySupplier(organizationId, supplierId);
       return { items: items.map(toLedgerEffectDto) };
+    },
+
+    async listEffectsBySource(organizationId, sourceType, sourceId, session) {
+      const items = await store.listEffectsBySource(
+        organizationId,
+        sourceType,
+        sourceId,
+        session,
+      );
+      return items.map((item) => ({
+        id: String(item['_id']),
+        partyType: String(item.partyType),
+        customerId: item.customerId ? String(item.customerId) : null,
+        supplierId: item.supplierId ? String(item.supplierId) : null,
+        effectKind: String(item.effectKind),
+        signedAmountMinorUnits: String(item.signedAmountMinorUnits),
+        currency: String(item.currency ?? 'PKR'),
+        sourceType: String(item.sourceType),
+        sourceId: String(item.sourceId),
+        reversalOfId: item.reversalOfId ? String(item.reversalOfId) : null,
+      }));
     },
 
     async sumCustomerReceivable(organizationId, customerId) {

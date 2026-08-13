@@ -182,6 +182,7 @@ function createAccountsService(deps) {
           currency: input.currency ?? 'PKR',
           sourceType: input.sourceType,
           sourceId: input.sourceId,
+          reversalOfId: input.reversalOfId ?? null,
           status: 'posted',
           postedAt: input.postedAt,
           postedBy: input.postedBy,
@@ -207,6 +208,24 @@ function createAccountsService(deps) {
       }
       const items = await store.listMovementsByAccount(organizationId, accountId);
       return { items: items.map(toAccountMovementDto) };
+    },
+
+    async listAccountMovementsBySource(organizationId, sourceType, sourceId, session) {
+      const items = await store.listMovementsBySource(
+        organizationId,
+        sourceType,
+        sourceId,
+        session,
+      );
+      return items.map((item) => ({
+        id: String(item['_id']),
+        accountId: String(item.accountId),
+        signedAmountMinorUnits: String(item.signedAmountMinorUnits),
+        currency: String(item.currency ?? 'PKR'),
+        sourceType: String(item.sourceType),
+        sourceId: String(item.sourceId),
+        reversalOfId: item.reversalOfId ? String(item.reversalOfId) : null,
+      }));
     },
 
     async postOpeningBalance(organizationId, accountId, body, actor, idempotencyKey) {

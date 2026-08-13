@@ -27,6 +27,7 @@ const {
   parseSalesReturnDraft,
   parseWithoutInvoiceDraft,
   parseReturnPost,
+  parseReturnReverse,
   toReturnDto,
   SUPPORTED_REFUND_ACCOUNT_TYPES,
 } = require('./returns.validation');
@@ -687,6 +688,138 @@ function createReturnsService(deps) {
     };
   }
 
+  function reversalSourceTypes(returnType) {
+    if (returnType === 'purchase') {
+      return {
+        stockOriginal: 'purchase_return',
+        stockReversal: 'purchase_return_reversal',
+        ledgerOriginal: 'purchase_return',
+        ledgerReversal: 'purchase_return_reversal',
+        accountOriginal: 'purchase_return_refund',
+        accountReversal: 'purchase_return_refund_reversal',
+      };
+    }
+    return {
+      stockOriginal: 'sales_return',
+      stockReversal: 'sales_return_reversal',
+      ledgerOriginal: 'sales_return',
+      ledgerReversal: 'sales_return_reversal',
+      accountOriginal: 'sales_return_refund',
+      accountReversal: 'sales_return_refund_reversal',
+    };
+  }
+
+  async function reverseLinkedEffects(session, organizationId, actor, existing, correctiveId, reason, postedAt) {
+    const types = reversalSourceTypes(String(existing.returnType));
+    const sourceReturnId = String(existing['_id']);
+
+    if (!inventoryService || typeof inventoryService.listMovementsBySource !== 'function') {
+      throw validationFailed('inventoryService.listMovementsBySource is required for return reversal');
+    }
+    if (!paymentsService || typeof paymentsService.listLedgerEffectsBySource !== 'function') {
+      throw validationFailed('paymentsService.listLedgerEffectsBySource is required for return reversal');
+    }
+    if (!accountsService || typeof accountsService.listAccountMovementsBySource !== 'function') {
+      throw validationFailed('accountsService.listAccountMovementsBySource is required for return reversal');
+    }
+
+    const originalMovements = await inventoryService.listMovementsBySource(
+      organizationId,
+      types.stockOriginal,
+      sourceReturnId,
+      session,
+    );
+    if (originalMovements.length === 0) {
+      throw validationFailed('Source return stock movements were not found for reversal', [
+        { field: 'id', message: 'source stock movements are required' },
+      ]);
+    }
+
+    for (const movement of originalMovements) {
+      const reverseDirection = movement.direction === 'inbound' ? 'outbound' : 'inbound';
+      const common = {
+        warehouseId: String(existing.warehouseId),
+        productId: String(movement.productId),
+        batchId: movement.batchId,
+        quantityBaseMinorUnits: String(movement.quantityBaseMinorUnits),
+        enteredQuantityMinorUnits: String(movement.enteredQuantityMinorUnits),
+        unitCode: String(movement.unitCode),
+        conversionFactorSnapshot: String(movement.conversionFactorSnapshot),
+        packagingUnitId: movement.packagingUnitId,
+        inventoryValueMinorUnits: String(movement.inventoryValueMinorUnits),
+        sourceType: types.stockReversal,
+        sourceId: correctiveId,
+        stockCondition: movement.stockCondition,
+        reversalOfId: movement.id,
+        reason,
+        postedAt,
+      };
+      if (reverseDirection === 'inbound') {
+        await inventoryService.postInboundReceiptInSession(session, organizationId, actor, common);
+      } else {
+        await inventoryService.postOutboundIssueInSession(session, organizationId, actor, {
+          ...common,
+          useExplicitOutboundValue: movement.stockCondition !== 'unsellable',
+          allowNegativeStockOverride: false,
+        });
+      }
+    }
+
+    const originalLedger = await paymentsService.listLedgerEffectsBySource(
+      organizationId,
+      types.ledgerOriginal,
+      sourceReturnId,
+      session,
+    );
+    for (const effect of originalLedger) {
+      const opposite = (-BigInt(String(effect.signedAmountMinorUnits))).toString();
+      if (effect.partyType === 'supplier') {
+        await paymentsService.postSupplierPayableEffect(session, {
+          organizationId,
+          supplierId: effect.supplierId,
+          signedAmountMinorUnits: opposite,
+          sourceType: types.ledgerReversal,
+          sourceId: correctiveId,
+          reversalOfId: effect.id,
+          postedAt,
+          postedBy: actor.actorId,
+        });
+      } else if (effect.partyType === 'customer') {
+        await paymentsService.postCustomerReceivableEffect(session, {
+          organizationId,
+          customerId: effect.customerId,
+          signedAmountMinorUnits: opposite,
+          sourceType: types.ledgerReversal,
+          sourceId: correctiveId,
+          reversalOfId: effect.id,
+          postedAt,
+          postedBy: actor.actorId,
+        });
+      }
+    }
+
+    if (existing.resolution === 'account_refund' && existing.refundAccountId) {
+      const originalAccounts = await accountsService.listAccountMovementsBySource(
+        organizationId,
+        types.accountOriginal,
+        sourceReturnId,
+        session,
+      );
+      for (const movement of originalAccounts) {
+        await accountsService.postAccountMovement(session, {
+          organizationId,
+          accountId: movement.accountId,
+          signedAmountMinorUnits: (-BigInt(String(movement.signedAmountMinorUnits))).toString(),
+          sourceType: types.accountReversal,
+          sourceId: correctiveId,
+          reversalOfId: movement.id,
+          postedAt,
+          postedBy: actor.actorId,
+        });
+      }
+    }
+  }
+
   return {
     async listReturns(organizationId, query = {}, authContext) {
       const items = await store.listReturns(organizationId, {
@@ -1331,6 +1464,15 @@ function createReturnsService(deps) {
               resourceId: returnId,
               metadata: {
                 returnType,
+                sourceType: returnType === 'purchase' ? 'purchase' : returnType === 'sales' ? 'sale' : 'return',
+                sourceId:
+                  returnType === 'purchase'
+                    ? existing.purchaseId
+                      ? String(existing.purchaseId)
+                      : null
+                    : existing.saleId
+                      ? String(existing.saleId)
+                      : String(returnId),
                 purchaseId: existing.purchaseId ? String(existing.purchaseId) : null,
                 saleId: existing.saleId ? String(existing.saleId) : null,
                 returnTotalMinorUnits: posted.returnTotal.toString(),
@@ -1339,6 +1481,134 @@ function createReturnsService(deps) {
                 approverId:
                   returnType === 'sales_without_invoice' ? actor.actorId : undefined,
                 reason: input.reason,
+              },
+            });
+
+            return toReturnDto(updated);
+          });
+
+          return { statusCode: 200, body: dto };
+        },
+      );
+
+      return {
+        replay: result.replay,
+        data: result.response.body,
+        statusCode: result.response.statusCode,
+      };
+    },
+
+    async reverseReturn(organizationId, returnId, body, authContext, idempotencyKey) {
+      if (!hasPermission(authContext?.permissions ?? [], 'returns.reverse')) {
+        throw forbidden('Missing permission returns.reverse');
+      }
+      if (!inventoryService || !paymentsService || !accountsService) {
+        throw validationFailed('Return reversal dependencies are not configured');
+      }
+
+      const key = requireIdempotencyKey(idempotencyKey);
+      const input = parseReturnReverse(body);
+      const actor = { actorId: String(authContext.userId) };
+
+      const result = await idempotency.execute(
+        {
+          scopeType: 'organization',
+          organizationId,
+          actorId: actor.actorId,
+          operation: 'returns.reverse',
+        },
+        key,
+        { returnId, expectedVersion: input.expectedVersion },
+        async () => {
+          const dto = await transactionRunner.run(async (session) => {
+            const existing = await store.findReturnById(organizationId, returnId, session);
+            if (existing === null) {
+              throw notFound('Return not found');
+            }
+            if (
+              typeof deps.canAccessWarehouse === 'function' &&
+              !deps.canAccessWarehouse(authContext, String(existing.warehouseId))
+            ) {
+              throw notFound('Return not found');
+            }
+            if (existing.status === 'reversed') {
+              throw conflict('Return has already been reversed');
+            }
+            if (existing.status !== 'posted') {
+              throw conflict('Only posted returns can be reversed');
+            }
+            if (
+              existing.reversedByCorrectiveTransactionId !== null &&
+              existing.reversedByCorrectiveTransactionId !== undefined
+            ) {
+              throw conflict('Return has already been reversed');
+            }
+            assertOptimisticVersion(existing, input.expectedVersion);
+            await assertWarehouseAccess(authContext, String(existing.warehouseId));
+
+            const postedAt = now();
+            let corrective;
+            try {
+              corrective = await store.insertCorrectiveTransaction(session, {
+                organizationId,
+                sourceType: 'return',
+                sourceId: existing['_id'],
+                reversalOfId: existing['_id'],
+                reason: input.reason,
+                status: 'posted',
+                postedAt,
+                postedBy: actor.actorId,
+              });
+            } catch (error) {
+              if (error && error.agrivioDuplicate === true) {
+                throw conflict('Return has already been reversed');
+              }
+              throw error;
+            }
+
+            const correctiveId = String(corrective['_id']);
+            await reverseLinkedEffects(
+              session,
+              organizationId,
+              actor,
+              existing,
+              correctiveId,
+              input.reason,
+              postedAt,
+            );
+
+            const updated = await store.updateReturnIfPostedUnreversed(
+              session,
+              organizationId,
+              returnId,
+              input.expectedVersion,
+              {
+                status: 'reversed',
+                reversedByCorrectiveTransactionId: corrective['_id'],
+                reversedAt: postedAt,
+                reversedBy: actor.actorId,
+                updatedAt: postedAt,
+              },
+            );
+            if (updated === null) {
+              throw conflict('Return was already reversed or modified concurrently');
+            }
+
+            await auditWriter.appendBusinessEvent(session, {
+              organizationId,
+              actorId: actor.actorId,
+              action: 'return.reversed',
+              resourceType: 'return',
+              resourceId: returnId,
+              reason: input.reason,
+              metadata: {
+                returnType: String(existing.returnType),
+                sourceType: 'return',
+                sourceId: returnId,
+                reversalOfId: returnId,
+                correctiveTransactionId: correctiveId,
+                purchaseId: existing.purchaseId ? String(existing.purchaseId) : null,
+                saleId: existing.saleId ? String(existing.saleId) : null,
               },
             });
 

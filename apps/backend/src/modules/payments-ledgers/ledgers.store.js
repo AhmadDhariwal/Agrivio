@@ -60,6 +60,22 @@ function createMongooseLedgersStore() {
         .exec();
     },
 
+    async listEffectsBySource(organizationId, sourceType, sourceId, session) {
+      if (sourceId && !mongoose.isValidObjectId(sourceId)) {
+        return [];
+      }
+      const query = LedgerEffectModel.find({
+        organizationId,
+        sourceType,
+        sourceId,
+        status: 'posted',
+      }).sort({ postedAt: -1 });
+      if (session) {
+        query.session(session);
+      }
+      return query.lean().exec();
+    },
+
     async sumPostedEffects(organizationId, filter) {
       const query = { organizationId, status: 'posted', ...filter };
       const records = await LedgerEffectModel.find(query).select('signedAmountMinorUnits').lean().exec();
@@ -136,6 +152,19 @@ function createInMemoryLedgersStore() {
           (item) =>
             String(item.organizationId) === String(organizationId) &&
             String(item.supplierId) === String(supplierId) &&
+            item.status === 'posted',
+        )
+        .map((item) => ({ ...item }))
+        .sort((a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime());
+    },
+
+    async listEffectsBySource(organizationId, sourceType, sourceId) {
+      return [...effects.values()]
+        .filter(
+          (item) =>
+            String(item.organizationId) === String(organizationId) &&
+            String(item.sourceType) === String(sourceType) &&
+            String(item.sourceId) === String(sourceId) &&
             item.status === 'posted',
         )
         .map((item) => ({ ...item }))

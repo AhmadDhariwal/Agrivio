@@ -162,6 +162,42 @@ async function applyBalanceOutbound(
   return updated;
 }
 
+async function applyBalanceUnsellableOutbound(
+  store,
+  session,
+  organizationId,
+  scope,
+  quantityBaseMinorUnits,
+) {
+  const existing = await store.findBalance(
+    organizationId,
+    scope.warehouseId,
+    scope.productId,
+    scope.batchId,
+  );
+  if (existing === null) {
+    throw insufficientStock();
+  }
+
+  const currentUnsellable = unsellableQtyOf(existing);
+  if (currentUnsellable < quantityBaseMinorUnits) {
+    throw insufficientStock();
+  }
+
+  const nextUnsellable = currentUnsellable - quantityBaseMinorUnits;
+  const updated = await store.updateBalanceConditional(
+    session,
+    organizationId,
+    existing['_id'],
+    Number(existing.version),
+    { unsellableQuantityBaseMinorUnits: nextUnsellable.toString() },
+  );
+  if (updated === null) {
+    throw conflict('Concurrent stock balance update detected');
+  }
+  return updated;
+}
+
 async function applyCostInbound(store, session, organizationId, scope, receipt) {
   const existing = await store.findCostState(organizationId, scope.warehouseId, scope.productId);
   const prior = existing
@@ -353,6 +389,7 @@ module.exports = {
   applyBalanceInbound,
   applyBalanceUnsellableInbound,
   applyBalanceOutbound,
+  applyBalanceUnsellableOutbound,
   applyCostInbound,
   applyCostOutbound,
   applyCostOutboundAtValue,

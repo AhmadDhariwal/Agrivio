@@ -77,7 +77,20 @@ function createMongooseInventoryStore() {
       if (filters.batchId !== undefined) {
         query.batchId = filters.batchId;
       }
-      return StockMovementModel.find(query).sort({ postedAt: -1, createdAt: -1 }).lean().exec();
+      if (filters.sourceType) {
+        query.sourceType = filters.sourceType;
+      }
+      if (filters.sourceId) {
+        if (!mongoose.isValidObjectId(filters.sourceId)) {
+          return [];
+        }
+        query.sourceId = filters.sourceId;
+      }
+      const find = StockMovementModel.find(query).sort({ postedAt: -1, createdAt: -1 });
+      if (filters.session) {
+        find.session(filters.session);
+      }
+      return find.lean().exec();
     },
 
     async sumMovementSignedQuantity(organizationId, scope) {
@@ -447,6 +460,12 @@ function createInMemoryInventoryStore() {
             if (batchKey(item.batchId) !== batchKey(filters.batchId)) {
               return false;
             }
+          }
+          if (filters.sourceType && String(item.sourceType) !== String(filters.sourceType)) {
+            return false;
+          }
+          if (filters.sourceId && String(item.sourceId) !== String(filters.sourceId)) {
+            return false;
           }
           return true;
         })

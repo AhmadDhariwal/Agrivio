@@ -23,6 +23,7 @@ const {
   applyBalanceInbound,
   applyBalanceUnsellableInbound,
   applyBalanceOutbound,
+  applyBalanceUnsellableOutbound,
   applyCostInbound,
   applyCostOutbound,
   applyCostOutboundAtValue,
@@ -304,6 +305,21 @@ function createInventoryService(deps) {
       );
       movementUnitCost = costResult.receiptUnitCostMinorUnits.toString();
       movementInventoryValue = payload.inventoryValueMinorUnits.toString();
+    } else if (payload.direction === 'outbound' && stockCondition === 'unsellable') {
+      const unsellableValue = BigInt(String(payload.inventoryValueMinorUnits ?? '0'));
+      costResult = {
+        costState: await store.findCostState(organizationId, scope.warehouseId, scope.productId),
+        receiptUnitCostMinorUnits: computeUnitCostMinorUnits(unsellableValue, quantity),
+      };
+      balance = await applyBalanceUnsellableOutbound(
+        store,
+        session,
+        organizationId,
+        scope,
+        quantity,
+      );
+      movementUnitCost = costResult.receiptUnitCostMinorUnits.toString();
+      movementInventoryValue = unsellableValue.toString();
     } else if (payload.direction === 'inbound') {
       costResult = await applyCostInbound(store, session, organizationId, scope, {
         quantityBaseMinorUnits: quantity,
@@ -457,6 +473,34 @@ function createInventoryService(deps) {
         })
         .map(toMovementDto);
       return { items };
+    },
+
+    async listMovementsBySource(organizationId, sourceType, sourceId, session) {
+      const movements = await store.listMovements(organizationId, {
+        sourceType,
+        sourceId,
+        session,
+      });
+      return movements.map((item) => ({
+        id: String(item['_id']),
+        warehouseId: String(item.warehouseId),
+        productId: String(item.productId),
+        batchId: item.batchId ? String(item.batchId) : null,
+        direction: String(item.direction),
+        quantityBaseMinorUnits: String(item.quantityBaseMinorUnits),
+        enteredQuantityMinorUnits: String(item.enteredQuantityMinorUnits),
+        unitCode: String(item.unitCode),
+        conversionFactorSnapshot: String(item.conversionFactorSnapshot),
+        packagingUnitId: item.packagingUnitId ? String(item.packagingUnitId) : null,
+        inventoryValueMinorUnits:
+          item.inventoryValueMinorUnits === null || item.inventoryValueMinorUnits === undefined
+            ? '0'
+            : String(item.inventoryValueMinorUnits),
+        stockCondition: String(item.stockCondition ?? 'sellable'),
+        sourceType: String(item.sourceType),
+        sourceId: String(item.sourceId),
+        reversalOfId: item.reversalOfId ? String(item.reversalOfId) : null,
+      }));
     },
 
     async queryExpiry(organizationId, query, authContext) {
@@ -1789,6 +1833,7 @@ function createInventoryService(deps) {
         postedAt,
         reason: input.reason ?? null,
         correctionOfId: input.correctionOfId ?? null,
+        reversalOfId: input.reversalOfId ?? null,
       });
 
       return {
@@ -1848,9 +1893,11 @@ function createInventoryService(deps) {
         useExplicitOutboundValue: input.useExplicitOutboundValue === true,
         sourceType: input.sourceType,
         sourceId: input.sourceId,
+        stockCondition: input.stockCondition === 'unsellable' ? 'unsellable' : 'sellable',
         postedAt,
         reason: input.reason ?? null,
         correctionOfId: input.correctionOfId ?? null,
+        reversalOfId: input.reversalOfId ?? null,
         allowNegativeStockOverride,
         negativeStockOverrideReason: allowNegativeStockOverride
           ? input.negativeStockOverrideReason ?? null

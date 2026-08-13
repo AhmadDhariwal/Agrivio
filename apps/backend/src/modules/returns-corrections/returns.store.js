@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { ReturnModel } = require('./persistence/return.model');
+const { CorrectiveTransactionModel } = require('./persistence/corrective-transaction.model');
 const { AuditEventModel } = require('../audit/persistence/audit-event.model');
 
 function withSession(session) {
@@ -96,6 +97,49 @@ function createMongooseReturnsStore() {
         .exec();
     },
 
+    async updateReturnIfPostedUnreversed(session, organizationId, id, expectedVersion, patch) {
+      return ReturnModel.findOneAndUpdate(
+        {
+          _id: id,
+          organizationId,
+          status: 'posted',
+          reversedByCorrectiveTransactionId: null,
+          version: expectedVersion,
+        },
+        { $set: { ...patch, version: expectedVersion + 1 } },
+        { new: true, ...withSession(session) },
+      )
+        .lean()
+        .exec();
+    },
+
+    async insertCorrectiveTransaction(session, doc) {
+      try {
+        const [created] = await CorrectiveTransactionModel.create([doc], withSession(session));
+        return created.toObject();
+      } catch (error) {
+        if (isDuplicateKeyError(error)) {
+          error.agrivioDuplicate = true;
+        }
+        throw error;
+      }
+    },
+
+    async findCorrectiveTransactionBySource(organizationId, sourceType, sourceId, session) {
+      if (sourceId && !mongoose.isValidObjectId(sourceId)) {
+        return null;
+      }
+      const query = CorrectiveTransactionModel.findOne({
+        organizationId,
+        sourceType,
+        sourceId,
+      });
+      if (session) {
+        query.session(session);
+      }
+      return query.lean().exec();
+    },
+
     async listPostedReturnsByPurchase(organizationId, purchaseId) {
       return ReturnModel.find({
         organizationId,
@@ -173,8 +217,10 @@ function createMongooseReturnsStore() {
 
 function createInMemoryReturnsStore() {
   const returns = new Map();
+  const correctiveTransactions = new Map();
   const audits = [];
   let seq = 1;
+  let correctiveSeq = 1;
 
   return {
     async listReturns(organizationId, filter = {}) {
@@ -275,6 +321,62 @@ function createInMemoryReturnsStore() {
       });
     },
 
+    async updateReturnIfPostedUnreversed(_session, organizationId, id, expectedVersion, patch) {
+      const current = await this.findReturnById(organizationId, id);
+      if (current === null) {
+        return null;
+      }
+      if (
+        current.status !== 'posted' ||
+        Number(current.version) !== Number(expectedVersion) ||
+        (current.reversedByCorrectiveTransactionId !== null &&
+          current.reversedByCorrectiveTransactionId !== undefined)
+      ) {
+        return null;
+      }
+      return this.updateReturn(_session, organizationId, id, {
+        ...patch,
+        version: expectedVersion + 1,
+      });
+    },
+
+    async insertCorrectiveTransaction(_session, doc) {
+      for (const existing of correctiveTransactions.values()) {
+        if (
+          String(existing.organizationId) === String(doc.organizationId) &&
+          existing.sourceType === doc.sourceType &&
+          String(existing.sourceId) === String(doc.sourceId)
+        ) {
+          const error = new Error('Corrective transaction already exists for this source');
+          error.agrivioDuplicate = true;
+          throw error;
+        }
+      }
+      const id = `corrective-${correctiveSeq++}`;
+      const now = new Date();
+      const record = {
+        _id: id,
+        createdAt: now,
+        updatedAt: now,
+        ...doc,
+      };
+      correctiveTransactions.set(id, record);
+      return { ...record };
+    },
+
+    async findCorrectiveTransactionBySource(organizationId, sourceType, sourceId) {
+      for (const existing of correctiveTransactions.values()) {
+        if (
+          String(existing.organizationId) === String(organizationId) &&
+          existing.sourceType === sourceType &&
+          String(existing.sourceId) === String(sourceId)
+        ) {
+          return { ...existing };
+        }
+      }
+      return null;
+    },
+
     async listPostedReturnsByPurchase(organizationId, purchaseId) {
       return [...returns.values()].filter(
         (item) =>
@@ -342,6 +444,10 @@ function createInMemoryReturnsStore() {
         ...item,
         lines: item.lines.map((line) => ({ ...line })),
       }));
+    },
+
+    listCorrectiveTransactionsForTest() {
+      return [...correctiveTransactions.values()].map((item) => ({ ...item }));
     },
   };
 }

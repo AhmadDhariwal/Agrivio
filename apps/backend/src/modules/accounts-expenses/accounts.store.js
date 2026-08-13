@@ -98,6 +98,22 @@ function createMongooseAccountsStore() {
         .exec();
     },
 
+    async listMovementsBySource(organizationId, sourceType, sourceId, session) {
+      if (sourceId && !mongoose.isValidObjectId(sourceId)) {
+        return [];
+      }
+      const query = AccountMovementModel.find({
+        organizationId,
+        sourceType,
+        sourceId,
+        status: 'posted',
+      }).sort({ postedAt: -1 });
+      if (session) {
+        query.session(session);
+      }
+      return query.lean().exec();
+    },
+
     async sumPostedMovements(organizationId, accountId) {
       if (!mongoose.isValidObjectId(accountId)) {
         return '0';
@@ -216,6 +232,19 @@ function createInMemoryAccountsStore() {
           (item) =>
             String(item.organizationId) === String(organizationId) &&
             String(item.accountId) === String(accountId) &&
+            item.status === 'posted',
+        )
+        .map((item) => ({ ...item }))
+        .sort((a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime());
+    },
+
+    async listMovementsBySource(organizationId, sourceType, sourceId) {
+      return [...movements.values()]
+        .filter(
+          (item) =>
+            String(item.organizationId) === String(organizationId) &&
+            String(item.sourceType) === String(sourceType) &&
+            String(item.sourceId) === String(sourceId) &&
             item.status === 'posted',
         )
         .map((item) => ({ ...item }))

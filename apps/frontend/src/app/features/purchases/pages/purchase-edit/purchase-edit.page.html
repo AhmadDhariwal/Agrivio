@@ -301,7 +301,12 @@
   @if (isPosted() && canReturn()) {
     <section class="ag-stack return-section" data-testid="purchase-return-section">
       <h2>Create return</h2>
-      <p class="ag-muted">Select quantities to return. The return will be posted immediately as a ledger adjustment.</p>
+      <p class="ag-muted">
+        Select quantities to return. The return will be posted immediately as a ledger adjustment.
+        Reverse a posted purchase return from
+        <a routerLink="/app/returns">Returns</a>
+        using the shared reversal action — originals stay immutable.
+      </p>
       <form class="ag-stack" [formGroup]="returnForm" (ngSubmit)="submitReturn()">
         <label>
           Reason (optional)

@@ -285,6 +285,14 @@ function parseWithoutInvoiceDraft(body) {
   };
 }
 
+function parseReturnReverse(body) {
+  assertObjectBody(body);
+  return {
+    expectedVersion: parseExpectedVersion(body),
+    reason: parseRequiredText(body.reason, 'reason', 1000),
+  };
+}
+
 function parseReturnPost(body) {
   assertObjectBody(body);
   const expectedVersion = parseExpectedVersion(body);
@@ -446,6 +454,15 @@ function toReturnDto(record) {
         : String(record['postedAt'])
       : null,
     postedBy: record['postedBy'] ? String(record['postedBy']) : null,
+    reversedByCorrectiveTransactionId: record['reversedByCorrectiveTransactionId']
+      ? String(record['reversedByCorrectiveTransactionId'])
+      : null,
+    reversedAt: record['reversedAt']
+      ? record['reversedAt'] instanceof Date
+        ? record['reversedAt'].toISOString()
+        : String(record['reversedAt'])
+      : null,
+    reversedBy: record['reversedBy'] ? String(record['reversedBy']) : null,
   };
 }
 
@@ -454,6 +471,7 @@ module.exports = {
   parseSalesReturnDraft,
   parseWithoutInvoiceDraft,
   parseReturnPost,
+  parseReturnReverse,
   parseExpectedVersion,
   toReturnDto,
   STOCK_CONDITIONS,
