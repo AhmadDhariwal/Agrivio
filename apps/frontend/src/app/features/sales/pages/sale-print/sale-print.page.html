@@ -1,0 +1,128 @@
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading invoice…" />
+} @else if (!canView) {
+  <div data-testid="print-permission-denied">
+    <agrivio-ui-alert tone="warning" message="You do not have permission to view or print invoices." />
+  </div>
+} @else if (errorMessage(); as error) {
+  <div class="print-toolbar">
+    <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/sales', saleId]">Back to sale</a>
+  </div>
+  <agrivio-ui-alert tone="danger" [message]="error" role="alert" data-testid="print-error" />
+} @else if (invoice(); as invoice) {
+  <div class="print-toolbar" data-testid="print-toolbar">
+    <div class="print-toolbar__layouts">
+      @for (option of layouts; track option) {
+        <button
+          class="ag-btn"
+          [class.ag-btn--secondary]="layout() !== option"
+          type="button"
+          (click)="selectLayout(option)"
+          [attr.data-testid]="'print-layout-' + option"
+        >
+          {{ option }}
+        </button>
+      }
+    </div>
+    <div class="ag-inline">
+      <button class="ag-btn" type="button" (click)="print()" data-testid="invoice-print-button">
+        Print
+      </button>
+      <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/sales', saleId]">Back to sale</a>
+    </div>
+  </div>
+
+  <article
+    class="invoice-print"
+    [attr.data-layout]="layout()"
+    [attr.data-testid]="'invoice-layout-' + layout()"
+  >
+    <header class="invoice-print__header">
+      @if (invoice.status === 'cancelled') {
+        <p class="invoice-print__cancelled" data-testid="invoice-cancelled">Cancelled invoice</p>
+      }
+      <h1>Sales invoice</h1>
+      <p data-testid="invoice-number">
+        Invoice
+        <strong>{{ invoice.invoiceNumber }}</strong>
+      </p>
+      <p data-testid="invoice-date">Date {{ invoice.saleDate }}</p>
+      @if (invoice.branchNameSnapshot) {
+        <p data-testid="invoice-branch">Branch {{ invoice.branchNameSnapshot }}</p>
+      }
+      @if (invoice.warehouseNameSnapshot) {
+        <p data-testid="invoice-warehouse">Warehouse {{ invoice.warehouseNameSnapshot }}</p>
+      }
+      <p data-testid="invoice-customer">
+        Customer {{ invoice.customerNameSnapshot || 'Walk-in' }}
+      </p>
+      @if (invoice.priceTierSnapshot) {
+        <p>Price tier {{ invoice.priceTierSnapshot }}</p>
+      }
+    </header>
+
+    <table class="invoice-print__lines">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Qty</th>
+          <th>Unit</th>
+          <th>Price</th>
+          <th>Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (line of invoice.lines; track $index) {
+          <tr>
+            <td data-testid="invoice-product-name">{{ line.productNameSnapshot }}</td>
+            <td data-testid="invoice-quantity">{{ line.quantity }}</td>
+            <td>{{ line.unitCodeSnapshot }}</td>
+            <td data-testid="invoice-unit-price">
+              {{ line.unitPrice.amount }} {{ line.unitPrice.currency }}
+            </td>
+            <td data-testid="invoice-line-amount">
+              {{ line.lineProductAmount.amount }} {{ line.lineProductAmount.currency }}
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    <section class="invoice-print__totals">
+      @if (invoice.saleTotal) {
+        <p data-testid="invoice-sale-total">
+          Total
+          <strong>{{ invoice.saleTotal.amount }} {{ invoice.saleTotal.currency }}</strong>
+        </p>
+      }
+      @if (invoice.paidTotal) {
+        <p data-testid="invoice-paid-total">
+          Paid {{ invoice.paidTotal.amount }} {{ invoice.paidTotal.currency }}
+        </p>
+      }
+      @if (invoice.receivableTotal) {
+        <p data-testid="invoice-receivable-total">
+          Receivable {{ invoice.receivableTotal.amount }} {{ invoice.receivableTotal.currency }}
+        </p>
+      }
+    </section>
+
+    @if (invoice.payments.length > 0) {
+      <section>
+        <h2>Payments</h2>
+        <ul>
+          @for (payment of invoice.payments; track $index) {
+            <li data-testid="invoice-payment">
+              {{ payment.accountNameSnapshot }} ({{ payment.accountTypeSnapshot }}) —
+              {{ payment.amount.amount }} {{ payment.amount.currency }}
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    @if (invoice.notes) {
+      <p class="invoice-print__notes">Notes: {{ invoice.notes }}</p>
+    }
+  </article>
+}

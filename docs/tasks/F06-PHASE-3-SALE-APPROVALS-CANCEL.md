@@ -52,4 +52,4 @@
 
 ## Next
 
-* Next: F06 P4 (`R1-F06-010` printing, `R1-F06-011` POS cashier E2E)
+* Next: F07 after F06 P4 acceptance

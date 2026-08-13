@@ -4,7 +4,15 @@ import { Observable, map, switchMap } from 'rxjs';
 import { API_SALES_PATH } from '@agrivio/api-contracts';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
-import { SaleDraftInput, SaleDraftUpdateInput, SalePostInput, SaleCancelInput, SaleRecord } from '../models/sales.models';
+import {
+  SaleDraftInput,
+  SaleDraftUpdateInput,
+  SalePostInput,
+  SaleCancelInput,
+  SaleRecord,
+  SalePrintInvoice,
+  PosPaymentAccount,
+} from '../models/sales.models';
 
 @Injectable({ providedIn: 'root' })
 export class SalesApi {
@@ -25,6 +33,20 @@ export class SalesApi {
     return this.http
       .get<{ data: SaleRecord }>(`${this.baseUrl}/${id}`, { withCredentials: true })
       .pipe(map((response) => response.data));
+  }
+
+  getPrintInvoice(id: string): Observable<SalePrintInvoice> {
+    return this.http
+      .get<{ data: SalePrintInvoice }>(`${this.baseUrl}/${id}/print`, { withCredentials: true })
+      .pipe(map((response) => response.data));
+  }
+
+  listPosPaymentAccounts(): Observable<PosPaymentAccount[]> {
+    return this.http
+      .get<{ data: { items: PosPaymentAccount[] } }>(`${this.baseUrl}/payment-accounts`, {
+        withCredentials: true,
+      })
+      .pipe(map((response) => response.data.items));
   }
 
   createSale(payload: SaleDraftInput): Observable<SaleRecord> {

@@ -34,6 +34,7 @@ const {
   parseSaleCancel,
   computeLineProductAmount,
   toSaleDto,
+  toPrintInvoiceDto,
 } = require('./sales.validation');
 
 function requireIdempotencyKey(idempotencyKey) {
@@ -337,6 +338,39 @@ function createSalesService(deps) {
         throw notFound('Sale not found');
       }
       return toSaleDto(record);
+    },
+
+    async getSalePrintInvoice(organizationId, saleId, authContext) {
+      const record = await store.findSaleById(organizationId, saleId);
+      if (record === null) {
+        throw notFound('Sale not found');
+      }
+      if (
+        typeof deps.canAccessWarehouse === 'function' &&
+        !deps.canAccessWarehouse(authContext, String(record.warehouseId))
+      ) {
+        throw notFound('Sale not found');
+      }
+      if (record.status !== 'posted' && record.status !== 'cancelled') {
+        throw conflict('Only posted invoices can be printed');
+      }
+      return toPrintInvoiceDto(record);
+    },
+
+    async listPosPaymentAccounts(organizationId) {
+      if (!accountsService) {
+        return { items: [] };
+      }
+      const { items } = await accountsService.listAccounts(organizationId);
+      return {
+        items: items
+          .filter((item) => item.status === 'active')
+          .map((item) => ({
+            id: item.id,
+            name: item.name,
+            accountType: item.accountType,
+          })),
+      };
     },
 
     async createSaleDraft(organizationId, body, authContext) {

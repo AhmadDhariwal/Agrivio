@@ -1,0 +1,128 @@
+agrivio-sale-print-page {
+  display: block;
+}
+
+.print-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.print-toolbar__layouts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.invoice-print {
+  background: #fff;
+  color: #111;
+  padding: 0.75rem;
+  border: 1px solid #d7ddd4;
+}
+
+.invoice-print[data-layout='58mm'] {
+  width: 58mm;
+  font-size: 11px;
+}
+
+.invoice-print[data-layout='80mm'] {
+  width: 80mm;
+  font-size: 12px;
+}
+
+.invoice-print[data-layout='a4'] {
+  width: 210mm;
+  max-width: 100%;
+  font-size: 14px;
+}
+
+.invoice-print__header h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.15em;
+}
+
+.invoice-print__header p,
+.invoice-print__totals p,
+.invoice-print__notes {
+  margin: 0.15rem 0;
+}
+
+.invoice-print__cancelled {
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.invoice-print__lines {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+}
+
+.invoice-print__lines th,
+.invoice-print__lines td {
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+  padding: 0.25rem 0.15rem;
+  vertical-align: top;
+}
+
+.invoice-print[data-layout='58mm'] .invoice-print__lines thead {
+  display: none;
+}
+
+.invoice-print[data-layout='58mm'] .invoice-print__lines,
+.invoice-print[data-layout='58mm'] .invoice-print__lines tbody,
+.invoice-print[data-layout='58mm'] .invoice-print__lines tr,
+.invoice-print[data-layout='58mm'] .invoice-print__lines td {
+  display: block;
+  width: 100%;
+  border: 0;
+}
+
+.invoice-print[data-layout='58mm'] .invoice-print__lines tr {
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px dashed #ccc;
+}
+
+@media print {
+  @page {
+    margin: 4mm;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .invoice-print,
+  .invoice-print * {
+    visibility: visible !important;
+  }
+
+  .print-toolbar {
+    display: none !important;
+  }
+
+  .invoice-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .invoice-print[data-layout='58mm'] {
+    width: 58mm;
+  }
+
+  .invoice-print[data-layout='80mm'] {
+    width: 80mm;
+  }
+
+  .invoice-print[data-layout='a4'] {
+    width: 210mm;
+  }
+}

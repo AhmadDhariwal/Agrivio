@@ -419,10 +419,59 @@ function toSaleDto(record) {
   };
 }
 
+function toPrintInvoiceDto(record) {
+  return {
+    invoiceNumber: record['invoiceNumber'] ? String(record['invoiceNumber']) : null,
+    status: String(record['status']),
+    saleDate: String(record['saleDate']),
+    postedAt:
+      record['postedAt'] instanceof Date
+        ? record['postedAt'].toISOString()
+        : record['postedAt']
+          ? String(record['postedAt'])
+          : null,
+    branchNameSnapshot: record['branchNameSnapshot'] ? String(record['branchNameSnapshot']) : null,
+    warehouseNameSnapshot: record['warehouseNameSnapshot']
+      ? String(record['warehouseNameSnapshot'])
+      : null,
+    customerNameSnapshot: record['customerNameSnapshot']
+      ? String(record['customerNameSnapshot'])
+      : null,
+    priceTierSnapshot: record['priceTierSnapshot'] ? String(record['priceTierSnapshot']) : null,
+    notes: String(record['notes'] ?? ''),
+    saleTotal:
+      record['saleTotalMinorUnits'] === null || record['saleTotalMinorUnits'] === undefined
+        ? null
+        : toMoneyDto(record['saleTotalMinorUnits']),
+    paidTotal:
+      record['paidTotalMinorUnits'] === null || record['paidTotalMinorUnits'] === undefined
+        ? null
+        : toMoneyDto(record['paidTotalMinorUnits']),
+    receivableTotal:
+      record['receivableTotalMinorUnits'] === null || record['receivableTotalMinorUnits'] === undefined
+        ? null
+        : toMoneyDto(record['receivableTotalMinorUnits']),
+    lines: (record.lines ?? []).map((line) => ({
+      productNameSnapshot: String(line.productNameSnapshot),
+      unitCodeSnapshot: String(line.unitCodeSnapshot),
+      conversionFactorSnapshot: String(line.conversionFactorSnapshot),
+      quantity: formatQuantityMinorUnits(BigInt(String(line.enteredQuantityMinorUnits))),
+      unitPrice: toMoneyDto(line.unitPriceMinorUnits),
+      lineProductAmount: toMoneyDto(line.lineProductAmountMinorUnits),
+    })),
+    payments: (record.paymentSnapshots ?? []).map((payment) => ({
+      accountNameSnapshot: String(payment.accountNameSnapshot),
+      accountTypeSnapshot: String(payment.accountTypeSnapshot),
+      amount: toMoneyDto(payment.amountMinorUnits),
+    })),
+  };
+}
+
 module.exports = {
   parseSaleDraft,
   parseSalePost,
   parseSaleCancel,
   computeLineProductAmount,
   toSaleDto,
+  toPrintInvoiceDto,
 };

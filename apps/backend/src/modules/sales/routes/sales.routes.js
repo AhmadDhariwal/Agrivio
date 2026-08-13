@@ -35,6 +35,28 @@ function registerSalesRoutes(deps) {
   );
 
   router.get(
+    `${API_SALES_PATH}/payment-accounts`,
+    deps.requireAuth,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('sales.create'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.listPosPaymentAccounts(req, res, next);
+    },
+  );
+
+  router.get(
+    `${API_SALES_PATH}/:id/print`,
+    deps.requireAuth,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('sales.view'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.getSalePrintInvoice(req, res, next);
+    },
+  );
+
+  router.get(
     `${API_SALES_PATH}/:id`,
     deps.requireAuth,
     requireOrganizationContext,

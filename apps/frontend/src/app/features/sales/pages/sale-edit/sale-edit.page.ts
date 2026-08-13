@@ -8,9 +8,10 @@ import {
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of, catchError } from 'rxjs';
 import { SalesApi } from '../../data-access/sales.api';
 import {
+  PosPaymentAccount,
   SaleDraftInput,
   SaleLineInput,
   SaleLinePriceOverrideInput,
@@ -27,8 +28,6 @@ import {
 } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { CustomersApi } from '../../../customers/data-access/customers.api';
 import { CustomerRecord } from '../../../customers/models/customers.models';
-import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
-import { AccountRecord } from '../../../accounts-expenses/models/accounts.models';
 import { PackagingUnitRecord, ProductRecord } from '../../../catalog/models/catalog.models';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
@@ -52,7 +51,6 @@ export class SaleEditPage {
   private readonly catalogApi = inject(CatalogApi);
   private readonly locationsApi = inject(BranchesWarehousesApi);
   private readonly customersApi = inject(CustomersApi);
-  private readonly accountsApi = inject(AccountsApi);
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -71,12 +69,13 @@ export class SaleEditPage {
   readonly branches = signal<BranchRecord[]>([]);
   readonly warehouses = signal<WarehouseRecord[]>([]);
   readonly customers = signal<CustomerRecord[]>([]);
-  readonly accounts = signal<AccountRecord[]>([]);
+  readonly accounts = signal<PosPaymentAccount[]>([]);
   readonly packagingByLine = signal<Record<number, PackagingUnitRecord[]>>({});
   readonly canCreate = computed(() => this.sessionStore.hasPermission('sales.create'));
   readonly canPost = computed(() => this.sessionStore.hasPermission('sales.post'));
   readonly canCancel = computed(() => this.sessionStore.hasPermission('sales.cancel'));
   readonly canView = computed(() => this.sessionStore.hasPermission('sales.view'));
+  readonly canPrint = computed(() => this.sessionStore.hasPermission('sales.view'));
   readonly canOverridePrice = computed(() => this.sessionStore.hasPermission('pricing.override'));
   readonly canApproveCreditLimit = computed(() =>
     this.sessionStore.hasPermission('sales.credit-limit.approve'),
@@ -94,6 +93,8 @@ export class SaleEditPage {
     return record === null || record.status === 'draft';
   });
   private version = 1;
+  private postIdempotencyKey: string | null = null;
+  private postIdempotencySaleId: string | null = null;
 
   readonly form = this.formBuilder.nonNullable.group({
     branchId: ['', Validators.required],
@@ -137,7 +138,7 @@ export class SaleEditPage {
       branches: this.locationsApi.listBranches(),
       warehouses: this.locationsApi.listWarehouses(),
       customers: this.customersApi.listCustomers(),
-      accounts: this.accountsApi.listAccounts(),
+      accounts: this.api.listPosPaymentAccounts().pipe(catchError(() => of([]))),
     });
 
     if (isEdit && id) {
@@ -262,6 +263,38 @@ export class SaleEditPage {
     });
   }
 
+  fillFullCash(): void {
+    if (!this.isDraft()) {
+      return;
+    }
+    const accountId = this.accounts()[0]?.id ?? '';
+    if (this.payments.length === 0) {
+      this.payments.push(this.createPaymentGroup({ accountId, amount: this.cartEstimate() }));
+      return;
+    }
+    this.paymentGroup(0).patchValue({ accountId, amount: this.cartEstimate() });
+  }
+
+  clearPaymentsForCredit(): void {
+    if (!this.isDraft()) {
+      return;
+    }
+    this.payments.clear();
+  }
+
+  cartEstimate(): string {
+    let total = 0;
+    for (const control of this.lines.controls) {
+      const value = (control as FormGroup).getRawValue() as { quantity: string; unitPrice: string };
+      const quantity = Number(value.quantity);
+      const unitPrice = Number(value.unitPrice);
+      if (Number.isFinite(quantity) && Number.isFinite(unitPrice)) {
+        total += quantity * unitPrice;
+      }
+    }
+    return total.toFixed(2);
+  }
+
   post(): void {
     const id = this.saleId();
     if (!id || !this.canPost() || this.isPosted() || this.posting()) {
@@ -277,6 +310,12 @@ export class SaleEditPage {
     this.posting.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
+
+    const idempotencyKey = this.postIdempotencySaleId === id && this.postIdempotencyKey
+      ? this.postIdempotencyKey
+      : crypto.randomUUID();
+    this.postIdempotencyKey = idempotencyKey;
+    this.postIdempotencySaleId = id;
 
     const payments: SalePaymentInput[] = this.payments.controls.map((control) => {
       const value = (control as FormGroup).getRawValue() as {
@@ -320,16 +359,23 @@ export class SaleEditPage {
           ...(linePriceOverrides.length > 0 ? { linePriceOverrides } : {}),
           ...(Object.keys(approvals).length > 0 ? { approvals } : {}),
         },
-        crypto.randomUUID(),
+        idempotencyKey,
       )
       .subscribe({
         next: (record) => {
           this.posting.set(false);
-          this.successMessage.set('Sale posted successfully.');
+          this.postIdempotencyKey = null;
+          this.postIdempotencySaleId = null;
+          const invoice = record.invoiceNumber ? ` Invoice ${record.invoiceNumber}.` : '';
+          this.successMessage.set(`Sale posted successfully.${invoice}`);
           this.applySale(record);
         },
         error: (error: unknown) => {
           this.posting.set(false);
+          if (error instanceof HttpErrorResponse && error.status > 0 && error.status < 500) {
+            this.postIdempotencyKey = null;
+            this.postIdempotencySaleId = null;
+          }
           this.errorMessage.set(this.mapError(error, 'Unable to post sale.'));
         },
       });
@@ -418,13 +464,19 @@ export class SaleEditPage {
     branches: BranchRecord[];
     warehouses: WarehouseRecord[];
     customers: CustomerRecord[];
-    accounts: AccountRecord[];
+    accounts: PosPaymentAccount[];
   }): void {
     this.products.set(masters.products.filter((item) => item.status === 'active'));
-    this.branches.set(masters.branches.filter((item) => item.status === 'active'));
-    this.warehouses.set(masters.warehouses.filter((item) => item.status === 'active'));
+    this.branches.set(
+      this.sessionStore.filterBranches(masters.branches.filter((item) => item.status === 'active')),
+    );
+    this.warehouses.set(
+      this.sessionStore.filterWarehouses(
+        masters.warehouses.filter((item) => item.status === 'active'),
+      ),
+    );
     this.customers.set(masters.customers.filter((item) => item.status === 'active'));
-    this.accounts.set(masters.accounts.filter((item) => item.status === 'active'));
+    this.accounts.set(masters.accounts);
     this.bindLineProductChanges(0);
     this.form.controls.customerId.valueChanges.subscribe(() => {
       this.refreshTierPricesForAllLines();
@@ -601,6 +653,20 @@ export class SaleEditPage {
     }
     if (error.error?.error?.code === 'VERSION_CONFLICT') {
       return 'This sale changed elsewhere. Reload and try again.';
+    }
+    if (error.status === 403) {
+      const message = error.error?.error?.message ?? fallback;
+      if (/approval|override|credit-limit|expired|negative-stock/i.test(message)) {
+        if (
+          this.canApproveCreditLimit() ||
+          this.canApproveExpiredStock() ||
+          this.canOverrideNegativeStock()
+        ) {
+          return `${message} Enter the required approval reason and post again.`;
+        }
+        return `${message} A Manager or Owner must complete this sale.`;
+      }
+      return message;
     }
     return error.error?.error?.message ?? fallback;
   }
