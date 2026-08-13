@@ -44,25 +44,38 @@
     } @else {
       @for (item of items(); track item.id) {
         <article class="return-row">
-          <strong>{{ item.returnType }}</strong>
-          · {{ item.status }}
-          @if (item.returnTotal) {
-            · {{ item.returnTotal.amount }} {{ item.returnTotal.currency }}
-          }
-          @if (item.reason) {
-            · {{ item.reason }}
-          }
-          @if (canReverse() && item.status === 'posted') {
-            <button
-              type="button"
+          <div>
+            <strong>{{ typeLabel(item.returnType) }}</strong>
+            · {{ productLabel(item) }}
+            · {{ warehouseName(item.warehouseId) }}
+            @if (item.returnTotal) {
+              · {{ item.returnTotal.amount }} {{ item.returnTotal.currency }}
+            }
+            @if (item.reason) {
+              · {{ item.reason }}
+            }
+          </div>
+          <div class="ag-inline">
+            <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+            <a
               class="ag-btn ag-btn--secondary"
-              data-testid="return-reverse"
-              [disabled]="reversingId() === item.id"
-              (click)="reverse(item)"
+              [routerLink]="['/app/returns', item.id]"
+              data-testid="return-open"
             >
-              {{ reversingId() === item.id ? 'Reversing…' : 'Reverse' }}
-            </button>
-          }
+              Open
+            </a>
+            @if (canReverse() && item.status === 'posted') {
+              <button
+                type="button"
+                class="ag-btn ag-btn--secondary"
+                data-testid="return-reverse"
+                [disabled]="reversingId() === item.id"
+                (click)="reverse(item)"
+              >
+                {{ reversingId() === item.id ? 'Reversing…' : 'Reverse' }}
+              </button>
+            }
+          </div>
         </article>
       }
     }

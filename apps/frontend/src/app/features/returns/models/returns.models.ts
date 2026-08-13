@@ -85,3 +85,26 @@ export interface WithoutInvoiceCreateInput {
     unsellableReason?: UnsellableReason | null;
   }>;
 }
+
+export function returnTypeLabel(returnType: string): string {
+  if (returnType === 'sales') {
+    return 'Linked sales return';
+  }
+  if (returnType === 'sales_without_invoice') {
+    return 'Return without invoice';
+  }
+  if (returnType === 'purchase') {
+    return 'Purchase return';
+  }
+  return returnType;
+}
+
+export function returnResolutionLabel(resolution: string): string {
+  if (resolution === 'ledger_adjustment') {
+    return 'Ledger adjustment';
+  }
+  if (resolution === 'account_refund') {
+    return 'Account refund';
+  }
+  return resolution;
+}

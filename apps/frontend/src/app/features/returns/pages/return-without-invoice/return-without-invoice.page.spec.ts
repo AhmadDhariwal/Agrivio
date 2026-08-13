@@ -6,6 +6,7 @@ import { ReturnsApi } from '../../data-access/returns.api';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
 import { CustomersApi } from '../../../customers/data-access/customers.api';
 import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
+import { InventoryApi } from '../../../inventory/data-access/inventory.api';
 import { BranchesWarehousesApi } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 
@@ -19,6 +20,7 @@ describe('ReturnWithoutInvoicePage', () => {
         { provide: CatalogApi, useValue: { listProducts: () => of([]) } },
         { provide: CustomersApi, useValue: { listCustomers: () => of([]) } },
         { provide: AccountsApi, useValue: { listAccounts: () => of([]) } },
+        { provide: InventoryApi, useValue: { listBatches: () => of([]) } },
         {
           provide: BranchesWarehousesApi,
           useValue: { listWarehouses: () => of([]) },

@@ -11,6 +11,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { forkJoin, of, catchError, switchMap } from 'rxjs';
 import { SalesApi } from '../../data-access/sales.api';
 import { SalesReturnsApi } from '../../data-access/sales-returns.api';
+import { ReturnsApi } from '../../../returns/data-access/returns.api';
+import { SalesReturnRecord } from '../../../returns/models/returns.models';
 import {
   PosPaymentAccount,
   SaleDraftInput,
@@ -52,6 +54,7 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
 export class SaleEditPage {
   private readonly api = inject(SalesApi);
   private readonly salesReturnsApi = inject(SalesReturnsApi);
+  private readonly returnsApi = inject(ReturnsApi);
   private readonly catalogApi = inject(CatalogApi);
   private readonly locationsApi = inject(BranchesWarehousesApi);
   private readonly customersApi = inject(CustomersApi);
@@ -77,11 +80,14 @@ export class SaleEditPage {
   readonly customers = signal<CustomerRecord[]>([]);
   readonly accounts = signal<PosPaymentAccount[]>([]);
   readonly refundAccounts = signal<AccountRecord[]>([]);
+  readonly relatedReturns = signal<SalesReturnRecord[]>([]);
+  readonly lastPostedReturnId = signal<string | null>(null);
   readonly packagingByLine = signal<Record<number, PackagingUnitRecord[]>>({});
   readonly canCreate = computed(() => this.sessionStore.hasPermission('sales.create'));
   readonly canPost = computed(() => this.sessionStore.hasPermission('sales.post'));
   readonly canCancel = computed(() => this.sessionStore.hasPermission('sales.cancel'));
   readonly canReturn = computed(() => this.sessionStore.hasPermission('returns.post'));
+  readonly canViewReturns = computed(() => this.sessionStore.hasPermission('returns.view'));
   readonly canView = computed(() => this.sessionStore.hasPermission('sales.view'));
   readonly canPrint = computed(() => this.sessionStore.hasPermission('sales.view'));
   readonly canOverridePrice = computed(() => this.sessionStore.hasPermission('pricing.override'));
@@ -159,6 +165,10 @@ export class SaleEditPage {
       customers: this.customersApi.listCustomers(),
       accounts: this.api.listPosPaymentAccounts().pipe(catchError(() => of([]))),
       refundAccounts: this.accountsApi.listAccounts().pipe(catchError(() => of([]))),
+      relatedReturns:
+        isEdit && id && this.canViewReturns()
+          ? this.returnsApi.listReturns({ saleId: id }).pipe(catchError(() => of([])))
+          : of([]),
     });
 
     if (isEdit && id) {
@@ -521,8 +531,9 @@ export class SaleEditPage {
         ),
       )
       .subscribe({
-        next: () => {
+        next: (posted) => {
           this.submittingReturn.set(false);
+          this.lastPostedReturnId.set(posted.id);
           this.successMessage.set('Sales return posted. Original invoice is unchanged.');
           this.returnLines.clear();
           this.returnForm.patchValue({ reason: '' });
@@ -530,6 +541,7 @@ export class SaleEditPage {
             this.api.getSale(id).subscribe({
               next: (record) => this.applySale(record),
             });
+            this.reloadRelatedReturns(id);
           }
         },
         error: (error: unknown) => {
@@ -595,6 +607,7 @@ export class SaleEditPage {
     customers: CustomerRecord[];
     accounts: PosPaymentAccount[];
     refundAccounts: AccountRecord[];
+    relatedReturns?: SalesReturnRecord[];
   }): void {
     this.products.set(masters.products.filter((item) => item.status === 'active'));
     this.branches.set(
@@ -608,6 +621,9 @@ export class SaleEditPage {
     this.customers.set(masters.customers.filter((item) => item.status === 'active'));
     this.accounts.set(masters.accounts);
     this.refundAccounts.set(masters.refundAccounts.filter((item) => item.status === 'active'));
+    if (masters.relatedReturns) {
+      this.relatedReturns.set(masters.relatedReturns);
+    }
     this.bindLineProductChanges(0);
     this.form.controls.customerId.valueChanges.subscribe(() => {
       this.refreshTierPricesForAllLines();
@@ -776,6 +792,15 @@ export class SaleEditPage {
       notes: value.notes.trim(),
       lines,
     };
+  }
+
+  private reloadRelatedReturns(saleId: string): void {
+    if (!this.canViewReturns()) {
+      return;
+    }
+    this.returnsApi.listReturns({ saleId }).subscribe({
+      next: (items) => this.relatedReturns.set(items),
+    });
   }
 
   private mapError(error: unknown, fallback: string): string {

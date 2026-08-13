@@ -361,6 +361,13 @@ export const appRoutes: Route[] = [
           ).then((m) => m.ReturnWithoutInvoicePage),
       },
       {
+        path: 'returns/:id',
+        loadComponent: () =>
+          import('./features/returns/pages/return-detail/return-detail.page').then(
+            (m) => m.ReturnDetailPage,
+          ),
+      },
+      {
         path: 'returns',
         loadComponent: () =>
           import('./features/returns/pages/returns-list/returns-list.page').then(

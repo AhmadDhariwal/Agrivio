@@ -1,8 +1,9 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
+import { forkJoin } from 'rxjs';
 import { ExpensesApi } from '../../data-access/expenses.api';
-import { ExpenseRecord } from '../../models/expenses.models';
+import { ExpenseCategoryRecord, ExpenseRecord } from '../../models/expenses.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
@@ -29,6 +30,7 @@ export class ExpensesPage {
   private readonly sessionStore = inject(AuthSessionStore);
 
   readonly items = signal<ExpenseRecord[]>([]);
+  readonly categories = signal<ExpenseCategoryRecord[]>([]);
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly canPost = computed(() => this.sessionStore.hasPermission('expenses.post'));
@@ -45,19 +47,29 @@ export class ExpensesPage {
       return;
     }
     this.loading.set(true);
-    this.api.listExpenses().subscribe({
-      next: (items) => {
+    forkJoin({
+      items: this.api.listExpenses(),
+      categories: this.api.listCategories(),
+    }).subscribe({
+      next: ({ items, categories }) => {
         this.items.set(items);
+        this.categories.set(categories);
         this.loading.set(false);
       },
       error: (error: unknown) => {
         this.loading.set(false);
         this.errorMessage.set(
           error instanceof HttpErrorResponse
-            ? (error.error?.error?.message ?? 'Unable to load expenses.')
+            ? error.status === 403
+              ? (error.error?.error?.message ?? 'You do not have permission to view expenses.')
+              : (error.error?.error?.message ?? 'Unable to load expenses.')
             : 'Unable to load expenses.',
         );
       },
     });
+  }
+
+  categoryName(categoryId: string): string {
+    return this.categories().find((item) => item.id === categoryId)?.name ?? 'Category';
   }
 }
