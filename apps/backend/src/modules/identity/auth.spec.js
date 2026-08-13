@@ -93,6 +93,46 @@ describe('F02 Phase 2 session authentication', () => {
     }
   });
 
+  it('accepts CSRF, login, and session from localhost:4400 without E2E bootstrap', async () => {
+    const { server, baseUrl, jar, authStore } = await boot();
+
+    try {
+      expect(loadApiEnv({ NODE_ENV: 'test' }).allowE2eBootstrap).toBe(false);
+      await seedActiveOwner(authStore, {
+        email: 'owner4400@example.com',
+        password: 'a-strong-passphrase',
+      });
+
+      const originHeaders = { origin: 'http://localhost:4400' };
+      const csrf = await fetchJson(baseUrl, 'POST', API_AUTH_CSRF_PATH, {}, originHeaders, jar);
+      expect(csrf.status).toBe(200);
+
+      const login = await fetchJson(
+        baseUrl,
+        'POST',
+        API_AUTH_LOGIN_PATH,
+        { email: 'owner4400@example.com', password: 'a-strong-passphrase' },
+        { ...originHeaders, [API_CSRF_HEADER]: csrf.body.data.csrfToken },
+        jar,
+      );
+      expect(login.status).toBe(200);
+      expect(login.body.data.session.user.email).toBe('owner4400@example.com');
+
+      const session = await fetchJson(
+        baseUrl,
+        'GET',
+        API_AUTH_SESSION_PATH,
+        undefined,
+        originHeaders,
+        jar,
+      );
+      expect(session.status).toBe(200);
+      expect(session.body.data.user.email).toBe('owner4400@example.com');
+    } finally {
+      await close(server);
+    }
+  });
+
   it('rejects inactive users and protects platform routes without auth', async () => {
     const { server, baseUrl, jar, authStore } = await boot();
 
@@ -248,6 +288,7 @@ describe('F02 Phase 2 session authentication', () => {
       NODE_ENV: 'production',
       SESSION_SECRET: 'x'.repeat(32),
       MONGODB_URI: 'mongodb://127.0.0.1:27017/?replicaSet=rs0',
+      AGRIVIO_PUBLIC_WEB_BASE_URL: 'https://app.example.com',
     });
     const app = createApp({
       config: { ...config, nodeEnv: 'production' },

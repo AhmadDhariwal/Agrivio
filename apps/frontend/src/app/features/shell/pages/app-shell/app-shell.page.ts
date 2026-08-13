@@ -60,6 +60,7 @@ export class AppShellPage {
     this.sessionStore.hasPermission('supplier-payments.view'),
   );
   readonly canViewSales = computed(() => this.sessionStore.hasPermission('sales.view'));
+  readonly canViewReturns = computed(() => this.sessionStore.hasPermission('returns.view'));
   readonly canViewCustomerPayments = computed(() =>
     this.sessionStore.hasPermission('customer-payments.view'),
   );

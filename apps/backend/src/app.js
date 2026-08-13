@@ -309,6 +309,10 @@ function createApp(options) {
       paymentsService: ledgers.paymentsService,
       accountsService: accounts.accountsService,
       purchasesService: purchases.purchasesService,
+      salesService: sales.salesService,
+      catalogService: catalog.catalogService,
+      customersService: customers.customersService,
+      locationsService: locations.locationsService,
       canAccessWarehouse,
       ...(options.now === undefined ? {} : { now: options.now }),
     });

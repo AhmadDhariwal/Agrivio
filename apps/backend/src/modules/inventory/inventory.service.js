@@ -11,6 +11,7 @@ const {
 const {
   convertEnteredQuantityToBaseMinorUnits,
   formatQuantityMinorUnits,
+  computeUnitCostMinorUnits,
 } = require('../../platform/primitives/money-and-time');
 const { allocateStock } = require('./allocation');
 const {
@@ -20,6 +21,7 @@ const {
 } = require('./expiry');
 const {
   applyBalanceInbound,
+  applyBalanceUnsellableInbound,
   applyBalanceOutbound,
   applyCostInbound,
   applyCostOutbound,
@@ -283,7 +285,26 @@ function createInventoryService(deps) {
     let movementInventoryValue;
     let movementUnitCost;
 
-    if (payload.direction === 'inbound') {
+    const stockCondition = payload.stockCondition === 'unsellable' ? 'unsellable' : 'sellable';
+
+    if (payload.direction === 'inbound' && stockCondition === 'unsellable') {
+      costResult = {
+        costState: await store.findCostState(organizationId, scope.warehouseId, scope.productId),
+        receiptUnitCostMinorUnits: computeUnitCostMinorUnits(
+          payload.inventoryValueMinorUnits,
+          quantity,
+        ),
+      };
+      balance = await applyBalanceUnsellableInbound(
+        store,
+        session,
+        organizationId,
+        scope,
+        quantity,
+      );
+      movementUnitCost = costResult.receiptUnitCostMinorUnits.toString();
+      movementInventoryValue = payload.inventoryValueMinorUnits.toString();
+    } else if (payload.direction === 'inbound') {
       costResult = await applyCostInbound(store, session, organizationId, scope, {
         quantityBaseMinorUnits: quantity,
         inventoryValueMinorUnits: payload.inventoryValueMinorUnits,
@@ -336,6 +357,7 @@ function createInventoryService(deps) {
         unitCostMinorUnits: movementUnitCost,
         sourceType: payload.sourceType,
         sourceId: payload.sourceId,
+        stockCondition,
         status: 'posted',
         postedAt: payload.postedAt,
         postedBy: actor.actorId,
@@ -1763,6 +1785,7 @@ function createInventoryService(deps) {
         inventoryValueMinorUnits: BigInt(String(input.inventoryValueMinorUnits)),
         sourceType: input.sourceType,
         sourceId: input.sourceId,
+        stockCondition: input.stockCondition === 'unsellable' ? 'unsellable' : 'sellable',
         postedAt,
         reason: input.reason ?? null,
         correctionOfId: input.correctionOfId ?? null,
@@ -1842,6 +1865,26 @@ function createInventoryService(deps) {
         balance: effects.balance,
         costState: effects.costState,
         batchId: batchId ? String(batchId) : null,
+      };
+    },
+
+    async getWarehouseProductCostState(organizationId, warehouseId, productId) {
+      const cost = await store.findCostState(organizationId, warehouseId, productId);
+      if (cost === null) {
+        return {
+          warehouseId: String(warehouseId),
+          productId: String(productId),
+          quantityBaseMinorUnits: '0',
+          inventoryValueMinorUnits: '0',
+          weightedAverageCostMinorUnits: '0',
+        };
+      }
+      return {
+        warehouseId: String(cost.warehouseId),
+        productId: String(cost.productId),
+        quantityBaseMinorUnits: String(cost.quantityBaseMinorUnits ?? '0'),
+        inventoryValueMinorUnits: String(cost.inventoryValueMinorUnits ?? '0'),
+        weightedAverageCostMinorUnits: String(cost.weightedAverageCostMinorUnits ?? '0'),
       };
     },
   };

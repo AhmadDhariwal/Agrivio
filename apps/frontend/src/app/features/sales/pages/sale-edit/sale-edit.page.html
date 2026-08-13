@@ -335,4 +335,97 @@
       </form>
     </section>
   }
+
+  @if (isPosted() && canReturn()) {
+    <section class="ag-stack return-section" data-testid="sales-return-section">
+      <h2>Linked sales return</h2>
+      <p class="ag-muted">
+        Return against this posted invoice. Original sale snapshots stay immutable. Classify stock
+        and choose refund or ledger adjustment.
+      </p>
+      <form class="ag-stack" [formGroup]="returnForm" (ngSubmit)="submitReturn()">
+        <label>
+          Return reason
+          <input formControlName="reason" data-testid="sales-return-reason" />
+        </label>
+        <label>
+          Resolution
+          <select formControlName="resolution" data-testid="sales-return-resolution">
+            <option value="ledger_adjustment">Customer ledger adjustment</option>
+            <option value="account_refund">Cash / bank / digital refund</option>
+          </select>
+        </label>
+        <label>
+          Refund account
+          <select formControlName="refundAccountId" data-testid="sales-return-refund-account">
+            <option value="">None</option>
+            @for (account of refundAccounts(); track account.id) {
+              <option [value]="account.id">{{ account.name }} ({{ account.accountType }})</option>
+            }
+          </select>
+        </label>
+
+        @for (line of returnLines.controls; track $index; let index = $index) {
+          <fieldset class="line" [formGroup]="returnLineGroup(index)">
+            <legend>Return line {{ index + 1 }}</legend>
+            <label>
+              Sale line
+              <select formControlName="originalLineIndex" data-testid="sales-return-line">
+                @for (saleLine of sale()?.lines ?? []; track $index; let lineIndex = $index) {
+                  <option [value]="lineIndex">
+                    {{ saleLine.productNameSnapshot }} (sold {{ saleLine.quantity }})
+                  </option>
+                }
+              </select>
+            </label>
+            <label>
+              Return quantity
+              <input formControlName="quantity" data-testid="sales-return-qty" />
+            </label>
+            <label>
+              Stock condition
+              <select formControlName="stockCondition" data-testid="sales-return-condition">
+                <option value="sellable">Sellable</option>
+                <option value="unsellable">Unsellable</option>
+              </select>
+            </label>
+            <label>
+              Unsellable reason
+              <select formControlName="unsellableReason" data-testid="sales-return-unsellable-reason">
+                <option value="expired">Expired</option>
+                <option value="damaged">Damaged</option>
+                <option value="opened">Opened</option>
+                <option value="contaminated">Contaminated</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <button class="ag-btn ag-btn--secondary" type="button" (click)="removeReturnLine(index)">
+              Remove
+            </button>
+          </fieldset>
+        }
+
+        <div class="ag-inline">
+          <button
+            class="ag-btn ag-btn--secondary"
+            type="button"
+            (click)="addReturnLine()"
+            data-testid="add-sales-return-line"
+          >
+            Add return line
+          </button>
+          @if (returnLines.length > 0) {
+            <button
+              class="ag-btn"
+              type="submit"
+              [disabled]="submittingReturn()"
+              data-testid="sales-return-submit"
+            >
+              {{ submittingReturn() ? 'Posting…' : 'Post return' }}
+            </button>
+          }
+        </div>
+      </form>
+    </section>
+  }
 }

@@ -2,7 +2,7 @@ const { API_CSRF_HEADER } = require('@agrivio/api-contracts');
 const { forbidden, unauthorized } = require('../../platform/errors/app-error');
 const { readSessionToken } = require('./auth.cookies');
 const { attachAuthContextToRequest } = require('./permission.middleware');
-const { resolveAllowedOrigins } = require('./cors-origins');
+const { isAllowedBrowserOrigin } = require('./cors-origins');
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -19,11 +19,9 @@ function clientKey(req) {
  * from arbitrary origins.
  */
 function createCorsMiddleware(config) {
-  const allowed = resolveAllowedOrigins(config);
-
   return (req, res, next) => {
     const origin = req.headers.origin;
-    if (typeof origin === 'string' && origin !== '' && allowed.has(origin)) {
+    if (typeof origin === 'string' && origin !== '' && isAllowedBrowserOrigin(origin, config)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
       res.setHeader('Vary', 'Origin');
@@ -42,8 +40,6 @@ function createCorsMiddleware(config) {
 }
 
 function createOriginGuardMiddleware(config) {
-  const allowed = resolveAllowedOrigins(config);
-
   return (req, _res, next) => {
     if (SAFE_METHODS.has(req.method)) {
       next();
@@ -53,7 +49,7 @@ function createOriginGuardMiddleware(config) {
     const origin = req.headers.origin;
     const referer = req.headers.referer;
     if (typeof origin === 'string' && origin !== '') {
-      if (allowed.size > 0 && !allowed.has(origin)) {
+      if (!isAllowedBrowserOrigin(origin, config)) {
         next(forbidden('Origin is not allowed'));
         return;
       }
@@ -64,7 +60,7 @@ function createOriginGuardMiddleware(config) {
     if (typeof referer === 'string' && referer !== '') {
       try {
         const refererOrigin = new URL(referer).origin;
-        if (allowed.size > 0 && !allowed.has(refererOrigin)) {
+        if (!isAllowedBrowserOrigin(refererOrigin, config)) {
           next(forbidden('Referer is not allowed'));
           return;
         }

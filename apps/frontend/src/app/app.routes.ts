@@ -312,6 +312,20 @@ export const appRoutes: Route[] = [
           import('./features/sales/pages/sale-edit/sale-edit.page').then((m) => m.SaleEditPage),
       },
       {
+        path: 'returns/without-invoice',
+        loadComponent: () =>
+          import(
+            './features/returns/pages/return-without-invoice/return-without-invoice.page'
+          ).then((m) => m.ReturnWithoutInvoicePage),
+      },
+      {
+        path: 'returns',
+        loadComponent: () =>
+          import('./features/returns/pages/returns-list/returns-list.page').then(
+            (m) => m.ReturnsListPage,
+          ),
+      },
+      {
         path: 'customer-payments',
         loadComponent: () =>
           import('./features/customer-payments/pages/customer-payments/customer-payments.page').then(

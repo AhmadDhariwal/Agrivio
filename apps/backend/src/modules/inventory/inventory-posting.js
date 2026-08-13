@@ -52,6 +52,61 @@ async function applyBalanceInbound(store, session, organizationId, scope, quanti
   return updated;
 }
 
+function unsellableQtyOf(balance) {
+  return BigInt(String(balance.unsellableQuantityBaseMinorUnits ?? '0'));
+}
+
+async function applyBalanceUnsellableInbound(
+  store,
+  session,
+  organizationId,
+  scope,
+  quantityBaseMinorUnits,
+) {
+  const existing = await store.findBalance(
+    organizationId,
+    scope.warehouseId,
+    scope.productId,
+    scope.batchId,
+  );
+  if (existing === null) {
+    try {
+      return await store.insertBalance(session, {
+        organizationId,
+        warehouseId: scope.warehouseId,
+        productId: scope.productId,
+        batchId: scope.batchId,
+        quantityBaseMinorUnits: '0',
+        unsellableQuantityBaseMinorUnits: quantityBaseMinorUnits.toString(),
+        version: 1,
+      });
+    } catch (error) {
+      throw mapDuplicate(
+        (duplicateError) => {
+          if (duplicateError && duplicateError.agrivioDuplicate === true) {
+            throw conflict('Concurrent stock balance update detected');
+          }
+          throw duplicateError;
+        },
+        error,
+      );
+    }
+  }
+
+  const nextUnsellable = unsellableQtyOf(existing) + quantityBaseMinorUnits;
+  const updated = await store.updateBalanceConditional(
+    session,
+    organizationId,
+    existing['_id'],
+    Number(existing.version),
+    { unsellableQuantityBaseMinorUnits: nextUnsellable.toString() },
+  );
+  if (updated === null) {
+    throw conflict('Concurrent stock balance update detected');
+  }
+  return updated;
+}
+
 async function applyBalanceOutbound(
   store,
   session,
@@ -296,6 +351,7 @@ async function applyCostOutboundAtValue(
 
 module.exports = {
   applyBalanceInbound,
+  applyBalanceUnsellableInbound,
   applyBalanceOutbound,
   applyCostInbound,
   applyCostOutbound,

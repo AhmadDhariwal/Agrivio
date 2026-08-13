@@ -1327,6 +1327,49 @@ function createSalesService(deps) {
       };
     },
 
+    async getSaleSourceForReturn(organizationId, saleId) {
+      const record = await store.findSaleById(organizationId, saleId);
+      if (record === null) {
+        throw notFound('Sale not found');
+      }
+      if (record.status !== 'posted') {
+        throw conflict('Sale must be posted to be used as a return source');
+      }
+      return {
+        id: String(record['_id']),
+        status: String(record['status']),
+        warehouseId: String(record['warehouseId']),
+        customerId: record['customerId'] ? String(record['customerId']) : null,
+        customerNameSnapshot: record['customerNameSnapshot'] ?? null,
+        invoiceNumber: record['invoiceNumber'] ?? null,
+        saleDate: String(record['saleDate']),
+        saleTotalMinorUnits: String(record['saleTotalMinorUnits'] ?? '0'),
+        currency: 'PKR',
+        lines: (record.lines ?? []).map((line) => ({
+          productId: String(line.productId),
+          productNameSnapshot: String(line.productNameSnapshot),
+          trackingModeSnapshot: line.trackingModeSnapshot
+            ? String(line.trackingModeSnapshot)
+            : null,
+          packagingUnitId: line.packagingUnitId ? String(line.packagingUnitId) : null,
+          unitCodeSnapshot: String(line.unitCodeSnapshot),
+          conversionFactorSnapshot: String(line.conversionFactorSnapshot),
+          quantityBaseMinorUnits: String(line.quantityBaseMinorUnits),
+          enteredQuantityMinorUnits: String(line.enteredQuantityMinorUnits),
+          unitPriceMinorUnits: String(line.unitPriceMinorUnits),
+          lineProductAmountMinorUnits: String(line.lineProductAmountMinorUnits),
+          cogsTotalMinorUnits: String(line.cogsTotalMinorUnits ?? '0'),
+          stockAllocations: (line.stockAllocations ?? []).map((allocation) => ({
+            batchId: allocation.batchId ? String(allocation.batchId) : null,
+            batchNumber: allocation.batchNumber ?? null,
+            expiryDate: allocation.expiryDate ?? null,
+            quantityBaseMinorUnits: String(allocation.quantityBaseMinorUnits),
+            cogsMinorUnits: String(allocation.cogsMinorUnits ?? '0'),
+          })),
+        })),
+      };
+    },
+
     async listUnpaidCustomerSales(organizationId, customerId) {
       const items = await store.listSales(organizationId, { status: 'posted', customerId });
       const result = [];

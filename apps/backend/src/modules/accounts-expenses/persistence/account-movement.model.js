@@ -8,6 +8,7 @@ const MOVEMENT_SOURCE_TYPES = [
   'purchase_cancellation_refund',
   'purchase_return_refund',
   'sale_cancellation_refund',
+  'sales_return_refund',
 ];
 const MOVEMENT_STATUSES = ['posted'];
 

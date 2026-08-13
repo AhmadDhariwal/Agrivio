@@ -8,8 +8,9 @@ import {
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin, of, catchError } from 'rxjs';
+import { forkJoin, of, catchError, switchMap } from 'rxjs';
 import { SalesApi } from '../../data-access/sales.api';
+import { SalesReturnsApi } from '../../data-access/sales-returns.api';
 import {
   PosPaymentAccount,
   SaleDraftInput,
@@ -28,6 +29,8 @@ import {
 } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { CustomersApi } from '../../../customers/data-access/customers.api';
 import { CustomerRecord } from '../../../customers/models/customers.models';
+import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
+import { AccountRecord } from '../../../accounts-expenses/models/accounts.models';
 import { PackagingUnitRecord, ProductRecord } from '../../../catalog/models/catalog.models';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
@@ -48,9 +51,11 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
 })
 export class SaleEditPage {
   private readonly api = inject(SalesApi);
+  private readonly salesReturnsApi = inject(SalesReturnsApi);
   private readonly catalogApi = inject(CatalogApi);
   private readonly locationsApi = inject(BranchesWarehousesApi);
   private readonly customersApi = inject(CustomersApi);
+  private readonly accountsApi = inject(AccountsApi);
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -62,6 +67,7 @@ export class SaleEditPage {
   readonly saving = signal(false);
   readonly posting = signal(false);
   readonly cancelling = signal(false);
+  readonly submittingReturn = signal(false);
   readonly discarding = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
@@ -70,10 +76,12 @@ export class SaleEditPage {
   readonly warehouses = signal<WarehouseRecord[]>([]);
   readonly customers = signal<CustomerRecord[]>([]);
   readonly accounts = signal<PosPaymentAccount[]>([]);
+  readonly refundAccounts = signal<AccountRecord[]>([]);
   readonly packagingByLine = signal<Record<number, PackagingUnitRecord[]>>({});
   readonly canCreate = computed(() => this.sessionStore.hasPermission('sales.create'));
   readonly canPost = computed(() => this.sessionStore.hasPermission('sales.post'));
   readonly canCancel = computed(() => this.sessionStore.hasPermission('sales.cancel'));
+  readonly canReturn = computed(() => this.sessionStore.hasPermission('returns.post'));
   readonly canView = computed(() => this.sessionStore.hasPermission('sales.view'));
   readonly canPrint = computed(() => this.sessionStore.hasPermission('sales.view'));
   readonly canOverridePrice = computed(() => this.sessionStore.hasPermission('pricing.override'));
@@ -113,12 +121,23 @@ export class SaleEditPage {
     reason: ['', Validators.required],
   });
 
+  readonly returnForm = this.formBuilder.nonNullable.group({
+    reason: ['', Validators.required],
+    resolution: ['ledger_adjustment' as 'ledger_adjustment' | 'account_refund', Validators.required],
+    refundAccountId: [''],
+    returnLines: this.formBuilder.array([]),
+  });
+
   get lines(): FormArray {
     return this.form.controls.lines;
   }
 
   get payments(): FormArray {
     return this.form.controls.payments;
+  }
+
+  get returnLines(): FormArray {
+    return this.returnForm.controls.returnLines;
   }
 
   constructor() {
@@ -139,6 +158,7 @@ export class SaleEditPage {
       warehouses: this.locationsApi.listWarehouses(),
       customers: this.customersApi.listCustomers(),
       accounts: this.api.listPosPaymentAccounts().pipe(catchError(() => of([]))),
+      refundAccounts: this.accountsApi.listAccounts().pipe(catchError(() => of([]))),
     });
 
     if (isEdit && id) {
@@ -405,7 +425,116 @@ export class SaleEditPage {
         },
         error: (error: unknown) => {
           this.cancelling.set(false);
-          this.errorMessage.set(this.mapError(error, 'Unable to cancel sale.'));
+        this.errorMessage.set(this.mapError(error, 'Unable to cancel sale.'));
+      },
+    });
+  }
+
+  returnLineGroup(index: number): FormGroup {
+    return this.returnLines.at(index) as FormGroup;
+  }
+
+  addReturnLine(): void {
+    const sale = this.sale();
+    if (!sale || sale.lines.length === 0) {
+      return;
+    }
+    this.returnLines.push(
+      this.formBuilder.nonNullable.group({
+        originalLineIndex: [0, Validators.required],
+        quantity: ['', Validators.required],
+        stockCondition: ['sellable', Validators.required],
+        unsellableReason: ['damaged'],
+      }),
+    );
+  }
+
+  removeReturnLine(index: number): void {
+    this.returnLines.removeAt(index);
+  }
+
+  submitReturn(): void {
+    const id = this.saleId();
+    if (!id || !this.canReturn() || !this.isPosted() || this.submittingReturn()) {
+      return;
+    }
+    const rawLines = this.returnLines.getRawValue() as Array<{
+      originalLineIndex: number | string;
+      quantity: string;
+      stockCondition: 'sellable' | 'unsellable';
+      unsellableReason: string;
+    }>;
+    const lines = rawLines
+      .map((line) => ({
+        originalLineIndex: Number(line.originalLineIndex),
+        quantity: String(line.quantity ?? '').trim(),
+        stockCondition: line.stockCondition,
+        unsellableReason:
+          line.stockCondition === 'unsellable' ? line.unsellableReason : null,
+      }))
+      .filter(
+        (line) =>
+          Number.isInteger(line.originalLineIndex) &&
+          line.originalLineIndex >= 0 &&
+          line.quantity !== '' &&
+          line.quantity !== '0',
+      );
+    if (lines.length === 0) {
+      this.errorMessage.set('Add at least one return line with quantity > 0.');
+      return;
+    }
+    const { reason, resolution, refundAccountId } = this.returnForm.getRawValue();
+    if (!reason.trim()) {
+      this.errorMessage.set('A return reason is required.');
+      return;
+    }
+    if (resolution === 'account_refund' && !refundAccountId) {
+      this.errorMessage.set('Select a refund account for cash/bank/digital refund.');
+      return;
+    }
+    if (!this.sale()?.customerId && resolution === 'ledger_adjustment') {
+      this.errorMessage.set('Walk-in returns require an account refund, not a ledger adjustment.');
+      return;
+    }
+    this.submittingReturn.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    this.salesReturnsApi
+      .createLinkedReturn(id, { lines })
+      .pipe(
+        switchMap((ret) =>
+          this.salesReturnsApi.postReturn(
+            ret.id,
+            {
+              reason: reason.trim(),
+              expectedVersion: ret.version,
+              resolution,
+              refundAccountId: resolution === 'account_refund' ? refundAccountId : null,
+              lines: lines.map((line) => ({
+                originalLineIndex: line.originalLineIndex,
+                stockCondition: line.stockCondition,
+                unsellableReason: line.unsellableReason,
+              })),
+            },
+            crypto.randomUUID(),
+          ),
+        ),
+      )
+      .subscribe({
+        next: () => {
+          this.submittingReturn.set(false);
+          this.successMessage.set('Sales return posted. Original invoice is unchanged.');
+          this.returnLines.clear();
+          this.returnForm.patchValue({ reason: '' });
+          if (id) {
+            this.api.getSale(id).subscribe({
+              next: (record) => this.applySale(record),
+            });
+          }
+        },
+        error: (error: unknown) => {
+          this.submittingReturn.set(false);
+          this.errorMessage.set(this.mapError(error, 'Unable to post sales return.'));
         },
       });
   }
@@ -465,6 +594,7 @@ export class SaleEditPage {
     warehouses: WarehouseRecord[];
     customers: CustomerRecord[];
     accounts: PosPaymentAccount[];
+    refundAccounts: AccountRecord[];
   }): void {
     this.products.set(masters.products.filter((item) => item.status === 'active'));
     this.branches.set(
@@ -477,6 +607,7 @@ export class SaleEditPage {
     );
     this.customers.set(masters.customers.filter((item) => item.status === 'active'));
     this.accounts.set(masters.accounts);
+    this.refundAccounts.set(masters.refundAccounts.filter((item) => item.status === 'active'));
     this.bindLineProductChanges(0);
     this.form.controls.customerId.valueChanges.subscribe(() => {
       this.refreshTierPricesForAllLines();

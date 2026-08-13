@@ -6,6 +6,7 @@
 const { allocateStock } = require('../allocation');
 const {
   applyBalanceInbound,
+  applyBalanceUnsellableInbound,
   applyBalanceOutbound,
   applyCostInbound,
   applyCostOutbound,
@@ -17,6 +18,7 @@ const { isExpiredOnBusinessDate } = require('../allocation');
 module.exports = {
   allocateStock,
   applyBalanceInbound,
+  applyBalanceUnsellableInbound,
   applyBalanceOutbound,
   applyCostInbound,
   applyCostOutbound,
