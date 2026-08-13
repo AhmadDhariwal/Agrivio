@@ -66,6 +66,7 @@ function filterEligibleCandidates(candidates, excludeExpired, businessDate) {
  * @param {readonly object[]} input.candidates batch balance rows with quantity + ordering facts
  * @param {boolean} input.excludeExpired
  * @param {string} input.businessDate YYYY-MM-DD
+ * @param {boolean} [input.allowPartial] when true, return available allocations plus remaining qty
  */
 function allocateStock(input) {
   const requested = input.requestedQuantityMinorUnits;
@@ -107,6 +108,14 @@ function allocateStock(input) {
   }
 
   if (remaining > 0n) {
+    if (input.allowPartial === true) {
+      return {
+        ok: false,
+        code: 'INSUFFICIENT_STOCK',
+        allocations,
+        remainingQuantityMinorUnits: remaining.toString(),
+      };
+    }
     return { ok: false, code: 'INSUFFICIENT_STOCK', allocations: [] };
   }
 
@@ -118,7 +127,7 @@ function allocateStock(input) {
     throw new Error('Allocation total must reconcile exactly with requested quantity');
   }
 
-  return { ok: true, allocations };
+  return { ok: true, allocations, remainingQuantityMinorUnits: '0' };
 }
 
 module.exports = {

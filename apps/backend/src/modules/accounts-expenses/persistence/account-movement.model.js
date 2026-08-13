@@ -4,8 +4,10 @@ const MOVEMENT_SOURCE_TYPES = [
   'account_opening',
   'supplier_payment',
   'purchase_payment',
+  'customer_payment',
   'purchase_cancellation_refund',
   'purchase_return_refund',
+  'sale_cancellation_refund',
 ];
 const MOVEMENT_STATUSES = ['posted'];
 
@@ -72,6 +74,7 @@ accountMovementSchema.index(
           'purchase_payment',
           'purchase_cancellation_refund',
           'purchase_return_refund',
+          'sale_cancellation_refund',
         ],
       },
       status: 'posted',

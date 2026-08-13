@@ -10,6 +10,8 @@ const MOVEMENT_SOURCE_TYPES = [
   'purchase',
   'purchase_cancellation',
   'purchase_return',
+  'sale',
+  'sale_cancellation',
 ];
 const MOVEMENT_STATUSES = ['posted'];
 

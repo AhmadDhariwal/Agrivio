@@ -45,9 +45,11 @@ const { registerPaymentsRoutes } = require('./modules/payments-ledgers/routes/pa
 const { createInventoryModule } = require('./modules/inventory/inventory.module');
 const { registerInventoryRoutes } = require('./modules/inventory/routes/inventory.routes');
 const { createPurchasesModule } = require('./modules/purchases/purchases.module');
+const { createSalesModule } = require('./modules/sales/sales.module');
 const { createReturnsModule } = require('./modules/returns-corrections/returns.module');
 const { registerReturnsRoutes } = require('./modules/returns-corrections/routes/returns.routes');
 const { registerPurchasesRoutes } = require('./modules/purchases/routes/purchases.routes');
+const { registerSalesRoutes } = require('./modules/sales/routes/sales.routes');
 const { createSetupProgressService } = require('./modules/settings/setup-progress.service');
 const { canAccessBranch, canAccessWarehouse } = require('./modules/identity/assignment-scope');
 const { hasPermission } = require('./modules/identity/role-permissions');
@@ -201,6 +203,9 @@ function createApp(options) {
   const unpaidPurchasesLookup = {
     fn: options.listUnpaidSupplierPurchases ?? null,
   };
+  const unpaidSalesLookup = {
+    fn: options.listUnpaidCustomerSales ?? null,
+  };
   const purchaseReturnCreditsLookup = {
     fn: null,
   };
@@ -212,11 +217,18 @@ function createApp(options) {
     ledgers.paymentsService = ledgers.createPaymentsService({
       accountsService: accounts.accountsService,
       suppliersService: suppliers.suppliersService,
+      customersService: customers.customersService,
       listUnpaidSupplierPurchases: async (organizationId, supplierId) => {
         if (typeof unpaidPurchasesLookup.fn !== 'function') {
           return [];
         }
         return unpaidPurchasesLookup.fn(organizationId, supplierId);
+      },
+      listUnpaidCustomerSales: async (organizationId, customerId) => {
+        if (typeof unpaidSalesLookup.fn !== 'function') {
+          return [];
+        }
+        return unpaidSalesLookup.fn(organizationId, customerId);
       },
     });
   }
@@ -267,6 +279,26 @@ function createApp(options) {
   if (typeof unpaidPurchasesLookup.fn !== 'function') {
     unpaidPurchasesLookup.fn = (organizationId, supplierId) =>
       purchases.purchasesService.listUnpaidSupplierPurchases(organizationId, supplierId);
+  }
+
+  const sales =
+    options.sales ??
+    createSalesModule({
+      persistence,
+      catalogService: catalog.catalogService,
+      customersService: customers.customersService,
+      locationsService: locations.locationsService,
+      inventoryService: inventory.inventoryService,
+      paymentsService: ledgers.paymentsService,
+      accountsService: accounts.accountsService,
+      canAccessWarehouse,
+      canAccessBranch,
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+
+  if (typeof unpaidSalesLookup.fn !== 'function') {
+    unpaidSalesLookup.fn = (organizationId, customerId) =>
+      sales.salesService.listUnpaidCustomerSales(organizationId, customerId);
   }
 
   const returns =
@@ -415,6 +447,13 @@ function createApp(options) {
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
   });
 
+  const salesRoutes = registerSalesRoutes({
+    salesService: sales.salesService,
+    requireAuth: auth.middlewares.requireAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
+    requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+  });
+
   const returnsRoutes = registerReturnsRoutes({
     returnsService: returns.returnsService,
     requireAuth: auth.middlewares.requireAuth,
@@ -446,6 +485,7 @@ function createApp(options) {
   app.use(inventoryRoutes);
   app.use(paymentsRoutes);
   app.use(purchasesRoutes);
+  app.use(salesRoutes);
   app.use(returnsRoutes);
 
   if (typeof options.registerOperationalProbe === 'function') {
@@ -486,6 +526,7 @@ function createApp(options) {
     accounts,
     inventory,
     purchases,
+    sales,
     returns,
     ledgers,
     setupProgressService,

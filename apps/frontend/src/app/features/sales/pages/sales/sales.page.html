@@ -1,0 +1,63 @@
+<agrivio-ui-page-header
+  title="Sales / POS"
+  eyebrow="Sales"
+  lede="Create drafts, post cashier sales, and print posted invoices. Posted values come from sale snapshots."
+>
+  @if (canCreate()) {
+    <a class="ag-btn" routerLink="/app/sales/new" data-testid="sale-create-link">
+      New POS sale
+    </a>
+  }
+</agrivio-ui-page-header>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading sale drafts…" />
+} @else if (errorMessage(); as error) {
+  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+} @else if (items().length === 0) {
+  <div data-testid="sales-empty">
+    <agrivio-ui-empty-state
+      title="No sales"
+      message="Create a draft to prepare a sale before posting."
+    />
+  </div>
+} @else {
+  <div class="ag-stack" data-testid="sales-list">
+    @for (item of items(); track item.id) {
+      <article class="row" data-testid="sale-row">
+        <div>
+          <strong>{{ displayTitle(item) }}</strong>
+          <p class="ag-muted">
+            {{ item.saleDate }}
+            @if (item.invoiceNumber) {
+              · {{ item.invoiceNumber }}
+            }
+            @if (item.branchNameSnapshot) {
+              · {{ item.branchNameSnapshot }}
+            }
+          </p>
+        </div>
+        <div class="ag-inline">
+          <agrivio-ui-status-badge
+            [label]="statusLabel(item.status)"
+            [tone]="statusTone(item.status)"
+          />
+          @if (canView() || canCreate()) {
+            <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/sales', item.id]">
+              {{ actionLabel(item.status) }}
+            </a>
+          }
+          @if (canView() && (item.status === 'posted' || item.status === 'cancelled') && item.invoiceNumber) {
+            <a
+              class="ag-btn ag-btn--secondary"
+              [routerLink]="['/app/sales', item.id, 'print']"
+              data-testid="sale-list-print"
+            >
+              Print
+            </a>
+          }
+        </div>
+      </article>
+    }
+  </div>
+}

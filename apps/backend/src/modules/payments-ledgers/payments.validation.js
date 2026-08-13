@@ -160,14 +160,80 @@ function toPaymentDto(record, allocations = []) {
       id: String(item['_id']),
       targetType: String(item['targetType']),
       targetId: String(item['targetId']),
+      allocatedAmountMinorUnits: String(item['allocatedAmountMinorUnits']),
       allocatedAmount: toMoneyDto(item['allocatedAmountMinorUnits']),
       status: String(item['status']),
     })),
   };
 }
 
+function parseCustomerPayment(body) {
+  assertObjectBody(body);
+  const customerId = requireIdString(body.customerId, 'customerId');
+  const accountId = requireIdString(body.accountId, 'accountId');
+  const money = parsePositiveMoneyInput(body.amount, 'amount');
+
+  if (typeof body.paymentDate !== 'string') {
+    throw validationFailed('paymentDate is required', [
+      { field: 'paymentDate', message: 'paymentDate must be YYYY-MM-DD' },
+    ]);
+  }
+  let paymentDate;
+  try {
+    paymentDate = parseDateOnly(body.paymentDate);
+  } catch {
+    throw validationFailed('paymentDate must be YYYY-MM-DD', [
+      { field: 'paymentDate', message: 'expected YYYY-MM-DD' },
+    ]);
+  }
+
+  const allocationMode = body.allocationMode;
+  if (allocationMode !== 'general' && allocationMode !== 'invoice_specific') {
+    throw validationFailed('allocationMode is invalid', [
+      {
+        field: 'allocationMode',
+        message: 'allocationMode must be general or invoice_specific',
+      },
+    ]);
+  }
+
+  let invoiceAllocations = [];
+  if (allocationMode === 'invoice_specific') {
+    if (!Array.isArray(body.allocations) || body.allocations.length === 0) {
+      throw validationFailed('allocations are required for invoice-specific payments', [
+        { field: 'allocations', message: 'allocations must be a non-empty array' },
+      ]);
+    }
+    invoiceAllocations = body.allocations.map((item, index) => {
+      if (item === null || typeof item !== 'object' || Array.isArray(item)) {
+        throw validationFailed(`allocations[${index}] must be an object`, [
+          { field: `allocations[${index}]`, message: 'allocation must be an object' },
+        ]);
+      }
+      const saleId = requireIdString(item.saleId, `allocations[${index}].saleId`);
+      const allocated = parsePositiveMoneyInput(item.amount, `allocations[${index}].amount`);
+      return {
+        saleId,
+        allocatedAmountMinorUnits: allocated.amountMinorUnits,
+      };
+    });
+  }
+
+  return {
+    customerId,
+    accountId,
+    amountMinorUnits: money.amountMinorUnits,
+    currency: money.currency,
+    paymentDate,
+    allocationMode,
+    invoiceAllocations,
+    notes: optionalNotes(body.notes),
+  };
+}
+
 module.exports = {
   parseSupplierPayment,
+  parseCustomerPayment,
   toPaymentDto,
   toMoneyDto,
 };

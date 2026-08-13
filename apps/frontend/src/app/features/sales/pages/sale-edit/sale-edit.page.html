@@ -1,0 +1,338 @@
+<agrivio-ui-page-header
+  [title]="
+    isCancelled()
+      ? 'Cancelled sale'
+      : isPosted()
+        ? 'Posted sale'
+        : saleId()
+          ? 'Edit sale draft'
+          : 'Create sale draft'
+  "
+  eyebrow="Sales"
+  [lede]="
+    isCancelled()
+      ? 'Original invoice is preserved. Compensating stock, receivable, and payment effects were posted.'
+      : isPosted()
+        ? 'Posted sales are immutable except via cancellation. Totals and snapshots below are authoritative.'
+        : 'POS sale: select branch, warehouse, customer or walk-in, products, and payment. Drafts do not affect stock until you post.'
+  "
+/>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading sale…" />
+} @else if (!canView() && !canCreate()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to view or edit sales." />
+} @else {
+  @if (isCancelled()) {
+    <div class="cancelled-banner" data-testid="sale-cancelled-banner">
+      Cancelled — original invoice preserved.
+      @if (sale()?.cancellationReason) {
+        Reason: {{ sale()!.cancellationReason }}
+      }
+      @if (sale()?.cancelledAt) {
+        · {{ sale()!.cancelledAt }}
+      }
+    </div>
+  } @else if (isPosted()) {
+    <div class="posted-banner" data-testid="sale-posted-banner">
+      Posted — inventory and receivable effects are locked.
+    </div>
+  } @else {
+    <div class="draft-banner" data-testid="sale-draft-banner">
+      Draft (unposted) — no stock or receivable effects until this sale is posted.
+    </div>
+  }
+
+  @if (errorMessage(); as error) {
+    <div data-testid="sale-error">
+      <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+    </div>
+  }
+  @if (successMessage(); as success) {
+    <agrivio-ui-alert tone="success" [message]="success" data-testid="sale-success" />
+  }
+
+  @if ((isPosted() || isCancelled()) && sale(); as posted) {
+    <section class="ag-stack totals" data-testid="sale-posted-details">
+      <h2>Sale details</h2>
+      @if (posted.invoiceNumber) {
+        <p data-testid="sale-invoice-number">Invoice: <strong>{{ posted.invoiceNumber }}</strong></p>
+      }
+      @if (posted.customerNameSnapshot) {
+        <p>Customer: <strong>{{ posted.customerNameSnapshot }}</strong></p>
+      }
+      @if (posted.branchNameSnapshot) {
+        <p>Branch: <strong>{{ posted.branchNameSnapshot }}</strong></p>
+      }
+      @if (posted.warehouseNameSnapshot) {
+        <p>Warehouse: <strong>{{ posted.warehouseNameSnapshot }}</strong></p>
+      }
+      @if (posted.saleTotal) {
+        <p>Sale total: <strong>{{ posted.saleTotal.amount }} {{ posted.saleTotal.currency }}</strong></p>
+      }
+      @if (posted.paidTotal) {
+        <p>Paid: <strong>{{ posted.paidTotal.amount }} {{ posted.paidTotal.currency }}</strong></p>
+      }
+      @if (posted.receivableTotal) {
+        <p>Receivable: <strong>{{ posted.receivableTotal.amount }} {{ posted.receivableTotal.currency }}</strong></p>
+      }
+      @if (posted.postedAt) {
+        <p class="ag-muted">Posted at {{ posted.postedAt }}</p>
+      }
+      @if (posted.payments && posted.payments.length > 0) {
+        <h3>Payments</h3>
+        <ul>
+          @for (payment of posted.payments; track payment.paymentId ?? payment.accountId) {
+            <li>{{ payment.accountNameSnapshot }} — {{ payment.amount.amount }} {{ payment.amount.currency }}</li>
+          }
+        </ul>
+      }
+      @if (canPrint() && posted.invoiceNumber) {
+        <a
+          class="ag-btn"
+          [routerLink]="['/app/sales', posted.id, 'print']"
+          data-testid="sale-print-link"
+        >
+          Print invoice
+        </a>
+      }
+    </section>
+  }
+
+  <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="sale-form">
+    <label>
+      Branch
+      <select formControlName="branchId" data-testid="sale-branch">
+        <option value="">Select branch</option>
+        @for (branch of branches(); track branch.id) {
+          <option [value]="branch.id">{{ branch.name }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Warehouse
+      <select formControlName="warehouseId" data-testid="sale-warehouse">
+        <option value="">Select warehouse</option>
+        @for (warehouse of warehouses(); track warehouse.id) {
+          <option [value]="warehouse.id">{{ warehouse.name }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Customer
+      <select formControlName="customerId" data-testid="sale-customer">
+        <option value="">Walk-in (cash only)</option>
+        @for (customer of customers(); track customer.id) {
+          <option [value]="customer.id">{{ customer.name }} ({{ customer.priceTier }})</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Sale date
+      <input type="date" formControlName="saleDate" data-testid="sale-date" />
+    </label>
+
+    <label>
+      Notes (optional)
+      <textarea formControlName="notes" rows="3" data-testid="sale-notes"></textarea>
+    </label>
+
+    <section class="ag-stack lines">
+      <div class="ag-inline lines__header">
+        <h2>Lines</h2>
+        @if (isDraft()) {
+          <button class="ag-btn ag-btn--secondary" type="button" (click)="addLine()" data-testid="sale-add-line">
+            Add line
+          </button>
+        }
+      </div>
+
+      @for (line of lines.controls; track $index; let index = $index) {
+        <fieldset class="line" [formGroup]="lineGroup(index)">
+          <legend>Line {{ index + 1 }}</legend>
+          <label>
+            Product
+            <select formControlName="productId" data-testid="sale-line-product">
+              <option value="">Select product</option>
+              @for (product of products(); track product.id) {
+                <option [value]="product.id">{{ product.name }}</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            Packaging (optional)
+            <select formControlName="packagingUnitId" data-testid="sale-line-packaging">
+              <option value="">Base unit</option>
+              @for (unit of packagingUnitsForLine(index); track unit.id) {
+                <option [value]="unit.id">{{ unit.name }} (×{{ unit.conversionFactor }})</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            Quantity
+            <input formControlName="quantity" data-testid="sale-line-quantity" />
+          </label>
+
+          <label>
+            Unit price (PKR)
+            <input formControlName="unitPrice" data-testid="sale-line-unit-price" />
+          </label>
+
+          @if (isDraft() && canOverridePrice()) {
+            <label>
+              Price override reason (required if price differs from tier)
+              <input formControlName="priceOverrideReason" data-testid="sale-line-override-reason" />
+            </label>
+          }
+
+          @if (isDraft()) {
+            <button class="ag-btn ag-btn--secondary" type="button" (click)="removeLine(index)">
+              Remove line
+            </button>
+          }
+        </fieldset>
+      }
+    </section>
+
+    <section class="ag-stack" data-testid="sale-payments">
+      <div class="ag-inline lines__header">
+        <h2>Payments at post</h2>
+        @if (isDraft()) {
+          <button class="ag-btn ag-btn--secondary" type="button" (click)="addPayment()" data-testid="sale-add-payment">
+            Add payment
+          </button>
+        }
+      </div>
+      @if (isDraft()) {
+        <p class="ag-muted" data-testid="sale-cart-estimate">
+          Cart total (draft estimate): {{ cartEstimate() }} PKR. Posted totals come from the server.
+        </p>
+        <div class="ag-inline">
+          <button class="ag-btn ag-btn--secondary" type="button" (click)="fillFullCash()" data-testid="sale-fill-cash">
+            Full cash
+          </button>
+          <button
+            class="ag-btn ag-btn--secondary"
+            type="button"
+            (click)="clearPaymentsForCredit()"
+            data-testid="sale-fill-credit"
+          >
+            Credit (no payment)
+          </button>
+        </div>
+      }
+      <p class="ag-muted">
+        Leave empty for full credit when a credit-enabled customer is selected. Walk-in sales require full payment.
+        Use Add payment for partial or mixed tenders. The server is authoritative.
+      </p>
+      @if (isDraft() && accounts().length === 0) {
+        <agrivio-ui-alert tone="warning" message="No payment accounts are available for this POS context." />
+      }
+
+      @for (payment of payments.controls; track $index; let index = $index) {
+        <fieldset class="line" [formGroup]="paymentGroup(index)">
+          <legend>Payment {{ index + 1 }}</legend>
+          <label>
+            Account
+            <select formControlName="accountId" data-testid="sale-payment-account">
+              <option value="">Select account</option>
+              @for (account of accounts(); track account.id) {
+                <option [value]="account.id">{{ account.name }} ({{ account.accountType }})</option>
+              }
+            </select>
+          </label>
+          <label>
+            Amount (PKR)
+            <input formControlName="amount" data-testid="sale-payment-amount" />
+          </label>
+          @if (isDraft()) {
+            <button class="ag-btn ag-btn--secondary" type="button" (click)="removePayment(index)">
+              Remove payment
+            </button>
+          }
+        </fieldset>
+      }
+    </section>
+
+    @if (isDraft() && canPost()) {
+      <section class="ag-stack" data-testid="sale-approvals">
+        <h2>Approvals (when required)</h2>
+        <p class="ag-muted">Provide a reason only when credit-limit, expired-stock, or negative-stock override applies.</p>
+        @if (canApproveCreditLimit()) {
+          <label>
+            Credit-limit approval reason
+            <input formControlName="creditLimitApprovalReason" data-testid="sale-credit-limit-reason" />
+          </label>
+        }
+        @if (canApproveExpiredStock()) {
+          <label>
+            Expired-stock approval reason
+            <input formControlName="expiredStockApprovalReason" data-testid="sale-expired-stock-reason" />
+          </label>
+        }
+        @if (canOverrideNegativeStock()) {
+          <label>
+            Negative-stock override reason
+            <input formControlName="negativeStockOverrideReason" data-testid="sale-negative-stock-reason" />
+          </label>
+        }
+      </section>
+    }
+
+    <div class="ag-inline">
+      @if (isDraft() && canCreate()) {
+        <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="sale-save">
+          {{ saving() ? 'Saving…' : 'Save draft' }}
+        </button>
+      }
+      @if (isDraft() && saleId() && canPost()) {
+        <button
+          class="ag-btn"
+          type="button"
+          [disabled]="posting()"
+          (click)="post()"
+          data-testid="sale-post"
+        >
+          {{ posting() ? 'Posting…' : 'Post sale' }}
+        </button>
+      }
+      @if (isDraft() && saleId() && canCreate()) {
+        <button
+          class="ag-btn ag-btn--secondary"
+          type="button"
+          [disabled]="discarding()"
+          (click)="discard()"
+          data-testid="sale-discard"
+        >
+          {{ discarding() ? 'Discarding…' : 'Discard draft' }}
+        </button>
+      }
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/sales">Back to list</a>
+    </div>
+  </form>
+
+  @if (isPosted() && canCancel()) {
+    <section class="ag-stack cancel-section" data-testid="sale-cancel-section">
+      <h2>Cancel sale</h2>
+      <form class="ag-stack" [formGroup]="cancelForm" (ngSubmit)="cancel()">
+        <label>
+          Cancellation reason
+          <input formControlName="reason" data-testid="cancel-reason-input" placeholder="Required" />
+        </label>
+        <button
+          class="ag-btn"
+          type="submit"
+          [disabled]="cancelling()"
+          data-testid="sale-cancel-btn"
+        >
+          {{ cancelling() ? 'Cancelling…' : 'Cancel sale' }}
+        </button>
+      </form>
+    </section>
+  }
+}

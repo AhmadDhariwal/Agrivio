@@ -84,7 +84,12 @@ test.describe('F05 P1 purchase draft vertical slice', () => {
     await expect(page).toHaveURL(/\/app\/purchases\/[^/]+$/);
     await expect(page.getByTestId('purchase-draft-banner')).toBeVisible();
 
-    await page.getByTestId('nav-purchases').click();
+    await page.goto('/app/purchases');
+    await expect(page).toHaveURL(/\/app\/purchases$/);
+    // Under full E2E load, the list refresh can lag briefly and render the empty state.
+    // Wait for the empty state to disappear before asserting on the drafts list.
+    await expect(page.getByTestId('purchases-empty')).toHaveCount(0);
+    await expect(page.getByTestId('purchases-list')).toBeVisible();
     await expect(page.getByTestId('purchases-list')).toContainText('Draft');
     await page.getByTestId('purchase-row').first().getByRole('link').click();
     await expect(page.getByTestId('purchase-draft-banner')).toBeVisible();
@@ -100,6 +105,7 @@ test.describe('F05 P1 purchase draft vertical slice', () => {
     await expect(page.getByTestId('movements-empty')).toBeVisible();
 
     await page.getByTestId('nav-purchases').click();
+    await expect(page).toHaveURL(/\/app\/purchases$/);
     await page.getByTestId('purchase-row').first().getByRole('link').click();
     await page.getByTestId('purchase-discard').click();
     await expect(page.getByTestId('purchases-empty')).toBeVisible();

@@ -122,10 +122,15 @@ describe('F05 P3 real-Mongo payments, cancellation, returns, reconciliation', ()
 
     const sharedIdempotency = createIdempotencyService(createMongooseIdempotencyStore());
     const ledgers = createLedgersModule({ persistence: 'mongoose' });
+
+    const purchasesRef = {};
+    const returnsRef = {};
     const paymentsService = ledgers.createPaymentsService({
       accountsService: accounts.accountsService,
       suppliersService,
       idempotency: sharedIdempotency,
+      listUnpaidSupplierPurchases: (orgId, suppId) =>
+        purchasesRef.purchases.purchasesService.listUnpaidSupplierPurchases(orgId, suppId),
     });
 
     const inventory = createInventoryModule({
@@ -137,17 +142,7 @@ describe('F05 P3 real-Mongo payments, cancellation, returns, reconciliation', ()
       resolveOrganizationTimezone: async () => 'Asia/Karachi',
     });
 
-    const returnsIdempotency = createIdempotencyService(createMongooseIdempotencyStore());
-    const returnsModule = createReturnsModule({
-      persistence: 'mongoose',
-      inventoryService: inventory.inventoryService,
-      paymentsService,
-      accountsService: accounts.accountsService,
-      canAccessWarehouse: () => true,
-      idempotency: returnsIdempotency,
-    });
-
-    const purchases = createPurchasesModule({
+    purchasesRef.purchases = createPurchasesModule({
       persistence: 'mongoose',
       catalogService,
       suppliersService,
@@ -159,15 +154,24 @@ describe('F05 P3 real-Mongo payments, cancellation, returns, reconciliation', ()
       canAccessBranch: () => true,
       idempotency: sharedIdempotency,
       listPurchaseReturnCredits: (orgId, purchaseId) =>
-        returnsModule.listPurchaseReturnCredits(orgId, purchaseId),
+        returnsRef.returnsModule.listPurchaseReturnCredits(orgId, purchaseId),
       listPostedReturnsByPurchase: (orgId, purchaseId) =>
-        returnsModule.listPostedReturnsByPurchase(orgId, purchaseId),
+        returnsRef.returnsModule.listPostedReturnsByPurchase(orgId, purchaseId),
     });
 
-    returnsModule.returnsService.purchasesService = {
-      getPurchaseSourceForReturn: (orgId, purchaseId) =>
-        purchases.purchasesService.getPurchaseSourceForReturn(orgId, purchaseId),
-    };
+    const returnsIdempotency = createIdempotencyService(createMongooseIdempotencyStore());
+    returnsRef.returnsModule = createReturnsModule({
+      persistence: 'mongoose',
+      inventoryService: inventory.inventoryService,
+      paymentsService,
+      accountsService: accounts.accountsService,
+      purchasesService: purchasesRef.purchases.purchasesService,
+      canAccessWarehouse: () => true,
+      idempotency: returnsIdempotency,
+    });
+
+    const purchases = purchasesRef.purchases;
+    const returnsModule = returnsRef.returnsModule;
 
     const auth = {
       userId: actorId,
@@ -176,7 +180,20 @@ describe('F05 P3 real-Mongo payments, cancellation, returns, reconciliation', ()
       permissions: ['purchases.create', 'purchases.post', 'purchases.view', 'purchases.cancel', 'purchases.return', 'returns.post'],
     };
 
-    return { organizationId, supplierId, warehouseId, productId, actorId, accounts, ledgers, inventory, purchases, returnsModule, paymentsService, auth };
+    return {
+      organizationId,
+      supplierId,
+      warehouseId,
+      productId,
+      actorId,
+      accounts,
+      ledgers,
+      inventory,
+      purchases,
+      returnsModule,
+      paymentsService,
+      auth,
+    };
   }
 
   it('oldest-first allocation across multiple purchases', async ({ skip }) => {
@@ -396,11 +413,6 @@ describe('F05 P3 real-Mongo payments, cancellation, returns, reconciliation', ()
       organizationId, draft.id, { expectedVersion: draft.version, payments: [] }, auth, 'ret-atomicity-post',
     );
     expect(posted.data.status).toBe('posted');
-
-    returnsModule.returnsService.purchasesService = {
-      getPurchaseSourceForReturn: (orgId, purchaseId) =>
-        purchases.purchasesService.getPurchaseSourceForReturn(orgId, purchaseId),
-    };
 
     const returnDraft = await returnsModule.returnsService.createPurchaseReturnDraft(
       organizationId, posted.data.id,

@@ -292,6 +292,40 @@ export const appRoutes: Route[] = [
           ).then((m) => m.SupplierPaymentFormPage),
       },
       {
+        path: 'sales',
+        loadComponent: () =>
+          import('./features/sales/pages/sales/sales.page').then((m) => m.SalesPage),
+      },
+      {
+        path: 'sales/new',
+        loadComponent: () =>
+          import('./features/sales/pages/sale-edit/sale-edit.page').then((m) => m.SaleEditPage),
+      },
+      {
+        path: 'sales/:id/print',
+        loadComponent: () =>
+          import('./features/sales/pages/sale-print/sale-print.page').then((m) => m.SalePrintPage),
+      },
+      {
+        path: 'sales/:id',
+        loadComponent: () =>
+          import('./features/sales/pages/sale-edit/sale-edit.page').then((m) => m.SaleEditPage),
+      },
+      {
+        path: 'customer-payments',
+        loadComponent: () =>
+          import('./features/customer-payments/pages/customer-payments/customer-payments.page').then(
+            (m) => m.CustomerPaymentsPage,
+          ),
+      },
+      {
+        path: 'customer-payments/new',
+        loadComponent: () =>
+          import(
+            './features/customer-payments/pages/customer-payment-form/customer-payment-form.page'
+          ).then((m) => m.CustomerPaymentFormPage),
+      },
+      {
         path: 'supplier-payments/ledger',
         loadComponent: () =>
           import('./features/supplier-payments/pages/supplier-ledger/supplier-ledger.page').then(

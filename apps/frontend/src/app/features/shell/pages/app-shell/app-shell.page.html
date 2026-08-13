@@ -65,6 +65,20 @@
             Supplier payments
           </a>
         }
+        @if (canViewSales()) {
+          <a routerLink="/app/sales" routerLinkActive="active" data-testid="nav-sales">
+            Sales
+          </a>
+        }
+        @if (canViewCustomerPayments()) {
+          <a
+            routerLink="/app/customer-payments"
+            routerLinkActive="active"
+            data-testid="nav-customer-payments"
+          >
+            Customer payments
+          </a>
+        }
         @if (canViewInventory()) {
           <a routerLink="/app/inventory/stock" routerLinkActive="active" data-testid="nav-inventory">
             Inventory

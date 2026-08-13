@@ -1,0 +1,43 @@
+<agrivio-ui-page-header
+  title="Customer payments"
+  eyebrow="Sales"
+  lede="Record general customer payments. Unallocated remainder becomes customer advance when no unpaid sales apply."
+>
+  @if (canPost()) {
+    <a
+      class="ag-btn"
+      routerLink="/app/customer-payments/new"
+      data-testid="customer-payment-create-link"
+    >
+      Post payment
+    </a>
+  }
+</agrivio-ui-page-header>
+
+@if (loading()) {
+  <agrivio-ui-loading-state label="Loading customer payments…" />
+} @else if (errorMessage(); as error) {
+  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+} @else if (items().length === 0) {
+  <agrivio-ui-empty-state
+    title="No customer payments yet"
+    message="Post a general customer payment to settle receivables or create an advance."
+  />
+} @else {
+  <div class="ag-stack" data-testid="customer-payments-list">
+    @for (item of items(); track item.id) {
+      <article class="row">
+        <div>
+          <strong>{{ item.amount.amount }} {{ item.amount.currency }}</strong>
+          <p class="ag-muted">
+            {{ item.paymentDate }} · {{ item.allocationMode }}
+            @if (item.notes) {
+              · {{ item.notes }}
+            }
+          </p>
+        </div>
+        <agrivio-ui-status-badge [label]="item.status" tone="success" />
+      </article>
+    }
+  </div>
+}
