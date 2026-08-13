@@ -54,7 +54,11 @@
         <legend>Returned product {{ index + 1 }}</legend>
         <label>
           Product
-          <select formControlName="productId" data-testid="without-invoice-product">
+          <select
+            formControlName="productId"
+            data-testid="without-invoice-product"
+            (change)="onProductChange(index)"
+          >
             <option value="">Select product</option>
             @for (product of products(); track product.id) {
               <option [value]="product.id">{{ product.name }}</option>
@@ -65,10 +69,17 @@
           Quantity
           <input formControlName="quantity" data-testid="without-invoice-qty" />
         </label>
-        <label>
-          Batch ID (required when identifiable)
-          <input formControlName="batchId" data-testid="without-invoice-batch" />
-        </label>
+        @if (productNeedsBatch(index)) {
+          <label>
+            Batch
+            <select formControlName="batchId" data-testid="without-invoice-batch">
+              <option value="">Select batch</option>
+              @for (batch of batchesForLine(index); track batch.id) {
+                <option [value]="batch.id">{{ batch.batchNumber }}</option>
+              }
+            </select>
+          </label>
+        }
         <label>
           Stock condition
           <select formControlName="stockCondition" data-testid="without-invoice-condition">

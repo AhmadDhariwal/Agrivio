@@ -97,7 +97,7 @@ test.describe('F07 P1 sales returns', () => {
       .click();
     await page.getByTestId('price-retail').fill('100.00');
     await page.getByTestId('product-pricing-save').click();
-    await expect(page.getByTestId('product-pricing')).toBeVisible();
+    await expect(page.getByTestId('products-list')).toContainText('F07 Product');
 
     await page.goto('/app/inventory/opening-stock');
     await expect(page.getByTestId('opening-stock-form')).toBeVisible();
@@ -137,7 +137,7 @@ test.describe('F07 P1 sales returns', () => {
     await expect(page.getByTestId('sales-return-section')).toBeVisible();
     await page.getByTestId('sales-return-reason').fill('E2E linked sales return');
     await page.getByTestId('sales-return-resolution').selectOption('account_refund');
-    await page.getByTestId('sales-return-refund-account').selectOption({ label: /F07 Cash/ });
+    await page.getByTestId('sales-return-refund-account').selectOption({ label: 'F07 Cash (cash)' });
     await page.getByTestId('add-sales-return-line').click();
     await page.getByTestId('sales-return-qty').fill('1');
     await page.getByTestId('sales-return-condition').selectOption('sellable');
@@ -159,10 +159,10 @@ test.describe('F07 P1 sales returns', () => {
     await page.getByTestId('without-invoice-reason').fill('E2E return without invoice');
     await page.getByTestId('without-invoice-value').fill('50.00');
     await page.getByTestId('without-invoice-resolution').selectOption('account_refund');
-    await page.getByTestId('without-invoice-refund-account').selectOption({ label: /F07 Cash/ });
+    await page.getByTestId('without-invoice-refund-account').selectOption({ label: 'F07 Cash (cash)' });
     await page.getByTestId('without-invoice-submit').click();
     await expect(page).toHaveURL(/\/app\/returns$/);
-    await expect(page.getByTestId('returns-list')).toContainText('sales_without_invoice');
+    await expect(page.getByTestId('returns-list')).toContainText('Return without invoice');
   });
 });
 

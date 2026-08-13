@@ -58,6 +58,7 @@ export class AccountFormPage {
   readonly postingTransaction = signal(false);
   readonly postingTransfer = signal(false);
   readonly reversing = signal(false);
+  readonly successMessage = signal<string | null>(null);
   readonly reverseTarget = signal<{ kind: 'transaction' | 'transfer'; id: string } | null>(null);
   private version = 1;
 
@@ -127,6 +128,7 @@ export class AccountFormPage {
     }
     this.saving.set(true);
     this.errorMessage.set(null);
+    this.successMessage.set(null);
     const value = this.form.getRawValue();
 
     if (this.accountId() === null) {
@@ -194,6 +196,7 @@ export class AccountFormPage {
     }
     this.postingOpening.set(true);
     this.errorMessage.set(null);
+    this.successMessage.set(null);
     const value = this.openingForm.getRawValue();
     this.api
       .postOpeningBalance(
@@ -224,6 +227,7 @@ export class AccountFormPage {
     }
     this.postingTransaction.set(true);
     this.errorMessage.set(null);
+    this.successMessage.set(null);
     const value = this.transactionForm.getRawValue();
     this.api
       .postManualTransaction(
@@ -239,6 +243,9 @@ export class AccountFormPage {
       .subscribe({
         next: () => {
           this.postingTransaction.set(false);
+          this.successMessage.set(
+            value.direction === 'inflow' ? 'Manual inflow posted.' : 'Manual outflow posted.',
+          );
           this.transactionForm.reset({ direction: 'inflow', amount: '', purpose: '', reference: '' });
           this.reloadAccountState(id);
         },
@@ -257,6 +264,7 @@ export class AccountFormPage {
     }
     this.postingTransfer.set(true);
     this.errorMessage.set(null);
+    this.successMessage.set(null);
     const value = this.transferForm.getRawValue();
     this.api
       .postTransfer(
@@ -272,6 +280,7 @@ export class AccountFormPage {
       .subscribe({
         next: () => {
           this.postingTransfer.set(false);
+          this.successMessage.set('Transfer posted to both accounts.');
           this.transferForm.reset({
             destinationAccountId: '',
             amount: '',
@@ -301,11 +310,17 @@ export class AccountFormPage {
     }
     this.reversing.set(true);
     this.errorMessage.set(null);
+    this.successMessage.set(null);
     const reason = this.reverseForm.getRawValue().reason.trim();
     const key = crypto.randomUUID();
     const onSuccess = (): void => {
       this.reversing.set(false);
       this.reverseTarget.set(null);
+      this.successMessage.set(
+        target.kind === 'transfer'
+          ? 'Transfer reversed on both accounts. Original movements are preserved.'
+          : 'Transaction reversed. Original movement is preserved.',
+      );
       this.reloadAccountState(accountId);
     };
     const onError = (error: unknown): void => {
@@ -386,6 +401,9 @@ export class AccountFormPage {
     }
     if (error.error?.error?.code === 'VERSION_CONFLICT') {
       return 'This account changed elsewhere. Reload and try again.';
+    }
+    if (error.status === 403) {
+      return error.error?.error?.message ?? 'You do not have permission for this action.';
     }
     return error.error?.error?.message ?? fallback;
   }

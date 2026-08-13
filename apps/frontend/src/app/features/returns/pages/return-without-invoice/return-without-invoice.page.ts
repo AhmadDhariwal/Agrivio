@@ -13,6 +13,7 @@ import { ReturnsApi } from '../../data-access/returns.api';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
 import { CustomersApi } from '../../../customers/data-access/customers.api';
 import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
+import { InventoryApi } from '../../../inventory/data-access/inventory.api';
 import {
   BranchesWarehousesApi,
   WarehouseRecord,
@@ -21,6 +22,8 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 import { CustomerRecord } from '../../../customers/models/customers.models';
 import { AccountRecord } from '../../../accounts-expenses/models/accounts.models';
+import { ProductBatchRecord } from '../../../inventory/models/inventory.models';
+import { UnsellableReason } from '../../models/returns.models';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
@@ -43,6 +46,7 @@ export class ReturnWithoutInvoicePage {
   private readonly catalogApi = inject(CatalogApi);
   private readonly customersApi = inject(CustomersApi);
   private readonly accountsApi = inject(AccountsApi);
+  private readonly inventoryApi = inject(InventoryApi);
   private readonly locationsApi = inject(BranchesWarehousesApi);
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly formBuilder = inject(FormBuilder);
@@ -55,6 +59,7 @@ export class ReturnWithoutInvoicePage {
   readonly customers = signal<CustomerRecord[]>([]);
   readonly warehouses = signal<WarehouseRecord[]>([]);
   readonly accounts = signal<AccountRecord[]>([]);
+  readonly batchesByLine = signal<Record<number, ProductBatchRecord[]>>({});
   readonly canPost = computed(() => this.sessionStore.hasPermission('returns.post'));
   readonly canApprove = computed(() =>
     this.sessionStore.hasPermission('returns.without-invoice.approve'),
@@ -111,6 +116,33 @@ export class ReturnWithoutInvoicePage {
     }
   }
 
+  productNeedsBatch(index: number): boolean {
+    const productId = String(this.lineGroup(index).get('productId')?.value ?? '');
+    const product = this.products().find((item) => item.id === productId);
+    return Boolean(product && product.trackingMode !== 'none');
+  }
+
+  batchesForLine(index: number): ProductBatchRecord[] {
+    return this.batchesByLine()[index] ?? [];
+  }
+
+  onProductChange(index: number): void {
+    const productId = String(this.lineGroup(index).get('productId')?.value ?? '');
+    this.lineGroup(index).patchValue({ batchId: '' });
+    if (!productId || !this.productNeedsBatch(index)) {
+      this.batchesByLine.update((current) => ({ ...current, [index]: [] }));
+      return;
+    }
+    this.inventoryApi.listBatches({ productId }).subscribe({
+      next: (batches) => {
+        this.batchesByLine.update((current) => ({ ...current, [index]: batches }));
+      },
+      error: (error: unknown) => {
+        this.errorMessage.set(this.mapError(error, 'Unable to load batches.'));
+      },
+    });
+  }
+
   submit(): void {
     if (!this.canPost() || !this.canApprove() || this.form.invalid || this.submitting()) {
       this.form.markAllAsTouched();
@@ -142,7 +174,9 @@ export class ReturnWithoutInvoicePage {
         batchId: line.batchId.trim() === '' ? null : line.batchId.trim(),
         stockCondition: line.stockCondition,
         unsellableReason:
-          line.stockCondition === 'unsellable' ? (line.unsellableReason as 'damaged') : null,
+          line.stockCondition === 'unsellable'
+            ? (line.unsellableReason as UnsellableReason)
+            : null,
       }));
     if (lines.length === 0) {
       this.errorMessage.set('Add at least one product line.');
@@ -204,6 +238,9 @@ export class ReturnWithoutInvoicePage {
 
   private mapError(error: unknown, fallback: string): string {
     if (error instanceof HttpErrorResponse) {
+      if (error.status === 403) {
+        return error.error?.error?.message ?? 'You do not have permission for this action.';
+      }
       const message = error.error?.error?.message;
       if (typeof message === 'string' && message.trim() !== '') {
         return message;

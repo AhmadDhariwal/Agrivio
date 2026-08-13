@@ -35,7 +35,7 @@ export default defineConfig({
     {
       command: 'node ./apps/backend/index.js',
       url: 'http://localhost:3000/api/v1/health',
-      reuseExistingServer: !process.env['CI'],
+      reuseExistingServer: false,
       timeout: 60_000,
       env: {
         ...process.env,
@@ -55,7 +55,7 @@ export default defineConfig({
     {
       command: 'npx nx serve frontend --configuration=development --host=localhost --port=4200',
       url: 'http://localhost:4200',
-      reuseExistingServer: !process.env['CI'],
+      reuseExistingServer: false,
       timeout: 180_000,
       env: {
         ...process.env,

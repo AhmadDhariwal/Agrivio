@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { ReturnsListPage } from './returns-list.page';
 import { ReturnsApi } from '../../data-access/returns.api';
+import { BranchesWarehousesApi } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 
 describe('ReturnsListPage', () => {
@@ -14,6 +15,10 @@ describe('ReturnsListPage', () => {
         {
           provide: ReturnsApi,
           useValue: { listReturns: () => of([]) },
+        },
+        {
+          provide: BranchesWarehousesApi,
+          useValue: { listWarehouses: () => of([]) },
         },
         {
           provide: AuthSessionStore,

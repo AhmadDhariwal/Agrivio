@@ -51,6 +51,11 @@
   @if (successMessage(); as success) {
     <agrivio-ui-alert tone="success" [message]="success" data-testid="sale-success" />
   }
+  @if (lastPostedReturnId(); as returnId) {
+    <p>
+      <a [routerLink]="['/app/returns', returnId]" data-testid="posted-return-link">Open posted return</a>
+    </p>
+  }
 
   @if ((isPosted() || isCancelled()) && sale(); as posted) {
     <section class="ag-stack totals" data-testid="sale-posted-details">
@@ -333,6 +338,18 @@
           {{ cancelling() ? 'Cancelling…' : 'Cancel sale' }}
         </button>
       </form>
+    </section>
+  }
+
+  @if (isPosted() && relatedReturns().length > 0) {
+    <section class="ag-stack" data-testid="sale-related-returns">
+      <h2>Returns for this invoice</h2>
+      @for (item of relatedReturns(); track item.id) {
+        <article class="ag-inline">
+          <span>{{ item.status }} · {{ item.returnType }}</span>
+          <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/returns', item.id]">Open return</a>
+        </article>
+      }
     </section>
   }
 

@@ -1,9 +1,17 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { catchError, forkJoin, of } from 'rxjs';
 import { ReturnsApi } from '../../data-access/returns.api';
-import { SalesReturnRecord, returnTypeLabel } from '../../models/returns.models';
+import {
+  SalesReturnRecord,
+  returnResolutionLabel,
+  returnTypeLabel,
+} from '../../models/returns.models';
+import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
+import { AccountRecord } from '../../../accounts-expenses/models/accounts.models';
+import { CustomersApi } from '../../../customers/data-access/customers.api';
+import { CustomerRecord } from '../../../customers/models/customers.models';
 import {
   BranchesWarehousesApi,
   WarehouseRecord,
@@ -15,7 +23,7 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
 import { UiStatusBadgeComponent } from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
 
 @Component({
-  selector: 'agrivio-returns-list-page',
+  selector: 'agrivio-return-detail-page',
   standalone: true,
   imports: [
     RouterLink,
@@ -24,59 +32,83 @@ import { UiStatusBadgeComponent } from '../../../../shared/ui/ui-status-badge/ui
     UiLoadingStateComponent,
     UiStatusBadgeComponent,
   ],
-  templateUrl: './returns-list.page.html',
-  styleUrl: './returns-list.page.scss',
+  templateUrl: './return-detail.page.html',
+  styleUrl: './return-detail.page.scss',
 })
-export class ReturnsListPage {
+export class ReturnDetailPage {
   private readonly api = inject(ReturnsApi);
+  private readonly accountsApi = inject(AccountsApi);
+  private readonly customersApi = inject(CustomersApi);
   private readonly locationsApi = inject(BranchesWarehousesApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly route = inject(ActivatedRoute);
 
-  readonly items = signal<SalesReturnRecord[]>([]);
-  readonly warehouses = signal<WarehouseRecord[]>([]);
   readonly loading = signal(true);
+  readonly reversing = signal(false);
   readonly errorMessage = signal<string | null>(null);
-  readonly canView = computed(() => this.sessionStore.hasPermission('returns.view'));
-  readonly canPost = computed(() => this.sessionStore.hasPermission('returns.post'));
-  readonly canApproveWithoutInvoice = computed(() =>
-    this.sessionStore.hasPermission('returns.without-invoice.approve'),
-  );
-  readonly canReverse = computed(() => this.sessionStore.hasPermission('returns.reverse'));
-  readonly reverseReason = signal('');
-  readonly reversingId = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
+  readonly record = signal<SalesReturnRecord | null>(null);
+  readonly reverseReason = signal('');
+  readonly warehouses = signal<WarehouseRecord[]>([]);
+  readonly customers = signal<CustomerRecord[]>([]);
+  readonly accounts = signal<AccountRecord[]>([]);
+  readonly canView = computed(() => this.sessionStore.hasPermission('returns.view'));
+  readonly canReverse = computed(() => this.sessionStore.hasPermission('returns.reverse'));
 
   constructor() {
-    if (!this.canView()) {
+    const id = this.route.snapshot.paramMap.get('id');
+    if (!id || !this.canView()) {
       this.loading.set(false);
       return;
     }
     forkJoin({
-      items: this.api.listReturns(),
+      record: this.api.getReturn(id),
       warehouses: this.locationsApi.listWarehouses().pipe(catchError(() => of([]))),
+      customers: this.customersApi.listCustomers().pipe(catchError(() => of([]))),
+      accounts: this.accountsApi.listAccounts().pipe(catchError(() => of([]))),
     }).subscribe({
-      next: ({ items, warehouses }) => {
-        this.items.set(items);
+      next: ({ record, warehouses, customers, accounts }) => {
+        this.record.set(record);
         this.warehouses.set(warehouses);
+        this.customers.set(customers);
+        this.accounts.set(accounts);
         this.loading.set(false);
       },
       error: (error: unknown) => {
-        this.errorMessage.set(this.mapError(error, 'Unable to load returns.'));
         this.loading.set(false);
+        this.errorMessage.set(this.mapError(error, 'Unable to load return.'));
       },
     });
   }
 
-  typeLabel(returnType: string): string {
-    return returnTypeLabel(returnType);
+  typeLabel(value: string): string {
+    return returnTypeLabel(value);
+  }
+
+  resolutionLabel(value: string): string {
+    return returnResolutionLabel(value);
   }
 
   warehouseName(id: string): string {
     return this.warehouses().find((item) => item.id === id)?.name ?? 'Warehouse';
   }
 
-  productLabel(item: SalesReturnRecord): string {
-    return item.lines[0]?.productNameSnapshot ?? 'Return';
+  partyLabel(record: SalesReturnRecord): string {
+    if (record.customerIdentifyingName) {
+      return record.customerIdentifyingName;
+    }
+    if (record.customerId) {
+      return this.customers().find((item) => item.id === record.customerId)?.name ?? 'Customer';
+    }
+    return '—';
+  }
+
+  refundAccountName(id: string | null): string {
+    if (!id) {
+      return '—';
+    }
+    const account = this.accounts().find((item) => item.id === id);
+    return account ? `${account.name} (${account.accountType})` : 'Refund account';
   }
 
   statusTone(status: string): 'success' | 'warning' | 'neutral' {
@@ -89,8 +121,9 @@ export class ReturnsListPage {
     return 'neutral';
   }
 
-  reverse(item: SalesReturnRecord): void {
-    if (!this.canReverse() || item.status !== 'posted' || this.reversingId()) {
+  reverse(): void {
+    const current = this.record();
+    if (!current || !this.canReverse() || current.status !== 'posted' || this.reversing()) {
       return;
     }
     const reason = this.reverseReason().trim();
@@ -98,24 +131,26 @@ export class ReturnsListPage {
       this.errorMessage.set('A reversal reason is required.');
       return;
     }
-    this.reversingId.set(item.id);
+    this.reversing.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
     this.api
       .reverseReturn(
-        item.id,
-        { reason, expectedVersion: item.version },
-        `return-reverse-${item.id}-${Date.now()}`,
+        current.id,
+        { reason, expectedVersion: current.version },
+        `return-reverse-${current.id}-${Date.now()}`,
       )
       .subscribe({
         next: (updated) => {
-          this.items.update((rows) => rows.map((row) => (row.id === updated.id ? updated : row)));
-          this.reversingId.set(null);
+          this.record.set(updated);
+          this.reversing.set(false);
           this.reverseReason.set('');
-          this.successMessage.set('Return reversed with a linked corrective transaction.');
+          this.successMessage.set(
+            'Return reversed. Original return is preserved and linked to a corrective transaction.',
+          );
         },
         error: (error: unknown) => {
-          this.reversingId.set(null);
+          this.reversing.set(false);
           this.errorMessage.set(this.mapError(error, 'Unable to reverse return.'));
         },
       });

@@ -44,6 +44,8 @@ export class ExpenseFormPage {
   readonly accounts = signal<AccountRecord[]>([]);
   readonly canPost = computed(() => this.sessionStore.hasPermission('expenses.post'));
   readonly canCorrect = computed(() => this.sessionStore.hasPermission('expenses.correct'));
+  readonly canView = computed(() => this.sessionStore.hasPermission('expenses.view'));
+  readonly successMessage = signal<string | null>(null);
   private version = 1;
 
   readonly form = this.formBuilder.nonNullable.group({
@@ -94,6 +96,7 @@ export class ExpenseFormPage {
     }
     this.saving.set(true);
     this.errorMessage.set(null);
+    this.successMessage.set(null);
     const value = this.form.getRawValue();
     const payload = {
       categoryId: value.categoryId,
@@ -134,10 +137,12 @@ export class ExpenseFormPage {
     }
     this.posting.set(true);
     this.errorMessage.set(null);
+    this.successMessage.set(null);
     this.api.postExpense(id, { expectedVersion: this.version }, crypto.randomUUID()).subscribe({
       next: (expense) => {
         this.posting.set(false);
         this.applyExpense(expense);
+        this.successMessage.set('Expense posted. A matching account outflow was recorded.');
       },
       error: (error: unknown) => {
         this.posting.set(false);
@@ -155,6 +160,7 @@ export class ExpenseFormPage {
     }
     this.correcting.set(true);
     this.errorMessage.set(null);
+    this.successMessage.set(null);
     this.api
       .correctExpense(
         id,
@@ -165,6 +171,9 @@ export class ExpenseFormPage {
         next: (expense) => {
           this.correcting.set(false);
           this.applyExpense(expense);
+          this.successMessage.set(
+            'Expense corrected. Original expense is preserved and the account effect was reversed.',
+          );
         },
         error: (error: unknown) => {
           this.correcting.set(false);
@@ -197,6 +206,9 @@ export class ExpenseFormPage {
     }
     if (error.error?.error?.code === 'VERSION_CONFLICT') {
       return 'This expense changed elsewhere. Reload and try again.';
+    }
+    if (error.status === 403) {
+      return error.error?.error?.message ?? 'You do not have permission for this action.';
     }
     return error.error?.error?.message ?? fallback;
   }

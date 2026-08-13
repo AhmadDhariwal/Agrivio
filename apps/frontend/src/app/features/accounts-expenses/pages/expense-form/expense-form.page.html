@@ -6,9 +6,21 @@
 
 @if (loading()) {
   <agrivio-ui-loading-state label="Loading expense…" />
+} @else if (!canView() && !canPost()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to view or record expenses." />
 } @else {
   @if (errorMessage(); as error) {
     <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+  @if (successMessage(); as success) {
+    <agrivio-ui-alert tone="success" [message]="success" data-testid="expense-success" />
+  }
+
+  @if (expense()?.status === 'posted') {
+    <p class="ag-muted" data-testid="expense-posted">Posted — original amounts are locked. Correct with a reason if needed.</p>
+  }
+  @if (expense()?.status === 'corrected') {
+    <p class="ag-muted" data-testid="expense-corrected">This expense has been corrected. The original record is preserved.</p>
   }
 
   <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="expense-form">
@@ -48,7 +60,9 @@
     </label>
     @if (isDraft && canPost()) {
       <div class="ag-inline">
-        <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="expense-save">Save draft</button>
+        <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="expense-save">
+          {{ saving() ? 'Saving…' : 'Save draft' }}
+        </button>
         <a class="ag-btn ag-btn--secondary" routerLink="/app/expenses">Cancel</a>
       </div>
     } @else {
@@ -59,7 +73,7 @@
   @if (expense()?.status === 'draft' && canPost()) {
     <section class="ag-stack form">
       <button class="ag-btn" type="button" [disabled]="posting()" (click)="post()" data-testid="expense-post">
-        Post expense
+        {{ posting() ? 'Posting…' : 'Post expense' }}
       </button>
     </section>
   }
@@ -73,13 +87,9 @@
           <input formControlName="reason" data-testid="expense-correct-reason" />
         </label>
         <button class="ag-btn" type="submit" [disabled]="correcting()" data-testid="expense-correct-save">
-          Correct
+          {{ correcting() ? 'Correcting…' : 'Correct' }}
         </button>
       </form>
     </section>
-  }
-
-  @if (expense()?.status === 'corrected') {
-    <p class="ag-muted" data-testid="expense-corrected">This expense has been corrected. The original record is preserved.</p>
   }
 }
