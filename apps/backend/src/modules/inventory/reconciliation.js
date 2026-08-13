@@ -22,10 +22,36 @@ function costKey(warehouseId, productId) {
   return `${String(warehouseId)}|${String(productId)}`;
 }
 
+function isSellableMovement(movement) {
+  return String(movement.stockCondition ?? 'sellable') !== 'unsellable';
+}
+
 function sumMovementsByBalanceScope(movements) {
   const totals = new Map();
   for (const movement of movements) {
     if (String(movement.status ?? 'posted') !== 'posted') {
+      continue;
+    }
+    if (!isSellableMovement(movement)) {
+      continue;
+    }
+    const key = balanceKey(movement.warehouseId, movement.productId, movement.batchId);
+    const prior = totals.get(key) ?? 0n;
+    totals.set(
+      key,
+      prior + signedMovementQuantity(movement.direction, movement.quantityBaseMinorUnits),
+    );
+  }
+  return totals;
+}
+
+function sumUnsellableMovementsByBalanceScope(movements) {
+  const totals = new Map();
+  for (const movement of movements) {
+    if (String(movement.status ?? 'posted') !== 'posted') {
+      continue;
+    }
+    if (isSellableMovement(movement)) {
       continue;
     }
     const key = balanceKey(movement.warehouseId, movement.productId, movement.batchId);
@@ -55,6 +81,7 @@ function sumBalancesByCostScope(balances) {
 function reconcileInventoryState({ movements, balances, costStates }) {
   const findings = [];
   const movementTotals = sumMovementsByBalanceScope(movements);
+  const unsellableMovementTotals = sumUnsellableMovementsByBalanceScope(movements);
   const balanceByKey = new Map();
 
   for (const balance of balances) {
@@ -72,6 +99,18 @@ function reconcileInventoryState({ movements, balances, costStates }) {
         balanceQuantityBaseMinorUnits: balanceQty.toString(),
       });
     }
+    const unsellableMovementQty = unsellableMovementTotals.get(key) ?? 0n;
+    const unsellableBalanceQty = BigInt(String(balance.unsellableQuantityBaseMinorUnits ?? '0'));
+    if (unsellableMovementQty !== unsellableBalanceQty) {
+      findings.push({
+        code: 'UNSELLABLE_MOVEMENT_BALANCE_QUANTITY_MISMATCH',
+        warehouseId: String(balance.warehouseId),
+        productId: String(balance.productId),
+        batchId: balance.batchId ? String(balance.batchId) : null,
+        movementQuantityBaseMinorUnits: unsellableMovementQty.toString(),
+        balanceQuantityBaseMinorUnits: unsellableBalanceQty.toString(),
+      });
+    }
   }
 
   for (const [key, movementQty] of movementTotals.entries()) {
@@ -84,6 +123,24 @@ function reconcileInventoryState({ movements, balances, costStates }) {
     const [warehouseId, productId, batchToken] = key.split('|');
     findings.push({
       code: 'MOVEMENT_WITHOUT_BALANCE',
+      warehouseId,
+      productId,
+      batchId: batchToken === 'null' ? null : batchToken,
+      movementQuantityBaseMinorUnits: movementQty.toString(),
+      balanceQuantityBaseMinorUnits: '0',
+    });
+  }
+
+  for (const [key, movementQty] of unsellableMovementTotals.entries()) {
+    if (balanceByKey.has(key)) {
+      continue;
+    }
+    if (movementQty === 0n) {
+      continue;
+    }
+    const [warehouseId, productId, batchToken] = key.split('|');
+    findings.push({
+      code: 'UNSELLABLE_MOVEMENT_WITHOUT_BALANCE',
       warehouseId,
       productId,
       batchId: batchToken === 'null' ? null : batchToken,

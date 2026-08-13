@@ -22,6 +22,59 @@ describe('loadApiEnv', () => {
     expect(config.host).toBe('127.0.0.1');
     expect(config.profile).toBe('local');
     expect(config.mongodbDbName).toBe('Agrivio');
+    expect(config.publicWebBaseUrl).toBe('http://localhost:4200');
+    expect(config.allowedOrigins).toEqual(['http://localhost:4200']);
+    expect(config.allowLoopbackBrowserOrigins).toBe(true);
+    expect(config.allowE2eBootstrap).toBe(false);
+  });
+
+  it('parses extra allowed origins without enabling E2E bootstrap', () => {
+    const config = loadApiEnv({
+      NODE_ENV: 'development',
+      MONGODB_URI: 'mongodb://127.0.0.1:27017/?replicaSet=rs0',
+      SESSION_SECRET: 'abcdefghijklmnopqrstuvwxyz012345',
+      AGRIVIO_PUBLIC_WEB_BASE_URL: 'http://localhost:4400',
+      AGRIVIO_ALLOWED_ORIGINS: 'http://127.0.0.1:4400, https://preview.example.com',
+    });
+
+    expect(config.publicWebBaseUrl).toBe('http://localhost:4400');
+    expect(config.allowedOrigins).toEqual([
+      'http://localhost:4400',
+      'http://127.0.0.1:4400',
+      'https://preview.example.com',
+    ]);
+    expect(config.allowLoopbackBrowserOrigins).toBe(true);
+    expect(config.allowE2eBootstrap).toBe(false);
+  });
+
+  it('rejects wildcard credentialed CORS configuration', () => {
+    expect(() =>
+      loadApiEnv({
+        NODE_ENV: 'development',
+        MONGODB_URI: 'mongodb://127.0.0.1:27017/?replicaSet=rs0',
+        SESSION_SECRET: 'abcdefghijklmnopqrstuvwxyz012345',
+        AGRIVIO_ALLOWED_ORIGINS: '*',
+      }),
+    ).toThrow(/AGRIVIO_ALLOWED_ORIGINS/);
+  });
+
+  it('requires AGRIVIO_PUBLIC_WEB_BASE_URL in production and never auto-allows loopback', () => {
+    expect(() =>
+      loadApiEnv({
+        NODE_ENV: 'production',
+        SESSION_SECRET: 'abcdefghijklmnopqrstuvwxyz012345',
+        MONGODB_URI: 'mongodb://127.0.0.1:27017/?replicaSet=rs0',
+      }),
+    ).toThrow(/AGRIVIO_PUBLIC_WEB_BASE_URL/);
+
+    const config = loadApiEnv({
+      NODE_ENV: 'production',
+      SESSION_SECRET: 'abcdefghijklmnopqrstuvwxyz012345',
+      MONGODB_URI: 'mongodb://127.0.0.1:27017/?replicaSet=rs0',
+      AGRIVIO_PUBLIC_WEB_BASE_URL: 'https://app.example.com',
+    });
+    expect(config.allowedOrigins).toEqual(['https://app.example.com']);
+    expect(config.allowLoopbackBrowserOrigins).toBe(false);
   });
 
   it('defaults non-test MONGODB_DB_NAME to Agrivio when unset', () => {

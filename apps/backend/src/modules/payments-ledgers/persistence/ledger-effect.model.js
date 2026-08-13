@@ -20,6 +20,7 @@ const SOURCE_TYPES = [
   'customer_advance_application',
   'sale_cancellation',
   'sale_cancellation_allocation_reversal',
+  'sales_return',
 ];
 const OPENING_SOURCE_TYPES = [
   'customer_opening_receivable',

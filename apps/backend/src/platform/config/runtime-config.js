@@ -15,6 +15,47 @@ function isNonEmptyString(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+function parseHttpOrigin(value, label, issues) {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      issues.push(`${label} must be an absolute http(s) URL`);
+      return undefined;
+    }
+    if (parsed.origin === 'null') {
+      issues.push(`${label} must not be the opaque origin null`);
+      return undefined;
+    }
+    return parsed.origin;
+  } catch {
+    issues.push(`${label} must be an absolute http(s) URL`);
+    return undefined;
+  }
+}
+
+function parseAllowedOriginsEnv(raw, issues) {
+  if (raw === undefined || raw.trim() === '') {
+    return [];
+  }
+
+  const origins = [];
+  for (const part of raw.split(',')) {
+    const trimmed = part.trim();
+    if (trimmed === '') {
+      continue;
+    }
+    if (trimmed === '*' || trimmed.toLowerCase() === 'null') {
+      issues.push('AGRIVIO_ALLOWED_ORIGINS must not include wildcard or null origins');
+      continue;
+    }
+    const origin = parseHttpOrigin(trimmed, 'AGRIVIO_ALLOWED_ORIGINS', issues);
+    if (origin !== undefined && !origins.includes(origin)) {
+      origins.push(origin);
+    }
+  }
+  return origins;
+}
+
 function resolveProfile(nodeEnv, rawProfile) {
   if (rawProfile === undefined || rawProfile.trim() === '') {
     if (nodeEnv === 'test') {
@@ -128,22 +169,36 @@ function loadApiEnv(env = process.env) {
     issues.push('AGRIVIO_SKIP_MONGO is only permitted when NODE_ENV=test');
   }
 
-  const publicWebBaseUrlRaw = env['AGRIVIO_PUBLIC_WEB_BASE_URL'] ?? 'http://localhost:4200';
-  let publicWebBaseUrl = publicWebBaseUrlRaw;
+  const publicWebBaseUrlRaw = env['AGRIVIO_PUBLIC_WEB_BASE_URL'];
+  let publicWebBaseUrl = '';
   if (!isNonEmptyString(publicWebBaseUrlRaw)) {
-    issues.push('AGRIVIO_PUBLIC_WEB_BASE_URL must be a non-empty string when set');
+    if (nodeEnv === 'production') {
+      issues.push('AGRIVIO_PUBLIC_WEB_BASE_URL is required in production');
+    } else {
+      publicWebBaseUrl = 'http://localhost:4200';
+    }
   } else {
-    try {
-      const parsed = new URL(publicWebBaseUrlRaw);
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        issues.push('AGRIVIO_PUBLIC_WEB_BASE_URL must be an absolute http(s) URL');
-      } else {
-        publicWebBaseUrl = parsed.origin;
-      }
-    } catch {
-      issues.push('AGRIVIO_PUBLIC_WEB_BASE_URL must be an absolute http(s) URL');
+    const parsedOrigin = parseHttpOrigin(
+      publicWebBaseUrlRaw,
+      'AGRIVIO_PUBLIC_WEB_BASE_URL',
+      issues,
+    );
+    if (parsedOrigin !== undefined) {
+      publicWebBaseUrl = parsedOrigin;
     }
   }
+
+  const extraAllowedOrigins = parseAllowedOriginsEnv(env['AGRIVIO_ALLOWED_ORIGINS'], issues);
+  const allowedOrigins = [];
+  if (isNonEmptyString(publicWebBaseUrl) && !allowedOrigins.includes(publicWebBaseUrl)) {
+    allowedOrigins.push(publicWebBaseUrl);
+  }
+  for (const origin of extraAllowedOrigins) {
+    if (!allowedOrigins.includes(origin)) {
+      allowedOrigins.push(origin);
+    }
+  }
+  const allowLoopbackBrowserOrigins = nodeEnv !== 'production';
 
   if (issues.length > 0) {
     throw new EnvValidationError(issues);
@@ -171,6 +226,8 @@ function loadApiEnv(env = process.env) {
     mongodbReplicaSet,
     sessionSecret,
     publicWebBaseUrl,
+    allowedOrigins,
+    allowLoopbackBrowserOrigins,
     allowE2eBootstrap: allowE2eBootstrap && nodeEnv !== 'production',
     skipMongo: skipMongo && nodeEnv === 'test',
   };
@@ -188,6 +245,8 @@ function toSafeApiEnvSummary(config) {
     mongodbDbName: config.mongodbDbName,
     mongodbReplicaSet: config.mongodbReplicaSet,
     publicWebBaseUrl: config.publicWebBaseUrl,
+    allowedOrigins: config.allowedOrigins,
+    allowLoopbackBrowserOrigins: config.allowLoopbackBrowserOrigins === true,
     mongodbUriConfigured: 'yes',
     sessionSecretConfigured: 'yes',
   };

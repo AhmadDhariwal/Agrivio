@@ -26,14 +26,27 @@ function createMongooseReturnsStore() {
       if (filter.purchaseId) {
         query.purchaseId = filter.purchaseId;
       }
+      if (filter.saleId) {
+        query.saleId = filter.saleId;
+      }
+      if (filter.customerId) {
+        query.customerId = filter.customerId;
+      }
+      if (filter.returnType) {
+        query.returnType = filter.returnType;
+      }
       return ReturnModel.find(query).sort({ createdAt: -1 }).lean().exec();
     },
 
-    async findReturnById(organizationId, id) {
+    async findReturnById(organizationId, id, session) {
       if (!mongoose.isValidObjectId(id)) {
         return null;
       }
-      return ReturnModel.findOne({ _id: id, organizationId }).lean().exec();
+      const query = ReturnModel.findOne({ _id: id, organizationId });
+      if (session) {
+        query.session(session);
+      }
+      return query.lean().exec();
     },
 
     async insertReturn(session, doc) {
@@ -113,6 +126,45 @@ function createMongooseReturnsStore() {
       return total.toString();
     },
 
+    async listPostedReturnsBySale(organizationId, saleId, session) {
+      const query = ReturnModel.find({
+        organizationId,
+        saleId,
+        status: 'posted',
+      });
+      if (session) {
+        query.session(session);
+      }
+      return query.lean().exec();
+    },
+
+    async sumPostedReturnedQuantityBySaleLine(
+      organizationId,
+      saleId,
+      originalLineIndex,
+      batchId,
+      session,
+    ) {
+      const posted = await this.listPostedReturnsBySale(organizationId, saleId, session);
+      let total = 0n;
+      for (const ret of posted) {
+        for (const line of ret.lines ?? []) {
+          if (Number(line.originalLineIndex) !== Number(originalLineIndex)) {
+            continue;
+          }
+          if (batchId !== undefined) {
+            const lineBatch = line.batchId ? String(line.batchId) : null;
+            const wanted = batchId ? String(batchId) : null;
+            if (lineBatch !== wanted) {
+              continue;
+            }
+          }
+          total += BigInt(String(line.quantityBaseMinorUnits ?? '0'));
+        }
+      }
+      return total.toString();
+    },
+
     async appendAuditEvent(session, event) {
       await AuditEventModel.create([event], withSession(session));
     },
@@ -141,6 +193,15 @@ function createInMemoryReturnsStore() {
             return false;
           }
           if (filter.purchaseId && String(item.purchaseId) !== String(filter.purchaseId)) {
+            return false;
+          }
+          if (filter.saleId && String(item.saleId) !== String(filter.saleId)) {
+            return false;
+          }
+          if (filter.customerId && String(item.customerId) !== String(filter.customerId)) {
+            return false;
+          }
+          if (filter.returnType && item.returnType !== filter.returnType) {
             return false;
           }
           return true;
@@ -231,6 +292,38 @@ function createInMemoryReturnsStore() {
           if (Number(line.originalLineIndex) === Number(originalLineIndex)) {
             total += BigInt(String(line.quantityBaseMinorUnits ?? '0'));
           }
+        }
+      }
+      return total.toString();
+    },
+
+    async listPostedReturnsBySale(organizationId, saleId) {
+      return [...returns.values()]
+        .filter(
+          (item) =>
+            String(item.organizationId) === String(organizationId) &&
+            String(item.saleId) === String(saleId) &&
+            item.status === 'posted',
+        )
+        .map((item) => ({ ...item, lines: item.lines.map((line) => ({ ...line })) }));
+    },
+
+    async sumPostedReturnedQuantityBySaleLine(organizationId, saleId, originalLineIndex, batchId) {
+      const posted = await this.listPostedReturnsBySale(organizationId, saleId);
+      let total = 0n;
+      for (const ret of posted) {
+        for (const line of ret.lines ?? []) {
+          if (Number(line.originalLineIndex) !== Number(originalLineIndex)) {
+            continue;
+          }
+          if (batchId !== undefined) {
+            const lineBatch = line.batchId ? String(line.batchId) : null;
+            const wanted = batchId ? String(batchId) : null;
+            if (lineBatch !== wanted) {
+              continue;
+            }
+          }
+          total += BigInt(String(line.quantityBaseMinorUnits ?? '0'));
         }
       }
       return total.toString();

@@ -24,6 +24,7 @@ const inventoryBalanceSchema = new mongoose.Schema(
       default: null,
     },
     quantityBaseMinorUnits: { type: String, required: true },
+    unsellableQuantityBaseMinorUnits: { type: String, default: '0' },
     version: { type: Number, required: true, default: 1 },
   },
   { timestamps: true, collection: 'inventory_balances' },

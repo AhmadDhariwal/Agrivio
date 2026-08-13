@@ -183,6 +183,7 @@ function toMovementDto(record) {
         : moneyDto(record['unitCostMinorUnits']),
     sourceType: String(record['sourceType']),
     sourceId: String(record['sourceId']),
+    stockCondition: String(record['stockCondition'] ?? 'sellable'),
     status: String(record['status']),
     postedAt:
       record['postedAt'] instanceof Date
@@ -200,6 +201,7 @@ function toBalanceDto(record, valuation) {
     productId: String(record['productId']),
     batchId: record['batchId'] ? String(record['batchId']) : null,
     quantityBase: quantityDto(record['quantityBaseMinorUnits']),
+    unsellableQuantityBase: quantityDto(record['unsellableQuantityBaseMinorUnits'] ?? '0'),
     version: Number(record['version'] ?? 1),
   };
   if (valuation !== undefined) {
