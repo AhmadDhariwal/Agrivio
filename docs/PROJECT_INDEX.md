@@ -43,7 +43,8 @@ Central navigation for Agrivio documentation.
 * F05 Phase 3 complete (`R1-F05-007`–`R1-F05-010`) — see [tasks/F05-PHASE-3-SUPPLIER-PAYMENTS-CANCEL-RETURNS.md](tasks/F05-PHASE-3-SUPPLIER-PAYMENTS-CANCEL-RETURNS.md); standalone supplier payments/advances, purchase cancellation, purchase returns, supplier ledger reconciliation, Purchases Angular completion; **F05 stage exit ready pending acceptance**
 * F06 Phase 1 complete (`R1-F06-001`–`R1-F06-003`) — see [tasks/F06-PHASE-1-SALES-FOUNDATION.md](tasks/F06-PHASE-1-SALES-FOUNDATION.md); customer payment/ledger foundation, sale drafts, invoice numbering
 * F06 Phase 2 complete (`R1-F06-004`–`R1-F06-006`) — see [tasks/F06-PHASE-2-SALE-POSTING.md](tasks/F06-PHASE-2-SALE-POSTING.md); sale posting, tier pricing, cash/credit/partial/mixed payments
-* Next work item: **F06 P3** (`R1-F06-007+`) sale approvals after F06 P2 acceptance
+* F06 Phase 3 complete (`R1-F06-007`–`R1-F06-009`) — see [tasks/F06-PHASE-3-SALE-APPROVALS-CANCEL.md](tasks/F06-PHASE-3-SALE-APPROVALS-CANCEL.md); sale approvals, walk-in/customer handling, sale cancellation
+* Next work item: **F06 P4** (`R1-F06-010`/`011`) printing and POS cashier E2E after F06 P3 acceptance
 
 ## Existing Documents
 
@@ -102,6 +103,7 @@ Central navigation for Agrivio documentation.
 | [tasks/F05-PHASE-3-SUPPLIER-PAYMENTS-CANCEL-RETURNS.md](tasks/F05-PHASE-3-SUPPLIER-PAYMENTS-CANCEL-RETURNS.md) | F05 Phase 3: standalone supplier payments, cancellation, returns, reconciliation (`R1-F05-007`–`010`) |
 | [tasks/F06-PHASE-1-SALES-FOUNDATION.md](tasks/F06-PHASE-1-SALES-FOUNDATION.md) | F06 Phase 1: customer payments foundation, sale drafts, invoice numbering (`R1-F06-001`–`003`) |
 | [tasks/F06-PHASE-2-SALE-POSTING.md](tasks/F06-PHASE-2-SALE-POSTING.md) | F06 Phase 2: sale posting, tier pricing, payments (`R1-F06-004`–`006`) |
+| [tasks/F06-PHASE-3-SALE-APPROVALS-CANCEL.md](tasks/F06-PHASE-3-SALE-APPROVALS-CANCEL.md) | F06 Phase 3: approvals, walk-in/customer, sale cancellation (`R1-F06-007`–`009`) |
 | [tasks/F01-PHASE-1-PLATFORM-RUNTIME.md](tasks/F01-PHASE-1-PLATFORM-RUNTIME.md) | F01 Phase 1: platform runtime foundation |
 | [tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md](tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md) | F01 Phase 2: transactional platform foundation (completes F01) |
 | [../README.md](../README.md) | Repository landing page |

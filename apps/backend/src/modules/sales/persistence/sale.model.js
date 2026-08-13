@@ -64,6 +64,23 @@ const salePaymentSnapshotSchema = new mongoose.Schema(
       ref: 'Payment',
       default: null,
     },
+    accountMovementSourceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+    },
+  },
+  { _id: false },
+);
+
+const approvalSnapshotSchema = new mongoose.Schema(
+  {
+    reason: { type: String, required: true },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      ref: 'User',
+    },
+    approvedAt: { type: Date, required: true },
   },
   { _id: false },
 );
@@ -125,6 +142,16 @@ const saleSchema = new mongoose.Schema(
     },
     postedAt: { type: Date, default: null },
     postedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    creditLimitApproval: { type: approvalSnapshotSchema, default: null },
+    expiredStockApproval: { type: approvalSnapshotSchema, default: null },
+    negativeStockOverride: { type: approvalSnapshotSchema, default: null },
+    cancellationReason: { type: String, default: null },
+    cancelledAt: { type: Date, default: null },
+    cancelledBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       default: null,

@@ -74,6 +74,21 @@ function createMongooseSalesStore() {
         .exec();
     },
 
+    async updateSaleIfPosted(session, organizationId, id, expectedVersion, patch) {
+      return SaleModel.findOneAndUpdate(
+        {
+          _id: id,
+          organizationId,
+          status: 'posted',
+          version: expectedVersion,
+        },
+        { $set: { ...patch, version: expectedVersion + 1 } },
+        { new: true, ...withSession(session) },
+      )
+        .lean()
+        .exec();
+    },
+
     async deleteSale(session, organizationId, id) {
       const result = await SaleModel.deleteOne(
         { _id: id, organizationId, status: 'draft' },
@@ -195,6 +210,30 @@ function createInMemorySalesStore() {
         !current ||
         String(current.organizationId) !== String(organizationId) ||
         current.status !== 'draft' ||
+        Number(current.version) !== expectedVersion
+      ) {
+        return null;
+      }
+      const next = {
+        ...current,
+        ...patch,
+        lines: (patch.lines ?? current.lines).map((line) => ({ ...line })),
+        version: expectedVersion + 1,
+        updatedAt: new Date(),
+      };
+      sales.set(id, next);
+      return {
+        ...next,
+        lines: next.lines.map((line) => ({ ...line })),
+      };
+    },
+
+    async updateSaleIfPosted(_session, organizationId, id, expectedVersion, patch) {
+      const current = sales.get(id);
+      if (
+        !current ||
+        String(current.organizationId) !== String(organizationId) ||
+        current.status !== 'posted' ||
         Number(current.version) !== expectedVersion
       ) {
         return null;

@@ -7,6 +7,7 @@ const { assertOptimisticVersion } = require('../../platform/validation/request-v
 const {
   conflict,
   forbidden,
+  insufficientStock,
   notFound,
   validationFailed,
 } = require('../../platform/errors/app-error');
@@ -21,17 +22,19 @@ const {
   createMongooseIdempotencyStore,
 } = require('../../platform/idempotency/idempotency-service');
 const { hasPermission } = require('../identity/role-permissions');
-const {
-  parseSaleDraft,
-  parseSalePost,
-  computeLineProductAmount,
-  toSaleDto,
-} = require('./sales.validation');
-const { formatInvoiceNumber } = require('./invoice-sequence');
+const { isExpiredOnBusinessDate } = require('../inventory/public');
 const {
   createInMemorySalesStore,
   createMongooseSalesStore,
 } = require('./sales.store');
+const { formatInvoiceNumber } = require('./invoice-sequence');
+const {
+  parseSaleDraft,
+  parseSalePost,
+  parseSaleCancel,
+  computeLineProductAmount,
+  toSaleDto,
+} = require('./sales.validation');
 
 function requireIdempotencyKey(idempotencyKey) {
   if (typeof idempotencyKey !== 'string' || idempotencyKey.trim() === '') {
@@ -131,6 +134,23 @@ function computeSliceEnteredQuantity(totalEnteredMinor, totalBaseMinor, sliceBas
     return sliceBase.toString();
   }
   return ((totalEntered * sliceBase) / totalBase).toString();
+}
+
+function requireApprovalPermission(authContext, permission, message) {
+  if (!hasPermission(authContext.permissions ?? [], permission)) {
+    throw forbidden(message);
+  }
+}
+
+function buildApprovalSnapshot(approvalInput, actorId, approvedAt) {
+  if (!approvalInput) {
+    return null;
+  }
+  return {
+    reason: approvalInput.reason,
+    approvedBy: actorId,
+    approvedAt,
+  };
 }
 
 async function buildResolvedLines(deps, organizationId, lines) {
@@ -503,6 +523,7 @@ function createSalesService(deps) {
           expectedVersion: input.expectedVersion,
           payments: input.payments,
           linePriceOverrides: input.linePriceOverrides,
+          approvals: input.approvals,
         },
         async () => {
           const dto = await transactionRunner.run(async (session) => {
@@ -544,6 +565,81 @@ function createSalesService(deps) {
             );
             assertActiveWarehouse(warehouse);
 
+            let paidTotal = 0n;
+            for (const payment of input.payments) {
+              paidTotal += BigInt(payment.amountMinorUnits);
+            }
+            let saleTotalPreview = 0n;
+            for (const line of existing.lines) {
+              saleTotalPreview += BigInt(String(line.lineProductAmountMinorUnits));
+            }
+            if (paidTotal > saleTotalPreview) {
+              throw validationFailed('Payment total cannot exceed sale total', [
+                { field: 'payments', message: 'paid amount cannot exceed sale total' },
+              ]);
+            }
+            const receivablePreview = saleTotalPreview - paidTotal;
+
+            if (!customerId && receivablePreview > 0n) {
+              throw validationFailed('Anonymous walk-in credit is not allowed', [
+                { field: 'customerId', message: 'a customer is required for credit sales' },
+              ]);
+            }
+
+            if (customerId && receivablePreview > 0n) {
+              if (customer.creditEnabled !== true) {
+                throw validationFailed('Customer credit is not enabled', [
+                  { field: 'customerId', message: 'credit is not enabled for this customer' },
+                ]);
+              }
+              if (customer.customerType === 'walk_in') {
+                const name = String(customer.name ?? '').trim();
+                const phone = String(customer.phone ?? '').trim();
+                if (!name || !phone) {
+                  throw validationFailed('Anonymous walk-in credit is not allowed', [
+                    {
+                      field: 'customerId',
+                      message: 'walk-in credit requires identifying name and phone',
+                    },
+                  ]);
+                }
+              }
+
+              const currentReceivable = await paymentsService.sumCustomerReceivable(
+                organizationId,
+                customerId,
+              );
+              const currentReceivableMinor = parseMoneyMinorUnits(currentReceivable.amount);
+              const projectedReceivable = currentReceivableMinor + receivablePreview;
+              const creditLimitMinor = parseMoneyMinorUnits(customer.creditLimit?.amount ?? '0');
+              const exceedsLimit = projectedReceivable > creditLimitMinor;
+              const behaviour = String(customer.creditLimitBehaviour ?? 'warning');
+
+              if (exceedsLimit) {
+                if (behaviour === 'block') {
+                  throw validationFailed('Customer credit limit would be exceeded', [
+                    { field: 'payments', message: 'credit limit blocks this sale' },
+                  ]);
+                }
+                if (behaviour === 'manager_approval') {
+                  if (!input.approvals.creditLimit) {
+                    throw forbidden('Credit-limit override requires Manager or Owner approval');
+                  }
+                  requireApprovalPermission(
+                    authContext,
+                    'sales.credit-limit.approve',
+                    'Credit-limit approval permission is required',
+                  );
+                }
+              } else if (input.approvals.creditLimit) {
+                requireApprovalPermission(
+                  authContext,
+                  'sales.credit-limit.approve',
+                  'Credit-limit approval permission is required',
+                );
+              }
+            }
+
             const invoiceAllocation = await allocateInvoiceNumberInSession(
               session,
               organizationId,
@@ -554,6 +650,18 @@ function createSalesService(deps) {
             const postedLines = [];
             let saleTotal = 0n;
             let saleCogsTotal = 0n;
+            let usedExpiredStock = false;
+            let usedNegativeStockOverride = false;
+            let allocationBusinessDate = null;
+
+            const negativeStockRequested = Boolean(input.approvals.negativeStock);
+            if (negativeStockRequested) {
+              requireApprovalPermission(
+                authContext,
+                'inventory.negative-stock.override',
+                'Negative-stock override permission is required',
+              );
+            }
 
             for (let index = 0; index < lines.length; index += 1) {
               const line = lines[index];
@@ -597,23 +705,109 @@ function createSalesService(deps) {
                 });
               }
 
-              const allocation = await inventoryService.allocateStockForProduct(organizationId, {
+              let allocation = await inventoryService.allocateStockForProduct(organizationId, {
                 warehouseId: String(existing.warehouseId),
                 productId: line.productId,
                 quantityBaseMinorUnits: line.quantityBaseMinorUnits,
                 excludeExpired: true,
+                allowPartial: true,
               });
+              allocationBusinessDate = allocation.businessDate;
+
+              if (!allocation.ok) {
+                const withExpired = await inventoryService.allocateStockForProduct(organizationId, {
+                  warehouseId: String(existing.warehouseId),
+                  productId: line.productId,
+                  quantityBaseMinorUnits: line.quantityBaseMinorUnits,
+                  excludeExpired: false,
+                  allowPartial: true,
+                });
+                allocationBusinessDate = withExpired.businessDate;
+
+                const expiredSlices = withExpired.allocations.filter((slice) =>
+                  isExpiredOnBusinessDate(slice.expiryDate, withExpired.businessDate),
+                );
+                const coveredAny = withExpired.allocations.length > 0;
+                const fullyCovered = withExpired.ok === true;
+
+                if (fullyCovered || coveredAny) {
+                  if (expiredSlices.length > 0) {
+                    if (!input.approvals.expiredStock) {
+                      throw forbidden('Expired-stock sale requires Manager or Owner approval');
+                    }
+                    requireApprovalPermission(
+                      authContext,
+                      'sales.expired-stock.approve',
+                      'Expired-stock approval permission is required',
+                    );
+                    usedExpiredStock = true;
+                  }
+                  allocation = withExpired;
+                }
+
+                if (!allocation.ok && !negativeStockRequested) {
+                  throw insufficientStock();
+                }
+                if (!allocation.ok && negativeStockRequested) {
+                  allocation = withExpired.allocations.length >= allocation.allocations.length
+                    ? withExpired
+                    : allocation;
+                }
+              }
 
               const stockAllocations = [];
               let lineCogsTotal = 0n;
+              const slices = [...allocation.allocations];
 
-              for (const slice of allocation.allocations) {
-                const sliceBaseMinor = parseQuantityMinorUnits(slice.quantityBase).toString();
+              if (!allocation.ok) {
+                const remainingBase = BigInt(allocation.remainingQuantityBaseMinorUnits);
+                if (remainingBase > 0n) {
+                  usedNegativeStockOverride = true;
+                  let overrideBatchId = null;
+                  let overrideBatchNumber = null;
+                  let overrideExpiryDate = null;
+                  if (slices.length > 0) {
+                    const last = slices[slices.length - 1];
+                    overrideBatchId = last.batchId;
+                    overrideBatchNumber = last.batchNumber ?? null;
+                    overrideExpiryDate = last.expiryDate ?? null;
+                  } else if (allocation.trackingMode !== 'none') {
+                    const batches = await inventoryService.listBatches(organizationId, {
+                      productId: line.productId,
+                    });
+                    const firstBatch = batches.items[0];
+                    if (!firstBatch) {
+                      throw validationFailed(
+                        'Negative-stock override requires an existing batch for tracked products',
+                        [{ field: 'lines', message: 'no batch available for negative-stock sale' }],
+                      );
+                    }
+                    overrideBatchId = firstBatch.id;
+                    overrideBatchNumber = firstBatch.batchNumber ?? null;
+                    overrideExpiryDate = firstBatch.expiryDate ?? null;
+                  }
+                  slices.push({
+                    batchId: overrideBatchId,
+                    batchNumber: overrideBatchNumber,
+                    expiryDate: overrideExpiryDate,
+                    quantityBaseMinorUnits: remainingBase.toString(),
+                    quantityBase: null,
+                    negativeOverride: true,
+                  });
+                }
+              }
+
+              for (const slice of slices) {
+                const sliceBaseMinor = String(
+                  slice.quantityBaseMinorUnits ??
+                    parseQuantityMinorUnits(slice.quantityBase).toString(),
+                );
                 const sliceEnteredMinor = computeSliceEnteredQuantity(
                   line.enteredQuantityMinorUnits,
                   line.quantityBaseMinorUnits,
                   sliceBaseMinor,
                 );
+                const isOverrideSlice = slice.negativeOverride === true;
 
                 const outbound = await inventoryService.postOutboundIssueInSession(
                   session,
@@ -631,6 +825,12 @@ function createSalesService(deps) {
                     sourceType: 'sale',
                     sourceId: saleId,
                     postedAt: now(),
+                    allowNegativeStockOverride: isOverrideSlice,
+                    negativeStockOverrideReason: isOverrideSlice
+                      ? input.approvals.negativeStock.reason
+                      : null,
+                    negativeStockOverrideBy: isOverrideSlice ? actor.actorId : null,
+                    reason: isOverrideSlice ? input.approvals.negativeStock.reason : null,
                   },
                 );
 
@@ -658,24 +858,116 @@ function createSalesService(deps) {
               });
             }
 
-            let paidTotal = 0n;
-            for (const payment of input.payments) {
-              paidTotal += BigInt(payment.amountMinorUnits);
-            }
-            if (paidTotal > saleTotal) {
-              throw validationFailed('Payment total cannot exceed sale total', [
-                { field: 'payments', message: 'paid amount cannot exceed sale total' },
-              ]);
-            }
             const receivableTotal = saleTotal - paidTotal;
 
-            if (!customerId && receivableTotal > 0n) {
-              throw validationFailed('Anonymous walk-in credit is not allowed', [
-                { field: 'customerId', message: 'a customer is required for credit sales' },
-              ]);
+            if (
+              customerId &&
+              receivableTotal > 0n &&
+              String(customer.creditLimitBehaviour ?? 'warning') === 'warning'
+            ) {
+              const currentReceivable = await paymentsService.sumCustomerReceivable(
+                organizationId,
+                customerId,
+              );
+              const currentReceivableMinor = parseMoneyMinorUnits(currentReceivable.amount);
+              const projectedReceivable = currentReceivableMinor + receivableTotal;
+              const creditLimitMinor = parseMoneyMinorUnits(customer.creditLimit?.amount ?? '0');
+              if (projectedReceivable > creditLimitMinor) {
+                await auditWriter.appendBusinessEvent(session, {
+                  organizationId,
+                  actorId: actor.actorId,
+                  action: 'sale.credit_limit.warning',
+                  resourceType: 'sale',
+                  resourceId: saleId,
+                  metadata: {
+                    customerId,
+                    creditLimitMinorUnits: creditLimitMinor.toString(),
+                    projectedReceivableMinorUnits: projectedReceivable.toString(),
+                  },
+                });
+              }
+            }
+
+            if (usedExpiredStock) {
+              requireApprovalPermission(
+                authContext,
+                'sales.expired-stock.approve',
+                'Expired-stock approval permission is required',
+              );
+              if (!input.approvals.expiredStock) {
+                throw forbidden('Expired-stock sale requires Manager or Owner approval');
+              }
+            } else if (input.approvals.expiredStock) {
+              requireApprovalPermission(
+                authContext,
+                'sales.expired-stock.approve',
+                'Expired-stock approval permission is required',
+              );
+            }
+
+            if (usedNegativeStockOverride) {
+              requireApprovalPermission(
+                authContext,
+                'inventory.negative-stock.override',
+                'Negative-stock override permission is required',
+              );
+              if (!input.approvals.negativeStock) {
+                throw forbidden('Negative-stock override requires Owner approval');
+              }
             }
 
             const postedAt = now();
+            const creditLimitApproval =
+              input.approvals.creditLimit && receivableTotal > 0n
+                ? buildApprovalSnapshot(input.approvals.creditLimit, actor.actorId, postedAt)
+                : null;
+            const expiredStockApproval = usedExpiredStock
+              ? buildApprovalSnapshot(input.approvals.expiredStock, actor.actorId, postedAt)
+              : null;
+            const negativeStockOverride = usedNegativeStockOverride
+              ? buildApprovalSnapshot(input.approvals.negativeStock, actor.actorId, postedAt)
+              : null;
+
+            if (creditLimitApproval) {
+              await auditWriter.appendBusinessEvent(session, {
+                organizationId,
+                actorId: actor.actorId,
+                action: 'sale.credit_limit.approved',
+                resourceType: 'sale',
+                resourceId: saleId,
+                metadata: {
+                  reason: creditLimitApproval.reason,
+                  customerId,
+                  receivableTotalMinorUnits: receivableTotal.toString(),
+                },
+              });
+            }
+            if (expiredStockApproval) {
+              await auditWriter.appendBusinessEvent(session, {
+                organizationId,
+                actorId: actor.actorId,
+                action: 'sale.expired_stock.approved',
+                resourceType: 'sale',
+                resourceId: saleId,
+                metadata: {
+                  reason: expiredStockApproval.reason,
+                  businessDate: allocationBusinessDate,
+                },
+              });
+            }
+            if (negativeStockOverride) {
+              await auditWriter.appendBusinessEvent(session, {
+                organizationId,
+                actorId: actor.actorId,
+                action: 'sale.negative_stock.overridden',
+                resourceType: 'sale',
+                resourceId: saleId,
+                metadata: {
+                  reason: negativeStockOverride.reason,
+                },
+              });
+            }
+
             const paymentSnapshots = [];
 
             if (customerId && saleTotal > 0n) {
@@ -736,6 +1028,7 @@ function createSalesService(deps) {
                   accountTypeSnapshot: account.accountType,
                   amountMinorUnits: payment.amountMinorUnits,
                   paymentId: paymentResult.payment['_id'],
+                  accountMovementSourceId: paymentResult.payment['_id'],
                 });
               } else {
                 const mongoose = require('mongoose');
@@ -756,6 +1049,7 @@ function createSalesService(deps) {
                   accountTypeSnapshot: account.accountType,
                   amountMinorUnits: payment.amountMinorUnits,
                   paymentId: null,
+                  accountMovementSourceId: movementSourceId,
                 });
               }
             }
@@ -776,6 +1070,9 @@ function createSalesService(deps) {
                 receivableTotalMinorUnits: receivableTotal.toString(),
                 cogsTotalMinorUnits: saleCogsTotal.toString(),
                 paymentSnapshots,
+                creditLimitApproval,
+                expiredStockApproval,
+                negativeStockOverride,
                 invoiceNumber: invoiceAllocation.invoiceNumber,
                 invoiceSequenceNumber: invoiceAllocation.invoiceSequenceNumber,
                 status: 'posted',
@@ -800,6 +1097,185 @@ function createSalesService(deps) {
                 paidTotalMinorUnits: paidTotal.toString(),
                 receivableTotalMinorUnits: receivableTotal.toString(),
                 lineCount: postedLines.length,
+              },
+            });
+
+            return toSaleDto(updated);
+          });
+
+          return { statusCode: 200, body: dto };
+        },
+      );
+
+      return {
+        replay: result.replay,
+        data: result.response.body,
+        statusCode: result.response.statusCode,
+      };
+    },
+
+    async cancelSale(organizationId, saleId, body, authContext, idempotencyKey) {
+      if (!inventoryService || !paymentsService || !accountsService) {
+        throw validationFailed('Sale cancellation dependencies are not configured');
+      }
+
+      const key = requireIdempotencyKey(idempotencyKey);
+      const input = parseSaleCancel(body);
+      const actor = { actorId: String(authContext.userId) };
+
+      const result = await idempotency.execute(
+        {
+          scopeType: 'organization',
+          organizationId,
+          actorId: actor.actorId,
+          operation: 'sales.cancel',
+        },
+        key,
+        {
+          saleId,
+          expectedVersion: input.expectedVersion,
+          reason: input.reason,
+        },
+        async () => {
+          const dto = await transactionRunner.run(async (session) => {
+            const existing = await store.findSaleById(organizationId, saleId);
+            if (existing === null) {
+              throw notFound('Sale not found');
+            }
+            if (existing.status !== 'posted') {
+              throw conflict('Only posted sales can be cancelled');
+            }
+            if (Number(existing.version) !== Number(input.expectedVersion)) {
+              throw conflict('Sale was modified by another request');
+            }
+            if (
+              typeof deps.canAccessWarehouse === 'function' &&
+              !deps.canAccessWarehouse(authContext, String(existing.warehouseId))
+            ) {
+              throw notFound('Sale not found');
+            }
+
+            const cancelledAt = now();
+            const saleTotal = BigInt(String(existing.saleTotalMinorUnits ?? '0'));
+            const customerId = existing.customerId ? String(existing.customerId) : null;
+
+            for (const line of existing.lines) {
+              for (const allocation of line.stockAllocations ?? []) {
+                const qtyBase = String(allocation.quantityBaseMinorUnits);
+                const entered = computeSliceEnteredQuantity(
+                  String(line.enteredQuantityMinorUnits),
+                  String(line.quantityBaseMinorUnits),
+                  qtyBase,
+                );
+                await inventoryService.postInboundReceiptInSession(session, organizationId, actor, {
+                  warehouseId: String(existing.warehouseId),
+                  productId: String(line.productId),
+                  batchId: allocation.batchId ? String(allocation.batchId) : null,
+                  batchNumber: allocation.batchNumber ?? null,
+                  expiryDate: allocation.expiryDate ?? null,
+                  quantityBaseMinorUnits: qtyBase,
+                  enteredQuantityMinorUnits: entered,
+                  unitCode: String(line.unitCodeSnapshot),
+                  conversionFactorSnapshot: String(line.conversionFactorSnapshot),
+                  packagingUnitId: line.packagingUnitId ? String(line.packagingUnitId) : null,
+                  inventoryValueMinorUnits: String(allocation.cogsMinorUnits ?? '0'),
+                  sourceType: 'sale_cancellation',
+                  sourceId: saleId,
+                  reason: input.reason,
+                  postedAt: cancelledAt,
+                });
+              }
+            }
+
+            if (customerId && saleTotal > 0n) {
+              await paymentsService.postCustomerReceivableEffect(session, {
+                organizationId,
+                customerId,
+                signedAmountMinorUnits: `-${saleTotal.toString()}`,
+                sourceType: 'sale_cancellation',
+                sourceId: saleId,
+                postedAt: cancelledAt,
+                postedBy: actor.actorId,
+              });
+            }
+
+            const priorAllocations = customerId
+              ? await paymentsService.listSaleAllocations(organizationId, saleId)
+              : [];
+
+            for (const allocation of priorAllocations) {
+              await paymentsService.postCustomerReceivableEffect(session, {
+                organizationId,
+                customerId,
+                signedAmountMinorUnits: allocation.allocatedAmountMinorUnits,
+                sourceType: 'sale_cancellation_allocation_reversal',
+                sourceId: String(allocation['_id']),
+                postedAt: cancelledAt,
+                postedBy: actor.actorId,
+              });
+
+              const payment = await paymentsService.getCustomerPaymentRaw(
+                organizationId,
+                String(allocation.paymentId),
+              );
+              if (payment) {
+                await accountsService.postAccountMovement(session, {
+                  organizationId,
+                  accountId: String(payment.accountId),
+                  signedAmountMinorUnits: `-${String(allocation.allocatedAmountMinorUnits)}`,
+                  sourceType: 'sale_cancellation_refund',
+                  sourceId: String(allocation['_id']),
+                  postedAt: cancelledAt,
+                  postedBy: actor.actorId,
+                });
+              }
+            }
+
+            if (!customerId) {
+              for (const snapshot of existing.paymentSnapshots ?? []) {
+                const mongoose = require('mongoose');
+                const refundSourceId =
+                  snapshot.accountMovementSourceId ?? new mongoose.Types.ObjectId();
+                await accountsService.postAccountMovement(session, {
+                  organizationId,
+                  accountId: String(snapshot.accountId),
+                  signedAmountMinorUnits: `-${String(snapshot.amountMinorUnits)}`,
+                  sourceType: 'sale_cancellation_refund',
+                  sourceId: String(refundSourceId),
+                  postedAt: cancelledAt,
+                  postedBy: actor.actorId,
+                });
+              }
+            }
+
+            const updated = await store.updateSaleIfPosted(
+              session,
+              organizationId,
+              saleId,
+              input.expectedVersion,
+              {
+                status: 'cancelled',
+                cancellationReason: input.reason,
+                cancelledAt,
+                cancelledBy: actor.actorId,
+                updatedAt: cancelledAt,
+              },
+            );
+            if (updated === null) {
+              throw conflict('Sale was already cancelled or modified concurrently');
+            }
+
+            await auditWriter.appendBusinessEvent(session, {
+              organizationId,
+              actorId: actor.actorId,
+              action: 'sale.cancelled',
+              resourceType: 'sale',
+              resourceId: saleId,
+              metadata: {
+                reason: input.reason,
+                saleTotalMinorUnits: saleTotal.toString(),
+                priorAllocationsCount: priorAllocations.length,
+                invoiceNumber: existing.invoiceNumber ?? null,
               },
             });
 

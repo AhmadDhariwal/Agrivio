@@ -48,7 +48,7 @@ export interface SaleRecord {
   priceTierSnapshot?: string | null;
   saleDate: string;
   notes: string;
-  status: 'draft' | 'posted' | string;
+  status: 'draft' | 'posted' | 'cancelled' | string;
   invoiceNumber: string | null;
   saleTotal?: MoneyAmount | null;
   paidTotal?: MoneyAmount | null;
@@ -56,10 +56,22 @@ export interface SaleRecord {
   cogsTotal?: MoneyAmount | null;
   payments?: SalePaymentSnapshot[];
   lines: SaleLineRecord[];
+  creditLimitApproval?: SaleApprovalRecord | null;
+  expiredStockApproval?: SaleApprovalRecord | null;
+  negativeStockOverride?: SaleApprovalRecord | null;
+  cancellationReason?: string | null;
+  cancelledAt?: string | null;
+  cancelledBy?: string | null;
   version: number;
   postedAt: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SaleApprovalRecord {
+  reason: string;
+  approvedBy: string;
+  approvedAt: string | null;
 }
 
 export interface SaleLineInput {
@@ -92,8 +104,24 @@ export interface SaleLinePriceOverrideInput {
   reason: string;
 }
 
+export interface SaleApprovalInput {
+  reason: string;
+}
+
+export interface SalePostApprovalsInput {
+  creditLimit?: SaleApprovalInput;
+  expiredStock?: SaleApprovalInput;
+  negativeStock?: SaleApprovalInput;
+}
+
 export interface SalePostInput {
   expectedVersion: number;
   payments: SalePaymentInput[];
   linePriceOverrides?: SaleLinePriceOverrideInput[];
+  approvals?: SalePostApprovalsInput;
+}
+
+export interface SaleCancelInput {
+  expectedVersion: number;
+  reason: string;
 }

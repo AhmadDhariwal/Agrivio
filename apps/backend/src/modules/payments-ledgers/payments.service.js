@@ -383,6 +383,14 @@ function createPaymentsService(deps) {
       return store.findPaymentById(organizationId, paymentId);
     },
 
+    async getCustomerPaymentRaw(organizationId, paymentId) {
+      return store.findPaymentById(organizationId, paymentId);
+    },
+
+    async sumCustomerReceivable(organizationId, customerId) {
+      return ledgersService.sumCustomerReceivable(organizationId, customerId);
+    },
+
     async listUnpaidPurchasesForSupplier(organizationId, supplierId) {
       if (typeof listUnpaidSupplierPurchases !== 'function') {
         return { items: [] };

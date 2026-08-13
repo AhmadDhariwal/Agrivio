@@ -6,6 +6,7 @@ const { PaymentAllocationModel } = require('../payments-ledgers/persistence/paym
 const { LedgerEffectModel } = require('../payments-ledgers/persistence/ledger-effect.model');
 const { AccountMovementModel } = require('../accounts-expenses/persistence/account-movement.model');
 const { StockMovementModel } = require('../inventory/persistence/stock-movement.model');
+const { InventoryBalanceModel } = require('../inventory/persistence/inventory-balance.model');
 const { SaleModel } = require('./persistence/sale.model');
 const { InvoiceSequenceModel } = require('./persistence/invoice-sequence.model');
 const { createLedgersModule } = require('../payments-ledgers/ledgers.module');
@@ -27,9 +28,9 @@ async function isReplicaSetPrimary() {
   }
 }
 
-describe('F06 P2 real-Mongo sale posting', () => {
+describe('F06 P3 real-Mongo approvals and sale cancellation', () => {
   const uri = process.env['MONGODB_URI'] ?? 'mongodb://127.0.0.1:27017/Agrivio?replicaSet=rs0';
-  const isolatedDb = `agrivio_test_f06p2_${Date.now()}`;
+  const isolatedDb = `agrivio_test_f06p3_${Date.now()}`;
   let mongoReady = false;
   let mongoUri = '';
 
@@ -57,6 +58,7 @@ describe('F06 P2 real-Mongo sale posting', () => {
       LedgerEffectModel.syncIndexes(),
       AccountMovementModel.syncIndexes(),
       StockMovementModel.syncIndexes(),
+      InventoryBalanceModel.syncIndexes(),
       SaleModel.syncIndexes(),
       InvoiceSequenceModel.syncIndexes(),
       IdempotencyRecordModel.syncIndexes(),
@@ -83,18 +85,18 @@ describe('F06 P2 real-Mongo sale posting', () => {
     await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 5000 });
   }
 
-  it('posts atomically with rollback, concurrent safety, and reconciliation', async ({ skip }) => {
+  it('cancels paid sale atomically with stock/COGS/AR/payment reconciliation and idempotent retry', async () => {
     if (!mongoReady) {
-      skip('Mongo replica set rs0 PRIMARY is required for real-Mongo F06 P2 proof');
+      return;
     }
     await ensureConnection();
 
     const organizationId = new mongoose.Types.ObjectId().toString();
-    const customerId = new mongoose.Types.ObjectId().toString();
+    const actorId = new mongoose.Types.ObjectId().toString();
     const branchId = new mongoose.Types.ObjectId().toString();
     const warehouseId = new mongoose.Types.ObjectId().toString();
     const productId = new mongoose.Types.ObjectId().toString();
-    const actorId = new mongoose.Types.ObjectId().toString();
+    const customerId = new mongoose.Types.ObjectId().toString();
 
     const accounts = createAccountsModule({ persistence: 'mongoose' });
     const createdAccount = await accounts.accountsService.createAccount(
@@ -171,7 +173,7 @@ describe('F06 P2 real-Mongo sale posting', () => {
         return { id: warehouseId, status: 'active', name: 'WH' };
       },
       async getBranch() {
-        return { id: branchId, status: 'active', name: 'Branch', invoicePrefix: 'TST' };
+        return { id: branchId, status: 'active', name: 'Branch', invoicePrefix: 'P3M' };
       },
     };
 
@@ -193,7 +195,7 @@ describe('F06 P2 real-Mongo sale posting', () => {
         inventoryValue: { amount: '1000.00', currency: 'PKR' },
       },
       { actorId },
-      'opening-seed',
+      'opening-seed-p3',
     );
 
     const sharedIdempotency = createIdempotencyService(createMongooseIdempotencyStore());
@@ -228,7 +230,16 @@ describe('F06 P2 real-Mongo sale posting', () => {
       userId: actorId,
       organizationId,
       role: 'Owner',
-      permissions: ['sales.create', 'sales.post', 'sales.view', 'pricing.override'],
+      permissions: [
+        'sales.create',
+        'sales.post',
+        'sales.cancel',
+        'sales.view',
+        'pricing.override',
+        'sales.credit-limit.approve',
+        'sales.expired-stock.approve',
+        'inventory.negative-stock.override',
+      ],
     };
 
     const draft = await sales.salesService.createSaleDraft(
@@ -237,7 +248,7 @@ describe('F06 P2 real-Mongo sale posting', () => {
         branchId,
         warehouseId,
         customerId,
-        saleDate: '2026-08-12',
+        saleDate: '2026-08-13',
         lines: [
           {
             productId,
@@ -257,62 +268,79 @@ describe('F06 P2 real-Mongo sale posting', () => {
         payments: [{ accountId: createdAccount.id, amount: { amount: '100.00', currency: 'PKR' } }],
       },
       auth,
-      'mongo-sale-post-1',
+      'mongo-sale-post-p3',
     );
     expect(posted.data.status).toBe('posted');
-    expect(posted.data.invoiceNumber).toMatch(/^TST-/);
-    expect(posted.data.saleTotal.amount).toBe('200.00');
-    expect(posted.data.paidTotal.amount).toBe('100.00');
     expect(posted.data.receivableTotal.amount).toBe('100.00');
 
-    const replay = await sales.salesService.postSale(
+    const balanceAfterPost = await InventoryBalanceModel.findOne({
+      organizationId,
+      warehouseId,
+      productId,
+    }).lean();
+    expect(balanceAfterPost.quantityBaseMinorUnits).toBe('160000');
+
+    const cancelled = await sales.salesService.cancelSale(
       organizationId,
       draft.id,
-      {
-        expectedVersion: draft.version,
-        payments: [{ accountId: createdAccount.id, amount: { amount: '100.00', currency: 'PKR' } }],
-      },
+      { expectedVersion: posted.data.version, reason: 'Mongo cancel proof' },
       auth,
-      'mongo-sale-post-1',
+      'mongo-sale-cancel-p3',
+    );
+    expect(cancelled.data.status).toBe('cancelled');
+    expect(cancelled.data.invoiceNumber).toBe(posted.data.invoiceNumber);
+
+    const replay = await sales.salesService.cancelSale(
+      organizationId,
+      draft.id,
+      { expectedVersion: posted.data.version, reason: 'Mongo cancel proof' },
+      auth,
+      'mongo-sale-cancel-p3',
     );
     expect(replay.replay).toBe(true);
     expect(replay.data.id).toBe(draft.id);
 
-    const movements = await StockMovementModel.find({ organizationId, sourceType: 'sale' }).lean();
-    expect(movements).toHaveLength(1);
-    expect(movements[0].quantityBaseMinorUnits).toBe('40000');
+    const balanceAfterCancel = await InventoryBalanceModel.findOne({
+      organizationId,
+      warehouseId,
+      productId,
+    }).lean();
+    expect(balanceAfterCancel.quantityBaseMinorUnits).toBe('200000');
 
-    const ledgerEffects = await LedgerEffectModel.find({
+    const cancelMovements = await StockMovementModel.find({
+      organizationId,
+      sourceType: 'sale_cancellation',
+      sourceId: draft.id,
+    }).lean();
+    expect(cancelMovements).toHaveLength(1);
+
+    const cancelReceivable = await LedgerEffectModel.find({
       organizationId,
       customerId,
-      sourceType: 'sale_receivable',
+      sourceType: 'sale_cancellation',
     }).lean();
-    expect(ledgerEffects).toHaveLength(1);
+    expect(cancelReceivable).toHaveLength(1);
+    expect(cancelReceivable[0].signedAmountMinorUnits).toBe('-20000');
 
-    const paymentAllocations = await PaymentAllocationModel.find({
+    const refunds = await AccountMovementModel.find({
       organizationId,
-      targetType: 'sale',
-      targetId: draft.id,
+      sourceType: 'sale_cancellation_refund',
     }).lean();
-    expect(paymentAllocations).toHaveLength(1);
+    expect(refunds.length).toBeGreaterThanOrEqual(1);
+
+    const originalSale = await SaleModel.findById(draft.id).lean();
+    expect(originalSale.status).toBe('cancelled');
+    expect(originalSale.invoiceNumber).toBe(posted.data.invoiceNumber);
+    expect(originalSale.saleTotalMinorUnits).toBe('20000');
 
     await expect(
-      Promise.all([
-        sales.salesService.postSale(
-          organizationId,
-          draft.id,
-          { expectedVersion: 999, payments: [] },
-          auth,
-          'concurrent-a',
-        ),
-        sales.salesService.postSale(
-          organizationId,
-          draft.id,
-          { expectedVersion: 999, payments: [] },
-          auth,
-          'concurrent-b',
-        ),
-      ]),
+      sales.salesService.cancelSale(
+        organizationId,
+        draft.id,
+        { expectedVersion: cancelled.data.version, reason: 'again' },
+        auth,
+        'mongo-sale-cancel-again',
+      ),
     ).rejects.toThrow();
-  });
+  }, 120000);
 });

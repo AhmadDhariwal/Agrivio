@@ -81,6 +81,18 @@ function registerSalesRoutes(deps) {
     },
   );
 
+  router.post(
+    `${API_SALES_PATH}/:id/cancel`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('sales.cancel'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.cancelSale(req, res, next);
+    },
+  );
+
   return router;
 }
 

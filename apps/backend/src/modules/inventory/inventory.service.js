@@ -503,21 +503,27 @@ function createInventoryService(deps) {
         candidates,
         excludeExpired: input.excludeExpired !== false,
         businessDate,
+        allowPartial: input.allowPartial === true,
       });
 
-      if (!result.ok) {
+      if (!result.ok && input.allowPartial !== true) {
         throw insufficientStock();
       }
 
       return {
         productId: input.productId,
         warehouseId: input.warehouseId,
+        trackingMode: product.trackingMode,
+        businessDate,
+        ok: result.ok === true,
+        remainingQuantityBaseMinorUnits: String(result.remainingQuantityMinorUnits ?? '0'),
         requestedQuantityBase: formatQuantityMinorUnits(BigInt(String(input.quantityBaseMinorUnits))),
         allocations: result.allocations.map((row) => ({
           batchId: row.batchId ? String(row.batchId) : null,
           batchNumber: row.batchNumber,
           expiryDate: row.expiryDate,
           quantityBase: formatQuantityMinorUnits(BigInt(String(row.quantityBaseMinorUnits))),
+          quantityBaseMinorUnits: String(row.quantityBaseMinorUnits),
         })),
       };
     },
@@ -1695,36 +1701,53 @@ function createInventoryService(deps) {
       assertActiveProduct(product);
 
       if (product.trackingMode === 'none') {
-        if (input.batchNumber) {
+        if (input.batchNumber || input.batchId) {
           throw validationFailed('batchNumber is not allowed for products without batch tracking', [
             { field: 'batchNumber', message: 'batchNumber is not allowed' },
           ]);
         }
-      } else if (!input.batchNumber) {
+      } else if (!input.batchId && !input.batchNumber) {
         throw validationFailed('batchNumber is required for batch-tracked products', [
           { field: 'batchNumber', message: 'batchNumber is required' },
         ]);
       }
 
-      if (product.trackingMode === 'batch_expiry' && !input.expiryDate) {
+      if (
+        product.trackingMode === 'batch_expiry' &&
+        !input.batchId &&
+        !input.expiryDate
+      ) {
         throw validationFailed('expiryDate is required for batch_expiry tracking', [
           { field: 'expiryDate', message: 'expiryDate is required' },
         ]);
       }
 
       const postedAt = input.postedAt ?? now();
-      const batch = await resolveOrCreateBatch(
-        session,
-        organizationId,
-        product,
-        {
-          batchNumber: input.batchNumber ?? null,
-          manufacturingDate: input.manufacturingDate ?? null,
-          expiryDate: input.expiryDate ?? null,
-        },
-        postedAt,
-      );
-      const batchId = batch ? batch['_id'] : null;
+      let batch;
+      let batchId;
+
+      if (input.batchId) {
+        batch = await store.findBatchById(organizationId, input.batchId);
+        if (batch === null || String(batch.productId) !== String(input.productId)) {
+          throw validationFailed('batchId does not match product', [
+            { field: 'batchId', message: 'batch must belong to the product' },
+          ]);
+        }
+        batchId = batch['_id'];
+      } else {
+        batch = await resolveOrCreateBatch(
+          session,
+          organizationId,
+          product,
+          {
+            batchNumber: input.batchNumber ?? null,
+            manufacturingDate: input.manufacturingDate ?? null,
+            expiryDate: input.expiryDate ?? null,
+          },
+          postedAt,
+        );
+        batchId = batch ? batch['_id'] : null;
+      }
 
       const effects = await postStockMovementEffects(session, organizationId, actor, {
         movementId: input.movementId,
@@ -1741,6 +1764,8 @@ function createInventoryService(deps) {
         sourceType: input.sourceType,
         sourceId: input.sourceId,
         postedAt,
+        reason: input.reason ?? null,
+        correctionOfId: input.correctionOfId ?? null,
       });
 
       return {
@@ -1784,6 +1809,7 @@ function createInventoryService(deps) {
       }
 
       const postedAt = input.postedAt ?? now();
+      const allowNegativeStockOverride = input.allowNegativeStockOverride === true;
       const effects = await postStockMovementEffects(session, organizationId, actor, {
         movementId: input.movementId,
         warehouseId: input.warehouseId,
@@ -1802,7 +1828,13 @@ function createInventoryService(deps) {
         postedAt,
         reason: input.reason ?? null,
         correctionOfId: input.correctionOfId ?? null,
-        allowNegativeStockOverride: false,
+        allowNegativeStockOverride,
+        negativeStockOverrideReason: allowNegativeStockOverride
+          ? input.negativeStockOverrideReason ?? null
+          : null,
+        negativeStockOverrideBy: allowNegativeStockOverride
+          ? input.negativeStockOverrideBy ?? actor.actorId
+          : null,
       });
 
       return {
