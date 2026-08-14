@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map, switchMap } from 'rxjs';
+import { API_CSRF_HEADER, API_IDEMPOTENCY_KEY_HEADER } from '@agrivio/api-contracts';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
 
@@ -53,6 +54,39 @@ export class PlatformOrganizationsApi {
           })),
         ),
       );
+  }
+
+  create(input: {
+    organizationName: string;
+    ownerEmail: string;
+    ownerDisplayName: string;
+    timezone?: string;
+  }): Observable<{ organizationId: string; status: string; ownerEmail: string; duplicate: boolean }> {
+    const key = crypto.randomUUID();
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http.post<{
+          data: {
+            organizationId: string;
+            status: string;
+            ownerEmail: string;
+            duplicate?: boolean;
+          };
+        }>(`${environment.publicApiBaseUrl}/api/v1/platform/organizations`, input, {
+          withCredentials: true,
+          headers: {
+            [API_CSRF_HEADER]: csrfToken,
+            [API_IDEMPOTENCY_KEY_HEADER]: key,
+          },
+        }),
+      ),
+      map((response) => ({
+        organizationId: response.data.organizationId,
+        status: response.data.status,
+        ownerEmail: response.data.ownerEmail,
+        duplicate: response.data.duplicate === true,
+      })),
+    );
   }
 
   approve(organizationId: string): Observable<PlatformOrganizationActivationHandoff> {

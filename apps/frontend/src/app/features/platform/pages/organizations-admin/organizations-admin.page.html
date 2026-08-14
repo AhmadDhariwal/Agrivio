@@ -11,6 +11,33 @@
     </button>
   </div>
 
+  <div class="ag-card ag-stack ag-stack--tight">
+    <h2>Create organization</h2>
+    <p class="ag-muted">
+      Direct platform create follows the same pending Owner/onboarding path as a public request. It
+      does not grant operational access.
+    </p>
+    <form class="ag-form" [formGroup]="createForm" (ngSubmit)="createOrganization()">
+      <div class="ag-field">
+        <label class="ag-field__label" for="create-org-name">Organization name</label>
+        <input id="create-org-name" class="ag-input" type="text" formControlName="organizationName" />
+      </div>
+      <div class="ag-field">
+        <label class="ag-field__label" for="create-owner-email">Owner email</label>
+        <input id="create-owner-email" class="ag-input" type="email" formControlName="ownerEmail" />
+      </div>
+      <div class="ag-field">
+        <label class="ag-field__label" for="create-owner-name">Owner display name</label>
+        <input id="create-owner-name" class="ag-input" type="text" formControlName="ownerDisplayName" />
+      </div>
+      <div class="ag-actions">
+        <button type="submit" class="ag-btn ag-btn--primary" data-testid="create-org">
+          Create organization
+        </button>
+      </div>
+    </form>
+  </div>
+
   @if (loading()) {
     <agrivio-ui-loading-state label="Loading organizations…" />
   } @else if (items().length === 0) {

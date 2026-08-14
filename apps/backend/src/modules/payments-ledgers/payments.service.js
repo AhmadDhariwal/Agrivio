@@ -11,7 +11,7 @@ const {
 } = require('../../platform/idempotency/idempotency-service');
 const { allocateGeneralSupplierPayment } = require('./supplier-allocation');
 const { allocateGeneralCustomerPayment } = require('./customer-allocation');
-const { parseSupplierPayment, parseCustomerPayment, toPaymentDto } = require('./payments.validation');
+const { parseSupplierPayment, parseCustomerPayment, parsePaymentCorrect, toPaymentDto } = require('./payments.validation');
 const { reconcileSupplierLedgerState } = require('./supplier-reconciliation');
 const {
   formatMoneyMinorUnits,
@@ -27,11 +27,56 @@ function requireIdempotencyKey(idempotencyKey) {
   return idempotencyKey.trim();
 }
 
+function negateMinorUnits(value) {
+  return (-BigInt(String(value ?? '0'))).toString();
+}
+
+function wrapIdempotentResult(result) {
+  return {
+    replay: result.replay,
+    data: result.response.body,
+    statusCode: result.response.statusCode,
+  };
+}
+
 function mapDuplicate(error, message) {
   if (error && error.agrivioDuplicate === true) {
     throw conflict(message);
   }
   throw error;
+}
+
+function allocationReversalSourceType(targetType) {
+  if (targetType === 'sale') {
+    return 'customer_payment_allocation_reversal';
+  }
+  if (targetType === 'customer_advance') {
+    return 'customer_payment_advance_reversal';
+  }
+  if (targetType === 'purchase') {
+    return 'supplier_payment_allocation_reversal';
+  }
+  return 'supplier_payment_advance_reversal';
+}
+
+function originalLedgerSourceType(targetType) {
+  if (targetType === 'sale') {
+    return 'customer_payment_allocation';
+  }
+  if (targetType === 'customer_advance') {
+    return 'customer_payment_advance';
+  }
+  if (targetType === 'purchase') {
+    return 'supplier_payment_allocation';
+  }
+  return 'supplier_payment_advance';
+}
+
+function originalLedgerSourceId(allocation, paymentId) {
+  if (allocation.targetType === 'customer_advance' || allocation.targetType === 'supplier_advance') {
+    return paymentId;
+  }
+  return String(allocation['_id']);
 }
 
 function createPaymentsService(deps) {
@@ -696,6 +741,260 @@ function createPaymentsService(deps) {
         data: result.response.body,
         statusCode: result.response.statusCode,
       };
+    },
+
+    async correctPayment(organizationId, paymentId, body, actor, idempotencyKey) {
+      const key = requireIdempotencyKey(idempotencyKey);
+      const input = parsePaymentCorrect(body);
+
+      const result = await idempotency.execute(
+        {
+          scopeType: 'organization',
+          organizationId,
+          actorId: actor.actorId,
+          operation: 'payments.correct',
+        },
+        key,
+        { paymentId, reason: input.reason, replacement: input.replacement },
+        async () => {
+          const dto = await transactionRunner.run(async (session) => {
+            const original = await store.findPaymentById(organizationId, paymentId);
+            if (original === null) {
+              throw notFound('Payment not found');
+            }
+            if (original.correctionOfId) {
+              throw conflict('Corrective payments cannot be corrected again');
+            }
+            const existing = await store.findPaymentByCorrectionOfId(
+              organizationId,
+              String(original['_id']),
+              session,
+            );
+            if (existing !== null) {
+              throw conflict('Payment has already been corrected');
+            }
+
+            const postedAt = now();
+            let reversalPayment;
+            try {
+              reversalPayment = await store.insertPayment(session, {
+                organizationId,
+                partyType: original.partyType,
+                supplierId: original.supplierId ?? null,
+                customerId: original.customerId ?? null,
+                accountId: original.accountId,
+                allocationMode: original.allocationMode,
+                amountMinorUnits: original.amountMinorUnits,
+                currency: original.currency ?? 'PKR',
+                paymentDate: original.paymentDate,
+                notes: original.notes ?? '',
+                status: 'posted',
+                postedAt,
+                postedBy: actor.actorId,
+                correctionOfId: original['_id'],
+                reason: input.reason,
+              });
+            } catch (error) {
+              mapDuplicate(error, 'Payment has already been corrected');
+            }
+
+            const reversalPaymentId = String(reversalPayment['_id']);
+            const originalPaymentId = String(original['_id']);
+            const allocations = await store.listAllocationsByPayment(
+              organizationId,
+              originalPaymentId,
+            );
+
+            for (const allocation of allocations) {
+              const reversalAllocation = await store.insertAllocation(session, {
+                organizationId,
+                paymentId: reversalPaymentId,
+                targetType: allocation.targetType,
+                targetId: allocation.targetId,
+                allocatedAmountMinorUnits: allocation.allocatedAmountMinorUnits,
+                currency: allocation.currency ?? 'PKR',
+                status: 'posted',
+                postedAt,
+              });
+
+              const originalSourceType = originalLedgerSourceType(allocation.targetType);
+              const originalSourceId = originalLedgerSourceId(allocation, originalPaymentId);
+              const originalEffects = await ledgersService.listEffectsBySource(
+                organizationId,
+                originalSourceType,
+                originalSourceId,
+                session,
+              );
+              const originalEffect = originalEffects[0];
+              const signedAmount = originalEffect
+                ? negateMinorUnits(originalEffect.signedAmountMinorUnits)
+                : original.partyType === 'customer' && allocation.targetType === 'sale'
+                  ? String(allocation.allocatedAmountMinorUnits)
+                  : original.partyType === 'customer'
+                    ? negateMinorUnits(allocation.allocatedAmountMinorUnits)
+                    : allocation.targetType === 'purchase'
+                      ? String(allocation.allocatedAmountMinorUnits)
+                      : negateMinorUnits(allocation.allocatedAmountMinorUnits);
+
+              await ledgersService.postLedgerEffect(session, {
+                organizationId,
+                partyType: original.partyType,
+                customerId: original.customerId,
+                supplierId: original.supplierId,
+                effectKind: originalEffect?.effectKind
+                  ?? (allocation.targetType === 'sale' || allocation.targetType === 'purchase'
+                    ? original.partyType === 'customer'
+                      ? 'receivable'
+                      : 'payable'
+                    : original.partyType === 'customer'
+                      ? 'advance'
+                      : 'supplier_advance'),
+                signedAmountMinorUnits: signedAmount,
+                currency: original.currency ?? 'PKR',
+                sourceType: allocationReversalSourceType(allocation.targetType),
+                sourceId:
+                  allocation.targetType === 'customer_advance' ||
+                  allocation.targetType === 'supplier_advance'
+                    ? reversalPaymentId
+                    : String(reversalAllocation['_id']),
+                reversalOfId: originalEffect?.id ?? null,
+                postedAt,
+                postedBy: actor.actorId,
+              });
+            }
+
+            if (accountsService && typeof accountsService.listAccountMovementsBySource === 'function') {
+              const sourceTypes =
+                original.partyType === 'customer'
+                  ? ['customer_payment']
+                  : ['supplier_payment', 'purchase_payment'];
+              for (const sourceType of sourceTypes) {
+                const movements = await accountsService.listAccountMovementsBySource(
+                  organizationId,
+                  sourceType,
+                  originalPaymentId,
+                  session,
+                );
+                for (const movement of movements) {
+                  await accountsService.postAccountMovement(session, {
+                    organizationId,
+                    accountId: movement.accountId,
+                    signedAmountMinorUnits: negateMinorUnits(movement.signedAmountMinorUnits),
+                    currency: movement.currency ?? 'PKR',
+                    sourceType:
+                      original.partyType === 'customer'
+                        ? 'customer_payment_correction'
+                        : 'supplier_payment_correction',
+                    sourceId: reversalPaymentId,
+                    reversalOfId: movement.id,
+                    postedAt,
+                    postedBy: actor.actorId,
+                  });
+                }
+              }
+            }
+
+            let replacementDto = null;
+            if (input.replacement !== null) {
+              if (original.partyType === 'customer') {
+                const replacementInput = parseCustomerPayment({
+                  customerId: String(original.customerId),
+                  ...input.replacement,
+                  accountId: input.replacement.accountId ?? String(original.accountId),
+                });
+                const unpaidSales =
+                  typeof listUnpaidCustomerSales === 'function'
+                    ? await listUnpaidCustomerSales(organizationId, replacementInput.customerId)
+                    : [];
+                const plan = await resolveCustomerAllocationPlan(replacementInput, unpaidSales);
+                const postedReplacement = await postCustomerPaymentInSession(session, {
+                  organizationId,
+                  customerId: replacementInput.customerId,
+                  accountId: replacementInput.accountId,
+                  amountMinorUnits: replacementInput.amountMinorUnits,
+                  currency: replacementInput.currency,
+                  paymentDate: replacementInput.paymentDate,
+                  allocationMode: replacementInput.allocationMode,
+                  saleAllocations: plan.saleAllocations,
+                  advanceAmountMinorUnits: plan.advanceAmountMinorUnits,
+                  notes: replacementInput.notes,
+                  postedAt,
+                  postedBy: actor.actorId,
+                  postAccountMovement: true,
+                });
+                replacementDto = toPaymentDto(
+                  postedReplacement.payment,
+                  postedReplacement.allocations,
+                );
+                await store.updatePayment(session, organizationId, reversalPaymentId, {
+                  replacementPaymentId: postedReplacement.payment['_id'],
+                });
+                reversalPayment.replacementPaymentId = postedReplacement.payment['_id'];
+              } else {
+                const replacementInput = parseSupplierPayment({
+                  supplierId: String(original.supplierId),
+                  ...input.replacement,
+                  accountId: input.replacement.accountId ?? String(original.accountId),
+                });
+                const unpaidPurchases =
+                  typeof listUnpaidSupplierPurchases === 'function'
+                    ? await listUnpaidSupplierPurchases(organizationId, replacementInput.supplierId)
+                    : [];
+                const plan = await resolveAllocationPlan(replacementInput, unpaidPurchases);
+                const postedReplacement = await postSupplierPaymentInSession(session, {
+                  organizationId,
+                  supplierId: replacementInput.supplierId,
+                  accountId: replacementInput.accountId,
+                  amountMinorUnits: replacementInput.amountMinorUnits,
+                  currency: replacementInput.currency,
+                  paymentDate: replacementInput.paymentDate,
+                  allocationMode: replacementInput.allocationMode,
+                  purchaseAllocations: plan.purchaseAllocations,
+                  advanceAmountMinorUnits: plan.advanceAmountMinorUnits,
+                  notes: replacementInput.notes,
+                  postedAt,
+                  postedBy: actor.actorId,
+                  postAccountMovement: true,
+                });
+                replacementDto = toPaymentDto(
+                  postedReplacement.payment,
+                  postedReplacement.allocations,
+                );
+                await store.updatePayment(session, organizationId, reversalPaymentId, {
+                  replacementPaymentId: postedReplacement.payment['_id'],
+                });
+                reversalPayment.replacementPaymentId = postedReplacement.payment['_id'];
+              }
+            }
+
+            await auditWriter.appendBusinessEvent(session, {
+              organizationId,
+              actorId: actor.actorId,
+              action: 'payment.corrected',
+              resourceType: 'payment',
+              resourceId: originalPaymentId,
+              reason: input.reason,
+              metadata: {
+                reversalPaymentId,
+                partyType: original.partyType,
+                replacementPaymentId: replacementDto?.id ?? null,
+              },
+            });
+
+            const reversalAllocations = await store.listAllocationsByPayment(
+              organizationId,
+              reversalPaymentId,
+            );
+            return {
+              original: toPaymentDto(original, allocations),
+              reversal: toPaymentDto(reversalPayment, reversalAllocations),
+              replacement: replacementDto,
+            };
+          });
+          return { statusCode: 200, body: dto };
+        },
+      );
+      return wrapIdempotentResult(result);
     },
 
     async listSaleAllocations(organizationId, saleId) {

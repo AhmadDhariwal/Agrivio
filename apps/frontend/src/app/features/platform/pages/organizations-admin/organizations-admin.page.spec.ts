@@ -8,11 +8,22 @@ describe('PlatformOrganizationsPage', () => {
   let fixture: ComponentFixture<PlatformOrganizationsPage>;
   let approveCalls: string[];
   let reissueCalls: string[];
+  let createCalls: Array<Record<string, string>>;
 
   beforeEach(async () => {
     approveCalls = [];
     reissueCalls = [];
+    createCalls = [];
     const api = {
+      create: (input: Record<string, string>) => {
+        createCalls.push(input);
+        return of({
+          organizationId: 'org-created',
+          status: 'pending_approval',
+          ownerEmail: String(input['ownerEmail'] ?? ''),
+          duplicate: false,
+        });
+      },
       list: () =>
         of([
           {
@@ -60,6 +71,25 @@ describe('PlatformOrganizationsPage', () => {
 
     fixture = TestBed.createComponent(PlatformOrganizationsPage);
     fixture.detectChanges();
+  });
+
+  it('creates a pending organization from the platform form', () => {
+    const page = fixture.componentInstance;
+    page.createForm.setValue({
+      organizationName: 'Direct Co',
+      ownerEmail: 'direct@example.com',
+      ownerDisplayName: 'Direct Owner',
+      timezone: 'Asia/Karachi',
+    });
+    page.createOrganization();
+    expect(createCalls).toEqual([
+      {
+        organizationName: 'Direct Co',
+        ownerEmail: 'direct@example.com',
+        ownerDisplayName: 'Direct Owner',
+        timezone: 'Asia/Karachi',
+      },
+    ]);
   });
 
   it('requires confirmation before approving an organization and shows handoff fields', () => {

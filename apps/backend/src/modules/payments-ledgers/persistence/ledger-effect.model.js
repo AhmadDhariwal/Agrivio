@@ -23,6 +23,10 @@ const SOURCE_TYPES = [
   'sales_return',
   'purchase_return_reversal',
   'sales_return_reversal',
+  'customer_payment_allocation_reversal',
+  'customer_payment_advance_reversal',
+  'supplier_payment_allocation_reversal',
+  'supplier_payment_advance_reversal',
 ];
 const OPENING_SOURCE_TYPES = [
   'customer_opening_receivable',
@@ -126,6 +130,10 @@ ledgerEffectSchema.index(
           'sale_cancellation_allocation_reversal',
           'purchase_return_reversal',
           'sales_return_reversal',
+          'customer_payment_allocation_reversal',
+          'customer_payment_advance_reversal',
+          'supplier_payment_allocation_reversal',
+          'supplier_payment_advance_reversal',
         ],
       },
       status: 'posted',

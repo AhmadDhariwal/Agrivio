@@ -99,6 +99,7 @@ function registerReturnsRoutes(deps) {
     deps.requireCsrf,
     requireOrganizationContext,
     createRequirePermissionMiddleware('returns.post'),
+    createRequirePermissionMiddleware('purchases.return'),
     deps.requireOperationalAccess,
     (req, res, next) => {
       void controller.createPurchaseReturn(req, res, next);

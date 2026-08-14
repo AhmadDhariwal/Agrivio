@@ -138,6 +138,21 @@ function createPaymentsController(deps) {
         next(error);
       }
     },
+
+    async correctPayment(req, res, next) {
+      try {
+        const result = await deps.paymentsService.correctPayment(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.body,
+          { actorId: String(req.authContext.userId) },
+          req.get('Idempotency-Key'),
+        );
+        sendSuccessEnvelope(res, result.statusCode ?? 200, result.data);
+      } catch (error) {
+        next(error);
+      }
+    },
   };
 }
 

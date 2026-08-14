@@ -44,6 +44,28 @@ function createMongoosePaymentsStore() {
       return PaymentModel.findOne({ _id: id, organizationId }).lean().exec();
     },
 
+    async findPaymentByCorrectionOfId(organizationId, correctionOfId, session) {
+      if (!mongoose.isValidObjectId(correctionOfId)) {
+        return null;
+      }
+      const query = PaymentModel.findOne({ organizationId, correctionOfId });
+      if (session) {
+        query.session(session);
+      }
+      return query.lean().exec();
+    },
+
+    async updatePayment(session, organizationId, id, patch) {
+      const updated = await PaymentModel.findOneAndUpdate(
+        { _id: id, organizationId },
+        { $set: patch },
+        { new: true, ...withSession(session) },
+      )
+        .lean()
+        .exec();
+      return updated;
+    },
+
     async listPayments(organizationId, filter = {}) {
       const query = { organizationId, status: 'posted', partyType: filter.partyType ?? 'supplier' };
       if (filter.partyType === 'supplier' && filter.supplierId) {
@@ -93,6 +115,18 @@ function createInMemoryPaymentsStore() {
 
   return {
     async insertPayment(_session, doc) {
+      if (doc.correctionOfId) {
+        for (const existing of payments.values()) {
+          if (
+            String(existing.organizationId) === String(doc.organizationId) &&
+            String(existing.correctionOfId) === String(doc.correctionOfId)
+          ) {
+            const error = new Error('duplicate');
+            error.agrivioDuplicate = true;
+            throw error;
+          }
+        }
+      }
       const id = `payment-${paymentSeq++}`;
       const record = { _id: id, ...doc };
       payments.set(id, record);
@@ -111,6 +145,24 @@ function createInMemoryPaymentsStore() {
       if (!record || String(record.organizationId) !== String(organizationId)) {
         return null;
       }
+      return { ...record };
+    },
+
+    async findPaymentByCorrectionOfId(organizationId, correctionOfId) {
+      const record = [...payments.values()].find(
+        (item) =>
+          String(item.organizationId) === String(organizationId) &&
+          String(item.correctionOfId) === String(correctionOfId),
+      );
+      return record ? { ...record } : null;
+    },
+
+    async updatePayment(_session, organizationId, id, patch) {
+      const record = payments.get(id);
+      if (!record || String(record.organizationId) !== String(organizationId)) {
+        return null;
+      }
+      Object.assign(record, patch);
       return { ...record };
     },
 

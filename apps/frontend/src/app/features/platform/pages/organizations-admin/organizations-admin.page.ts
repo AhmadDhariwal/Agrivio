@@ -51,6 +51,13 @@ export class PlatformOrganizationsPage {
     reason: ['', [Validators.required, Validators.minLength(3)]],
   });
 
+  readonly createForm = this.formBuilder.nonNullable.group({
+    organizationName: ['', [Validators.required, Validators.maxLength(200)]],
+    ownerEmail: ['', [Validators.required, Validators.email]],
+    ownerDisplayName: ['', [Validators.required, Validators.maxLength(200)]],
+    timezone: ['Asia/Karachi'],
+  });
+
   constructor() {
     this.reload();
   }
@@ -80,6 +87,34 @@ export class PlatformOrganizationsPage {
         this.loading.set(false);
         this.errorMessage.set('Unable to load organizations.');
       },
+    });
+  }
+
+  createOrganization(): void {
+    if (this.createForm.invalid) {
+      this.createForm.markAllAsTouched();
+      this.errorMessage.set('Organization name, owner email, and owner display name are required.');
+      return;
+    }
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    const input = this.createForm.getRawValue();
+    this.api.create(input).subscribe({
+      next: (result) => {
+        this.successMessage.set(
+          result.duplicate
+            ? `Organization already exists (${result.status}).`
+            : `Created ${input.organizationName} in ${result.status}. Owner still needs approval and activation.`,
+        );
+        this.createForm.reset({
+          organizationName: '',
+          ownerEmail: '',
+          ownerDisplayName: '',
+          timezone: 'Asia/Karachi',
+        });
+        this.reload();
+      },
+      error: () => this.errorMessage.set('Create organization failed.'),
     });
   }
 
