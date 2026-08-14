@@ -82,6 +82,33 @@ function createMongooseLedgersStore() {
       return sumMinorUnits(records);
     },
 
+    async listPartyBalancesByEffectKind(organizationId, partyType, effectKind) {
+      const partyField = partyType === 'customer' ? 'customerId' : 'supplierId';
+      const query = {
+        organizationId,
+        partyType,
+        effectKind,
+        status: 'posted',
+      };
+      const records = await LedgerEffectModel.find(query)
+        .select({ [partyField]: 1, signedAmountMinorUnits: 1 })
+        .lean()
+        .exec();
+      const totals = new Map();
+      for (const record of records) {
+        const partyId = record[partyField] ? String(record[partyField]) : null;
+        if (!partyId) {
+          continue;
+        }
+        const current = totals.get(partyId) ?? 0n;
+        totals.set(partyId, current + BigInt(String(record.signedAmountMinorUnits ?? '0')));
+      }
+      return [...totals.entries()].map(([partyId, signedAmountMinorUnits]) => ({
+        partyId,
+        signedAmountMinorUnits: signedAmountMinorUnits.toString(),
+      }));
+    },
+
     async countPostedOpenings(organizationId, partyType) {
       const sourceTypes =
         partyType === 'customer'
@@ -179,6 +206,32 @@ function createInMemoryLedgersStore() {
           matchesFilter(item, filter),
       );
       return sumMinorUnits(records);
+    },
+
+    async listPartyBalancesByEffectKind(organizationId, partyType, effectKind) {
+      const partyField = partyType === 'customer' ? 'customerId' : 'supplierId';
+      const totals = new Map();
+      for (const item of effects.values()) {
+        if (String(item.organizationId) !== String(organizationId)) {
+          continue;
+        }
+        if (item.status !== 'posted') {
+          continue;
+        }
+        if (item.partyType !== partyType || item.effectKind !== effectKind) {
+          continue;
+        }
+        const partyId = item[partyField] ? String(item[partyField]) : null;
+        if (!partyId) {
+          continue;
+        }
+        const current = totals.get(partyId) ?? 0n;
+        totals.set(partyId, current + BigInt(String(item.signedAmountMinorUnits ?? '0')));
+      }
+      return [...totals.entries()].map(([partyId, signedAmountMinorUnits]) => ({
+        partyId,
+        signedAmountMinorUnits: signedAmountMinorUnits.toString(),
+      }));
     },
 
     async countPostedOpenings(organizationId, partyType) {

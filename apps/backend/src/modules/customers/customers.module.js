@@ -66,7 +66,12 @@ function createCustomersService(deps) {
   const idempotency = deps.idempotency;
   const now = deps.now ?? (() => new Date());
   const auditWriter = createAuditWriter({
-    append: (session, event) => store.appendAuditEvent(session, event),
+    append: async (session, event) => {
+      await store.appendAuditEvent(session, event);
+      if (deps.auditStore) {
+        await deps.auditStore.append(session, event);
+      }
+    },
   });
   const transactionRunner = deps.transactionRunner;
 
@@ -100,7 +105,20 @@ function createCustomersService(deps) {
       return buildCustomerDto(organizationId, record);
     },
 
-    async createCustomer(organizationId, body, actor) {
+    async findCustomerByName(organizationId, name) {
+      const needle = String(name ?? '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+      if (needle === '') {
+        return null;
+      }
+      const items = await store.listCustomers(organizationId);
+      const found = items.find((item) => String(item.nameNormalized) === needle);
+      return found ? toCustomerDto(found) : null;
+    },
+
+    async createCustomer(organizationId, body, actor, options = {}) {
       const input = parseCustomerCreate(body);
       const currentUsage = await store.countCustomers(organizationId);
       const entitlement = await assertCreationLimit(
@@ -111,7 +129,7 @@ function createCustomersService(deps) {
       );
 
       try {
-        return await transactionRunner.run(async (session) => {
+        return await transactionRunner.runWithOptionalSession(options.session, async (session) => {
           const created = await store.insertCustomer(session, {
             organizationId,
             ...input,
@@ -199,24 +217,13 @@ function createCustomersService(deps) {
       });
     },
 
-    async postOpeningBalance(organizationId, customerId, body, actor, idempotencyKey) {
+    async postOpeningBalance(organizationId, customerId, body, actor, idempotencyKey, options = {}) {
       if (!ledgersService) {
         throw validationFailed('Ledger service is not configured');
       }
-      const key = requireIdempotencyKey(idempotencyKey);
       const input = parseCustomerOpeningBalance(body);
 
-      const result = await idempotency.execute(
-        {
-          scopeType: 'organization',
-          organizationId,
-          actorId: actor.actorId,
-          operation: 'customers.opening-balance.post',
-        },
-        key,
-        { customerId, kind: input.kind, amountMinorUnits: input.amountMinorUnits },
-        async () => {
-          const dto = await transactionRunner.run(async (session) => {
+      const postWork = async (session) => {
             const current = await store.findCustomerById(organizationId, customerId);
             if (current === null) {
               throw notFound('Customer not found');
@@ -286,8 +293,25 @@ function createCustomersService(deps) {
                 ? { receivable: postedMoney, advance: zero }
                 : { receivable: zero, advance: postedMoney };
             return toCustomerDto(updated, derivedBalances);
-          });
+      };
 
+      if (options.session) {
+        const dto = await postWork(options.session);
+        return { replay: false, data: dto, statusCode: 201 };
+      }
+
+      const key = requireIdempotencyKey(idempotencyKey);
+      const result = await idempotency.execute(
+        {
+          scopeType: 'organization',
+          organizationId,
+          actorId: actor.actorId,
+          operation: 'customers.opening-balance.post',
+        },
+        key,
+        { customerId, kind: input.kind, amountMinorUnits: input.amountMinorUnits },
+        async () => {
+          const dto = await transactionRunner.run(postWork);
           return { statusCode: 201, body: dto };
         },
       );
@@ -335,6 +359,7 @@ function createCustomersModule(options) {
       ? {}
       : { evaluateEntitlement: options.evaluateEntitlement }),
     ...(options.ledgersService === undefined ? {} : { ledgersService: options.ledgersService }),
+    ...(options.auditStore === undefined ? {} : { auditStore: options.auditStore }),
     ...(options.now === undefined ? {} : { now: options.now }),
   });
 

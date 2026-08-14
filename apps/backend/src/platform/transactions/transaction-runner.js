@@ -10,6 +10,14 @@ function createTransactionRunner(port, options = {}) {
 
   return {
     async run(work) {
+      return this.runWithOptionalSession(undefined, work);
+    },
+
+    async runWithOptionalSession(existingSession, work) {
+      if (existingSession) {
+        return work(existingSession);
+      }
+
       let attempt = 0;
       let lastError;
 

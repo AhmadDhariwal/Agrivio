@@ -19,7 +19,7 @@ describe('buildSubscriptionBanner', () => {
 
     const suspended = buildSubscriptionBanner({ status: 'suspended' });
     expect(suspended?.tone).toBe('danger');
-    expect(suspended?.message).toContain('Operational writes are blocked');
+    expect(suspended?.message).toContain('Operational writes and imports are blocked');
   });
 
   it('does not treat frontend banners as authorization', () => {

@@ -51,6 +51,16 @@ const { createReturnsModule } = require('./modules/returns-corrections/returns.m
 const { registerReturnsRoutes } = require('./modules/returns-corrections/routes/returns.routes');
 const { registerPurchasesRoutes } = require('./modules/purchases/routes/purchases.routes');
 const { registerSalesRoutes } = require('./modules/sales/routes/sales.routes');
+const { createAlertsModule } = require('./modules/alerts/alerts.module');
+const { registerAlertsRoutes } = require('./modules/alerts/routes/alerts.routes');
+const { createReportingModule } = require('./modules/reporting/reporting.module');
+const { registerReportingRoutes } = require('./modules/reporting/routes/reporting.routes');
+const { createImportsModule } = require('./modules/imports/imports.module');
+const { registerImportsRoutes } = require('./modules/imports/routes/imports.routes');
+const { createAuditModule } = require('./modules/audit/audit.module');
+const { registerAuditRoutes } = require('./modules/audit/routes/audit.routes');
+const { createOperationsModule } = require('./modules/operations/operations.module');
+const { registerOperationsRoutes } = require('./modules/operations/routes/operations.routes');
 const { createSetupProgressService } = require('./modules/settings/setup-progress.service');
 const { canAccessBranch, canAccessWarehouse } = require('./modules/identity/assignment-scope');
 const { hasPermission } = require('./modules/identity/role-permissions');
@@ -94,6 +104,17 @@ function createApp(options) {
     markReferencedPlan: (planCode, planVersion, session, at) =>
       subscriptions.subscriptionService.markReferencedPlan(planCode, planVersion, session, at),
   });
+
+  const audit =
+    options.audit ??
+    createAuditModule({
+      persistence,
+      resolvePlanEntitlements: async (organizationId) => {
+        const access = await subscriptions.subscriptionService.resolveAccessState(organizationId);
+        return access?.plan?.entitlements ?? null;
+      },
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
 
   const locationsStore =
     options.locationsStore ??
@@ -181,6 +202,7 @@ function createApp(options) {
       evaluateEntitlement: (organizationId, entitlementOptions) =>
         subscriptions.subscriptionService.evaluateEntitlement(organizationId, entitlementOptions),
       ledgersService: options.ledgersService ?? ledgers.ledgersService,
+      auditStore: audit.store,
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
@@ -315,6 +337,70 @@ function createApp(options) {
       customersService: customers.customersService,
       locationsService: locations.locationsService,
       canAccessWarehouse,
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+
+  const resolveOrganizationTimezone = async (organizationId) => {
+    const organization = await onboardingCore.store.findOrganizationById(organizationId);
+    return organization?.timezone ?? 'Asia/Karachi';
+  };
+
+  const alerts =
+    options.alerts ??
+    createAlertsModule({
+      persistence,
+      inventoryService: inventory.inventoryService,
+      paymentsService: ledgers.paymentsService,
+      salesService: sales.salesService,
+      canAccessWarehouse,
+      resolveOrganizationTimezone,
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+
+  const reporting =
+    options.reporting ??
+    createReportingModule({
+      salesService: sales.salesService,
+      purchasesService: purchases.purchasesService,
+      accountsService: accounts.accountsService,
+      paymentsService: ledgers.paymentsService,
+      alertsService: alerts.alertsService,
+      returnsService: returns.returnsService,
+      inventoryService: inventory.inventoryService,
+      catalogService: catalog.catalogService,
+      customersService: customers.customersService,
+      resolveOrganizationTimezone,
+      resolvePlanEntitlements: async (organizationId) => {
+        const access = await subscriptions.subscriptionService.resolveAccessState(organizationId);
+        return access?.plan?.entitlements ?? null;
+      },
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+
+  const operations =
+    options.operations ??
+    createOperationsModule({
+      persistence,
+      auditStore: audit.store,
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+
+  const imports =
+    options.imports ??
+    createImportsModule({
+      persistence,
+      catalogService: catalog.catalogService,
+      customersService: customers.customersService,
+      suppliersService: suppliers.suppliersService,
+      accountsService: accounts.accountsService,
+      inventoryService: inventory.inventoryService,
+      locationsService: locations.locationsService,
+      canAccessWarehouse,
+      auditStore: audit.store,
+      resolvePlanEntitlements: async (organizationId) => {
+        const access = await subscriptions.subscriptionService.resolveAccessState(organizationId);
+        return access?.plan?.entitlements ?? null;
+      },
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
@@ -473,6 +559,43 @@ function createApp(options) {
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
   });
 
+  const alertsRoutes = registerAlertsRoutes({
+    alertsService: alerts.alertsService,
+    requireAuth: auth.middlewares.requireAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
+    requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+  });
+
+  const reportingRoutes = registerReportingRoutes({
+    reportingService: reporting.reportingService,
+    requireAuth: auth.middlewares.requireAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
+    requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+    requireSuspendedReadAccess: subscriptions.middlewares.requireSuspendedReadAccess,
+  });
+
+  const importsRoutes = registerImportsRoutes({
+    importsService: imports.importsService,
+    requireAuth: auth.middlewares.requireAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
+    requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+  });
+
+  const auditRoutes = registerAuditRoutes({
+    config,
+    auditService: audit.auditService,
+    requireAuth: auth.middlewares.requireAuth,
+    optionalAuth: auth.middlewares.optionalAuth,
+    requireSuspendedReadAccess: subscriptions.middlewares.requireSuspendedReadAccess,
+  });
+
+  const operationsRoutes = registerOperationsRoutes({
+    config,
+    operationsService: operations.operationsService,
+    requireCsrf: auth.middlewares.requireCsrf,
+    optionalAuth: auth.middlewares.optionalAuth,
+  });
+
   const app = express();
   app.disable('x-powered-by');
 
@@ -500,6 +623,11 @@ function createApp(options) {
   app.use(purchasesRoutes);
   app.use(salesRoutes);
   app.use(returnsRoutes);
+  app.use(alertsRoutes);
+  app.use(reportingRoutes);
+  app.use(importsRoutes);
+  app.use(auditRoutes);
+  app.use(operationsRoutes);
 
   if (typeof options.registerOperationalProbe === 'function') {
     options.registerOperationalProbe(app, {
@@ -541,6 +669,11 @@ function createApp(options) {
     purchases,
     sales,
     returns,
+    alerts,
+    reporting,
+    imports,
+    audit,
+    operations,
     ledgers,
     setupProgressService,
   };

@@ -169,6 +169,40 @@ function createLedgersService(deps) {
       return toMoneyDto(minor);
     },
 
+    async listCustomerReceivableBalances(organizationId) {
+      const rows = await store.listPartyBalancesByEffectKind(
+        organizationId,
+        'customer',
+        'receivable',
+      );
+      return {
+        items: rows
+          .map((row) => ({
+            customerId: row.partyId,
+            receivable: toMoneyDto(row.signedAmountMinorUnits),
+            receivableMinorUnits: String(row.signedAmountMinorUnits),
+          }))
+          .filter((row) => BigInt(row.receivableMinorUnits) > 0n),
+      };
+    },
+
+    async listSupplierPayableBalances(organizationId) {
+      const rows = await store.listPartyBalancesByEffectKind(
+        organizationId,
+        'supplier',
+        'payable',
+      );
+      return {
+        items: rows
+          .map((row) => ({
+            supplierId: row.partyId,
+            payable: toMoneyDto(row.signedAmountMinorUnits),
+            payableMinorUnits: String(row.signedAmountMinorUnits),
+          }))
+          .filter((row) => BigInt(row.payableMinorUnits) > 0n),
+      };
+    },
+
     async countCustomerOpenings(organizationId) {
       return store.countPostedOpenings(organizationId, 'customer');
     },

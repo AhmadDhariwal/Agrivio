@@ -3,7 +3,7 @@
     <agrivio-ui-loading-state label="Restoring your session…" />
   </div>
 } @else {
-  <div class="ag-shell">
+  <div class="ag-shell" data-testid="authenticated-shell">
     <aside class="ag-shell__sidebar" [class.is-open]="navOpen()" aria-label="Application navigation">
       <div>
         <a routerLink="/app" class="ag-shell__brand">Agrivio</a>
@@ -19,9 +19,59 @@
       </div>
 
       <nav class="ag-shell__nav">
-        <a routerLink="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+        <a routerLink="/app" href="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
           Workspace
         </a>
+        @if (canViewDashboard()) {
+          <a
+            routerLink="/app/dashboard"
+            href="/app/dashboard"
+            routerLinkActive="active"
+            data-testid="nav-dashboard"
+          >
+            Dashboard
+          </a>
+        }
+        @if (canViewAlerts()) {
+          <a
+            routerLink="/app/alerts"
+            href="/app/alerts"
+            routerLinkActive="active"
+            data-testid="nav-alerts"
+          >
+            Alerts
+          </a>
+        }
+        @if (canViewReports()) {
+          <a
+            routerLink="/app/reports"
+            href="/app/reports"
+            routerLinkActive="active"
+            data-testid="nav-reports"
+          >
+            Reports
+          </a>
+        }
+        @if (canPreviewImports()) {
+          <a
+            routerLink="/app/imports"
+            href="/app/imports"
+            routerLinkActive="active"
+            data-testid="nav-imports"
+          >
+            Imports
+          </a>
+        }
+        @if (canViewAudit()) {
+          <a
+            routerLink="/app/audit"
+            href="/app/audit"
+            routerLinkActive="active"
+            data-testid="nav-audit"
+          >
+            Audit
+          </a>
+        }
         <a routerLink="/context">Switch context</a>
         @if (canViewSettings()) {
           <a routerLink="/app/organization/settings" routerLinkActive="active">Settings</a>
@@ -134,6 +184,16 @@
         }
         @if (canReviewBilling()) {
           <a routerLink="/app/platform/billing-review" routerLinkActive="active">Billing review</a>
+        }
+        @if (canViewBackups()) {
+          <a
+            routerLink="/app/platform/operations"
+            href="/app/platform/operations"
+            routerLinkActive="active"
+            data-testid="nav-operations"
+          >
+            Backup status
+          </a>
         }
       </nav>
 

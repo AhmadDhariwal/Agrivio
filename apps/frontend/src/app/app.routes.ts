@@ -3,6 +3,7 @@ import {
   requirePlatformContextGuard,
   requireSessionGuard,
 } from './core/guards/session.guards';
+import { AppShellPage } from './features/shell/pages/app-shell/app-shell.page';
 
 export const appRoutes: Route[] = [
   {
@@ -42,13 +43,41 @@ export const appRoutes: Route[] = [
   {
     path: 'app',
     canActivate: [requireSessionGuard],
-    loadComponent: () =>
-      import('./features/shell/pages/app-shell/app-shell.page').then((m) => m.AppShellPage),
+    component: AppShellPage,
     children: [
       {
         path: '',
         loadComponent: () =>
           import('./features/shell/pages/workspace-home/workspace-home.page').then((m) => m.WorkspaceHomePage),
+      },
+      {
+        path: 'dashboard',
+        loadComponent: () =>
+          import('./features/dashboard/pages/dashboard/dashboard.page').then((m) => m.DashboardPage),
+      },
+      {
+        path: 'alerts',
+        loadComponent: () =>
+          import('./features/alerts/pages/notification-center/notification-center.page').then(
+            (m) => m.NotificationCenterPage,
+          ),
+      },
+      {
+        path: 'reports',
+        loadComponent: () =>
+          import('./features/reports/pages/reports/reports.page').then((m) => m.ReportsPage),
+      },
+      {
+        path: 'imports',
+        loadComponent: () =>
+          import('./features/imports/pages/imports/imports.page').then((m) => m.ImportsPage),
+      },
+      {
+        path: 'audit',
+        loadComponent: () =>
+          import('./features/audit/pages/audit-inquiry/audit-inquiry.page').then(
+            (m) => m.AuditInquiryPage,
+          ),
       },
       {
         path: 'subscription/billing',
@@ -77,6 +106,14 @@ export const appRoutes: Route[] = [
         loadComponent: () =>
           import('./features/platform/pages/billing-review/billing-review.page').then(
             (m) => m.PlatformBillingReviewPage,
+          ),
+      },
+      {
+        path: 'platform/operations',
+        canActivate: [requirePlatformContextGuard],
+        loadComponent: () =>
+          import('./features/platform/pages/operations-status/operations-status.page').then(
+            (m) => m.PlatformOperationsStatusPage,
           ),
       },
       {
@@ -467,6 +504,11 @@ export const appRoutes: Route[] = [
   {
     path: 'platform/billing-review',
     redirectTo: 'app/platform/billing-review',
+    pathMatch: 'full',
+  },
+  {
+    path: 'platform/operations',
+    redirectTo: 'app/platform/operations',
     pathMatch: 'full',
   },
   {

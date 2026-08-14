@@ -594,30 +594,10 @@ function createInventoryService(deps) {
       };
     },
 
-    async postOpeningStock(organizationId, body, actor, idempotencyKey) {
-      const key = requireIdempotencyKey(idempotencyKey);
+    async postOpeningStock(organizationId, body, actor, idempotencyKey, options = {}) {
       const input = parseOpeningStock(body);
 
-      const result = await idempotency.execute(
-        {
-          scopeType: 'organization',
-          organizationId,
-          actorId: actor.actorId,
-          operation: 'inventory.opening-stock.post',
-        },
-        key,
-        {
-          warehouseId: input.warehouseId,
-          productId: input.productId,
-          enteredQuantityMinorUnits: input.enteredQuantityMinorUnits,
-          packagingUnitId: input.packagingUnitId,
-          batchNumber: input.batchNumber,
-          manufacturingDate: input.manufacturingDate,
-          expiryDate: input.expiryDate,
-          inventoryValueMinorUnits: input.inventoryValueMinorUnits,
-        },
-        async () => {
-          const dto = await transactionRunner.run(async (session) => {
+      const postWork = async (session) => {
             const product = await catalogService.getProduct(organizationId, input.productId);
             assertActiveProduct(product);
             assertTrackingInputs(product, input);
@@ -627,6 +607,14 @@ function createInventoryService(deps) {
               input.warehouseId,
             );
             assertActiveWarehouse(warehouse);
+            const authContext = actor.authContext ?? options.authContext;
+            if (
+              typeof deps.canAccessWarehouse === 'function' &&
+              authContext &&
+              !deps.canAccessWarehouse(authContext, String(input.warehouseId))
+            ) {
+              throw forbidden('Warehouse is not assigned to this user');
+            }
 
             const unitSnapshot = await resolveUnitSnapshot(
               catalogService,
@@ -696,8 +684,34 @@ function createInventoryService(deps) {
               balance: effects.balance,
               costState: effects.costState,
             });
-          });
+      };
 
+      if (options.session) {
+        const dto = await postWork(options.session);
+        return { replay: false, data: dto, statusCode: 201 };
+      }
+
+      const key = requireIdempotencyKey(idempotencyKey);
+      const result = await idempotency.execute(
+        {
+          scopeType: 'organization',
+          organizationId,
+          actorId: actor.actorId,
+          operation: 'inventory.opening-stock.post',
+        },
+        key,
+        {
+          warehouseId: input.warehouseId,
+          productId: input.productId,
+          enteredQuantityMinorUnits: input.enteredQuantityMinorUnits,
+          packagingUnitId: input.packagingUnitId,
+          batchNumber: input.batchNumber,
+          manufacturingDate: input.manufacturingDate,
+          expiryDate: input.expiryDate,
+          inventoryValueMinorUnits: input.inventoryValueMinorUnits,
+        },
+        async () => {
+          const dto = await transactionRunner.run(postWork);
           return { statusCode: 201, body: dto };
         },
       );

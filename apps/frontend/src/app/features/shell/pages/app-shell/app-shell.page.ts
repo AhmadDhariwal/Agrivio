@@ -66,6 +66,14 @@ export class AppShellPage {
     this.sessionStore.hasPermission('customer-payments.view'),
   );
   readonly canViewInventory = computed(() => this.sessionStore.hasPermission('inventory.view'));
+  readonly canViewDashboard = computed(() => this.sessionStore.hasPermission('dashboard.view'));
+  readonly canViewAlerts = computed(() => this.sessionStore.hasPermission('alerts.view'));
+  readonly canViewReports = computed(() => this.sessionStore.hasPermission('reports.view'));
+  readonly canPreviewImports = computed(() => this.sessionStore.hasPermission('imports.preview'));
+  readonly canViewAudit = computed(() => this.sessionStore.hasPermission('audit.view'));
+  readonly canViewBackups = computed(() =>
+    this.sessionStore.hasPermission('operations.backups.view'),
+  );
 
 
   constructor() {

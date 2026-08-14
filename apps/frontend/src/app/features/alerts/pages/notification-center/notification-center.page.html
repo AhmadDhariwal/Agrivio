@@ -1,0 +1,70 @@
+<div data-testid="alerts-page">
+  <agrivio-ui-page-header
+    title="Notification center"
+    lede="In-app inventory and dues alerts. Values are read from inventory and ledgers."
+  />
+
+  @if (!canView()) {
+    <agrivio-ui-alert tone="warning" message="You do not have permission to view alerts." />
+  } @else if (loading()) {
+    <agrivio-ui-loading-state label="Loading notifications…" />
+  } @else {
+    @if (errorMessage(); as error) {
+      <agrivio-ui-alert tone="danger" [message]="error" />
+    }
+
+    @if (summaries(); as counts) {
+      <section class="dash-grid" aria-label="Alert summaries" data-testid="alert-summaries">
+        <div>
+          <h2>Low stock</h2>
+          <p data-testid="alert-summary-low-stock">{{ counts.lowStockCount }}</p>
+        </div>
+        <div>
+          <h2>Upcoming expiry</h2>
+          <p data-testid="alert-summary-upcoming-expiry">{{ counts.upcomingExpiryCount }}</p>
+        </div>
+        <div>
+          <h2>Expired stock</h2>
+          <p data-testid="alert-summary-expired-stock">{{ counts.expiredStockCount }}</p>
+        </div>
+        <div>
+          <h2>Dead stock</h2>
+          <p data-testid="alert-summary-dead-stock">{{ counts.deadStockCount }}</p>
+        </div>
+        <div>
+          <h2>Customer dues</h2>
+          <p data-testid="alert-summary-customer-dues">{{ counts.customerDuesCount }}</p>
+        </div>
+        <div>
+          <h2>Supplier dues</h2>
+          <p data-testid="alert-summary-supplier-dues">{{ counts.supplierDuesCount }}</p>
+        </div>
+      </section>
+    }
+
+    <p><a routerLink="/app/dashboard">Back to dashboard</a></p>
+
+    <ul class="notification-list" data-testid="notification-list">
+      @for (item of items(); track item.id) {
+        <li [attr.data-testid]="'notification-' + item.alertType">
+          <strong>{{ item.title }}</strong>
+          <p>{{ item.body }}</p>
+          @if (item.acknowledgedAt) {
+            <span>Acknowledged</span>
+          } @else {
+            <button
+              type="button"
+              [disabled]="acknowledgingId() === item.id"
+              (click)="acknowledge(item)"
+              data-testid="acknowledge-notification"
+            >
+              Acknowledge
+            </button>
+          }
+        </li>
+      } @empty {
+        <li>No active alerts.</li>
+      }
+    </ul>
+  }
+</div>

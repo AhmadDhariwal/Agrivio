@@ -135,6 +135,35 @@ export const API_WAREHOUSE_TRANSFERS_PATH = `${API_V1_PREFIX}/warehouse-transfer
 export const API_INVENTORY_RECONCILIATION_PATH =
   `${API_V1_PREFIX}/inventory/reconciliation` as const;
 
+/** Alert query results (R1-F08-001 / R1-F08-002). */
+export const API_ALERTS_PATH = `${API_V1_PREFIX}/alerts` as const;
+
+/** In-app notification presentation items (R1-F08-001). */
+export const API_NOTIFICATIONS_PATH = `${API_V1_PREFIX}/notifications` as const;
+
+/** Operational dashboard composition (R1-F08-003). */
+export const API_DASHBOARD_PATH = `${API_V1_PREFIX}/dashboard` as const;
+
+/** Fixed report query (R1-F08-004). */
+export const API_REPORTS_PATH = `${API_V1_PREFIX}/reports` as const;
+
+/** Excel import jobs (R1-F08-006). */
+export const API_IMPORTS_PATH = `${API_V1_PREFIX}/imports` as const;
+
+/** Organization audit-event inquiry (R1-F08-007). */
+export const API_AUDIT_EVENTS_PATH = `${API_V1_PREFIX}/audit-events` as const;
+
+/** Platform audit-event inquiry (R1-F08-007). */
+export const API_PLATFORM_AUDIT_EVENTS_PATH = `${API_V1_PREFIX}/platform/audit-events` as const;
+
+/** Platform backup status (R1-F08-008). */
+export const API_PLATFORM_OPERATIONS_BACKUPS_PATH =
+  `${API_V1_PREFIX}/platform/operations/backups` as const;
+
+/** Platform restore coordination (R1-F08-008). */
+export const API_PLATFORM_OPERATIONS_RESTORES_PATH =
+  `${API_V1_PREFIX}/platform/operations/restores` as const;
+
 /** Guided organization setup progress (R1-F03-013). */
 export const API_ORGANIZATION_SETUP_PROGRESS_PATH =
   `${API_V1_PREFIX}/organization/setup-progress` as const;
