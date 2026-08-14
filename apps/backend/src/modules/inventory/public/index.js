@@ -15,6 +15,11 @@ const {
 } = require('../inventory-posting');
 const { createInventoryModule, createInventoryService } = require('../inventory.module');
 const { isExpiredOnBusinessDate } = require('../allocation');
+const {
+  classifyExpiry,
+  resolveBusinessDate,
+  DEFAULT_EXPIRY_THRESHOLD_DAYS,
+} = require('../expiry');
 
 module.exports = {
   allocateStock,
@@ -25,7 +30,10 @@ module.exports = {
   applyCostInbound,
   applyCostOutbound,
   applyCostOutboundAtValue,
+  classifyExpiry,
   createInventoryModule,
   createInventoryService,
+  DEFAULT_EXPIRY_THRESHOLD_DAYS,
   isExpiredOnBusinessDate,
+  resolveBusinessDate,
 };

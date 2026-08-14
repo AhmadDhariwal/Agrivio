@@ -1,0 +1,22 @@
+.dash-meta {
+  margin: 0 0 1rem;
+  color: var(--ag-muted, #5b6470);
+}
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.dash-grid h2 {
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.dash-grid p {
+  margin: 0;
+  font-size: 1.15rem;
+}

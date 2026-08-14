@@ -1,0 +1,112 @@
+<agrivio-ui-page-header title="Dashboard" subtitle="Operational overview for today" />
+
+@if (!canView()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to view the dashboard." />
+} @else if (loading()) {
+  <agrivio-ui-loading-state label="Loading dashboard…" />
+} @else if (errorMessage(); as error) {
+  <agrivio-ui-alert tone="danger" [message]="error" />
+} @else if (dashboard(); as data) {
+  <p class="dash-meta" data-testid="dashboard-business-date">Business date: {{ data.businessDate }}</p>
+
+  <section class="dash-grid" aria-label="Today metrics">
+    <div>
+      <h2>Today's sales</h2>
+      <p data-testid="dash-todays-sales">{{ data.todaysSales.amount }} {{ data.todaysSales.currency }}</p>
+    </div>
+    <div>
+      <h2>Today's purchases</h2>
+      <p data-testid="dash-todays-purchases">
+        {{ data.todaysPurchases.amount }} {{ data.todaysPurchases.currency }}
+      </p>
+    </div>
+    <div>
+      <h2>Today's expenses</h2>
+      <p data-testid="dash-todays-expenses">
+        {{ data.todaysExpenses.amount }} {{ data.todaysExpenses.currency }}
+      </p>
+    </div>
+    <div>
+      <h2>Gross profit</h2>
+      <p data-testid="dash-gross-profit">{{ data.grossProfit.amount }} {{ data.grossProfit.currency }}</p>
+    </div>
+  </section>
+
+  <section class="dash-grid" aria-label="Balances">
+    <div>
+      <h2>Cash</h2>
+      <p>{{ data.cashBalances.amount }} {{ data.cashBalances.currency }}</p>
+    </div>
+    <div>
+      <h2>Bank</h2>
+      <p>{{ data.bankBalances.amount }} {{ data.bankBalances.currency }}</p>
+    </div>
+    <div>
+      <h2>JazzCash</h2>
+      <p>{{ data.jazzCashBalance.amount }} {{ data.jazzCashBalance.currency }}</p>
+    </div>
+    <div>
+      <h2>Easypaisa</h2>
+      <p>{{ data.easypaisaBalance.amount }} {{ data.easypaisaBalance.currency }}</p>
+    </div>
+    <div>
+      <h2>Customer receivables</h2>
+      <p data-testid="dash-receivables">
+        {{ data.customerReceivables.amount }} {{ data.customerReceivables.currency }}
+      </p>
+    </div>
+    <div>
+      <h2>Supplier payables</h2>
+      <p data-testid="dash-payables">
+        {{ data.supplierPayables.amount }} {{ data.supplierPayables.currency }}
+      </p>
+    </div>
+  </section>
+
+  <section class="dash-grid" aria-label="Inventory alerts">
+    <div>
+      <h2>Low stock</h2>
+      <p data-testid="dash-low-stock">{{ data.lowStockCount }}</p>
+    </div>
+    <div>
+      <h2>Upcoming expiry</h2>
+      <p data-testid="dash-upcoming-expiry">{{ data.upcomingExpiryCount }}</p>
+    </div>
+    <div>
+      <h2>Expired stock</h2>
+      <p data-testid="dash-expired-stock">{{ data.expiredStockCount }}</p>
+    </div>
+    <div>
+      <h2>Dead stock</h2>
+      <p data-testid="dash-dead-stock">{{ data.deadStockSummary.count }}</p>
+    </div>
+  </section>
+
+  <section aria-label="Recent sales">
+    <h2>Recent sales</h2>
+    <ul data-testid="dash-recent-sales">
+      @for (sale of data.recentSales; track sale.id) {
+        <li>
+          {{ sale.invoiceNumber || sale.id }} — {{ sale.saleDate }} —
+          {{ sale.saleTotal?.amount }} {{ sale.saleTotal?.currency }}
+        </li>
+      }
+    </ul>
+  </section>
+
+  <section aria-label="Top-selling products">
+    <h2>Top-selling products</h2>
+    <ul data-testid="dash-top-products">
+      @for (product of data.topSellingProducts; track product.productId) {
+        <li>
+          {{ product.productName }} — qty {{ product.quantityBase }} — {{ product.revenue.amount }}
+          {{ product.revenue.currency }}
+        </li>
+      }
+    </ul>
+  </section>
+
+  <p>
+    <a routerLink="/app/alerts" data-testid="dash-alerts-link">Open notification center</a>
+  </p>
+}

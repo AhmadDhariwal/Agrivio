@@ -51,6 +51,10 @@ const { createReturnsModule } = require('./modules/returns-corrections/returns.m
 const { registerReturnsRoutes } = require('./modules/returns-corrections/routes/returns.routes');
 const { registerPurchasesRoutes } = require('./modules/purchases/routes/purchases.routes');
 const { registerSalesRoutes } = require('./modules/sales/routes/sales.routes');
+const { createAlertsModule } = require('./modules/alerts/alerts.module');
+const { registerAlertsRoutes } = require('./modules/alerts/routes/alerts.routes');
+const { createReportingModule } = require('./modules/reporting/reporting.module');
+const { registerReportingRoutes } = require('./modules/reporting/routes/reporting.routes');
 const { createSetupProgressService } = require('./modules/settings/setup-progress.service');
 const { canAccessBranch, canAccessWarehouse } = require('./modules/identity/assignment-scope');
 const { hasPermission } = require('./modules/identity/role-permissions');
@@ -318,6 +322,40 @@ function createApp(options) {
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
+  const resolveOrganizationTimezone = async (organizationId) => {
+    const organization = await onboardingCore.store.findOrganizationById(organizationId);
+    return organization?.timezone ?? 'Asia/Karachi';
+  };
+
+  const alerts =
+    options.alerts ??
+    createAlertsModule({
+      persistence,
+      inventoryService: inventory.inventoryService,
+      paymentsService: ledgers.paymentsService,
+      salesService: sales.salesService,
+      canAccessWarehouse,
+      resolveOrganizationTimezone,
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+
+  const reporting =
+    options.reporting ??
+    createReportingModule({
+      salesService: sales.salesService,
+      purchasesService: purchases.purchasesService,
+      accountsService: accounts.accountsService,
+      paymentsService: ledgers.paymentsService,
+      alertsService: alerts.alertsService,
+      returnsService: returns.returnsService,
+      resolveOrganizationTimezone,
+      resolvePlanEntitlements: async (organizationId) => {
+        const access = await subscriptions.subscriptionService.resolveAccessState(organizationId);
+        return access?.plan?.entitlements ?? null;
+      },
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+
   purchaseReturnCreditsLookup.fn = (organizationId, purchaseId) =>
     returns.listPurchaseReturnCredits(organizationId, purchaseId);
   postedReturnsLookup.fn = (organizationId, purchaseId) =>
@@ -473,6 +511,20 @@ function createApp(options) {
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
   });
 
+  const alertsRoutes = registerAlertsRoutes({
+    alertsService: alerts.alertsService,
+    requireAuth: auth.middlewares.requireAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
+    requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+  });
+
+  const reportingRoutes = registerReportingRoutes({
+    reportingService: reporting.reportingService,
+    requireAuth: auth.middlewares.requireAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
+    requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+  });
+
   const app = express();
   app.disable('x-powered-by');
 
@@ -500,6 +552,8 @@ function createApp(options) {
   app.use(purchasesRoutes);
   app.use(salesRoutes);
   app.use(returnsRoutes);
+  app.use(alertsRoutes);
+  app.use(reportingRoutes);
 
   if (typeof options.registerOperationalProbe === 'function') {
     options.registerOperationalProbe(app, {
@@ -541,6 +595,8 @@ function createApp(options) {
     purchases,
     sales,
     returns,
+    alerts,
+    reporting,
     ledgers,
     setupProgressService,
   };

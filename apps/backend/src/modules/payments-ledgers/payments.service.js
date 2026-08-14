@@ -397,6 +397,18 @@ function createPaymentsService(deps) {
       return ledgersService.sumCustomerReceivable(organizationId, customerId);
     },
 
+    async sumSupplierPayable(organizationId, supplierId) {
+      return ledgersService.sumSupplierPayable(organizationId, supplierId);
+    },
+
+    async listCustomerReceivableBalances(organizationId) {
+      return ledgersService.listCustomerReceivableBalances(organizationId);
+    },
+
+    async listSupplierPayableBalances(organizationId) {
+      return ledgersService.listSupplierPayableBalances(organizationId);
+    },
+
     async listUnpaidPurchasesForSupplier(organizationId, supplierId) {
       if (typeof listUnpaidSupplierPurchases !== 'function') {
         return { items: [] };

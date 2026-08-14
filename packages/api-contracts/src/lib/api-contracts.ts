@@ -135,6 +135,15 @@ export const API_WAREHOUSE_TRANSFERS_PATH = `${API_V1_PREFIX}/warehouse-transfer
 export const API_INVENTORY_RECONCILIATION_PATH =
   `${API_V1_PREFIX}/inventory/reconciliation` as const;
 
+/** Alert query results (R1-F08-001 / R1-F08-002). */
+export const API_ALERTS_PATH = `${API_V1_PREFIX}/alerts` as const;
+
+/** In-app notification presentation items (R1-F08-001). */
+export const API_NOTIFICATIONS_PATH = `${API_V1_PREFIX}/notifications` as const;
+
+/** Operational dashboard composition (R1-F08-003). */
+export const API_DASHBOARD_PATH = `${API_V1_PREFIX}/dashboard` as const;
+
 /** Guided organization setup progress (R1-F03-013). */
 export const API_ORGANIZATION_SETUP_PROGRESS_PATH =
   `${API_V1_PREFIX}/organization/setup-progress` as const;
