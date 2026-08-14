@@ -75,6 +75,21 @@ export class SaleEditPage {
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly products = signal<ProductRecord[]>([]);
+  readonly productSearchQuery = signal('');
+  readonly filteredProducts = computed(() => {
+    const needle = this.productSearchQuery().trim().toLowerCase();
+    const items = this.products();
+    if (needle === '') {
+      return items;
+    }
+    return items.filter(
+      (item) =>
+        item.name.toLowerCase().includes(needle) ||
+        String(item.sku ?? '')
+          .toLowerCase()
+          .includes(needle),
+    );
+  });
   readonly branches = signal<BranchRecord[]>([]);
   readonly warehouses = signal<WarehouseRecord[]>([]);
   readonly customers = signal<CustomerRecord[]>([]);
@@ -214,6 +229,13 @@ export class SaleEditPage {
 
   packagingUnitsForLine(index: number): PackagingUnitRecord[] {
     return this.packagingByLine()[index] ?? [];
+  }
+
+  onProductSearchInput(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      this.productSearchQuery.set(target.value);
+    }
   }
 
   addLine(): void {

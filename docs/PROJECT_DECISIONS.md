@@ -184,6 +184,41 @@ Exact plan pricing and provider implementation details are not finalized in this
 * Settings
 * Backup and restore preparation
 
+## Release 1 performance acceptance (non-SLA)
+
+Accepted planning thresholds for REL-G06. Controlled non-production measurement only. Not a contractual SLA or production capacity claim.
+
+| Scenario | Target |
+| --- | --- |
+| POS product search p95 | <= 300 ms |
+| Common paginated/search list APIs p95 | <= 500 ms |
+| Inventory balance/list queries p95 | <= 500 ms |
+| Dashboard p95 | <= 1,000 ms |
+| Sale posting p95 | <= 1,000 ms |
+| Purchase posting p95 | <= 1,000 ms |
+| Standard reports p95 | <= 2,000 ms |
+| Browser route navigation to usable primary content p95 (navigation start, including required API work) | <= 2,000 ms |
+| Excel import preview, 500 rows, p95 | <= 5 seconds |
+| Excel import execution, 200 rows, p95 | <= 5 seconds |
+| Normal-request application error rate | < 1% |
+| Concurrency baseline | 20 concurrent virtual users, including at least 5 concurrent sale-posting users |
+
+Under that mixed workload: no duplicate invoices; no lost stock updates; no partial financial/stock effects; no tenant leakage; normal-request application error rate < 1%; read/API latency degradation must be recorded.
+
+Evidence command: `npm run test:perf:baseline` (replica-set HTTP) and `npm run test:perf:navigation` (browser routes).
+
+## Release 1 contrast standard (NFR-A11Y-006)
+
+R1-F09-004 uses WCAG 2.2 Level AA contrast criteria for NFR-A11Y-006. This does not claim complete WCAG 2.2 AA product conformance.
+
+| Surface | Minimum ratio |
+| --- | --- |
+| Normal text | 4.5:1 |
+| Large text | 3:1 |
+| Applicable non-text UI components / graphical objects (WCAG 1.4.11) | 3:1 |
+
+Evidence command: `npm run test:a11y:baseline` (includes rendered contrast scan).
+
 ## Explicitly Deferred
 
 The following are deferred and are not Release 1 requirements:

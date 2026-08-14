@@ -83,11 +83,26 @@ function createSuppliersService(deps) {
   return {
     async listSuppliers(organizationId) {
       const items = await store.listSuppliers(organizationId);
-      const mapped = [];
-      for (const item of items) {
-        mapped.push(await buildSupplierDto(organizationId, item));
+      if (!ledgersService || typeof ledgersService.mapPartyBalances !== 'function') {
+        const mapped = [];
+        for (const item of items) {
+          mapped.push(await buildSupplierDto(organizationId, item));
+        }
+        return { items: mapped };
       }
-      return { items: mapped };
+      const [payableMap, advanceMap] = await Promise.all([
+        ledgersService.mapPartyBalances(organizationId, 'supplier', 'payable'),
+        ledgersService.mapPartyBalances(organizationId, 'supplier', 'supplier_advance'),
+      ]);
+      const zero = { amount: '0.00', currency: 'PKR' };
+      return {
+        items: items.map((item) =>
+          toSupplierDto(item, {
+            payable: payableMap.get(String(item['_id'])) ?? zero,
+            advance: advanceMap.get(String(item['_id'])) ?? zero,
+          }),
+        ),
+      };
     },
 
     async getSupplier(organizationId, supplierId) {

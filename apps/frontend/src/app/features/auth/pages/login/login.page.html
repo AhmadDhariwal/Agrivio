@@ -12,9 +12,11 @@
         formControlName="email"
         autocomplete="username"
         data-testid="login-email"
+        [attr.aria-invalid]="form.controls.email.touched && form.controls.email.invalid ? true : null"
+        [attr.aria-describedby]="form.controls.email.touched && form.controls.email.invalid ? 'login-email-error' : null"
       />
       @if (form.controls.email.touched && form.controls.email.invalid) {
-        <p class="ag-field__error">Enter a valid email address.</p>
+        <p class="ag-field__error" id="login-email-error">Enter a valid email address.</p>
       }
     </div>
 
@@ -28,6 +30,14 @@
           formControlName="password"
           autocomplete="current-password"
           data-testid="login-password"
+          [attr.aria-invalid]="
+            form.controls.password.touched && form.controls.password.invalid ? true : null
+          "
+          [attr.aria-describedby]="
+            form.controls.password.touched && form.controls.password.invalid
+              ? 'login-password-error'
+              : null
+          "
         />
         <button
           type="button"
@@ -40,7 +50,9 @@
         </button>
       </div>
       @if (form.controls.password.touched && form.controls.password.invalid) {
-        <p class="ag-field__error">Password is required (minimum 12 characters).</p>
+        <p class="ag-field__error" id="login-password-error">
+          Password is required (minimum 12 characters).
+        </p>
       }
     </div>
 
@@ -48,6 +60,7 @@
       type="submit"
       class="ag-btn ag-btn--primary"
       [disabled]="submitting() || form.invalid"
+      [attr.aria-disabled]="submitting() || form.invalid"
       data-testid="login-submit"
     >
       {{ submitting() ? 'Signing in…' : 'Sign in' }}

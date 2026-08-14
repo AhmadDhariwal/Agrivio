@@ -2,7 +2,19 @@ const mongoose = require('mongoose');
 
 const auditEventSchema = new mongoose.Schema(
   {
-    organizationId: { type: mongoose.Schema.Types.ObjectId, index: true },
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      index: true,
+      set(value) {
+        if (value === undefined || value === null || value === '') {
+          return undefined;
+        }
+        if (!mongoose.isValidObjectId(value)) {
+          return undefined;
+        }
+        return value;
+      },
+    },
     actorId: { type: String, required: true },
     action: { type: String, required: true },
     resourceType: { type: String, required: true },
@@ -47,7 +59,15 @@ function toQueryDoc(doc) {
 function createMongooseAuditEventStore() {
   return {
     async append(session, event) {
-      await AuditEventModel.create([event], session ? { session } : undefined);
+      const doc = { ...event };
+      if (
+        doc.organizationId !== undefined &&
+        doc.organizationId !== null &&
+        !mongoose.isValidObjectId(doc.organizationId)
+      ) {
+        doc.organizationId = undefined;
+      }
+      await AuditEventModel.create([doc], session ? { session } : undefined);
     },
 
     async query(filter) {

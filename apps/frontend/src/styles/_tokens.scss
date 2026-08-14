@@ -5,8 +5,10 @@
   --ag-color-bg-accent: #e4ebe5;
   --ag-color-surface: #ffffff;
   --ag-color-surface-elevated: #f7faf8;
-  --ag-color-border: #cfdad3;
-  --ag-color-border-strong: #a8b9af;
+  --ag-color-border: #74867c;
+  --ag-color-border-strong: #5e7066;
+  --ag-border: var(--ag-color-border);
+  --ag-muted: var(--ag-color-text-muted);
 
   // Brand / primary
   --ag-color-primary: #1b5a3c;
@@ -31,7 +33,7 @@
 
   // Focus
   --ag-color-focus: #2f7d55;
-  --ag-focus-ring: 0 0 0 3px rgba(27, 90, 60, 0.28);
+  --ag-focus-ring: 0 0 0 2px var(--ag-color-surface), 0 0 0 4px var(--ag-color-focus);
 
   // Spacing scale
   --ag-space-1: 0.25rem;

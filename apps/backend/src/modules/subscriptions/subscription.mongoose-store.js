@@ -140,24 +140,29 @@ function createMongooseSubscriptionStore() {
     },
 
     async appendAuditEvent(session, event) {
-      await AuditEventModel.create([event], withSession(session));
+      const doc = { ...event };
+      if (
+        doc.organizationId !== undefined &&
+        doc.organizationId !== null &&
+        !mongoose.isValidObjectId(doc.organizationId)
+      ) {
+        doc.organizationId = undefined;
+      }
+      await AuditEventModel.create([doc], withSession(session));
     },
   };
 }
 
 function createMongooseTransactionSessionPort() {
   return {
-    async withTransaction(work) {
-      const session = await mongoose.startSession();
-      try {
-        let result;
-        await session.withTransaction(async () => {
-          result = await work(session);
-        });
-        return result;
-      } finally {
-        await session.endSession();
-      }
+    async startSession() {
+      return mongoose.startSession();
+    },
+    async withTransaction(session, work) {
+      return session.withTransaction(async () => work(session));
+    },
+    async endSession(session) {
+      await session.endSession();
     },
   };
 }

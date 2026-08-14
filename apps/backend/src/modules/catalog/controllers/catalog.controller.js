@@ -59,7 +59,14 @@ function createCatalogController(deps) {
 
     async listProducts(req, res, next) {
       try {
-        const data = await deps.catalogService.listProducts(requireOrganizationId(req));
+        const q = typeof req.query.q === 'string' ? req.query.q : '';
+        const limitRaw = req.query.limit;
+        const limit =
+          typeof limitRaw === 'string' && /^\d+$/.test(limitRaw) ? Number(limitRaw) : undefined;
+        const data = await deps.catalogService.listProducts(requireOrganizationId(req), {
+          q,
+          limit,
+        });
         sendSuccessEnvelope(res, 200, data);
       } catch (error) {
         next(error);
