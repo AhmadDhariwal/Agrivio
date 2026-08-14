@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, map, switchMap } from 'rxjs';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Observable, from, map, switchMap } from 'rxjs';
 import {
   API_CSRF_HEADER,
   API_IDEMPOTENCY_KEY_HEADER,
@@ -40,16 +40,29 @@ export class ImportsApi {
   upload(jobId: string, file: File): Observable<ImportJob> {
     return this.authApi.ensureCsrf().pipe(
       switchMap(({ csrfToken }) =>
-        this.http.post<{ data: ImportJob }>(`${this.baseUrl}/${jobId}/upload`, file, {
-          withCredentials: true,
-          headers: {
-            [API_CSRF_HEADER]: csrfToken,
-            'Content-Type': file.type || 'application/vnd.ms-excel',
-            'X-Filename': file.name,
-          },
-        }),
+        from(
+          fetch(`${this.baseUrl}/${jobId}/upload`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              [API_CSRF_HEADER]: csrfToken,
+              'Content-Type': 'application/octet-stream',
+              'X-Filename': file.name,
+            },
+            body: file,
+          }).then(async (response) => {
+            const payload = await response.json();
+            if (!response.ok) {
+              throw new HttpErrorResponse({
+                status: response.status,
+                error: payload,
+                url: response.url,
+              });
+            }
+            return payload.data as ImportJob;
+          }),
+        ),
       ),
-      map((response) => response.data),
     );
   }
 

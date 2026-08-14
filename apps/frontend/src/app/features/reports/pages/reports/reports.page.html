@@ -1,3 +1,4 @@
+<div data-testid="reports-page">
 <agrivio-ui-page-header title="Reports" lede="Fixed Release 1 reports composed from source modules" />
 
 @if (!canView()) {
@@ -46,13 +47,13 @@
 
     <button type="submit" class="ag-btn" data-testid="report-run">Run</button>
     @if (canExport()) {
-      <button type="button" class="ag-btn ag-btn--secondary" [disabled]="exporting()" (click)="exportFormat('pdf')">
+      <button type="button" class="ag-btn ag-btn--secondary" data-testid="export-pdf" [disabled]="exporting()" (click)="exportFormat('pdf')">
         PDF
       </button>
-      <button type="button" class="ag-btn ag-btn--secondary" [disabled]="exporting()" (click)="exportFormat('excel')">
+      <button type="button" class="ag-btn ag-btn--secondary" data-testid="export-excel" [disabled]="exporting()" (click)="exportFormat('excel')">
         Excel
       </button>
-      <button type="button" class="ag-btn ag-btn--secondary" [disabled]="exporting()" (click)="exportFormat('csv')">
+      <button type="button" class="ag-btn ag-btn--secondary" data-testid="export-csv" [disabled]="exporting()" (click)="exportFormat('csv')">
         CSV
       </button>
     }
@@ -95,3 +96,4 @@
     }
   }
 }
+</div>

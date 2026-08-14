@@ -3,7 +3,13 @@ import { expect, type APIRequestContext, type Page } from '@playwright/test';
 export const API = 'http://localhost:3000';
 export const OWNER_PASSWORD = 'owner-activation-passphrase';
 
-export async function seedStarterPlan(request: APIRequestContext): Promise<void> {
+export async function seedStarterPlan(
+  request: APIRequestContext,
+  extras?: {
+    limits?: Record<string, number>;
+    entitlements?: Record<string, unknown>;
+  },
+): Promise<void> {
   const csrf = await request.post(`${API}/api/v1/auth/csrf`);
   const csrfBody = await csrf.json();
   const token = csrfBody.data.csrfToken as string;
@@ -16,7 +22,8 @@ export async function seedStarterPlan(request: APIRequestContext): Promise<void>
       planCode: 'Starter',
       activate: true,
       monthlyPriceMinorUnits: 1000,
-      limits: { customers: 50, suppliers: 50, products: 50, warehouses: 20, users: 20 },
+      limits: extras?.limits ?? { customers: 50, suppliers: 50, products: 50, warehouses: 20, users: 20 },
+      ...(extras?.entitlements ? { entitlements: extras.entitlements } : {}),
     },
   });
   expect([200, 201]).toContain(plan.status());
@@ -40,14 +47,19 @@ export async function enterPlatformWorkspace(page: Page): Promise<void> {
 export async function bootstrapApprovedOwner(
   page: Page,
   request: APIRequestContext,
-  input: { organizationName: string; ownerEmail: string; displayName: string },
+  input: {
+    organizationName: string;
+    ownerEmail: string;
+    displayName: string;
+    entitlements?: Record<string, unknown>;
+  },
 ): Promise<void> {
   const bootstrap = await request.post(`${API}/api/v1/test/e2e/bootstrap`);
   expect(bootstrap.status()).toBe(200);
   const bootstrapBody = await bootstrap.json();
   const superAdmin = bootstrapBody.data.superAdmin as { email: string; password: string };
 
-  await seedStarterPlan(request);
+  await seedStarterPlan(request, { entitlements: input.entitlements });
   await page.goto('/request-access');
   await page.getByTestId('org-name').fill(input.organizationName);
   await page.getByTestId('owner-email').fill(input.ownerEmail);

@@ -105,6 +105,17 @@ function createApp(options) {
       subscriptions.subscriptionService.markReferencedPlan(planCode, planVersion, session, at),
   });
 
+  const audit =
+    options.audit ??
+    createAuditModule({
+      persistence,
+      resolvePlanEntitlements: async (organizationId) => {
+        const access = await subscriptions.subscriptionService.resolveAccessState(organizationId);
+        return access?.plan?.entitlements ?? null;
+      },
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+
   const locationsStore =
     options.locationsStore ??
     (persistence === 'mongoose' ? createMongooseLocationsStore() : createInMemoryLocationsStore());
@@ -191,6 +202,7 @@ function createApp(options) {
       evaluateEntitlement: (organizationId, entitlementOptions) =>
         subscriptions.subscriptionService.evaluateEntitlement(organizationId, entitlementOptions),
       ledgersService: options.ledgersService ?? ledgers.ledgersService,
+      auditStore: audit.store,
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
@@ -365,17 +377,6 @@ function createApp(options) {
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
-  const audit =
-    options.audit ??
-    createAuditModule({
-      persistence,
-      resolvePlanEntitlements: async (organizationId) => {
-        const access = await subscriptions.subscriptionService.resolveAccessState(organizationId);
-        return access?.plan?.entitlements ?? null;
-      },
-      ...(options.now === undefined ? {} : { now: options.now }),
-    });
-
   const operations =
     options.operations ??
     createOperationsModule({
@@ -395,6 +396,7 @@ function createApp(options) {
       inventoryService: inventory.inventoryService,
       locationsService: locations.locationsService,
       canAccessWarehouse,
+      auditStore: audit.store,
       resolvePlanEntitlements: async (organizationId) => {
         const access = await subscriptions.subscriptionService.resolveAccessState(organizationId);
         return access?.plan?.entitlements ?? null;

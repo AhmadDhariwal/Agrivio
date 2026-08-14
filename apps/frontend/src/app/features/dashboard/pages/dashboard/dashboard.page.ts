@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { DashboardApi } from '../../data-access/dashboard.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
@@ -22,6 +23,9 @@ export class DashboardPage {
   readonly errorMessage = signal<string | null>(null);
   readonly dashboard = signal<DashboardPayload | null>(null);
   readonly canView = computed(() => this.sessionStore.hasPermission('dashboard.view'));
+  readonly suspended = computed(
+    () => this.sessionStore.session()?.subscriptionAccessState?.status === 'suspended',
+  );
 
   constructor() {
     this.reload();
@@ -32,15 +36,27 @@ export class DashboardPage {
       this.loading.set(false);
       return;
     }
+    if (this.suspended()) {
+      this.loading.set(false);
+      this.dashboard.set(null);
+      this.errorMessage.set(
+        'Subscription is suspended. The operational dashboard is blocked until reactivation. Historical reports and entitled exports remain available.',
+      );
+      return;
+    }
     this.loading.set(true);
     this.dashboardApi.getDashboard().subscribe({
       next: (data) => {
         this.dashboard.set(data);
         this.loading.set(false);
       },
-      error: () => {
+      error: (error: unknown) => {
         this.loading.set(false);
-        this.errorMessage.set('Unable to load dashboard.');
+        this.errorMessage.set(
+          error instanceof HttpErrorResponse
+            ? (error.error?.error?.message ?? 'Unable to load dashboard.')
+            : 'Unable to load dashboard.',
+        );
       },
     });
   }
