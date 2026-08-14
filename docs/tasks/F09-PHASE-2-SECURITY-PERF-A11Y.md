@@ -2,22 +2,50 @@
 
 ## Task Status
 
-* Status: **Not started / preparatory artifacts only — Frozen DoD not accepted**
-* Date: 2026-08-14 (status corrected)
-* Work items: `R1-F09-002`, `R1-F09-003`, `R1-F09-004`
+* Status: **R1-F09-002 complete; R1-F09-003 and R1-F09-004 not started as Frozen DoD**
+* Date: 2026-08-14
+* Work items: `R1-F09-002` (accepted this record), `R1-F09-003`, `R1-F09-004`
 
-## Preparatory (unaccepted)
+## R1-F09-002 — Security review and tenant-isolation attack tests
 
-In-repo suites and UI landmarks exist from premature work. They may run in unit/E2E jobs. They do **not** satisfy Frozen DoD.
+**Status: complete** for Frozen REL-G03 / REL-G05 evidence in this work item.
 
-| ID | Frozen DoD gap |
-| --- | --- |
-| R1-F09-002 | Attack/isolation tests exist as rehearsal. REL-G03/REL-G05 are not closed: no security review acceptance, rate-limit production values remain a controlled unresolved item until the F09 security review. |
-| R1-F09-003 | Permission-matrix spec is preparatory. REL-G04 is not accepted until the matrix is verified as the F09 P2 work item against the frozen 81-permission catalog with that phase’s evidence. |
-| R1-F09-004 | `f09-accessibility.e2e.spec.ts` may run with Playwright; that does not complete REL-G07. Browser accessibility baseline was not an accepted F09 P2 gate. REL-G06 cannot pass: Frozen production performance thresholds remain unresolved (QUALITY_GATES / IMPLEMENTATION_ROADMAP). No invented numeric SLA. |
+Adversarial review of existing Release 1 behavior (not new product features). Preparatory `f09-security-attack.spec.js` was reviewed and replaced with representative attack coverage; it is not treated as previously accepted.
+
+### Finding inventory
+
+| ID | Severity | Endpoint / workflow | Reproduction | Root cause | Fix | Regression test | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| F09-002-C1 | — | — | — | No genuine Critical finding | — | — | None |
+| F09-002-H1 | — | — | — | No genuine High finding | — | — | None |
+| F09-002-M1 | Medium | Auth throttle key (`clientKey`) | Send varying `X-Forwarded-For` on login | First forwarded hop is trusted without an explicit trusted-proxy flag | Production must sit behind a trusted reverse proxy; do not expose Node directly. Not a Frozen throttle-number change | Covered as residual risk; not altered in this item | Open (documented) |
+| F09-002-L1 | Low | `X-Platform-Actor` | Header in non-production | Documented test/dev bypass | Production middleware rejects the header | `platform-actor.middleware.spec.js`; F09-002 platform suite | Closed as designed |
+| F09-002-L2 | Low | Angular org child routes | Open `/app/purchases` without permission | Frontend has session/platform guards only | Frozen: UI is usability, API is authoritative | `app.routes.spec.ts`; cashier API 403 | Closed as designed |
+| F09-002-L3 | Low | Password-reset test handoff | `resetTokenForTest` when `nodeEnv === 'test'` | Test-only delivery of hashed-token plaintext | Client headers cannot select test env; production omits the field | F09-002 CSRF/session suite | Closed as designed |
+
+No risk acceptance was manufactured. QUALITY_GATES still leave exact *production* numeric rate-limit contracts unresolved; the **coded default** remains 20 attempts / 15 minutes, and the 10_000 test ceiling applies only when server `nodeEnv === 'test'`.
+
+### Attack coverage
+
+* Tenant isolation: two real orgs; path/body/filter/warehouse/customer/supplier/product/account/import/audit probes; 403/404 without foreign names or secrets
+* Platform vs org: org user cannot use platform APIs; platform context cannot use org APIs; context switch to platform denied; `createSystemScope` rejects request-like tokens; production blocks `X-Platform-Actor`
+* Authorization bypass: unauthenticated 401; cashier vs purchases/reports/catalog.manage; StoreKeeper adjacent catalog.manage; foreign warehouse assignment; UI routes are not permission-gated
+* CSRF/session: missing/invalid/mismatched CSRF; disallowed Origin/Referer; HttpOnly + SameSite=Lax; login rotation; logout; expired session; reset does not reveal unknown emails
+* Subscription: suspended blocks operational writes/imports/dashboard; report view remains allowed; org data retained
+* Sensitive data: session/users omit hashes; 404 has no stack; malformed IDs do not 500
+* Rate-limit isolation: default 20/15 min; test ceiling only from `nodeEnv === 'test'`
+
+### Out of scope (this ID)
+
+* R1-F09-003 81-permission matrix (REL-G04)
+* R1-F09-004 performance/accessibility baselines (REL-G06/G07)
+
+## R1-F09-003 / R1-F09-004
+
+Still **not accepted**. Preparatory permission-matrix and a11y/perf artifacts remain rehearsal only.
 
 ## Out of scope for this record
 
-* External penetration-test vendor procurement.
-* Final SLA contracts.
-* Claiming Phase 2 complete.
+* External penetration-test vendor procurement
+* Final SLA contracts
+* Claiming Phase 2 complete
