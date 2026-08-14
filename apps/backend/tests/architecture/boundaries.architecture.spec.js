@@ -72,4 +72,11 @@ describe('architecture boundaries', () => {
     }
     expect(violations).toEqual([]);
   });
+
+  it('requires additive Frozen permissions on purchase-return routes', () => {
+    const returnsRoutes = join(backendRoot, 'modules/returns-corrections/routes/returns.routes.js');
+    const source = readFileSync(returnsRoutes, 'utf8');
+    expect(source).toContain("createRequirePermissionMiddleware('returns.post')");
+    expect(source).toContain("createRequirePermissionMiddleware('purchases.return')");
+  });
 });

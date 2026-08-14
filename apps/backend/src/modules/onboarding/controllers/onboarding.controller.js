@@ -36,6 +36,20 @@ function createPlatformOrganizationController(deps) {
       }
     },
 
+    async create(req, res, next) {
+      try {
+        const actor = req.platformActor;
+        const result = await deps.onboardingService.createOrganization(
+          req.body ?? {},
+          { actorId: actor?.actorId ?? 'unknown' },
+          req.get('Idempotency-Key'),
+        );
+        sendSuccessEnvelope(res, result.statusCode ?? 201, result.data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async getById(req, res, next) {
       try {
         const id = String(req.params['id'] ?? '');
@@ -83,6 +97,22 @@ function createPlatformOrganizationController(deps) {
           actorId: actor?.actorId ?? 'unknown',
         });
         sendSuccessEnvelope(res, 200, result);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async suspend(req, res, next) {
+      try {
+        const id = String(req.params['id'] ?? '');
+        const actor = req.platformActor;
+        const result = await deps.onboardingService.suspendOrganization(
+          id,
+          req.body ?? {},
+          { actorId: actor?.actorId ?? 'unknown' },
+          req.get('Idempotency-Key'),
+        );
+        sendSuccessEnvelope(res, result.statusCode ?? 200, result.data);
       } catch (error) {
         next(error);
       }

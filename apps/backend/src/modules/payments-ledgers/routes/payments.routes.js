@@ -4,6 +4,7 @@ const {
   API_CUSTOMER_PAYMENTS_PATH,
   API_SUPPLIERS_PATH,
   API_CUSTOMERS_PATH,
+  API_PAYMENTS_PATH,
 } = require('@agrivio/api-contracts');
 const {
   createRequireOrganizationContextMiddleware,
@@ -125,6 +126,18 @@ function registerPaymentsRoutes(deps) {
     deps.requireOperationalAccess,
     (req, res, next) => {
       void controller.listCustomerLedger(req, res, next);
+    },
+  );
+
+  router.post(
+    `${API_PAYMENTS_PATH}/:id/correct`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('payments.correct'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.correctPayment(req, res, next);
     },
   );
 

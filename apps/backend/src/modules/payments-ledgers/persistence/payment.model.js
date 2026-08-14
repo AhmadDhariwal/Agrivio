@@ -53,6 +53,17 @@ const paymentSchema = new mongoose.Schema(
       required: true,
       ref: 'User',
     },
+    correctionOfId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Payment',
+      default: null,
+    },
+    reason: { type: String, default: '' },
+    replacementPaymentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Payment',
+      default: null,
+    },
   },
   { timestamps: true, collection: 'payments' },
 );
@@ -61,6 +72,14 @@ paymentSchema.index({ organizationId: 1, status: 1, postedAt: -1 });
 paymentSchema.index({ organizationId: 1, supplierId: 1, postedAt: -1 });
 paymentSchema.index({ organizationId: 1, customerId: 1, postedAt: -1 });
 paymentSchema.index({ organizationId: 1, accountId: 1, postedAt: -1 });
+paymentSchema.index(
+  { organizationId: 1, correctionOfId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { correctionOfId: { $type: 'objectId' } },
+    name: 'payments_correction_of_unique',
+  },
+);
 
 const PaymentModel = mongoose.models['Payment'] || mongoose.model('Payment', paymentSchema);
 

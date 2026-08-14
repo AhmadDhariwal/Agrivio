@@ -16,10 +16,12 @@
 * Super Admin organization list/detail
 * Explicit approve route (`POST .../approve`)
 * Explicit reject route (`POST .../reject`) — name matches behaviour
+* Later Frozen-gap close (2026-08-14, not a new F02 ID): `POST /api/v1/platform/organizations` reuses this pending-org path; `POST .../:id/suspend` orchestrates the F02-011 subscription lifecycle
 * Secure activation-token creation, SHA-256 hash at rest, 24h expiry, single-use
 * Owner activation (`POST /api/v1/auth/activate`) with Argon2id password hashing
 * Canonical collections only: `organizations`, `users`, `organization_memberships`, `subscriptions`, `account_activation_tokens`, `audit_events`
 * Trial subscription created on approval (frozen DATA_MODEL / SUBSCRIPTION_AND_BILLING requirement)
+* Later Frozen-gap close (2026-08-14): organization-level `POST .../suspend` orchestrates this same `suspendSubscription` lifecycle; it does not add a second state machine
 * Angular `/request-access` and `/activate`
 
 ## Security Corrections

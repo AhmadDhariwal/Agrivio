@@ -106,6 +106,9 @@ export const API_SALES_PATH = `${API_V1_PREFIX}/sales` as const;
 /** Customer payments (R1-F06-001). */
 export const API_CUSTOMER_PAYMENTS_PATH = `${API_V1_PREFIX}/customer-payments` as const;
 
+/** Payment correction base path (R1-F09-003 gap close). */
+export const API_PAYMENTS_PATH = `${API_V1_PREFIX}/payments` as const;
+
 /** Purchase returns and corrections (R1-F05-006+). */
 export const API_RETURNS_PATH = `${API_V1_PREFIX}/returns` as const;
 

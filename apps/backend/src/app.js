@@ -103,6 +103,10 @@ function createApp(options) {
       subscriptions.subscriptionService.resolveTrialPlanReference(planCode),
     markReferencedPlan: (planCode, planVersion, session, at) =>
       subscriptions.subscriptionService.markReferencedPlan(planCode, planVersion, session, at),
+    getOrganizationSubscription: (organizationId) =>
+      subscriptions.subscriptionService.getOrganizationSubscription(organizationId),
+    suspendSubscription: (subscriptionId, body, actor) =>
+      subscriptions.subscriptionService.suspendSubscription(subscriptionId, body, actor),
   });
 
   const audit =

@@ -26,6 +26,7 @@
 * Automatic expiry evaluation: trial→grace, active→grace, grace→suspended
 * Centralized entitlement evaluation (`entitlement.js`) and Express middleware labels (`billing-access`, `operational`, `suspended-read`)
 * Suspended organizations may use billing-access routes; operational writes are backend-blocked
+* Later Frozen-gap close (2026-08-14): `POST /api/v1/platform/organizations/:id/suspend` calls this same `suspendSubscription` path
 * Session snapshot includes informational `subscriptionAccessState` (non-authoritative)
 * Frontend banners/pages are informational only and never replace backend enforcement
 * Unknown entitlement labels / unconfigured feature entitlements default safely to deny; unconfigured numeric limits are not invented
