@@ -299,6 +299,18 @@ function parsePackagingUnitsReplace(body) {
   return { expectedVersion, items };
 }
 
+function parsePriceCreate(body) {
+  assertObjectBody(body);
+  const priceTier = parsePriceTier(body.priceTier);
+  const money = parseMoneyInput(body.price, 'price');
+  return {
+    priceTier,
+    amountMinorUnits: money.amountMinorUnits,
+    currency: money.currency,
+    status: 'active',
+  };
+}
+
 function parsePricesReplace(body) {
   assertObjectBody(body);
   const expectedVersion = parseExpectedVersion(body);
@@ -391,6 +403,7 @@ module.exports = {
   parseProductCreate,
   parseProductPatch,
   parsePackagingUnitsReplace,
+  parsePriceCreate,
   parsePricesReplace,
   assertTrackingModeAllowed,
   toCategoryDto,

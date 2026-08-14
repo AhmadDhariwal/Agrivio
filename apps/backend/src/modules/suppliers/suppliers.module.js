@@ -98,7 +98,20 @@ function createSuppliersService(deps) {
       return buildSupplierDto(organizationId, record);
     },
 
-    async createSupplier(organizationId, body, actor) {
+    async findSupplierByName(organizationId, name) {
+      const needle = String(name ?? '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+      if (needle === '') {
+        return null;
+      }
+      const items = await store.listSuppliers(organizationId);
+      const found = items.find((item) => String(item.nameNormalized) === needle);
+      return found ? toSupplierDto(found) : null;
+    },
+
+    async createSupplier(organizationId, body, actor, options = {}) {
       const input = parseSupplierCreate(body);
       const currentUsage = await store.countSuppliers(organizationId);
       const entitlement = await assertCreationLimit(
@@ -109,7 +122,7 @@ function createSuppliersService(deps) {
       );
 
       try {
-        return await transactionRunner.run(async (session) => {
+        return await transactionRunner.runWithOptionalSession(options.session, async (session) => {
           const created = await store.insertSupplier(session, {
             organizationId,
             ...input,
@@ -157,24 +170,13 @@ function createSuppliersService(deps) {
       }
     },
 
-    async postOpeningBalance(organizationId, supplierId, body, actor, idempotencyKey) {
+    async postOpeningBalance(organizationId, supplierId, body, actor, idempotencyKey, options = {}) {
       if (!ledgersService) {
         throw validationFailed('Ledger service is not configured');
       }
-      const key = requireIdempotencyKey(idempotencyKey);
       const input = parseSupplierOpeningBalance(body);
 
-      const result = await idempotency.execute(
-        {
-          scopeType: 'organization',
-          organizationId,
-          actorId: actor.actorId,
-          operation: 'suppliers.opening-balance.post',
-        },
-        key,
-        { supplierId, kind: input.kind, amountMinorUnits: input.amountMinorUnits },
-        async () => {
-          const dto = await transactionRunner.run(async (session) => {
+      const postWork = async (session) => {
             const current = await store.findSupplierById(organizationId, supplierId);
             if (current === null) {
               throw notFound('Supplier not found');
@@ -244,8 +246,25 @@ function createSuppliersService(deps) {
                 ? { payable: postedMoney, advance: zero }
                 : { payable: zero, advance: postedMoney };
             return toSupplierDto(updated, derivedBalances);
-          });
+      };
 
+      if (options.session) {
+        const dto = await postWork(options.session);
+        return { replay: false, data: dto, statusCode: 201 };
+      }
+
+      const key = requireIdempotencyKey(idempotencyKey);
+      const result = await idempotency.execute(
+        {
+          scopeType: 'organization',
+          organizationId,
+          actorId: actor.actorId,
+          operation: 'suppliers.opening-balance.post',
+        },
+        key,
+        { supplierId, kind: input.kind, amountMinorUnits: input.amountMinorUnits },
+        async () => {
+          const dto = await transactionRunner.run(postWork);
           return { statusCode: 201, body: dto };
         },
       );

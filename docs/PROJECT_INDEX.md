@@ -51,7 +51,8 @@ Central navigation for Agrivio documentation.
 * F07 Phase 4 complete (`R1-F07-009`) — see [tasks/F07-PHASE-4-ACCOUNTS-EXPENSES-RETURNS-SLICE.md](tasks/F07-PHASE-4-ACCOUNTS-EXPENSES-RETURNS-SLICE.md); returns/accounts/expenses Angular vertical slice, stage-exit reconciliation and E2E; **F07 stage exit ready pending acceptance**
 * F08 Phase 1 complete (`R1-F08-001`–`R1-F08-003`) — see [tasks/F08-PHASE-1-ALERTS-DASHBOARD.md](tasks/F08-PHASE-1-ALERTS-DASHBOARD.md); inventory/dues alerts and operational dashboard
 * F08 Phase 2 complete (`R1-F08-004`, `R1-F08-005`) — see [tasks/F08-PHASE-2-FIXED-REPORTS-EXPORTS.md](tasks/F08-PHASE-2-FIXED-REPORTS-EXPORTS.md); fixed reports and PDF/Excel/CSV exports
-* Next work item: **F08 P3** (`R1-F08-006`) Excel import preview and execution
+* F08 Phase 3 complete (`R1-F08-006`) — see [tasks/F08-PHASE-3-EXCEL-IMPORTS.md](tasks/F08-PHASE-3-EXCEL-IMPORTS.md); Excel import preview and all-or-nothing execution
+* Next work item: **F08 P4** (`R1-F08-007`) Audit views
 
 ## Existing Documents
 
@@ -117,7 +118,7 @@ Central navigation for Agrivio documentation.
 | [tasks/F07-PHASE-3-ACCOUNT-TRANSACTIONS-EXPENSES.md](tasks/F07-PHASE-3-ACCOUNT-TRANSACTIONS-EXPENSES.md) | F07 Phase 3: manual account transactions, reversals, expenses (`R1-F07-006`–`R1-F07-008`) |
 | [tasks/F07-PHASE-4-ACCOUNTS-EXPENSES-RETURNS-SLICE.md](tasks/F07-PHASE-4-ACCOUNTS-EXPENSES-RETURNS-SLICE.md) | F07 Phase 4: accounts/expenses/returns Angular vertical slice and stage-exit E2E (`R1-F07-009`) |
 | [tasks/F08-PHASE-1-ALERTS-DASHBOARD.md](tasks/F08-PHASE-1-ALERTS-DASHBOARD.md) | F08 Phase 1: inventory/dues alerts and operational dashboard (`R1-F08-001`–`003`) |
-| [tasks/F08-PHASE-2-FIXED-REPORTS-EXPORTS.md](tasks/F08-PHASE-2-FIXED-REPORTS-EXPORTS.md) | F08 Phase 2: fixed reports and PDF/Excel/CSV exports (`R1-F08-004`, `R1-F08-005`) |
+| [tasks/F08-PHASE-3-EXCEL-IMPORTS.md](tasks/F08-PHASE-3-EXCEL-IMPORTS.md) | F08 Phase 3: Excel import preview and execution (`R1-F08-006`) |
 | [tasks/F01-PHASE-1-PLATFORM-RUNTIME.md](tasks/F01-PHASE-1-PLATFORM-RUNTIME.md) | F01 Phase 1: platform runtime foundation |
 | [tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md](tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md) | F01 Phase 2: transactional platform foundation (completes F01) |
 | [../README.md](../README.md) | Repository landing page |
