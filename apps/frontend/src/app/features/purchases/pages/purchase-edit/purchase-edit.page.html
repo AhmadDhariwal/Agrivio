@@ -16,7 +16,7 @@
   <agrivio-ui-alert tone="warning" message="You do not have permission to view or edit purchases." />
 } @else {
   @if (isCancelled()) {
-    <div class="cancelled-banner" data-testid="purchase-cancelled-banner">
+    <div class="ag-alert ag-alert--danger cancelled-banner" data-testid="purchase-cancelled-banner">
       Cancelled — all effects have been reversed.
       @if (purchase()?.cancellationReason) {
         Reason: {{ purchase()!.cancellationReason }}
@@ -26,11 +26,11 @@
       }
     </div>
   } @else if (isPosted()) {
-    <div class="posted-banner" data-testid="purchase-posted-banner">
+    <div class="ag-alert ag-alert--success posted-banner" data-testid="purchase-posted-banner">
       Posted — inventory, payable, and payment effects are locked.
     </div>
   } @else {
-    <div class="draft-banner" data-testid="purchase-draft-banner">
+    <div class="ag-alert ag-alert--warning draft-banner" data-testid="purchase-draft-banner">
       Draft (unposted) — no stock or payable effects until this purchase is posted.
     </div>
   }

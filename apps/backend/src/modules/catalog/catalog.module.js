@@ -101,6 +101,10 @@ function createCatalogService(deps) {
       if (needle === '') {
         return null;
       }
+      if (typeof store.findProductBySku === 'function') {
+        const found = await store.findProductBySku(organizationId, needle);
+        return found ? toProductDto(found) : null;
+      }
       const items = await store.listProducts(organizationId);
       const found = items.find((item) => String(item.sku ?? '').toUpperCase() === needle);
       return found ? toProductDto(found) : null;
@@ -166,8 +170,19 @@ function createCatalogService(deps) {
       }
     },
 
-    async listProducts(organizationId) {
-      const items = await store.listProducts(organizationId);
+    async listProductCategoryMap(organizationId) {
+      if (typeof store.listProductCategoryPairs === 'function') {
+        const items = await store.listProductCategoryPairs(organizationId);
+        return new Map(items.map((item) => [String(item.id), String(item.categoryId)]));
+      }
+      const listed = await store.listProducts(organizationId);
+      return new Map(
+        listed.map((item) => [String(item._id ?? item.id), String(item.categoryId)]),
+      );
+    },
+
+    async listProducts(organizationId, options = {}) {
+      const items = await store.listProducts(organizationId, options);
       return { items: items.map(toProductDto) };
     },
 

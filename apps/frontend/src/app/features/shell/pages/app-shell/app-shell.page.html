@@ -4,7 +4,7 @@
   </div>
 } @else {
   <div class="ag-shell" data-testid="authenticated-shell">
-    <a class="ag-skip-link" href="#ag-main">Skip to main content</a>
+    <a class="ag-skip-link" href="#ag-main" (click)="skipToMain($event)">Skip to main content</a>
     <aside class="ag-shell__sidebar" [class.is-open]="navOpen()" aria-label="Application navigation">
       <div>
         <a routerLink="/app" class="ag-shell__brand">Agrivio</a>

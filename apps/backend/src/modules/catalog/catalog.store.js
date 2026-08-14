@@ -9,6 +9,30 @@ function withSession(session) {
   return session ? { session } : {};
 }
 
+function toPositiveInt(value) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    return null;
+  }
+  return parsed;
+}
+
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function productSearchFilter(organizationId, q) {
+  const filter = { organizationId };
+  const raw = String(q ?? '').trim();
+  if (raw === '') {
+    return filter;
+  }
+  const sku = raw.toUpperCase();
+  const name = raw.replace(/\s+/g, ' ').toLowerCase();
+  filter.$or = [{ sku }, { nameNormalized: { $regex: `^${escapeRegex(name)}` } }];
+  return filter;
+}
+
 function isDuplicateKeyError(error) {
   return error && (error.code === 11000 || error.code === 11001);
 }
@@ -60,8 +84,42 @@ function createMongooseCatalogStore() {
       }
     },
 
-    async listProducts(organizationId) {
-      return ProductModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
+    async listProducts(organizationId, options = {}) {
+      const filter = productSearchFilter(organizationId, options.q);
+      let query = ProductModel.find(filter).sort({ createdAt: -1 });
+      const limit = toPositiveInt(options.limit);
+      if (limit !== null) {
+        query = query.limit(limit);
+      }
+      return query.lean().exec();
+    },
+
+    async findProductBySku(organizationId, sku) {
+      const needle = String(sku ?? '')
+        .trim()
+        .toUpperCase();
+      if (needle === '') {
+        return null;
+      }
+      try {
+        return await ProductModel.findOne({ organizationId, sku: needle })
+          .hint({ organizationId: 1, sku: 1 })
+          .lean()
+          .exec();
+      } catch {
+        return ProductModel.findOne({ organizationId, sku: needle }).lean().exec();
+      }
+    },
+
+    async listProductCategoryPairs(organizationId) {
+      const rows = await ProductModel.find({ organizationId })
+        .select({ categoryId: 1 })
+        .lean()
+        .exec();
+      return rows.map((row) => ({
+        id: String(row._id),
+        categoryId: String(row.categoryId),
+      }));
     },
 
     async countProducts(organizationId) {
@@ -296,10 +354,55 @@ function createInMemoryCatalogStore() {
       return { ...next };
     },
 
-    async listProducts(organizationId) {
+    async listProducts(organizationId, options = {}) {
+      const needle = String(options.q ?? '')
+        .trim()
+        .toUpperCase();
+      const nameNeedle = String(options.q ?? '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+      let items = [...products.values()]
+        .filter((item) => String(item.organizationId) === String(organizationId))
+        .filter((item) => {
+          if (needle === '') {
+            return true;
+          }
+          return (
+            String(item.sku ?? '').toUpperCase() === needle ||
+            String(item.nameNormalized ?? '').includes(nameNeedle)
+          );
+        })
+        .map((item) => ({ ...item }));
+      const limit = toPositiveInt(options.limit);
+      if (limit !== null) {
+        items = items.slice(0, limit);
+      }
+      return items;
+    },
+
+    async findProductBySku(organizationId, sku) {
+      const needle = String(sku ?? '')
+        .trim()
+        .toUpperCase();
+      if (needle === '') {
+        return null;
+      }
+      const found = [...products.values()].find(
+        (item) =>
+          String(item.organizationId) === String(organizationId) &&
+          String(item.sku ?? '').toUpperCase() === needle,
+      );
+      return found ? { ...found } : null;
+    },
+
+    async listProductCategoryPairs(organizationId) {
       return [...products.values()]
         .filter((item) => String(item.organizationId) === String(organizationId))
-        .map((item) => ({ ...item }));
+        .map((item) => ({
+          id: String(item._id),
+          categoryId: String(item.categoryId),
+        }));
     },
 
     async countProducts(organizationId) {

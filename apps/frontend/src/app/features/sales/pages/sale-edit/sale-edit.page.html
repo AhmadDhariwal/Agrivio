@@ -24,7 +24,7 @@
   <agrivio-ui-alert tone="warning" message="You do not have permission to view or edit sales." />
 } @else {
   @if (isCancelled()) {
-    <div class="cancelled-banner" data-testid="sale-cancelled-banner">
+    <div class="ag-alert ag-alert--danger cancelled-banner" data-testid="sale-cancelled-banner">
       Cancelled — original invoice preserved.
       @if (sale()?.cancellationReason) {
         Reason: {{ sale()!.cancellationReason }}
@@ -34,11 +34,11 @@
       }
     </div>
   } @else if (isPosted()) {
-    <div class="posted-banner" data-testid="sale-posted-banner">
+    <div class="ag-alert ag-alert--success posted-banner" data-testid="sale-posted-banner">
       Posted — inventory and receivable effects are locked.
     </div>
   } @else {
-    <div class="draft-banner" data-testid="sale-draft-banner">
+    <div class="ag-alert ag-alert--warning draft-banner" data-testid="sale-draft-banner">
       Draft (unposted) — no stock or receivable effects until this sale is posted.
     </div>
   }
@@ -159,10 +159,19 @@
         <fieldset class="line" [formGroup]="lineGroup(index)">
           <legend>Line {{ index + 1 }}</legend>
           <label>
+            Filter products
+            <input
+              type="search"
+              data-testid="sale-product-search"
+              [value]="productSearchQuery()"
+              (input)="onProductSearchInput($event)"
+            />
+          </label>
+          <label>
             Product
             <select formControlName="productId" data-testid="sale-line-product">
               <option value="">Select product</option>
-              @for (product of products(); track product.id) {
+              @for (product of filteredProducts(); track product.id) {
                 <option [value]="product.id">{{ product.name }}</option>
               }
             </select>

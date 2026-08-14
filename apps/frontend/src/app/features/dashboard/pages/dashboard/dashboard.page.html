@@ -6,7 +6,7 @@
 } @else if (loading()) {
   <agrivio-ui-loading-state label="Loading dashboard…" />
 } @else if (errorMessage(); as error) {
-  <agrivio-ui-alert tone="danger" [message]="error" />
+  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
 } @else if (dashboard(); as data) {
   <p class="dash-meta" data-testid="dashboard-business-date">Business date: {{ data.businessDate }}</p>
 

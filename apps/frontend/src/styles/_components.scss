@@ -7,13 +7,15 @@
   gap: var(--ag-space-2);
   min-height: var(--ag-control-height);
   padding: 0 var(--ag-space-5);
-  border: 1px solid transparent;
+  border: 1px solid var(--ag-color-border-strong);
   border-radius: var(--ag-radius-md);
   font-weight: 600;
   font-size: var(--ag-text-sm);
   line-height: 1.2;
   cursor: pointer;
   text-decoration: none;
+  background: var(--ag-color-surface);
+  color: var(--ag-color-primary);
   transition:
     background-color 0.15s ease,
     border-color 0.15s ease,
@@ -464,6 +466,15 @@
 .ag-shell__sidebar > .ag-btn {
   margin-top: auto;
   flex: 0 0 auto;
+  background: transparent;
+  border-color: #c5d4cc;
+  color: #f3faf6;
+}
+
+.ag-shell__sidebar > .ag-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: #f3faf6;
+  color: #ffffff;
 }
 
 .ag-shell__nav a {

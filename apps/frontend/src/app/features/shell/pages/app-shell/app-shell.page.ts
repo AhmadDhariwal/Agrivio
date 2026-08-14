@@ -30,6 +30,12 @@ export class AppShellPage {
   readonly navOpen = signal(false);
   readonly errorMessage = signal<string | null>(null);
 
+  skipToMain(event: Event): void {
+    event.preventDefault();
+    const main = document.getElementById('ag-main');
+    main?.focus();
+  }
+
   readonly session = this.sessionStore.session;
   readonly activeContext = this.sessionStore.activeContext;
   readonly subscriptionAccessState = computed(

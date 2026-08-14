@@ -90,11 +90,26 @@ function createCustomersService(deps) {
   return {
     async listCustomers(organizationId) {
       const items = await store.listCustomers(organizationId);
-      const mapped = [];
-      for (const item of items) {
-        mapped.push(await buildCustomerDto(organizationId, item));
+      if (!ledgersService || typeof ledgersService.mapPartyBalances !== 'function') {
+        const mapped = [];
+        for (const item of items) {
+          mapped.push(await buildCustomerDto(organizationId, item));
+        }
+        return { items: mapped };
       }
-      return { items: mapped };
+      const [receivableMap, advanceMap] = await Promise.all([
+        ledgersService.mapPartyBalances(organizationId, 'customer', 'receivable'),
+        ledgersService.mapPartyBalances(organizationId, 'customer', 'advance'),
+      ]);
+      const zero = { amount: '0.00', currency: 'PKR' };
+      return {
+        items: items.map((item) =>
+          toCustomerDto(item, {
+            receivable: receivableMap.get(String(item['_id'])) ?? zero,
+            advance: advanceMap.get(String(item['_id'])) ?? zero,
+          }),
+        ),
+      };
     },
 
     async getCustomer(organizationId, customerId) {

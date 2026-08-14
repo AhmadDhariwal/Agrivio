@@ -47,6 +47,9 @@ function createReportQueries(deps) {
   const customersService = deps.customersService;
 
   async function productCategoryMap(organizationId) {
+    if (catalogService && typeof catalogService.listProductCategoryMap === 'function') {
+      return catalogService.listProductCategoryMap(organizationId);
+    }
     if (!catalogService || typeof catalogService.listProducts !== 'function') {
       return new Map();
     }

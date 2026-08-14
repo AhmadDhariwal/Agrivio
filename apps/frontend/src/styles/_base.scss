@@ -68,8 +68,14 @@ a:hover {
 }
 
 :focus-visible {
-  outline: none;
+  outline: 2px solid var(--ag-color-focus);
+  outline-offset: 2px;
   box-shadow: var(--ag-focus-ring);
+}
+
+::placeholder {
+  color: var(--ag-color-text-muted);
+  opacity: 1;
 }
 
 .ag-skip-link {
@@ -81,10 +87,12 @@ a:hover {
   padding: 0.5rem 0.75rem;
   background: var(--ag-color-surface);
   color: var(--ag-color-text);
+  border: 2px solid var(--ag-color-primary);
   border-radius: 0.375rem;
 }
 
-.ag-skip-link:focus {
+.ag-skip-link:focus,
+.ag-skip-link:focus-visible {
   transform: translateY(0);
 }
 
