@@ -28,13 +28,66 @@ function sanitizeAuditEvent(input) {
 
 function createInMemoryAuditEventStore() {
   const events = [];
+  let seq = 1;
 
   return {
     async append(_session, event) {
-      events.push({ ...event, _immutable: true });
+      const id = event._id ?? `audit-${seq++}`;
+      events.push({ ...event, _id: id, _immutable: true });
     },
     listForTest() {
       return events;
+    },
+    async query(filter) {
+      return events
+        .filter((event) => {
+          if (
+            filter.organizationId !== undefined &&
+            String(event.organizationId ?? '') !== String(filter.organizationId)
+          ) {
+            return false;
+          }
+          if (filter.actorId !== undefined && String(event.actorId) !== String(filter.actorId)) {
+            return false;
+          }
+          if (filter.action !== undefined && String(event.action) !== String(filter.action)) {
+            return false;
+          }
+          if (
+            filter.resourceType !== undefined &&
+            String(event.resourceType) !== String(filter.resourceType)
+          ) {
+            return false;
+          }
+          if (
+            filter.resourceId !== undefined &&
+            String(event.resourceId ?? '') !== String(filter.resourceId)
+          ) {
+            return false;
+          }
+          if (filter.reason !== undefined) {
+            const reason = String(event.reason ?? '');
+            if (!reason.toLowerCase().includes(String(filter.reason).toLowerCase())) {
+              return false;
+            }
+          }
+          const occurredAt =
+            event.occurredAt instanceof Date ? event.occurredAt : new Date(event.occurredAt);
+          if (filter.from !== undefined && occurredAt.getTime() < filter.from.getTime()) {
+            return false;
+          }
+          if (filter.to !== undefined && occurredAt.getTime() > filter.to.getTime()) {
+            return false;
+          }
+          return true;
+        })
+        .slice()
+        .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())
+        .map((event) => ({ ...event }));
+    },
+    async findById(id) {
+      const event = events.find((item) => String(item._id) === String(id));
+      return event === undefined ? null : { ...event };
     },
   };
 }

@@ -39,6 +39,9 @@ export class ReportsPage {
 
   readonly canView = computed(() => this.sessionStore.hasPermission('reports.view'));
   readonly canExport = computed(() => this.sessionStore.hasPermission('reports.export'));
+  readonly suspended = computed(
+    () => this.sessionStore.session()?.subscriptionAccessState?.status === 'suspended',
+  );
   readonly selected = computed(
     () => this.catalog().find((item) => item.key === this.selectedKey()) ?? null,
   );

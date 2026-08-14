@@ -1,0 +1,81 @@
+<agrivio-ui-page-header
+  title="Audit history"
+  lede="Read-only inquiry of organization audit events. Depth follows the subscription audit-history entitlement."
+/>
+
+@if (!canView()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to view audit history." />
+} @else {
+  @if (suspended()) {
+    <agrivio-ui-alert
+      tone="warning"
+      message="Subscription is suspended. Historical audit inquiry remains available within entitled depth; events cannot be edited."
+    />
+  }
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" />
+  }
+
+  <form class="report-toolbar" (submit)="$event.preventDefault(); search()">
+    <label>
+      From
+      <input data-testid="audit-from" type="datetime-local" [ngModel]="from()" (ngModelChange)="from.set($event)" name="from" />
+    </label>
+    <label>
+      To
+      <input data-testid="audit-to" type="datetime-local" [ngModel]="to()" (ngModelChange)="to.set($event)" name="to" />
+    </label>
+    <label>
+      Actor
+      <input data-testid="audit-actor" [ngModel]="actorId()" (ngModelChange)="actorId.set($event)" name="actorId" />
+    </label>
+    <label>
+      Action
+      <input data-testid="audit-action" [ngModel]="action()" (ngModelChange)="action.set($event)" name="action" />
+    </label>
+    <label>
+      Resource type
+      <input [ngModel]="resourceType()" (ngModelChange)="resourceType.set($event)" name="resourceType" />
+    </label>
+    <label>
+      Resource id
+      <input [ngModel]="resourceId()" (ngModelChange)="resourceId.set($event)" name="resourceId" />
+    </label>
+    <label>
+      Reason
+      <input [ngModel]="reason()" (ngModelChange)="reason.set($event)" name="reason" />
+    </label>
+    <button type="submit" class="ag-btn" data-testid="audit-search">Search</button>
+  </form>
+
+  @if (loading()) {
+    <agrivio-ui-loading-state label="Loading audit events…" />
+  } @else if (items().length === 0) {
+    <agrivio-ui-empty-state title="No events" message="No audit events match these filters within entitled history." />
+  } @else {
+    <div class="ag-table-wrap">
+      <table class="ag-table" data-testid="audit-table">
+        <thead>
+          <tr>
+            <th>Occurred</th>
+            <th>Actor</th>
+            <th>Action</th>
+            <th>Resource</th>
+            <th>Reason</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of items(); track item.id) {
+            <tr>
+              <td>{{ item.occurredAt }}</td>
+              <td>{{ item.actorId }}</td>
+              <td>{{ item.action }}</td>
+              <td>{{ item.resourceType }} {{ item.resourceId }}</td>
+              <td>{{ item.reason }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+}

@@ -57,6 +57,10 @@ const { createReportingModule } = require('./modules/reporting/reporting.module'
 const { registerReportingRoutes } = require('./modules/reporting/routes/reporting.routes');
 const { createImportsModule } = require('./modules/imports/imports.module');
 const { registerImportsRoutes } = require('./modules/imports/routes/imports.routes');
+const { createAuditModule } = require('./modules/audit/audit.module');
+const { registerAuditRoutes } = require('./modules/audit/routes/audit.routes');
+const { createOperationsModule } = require('./modules/operations/operations.module');
+const { registerOperationsRoutes } = require('./modules/operations/routes/operations.routes');
 const { createSetupProgressService } = require('./modules/settings/setup-progress.service');
 const { canAccessBranch, canAccessWarehouse } = require('./modules/identity/assignment-scope');
 const { hasPermission } = require('./modules/identity/role-permissions');
@@ -361,6 +365,25 @@ function createApp(options) {
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
+  const audit =
+    options.audit ??
+    createAuditModule({
+      persistence,
+      resolvePlanEntitlements: async (organizationId) => {
+        const access = await subscriptions.subscriptionService.resolveAccessState(organizationId);
+        return access?.plan?.entitlements ?? null;
+      },
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+
+  const operations =
+    options.operations ??
+    createOperationsModule({
+      persistence,
+      auditStore: audit.store,
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+
   const imports =
     options.imports ??
     createImportsModule({
@@ -556,6 +579,21 @@ function createApp(options) {
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
   });
 
+  const auditRoutes = registerAuditRoutes({
+    config,
+    auditService: audit.auditService,
+    requireAuth: auth.middlewares.requireAuth,
+    optionalAuth: auth.middlewares.optionalAuth,
+    requireSuspendedReadAccess: subscriptions.middlewares.requireSuspendedReadAccess,
+  });
+
+  const operationsRoutes = registerOperationsRoutes({
+    config,
+    operationsService: operations.operationsService,
+    requireCsrf: auth.middlewares.requireCsrf,
+    optionalAuth: auth.middlewares.optionalAuth,
+  });
+
   const app = express();
   app.disable('x-powered-by');
 
@@ -586,6 +624,8 @@ function createApp(options) {
   app.use(alertsRoutes);
   app.use(reportingRoutes);
   app.use(importsRoutes);
+  app.use(auditRoutes);
+  app.use(operationsRoutes);
 
   if (typeof options.registerOperationalProbe === 'function') {
     options.registerOperationalProbe(app, {
@@ -630,6 +670,8 @@ function createApp(options) {
     alerts,
     reporting,
     imports,
+    audit,
+    operations,
     ledgers,
     setupProgressService,
   };

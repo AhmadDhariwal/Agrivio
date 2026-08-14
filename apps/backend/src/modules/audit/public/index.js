@@ -8,9 +8,12 @@ const {
   createInMemoryAuditEventStore,
   sanitizeAuditEvent,
 } = require('../../../platform/audit/audit-writer');
+const { createAuditModule, createAuditService } = require('../audit.module');
 
 module.exports = {
   createAuditWriter,
   createInMemoryAuditEventStore,
   sanitizeAuditEvent,
+  createAuditModule,
+  createAuditService,
 };

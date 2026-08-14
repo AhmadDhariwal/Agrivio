@@ -1,0 +1,70 @@
+<agrivio-ui-page-header
+  eyebrow="Platform"
+  title="Backup and restore status"
+  lede="Provider-neutral operational status. Restore coordination does not execute a production restore rehearsal."
+/>
+
+@if (!canViewBackups()) {
+  <agrivio-ui-alert tone="warning" message="Backup status is visible only to authorized platform operators." />
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" />
+  }
+
+  <div class="ag-actions">
+    <button type="button" class="ag-btn ag-btn--secondary" [disabled]="loading()" (click)="reload()">
+      Refresh
+    </button>
+  </div>
+
+  @if (loading()) {
+    <agrivio-ui-loading-state label="Loading backup status…" />
+  } @else if (backups().length === 0) {
+    <agrivio-ui-empty-state title="No backup records" message="No backup operation records have been recorded yet." />
+  } @else {
+    <div class="ag-table-wrap">
+      <table class="ag-table" data-testid="backup-table">
+        <thead>
+          <tr>
+            <th>Recorded</th>
+            <th>Status</th>
+            <th>Failure</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of backups(); track item.id) {
+            <tr [attr.data-failed]="item.failureVisible">
+              <td>{{ item.recordedAt }}</td>
+              <td>{{ item.status }}</td>
+              <td>{{ item.failureMessage }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  @if (canRestore()) {
+    <form class="report-toolbar" (submit)="$event.preventDefault(); coordinateRestore()">
+      <label>
+        Restore reason
+        <input data-testid="restore-reason" [ngModel]="reason()" (ngModelChange)="reason.set($event)" name="reason" />
+      </label>
+      <button type="submit" class="ag-btn" [disabled]="submitting()" data-testid="restore-coordinate">
+        Initiate restore coordination
+      </button>
+    </form>
+  } @else {
+    <agrivio-ui-alert
+      tone="info"
+      message="Production restore coordination requires an explicit operations.restore.execute grant."
+    />
+  }
+
+  @if (restore(); as current) {
+    <p data-testid="restore-status">
+      Coordination {{ current.status }}. Production restore executed: {{ current.productionRestoreExecuted }}.
+      Verification: {{ current.verificationStatus }}.
+    </p>
+  }
+}

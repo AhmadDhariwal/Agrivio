@@ -30,6 +30,9 @@ export class ImportsPage {
 
   readonly canPreview = computed(() => this.sessionStore.hasPermission('imports.preview'));
   readonly canExecute = computed(() => this.sessionStore.hasPermission('imports.execute'));
+  readonly suspended = computed(
+    () => this.sessionStore.session()?.subscriptionAccessState?.status === 'suspended',
+  );
   readonly selectedTemplate = computed(
     () => this.templates().find((item) => item.importType === this.selectedType()) ?? null,
   );

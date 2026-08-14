@@ -23,10 +23,72 @@ auditEventSchema.index({ occurredAt: -1 });
 const AuditEventModel =
   mongoose.models['AuditEvent'] || mongoose.model('AuditEvent', auditEventSchema);
 
+function toQueryDoc(doc) {
+  if (doc === null || doc === undefined) {
+    return null;
+  }
+  return {
+    _id: String(doc._id),
+    organizationId:
+      doc.organizationId === undefined || doc.organizationId === null
+        ? null
+        : String(doc.organizationId),
+    actorId: doc.actorId,
+    action: doc.action,
+    resourceType: doc.resourceType,
+    resourceId: doc.resourceId,
+    reason: doc.reason,
+    requestId: doc.requestId,
+    metadata: doc.metadata,
+    occurredAt: doc.occurredAt instanceof Date ? doc.occurredAt : new Date(doc.occurredAt),
+  };
+}
+
 function createMongooseAuditEventStore() {
   return {
     async append(session, event) {
       await AuditEventModel.create([event], session ? { session } : undefined);
+    },
+
+    async query(filter) {
+      const query = {};
+      if (filter.organizationId !== undefined) {
+        query.organizationId = filter.organizationId;
+      }
+      if (filter.actorId !== undefined) {
+        query.actorId = filter.actorId;
+      }
+      if (filter.action !== undefined) {
+        query.action = filter.action;
+      }
+      if (filter.resourceType !== undefined) {
+        query.resourceType = filter.resourceType;
+      }
+      if (filter.resourceId !== undefined) {
+        query.resourceId = filter.resourceId;
+      }
+      if (filter.reason !== undefined) {
+        query.reason = { $regex: filter.reason, $options: 'i' };
+      }
+      if (filter.from !== undefined || filter.to !== undefined) {
+        query.occurredAt = {};
+        if (filter.from !== undefined) {
+          query.occurredAt.$gte = filter.from;
+        }
+        if (filter.to !== undefined) {
+          query.occurredAt.$lte = filter.to;
+        }
+      }
+      const rows = await AuditEventModel.find(query).sort({ occurredAt: -1 }).lean().exec();
+      return rows.map(toQueryDoc);
+    },
+
+    async findById(id) {
+      if (!mongoose.isValidObjectId(id)) {
+        return null;
+      }
+      const doc = await AuditEventModel.findById(id).lean().exec();
+      return toQueryDoc(doc);
     },
   };
 }

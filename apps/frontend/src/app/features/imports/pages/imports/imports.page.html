@@ -2,6 +2,11 @@
 
 @if (!canPreview()) {
   <agrivio-ui-alert tone="warning" message="You do not have permission to preview imports." />
+} @else if (suspended()) {
+  <agrivio-ui-alert
+    tone="danger"
+    message="Subscription is suspended. Import preview and execution are blocked until reactivation. Existing data is not deleted."
+  />
 } @else {
   @if (errorMessage(); as error) {
     <agrivio-ui-alert tone="danger" [message]="error" />
