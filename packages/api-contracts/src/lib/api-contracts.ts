@@ -144,6 +144,9 @@ export const API_NOTIFICATIONS_PATH = `${API_V1_PREFIX}/notifications` as const;
 /** Operational dashboard composition (R1-F08-003). */
 export const API_DASHBOARD_PATH = `${API_V1_PREFIX}/dashboard` as const;
 
+/** Fixed report query (R1-F08-004). */
+export const API_REPORTS_PATH = `${API_V1_PREFIX}/reports` as const;
+
 /** Guided organization setup progress (R1-F03-013). */
 export const API_ORGANIZATION_SETUP_PROGRESS_PATH =
   `${API_V1_PREFIX}/organization/setup-progress` as const;

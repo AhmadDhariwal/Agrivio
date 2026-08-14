@@ -62,4 +62,4 @@ Reporting `GET /api/v1/dashboard` composes FR-REPORT-001 / RELEASE_1_SCOPE widge
 
 ## Next
 
-* F08 P2 — `R1-F08-004` fixed reports (gross profit, valuation, etc.)
+* F08 P2 — `R1-F08-004` / `R1-F08-005` complete; see [F08-PHASE-2-FIXED-REPORTS-EXPORTS.md](F08-PHASE-2-FIXED-REPORTS-EXPORTS.md)

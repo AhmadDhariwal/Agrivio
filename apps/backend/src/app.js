@@ -348,6 +348,9 @@ function createApp(options) {
       paymentsService: ledgers.paymentsService,
       alertsService: alerts.alertsService,
       returnsService: returns.returnsService,
+      inventoryService: inventory.inventoryService,
+      catalogService: catalog.catalogService,
+      customersService: customers.customersService,
       resolveOrganizationTimezone,
       resolvePlanEntitlements: async (organizationId) => {
         const access = await subscriptions.subscriptionService.resolveAccessState(organizationId);
@@ -523,6 +526,7 @@ function createApp(options) {
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+    requireSuspendedReadAccess: subscriptions.middlewares.requireSuspendedReadAccess,
   });
 
   const app = express();

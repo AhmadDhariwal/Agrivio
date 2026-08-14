@@ -1,0 +1,91 @@
+<agrivio-ui-page-header title="Reports" lede="Fixed Release 1 reports composed from source modules" />
+
+@if (!canView()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to view reports." />
+} @else if (catalogLoading()) {
+  <agrivio-ui-loading-state label="Loading reports…" />
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" />
+  }
+
+  <form class="report-toolbar" (submit)="$event.preventDefault(); run()">
+    <label>
+      Report
+      <select
+        data-testid="report-select"
+        [ngModel]="selectedKey()"
+        (ngModelChange)="onReportChange($event)"
+        name="reportKey"
+      >
+        @for (item of catalog(); track item.key) {
+          <option [value]="item.key">{{ item.title }}</option>
+        }
+      </select>
+    </label>
+
+    @if (selected(); as report) {
+      @for (field of report.filters; track field) {
+        <label>
+          {{ field }}
+          <input
+            [attr.data-testid]="'filter-' + field"
+            [ngModel]="filterValue(field)"
+            (ngModelChange)="setFilter(field, $event)"
+            [name]="field"
+          />
+        </label>
+      }
+    }
+
+    <button type="submit" class="ag-btn" data-testid="report-run">Run</button>
+    @if (canExport()) {
+      <button type="button" class="ag-btn ag-btn--secondary" [disabled]="exporting()" (click)="exportFormat('pdf')">
+        PDF
+      </button>
+      <button type="button" class="ag-btn ag-btn--secondary" [disabled]="exporting()" (click)="exportFormat('excel')">
+        Excel
+      </button>
+      <button type="button" class="ag-btn ag-btn--secondary" [disabled]="exporting()" (click)="exportFormat('csv')">
+        CSV
+      </button>
+    }
+  </form>
+
+  @if (loading()) {
+    <agrivio-ui-loading-state label="Loading report…" />
+  } @else if (dataset(); as data) {
+    @if (data.rows.length === 0) {
+      <agrivio-ui-empty-state title="No rows" message="No posted source rows match these filters." />
+    } @else {
+      <div class="ag-table-wrap">
+        <table class="ag-table" data-testid="report-table">
+          <thead>
+            <tr>
+              @for (column of data.columns; track column.key) {
+                <th>{{ column.label }}</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of data.rows; track $index) {
+              <tr>
+                @for (column of data.columns; track column.key) {
+                  <td>{{ row[column.key] }}</td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+    @if (data.totals && (data.totals['total'] || data.totals['amount'] || data.totals['inventoryValue'] || data.totals['signedAmount'] || data.totals['revenue'])) {
+      <p data-testid="report-totals">
+        Totals:
+        @for (entry of data.totals | keyvalue; track entry.key) {
+          <span>{{ entry.key }} {{ entry.value }} </span>
+        }
+      </p>
+    }
+  }
+}

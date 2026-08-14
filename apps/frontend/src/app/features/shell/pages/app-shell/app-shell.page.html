@@ -32,6 +32,11 @@
             Alerts
           </a>
         }
+        @if (canViewReports()) {
+          <a routerLink="/app/reports" routerLinkActive="active" data-testid="nav-reports">
+            Reports
+          </a>
+        }
         <a routerLink="/context">Switch context</a>
         @if (canViewSettings()) {
           <a routerLink="/app/organization/settings" routerLinkActive="active">Settings</a>
