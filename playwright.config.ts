@@ -1,9 +1,15 @@
 import { defineConfig, devices } from '@playwright/test';
 
+process.env['AGRIVIO_E2E_API_ORIGIN'] ??= 'http://127.0.0.1:3100';
+process.env['AGRIVIO_E2E_WEB_ORIGIN'] ??= 'http://127.0.0.1:4300';
+
+const apiOrigin = process.env['AGRIVIO_E2E_API_ORIGIN'];
+const webOrigin = process.env['AGRIVIO_E2E_WEB_ORIGIN'];
+
 /**
- * Chromium E2E foundation for F00 smoke + F02 onboarding vertical slice.
- * Backend uses in-memory persistence under NODE_ENV=test.
- * AGRIVIO_SKIP_MONGO allows local runs without Docker replica-set evidence.
+ * Playwright owns the E2E application servers on 3100/4300 so developer
+ * processes on 3000/4200 are left alone. reuseExistingServer is always false.
+ * Backend uses NODE_ENV=test with MONGODB_DB_NAME agrivio_test_e2e (never Agrivio).
  */
 export default defineConfig({
   testDir: './apps/frontend/tests/e2e',
@@ -18,7 +24,7 @@ export default defineConfig({
     timeout: 15_000,
   },
   use: {
-    baseURL: 'http://localhost:4200',
+    baseURL: webOrigin,
     trace: 'on-first-retry',
   },
   projects: [
@@ -26,7 +32,6 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        // Prefer installed Google Chrome when Playwright browser cache is unavailable.
         channel: 'chrome',
       },
     },
@@ -34,7 +39,7 @@ export default defineConfig({
   webServer: [
     {
       command: 'node ./apps/backend/index.js',
-      url: 'http://localhost:3000/api/v1/health',
+      url: `${apiOrigin}/api/v1/health`,
       reuseExistingServer: false,
       timeout: 60_000,
       env: {
@@ -43,8 +48,9 @@ export default defineConfig({
         AGRIVIO_APP_PROFILE: 'test',
         AGRIVIO_ALLOW_E2E_BOOTSTRAP: 'true',
         AGRIVIO_SKIP_MONGO: 'true',
-        HOST: 'localhost',
-        PORT: '3000',
+        HOST: '127.0.0.1',
+        PORT: '3100',
+        AGRIVIO_PUBLIC_WEB_BASE_URL: webOrigin,
         MONGODB_URI: 'mongodb://127.0.0.1:27017/?replicaSet=rs0',
         MONGODB_DB_NAME: 'agrivio_test_e2e',
         MONGODB_REPLICA_SET: 'rs0',
@@ -53,14 +59,16 @@ export default defineConfig({
       },
     },
     {
-      command: 'npx nx serve frontend --configuration=development --host=localhost --port=4200',
-      url: 'http://localhost:4200',
+      command:
+        'npx nx serve frontend --configuration=development --host=127.0.0.1 --port=4300',
+      url: webOrigin,
       reuseExistingServer: false,
       timeout: 180_000,
       env: {
         ...process.env,
         NODE_OPTIONS: '',
-        PORT: '4200',
+        PORT: '4300',
+        NG_BUILD_CACHE: '0',
       },
     },
   ],

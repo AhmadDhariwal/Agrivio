@@ -1,6 +1,6 @@
+import { API, activationTokenFromUrl } from './e2e-origins';
 import { expect, test, type Page } from '@playwright/test';
 
-const API = 'http://localhost:3000';
 const OWNER_PASSWORD = 'owner-activation-passphrase';
 
 test.describe('F03 P1 organization setup slice', () => {
@@ -31,7 +31,7 @@ test.describe('F03 P1 organization setup slice', () => {
     await expect(activationUrl).toBeVisible();
     const urlText = (await activationUrl.textContent())?.trim() ?? '';
     const activationToken =
-      new URL(urlText, 'http://localhost:4200').searchParams.get('token') ?? '';
+      activationTokenFromUrl(urlText);
 
     await page.getByTestId('sign-out').click();
     await page.goto(`/activate?token=${encodeURIComponent(activationToken)}`);

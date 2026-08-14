@@ -13,7 +13,7 @@ const {
   parsePasswordResetRequestBody,
   parseSessionContextBody,
 } = require('./auth.validation');
-const { createAuthRateLimiter } = require('./auth.rate-limit');
+const { createAuthRateLimiter, resolveAuthRateLimiterOptions } = require('./auth.rate-limit');
 
 const INACTIVITY_MS = 30 * 60 * 1000;
 const ABSOLUTE_MS = 12 * 60 * 60 * 1000;
@@ -29,8 +29,7 @@ function createAuthService(deps) {
   const now = deps.now ?? (() => new Date());
   const nodeEnv = deps.nodeEnv ?? 'development';
   const rateLimiter =
-    deps.rateLimiter ??
-    createAuthRateLimiter(nodeEnv === 'test' ? { maxAttempts: 10_000 } : {});
+    deps.rateLimiter ?? createAuthRateLimiter(resolveAuthRateLimiterOptions(nodeEnv));
   const auditWriter = createAuditWriter({
     append: (session, event) => store.appendAuditEvent(session, event),
   });

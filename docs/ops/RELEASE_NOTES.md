@@ -1,6 +1,8 @@
 # Agrivio Release 1 notes
 
-Release candidate: F00–F09 scoped functionality.
+**Status: preparatory draft.** Operational contacts are not named. This is not R1-F09-008 completion.
+
+Release candidate: F00–F08 scoped functionality plus F09 Phase 1 regression consolidation (`R1-F09-001`). F09 P2–P5 Frozen DoD is not accepted.
 
 ## Included capabilities
 

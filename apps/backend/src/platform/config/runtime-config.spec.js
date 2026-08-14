@@ -103,6 +103,8 @@ describe('loadApiEnv', () => {
 
     expect(config.profile).toBe('test');
     expect(config.sessionSecret).toBe('test-session-secret');
+    expect(config.mongodbDbName).toBe('agrivio_test_default');
+    expect(config.mongodbDbName).not.toBe('Agrivio');
   });
 
   it('rejects invalid PORT values', () => {

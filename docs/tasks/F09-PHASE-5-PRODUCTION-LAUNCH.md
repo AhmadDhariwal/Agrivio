@@ -2,15 +2,26 @@
 
 ## Task Status
 
-* Status: **Complete** (procedures and gate evidence; production hosting still unresolved)
-* Date: 2026-08-14
+* Status: **Not started / procedure drafts only — Frozen DoD not accepted**
+* Date: 2026-08-14 (status corrected)
 * Work items: `R1-F09-008`, `R1-F09-009`
 
-## Scope Delivered
+## Preparatory (unaccepted)
 
-* Release notes, application-rollback procedure (no automatic DB restore), data-recovery procedure, controlled-launch handover, UAT defect log, and REL-G evidence record.
-* Production web/API builds are part of `npm run test:regression` / `npm run build`.
+Draft procedure files (pending named owners, hosting, and production evidence):
 
-## Residual
+* `docs/ops/RELEASE_NOTES.md`
+* `docs/ops/APPLICATION_ROLLBACK.md`
+* `docs/ops/DATA_RECOVERY.md`
+* `docs/ops/CONTROLLED_LAUNCH.md`
+* `docs/ops/F09-RELEASE-GATE-EVIDENCE.md`
 
-* Hosting, production MongoDB topology, backup vendor, and monitoring provider remain unresolved at the F09 entry deadline and block a real production cutover until named.
+Production web/API builds are part of `npm run test:regression:release` (R1-F09-001 / REL-G01 evidence when that command is green). That is not Phase 5 completion.
+
+## Frozen DoD gap
+
+* R1-F09-008: operational ownership/contacts (REL-G15) cannot be complete while named support, security, backup, restore, and release owners are unresolved.
+* R1-F09-009 cannot be complete before actual production readiness approval, controlled production launch, and monitoring handover.
+* Hosting, production MongoDB topology, backup vendor, and monitoring provider remain unresolved.
+
+Do not claim production launch or F09 stage exit.

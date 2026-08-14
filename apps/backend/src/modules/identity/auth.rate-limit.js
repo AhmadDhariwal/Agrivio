@@ -2,9 +2,14 @@ const { forbidden } = require('../../platform/errors/app-error');
 
 /**
  * Simple progressive in-memory throttle for auth endpoints.
+ * Coded default is 20 attempts / 15 minutes. A raised ceiling is applied only
+ * when the caller passes options (auth.service does that solely for nodeEnv === 'test').
  */
+function resolveAuthRateLimiterOptions(nodeEnv) {
+  return nodeEnv === 'test' ? { maxAttempts: 10_000 } : {};
+}
+
 function createAuthRateLimiter(options = {}) {
-  // Release 1 production defaults recorded for F09 (REL-G05): 20 attempts / 15 minutes.
   const windowMs = options.windowMs ?? 15 * 60 * 1000;
   const maxAttempts = options.maxAttempts ?? 20;
   const now = options.now ?? (() => Date.now());
@@ -32,4 +37,5 @@ function createAuthRateLimiter(options = {}) {
 
 module.exports = {
   createAuthRateLimiter,
+  resolveAuthRateLimiterOptions,
 };

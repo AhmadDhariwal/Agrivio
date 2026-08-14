@@ -1,5 +1,7 @@
 # Data recovery procedure
 
+**Status: preparatory draft.** A named backup vendor and target-environment restore rehearsal are outstanding. In-memory catalog restore is not REL-G09.
+
 Database restore is **not** application rollback. Restore discards later valid transactions unless the incident owner explicitly accepts that.
 
 ## When to use
