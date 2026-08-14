@@ -4,6 +4,7 @@ const { forbidden } = require('../../platform/errors/app-error');
  * Simple progressive in-memory throttle for auth endpoints.
  */
 function createAuthRateLimiter(options = {}) {
+  // Release 1 production defaults recorded for F09 (REL-G05): 20 attempts / 15 minutes.
   const windowMs = options.windowMs ?? 15 * 60 * 1000;
   const maxAttempts = options.maxAttempts ?? 20;
   const now = options.now ?? (() => Date.now());

@@ -54,7 +54,12 @@ Central navigation for Agrivio documentation.
 * F08 Phase 3 complete (`R1-F08-006`) — see [tasks/F08-PHASE-3-EXCEL-IMPORTS.md](tasks/F08-PHASE-3-EXCEL-IMPORTS.md); Excel import preview and all-or-nothing execution
 * F08 Phase 4 complete (`R1-F08-007`–`R1-F08-009`) — see [tasks/F08-PHASE-4-AUDIT-BACKUP-SUSPENDED.md](tasks/F08-PHASE-4-AUDIT-BACKUP-SUSPENDED.md); audit inquiry, backup/restore status, suspended report/import policy
 * F08 Phase 5 complete (`R1-F08-010`) — see [tasks/F08-PHASE-5-ALERTS-REPORTING-IMPORTS-SLICE.md](tasks/F08-PHASE-5-ALERTS-REPORTING-IMPORTS-SLICE.md); alerts/reports/imports/audit/ops vertical slice and E2E; **F08 stage exit ready pending acceptance**
-* Next work item: **F09** (`R1-F09-001`) Full regression suite consolidation
+* F09 Phase 1 complete (`R1-F09-001`) — see [tasks/F09-PHASE-1-REGRESSION-CONSOLIDATION.md](tasks/F09-PHASE-1-REGRESSION-CONSOLIDATION.md); full regression job set
+* F09 Phase 2 complete (`R1-F09-002`–`004`) — see [tasks/F09-PHASE-2-SECURITY-PERF-A11Y.md](tasks/F09-PHASE-2-SECURITY-PERF-A11Y.md); attack tests, permission matrix, performance and accessibility baselines
+* F09 Phase 3 complete (`R1-F09-005`) — see [tasks/F09-PHASE-3-BACKUP-RESTORE-IMPORT.md](tasks/F09-PHASE-3-BACKUP-RESTORE-IMPORT.md); backup/restore/import rehearsals
+* F09 Phase 4 complete (`R1-F09-006`–`007`) — see [tasks/F09-PHASE-4-PILOT-UAT.md](tasks/F09-PHASE-4-PILOT-UAT.md); two-pilot automated onboarding and UAT defect log
+* F09 Phase 5 complete (`R1-F09-008`–`009`) — see [tasks/F09-PHASE-5-PRODUCTION-LAUNCH.md](tasks/F09-PHASE-5-PRODUCTION-LAUNCH.md); release notes, rollback/recovery, launch handover; **F09 in-repo hardening complete — production hosting/vendor decisions outstanding**
+* Next work item: production cutover blocked on named hosting, backup, and monitoring providers (see [ops/F09-RELEASE-GATE-EVIDENCE.md](ops/F09-RELEASE-GATE-EVIDENCE.md))
 
 ## Existing Documents
 
@@ -124,6 +129,17 @@ Central navigation for Agrivio documentation.
 | [tasks/F08-PHASE-3-EXCEL-IMPORTS.md](tasks/F08-PHASE-3-EXCEL-IMPORTS.md) | F08 Phase 3: Excel import preview and execution (`R1-F08-006`) |
 | [tasks/F08-PHASE-4-AUDIT-BACKUP-SUSPENDED.md](tasks/F08-PHASE-4-AUDIT-BACKUP-SUSPENDED.md) | F08 Phase 4: audit views, backup/restore status, suspended policy (`R1-F08-007`–`009`) |
 | [tasks/F08-PHASE-5-ALERTS-REPORTING-IMPORTS-SLICE.md](tasks/F08-PHASE-5-ALERTS-REPORTING-IMPORTS-SLICE.md) | F08 Phase 5: alerts/reporting/imports/audit/ops Angular vertical slice (`R1-F08-010`) |
+| [tasks/F09-PHASE-1-REGRESSION-CONSOLIDATION.md](tasks/F09-PHASE-1-REGRESSION-CONSOLIDATION.md) | F09 Phase 1: full regression suite consolidation (`R1-F09-001`) |
+| [tasks/F09-PHASE-2-SECURITY-PERF-A11Y.md](tasks/F09-PHASE-2-SECURITY-PERF-A11Y.md) | F09 Phase 2: security attack tests, permission matrix, performance and accessibility (`R1-F09-002`–`004`) |
+| [tasks/F09-PHASE-3-BACKUP-RESTORE-IMPORT.md](tasks/F09-PHASE-3-BACKUP-RESTORE-IMPORT.md) | F09 Phase 3: backup/restore/import rehearsals (`R1-F09-005`) |
+| [tasks/F09-PHASE-4-PILOT-UAT.md](tasks/F09-PHASE-4-PILOT-UAT.md) | F09 Phase 4: pilot onboarding and UAT defect stabilization (`R1-F09-006`–`007`) |
+| [tasks/F09-PHASE-5-PRODUCTION-LAUNCH.md](tasks/F09-PHASE-5-PRODUCTION-LAUNCH.md) | F09 Phase 5: production readiness and controlled launch (`R1-F09-008`–`009`) |
+| [ops/RELEASE_NOTES.md](ops/RELEASE_NOTES.md) | Release 1 notes, limitations, operational contacts |
+| [ops/APPLICATION_ROLLBACK.md](ops/APPLICATION_ROLLBACK.md) | Application rollback (no automatic database restore) |
+| [ops/DATA_RECOVERY.md](ops/DATA_RECOVERY.md) | Distinct data-recovery / restore procedure |
+| [ops/CONTROLLED_LAUNCH.md](ops/CONTROLLED_LAUNCH.md) | Controlled launch and monitoring handover |
+| [ops/UAT-DEFECT-LOG.md](ops/UAT-DEFECT-LOG.md) | UAT Critical/High defect log |
+| [ops/F09-RELEASE-GATE-EVIDENCE.md](ops/F09-RELEASE-GATE-EVIDENCE.md) | REL-G01–REL-G15 evidence and production blockers |
 | [tasks/F01-PHASE-1-PLATFORM-RUNTIME.md](tasks/F01-PHASE-1-PLATFORM-RUNTIME.md) | F01 Phase 1: platform runtime foundation |
 | [tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md](tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md) | F01 Phase 2: transactional platform foundation (completes F01) |
 | [../README.md](../README.md) | Repository landing page |

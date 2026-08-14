@@ -72,6 +72,22 @@ a:hover {
   box-shadow: var(--ag-focus-ring);
 }
 
+.ag-skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: 0.75rem;
+  z-index: 40;
+  transform: translateY(-200%);
+  padding: 0.5rem 0.75rem;
+  background: var(--ag-color-surface);
+  color: var(--ag-color-text);
+  border-radius: 0.375rem;
+}
+
+.ag-skip-link:focus {
+  transform: translateY(0);
+}
+
 img {
   max-width: 100%;
   display: block;
