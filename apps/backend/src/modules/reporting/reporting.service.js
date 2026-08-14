@@ -6,11 +6,20 @@ const {
 const {
   computeGrossProfitFromEffects,
   moneyAmountToMinor,
-  saleToGrossProfitEffect,
-  salesReturnToGrossProfitEffect,
   toMoneyDto,
 } = require('./gross-profit');
 const { evaluateFeatureEntitlement } = require('../subscriptions/entitlement');
+const { forbidden, validationFailed } = require('../../platform/errors/app-error');
+const { REPORT_BY_KEY, REPORT_FAMILIES } = require('./report-catalog');
+const { parseReportFilters, parseReportKey } = require('./report-filters');
+const { renderExport } = require('./report-exports');
+const { createReportQueries } = require('./report-queries');
+
+function omitFormat(input) {
+  const next = { ...input };
+  delete next.format;
+  return next;
+}
 
 function createReportingService(deps) {
   const salesService = deps.salesService;
@@ -18,14 +27,28 @@ function createReportingService(deps) {
   const accountsService = deps.accountsService;
   const paymentsService = deps.paymentsService;
   const alertsService = deps.alertsService;
-  const returnsService = deps.returnsService;
   const resolveOrganizationTimezone = deps.resolveOrganizationTimezone;
   const resolvePlanEntitlements = deps.resolvePlanEntitlements;
   const now = deps.now ?? (() => new Date());
+  const queries = createReportQueries(deps);
 
   async function resolveOrgBusinessDate(organizationId) {
     const timezone = await resolveOrganizationTimezone(organizationId);
     return resolveBusinessDate(timezone, now());
+  }
+
+  async function assertReportsExportEntitlement(organizationId) {
+    const entitlements =
+      typeof resolvePlanEntitlements === 'function'
+        ? await resolvePlanEntitlements(organizationId)
+        : null;
+    const reportsExports = evaluateFeatureEntitlement(
+      entitlements ? { entitlements } : null,
+      'reportsExports',
+    );
+    if (reportsExports.allowed !== true) {
+      throw forbidden('Report export is not entitled for this subscription');
+    }
   }
 
   async function sumTodaySales(organizationId, businessDate, authContext) {
@@ -75,35 +98,8 @@ function createReportingService(deps) {
     return total;
   }
 
-  async function computeGrossProfit(organizationId, authContext) {
-    const { items: sales } = await salesService.listSales(
-      organizationId,
-      { status: 'posted' },
-      authContext,
-    );
-    const effects = [];
-    for (const sale of sales) {
-      const effect = saleToGrossProfitEffect(sale);
-      if (effect) {
-        effects.push(effect);
-      }
-    }
-
-    if (returnsService && typeof returnsService.listReturns === 'function') {
-      const { items: returns } = await returnsService.listReturns(
-        organizationId,
-        { status: 'posted' },
-        authContext,
-      );
-      for (const row of returns) {
-        const effect = salesReturnToGrossProfitEffect(row);
-        if (effect) {
-          effects.push(effect);
-        }
-      }
-    }
-
-    return computeGrossProfitFromEffects(effects);
+  async function computeGrossProfit(organizationId, authContext, filters = {}) {
+    return queries.queryGrossProfit(organizationId, filters, authContext);
   }
 
   async function sumAccountBalancesByType(organizationId) {
@@ -217,6 +213,44 @@ function createReportingService(deps) {
 
   return {
     computeGrossProfitFromEffects,
+    listReportCatalog() {
+      return {
+        items: REPORT_FAMILIES.map((item) => ({
+          key: item.key,
+          title: item.title,
+          filters: item.filters,
+          required: item.required ?? [],
+          exports: item.exports,
+        })),
+      };
+    },
+    async getReport(organizationId, reportKey, rawFilters, authContext) {
+      const key = parseReportKey(reportKey);
+      const filters = parseReportFilters(key, rawFilters);
+      const dataset = await queries.queryReport(organizationId, key, filters, authContext);
+      return {
+        ...dataset,
+        filters,
+      };
+    },
+    async exportReport(organizationId, reportKey, rawInput, authContext) {
+      await assertReportsExportEntitlement(organizationId);
+      const input = rawInput === null || typeof rawInput !== 'object' ? {} : rawInput;
+      const format = typeof input.format === 'string' ? input.format.trim().toLowerCase() : '';
+      const key = parseReportKey(reportKey);
+      if (!(REPORT_BY_KEY[key].exports ?? []).includes(format)) {
+        throw validationFailed('Export format is not available for this report', [
+          { field: 'format', message: `format must be one of: ${(REPORT_BY_KEY[key].exports ?? []).join(', ')}` },
+        ]);
+      }
+      const dataset = await this.getReport(
+        organizationId,
+        key,
+        input.filters ?? omitFormat(input),
+        authContext,
+      );
+      return renderExport(dataset, format);
+    },
     async getDashboard(organizationId, authContext) {
       const entitlements =
         typeof resolvePlanEntitlements === 'function'
@@ -242,7 +276,7 @@ function createReportingService(deps) {
         sumTodaySales(organizationId, businessDate, authContext),
         sumTodayPurchases(organizationId, businessDate, authContext),
         sumTodayExpenses(organizationId, businessDate),
-        computeGrossProfit(organizationId, authContext),
+        computeGrossProfit(organizationId, authContext, {}),
         sumAccountBalancesByType(organizationId),
         sumReceivablesPayables(organizationId),
         alertsService.getAlertSummaries(organizationId, authContext),

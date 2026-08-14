@@ -401,6 +401,8 @@ function toSaleDto(record) {
           ? String(record['cancelledAt'])
           : null,
     cancelledBy: record['cancelledBy'] ? String(record['cancelledBy']) : null,
+    postedBy: record['postedBy'] ? String(record['postedBy']) : null,
+    createdBy: record['createdBy'] ? String(record['createdBy']) : null,
     version: Number(record['version']),
     postedAt:
       record['postedAt'] instanceof Date
