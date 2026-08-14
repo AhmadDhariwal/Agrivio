@@ -54,13 +54,19 @@ function registerImportsRoutes(deps) {
     createRequirePermissionMiddleware('imports.preview'),
     deps.requireOperationalAccess,
     express.raw({
-      type: [
-        'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/xml',
-        'text/xml',
-        'application/octet-stream',
-      ],
+      type: (req) => {
+        const value = String(req.headers['content-type'] || '')
+          .split(';')[0]
+          .trim()
+          .toLowerCase();
+        return [
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/xml',
+          'text/xml',
+          'application/octet-stream',
+        ].includes(value);
+      },
       limit: '5mb',
     }),
     (req, res, next) => {

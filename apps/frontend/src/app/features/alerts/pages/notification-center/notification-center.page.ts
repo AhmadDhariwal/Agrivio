@@ -1,11 +1,12 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { AlertsApi } from '../../data-access/alerts.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
-import { NotificationItem } from '../../models/alerts.models';
+import { AlertSummaries, NotificationItem } from '../../models/alerts.models';
 
 @Component({
   selector: 'agrivio-notification-center-page',
@@ -21,6 +22,7 @@ export class NotificationCenterPage {
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly items = signal<NotificationItem[]>([]);
+  readonly summaries = signal<AlertSummaries | null>(null);
   readonly acknowledgingId = signal<string | null>(null);
   readonly canView = computed(() => this.sessionStore.hasPermission('alerts.view'));
 
@@ -37,11 +39,16 @@ export class NotificationCenterPage {
     this.alertsApi.listNotifications().subscribe({
       next: (data) => {
         this.items.set(data.items);
+        this.summaries.set(data.summaries);
         this.loading.set(false);
       },
-      error: () => {
+      error: (error: unknown) => {
         this.loading.set(false);
-        this.errorMessage.set('Unable to load notifications.');
+        this.errorMessage.set(
+          error instanceof HttpErrorResponse
+            ? (error.error?.error?.message ?? 'Unable to load notifications.')
+            : 'Unable to load notifications.',
+        );
       },
     });
   }

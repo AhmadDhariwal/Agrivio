@@ -66,7 +66,12 @@ function createCustomersService(deps) {
   const idempotency = deps.idempotency;
   const now = deps.now ?? (() => new Date());
   const auditWriter = createAuditWriter({
-    append: (session, event) => store.appendAuditEvent(session, event),
+    append: async (session, event) => {
+      await store.appendAuditEvent(session, event);
+      if (deps.auditStore) {
+        await deps.auditStore.append(session, event);
+      }
+    },
   });
   const transactionRunner = deps.transactionRunner;
 
@@ -354,6 +359,7 @@ function createCustomersModule(options) {
       ? {}
       : { evaluateEntitlement: options.evaluateEntitlement }),
     ...(options.ledgersService === undefined ? {} : { ledgersService: options.ledgersService }),
+    ...(options.auditStore === undefined ? {} : { auditStore: options.auditStore }),
     ...(options.now === undefined ? {} : { now: options.now }),
   });
 

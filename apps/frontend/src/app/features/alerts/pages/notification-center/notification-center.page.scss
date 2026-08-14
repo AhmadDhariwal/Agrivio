@@ -14,3 +14,30 @@
 .notification-list p {
   margin: 0.35rem 0;
 }
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.dash-grid h2 {
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.dash-grid p {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.notification-list li {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--ag-border, #d7dde5);
+}
+
+.notification-list p {
+  margin: 0.35rem 0;
+}

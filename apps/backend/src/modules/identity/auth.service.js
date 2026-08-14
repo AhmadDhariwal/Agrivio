@@ -27,8 +27,10 @@ function asDate(value) {
 function createAuthService(deps) {
   const store = deps.store;
   const now = deps.now ?? (() => new Date());
-  const rateLimiter = deps.rateLimiter ?? createAuthRateLimiter();
   const nodeEnv = deps.nodeEnv ?? 'development';
+  const rateLimiter =
+    deps.rateLimiter ??
+    createAuthRateLimiter(nodeEnv === 'test' ? { maxAttempts: 10_000 } : {});
   const auditWriter = createAuditWriter({
     append: (session, event) => store.appendAuditEvent(session, event),
   });

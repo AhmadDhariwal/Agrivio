@@ -41,6 +41,10 @@ export class AuditInquiryPage {
     () => this.sessionStore.session()?.subscriptionAccessState?.status === 'suspended',
   );
 
+  constructor() {
+    this.search();
+  }
+
   search(): void {
     if (!this.canView()) {
       return;

@@ -1,4 +1,5 @@
-<agrivio-ui-page-header title="Dashboard" subtitle="Operational overview for today" />
+<div data-testid="dashboard-page">
+<agrivio-ui-page-header title="Dashboard" lede="Operational overview for today" />
 
 @if (!canView()) {
   <agrivio-ui-alert tone="warning" message="You do not have permission to view the dashboard." />
@@ -107,6 +108,7 @@
   </section>
 
   <p>
-    <a routerLink="/app/alerts" data-testid="dash-alerts-link">Open notification center</a>
+    <a routerLink="/app/alerts" href="/app/alerts" data-testid="dash-alerts-link">Open notification center</a>
   </p>
 }
+</div>

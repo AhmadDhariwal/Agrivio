@@ -192,7 +192,12 @@ function createImportsService(deps) {
   const idempotency = deps.idempotency;
   const now = deps.now ?? (() => new Date());
   const auditWriter = createAuditWriter({
-    append: (session, event) => store.appendAuditEvent(session, event),
+    append: async (session, event) => {
+      await store.appendAuditEvent(session, event);
+      if (deps.auditStore) {
+        await deps.auditStore.append(session, event);
+      }
+    },
   });
 
   async function assertImportsEntitlement(organizationId) {
@@ -578,6 +583,7 @@ function createImportsModule(options = {}) {
     locationsService: options.locationsService,
     canAccessWarehouse: options.canAccessWarehouse,
     resolvePlanEntitlements: options.resolvePlanEntitlements,
+    ...(options.auditStore === undefined ? {} : { auditStore: options.auditStore }),
     ...(options.now === undefined ? {} : { now: options.now }),
   });
 
