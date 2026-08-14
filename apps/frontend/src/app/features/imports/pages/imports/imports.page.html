@@ -1,0 +1,90 @@
+<agrivio-ui-page-header title="Imports" lede="Excel preview and all-or-nothing execution for Frozen Release 1 templates" />
+
+@if (!canPreview()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to preview imports." />
+} @else {
+  @if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" />
+  }
+
+  <form class="import-toolbar" (submit)="$event.preventDefault(); startPreview()">
+    <label>
+      Import type
+      <select
+        data-testid="import-type"
+        [ngModel]="selectedType()"
+        (ngModelChange)="onTypeChange($event)"
+        name="importType"
+      >
+        @for (item of templates(); track item.importType) {
+          <option [value]="item.importType">{{ item.importType }} v{{ item.version }}</option>
+        }
+      </select>
+    </label>
+    <input data-testid="import-file" type="file" accept=".xls,.xlsx,application/vnd.ms-excel" (change)="onFile($event)" />
+    <button type="submit" class="ag-btn" [disabled]="loading() || !selectedFile()">Preview</button>
+  </form>
+
+  @if (selectedTemplate(); as template) {
+    <p data-testid="template-policy">Policy: {{ template.createUpdatePolicy }} · version {{ template.version }}</p>
+    <p>Columns: {{ columnSummary() }}</p>
+  }
+
+  @if (loading()) {
+    <agrivio-ui-loading-state label="Validating workbook…" />
+  }
+
+  @if (job(); as current) {
+    <section data-testid="import-preview">
+      <p>Status: {{ current.status }}</p>
+      @if (current.preview; as preview) {
+        <p data-testid="import-counts">
+          Total {{ preview.totalRows }} · valid {{ preview.validRows }} · invalid {{ preview.invalidRows }}
+        </p>
+        <p>Intended behaviour: {{ preview.createUpdatePolicy }}</p>
+      }
+      @if (errors().length > 0) {
+        <table class="ag-table" data-testid="import-errors">
+          <thead>
+            <tr>
+              <th>Row</th>
+              <th>Field</th>
+              <th>Code</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (error of errors(); track error.row + error.field + error.message) {
+              <tr>
+                <td>{{ error.row }}</td>
+                <td>{{ error.field }}</td>
+                <td>{{ error.code }}</td>
+                <td>{{ error.message }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+      @if (canExecute() && current.preview?.invalidRows === 0 && current.status === 'previewed') {
+        <button
+          type="button"
+          class="ag-btn"
+          data-testid="import-execute"
+          [disabled]="executing()"
+          (click)="confirmAndExecute()"
+        >
+          Confirm and execute
+        </button>
+      }
+      @if (executing()) {
+        <agrivio-ui-loading-state label="Posting import…" />
+      }
+      @if (current.status === 'completed' && current.result; as result) {
+        <agrivio-ui-alert tone="success" [message]="'Imported ' + result.createdCount + ' rows.'" />
+      }
+      @if (current.status === 'failed') {
+        <agrivio-ui-alert tone="danger" [message]="current.failureMessage || 'Import failed.'" />
+      }
+    </section>
+  }
+}

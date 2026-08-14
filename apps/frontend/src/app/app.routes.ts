@@ -68,6 +68,11 @@ export const appRoutes: Route[] = [
           import('./features/reports/pages/reports/reports.page').then((m) => m.ReportsPage),
       },
       {
+        path: 'imports',
+        loadComponent: () =>
+          import('./features/imports/pages/imports/imports.page').then((m) => m.ImportsPage),
+      },
+      {
         path: 'subscription/billing',
         loadComponent: () =>
           import('./features/subscriptions/pages/billing-evidence/billing-evidence.page').then(

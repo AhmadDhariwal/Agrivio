@@ -55,6 +55,8 @@ const { createAlertsModule } = require('./modules/alerts/alerts.module');
 const { registerAlertsRoutes } = require('./modules/alerts/routes/alerts.routes');
 const { createReportingModule } = require('./modules/reporting/reporting.module');
 const { registerReportingRoutes } = require('./modules/reporting/routes/reporting.routes');
+const { createImportsModule } = require('./modules/imports/imports.module');
+const { registerImportsRoutes } = require('./modules/imports/routes/imports.routes');
 const { createSetupProgressService } = require('./modules/settings/setup-progress.service');
 const { canAccessBranch, canAccessWarehouse } = require('./modules/identity/assignment-scope');
 const { hasPermission } = require('./modules/identity/role-permissions');
@@ -359,6 +361,24 @@ function createApp(options) {
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
+  const imports =
+    options.imports ??
+    createImportsModule({
+      persistence,
+      catalogService: catalog.catalogService,
+      customersService: customers.customersService,
+      suppliersService: suppliers.suppliersService,
+      accountsService: accounts.accountsService,
+      inventoryService: inventory.inventoryService,
+      locationsService: locations.locationsService,
+      canAccessWarehouse,
+      resolvePlanEntitlements: async (organizationId) => {
+        const access = await subscriptions.subscriptionService.resolveAccessState(organizationId);
+        return access?.plan?.entitlements ?? null;
+      },
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+
   purchaseReturnCreditsLookup.fn = (organizationId, purchaseId) =>
     returns.listPurchaseReturnCredits(organizationId, purchaseId);
   postedReturnsLookup.fn = (organizationId, purchaseId) =>
@@ -529,6 +549,13 @@ function createApp(options) {
     requireSuspendedReadAccess: subscriptions.middlewares.requireSuspendedReadAccess,
   });
 
+  const importsRoutes = registerImportsRoutes({
+    importsService: imports.importsService,
+    requireAuth: auth.middlewares.requireAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
+    requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+  });
+
   const app = express();
   app.disable('x-powered-by');
 
@@ -558,6 +585,7 @@ function createApp(options) {
   app.use(returnsRoutes);
   app.use(alertsRoutes);
   app.use(reportingRoutes);
+  app.use(importsRoutes);
 
   if (typeof options.registerOperationalProbe === 'function') {
     options.registerOperationalProbe(app, {
@@ -601,6 +629,7 @@ function createApp(options) {
     returns,
     alerts,
     reporting,
+    imports,
     ledgers,
     setupProgressService,
   };

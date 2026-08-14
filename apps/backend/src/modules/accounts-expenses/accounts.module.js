@@ -153,6 +153,19 @@ function createAccountsService(deps) {
       return buildAccountDto(organizationId, record);
     },
 
+    async findAccountByName(organizationId, name) {
+      const needle = String(name ?? '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+      if (needle === '') {
+        return null;
+      }
+      const items = await store.listAccounts(organizationId);
+      const found = items.find((item) => String(item.nameNormalized) === needle);
+      return found ? toAccountDto(found) : null;
+    },
+
     async createAccount(organizationId, body, actor) {
       const input = parseAccountCreate(body);
       try {
@@ -289,21 +302,10 @@ function createAccountsService(deps) {
       }));
     },
 
-    async postOpeningBalance(organizationId, accountId, body, actor, idempotencyKey) {
-      const key = requireIdempotencyKey(idempotencyKey);
+    async postOpeningBalance(organizationId, accountId, body, actor, idempotencyKey, options = {}) {
       const input = parseAccountOpeningBalance(body);
 
-      const result = await idempotency.execute(
-        {
-          scopeType: 'organization',
-          organizationId,
-          actorId: actor.actorId,
-          operation: 'accounts.opening-balance.post',
-        },
-        key,
-        { accountId, amountMinorUnits: input.amountMinorUnits },
-        async () => {
-          const dto = await transactionRunner.run(async (session) => {
+      const postWork = async (session) => {
             const current = await store.findAccountById(organizationId, accountId);
             if (current === null) {
               throw notFound('Account not found');
@@ -366,8 +368,25 @@ function createAccountsService(deps) {
                 currency: 'PKR',
               },
             });
-          });
+      };
 
+      if (options.session) {
+        const dto = await postWork(options.session);
+        return wrapIdempotentResult({ replay: false, response: { statusCode: 201, body: dto } });
+      }
+
+      const key = requireIdempotencyKey(idempotencyKey);
+      const result = await idempotency.execute(
+        {
+          scopeType: 'organization',
+          organizationId,
+          actorId: actor.actorId,
+          operation: 'accounts.opening-balance.post',
+        },
+        key,
+        { accountId, amountMinorUnits: input.amountMinorUnits },
+        async () => {
+          const dto = await transactionRunner.run(postWork);
           return { statusCode: 201, body: dto };
         },
       );

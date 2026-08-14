@@ -15,6 +15,7 @@ const {
   parseProductCreate,
   parseProductPatch,
   parsePackagingUnitsReplace,
+  parsePriceCreate,
   parsePricesReplace,
   assertTrackingModeAllowed,
   toCategoryDto,
@@ -80,10 +81,41 @@ function createCatalogService(deps) {
       return toCategoryDto(await requireCategory(organizationId, categoryId));
     },
 
-    async createCategory(organizationId, body, actor) {
+    async findCategoryByName(organizationId, name) {
+      const needle = String(name ?? '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+      if (needle === '') {
+        return null;
+      }
+      const items = await store.listCategories(organizationId);
+      const found = items.find((item) => String(item.nameNormalized) === needle);
+      return found ? toCategoryDto(found) : null;
+    },
+
+    async findProductBySku(organizationId, sku) {
+      const needle = String(sku ?? '')
+        .trim()
+        .toUpperCase();
+      if (needle === '') {
+        return null;
+      }
+      const items = await store.listProducts(organizationId);
+      const found = items.find((item) => String(item.sku ?? '').toUpperCase() === needle);
+      return found ? toProductDto(found) : null;
+    },
+
+    async findPrice(organizationId, productId, priceTier) {
+      const items = await store.listPrices(organizationId, productId);
+      const found = items.find((item) => item.priceTier === priceTier);
+      return found ? toProductPriceDto(found) : null;
+    },
+
+    async createCategory(organizationId, body, actor, options = {}) {
       const input = parseCategoryCreate(body);
       try {
-        return await transactionRunner.run(async (session) => {
+        return await transactionRunner.runWithOptionalSession(options.session, async (session) => {
           const created = await store.insertCategory(session, {
             organizationId,
             ...input,
@@ -143,7 +175,7 @@ function createCatalogService(deps) {
       return toProductDto(await requireProduct(organizationId, productId));
     },
 
-    async createProduct(organizationId, body, actor) {
+    async createProduct(organizationId, body, actor, options = {}) {
       const input = parseProductCreate(body);
       const category = await requireCategory(organizationId, input.categoryId);
       assertTrackingModeAllowed(category.productClass, input.trackingMode);
@@ -156,7 +188,7 @@ function createCatalogService(deps) {
       );
 
       try {
-        return await transactionRunner.run(async (session) => {
+        return await transactionRunner.runWithOptionalSession(options.session, async (session) => {
           const created = await store.insertProduct(session, {
             organizationId,
             ...input,
@@ -283,6 +315,36 @@ function createCatalogService(deps) {
       await requireProduct(organizationId, productId);
       const items = await store.listPrices(organizationId, productId);
       return { items: items.map(toProductPriceDto) };
+    },
+
+    async createPrice(organizationId, productId, body, actor, options = {}) {
+      const input = parsePriceCreate(body);
+      try {
+        return await transactionRunner.runWithOptionalSession(options.session, async (session) => {
+          await requireProduct(organizationId, productId);
+          const existing = await store.listPrices(organizationId, productId);
+          if (existing.some((item) => item.priceTier === input.priceTier)) {
+            throw conflict('Price tier already exists for this product');
+          }
+          const created = await store.insertPrice(session, {
+            organizationId,
+            productId,
+            ...input,
+            version: 1,
+          });
+          await auditWriter.appendBusinessEvent(session, {
+            organizationId,
+            actorId: actor.actorId,
+            action: 'product.price.created',
+            resourceType: 'product_price',
+            resourceId: String(created['_id']),
+            metadata: { productId, priceTier: input.priceTier },
+          });
+          return toProductPriceDto(created);
+        });
+      } catch (error) {
+        mapDuplicate(error, 'Price tier already exists for this product');
+      }
     },
 
     async replacePrices(organizationId, productId, body, actor) {
