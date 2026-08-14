@@ -42,6 +42,11 @@
             Imports
           </a>
         }
+        @if (canViewAudit()) {
+          <a routerLink="/app/audit" routerLinkActive="active" data-testid="nav-audit">
+            Audit
+          </a>
+        }
         <a routerLink="/context">Switch context</a>
         @if (canViewSettings()) {
           <a routerLink="/app/organization/settings" routerLinkActive="active">Settings</a>
@@ -154,6 +159,11 @@
         }
         @if (canReviewBilling()) {
           <a routerLink="/app/platform/billing-review" routerLinkActive="active">Billing review</a>
+        }
+        @if (canViewBackups()) {
+          <a routerLink="/app/platform/operations" routerLinkActive="active" data-testid="nav-operations">
+            Backup status
+          </a>
         }
       </nav>
 

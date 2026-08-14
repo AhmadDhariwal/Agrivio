@@ -52,7 +52,7 @@ export function buildSubscriptionBanner(
       tone: 'danger',
       title: 'Subscription suspended',
       message:
-        'Operational writes are blocked. You can still view status and submit billing evidence.',
+        'Operational writes and imports are blocked. You can still view status, submit billing evidence, and view or export historical reports where your plan allows. Existing data is not deleted.',
     };
   }
 

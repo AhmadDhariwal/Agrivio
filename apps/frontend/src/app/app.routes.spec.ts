@@ -27,6 +27,8 @@ describe('appRoutes F02 routing', () => {
 
     const returns = app?.children?.find((route) => route.path === 'returns');
     expect(returns).toBeTruthy();
+    expect(app?.children?.find((route) => route.path === 'audit')).toBeTruthy();
+    expect(app?.children?.find((route) => route.path === 'platform/operations')).toBeTruthy();
     const withoutInvoice = app?.children?.find((route) => route.path === 'returns/without-invoice');
     expect(withoutInvoice).toBeTruthy();
     const returnDetail = app?.children?.find((route) => route.path === 'returns/:id');

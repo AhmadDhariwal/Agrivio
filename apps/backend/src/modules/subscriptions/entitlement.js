@@ -133,6 +133,34 @@ function allowsSubscriptionLabel(status, label) {
   return false;
 }
 
+function parseAuditHistoryWindow(value, at = new Date()) {
+  if (value === null || value === undefined) {
+    return { allowed: false, reason: 'entitlement_unconfigured' };
+  }
+  if (typeof value !== 'string' || value.trim() === '') {
+    return { allowed: false, reason: 'entitlement_unconfigured' };
+  }
+  const trimmed = value.trim().toLowerCase();
+  if (trimmed === 'unlimited' || trimmed === 'full' || trimmed === 'all') {
+    return { allowed: true, unlimited: true, reason: 'entitled', value };
+  }
+  const dayMatch = trimmed.match(/^(\d+)\s*d(?:ays?)?$/);
+  if (dayMatch !== null) {
+    const days = Number(dayMatch[1]);
+    if (!Number.isFinite(days) || days < 0) {
+      return { allowed: false, reason: 'entitlement_unhandled' };
+    }
+    return {
+      allowed: true,
+      unlimited: false,
+      from: new Date(at.getTime() - days * 24 * 60 * 60 * 1000),
+      reason: 'entitled',
+      value,
+    };
+  }
+  return { allowed: false, reason: 'entitlement_unhandled' };
+}
+
 function evaluateFeatureEntitlement(plan, entitlementKey) {
   if (plan === null || plan === undefined) {
     return { allowed: false, reason: 'plan_missing' };
@@ -246,6 +274,7 @@ module.exports = {
   evaluateAccessLevel,
   allowsSubscriptionLabel,
   evaluateFeatureEntitlement,
+  parseAuditHistoryWindow,
   evaluateNumericLimit,
   buildSubscriptionAccessState,
 };
