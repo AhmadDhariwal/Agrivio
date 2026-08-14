@@ -1400,6 +1400,44 @@ function createSalesService(deps) {
       }
       return result;
     },
+
+    /**
+     * Read helper for Alerts dead-stock: product IDs with posted (non-cancelled) sale lines
+     * on saleDate within [fromSaleDate, toSaleDate] inclusive.
+     */
+    async listPostedSaleProductActivity(organizationId, query = {}, authContext) {
+      const fromSaleDate =
+        typeof query.fromSaleDate === 'string' && query.fromSaleDate.trim() !== ''
+          ? query.fromSaleDate.trim()
+          : null;
+      const toSaleDate =
+        typeof query.toSaleDate === 'string' && query.toSaleDate.trim() !== ''
+          ? query.toSaleDate.trim()
+          : null;
+      const items = await store.listSales(organizationId, { status: 'posted' });
+      const productIds = new Set();
+      for (const item of items) {
+        if (
+          typeof deps.canAccessWarehouse === 'function' &&
+          !deps.canAccessWarehouse(authContext, String(item.warehouseId))
+        ) {
+          continue;
+        }
+        const saleDate = String(item.saleDate);
+        if (fromSaleDate !== null && saleDate < fromSaleDate) {
+          continue;
+        }
+        if (toSaleDate !== null && saleDate > toSaleDate) {
+          continue;
+        }
+        for (const line of item.lines ?? []) {
+          if (line.productId) {
+            productIds.add(String(line.productId));
+          }
+        }
+      }
+      return { productIds: [...productIds] };
+    },
   };
 }
 

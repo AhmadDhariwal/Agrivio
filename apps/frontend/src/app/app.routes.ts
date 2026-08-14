@@ -51,6 +51,18 @@ export const appRoutes: Route[] = [
           import('./features/shell/pages/workspace-home/workspace-home.page').then((m) => m.WorkspaceHomePage),
       },
       {
+        path: 'dashboard',
+        loadComponent: () =>
+          import('./features/dashboard/pages/dashboard/dashboard.page').then((m) => m.DashboardPage),
+      },
+      {
+        path: 'alerts',
+        loadComponent: () =>
+          import('./features/alerts/pages/notification-center/notification-center.page').then(
+            (m) => m.NotificationCenterPage,
+          ),
+      },
+      {
         path: 'subscription/billing',
         loadComponent: () =>
           import('./features/subscriptions/pages/billing-evidence/billing-evidence.page').then(

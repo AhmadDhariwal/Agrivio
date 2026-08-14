@@ -22,6 +22,16 @@
         <a routerLink="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
           Workspace
         </a>
+        @if (canViewDashboard()) {
+          <a routerLink="/app/dashboard" routerLinkActive="active" data-testid="nav-dashboard">
+            Dashboard
+          </a>
+        }
+        @if (canViewAlerts()) {
+          <a routerLink="/app/alerts" routerLinkActive="active" data-testid="nav-alerts">
+            Alerts
+          </a>
+        }
         <a routerLink="/context">Switch context</a>
         @if (canViewSettings()) {
           <a routerLink="/app/organization/settings" routerLinkActive="active">Settings</a>

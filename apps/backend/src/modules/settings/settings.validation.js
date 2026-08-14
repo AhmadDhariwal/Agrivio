@@ -70,6 +70,8 @@ function parseSettingsPatch(body) {
     'organizationId',
     'creditPolicy',
     'expiryThresholdDays',
+    'deadStockInactivityDays',
+    'lowStockThreshold',
     'invoicePrefix',
     'timezone',
     'subscription',
@@ -97,6 +99,16 @@ function parseSettingsPatch(body) {
   if (Object.prototype.hasOwnProperty.call(body, 'expiryThresholdDays')) {
     throw validationFailed('expiryThresholdDays is owned by Inventory/Alerts', [
       { field: 'expiryThresholdDays', message: 'Expiry thresholds are not residual settings' },
+    ]);
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'deadStockInactivityDays')) {
+    throw validationFailed('deadStockInactivityDays is owned by Alerts', [
+      { field: 'deadStockInactivityDays', message: 'Dead-stock inactivity is not a residual setting' },
+    ]);
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'lowStockThreshold')) {
+    throw validationFailed('lowStockThreshold is owned by Alerts', [
+      { field: 'lowStockThreshold', message: 'Low-stock thresholds are not residual settings' },
     ]);
   }
 
