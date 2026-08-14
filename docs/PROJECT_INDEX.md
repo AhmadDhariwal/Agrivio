@@ -55,11 +55,11 @@ Central navigation for Agrivio documentation.
 * F08 Phase 4 complete (`R1-F08-007`–`R1-F08-009`) — see [tasks/F08-PHASE-4-AUDIT-BACKUP-SUSPENDED.md](tasks/F08-PHASE-4-AUDIT-BACKUP-SUSPENDED.md); audit inquiry, backup/restore status, suspended report/import policy
 * F08 Phase 5 complete (`R1-F08-010`) — see [tasks/F08-PHASE-5-ALERTS-REPORTING-IMPORTS-SLICE.md](tasks/F08-PHASE-5-ALERTS-REPORTING-IMPORTS-SLICE.md); alerts/reports/imports/audit/ops vertical slice and E2E; **F08 stage exit ready pending acceptance**
 * F09 Phase 1 complete (`R1-F09-001`) — see [tasks/F09-PHASE-1-REGRESSION-CONSOLIDATION.md](tasks/F09-PHASE-1-REGRESSION-CONSOLIDATION.md); canonical `npm run test:regression:release`
-* F09 Phase 2 **not accepted** (`R1-F09-002`–`004`) — preparatory suites only; see [tasks/F09-PHASE-2-SECURITY-PERF-A11Y.md](tasks/F09-PHASE-2-SECURITY-PERF-A11Y.md)
+* F09 Phase 2 **partial**: `R1-F09-002` complete (REL-G03/REL-G05); `R1-F09-003`/`004` not accepted — see [tasks/F09-PHASE-2-SECURITY-PERF-A11Y.md](tasks/F09-PHASE-2-SECURITY-PERF-A11Y.md)
 * F09 Phase 3 **not accepted** (`R1-F09-005`) — in-memory restore is not REL-G09; see [tasks/F09-PHASE-3-BACKUP-RESTORE-IMPORT.md](tasks/F09-PHASE-3-BACKUP-RESTORE-IMPORT.md)
 * F09 Phase 4 **not accepted** (`R1-F09-006`–`007`) — automated orgs are not real pilot UAT; see [tasks/F09-PHASE-4-PILOT-UAT.md](tasks/F09-PHASE-4-PILOT-UAT.md)
 * F09 Phase 5 **not accepted** (`R1-F09-008`–`009`) — procedure drafts; named owners and production launch outstanding; see [tasks/F09-PHASE-5-PRODUCTION-LAUNCH.md](tasks/F09-PHASE-5-PRODUCTION-LAUNCH.md)
-* Next work item: `R1-F09-002` after R1-F09-001 remains green — F09 is **not** complete
+* Next work item: `R1-F09-003` — F09 is **not** complete
 
 ## Existing Documents
 
@@ -130,7 +130,7 @@ Central navigation for Agrivio documentation.
 | [tasks/F08-PHASE-4-AUDIT-BACKUP-SUSPENDED.md](tasks/F08-PHASE-4-AUDIT-BACKUP-SUSPENDED.md) | F08 Phase 4: audit views, backup/restore status, suspended policy (`R1-F08-007`–`009`) |
 | [tasks/F08-PHASE-5-ALERTS-REPORTING-IMPORTS-SLICE.md](tasks/F08-PHASE-5-ALERTS-REPORTING-IMPORTS-SLICE.md) | F08 Phase 5: alerts/reporting/imports/audit/ops Angular vertical slice (`R1-F08-010`) |
 | [tasks/F09-PHASE-1-REGRESSION-CONSOLIDATION.md](tasks/F09-PHASE-1-REGRESSION-CONSOLIDATION.md) | F09 Phase 1: full regression suite consolidation (`R1-F09-001`, complete) |
-| [tasks/F09-PHASE-2-SECURITY-PERF-A11Y.md](tasks/F09-PHASE-2-SECURITY-PERF-A11Y.md) | F09 Phase 2: preparatory only — Frozen DoD not accepted (`R1-F09-002`–`004`) |
+| [tasks/F09-PHASE-2-SECURITY-PERF-A11Y.md](tasks/F09-PHASE-2-SECURITY-PERF-A11Y.md) | F09 Phase 2: `R1-F09-002` complete; `R1-F09-003`/`004` Frozen DoD not accepted |
 | [tasks/F09-PHASE-3-BACKUP-RESTORE-IMPORT.md](tasks/F09-PHASE-3-BACKUP-RESTORE-IMPORT.md) | F09 Phase 3: preparatory in-memory rehearsal — Frozen DoD not accepted (`R1-F09-005`) |
 | [tasks/F09-PHASE-4-PILOT-UAT.md](tasks/F09-PHASE-4-PILOT-UAT.md) | F09 Phase 4: automated demo-org rehearsal — Frozen DoD not accepted (`R1-F09-006`–`007`) |
 | [tasks/F09-PHASE-5-PRODUCTION-LAUNCH.md](tasks/F09-PHASE-5-PRODUCTION-LAUNCH.md) | F09 Phase 5: procedure drafts — Frozen DoD not accepted (`R1-F09-008`–`009`) |

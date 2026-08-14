@@ -33,6 +33,10 @@ describe('appRoutes F02 routing', () => {
     expect(app?.children?.find((route) => route.path === 'imports')).toBeTruthy();
     expect(app?.children?.find((route) => route.path === 'audit')).toBeTruthy();
     expect(app?.children?.find((route) => route.path === 'platform/operations')).toBeTruthy();
+    const purchases = app?.children?.find((route) => route.path === 'purchases');
+    expect(purchases).toBeTruthy();
+    expect(purchases?.canActivate ?? []).toEqual([]);
+
     const withoutInvoice = app?.children?.find((route) => route.path === 'returns/without-invoice');
     expect(withoutInvoice).toBeTruthy();
     const returnDetail = app?.children?.find((route) => route.path === 'returns/:id');

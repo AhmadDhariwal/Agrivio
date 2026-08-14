@@ -3,11 +3,13 @@ import { createServer } from 'node:http';
 import {
   API_AUTH_CSRF_PATH,
   API_AUTH_LOGIN_PATH,
+  API_AUTH_LOGOUT_PATH,
   API_CSRF_HEADER,
   API_ORGANIZATION_ACTIVATION_REQUESTS_PATH,
   API_PLATFORM_ACTOR_HEADER,
   API_PLATFORM_ORGANIZATIONS_PATH,
   API_PLATFORM_SUBSCRIPTION_PLANS_PATH,
+  API_SESSION_COOKIE_NAME,
 } from '@agrivio/api-contracts';
 import { hashPassword } from '../../src/modules/identity/password.service.js';
 
@@ -50,6 +52,7 @@ export async function seedPlan(baseUrl, jar) {
       planCode: 'Starter',
       activate: true,
       monthlyPriceMinorUnits: 1000,
+      entitlements: { reportsExports: true, imports: true, auditHistory: '90d' },
     },
     {
       [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
@@ -159,6 +162,32 @@ export async function login(baseUrl, jar, email, password) {
   return response.body.data.session;
 }
 
+export async function logout(baseUrl, jar) {
+  const response = await fetchJson(
+    baseUrl,
+    'POST',
+    API_AUTH_LOGOUT_PATH,
+    {},
+    { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+    jar,
+  );
+  expect(response.status).toBe(200);
+  return response;
+}
+
+export async function seedSuperAdmin(authStore, input) {
+  const passwordHash = await hashPassword(input.password);
+  return authStore.insertUser(null, {
+    email: input.email,
+    emailNormalized: input.email,
+    displayName: 'Super Admin',
+    passwordHash,
+    status: 'active',
+    platformAccess: 'super_admin',
+    version: 1,
+  });
+}
+
 export async function issueCsrf(baseUrl, jar) {
   const response = await fetchJson(baseUrl, 'POST', API_AUTH_CSRF_PATH, {}, {}, jar);
   expect(response.status).toBe(200);
@@ -188,6 +217,21 @@ export function createCookieJar() {
 }
 
 export async function fetchJson(baseUrl, method, path, body, headers = {}, jar) {
+  const response = await fetchRaw(baseUrl, method, path, body, headers, jar);
+  let json;
+  try {
+    json = await response.json();
+  } catch {
+    json = null;
+  }
+  return {
+    status: response.status,
+    body: json,
+    setCookie: response.headers.getSetCookie?.() ?? [],
+  };
+}
+
+export async function fetchRaw(baseUrl, method, path, body, headers = {}, jar) {
   const response = await fetch(`${baseUrl}${path}`, {
     method,
     headers: {
@@ -198,9 +242,10 @@ export async function fetchJson(baseUrl, method, path, body, headers = {}, jar) 
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   jar?.absorb(response.headers);
-  const json = await response.json();
-  return { status: response.status, body: json };
+  return response;
 }
+
+export { API_SESSION_COOKIE_NAME };
 
 function listen(server) {
   return new Promise((resolve, reject) => {
