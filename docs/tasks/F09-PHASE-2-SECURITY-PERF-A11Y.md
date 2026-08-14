@@ -2,20 +2,22 @@
 
 ## Task Status
 
-* Status: **Complete** (implementation)
-* Date: 2026-08-14
+* Status: **Not started / preparatory artifacts only — Frozen DoD not accepted**
+* Date: 2026-08-14 (status corrected)
 * Work items: `R1-F09-002`, `R1-F09-003`, `R1-F09-004`
 
-## Scope Delivered
+## Preparatory (unaccepted)
 
-* Attack-style cross-tenant catalog/customer isolation, CSRF on mutations, Cashier cannot manage catalog or view purchases.
-* Production auth throttle recorded as **20 attempts / 15 minutes** (existing coded default; test env still raises the ceiling).
-* Frozen 81-permission matrix vs role bundles; route/service coverage; HTTP deny/allow for Owner / Cashier / StoreKeeper.
-* `payments.correct`, `platform.organizations.create`, and `platform.organizations.suspend` remain catalogued without dedicated routes (onboarding uses activation requests; org operational suspend is subscription lifecycle; no generic payment correction).
-* Planning performance baseline: 250 in-memory products listed under 2s.
-* Accessibility: document language, labeled login, skip link, main landmark, password visibility name.
+In-repo suites and UI landmarks exist from premature work. They may run in unit/E2E jobs. They do **not** satisfy Frozen DoD.
 
-## Out of scope
+| ID | Frozen DoD gap |
+| --- | --- |
+| R1-F09-002 | Attack/isolation tests exist as rehearsal. REL-G03/REL-G05 are not closed: no security review acceptance, rate-limit production values remain a controlled unresolved item until the F09 security review. |
+| R1-F09-003 | Permission-matrix spec is preparatory. REL-G04 is not accepted until the matrix is verified as the F09 P2 work item against the frozen 81-permission catalog with that phase’s evidence. |
+| R1-F09-004 | `f09-accessibility.e2e.spec.ts` may run with Playwright; that does not complete REL-G07. Browser accessibility baseline was not an accepted F09 P2 gate. REL-G06 cannot pass: Frozen production performance thresholds remain unresolved (QUALITY_GATES / IMPLEMENTATION_ROADMAP). No invented numeric SLA. |
+
+## Out of scope for this record
 
 * External penetration-test vendor procurement.
 * Final SLA contracts.
+* Claiming Phase 2 complete.

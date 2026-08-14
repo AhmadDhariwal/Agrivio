@@ -2,17 +2,20 @@
 
 ## Task Status
 
-* Status: **Complete** (implementation / rehearsal-environment)
-* Date: 2026-08-14
+* Status: **Not started / preparatory in-memory rehearsal only — Frozen DoD not accepted**
+* Date: 2026-08-14 (status corrected)
 * Work items: `R1-F09-005`
 
-## Scope Delivered
+## Preparatory (unaccepted)
 
-* Backup policy verification against a successful `backup_operation_records` outcome.
-* Restore coordination remains non-executing (`productionRestoreExecuted: false`).
-* In-memory catalog snapshot restore rehearsal with category reconciliation.
-* Opening-data category import preview/execute rehearsal with post-import reconciliation.
+* In-repo backup-policy and import preview/execute tests against rehearsal fixtures.
+* In-memory catalog snapshot restore.
 
-## Residual
+## Frozen DoD gap (R1-F09-005 / REL-G08–REL-G10)
 
-* Production backup vendor / MongoDB topology is still an unresolved decision at the F09 entry deadline. In-repo rehearsal does not substitute a vendor restore of production MongoDB.
+* In-memory catalog snapshot restore is **not** the required database/target restore rehearsal.
+* REL-G09 is **not** passed from an in-memory restore.
+* Backup verification against a named production/target backup provider has not been executed.
+* Production MongoDB topology and backup vendor remain unresolved (F09 entry decision deadline).
+
+Do not treat this phase as complete.

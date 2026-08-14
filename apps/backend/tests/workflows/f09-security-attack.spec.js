@@ -20,7 +20,7 @@ import {
 } from './f09-http-harness.js';
 
 describe('R1-F09-002 tenant-isolation attack tests', () => {
-  it('uses 20 attempts / 15 minutes as the Release 1 production auth throttle', () => {
+  it('documents the coded default throttle of 20 attempts / 15 minutes (not a Frozen REL-G05 pass)', () => {
     const limiter = createAuthRateLimiter({ now: () => 1_000 });
     for (let i = 0; i < 20; i += 1) {
       limiter.assertAllowed('login:client');

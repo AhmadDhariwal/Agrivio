@@ -1,5 +1,7 @@
 # Application rollback procedure
 
+**Status: preparatory draft.** Named rollback/incident owners are unresolved. This is not R1-F09-008 completion.
+
 Application rollback redeploys a prior approved application version. It must **not** automatically restore the database.
 
 ## When to use
