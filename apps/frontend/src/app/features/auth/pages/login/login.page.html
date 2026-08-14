@@ -34,6 +34,7 @@
           class="ag-control-wrap__action"
           (click)="showPassword.set(!showPassword())"
           [attr.aria-pressed]="showPassword()"
+          [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
         >
           {{ showPassword() ? 'Hide' : 'Show' }}
         </button>

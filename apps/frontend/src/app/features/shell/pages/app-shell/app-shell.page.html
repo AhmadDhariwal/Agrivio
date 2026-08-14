@@ -4,6 +4,7 @@
   </div>
 } @else {
   <div class="ag-shell" data-testid="authenticated-shell">
+    <a class="ag-skip-link" href="#ag-main">Skip to main content</a>
     <aside class="ag-shell__sidebar" [class.is-open]="navOpen()" aria-label="Application navigation">
       <div>
         <a routerLink="/app" class="ag-shell__brand">Agrivio</a>
@@ -18,7 +19,7 @@
         </div>
       </div>
 
-      <nav class="ag-shell__nav">
+      <nav id="ag-primary-nav" class="ag-shell__nav" aria-label="Primary">
         <a routerLink="/app" href="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
           Workspace
         </a>
@@ -208,7 +209,7 @@
       </button>
     </aside>
 
-    <div class="ag-shell__main">
+    <div class="ag-shell__main" id="ag-main" tabindex="-1">
       <header class="ag-shell__topbar">
         <div class="ag-inline">
           <button
@@ -216,6 +217,7 @@
             class="ag-btn ag-btn--secondary ag-shell__menu-toggle"
             (click)="navOpen.set(!navOpen())"
             [attr.aria-expanded]="navOpen()"
+            aria-controls="ag-primary-nav"
           >
             Menu
           </button>

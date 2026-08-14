@@ -413,6 +413,41 @@ function createInMemoryCatalogStore() {
     listAuditsForTest() {
       return [...audits];
     },
+
+    exportRehearsalSnapshot() {
+      return {
+        seq,
+        categories: [...categories.entries()].map(([id, record]) => [id, { ...record }]),
+        products: [...products.entries()].map(([id, record]) => [id, { ...record }]),
+        packagingUnits: [...packagingUnits.entries()].map(([id, record]) => [id, { ...record }]),
+        prices: [...prices.entries()].map(([id, record]) => [id, { ...record }]),
+        audits: audits.map((event) => ({ ...event })),
+      };
+    },
+
+    restoreRehearsalSnapshot(snapshot) {
+      categories.clear();
+      products.clear();
+      packagingUnits.clear();
+      prices.clear();
+      audits.length = 0;
+      seq = snapshot.seq;
+      for (const [id, record] of snapshot.categories) {
+        categories.set(id, { ...record });
+      }
+      for (const [id, record] of snapshot.products) {
+        products.set(id, { ...record });
+      }
+      for (const [id, record] of snapshot.packagingUnits) {
+        packagingUnits.set(id, { ...record });
+      }
+      for (const [id, record] of snapshot.prices) {
+        prices.set(id, { ...record });
+      }
+      for (const event of snapshot.audits) {
+        audits.push({ ...event });
+      }
+    },
   };
 }
 
