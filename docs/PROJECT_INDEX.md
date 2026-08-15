@@ -56,10 +56,10 @@ Central navigation for Agrivio documentation.
 * F08 Phase 5 complete (`R1-F08-010`) — see [tasks/F08-PHASE-5-ALERTS-REPORTING-IMPORTS-SLICE.md](tasks/F08-PHASE-5-ALERTS-REPORTING-IMPORTS-SLICE.md); alerts/reports/imports/audit/ops vertical slice and E2E; **F08 stage exit ready pending acceptance**
 * F09 Phase 1 complete (`R1-F09-001`) — see [tasks/F09-PHASE-1-REGRESSION-CONSOLIDATION.md](tasks/F09-PHASE-1-REGRESSION-CONSOLIDATION.md); canonical `npm run test:regression:release`
 * F09 Phase 2 **complete for R1-F09-002–004**: REL-G03/G04/G05 evidence in-item; REL-G06 measured within accepted non-SLA thresholds; REL-G07 pass for NFR-A11Y-001–006 (not full WCAG product conformance). Do not start later F09 IDs from this record — see [tasks/F09-PHASE-2-SECURITY-PERF-A11Y.md](tasks/F09-PHASE-2-SECURITY-PERF-A11Y.md)
-* F09 Phase 3 **not accepted** (`R1-F09-005`) — in-memory restore is not REL-G09; see [tasks/F09-PHASE-3-BACKUP-RESTORE-IMPORT.md](tasks/F09-PHASE-3-BACKUP-RESTORE-IMPORT.md)
+* F09 Phase 3 complete for local technical rehearsal (`R1-F09-005`): REL-G08/G09 proven with host `mongodump`/`mongorestore`; REL-G10 passed; production vendor backup verification pending — see [tasks/F09-PHASE-3-BACKUP-RESTORE-IMPORT.md](tasks/F09-PHASE-3-BACKUP-RESTORE-IMPORT.md)
 * F09 Phase 4 **not accepted** (`R1-F09-006`–`007`) — automated orgs are not real pilot UAT; see [tasks/F09-PHASE-4-PILOT-UAT.md](tasks/F09-PHASE-4-PILOT-UAT.md)
 * F09 Phase 5 **not accepted** (`R1-F09-008`–`009`) — procedure drafts; named owners and production launch outstanding; see [tasks/F09-PHASE-5-PRODUCTION-LAUNCH.md](tasks/F09-PHASE-5-PRODUCTION-LAUNCH.md)
-* Next work item: `R1-F09-005` backup/restore and import rehearsal (not started in R1-F09-004). F09 is **not** complete until later IDs and remaining release gates pass.
+* Next work item: `R1-F09-005` local technical rehearsal is complete. Do not start `R1-F09-006` until assigned. Production target/vendor backup verification remains pending.
 
 ## Existing Documents
 
@@ -131,7 +131,8 @@ Central navigation for Agrivio documentation.
 | [tasks/F08-PHASE-5-ALERTS-REPORTING-IMPORTS-SLICE.md](tasks/F08-PHASE-5-ALERTS-REPORTING-IMPORTS-SLICE.md) | F08 Phase 5: alerts/reporting/imports/audit/ops Angular vertical slice (`R1-F08-010`) |
 | [tasks/F09-PHASE-1-REGRESSION-CONSOLIDATION.md](tasks/F09-PHASE-1-REGRESSION-CONSOLIDATION.md) | F09 Phase 1: full regression suite consolidation (`R1-F09-001`, complete) |
 | [tasks/F09-PHASE-2-SECURITY-PERF-A11Y.md](tasks/F09-PHASE-2-SECURITY-PERF-A11Y.md) | F09 Phase 2: `R1-F09-002`/`003`/`004` complete; REL-G06/G07 evidenced (non-SLA perf; WCAG 2.2 AA contrast criteria only) |
-| [tasks/F09-PHASE-3-BACKUP-RESTORE-IMPORT.md](tasks/F09-PHASE-3-BACKUP-RESTORE-IMPORT.md) | F09 Phase 3: preparatory in-memory rehearsal — Frozen DoD not accepted (`R1-F09-005`) |
+| [tasks/F09-PHASE-3-BACKUP-RESTORE-IMPORT.md](tasks/F09-PHASE-3-BACKUP-RESTORE-IMPORT.md) | F09 Phase 3: local REL-G08/G09/G10 passed (`R1-F09-005`); production vendor pending |
+| [ops/BACKUP_RESTORE_REHEARSAL.md](ops/BACKUP_RESTORE_REHEARSAL.md) | Path-generic local mongodump/mongorestore/import rehearsal runbook |
 | [tasks/F09-PHASE-4-PILOT-UAT.md](tasks/F09-PHASE-4-PILOT-UAT.md) | F09 Phase 4: automated demo-org rehearsal — Frozen DoD not accepted (`R1-F09-006`–`007`) |
 | [tasks/F09-PHASE-5-PRODUCTION-LAUNCH.md](tasks/F09-PHASE-5-PRODUCTION-LAUNCH.md) | F09 Phase 5: procedure drafts — Frozen DoD not accepted (`R1-F09-008`–`009`) |
 | [ops/RELEASE_NOTES.md](ops/RELEASE_NOTES.md) | Preparatory Release 1 notes draft (pending named operational contacts) |

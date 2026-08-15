@@ -31,6 +31,7 @@
     "test:perf:baseline": "node scripts/f09-performance-baseline.mjs",
     "test:perf:navigation": "playwright test f09-perf-navigation",
     "test:a11y:baseline": "playwright test f09-accessibility f09-a11y-shell f09-a11y-workflows f09-a11y-contrast",
+    "test:ops:rehearsal": "node scripts/ops/f09-backup-restore-import-rehearsal.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run test:unit && npm run test:architecture && npm run build",

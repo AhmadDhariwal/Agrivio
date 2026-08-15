@@ -2,20 +2,34 @@
 
 ## Task Status
 
-* Status: **Not started / preparatory in-memory rehearsal only — Frozen DoD not accepted**
-* Date: 2026-08-14 (status corrected)
+* Status: **Complete for local technical rehearsal** (`R1-F09-005`). REL-G08/G09 proven on this host with real `mongodump`/`mongorestore`. REL-G10 passed. Production target/vendor backup verification remains pending.
+* Date: 2026-08-15
 * Work items: `R1-F09-005`
 
-## Preparatory (unaccepted)
+## Delivered
 
-* In-repo backup-policy and import preview/execute tests against rehearsal fixtures.
-* In-memory catalog snapshot restore.
+* Disposable rehearsal DB naming policy (refuses `Agrivio` and unrelated databases).
+* Representative source dataset via application HTTP workflows on `agrivio_rehearsal_source_*`.
+* Dump comparison snapshot captured immediately after optional backup-coordination recording and immediately before `mongodump`; restored counts compared to that cut point (not a stale pre-coordination snapshot).
+* Source vs restored inventory, WAC, ledger, account, dashboard/report reconciliation.
+* Missing-dump `mongorestore` non-zero exit and Agrivio restore refusal.
+* Integrated F08 import preview/confirm/execute plus invalid preview (REL-G10).
+* Runbook: [BACKUP_RESTORE_REHEARSAL.md](../ops/BACKUP_RESTORE_REHEARSAL.md)
+* Command: `npm run test:ops:rehearsal`
+* Evidence: [F09-R1-F09-005-REHEARSAL-EVIDENCE.json](../ops/F09-R1-F09-005-REHEARSAL-EVIDENCE.json)
 
-## Frozen DoD gap (R1-F09-005 / REL-G08–REL-G10)
+## Gate split (this workstation, 2026-08-15)
 
-* In-memory catalog snapshot restore is **not** the required database/target restore rehearsal.
-* REL-G09 is **not** passed from an in-memory restore.
-* Backup verification against a named production/target backup provider has not been executed.
-* Production MongoDB topology and backup vendor remain unresolved (F09 entry decision deadline).
+| Layer | Status |
+| --- | --- |
+| LOCAL TECHNICAL BACKUP (`mongodump`) | **PASS** — tool 100.17.0, exit 0, non-empty BSON artifact |
+| LOCAL TECHNICAL RESTORE (`mongorestore`) | **PASS** — tool 100.17.0, exit 0, separate disposable DB, dump-cut-point count match plus business reconciliation |
+| INTEGRATED IMPORT REHEARSAL | **PASS** |
+| PRODUCTION TARGET/VENDOR BACKUP VERIFICATION | pending — no production backup vendor selected |
 
-Do not treat this phase as complete.
+## Out of scope
+
+* R1-F09-006+
+* Production restore
+* Hosting / backup / monitoring vendor selection
+* Frozen document edits
