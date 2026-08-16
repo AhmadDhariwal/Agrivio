@@ -57,6 +57,18 @@ function registerCustomersRoutes(deps) {
     },
   );
 
+  router.delete(
+    `${API_CUSTOMERS_PATH}/:id`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('customers.manage'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.deleteCustomer(req, res, next);
+    },
+  );
+
   router.patch(
     `${API_CUSTOMERS_PATH}/:id/credit-policy`,
     deps.requireAuth,

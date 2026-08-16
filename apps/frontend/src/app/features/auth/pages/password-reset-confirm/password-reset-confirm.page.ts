@@ -25,26 +25,34 @@ export class PasswordResetConfirmPage implements OnInit {
   readonly form = this.formBuilder.nonNullable.group({
     token: ['', [Validators.required]],
     password: ['', [Validators.required, Validators.minLength(12), Validators.maxLength(128)]],
+    passwordConfirmation: ['', [Validators.required]],
   });
+
+  readonly tokenFromLink = signal(false);
 
   ngOnInit(): void {
     const token = this.route.snapshot.queryParamMap.get('token');
     if (token) {
       this.form.patchValue({ token });
+      this.tokenFromLink.set(true);
     }
   }
 
   submit(): void {
     this.successMessage.set(null);
     this.errorMessage.set(null);
+    const { token, password, passwordConfirmation } = this.form.getRawValue();
+    if (password !== passwordConfirmation) {
+      this.errorMessage.set('Passwords must match.');
+      this.form.markAllAsTouched();
+      return;
+    }
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       this.errorMessage.set('Provide a valid reset token and password (12–128 characters).');
       return;
     }
-
     this.submitting.set(true);
-    const { token, password } = this.form.getRawValue();
     this.authApi.confirmPasswordReset(token, password).subscribe({
       next: () => {
         this.submitting.set(false);

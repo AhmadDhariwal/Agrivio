@@ -50,6 +50,19 @@ function createExpensesController(deps) {
       }
     },
 
+    async deleteExpenseCategory(req, res, next) {
+      try {
+        const data = await deps.accountsService.deleteExpenseCategory(
+          requireOrganizationId(req),
+          String(req.params.id),
+          { actorId: String(req.authContext.userId) },
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async listExpenses(req, res, next) {
       try {
         const data = await deps.accountsService.listExpenses(requireOrganizationId(req));

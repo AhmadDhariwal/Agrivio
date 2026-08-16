@@ -5,6 +5,7 @@ const {
 const { createAuditWriter } = require('../../platform/audit/audit-writer');
 const { assertOptimisticVersion } = require('../../platform/validation/request-validation');
 const { conflict, notFound } = require('../../platform/errors/app-error');
+const { assertMasterUnused } = require('../../platform/lifecycle/record-in-use');
 const {
   assertCreationLimit,
   attachSoftWarning,
@@ -174,6 +175,36 @@ function createCatalogService(deps) {
       }
     },
 
+    async deleteCategory(organizationId, categoryId, actor) {
+      const current = await requireCategory(organizationId, categoryId);
+      const products = await store.listProducts(organizationId);
+      const owned = products.filter((item) => String(item.categoryId) === String(categoryId));
+      const extra =
+        typeof deps.listCategoryReferences === 'function'
+          ? await deps.listCategoryReferences(organizationId, categoryId)
+          : [];
+      const reasons = extra.slice();
+      if (owned.length > 0) {
+        reasons.unshift('products');
+      }
+      assertMasterUnused(reasons);
+      return transactionRunner.run(async (session) => {
+        const deleted = await store.deleteCategory(session, organizationId, categoryId);
+        if (!deleted) {
+          throw notFound('Category not found');
+        }
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: actor.actorId,
+          action: 'product_category.deleted',
+          resourceType: 'product_category',
+          resourceId: categoryId,
+          metadata: { name: current.name },
+        });
+        return { id: categoryId, deleted: true };
+      });
+    },
+
     async listProductCategoryMap(organizationId) {
       if (typeof store.listProductCategoryPairs === 'function') {
         const items = await store.listProductCategoryPairs(organizationId);
@@ -263,6 +294,30 @@ function createCatalogService(deps) {
       } catch (error) {
         mapDuplicate(error, 'Product SKU already exists in this organization');
       }
+    },
+
+    async deleteProduct(organizationId, productId, actor) {
+      const current = await requireProduct(organizationId, productId);
+      const extra =
+        typeof deps.listProductReferences === 'function'
+          ? await deps.listProductReferences(organizationId, productId)
+          : [];
+      assertMasterUnused(extra);
+      return transactionRunner.run(async (session) => {
+        const deleted = await store.deleteProduct(session, organizationId, productId);
+        if (!deleted) {
+          throw notFound('Product not found');
+        }
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: actor.actorId,
+          action: 'product.deleted',
+          resourceType: 'product',
+          resourceId: productId,
+          metadata: { sku: current.sku },
+        });
+        return { id: productId, deleted: true };
+      });
     },
 
     async listPackagingUnits(organizationId, productId) {
@@ -453,6 +508,12 @@ function createCatalogModule(options) {
     ...(options.evaluateEntitlement === undefined
       ? {}
       : { evaluateEntitlement: options.evaluateEntitlement }),
+    ...(options.listProductReferences === undefined
+      ? {}
+      : { listProductReferences: options.listProductReferences }),
+    ...(options.listCategoryReferences === undefined
+      ? {}
+      : { listCategoryReferences: options.listCategoryReferences }),
   });
 
   return {

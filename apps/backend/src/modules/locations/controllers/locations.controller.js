@@ -60,6 +60,19 @@ function createLocationsController(deps) {
       }
     },
 
+    async deleteBranch(req, res, next) {
+      try {
+        const data = await deps.locationsService.deleteBranch(
+          requireOrganizationId(req),
+          String(req.params.id),
+          { actorId: String(req.authContext.userId) },
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async listWarehouses(req, res, next) {
       try {
         const data = await deps.locationsService.listWarehouses(requireOrganizationId(req), {
@@ -102,6 +115,19 @@ function createLocationsController(deps) {
           requireOrganizationId(req),
           String(req.params.id),
           req.body,
+          { actorId: String(req.authContext.userId) },
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async deleteWarehouse(req, res, next) {
+      try {
+        const data = await deps.locationsService.deleteWarehouse(
+          requireOrganizationId(req),
+          String(req.params.id),
           { actorId: String(req.authContext.userId) },
         );
         sendSuccessEnvelope(res, 200, data);

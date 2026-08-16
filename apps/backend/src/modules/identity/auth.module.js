@@ -28,6 +28,10 @@ function createAuthModule(options) {
   const authService = createAuthService({
     store,
     nodeEnv: options.config.nodeEnv,
+    publicWebBaseUrl: options.config.publicWebBaseUrl,
+    mailTransport:
+      options.mailTransport ??
+      require('./smtp-mailer').createSmtpMailTransport(options.config),
     ...(options.now === undefined ? {} : { now: options.now }),
     ...(options.resolveSubscriptionAccessState === undefined
       ? {}

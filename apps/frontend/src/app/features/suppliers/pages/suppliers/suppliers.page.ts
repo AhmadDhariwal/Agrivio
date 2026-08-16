@@ -14,8 +14,10 @@ import { UiLifecycleFilterComponent } from '../../../../shared/ui/ui-lifecycle-f
 import {
   MasterLifecycleFilter,
   deactivateCopy,
+  deletePermanentlyCopy,
   filterMasterLifecycle,
   reactivateCopy,
+  recordInUseMessage,
 } from '../../../../shared/lifecycle/master-lifecycle';
 
 @Component({
@@ -39,7 +41,7 @@ export class SuppliersPage {
   private readonly sessionStore = inject(AuthSessionStore);
 
   readonly items = signal<SupplierRecord[]>([]);
-  readonly statusFilter = signal<MasterLifecycleFilter>('all');
+  readonly statusFilter = signal<MasterLifecycleFilter>('active');
   readonly visibleItems = computed(() => filterMasterLifecycle(this.items(), this.statusFilter()));
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
@@ -50,7 +52,10 @@ export class SuppliersPage {
   readonly confirmTitle = signal('');
   readonly confirmMessage = signal('');
   readonly confirmLabel = signal('Deactivate');
-  private pending: { item: SupplierRecord; nextStatus: 'active' | 'inactive' } | null = null;
+  private pending:
+    | { kind: 'status'; item: SupplierRecord; nextStatus: 'active' | 'inactive' }
+    | { kind: 'delete'; item: SupplierRecord }
+    | null = null;
 
   constructor() {
     this.reload();
@@ -81,7 +86,7 @@ export class SuppliersPage {
 
   askDeactivate(item: SupplierRecord): void {
     const copy = deactivateCopy('supplier', 'Existing purchases and payable history will remain unchanged.');
-    this.pending = { item, nextStatus: 'inactive' };
+    this.pending = { kind: 'status', item, nextStatus: 'inactive' };
     this.confirmTitle.set(copy.title);
     this.confirmMessage.set(copy.message);
     this.confirmLabel.set('Deactivate');
@@ -90,10 +95,19 @@ export class SuppliersPage {
 
   askReactivate(item: SupplierRecord): void {
     const copy = reactivateCopy('supplier');
-    this.pending = { item, nextStatus: 'active' };
+    this.pending = { kind: 'status', item, nextStatus: 'active' };
     this.confirmTitle.set(copy.title);
     this.confirmMessage.set(copy.message);
     this.confirmLabel.set('Reactivate');
+    this.confirmOpen.set(true);
+  }
+
+  askDelete(item: SupplierRecord): void {
+    const copy = deletePermanentlyCopy('supplier');
+    this.pending = { kind: 'delete', item };
+    this.confirmTitle.set(copy.title);
+    this.confirmMessage.set(copy.message);
+    this.confirmLabel.set('Delete permanently');
     this.confirmOpen.set(true);
   }
 
@@ -102,6 +116,18 @@ export class SuppliersPage {
     this.confirmOpen.set(false);
     this.pending = null;
     if (!pending || !this.canManage()) {
+      return;
+    }
+    if (pending.kind === 'delete') {
+      this.api.deleteSupplier(pending.item.id).subscribe({
+        next: () => {
+          this.successMessage.set('Supplier deleted.');
+          this.reload();
+        },
+        error: (error: unknown) => {
+          this.errorMessage.set(recordInUseMessage(error, 'Unable to delete supplier.'));
+        },
+      });
       return;
     }
     this.api

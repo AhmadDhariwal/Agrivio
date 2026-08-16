@@ -14,8 +14,10 @@ import { UiLifecycleFilterComponent } from '../../../../shared/ui/ui-lifecycle-f
 import {
   MasterLifecycleFilter,
   deactivateCopy,
+  deletePermanentlyCopy,
   filterMasterLifecycle,
   reactivateCopy,
+  recordInUseMessage,
 } from '../../../../shared/lifecycle/master-lifecycle';
 
 @Component({
@@ -39,7 +41,7 @@ export class CustomersPage {
   private readonly sessionStore = inject(AuthSessionStore);
 
   readonly items = signal<CustomerRecord[]>([]);
-  readonly statusFilter = signal<MasterLifecycleFilter>('all');
+  readonly statusFilter = signal<MasterLifecycleFilter>('active');
   readonly visibleItems = computed(() => filterMasterLifecycle(this.items(), this.statusFilter()));
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
@@ -50,7 +52,10 @@ export class CustomersPage {
   readonly confirmTitle = signal('');
   readonly confirmMessage = signal('');
   readonly confirmLabel = signal('Deactivate');
-  private pending: { item: CustomerRecord; nextStatus: 'active' | 'inactive' } | null = null;
+  private pending:
+    | { kind: 'status'; item: CustomerRecord; nextStatus: 'active' | 'inactive' }
+    | { kind: 'delete'; item: CustomerRecord }
+    | null = null;
 
   constructor() {
     this.reload();
@@ -81,7 +86,7 @@ export class CustomersPage {
 
   askDeactivate(item: CustomerRecord): void {
     const copy = deactivateCopy('customer', 'Existing invoices and ledger history will remain unchanged.');
-    this.pending = { item, nextStatus: 'inactive' };
+    this.pending = { kind: 'status', item, nextStatus: 'inactive' };
     this.confirmTitle.set(copy.title);
     this.confirmMessage.set(copy.message);
     this.confirmLabel.set('Deactivate');
@@ -90,10 +95,19 @@ export class CustomersPage {
 
   askReactivate(item: CustomerRecord): void {
     const copy = reactivateCopy('customer');
-    this.pending = { item, nextStatus: 'active' };
+    this.pending = { kind: 'status', item, nextStatus: 'active' };
     this.confirmTitle.set(copy.title);
     this.confirmMessage.set(copy.message);
     this.confirmLabel.set('Reactivate');
+    this.confirmOpen.set(true);
+  }
+
+  askDelete(item: CustomerRecord): void {
+    const copy = deletePermanentlyCopy('customer');
+    this.pending = { kind: 'delete', item };
+    this.confirmTitle.set(copy.title);
+    this.confirmMessage.set(copy.message);
+    this.confirmLabel.set('Delete permanently');
     this.confirmOpen.set(true);
   }
 
@@ -102,6 +116,18 @@ export class CustomersPage {
     this.confirmOpen.set(false);
     this.pending = null;
     if (!pending || !this.canManage()) {
+      return;
+    }
+    if (pending.kind === 'delete') {
+      this.api.deleteCustomer(pending.item.id).subscribe({
+        next: () => {
+          this.successMessage.set('Customer deleted.');
+          this.reload();
+        },
+        error: (error: unknown) => {
+          this.errorMessage.set(recordInUseMessage(error, 'Unable to delete customer.'));
+        },
+      });
       return;
     }
     this.api

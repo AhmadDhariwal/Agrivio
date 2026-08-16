@@ -57,6 +57,18 @@ function registerSuppliersRoutes(deps) {
     },
   );
 
+  router.delete(
+    `${API_SUPPLIERS_PATH}/:id`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('suppliers.manage'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.deleteSupplier(req, res, next);
+    },
+  );
+
   router.post(
     `${API_SUPPLIERS_PATH}/:id/opening-balance`,
     deps.requireAuth,

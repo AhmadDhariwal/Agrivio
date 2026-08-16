@@ -12,15 +12,15 @@ import { MasterLifecycleFilter } from '../../lifecycle/master-lifecycle';
         (change)="onChange($event)"
         data-testid="lifecycle-status-filter"
       >
-        <option value="all">All</option>
         <option value="active">Active</option>
         <option value="inactive">Inactive</option>
+        <option value="all">All</option>
       </select>
     </label>
   `,
 })
 export class UiLifecycleFilterComponent {
-  readonly value = input<MasterLifecycleFilter>('all');
+  readonly value = input<MasterLifecycleFilter>('active');
   readonly changed = output<MasterLifecycleFilter>();
 
   onChange(event: Event): void {

@@ -81,6 +81,19 @@ export class AccountsApi {
     );
   }
 
+  deleteAccount(id: string): Observable<{ id: string; deleted: boolean }> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .delete<{ data: { id: string; deleted: boolean } }>(
+            `${environment.publicApiBaseUrl}/api/v1/accounts/${id}`,
+            { withCredentials: true, headers: { 'X-CSRF-Token': csrfToken } },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
   postOpeningBalance(
     id: string,
     payload: { amount: { amount: string; currency: string } },

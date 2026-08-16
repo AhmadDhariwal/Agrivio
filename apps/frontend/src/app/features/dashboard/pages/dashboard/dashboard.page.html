@@ -1,5 +1,7 @@
 <div data-testid="dashboard-page">
-<agrivio-ui-page-header title="Dashboard" lede="Operational overview for today" />
+<agrivio-ui-page-header title="Dashboard" lede="Operational overview from Agrivio reporting">
+  <button type="button" class="ag-btn ag-btn--secondary" (click)="reload()">Refresh</button>
+</agrivio-ui-page-header>
 
 @if (!canView()) {
   <agrivio-ui-alert tone="warning" message="You do not have permission to view the dashboard." />
@@ -8,91 +10,109 @@
 } @else if (errorMessage(); as error) {
   <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
 } @else if (dashboard(); as data) {
-  <p class="dash-meta" data-testid="dashboard-business-date">Business date: {{ data.businessDate }}</p>
+  <form class="dash-toolbar ag-form" (submit)="$event.preventDefault(); reload()">
+    <p class="dash-meta" data-testid="dashboard-business-date">Business date: {{ data.businessDate }}</p>
+    <label>From
+      <input type="date" [ngModel]="fromDate()" (ngModelChange)="fromDate.set($event)" name="fromDate" />
+    </label>
+    <label>To
+      <input type="date" [ngModel]="toDate()" (ngModelChange)="toDate.set($event)" name="toDate" />
+    </label>
+    <p class="ag-muted">
+      Scope:
+      @if (activeBranchId()) { branch {{ activeBranchId() }} } @else { all permitted branches }
+      ·
+      @if (activeWarehouseId()) { warehouse {{ activeWarehouseId() }} } @else { all permitted warehouses }
+    </p>
+    <button type="submit" class="ag-btn">Apply range</button>
+  </form>
 
-  <section class="dash-grid" aria-label="Today metrics">
-    <div>
-      <h2>Today's sales</h2>
-      <p data-testid="dash-todays-sales">{{ data.todaysSales.amount }} {{ data.todaysSales.currency }}</p>
-    </div>
-    <div>
-      <h2>Today's purchases</h2>
-      <p data-testid="dash-todays-purchases">
-        {{ data.todaysPurchases.amount }} {{ data.todaysPurchases.currency }}
-      </p>
-    </div>
-    <div>
-      <h2>Today's expenses</h2>
-      <p data-testid="dash-todays-expenses">
-        {{ data.todaysExpenses.amount }} {{ data.todaysExpenses.currency }}
-      </p>
-    </div>
-    <div>
+  <section class="dash-grid" aria-label="Primary KPIs">
+    <a routerLink="/app/sales" class="dash-card">
+      <h2>Sales</h2>
+      <p data-testid="dash-todays-sales">{{ money(data.periodSales ?? data.todaysSales) }}</p>
+      <span class="ag-muted">Today {{ money(data.todaysSales) }}</span>
+    </a>
+    <a routerLink="/app/purchases" class="dash-card">
+      <h2>Purchases</h2>
+      <p data-testid="dash-todays-purchases">{{ money(data.periodPurchases ?? data.todaysPurchases) }}</p>
+      <span class="ag-muted">Today {{ money(data.todaysPurchases) }}</span>
+    </a>
+    <a routerLink="/app/expenses" class="dash-card">
+      <h2>Expenses</h2>
+      <p data-testid="dash-todays-expenses">{{ money(data.todaysExpenses) }}</p>
+    </a>
+    <a routerLink="/app/reports" class="dash-card">
       <h2>Gross profit</h2>
-      <p data-testid="dash-gross-profit">{{ data.grossProfit.amount }} {{ data.grossProfit.currency }}</p>
-    </div>
+      <p data-testid="dash-gross-profit">{{ money(data.periodGrossProfit ?? data.grossProfit) }}</p>
+    </a>
   </section>
 
-  <section class="dash-grid" aria-label="Balances">
-    <div>
-      <h2>Cash</h2>
-      <p>{{ data.cashBalances.amount }} {{ data.cashBalances.currency }}</p>
-    </div>
-    <div>
-      <h2>Bank</h2>
-      <p>{{ data.bankBalances.amount }} {{ data.bankBalances.currency }}</p>
-    </div>
-    <div>
-      <h2>JazzCash</h2>
-      <p>{{ data.jazzCashBalance.amount }} {{ data.jazzCashBalance.currency }}</p>
-    </div>
-    <div>
-      <h2>Easypaisa</h2>
-      <p>{{ data.easypaisaBalance.amount }} {{ data.easypaisaBalance.currency }}</p>
-    </div>
-    <div>
+  <section class="dash-grid" aria-label="Financial KPIs">
+    <a routerLink="/app/customers" class="dash-card">
       <h2>Customer receivables</h2>
-      <p data-testid="dash-receivables">
-        {{ data.customerReceivables.amount }} {{ data.customerReceivables.currency }}
-      </p>
-    </div>
-    <div>
+      <p data-testid="dash-receivables">{{ money(data.customerReceivables) }}</p>
+    </a>
+    <a routerLink="/app/suppliers" class="dash-card">
       <h2>Supplier payables</h2>
-      <p data-testid="dash-payables">
-        {{ data.supplierPayables.amount }} {{ data.supplierPayables.currency }}
-      </p>
+      <p data-testid="dash-payables">{{ money(data.supplierPayables) }}</p>
+    </a>
+    <div class="dash-card">
+      <h2>Cash</h2>
+      <p>{{ money(data.cashBalances) }}</p>
     </div>
+    <div class="dash-card">
+      <h2>Bank</h2>
+      <p>{{ money(data.bankBalances) }}</p>
+    </div>
+    <div class="dash-card">
+      <h2>JazzCash</h2>
+      <p>{{ money(data.jazzCashBalance) }}</p>
+    </div>
+    <div class="dash-card">
+      <h2>Easypaisa</h2>
+      <p>{{ money(data.easypaisaBalance) }}</p>
+    </div>
+    @if (data.stockValuation) {
+      <a routerLink="/app/inventory/stock" class="dash-card">
+        <h2>Stock valuation</h2>
+        <p>{{ money(data.stockValuation) }}</p>
+      </a>
+    }
   </section>
 
-  <section class="dash-grid" aria-label="Inventory alerts">
+  <section class="dash-charts" aria-label="Trends">
     <div>
-      <h2>Low stock</h2>
-      <p data-testid="dash-low-stock">{{ data.lowStockCount }}</p>
-    </div>
-    <div>
-      <h2>Upcoming expiry</h2>
-      <p data-testid="dash-upcoming-expiry">{{ data.upcomingExpiryCount }}</p>
-    </div>
-    <div>
-      <h2>Expired stock</h2>
-      <p data-testid="dash-expired-stock">{{ data.expiredStockCount }}</p>
-    </div>
-    <div>
-      <h2>Dead stock</h2>
-      <p data-testid="dash-dead-stock">{{ data.deadStockSummary.count }}</p>
-    </div>
-  </section>
-
-  <section aria-label="Recent sales">
-    <h2>Recent sales</h2>
-    <ul data-testid="dash-recent-sales">
-      @for (sale of data.recentSales; track sale.id) {
-        <li>
-          {{ sale.invoiceNumber || sale.id }} — {{ sale.saleDate }} —
-          {{ sale.saleTotal?.amount }} {{ sale.saleTotal?.currency }}
-        </li>
+      <h2>Sales vs purchases</h2>
+      @if ((data.salesVsPurchases ?? []).length === 0) {
+        <p class="ag-muted">No posted activity in this range.</p>
+      } @else {
+        <ul class="dash-bars">
+          @for (row of data.salesVsPurchases; track row.date) {
+            <li>
+              <span>{{ row.date }}</span>
+              <span class="dash-bar dash-bar--sales" [style.width.%]="barWidth(row.sales.amount, maxTrendAmount())" [attr.title]="'Sales ' + money(row.sales)"></span>
+              <span class="dash-bar dash-bar--purchases" [style.width.%]="barWidth(row.purchases.amount, maxTrendAmount())" [attr.title]="'Purchases ' + money(row.purchases)"></span>
+            </li>
+          }
+        </ul>
       }
-    </ul>
+    </div>
+    <div>
+      <h2>Gross profit trend</h2>
+      @if ((data.grossProfitTrend ?? []).length === 0) {
+        <p class="ag-muted">No gross-profit rows in this range.</p>
+      } @else {
+        <ul class="dash-bars">
+          @for (row of data.grossProfitTrend; track row.date) {
+            <li>
+              <span>{{ row.date }}</span>
+              <span class="dash-bar dash-bar--profit" [style.width.%]="barWidth(row.grossProfit.amount, maxTrendAmount())" [attr.title]="money(row.grossProfit)"></span>
+            </li>
+          }
+        </ul>
+      }
+    </div>
   </section>
 
   <section aria-label="Top-selling products">
@@ -100,8 +120,49 @@
     <ul data-testid="dash-top-products">
       @for (product of data.topSellingProducts; track product.productId) {
         <li>
-          {{ product.productName }} — qty {{ product.quantityBase }} — {{ product.revenue.amount }}
-          {{ product.revenue.currency }}
+          <a [routerLink]="['/app/products', product.productId]">{{ product.productName }}</a>
+          — qty {{ product.quantityBase }} — {{ product.revenue.amount }} {{ product.revenue.currency }}
+        </li>
+      }
+    </ul>
+  </section>
+
+  <section class="dash-grid" aria-label="Account distribution">
+    @for (item of data.accountDistribution ?? []; track item.key) {
+      <div class="dash-card">
+        <h2>{{ item.label }}</h2>
+        <p>{{ money(item.balance) }}</p>
+      </div>
+    }
+  </section>
+
+  <section class="dash-grid" aria-label="Inventory alerts">
+    <a routerLink="/app/alerts" class="dash-card">
+      <h2>Low stock</h2>
+      <p data-testid="dash-low-stock">{{ data.lowStockCount }}</p>
+    </a>
+    <a routerLink="/app/alerts" class="dash-card">
+      <h2>Upcoming expiry</h2>
+      <p data-testid="dash-upcoming-expiry">{{ data.upcomingExpiryCount }}</p>
+    </a>
+    <a routerLink="/app/alerts" class="dash-card">
+      <h2>Expired stock</h2>
+      <p data-testid="dash-expired-stock">{{ data.expiredStockCount }}</p>
+    </a>
+    <a routerLink="/app/alerts" class="dash-card">
+      <h2>Dead stock</h2>
+      <p data-testid="dash-dead-stock">{{ data.deadStockSummary.count }}</p>
+    </a>
+  </section>
+
+  <section aria-label="Recent sales">
+    <h2>Recent sales</h2>
+    <ul data-testid="dash-recent-sales">
+      @for (sale of data.recentSales; track sale.id) {
+        <li>
+          <a [routerLink]="['/app/sales', sale.id]">{{ sale.invoiceNumber || sale.id }}</a>
+          — {{ sale.saleDate }} —
+          {{ sale.saleTotal?.amount }} {{ sale.saleTotal?.currency }}
         </li>
       }
     </ul>

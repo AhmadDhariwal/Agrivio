@@ -14,8 +14,10 @@ import { UiLifecycleFilterComponent } from '../../../../shared/ui/ui-lifecycle-f
 import {
   MasterLifecycleFilter,
   deactivateCopy,
+  deletePermanentlyCopy,
   filterMasterLifecycle,
   reactivateCopy,
+  recordInUseMessage,
 } from '../../../../shared/lifecycle/master-lifecycle';
 
 @Component({
@@ -39,7 +41,7 @@ export class CategoriesPage {
   private readonly sessionStore = inject(AuthSessionStore);
 
   readonly items = signal<CategoryRecord[]>([]);
-  readonly statusFilter = signal<MasterLifecycleFilter>('all');
+  readonly statusFilter = signal<MasterLifecycleFilter>('active');
   readonly visibleItems = computed(() => filterMasterLifecycle(this.items(), this.statusFilter()));
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
@@ -50,7 +52,10 @@ export class CategoriesPage {
   readonly confirmTitle = signal('');
   readonly confirmMessage = signal('');
   readonly confirmLabel = signal('Deactivate');
-  private pending: { item: CategoryRecord; nextStatus: 'active' | 'inactive' } | null = null;
+  private pending:
+    | { kind: 'status'; item: CategoryRecord; nextStatus: 'active' | 'inactive' }
+    | { kind: 'delete'; item: CategoryRecord }
+    | null = null;
 
   constructor() {
     this.reload();
@@ -81,7 +86,7 @@ export class CategoriesPage {
 
   askDeactivate(item: CategoryRecord): void {
     const copy = deactivateCopy('category', 'Existing products and posted history will remain unchanged.');
-    this.pending = { item, nextStatus: 'inactive' };
+    this.pending = { kind: 'status', item, nextStatus: 'inactive' };
     this.confirmTitle.set(copy.title);
     this.confirmMessage.set(copy.message);
     this.confirmLabel.set('Deactivate');
@@ -90,10 +95,19 @@ export class CategoriesPage {
 
   askReactivate(item: CategoryRecord): void {
     const copy = reactivateCopy('category');
-    this.pending = { item, nextStatus: 'active' };
+    this.pending = { kind: 'status', item, nextStatus: 'active' };
     this.confirmTitle.set(copy.title);
     this.confirmMessage.set(copy.message);
     this.confirmLabel.set('Reactivate');
+    this.confirmOpen.set(true);
+  }
+
+  askDelete(item: CategoryRecord): void {
+    const copy = deletePermanentlyCopy('category');
+    this.pending = { kind: 'delete', item };
+    this.confirmTitle.set(copy.title);
+    this.confirmMessage.set(copy.message);
+    this.confirmLabel.set('Delete permanently');
     this.confirmOpen.set(true);
   }
 
@@ -102,6 +116,18 @@ export class CategoriesPage {
     this.confirmOpen.set(false);
     this.pending = null;
     if (!pending || !this.canManage()) {
+      return;
+    }
+    if (pending.kind === 'delete') {
+      this.api.deleteCategory(pending.item.id).subscribe({
+        next: () => {
+          this.successMessage.set('Category deleted.');
+          this.reload();
+        },
+        error: (error: unknown) => {
+          this.errorMessage.set(recordInUseMessage(error, 'Unable to delete category.'));
+        },
+      });
       return;
     }
     this.api

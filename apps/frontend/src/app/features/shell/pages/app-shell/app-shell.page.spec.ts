@@ -157,7 +157,8 @@ async function createShell(
 
   const navApi = {
     getPreferences: () => of({ hiddenItemIds }),
-    updatePreferences: (ids: string[]) => of({ hiddenItemIds: ids }),
+    updatePreferences: (payload: { hiddenItemIds: string[] }) =>
+      of({ hiddenItemIds: payload.hiddenItemIds, groupOrder: [], itemOrderByGroup: {} }),
   };
 
   TestBed.resetTestingModule();

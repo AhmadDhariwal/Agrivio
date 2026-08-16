@@ -57,6 +57,18 @@ function registerLocationsRoutes(deps) {
     },
   );
 
+  router.delete(
+    `${API_BRANCHES_PATH}/:id`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('branches.manage'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.deleteBranch(req, res, next);
+    },
+  );
+
   router.get(
     API_WAREHOUSES_PATH,
     deps.requireAuth,
@@ -100,6 +112,18 @@ function registerLocationsRoutes(deps) {
     deps.requireOperationalAccess,
     (req, res, next) => {
       void controller.updateWarehouse(req, res, next);
+    },
+  );
+
+  router.delete(
+    `${API_WAREHOUSES_PATH}/:id`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('warehouses.manage'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.deleteWarehouse(req, res, next);
     },
   );
 

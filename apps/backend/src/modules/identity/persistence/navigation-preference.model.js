@@ -23,6 +23,14 @@ const navigationPreferenceSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    groupOrder: {
+      type: [String],
+      default: [],
+    },
+    itemOrderByGroup: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
   },
   { timestamps: true, collection: 'user_navigation_preferences' },
 );

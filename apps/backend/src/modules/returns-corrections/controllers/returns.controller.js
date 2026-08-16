@@ -140,6 +140,19 @@ function createReturnsController(deps) {
       }
     },
 
+    async discardReturn(req, res, next) {
+      try {
+        const data = await deps.returnsService.discardReturnDraft(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async postReturn(req, res, next) {
       try {
         const result = await deps.returnsService.postReturn(

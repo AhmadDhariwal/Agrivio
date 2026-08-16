@@ -46,6 +46,18 @@ function registerExpensesRoutes(deps) {
     },
   );
 
+  router.delete(
+    `${API_EXPENSE_CATEGORIES_PATH}/:id`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('expenses.post'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.deleteExpenseCategory(req, res, next);
+    },
+  );
+
   router.get(
     API_EXPENSES_PATH,
     deps.requireAuth,

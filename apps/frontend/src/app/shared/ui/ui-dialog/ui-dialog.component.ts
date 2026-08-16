@@ -1,4 +1,4 @@
-import { Component, input, output } from '@angular/core';
+import { Component, effect, input, output } from '@angular/core';
 
 @Component({
   selector: 'agrivio-ui-dialog',
@@ -9,7 +9,6 @@ import { Component, input, output } from '@angular/core';
         class="ag-dialog-backdrop"
         role="presentation"
         (click)="onBackdropClick()"
-        (keydown.escape)="dismiss.emit()"
       >
         <div
           class="ag-dialog"
@@ -20,7 +19,7 @@ import { Component, input, output } from '@angular/core';
           [attr.aria-labelledby]="titleId"
           tabindex="-1"
           (click)="$event.stopPropagation()"
-          (keydown)="$event.stopPropagation()"
+          (keydown.escape)="onEscape($event)"
         >
           <div class="ag-dialog__header">
             <h2 [id]="titleId" class="ag-dialog__title">{{ title() }}</h2>
@@ -38,7 +37,10 @@ import { Component, input, output } from '@angular/core';
             <p class="ag-muted ag-dialog__description">{{ description() }}</p>
           }
 
-          <div class="ag-dialog__body">
+          <div
+            class="ag-dialog__body"
+            [class.ag-dialog__body--contained]="contained()"
+          >
             <ng-content />
           </div>
 
@@ -56,12 +58,32 @@ export class UiDialogComponent {
   readonly description = input<string | null>(null);
   readonly size = input<'sm' | 'md' | 'lg' | 'default'>('default');
   readonly closeOnBackdropClick = input<boolean>(true);
+  readonly contained = input(false);
   readonly dismiss = output<void>();
   readonly titleId = `ag-dialog-title-${Math.random().toString(36).slice(2, 9)}`;
+
+  constructor() {
+    effect((onCleanup) => {
+      if (!this.open()) {
+        return;
+      }
+      const previousOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      onCleanup(() => {
+        document.body.style.overflow = previousOverflow;
+      });
+    });
+  }
 
   onBackdropClick(): void {
     if (this.closeOnBackdropClick()) {
       this.dismiss.emit();
     }
+  }
+
+  onEscape(event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.dismiss.emit();
   }
 }

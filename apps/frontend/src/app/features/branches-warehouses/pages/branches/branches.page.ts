@@ -13,8 +13,10 @@ import { UiLifecycleFilterComponent } from '../../../../shared/ui/ui-lifecycle-f
 import {
   MasterLifecycleFilter,
   deactivateCopy,
+  deletePermanentlyCopy,
   filterMasterLifecycle,
   reactivateCopy,
+  recordInUseMessage,
 } from '../../../../shared/lifecycle/master-lifecycle';
 
 @Component({
@@ -38,7 +40,7 @@ export class BranchesPage {
   private readonly sessionStore = inject(AuthSessionStore);
 
   readonly items = signal<BranchRecord[]>([]);
-  readonly statusFilter = signal<MasterLifecycleFilter>('all');
+  readonly statusFilter = signal<MasterLifecycleFilter>('active');
   readonly visibleItems = computed(() => filterMasterLifecycle(this.items(), this.statusFilter()));
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
@@ -49,7 +51,10 @@ export class BranchesPage {
   readonly confirmTitle = signal('');
   readonly confirmMessage = signal('');
   readonly confirmLabel = signal('Deactivate');
-  private pending: { item: BranchRecord; nextStatus: 'active' | 'inactive' } | null = null;
+  private pending:
+    | { kind: 'status'; item: BranchRecord; nextStatus: 'active' | 'inactive' }
+    | { kind: 'delete'; item: BranchRecord }
+    | null = null;
 
   constructor() {
     this.reload();
@@ -80,7 +85,7 @@ export class BranchesPage {
 
   askDeactivate(item: BranchRecord): void {
     const copy = deactivateCopy('branch', 'Existing invoices and sales history will remain unchanged.');
-    this.pending = { item, nextStatus: 'inactive' };
+    this.pending = { kind: 'status', item, nextStatus: 'inactive' };
     this.confirmTitle.set(copy.title);
     this.confirmMessage.set(copy.message);
     this.confirmLabel.set('Deactivate');
@@ -89,10 +94,19 @@ export class BranchesPage {
 
   askReactivate(item: BranchRecord): void {
     const copy = reactivateCopy('branch');
-    this.pending = { item, nextStatus: 'active' };
+    this.pending = { kind: 'status', item, nextStatus: 'active' };
     this.confirmTitle.set(copy.title);
     this.confirmMessage.set(copy.message);
     this.confirmLabel.set('Reactivate');
+    this.confirmOpen.set(true);
+  }
+
+  askDelete(item: BranchRecord): void {
+    const copy = deletePermanentlyCopy('branch');
+    this.pending = { kind: 'delete', item };
+    this.confirmTitle.set(copy.title);
+    this.confirmMessage.set(copy.message);
+    this.confirmLabel.set('Delete permanently');
     this.confirmOpen.set(true);
   }
 
@@ -101,6 +115,18 @@ export class BranchesPage {
     this.confirmOpen.set(false);
     this.pending = null;
     if (!pending || !this.canManage()) {
+      return;
+    }
+    if (pending.kind === 'delete') {
+      this.api.deleteBranch(pending.item.id).subscribe({
+        next: () => {
+          this.successMessage.set('Branch deleted.');
+          this.reload();
+        },
+        error: (error: unknown) => {
+          this.errorMessage.set(recordInUseMessage(error, 'Unable to delete branch.'));
+        },
+      });
       return;
     }
     this.api

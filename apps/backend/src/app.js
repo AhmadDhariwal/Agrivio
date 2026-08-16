@@ -33,6 +33,7 @@ const {
 const { createBridgedEmployeesStore } = require('./modules/identity/employees.bridge-store');
 const { registerEmployeesRoutes } = require('./modules/identity/routes/employees.routes');
 const { createCatalogModule } = require('./modules/catalog/catalog.module');
+const { createMongooseMasterReferenceQueries } = require('./platform/lifecycle/master-reference-queries');
 const { registerCatalogRoutes } = require('./modules/catalog/routes/catalog.routes');
 const { createCustomersModule } = require('./modules/customers/customers.module');
 const { registerCustomersRoutes } = require('./modules/customers/routes/customers.routes');
@@ -70,6 +71,8 @@ function createApp(options) {
   const logger = options.logger ?? createStructuredLogger({ service: 'backend' });
   const persistence =
     options.onboardingPersistence ?? (config.nodeEnv === 'test' ? 'memory' : 'mongoose');
+  const masterRefs =
+    persistence === 'mongoose' ? createMongooseMasterReferenceQueries() : null;
   const authPersistence = options.authPersistence ?? persistence;
   const subscriptionPersistence = options.subscriptionPersistence ?? persistence;
 
@@ -181,6 +184,14 @@ function createApp(options) {
       revokeSessionsForUser: (session, userId, revokedAt) =>
         auth.store.revokeAllSessionsForUser(session, userId, revokedAt),
       ...(options.now === undefined ? {} : { now: options.now }),
+      ...(masterRefs === null
+        ? {}
+        : {
+            listBranchReferences: (organizationId, branchId) =>
+              masterRefs.listBranchReferences(organizationId, branchId),
+            listWarehouseReferences: (organizationId, warehouseId) =>
+              masterRefs.listWarehouseReferences(organizationId, warehouseId),
+          }),
     });
 
   const catalog =
@@ -190,6 +201,14 @@ function createApp(options) {
       evaluateEntitlement: (organizationId, entitlementOptions) =>
         subscriptions.subscriptionService.evaluateEntitlement(organizationId, entitlementOptions),
       ...(options.now === undefined ? {} : { now: options.now }),
+      ...(masterRefs === null
+        ? {}
+        : {
+            listProductReferences: (organizationId, productId) =>
+              masterRefs.listProductReferences(organizationId, productId),
+            listCategoryReferences: (organizationId, categoryId) =>
+              masterRefs.listCategoryReferences(organizationId, categoryId),
+          }),
     });
 
   const ledgers =
@@ -208,6 +227,12 @@ function createApp(options) {
       ledgersService: options.ledgersService ?? ledgers.ledgersService,
       auditStore: audit.store,
       ...(options.now === undefined ? {} : { now: options.now }),
+      ...(masterRefs === null
+        ? {}
+        : {
+            listCustomerReferences: (organizationId, customerId) =>
+              masterRefs.listCustomerReferences(organizationId, customerId),
+          }),
     });
 
   const suppliers =
@@ -218,6 +243,12 @@ function createApp(options) {
         subscriptions.subscriptionService.evaluateEntitlement(organizationId, entitlementOptions),
       ledgersService: options.ledgersService ?? ledgers.ledgersService,
       ...(options.now === undefined ? {} : { now: options.now }),
+      ...(masterRefs === null
+        ? {}
+        : {
+            listSupplierReferences: (organizationId, supplierId) =>
+              masterRefs.listSupplierReferences(organizationId, supplierId),
+          }),
     });
 
   const accounts =
@@ -225,6 +256,14 @@ function createApp(options) {
     createAccountsModule({
       persistence,
       ...(options.now === undefined ? {} : { now: options.now }),
+      ...(masterRefs === null
+        ? {}
+        : {
+            listAccountReferences: (organizationId, accountId) =>
+              masterRefs.listAccountReferences(organizationId, accountId),
+            listExpenseCategoryReferences: (organizationId, categoryId) =>
+              masterRefs.listExpenseCategoryReferences(organizationId, categoryId),
+          }),
     });
 
   const unpaidPurchasesLookup = {

@@ -1362,6 +1362,35 @@ function createReturnsService(deps) {
       });
     },
 
+    async discardReturnDraft(organizationId, returnId, authContext) {
+      const existing = await store.findReturnById(organizationId, returnId);
+      if (existing === null) {
+        throw notFound('Return not found');
+      }
+      if (existing.status !== 'draft') {
+        throw conflict('Only draft returns can be discarded');
+      }
+      if (
+        typeof deps.canAccessWarehouse === 'function' &&
+        !deps.canAccessWarehouse(authContext, String(existing.warehouseId))
+      ) {
+        throw notFound('Return not found');
+      }
+      const deleted = await store.deleteReturnIfDraft(null, organizationId, returnId);
+      if (!deleted) {
+        throw conflict('Only draft returns can be discarded');
+      }
+      await auditWriter.appendBusinessEvent(null, {
+        organizationId,
+        actorId: authContext.userId,
+        action: 'return.draft.discarded',
+        resourceType: 'return',
+        resourceId: returnId,
+        metadata: {},
+      });
+      return { id: returnId, discarded: true };
+    },
+
     async postReturn(organizationId, returnId, body, authContext, idempotencyKey) {
       if (!inventoryService || !paymentsService) {
         throw validationFailed('Return posting dependencies are not configured');

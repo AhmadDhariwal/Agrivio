@@ -62,6 +62,19 @@ function createCustomersController(deps) {
       }
     },
 
+    async deleteCustomer(req, res, next) {
+      try {
+        const data = await deps.customersService.deleteCustomer(
+          requireOrganizationId(req),
+          String(req.params.id),
+          { actorId: String(req.authContext.userId) },
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async updateCreditPolicy(req, res, next) {
       try {
         const data = await deps.customersService.updateCreditPolicy(

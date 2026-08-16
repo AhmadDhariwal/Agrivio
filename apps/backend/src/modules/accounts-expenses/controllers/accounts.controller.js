@@ -62,6 +62,19 @@ function createAccountsController(deps) {
       }
     },
 
+    async deleteAccount(req, res, next) {
+      try {
+        const data = await deps.accountsService.deleteAccount(
+          requireOrganizationId(req),
+          String(req.params.id),
+          { actorId: String(req.authContext.userId) },
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async postOpeningBalance(req, res, next) {
       try {
         const result = await deps.accountsService.postOpeningBalance(

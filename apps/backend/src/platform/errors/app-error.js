@@ -29,6 +29,15 @@ function conflict(message = 'Conflict') {
   return new AppError(ApiTransportErrorCode.Conflict, message, 409);
 }
 
+function recordInUse(message = 'Record is in use', details) {
+  return new AppError(
+    ApiTransportErrorCode.RecordInUse ?? 'RECORD_IN_USE',
+    message,
+    409,
+    details,
+  );
+}
+
 function versionConflict(message = 'Version conflict', details) {
   return new AppError(ApiTransportErrorCode.VersionConflict, message, 409, details);
 }
@@ -47,6 +56,7 @@ module.exports = {
   unauthorized,
   forbidden,
   conflict,
+  recordInUse,
   versionConflict,
   idempotencyConflict,
   insufficientStock,

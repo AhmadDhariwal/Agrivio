@@ -58,6 +58,11 @@ function createMongooseLocationsStore() {
       }
     },
 
+    async deleteBranch(session, organizationId, id) {
+      const result = await BranchModel.deleteOne({ _id: id, organizationId }, withSession(session));
+      return result.deletedCount === 1;
+    },
+
     async listWarehouses(organizationId) {
       return WarehouseModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
     },
@@ -100,6 +105,11 @@ function createMongooseLocationsStore() {
         }
         throw error;
       }
+    },
+
+    async deleteWarehouse(session, organizationId, id) {
+      const result = await WarehouseModel.deleteOne({ _id: id, organizationId }, withSession(session));
+      return result.deletedCount === 1;
     },
 
     async listAccessAssignmentsByMembershipId(organizationId, membershipId) {
@@ -211,6 +221,15 @@ function createInMemoryLocationsStore() {
       return { ...next };
     },
 
+    async deleteBranch(_session, organizationId, id) {
+      const existing = await this.findBranchById(organizationId, id);
+      if (existing === null) {
+        return false;
+      }
+      branches.delete(id);
+      return true;
+    },
+
     async listWarehouses(organizationId) {
       return [...warehouses.values()]
         .filter((item) => String(item.organizationId) === String(organizationId))
@@ -248,6 +267,15 @@ function createInMemoryLocationsStore() {
       assertUniqueWarehouse(organizationId, next.nameNormalized, id);
       warehouses.set(id, next);
       return { ...next };
+    },
+
+    async deleteWarehouse(_session, organizationId, id) {
+      const existing = await this.findWarehouseById(organizationId, id);
+      if (existing === null) {
+        return false;
+      }
+      warehouses.delete(id);
+      return true;
     },
 
     async listAccessAssignmentsByMembershipId(organizationId, membershipId) {

@@ -71,6 +71,7 @@ const ApiTransportErrorCode = {
   Forbidden: 'FORBIDDEN',
   NotFound: 'NOT_FOUND',
   Conflict: 'CONFLICT',
+  RecordInUse: 'RECORD_IN_USE',
   VersionConflict: 'VERSION_CONFLICT',
   IdempotencyConflict: 'IDEMPOTENCY_CONFLICT',
   InternalError: 'INTERNAL_ERROR',

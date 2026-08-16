@@ -91,6 +91,11 @@ function createMongooseAccountsStore() {
       }
     },
 
+    async deleteAccount(session, organizationId, id) {
+      const result = await AccountModel.deleteOne({ _id: id, organizationId }, withSession(session));
+      return result.deletedCount === 1;
+    },
+
     async insertAccountMovement(session, doc) {
       try {
         const [created] = await AccountMovementModel.create([doc], withSession(session));
@@ -229,6 +234,14 @@ function createMongooseAccountsStore() {
       } catch (error) {
         throw markDuplicate(error);
       }
+    },
+
+    async deleteExpenseCategory(session, organizationId, id) {
+      const result = await ExpenseCategoryModel.deleteOne(
+        { _id: id, organizationId },
+        withSession(session),
+      );
+      return result.deletedCount === 1;
     },
 
     async listExpenses(organizationId) {
@@ -454,6 +467,15 @@ function createInMemoryAccountsStore() {
       return { ...next };
     },
 
+    async deleteAccount(_session, organizationId, id) {
+      const existing = await this.findAccountById(organizationId, id);
+      if (existing === null) {
+        return false;
+      }
+      accounts.delete(id);
+      return true;
+    },
+
     async insertAccountMovement(_session, doc) {
       assertUniqueMovement(doc);
       const id = doc._id ? String(doc._id) : `account-movement-${movementSeq++}`;
@@ -566,6 +588,15 @@ function createInMemoryAccountsStore() {
       assertUniqueCategory(organizationId, next.nameNormalized, id);
       categories.set(id, next);
       return { ...next };
+    },
+
+    async deleteExpenseCategory(_session, organizationId, id) {
+      const existing = await this.findExpenseCategoryById(organizationId, id);
+      if (existing === null) {
+        return false;
+      }
+      categories.delete(id);
+      return true;
     },
 
     async listExpenses(organizationId) {

@@ -13,8 +13,10 @@ import { UiLifecycleFilterComponent } from '../../../../shared/ui/ui-lifecycle-f
 import {
   MasterLifecycleFilter,
   deactivateCopy,
+  deletePermanentlyCopy,
   filterMasterLifecycle,
   reactivateCopy,
+  recordInUseMessage,
 } from '../../../../shared/lifecycle/master-lifecycle';
 
 @Component({
@@ -38,7 +40,7 @@ export class WarehousesPage {
   private readonly sessionStore = inject(AuthSessionStore);
 
   readonly items = signal<WarehouseRecord[]>([]);
-  readonly statusFilter = signal<MasterLifecycleFilter>('all');
+  readonly statusFilter = signal<MasterLifecycleFilter>('active');
   readonly visibleItems = computed(() => filterMasterLifecycle(this.items(), this.statusFilter()));
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
@@ -49,7 +51,10 @@ export class WarehousesPage {
   readonly confirmTitle = signal('');
   readonly confirmMessage = signal('');
   readonly confirmLabel = signal('Deactivate');
-  private pending: { item: WarehouseRecord; nextStatus: 'active' | 'inactive' } | null = null;
+  private pending:
+    | { kind: 'status'; item: WarehouseRecord; nextStatus: 'active' | 'inactive' }
+    | { kind: 'delete'; item: WarehouseRecord }
+    | null = null;
 
   constructor() {
     this.reload();
@@ -80,7 +85,7 @@ export class WarehousesPage {
 
   askDeactivate(item: WarehouseRecord): void {
     const copy = deactivateCopy('warehouse', 'Existing stock history and posted movements will remain unchanged.');
-    this.pending = { item, nextStatus: 'inactive' };
+    this.pending = { kind: 'status', item, nextStatus: 'inactive' };
     this.confirmTitle.set(copy.title);
     this.confirmMessage.set(copy.message);
     this.confirmLabel.set('Deactivate');
@@ -89,10 +94,19 @@ export class WarehousesPage {
 
   askReactivate(item: WarehouseRecord): void {
     const copy = reactivateCopy('warehouse');
-    this.pending = { item, nextStatus: 'active' };
+    this.pending = { kind: 'status', item, nextStatus: 'active' };
     this.confirmTitle.set(copy.title);
     this.confirmMessage.set(copy.message);
     this.confirmLabel.set('Reactivate');
+    this.confirmOpen.set(true);
+  }
+
+  askDelete(item: WarehouseRecord): void {
+    const copy = deletePermanentlyCopy('warehouse');
+    this.pending = { kind: 'delete', item };
+    this.confirmTitle.set(copy.title);
+    this.confirmMessage.set(copy.message);
+    this.confirmLabel.set('Delete permanently');
     this.confirmOpen.set(true);
   }
 
@@ -101,6 +115,18 @@ export class WarehousesPage {
     this.confirmOpen.set(false);
     this.pending = null;
     if (!pending || !this.canManage()) {
+      return;
+    }
+    if (pending.kind === 'delete') {
+      this.api.deleteWarehouse(pending.item.id).subscribe({
+        next: () => {
+          this.successMessage.set('Warehouse deleted.');
+          this.reload();
+        },
+        error: (error: unknown) => {
+          this.errorMessage.set(recordInUseMessage(error, 'Unable to delete warehouse.'));
+        },
+      });
       return;
     }
     this.api

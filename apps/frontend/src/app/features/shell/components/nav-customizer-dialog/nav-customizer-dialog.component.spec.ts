@@ -21,7 +21,8 @@ describe('NavCustomizerDialogComponent', () => {
 
     const navApi = {
       getPreferences: () => of({ hiddenItemIds: [] }),
-      updatePreferences: (ids: string[]) => of({ hiddenItemIds: ids }),
+      updatePreferences: (payload: { hiddenItemIds: string[] }) =>
+        of({ hiddenItemIds: payload.hiddenItemIds, groupOrder: [], itemOrderByGroup: {} }),
     };
 
     await TestBed.configureTestingModule({
@@ -49,6 +50,8 @@ describe('NavCustomizerDialogComponent', () => {
 
     expect(fixture.nativeElement.textContent).toContain('Customize Navigation');
     expect(fixture.nativeElement.textContent).toContain('Reset to default');
+    expect(fixture.nativeElement.querySelector('.ag-nav-customizer__handle')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.ag-nav-customizer__tree')).toBeTruthy();
   });
 
   it('toggles items in customizer and cancels without saving', async () => {

@@ -6,6 +6,14 @@ import { AuthApi } from '../../auth/data-access/auth.api';
 
 export interface NavigationPreferencesResponse {
   hiddenItemIds: string[];
+  groupOrder: string[];
+  itemOrderByGroup: Record<string, string[]>;
+}
+
+export interface NavigationPreferencesPayload {
+  hiddenItemIds: string[];
+  groupOrder: string[];
+  itemOrderByGroup: Record<string, string[]>;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -19,23 +27,35 @@ export class NavigationApi {
         `${environment.publicApiBaseUrl}/api/v1/auth/navigation-preferences`,
         { withCredentials: true },
       )
-      .pipe(map((response) => response.data));
+      .pipe(map((response) => this.normalize(response.data)));
   }
 
-  updatePreferences(hiddenItemIds: string[]): Observable<NavigationPreferencesResponse> {
+  updatePreferences(
+    payload: NavigationPreferencesPayload,
+  ): Observable<NavigationPreferencesResponse> {
     return this.authApi.ensureCsrf().pipe(
       switchMap(({ csrfToken }) =>
         this.http
           .put<{ data: NavigationPreferencesResponse }>(
             `${environment.publicApiBaseUrl}/api/v1/auth/navigation-preferences`,
-            { hiddenItemIds },
+            payload,
             {
               withCredentials: true,
               headers: new HttpHeaders({ 'X-CSRF-Token': csrfToken }),
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(map((response) => this.normalize(response.data))),
       ),
     );
+  }
+
+  private normalize(
+    data: Partial<NavigationPreferencesResponse> | undefined,
+  ): NavigationPreferencesResponse {
+    return {
+      hiddenItemIds: data?.hiddenItemIds ?? [],
+      groupOrder: data?.groupOrder ?? [],
+      itemOrderByGroup: data?.itemOrderByGroup ?? {},
+    };
   }
 }

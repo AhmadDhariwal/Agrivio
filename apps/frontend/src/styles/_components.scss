@@ -886,6 +886,12 @@
   overscroll-behavior: contain;
 }
 
+.ag-dialog__body--contained {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .ag-dialog__footer {
   flex-shrink: 0;
   margin-top: auto;

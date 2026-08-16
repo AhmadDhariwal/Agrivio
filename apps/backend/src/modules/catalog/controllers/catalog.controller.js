@@ -60,6 +60,19 @@ function createCatalogController(deps) {
       }
     },
 
+    async deleteCategory(req, res, next) {
+      try {
+        const data = await deps.catalogService.deleteCategory(
+          requireOrganizationId(req),
+          String(req.params.id),
+          { actorId: String(req.authContext.userId) },
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async listProducts(req, res, next) {
       try {
         const q = typeof req.query.q === 'string' ? req.query.q : '';
@@ -106,6 +119,19 @@ function createCatalogController(deps) {
           requireOrganizationId(req),
           String(req.params.id),
           req.body,
+          { actorId: String(req.authContext.userId) },
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async deleteProduct(req, res, next) {
+      try {
+        const data = await deps.catalogService.deleteProduct(
+          requireOrganizationId(req),
+          String(req.params.id),
           { actorId: String(req.authContext.userId) },
         );
         sendSuccessEnvelope(res, 200, data);

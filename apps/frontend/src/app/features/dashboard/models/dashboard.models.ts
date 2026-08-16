@@ -5,19 +5,27 @@ export interface MoneyDto {
 
 export interface DashboardPayload {
   businessDate: string;
+  period?: { fromDate: string; toDate: string };
   entitlements: { reportsExportsAllowed: boolean };
   todaysSales: MoneyDto;
   todaysPurchases: MoneyDto;
   todaysExpenses: MoneyDto;
   grossProfit: MoneyDto;
+  periodSales?: MoneyDto;
+  periodPurchases?: MoneyDto;
+  periodGrossProfit?: MoneyDto;
   netSalesRevenue: MoneyDto;
   netCogs: MoneyDto;
+  stockValuation?: MoneyDto;
   cashBalances: MoneyDto;
   bankBalances: MoneyDto;
   jazzCashBalance: MoneyDto;
   easypaisaBalance: MoneyDto;
   customerReceivables: MoneyDto;
   supplierPayables: MoneyDto;
+  accountDistribution?: Array<{ key: string; label: string; balance: MoneyDto }>;
+  salesVsPurchases?: Array<{ date: string; sales: MoneyDto; purchases: MoneyDto }>;
+  grossProfitTrend?: Array<{ date: string; grossProfit: MoneyDto }>;
   lowStockCount: number;
   upcomingExpiryCount: number;
   expiredStockCount: number;

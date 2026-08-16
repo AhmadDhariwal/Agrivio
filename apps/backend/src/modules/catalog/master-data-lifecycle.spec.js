@@ -72,6 +72,66 @@ describe('master-data and draft lifecycle', () => {
     expect(reactivated.status).toBe('active');
   });
 
+  it('hard-deletes unused products and blocks referenced products', async () => {
+    const catalog = createCatalogModule({
+      persistence: 'memory',
+      evaluateEntitlement: async () => ({ allowed: true }),
+    });
+    const actor = {
+      actorId: 'owner-1',
+      authContext: {
+        userId: 'owner-1',
+        organizationId: 'org-life',
+        permissions: permissionsForMembershipRole('Owner'),
+      },
+    };
+    const category = await catalog.catalogService.createCategory(
+      'org-life',
+      { name: 'Delete Cat', productClass: 'general' },
+      actor,
+    );
+    const unused = await catalog.catalogService.createProduct(
+      'org-life',
+      {
+        name: 'Unused',
+        sku: 'DEL-1',
+        categoryId: category.id,
+        trackingMode: 'none',
+        baseUnitCode: 'KG',
+        measurementDimension: 'mass',
+      },
+      actor,
+    );
+    const deleted = await catalog.catalogService.deleteProduct('org-life', unused.id, actor);
+    expect(deleted.deleted).toBe(true);
+
+    const referenced = await catalog.catalogService.createProduct(
+      'org-life',
+      {
+        name: 'Referenced',
+        sku: 'DEL-2',
+        categoryId: category.id,
+        trackingMode: 'none',
+        baseUnitCode: 'KG',
+        measurementDimension: 'mass',
+      },
+      actor,
+    );
+    const blocked = createCatalogModule({
+      persistence: 'memory',
+      evaluateEntitlement: async () => ({ allowed: true }),
+      listProductReferences: async () => ['sales'],
+      store: catalog.store,
+    });
+    await expect(
+      blocked.catalogService.deleteProduct('org-life', referenced.id, actor),
+    ).rejects.toMatchObject({ code: 'RECORD_IN_USE' });
+
+    await expect(catalog.catalogService.deleteCategory('org-life', category.id, actor)).rejects.toMatchObject({
+      code: 'RECORD_IN_USE',
+    });
+  });
+
   it('discards expense drafts only and refuses posted expenses', async () => {
     const accounts = createAccountsModule({
       persistence: 'memory',

@@ -33,8 +33,20 @@ describe('NavigationService', () => {
     initialHidden: string[] = [],
     contextType: 'organization' | 'platform' = 'organization',
     customApi?: {
-      getPreferences: () => Observable<{ hiddenItemIds: string[] }>;
-      updatePreferences: (ids: string[]) => Observable<{ hiddenItemIds: string[] }>;
+      getPreferences: () => Observable<{
+        hiddenItemIds: string[];
+        groupOrder?: string[];
+        itemOrderByGroup?: Record<string, string[]>;
+      }>;
+      updatePreferences: (payload: {
+        hiddenItemIds: string[];
+        groupOrder: string[];
+        itemOrderByGroup: Record<string, string[]>;
+      }) => Observable<{
+        hiddenItemIds: string[];
+        groupOrder: string[];
+        itemOrderByGroup: Record<string, string[]>;
+      }>;
     },
   ) {
     const store = {
@@ -47,13 +59,25 @@ describe('NavigationService', () => {
       hasPermission: (p: string) => permissions.includes(p),
     };
 
-    let persistedHidden = [...initialHidden];
+    let persisted = {
+      hiddenItemIds: [...initialHidden],
+      groupOrder: [] as string[],
+      itemOrderByGroup: {} as Record<string, string[]>,
+    };
 
     const api = customApi ?? {
-      getPreferences: () => of({ hiddenItemIds: persistedHidden }),
-      updatePreferences: (ids: string[]) => {
-        persistedHidden = [...ids];
-        return of({ hiddenItemIds: persistedHidden });
+      getPreferences: () => of({ ...persisted }),
+      updatePreferences: (payload: {
+        hiddenItemIds: string[];
+        groupOrder: string[];
+        itemOrderByGroup: Record<string, string[]>;
+      }) => {
+        persisted = {
+          hiddenItemIds: [...payload.hiddenItemIds],
+          groupOrder: [...payload.groupOrder],
+          itemOrderByGroup: { ...payload.itemOrderByGroup },
+        };
+        return of({ ...persisted });
       },
     };
 
@@ -128,13 +152,18 @@ describe('NavigationService', () => {
 
     service.setCustomizerSearchTerm('audit');
     const tree = service.customizerTree();
-    expect(tree.groups.some((g) => g.id === 'operations')).toBe(true);
+    expect(tree.entries.some((e) => e.type === 'group' && e.group.id === 'operations')).toBe(
+      true,
+    );
 
-    const auditItem = tree.groups
-      .find((g) => g.id === 'operations')
-      ?.items.find((i) => i.id === 'operations.audit');
+    const auditItem = tree.entries
+      .find((e) => e.type === 'group' && e.group.id === 'operations');
+    const audit =
+      auditItem && auditItem.type === 'group'
+        ? auditItem.group.items.find((i) => i.id === 'operations.audit')
+        : undefined;
     expect(auditItem).toBeDefined();
-    expect(auditItem?.visible).toBe(false);
+    expect(audit?.visible).toBe(false);
   });
 
   it('handles customizer draft state: toggling items, parent tri-state, and saving', () => {
@@ -144,20 +173,36 @@ describe('NavigationService', () => {
     service.toggleDraftItem('sales.new');
     expect(service.customizerDraftHidden().has('sales.new')).toBe(true);
 
-    let salesGroup = service.customizerTree().groups.find((g) => g.id === 'sales');
-    expect(salesGroup?.state).toBe('indeterminate');
+    let salesGroup = service
+      .customizerTree()
+      .entries.find((e) => e.type === 'group' && e.group.id === 'sales');
+    expect(salesGroup && salesGroup.type === 'group' ? salesGroup.group.state : null).toBe(
+      'indeterminate',
+    );
 
     service.toggleDraftGroup('sales');
-    salesGroup = service.customizerTree().groups.find((g) => g.id === 'sales');
-    expect(salesGroup?.state).toBe('checked');
+    salesGroup = service
+      .customizerTree()
+      .entries.find((e) => e.type === 'group' && e.group.id === 'sales');
+    expect(salesGroup && salesGroup.type === 'group' ? salesGroup.group.state : null).toBe(
+      'checked',
+    );
 
     service.toggleDraftGroup('sales');
-    salesGroup = service.customizerTree().groups.find((g) => g.id === 'sales');
-    expect(salesGroup?.state).toBe('unchecked');
+    salesGroup = service
+      .customizerTree()
+      .entries.find((e) => e.type === 'group' && e.group.id === 'sales');
+    expect(salesGroup && salesGroup.type === 'group' ? salesGroup.group.state : null).toBe(
+      'unchecked',
+    );
 
     service.resetDraftToDefault();
-    salesGroup = service.customizerTree().groups.find((g) => g.id === 'sales');
-    expect(salesGroup?.state).toBe('checked');
+    salesGroup = service
+      .customizerTree()
+      .entries.find((e) => e.type === 'group' && e.group.id === 'sales');
+    expect(salesGroup && salesGroup.type === 'group' ? salesGroup.group.state : null).toBe(
+      'checked',
+    );
 
     service.toggleDraftItem('inventory.adjustments');
     service.saveCustomizer();
@@ -168,7 +213,8 @@ describe('NavigationService', () => {
   it('falls back safely to default all-permitted navigation if loading preferences fails', () => {
     const failingApi = {
       getPreferences: () => throwError(() => new Error('Network error')),
-      updatePreferences: () => of({ hiddenItemIds: [] }),
+      updatePreferences: () =>
+        of({ hiddenItemIds: [], groupOrder: [], itemOrderByGroup: {} }),
     };
 
     const { service } = setup(ALL_PERMISSIONS, [], 'organization', failingApi);
@@ -177,5 +223,69 @@ describe('NavigationService', () => {
     expect(service.isLoaded()).toBe(true);
     expect(service.hiddenItemIds().size).toBe(0);
     expect(service.userVisibleEntries().length).toBeGreaterThan(0);
+  });
+
+  it('reorders groups and children in draft only until save, and ignores unknown IDs', () => {
+    const { service } = setup(ALL_PERMISSIONS);
+    service.groupOrder.set(['inventory', 'sales']);
+    service.itemOrderByGroup.set({
+      inventory: ['inventory.transfers', 'stale.item', 'inventory.products'],
+    });
+
+    const visible = service.userVisibleEntries();
+    const topIds = visible.map((e) => (e.type === 'item' ? e.item.id : e.group.id));
+    expect(topIds.indexOf('inventory')).toBeLessThan(topIds.indexOf('sales'));
+    expect(topIds).toContain('purchases');
+
+    const inventory = visible.find((e) => e.type === 'group' && e.group.id === 'inventory');
+    expect(
+      inventory && inventory.type === 'group' ? inventory.group.children[0]?.id : null,
+    ).toBe('inventory.transfers');
+    expect(
+      inventory && inventory.type === 'group'
+        ? inventory.group.children.map((c) => c.id)
+        : [],
+    ).toContain('inventory.stock');
+
+    service.openCustomizer();
+    service.moveDraftGroup('sales', -1);
+    const draftIds = service
+      .customizerTree()
+      .entries.map((e) => (e.type === 'item' ? e.item.id : e.group.id));
+    expect(draftIds.indexOf('sales')).toBeLessThan(draftIds.indexOf('inventory'));
+    expect(service.userVisibleEntries().map((e) => (e.type === 'item' ? e.item.id : e.group.id)).indexOf('inventory')).toBeLessThan(
+      service.userVisibleEntries().map((e) => (e.type === 'item' ? e.item.id : e.group.id)).indexOf('sales'),
+    );
+
+    service.moveDraftChild('inventory', 'inventory.products', -1);
+    service.setCustomizerSearchTerm('products');
+    expect(service.customizerTree().isFiltered).toBe(true);
+    const before = service.customizerDraftGroupOrder();
+    service.moveDraftGroup('sales', 1);
+    expect(service.customizerDraftGroupOrder()).toEqual(before);
+
+    service.setCustomizerSearchTerm('');
+    service.saveCustomizer();
+    const savedTop = service.userVisibleEntries().map((e) => (e.type === 'item' ? e.item.id : e.group.id));
+    expect(savedTop.indexOf('sales')).toBeLessThan(savedTop.indexOf('inventory'));
+  });
+
+  it('keeps hiddenItemIds-only preferences working without order fields', () => {
+    const api = {
+      getPreferences: () => of({ hiddenItemIds: ['sales.new'] }),
+      updatePreferences: (payload: { hiddenItemIds: string[] }) =>
+        of({
+          hiddenItemIds: payload.hiddenItemIds,
+          groupOrder: [],
+          itemOrderByGroup: {},
+        }),
+    };
+    const { service } = setup(ALL_PERMISSIONS, [], 'organization', api as never);
+    service.loadPreferences();
+    expect(service.hiddenItemIds().has('sales.new')).toBe(true);
+    expect(service.groupOrder()).toEqual([]);
+    expect(service.userVisibleEntries().some((e) => e.type === 'group' && e.group.id === 'sales')).toBe(
+      true,
+    );
   });
 });

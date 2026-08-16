@@ -5,6 +5,7 @@ const {
 const { createAuditWriter } = require('../../platform/audit/audit-writer');
 const { assertOptimisticVersion } = require('../../platform/validation/request-validation');
 const { conflict, notFound, validationFailed } = require('../../platform/errors/app-error');
+const { assertMasterUnused } = require('../../platform/lifecycle/record-in-use');
 const {
   assertCreationLimit,
   attachSoftWarning,
@@ -135,6 +136,33 @@ function createLocationsService(deps) {
       }
     },
 
+    async deleteBranch(organizationId, branchId, actor) {
+      const current = await store.findBranchById(organizationId, branchId);
+      if (current === null) {
+        throw notFound('Branch not found');
+      }
+      const extra =
+        typeof deps.listBranchReferences === 'function'
+          ? await deps.listBranchReferences(organizationId, branchId)
+          : [];
+      assertMasterUnused(extra);
+      return transactionRunner.run(async (session) => {
+        const deleted = await store.deleteBranch(session, organizationId, branchId);
+        if (!deleted) {
+          throw notFound('Branch not found');
+        }
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: actor.actorId,
+          action: 'branch.deleted',
+          resourceType: 'branch',
+          resourceId: branchId,
+          metadata: { name: current.name },
+        });
+        return { id: branchId, deleted: true };
+      });
+    },
+
     async listWarehouses(organizationId, options = {}) {
       const items = await store.listWarehouses(organizationId);
       const filtered =
@@ -210,6 +238,33 @@ function createLocationsService(deps) {
       } catch (error) {
         mapDuplicate(error, 'Warehouse name already exists in this organization');
       }
+    },
+
+    async deleteWarehouse(organizationId, warehouseId, actor) {
+      const current = await store.findWarehouseById(organizationId, warehouseId);
+      if (current === null) {
+        throw notFound('Warehouse not found');
+      }
+      const extra =
+        typeof deps.listWarehouseReferences === 'function'
+          ? await deps.listWarehouseReferences(organizationId, warehouseId)
+          : [];
+      assertMasterUnused(extra);
+      return transactionRunner.run(async (session) => {
+        const deleted = await store.deleteWarehouse(session, organizationId, warehouseId);
+        if (!deleted) {
+          throw notFound('Warehouse not found');
+        }
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: actor.actorId,
+          action: 'warehouse.deleted',
+          resourceType: 'warehouse',
+          resourceId: warehouseId,
+          metadata: { name: current.name },
+        });
+        return { id: warehouseId, deleted: true };
+      });
     },
 
     async replaceAccessAssignments(organizationId, userId, body, actor) {
@@ -343,6 +398,12 @@ function createLocationsModule(options) {
       ? {}
       : { revokeSessionsForUser: options.revokeSessionsForUser }),
     ...(options.now === undefined ? {} : { now: options.now }),
+    ...(options.listBranchReferences === undefined
+      ? {}
+      : { listBranchReferences: options.listBranchReferences }),
+    ...(options.listWarehouseReferences === undefined
+      ? {}
+      : { listWarehouseReferences: options.listWarehouseReferences }),
   });
 
   return {

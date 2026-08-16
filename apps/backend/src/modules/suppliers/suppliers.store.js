@@ -63,6 +63,11 @@ function createMongooseSuppliersStore() {
       }
     },
 
+    async deleteSupplier(session, organizationId, id) {
+      const result = await SupplierModel.deleteOne({ _id: id, organizationId }, withSession(session));
+      return result.deletedCount === 1;
+    },
+
     async appendAuditEvent(session, event) {
       await AuditEventModel.create([event], withSession(session));
     },
@@ -137,6 +142,15 @@ function createInMemorySuppliersStore() {
       assertUnique(organizationId, next.nameNormalized, id);
       suppliers.set(id, next);
       return { ...next };
+    },
+
+    async deleteSupplier(_session, organizationId, id) {
+      const existing = await this.findSupplierById(organizationId, id);
+      if (existing === null) {
+        return false;
+      }
+      suppliers.delete(id);
+      return true;
     },
 
     async appendAuditEvent(_session, event) {

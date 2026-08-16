@@ -1,9 +1,10 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthSessionStore } from '../../auth/data-access/auth-session.store';
-import { NavigationApi } from './navigation.api';
+import { NavigationApi, NavigationPreferencesPayload } from './navigation.api';
 import {
   CANONICAL_NAVIGATION,
+  NavCustomizerEntry,
   NavCustomizerGroup,
   NavCustomizerGroupItem,
   NavCustomizerTree,
@@ -12,6 +13,7 @@ import {
   NavItem,
   VisibleNavEntry,
 } from './navigation.model';
+import { insertIdBefore, mergeCanonicalOrder, moveIdInOrder } from './navigation-order';
 
 @Injectable({ providedIn: 'root' })
 export class NavigationService {
@@ -20,20 +22,24 @@ export class NavigationService {
   private readonly router = inject(Router);
 
   readonly hiddenItemIds = signal<Set<string>>(new Set());
+  readonly groupOrder = signal<readonly string[]>([]);
+  readonly itemOrderByGroup = signal<Readonly<Record<string, readonly string[]>>>({});
   readonly searchTerm = signal<string>('');
   readonly customizerSearchTerm = signal<string>('');
   readonly collapsedGroupIds = signal<Set<string>>(new Set());
   readonly isCustomizerOpen = signal<boolean>(false);
   readonly isSaving = signal<boolean>(false);
   readonly customizerDraftHidden = signal<Set<string>>(new Set());
+  readonly customizerDraftGroupOrder = signal<readonly string[]>([]);
+  readonly customizerDraftItemOrderByGroup = signal<
+    Readonly<Record<string, readonly string[]>>
+  >({});
   readonly saveError = signal<string | null>(null);
   readonly isLoaded = signal<boolean>(false);
+  readonly reorderAnnouncement = signal<string>('');
 
   private readonly activeContext = this.sessionStore.activeContext;
 
-  /**
-   * Evaluates whether a given item is permitted in current user & active context.
-   */
   isItemPermitted(item: NavItem): boolean {
     if (item.permission && !this.sessionStore.hasPermission(item.permission)) {
       return false;
@@ -41,9 +47,6 @@ export class NavigationService {
     return true;
   }
 
-  /**
-   * Evaluates whether a group is permitted in current user & active context.
-   */
   isGroupPermitted(group: NavGroup): boolean {
     const active = this.activeContext();
     if (group.contextType === 'platform' && active?.contextType !== 'platform') {
@@ -52,9 +55,6 @@ export class NavigationService {
     return true;
   }
 
-  /**
-   * All permitted navigation items and groups with their permitted children.
-   */
   readonly permittedEntries = computed<readonly NavEntry[]>(() => {
     const result: NavEntry[] = [];
 
@@ -85,15 +85,16 @@ export class NavigationService {
     return result;
   });
 
-  /**
-   * Permitted and user-visible navigation entries (respecting saved hiddenItemIds).
-   */
   readonly userVisibleEntries = computed<readonly VisibleNavEntry[]>(() => {
-    const permitted = this.permittedEntries();
+    const ordered = this.orderEntries(
+      this.permittedEntries(),
+      this.groupOrder(),
+      this.itemOrderByGroup(),
+    );
     const hidden = this.hiddenItemIds();
     const result: VisibleNavEntry[] = [];
 
-    for (const entry of permitted) {
+    for (const entry of ordered) {
       if (entry.type === 'item') {
         if (!hidden.has(entry.item.id)) {
           result.push({ type: 'item', item: entry.item });
@@ -117,10 +118,6 @@ export class NavigationService {
     return result;
   });
 
-  /**
-   * Filtered navigation for normal sidebar display:
-   * Searches ONLY currently visible + permitted items.
-   */
   readonly filteredEntries = computed<readonly VisibleNavEntry[]>(() => {
     const entries = this.userVisibleEntries();
     const query = this.searchTerm().trim().toLowerCase();
@@ -160,27 +157,30 @@ export class NavigationService {
     return result;
   });
 
-  /**
-   * Customizer tree representation:
-   * Searches ALL permitted items (including hidden) so users can find and re-enable them.
-   */
   readonly customizerTree = computed<NavCustomizerTree>(() => {
-    const permitted = this.permittedEntries();
-    const draftHidden = this.customizerDraftHidden();
     const query = this.customizerSearchTerm().trim().toLowerCase();
+    const isFiltered = query.length > 0;
+    const draftHidden = this.customizerDraftHidden();
+    const ordered = this.orderEntries(
+      this.permittedEntries(),
+      this.customizerDraftGroupOrder(),
+      this.customizerDraftItemOrderByGroup(),
+    );
 
-    const directItems: NavCustomizerGroupItem[] = [];
-    const groups: NavCustomizerGroup[] = [];
+    const entries: NavCustomizerEntry[] = [];
 
-    for (const entry of permitted) {
+    for (const entry of ordered) {
       if (entry.type === 'item') {
         const matches = !query || entry.item.label.toLowerCase().includes(query);
         if (matches) {
-          directItems.push({
-            id: entry.item.id,
-            label: entry.item.label,
-            route: entry.item.route,
-            visible: !draftHidden.has(entry.item.id),
+          entries.push({
+            type: 'item',
+            item: {
+              id: entry.item.id,
+              label: entry.item.label,
+              route: entry.item.route,
+              visible: !draftHidden.has(entry.item.id),
+            },
           });
         }
       } else if (entry.type === 'group') {
@@ -206,17 +206,20 @@ export class NavigationService {
             state = 'unchecked';
           }
 
-          groups.push({
-            id: entry.group.id,
-            label: entry.group.label,
-            state,
-            items,
+          entries.push({
+            type: 'group',
+            group: {
+              id: entry.group.id,
+              label: entry.group.label,
+              state,
+              items,
+            },
           });
         }
       }
     }
 
-    return { directItems, groups };
+    return { entries, isFiltered };
   });
 
   constructor() {
@@ -270,14 +273,18 @@ export class NavigationService {
 
   openCustomizer(): void {
     this.customizerDraftHidden.set(new Set(this.hiddenItemIds()));
+    this.customizerDraftGroupOrder.set([...this.groupOrder()]);
+    this.customizerDraftItemOrderByGroup.set({ ...this.itemOrderByGroup() });
     this.customizerSearchTerm.set('');
     this.saveError.set(null);
+    this.reorderAnnouncement.set('');
     this.isCustomizerOpen.set(true);
   }
 
   closeCustomizer(): void {
     this.isCustomizerOpen.set(false);
     this.saveError.set(null);
+    this.reorderAnnouncement.set('');
   }
 
   toggleDraftItem(itemId: string): void {
@@ -291,18 +298,18 @@ export class NavigationService {
   }
 
   toggleDraftGroup(groupId: string): void {
-    const group = this.customizerTree().groups.find((g) => g.id === groupId);
-    if (!group) return;
+    const group = this.customizerTree().entries.find(
+      (entry) => entry.type === 'group' && entry.group.id === groupId,
+    );
+    if (!group || group.type !== 'group') return;
 
     const current = new Set(this.customizerDraftHidden());
-    if (group.state === 'checked') {
-      // Uncheck all items in this group
-      for (const item of group.items) {
+    if (group.group.state === 'checked') {
+      for (const item of group.group.items) {
         current.add(item.id);
       }
     } else {
-      // Check all items in this group
-      for (const item of group.items) {
+      for (const item of group.group.items) {
         current.delete(item.id);
       }
     }
@@ -311,6 +318,49 @@ export class NavigationService {
 
   resetDraftToDefault(): void {
     this.customizerDraftHidden.set(new Set());
+    this.customizerDraftGroupOrder.set([]);
+    this.customizerDraftItemOrderByGroup.set({});
+    this.reorderAnnouncement.set('Navigation reset to default order and visibility.');
+  }
+
+  moveDraftGroup(groupId: string, delta: number): void {
+    if (this.customizerTree().isFiltered) return;
+    const order = this.currentDraftTopLevelIds();
+    const next = moveIdInOrder(order, groupId, delta);
+    if (next === order || next.join('\0') === order.join('\0')) return;
+    this.customizerDraftGroupOrder.set(next);
+    this.announceMove(groupId, delta);
+  }
+
+  moveDraftChild(groupId: string, itemId: string, delta: number): void {
+    if (this.customizerTree().isFiltered) return;
+    const order = this.currentDraftChildIds(groupId);
+    const next = moveIdInOrder(order, itemId, delta);
+    if (next.join('\0') === order.join('\0')) return;
+    this.customizerDraftItemOrderByGroup.set({
+      ...this.customizerDraftItemOrderByGroup(),
+      [groupId]: next,
+    });
+    this.announceMove(itemId, delta);
+  }
+
+  dropDraftGroup(draggedId: string, targetId: string): void {
+    if (this.customizerTree().isFiltered) return;
+    const order = this.currentDraftTopLevelIds();
+    if (!order.includes(draggedId) || !order.includes(targetId)) return;
+    this.customizerDraftGroupOrder.set(insertIdBefore(order, draggedId, targetId));
+    this.reorderAnnouncement.set(`Moved ${this.labelForId(draggedId)}.`);
+  }
+
+  dropDraftChild(groupId: string, draggedId: string, targetId: string): void {
+    if (this.customizerTree().isFiltered) return;
+    const order = this.currentDraftChildIds(groupId);
+    if (!order.includes(draggedId) || !order.includes(targetId)) return;
+    this.customizerDraftItemOrderByGroup.set({
+      ...this.customizerDraftItemOrderByGroup(),
+      [groupId]: insertIdBefore(order, draggedId, targetId),
+    });
+    this.reorderAnnouncement.set(`Moved ${this.labelForId(draggedId)}.`);
   }
 
   saveCustomizer(): void {
@@ -319,10 +369,15 @@ export class NavigationService {
     this.isSaving.set(true);
     this.saveError.set(null);
 
-    const hiddenIdsArray = [...this.customizerDraftHidden()];
-    this.navigationApi.updatePreferences(hiddenIdsArray).subscribe({
+    const payload: NavigationPreferencesPayload = {
+      hiddenItemIds: [...this.customizerDraftHidden()],
+      groupOrder: [...this.currentDraftTopLevelIds()],
+      itemOrderByGroup: this.currentDraftItemOrderByGroup(),
+    };
+
+    this.navigationApi.updatePreferences(payload).subscribe({
       next: (response) => {
-        this.hiddenItemIds.set(new Set(response.hiddenItemIds));
+        this.applyPreferences(response);
         this.isSaving.set(false);
         this.isCustomizerOpen.set(false);
       },
@@ -336,14 +391,115 @@ export class NavigationService {
   loadPreferences(): void {
     this.navigationApi.getPreferences().subscribe({
       next: (response) => {
-        this.hiddenItemIds.set(new Set(response.hiddenItemIds));
+        this.applyPreferences(response);
         this.isLoaded.set(true);
       },
       error: () => {
-        // Fallback safely to all permitted navigation
-        this.hiddenItemIds.set(new Set());
+        this.applyPreferences({ hiddenItemIds: [], groupOrder: [], itemOrderByGroup: {} });
         this.isLoaded.set(true);
       },
     });
+  }
+
+  private applyPreferences(response: {
+    hiddenItemIds?: readonly string[];
+    groupOrder?: readonly string[];
+    itemOrderByGroup?: Readonly<Record<string, readonly string[]>>;
+  }): void {
+    this.hiddenItemIds.set(new Set(response.hiddenItemIds ?? []));
+    this.groupOrder.set([...(response.groupOrder ?? [])]);
+    this.itemOrderByGroup.set({ ...(response.itemOrderByGroup ?? {}) });
+  }
+
+  private orderEntries(
+    entries: readonly NavEntry[],
+    groupOrder: readonly string[],
+    itemOrderByGroup: Readonly<Record<string, readonly string[]>>,
+  ): NavEntry[] {
+    const byId = new Map(entries.map((entry) => [this.entryId(entry), entry]));
+    const orderedIds = mergeCanonicalOrder(
+      entries.map((entry) => this.entryId(entry)),
+      groupOrder,
+    );
+
+    return orderedIds
+      .map((id) => byId.get(id))
+      .filter((entry): entry is NavEntry => entry !== undefined)
+      .map((entry) => {
+        if (entry.type !== 'group') {
+          return entry;
+        }
+        const childIds = mergeCanonicalOrder(
+          entry.group.children.map((child) => child.id),
+          itemOrderByGroup[entry.group.id],
+        );
+        const childrenById = new Map(entry.group.children.map((child) => [child.id, child]));
+        return {
+          type: 'group' as const,
+          group: {
+            ...entry.group,
+            children: childIds
+              .map((id) => childrenById.get(id))
+              .filter((child): child is NavItem => child !== undefined),
+          },
+        };
+      });
+  }
+
+  private currentDraftTopLevelIds(): string[] {
+    return mergeCanonicalOrder(
+      this.permittedEntries().map((entry) => this.entryId(entry)),
+      this.customizerDraftGroupOrder(),
+    );
+  }
+
+  private currentDraftChildIds(groupId: string): string[] {
+    const group = this.permittedEntries().find(
+      (entry) => entry.type === 'group' && entry.group.id === groupId,
+    );
+    if (!group || group.type !== 'group') {
+      return [];
+    }
+    return mergeCanonicalOrder(
+      group.group.children.map((child) => child.id),
+      this.customizerDraftItemOrderByGroup()[groupId],
+    );
+  }
+
+  private currentDraftItemOrderByGroup(): Record<string, string[]> {
+    const next: Record<string, string[]> = {};
+    for (const entry of this.permittedEntries()) {
+      if (entry.type === 'group') {
+        next[entry.group.id] = this.currentDraftChildIds(entry.group.id);
+      }
+    }
+    return next;
+  }
+
+  private entryId(entry: NavEntry): string {
+    return entry.type === 'item' ? entry.item.id : entry.group.id;
+  }
+
+  private announceMove(id: string, delta: number): void {
+    const direction = delta < 0 ? 'up' : 'down';
+    this.reorderAnnouncement.set(`Moved ${this.labelForId(id)} ${direction}.`);
+  }
+
+  private labelForId(id: string): string {
+    for (const entry of this.permittedEntries()) {
+      if (entry.type === 'item' && entry.item.id === id) {
+        return entry.item.label;
+      }
+      if (entry.type === 'group') {
+        if (entry.group.id === id) {
+          return entry.group.label;
+        }
+        const child = entry.group.children.find((item) => item.id === id);
+        if (child) {
+          return child.label;
+        }
+      }
+    }
+    return id;
   }
 }

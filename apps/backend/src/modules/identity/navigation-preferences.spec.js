@@ -102,6 +102,8 @@ async function boot(options = {}) {
                 contextType: filter.contextType,
                 organizationId: filter.organizationId,
                 hiddenItemIds: update.$set.hiddenItemIds,
+                groupOrder: update.$set.groupOrder ?? [],
+                itemOrderByGroup: update.$set.itemOrderByGroup ?? {},
               };
               prefStore.set(key, record);
               return record;
@@ -185,6 +187,20 @@ describe('Navigation preferences service & validation', () => {
     expect(cleaned).toEqual(['sales.new', 'inventory.adjustments', 'reports.view']);
   });
 
+  it('validates groupOrder and itemOrderByGroup, ignoring duplicate IDs', () => {
+    const { validateGroupOrder, validateItemOrderByGroup } = require('./navigation-preferences.service');
+    expect(() => validateGroupOrder({ not: 'array' })).toThrow();
+    expect(validateGroupOrder(['inventory', 'sales', 'inventory'])).toEqual(['inventory', 'sales']);
+    expect(() => validateItemOrderByGroup(['nope'])).toThrow();
+    expect(
+      validateItemOrderByGroup({
+        inventory: ['inventory.stock', 'inventory.stock', 'inventory.batches'],
+      }),
+    ).toEqual({
+      inventory: ['inventory.stock', 'inventory.batches'],
+    });
+  });
+
   it('in-memory model isolation for user and organization context', async () => {
     const store = new Map();
     const mockModel = {
@@ -211,6 +227,8 @@ describe('Navigation preferences service & validation', () => {
                   contextType: filter.contextType,
                   organizationId: filter.organizationId,
                   hiddenItemIds: update.$set.hiddenItemIds,
+                  groupOrder: update.$set.groupOrder ?? [],
+                  itemOrderByGroup: update.$set.itemOrderByGroup ?? {},
                 };
                 store.set(key, record);
                 return record;
@@ -232,6 +250,8 @@ describe('Navigation preferences service & validation', () => {
     // Default when none exists
     const defA = await service.getPreferences(userA, org1Context);
     expect(defA.hiddenItemIds).toEqual([]);
+    expect(defA.groupOrder).toEqual([]);
+    expect(defA.itemOrderByGroup).toEqual({});
 
     // User A updates preferences in Org 1
     await service.updatePreferences(userA, org1Context, {
@@ -253,6 +273,19 @@ describe('Navigation preferences service & validation', () => {
     // User A in Org 1 still has their saved preferences
     const prefAOrg1 = await service.getPreferences(userA, org1Context);
     expect(prefAOrg1.hiddenItemIds).toEqual(['inventory.stock', 'sales.new']);
+    expect(prefAOrg1.groupOrder).toEqual([]);
+    expect(prefAOrg1.itemOrderByGroup).toEqual({});
+
+    await service.updatePreferences(userA, org1Context, {
+      hiddenItemIds: ['inventory.stock'],
+      groupOrder: ['inventory', 'sales', 'unknown.stale'],
+      itemOrderByGroup: { inventory: ['inventory.batches', 'inventory.stock'] },
+    });
+    const ordered = await service.getPreferences(userA, org1Context);
+    expect(ordered.groupOrder).toEqual(['inventory', 'sales', 'unknown.stale']);
+    expect(ordered.itemOrderByGroup).toEqual({
+      inventory: ['inventory.batches', 'inventory.stock'],
+    });
   });
 });
 
@@ -304,6 +337,8 @@ describe('Navigation preferences HTTP endpoints', () => {
       );
       expect(getA.status).toBe(200);
       expect(getA.body.data.hiddenItemIds).toEqual([]);
+      expect(getA.body.data.groupOrder).toEqual([]);
+      expect(getA.body.data.itemOrderByGroup).toEqual({});
 
       // User A updates preferences without CSRF -> fails with 403
       const putNoCsrf = await fetchJson(
@@ -327,6 +362,8 @@ describe('Navigation preferences HTTP endpoints', () => {
       );
       expect(putA.status).toBe(200);
       expect(putA.body.data.hiddenItemIds).toEqual(['inventory.stock', 'sales.history']);
+      expect(putA.body.data.groupOrder).toEqual([]);
+      expect(putA.body.data.itemOrderByGroup).toEqual({});
 
       // User A submits invalid payload (bad character) -> fails with 400
       const putInvalid = await fetchJson(

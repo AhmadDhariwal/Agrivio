@@ -38,7 +38,7 @@ export class PasswordResetRequestPage {
       next: () => {
         this.submitting.set(false);
         this.successMessage.set(
-          'If an account exists for that email, reset instructions were issued.',
+          'If an account exists for that email, reset instructions have been sent.',
         );
       },
       error: () => {

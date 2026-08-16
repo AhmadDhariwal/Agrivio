@@ -44,9 +44,19 @@ export interface NavCustomizerGroup {
   readonly items: readonly NavCustomizerGroupItem[];
 }
 
+export type NavCustomizerEntry =
+  | { readonly type: 'item'; readonly item: NavCustomizerGroupItem }
+  | { readonly type: 'group'; readonly group: NavCustomizerGroup };
+
 export interface NavCustomizerTree {
-  readonly directItems: readonly NavCustomizerGroupItem[];
-  readonly groups: readonly NavCustomizerGroup[];
+  readonly entries: readonly NavCustomizerEntry[];
+  readonly isFiltered: boolean;
+}
+
+export interface NavigationPreferences {
+  readonly hiddenItemIds: readonly string[];
+  readonly groupOrder: readonly string[];
+  readonly itemOrderByGroup: Readonly<Record<string, readonly string[]>>;
 }
 
 /**

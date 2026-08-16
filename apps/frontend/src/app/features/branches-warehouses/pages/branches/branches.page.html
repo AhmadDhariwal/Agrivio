@@ -43,6 +43,9 @@
                   Reactivate
                 </button>
               }
+              <button type="button" class="ag-btn ag-btn--danger" data-testid="branch-delete" (click)="askDelete(item)">
+                Delete permanently
+              </button>
             }
           </div>
         </article>
@@ -56,7 +59,7 @@
   [title]="confirmTitle()"
   [message]="confirmMessage()"
   [confirmLabel]="confirmLabel()"
-  [danger]="confirmLabel() === 'Deactivate'"
+  [danger]="confirmLabel() === 'Deactivate' || confirmLabel() === 'Delete permanently'"
   (confirmed)="confirmLifecycle()"
   (dismiss)="confirmOpen.set(false)"
 />

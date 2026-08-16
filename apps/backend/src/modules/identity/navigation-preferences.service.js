@@ -1,48 +1,107 @@
 const { validationFailed, unauthorized } = require('../../platform/errors/app-error');
 const { NavigationPreferenceModel } = require('./persistence/navigation-preference.model');
 
-function validateHiddenItemIds(input) {
-  if (!Array.isArray(input)) {
-    throw validationFailed('Invalid hidden navigation items', [
-      { field: 'hiddenItemIds', message: 'hiddenItemIds must be an array of strings' },
+const NAV_ID_PATTERN = /^[a-zA-Z0-9_.:-]+$/;
+const MAX_HIDDEN_IDS = 200;
+const MAX_GROUP_ORDER = 100;
+const MAX_ORDER_GROUPS = 100;
+const MAX_CHILD_ORDER = 200;
+
+function validateNavId(item, field) {
+  if (typeof item !== 'string' || item.trim().length === 0 || item.length > 100) {
+    throw validationFailed('Invalid navigation item ID', [
+      {
+        field,
+        message: 'Each item ID must be a non-empty string of 100 characters or fewer',
+      },
     ]);
   }
+  const trimmed = item.trim();
+  if (!NAV_ID_PATTERN.test(trimmed)) {
+    throw validationFailed('Invalid navigation item ID characters', [
+      {
+        field,
+        message: 'Item ID contains invalid characters',
+      },
+    ]);
+  }
+  return trimmed;
+}
 
-  if (input.length > 200) {
-    throw validationFailed('Too many hidden navigation items', [
-      { field: 'hiddenItemIds', message: 'hiddenItemIds cannot exceed 200 items' },
+function validateIdList(input, field, maxItems) {
+  if (input === undefined || input === null) {
+    return [];
+  }
+  if (!Array.isArray(input)) {
+    throw validationFailed(`Invalid ${field}`, [
+      { field, message: `${field} must be an array of strings` },
+    ]);
+  }
+  if (input.length > maxItems) {
+    throw validationFailed(`Too many ${field} items`, [
+      { field, message: `${field} cannot exceed ${maxItems} items` },
     ]);
   }
 
   const seen = new Set();
   const cleaned = [];
-
   for (let i = 0; i < input.length; i++) {
-    const item = input[i];
-    if (typeof item !== 'string' || item.trim().length === 0 || item.length > 100) {
-      throw validationFailed('Invalid hidden navigation item ID', [
-        {
-          field: `hiddenItemIds[${i}]`,
-          message: 'Each item ID must be a non-empty string of 100 characters or fewer',
-        },
-      ]);
-    }
-    const trimmed = item.trim();
-    if (!/^[a-zA-Z0-9_.:-]+$/.test(trimmed)) {
-      throw validationFailed('Invalid hidden navigation item ID characters', [
-        {
-          field: `hiddenItemIds[${i}]`,
-          message: 'Item ID contains invalid characters',
-        },
-      ]);
-    }
+    const trimmed = validateNavId(input[i], `${field}[${i}]`);
     if (!seen.has(trimmed)) {
       seen.add(trimmed);
       cleaned.push(trimmed);
     }
   }
-
   return cleaned;
+}
+
+function validateHiddenItemIds(input) {
+  return validateIdList(input, 'hiddenItemIds', MAX_HIDDEN_IDS);
+}
+
+function validateGroupOrder(input) {
+  return validateIdList(input, 'groupOrder', MAX_GROUP_ORDER);
+}
+
+function validateItemOrderByGroup(input) {
+  if (input === undefined || input === null) {
+    return {};
+  }
+  if (typeof input !== 'object' || Array.isArray(input)) {
+    throw validationFailed('Invalid itemOrderByGroup', [
+      { field: 'itemOrderByGroup', message: 'itemOrderByGroup must be an object of ID arrays' },
+    ]);
+  }
+
+  const keys = Object.keys(input);
+  if (keys.length > MAX_ORDER_GROUPS) {
+    throw validationFailed('Too many itemOrderByGroup keys', [
+      { field: 'itemOrderByGroup', message: `itemOrderByGroup cannot exceed ${MAX_ORDER_GROUPS} groups` },
+    ]);
+  }
+
+  const cleaned = {};
+  for (const key of keys) {
+    const groupId = validateNavId(key, `itemOrderByGroup.${key}`);
+    cleaned[groupId] = validateIdList(input[key], `itemOrderByGroup.${groupId}`, MAX_CHILD_ORDER);
+  }
+  return cleaned;
+}
+
+function emptyPreferences() {
+  return {
+    hiddenItemIds: [],
+    groupOrder: [],
+    itemOrderByGroup: {},
+  };
+}
+
+function normalizeRecord(record) {
+  return {
+    hiddenItemIds: record?.hiddenItemIds ?? [],
+    groupOrder: record?.groupOrder ?? [],
+    itemOrderByGroup: record?.itemOrderByGroup ?? {},
+  };
 }
 
 function resolveScopeFromAuth(auth, authContext) {
@@ -71,7 +130,8 @@ function createInMemoryNavigationPreferencesStore() {
         userId: filter.userId,
         contextType: filter.contextType,
         organizationId: filter.organizationId,
-        hiddenItemIds: update.$set.hiddenItemIds,
+        ...emptyPreferences(),
+        ...update.$set,
       };
       store.set(key, record);
       return record;
@@ -106,14 +166,14 @@ function createNavigationPreferencesService(deps = {}) {
       };
 
       const record = await store.findOne(query);
-      return {
-        hiddenItemIds: record?.hiddenItemIds ?? [],
-      };
+      return normalizeRecord(record);
     },
 
     async updatePreferences(auth, authContext, payload) {
       const scope = resolveScopeFromAuth(auth, authContext);
       const hiddenItemIds = validateHiddenItemIds(payload?.hiddenItemIds ?? []);
+      const groupOrder = validateGroupOrder(payload?.groupOrder ?? []);
+      const itemOrderByGroup = validateItemOrderByGroup(payload?.itemOrderByGroup ?? {});
 
       const filter = {
         userId: scope.userId,
@@ -124,6 +184,8 @@ function createNavigationPreferencesService(deps = {}) {
       const update = {
         $set: {
           hiddenItemIds,
+          groupOrder,
+          itemOrderByGroup,
         },
       };
 
@@ -134,9 +196,7 @@ function createNavigationPreferencesService(deps = {}) {
       };
 
       const updated = await store.findOneAndUpdate(filter, update, options);
-      return {
-        hiddenItemIds: updated.hiddenItemIds,
-      };
+      return normalizeRecord(updated);
     },
   };
 }
@@ -144,5 +204,7 @@ function createNavigationPreferencesService(deps = {}) {
 module.exports = {
   createNavigationPreferencesService,
   validateHiddenItemIds,
+  validateGroupOrder,
+  validateItemOrderByGroup,
   resolveScopeFromAuth,
 };

@@ -1,6 +1,14 @@
 .dash-meta {
-  margin: 0 0 1rem;
+  margin: 0;
   color: var(--ag-color-text-muted);
+}
+
+.dash-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: end;
+  margin-bottom: 1.25rem;
 }
 
 .dash-grid {
@@ -10,7 +18,19 @@
   margin-bottom: 1.5rem;
 }
 
-.dash-grid h2 {
+.dash-card,
+.dash-grid a.dash-card {
+  display: block;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--ag-color-border, #d7e3d4);
+  border-radius: 0.5rem;
+  background: var(--ag-color-surface, #fff);
+  text-decoration: none;
+  color: inherit;
+}
+
+.dash-grid h2,
+.dash-charts h2 {
   margin: 0 0 0.35rem;
   font-size: 0.85rem;
   font-weight: 600;
@@ -19,4 +39,37 @@
 .dash-grid p {
   margin: 0;
   font-size: 1.15rem;
+}
+
+.dash-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.dash-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dash-bars li {
+  margin-bottom: 0.5rem;
+}
+
+.dash-bar {
+  display: block;
+  height: 0.45rem;
+  margin-top: 0.2rem;
+  border-radius: 999px;
+  background: var(--ag-color-primary, #1f6b3a);
+}
+
+.dash-bar--purchases {
+  background: var(--ag-color-accent, #8a6a2f);
+}
+
+.dash-bar--profit {
+  background: var(--ag-color-primary-strong, #14532d);
 }

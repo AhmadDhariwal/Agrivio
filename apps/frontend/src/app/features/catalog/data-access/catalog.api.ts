@@ -80,7 +80,20 @@ export class CatalogApi {
     );
   }
 
-  listProducts(query?: { q?: string; limit?: number; status?: 'active' | 'inactive' | 'all' }): Observable<ProductRecord[]> {
+  deleteCategory(id: string): Observable<{ id: string; deleted: boolean }> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .delete<{ data: { id: string; deleted: boolean } }>(
+            `${environment.publicApiBaseUrl}/api/v1/product-categories/${id}`,
+            { withCredentials: true, headers: { 'X-CSRF-Token': csrfToken } },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
+  listProducts(query?: { q?: string; limit?: number; status?: string }): Observable<ProductRecord[]> {
     const params: Record<string, string> = {};
     if (query?.q !== undefined && query.q !== '') {
       params['q'] = query.q;
@@ -154,6 +167,19 @@ export class CatalogApi {
               withCredentials: true,
               headers: { 'X-CSRF-Token': csrfToken },
             },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
+  deleteProduct(id: string): Observable<{ id: string; deleted: boolean }> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .delete<{ data: { id: string; deleted: boolean } }>(
+            `${environment.publicApiBaseUrl}/api/v1/products/${id}`,
+            { withCredentials: true, headers: { 'X-CSRF-Token': csrfToken } },
           )
           .pipe(map((response) => response.data)),
       ),

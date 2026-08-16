@@ -62,6 +62,19 @@ function createSuppliersController(deps) {
       }
     },
 
+    async deleteSupplier(req, res, next) {
+      try {
+        const data = await deps.suppliersService.deleteSupplier(
+          requireOrganizationId(req),
+          String(req.params.id),
+          { actorId: String(req.authContext.userId) },
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async postOpeningBalance(req, res, next) {
       try {
         const result = await deps.suppliersService.postOpeningBalance(
