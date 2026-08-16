@@ -52,7 +52,7 @@ test.describe('F04 P3 inventory transfer vertical slice', () => {
     await page.getByTestId('warehouse-save').click();
     await expect(page.getByTestId('warehouses-list')).toContainText('P3 Dest');
 
-    await page.getByRole('link', { name: 'Categories' }).click();
+    await page.getByRole('link', { name: 'Categories', exact: true }).click();
     await page.getByTestId('category-create-link').click();
     await page.getByTestId('category-name').fill('P3 Equipment');
     await page.getByTestId('category-product-class').selectOption('general');
@@ -91,7 +91,7 @@ test.describe('F04 P3 inventory transfer vertical slice', () => {
     await expect(page.getByTestId('stock-list')).toContainText('3.0000');
     await expect(page.getByTestId('stock-list')).toContainText('1.0000');
 
-    await page.getByRole('link', { name: 'Movements' }).click();
+    await page.locator('#ag-main').getByRole('link', { name: 'Movements' }).click();
     await expect(page.getByTestId('movements-list')).toBeVisible();
     await expect(page.getByTestId('movement-row').filter({ hasText: 'warehouse_transfer' }).first()).toBeVisible();
 

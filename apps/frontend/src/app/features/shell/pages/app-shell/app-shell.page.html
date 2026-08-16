@@ -17,184 +17,85 @@
             }
           }
         </div>
+        <div class="ag-shell__actions">
+          <a routerLink="/context" class="ag-btn ag-btn--ghost ag-btn--sm ag-shell__nav-action">
+            Switch context
+          </a>
+          <button
+            type="button"
+            class="ag-btn ag-btn--ghost ag-btn--sm ag-shell__nav-action"
+            (click)="navService.openCustomizer()"
+          >
+            Customize
+          </button>
+        </div>
+      </div>
+
+      <div class="ag-shell__search-container">
+        <agrivio-ui-search-input
+          [value]="navService.searchTerm()"
+          placeholder="Search navigation…"
+          ariaLabel="Search navigation"
+          (searchChange)="navService.setSearchTerm($event)"
+        />
       </div>
 
       <nav id="ag-primary-nav" class="ag-shell__nav" aria-label="Primary">
         <a routerLink="/app" href="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
           Workspace
         </a>
-        @if (canViewDashboard()) {
-          <a
-            routerLink="/app/dashboard"
-            href="/app/dashboard"
-            routerLinkActive="active"
-            data-testid="nav-dashboard"
-          >
-            Dashboard
-          </a>
+
+        @for (entry of navigationEntries(); track entry.type === 'item' ? entry.item.id : entry.group.id) {
+          @if (entry.type === 'item') {
+            <a
+              [routerLink]="entry.item.route"
+              [routerLinkActive]="'active'"
+              [routerLinkActiveOptions]="{ exact: entry.item.exact ?? false }"
+              [attr.data-testid]="entry.item.testId"
+            >
+              {{ entry.item.label }}
+            </a>
+          } @else {
+            <div
+              class="ag-shell__nav-group"
+              [class.is-expanded]="navService.isGroupExpanded(entry.group.id)"
+            >
+              <button
+                type="button"
+                class="ag-shell__nav-group-toggle"
+                (click)="navService.toggleGroup(entry.group.id)"
+                [attr.aria-expanded]="navService.isGroupExpanded(entry.group.id)"
+              >
+                <span class="ag-shell__nav-group-label">{{ entry.group.label }}</span>
+                <span class="ag-shell__nav-group-chevron" aria-hidden="true">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </span>
+              </button>
+
+              @if (navService.isGroupExpanded(entry.group.id)) {
+                <div class="ag-shell__nav-group-children">
+                  @for (child of entry.group.children; track child.id) {
+                    <a
+                      [routerLink]="child.route"
+                      [routerLinkActive]="'active'"
+                      [routerLinkActiveOptions]="{ exact: child.exact ?? false }"
+                      [attr.data-testid]="child.testId"
+                    >
+                      {{ child.label }}
+                    </a>
+                  }
+                </div>
+              }
+            </div>
+          }
         }
-        @if (canViewAlerts()) {
-          <a
-            routerLink="/app/alerts"
-            href="/app/alerts"
-            routerLinkActive="active"
-            data-testid="nav-alerts"
-          >
-            Alerts
-          </a>
-        }
-        @if (canViewReports()) {
-          <a
-            routerLink="/app/reports"
-            href="/app/reports"
-            routerLinkActive="active"
-            data-testid="nav-reports"
-          >
-            Reports
-          </a>
-        }
-        @if (canPreviewImports()) {
-          <a
-            routerLink="/app/imports"
-            href="/app/imports"
-            routerLinkActive="active"
-            data-testid="nav-imports"
-          >
-            Imports
-          </a>
-        }
-        @if (canViewAudit()) {
-          <a
-            routerLink="/app/audit"
-            href="/app/audit"
-            routerLinkActive="active"
-            data-testid="nav-audit"
-          >
-            Audit
-          </a>
-        }
-        <a routerLink="/context">Switch context</a>
-        @if (canViewSettings()) {
-          <a routerLink="/app/organization/settings" routerLinkActive="active">Settings</a>
-          <a routerLink="/app/organization/setup" routerLinkActive="active" data-testid="nav-setup">
-            Setup
-          </a>
-        }
-        @if (canViewBranches()) {
-          <a routerLink="/app/branches" routerLinkActive="active">Branches</a>
-        }
-        @if (canViewWarehouses()) {
-          <a routerLink="/app/warehouses" routerLinkActive="active">Warehouses</a>
-        }
-        @if (canViewEmployees()) {
-          <a routerLink="/app/employees" routerLinkActive="active">Employees</a>
-        }
-        @if (canViewCatalog()) {
-          <a routerLink="/app/categories" routerLinkActive="active">Categories</a>
-          <a routerLink="/app/products" routerLinkActive="active">Products</a>
-        }
-        @if (canViewCustomers()) {
-          <a routerLink="/app/customers" routerLinkActive="active">Customers</a>
-        }
-        @if (canViewSuppliers()) {
-          <a routerLink="/app/suppliers" routerLinkActive="active">Suppliers</a>
-        }
-        @if (canViewAccounts()) {
-          <a routerLink="/app/accounts" routerLinkActive="active">Accounts</a>
-        }
-        @if (canViewExpenses()) {
-          <a routerLink="/app/expenses" routerLinkActive="active" data-testid="nav-expenses">Expenses</a>
-        }
-        @if (canViewPurchases()) {
-          <a routerLink="/app/purchases" routerLinkActive="active" data-testid="nav-purchases">
-            Purchases
-          </a>
-        }
-        @if (canViewSupplierPayments()) {
-          <a
-            routerLink="/app/supplier-payments"
-            routerLinkActive="active"
-            data-testid="nav-supplier-payments"
-          >
-            Supplier payments
-          </a>
-        }
-        @if (canViewSales()) {
-          <a routerLink="/app/sales" routerLinkActive="active" data-testid="nav-sales">
-            Sales
-          </a>
-        }
-        @if (canViewReturns()) {
-          <a routerLink="/app/returns" routerLinkActive="active" data-testid="nav-returns">
-            Returns
-          </a>
-        }
-        @if (canViewCustomerPayments()) {
-          <a
-            routerLink="/app/customer-payments"
-            routerLinkActive="active"
-            data-testid="nav-customer-payments"
-          >
-            Customer payments
-          </a>
-        }
-        @if (canViewInventory()) {
-          <a routerLink="/app/inventory/stock" routerLinkActive="active" data-testid="nav-inventory">
-            Inventory
-          </a>
-          <a
-            routerLink="/app/inventory/opening-stock"
-            routerLinkActive="active"
-            data-testid="nav-opening-stock"
-          >
-            Opening stock
-          </a>
-          <a routerLink="/app/inventory/expiry" routerLinkActive="active" data-testid="nav-expiry">
-            Expiry
-          </a>
-          <a
-            routerLink="/app/inventory/adjustments"
-            routerLinkActive="active"
-            data-testid="nav-adjustments"
-          >
-            Adjustments
-          </a>
-          <a
-            routerLink="/app/inventory/transfers"
-            routerLinkActive="active"
-            data-testid="nav-transfers"
-          >
-            Transfers
-          </a>
-          <a
-            routerLink="/app/inventory/reconciliation"
-            routerLinkActive="active"
-            data-testid="nav-reconciliation"
-          >
-            Reconciliation
-          </a>
-        }
-        @if (canSubmitBilling()) {
-          <a routerLink="/app/subscription/billing" routerLinkActive="active">Billing</a>
-        }
-        @if (canManagePlatformOrgs()) {
-          <a routerLink="/app/platform/organizations" routerLinkActive="active">Organizations</a>
-        }
-        @if (canManagePlans()) {
-          <a routerLink="/app/platform/plans" routerLinkActive="active">Plans</a>
-        }
-        @if (canReviewBilling()) {
-          <a routerLink="/app/platform/billing-review" routerLinkActive="active">Billing review</a>
-        }
-        @if (canViewBackups()) {
-          <a
-            routerLink="/app/platform/operations"
-            href="/app/platform/operations"
-            routerLinkActive="active"
-            data-testid="nav-operations"
-          >
-            Backup status
-          </a>
+
+        @if (navigationEntries().length === 0) {
+          <div class="ag-shell__nav-empty" role="status">
+            <span>No navigation matches</span>
+          </div>
         }
       </nav>
 
@@ -241,5 +142,7 @@
         <router-outlet></router-outlet>
       </div>
     </div>
+
+    <agrivio-nav-customizer-dialog />
   </div>
 }

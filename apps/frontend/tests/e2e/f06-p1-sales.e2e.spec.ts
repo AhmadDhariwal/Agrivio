@@ -63,7 +63,7 @@ test.describe('F06 P1 sales draft vertical slice', () => {
     await page.getByTestId('customer-save').click();
     await expect(page.getByTestId('customers-list')).toContainText('Retail Customer');
 
-    await page.getByRole('link', { name: 'Categories' }).click();
+    await page.getByRole('link', { name: 'Categories', exact: true }).click();
     await page.getByTestId('category-create-link').click();
     await page.getByTestId('category-name').fill('Retail Cat');
     await page.getByTestId('category-product-class').selectOption('general');

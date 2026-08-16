@@ -17,6 +17,8 @@ const {
   createRequireWarehouseAccessMiddleware,
 } = require('./permission.middleware');
 
+const { createNavigationPreferencesService } = require('./navigation-preferences.service');
+
 function createAuthModule(options) {
   const persistence = options.persistence ?? 'memory';
   const store =
@@ -32,14 +34,22 @@ function createAuthModule(options) {
       : { resolveSubscriptionAccessState: options.resolveSubscriptionAccessState }),
   });
 
+  const navigationPreferencesService =
+    options.navigationPreferencesService ??
+    createNavigationPreferencesService({
+      persistence,
+    });
+
   const requireAuth = createRequireAuthMiddleware({ authService });
 
   return {
     store,
     authService,
+    navigationPreferencesService,
     routes: registerAuthRoutes({
       config: options.config,
       authService,
+      navigationPreferencesService,
       ...(options.onboardingService === undefined
         ? {}
         : { onboardingService: options.onboardingService }),

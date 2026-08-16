@@ -174,6 +174,8 @@ describe('R1-F09-003 endpoint permission map', () => {
         expect([
           'GET /api/v1/health',
           'GET /api/v1/platform/operations/readiness',
+          'GET /api/v1/auth/navigation-preferences',
+          'PUT /api/v1/auth/navigation-preferences',
         ]).toContain(extra.key);
         continue;
       }

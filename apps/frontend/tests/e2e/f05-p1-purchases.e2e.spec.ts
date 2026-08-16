@@ -54,7 +54,7 @@ test.describe('F05 P1 purchase draft vertical slice', () => {
     await page.getByTestId('supplier-save').click();
     await expect(page.getByTestId('suppliers-list')).toContainText('P1 Supplier');
 
-    await page.getByRole('link', { name: 'Categories' }).click();
+    await page.getByRole('link', { name: 'Categories', exact: true }).click();
     await page.getByTestId('category-create-link').click();
     await page.getByTestId('category-name').fill('P1 Inputs');
     await page.getByTestId('category-product-class').selectOption('general');
@@ -101,7 +101,7 @@ test.describe('F05 P1 purchase draft vertical slice', () => {
     await page.getByTestId('nav-inventory').click();
     await expect(page.getByTestId('stock-empty')).toBeVisible();
     await expect(page.getByTestId('stock-empty')).toContainText('No stock balances yet');
-    await page.getByRole('link', { name: 'Movements' }).click();
+    await page.locator('#ag-main').getByRole('link', { name: 'Movements' }).click();
     await expect(page.getByTestId('movements-empty')).toBeVisible();
 
     await page.getByTestId('nav-purchases').click();

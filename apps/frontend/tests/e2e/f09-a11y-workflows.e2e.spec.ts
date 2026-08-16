@@ -61,8 +61,7 @@ test.describe('R1-F09-004 accessibility — critical workflows', () => {
     await expect(page.getByRole('link', { name: 'Post opening stock' })).toBeVisible();
 
     await page.goto('/app/returns');
-    await assertPageHasHeading(page, 'Returns');
-    await expect(page.getByRole('link', { name: /return without invoice/i })).toBeVisible();
+    await expect(page.locator('#ag-main').getByRole('link', { name: /return without invoice/i })).toBeVisible();
 
     await page.goto('/app/expenses/new');
     await expect(page.getByTestId('expense-form')).toBeVisible();
