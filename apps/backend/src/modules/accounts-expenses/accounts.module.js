@@ -136,8 +136,12 @@ function createAccountsService(deps) {
   }
 
   return {
-    async listAccounts(organizationId) {
-      const items = await store.listAccounts(organizationId);
+    async listAccounts(organizationId, options = {}) {
+      const listed = await store.listAccounts(organizationId);
+      const items =
+        options.status === 'active' || options.status === 'inactive'
+          ? listed.filter((item) => String(item.status) === options.status)
+          : listed;
       const mapped = [];
       for (const item of items) {
         mapped.push(await buildAccountDto(organizationId, item));
@@ -804,9 +808,13 @@ function createAccountsService(deps) {
       return wrapIdempotentResult(result);
     },
 
-    async listExpenseCategories(organizationId) {
+    async listExpenseCategories(organizationId, options = {}) {
       const items = await store.listExpenseCategories(organizationId);
-      return { items: items.map(toExpenseCategoryDto) };
+      const filtered =
+        options.status === 'active' || options.status === 'inactive'
+          ? items.filter((item) => String(item.status) === options.status)
+          : items;
+      return { items: filtered.map(toExpenseCategoryDto) };
     },
 
     async createExpenseCategory(organizationId, body, actor) {
@@ -913,6 +921,31 @@ function createAccountsService(deps) {
           version: Number(current['version']) + 1,
         });
         return toExpenseDto(updated);
+      });
+    },
+
+    async discardExpenseDraft(organizationId, expenseId, actor) {
+      return transactionRunner.run(async (session) => {
+        const current = await store.findExpenseById(organizationId, expenseId, session);
+        if (current === null) {
+          throw notFound('Expense not found');
+        }
+        if (current.status !== 'draft') {
+          throw conflict('Only draft expenses can be discarded');
+        }
+        const deleted = await store.deleteExpenseDraft(session, organizationId, expenseId);
+        if (!deleted) {
+          throw conflict('Only draft expenses can be discarded');
+        }
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: actor.actorId,
+          action: 'expense.draft.discarded',
+          resourceType: 'expense',
+          resourceId: expenseId,
+          metadata: {},
+        });
+        return { id: expenseId, discarded: true };
       });
     },
 

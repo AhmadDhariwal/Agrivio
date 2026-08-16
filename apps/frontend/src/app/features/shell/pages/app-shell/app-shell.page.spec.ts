@@ -8,6 +8,8 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { NavigationApi } from '../../data-access/navigation.api';
 import { NavigationService } from '../../data-access/navigation.service';
 
+import { CatalogApi } from '../../../catalog/data-access/catalog.api';
+
 const OWNER_A = [
   'settings.view',
   'users.view',
@@ -166,6 +168,7 @@ async function createShell(
       { provide: AuthSessionStore, useValue: store },
       { provide: AuthApi, useValue: { logout: () => of({}) } },
       { provide: NavigationApi, useValue: navApi },
+      { provide: CatalogApi, useValue: { listProducts: () => of([]) } },
       NavigationService,
     ],
   }).compileComponents();

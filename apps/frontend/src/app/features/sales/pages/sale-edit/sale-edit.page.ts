@@ -37,6 +37,7 @@ import { PackagingUnitRecord, ProductRecord } from '../../../catalog/models/cata
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 
 @Component({
   selector: 'agrivio-sale-edit-page',
@@ -47,6 +48,7 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
     UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiConfirmDialogComponent,
   ],
   templateUrl: './sale-edit.page.html',
   styleUrl: './sale-edit.page.scss',
@@ -72,6 +74,8 @@ export class SaleEditPage {
   readonly cancelling = signal(false);
   readonly submittingReturn = signal(false);
   readonly discarding = signal(false);
+  readonly discardConfirmOpen = signal(false);
+  readonly cancelConfirmOpen = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly products = signal<ProductRecord[]>([]);
@@ -174,7 +178,7 @@ export class SaleEditPage {
     }
 
     const masters$ = forkJoin({
-      products: this.catalogApi.listProducts(),
+      products: this.catalogApi.listProducts({ status: 'active' }),
       branches: this.locationsApi.listBranches(),
       warehouses: this.locationsApi.listWarehouses(),
       customers: this.customersApi.listCustomers(),
@@ -443,6 +447,15 @@ export class SaleEditPage {
       this.errorMessage.set('A cancellation reason is required.');
       return;
     }
+    this.cancelConfirmOpen.set(true);
+  }
+
+  confirmCancel(): void {
+    const id = this.saleId();
+    this.cancelConfirmOpen.set(false);
+    if (!id || !this.canCancel() || !this.isPosted() || this.cancelling()) {
+      return;
+    }
     this.cancelling.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
@@ -575,6 +588,15 @@ export class SaleEditPage {
 
   discard(): void {
     const id = this.saleId();
+    if (!id || !this.canCreate() || this.isPosted()) {
+      return;
+    }
+    this.discardConfirmOpen.set(true);
+  }
+
+  confirmDiscard(): void {
+    const id = this.saleId();
+    this.discardConfirmOpen.set(false);
     if (!id || !this.canCreate() || this.isPosted()) {
       return;
     }

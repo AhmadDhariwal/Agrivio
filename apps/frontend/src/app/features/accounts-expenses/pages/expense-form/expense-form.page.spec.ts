@@ -18,6 +18,7 @@ describe('ExpenseFormPage', () => {
             listCategories: () => of([]),
             getExpense: () => of(null),
             createExpense: () => of({}),
+            discardExpense: () => of({ discarded: true }),
           },
         },
         { provide: AccountsApi, useValue: { listAccounts: () => of([]) } },

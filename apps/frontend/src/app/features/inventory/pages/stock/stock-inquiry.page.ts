@@ -51,7 +51,7 @@ export class StockInquiryPage {
     this.errorMessage.set(null);
     forkJoin({
       balances: this.inventoryApi.listBalances(),
-      products: this.catalogApi.listProducts(),
+      products: this.catalogApi.listProducts({ status: 'active' }),
       warehouses: this.locationsApi.listWarehouses(),
     }).subscribe({
       next: ({ balances, products, warehouses }) => {

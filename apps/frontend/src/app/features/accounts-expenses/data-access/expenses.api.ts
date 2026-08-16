@@ -121,6 +121,22 @@ export class ExpensesApi {
     );
   }
 
+  discardExpense(id: string): Observable<{ discarded: boolean }> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .delete<{ data: { discarded: boolean } }>(
+            `${environment.publicApiBaseUrl}/api/v1/expenses/${id}`,
+            {
+              withCredentials: true,
+              headers: { 'X-CSRF-Token': csrfToken },
+            },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
   postExpense(
     id: string,
     payload: { expectedVersion: number },

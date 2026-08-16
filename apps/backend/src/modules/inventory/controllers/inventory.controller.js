@@ -141,6 +141,19 @@ function createInventoryController(deps) {
       }
     },
 
+    async discardAdjustment(req, res, next) {
+      try {
+        const data = await deps.inventoryService.discardAdjustmentDraft(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async postAdjustment(req, res, next) {
       try {
         const result = await deps.inventoryService.postAdjustment(
@@ -218,6 +231,19 @@ function createInventoryController(deps) {
           requireOrganizationId(req),
           String(req.params.id),
           req.body,
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async discardTransfer(req, res, next) {
+      try {
+        const data = await deps.inventoryService.discardTransferDraft(
+          requireOrganizationId(req),
+          String(req.params.id),
           req.authContext,
         );
         sendSuccessEnvelope(res, 200, data);

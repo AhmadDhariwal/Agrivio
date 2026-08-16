@@ -879,6 +879,35 @@ function createInventoryService(deps) {
       return toAdjustmentDto(updated);
     },
 
+    async discardAdjustmentDraft(organizationId, adjustmentId, authContext) {
+      const existing = await store.findAdjustmentById(organizationId, adjustmentId);
+      if (existing === null) {
+        throw notFound('Stock adjustment not found');
+      }
+      if (existing.status !== 'draft') {
+        throw conflict('Only draft adjustments can be discarded');
+      }
+      if (
+        typeof deps.canAccessWarehouse === 'function' &&
+        !deps.canAccessWarehouse(authContext, String(existing.warehouseId))
+      ) {
+        throw notFound('Stock adjustment not found');
+      }
+      const deleted = await store.deleteAdjustmentDraft(null, organizationId, adjustmentId);
+      if (!deleted) {
+        throw conflict('Only draft adjustments can be discarded');
+      }
+      await auditWriter.appendBusinessEvent(null, {
+        organizationId,
+        actorId: authContext.userId,
+        action: 'stock_adjustment.draft.discarded',
+        resourceType: 'stock_adjustment',
+        resourceId: adjustmentId,
+        metadata: {},
+      });
+      return { id: adjustmentId, discarded: true };
+    },
+
     async postAdjustment(organizationId, adjustmentId, body, actor, authContext, idempotencyKey) {
       const key = requireIdempotencyKey(idempotencyKey);
       const options = parseAdjustmentPostOptions(body ?? {});
@@ -1388,6 +1417,37 @@ function createInventoryService(deps) {
         });
       }
       return toTransferDto(updated);
+    },
+
+    async discardTransferDraft(organizationId, transferId, authContext) {
+      const existing = await store.findTransferById(organizationId, transferId);
+      if (existing === null) {
+        throw notFound('Warehouse transfer not found');
+      }
+      if (existing.status !== 'draft') {
+        throw conflict('Only draft transfers can be discarded');
+      }
+      if (typeof deps.canAccessWarehouse === 'function') {
+        if (
+          !deps.canAccessWarehouse(authContext, String(existing.sourceWarehouseId)) ||
+          !deps.canAccessWarehouse(authContext, String(existing.destinationWarehouseId))
+        ) {
+          throw notFound('Warehouse transfer not found');
+        }
+      }
+      const deleted = await store.deleteTransferDraft(null, organizationId, transferId);
+      if (!deleted) {
+        throw conflict('Only draft transfers can be discarded');
+      }
+      await auditWriter.appendBusinessEvent(null, {
+        organizationId,
+        actorId: authContext.userId,
+        action: 'warehouse_transfer.draft.discarded',
+        resourceType: 'warehouse_transfer',
+        resourceId: transferId,
+        metadata: {},
+      });
+      return { id: transferId, discarded: true };
     },
 
     async postTransfer(organizationId, transferId, body, actor, authContext, idempotencyKey) {

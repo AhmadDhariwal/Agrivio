@@ -72,9 +72,13 @@ function createCatalogService(deps) {
   }
 
   return {
-    async listCategories(organizationId) {
+    async listCategories(organizationId, options = {}) {
       const items = await store.listCategories(organizationId);
-      return { items: items.map(toCategoryDto) };
+      const filtered =
+        options.status === 'active' || options.status === 'inactive'
+          ? items.filter((item) => String(item.status) === options.status)
+          : items;
+      return { items: filtered.map(toCategoryDto) };
     },
 
     async getCategory(organizationId, categoryId) {
@@ -183,7 +187,11 @@ function createCatalogService(deps) {
 
     async listProducts(organizationId, options = {}) {
       const items = await store.listProducts(organizationId, options);
-      return { items: items.map(toProductDto) };
+      const filtered =
+        options.status === 'active' || options.status === 'inactive'
+          ? items.filter((item) => String(item.status) === options.status)
+          : items;
+      return { items: filtered.map(toProductDto) };
     },
 
     async getProduct(organizationId, productId) {

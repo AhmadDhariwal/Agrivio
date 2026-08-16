@@ -1,0 +1,115 @@
+<div class="ag-user-profile" (keydown)="onKeyDown($event)">
+  <button
+    type="button"
+    class="ag-profile-trigger"
+    [class.is-open]="isOpen()"
+    (click)="toggleDropdown()"
+    [attr.aria-expanded]="isOpen()"
+    aria-haspopup="true"
+    aria-label="User profile menu"
+    data-testid="navbar-profile-trigger"
+  >
+    <span class="ag-profile-trigger__avatar" aria-hidden="true">
+      {{ userInitials() }}
+    </span>
+
+    <div class="ag-profile-trigger__info">
+      <span class="ag-profile-trigger__name">{{ userDisplayName() }}</span>
+      @if (userRole()) {
+        <span class="ag-profile-trigger__role">{{ userRole() }}</span>
+      }
+    </div>
+
+    <span class="ag-profile-trigger__chevron" aria-hidden="true">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+    </span>
+  </button>
+
+  @if (isOpen()) {
+    <div
+      class="ag-profile-menu"
+      role="menu"
+      aria-label="User actions"
+      data-testid="navbar-profile-menu"
+    >
+      <div class="ag-profile-menu__header">
+        <span class="ag-profile-menu__avatar-large" aria-hidden="true">
+          {{ userInitials() }}
+        </span>
+        <div class="ag-profile-menu__user-details">
+          <span class="ag-profile-menu__name">{{ userDisplayName() }}</span>
+          @if (userEmail()) {
+            <span class="ag-profile-menu__email">{{ userEmail() }}</span>
+          }
+          @if (userRole()) {
+            <span class="ag-profile-menu__role-badge">{{ userRole() }}</span>
+          }
+        </div>
+      </div>
+
+      <div class="ag-profile-menu__actions">
+        <a
+          [routerLink]="dashboardRoute()"
+          class="ag-profile-menu__link"
+          role="menuitem"
+          (click)="closeDropdown()"
+          data-testid="profile-menu-dashboard"
+        >
+          <span class="ag-profile-menu__link-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="9"></rect>
+              <rect x="14" y="3" width="7" height="5"></rect>
+              <rect x="14" y="12" width="7" height="9"></rect>
+              <rect x="3" y="16" width="7" height="5"></rect>
+            </svg>
+          </span>
+          <span>Dashboard</span>
+        </a>
+
+        @if (canViewSettings()) {
+          <a
+            routerLink="/app/organization/settings"
+            class="ag-profile-menu__link"
+            role="menuitem"
+            (click)="closeDropdown()"
+            data-testid="profile-menu-settings"
+          >
+            <span class="ag-profile-menu__link-icon" aria-hidden="true">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+            </span>
+            <span>Settings</span>
+          </a>
+        }
+      </div>
+
+      <div class="ag-profile-menu__footer">
+        @if (signOutError(); as error) {
+          <div class="ag-profile-menu__error" role="alert">{{ error }}</div>
+        }
+
+        <button
+          type="button"
+          class="ag-profile-menu__signout-btn"
+          role="menuitem"
+          [disabled]="isSigningOut()"
+          (click)="signOut()"
+          data-testid="profile-menu-signout"
+        >
+          <span class="ag-profile-menu__link-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+          </span>
+          <span>{{ isSigningOut() ? 'Signing out…' : 'Sign out' }}</span>
+        </button>
+      </div>
+    </div>
+  }
+</div>

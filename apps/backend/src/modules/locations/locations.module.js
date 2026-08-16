@@ -57,9 +57,13 @@ function createLocationsService(deps) {
   const now = deps.now ?? (() => new Date());
 
   return {
-    async listBranches(organizationId) {
+    async listBranches(organizationId, options = {}) {
       const items = await store.listBranches(organizationId);
-      return { items: items.map(toBranchDto) };
+      const filtered =
+        options.status === 'active' || options.status === 'inactive'
+          ? items.filter((item) => String(item.status) === options.status)
+          : items;
+      return { items: filtered.map(toBranchDto) };
     },
 
     async getBranch(organizationId, branchId) {
@@ -131,9 +135,13 @@ function createLocationsService(deps) {
       }
     },
 
-    async listWarehouses(organizationId) {
+    async listWarehouses(organizationId, options = {}) {
       const items = await store.listWarehouses(organizationId);
-      return { items: items.map(toWarehouseDto) };
+      const filtered =
+        options.status === 'active' || options.status === 'inactive'
+          ? items.filter((item) => String(item.status) === options.status)
+          : items;
+      return { items: filtered.map(toWarehouseDto) };
     },
 
     async getWarehouse(organizationId, warehouseId) {

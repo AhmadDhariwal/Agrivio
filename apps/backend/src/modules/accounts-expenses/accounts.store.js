@@ -293,6 +293,14 @@ function createMongooseAccountsStore() {
       }
     },
 
+    async deleteExpenseDraft(session, organizationId, id) {
+      const result = await ExpenseModel.deleteOne(
+        { _id: id, organizationId, status: 'draft' },
+        withSession(session),
+      );
+      return result.deletedCount === 1;
+    },
+
     async appendAuditEvent(session, event) {
       await AuditEventModel.create([event], withSession(session));
     },
@@ -616,6 +624,19 @@ function createInMemoryAccountsStore() {
       assertUniqueExpenseCorrection(next, id);
       expenses.set(id, next);
       return { ...next };
+    },
+
+    async deleteExpenseDraft(_session, organizationId, id) {
+      const existing = expenses.get(id);
+      if (
+        existing === undefined ||
+        String(existing.organizationId) !== String(organizationId) ||
+        existing.status !== 'draft'
+      ) {
+        return false;
+      }
+      expenses.delete(id);
+      return true;
     },
 
     async appendAuditEvent(_session, event) {

@@ -19,34 +19,37 @@ import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-e
   template: `
     <agrivio-ui-dialog
       [open]="navService.isCustomizerOpen()"
+      [closeOnBackdropClick]="false"
       title="Customize Navigation"
       description="Choose which permitted modules and tools appear in your navigation."
       size="md"
       (dismiss)="navService.closeCustomizer()"
     >
       <div class="ag-nav-customizer">
-        <div class="ag-nav-customizer__search">
-          <agrivio-ui-search-input
-            placeholder="Filter modules in customizer…"
-            [value]="navService.customizerSearchTerm()"
-            ariaLabel="Filter modules"
-            (searchChange)="navService.setCustomizerSearchTerm($event)"
-          />
-        </div>
+        <div class="ag-nav-customizer__pinned">
+          <div class="ag-nav-customizer__search">
+            <agrivio-ui-search-input
+              placeholder="Filter modules in customizer…"
+              [value]="navService.customizerSearchTerm()"
+              ariaLabel="Filter modules"
+              (searchChange)="navService.setCustomizerSearchTerm($event)"
+            />
+          </div>
 
-        <div class="ag-nav-customizer__toolbar">
-          <button
-            type="button"
-            class="ag-btn ag-btn--ghost ag-btn--sm"
-            (click)="navService.resetDraftToDefault()"
-          >
-            Reset to default
-          </button>
-        </div>
+          <div class="ag-nav-customizer__toolbar">
+            <button
+              type="button"
+              class="ag-btn ag-btn--ghost ag-btn--sm"
+              (click)="navService.resetDraftToDefault()"
+            >
+              Reset to default
+            </button>
+          </div>
 
-        @if (navService.saveError(); as error) {
-          <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
-        }
+          @if (navService.saveError(); as error) {
+            <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
+          }
+        </div>
 
         <div class="ag-nav-customizer__tree" role="group" aria-label="Customizable navigation items">
           @if (tree().directItems.length === 0 && tree().groups.length === 0) {
@@ -119,8 +122,17 @@ import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-e
   styles: [
     `
       .ag-nav-customizer {
-        display: grid;
+        display: flex;
+        flex-direction: column;
         gap: var(--ag-space-3);
+        min-height: 0;
+        height: 100%;
+      }
+
+      .ag-nav-customizer__pinned {
+        display: grid;
+        gap: var(--ag-space-2);
+        flex-shrink: 0;
       }
 
       .ag-nav-customizer__toolbar {
@@ -132,10 +144,13 @@ import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-e
 
       .ag-nav-customizer__tree {
         display: grid;
-        gap: var(--ag-space-3);
-        max-height: 22rem;
+        gap: var(--ag-space-2);
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: clamp(14rem, 45vh, 24rem);
         overflow-y: auto;
         padding-right: var(--ag-space-2);
+        overscroll-behavior: contain;
       }
 
       .ag-nav-customizer__group {

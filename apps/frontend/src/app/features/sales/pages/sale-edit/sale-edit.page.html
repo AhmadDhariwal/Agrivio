@@ -455,3 +455,25 @@
     </section>
   }
 }
+
+<agrivio-ui-confirm-dialog
+  [open]="discardConfirmOpen()"
+  title="Discard draft?"
+  message="This draft has no posted stock or financial effects and will be removed."
+  confirmLabel="Discard draft"
+  cancelLabel="Keep draft"
+  [danger]="true"
+  (confirmed)="confirmDiscard()"
+  (dismiss)="discardConfirmOpen.set(false)"
+/>
+
+<agrivio-ui-confirm-dialog
+  [open]="cancelConfirmOpen()"
+  title="Cancel posted sale?"
+  message="The original invoice will remain in history and corrective effects will be recorded."
+  confirmLabel="Cancel Sale"
+  cancelLabel="Keep Sale"
+  [danger]="true"
+  (confirmed)="confirmCancel()"
+  (dismiss)="cancelConfirmOpen.set(false)"
+/>

@@ -8,7 +8,7 @@ import { Component, input, output } from '@angular/core';
       <div
         class="ag-dialog-backdrop"
         role="presentation"
-        (click)="dismiss.emit()"
+        (click)="onBackdropClick()"
         (keydown.escape)="dismiss.emit()"
       >
         <div
@@ -55,6 +55,13 @@ export class UiDialogComponent {
   readonly title = input('Dialog');
   readonly description = input<string | null>(null);
   readonly size = input<'sm' | 'md' | 'lg' | 'default'>('default');
+  readonly closeOnBackdropClick = input<boolean>(true);
   readonly dismiss = output<void>();
   readonly titleId = `ag-dialog-title-${Math.random().toString(36).slice(2, 9)}`;
+
+  onBackdropClick(): void {
+    if (this.closeOnBackdropClick()) {
+      this.dismiss.emit();
+    }
+  }
 }

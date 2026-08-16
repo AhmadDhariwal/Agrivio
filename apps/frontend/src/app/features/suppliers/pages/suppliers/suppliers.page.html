@@ -12,14 +12,19 @@
   <agrivio-ui-loading-state label="Loading suppliers…" />
 } @else if (errorMessage(); as error) {
   <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-} @else if (items().length === 0) {
-  <agrivio-ui-empty-state
-    title="No suppliers yet"
-    message="Create the first supplier to track purchase partners."
-  />
 } @else {
-  <div class="ag-stack" data-testid="suppliers-list">
-    @for (item of items(); track item.id) {
+  @if (successMessage(); as success) {
+    <agrivio-ui-alert tone="success" [message]="success" />
+  }
+  <agrivio-ui-lifecycle-filter [value]="statusFilter()" (changed)="statusFilter.set($event)" />
+  @if (visibleItems().length === 0) {
+    <agrivio-ui-empty-state
+      title="No suppliers yet"
+      message="Create the first supplier to track purchase partners."
+    />
+  } @else {
+    <div class="ag-stack" data-testid="suppliers-list">
+      @for (item of visibleItems(); track item.id) {
       <article class="row">
         <div>
           <strong>{{ item.name }}</strong>
@@ -33,9 +38,29 @@
           <agrivio-ui-status-badge [label]="item.status" [tone]="item.status === 'active' ? 'success' : 'neutral'" />
           @if (canManage()) {
             <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/suppliers', item.id]">Edit</a>
+              @if (item.status === 'active') {
+                <button type="button" class="ag-btn ag-btn--danger" data-testid="supplier-deactivate" (click)="askDeactivate(item)">
+                  Deactivate
+                </button>
+              } @else {
+                <button type="button" class="ag-btn ag-btn--secondary" data-testid="supplier-reactivate" (click)="askReactivate(item)">
+                  Reactivate
+                </button>
+              }
           }
         </div>
       </article>
     }
   </div>
+  }
 }
+
+<agrivio-ui-confirm-dialog
+  [open]="confirmOpen()"
+  [title]="confirmTitle()"
+  [message]="confirmMessage()"
+  [confirmLabel]="confirmLabel()"
+  [danger]="confirmLabel() === 'Deactivate'"
+  (confirmed)="confirmLifecycle()"
+  (dismiss)="confirmOpen.set(false)"
+/>

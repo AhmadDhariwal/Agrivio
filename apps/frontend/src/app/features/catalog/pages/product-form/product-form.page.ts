@@ -66,7 +66,9 @@ export class ProductFormPage {
         categories: categories$,
       }).subscribe({
         next: ({ product, packagingUnits, categories }) => {
-          this.categories.set(categories);
+          this.categories.set(
+            categories.filter((item) => item.status === 'active' || item.id === product.categoryId),
+          );
           this.applyProduct(product);
           this.packagingUnits.clear();
           const activeUnits = packagingUnits.filter((unit) => unit.status === 'active');
@@ -89,7 +91,7 @@ export class ProductFormPage {
     } else {
       categories$.subscribe({
         next: (categories) => {
-          this.categories.set(categories);
+          this.categories.set(categories.filter((item) => item.status === 'active'));
           this.loading.set(false);
         },
         error: (error: unknown) => {

@@ -32,6 +32,7 @@ import { AccountRecord } from '../../../accounts-expenses/models/accounts.models
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 
 @Component({
   selector: 'agrivio-purchase-edit-page',
@@ -42,6 +43,7 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
     UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiConfirmDialogComponent,
   ],
   templateUrl: './purchase-edit.page.html',
   styleUrl: './purchase-edit.page.scss',
@@ -63,6 +65,8 @@ export class PurchaseEditPage {
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly discarding = signal(false);
+  readonly discardConfirmOpen = signal(false);
+  readonly cancelConfirmOpen = signal(false);
   readonly posting = signal(false);
   readonly cancelling = signal(false);
   readonly submittingReturn = signal(false);
@@ -137,7 +141,7 @@ export class PurchaseEditPage {
     }
 
     const masters$ = forkJoin({
-      products: this.catalogApi.listProducts(),
+      products: this.catalogApi.listProducts({ status: 'active' }),
       warehouses: this.locationsApi.listWarehouses(),
       suppliers: this.suppliersApi.listSuppliers(),
       accounts: this.accountsApi.listAccounts(),
@@ -249,6 +253,15 @@ export class PurchaseEditPage {
     if (this.cancelForm.invalid) {
       this.cancelForm.markAllAsTouched();
       this.errorMessage.set('A cancellation reason is required.');
+      return;
+    }
+    this.cancelConfirmOpen.set(true);
+  }
+
+  confirmCancel(): void {
+    const id = this.purchaseId();
+    this.cancelConfirmOpen.set(false);
+    if (!id || !this.canCancel() || !this.isPosted() || this.cancelling()) {
       return;
     }
     this.cancelling.set(true);
@@ -384,6 +397,15 @@ export class PurchaseEditPage {
 
   discard(): void {
     const id = this.purchaseId();
+    if (!id || !this.canCreate() || this.isPosted()) {
+      return;
+    }
+    this.discardConfirmOpen.set(true);
+  }
+
+  confirmDiscard(): void {
+    const id = this.purchaseId();
+    this.discardConfirmOpen.set(false);
     if (!id || !this.canCreate() || this.isPosted()) {
       return;
     }

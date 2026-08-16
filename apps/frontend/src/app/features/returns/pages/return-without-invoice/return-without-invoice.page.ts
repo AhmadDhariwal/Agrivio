@@ -83,7 +83,7 @@ export class ReturnWithoutInvoicePage {
 
   constructor() {
     forkJoin({
-      products: this.catalogApi.listProducts(),
+      products: this.catalogApi.listProducts({ status: 'active' }),
       customers: this.customersApi.listCustomers(),
       warehouses: this.locationsApi.listWarehouses(),
       accounts: this.accountsApi.listAccounts(),

@@ -9,6 +9,7 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 import { InventoryBalanceRecord, StockAdjustmentRecord } from '../../models/inventory.models';
 
@@ -21,6 +22,7 @@ import { InventoryBalanceRecord, StockAdjustmentRecord } from '../../models/inve
     UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiConfirmDialogComponent,
   ],
   templateUrl: './adjustments.page.html',
   styleUrl: './adjustments.page.scss',
@@ -44,6 +46,8 @@ export class AdjustmentsPage {
   readonly canAdjust = computed(() => this.sessionStore.hasPermission('inventory.adjust'));
   readonly canReverse = computed(() => this.sessionStore.hasPermission('inventory.adjust.reverse'));
   readonly canOverride = computed(() => this.sessionStore.hasPermission('inventory.negative-stock.override'));
+  readonly reverseConfirmOpen = signal(false);
+  private pendingReverse: StockAdjustmentRecord | null = null;
 
   readonly form = this.formBuilder.nonNullable.group({
     warehouseId: ['', Validators.required],
@@ -64,7 +68,7 @@ export class AdjustmentsPage {
       return;
     }
     forkJoin({
-      products: this.catalogApi.listProducts(),
+      products: this.catalogApi.listProducts({ status: 'active' }),
       warehouses: this.locationsApi.listWarehouses(),
       adjustments: this.inventoryApi.listAdjustments(),
     }).subscribe({
@@ -153,10 +157,21 @@ export class AdjustmentsPage {
     if (!this.canReverse() || adjustment.status !== 'posted') {
       return;
     }
+    this.pendingReverse = adjustment;
+    this.reverseConfirmOpen.set(true);
+  }
+
+  confirmReverse(reason: string): void {
+    const adjustment = this.pendingReverse;
+    this.reverseConfirmOpen.set(false);
+    this.pendingReverse = null;
+    if (!adjustment || !this.canReverse() || reason.trim() === '') {
+      return;
+    }
     this.inventoryApi
       .reverseAdjustment(
         adjustment.id,
-        { reason: 'UI reversal' },
+        { reason: reason.trim() },
         `adj-reverse-${adjustment.id}-${Date.now()}`,
       )
       .subscribe({

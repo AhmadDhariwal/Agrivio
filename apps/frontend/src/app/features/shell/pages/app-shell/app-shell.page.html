@@ -111,25 +111,31 @@
     </aside>
 
     <div class="ag-shell__main" id="ag-main" tabindex="-1">
-      <header class="ag-shell__topbar">
-        <div class="ag-inline">
+      <header class="ag-shell__topbar" data-testid="app-shell-topbar">
+        <div class="ag-shell__topbar-left">
           <button
             type="button"
             class="ag-btn ag-btn--secondary ag-shell__menu-toggle"
             (click)="navOpen.set(!navOpen())"
             [attr.aria-expanded]="navOpen()"
             aria-controls="ag-primary-nav"
+            aria-label="Toggle navigation menu"
           >
             Menu
           </button>
-          <div>
-            <strong>Workspace</strong>
-            <p class="ag-muted" style="font-size: 0.875rem">{{ contextLabel() }}</p>
+          <div class="ag-shell__workspace-info">
+            <span class="ag-shell__workspace-label">Workspace</span>
+            <span class="ag-shell__workspace-context" data-testid="topbar-context">{{ contextLabel() }}</span>
           </div>
         </div>
-        @if (session(); as current) {
-          <p class="ag-muted" style="font-size: 0.875rem">{{ current.user.displayName }}</p>
-        }
+
+        <div class="ag-shell__topbar-center">
+          <agrivio-navbar-search />
+        </div>
+
+        <div class="ag-shell__topbar-right">
+          <agrivio-user-profile-menu />
+        </div>
       </header>
 
       <div class="ag-shell__content">

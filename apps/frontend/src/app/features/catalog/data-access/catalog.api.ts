@@ -80,11 +80,21 @@ export class CatalogApi {
     );
   }
 
-  listProducts(): Observable<ProductRecord[]> {
+  listProducts(query?: { q?: string; limit?: number; status?: 'active' | 'inactive' | 'all' }): Observable<ProductRecord[]> {
+    const params: Record<string, string> = {};
+    if (query?.q !== undefined && query.q !== '') {
+      params['q'] = query.q;
+    }
+    if (query?.limit !== undefined) {
+      params['limit'] = String(query.limit);
+    }
+    if (query?.status !== undefined && query.status !== 'all') {
+      params['status'] = query.status;
+    }
     return this.http
       .get<{ data: { items: ProductRecord[] } }>(
         `${environment.publicApiBaseUrl}/api/v1/products`,
-        { withCredentials: true },
+        { withCredentials: true, params },
       )
       .pipe(map((response) => response.data.items));
   }

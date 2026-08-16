@@ -61,7 +61,7 @@ export class OpeningStockPage {
       return;
     }
     forkJoin({
-      products: this.catalogApi.listProducts(),
+      products: this.catalogApi.listProducts({ status: 'active' }),
       warehouses: this.locationsApi.listWarehouses(),
     }).subscribe({
       next: ({ products, warehouses }) => {

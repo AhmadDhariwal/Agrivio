@@ -81,8 +81,12 @@ function createSuppliersService(deps) {
   }
 
   return {
-    async listSuppliers(organizationId) {
-      const items = await store.listSuppliers(organizationId);
+    async listSuppliers(organizationId, options = {}) {
+      const listed = await store.listSuppliers(organizationId);
+      const items =
+        options.status === 'active' || options.status === 'inactive'
+          ? listed.filter((item) => String(item.status) === options.status)
+          : listed;
       if (!ledgersService || typeof ledgersService.mapPartyBalances !== 'function') {
         const mapped = [];
         for (const item of items) {

@@ -94,3 +94,15 @@
 }
 
 <p><a routerLink="/app/inventory/stock">Back to stock</a></p>
+
+<agrivio-ui-confirm-dialog
+  [open]="reverseConfirmOpen()"
+  title="Reverse posted transfer?"
+  message="The original transfer remains in history. Corrective stock effects will be recorded."
+  confirmLabel="Reverse"
+  cancelLabel="Keep transfer"
+  [danger]="true"
+  [requireReason]="true"
+  (confirmed)="confirmReverse($event)"
+  (dismiss)="reverseConfirmOpen.set(false)"
+/>

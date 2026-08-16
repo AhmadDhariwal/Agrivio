@@ -4,6 +4,8 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { AuthApi } from '../../../auth/data-access/auth.api';
 import { NavigationService } from '../../data-access/navigation.service';
 import { NavCustomizerDialogComponent } from '../../components/nav-customizer-dialog/nav-customizer-dialog.component';
+import { NavbarSearchComponent } from '../../components/navbar-search/navbar-search.component';
+import { UserProfileMenuComponent } from '../../components/user-profile-menu/user-profile-menu.component';
 import { SubscriptionStatusBannerComponent } from '../../../subscriptions/components/subscription-status-banner/subscription-status-banner.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
@@ -21,6 +23,8 @@ import { UiSearchInputComponent } from '../../../../shared/ui/ui-search-input/ui
     UiLoadingStateComponent,
     UiSearchInputComponent,
     NavCustomizerDialogComponent,
+    NavbarSearchComponent,
+    UserProfileMenuComponent,
   ],
   templateUrl: './app-shell.page.html',
   styleUrl: './app-shell.page.scss',

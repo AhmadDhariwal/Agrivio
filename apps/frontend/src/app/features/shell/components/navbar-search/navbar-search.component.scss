@@ -1,0 +1,205 @@
+.ag-nav-search {
+  position: relative;
+  width: 100%;
+  max-width: 28rem;
+}
+
+.ag-nav-search__input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.ag-nav-search__icon {
+  position: absolute;
+  left: var(--ag-space-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ag-color-text-muted);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.ag-nav-search__input {
+  width: 100%;
+  min-height: var(--ag-control-height-sm);
+  height: var(--ag-control-height-sm);
+  padding-left: 2.25rem;
+  padding-right: 2rem;
+  font-size: var(--ag-text-xs);
+  background: var(--ag-color-surface-elevated);
+  border: 1px solid var(--ag-color-border);
+  border-radius: var(--ag-radius-md);
+  color: var(--ag-color-text);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+
+  &::placeholder {
+    color: var(--ag-color-text-muted);
+    font-size: var(--ag-text-xs);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--ag-color-primary);
+    background: var(--ag-color-surface);
+    box-shadow: var(--ag-focus-ring);
+  }
+}
+
+.ag-nav-search__clear {
+  position: absolute;
+  right: var(--ag-space-2);
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: var(--ag-color-text-muted);
+  font-size: var(--ag-text-md);
+  cursor: pointer;
+  padding: var(--ag-space-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  border-radius: var(--ag-radius-sm);
+  z-index: 2;
+
+  &:hover {
+    color: var(--ag-color-text);
+    background: var(--ag-color-bg-accent);
+  }
+}
+
+.ag-nav-search__dropdown {
+  position: absolute;
+  top: calc(100% + var(--ag-space-1));
+  left: 0;
+  right: 0;
+  max-height: 22rem;
+  overflow-y: auto;
+  background: var(--ag-color-surface);
+  border: 1px solid var(--ag-color-border);
+  border-radius: var(--ag-radius-md);
+  box-shadow: var(--ag-shadow-md);
+  z-index: 60;
+  overscroll-behavior: contain;
+}
+
+.ag-nav-search__status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ag-space-2);
+  padding: var(--ag-space-4);
+  color: var(--ag-color-text-muted);
+  font-size: var(--ag-text-xs);
+  text-align: center;
+
+  &--error {
+    color: var(--ag-color-danger);
+  }
+}
+
+.ag-nav-search__spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--ag-color-border);
+  border-top-color: var(--ag-color-primary);
+  border-radius: 50%;
+  animation: ag-spin 0.6s linear infinite;
+}
+
+@keyframes ag-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ag-nav-search__group {
+  border-bottom: 1px solid var(--ag-color-border);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.ag-nav-search__group-header {
+  padding: var(--ag-space-1) var(--ag-space-3);
+  background: var(--ag-color-surface-elevated);
+  border-bottom: 1px solid color-mix(in srgb, var(--ag-color-border) 40%, transparent);
+}
+
+.ag-nav-search__group-title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ag-color-primary);
+}
+
+.ag-nav-search__group-items {
+  display: flex;
+  flex-direction: column;
+}
+
+.ag-nav-search__result-item {
+  display: flex;
+  align-items: center;
+  gap: var(--ag-space-3);
+  width: 100%;
+  padding: var(--ag-space-2) var(--ag-space-3);
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.1s ease;
+
+  &:hover,
+  &.is-active {
+    background: var(--ag-color-primary-muted);
+    outline: none;
+
+    .ag-nav-search__item-title {
+      color: var(--ag-color-primary);
+    }
+  }
+}
+
+.ag-nav-search__item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--ag-radius-sm);
+  background: var(--ag-color-bg-accent);
+  color: var(--ag-color-primary);
+  flex-shrink: 0;
+}
+
+.ag-nav-search__item-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.ag-nav-search__item-title {
+  font-size: var(--ag-text-xs);
+  font-weight: 600;
+  color: var(--ag-color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ag-nav-search__item-subtitle {
+  font-size: 0.6875rem;
+  color: var(--ag-color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
