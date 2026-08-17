@@ -33,7 +33,7 @@ import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-p
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
-import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
+import { hasRequiredValidator, setRequiredValidator } from '../../../../shared/form/form-field.util';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 
 @Component({
@@ -226,6 +226,7 @@ export class PurchaseEditPage {
         expiryDate: '',
       });
       this.packagingByLine.update((current) => ({ ...current, [0]: [] }));
+      this.syncLineTrackingRequired(0);
       return;
     }
     this.lines.removeAt(index);
@@ -554,6 +555,7 @@ export class PurchaseEditPage {
           expiryDate: line.expiryDate ?? '',
         }),
       );
+      this.syncLineTrackingRequired(index);
       if (!posted) {
         this.bindLineProductChanges(index);
         this.catalogApi.listPackagingUnits(line.productId).subscribe({
@@ -567,6 +569,7 @@ export class PurchaseEditPage {
     if (this.lines.length === 0) {
       this.lines.push(this.createLineGroup());
       this.bindLineProductChanges(0);
+      this.syncLineTrackingRequired(0);
     }
 
     this.payments.clear();
@@ -593,6 +596,7 @@ export class PurchaseEditPage {
     }
     control.valueChanges.subscribe((productId: string) => {
       this.lineGroup(index).patchValue({ packagingUnitId: '' }, { emitEvent: false });
+      this.syncLineTrackingRequired(index);
       if (!productId) {
         this.packagingByLine.update((current) => ({ ...current, [index]: [] }));
         return;
@@ -609,6 +613,13 @@ export class PurchaseEditPage {
         },
       });
     });
+  }
+
+  private syncLineTrackingRequired(index: number): void {
+    const mode = this.trackingModeForLine(index);
+    const group = this.lineGroup(index);
+    setRequiredValidator(group.get('batchNumber'), mode !== 'none');
+    setRequiredValidator(group.get('expiryDate'), mode === 'batch_expiry');
   }
 
   private rebuildPackagingMap(): void {

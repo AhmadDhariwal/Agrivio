@@ -17,3 +17,22 @@ export function hasRequiredValidator(control: AbstractControl | null | undefined
   }
   return controlIsRequired(control);
 }
+
+export function setRequiredValidator(
+  control: AbstractControl | null | undefined,
+  required: boolean,
+): void {
+  if (!control) {
+    return;
+  }
+  const hasRequired = control.hasValidator(Validators.required);
+  if (required && !hasRequired) {
+    control.addValidators(Validators.required);
+    control.updateValueAndValidity({ emitEvent: false });
+    return;
+  }
+  if (!required && hasRequired) {
+    control.removeValidators(Validators.required);
+    control.updateValueAndValidity({ emitEvent: false });
+  }
+}

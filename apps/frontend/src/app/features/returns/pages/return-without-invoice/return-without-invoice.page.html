@@ -103,12 +103,17 @@
         </div>
         @if (productNeedsBatch(index)) {
           <div class="ag-field">
-            <agrivio-ui-field-label label="Batch" [for]="'without-invoice-batch-' + index" />
+            <agrivio-ui-field-label
+              label="Batch"
+              [for]="'without-invoice-batch-' + index"
+              [required]="fieldRequired(lineGroup(index).controls['batchId'])"
+            />
             <select
               [id]="'without-invoice-batch-' + index"
               class="ag-select"
               formControlName="batchId"
               data-testid="without-invoice-batch"
+              [attr.aria-required]="fieldRequired(lineGroup(index).controls['batchId']) ? 'true' : null"
             >
               <option value="">Select batch</option>
               @for (batch of batchesForLine(index); track batch.id) {
@@ -135,12 +140,17 @@
           </select>
         </div>
         <div class="ag-field">
-          <agrivio-ui-field-label label="Unsellable reason" [for]="'without-invoice-unsellable-' + index" />
+          <agrivio-ui-field-label
+            label="Unsellable reason"
+            [for]="'without-invoice-unsellable-' + index"
+            [required]="fieldRequired(lineGroup(index).controls['unsellableReason'])"
+          />
           <select
             [id]="'without-invoice-unsellable-' + index"
             class="ag-select"
             formControlName="unsellableReason"
             data-testid="without-invoice-unsellable-reason"
+            [attr.aria-required]="fieldRequired(lineGroup(index).controls['unsellableReason']) ? 'true' : null"
           >
             <option value="expired">Expired</option>
             <option value="damaged">Damaged</option>
@@ -203,12 +213,17 @@
       </select>
     </div>
     <div class="ag-field">
-      <agrivio-ui-field-label label="Refund account" for="without-invoice-refund-account" />
+      <agrivio-ui-field-label
+        label="Refund account"
+        for="without-invoice-refund-account"
+        [required]="fieldRequired(form.controls.refundAccountId)"
+      />
       <select
         id="without-invoice-refund-account"
         class="ag-select"
         formControlName="refundAccountId"
         data-testid="without-invoice-refund-account"
+        [attr.aria-required]="fieldRequired(form.controls.refundAccountId) ? 'true' : null"
       >
         <option value="">None</option>
         @for (account of accounts(); track account.id) {

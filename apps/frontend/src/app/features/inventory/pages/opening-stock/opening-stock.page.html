@@ -96,8 +96,18 @@
 
     @if (selectedTrackingMode() !== 'none') {
       <div class="ag-field">
-        <agrivio-ui-field-label label="Batch number" for="opening-batch-number" />
-        <input id="opening-batch-number" class="ag-input" formControlName="batchNumber" data-testid="opening-batch-number" />
+        <agrivio-ui-field-label
+          label="Batch number"
+          for="opening-batch-number"
+          [required]="fieldRequired(form.controls.batchNumber)"
+        />
+        <input
+          id="opening-batch-number"
+          class="ag-input"
+          formControlName="batchNumber"
+          data-testid="opening-batch-number"
+          [attr.aria-required]="fieldRequired(form.controls.batchNumber) ? 'true' : null"
+        />
       </div>
       <div class="ag-field">
         <agrivio-ui-field-label label="Manufacturing date (optional)" for="opening-manufacturing-date" />
@@ -113,8 +123,19 @@
 
     @if (selectedTrackingMode() === 'batch_expiry') {
       <div class="ag-field">
-        <agrivio-ui-field-label label="Expiry date" for="opening-expiry-date" />
-        <input id="opening-expiry-date" class="ag-input" type="date" formControlName="expiryDate" data-testid="opening-expiry-date" />
+        <agrivio-ui-field-label
+          label="Expiry date"
+          for="opening-expiry-date"
+          [required]="fieldRequired(form.controls.expiryDate)"
+        />
+        <input
+          id="opening-expiry-date"
+          class="ag-input"
+          type="date"
+          formControlName="expiryDate"
+          data-testid="opening-expiry-date"
+          [attr.aria-required]="fieldRequired(form.controls.expiryDate) ? 'true' : null"
+        />
       </div>
     }
 

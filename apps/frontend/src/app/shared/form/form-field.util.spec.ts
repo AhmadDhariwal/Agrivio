@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UiFieldLabelComponent } from '../ui/ui-field-label/ui-field-label.component';
-import { controlIsRequired, hasRequiredValidator } from './form-field.util';
+import { controlIsRequired, hasRequiredValidator, setRequiredValidator } from './form-field.util';
 
 @Component({
   standalone: true,
@@ -40,6 +40,17 @@ describe('form-field.util', () => {
     control.removeValidators(Validators.required);
     control.updateValueAndValidity();
     expect(hasRequiredValidator(control)).toBe(false);
+  });
+
+  it('adds and removes only the required validator', () => {
+    const minLength = Validators.minLength(2);
+    const control = new FormControl('', minLength);
+    setRequiredValidator(control, true);
+    expect(hasRequiredValidator(control)).toBe(true);
+    expect(control.hasValidator(minLength)).toBe(true);
+    setRequiredValidator(control, false);
+    expect(hasRequiredValidator(control)).toBe(false);
+    expect(control.hasValidator(minLength)).toBe(true);
   });
 
   it('updates the shared required marker and aria-required when validators change', async () => {

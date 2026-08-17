@@ -10,7 +10,7 @@ import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-p
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
-import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
+import { hasRequiredValidator, setRequiredValidator } from '../../../../shared/form/form-field.util';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 import { InventoryBalanceRecord, StockAdjustmentRecord } from '../../models/inventory.models';
@@ -94,8 +94,30 @@ export class AdjustmentsPage {
       const product = this.products().find((item) => item.id === productId);
       this.selectedTrackingMode.set(product?.trackingMode ?? 'none');
       this.form.controls.batchId.setValue('');
+      this.syncBatchRequired();
       this.reloadBatchOptions();
     });
+    this.form.controls.adjustmentType.valueChanges.subscribe(() => this.syncCorrectionRequired());
+    this.form.controls.direction.valueChanges.subscribe(() => this.syncCorrectionRequired());
+    this.form.controls.negativeStockOverride.valueChanges.subscribe(() => this.syncOverrideReasonRequired());
+  }
+
+  private syncBatchRequired(): void {
+    setRequiredValidator(this.form.controls.batchId, this.selectedTrackingMode() !== 'none');
+  }
+
+  private syncCorrectionRequired(): void {
+    const inboundCorrection =
+      this.form.controls.adjustmentType.value === 'correction' &&
+      this.form.controls.direction.value === 'inbound';
+    setRequiredValidator(this.form.controls.inventoryValue, inboundCorrection);
+  }
+
+  private syncOverrideReasonRequired(): void {
+    setRequiredValidator(
+      this.form.controls.negativeStockOverrideReason,
+      this.form.controls.negativeStockOverride.value === true,
+    );
   }
 
   submit(): void {

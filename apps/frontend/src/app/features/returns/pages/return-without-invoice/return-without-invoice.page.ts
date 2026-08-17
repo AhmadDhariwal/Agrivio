@@ -28,7 +28,7 @@ import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-p
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
-import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
+import { hasRequiredValidator, setRequiredValidator } from '../../../../shared/form/form-field.util';
 
 @Component({
   selector: 'agrivio-return-without-invoice-page',
@@ -105,6 +105,10 @@ export class ReturnWithoutInvoicePage {
         this.loading.set(false);
       },
     });
+    this.form.controls.resolution.valueChanges.subscribe((resolution) => {
+      setRequiredValidator(this.form.controls.refundAccountId, resolution === 'account_refund');
+    });
+    this.bindLineConditionalRequired(0);
   }
 
   lineGroup(index: number): FormGroup {
@@ -113,6 +117,7 @@ export class ReturnWithoutInvoicePage {
 
   addLine(): void {
     this.lines.push(this.createLineGroup());
+    this.bindLineConditionalRequired(this.lines.length - 1);
   }
 
   removeLine(index: number): void {
@@ -134,6 +139,7 @@ export class ReturnWithoutInvoicePage {
   onProductChange(index: number): void {
     const productId = String(this.lineGroup(index).get('productId')?.value ?? '');
     this.lineGroup(index).patchValue({ batchId: '' });
+    setRequiredValidator(this.lineGroup(index).get('batchId'), this.productNeedsBatch(index));
     if (!productId || !this.productNeedsBatch(index)) {
       this.batchesByLine.update((current) => ({ ...current, [index]: [] }));
       return;
@@ -159,10 +165,6 @@ export class ReturnWithoutInvoicePage {
     const value = this.form.getRawValue();
     if (!value.customerId && !value.customerIdentifyingName && !value.customerIdentifyingPhone) {
       this.errorMessage.set('Customer lookup or identifying name/phone is required.');
-      return;
-    }
-    if (value.resolution === 'account_refund' && !value.refundAccountId) {
-      this.errorMessage.set('Select a cash, bank, or digital refund account.');
       return;
     }
     const lines = (value.lines as Array<{
@@ -229,6 +231,15 @@ export class ReturnWithoutInvoicePage {
           this.errorMessage.set(this.mapError(error, 'Unable to post return without invoice.'));
         },
       });
+  }
+
+  private bindLineConditionalRequired(index: number): void {
+    const group = this.lineGroup(index);
+    setRequiredValidator(group.get('batchId'), this.productNeedsBatch(index));
+    setRequiredValidator(group.get('unsellableReason'), group.get('stockCondition')?.value === 'unsellable');
+    group.get('stockCondition')?.valueChanges.subscribe((condition) => {
+      setRequiredValidator(group.get('unsellableReason'), condition === 'unsellable');
+    });
   }
 
   private createLineGroup(): FormGroup {

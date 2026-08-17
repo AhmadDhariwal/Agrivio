@@ -108,19 +108,20 @@ export class CustomerPaymentFormPage {
       this.form.markAllAsTouched();
       return;
     }
+    const value = this.form.getRawValue();
+
+    if (value.allocationMode === 'invoice_specific' && this.invoiceAllocationForm.invalid) {
+      this.invoiceAllocationForm.markAllAsTouched();
+      return;
+    }
+
     this.saving.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
-    const value = this.form.getRawValue();
 
     let allocations: Array<{ saleId: string; amount: { amount: string; currency: string } }> | undefined;
     if (value.allocationMode === 'invoice_specific') {
       const inv = this.invoiceAllocationForm.getRawValue();
-      if (!inv.saleId || !inv.allocationAmount) {
-        this.errorMessage.set('Select a sale and enter an allocation amount.');
-        this.saving.set(false);
-        return;
-      }
       allocations = [
         {
           saleId: inv.saleId,

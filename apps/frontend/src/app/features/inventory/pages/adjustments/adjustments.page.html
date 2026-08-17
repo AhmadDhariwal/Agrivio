@@ -57,8 +57,18 @@
       </div>
       @if (selectedTrackingMode() !== 'none') {
         <div class="ag-field">
-          <agrivio-ui-field-label label="Batch" for="adjustment-batch" />
-          <select id="adjustment-batch" class="ag-select" formControlName="batchId" data-testid="adjustment-batch">
+          <agrivio-ui-field-label
+            label="Batch"
+            for="adjustment-batch"
+            [required]="fieldRequired(form.controls.batchId)"
+          />
+          <select
+            id="adjustment-batch"
+            class="ag-select"
+            formControlName="batchId"
+            data-testid="adjustment-batch"
+            [attr.aria-required]="fieldRequired(form.controls.batchId) ? 'true' : null"
+          >
             <option value="">Select batch</option>
             @for (option of batchOptions(); track option.batchId) {
               <option [value]="option.batchId">{{ option.label }}</option>
@@ -95,12 +105,17 @@
         </div>
         @if (form.controls.direction.value === 'inbound') {
           <div class="ag-field">
-            <agrivio-ui-field-label label="Inventory value (PKR)" for="adjustment-inventory-value" />
+            <agrivio-ui-field-label
+              label="Inventory value (PKR)"
+              for="adjustment-inventory-value"
+              [required]="fieldRequired(form.controls.inventoryValue)"
+            />
             <input
               id="adjustment-inventory-value"
               class="ag-input"
               formControlName="inventoryValue"
               data-testid="adjustment-inventory-value"
+              [attr.aria-required]="fieldRequired(form.controls.inventoryValue) ? 'true' : null"
             />
           </div>
         }
@@ -139,12 +154,17 @@
           Allow negative stock override
         </label>
         <div class="ag-field">
-          <agrivio-ui-field-label label="Override reason" for="adjustment-override-reason" />
+          <agrivio-ui-field-label
+            label="Override reason"
+            for="adjustment-override-reason"
+            [required]="fieldRequired(form.controls.negativeStockOverrideReason)"
+          />
           <input
             id="adjustment-override-reason"
             class="ag-input"
             formControlName="negativeStockOverrideReason"
             data-testid="adjustment-override-reason"
+            [attr.aria-required]="fieldRequired(form.controls.negativeStockOverrideReason) ? 'true' : null"
           />
         </div>
       }

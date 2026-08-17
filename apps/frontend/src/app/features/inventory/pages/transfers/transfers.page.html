@@ -76,8 +76,18 @@
       </div>
       @if (selectedTrackingMode() !== 'none') {
         <div class="ag-field">
-          <agrivio-ui-field-label label="Batch" for="transfer-batch" />
-          <select id="transfer-batch" class="ag-select" formControlName="batchId" data-testid="transfer-batch">
+          <agrivio-ui-field-label
+            label="Batch"
+            for="transfer-batch"
+            [required]="fieldRequired(form.controls.batchId)"
+          />
+          <select
+            id="transfer-batch"
+            class="ag-select"
+            formControlName="batchId"
+            data-testid="transfer-batch"
+            [attr.aria-required]="fieldRequired(form.controls.batchId) ? 'true' : null"
+          >
             <option value="">Select batch</option>
             @for (option of batchOptions(); track option.batchId) {
               <option [value]="option.batchId">{{ option.label }}</option>

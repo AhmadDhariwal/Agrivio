@@ -524,12 +524,17 @@
           </select>
         </div>
         <div class="ag-field">
-          <agrivio-ui-field-label label="Refund account" for="sales-return-refund-account" />
+          <agrivio-ui-field-label
+            label="Refund account"
+            for="sales-return-refund-account"
+            [required]="fieldRequired(returnForm.controls.refundAccountId)"
+          />
           <select
             id="sales-return-refund-account"
             class="ag-select"
             formControlName="refundAccountId"
             data-testid="sales-return-refund-account"
+            [attr.aria-required]="fieldRequired(returnForm.controls.refundAccountId) ? 'true' : null"
           >
             <option value="">None</option>
             @for (account of refundAccounts(); track account.id) {
@@ -593,12 +598,17 @@
               </select>
             </div>
             <div class="ag-field">
-              <agrivio-ui-field-label label="Unsellable reason" [for]="'sales-return-unsellable-' + index" />
+              <agrivio-ui-field-label
+                label="Unsellable reason"
+                [for]="'sales-return-unsellable-' + index"
+                [required]="fieldRequired(returnLineGroup(index).controls['unsellableReason'])"
+              />
               <select
                 [id]="'sales-return-unsellable-' + index"
                 class="ag-select"
                 formControlName="unsellableReason"
                 data-testid="sales-return-unsellable-reason"
+                [attr.aria-required]="fieldRequired(returnLineGroup(index).controls['unsellableReason']) ? 'true' : null"
               >
                 <option value="expired">Expired</option>
                 <option value="damaged">Damaged</option>

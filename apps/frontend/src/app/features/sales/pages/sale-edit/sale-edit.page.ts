@@ -38,7 +38,7 @@ import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-p
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
-import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
+import { hasRequiredValidator, setRequiredValidator } from '../../../../shared/form/form-field.util';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 
 @Component({
@@ -171,6 +171,10 @@ export class SaleEditPage {
   }
 
   constructor() {
+    this.returnForm.controls.resolution.valueChanges.subscribe((resolution) => {
+      setRequiredValidator(this.returnForm.controls.refundAccountId, resolution === 'account_refund');
+    });
+
     const id = this.route.snapshot.paramMap.get('id');
     const isEdit = Boolean(id && id !== 'new');
     if (isEdit && id) {
@@ -497,6 +501,7 @@ export class SaleEditPage {
         unsellableReason: ['damaged'],
       }),
     );
+    this.bindReturnLineConditionalRequired(this.returnLines.length - 1);
   }
 
   removeReturnLine(index: number): void {
@@ -533,15 +538,12 @@ export class SaleEditPage {
       this.errorMessage.set('Add at least one return line with quantity > 0.');
       return;
     }
+    this.returnForm.controls.reason.markAsTouched();
+    this.returnForm.controls.refundAccountId.markAsTouched();
+    if (this.returnForm.controls.reason.invalid || this.returnForm.controls.refundAccountId.invalid) {
+      return;
+    }
     const { reason, resolution, refundAccountId } = this.returnForm.getRawValue();
-    if (!reason.trim()) {
-      this.errorMessage.set('A return reason is required.');
-      return;
-    }
-    if (resolution === 'account_refund' && !refundAccountId) {
-      this.errorMessage.set('Select a refund account for cash/bank/digital refund.');
-      return;
-    }
     if (!this.sale()?.customerId && resolution === 'ledger_adjustment') {
       this.errorMessage.set('Walk-in returns require an account refund, not a ledger adjustment.');
       return;
@@ -616,6 +618,17 @@ export class SaleEditPage {
         this.discarding.set(false);
         this.errorMessage.set(this.mapError(error, 'Unable to discard sale draft.'));
       },
+    });
+  }
+
+  private bindReturnLineConditionalRequired(index: number): void {
+    const group = this.returnLineGroup(index);
+    setRequiredValidator(
+      group.get('unsellableReason'),
+      group.get('stockCondition')?.value === 'unsellable',
+    );
+    group.get('stockCondition')?.valueChanges.subscribe((condition) => {
+      setRequiredValidator(group.get('unsellableReason'), condition === 'unsellable');
     });
   }
 

@@ -11,7 +11,7 @@ import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-p
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
-import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
+import { hasRequiredValidator, setRequiredValidator } from '../../../../shared/form/form-field.util';
 import { PackagingUnitRecord, ProductRecord } from '../../../catalog/models/catalog.models';
 
 @Component({
@@ -82,7 +82,9 @@ export class OpeningStockPage {
 
     this.form.controls.productId.valueChanges.subscribe((productId) => {
       const product = this.products().find((item) => item.id === productId);
-      this.selectedTrackingMode.set(product?.trackingMode ?? 'none');
+      const mode = product?.trackingMode ?? 'none';
+      this.selectedTrackingMode.set(mode);
+      this.syncTrackingRequired(mode);
       this.packagingUnits.set([]);
       this.form.patchValue({ packagingUnitId: '' });
       if (!productId) {
@@ -97,6 +99,11 @@ export class OpeningStockPage {
         },
       });
     });
+  }
+
+  private syncTrackingRequired(mode: string): void {
+    setRequiredValidator(this.form.controls.batchNumber, mode !== 'none');
+    setRequiredValidator(this.form.controls.expiryDate, mode === 'batch_expiry');
   }
 
   submit(): void {

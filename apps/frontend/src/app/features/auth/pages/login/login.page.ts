@@ -6,7 +6,6 @@ import { AuthSessionStore } from '../../data-access/auth-session.store';
 import { AuthLayoutComponent } from '../../../../shared/ui/auth-layout/auth-layout.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
-import { UiFormRequiredHintComponent } from '../../../../shared/ui/ui-form-required-hint/ui-form-required-hint.component';
 import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 
 @Component({
@@ -18,7 +17,6 @@ import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
     AuthLayoutComponent,
     UiAlertComponent,
     UiFieldLabelComponent,
-    UiFormRequiredHintComponent,
   ],
   templateUrl: './login.page.html',
   styleUrl: './login.page.scss',

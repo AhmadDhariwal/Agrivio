@@ -224,12 +224,17 @@
 
           @if (trackingModeForLine(index) !== 'none') {
             <div class="ag-field">
-              <agrivio-ui-field-label label="Batch number" [for]="'purchase-line-batch-' + index" />
+              <agrivio-ui-field-label
+                label="Batch number"
+                [for]="'purchase-line-batch-' + index"
+                [required]="fieldRequired(lineGroup(index).controls['batchNumber'])"
+              />
               <input
                 [id]="'purchase-line-batch-' + index"
                 class="ag-input"
                 formControlName="batchNumber"
                 data-testid="purchase-line-batch"
+                [attr.aria-required]="fieldRequired(lineGroup(index).controls['batchNumber']) ? 'true' : null"
               />
             </div>
             <div class="ag-field">
@@ -240,13 +245,18 @@
 
           @if (trackingModeForLine(index) === 'batch_expiry') {
             <div class="ag-field">
-              <agrivio-ui-field-label label="Expiry date" [for]="'purchase-line-expiry-' + index" />
+              <agrivio-ui-field-label
+                label="Expiry date"
+                [for]="'purchase-line-expiry-' + index"
+                [required]="fieldRequired(lineGroup(index).controls['expiryDate'])"
+              />
               <input
                 [id]="'purchase-line-expiry-' + index"
                 class="ag-input"
                 type="date"
                 formControlName="expiryDate"
                 data-testid="purchase-line-expiry"
+                [attr.aria-required]="fieldRequired(lineGroup(index).controls['expiryDate']) ? 'true' : null"
               />
             </div>
           }
