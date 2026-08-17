@@ -15,31 +15,51 @@
   @if (softWarning(); as warning) {
     <agrivio-ui-alert tone="warning" [message]="warning" data-testid="plan-soft-warning" />
   }
-  <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="supplier-form">
-    <label>
-      Name
-      <input formControlName="name" data-testid="supplier-name" />
-    </label>
-    <label>
-      Phone
-      <input formControlName="phone" data-testid="supplier-phone" />
-    </label>
-    <label>
-      Contact name
-      <input formControlName="contactName" data-testid="supplier-contact-name" />
-    </label>
-    <label>
-      Email
-      <input formControlName="email" data-testid="supplier-email" />
-    </label>
+  <form
+    class="ag-stack form ag-form ag-form--with-required-hint"
+    [formGroup]="form"
+    (ngSubmit)="save()"
+    data-testid="supplier-form"
+  >
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Name"
+        for="supplier-name"
+        [required]="fieldRequired(form.controls.name)"
+      />
+      <input
+        id="supplier-name"
+        class="ag-input"
+        formControlName="name"
+        data-testid="supplier-name"
+        [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
+      />
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label label="Phone" for="supplier-phone" />
+      <input id="supplier-phone" class="ag-input" formControlName="phone" data-testid="supplier-phone" />
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label label="Contact name" for="supplier-contact-name" />
+      <input
+        id="supplier-contact-name"
+        class="ag-input"
+        formControlName="contactName"
+        data-testid="supplier-contact-name"
+      />
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label label="Email" for="supplier-email" />
+      <input id="supplier-email" class="ag-input" formControlName="email" data-testid="supplier-email" />
+    </div>
     @if (supplierId()) {
-      <label>
-        Status
-        <select formControlName="status" data-testid="supplier-status">
+      <div class="ag-field">
+        <agrivio-ui-field-label label="Status" for="supplier-status" />
+        <select id="supplier-status" class="ag-select" formControlName="status" data-testid="supplier-status">
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
-      </label>
+      </div>
     }
     <div class="ag-inline">
       <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="supplier-save">Save</button>
@@ -53,18 +73,42 @@
       @if (openingPosted()) {
         <p class="ag-muted" data-testid="supplier-opening-posted">Opening already posted.</p>
       } @else {
-        <form class="ag-stack" [formGroup]="openingForm" (ngSubmit)="postOpening()">
-          <label>
-            Kind
-            <select formControlName="kind" data-testid="supplier-opening-kind">
+        <form
+          class="ag-stack ag-form ag-form--with-required-hint"
+          [formGroup]="openingForm"
+          (ngSubmit)="postOpening()"
+        >
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Kind"
+              for="supplier-opening-kind"
+              [required]="fieldRequired(openingForm.controls.kind)"
+            />
+            <select
+              id="supplier-opening-kind"
+              class="ag-select"
+              formControlName="kind"
+              data-testid="supplier-opening-kind"
+              [attr.aria-required]="fieldRequired(openingForm.controls.kind) ? 'true' : null"
+            >
               <option value="payable">Payable</option>
               <option value="advance">Advance</option>
             </select>
-          </label>
-          <label>
-            Amount (PKR)
-            <input formControlName="amount" data-testid="supplier-opening-amount" />
-          </label>
+          </div>
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Amount (PKR)"
+              for="supplier-opening-amount"
+              [required]="fieldRequired(openingForm.controls.amount)"
+            />
+            <input
+              id="supplier-opening-amount"
+              class="ag-input"
+              formControlName="amount"
+              data-testid="supplier-opening-amount"
+              [attr.aria-required]="fieldRequired(openingForm.controls.amount) ? 'true' : null"
+            />
+          </div>
           <button
             class="ag-btn"
             type="submit"

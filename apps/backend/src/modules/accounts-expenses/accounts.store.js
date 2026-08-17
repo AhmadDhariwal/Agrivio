@@ -91,6 +91,11 @@ function createMongooseAccountsStore() {
       }
     },
 
+    async deleteAccount(session, organizationId, id) {
+      const result = await AccountModel.deleteOne({ _id: id, organizationId }, withSession(session));
+      return result.deletedCount === 1;
+    },
+
     async insertAccountMovement(session, doc) {
       try {
         const [created] = await AccountMovementModel.create([doc], withSession(session));
@@ -231,6 +236,14 @@ function createMongooseAccountsStore() {
       }
     },
 
+    async deleteExpenseCategory(session, organizationId, id) {
+      const result = await ExpenseCategoryModel.deleteOne(
+        { _id: id, organizationId },
+        withSession(session),
+      );
+      return result.deletedCount === 1;
+    },
+
     async listExpenses(organizationId) {
       return ExpenseModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
     },
@@ -291,6 +304,14 @@ function createMongooseAccountsStore() {
       } catch (error) {
         throw markDuplicate(error);
       }
+    },
+
+    async deleteExpenseDraft(session, organizationId, id) {
+      const result = await ExpenseModel.deleteOne(
+        { _id: id, organizationId, status: 'draft' },
+        withSession(session),
+      );
+      return result.deletedCount === 1;
     },
 
     async appendAuditEvent(session, event) {
@@ -446,6 +467,15 @@ function createInMemoryAccountsStore() {
       return { ...next };
     },
 
+    async deleteAccount(_session, organizationId, id) {
+      const existing = await this.findAccountById(organizationId, id);
+      if (existing === null) {
+        return false;
+      }
+      accounts.delete(id);
+      return true;
+    },
+
     async insertAccountMovement(_session, doc) {
       assertUniqueMovement(doc);
       const id = doc._id ? String(doc._id) : `account-movement-${movementSeq++}`;
@@ -560,6 +590,15 @@ function createInMemoryAccountsStore() {
       return { ...next };
     },
 
+    async deleteExpenseCategory(_session, organizationId, id) {
+      const existing = await this.findExpenseCategoryById(organizationId, id);
+      if (existing === null) {
+        return false;
+      }
+      categories.delete(id);
+      return true;
+    },
+
     async listExpenses(organizationId) {
       return [...expenses.values()]
         .filter((item) => String(item.organizationId) === String(organizationId))
@@ -616,6 +655,19 @@ function createInMemoryAccountsStore() {
       assertUniqueExpenseCorrection(next, id);
       expenses.set(id, next);
       return { ...next };
+    },
+
+    async deleteExpenseDraft(_session, organizationId, id) {
+      const existing = expenses.get(id);
+      if (
+        existing === undefined ||
+        String(existing.organizationId) !== String(organizationId) ||
+        existing.status !== 'draft'
+      ) {
+        return false;
+      }
+      expenses.delete(id);
+      return true;
     },
 
     async appendAuditEvent(_session, event) {

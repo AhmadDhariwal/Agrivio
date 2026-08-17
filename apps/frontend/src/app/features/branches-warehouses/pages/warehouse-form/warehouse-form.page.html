@@ -12,23 +12,38 @@
   @if (errorMessage(); as error) {
     <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
   }
-  <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="warehouse-form">
-    <label>
-      Name
-      <input formControlName="name" data-testid="warehouse-name" />
-    </label>
-    <label>
-      Code (optional)
-      <input formControlName="code" data-testid="warehouse-code" />
-    </label>
+  <form
+    class="ag-stack form ag-form ag-form--with-required-hint"
+    [formGroup]="form"
+    (ngSubmit)="save()"
+    data-testid="warehouse-form"
+  >
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Name"
+        for="warehouse-name"
+        [required]="fieldRequired(form.controls.name)"
+      />
+      <input
+        id="warehouse-name"
+        class="ag-input"
+        formControlName="name"
+        data-testid="warehouse-name"
+        [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
+      />
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label label="Code (optional)" for="warehouse-code" />
+      <input id="warehouse-code" class="ag-input" formControlName="code" data-testid="warehouse-code" />
+    </div>
     @if (warehouseId()) {
-      <label>
-        Status
-        <select formControlName="status" data-testid="warehouse-status">
+      <div class="ag-field">
+        <agrivio-ui-field-label label="Status" for="warehouse-status" />
+        <select id="warehouse-status" class="ag-select" formControlName="status" data-testid="warehouse-status">
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
-      </label>
+      </div>
     }
     <div class="ag-inline">
       <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="warehouse-save">Save</button>

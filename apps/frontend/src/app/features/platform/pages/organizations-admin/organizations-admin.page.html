@@ -17,18 +17,48 @@
       Direct platform create follows the same pending Owner/onboarding path as a public request. It
       does not grant operational access.
     </p>
-    <form class="ag-form" [formGroup]="createForm" (ngSubmit)="createOrganization()">
+    <form class="ag-form ag-form--with-required-hint" [formGroup]="createForm" (ngSubmit)="createOrganization()">
       <div class="ag-field">
-        <label class="ag-field__label" for="create-org-name">Organization name</label>
-        <input id="create-org-name" class="ag-input" type="text" formControlName="organizationName" />
+        <agrivio-ui-field-label
+          label="Organization name"
+          for="create-org-name"
+          [required]="fieldRequired(createForm.controls.organizationName)"
+        />
+        <input
+          id="create-org-name"
+          class="ag-input"
+          type="text"
+          formControlName="organizationName"
+          [attr.aria-required]="fieldRequired(createForm.controls.organizationName) ? 'true' : null"
+        />
       </div>
       <div class="ag-field">
-        <label class="ag-field__label" for="create-owner-email">Owner email</label>
-        <input id="create-owner-email" class="ag-input" type="email" formControlName="ownerEmail" />
+        <agrivio-ui-field-label
+          label="Owner email"
+          for="create-owner-email"
+          [required]="fieldRequired(createForm.controls.ownerEmail)"
+        />
+        <input
+          id="create-owner-email"
+          class="ag-input"
+          type="email"
+          formControlName="ownerEmail"
+          [attr.aria-required]="fieldRequired(createForm.controls.ownerEmail) ? 'true' : null"
+        />
       </div>
       <div class="ag-field">
-        <label class="ag-field__label" for="create-owner-name">Owner display name</label>
-        <input id="create-owner-name" class="ag-input" type="text" formControlName="ownerDisplayName" />
+        <agrivio-ui-field-label
+          label="Owner display name"
+          for="create-owner-name"
+          [required]="fieldRequired(createForm.controls.ownerDisplayName)"
+        />
+        <input
+          id="create-owner-name"
+          class="ag-input"
+          type="text"
+          formControlName="ownerDisplayName"
+          [attr.aria-required]="fieldRequired(createForm.controls.ownerDisplayName) ? 'true' : null"
+        />
       </div>
       <div class="ag-actions">
         <button type="submit" class="ag-btn ag-btn--primary" data-testid="create-org">
@@ -107,10 +137,20 @@
   <div class="ag-card ag-stack ag-stack--tight">
     <h2>Rejection reason</h2>
     <p class="ag-muted">Required before rejecting a request.</p>
-    <form class="ag-form" [formGroup]="rejectForm">
+    <form class="ag-form ag-form--with-required-hint" [formGroup]="rejectForm">
       <div class="ag-field">
-        <label class="ag-field__label" for="reject-reason">Reason</label>
-        <input id="reject-reason" class="ag-input" type="text" formControlName="reason" />
+        <agrivio-ui-field-label
+          label="Reason"
+          for="reject-reason"
+          [required]="fieldRequired(rejectForm.controls.reason)"
+        />
+        <input
+          id="reject-reason"
+          class="ag-input"
+          type="text"
+          formControlName="reason"
+          [attr.aria-required]="fieldRequired(rejectForm.controls.reason) ? 'true' : null"
+        />
       </div>
     </form>
   </div>

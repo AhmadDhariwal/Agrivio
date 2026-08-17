@@ -289,6 +289,8 @@ describe('F02 Phase 2 session authentication', () => {
       SESSION_SECRET: 'x'.repeat(32),
       MONGODB_URI: 'mongodb://127.0.0.1:27017/?replicaSet=rs0',
       AGRIVIO_PUBLIC_WEB_BASE_URL: 'https://app.example.com',
+      AGRIVIO_SMTP_HOST: 'smtp.example.com',
+      AGRIVIO_SMTP_FROM: 'noreply@example.com',
     });
     const app = createApp({
       config: { ...config, nodeEnv: 'production' },

@@ -16,68 +16,157 @@
       <agrivio-ui-alert tone="success" [message]="success" data-testid="adjustment-success" />
     }
 
-    <form [formGroup]="form" (ngSubmit)="submit()" data-testid="adjustment-form" class="ag-form">
-      <label>Warehouse
-        <select formControlName="warehouseId" data-testid="adjustment-warehouse">
+    <form [formGroup]="form" (ngSubmit)="submit()" data-testid="adjustment-form" class="ag-form ag-form--with-required-hint">
+      <div class="ag-field">
+        <agrivio-ui-field-label
+          label="Warehouse"
+          for="adjustment-warehouse"
+          [required]="fieldRequired(form.controls.warehouseId)"
+        />
+        <select
+          id="adjustment-warehouse"
+          class="ag-select"
+          formControlName="warehouseId"
+          data-testid="adjustment-warehouse"
+          [attr.aria-required]="fieldRequired(form.controls.warehouseId) ? 'true' : null"
+        >
           <option value="">Select warehouse</option>
           @for (warehouse of warehouses(); track warehouse.id) {
             <option [value]="warehouse.id">{{ warehouse.name }}</option>
           }
         </select>
-      </label>
-      <label>Product
-        <select formControlName="productId" data-testid="adjustment-product">
+      </div>
+      <div class="ag-field">
+        <agrivio-ui-field-label
+          label="Product"
+          for="adjustment-product"
+          [required]="fieldRequired(form.controls.productId)"
+        />
+        <select
+          id="adjustment-product"
+          class="ag-select"
+          formControlName="productId"
+          data-testid="adjustment-product"
+          [attr.aria-required]="fieldRequired(form.controls.productId) ? 'true' : null"
+        >
           <option value="">Select product</option>
           @for (product of products(); track product.id) {
             <option [value]="product.id">{{ product.name }}</option>
           }
         </select>
-      </label>
+      </div>
       @if (selectedTrackingMode() !== 'none') {
-        <label>Batch
-          <select formControlName="batchId" data-testid="adjustment-batch">
+        <div class="ag-field">
+          <agrivio-ui-field-label
+            label="Batch"
+            for="adjustment-batch"
+            [required]="fieldRequired(form.controls.batchId)"
+          />
+          <select
+            id="adjustment-batch"
+            class="ag-select"
+            formControlName="batchId"
+            data-testid="adjustment-batch"
+            [attr.aria-required]="fieldRequired(form.controls.batchId) ? 'true' : null"
+          >
             <option value="">Select batch</option>
             @for (option of batchOptions(); track option.batchId) {
               <option [value]="option.batchId">{{ option.label }}</option>
             }
           </select>
-        </label>
+        </div>
       }
-      <label>Type
-        <select formControlName="adjustmentType" data-testid="adjustment-type">
+      <div class="ag-field">
+        <agrivio-ui-field-label
+          label="Type"
+          for="adjustment-type"
+          [required]="fieldRequired(form.controls.adjustmentType)"
+        />
+        <select
+          id="adjustment-type"
+          class="ag-select"
+          formControlName="adjustmentType"
+          data-testid="adjustment-type"
+          [attr.aria-required]="fieldRequired(form.controls.adjustmentType) ? 'true' : null"
+        >
           <option value="damage">Damage</option>
           <option value="expiry">Expiry</option>
           <option value="loss">Loss</option>
           <option value="correction">Correction</option>
         </select>
-      </label>
+      </div>
       @if (form.controls.adjustmentType.value === 'correction') {
-        <label>Direction
-          <select formControlName="direction" data-testid="adjustment-direction">
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Direction" for="adjustment-direction" />
+          <select id="adjustment-direction" class="ag-select" formControlName="direction" data-testid="adjustment-direction">
             <option value="outbound">Outbound</option>
             <option value="inbound">Inbound</option>
           </select>
-        </label>
+        </div>
         @if (form.controls.direction.value === 'inbound') {
-          <label>Inventory value (PKR)
-            <input formControlName="inventoryValue" data-testid="adjustment-inventory-value" />
-          </label>
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Inventory value (PKR)"
+              for="adjustment-inventory-value"
+              [required]="fieldRequired(form.controls.inventoryValue)"
+            />
+            <input
+              id="adjustment-inventory-value"
+              class="ag-input"
+              formControlName="inventoryValue"
+              data-testid="adjustment-inventory-value"
+              [attr.aria-required]="fieldRequired(form.controls.inventoryValue) ? 'true' : null"
+            />
+          </div>
         }
       }
-      <label>Quantity
-        <input formControlName="quantity" data-testid="adjustment-quantity" />
-      </label>
-      <label>Reason
-        <input formControlName="reason" data-testid="adjustment-reason" />
-      </label>
+      <div class="ag-field">
+        <agrivio-ui-field-label
+          label="Quantity"
+          for="adjustment-quantity"
+          [required]="fieldRequired(form.controls.quantity)"
+        />
+        <input
+          id="adjustment-quantity"
+          class="ag-input"
+          formControlName="quantity"
+          data-testid="adjustment-quantity"
+          [attr.aria-required]="fieldRequired(form.controls.quantity) ? 'true' : null"
+        />
+      </div>
+      <div class="ag-field">
+        <agrivio-ui-field-label
+          label="Reason"
+          for="adjustment-reason"
+          [required]="fieldRequired(form.controls.reason)"
+        />
+        <input
+          id="adjustment-reason"
+          class="ag-input"
+          formControlName="reason"
+          data-testid="adjustment-reason"
+          [attr.aria-required]="fieldRequired(form.controls.reason) ? 'true' : null"
+        />
+      </div>
       @if (canOverride()) {
         <label>
           <input type="checkbox" formControlName="negativeStockOverride" data-testid="adjustment-override" />
           Allow negative stock override
         </label>
-        <label>Override reason
-          <input formControlName="negativeStockOverrideReason" data-testid="adjustment-override-reason" />
-        </label>
+        <div class="ag-field">
+          <agrivio-ui-field-label
+            label="Override reason"
+            for="adjustment-override-reason"
+            [required]="fieldRequired(form.controls.negativeStockOverrideReason)"
+          />
+          <input
+            id="adjustment-override-reason"
+            class="ag-input"
+            formControlName="negativeStockOverrideReason"
+            data-testid="adjustment-override-reason"
+            [attr.aria-required]="fieldRequired(form.controls.negativeStockOverrideReason) ? 'true' : null"
+          />
+        </div>
       }
       <button type="submit" [disabled]="saving()" data-testid="adjustment-submit">Post adjustment</button>
     </form>
@@ -112,3 +201,15 @@
 }
 
 <p><a routerLink="/app/inventory/stock">Back to stock</a></p>
+
+<agrivio-ui-confirm-dialog
+  [open]="reverseConfirmOpen()"
+  title="Reverse posted adjustment?"
+  message="The original adjustment remains in history. Corrective stock effects will be recorded."
+  confirmLabel="Reverse"
+  cancelLabel="Keep adjustment"
+  [danger]="true"
+  [requireReason]="true"
+  (confirmed)="confirmReverse($event)"
+  (dismiss)="reverseConfirmOpen.set(false)"
+/>

@@ -371,6 +371,8 @@ describe('F02 Phase 1 organization onboarding', () => {
       SESSION_SECRET: 'x'.repeat(32),
       MONGODB_URI: 'mongodb://127.0.0.1:27017/?replicaSet=rs0',
       AGRIVIO_PUBLIC_WEB_BASE_URL: 'https://app.example.com',
+      AGRIVIO_SMTP_HOST: 'smtp.example.com',
+      AGRIVIO_SMTP_FROM: 'noreply@example.com',
     });
     const productionConfig = { ...config, nodeEnv: 'production' };
     const app = createApp({

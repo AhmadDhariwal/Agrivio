@@ -82,7 +82,7 @@ test.describe('F03 P3 setup openings and plan limits', () => {
     await page.getByTestId('employee-save').click();
     await expect(page.getByText(/activation link/i)).toBeVisible();
 
-    await page.getByRole('link', { name: 'Categories' }).click();
+    await page.getByRole('link', { name: 'Categories', exact: true }).click();
     await page.getByTestId('category-create-link').click();
     await page.getByTestId('category-name').fill('Fertilizers');
     await page.getByTestId('category-product-class').selectOption('fertilizer');

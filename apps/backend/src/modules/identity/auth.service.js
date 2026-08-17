@@ -549,6 +549,16 @@ function createAuthService(deps) {
           expiresAt: new Date(at.getTime() + RESET_TTL_MS),
         });
         issuedToken = token.token;
+        if (deps.mailTransport && typeof deps.mailTransport.sendPasswordReset === 'function') {
+          try {
+            await deps.mailTransport.sendPasswordReset({
+              email: input.email,
+              token: token.token,
+            });
+          } catch {
+            // Generic response is still returned; delivery failure is not enumerated.
+          }
+        }
         await auditWriter.appendBusinessEvent(null, {
           actorId: String(user['_id']),
           action: 'auth.password_reset_requested',

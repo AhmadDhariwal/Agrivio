@@ -77,7 +77,7 @@ Central navigation for Agrivio documentation.
 | [MODEL_REVIEW_CHECKLIST.md](MODEL_REVIEW_CHECKLIST.md) | Mandatory completeness checklist for every new/changed persisted model (F03 P2+) |
 | [API_DESIGN.md](API_DESIGN.md) | API conventions and endpoint inventory (Frozen for Release 1, v1.0) |
 | [SECURITY_AUTHORIZATION.md](SECURITY_AUTHORIZATION.md) | Authentication, sessions, permissions, security controls (Frozen for Release 1, v1.0) |
-| [SUBSCRIPTION_AND_BILLING.md](SUBSCRIPTION_AND_BILLING.md) | Subscription lifecycle and manual billing (Frozen for Release 1, v1.0) |
+| [ENV.md](ENV.md) | Runtime environment variables (required / optional / production-only) |
 | [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md) | Release 1 implementation stages and work-item catalog (Frozen for Release 1, v1.2.0; 10 stages; 109 work items) |
 | [DELIVERY_PLAN.md](DELIVERY_PLAN.md) | Delivery estimates, risks, pilot and rollout (Frozen for Release 1, v1.0) |
 | [QUALITY_GATES.md](QUALITY_GATES.md) | Per-item, per-stage, and release quality gates (Frozen for Release 1, v1.4.0) |

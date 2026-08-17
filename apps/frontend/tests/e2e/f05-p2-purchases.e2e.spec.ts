@@ -90,7 +90,7 @@ test.describe('F05 P2 purchase posting vertical slice', () => {
     await page.getByTestId('account-opening-save').click();
     await expect(page.getByTestId('account-derived-balance')).toContainText('5000.00');
 
-    await page.getByRole('link', { name: 'Categories' }).click();
+    await page.getByRole('link', { name: 'Categories', exact: true }).click();
     await page.getByTestId('category-create-link').click();
     await page.getByTestId('category-name').fill('P2 Inputs');
     await page.getByTestId('category-product-class').selectOption('general');
@@ -206,11 +206,11 @@ test.describe('F05 P2 purchase posting vertical slice', () => {
     await expect(page.getByTestId('stock-list')).toContainText('100.0000');
     await expect(page.getByTestId('stock-list')).toContainText('220.00');
 
-    await page.getByRole('link', { name: 'Batches' }).click();
+    await page.locator('#ag-main').getByRole('link', { name: 'Batches' }).click();
     await expect(page.getByTestId('batches-list')).toContainText('LOT-P2-1');
 
     await page.getByTestId('nav-inventory').click();
-    await page.getByRole('link', { name: 'Movements' }).click();
+    await page.locator('#ag-main').getByRole('link', { name: 'Movements' }).click();
     await expect(page.getByTestId('movement-row').filter({ hasText: 'purchase' }).first()).toBeVisible();
 
     const supplierLedger = await page.request.get(`${API}/api/v1/suppliers`);

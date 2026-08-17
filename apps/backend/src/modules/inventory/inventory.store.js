@@ -256,6 +256,14 @@ function createMongooseInventoryStore() {
       return updated;
     },
 
+    async deleteAdjustmentDraft(session, organizationId, id) {
+      const result = await StockAdjustmentModel.deleteOne(
+        { _id: id, organizationId, status: 'draft' },
+        withSession(session),
+      );
+      return result.deletedCount === 1;
+    },
+
     async listPositiveBalancesWithBatchFacts(organizationId, filters) {
       const balanceQuery = { organizationId };
       if (filters.warehouseId) {
@@ -329,6 +337,14 @@ function createMongooseInventoryStore() {
         .lean()
         .exec();
       return updated;
+    },
+
+    async deleteTransferDraft(session, organizationId, id) {
+      const result = await WarehouseTransferModel.deleteOne(
+        { _id: id, organizationId, status: 'draft' },
+        withSession(session),
+      );
+      return result.deletedCount === 1;
     },
 
     async listAllBalances(organizationId) {
@@ -704,6 +720,20 @@ function createInMemoryInventoryStore() {
       return { ...updated };
     },
 
+    async deleteAdjustmentDraft(session, organizationId, id) {
+      void session;
+      const record = adjustments.get(String(id));
+      if (
+        !record ||
+        String(record.organizationId) !== String(organizationId) ||
+        record.status !== 'draft'
+      ) {
+        return false;
+      }
+      adjustments.delete(String(id));
+      return true;
+    },
+
     async listPositiveBalancesWithBatchFacts(organizationId, filters) {
       const rows = [...balances.values()].filter((item) => {
         if (String(item.organizationId) !== String(organizationId)) {
@@ -797,6 +827,20 @@ function createInMemoryInventoryStore() {
       };
       transfers.set(String(id), updated);
       return { ...updated };
+    },
+
+    async deleteTransferDraft(session, organizationId, id) {
+      void session;
+      const record = transfers.get(String(id));
+      if (
+        !record ||
+        String(record.organizationId) !== String(organizationId) ||
+        record.status !== 'draft'
+      ) {
+        return false;
+      }
+      transfers.delete(String(id));
+      return true;
     },
 
     async listAllBalances(organizationId) {

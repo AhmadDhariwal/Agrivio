@@ -12,65 +12,130 @@
   @if (errorMessage(); as error) {
     <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
   }
-  <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="product-form">
-    <label>
-      Category
-      <select formControlName="categoryId" data-testid="product-category">
+  <form
+    class="ag-stack form ag-form ag-form--with-required-hint"
+    [formGroup]="form"
+    (ngSubmit)="save()"
+    data-testid="product-form"
+  >
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Category"
+        for="product-category"
+        [required]="fieldRequired(form.controls.categoryId)"
+      />
+      <select
+        id="product-category"
+        class="ag-select"
+        formControlName="categoryId"
+        data-testid="product-category"
+        [attr.aria-required]="fieldRequired(form.controls.categoryId) ? 'true' : null"
+      >
         <option value="" disabled>Select category</option>
         @for (category of categories(); track category.id) {
           <option [value]="category.id">{{ category.name }}</option>
         }
       </select>
-    </label>
-    <label>
-      Name
-      <input formControlName="name" data-testid="product-name" />
-    </label>
-    <label>
-      SKU (optional)
-      <input formControlName="sku" data-testid="product-sku" />
-    </label>
-    <label>
-      Tracking mode
-      <select formControlName="trackingMode" data-testid="product-tracking-mode">
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Name"
+        for="product-name"
+        [required]="fieldRequired(form.controls.name)"
+      />
+      <input
+        id="product-name"
+        class="ag-input"
+        formControlName="name"
+        data-testid="product-name"
+        [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
+      />
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label label="SKU (optional)" for="product-sku" />
+      <input id="product-sku" class="ag-input" formControlName="sku" data-testid="product-sku" />
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Tracking mode"
+        for="product-tracking-mode"
+        [required]="fieldRequired(form.controls.trackingMode)"
+      />
+      <select
+        id="product-tracking-mode"
+        class="ag-select"
+        formControlName="trackingMode"
+        data-testid="product-tracking-mode"
+        [attr.aria-required]="fieldRequired(form.controls.trackingMode) ? 'true' : null"
+      >
         <option value="none">None</option>
         <option value="batch">Batch</option>
         <option value="batch_expiry">Batch + expiry</option>
       </select>
-    </label>
-    <label>
-      Base unit code
-      <input formControlName="baseUnitCode" data-testid="product-base-unit" />
-    </label>
-    <label>
-      Measurement dimension
-      <select formControlName="measurementDimension" data-testid="product-measurement-dimension">
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Base unit code"
+        for="product-base-unit"
+        [required]="fieldRequired(form.controls.baseUnitCode)"
+      />
+      <input
+        id="product-base-unit"
+        class="ag-input"
+        formControlName="baseUnitCode"
+        data-testid="product-base-unit"
+        [attr.aria-required]="fieldRequired(form.controls.baseUnitCode) ? 'true' : null"
+      />
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Measurement dimension"
+        for="product-measurement-dimension"
+        [required]="fieldRequired(form.controls.measurementDimension)"
+      />
+      <select
+        id="product-measurement-dimension"
+        class="ag-select"
+        formControlName="measurementDimension"
+        data-testid="product-measurement-dimension"
+        [attr.aria-required]="fieldRequired(form.controls.measurementDimension) ? 'true' : null"
+      >
         <option value="mass">Mass</option>
         <option value="volume">Volume</option>
       </select>
-    </label>
+    </div>
     @if (productId()) {
-      <label>
-        Status
-        <select formControlName="status" data-testid="product-status">
+      <div class="ag-field">
+        <agrivio-ui-field-label label="Status" for="product-status" />
+        <select id="product-status" class="ag-select" formControlName="status" data-testid="product-status">
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
-      </label>
+      </div>
     }
 
     <fieldset class="packaging" formArrayName="packagingUnits">
       <legend>Packaging units</legend>
       @for (unit of packagingUnits.controls; track $index; let i = $index) {
         <div class="packaging-row" [formGroupName]="i">
-          <label>
-            Name
-            <input formControlName="name" data-testid="packaging-unit-name" />
-          </label>
-          <label>
-            Conversion factor
-            <input formControlName="conversionFactor" data-testid="packaging-conversion" />
-          </label>
+          <div class="ag-field">
+            <agrivio-ui-field-label label="Name" [for]="'packaging-unit-name-' + i" />
+            <input
+              [id]="'packaging-unit-name-' + i"
+              class="ag-input"
+              formControlName="name"
+              data-testid="packaging-unit-name"
+            />
+          </div>
+          <div class="ag-field">
+            <agrivio-ui-field-label label="Conversion factor" [for]="'packaging-conversion-' + i" />
+            <input
+              [id]="'packaging-conversion-' + i"
+              class="ag-input"
+              formControlName="conversionFactor"
+              data-testid="packaging-conversion"
+            />
+          </div>
           <button class="ag-btn ag-btn--secondary" type="button" (click)="removePackagingUnit(i)">
             Remove
           </button>

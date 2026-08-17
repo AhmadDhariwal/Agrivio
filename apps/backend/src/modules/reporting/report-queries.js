@@ -481,6 +481,15 @@ function createReportQueries(deps) {
   }
 
   async function queryStockValuation(organizationId, filters, authContext) {
+    if (!inventoryService || typeof inventoryService.listBalances !== 'function') {
+      return {
+        reportKey: 'stock-valuation',
+        title: REPORT_BY_KEY['stock-valuation'].title,
+        columns: [],
+        rows: [],
+        totals: { inventoryValue: toMoneyDto(0n).amount },
+      };
+    }
     const { items } = await inventoryService.listBalances(organizationId, {}, authContext);
     const categories = await productCategoryMap(organizationId);
     const scoped = filterByProductCategory(items, filters, categories);
@@ -891,6 +900,9 @@ function createReportQueries(deps) {
   return {
     collectGrossProfitEffects,
     queryGrossProfit,
+    querySales,
+    queryPurchases,
+    queryStockValuation,
     queryReport,
   };
 }

@@ -167,6 +167,27 @@ function createMongooseCatalogStore() {
       }
     },
 
+    async deleteProduct(session, organizationId, id) {
+      await ProductPackagingUnitModel.deleteMany(
+        { organizationId, productId: id },
+        withSession(session),
+      );
+      await ProductPriceModel.deleteMany({ organizationId, productId: id }, withSession(session));
+      const result = await ProductModel.deleteOne(
+        { _id: id, organizationId },
+        withSession(session),
+      );
+      return result.deletedCount === 1;
+    },
+
+    async deleteCategory(session, organizationId, id) {
+      const result = await ProductCategoryModel.deleteOne(
+        { _id: id, organizationId },
+        withSession(session),
+      );
+      return result.deletedCount === 1;
+    },
+
     async listPackagingUnits(organizationId, productId) {
       return ProductPackagingUnitModel.find({ organizationId, productId })
         .sort({ nameNormalized: 1 })
@@ -449,6 +470,40 @@ function createInMemoryCatalogStore() {
       assertUniqueSku(organizationId, next.sku, id);
       products.set(id, next);
       return { ...next };
+    },
+
+    async deleteProduct(_session, organizationId, id) {
+      const existing = await this.findProductById(organizationId, id);
+      if (existing === null) {
+        return false;
+      }
+      for (const [packagingId, unit] of packagingUnits) {
+        if (
+          String(unit.organizationId) === String(organizationId) &&
+          String(unit.productId) === String(id)
+        ) {
+          packagingUnits.delete(packagingId);
+        }
+      }
+      for (const [priceId, price] of prices) {
+        if (
+          String(price.organizationId) === String(organizationId) &&
+          String(price.productId) === String(id)
+        ) {
+          prices.delete(priceId);
+        }
+      }
+      products.delete(id);
+      return true;
+    },
+
+    async deleteCategory(_session, organizationId, id) {
+      const existing = await this.findCategoryById(organizationId, id);
+      if (existing === null) {
+        return false;
+      }
+      categories.delete(id);
+      return true;
     },
 
     async listPackagingUnits(organizationId, productId) {

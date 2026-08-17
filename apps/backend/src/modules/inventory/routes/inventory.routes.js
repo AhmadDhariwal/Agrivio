@@ -148,6 +148,18 @@ function registerInventoryRoutes(deps) {
     },
   );
 
+  router.delete(
+    `${API_STOCK_ADJUSTMENTS_PATH}/:id`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('inventory.adjust'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.discardAdjustment(req, res, next);
+    },
+  );
+
   router.post(
     `${API_STOCK_ADJUSTMENTS_PATH}/:id/post`,
     deps.requireAuth,
@@ -215,6 +227,18 @@ function registerInventoryRoutes(deps) {
     deps.requireOperationalAccess,
     (req, res, next) => {
       void controller.updateTransfer(req, res, next);
+    },
+  );
+
+  router.delete(
+    `${API_WAREHOUSE_TRANSFERS_PATH}/:id`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('inventory.transfer'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.discardTransfer(req, res, next);
     },
   );
 

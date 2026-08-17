@@ -76,6 +76,19 @@ export class SuppliersApi {
     );
   }
 
+  deleteSupplier(id: string): Observable<{ id: string; deleted: boolean }> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .delete<{ data: { id: string; deleted: boolean } }>(
+            `${environment.publicApiBaseUrl}/api/v1/suppliers/${id}`,
+            { withCredentials: true, headers: { 'X-CSRF-Token': csrfToken } },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
   postOpeningBalance(
     id: string,
     payload: { kind: string; amount: { amount: string; currency: string } },

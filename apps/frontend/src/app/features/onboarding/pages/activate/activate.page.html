@@ -2,22 +2,31 @@
   title="Activate owner account"
   subtitle="Set your initial password with the one-time activation token from Super Admin approval."
 >
-  <form class="ag-form" [formGroup]="form" (ngSubmit)="submit()">
+  <form class="ag-form ag-form--with-required-hint" [formGroup]="form" (ngSubmit)="submit()">
     <div class="ag-field">
-      <label class="ag-field__label" for="activation-token">Activation token</label>
+      <agrivio-ui-field-label
+        label="Activation token"
+        for="activation-token"
+        [required]="fieldRequired(form.controls.token)"
+      />
       <input
         id="activation-token"
         class="ag-input"
         formControlName="token"
         autocomplete="one-time-code"
         data-testid="activation-token-input"
+        [attr.aria-required]="fieldRequired(form.controls.token) ? 'true' : null"
       />
       @if (form.controls.token.touched && form.controls.token.invalid) {
         <p class="ag-field__error">Activation token is required.</p>
       }
     </div>
     <div class="ag-field">
-      <label class="ag-field__label" for="activation-password">Password</label>
+      <agrivio-ui-field-label
+        label="Password"
+        for="activation-password"
+        [required]="fieldRequired(form.controls.password)"
+      />
       <div class="ag-control-wrap">
         <input
           id="activation-password"
@@ -26,6 +35,7 @@
           formControlName="password"
           autocomplete="new-password"
           data-testid="activation-password-input"
+          [attr.aria-required]="fieldRequired(form.controls.password) ? 'true' : null"
         />
         <button
           type="button"
@@ -41,7 +51,11 @@
       }
     </div>
     <div class="ag-field">
-      <label class="ag-field__label" for="activation-password-confirm">Confirm password</label>
+      <agrivio-ui-field-label
+        label="Confirm password"
+        for="activation-password-confirm"
+        [required]="fieldRequired(form.controls.confirmPassword)"
+      />
       <input
         id="activation-password-confirm"
         class="ag-input"
@@ -49,6 +63,7 @@
         formControlName="confirmPassword"
         autocomplete="new-password"
         data-testid="activation-password-confirm-input"
+        [attr.aria-required]="fieldRequired(form.controls.confirmPassword) ? 'true' : null"
       />
       @if (form.touched && form.hasError('passwordMismatch')) {
         <p class="ag-field__error">Password and confirmation must match.</p>

@@ -1,5 +1,6 @@
 const { sendSuccessEnvelope } = require('../../../platform/http/response-envelope');
 const { forbidden } = require('../../../platform/errors/app-error');
+const { parseMasterStatusQuery } = require('../../../platform/http/master-status-query');
 
 function requireOrganizationId(req) {
   const organizationId = req.authContext?.organizationId;
@@ -13,7 +14,9 @@ function createAccountsController(deps) {
   return {
     async listAccounts(req, res, next) {
       try {
-        const data = await deps.accountsService.listAccounts(requireOrganizationId(req));
+        const data = await deps.accountsService.listAccounts(requireOrganizationId(req), {
+          status: parseMasterStatusQuery(req.query),
+        });
         sendSuccessEnvelope(res, 200, data);
       } catch (error) {
         next(error);
@@ -51,6 +54,19 @@ function createAccountsController(deps) {
           requireOrganizationId(req),
           String(req.params.id),
           req.body,
+          { actorId: String(req.authContext.userId) },
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async deleteAccount(req, res, next) {
+      try {
+        const data = await deps.accountsService.deleteAccount(
+          requireOrganizationId(req),
+          String(req.params.id),
           { actorId: String(req.authContext.userId) },
         );
         sendSuccessEnvelope(res, 200, data);

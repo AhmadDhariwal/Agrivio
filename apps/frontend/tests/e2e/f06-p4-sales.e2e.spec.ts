@@ -77,7 +77,7 @@ test.describe('F06 P4 printing and cashier POS', () => {
     await page.getByTestId('account-opening-save').click();
     await expect(page.getByTestId('account-derived-balance')).toContainText('10000.00');
 
-    await page.getByRole('link', { name: 'Categories' }).click();
+    await page.getByRole('link', { name: 'Categories', exact: true }).click();
     await page.getByTestId('category-create-link').click();
     await page.getByTestId('category-name').fill('P4 Cat');
     await page.getByTestId('category-product-class').selectOption('general');

@@ -9,6 +9,9 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
+import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { AccountRecord } from '../../models/accounts.models';
 import { ExpenseCategoryRecord, ExpenseRecord } from '../../models/expenses.models';
 
@@ -21,6 +24,8 @@ import { ExpenseCategoryRecord, ExpenseRecord } from '../../models/expenses.mode
     UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiConfirmDialogComponent,
+    UiFieldLabelComponent,
   ],
   templateUrl: './expense-form.page.html',
   styleUrl: './expense-form.page.scss',
@@ -38,6 +43,8 @@ export class ExpenseFormPage {
   readonly saving = signal(false);
   readonly posting = signal(false);
   readonly correcting = signal(false);
+  readonly discarding = signal(false);
+  readonly discardConfirmOpen = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly expense = signal<ExpenseRecord | null>(null);
   readonly categories = signal<ExpenseCategoryRecord[]>([]);
@@ -47,6 +54,8 @@ export class ExpenseFormPage {
   readonly canView = computed(() => this.sessionStore.hasPermission('expenses.view'));
   readonly successMessage = signal<string | null>(null);
   private version = 1;
+
+  readonly fieldRequired = hasRequiredValidator;
 
   readonly form = this.formBuilder.nonNullable.group({
     categoryId: ['', [Validators.required]],
@@ -125,6 +134,32 @@ export class ExpenseFormPage {
       error: (error: unknown) => {
         this.saving.set(false);
         this.errorMessage.set(this.mapError(error, 'Unable to save expense.'));
+      },
+    });
+  }
+
+  askDiscard(): void {
+    if (!this.expenseId() || !this.canPost() || !this.isDraft) {
+      return;
+    }
+    this.discardConfirmOpen.set(true);
+  }
+
+  confirmDiscard(): void {
+    const id = this.expenseId();
+    this.discardConfirmOpen.set(false);
+    if (!id || !this.canPost() || !this.isDraft) {
+      return;
+    }
+    this.discarding.set(true);
+    this.api.discardExpense(id).subscribe({
+      next: () => {
+        this.discarding.set(false);
+        void this.router.navigateByUrl('/app/expenses');
+      },
+      error: (error: unknown) => {
+        this.discarding.set(false);
+        this.errorMessage.set(this.mapError(error, 'Unable to discard expense draft.'));
       },
     });
   }

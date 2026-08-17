@@ -10,6 +10,8 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator, setRequiredValidator } from '../../../../shared/form/form-field.util';
 import { PackagingUnitRecord, ProductRecord } from '../../../catalog/models/catalog.models';
 
 @Component({
@@ -21,6 +23,7 @@ import { PackagingUnitRecord, ProductRecord } from '../../../catalog/models/cata
     UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiFieldLabelComponent,
   ],
   templateUrl: './opening-stock.page.html',
   styleUrl: './opening-stock.page.scss',
@@ -44,6 +47,8 @@ export class OpeningStockPage {
     this.sessionStore.hasPermission('inventory.opening-stock.post'),
   );
 
+  readonly fieldRequired = hasRequiredValidator;
+
   readonly form = this.formBuilder.nonNullable.group({
     warehouseId: ['', Validators.required],
     productId: ['', Validators.required],
@@ -61,7 +66,7 @@ export class OpeningStockPage {
       return;
     }
     forkJoin({
-      products: this.catalogApi.listProducts(),
+      products: this.catalogApi.listProducts({ status: 'active' }),
       warehouses: this.locationsApi.listWarehouses(),
     }).subscribe({
       next: ({ products, warehouses }) => {
@@ -77,7 +82,9 @@ export class OpeningStockPage {
 
     this.form.controls.productId.valueChanges.subscribe((productId) => {
       const product = this.products().find((item) => item.id === productId);
-      this.selectedTrackingMode.set(product?.trackingMode ?? 'none');
+      const mode = product?.trackingMode ?? 'none';
+      this.selectedTrackingMode.set(mode);
+      this.syncTrackingRequired(mode);
       this.packagingUnits.set([]);
       this.form.patchValue({ packagingUnitId: '' });
       if (!productId) {
@@ -92,6 +99,11 @@ export class OpeningStockPage {
         },
       });
     });
+  }
+
+  private syncTrackingRequired(mode: string): void {
+    setRequiredValidator(this.form.controls.batchNumber, mode !== 'none');
+    setRequiredValidator(this.form.controls.expiryDate, mode === 'batch_expiry');
   }
 
   submit(): void {

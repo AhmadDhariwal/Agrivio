@@ -87,6 +87,19 @@ export class BranchesWarehousesApi {
     );
   }
 
+  deleteBranch(id: string): Observable<{ id: string; deleted: boolean }> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .delete<{ data: { id: string; deleted: boolean } }>(
+            `${environment.publicApiBaseUrl}/api/v1/branches/${id}`,
+            { withCredentials: true, headers: { 'X-CSRF-Token': csrfToken } },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
   listWarehouses(): Observable<WarehouseRecord[]> {
     return this.http
       .get<{ data: { items: WarehouseRecord[] } }>(
@@ -140,6 +153,19 @@ export class BranchesWarehousesApi {
               withCredentials: true,
               headers: { 'X-CSRF-Token': csrfToken },
             },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
+  deleteWarehouse(id: string): Observable<{ id: string; deleted: boolean }> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .delete<{ data: { id: string; deleted: boolean } }>(
+            `${environment.publicApiBaseUrl}/api/v1/warehouses/${id}`,
+            { withCredentials: true, headers: { 'X-CSRF-Token': csrfToken } },
           )
           .pipe(map((response) => response.data)),
       ),

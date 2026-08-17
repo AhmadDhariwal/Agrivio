@@ -82,7 +82,7 @@ test.describe('F06 P2 sale posting vertical slice', () => {
     await page.getByTestId('customer-save').click();
     await expect(page.getByTestId('customers-list')).toContainText('P2 Customer');
 
-    await page.getByRole('link', { name: 'Categories' }).click();
+    await page.getByRole('link', { name: 'Categories', exact: true }).click();
     await page.getByTestId('category-create-link').click();
     await page.getByTestId('category-name').fill('P2 Cat');
     await page.getByTestId('category-product-class').selectOption('general');

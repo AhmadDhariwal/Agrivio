@@ -60,6 +60,18 @@ function registerCatalogRoutes(deps) {
     },
   );
 
+  router.delete(
+    `${API_PRODUCT_CATEGORIES_PATH}/:id`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('catalog.manage'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.deleteCategory(req, res, next);
+    },
+  );
+
   router.get(
     API_PRODUCTS_PATH,
     deps.requireAuth,
@@ -103,6 +115,18 @@ function registerCatalogRoutes(deps) {
     deps.requireOperationalAccess,
     (req, res, next) => {
       void controller.updateProduct(req, res, next);
+    },
+  );
+
+  router.delete(
+    `${API_PRODUCTS_PATH}/:id`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('catalog.manage'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.deleteProduct(req, res, next);
     },
   );
 

@@ -26,10 +26,19 @@
   }
 
   <div class="ag-card">
-    <form class="ag-form" [formGroup]="form" (ngSubmit)="submit()">
+    <form class="ag-form ag-form--with-required-hint" [formGroup]="form" (ngSubmit)="submit()">
       <div class="ag-field">
-        <label class="ag-field__label" for="payment-method">Payment method</label>
-        <select id="payment-method" class="ag-select" formControlName="paymentMethod">
+        <agrivio-ui-field-label
+          label="Payment method"
+          for="payment-method"
+          [required]="fieldRequired(form.controls.paymentMethod)"
+        />
+        <select
+          id="payment-method"
+          class="ag-select"
+          formControlName="paymentMethod"
+          [attr.aria-required]="fieldRequired(form.controls.paymentMethod) ? 'true' : null"
+        >
           <option value="bank_transfer">Bank transfer</option>
           <option value="jazzcash">JazzCash</option>
           <option value="easypaisa">Easypaisa</option>
@@ -37,53 +46,107 @@
       </div>
 
       <div class="ag-field">
-        <label class="ag-field__label" for="billing-period">Billing period</label>
-        <select id="billing-period" class="ag-select" formControlName="billingPeriod">
+        <agrivio-ui-field-label
+          label="Billing period"
+          for="billing-period"
+          [required]="fieldRequired(form.controls.billingPeriod)"
+        />
+        <select
+          id="billing-period"
+          class="ag-select"
+          formControlName="billingPeriod"
+          [attr.aria-required]="fieldRequired(form.controls.billingPeriod) ? 'true' : null"
+        >
           <option value="monthly">Monthly</option>
           <option value="annual">Annual</option>
         </select>
       </div>
 
       <div class="ag-field">
-        <label class="ag-field__label" for="amount">Amount (minor units, PKR)</label>
-        <input id="amount" class="ag-input" type="number" formControlName="submittedAmountMinorUnits" />
+        <agrivio-ui-field-label
+          label="Amount (minor units, PKR)"
+          for="amount"
+          [required]="fieldRequired(form.controls.submittedAmountMinorUnits)"
+        />
+        <input
+          id="amount"
+          class="ag-input"
+          type="number"
+          formControlName="submittedAmountMinorUnits"
+          [attr.aria-required]="fieldRequired(form.controls.submittedAmountMinorUnits) ? 'true' : null"
+        />
         @if (form.controls.submittedAmountMinorUnits.touched && form.controls.submittedAmountMinorUnits.invalid) {
           <p class="ag-field__error">Enter an amount greater than zero.</p>
         }
       </div>
 
       <div class="ag-field">
-        <label class="ag-field__label" for="payment-reference">Payment reference</label>
-        <input id="payment-reference" class="ag-input" type="text" formControlName="paymentReference" />
+        <agrivio-ui-field-label
+          label="Payment reference"
+          for="payment-reference"
+          [required]="fieldRequired(form.controls.paymentReference)"
+        />
+        <input
+          id="payment-reference"
+          class="ag-input"
+          type="text"
+          formControlName="paymentReference"
+          [attr.aria-required]="fieldRequired(form.controls.paymentReference) ? 'true' : null"
+        />
         @if (form.controls.paymentReference.touched && form.controls.paymentReference.invalid) {
           <p class="ag-field__error">Payment reference is required.</p>
         }
       </div>
 
       <div class="ag-field">
-        <label class="ag-field__label" for="evidence-ref">Evidence storage reference</label>
+        <agrivio-ui-field-label
+          label="Evidence storage reference"
+          for="evidence-ref"
+          [required]="fieldRequired(form.controls.evidenceStorageRef)"
+        />
         <input
           id="evidence-ref"
           class="ag-input"
           type="text"
           formControlName="evidenceStorageRef"
           placeholder="evidence://..."
+          [attr.aria-required]="fieldRequired(form.controls.evidenceStorageRef) ? 'true' : null"
         />
       </div>
 
       <div class="ag-field">
-        <label class="ag-field__label" for="evidence-name">Original file name</label>
+        <agrivio-ui-field-label label="Original file name" for="evidence-name" />
         <input id="evidence-name" class="ag-input" type="text" formControlName="evidenceOriginalFileName" />
       </div>
 
       <div class="ag-field">
-        <label class="ag-field__label" for="plan-code">Requested plan</label>
-        <input id="plan-code" class="ag-input" type="text" formControlName="requestedPlanCode" />
+        <agrivio-ui-field-label
+          label="Requested plan"
+          for="plan-code"
+          [required]="fieldRequired(form.controls.requestedPlanCode)"
+        />
+        <input
+          id="plan-code"
+          class="ag-input"
+          type="text"
+          formControlName="requestedPlanCode"
+          [attr.aria-required]="fieldRequired(form.controls.requestedPlanCode) ? 'true' : null"
+        />
       </div>
 
       <div class="ag-field">
-        <label class="ag-field__label" for="plan-version">Plan version</label>
-        <input id="plan-version" class="ag-input" type="number" formControlName="requestedPlanVersion" />
+        <agrivio-ui-field-label
+          label="Plan version"
+          for="plan-version"
+          [required]="fieldRequired(form.controls.requestedPlanVersion)"
+        />
+        <input
+          id="plan-version"
+          class="ag-input"
+          type="number"
+          formControlName="requestedPlanVersion"
+          [attr.aria-required]="fieldRequired(form.controls.requestedPlanVersion) ? 'true' : null"
+        />
       </div>
 
       <button type="submit" class="ag-btn ag-btn--primary" [disabled]="submitting() || form.invalid">

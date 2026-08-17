@@ -71,10 +71,20 @@
 
   <div class="ag-card ag-stack ag-stack--tight">
     <h2>Rejection reason</h2>
-    <form class="ag-form" [formGroup]="rejectForm">
+    <form class="ag-form ag-form--with-required-hint" [formGroup]="rejectForm">
       <div class="ag-field">
-        <label class="ag-field__label" for="billing-reject-reason">Reason</label>
-        <input id="billing-reject-reason" class="ag-input" type="text" formControlName="reason" />
+        <agrivio-ui-field-label
+          label="Reason"
+          for="billing-reject-reason"
+          [required]="fieldRequired(rejectForm.controls.reason)"
+        />
+        <input
+          id="billing-reject-reason"
+          class="ag-input"
+          type="text"
+          formControlName="reason"
+          [attr.aria-required]="fieldRequired(rejectForm.controls.reason) ? 'true' : null"
+        />
       </div>
     </form>
   </div>

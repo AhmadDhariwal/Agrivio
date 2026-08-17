@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 const { createServer } = require('node:http');

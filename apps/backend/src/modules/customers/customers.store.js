@@ -63,6 +63,11 @@ function createMongooseCustomersStore() {
       }
     },
 
+    async deleteCustomer(session, organizationId, id) {
+      const result = await CustomerModel.deleteOne({ _id: id, organizationId }, withSession(session));
+      return result.deletedCount === 1;
+    },
+
     async appendAuditEvent(session, event) {
       await AuditEventModel.create([event], withSession(session));
     },
@@ -119,6 +124,15 @@ function createInMemoryCustomersStore() {
       const next = { ...existing, ...patch };
       customers.set(id, next);
       return { ...next };
+    },
+
+    async deleteCustomer(_session, organizationId, id) {
+      const existing = await this.findCustomerById(organizationId, id);
+      if (existing === null) {
+        return false;
+      }
+      customers.delete(id);
+      return true;
     },
 
     async appendAuditEvent(_session, event) {

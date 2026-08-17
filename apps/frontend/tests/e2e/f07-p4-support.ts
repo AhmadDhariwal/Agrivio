@@ -163,7 +163,7 @@ export async function createSellableProductWithOpening(
     retailPrice: string;
   },
 ): Promise<void> {
-  await page.getByRole('link', { name: 'Categories' }).click();
+  await page.getByRole('link', { name: 'Categories', exact: true }).click();
   await page.getByTestId('category-create-link').click();
   await page.getByTestId('category-name').fill(input.category);
   await page.getByTestId('category-product-class').selectOption('general');

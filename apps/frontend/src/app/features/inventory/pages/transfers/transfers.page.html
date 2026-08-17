@@ -16,47 +16,113 @@
       <agrivio-ui-alert tone="success" [message]="success" data-testid="transfer-success" />
     }
 
-    <form [formGroup]="form" (ngSubmit)="submit()" data-testid="transfer-form" class="ag-form">
-      <label>Source warehouse
-        <select formControlName="sourceWarehouseId" data-testid="transfer-source">
+    <form [formGroup]="form" (ngSubmit)="submit()" data-testid="transfer-form" class="ag-form ag-form--with-required-hint">
+      <div class="ag-field">
+        <agrivio-ui-field-label
+          label="Source warehouse"
+          for="transfer-source"
+          [required]="fieldRequired(form.controls.sourceWarehouseId)"
+        />
+        <select
+          id="transfer-source"
+          class="ag-select"
+          formControlName="sourceWarehouseId"
+          data-testid="transfer-source"
+          [attr.aria-required]="fieldRequired(form.controls.sourceWarehouseId) ? 'true' : null"
+        >
           <option value="">Select source warehouse</option>
           @for (warehouse of warehouses(); track warehouse.id) {
             <option [value]="warehouse.id">{{ warehouse.name }}</option>
           }
         </select>
-      </label>
-      <label>Destination warehouse
-        <select formControlName="destinationWarehouseId" data-testid="transfer-destination">
+      </div>
+      <div class="ag-field">
+        <agrivio-ui-field-label
+          label="Destination warehouse"
+          for="transfer-destination"
+          [required]="fieldRequired(form.controls.destinationWarehouseId)"
+        />
+        <select
+          id="transfer-destination"
+          class="ag-select"
+          formControlName="destinationWarehouseId"
+          data-testid="transfer-destination"
+          [attr.aria-required]="fieldRequired(form.controls.destinationWarehouseId) ? 'true' : null"
+        >
           <option value="">Select destination warehouse</option>
           @for (warehouse of warehouses(); track warehouse.id) {
             <option [value]="warehouse.id">{{ warehouse.name }}</option>
           }
         </select>
-      </label>
-      <label>Product
-        <select formControlName="productId" data-testid="transfer-product">
+      </div>
+      <div class="ag-field">
+        <agrivio-ui-field-label
+          label="Product"
+          for="transfer-product"
+          [required]="fieldRequired(form.controls.productId)"
+        />
+        <select
+          id="transfer-product"
+          class="ag-select"
+          formControlName="productId"
+          data-testid="transfer-product"
+          [attr.aria-required]="fieldRequired(form.controls.productId) ? 'true' : null"
+        >
           <option value="">Select product</option>
           @for (product of products(); track product.id) {
             <option [value]="product.id">{{ product.name }}</option>
           }
         </select>
-      </label>
+      </div>
       @if (selectedTrackingMode() !== 'none') {
-        <label>Batch
-          <select formControlName="batchId" data-testid="transfer-batch">
+        <div class="ag-field">
+          <agrivio-ui-field-label
+            label="Batch"
+            for="transfer-batch"
+            [required]="fieldRequired(form.controls.batchId)"
+          />
+          <select
+            id="transfer-batch"
+            class="ag-select"
+            formControlName="batchId"
+            data-testid="transfer-batch"
+            [attr.aria-required]="fieldRequired(form.controls.batchId) ? 'true' : null"
+          >
             <option value="">Select batch</option>
             @for (option of batchOptions(); track option.batchId) {
               <option [value]="option.batchId">{{ option.label }}</option>
             }
           </select>
-        </label>
+        </div>
       }
-      <label>Quantity
-        <input formControlName="quantity" data-testid="transfer-quantity" />
-      </label>
-      <label>Reason
-        <input formControlName="reason" data-testid="transfer-reason" />
-      </label>
+      <div class="ag-field">
+        <agrivio-ui-field-label
+          label="Quantity"
+          for="transfer-quantity"
+          [required]="fieldRequired(form.controls.quantity)"
+        />
+        <input
+          id="transfer-quantity"
+          class="ag-input"
+          formControlName="quantity"
+          data-testid="transfer-quantity"
+          [attr.aria-required]="fieldRequired(form.controls.quantity) ? 'true' : null"
+        />
+      </div>
+      <div class="ag-field">
+        <agrivio-ui-field-label
+          label="Reason"
+          for="transfer-reason"
+          [required]="fieldRequired(form.controls.reason)"
+        />
+        <input
+          id="transfer-reason"
+          class="ag-input"
+          formControlName="reason"
+          data-testid="transfer-reason"
+          [attr.aria-required]="fieldRequired(form.controls.reason) ? 'true' : null"
+        />
+      </div>
       <button type="submit" [disabled]="saving()" data-testid="transfer-submit">Post transfer</button>
     </form>
 
@@ -94,3 +160,15 @@
 }
 
 <p><a routerLink="/app/inventory/stock">Back to stock</a></p>
+
+<agrivio-ui-confirm-dialog
+  [open]="reverseConfirmOpen()"
+  title="Reverse posted transfer?"
+  message="The original transfer remains in history. Corrective stock effects will be recorded."
+  confirmLabel="Reverse"
+  cancelLabel="Keep transfer"
+  [danger]="true"
+  [requireReason]="true"
+  (confirmed)="confirmReverse($event)"
+  (dismiss)="reverseConfirmOpen.set(false)"
+/>

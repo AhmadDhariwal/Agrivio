@@ -61,6 +61,18 @@ function registerAccountsRoutes(deps) {
     },
   );
 
+  router.delete(
+    `${API_ACCOUNTS_PATH}/:id`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('accounts.manage'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.deleteAccount(req, res, next);
+    },
+  );
+
   router.post(
     `${API_ACCOUNTS_PATH}/:id/opening-balance`,
     deps.requireAuth,

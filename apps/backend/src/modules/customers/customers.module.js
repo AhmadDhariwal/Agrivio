@@ -5,6 +5,7 @@ const {
 const { createAuditWriter } = require('../../platform/audit/audit-writer');
 const { assertOptimisticVersion } = require('../../platform/validation/request-validation');
 const { conflict, notFound, validationFailed } = require('../../platform/errors/app-error');
+const { assertMasterUnused } = require('../../platform/lifecycle/record-in-use');
 const {
   assertCreationLimit,
   attachSoftWarning,
@@ -88,8 +89,12 @@ function createCustomersService(deps) {
   }
 
   return {
-    async listCustomers(organizationId) {
-      const items = await store.listCustomers(organizationId);
+    async listCustomers(organizationId, options = {}) {
+      const listed = await store.listCustomers(organizationId);
+      const items =
+        options.status === 'active' || options.status === 'inactive'
+          ? listed.filter((item) => String(item.status) === options.status)
+          : listed;
       if (!ledgersService || typeof ledgersService.mapPartyBalances !== 'function') {
         const mapped = [];
         for (const item of items) {
@@ -194,6 +199,36 @@ function createCustomersService(deps) {
           metadata: { fields: Object.keys(patch) },
         });
         return toCustomerDto(updated);
+      });
+    },
+
+    async deleteCustomer(organizationId, customerId, actor) {
+      const current = await store.findCustomerById(organizationId, customerId);
+      if (current === null) {
+        throw notFound('Customer not found');
+      }
+      const reasons = [];
+      if (current.openingBalance && current.openingBalance.status === 'posted') {
+        reasons.push('opening balance');
+      }
+      if (typeof deps.listCustomerReferences === 'function') {
+        reasons.push(...(await deps.listCustomerReferences(organizationId, customerId)));
+      }
+      assertMasterUnused(reasons);
+      return transactionRunner.run(async (session) => {
+        const deleted = await store.deleteCustomer(session, organizationId, customerId);
+        if (!deleted) {
+          throw notFound('Customer not found');
+        }
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: actor.actorId,
+          action: 'customer.deleted',
+          resourceType: 'customer',
+          resourceId: customerId,
+          metadata: { name: current.name },
+        });
+        return { id: customerId, deleted: true };
       });
     },
 
@@ -376,6 +411,9 @@ function createCustomersModule(options) {
     ...(options.ledgersService === undefined ? {} : { ledgersService: options.ledgersService }),
     ...(options.auditStore === undefined ? {} : { auditStore: options.auditStore }),
     ...(options.now === undefined ? {} : { now: options.now }),
+    ...(options.listCustomerReferences === undefined
+      ? {}
+      : { listCustomerReferences: options.listCustomerReferences }),
   });
 
   return { store, customersService };

@@ -21,6 +21,18 @@ function omitFormat(input) {
   return next;
 }
 
+function shiftIsoDate(iso, days) {
+  const parts = String(iso).split('-').map((part) => Number(part));
+  if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) {
+    return iso;
+  }
+  const date = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + days));
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function createReportingService(deps) {
   const salesService = deps.salesService;
   const purchasesService = deps.purchasesService;
@@ -251,7 +263,7 @@ function createReportingService(deps) {
       );
       return renderExport(dataset, format);
     },
-    async getDashboard(organizationId, authContext) {
+    async getDashboard(organizationId, authContext, query = {}) {
       const entitlements =
         typeof resolvePlanEntitlements === 'function'
           ? await resolvePlanEntitlements(organizationId)
@@ -262,30 +274,89 @@ function createReportingService(deps) {
       );
 
       const businessDate = await resolveOrgBusinessDate(organizationId);
+      const fromDate =
+        typeof query.fromDate === 'string' && query.fromDate.trim() !== ''
+          ? query.fromDate.trim()
+          : shiftIsoDate(businessDate, -6);
+      const toDate =
+        typeof query.toDate === 'string' && query.toDate.trim() !== ''
+          ? query.toDate.trim()
+          : businessDate;
+      const branchId =
+        typeof query.branchId === 'string' && query.branchId.trim() !== ''
+          ? query.branchId.trim()
+          : undefined;
+      const warehouseId =
+        typeof query.warehouseId === 'string' && query.warehouseId.trim() !== ''
+          ? query.warehouseId.trim()
+          : undefined;
+      const periodFilters = {
+        fromDate,
+        toDate,
+        ...(branchId ? { branchId } : {}),
+        ...(warehouseId ? { warehouseId } : {}),
+      };
+
       const [
         todaySales,
         todayPurchases,
         todayExpenses,
         grossProfit,
+        periodSales,
+        periodPurchases,
+        periodGrossProfit,
         accountBalances,
         partyBalances,
         alertSummaries,
         recent,
         topProducts,
+        stockValuation,
       ] = await Promise.all([
         sumTodaySales(organizationId, businessDate, authContext),
         sumTodayPurchases(organizationId, businessDate, authContext),
         sumTodayExpenses(organizationId, businessDate),
         computeGrossProfit(organizationId, authContext, {}),
+        queries.querySales(organizationId, { ...periodFilters, groupBy: 'day' }, authContext),
+        queries.queryPurchases(organizationId, { ...periodFilters, groupBy: 'day' }, authContext),
+        computeGrossProfit(organizationId, authContext, periodFilters),
         sumAccountBalancesByType(organizationId),
         sumReceivablesPayables(organizationId),
         alertsService.getAlertSummaries(organizationId, authContext),
         recentSales(organizationId, authContext),
         topSellingProducts(organizationId, authContext),
+        queries.queryStockValuation
+          ? queries.queryStockValuation(
+              organizationId,
+              warehouseId ? { warehouseId } : {},
+              authContext,
+            )
+          : Promise.resolve({ totals: { inventoryValue: '0.00' } }),
       ]);
+
+      const salesByDay = new Map(
+        (periodSales.rows ?? []).map((row) => [String(row.groupKey), String(row.total ?? '0.00')]),
+      );
+      const purchasesByDay = new Map(
+        (periodPurchases.rows ?? []).map((row) => [String(row.groupKey), String(row.total ?? '0.00')]),
+      );
+      const days = [...new Set([...salesByDay.keys(), ...purchasesByDay.keys()])].sort();
+      const salesVsPurchases = days.map((date) => ({
+        date,
+        sales: { amount: salesByDay.get(date) ?? '0.00', currency: 'PKR' },
+        purchases: { amount: purchasesByDay.get(date) ?? '0.00', currency: 'PKR' },
+      }));
+      const grossProfitTrend = (periodSales.rows ?? []).map((row) => {
+        const salesMinor = moneyAmountToMinor({ amount: String(row.total ?? '0'), currency: 'PKR' });
+        const cogsMinor = moneyAmountToMinor({ amount: String(row.cogs ?? '0'), currency: 'PKR' });
+        return {
+          date: String(row.groupKey),
+          grossProfit: toMoneyDto(salesMinor - cogsMinor),
+        };
+      });
 
       return {
         businessDate,
+        period: { fromDate, toDate },
         entitlements: {
           reportsExportsAllowed: reportsExports.allowed === true,
         },
@@ -293,10 +364,25 @@ function createReportingService(deps) {
         todaysPurchases: toMoneyDto(todayPurchases),
         todaysExpenses: toMoneyDto(todayExpenses),
         grossProfit: grossProfit.grossProfit,
+        periodSales: { amount: String(periodSales.totals?.total ?? '0.00'), currency: 'PKR' },
+        periodPurchases: { amount: String(periodPurchases.totals?.total ?? '0.00'), currency: 'PKR' },
+        periodGrossProfit: periodGrossProfit.grossProfit,
         netSalesRevenue: grossProfit.netSalesRevenue,
         netCogs: grossProfit.netCogs,
+        stockValuation: {
+          amount: String(stockValuation.totals?.inventoryValue ?? '0.00'),
+          currency: 'PKR',
+        },
         ...accountBalances,
         ...partyBalances,
+        accountDistribution: [
+          { key: 'cash', label: 'Cash', balance: accountBalances.cashBalances },
+          { key: 'bank', label: 'Bank', balance: accountBalances.bankBalances },
+          { key: 'jazzcash', label: 'JazzCash', balance: accountBalances.jazzCashBalance },
+          { key: 'easypaisa', label: 'Easypaisa', balance: accountBalances.easypaisaBalance },
+        ],
+        salesVsPurchases,
+        grossProfitTrend,
         lowStockCount: alertSummaries.lowStockCount,
         upcomingExpiryCount: alertSummaries.upcomingExpiryCount,
         expiredStockCount: alertSummaries.expiredStockCount,

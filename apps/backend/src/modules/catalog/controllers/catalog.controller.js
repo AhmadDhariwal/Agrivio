@@ -1,5 +1,6 @@
 const { sendSuccessEnvelope } = require('../../../platform/http/response-envelope');
 const { forbidden } = require('../../../platform/errors/app-error');
+const { parseMasterStatusQuery } = require('../../../platform/http/master-status-query');
 
 function requireOrganizationId(req) {
   const organizationId = req.authContext?.organizationId;
@@ -13,7 +14,9 @@ function createCatalogController(deps) {
   return {
     async listCategories(req, res, next) {
       try {
-        const data = await deps.catalogService.listCategories(requireOrganizationId(req));
+        const data = await deps.catalogService.listCategories(requireOrganizationId(req), {
+          status: parseMasterStatusQuery(req.query),
+        });
         sendSuccessEnvelope(res, 200, data);
       } catch (error) {
         next(error);
@@ -57,6 +60,19 @@ function createCatalogController(deps) {
       }
     },
 
+    async deleteCategory(req, res, next) {
+      try {
+        const data = await deps.catalogService.deleteCategory(
+          requireOrganizationId(req),
+          String(req.params.id),
+          { actorId: String(req.authContext.userId) },
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async listProducts(req, res, next) {
       try {
         const q = typeof req.query.q === 'string' ? req.query.q : '';
@@ -66,6 +82,7 @@ function createCatalogController(deps) {
         const data = await deps.catalogService.listProducts(requireOrganizationId(req), {
           q,
           limit,
+          status: parseMasterStatusQuery(req.query),
         });
         sendSuccessEnvelope(res, 200, data);
       } catch (error) {
@@ -102,6 +119,19 @@ function createCatalogController(deps) {
           requireOrganizationId(req),
           String(req.params.id),
           req.body,
+          { actorId: String(req.authContext.userId) },
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async deleteProduct(req, res, next) {
+      try {
+        const data = await deps.catalogService.deleteProduct(
+          requireOrganizationId(req),
+          String(req.params.id),
           { actorId: String(req.authContext.userId) },
         );
         sendSuccessEnvelope(res, 200, data);

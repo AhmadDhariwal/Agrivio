@@ -9,9 +9,13 @@ import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api
 import { InventoryApi } from '../../../inventory/data-access/inventory.api';
 import { BranchesWarehousesApi } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 
 describe('ReturnWithoutInvoicePage', () => {
-  it('renders lookup form when both return and approval permissions are present', async () => {
+  let fixture: ComponentFixture<ReturnWithoutInvoicePage>;
+  let page: ReturnWithoutInvoicePage;
+
+  beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [ReturnWithoutInvoicePage],
       providers: [
@@ -35,9 +39,34 @@ describe('ReturnWithoutInvoicePage', () => {
       ],
     }).compileComponents();
 
-    const fixture: ComponentFixture<ReturnWithoutInvoicePage> =
-      TestBed.createComponent(ReturnWithoutInvoicePage);
+    fixture = TestBed.createComponent(ReturnWithoutInvoicePage);
+    page = fixture.componentInstance;
     fixture.detectChanges();
+  });
+
+  it('renders lookup form when both return and approval permissions are present', () => {
     expect(fixture.nativeElement.textContent).toContain('Return without invoice');
+  });
+
+  it('requires refund account and shows the required marker for account_refund', () => {
+    expect(hasRequiredValidator(page.form.controls.refundAccountId)).toBe(false);
+    const refundSelect = fixture.nativeElement.querySelector(
+      '[data-testid="without-invoice-refund-account"]',
+    ) as HTMLSelectElement;
+    expect(refundSelect.getAttribute('aria-required')).toBeNull();
+
+    page.form.controls.resolution.setValue('account_refund');
+    fixture.detectChanges();
+    expect(hasRequiredValidator(page.form.controls.refundAccountId)).toBe(true);
+    expect(refundSelect.getAttribute('aria-required')).toBe('true');
+    expect(
+      refundSelect.closest('.ag-field')?.querySelector('.ag-field__required')?.textContent,
+    ).toBe('*');
+
+    page.form.controls.resolution.setValue('ledger_adjustment');
+    fixture.detectChanges();
+    expect(hasRequiredValidator(page.form.controls.refundAccountId)).toBe(false);
+    expect(refundSelect.getAttribute('aria-required')).toBeNull();
+    expect(refundSelect.closest('.ag-field')?.querySelector('.ag-field__required')).toBeFalsy();
   });
 });

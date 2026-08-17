@@ -72,6 +72,14 @@ function createMongooseReturnsStore() {
         .exec();
     },
 
+    async deleteReturnIfDraft(session, organizationId, id) {
+      const result = await ReturnModel.deleteOne(
+        { _id: id, organizationId, status: 'draft' },
+        withSession(session),
+      );
+      return result.deletedCount === 1;
+    },
+
     async updateReturnIfDraft(session, organizationId, id, expectedVersion, patch) {
       return ReturnModel.findOneAndUpdate(
         {
@@ -291,6 +299,15 @@ function createInMemoryReturnsStore() {
       };
       returns.set(id, next);
       return { ...next, lines: next.lines.map((line) => ({ ...line })) };
+    },
+
+    async deleteReturnIfDraft(_session, organizationId, id) {
+      const current = await this.findReturnById(organizationId, id);
+      if (current === null || current.status !== 'draft') {
+        return false;
+      }
+      returns.delete(id);
+      return true;
     },
 
     async updateReturnIfDraft(_session, organizationId, id, expectedVersion, patch) {

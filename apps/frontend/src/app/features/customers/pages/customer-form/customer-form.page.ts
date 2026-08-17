@@ -8,6 +8,8 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 import {
   mapPlanLimitError,
   softWarningMessage,
@@ -23,6 +25,7 @@ import { CustomerRecord } from '../../models/customers.models';
     UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiFieldLabelComponent,
   ],
   templateUrl: './customer-form.page.html',
   styleUrl: './customer-form.page.scss',
@@ -48,6 +51,8 @@ export class CustomerFormPage {
     this.sessionStore.hasPermission('customers.opening-balance.post'),
   );
   private version = 1;
+
+  readonly fieldRequired = hasRequiredValidator;
 
   readonly form = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required, Validators.minLength(2)]],

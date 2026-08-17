@@ -7,6 +7,8 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 import { AccountMovementRecord, AccountRecord } from '../../models/accounts.models';
 import { forkJoin, of } from 'rxjs';
 
@@ -19,6 +21,7 @@ import { forkJoin, of } from 'rxjs';
     UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiFieldLabelComponent,
   ],
   templateUrl: './account-form.page.html',
   styleUrl: './account-form.page.scss',
@@ -61,6 +64,8 @@ export class AccountFormPage {
   readonly successMessage = signal<string | null>(null);
   readonly reverseTarget = signal<{ kind: 'transaction' | 'transfer'; id: string } | null>(null);
   private version = 1;
+
+  readonly fieldRequired = hasRequiredValidator;
 
   readonly form = this.formBuilder.nonNullable.group({
     accountType: ['cash' as string, [Validators.required]],

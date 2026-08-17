@@ -33,12 +33,19 @@ function parsePasswordResetRequestBody(body) {
 function parsePasswordResetConfirmBody(body) {
   const token = body['token'];
   const password = body['password'];
+  const passwordConfirmation = body['passwordConfirmation'] ?? body['passwordConfirm'];
   const details = [];
   if (typeof token !== 'string' || token.trim() === '') {
     details.push({ field: 'token', message: 'token is required' });
   }
   if (typeof password !== 'string' || password === '') {
     details.push({ field: 'password', message: 'password is required' });
+  }
+  if (
+    passwordConfirmation !== undefined &&
+    passwordConfirmation !== password
+  ) {
+    details.push({ field: 'passwordConfirmation', message: 'passwords must match' });
   }
   if (details.length > 0) {
     throw validationFailed('Validation failed', details);

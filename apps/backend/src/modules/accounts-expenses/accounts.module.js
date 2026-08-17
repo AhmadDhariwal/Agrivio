@@ -10,6 +10,7 @@ const {
   validationFailed,
   versionConflict,
 } = require('../../platform/errors/app-error');
+const { assertMasterUnused } = require('../../platform/lifecycle/record-in-use');
 const {
   createIdempotencyService,
   createInMemoryIdempotencyStore,
@@ -136,8 +137,12 @@ function createAccountsService(deps) {
   }
 
   return {
-    async listAccounts(organizationId) {
-      const items = await store.listAccounts(organizationId);
+    async listAccounts(organizationId, options = {}) {
+      const listed = await store.listAccounts(organizationId);
+      const items =
+        options.status === 'active' || options.status === 'inactive'
+          ? listed.filter((item) => String(item.status) === options.status)
+          : listed;
       const mapped = [];
       for (const item of items) {
         mapped.push(await buildAccountDto(organizationId, item));
@@ -229,6 +234,36 @@ function createAccountsService(deps) {
       } catch (error) {
         mapDuplicate(error, 'Account name already exists in this organization');
       }
+    },
+
+    async deleteAccount(organizationId, accountId, actor) {
+      const current = await store.findAccountById(organizationId, accountId);
+      if (current === null) {
+        throw notFound('Account not found');
+      }
+      const reasons = [];
+      if (current.openingBalance && current.openingBalance.status === 'posted') {
+        reasons.push('opening balance');
+      }
+      if (typeof deps.listAccountReferences === 'function') {
+        reasons.push(...(await deps.listAccountReferences(organizationId, accountId)));
+      }
+      assertMasterUnused(reasons);
+      return transactionRunner.run(async (session) => {
+        const deleted = await store.deleteAccount(session, organizationId, accountId);
+        if (!deleted) {
+          throw notFound('Account not found');
+        }
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: actor.actorId,
+          action: 'account.deleted',
+          resourceType: 'account',
+          resourceId: accountId,
+          metadata: { name: current.name },
+        });
+        return { id: accountId, deleted: true };
+      });
     },
 
     /**
@@ -804,9 +839,13 @@ function createAccountsService(deps) {
       return wrapIdempotentResult(result);
     },
 
-    async listExpenseCategories(organizationId) {
+    async listExpenseCategories(organizationId, options = {}) {
       const items = await store.listExpenseCategories(organizationId);
-      return { items: items.map(toExpenseCategoryDto) };
+      const filtered =
+        options.status === 'active' || options.status === 'inactive'
+          ? items.filter((item) => String(item.status) === options.status)
+          : items;
+      return { items: filtered.map(toExpenseCategoryDto) };
     },
 
     async createExpenseCategory(organizationId, body, actor) {
@@ -861,6 +900,37 @@ function createAccountsService(deps) {
       }
     },
 
+    async deleteExpenseCategory(organizationId, categoryId, actor) {
+      const current = await store.findExpenseCategoryById(organizationId, categoryId);
+      if (current === null) {
+        throw notFound('Expense category not found');
+      }
+      const expenses = await store.listExpenses(organizationId);
+      const reasons = [];
+      if (expenses.some((item) => String(item.categoryId) === String(categoryId))) {
+        reasons.push('expenses');
+      }
+      if (typeof deps.listExpenseCategoryReferences === 'function') {
+        reasons.push(...(await deps.listExpenseCategoryReferences(organizationId, categoryId)));
+      }
+      assertMasterUnused([...new Set(reasons)]);
+      return transactionRunner.run(async (session) => {
+        const deleted = await store.deleteExpenseCategory(session, organizationId, categoryId);
+        if (!deleted) {
+          throw notFound('Expense category not found');
+        }
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: actor.actorId,
+          action: 'expense.category.deleted',
+          resourceType: 'expense_category',
+          resourceId: categoryId,
+          metadata: { name: current.name },
+        });
+        return { id: categoryId, deleted: true };
+      });
+    },
+
     async listExpenses(organizationId) {
       const items = await store.listExpenses(organizationId);
       return { items: items.map(toExpenseDto) };
@@ -913,6 +983,31 @@ function createAccountsService(deps) {
           version: Number(current['version']) + 1,
         });
         return toExpenseDto(updated);
+      });
+    },
+
+    async discardExpenseDraft(organizationId, expenseId, actor) {
+      return transactionRunner.run(async (session) => {
+        const current = await store.findExpenseById(organizationId, expenseId, session);
+        if (current === null) {
+          throw notFound('Expense not found');
+        }
+        if (current.status !== 'draft') {
+          throw conflict('Only draft expenses can be discarded');
+        }
+        const deleted = await store.deleteExpenseDraft(session, organizationId, expenseId);
+        if (!deleted) {
+          throw conflict('Only draft expenses can be discarded');
+        }
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: actor.actorId,
+          action: 'expense.draft.discarded',
+          resourceType: 'expense',
+          resourceId: expenseId,
+          metadata: {},
+        });
+        return { id: expenseId, discarded: true };
       });
     },
 
@@ -1195,6 +1290,12 @@ function createAccountsModule(options) {
     transactionRunner,
     idempotency,
     ...(options.now === undefined ? {} : { now: options.now }),
+    ...(options.listAccountReferences === undefined
+      ? {}
+      : { listAccountReferences: options.listAccountReferences }),
+    ...(options.listExpenseCategoryReferences === undefined
+      ? {}
+      : { listExpenseCategoryReferences: options.listExpenseCategoryReferences }),
   });
 
   return { store, accountsService };

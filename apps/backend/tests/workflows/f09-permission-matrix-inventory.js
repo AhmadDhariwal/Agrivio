@@ -17,6 +17,8 @@ export const PUBLIC_OR_AUTH_ONLY_JUSTIFICATION = Object.freeze({
   'POST /api/v1/auth/logout': 'authenticated session end; no action permission',
   'GET /api/v1/auth/session': 'authenticated session read; no action permission',
   'POST /api/v1/auth/session/context': 'authenticated context switch; no action permission',
+  'GET /api/v1/auth/navigation-preferences': 'authenticated user navigation preferences; no action permission',
+  'PUT /api/v1/auth/navigation-preferences': 'authenticated user navigation preferences; no action permission',
   'POST /api/v1/auth/password-reset/request': 'public password reset',
   'POST /api/v1/auth/password-reset/confirm': 'public password reset',
   'POST /api/v1/auth/activate': 'public activation',

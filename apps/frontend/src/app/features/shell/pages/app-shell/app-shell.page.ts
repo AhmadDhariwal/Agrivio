@@ -2,9 +2,14 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { AuthApi } from '../../../auth/data-access/auth.api';
+import { NavigationService } from '../../data-access/navigation.service';
+import { NavCustomizerDialogComponent } from '../../components/nav-customizer-dialog/nav-customizer-dialog.component';
+import { NavbarSearchComponent } from '../../components/navbar-search/navbar-search.component';
+import { UserProfileMenuComponent } from '../../components/user-profile-menu/user-profile-menu.component';
 import { SubscriptionStatusBannerComponent } from '../../../subscriptions/components/subscription-status-banner/subscription-status-banner.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiSearchInputComponent } from '../../../../shared/ui/ui-search-input/ui-search-input.component';
 
 @Component({
   selector: 'agrivio-app-shell-page',
@@ -16,6 +21,10 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
     SubscriptionStatusBannerComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiSearchInputComponent,
+    NavCustomizerDialogComponent,
+    NavbarSearchComponent,
+    UserProfileMenuComponent,
   ],
   templateUrl: './app-shell.page.html',
   styleUrl: './app-shell.page.scss',
@@ -24,6 +33,7 @@ export class AppShellPage {
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly authApi = inject(AuthApi);
   private readonly router = inject(Router);
+  readonly navService = inject(NavigationService);
 
   readonly signingOut = signal(false);
   readonly sessionRestoring = signal(false);
@@ -41,6 +51,11 @@ export class AppShellPage {
   readonly subscriptionAccessState = computed(
     () => this.sessionStore.session()?.subscriptionAccessState ?? null,
   );
+
+  // Expose filtered navigation items for template rendering
+  readonly navigationEntries = this.navService.filteredEntries;
+
+  // Preserve individual permission computeds for backward compatibility & tests
   readonly canManagePlatformOrgs = computed(() =>
     this.sessionStore.hasPermission('platform.organizations.view'),
   );
@@ -81,17 +96,23 @@ export class AppShellPage {
     this.sessionStore.hasPermission('operations.backups.view'),
   );
 
-
   constructor() {
     if (this.sessionStore.session() === null) {
       this.sessionRestoring.set(true);
       this.sessionStore.loadSession().subscribe({
-        next: () => this.sessionRestoring.set(false),
+        next: () => {
+          this.sessionRestoring.set(false);
+          this.navService.loadPreferences();
+          this.navService.initFromCurrentRoute();
+        },
         error: () => {
           this.sessionRestoring.set(false);
           void this.router.navigateByUrl('/login');
         },
       });
+    } else {
+      this.navService.loadPreferences();
+      this.navService.initFromCurrentRoute();
     }
   }
 
@@ -103,7 +124,7 @@ export class AppShellPage {
     if (active.contextType === 'platform') {
       return `Platform · ${active.role}`;
     }
-    const parts = [`Organization ${active.organizationId}`, active.role];
+    const parts = ['Organization', active.role];
     if (active.branchId) {
       parts.push(`Branch ${active.branchId}`);
     }

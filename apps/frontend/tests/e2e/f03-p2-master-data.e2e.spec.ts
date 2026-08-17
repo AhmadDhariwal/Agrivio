@@ -42,7 +42,7 @@ test.describe('F03 P2 master data vertical slice', () => {
     await page.getByTestId('continue-workspace').click();
     await expect(page.getByTestId('authenticated-shell')).toBeVisible();
 
-    await page.getByRole('link', { name: 'Categories' }).click();
+    await page.getByRole('link', { name: 'Categories', exact: true }).click();
     await page.getByTestId('category-create-link').click();
     await page.getByTestId('category-name').fill('Fertilizers');
     await page.getByTestId('category-product-class').selectOption('fertilizer');
@@ -95,7 +95,7 @@ test.describe('F03 P2 master data vertical slice', () => {
     await expect(page.getByTestId('accounts-list')).toContainText('Till Cash');
 
     await page.reload();
-    await page.getByRole('link', { name: 'Categories' }).click();
+    await page.getByRole('link', { name: 'Categories', exact: true }).click();
     await expect(page.getByTestId('categories-list')).toContainText('Fertilizers');
     await page.getByRole('link', { name: 'Products' }).click();
     await expect(page.getByTestId('products-list')).toContainText('Urea 46');

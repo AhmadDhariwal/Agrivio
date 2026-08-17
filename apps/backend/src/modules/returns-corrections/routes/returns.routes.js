@@ -69,6 +69,18 @@ function registerReturnsRoutes(deps) {
     },
   );
 
+  router.delete(
+    `${API_RETURNS_PATH}/:id`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('returns.post'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.discardReturn(req, res, next);
+    },
+  );
+
   router.post(
     `${API_RETURNS_PATH}/:id/post`,
     deps.requireAuth,

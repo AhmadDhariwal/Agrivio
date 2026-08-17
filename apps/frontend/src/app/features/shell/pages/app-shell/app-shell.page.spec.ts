@@ -1,9 +1,14 @@
+import { describe, expect, it } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { AppShellPage } from './app-shell.page';
 import { AuthApi } from '../../../auth/data-access/auth.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { NavigationApi } from '../../data-access/navigation.api';
+import { NavigationService } from '../../data-access/navigation.service';
+
+import { CatalogApi } from '../../../catalog/data-access/catalog.api';
 
 const OWNER_A = [
   'settings.view',
@@ -54,23 +59,24 @@ describe('R1-F09-003 Angular role UX spot check', () => {
   it('shows Owner operational navigation including reports, purchases, sales, and audit', async () => {
     const fixture = await createShell(OWNER_A);
     const text = fixture.nativeElement.textContent as string;
-    expect(text).toContain('Reports');
+    expect(text).toContain('Reports & Insights');
     expect(text).toContain('Purchases');
     expect(text).toContain('Sales');
-    expect(text).toContain('Audit');
-    expect(text).toContain('Employees');
+    expect(text).toContain('Customers & Suppliers');
+    expect(text).toContain('Data & Operations');
+    expect(text).not.toContain('Platform Administration');
     expect(text).not.toContain('Backup status');
   });
 
   it('hides Owner-only and platform navigation for Manager', async () => {
     const fixture = await createShell(MANAGER_A);
     const text = fixture.nativeElement.textContent as string;
-    expect(text).toContain('Reports');
+    expect(text).toContain('Reports & Insights');
     expect(text).toContain('Purchases');
     expect(text).toContain('Sales');
+    expect(text).toContain('Imports');
     expect(text).not.toContain('Audit');
-    expect(text).toContain('Employees');
-    expect(text).not.toContain('Billing');
+    expect(text).not.toContain('Platform Administration');
     expect(text).not.toContain('Backup status');
   });
 
@@ -78,11 +84,10 @@ describe('R1-F09-003 Angular role UX spot check', () => {
     const fixture = await createShell(CASHIER_A);
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('Sales');
-    expect(text).toContain('Customers');
-    expect(text).toContain('Customer payments');
+    expect(text).toContain('Customers & Suppliers');
     expect(text).toContain('Dashboard');
     expect(text).not.toContain('Purchases');
-    expect(text).not.toContain('Reports');
+    expect(text).not.toContain('Finance');
     expect(text).not.toContain('Accounts');
     expect(text).not.toContain('Audit');
     expect(text).not.toContain('Employees');
@@ -93,15 +98,41 @@ describe('R1-F09-003 Angular role UX spot check', () => {
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('Purchases');
     expect(text).toContain('Inventory');
-    expect(text).toContain('Suppliers');
+    expect(text).toContain('Customers & Suppliers');
     expect(text).not.toContain('Sales');
-    expect(text).not.toContain('Customers');
-    expect(text).not.toContain('Reports');
+    expect(text).not.toContain('Finance');
     expect(text).not.toContain('Accounts');
+  });
+
+  it('filters navigation via search input', async () => {
+    const fixture = await createShell(OWNER_A);
+    const component = fixture.componentInstance;
+    component.navService.setSearchTerm('audit');
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Audit');
+    expect(text).not.toContain('Purchases');
+  });
+
+  it('opens customization dialog when Customize button is clicked', async () => {
+    const fixture = await createShell(OWNER_A);
+    const component = fixture.componentInstance;
+    expect(component.navService.isCustomizerOpen()).toBe(false);
+
+    component.navService.openCustomizer();
+    fixture.detectChanges();
+
+    expect(component.navService.isCustomizerOpen()).toBe(true);
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Customize Navigation');
   });
 });
 
-async function createShell(permissions: string[]): Promise<ComponentFixture<AppShellPage>> {
+async function createShell(
+  permissions: string[],
+  hiddenItemIds: string[] = [],
+): Promise<ComponentFixture<AppShellPage>> {
   const store = {
     session: () => ({
       user: { id: 'u1', email: 'role@example.com', displayName: 'Role User', status: 'active' },
@@ -124,16 +155,33 @@ async function createShell(permissions: string[]): Promise<ComponentFixture<AppS
     loadSession: () => of({}),
   };
 
+  const navApi = {
+    getPreferences: () => of({ hiddenItemIds }),
+    updatePreferences: (payload: { hiddenItemIds: string[] }) =>
+      of({ hiddenItemIds: payload.hiddenItemIds, groupOrder: [], itemOrderByGroup: {} }),
+  };
+
+  TestBed.resetTestingModule();
   await TestBed.configureTestingModule({
     imports: [AppShellPage],
     providers: [
       provideRouter([]),
       { provide: AuthSessionStore, useValue: store },
       { provide: AuthApi, useValue: { logout: () => of({}) } },
+      { provide: NavigationApi, useValue: navApi },
+      { provide: CatalogApi, useValue: { listProducts: () => of([]) } },
+      NavigationService,
     ],
   }).compileComponents();
 
   const fixture = TestBed.createComponent(AppShellPage);
   fixture.detectChanges();
   return fixture;
+}
+
+function navLinks(fixture: ComponentFixture<AppShellPage>): string[] {
+  const anchors = Array.from(
+    fixture.nativeElement.querySelectorAll('nav a.ag-shell__nav-link'),
+  ) as HTMLAnchorElement[];
+  return anchors.map((a) => a.textContent?.trim() ?? '');
 }

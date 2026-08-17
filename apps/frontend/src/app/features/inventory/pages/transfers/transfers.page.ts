@@ -9,6 +9,9 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator, setRequiredValidator } from '../../../../shared/form/form-field.util';
+import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 import {
   InventoryBalanceRecord,
@@ -25,6 +28,8 @@ import {
     UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiConfirmDialogComponent,
+    UiFieldLabelComponent,
   ],
   templateUrl: './transfers.page.html',
   styleUrl: './transfers.page.scss',
@@ -49,6 +54,10 @@ export class TransfersPage {
   readonly canReverse = computed(() =>
     this.sessionStore.hasPermission('inventory.transfer.reverse'),
   );
+  readonly reverseConfirmOpen = signal(false);
+  private pendingReverse: WarehouseTransferRecord | null = null;
+
+  readonly fieldRequired = hasRequiredValidator;
 
   readonly form = this.formBuilder.nonNullable.group({
     sourceWarehouseId: ['', Validators.required],
@@ -65,7 +74,7 @@ export class TransfersPage {
       return;
     }
     forkJoin({
-      products: this.catalogApi.listProducts(),
+      products: this.catalogApi.listProducts({ status: 'active' }),
       warehouses: this.locationsApi.listWarehouses(),
       transfers: this.inventoryApi.listTransfers(),
     }).subscribe({
@@ -86,6 +95,7 @@ export class TransfersPage {
       const product = this.products().find((item) => item.id === productId);
       this.selectedTrackingMode.set(product?.trackingMode ?? 'none');
       this.form.controls.batchId.setValue('');
+      setRequiredValidator(this.form.controls.batchId, this.selectedTrackingMode() !== 'none');
       this.reloadBatchOptions();
     });
   }
@@ -137,10 +147,21 @@ export class TransfersPage {
     if (!this.canReverse() || transfer.status !== 'posted') {
       return;
     }
+    this.pendingReverse = transfer;
+    this.reverseConfirmOpen.set(true);
+  }
+
+  confirmReverse(reason: string): void {
+    const transfer = this.pendingReverse;
+    this.reverseConfirmOpen.set(false);
+    this.pendingReverse = null;
+    if (!transfer || !this.canReverse() || reason.trim() === '') {
+      return;
+    }
     this.inventoryApi
       .reverseTransfer(
         transfer.id,
-        { reason: 'UI reversal' },
+        { reason: reason.trim() },
         `xfer-reverse-${transfer.id}-${Date.now()}`,
       )
       .subscribe({

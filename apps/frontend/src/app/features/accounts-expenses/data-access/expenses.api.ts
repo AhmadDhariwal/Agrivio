@@ -56,6 +56,19 @@ export class ExpensesApi {
     );
   }
 
+  deleteCategory(id: string): Observable<{ id: string; deleted: boolean }> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .delete<{ data: { id: string; deleted: boolean } }>(
+            `${environment.publicApiBaseUrl}/api/v1/expense-categories/${id}`,
+            { withCredentials: true, headers: { 'X-CSRF-Token': csrfToken } },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
   listExpenses(): Observable<ExpenseRecord[]> {
     return this.http
       .get<{ data: { items: ExpenseRecord[] } }>(
@@ -111,6 +124,22 @@ export class ExpensesApi {
           .patch<{ data: ExpenseRecord }>(
             `${environment.publicApiBaseUrl}/api/v1/expenses/${id}`,
             payload,
+            {
+              withCredentials: true,
+              headers: { 'X-CSRF-Token': csrfToken },
+            },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
+  discardExpense(id: string): Observable<{ discarded: boolean }> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .delete<{ data: { discarded: boolean } }>(
+            `${environment.publicApiBaseUrl}/api/v1/expenses/${id}`,
             {
               withCredentials: true,
               headers: { 'X-CSRF-Token': csrfToken },

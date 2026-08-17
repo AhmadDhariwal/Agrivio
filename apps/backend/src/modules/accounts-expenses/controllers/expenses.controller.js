@@ -1,5 +1,6 @@
 const { sendSuccessEnvelope } = require('../../../platform/http/response-envelope');
 const { forbidden } = require('../../../platform/errors/app-error');
+const { parseMasterStatusQuery } = require('../../../platform/http/master-status-query');
 
 function requireOrganizationId(req) {
   const organizationId = req.authContext?.organizationId;
@@ -13,7 +14,9 @@ function createExpensesController(deps) {
   return {
     async listExpenseCategories(req, res, next) {
       try {
-        const data = await deps.accountsService.listExpenseCategories(requireOrganizationId(req));
+        const data = await deps.accountsService.listExpenseCategories(requireOrganizationId(req), {
+          status: parseMasterStatusQuery(req.query),
+        });
         sendSuccessEnvelope(res, 200, data);
       } catch (error) {
         next(error);
@@ -39,6 +42,19 @@ function createExpensesController(deps) {
           requireOrganizationId(req),
           String(req.params.id),
           req.body,
+          { actorId: String(req.authContext.userId) },
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async deleteExpenseCategory(req, res, next) {
+      try {
+        const data = await deps.accountsService.deleteExpenseCategory(
+          requireOrganizationId(req),
+          String(req.params.id),
           { actorId: String(req.authContext.userId) },
         );
         sendSuccessEnvelope(res, 200, data);
@@ -87,6 +103,19 @@ function createExpensesController(deps) {
           requireOrganizationId(req),
           String(req.params.id),
           req.body,
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async discardExpense(req, res, next) {
+      try {
+        const data = await deps.accountsService.discardExpenseDraft(
+          requireOrganizationId(req),
+          String(req.params.id),
+          { actorId: String(req.authContext.userId) },
         );
         sendSuccessEnvelope(res, 200, data);
       } catch (error) {

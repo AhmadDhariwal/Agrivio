@@ -36,6 +36,10 @@ export const API_AUTH_SESSION_PATH = `${API_V1_PREFIX}/auth/session` as const;
 /** Select authorized active context; rotates session id and CSRF (R1-F02-003/007). */
 export const API_AUTH_SESSION_CONTEXT_PATH = `${API_V1_PREFIX}/auth/session/context` as const;
 
+/** User navigation presentation preferences for the active context. */
+export const API_AUTH_NAVIGATION_PREFERENCES_PATH =
+  `${API_V1_PREFIX}/auth/navigation-preferences` as const;
+
 /** Password reset request (R1-F02-004). */
 export const API_AUTH_PASSWORD_RESET_REQUEST_PATH =
   `${API_V1_PREFIX}/auth/password-reset/request` as const;
@@ -228,6 +232,7 @@ export const ApiTransportErrorCode = {
   Forbidden: 'FORBIDDEN',
   NotFound: 'NOT_FOUND',
   Conflict: 'CONFLICT',
+  RecordInUse: 'RECORD_IN_USE',
   VersionConflict: 'VERSION_CONFLICT',
   IdempotencyConflict: 'IDEMPOTENCY_CONFLICT',
   InternalError: 'INTERNAL_ERROR',

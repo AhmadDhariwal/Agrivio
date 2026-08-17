@@ -14,22 +14,50 @@
   <agrivio-ui-loading-state label="Loading categories…" />
 } @else if (errorMessage(); as error) {
   <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-} @else if (items().length === 0) {
-  <agrivio-ui-empty-state title="No expense categories yet" message="Create a category before recording expenses." />
 } @else {
-  <div class="ag-stack" data-testid="expense-categories-list">
-    @for (item of items(); track item.id) {
-      <article class="row">
-        <div>
-          <strong>{{ item.name }}</strong>
-        </div>
-        <div class="ag-inline">
-          <agrivio-ui-status-badge [label]="item.status" [tone]="item.status === 'active' ? 'success' : 'neutral'" />
-          @if (canPost()) {
-            <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/expense-categories', item.id]">Edit</a>
-          }
-        </div>
-      </article>
-    }
-  </div>
+  @if (successMessage(); as success) {
+    <agrivio-ui-alert tone="success" [message]="success" />
+  }
+  <agrivio-ui-lifecycle-filter [value]="statusFilter()" (changed)="statusFilter.set($event)" />
+  @if (visibleItems().length === 0) {
+    <agrivio-ui-empty-state title="No expense categories yet" message="Create a category before recording expenses." />
+  } @else {
+    <div class="ag-stack" data-testid="expense-categories-list">
+      @for (item of visibleItems(); track item.id) {
+        <article class="row">
+          <div>
+            <strong>{{ item.name }}</strong>
+          </div>
+          <div class="ag-inline">
+            <agrivio-ui-status-badge [label]="item.status" [tone]="item.status === 'active' ? 'success' : 'neutral'" />
+            @if (canPost()) {
+              <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/expense-categories', item.id]">Edit</a>
+              @if (item.status === 'active') {
+                <button type="button" class="ag-btn ag-btn--danger" data-testid="expense-category-deactivate" (click)="askDeactivate(item)">
+                  Deactivate
+                </button>
+              } @else {
+                <button type="button" class="ag-btn ag-btn--secondary" data-testid="expense-category-reactivate" (click)="askReactivate(item)">
+                  Reactivate
+                </button>
+              }
+              <button type="button" class="ag-btn ag-btn--danger" data-testid="expense-category-delete" (click)="askDelete(item)">
+                Delete permanently
+              </button>
+            }
+          </div>
+        </article>
+      }
+    </div>
+  }
 }
+
+<agrivio-ui-confirm-dialog
+  [open]="confirmOpen()"
+  [title]="confirmTitle()"
+  [message]="confirmMessage()"
+  [confirmLabel]="confirmLabel()"
+  [danger]="confirmLabel() === 'Deactivate' || confirmLabel() === 'Delete permanently'"
+  (confirmed)="confirmLifecycle()"
+  (dismiss)="confirmOpen.set(false)"
+/>

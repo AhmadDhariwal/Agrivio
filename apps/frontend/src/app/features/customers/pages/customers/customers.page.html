@@ -12,29 +12,57 @@
   <agrivio-ui-loading-state label="Loading customers…" />
 } @else if (errorMessage(); as error) {
   <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-} @else if (items().length === 0) {
-  <agrivio-ui-empty-state
-    title="No customers yet"
-    message="Create the first customer to capture sales and credit terms."
-  />
 } @else {
-  <div class="ag-stack" data-testid="customers-list">
-    @for (item of items(); track item.id) {
-      <article class="row">
-        <div>
-          <strong>{{ item.name }}</strong>
-          <p class="ag-muted">
-            {{ item.customerType }} · {{ item.priceTier }}
-            @if (item.phone) { · {{ item.phone }} }
-          </p>
-        </div>
-        <div class="ag-inline">
-          <agrivio-ui-status-badge [label]="item.status" [tone]="item.status === 'active' ? 'success' : 'neutral'" />
-          @if (canManage()) {
-            <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/customers', item.id]">Edit</a>
-          }
-        </div>
-      </article>
-    }
-  </div>
+  @if (successMessage(); as success) {
+    <agrivio-ui-alert tone="success" [message]="success" />
+  }
+  <agrivio-ui-lifecycle-filter [value]="statusFilter()" (changed)="statusFilter.set($event)" />
+  @if (visibleItems().length === 0) {
+    <agrivio-ui-empty-state
+      title="No customers yet"
+      message="Create the first customer to capture sales and credit terms."
+    />
+  } @else {
+    <div class="ag-stack" data-testid="customers-list">
+      @for (item of visibleItems(); track item.id) {
+        <article class="row">
+          <div>
+            <strong>{{ item.name }}</strong>
+            <p class="ag-muted">
+              {{ item.customerType }} · {{ item.priceTier }}
+              @if (item.phone) { · {{ item.phone }} }
+            </p>
+          </div>
+          <div class="ag-inline">
+            <agrivio-ui-status-badge [label]="item.status" [tone]="item.status === 'active' ? 'success' : 'neutral'" />
+            @if (canManage()) {
+              <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/customers', item.id]">Edit</a>
+              @if (item.status === 'active') {
+                <button type="button" class="ag-btn ag-btn--danger" data-testid="customer-deactivate" (click)="askDeactivate(item)">
+                  Deactivate
+                </button>
+              } @else {
+                <button type="button" class="ag-btn ag-btn--secondary" data-testid="customer-reactivate" (click)="askReactivate(item)">
+                  Reactivate
+                </button>
+              }
+              <button type="button" class="ag-btn ag-btn--danger" data-testid="customer-delete" (click)="askDelete(item)">
+                Delete permanently
+              </button>
+            }
+          </div>
+        </article>
+      }
+    </div>
+  }
 }
+
+<agrivio-ui-confirm-dialog
+  [open]="confirmOpen()"
+  [title]="confirmTitle()"
+  [message]="confirmMessage()"
+  [confirmLabel]="confirmLabel()"
+  [danger]="confirmLabel() === 'Deactivate' || confirmLabel() === 'Delete permanently'"
+  (confirmed)="confirmLifecycle()"
+  (dismiss)="confirmOpen.set(false)"
+/>

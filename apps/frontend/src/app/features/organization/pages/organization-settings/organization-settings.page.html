@@ -17,43 +17,97 @@
   }
 
   <section class="ag-stack" data-testid="organization-settings">
-    <form class="ag-card ag-stack" [formGroup]="profileForm" (ngSubmit)="saveProfile()">
+    <form
+      class="ag-card ag-stack ag-form ag-form--with-required-hint"
+      [formGroup]="profileForm"
+      (ngSubmit)="saveProfile()"
+    >
       <h2>Organization profile</h2>
-      <label>
-        Legal name
-        <input formControlName="name" data-testid="org-profile-name" />
-      </label>
-      <label>
-        Business timezone (IANA)
-        <input formControlName="timezone" data-testid="org-profile-timezone" />
-      </label>
+      <div class="ag-field">
+        <agrivio-ui-field-label
+          label="Legal name"
+          for="org-profile-name"
+          [required]="fieldRequired(profileForm.controls.name)"
+        />
+        <input
+          id="org-profile-name"
+          class="ag-input"
+          formControlName="name"
+          data-testid="org-profile-name"
+          [attr.aria-required]="fieldRequired(profileForm.controls.name) ? 'true' : null"
+        />
+      </div>
+      <div class="ag-field">
+        <agrivio-ui-field-label
+          label="Business timezone (IANA)"
+          for="org-profile-timezone"
+          [required]="fieldRequired(profileForm.controls.timezone)"
+        />
+        <input
+          id="org-profile-timezone"
+          class="ag-input"
+          formControlName="timezone"
+          data-testid="org-profile-timezone"
+          [attr.aria-required]="fieldRequired(profileForm.controls.timezone) ? 'true' : null"
+        />
+      </div>
       @if (canUpdateOrg()) {
         <button class="ag-btn" type="submit" [disabled]="saving()">Save profile</button>
       }
     </form>
 
-    <form class="ag-card ag-stack" [formGroup]="settingsForm" (ngSubmit)="saveSettings()">
+    <form
+      class="ag-card ag-stack ag-form ag-form--with-required-hint"
+      [formGroup]="settingsForm"
+      (ngSubmit)="saveSettings()"
+    >
       <h2>Residual settings</h2>
-      <label>
-        Trading name
-        <input formControlName="tradingName" data-testid="settings-trading-name" />
-      </label>
-      <label>
-        Contact phone
-        <input formControlName="contactPhone" data-testid="settings-contact-phone" />
-      </label>
-      <label>
-        Contact email
-        <input formControlName="contactEmail" data-testid="settings-contact-email" />
-      </label>
-      <label>
-        Address
-        <input formControlName="addressLine" data-testid="settings-address" />
-      </label>
-      <label>
-        Document footer note
-        <textarea formControlName="documentFooterNote" rows="3" data-testid="settings-footer"></textarea>
-      </label>
+      <div class="ag-field">
+        <agrivio-ui-field-label label="Trading name" for="settings-trading-name" />
+        <input
+          id="settings-trading-name"
+          class="ag-input"
+          formControlName="tradingName"
+          data-testid="settings-trading-name"
+        />
+      </div>
+      <div class="ag-field">
+        <agrivio-ui-field-label label="Contact phone" for="settings-contact-phone" />
+        <input
+          id="settings-contact-phone"
+          class="ag-input"
+          formControlName="contactPhone"
+          data-testid="settings-contact-phone"
+        />
+      </div>
+      <div class="ag-field">
+        <agrivio-ui-field-label label="Contact email" for="settings-contact-email" />
+        <input
+          id="settings-contact-email"
+          class="ag-input"
+          formControlName="contactEmail"
+          data-testid="settings-contact-email"
+        />
+      </div>
+      <div class="ag-field">
+        <agrivio-ui-field-label label="Address" for="settings-address" />
+        <input
+          id="settings-address"
+          class="ag-input"
+          formControlName="addressLine"
+          data-testid="settings-address"
+        />
+      </div>
+      <div class="ag-field">
+        <agrivio-ui-field-label label="Document footer note" for="settings-footer" />
+        <textarea
+          id="settings-footer"
+          class="ag-input"
+          formControlName="documentFooterNote"
+          rows="3"
+          data-testid="settings-footer"
+        ></textarea>
+      </div>
       @if (canManage()) {
         <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="settings-save">
           Save settings

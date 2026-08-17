@@ -20,24 +20,44 @@
   }
 
   <form
-    class="ag-stack form"
+    class="ag-stack form ag-form ag-form--with-required-hint"
     [formGroup]="form"
     (ngSubmit)="submit()"
     data-testid="opening-stock-form"
   >
-    <label>
-      Warehouse
-      <select formControlName="warehouseId" data-testid="opening-warehouse">
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Warehouse"
+        for="opening-warehouse"
+        [required]="fieldRequired(form.controls.warehouseId)"
+      />
+      <select
+        id="opening-warehouse"
+        class="ag-select"
+        formControlName="warehouseId"
+        data-testid="opening-warehouse"
+        [attr.aria-required]="fieldRequired(form.controls.warehouseId) ? 'true' : null"
+      >
         <option value="">Select warehouse</option>
         @for (warehouse of warehouses(); track warehouse.id) {
           <option [value]="warehouse.id">{{ warehouse.name }}</option>
         }
       </select>
-    </label>
+    </div>
 
-    <label>
-      Product
-      <select formControlName="productId" data-testid="opening-product">
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Product"
+        for="opening-product"
+        [required]="fieldRequired(form.controls.productId)"
+      />
+      <select
+        id="opening-product"
+        class="ag-select"
+        formControlName="productId"
+        data-testid="opening-product"
+        [attr.aria-required]="fieldRequired(form.controls.productId) ? 'true' : null"
+      >
         <option value="">Select product</option>
         @for (product of products(); track product.id) {
           <option [value]="product.id">
@@ -45,16 +65,26 @@
           </option>
         }
       </select>
-    </label>
+    </div>
 
-    <label>
-      Quantity
-      <input formControlName="quantity" data-testid="opening-quantity" />
-    </label>
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Quantity"
+        for="opening-quantity"
+        [required]="fieldRequired(form.controls.quantity)"
+      />
+      <input
+        id="opening-quantity"
+        class="ag-input"
+        formControlName="quantity"
+        data-testid="opening-quantity"
+        [attr.aria-required]="fieldRequired(form.controls.quantity) ? 'true' : null"
+      />
+    </div>
 
-    <label>
-      Packaging unit (optional — blank uses base unit)
-      <select formControlName="packagingUnitId" data-testid="opening-packaging">
+    <div class="ag-field">
+      <agrivio-ui-field-label label="Packaging unit (optional — blank uses base unit)" for="opening-packaging" />
+      <select id="opening-packaging" class="ag-select" formControlName="packagingUnitId" data-testid="opening-packaging">
         <option value="">Base unit</option>
         @for (unit of packagingUnits(); track unit.id) {
           <option [value]="unit.id">
@@ -62,34 +92,67 @@
           </option>
         }
       </select>
-    </label>
+    </div>
 
     @if (selectedTrackingMode() !== 'none') {
-      <label>
-        Batch number
-        <input formControlName="batchNumber" data-testid="opening-batch-number" />
-      </label>
-      <label>
-        Manufacturing date (optional)
+      <div class="ag-field">
+        <agrivio-ui-field-label
+          label="Batch number"
+          for="opening-batch-number"
+          [required]="fieldRequired(form.controls.batchNumber)"
+        />
         <input
+          id="opening-batch-number"
+          class="ag-input"
+          formControlName="batchNumber"
+          data-testid="opening-batch-number"
+          [attr.aria-required]="fieldRequired(form.controls.batchNumber) ? 'true' : null"
+        />
+      </div>
+      <div class="ag-field">
+        <agrivio-ui-field-label label="Manufacturing date (optional)" for="opening-manufacturing-date" />
+        <input
+          id="opening-manufacturing-date"
+          class="ag-input"
           type="date"
           formControlName="manufacturingDate"
           data-testid="opening-manufacturing-date"
         />
-      </label>
+      </div>
     }
 
     @if (selectedTrackingMode() === 'batch_expiry') {
-      <label>
-        Expiry date
-        <input type="date" formControlName="expiryDate" data-testid="opening-expiry-date" />
-      </label>
+      <div class="ag-field">
+        <agrivio-ui-field-label
+          label="Expiry date"
+          for="opening-expiry-date"
+          [required]="fieldRequired(form.controls.expiryDate)"
+        />
+        <input
+          id="opening-expiry-date"
+          class="ag-input"
+          type="date"
+          formControlName="expiryDate"
+          data-testid="opening-expiry-date"
+          [attr.aria-required]="fieldRequired(form.controls.expiryDate) ? 'true' : null"
+        />
+      </div>
     }
 
-    <label>
-      Opening inventory value (PKR)
-      <input formControlName="inventoryValue" data-testid="opening-inventory-value" />
-    </label>
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Opening inventory value (PKR)"
+        for="opening-inventory-value"
+        [required]="fieldRequired(form.controls.inventoryValue)"
+      />
+      <input
+        id="opening-inventory-value"
+        class="ag-input"
+        formControlName="inventoryValue"
+        data-testid="opening-inventory-value"
+        [attr.aria-required]="fieldRequired(form.controls.inventoryValue) ? 'true' : null"
+      />
+    </div>
 
     <div class="ag-inline">
       <button

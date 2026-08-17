@@ -74,7 +74,7 @@ test.describe('F05 P3 supplier payments, returns, cancellation, reconciliation E
     await page.getByTestId('account-opening-save').click();
     await expect(page.getByTestId('account-derived-balance')).toContainText('10000.00');
 
-    await page.getByRole('link', { name: 'Categories' }).click();
+    await page.getByRole('link', { name: 'Categories', exact: true }).click();
     await page.getByTestId('category-create-link').click();
     await page.getByTestId('category-name').fill('P3 Inputs');
     await page.getByTestId('category-product-class').selectOption('general');

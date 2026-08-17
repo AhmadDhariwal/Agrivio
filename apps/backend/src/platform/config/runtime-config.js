@@ -1,7 +1,7 @@
 /**
  * Secret-bearing API environment keys that must never be logged in full.
  */
-const API_SECRET_ENV_KEYS = ['SESSION_SECRET', 'MONGODB_URI'];
+const API_SECRET_ENV_KEYS = ['SESSION_SECRET', 'MONGODB_URI', 'AGRIVIO_SMTP_PASSWORD'];
 
 class EnvValidationError extends Error {
   constructor(issues) {
@@ -200,6 +200,26 @@ function loadApiEnv(env = process.env) {
   }
   const allowLoopbackBrowserOrigins = nodeEnv !== 'production';
 
+  const smtpHost = env['AGRIVIO_SMTP_HOST'];
+  if (nodeEnv === 'production' && !isNonEmptyString(smtpHost)) {
+    issues.push('AGRIVIO_SMTP_HOST is required in production');
+  }
+  const smtpSecure =
+    env['AGRIVIO_SMTP_SECURE'] === '1' ||
+    env['AGRIVIO_SMTP_SECURE'] === 'true' ||
+    env['AGRIVIO_SMTP_SECURE'] === 'yes';
+  const rawSmtpPort = env['AGRIVIO_SMTP_PORT'] ?? (smtpSecure ? '465' : '587');
+  const smtpPort = Number(rawSmtpPort);
+  if (isNonEmptyString(smtpHost) && (!Number.isInteger(smtpPort) || smtpPort < 1 || smtpPort > 65535)) {
+    issues.push('AGRIVIO_SMTP_PORT must be an integer between 1 and 65535');
+  }
+  const smtpUsername = env['AGRIVIO_SMTP_USERNAME'] ?? '';
+  const smtpPassword = env['AGRIVIO_SMTP_PASSWORD'] ?? '';
+  const smtpFrom = env['AGRIVIO_SMTP_FROM'] ?? 'noreply@localhost';
+  if (nodeEnv === 'production' && !isNonEmptyString(env['AGRIVIO_SMTP_FROM'])) {
+    issues.push('AGRIVIO_SMTP_FROM is required in production');
+  }
+
   if (issues.length > 0) {
     throw new EnvValidationError(issues);
   }
@@ -230,6 +250,12 @@ function loadApiEnv(env = process.env) {
     allowLoopbackBrowserOrigins,
     allowE2eBootstrap: allowE2eBootstrap && nodeEnv !== 'production',
     skipMongo: skipMongo && nodeEnv === 'test',
+    smtpHost: isNonEmptyString(smtpHost) ? smtpHost.trim() : '',
+    smtpPort,
+    smtpSecure,
+    smtpUsername,
+    smtpPassword,
+    smtpFrom,
   };
 }
 
@@ -247,6 +273,7 @@ function toSafeApiEnvSummary(config) {
     publicWebBaseUrl: config.publicWebBaseUrl,
     allowedOrigins: config.allowedOrigins,
     allowLoopbackBrowserOrigins: config.allowLoopbackBrowserOrigins === true,
+    smtpConfigured: config.smtpHost ? 'yes' : 'no',
     mongodbUriConfigured: 'yes',
     sessionSecretConfigured: 'yes',
   };

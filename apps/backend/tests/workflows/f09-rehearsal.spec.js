@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import { describe, expect, it } from 'vitest';
 import { createOperationsModule } from '../../src/modules/operations/operations.module.js';
 import { permissionsForMembershipRole, permissionsForPlatformAccess } from '../../src/modules/identity/role-permissions.js';

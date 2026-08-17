@@ -140,7 +140,7 @@ export class AuthApi {
       switchMap(({ csrfToken }) =>
         this.http.post(
           `${environment.publicApiBaseUrl}/api/v1/auth/password-reset/confirm`,
-          { token, password },
+          { token, password, passwordConfirmation: password },
           {
             withCredentials: true,
             headers: new HttpHeaders({ 'X-CSRF-Token': csrfToken }),

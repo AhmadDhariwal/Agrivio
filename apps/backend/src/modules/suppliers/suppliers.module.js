@@ -5,6 +5,7 @@ const {
 const { createAuditWriter } = require('../../platform/audit/audit-writer');
 const { assertOptimisticVersion } = require('../../platform/validation/request-validation');
 const { conflict, notFound, validationFailed } = require('../../platform/errors/app-error');
+const { assertMasterUnused } = require('../../platform/lifecycle/record-in-use');
 const {
   assertCreationLimit,
   attachSoftWarning,
@@ -81,8 +82,12 @@ function createSuppliersService(deps) {
   }
 
   return {
-    async listSuppliers(organizationId) {
-      const items = await store.listSuppliers(organizationId);
+    async listSuppliers(organizationId, options = {}) {
+      const listed = await store.listSuppliers(organizationId);
+      const items =
+        options.status === 'active' || options.status === 'inactive'
+          ? listed.filter((item) => String(item.status) === options.status)
+          : listed;
       if (!ledgersService || typeof ledgersService.mapPartyBalances !== 'function') {
         const mapped = [];
         for (const item of items) {
@@ -183,6 +188,36 @@ function createSuppliersService(deps) {
       } catch (error) {
         mapDuplicate(error, 'Supplier name already exists in this organization');
       }
+    },
+
+    async deleteSupplier(organizationId, supplierId, actor) {
+      const current = await store.findSupplierById(organizationId, supplierId);
+      if (current === null) {
+        throw notFound('Supplier not found');
+      }
+      const reasons = [];
+      if (current.openingBalance && current.openingBalance.status === 'posted') {
+        reasons.push('opening balance');
+      }
+      if (typeof deps.listSupplierReferences === 'function') {
+        reasons.push(...(await deps.listSupplierReferences(organizationId, supplierId)));
+      }
+      assertMasterUnused(reasons);
+      return transactionRunner.run(async (session) => {
+        const deleted = await store.deleteSupplier(session, organizationId, supplierId);
+        if (!deleted) {
+          throw notFound('Supplier not found');
+        }
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: actor.actorId,
+          action: 'supplier.deleted',
+          resourceType: 'supplier',
+          resourceId: supplierId,
+          metadata: { name: current.name },
+        });
+        return { id: supplierId, deleted: true };
+      });
     },
 
     async postOpeningBalance(organizationId, supplierId, body, actor, idempotencyKey, options = {}) {
@@ -332,6 +367,9 @@ function createSuppliersModule(options) {
       : { evaluateEntitlement: options.evaluateEntitlement }),
     ...(options.ledgersService === undefined ? {} : { ledgersService: options.ledgersService }),
     ...(options.now === undefined ? {} : { now: options.now }),
+    ...(options.listSupplierReferences === undefined
+      ? {}
+      : { listSupplierReferences: options.listSupplierReferences }),
   });
 
   return { store, suppliersService };

@@ -30,9 +30,9 @@
       </div>
     }
 
-    <form class="ag-form" [formGroup]="form" (ngSubmit)="submit()">
+    <form class="ag-form ag-form--with-required-hint" [formGroup]="form" (ngSubmit)="submit()">
       <div class="ag-field">
-        <label class="ag-field__label" for="context-select">Context</label>
+        <agrivio-ui-field-label label="Context" for="context-select" />
         <select id="context-select" class="ag-select" formControlName="contextKey" data-testid="context-select">
           <option value="">Select context</option>
           @for (context of availableContexts(); track contextKey(context)) {
@@ -43,7 +43,7 @@
 
       @if (showAssignmentFields()) {
         <div class="ag-field">
-          <label class="ag-field__label" for="branch-select">Branch (optional)</label>
+          <agrivio-ui-field-label label="Branch (optional)" for="branch-select" />
           @if (branchOptions().length === 0) {
             <p class="ag-field__hint">No assigned branches are available for this context yet.</p>
           } @else {
@@ -57,7 +57,7 @@
         </div>
 
         <div class="ag-field">
-          <label class="ag-field__label" for="warehouse-select">Warehouse (optional)</label>
+          <agrivio-ui-field-label label="Warehouse (optional)" for="warehouse-select" />
           @if (warehouseOptions().length === 0) {
             <p class="ag-field__hint">No assigned warehouses are available for this context yet.</p>
           } @else {
