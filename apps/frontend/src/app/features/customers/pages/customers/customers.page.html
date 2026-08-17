@@ -25,32 +25,61 @@
   } @else {
     <div class="ag-stack" data-testid="customers-list">
       @for (item of visibleItems(); track item.id) {
-        <article class="row">
-          <div>
-            <strong>{{ item.name }}</strong>
-            <p class="ag-muted">
-              {{ item.customerType }} · {{ item.priceTier }}
-              @if (item.phone) { · {{ item.phone }} }
+        <article class="customer-card row" data-testid="customer-row">
+          <div class="customer-card__main">
+            <div class="customer-card__header">
+              <h2 class="customer-card__name">{{ item.name }}</h2>
+              <agrivio-ui-status-badge
+                [label]="item.status"
+                [tone]="item.status === 'active' ? 'success' : 'neutral'"
+                class="customer-card__badge"
+              />
+            </div>
+            <p class="customer-card__meta ag-muted">
+              <span>{{ item.customerType }}</span>
+              <span class="customer-card__meta-separator">·</span>
+              <span>Tier: {{ item.priceTier }}</span>
+              @if (item.phone) {
+                <span class="customer-card__meta-separator">·</span>
+                <span>{{ item.phone }}</span>
+              }
             </p>
           </div>
-          <div class="ag-inline">
-            <agrivio-ui-status-badge [label]="item.status" [tone]="item.status === 'active' ? 'success' : 'neutral'" />
-            @if (canManage()) {
-              <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/customers', item.id]">Edit</a>
+
+          @if (canManage()) {
+            <div class="customer-card__actions">
+              <a class="ag-btn ag-btn--secondary ag-btn--sm" [routerLink]="['/app/customers', item.id]">
+                Edit
+              </a>
               @if (item.status === 'active') {
-                <button type="button" class="ag-btn ag-btn--danger" data-testid="customer-deactivate" (click)="askDeactivate(item)">
+                <button
+                  type="button"
+                  class="ag-btn ag-btn--danger ag-btn--sm"
+                  data-testid="customer-deactivate"
+                  (click)="askDeactivate(item)"
+                >
                   Deactivate
                 </button>
               } @else {
-                <button type="button" class="ag-btn ag-btn--secondary" data-testid="customer-reactivate" (click)="askReactivate(item)">
+                <button
+                  type="button"
+                  class="ag-btn ag-btn--secondary ag-btn--sm"
+                  data-testid="customer-reactivate"
+                  (click)="askReactivate(item)"
+                >
                   Reactivate
                 </button>
               }
-              <button type="button" class="ag-btn ag-btn--danger" data-testid="customer-delete" (click)="askDelete(item)">
+              <button
+                type="button"
+                class="ag-btn ag-btn--danger ag-btn--sm"
+                data-testid="customer-delete"
+                (click)="askDelete(item)"
+              >
                 Delete permanently
               </button>
-            }
-          </div>
+            </div>
+          }
         </article>
       }
     </div>
