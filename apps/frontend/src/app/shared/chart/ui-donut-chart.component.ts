@@ -46,27 +46,34 @@ export interface DonutSlice {
     `
       .ag-donut {
         margin: 0;
-        display: grid;
-        gap: 0.75rem;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1.25rem;
       }
       .ag-donut__svg {
         width: 8.5rem;
         height: 8.5rem;
+        flex-shrink: 0;
       }
       .ag-donut__legend {
         display: grid;
         gap: 0.35rem;
-        font-size: var(--ag-text-sm);
+        font-size: var(--ag-text-xs);
+        flex: 1 1 10rem;
+        min-width: 0;
       }
       .ag-donut__legend span {
         display: inline-flex;
         align-items: center;
         gap: 0.35rem;
+        word-break: break-word;
       }
       .ag-donut__swatch {
         width: 0.75rem;
         height: 0.75rem;
         border-radius: 999px;
+        flex-shrink: 0;
       }
     `,
   ],

@@ -67,10 +67,19 @@
   --ag-leading-tight: 1.2;
   --ag-leading-normal: 1.5;
 
-  // Controls
+  // Controls & Responsive
   --ag-control-height: 2.75rem;
   --ag-control-height-sm: 2.25rem;
+  --ag-touch-target-min: 2.75rem; // 44px minimum touch target
   --ag-sidebar-width: 16.5rem;
+  --ag-sidebar-collapsed-width: 4.5rem;
   --ag-content-max: 72rem;
   --ag-auth-max: 26rem;
+
+  // Safe area insets for mobile devices
+  --ag-safe-top: env(safe-area-inset-top, 0px);
+  --ag-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --ag-safe-left: env(safe-area-inset-left, 0px);
+  --ag-safe-right: env(safe-area-inset-right, 0px);
 }
+

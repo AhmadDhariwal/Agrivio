@@ -203,3 +203,15 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+@media (max-width: 599px) {
+  .ag-nav-search__dropdown {
+    position: fixed;
+    top: 3.75rem;
+    left: var(--ag-space-2);
+    right: var(--ag-space-2);
+    width: auto;
+    max-height: calc(75dvh);
+  }
+}
+
