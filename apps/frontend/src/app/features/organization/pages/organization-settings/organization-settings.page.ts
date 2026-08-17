@@ -11,11 +11,19 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 
 @Component({
   selector: 'agrivio-organization-settings-page',
   standalone: true,
-  imports: [ReactiveFormsModule, UiPageHeaderComponent, UiAlertComponent, UiLoadingStateComponent],
+  imports: [
+    ReactiveFormsModule,
+    UiPageHeaderComponent,
+    UiAlertComponent,
+    UiLoadingStateComponent,
+    UiFieldLabelComponent,
+  ],
   templateUrl: './organization-settings.page.html',
   styleUrl: './organization-settings.page.scss',
 })
@@ -33,6 +41,8 @@ export class OrganizationSettingsPage {
   readonly canView = computed(() => this.sessionStore.hasPermission('settings.view'));
   readonly canManage = computed(() => this.sessionStore.hasPermission('settings.manage'));
   readonly canUpdateOrg = computed(() => this.sessionStore.hasPermission('organization.update'));
+
+  readonly fieldRequired = hasRequiredValidator;
 
   private organizationVersion = 1;
   private settingsVersion = 1;

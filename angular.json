@@ -51,7 +51,10 @@
         "serve": {
           "builder": "@angular/build:dev-server",
           "options": {
-            "port": 4200
+            "port": 4200,
+            "prebundle": {
+              "exclude": ["@agrivio/api-contracts"]
+            }
           },
           "configurations": {
             "production": {

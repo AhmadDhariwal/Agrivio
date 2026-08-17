@@ -27,6 +27,8 @@ import { UnsellableReason } from '../../models/returns.models';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 
 @Component({
   selector: 'agrivio-return-without-invoice-page',
@@ -37,6 +39,7 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
     UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiFieldLabelComponent,
   ],
   templateUrl: './return-without-invoice.page.html',
   styleUrl: './return-without-invoice.page.scss',
@@ -64,6 +67,8 @@ export class ReturnWithoutInvoicePage {
   readonly canApprove = computed(() =>
     this.sessionStore.hasPermission('returns.without-invoice.approve'),
   );
+
+  readonly fieldRequired = hasRequiredValidator;
 
   readonly form = this.formBuilder.nonNullable.group({
     warehouseId: ['', Validators.required],

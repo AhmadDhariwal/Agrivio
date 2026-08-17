@@ -9,6 +9,8 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { AccountRecord } from '../../models/accounts.models';
 import { ExpenseCategoryRecord, ExpenseRecord } from '../../models/expenses.models';
@@ -23,6 +25,7 @@ import { ExpenseCategoryRecord, ExpenseRecord } from '../../models/expenses.mode
     UiAlertComponent,
     UiLoadingStateComponent,
     UiConfirmDialogComponent,
+    UiFieldLabelComponent,
   ],
   templateUrl: './expense-form.page.html',
   styleUrl: './expense-form.page.scss',
@@ -51,6 +54,8 @@ export class ExpenseFormPage {
   readonly canView = computed(() => this.sessionStore.hasPermission('expenses.view'));
   readonly successMessage = signal<string | null>(null);
   private version = 1;
+
+  readonly fieldRequired = hasRequiredValidator;
 
   readonly form = this.formBuilder.nonNullable.group({
     categoryId: ['', [Validators.required]],

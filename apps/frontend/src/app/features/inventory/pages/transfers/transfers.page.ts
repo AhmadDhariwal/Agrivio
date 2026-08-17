@@ -9,6 +9,8 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 import {
@@ -27,6 +29,7 @@ import {
     UiAlertComponent,
     UiLoadingStateComponent,
     UiConfirmDialogComponent,
+    UiFieldLabelComponent,
   ],
   templateUrl: './transfers.page.html',
   styleUrl: './transfers.page.scss',
@@ -53,6 +56,8 @@ export class TransfersPage {
   );
   readonly reverseConfirmOpen = signal(false);
   private pendingReverse: WarehouseTransferRecord | null = null;
+
+  readonly fieldRequired = hasRequiredValidator;
 
   readonly form = this.formBuilder.nonNullable.group({
     sourceWarehouseId: ['', Validators.required],

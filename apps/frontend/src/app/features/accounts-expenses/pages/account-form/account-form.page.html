@@ -19,44 +19,74 @@
   @if (!accountId() && !canManage()) {
     <agrivio-ui-alert tone="warning" message="You do not have permission to manage accounts." />
   } @else if (canManage()) {
-    <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="account-form">
-      <label>
-        Account type
-        <select formControlName="accountType" data-testid="account-type">
+    <form class="ag-stack form ag-form ag-form--with-required-hint" [formGroup]="form" (ngSubmit)="save()" data-testid="account-form">
+      <div class="ag-field">
+        <agrivio-ui-field-label
+          label="Account type"
+          for="account-type"
+          [required]="fieldRequired(form.controls.accountType)"
+        />
+        <select
+          id="account-type"
+          class="ag-select"
+          formControlName="accountType"
+          data-testid="account-type"
+          [attr.aria-required]="fieldRequired(form.controls.accountType) ? 'true' : null"
+        >
           <option value="cash">Cash</option>
           <option value="bank">Bank</option>
           <option value="jazzcash">JazzCash</option>
           <option value="easypaisa">Easypaisa</option>
         </select>
-      </label>
-      <label>
-        Name
-        <input formControlName="name" data-testid="account-name" />
-      </label>
+      </div>
+      <div class="ag-field">
+        <agrivio-ui-field-label
+          label="Name"
+          for="account-name"
+          [required]="fieldRequired(form.controls.name)"
+        />
+        <input
+          id="account-name"
+          class="ag-input"
+          formControlName="name"
+          data-testid="account-name"
+          [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
+        />
+      </div>
       @if (accountType() === 'bank') {
-        <label>
-          Bank name
-          <input formControlName="bankName" data-testid="account-bank-name" />
-        </label>
-        <label>
-          Account number (masked, optional)
-          <input formControlName="accountNumberMasked" data-testid="account-number-masked" />
-        </label>
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Bank name" for="account-bank-name" />
+          <input id="account-bank-name" class="ag-input" formControlName="bankName" data-testid="account-bank-name" />
+        </div>
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Account number (masked, optional)" for="account-number-masked" />
+          <input
+            id="account-number-masked"
+            class="ag-input"
+            formControlName="accountNumberMasked"
+            data-testid="account-number-masked"
+          />
+        </div>
       }
       @if (accountType() === 'jazzcash' || accountType() === 'easypaisa') {
-        <label>
-          Wallet identifier
-          <input formControlName="walletIdentifier" data-testid="account-wallet-identifier" />
-        </label>
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Wallet identifier" for="account-wallet-identifier" />
+          <input
+            id="account-wallet-identifier"
+            class="ag-input"
+            formControlName="walletIdentifier"
+            data-testid="account-wallet-identifier"
+          />
+        </div>
       }
       @if (accountId()) {
-        <label>
-          Status
-          <select formControlName="status" data-testid="account-status">
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Status" for="account-status" />
+          <select id="account-status" class="ag-select" formControlName="status" data-testid="account-status">
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </select>
-        </label>
+        </div>
       }
       <div class="ag-inline">
         <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="account-save">Save</button>
@@ -78,11 +108,21 @@
           Opening already posted.
         </p>
       } @else {
-        <form class="ag-stack" [formGroup]="openingForm" (ngSubmit)="postOpening()">
-          <label>
-            Amount (PKR)
-            <input formControlName="amount" data-testid="account-opening-amount" />
-          </label>
+        <form class="ag-stack ag-form ag-form--with-required-hint" [formGroup]="openingForm" (ngSubmit)="postOpening()">
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Amount (PKR)"
+              for="account-opening-amount"
+              [required]="fieldRequired(openingForm.controls.amount)"
+            />
+            <input
+              id="account-opening-amount"
+              class="ag-input"
+              formControlName="amount"
+              data-testid="account-opening-amount"
+              [attr.aria-required]="fieldRequired(openingForm.controls.amount) ? 'true' : null"
+            />
+          </div>
           <button
             class="ag-btn"
             type="submit"
@@ -99,26 +139,61 @@
   @if (accountId() && canPostTransaction()) {
     <section class="ag-stack form" data-testid="account-transaction-section">
       <h2>Manual inflow / outflow</h2>
-      <form class="ag-stack" [formGroup]="transactionForm" (ngSubmit)="postTransaction()">
-        <label>
-          Direction
-          <select formControlName="direction" data-testid="account-tx-direction">
+      <form class="ag-stack ag-form ag-form--with-required-hint" [formGroup]="transactionForm" (ngSubmit)="postTransaction()">
+        <div class="ag-field">
+          <agrivio-ui-field-label
+            label="Direction"
+            for="account-tx-direction"
+            [required]="fieldRequired(transactionForm.controls.direction)"
+          />
+          <select
+            id="account-tx-direction"
+            class="ag-select"
+            formControlName="direction"
+            data-testid="account-tx-direction"
+            [attr.aria-required]="fieldRequired(transactionForm.controls.direction) ? 'true' : null"
+          >
             <option value="inflow">Inflow</option>
             <option value="outflow">Outflow</option>
           </select>
-        </label>
-        <label>
-          Amount (PKR)
-          <input formControlName="amount" data-testid="account-tx-amount" />
-        </label>
-        <label>
-          Purpose
-          <input formControlName="purpose" data-testid="account-tx-purpose" />
-        </label>
-        <label>
-          Reference (optional)
-          <input formControlName="reference" data-testid="account-tx-reference" />
-        </label>
+        </div>
+        <div class="ag-field">
+          <agrivio-ui-field-label
+            label="Amount (PKR)"
+            for="account-tx-amount"
+            [required]="fieldRequired(transactionForm.controls.amount)"
+          />
+          <input
+            id="account-tx-amount"
+            class="ag-input"
+            formControlName="amount"
+            data-testid="account-tx-amount"
+            [attr.aria-required]="fieldRequired(transactionForm.controls.amount) ? 'true' : null"
+          />
+        </div>
+        <div class="ag-field">
+          <agrivio-ui-field-label
+            label="Purpose"
+            for="account-tx-purpose"
+            [required]="fieldRequired(transactionForm.controls.purpose)"
+          />
+          <input
+            id="account-tx-purpose"
+            class="ag-input"
+            formControlName="purpose"
+            data-testid="account-tx-purpose"
+            [attr.aria-required]="fieldRequired(transactionForm.controls.purpose) ? 'true' : null"
+          />
+        </div>
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Reference (optional)" for="account-tx-reference" />
+          <input
+            id="account-tx-reference"
+            class="ag-input"
+            formControlName="reference"
+            data-testid="account-tx-reference"
+          />
+        </div>
         <button
           class="ag-btn"
           type="submit"
@@ -134,28 +209,58 @@
   @if (accountId() && canTransfer()) {
     <section class="ag-stack form" data-testid="account-transfer-section">
       <h2>Transfer to another account</h2>
-      <form class="ag-stack" [formGroup]="transferForm" (ngSubmit)="postTransfer()">
-        <label>
-          Destination
-          <select formControlName="destinationAccountId" data-testid="account-transfer-destination">
+      <form class="ag-stack ag-form ag-form--with-required-hint" [formGroup]="transferForm" (ngSubmit)="postTransfer()">
+        <div class="ag-field">
+          <agrivio-ui-field-label
+            label="Destination"
+            for="account-transfer-destination"
+            [required]="fieldRequired(transferForm.controls.destinationAccountId)"
+          />
+          <select
+            id="account-transfer-destination"
+            class="ag-select"
+            formControlName="destinationAccountId"
+            data-testid="account-transfer-destination"
+            [attr.aria-required]="fieldRequired(transferForm.controls.destinationAccountId) ? 'true' : null"
+          >
             <option value="">Select account</option>
             @for (item of destinationAccounts(); track item.id) {
               <option [value]="item.id">{{ item.name }}</option>
             }
           </select>
-        </label>
-        <label>
-          Amount (PKR)
-          <input formControlName="amount" data-testid="account-transfer-amount" />
-        </label>
-        <label>
-          Purpose (optional)
-          <input formControlName="purpose" data-testid="account-transfer-purpose" />
-        </label>
-        <label>
-          Reference (optional)
-          <input formControlName="reference" data-testid="account-transfer-reference" />
-        </label>
+        </div>
+        <div class="ag-field">
+          <agrivio-ui-field-label
+            label="Amount (PKR)"
+            for="account-transfer-amount"
+            [required]="fieldRequired(transferForm.controls.amount)"
+          />
+          <input
+            id="account-transfer-amount"
+            class="ag-input"
+            formControlName="amount"
+            data-testid="account-transfer-amount"
+            [attr.aria-required]="fieldRequired(transferForm.controls.amount) ? 'true' : null"
+          />
+        </div>
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Purpose (optional)" for="account-transfer-purpose" />
+          <input
+            id="account-transfer-purpose"
+            class="ag-input"
+            formControlName="purpose"
+            data-testid="account-transfer-purpose"
+          />
+        </div>
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Reference (optional)" for="account-transfer-reference" />
+          <input
+            id="account-transfer-reference"
+            class="ag-input"
+            formControlName="reference"
+            data-testid="account-transfer-reference"
+          />
+        </div>
         <button
           class="ag-btn"
           type="submit"
@@ -171,11 +276,21 @@
   @if (accountId() && reverseTarget(); as target) {
     <section class="ag-stack form" data-testid="account-reverse-section">
       <h2>Reverse {{ target.kind }}</h2>
-      <form class="ag-stack" [formGroup]="reverseForm" (ngSubmit)="confirmReverse()">
-        <label>
-          Reason
-          <input formControlName="reason" data-testid="account-reverse-reason" />
-        </label>
+      <form class="ag-stack ag-form ag-form--with-required-hint" [formGroup]="reverseForm" (ngSubmit)="confirmReverse()">
+        <div class="ag-field">
+          <agrivio-ui-field-label
+            label="Reason"
+            for="account-reverse-reason"
+            [required]="fieldRequired(reverseForm.controls.reason)"
+          />
+          <input
+            id="account-reverse-reason"
+            class="ag-input"
+            formControlName="reason"
+            data-testid="account-reverse-reason"
+            [attr.aria-required]="fieldRequired(reverseForm.controls.reason) ? 'true' : null"
+          />
+        </div>
         <div class="ag-inline">
           <button class="ag-btn" type="submit" [disabled]="reversing()" data-testid="account-reverse-save">
             {{ reversing() ? 'Reversing…' : 'Confirm reverse' }}

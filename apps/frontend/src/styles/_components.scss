@@ -360,6 +360,26 @@
   color: var(--ag-color-text-muted);
 }
 
+.ag-field__required {
+  color: var(--ag-color-danger);
+  margin-left: 0.1rem;
+  font-weight: 700;
+}
+
+.ag-form--with-required-hint::before {
+  content: '* Required fields';
+  display: block;
+  margin-bottom: var(--ag-space-1);
+  font-size: var(--ag-text-xs);
+  color: var(--ag-color-text-muted);
+}
+
+.ag-form--with-required-hint > .ag-form__required-hint {
+  margin: 0 0 var(--ag-space-1);
+  font-size: var(--ag-text-xs);
+  color: var(--ag-color-text-muted);
+}
+
 .ag-form {
   display: grid;
   gap: var(--ag-space-4);

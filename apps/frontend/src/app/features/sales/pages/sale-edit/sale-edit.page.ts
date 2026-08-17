@@ -37,6 +37,8 @@ import { PackagingUnitRecord, ProductRecord } from '../../../catalog/models/cata
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 
 @Component({
@@ -49,6 +51,7 @@ import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialo
     UiAlertComponent,
     UiLoadingStateComponent,
     UiConfirmDialogComponent,
+    UiFieldLabelComponent,
   ],
   templateUrl: './sale-edit.page.html',
   styleUrl: './sale-edit.page.scss',
@@ -128,6 +131,8 @@ export class SaleEditPage {
   private version = 1;
   private postIdempotencyKey: string | null = null;
   private postIdempotencySaleId: string | null = null;
+
+  readonly fieldRequired = hasRequiredValidator;
 
   readonly form = this.formBuilder.nonNullable.group({
     branchId: ['', Validators.required],

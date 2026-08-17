@@ -16,6 +16,8 @@ import { AccountRecord } from '../../../accounts-expenses/models/accounts.models
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 
 @Component({
   selector: 'agrivio-customer-payment-form-page',
@@ -26,6 +28,7 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
     UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiFieldLabelComponent,
   ],
   templateUrl: './customer-payment-form.page.html',
   styleUrl: './customer-payment-form.page.scss',
@@ -46,6 +49,8 @@ export class CustomerPaymentFormPage {
   readonly ledgerItems = signal<CustomerLedgerEffectRecord[]>([]);
   readonly lastPayment = signal<CustomerPaymentRecord | null>(null);
   readonly canPost = computed(() => this.sessionStore.hasPermission('customer-payments.post'));
+
+  readonly fieldRequired = hasRequiredValidator;
 
   readonly form = this.formBuilder.nonNullable.group({
     customerId: ['', Validators.required],

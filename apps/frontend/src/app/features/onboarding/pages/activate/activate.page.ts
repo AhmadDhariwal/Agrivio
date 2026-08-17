@@ -12,6 +12,8 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { environment } from '../../../../../environments/environment';
 import { AuthLayoutComponent } from '../../../../shared/ui/auth-layout/auth-layout.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 
 function passwordsMatchValidator(group: AbstractControl): ValidationErrors | null {
   const password = group.get('password')?.value;
@@ -25,7 +27,7 @@ function passwordsMatchValidator(group: AbstractControl): ValidationErrors | nul
 @Component({
   selector: 'agrivio-activate-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, AuthLayoutComponent, UiAlertComponent],
+  imports: [ReactiveFormsModule, RouterLink, AuthLayoutComponent, UiAlertComponent, UiFieldLabelComponent],
   templateUrl: './activate.page.html',
   styleUrl: './activate.page.scss',
 })
@@ -40,6 +42,8 @@ export class ActivatePage implements OnInit {
   readonly showPassword = signal(false);
   readonly successMessage = signal<string | null>(null);
   readonly errorMessage = signal<string | null>(null);
+
+  readonly fieldRequired = hasRequiredValidator;
 
   readonly form = this.formBuilder.nonNullable.group(
     {

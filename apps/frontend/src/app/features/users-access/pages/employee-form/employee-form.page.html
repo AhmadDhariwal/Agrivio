@@ -17,23 +17,58 @@
     />
     <a class="ag-btn" routerLink="/app/employees">Back to employees</a>
   } @else {
-    <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="employee-form">
-      <label>
-        Email
-        <input formControlName="email" data-testid="employee-email" />
-      </label>
-      <label>
-        Display name
-        <input formControlName="displayName" data-testid="employee-display-name" />
-      </label>
-      <label>
-        Role
-        <select formControlName="role" data-testid="employee-role">
+    <form
+      class="ag-stack form ag-form ag-form--with-required-hint"
+      [formGroup]="form"
+      (ngSubmit)="save()"
+      data-testid="employee-form"
+    >
+      <div class="ag-field">
+        <agrivio-ui-field-label
+          label="Email"
+          for="employee-email"
+          [required]="fieldRequired(form.controls.email)"
+        />
+        <input
+          id="employee-email"
+          class="ag-input"
+          formControlName="email"
+          data-testid="employee-email"
+          [attr.aria-required]="fieldRequired(form.controls.email) ? 'true' : null"
+        />
+      </div>
+      <div class="ag-field">
+        <agrivio-ui-field-label
+          label="Display name"
+          for="employee-display-name"
+          [required]="fieldRequired(form.controls.displayName)"
+        />
+        <input
+          id="employee-display-name"
+          class="ag-input"
+          formControlName="displayName"
+          data-testid="employee-display-name"
+          [attr.aria-required]="fieldRequired(form.controls.displayName) ? 'true' : null"
+        />
+      </div>
+      <div class="ag-field">
+        <agrivio-ui-field-label
+          label="Role"
+          for="employee-role"
+          [required]="fieldRequired(form.controls.role)"
+        />
+        <select
+          id="employee-role"
+          class="ag-select"
+          formControlName="role"
+          data-testid="employee-role"
+          [attr.aria-required]="fieldRequired(form.controls.role) ? 'true' : null"
+        >
           @for (role of roles; track role) {
             <option [value]="role">{{ role === 'StoreKeeper' ? 'Store Keeper' : role }}</option>
           }
         </select>
-      </label>
+      </div>
 
       @if (canAssign()) {
         <fieldset>

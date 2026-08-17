@@ -1,5 +1,26 @@
 import { Component, effect, input, output } from '@angular/core';
 
+let bodyScrollLockCount = 0;
+let previousBodyOverflow = '';
+
+function lockBodyScroll(): void {
+  if (bodyScrollLockCount === 0) {
+    previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+  }
+  bodyScrollLockCount += 1;
+}
+
+function unlockBodyScroll(): void {
+  if (bodyScrollLockCount === 0) {
+    return;
+  }
+  bodyScrollLockCount -= 1;
+  if (bodyScrollLockCount === 0) {
+    document.body.style.overflow = previousBodyOverflow;
+  }
+}
+
 @Component({
   selector: 'agrivio-ui-dialog',
   standalone: true,
@@ -67,10 +88,9 @@ export class UiDialogComponent {
       if (!this.open()) {
         return;
       }
-      const previousOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
+      lockBodyScroll();
       onCleanup(() => {
-        document.body.style.overflow = previousOverflow;
+        unlockBodyScroll();
       });
     });
   }

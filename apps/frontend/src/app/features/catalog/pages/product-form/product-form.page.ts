@@ -9,6 +9,8 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 import { mapPlanLimitError } from '../../../../core/plan-limits/plan-limit-feedback';
 
 @Component({
@@ -20,6 +22,7 @@ import { mapPlanLimitError } from '../../../../core/plan-limits/plan-limit-feedb
     UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiFieldLabelComponent,
   ],
   templateUrl: './product-form.page.html',
   styleUrl: './product-form.page.scss',
@@ -38,6 +41,8 @@ export class ProductFormPage {
   readonly errorMessage = signal<string | null>(null);
   readonly canManage = computed(() => this.sessionStore.hasPermission('catalog.manage'));
   private version = 1;
+
+  readonly fieldRequired = hasRequiredValidator;
 
   readonly form = this.formBuilder.nonNullable.group({
     categoryId: ['', [Validators.required]],

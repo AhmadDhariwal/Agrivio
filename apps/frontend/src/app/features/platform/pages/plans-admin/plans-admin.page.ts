@@ -5,6 +5,8 @@ import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-p
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 import { UiStatusBadgeComponent, UiBadgeTone } from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
 
 @Component({
@@ -17,6 +19,7 @@ import { UiStatusBadgeComponent, UiBadgeTone } from '../../../../shared/ui/ui-st
     UiEmptyStateComponent,
     UiLoadingStateComponent,
     UiStatusBadgeComponent,
+    UiFieldLabelComponent,
   ],
   templateUrl: './plans-admin.page.html',
   styleUrl: './plans-admin.page.scss',
@@ -30,6 +33,8 @@ export class PlatformPlansPage {
   readonly submitting = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
+
+  readonly fieldRequired = hasRequiredValidator;
 
   readonly form = this.formBuilder.nonNullable.group({
     planCode: ['Starter', Validators.required],

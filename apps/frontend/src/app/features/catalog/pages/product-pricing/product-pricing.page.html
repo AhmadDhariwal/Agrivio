@@ -13,27 +13,37 @@
     <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
   }
   <form
-    class="ag-stack form"
+    class="ag-stack form ag-form ag-form--with-required-hint"
     [formGroup]="form"
     (ngSubmit)="save()"
     data-testid="product-pricing"
   >
-    <label>
-      Retail
-      <input formControlName="retail" data-testid="price-retail" />
-    </label>
-    <label>
-      Wholesale
-      <input formControlName="wholesale" data-testid="price-wholesale" />
-    </label>
-    <label>
-      Dealer
-      <input formControlName="dealer" data-testid="price-dealer" />
-    </label>
-    <label>
-      Distributor
-      <input formControlName="distributor" data-testid="price-distributor" />
-    </label>
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Retail"
+        for="price-retail"
+        [required]="fieldRequired(form.controls.retail)"
+      />
+      <input
+        id="price-retail"
+        class="ag-input"
+        formControlName="retail"
+        data-testid="price-retail"
+        [attr.aria-required]="fieldRequired(form.controls.retail) ? 'true' : null"
+      />
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label label="Wholesale" for="price-wholesale" />
+      <input id="price-wholesale" class="ag-input" formControlName="wholesale" data-testid="price-wholesale" />
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label label="Dealer" for="price-dealer" />
+      <input id="price-dealer" class="ag-input" formControlName="dealer" data-testid="price-dealer" />
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label label="Distributor" for="price-distributor" />
+      <input id="price-distributor" class="ag-input" formControlName="distributor" data-testid="price-distributor" />
+    </div>
     <div class="ag-inline">
       <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="product-pricing-save">
         Save

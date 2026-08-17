@@ -13,6 +13,8 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 import { mapPlanLimitError } from '../../../../core/plan-limits/plan-limit-feedback';
 
 @Component({
@@ -24,6 +26,7 @@ import { mapPlanLimitError } from '../../../../core/plan-limits/plan-limit-feedb
     UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiFieldLabelComponent,
   ],
   templateUrl: './employee-form.page.html',
   styleUrl: './employee-form.page.scss',
@@ -46,6 +49,8 @@ export class EmployeeFormPage {
   readonly canUpdate = computed(() => this.sessionStore.hasPermission('users.update'));
   readonly canAssign = computed(() => this.sessionStore.hasPermission('users.assign-access'));
   private version = 1;
+
+  readonly fieldRequired = hasRequiredValidator;
 
   readonly form = this.formBuilder.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],

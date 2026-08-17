@@ -4,11 +4,19 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthApi } from '../../data-access/auth.api';
 import { AuthLayoutComponent } from '../../../../shared/ui/auth-layout/auth-layout.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 
 @Component({
   selector: 'agrivio-password-reset-confirm-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, AuthLayoutComponent, UiAlertComponent],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    AuthLayoutComponent,
+    UiAlertComponent,
+    UiFieldLabelComponent,
+  ],
   templateUrl: './password-reset-confirm.page.html',
   styleUrl: './password-reset-confirm.page.scss',
 })
@@ -21,6 +29,8 @@ export class PasswordResetConfirmPage implements OnInit {
   readonly showPassword = signal(false);
   readonly successMessage = signal<string | null>(null);
   readonly errorMessage = signal<string | null>(null);
+
+  readonly fieldRequired = hasRequiredValidator;
 
   readonly form = this.formBuilder.nonNullable.group({
     token: ['', [Validators.required]],

@@ -13,7 +13,11 @@
   "targetDefaults": {
     "@angular/build:application": {
       "cache": true,
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "api-contracts:typecheck"],
+      "inputs": ["default", "^default"]
+    },
+    "@angular/build:dev-server": {
+      "dependsOn": ["api-contracts:typecheck"],
       "inputs": ["default", "^default"]
     },
     "@nx/eslint:lint": {

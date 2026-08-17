@@ -5,6 +5,8 @@ import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-p
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 import { UiStatusBadgeComponent, UiBadgeTone } from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 
@@ -19,6 +21,7 @@ import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialo
     UiLoadingStateComponent,
     UiStatusBadgeComponent,
     UiConfirmDialogComponent,
+    UiFieldLabelComponent,
   ],
   templateUrl: './billing-review.page.html',
   styleUrl: './billing-review.page.scss',
@@ -38,6 +41,8 @@ export class PlatformBillingReviewPage {
   readonly confirmLabel = signal('Confirm');
   readonly confirmDanger = signal(false);
   private pendingAction: (() => void) | null = null;
+
+  readonly fieldRequired = hasRequiredValidator;
 
   readonly rejectForm = this.formBuilder.nonNullable.group({
     reason: ['', [Validators.required, Validators.minLength(3)]],

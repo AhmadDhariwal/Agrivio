@@ -12,29 +12,54 @@
   @if (errorMessage(); as error) {
     <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
   }
-  <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="category-form">
-    <label>
-      Name
-      <input formControlName="name" data-testid="category-name" />
-    </label>
-    <label>
-      Product class
-      <select formControlName="productClass" data-testid="category-product-class">
+  <form
+    class="ag-stack form ag-form ag-form--with-required-hint"
+    [formGroup]="form"
+    (ngSubmit)="save()"
+    data-testid="category-form"
+  >
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Name"
+        for="category-name"
+        [required]="fieldRequired(form.controls.name)"
+      />
+      <input
+        id="category-name"
+        class="ag-input"
+        formControlName="name"
+        data-testid="category-name"
+        [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
+      />
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Product class"
+        for="category-product-class"
+        [required]="fieldRequired(form.controls.productClass)"
+      />
+      <select
+        id="category-product-class"
+        class="ag-select"
+        formControlName="productClass"
+        data-testid="category-product-class"
+        [attr.aria-required]="fieldRequired(form.controls.productClass) ? 'true' : null"
+      >
         <option value="general">General</option>
         <option value="fertilizer">Fertilizer</option>
         <option value="seed">Seed</option>
         <option value="pesticide">Pesticide</option>
         <option value="chemical">Chemical</option>
       </select>
-    </label>
+    </div>
     @if (categoryId()) {
-      <label>
-        Status
-        <select formControlName="status" data-testid="category-status">
+      <div class="ag-field">
+        <agrivio-ui-field-label label="Status" for="category-status" />
+        <select id="category-status" class="ag-select" formControlName="status" data-testid="category-status">
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
-      </label>
+      </div>
     }
     <div class="ag-inline">
       <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="category-save">Save</button>

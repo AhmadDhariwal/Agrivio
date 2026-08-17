@@ -20,83 +20,135 @@
     </div>
   }
 
-  <form class="ag-stack" [formGroup]="form" (ngSubmit)="submit()" data-testid="without-invoice-form">
-    <label>
-      Warehouse
-      <select formControlName="warehouseId" data-testid="without-invoice-warehouse">
+  <form
+    class="ag-stack ag-form ag-form--with-required-hint"
+    [formGroup]="form"
+    (ngSubmit)="submit()"
+    data-testid="without-invoice-form"
+  >
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Warehouse"
+        for="without-invoice-warehouse"
+        [required]="fieldRequired(form.controls.warehouseId)"
+      />
+      <select
+        id="without-invoice-warehouse"
+        class="ag-select"
+        formControlName="warehouseId"
+        data-testid="without-invoice-warehouse"
+        [attr.aria-required]="fieldRequired(form.controls.warehouseId) ? 'true' : null"
+      >
         <option value="">Select warehouse</option>
         @for (warehouse of warehouses(); track warehouse.id) {
           <option [value]="warehouse.id">{{ warehouse.name }}</option>
         }
       </select>
-    </label>
+    </div>
 
-    <label>
-      Customer lookup
-      <select formControlName="customerId" data-testid="without-invoice-customer">
+    <div class="ag-field">
+      <agrivio-ui-field-label label="Customer lookup" for="without-invoice-customer" />
+      <select id="without-invoice-customer" class="ag-select" formControlName="customerId" data-testid="without-invoice-customer">
         <option value="">No registered customer</option>
         @for (customer of customers(); track customer.id) {
           <option [value]="customer.id">{{ customer.name }}</option>
         }
       </select>
-    </label>
-    <label>
-      Identifying name
-      <input formControlName="customerIdentifyingName" data-testid="without-invoice-name" />
-    </label>
-    <label>
-      Identifying phone
-      <input formControlName="customerIdentifyingPhone" data-testid="without-invoice-phone" />
-    </label>
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label label="Identifying name" for="without-invoice-name" />
+      <input id="without-invoice-name" class="ag-input" formControlName="customerIdentifyingName" data-testid="without-invoice-name" />
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label label="Identifying phone" for="without-invoice-phone" />
+      <input id="without-invoice-phone" class="ag-input" formControlName="customerIdentifyingPhone" data-testid="without-invoice-phone" />
+    </div>
 
     @for (line of lines.controls; track $index; let index = $index) {
       <fieldset class="line" [formGroup]="lineGroup(index)">
         <legend>Returned product {{ index + 1 }}</legend>
-        <label>
-          Product
+        <div class="ag-field">
+          <agrivio-ui-field-label
+            label="Product"
+            [for]="'without-invoice-product-' + index"
+            [required]="fieldRequired(lineGroup(index).controls['productId'])"
+          />
           <select
+            [id]="'without-invoice-product-' + index"
+            class="ag-select"
             formControlName="productId"
             data-testid="without-invoice-product"
             (change)="onProductChange(index)"
+            [attr.aria-required]="fieldRequired(lineGroup(index).controls['productId']) ? 'true' : null"
           >
             <option value="">Select product</option>
             @for (product of products(); track product.id) {
               <option [value]="product.id">{{ product.name }}</option>
             }
           </select>
-        </label>
-        <label>
-          Quantity
-          <input formControlName="quantity" data-testid="without-invoice-qty" />
-        </label>
+        </div>
+        <div class="ag-field">
+          <agrivio-ui-field-label
+            label="Quantity"
+            [for]="'without-invoice-qty-' + index"
+            [required]="fieldRequired(lineGroup(index).controls['quantity'])"
+          />
+          <input
+            [id]="'without-invoice-qty-' + index"
+            class="ag-input"
+            formControlName="quantity"
+            data-testid="without-invoice-qty"
+            [attr.aria-required]="fieldRequired(lineGroup(index).controls['quantity']) ? 'true' : null"
+          />
+        </div>
         @if (productNeedsBatch(index)) {
-          <label>
-            Batch
-            <select formControlName="batchId" data-testid="without-invoice-batch">
+          <div class="ag-field">
+            <agrivio-ui-field-label label="Batch" [for]="'without-invoice-batch-' + index" />
+            <select
+              [id]="'without-invoice-batch-' + index"
+              class="ag-select"
+              formControlName="batchId"
+              data-testid="without-invoice-batch"
+            >
               <option value="">Select batch</option>
               @for (batch of batchesForLine(index); track batch.id) {
                 <option [value]="batch.id">{{ batch.batchNumber }}</option>
               }
             </select>
-          </label>
+          </div>
         }
-        <label>
-          Stock condition
-          <select formControlName="stockCondition" data-testid="without-invoice-condition">
+        <div class="ag-field">
+          <agrivio-ui-field-label
+            label="Stock condition"
+            [for]="'without-invoice-condition-' + index"
+            [required]="fieldRequired(lineGroup(index).controls['stockCondition'])"
+          />
+          <select
+            [id]="'without-invoice-condition-' + index"
+            class="ag-select"
+            formControlName="stockCondition"
+            data-testid="without-invoice-condition"
+            [attr.aria-required]="fieldRequired(lineGroup(index).controls['stockCondition']) ? 'true' : null"
+          >
             <option value="sellable">Sellable</option>
             <option value="unsellable">Unsellable</option>
           </select>
-        </label>
-        <label>
-          Unsellable reason
-          <select formControlName="unsellableReason" data-testid="without-invoice-unsellable-reason">
+        </div>
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Unsellable reason" [for]="'without-invoice-unsellable-' + index" />
+          <select
+            [id]="'without-invoice-unsellable-' + index"
+            class="ag-select"
+            formControlName="unsellableReason"
+            data-testid="without-invoice-unsellable-reason"
+          >
             <option value="expired">Expired</option>
             <option value="damaged">Damaged</option>
             <option value="opened">Opened</option>
             <option value="contaminated">Contaminated</option>
             <option value="other">Other</option>
           </select>
-        </label>
+        </div>
         <button class="ag-btn ag-btn--secondary" type="button" (click)="removeLine(index)">
           Remove
         </button>
@@ -105,30 +157,65 @@
 
     <button class="ag-btn ag-btn--secondary" type="button" (click)="addLine()">Add product</button>
 
-    <label>
-      Return reason
-      <input formControlName="reason" data-testid="without-invoice-reason" />
-    </label>
-    <label>
-      Approved refund / credit value (PKR)
-      <input formControlName="approvedReturnValue" data-testid="without-invoice-value" />
-    </label>
-    <label>
-      Financial resolution
-      <select formControlName="resolution" data-testid="without-invoice-resolution">
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Return reason"
+        for="without-invoice-reason"
+        [required]="fieldRequired(form.controls.reason)"
+      />
+      <input
+        id="without-invoice-reason"
+        class="ag-input"
+        formControlName="reason"
+        data-testid="without-invoice-reason"
+        [attr.aria-required]="fieldRequired(form.controls.reason) ? 'true' : null"
+      />
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Approved refund / credit value (PKR)"
+        for="without-invoice-value"
+        [required]="fieldRequired(form.controls.approvedReturnValue)"
+      />
+      <input
+        id="without-invoice-value"
+        class="ag-input"
+        formControlName="approvedReturnValue"
+        data-testid="without-invoice-value"
+        [attr.aria-required]="fieldRequired(form.controls.approvedReturnValue) ? 'true' : null"
+      />
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Financial resolution"
+        for="without-invoice-resolution"
+        [required]="fieldRequired(form.controls.resolution)"
+      />
+      <select
+        id="without-invoice-resolution"
+        class="ag-select"
+        formControlName="resolution"
+        data-testid="without-invoice-resolution"
+        [attr.aria-required]="fieldRequired(form.controls.resolution) ? 'true' : null"
+      >
         <option value="ledger_adjustment">Customer ledger adjustment</option>
         <option value="account_refund">Cash / bank / digital refund</option>
       </select>
-    </label>
-    <label>
-      Refund account
-      <select formControlName="refundAccountId" data-testid="without-invoice-refund-account">
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label label="Refund account" for="without-invoice-refund-account" />
+      <select
+        id="without-invoice-refund-account"
+        class="ag-select"
+        formControlName="refundAccountId"
+        data-testid="without-invoice-refund-account"
+      >
         <option value="">None</option>
         @for (account of accounts(); track account.id) {
           <option [value]="account.id">{{ account.name }} ({{ account.accountType }})</option>
         }
       </select>
-    </label>
+    </div>
 
     <div class="ag-inline">
       <button
