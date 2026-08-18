@@ -15,7 +15,7 @@ const {
 } = require('./auth.validation');
 const { createAuthRateLimiter, resolveAuthRateLimiterOptions } = require('./auth.rate-limit');
 
-const INACTIVITY_MS = 30 * 60 * 1000;
+const INACTIVITY_MS = 4 * 60 * 60 * 1000;
 const ABSOLUTE_MS = 12 * 60 * 60 * 1000;
 const PREAUTH_MS = 60 * 60 * 1000;
 const RESET_TTL_MS = 30 * 60 * 1000;
