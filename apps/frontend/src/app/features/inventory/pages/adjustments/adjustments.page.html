@@ -18,6 +18,8 @@
 
     <form [formGroup]="form" (ngSubmit)="submit()" data-testid="adjustment-form" class="ag-form ag-form--with-required-hint">
       <div class="ag-field">
+        <agrivio-ui-field-label label="Find product" for="adjustment-product-search" />
+        <input id="adjustment-product-search" class="ag-input" type="search" (change)="onProductSearch($event)" />
         <agrivio-ui-field-label
           label="Warehouse"
           for="adjustment-warehouse"
@@ -197,6 +199,7 @@
         </tbody>
       </table>
     </div>
+    <agrivio-ui-pagination [page]="page()" [pageSize]="pageSize()" [total]="total()" [disabled]="loading()" (pageChange)="onPageChange($event)" (pageSizeChange)="onPageSizeChange($event)" />
   }
 }
 

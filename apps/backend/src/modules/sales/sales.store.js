@@ -13,7 +13,7 @@ function isDuplicateKeyError(error) {
 
 function createMongooseSalesStore() {
   return {
-    async listSales(organizationId, filter = {}) {
+    async listSales(organizationId, filter = {}, pagination = {}) {
       const query = { organizationId };
       if (filter.status) {
         query.status = filter.status;
@@ -27,7 +27,19 @@ function createMongooseSalesStore() {
       if (filter.branchId) {
         query.branchId = filter.branchId;
       }
-      return SaleModel.find(query).sort({ createdAt: -1 }).lean().exec();
+      if (Array.isArray(filter.warehouseIds)) {
+        query.warehouseId = { $in: filter.warehouseIds };
+      }
+      const search = String(filter.search ?? '').trim().toUpperCase();
+      if (search !== '') {
+        query.invoiceNumber = { $regex: `^${search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}` };
+      }
+      const hasPagination = pagination.skip !== undefined || pagination.pageSize !== undefined;
+      const { skip = 0, pageSize = 25 } = pagination;
+      let find = SaleModel.find(query).sort({ createdAt: -1, _id: -1 });
+      if (hasPagination) find = find.skip(skip).limit(pageSize);
+      const [total, items] = await Promise.all([SaleModel.countDocuments(query).exec(), find.lean().exec()]);
+      return { items, total };
     },
 
     async findSaleById(organizationId, id) {
@@ -134,8 +146,8 @@ function createInMemorySalesStore() {
   }
 
   return {
-    async listSales(organizationId, filter = {}) {
-      return [...sales.values()]
+    async listSales(organizationId, filter = {}, pagination = {}) {
+      const all = [...sales.values()]
         .filter((item) => {
           if (String(item.organizationId) !== String(organizationId)) {
             return false;
@@ -152,10 +164,17 @@ function createInMemorySalesStore() {
           if (filter.branchId && String(item.branchId) !== String(filter.branchId)) {
             return false;
           }
+          if (Array.isArray(filter.warehouseIds) && !filter.warehouseIds.map(String).includes(String(item.warehouseId))) return false;
+          const search = String(filter.search ?? '').trim().toUpperCase();
+          if (search !== '' && !String(item.invoiceNumber ?? '').toUpperCase().startsWith(search)) return false;
           return true;
         })
         .map((item) => ({ ...item, lines: item.lines.map((line) => ({ ...line })) }))
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() || String(b._id).localeCompare(String(a._id)));
+      const total = all.length;
+      const hasPagination = pagination.skip !== undefined || pagination.pageSize !== undefined;
+      const { skip = 0, pageSize = 25 } = pagination;
+      return { items: hasPagination ? all.slice(skip, skip + pageSize) : all, total };
     },
 
     async findSaleById(organizationId, id) {

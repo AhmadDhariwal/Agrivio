@@ -18,6 +18,8 @@
 
     <form [formGroup]="form" (ngSubmit)="submit()" data-testid="transfer-form" class="ag-form ag-form--with-required-hint">
       <div class="ag-field">
+        <agrivio-ui-field-label label="Find product" for="transfer-product-search" />
+        <input id="transfer-product-search" class="ag-input" type="search" (change)="onProductSearch($event)" />
         <agrivio-ui-field-label
           label="Source warehouse"
           for="transfer-source"
@@ -156,6 +158,7 @@
         </tbody>
       </table>
     </div>
+    <agrivio-ui-pagination [page]="page()" [pageSize]="pageSize()" [total]="total()" [disabled]="loading()" (pageChange)="onPageChange($event)" (pageSizeChange)="onPageSizeChange($event)" />
   }
 }
 

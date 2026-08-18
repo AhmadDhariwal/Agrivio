@@ -10,6 +10,7 @@ import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.compon
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiStatusBadgeComponent } from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
+import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 
 @Component({
   selector: 'agrivio-expenses-page',
@@ -21,6 +22,7 @@ import { UiStatusBadgeComponent } from '../../../../shared/ui/ui-status-badge/ui
     UiEmptyStateComponent,
     UiLoadingStateComponent,
     UiStatusBadgeComponent,
+    UiPaginationComponent,
   ],
   templateUrl: './expenses.page.html',
   styleUrl: './expenses.page.scss',
@@ -33,6 +35,9 @@ export class ExpensesPage {
   readonly categories = signal<ExpenseCategoryRecord[]>([]);
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
+  readonly page = signal(1);
+  readonly pageSize = signal(25);
+  readonly total = signal(0);
   readonly canPost = computed(() => this.sessionStore.hasPermission('expenses.post'));
   readonly canView = computed(() => this.sessionStore.hasPermission('expenses.view'));
 
@@ -48,11 +53,12 @@ export class ExpensesPage {
     }
     this.loading.set(true);
     forkJoin({
-      items: this.api.listExpenses(),
-      categories: this.api.listCategories(),
+      items: this.api.listExpenses({ page: this.page(), pageSize: this.pageSize() }),
+      categories: this.api.listCategoryOptions(),
     }).subscribe({
       next: ({ items, categories }) => {
-        this.items.set(items);
+        this.items.set(items.items);
+        this.total.set(items.meta.total);
         this.categories.set(categories);
         this.loading.set(false);
       },
@@ -68,6 +74,9 @@ export class ExpensesPage {
       },
     });
   }
+
+  onPageChange(page: number): void { this.page.set(page); this.reload(); }
+  onPageSizeChange(pageSize: number): void { this.pageSize.set(pageSize); this.page.set(1); this.reload(); }
 
   categoryName(categoryId: string): string {
     return this.categories().find((item) => item.id === categoryId)?.name ?? 'Category';

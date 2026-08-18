@@ -13,6 +13,7 @@ import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-p
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiStatusBadgeComponent } from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
+import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 
 @Component({
   selector: 'agrivio-returns-list-page',
@@ -23,6 +24,7 @@ import { UiStatusBadgeComponent } from '../../../../shared/ui/ui-status-badge/ui
     UiAlertComponent,
     UiLoadingStateComponent,
     UiStatusBadgeComponent,
+    UiPaginationComponent,
   ],
   templateUrl: './returns-list.page.html',
   styleUrl: './returns-list.page.scss',
@@ -45,18 +47,27 @@ export class ReturnsListPage {
   readonly reverseReason = signal('');
   readonly reversingId = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
+  readonly page = signal(1);
+  readonly pageSize = signal(25);
+  readonly total = signal(0);
 
   constructor() {
     if (!this.canView()) {
       this.loading.set(false);
       return;
     }
+    this.reload();
+  }
+
+  reload(): void {
+    this.loading.set(true);
     forkJoin({
-      items: this.api.listReturns(),
-      warehouses: this.locationsApi.listWarehouses().pipe(catchError(() => of([]))),
+      items: this.api.listReturns({ page: this.page(), pageSize: this.pageSize() }),
+      warehouses: this.locationsApi.listWarehouseOptions().pipe(catchError(() => of([]))),
     }).subscribe({
       next: ({ items, warehouses }) => {
-        this.items.set(items);
+        this.items.set(items.items);
+        this.total.set(items.meta.total);
         this.warehouses.set(warehouses);
         this.loading.set(false);
       },
@@ -66,6 +77,9 @@ export class ReturnsListPage {
       },
     });
   }
+
+  onPageChange(page: number): void { this.page.set(page); this.reload(); }
+  onPageSizeChange(pageSize: number): void { this.pageSize.set(pageSize); this.page.set(1); this.reload(); }
 
   typeLabel(returnType: string): string {
     return returnTypeLabel(returnType);

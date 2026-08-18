@@ -27,6 +27,8 @@
     data-testid="without-invoice-form"
   >
     <div class="ag-field">
+      <agrivio-ui-field-label label="Find customer" for="without-invoice-customer-search" />
+      <input id="without-invoice-customer-search" class="ag-input" type="search" (change)="onCustomerSearch($event)" />
       <agrivio-ui-field-label
         label="Warehouse"
         for="without-invoice-warehouse"
@@ -68,6 +70,8 @@
       <fieldset class="line" [formGroup]="lineGroup(index)">
         <legend>Returned product {{ index + 1 }}</legend>
         <div class="ag-field">
+          <agrivio-ui-field-label label="Find product" [for]="'without-invoice-product-search-' + index" />
+          <input [id]="'without-invoice-product-search-' + index" class="ag-input" type="search" (change)="onProductSearch($event)" />
           <agrivio-ui-field-label
             label="Product"
             [for]="'without-invoice-product-' + index"

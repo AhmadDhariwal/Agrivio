@@ -144,8 +144,8 @@ export class DashboardPage {
     }
     this.filtersLoading.set(true);
     forkJoin({
-      branches: this.locationsApi.listBranches().pipe(catchError(() => of([] as BranchRecord[]))),
-      warehouses: this.locationsApi.listWarehouses().pipe(catchError(() => of([] as WarehouseRecord[]))),
+      branches: this.locationsApi.listBranchOptions().pipe(catchError(() => of([] as BranchRecord[]))),
+      warehouses: this.locationsApi.listWarehouseOptions().pipe(catchError(() => of([] as WarehouseRecord[]))),
     }).subscribe({
       next: ({ branches, warehouses }) => {
         this.branches.set(branches.filter((item) => item.status === 'active'));

@@ -26,6 +26,8 @@
     data-testid="opening-stock-form"
   >
     <div class="ag-field">
+      <agrivio-ui-field-label label="Find product" for="opening-product-search" />
+      <input id="opening-product-search" class="ag-input" type="search" (change)="onProductSearch($event)" />
       <agrivio-ui-field-label
         label="Warehouse"
         for="opening-warehouse"

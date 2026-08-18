@@ -475,16 +475,17 @@ function createPaymentsService(deps) {
     },
 
     async listSupplierPayments(organizationId, query = {}) {
-      const items = await store.listPayments(organizationId, {
+      const { items, total } = await store.listPaymentsPage(organizationId, {
         partyType: 'supplier',
         supplierId: query.supplierId,
-      });
+        search: query.search,
+      }, { skip: query.skip, pageSize: query.pageSize });
       const mapped = [];
       for (const item of items) {
         const allocations = await store.listAllocationsByPayment(organizationId, String(item['_id']));
         mapped.push(toPaymentDto(item, allocations));
       }
-      return { items: mapped };
+      return { items: mapped, total };
     },
 
     async getSupplierPayment(organizationId, paymentId) {
@@ -1002,16 +1003,17 @@ function createPaymentsService(deps) {
     },
 
     async listCustomerPayments(organizationId, query = {}) {
-      const items = await store.listPayments(organizationId, {
+      const { items, total } = await store.listPaymentsPage(organizationId, {
         partyType: 'customer',
         customerId: query.customerId,
-      });
+        search: query.search,
+      }, { skip: query.skip, pageSize: query.pageSize });
       const mapped = [];
       for (const item of items) {
         const allocations = await store.listAllocationsByPayment(organizationId, String(item['_id']));
         mapped.push(toPaymentDto(item, allocations));
       }
-      return { items: mapped };
+      return { items: mapped, total };
     },
 
     async getCustomerPayment(organizationId, paymentId) {

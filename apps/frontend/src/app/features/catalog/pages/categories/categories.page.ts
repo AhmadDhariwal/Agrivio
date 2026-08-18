@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { CatalogApi } from '../../data-access/catalog.api';
@@ -11,11 +11,14 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
 import { UiStatusBadgeComponent } from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { UiLifecycleFilterComponent } from '../../../../shared/ui/ui-lifecycle-filter/ui-lifecycle-filter.component';
+import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
+import { UiSearchInputComponent } from '../../../../shared/ui/ui-search-input/ui-search-input.component';
+import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, startWith, switchMap } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   MasterLifecycleFilter,
   deactivateCopy,
   deletePermanentlyCopy,
-  filterMasterLifecycle,
   reactivateCopy,
   recordInUseMessage,
 } from '../../../../shared/lifecycle/master-lifecycle';
@@ -32,6 +35,8 @@ import {
     UiStatusBadgeComponent,
     UiConfirmDialogComponent,
     UiLifecycleFilterComponent,
+    UiPaginationComponent,
+    UiSearchInputComponent,
   ],
   templateUrl: './categories.page.html',
   styleUrl: './categories.page.scss',
@@ -39,10 +44,18 @@ import {
 export class CategoriesPage {
   private readonly api = inject(CatalogApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly reloadRequests = new Subject<void>();
+  private readonly searchChanges = new Subject<string>();
+  private clampAfterLoad = false;
 
   readonly items = signal<CategoryRecord[]>([]);
   readonly statusFilter = signal<MasterLifecycleFilter>('active');
-  readonly visibleItems = computed(() => filterMasterLifecycle(this.items(), this.statusFilter()));
+  readonly visibleItems = this.items;
+  readonly page = signal(1);
+  readonly pageSize = signal(25);
+  readonly total = signal(0);
+  readonly search = signal('');
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
@@ -58,31 +71,35 @@ export class CategoriesPage {
     | null = null;
 
   constructor() {
-    this.reload();
-  }
-
-  reload(): void {
-    if (!this.canView()) {
-      this.loading.set(false);
-      this.errorMessage.set('You do not have permission to view categories.');
-      return;
-    }
-    this.loading.set(true);
-    this.api.listCategories().subscribe({
-      next: (items) => {
-        this.items.set(items);
+    this.searchChanges.pipe(debounceTime(300), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
+      .subscribe((search) => { this.search.set(search.trim()); this.page.set(1); this.reload(); });
+    this.reloadRequests.pipe(startWith(undefined), switchMap(() => {
+      if (!this.canView()) {
+        this.loading.set(false); this.errorMessage.set('You do not have permission to view categories.'); return EMPTY;
+      }
+      this.loading.set(true); this.errorMessage.set(null);
+      return this.api.listCategories({
+        page: this.page(), pageSize: this.pageSize(), status: this.statusFilter(), search: this.search(),
+      }).pipe(catchError((error: unknown) => {
         this.loading.set(false);
-      },
-      error: (error: unknown) => {
-        this.loading.set(false);
-        this.errorMessage.set(
-          error instanceof HttpErrorResponse
-            ? (error.error?.error?.message ?? 'Unable to load categories.')
-            : 'Unable to load categories.',
-        );
-      },
+        this.errorMessage.set(error instanceof HttpErrorResponse
+          ? (error.error?.error?.message ?? 'Unable to load categories.') : 'Unable to load categories.');
+        return EMPTY;
+      }));
+    }), takeUntilDestroyed(this.destroyRef)).subscribe(({ items, meta }) => {
+      const totalPages = Math.max(1, Math.ceil(meta.total / meta.pageSize));
+      if (this.clampAfterLoad && meta.total > 0 && this.page() > totalPages) {
+        this.clampAfterLoad = false; this.page.set(totalPages); this.reload(); return;
+      }
+      this.clampAfterLoad = false; this.items.set(items); this.total.set(meta.total); this.loading.set(false);
     });
   }
+
+  reload(clampAfterLoad = false): void { this.clampAfterLoad = clampAfterLoad; this.reloadRequests.next(); }
+  onSearchChange(value: string): void { this.searchChanges.next(value); }
+  onStatusChange(value: MasterLifecycleFilter): void { this.statusFilter.set(value); this.page.set(1); this.reload(); }
+  onPageChange(page: number): void { this.page.set(page); this.reload(); }
+  onPageSizeChange(pageSize: number): void { this.pageSize.set(pageSize); this.page.set(1); this.reload(); }
 
   askDeactivate(item: CategoryRecord): void {
     const copy = deactivateCopy('category', 'Existing products and posted history will remain unchanged.');
@@ -122,7 +139,7 @@ export class CategoriesPage {
       this.api.deleteCategory(pending.item.id).subscribe({
         next: () => {
           this.successMessage.set('Category deleted.');
-          this.reload();
+          this.reload(true);
         },
         error: (error: unknown) => {
           this.errorMessage.set(recordInUseMessage(error, 'Unable to delete category.'));

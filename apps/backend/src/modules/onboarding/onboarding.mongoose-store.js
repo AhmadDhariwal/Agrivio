@@ -33,7 +33,12 @@ function createMongooseOnboardingStore() {
       if (filter.status !== undefined) {
         query['status'] = filter.status;
       }
-      return OrganizationModel.find(query).sort({ createdAt: -1 }).lean().exec();
+      const search = String(filter.search ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+      if (search) query.nameNormalized = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') };
+      let find = OrganizationModel.find(query).sort({ createdAt: -1, _id: -1 });
+      if (filter.skip !== undefined || filter.pageSize !== undefined) find = find.skip(filter.skip ?? 0).limit(filter.pageSize ?? 25);
+      const [total, items] = await Promise.all([OrganizationModel.countDocuments(query).exec(), find.lean().exec()]);
+      return { items, total };
     },
 
     async insertOrganization(session, doc) {

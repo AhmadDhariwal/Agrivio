@@ -50,8 +50,8 @@ export class ExpenseCategoryFormPage {
     if (id && id !== 'new') {
       this.categoryId.set(id);
       this.loading.set(true);
-      this.api.listCategories().subscribe({
-        next: (items) => {
+    this.api.listCategories({ page: 1, pageSize: 100 }).subscribe({
+      next: ({ items }) => {
           const category = items.find((item) => item.id === id);
           if (!category) {
             this.errorMessage.set('Expense category not found.');

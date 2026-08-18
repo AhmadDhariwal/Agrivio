@@ -274,12 +274,13 @@ function createOnboardingService(deps) {
     },
 
     async listOrganizations(filter = {}) {
-      const organizations = await store.listOrganizations(filter);
+      const result = await store.listOrganizations(filter);
+      const organizations = Array.isArray(result) ? result : result.items;
       const summaries = [];
       for (const organization of organizations) {
         summaries.push(await toOrganizationListItem(store, organization));
       }
-      return summaries;
+      return { items: summaries, total: Array.isArray(result) ? summaries.length : result.total };
     },
 
     async getOrganization(organizationId) {

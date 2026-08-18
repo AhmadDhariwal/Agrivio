@@ -1,5 +1,6 @@
 const { sendSuccessEnvelope } = require('../../../platform/http/response-envelope');
 const { forbidden } = require('../../../platform/errors/app-error');
+const { parsePaginationQuery } = require('../../../platform/http/parse-pagination-query');
 
 function requireOrganizationId(req) {
   const organizationId = req.authContext?.organizationId;
@@ -13,7 +14,8 @@ function createReturnsController(deps) {
   return {
     async listReturns(req, res, next) {
       try {
-        const data = await deps.returnsService.listReturns(
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.returnsService.listReturns(
           requireOrganizationId(req),
           {
             status:
@@ -44,10 +46,12 @@ function createReturnsController(deps) {
               typeof req.query.returnType === 'string' && req.query.returnType.trim() !== ''
                 ? req.query.returnType.trim()
                 : undefined,
+            skip,
+            pageSize,
           },
           req.authContext,
         );
-        sendSuccessEnvelope(res, 200, data);
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
         next(error);
       }

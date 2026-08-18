@@ -1,6 +1,7 @@
 const { sendSuccessEnvelope } = require('../../../platform/http/response-envelope');
 const { forbidden } = require('../../../platform/errors/app-error');
 const { parseMasterStatusQuery } = require('../../../platform/http/master-status-query');
+const { parsePaginationQuery } = require('../../../platform/http/parse-pagination-query');
 
 function requireOrganizationId(req) {
   const organizationId = req.authContext?.organizationId;
@@ -14,10 +15,17 @@ function createCustomersController(deps) {
   return {
     async listCustomers(req, res, next) {
       try {
-        const data = await deps.customersService.listCustomers(requireOrganizationId(req), {
-          status: parseMasterStatusQuery(req.query),
-        });
-        sendSuccessEnvelope(res, 200, data);
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.customersService.listCustomers(
+          requireOrganizationId(req),
+          {
+            status: parseMasterStatusQuery(req.query),
+            search: req.query.search || undefined,
+            skip,
+            pageSize,
+          },
+        );
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
         next(error);
       }

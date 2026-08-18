@@ -9,6 +9,7 @@ import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-e
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiStatusBadgeComponent } from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
+import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 
 @Component({
   selector: 'agrivio-employees-page',
@@ -21,6 +22,7 @@ import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialo
     UiLoadingStateComponent,
     UiStatusBadgeComponent,
     UiConfirmDialogComponent,
+    UiPaginationComponent,
   ],
   templateUrl: './employees.page.html',
   styleUrl: './employees.page.scss',
@@ -33,6 +35,9 @@ export class EmployeesPage {
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
+  readonly page = signal(1);
+  readonly pageSize = signal(25);
+  readonly total = signal(0);
   readonly canCreate = computed(() => this.sessionStore.hasPermission('users.create'));
   readonly canView = computed(() => this.sessionStore.hasPermission('users.view'));
   readonly canDeactivate = computed(() => this.sessionStore.hasPermission('users.deactivate'));
@@ -52,9 +57,10 @@ export class EmployeesPage {
       return;
     }
     this.loading.set(true);
-    this.api.listEmployees().subscribe({
-      next: (items) => {
+    this.api.listEmployees({ page: this.page(), pageSize: this.pageSize() }).subscribe({
+      next: ({ items, meta }) => {
         this.items.set(items);
+        this.total.set(meta.total);
         this.loading.set(false);
       },
       error: (error: unknown) => {
@@ -67,6 +73,9 @@ export class EmployeesPage {
       },
     });
   }
+
+  onPageChange(page: number): void { this.page.set(page); this.reload(); }
+  onPageSizeChange(pageSize: number): void { this.pageSize.set(pageSize); this.page.set(1); this.reload(); }
 
   askDeactivate(item: EmployeeRecord): void {
     this.pendingDeactivateId = item.id;

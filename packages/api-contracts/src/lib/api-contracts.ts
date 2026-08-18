@@ -269,9 +269,18 @@ export interface ApiErrorEnvelope {
 }
 
 /** Frozen successful response envelope (API_DESIGN.md §3.1). */
-export interface ApiSuccessEnvelope<TData> {
+export interface PaginationMeta {
+  readonly page: number;
+  readonly pageSize: number;
+  readonly total: number;
+}
+
+export interface ApiSuccessEnvelope<
+  TData,
+  TMeta extends object = Record<string, unknown>,
+> {
   readonly data: TData;
-  readonly meta?: Record<string, unknown>;
+  readonly meta?: TMeta;
   readonly requestId: string;
 }
 
@@ -292,10 +301,13 @@ export function createApiErrorEnvelope(requestId: string, error: ApiErrorBody): 
 /**
  * Builds a transport-level success envelope for HTTP responses.
  */
-export function createApiSuccessEnvelope<TData>(
+export function createApiSuccessEnvelope<
+  TData,
+  TMeta extends object = Record<string, unknown>,
+>(
   requestId: string,
   data: TData,
-  meta?: Record<string, unknown>,
-): ApiSuccessEnvelope<TData> {
+  meta?: TMeta,
+): ApiSuccessEnvelope<TData, TMeta> {
   return meta === undefined ? { data, requestId } : { data, meta, requestId };
 }

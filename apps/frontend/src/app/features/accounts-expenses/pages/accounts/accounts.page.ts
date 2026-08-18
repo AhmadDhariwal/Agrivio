@@ -11,6 +11,7 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
 import { UiStatusBadgeComponent } from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { UiLifecycleFilterComponent } from '../../../../shared/ui/ui-lifecycle-filter/ui-lifecycle-filter.component';
+import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 import {
   MasterLifecycleFilter,
   deactivateCopy,
@@ -32,6 +33,7 @@ import {
     UiStatusBadgeComponent,
     UiConfirmDialogComponent,
     UiLifecycleFilterComponent,
+    UiPaginationComponent,
   ],
   templateUrl: './accounts.page.html',
   styleUrl: './accounts.page.scss',
@@ -43,6 +45,9 @@ export class AccountsPage {
   readonly items = signal<AccountRecord[]>([]);
   readonly statusFilter = signal<MasterLifecycleFilter>('active');
   readonly visibleItems = computed(() => filterMasterLifecycle(this.items(), this.statusFilter()));
+  readonly page = signal(1);
+  readonly pageSize = signal(25);
+  readonly total = signal(0);
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
@@ -68,9 +73,10 @@ export class AccountsPage {
       return;
     }
     this.loading.set(true);
-    this.api.listAccounts().subscribe({
-      next: (items) => {
+    this.api.listAccounts({ page: this.page(), pageSize: this.pageSize(), status: this.statusFilter() }).subscribe({
+      next: ({ items, meta }) => {
         this.items.set(items);
+        this.total.set(meta.total);
         this.loading.set(false);
       },
       error: (error: unknown) => {
@@ -83,6 +89,10 @@ export class AccountsPage {
       },
     });
   }
+
+  onStatusChange(value: MasterLifecycleFilter): void { this.statusFilter.set(value); this.page.set(1); this.reload(); }
+  onPageChange(page: number): void { this.page.set(page); this.reload(); }
+  onPageSizeChange(pageSize: number): void { this.pageSize.set(pageSize); this.page.set(1); this.reload(); }
 
   askDeactivate(item: AccountRecord): void {
     const copy = deactivateCopy('account', 'Existing payments and account movements will remain unchanged.');

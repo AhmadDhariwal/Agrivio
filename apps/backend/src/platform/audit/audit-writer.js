@@ -85,6 +85,12 @@ function createInMemoryAuditEventStore() {
         .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())
         .map((event) => ({ ...event }));
     },
+
+    async queryPage(filter, pagination = {}) {
+      const items = await this.query(filter);
+      const skip = pagination.skip ?? 0;
+      return { items: items.slice(skip, skip + (pagination.pageSize ?? 25)), total: items.length };
+    },
     async findById(id) {
       const event = events.find((item) => String(item._id) === String(id));
       return event === undefined ? null : { ...event };

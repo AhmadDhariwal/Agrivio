@@ -11,6 +11,7 @@ import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-f
 import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 import { AccountMovementRecord, AccountRecord } from '../../models/accounts.models';
 import { forkJoin, of } from 'rxjs';
+import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 
 @Component({
   selector: 'agrivio-account-form-page',
@@ -22,6 +23,7 @@ import { forkJoin, of } from 'rxjs';
     UiAlertComponent,
     UiLoadingStateComponent,
     UiFieldLabelComponent,
+    UiPaginationComponent,
   ],
   templateUrl: './account-form.page.html',
   styleUrl: './account-form.page.scss',
@@ -41,6 +43,9 @@ export class AccountFormPage {
   readonly openingPosted = signal(false);
   readonly derivedBalance = signal<string | null>(null);
   readonly movements = signal<AccountMovementRecord[]>([]);
+  readonly movementsPage = signal(1);
+  readonly movementsPageSize = signal(25);
+  readonly movementsTotal = signal(0);
   readonly canManage = computed(() => this.sessionStore.hasPermission('accounts.manage'));
   readonly canView = computed(() => this.sessionStore.hasPermission('accounts.view'));
   readonly canPostOpening = computed(() =>
@@ -109,12 +114,13 @@ export class AccountFormPage {
       this.loading.set(true);
       forkJoin({
         account: this.api.getAccount(id),
-        movements: this.canView() ? this.api.listMovements(id) : of([]),
-        accounts: this.api.listAccounts(),
+        movements: this.canView() ? this.api.listMovements(id) : of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+        accounts: this.api.listAccountOptions(),
       }).subscribe({
         next: ({ account, movements, accounts }) => {
           this.applyAccount(account);
-          this.movements.set(movements);
+          this.movements.set(movements.items);
+          this.movementsTotal.set(movements.meta.total);
           this.destinationAccounts.set(accounts.filter((item) => item.id !== id && item.status === 'active'));
           this.loading.set(false);
         },
@@ -213,9 +219,7 @@ export class AccountFormPage {
         next: (account) => {
           this.postingOpening.set(false);
           this.applyAccount(account);
-          this.api.listMovements(id).subscribe({
-            next: (movements) => this.movements.set(movements),
-          });
+          this.loadMovements();
         },
         error: (error: unknown) => {
           this.postingOpening.set(false);
@@ -365,14 +369,27 @@ export class AccountFormPage {
     );
   }
 
+  loadMovements(): void {
+    const id = this.accountId();
+    if (!id) return;
+    this.api.listMovements(id, { page: this.movementsPage(), pageSize: this.movementsPageSize() }).subscribe({
+      next: ({ items, meta }) => { this.movements.set(items); this.movementsTotal.set(meta.total); },
+      error: (error: unknown) => this.errorMessage.set(this.mapError(error, 'Unable to load account movements.')),
+    });
+  }
+
+  onMovementsPageChange(page: number): void { this.movementsPage.set(page); this.loadMovements(); }
+  onMovementsPageSizeChange(pageSize: number): void { this.movementsPageSize.set(pageSize); this.movementsPage.set(1); this.loadMovements(); }
+
   private reloadAccountState(id: string): void {
     forkJoin({
       account: this.api.getAccount(id),
-      movements: this.api.listMovements(id),
+      movements: this.api.listMovements(id, { page: this.movementsPage(), pageSize: this.movementsPageSize() }),
     }).subscribe({
       next: ({ account, movements }) => {
         this.applyAccount(account);
-        this.movements.set(movements);
+        this.movements.set(movements.items);
+        this.movementsTotal.set(movements.meta.total);
       },
       error: (error: unknown) => {
         this.errorMessage.set(this.mapError(error, 'Unable to reload account.'));

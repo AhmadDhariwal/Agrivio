@@ -18,6 +18,23 @@ function createMongooseEmployeesStore() {
       return OrganizationMembershipModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
     },
 
+    async listMembershipsPage(organizationId, filter = {}, pagination = {}) {
+      const match = { organizationId: new mongoose.Types.ObjectId(String(organizationId)) };
+      const search = String(filter.search ?? '').trim().toLowerCase();
+      const pipeline = [
+        { $match: match },
+        { $lookup: { from: UserModel.collection.name, localField: 'userId', foreignField: '_id', as: 'user' } },
+        { $unwind: '$user' },
+      ];
+      if (search) pipeline.push({ $match: { 'user.emailNormalized': { $regex: `^${search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}` } } });
+      pipeline.push(
+        { $sort: { createdAt: -1, _id: -1 } },
+        { $facet: { metadata: [{ $count: 'total' }], items: [{ $skip: pagination.skip ?? 0 }, { $limit: pagination.pageSize ?? 25 }] } },
+      );
+      const [result] = await OrganizationMembershipModel.aggregate(pipeline).exec();
+      return { items: result?.items ?? [], total: result?.metadata?.[0]?.total ?? 0 };
+    },
+
     async countActiveUsers(organizationId) {
       return OrganizationMembershipModel.countDocuments({
         organizationId,
@@ -152,6 +169,19 @@ function createInMemoryEmployeesStore(options = {}) {
       return [...memberships.values()]
         .filter((item) => String(item.organizationId) === String(organizationId))
         .map((item) => ({ ...item }));
+    },
+
+    async listMembershipsPage(organizationId, filter = {}, pagination = {}) {
+      let items = await this.listMembershipsByOrganizationId(organizationId);
+      const search = String(filter.search ?? '').trim().toLowerCase();
+      const withUsers = [];
+      for (const membership of items) {
+        const user = await this.findUserById(String(membership.userId));
+        if (user && (!search || String(user.emailNormalized).startsWith(search))) withUsers.push({ ...membership, user });
+      }
+      withUsers.sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')) || String(b._id).localeCompare(String(a._id)));
+      const total = withUsers.length; const skip = pagination.skip ?? 0;
+      return { items: withUsers.slice(skip, skip + (pagination.pageSize ?? 25)), total };
     },
 
     async countActiveUsers(organizationId) {

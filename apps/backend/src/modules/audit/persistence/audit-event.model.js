@@ -88,7 +88,7 @@ function createMongooseAuditEventStore() {
         query.resourceId = filter.resourceId;
       }
       if (filter.reason !== undefined) {
-        query.reason = { $regex: filter.reason, $options: 'i' };
+        query.reason = { $regex: String(filter.reason).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
       }
       if (filter.from !== undefined || filter.to !== undefined) {
         query.occurredAt = {};
@@ -99,8 +99,24 @@ function createMongooseAuditEventStore() {
           query.occurredAt.$lte = filter.to;
         }
       }
-      const rows = await AuditEventModel.find(query).sort({ occurredAt: -1 }).lean().exec();
+      const rows = await AuditEventModel.find(query).sort({ occurredAt: -1, _id: -1 }).lean().exec();
       return rows.map(toQueryDoc);
+    },
+
+    async queryPage(filter, pagination = {}) {
+      const query = {};
+      for (const field of ['organizationId', 'actorId', 'action', 'resourceType', 'resourceId']) if (filter[field] !== undefined) query[field] = filter[field];
+      if (filter.reason !== undefined) query.reason = { $regex: String(filter.reason).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+      if (filter.from !== undefined || filter.to !== undefined) {
+        query.occurredAt = {};
+        if (filter.from !== undefined) query.occurredAt.$gte = filter.from;
+        if (filter.to !== undefined) query.occurredAt.$lte = filter.to;
+      }
+      const [total, rows] = await Promise.all([
+        AuditEventModel.countDocuments(query).exec(),
+        AuditEventModel.find(query).sort({ occurredAt: -1, _id: -1 }).skip(pagination.skip ?? 0).limit(pagination.pageSize ?? 25).lean().exec(),
+      ]);
+      return { items: rows.map(toQueryDoc), total };
     },
 
     async findById(id) {

@@ -186,7 +186,7 @@ export class NavbarSearchComponent implements OnInit {
       return of([]);
     }
 
-    return this.catalogApi.listProducts({ q: term, limit: 5, status: 'active' }).pipe(
+    return this.catalogApi.searchProductOptions(term, 5).pipe(
       map((items) => {
         const mapped: SearchResultItem[] = items.slice(0, 5).map((p) => ({
           id: p.id,

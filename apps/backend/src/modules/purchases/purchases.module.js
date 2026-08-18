@@ -295,11 +295,20 @@ function createPurchasesService(deps) {
 
   return {
     async listPurchases(organizationId, query = {}, authContext) {
-      const items = await store.listPurchases(organizationId, {
+      if (query.warehouseId && typeof deps.canAccessWarehouse === 'function' && !deps.canAccessWarehouse(authContext, query.warehouseId)) {
+        return { items: [], total: 0 };
+      }
+      const assignments = Array.isArray(authContext?.warehouseAssignments) ? authContext.warehouseAssignments : null;
+      const warehouseIds = authContext?.role === 'Owner' || assignments === null
+        ? undefined
+        : assignments.filter((item) => String(item.organizationId) === String(organizationId)).map((item) => String(item.targetId));
+      const { items, total } = await store.listPurchases(organizationId, {
         status: query.status,
         supplierId: query.supplierId,
         warehouseId: query.warehouseId,
-      });
+        warehouseIds: query.warehouseId ? undefined : warehouseIds,
+        search: query.search,
+      }, { skip: query.skip, pageSize: query.pageSize });
       const filtered = [];
       for (const item of items) {
         if (
@@ -310,7 +319,7 @@ function createPurchasesService(deps) {
         }
         filtered.push(toPurchaseDto(item));
       }
-      return { items: filtered };
+      return { items: filtered, total };
     },
 
     async getPurchase(organizationId, purchaseId, authContext) {
@@ -707,7 +716,7 @@ function createPurchasesService(deps) {
     },
 
     async listUnpaidSupplierPurchases(organizationId, supplierId) {
-      const items = await store.listPurchases(organizationId, {
+      const { items } = await store.listPurchases(organizationId, {
         status: 'posted',
         supplierId,
       });

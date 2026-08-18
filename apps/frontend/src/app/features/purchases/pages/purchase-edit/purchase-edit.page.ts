@@ -146,10 +146,10 @@ export class PurchaseEditPage {
     }
 
     const masters$ = forkJoin({
-      products: this.catalogApi.listProducts({ status: 'active' }),
-      warehouses: this.locationsApi.listWarehouses(),
-      suppliers: this.suppliersApi.listSuppliers(),
-      accounts: this.accountsApi.listAccounts(),
+      products: this.catalogApi.searchProductOptions(),
+      warehouses: this.locationsApi.listWarehouseOptions(),
+      suppliers: this.suppliersApi.searchSupplierOptions(),
+      accounts: this.accountsApi.listAccountOptions(),
     });
 
     if (isEdit && id) {
@@ -187,6 +187,16 @@ export class PurchaseEditPage {
 
   lineGroup(index: number): FormGroup {
     return this.lines.at(index) as FormGroup;
+  }
+
+  onSupplierSearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) this.suppliersApi.searchSupplierOptions(target.value).subscribe((items) => this.suppliers.set(items));
+  }
+
+  onProductSearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) this.catalogApi.searchProductOptions(target.value).subscribe((items) => this.products.set(items));
   }
 
   paymentGroup(index: number): FormGroup {

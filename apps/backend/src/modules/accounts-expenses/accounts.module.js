@@ -138,16 +138,22 @@ function createAccountsService(deps) {
 
   return {
     async listAccounts(organizationId, options = {}) {
-      const listed = await store.listAccounts(organizationId);
-      const items =
-        options.status === 'active' || options.status === 'inactive'
-          ? listed.filter((item) => String(item.status) === options.status)
-          : listed;
+      const result = typeof store.listAccountsPage === 'function'
+        ? await store.listAccountsPage(organizationId, options, options)
+        : (() => { const all = []; return { items: all, total: 0 }; })();
+      if (typeof store.listAccountsPage !== 'function') {
+        let all = await store.listAccounts(organizationId);
+        if (options.status === 'active' || options.status === 'inactive') all = all.filter((item) => item.status === options.status);
+        const search = String(options.search ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+        if (search) all = all.filter((item) => String(item.nameNormalized).includes(search));
+        result.total = all.length; result.items = all.slice(options.skip ?? 0, (options.skip ?? 0) + (options.pageSize ?? 25));
+      }
+      const items = result.items;
       const mapped = [];
       for (const item of items) {
         mapped.push(await buildAccountDto(organizationId, item));
       }
-      return { items: mapped };
+      return { items: mapped, total: result.total };
     },
 
     async getAccount(organizationId, accountId) {
@@ -310,13 +316,15 @@ function createAccountsService(deps) {
       return sumAccountBalanceInternal(organizationId, accountId);
     },
 
-    async listAccountMovements(organizationId, accountId) {
+    async listAccountMovements(organizationId, accountId, options = {}) {
       const account = await store.findAccountById(organizationId, accountId);
       if (account === null) {
         throw notFound('Account not found');
       }
-      const items = await store.listMovementsByAccount(organizationId, accountId);
-      return { items: items.map(toAccountMovementDto) };
+      let result;
+      if (typeof store.listMovementsByAccountPage === 'function') result = await store.listMovementsByAccountPage(organizationId, accountId, options);
+      else { const all = await store.listMovementsByAccount(organizationId, accountId); result = { items: all.slice(options.skip ?? 0, (options.skip ?? 0) + (options.pageSize ?? 25)), total: all.length }; }
+      return { items: result.items.map(toAccountMovementDto), total: result.total };
     },
 
     async listAccountMovementsBySource(organizationId, sourceType, sourceId, session) {
@@ -840,12 +848,10 @@ function createAccountsService(deps) {
     },
 
     async listExpenseCategories(organizationId, options = {}) {
-      const items = await store.listExpenseCategories(organizationId);
-      const filtered =
-        options.status === 'active' || options.status === 'inactive'
-          ? items.filter((item) => String(item.status) === options.status)
-          : items;
-      return { items: filtered.map(toExpenseCategoryDto) };
+      let result;
+      if (typeof store.listExpenseCategoriesPage === 'function') result = await store.listExpenseCategoriesPage(organizationId, options, options);
+      else { let all = await store.listExpenseCategories(organizationId); if (options.status === 'active' || options.status === 'inactive') all = all.filter((item) => item.status === options.status); const search = String(options.search ?? '').trim().toLowerCase(); if (search) all = all.filter((item) => String(item.nameNormalized).includes(search)); result = { items: all.slice(options.skip ?? 0, (options.skip ?? 0) + (options.pageSize ?? 25)), total: all.length }; }
+      return { items: result.items.map(toExpenseCategoryDto), total: result.total };
     },
 
     async createExpenseCategory(organizationId, body, actor) {
@@ -931,9 +937,11 @@ function createAccountsService(deps) {
       });
     },
 
-    async listExpenses(organizationId) {
-      const items = await store.listExpenses(organizationId);
-      return { items: items.map(toExpenseDto) };
+    async listExpenses(organizationId, options = {}) {
+      let result;
+      if (typeof store.listExpensesPage === 'function') result = await store.listExpensesPage(organizationId, options, options);
+      else { let all = await store.listExpenses(organizationId); if (options.status) all = all.filter((item) => item.status === options.status); if (options.search) all = all.filter((item) => String(item.expenseDate) === String(options.search).trim()); result = { items: all.slice(options.skip ?? 0, (options.skip ?? 0) + (options.pageSize ?? 25)), total: all.length }; }
+      return { items: result.items.map(toExpenseDto), total: result.total };
     },
 
     async getExpense(organizationId, expenseId) {

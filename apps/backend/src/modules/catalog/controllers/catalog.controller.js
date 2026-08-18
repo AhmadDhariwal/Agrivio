@@ -1,6 +1,7 @@
 const { sendSuccessEnvelope } = require('../../../platform/http/response-envelope');
 const { forbidden } = require('../../../platform/errors/app-error');
 const { parseMasterStatusQuery } = require('../../../platform/http/master-status-query');
+const { parsePaginationQuery } = require('../../../platform/http/parse-pagination-query');
 
 function requireOrganizationId(req) {
   const organizationId = req.authContext?.organizationId;
@@ -14,10 +15,17 @@ function createCatalogController(deps) {
   return {
     async listCategories(req, res, next) {
       try {
-        const data = await deps.catalogService.listCategories(requireOrganizationId(req), {
-          status: parseMasterStatusQuery(req.query),
-        });
-        sendSuccessEnvelope(res, 200, data);
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.catalogService.listCategories(
+          requireOrganizationId(req),
+          {
+            status: parseMasterStatusQuery(req.query),
+            search: req.query.search || undefined,
+            skip,
+            pageSize,
+          },
+        );
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
         next(error);
       }
@@ -76,15 +84,33 @@ function createCatalogController(deps) {
     async listProducts(req, res, next) {
       try {
         const q = typeof req.query.q === 'string' ? req.query.q : '';
+        const search = typeof req.query.search === 'string' ? req.query.search : '';
+        // POS/autocomplete: limit param without page/pageSize triggers unbounded path
         const limitRaw = req.query.limit;
         const limit =
           typeof limitRaw === 'string' && /^\d+$/.test(limitRaw) ? Number(limitRaw) : undefined;
-        const data = await deps.catalogService.listProducts(requireOrganizationId(req), {
-          q,
-          limit,
-          status: parseMasterStatusQuery(req.query),
-        });
-        sendSuccessEnvelope(res, 200, data);
+        // Pagination applies when page or pageSize is present, or when limit is absent
+        let page, pageSize, skip;
+        if (limit !== undefined && req.query.page === undefined && req.query.pageSize === undefined) {
+          // POS path — no pagination meta
+          page = undefined;
+          pageSize = undefined;
+          skip = undefined;
+        } else {
+          const parsed = parsePaginationQuery(req.query);
+          page = parsed.page;
+          pageSize = parsed.pageSize;
+          skip = parsed.skip;
+        }
+        const { items, total } = await deps.catalogService.listProducts(
+          requireOrganizationId(req),
+          { q, search, limit, status: parseMasterStatusQuery(req.query), skip, pageSize },
+        );
+        if (page !== undefined) {
+          sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
+        } else {
+          sendSuccessEnvelope(res, 200, items);
+        }
       } catch (error) {
         next(error);
       }

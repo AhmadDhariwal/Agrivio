@@ -91,11 +91,12 @@ function createEmployeesService(deps) {
   }
 
   return {
-    async listEmployees(organizationId) {
-      const memberships = await store.listMembershipsByOrganizationId(organizationId);
+    async listEmployees(organizationId, options = {}) {
+      const result = await store.listMembershipsPage(organizationId, options, options);
+      const memberships = result.items;
       const items = [];
       for (const membership of memberships) {
-        const user = await store.findUserById(String(membership['userId']));
+        const user = membership.user ?? await store.findUserById(String(membership['userId']));
         if (user === null) {
           continue;
         }
@@ -104,7 +105,7 @@ function createEmployeesService(deps) {
         );
         items.push(toEmployeeDto(membership, user, assignments));
       }
-      return { items };
+      return { items, total: result.total };
     },
 
     async getEmployee(organizationId, userId) {

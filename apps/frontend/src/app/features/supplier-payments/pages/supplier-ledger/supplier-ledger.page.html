@@ -14,6 +14,7 @@
   <form class="ag-stack form" [formGroup]="form" data-testid="ledger-supplier-form">
     <label>
       Supplier
+      <input type="search" placeholder="Find supplier" (change)="onSupplierSearch($event)" />
       <select formControlName="supplierId" data-testid="ledger-supplier-select">
         <option value="">Select supplier</option>
         @for (supplier of suppliers(); track supplier.id) {

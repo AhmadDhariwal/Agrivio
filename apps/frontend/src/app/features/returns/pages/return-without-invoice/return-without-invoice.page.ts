@@ -88,10 +88,10 @@ export class ReturnWithoutInvoicePage {
 
   constructor() {
     forkJoin({
-      products: this.catalogApi.listProducts({ status: 'active' }),
-      customers: this.customersApi.listCustomers(),
-      warehouses: this.locationsApi.listWarehouses(),
-      accounts: this.accountsApi.listAccounts(),
+      products: this.catalogApi.searchProductOptions(),
+      customers: this.customersApi.searchCustomerOptions(),
+      warehouses: this.locationsApi.listWarehouseOptions(),
+      accounts: this.accountsApi.listAccountOptions(),
     }).subscribe({
       next: ({ products, customers, warehouses, accounts }) => {
         this.products.set(products.filter((item) => item.status === 'active'));
@@ -113,6 +113,16 @@ export class ReturnWithoutInvoicePage {
 
   lineGroup(index: number): FormGroup {
     return this.lines.at(index) as FormGroup;
+  }
+
+  onCustomerSearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) this.customersApi.searchCustomerOptions(target.value).subscribe((items) => this.customers.set(items));
+  }
+
+  onProductSearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) this.catalogApi.searchProductOptions(target.value).subscribe((items) => this.products.set(items));
   }
 
   addLine(): void {
@@ -146,7 +156,7 @@ export class ReturnWithoutInvoicePage {
     }
     this.inventoryApi.listBatches({ productId }).subscribe({
       next: (batches) => {
-        this.batchesByLine.update((current) => ({ ...current, [index]: batches }));
+        this.batchesByLine.update((current) => ({ ...current, [index]: batches.items }));
       },
       error: (error: unknown) => {
         this.errorMessage.set(this.mapError(error, 'Unable to load batches.'));

@@ -19,6 +19,8 @@
     data-testid="product-form"
   >
     <div class="ag-field">
+      <agrivio-ui-field-label label="Find category" for="product-category-search" />
+      <input id="product-category-search" class="ag-input" type="search" (change)="onCategorySearch($event)" />
       <agrivio-ui-field-label
         label="Category"
         for="product-category"

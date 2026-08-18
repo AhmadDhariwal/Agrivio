@@ -59,12 +59,9 @@ function createLocationsService(deps) {
 
   return {
     async listBranches(organizationId, options = {}) {
-      const items = await store.listBranches(organizationId);
-      const filtered =
-        options.status === 'active' || options.status === 'inactive'
-          ? items.filter((item) => String(item.status) === options.status)
-          : items;
-      return { items: filtered.map(toBranchDto) };
+      const result = await store.listBranches(organizationId, options, { skip: options.skip, pageSize: options.pageSize });
+      const items = Array.isArray(result) ? result : result.items;
+      return { items: items.map(toBranchDto), total: Array.isArray(result) ? items.length : result.total };
     },
 
     async getBranch(organizationId, branchId) {
@@ -164,12 +161,9 @@ function createLocationsService(deps) {
     },
 
     async listWarehouses(organizationId, options = {}) {
-      const items = await store.listWarehouses(organizationId);
-      const filtered =
-        options.status === 'active' || options.status === 'inactive'
-          ? items.filter((item) => String(item.status) === options.status)
-          : items;
-      return { items: filtered.map(toWarehouseDto) };
+      const result = await store.listWarehouses(organizationId, options, { skip: options.skip, pageSize: options.pageSize });
+      const items = Array.isArray(result) ? result : result.items;
+      return { items: items.map(toWarehouseDto), total: Array.isArray(result) ? items.length : result.total };
     },
 
     async getWarehouse(organizationId, warehouseId) {

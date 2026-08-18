@@ -27,14 +27,20 @@ function createInMemoryOnboardingStore() {
     },
 
     async listOrganizations(filter = {}) {
-      return [...organizations.values()]
+      let items = [...organizations.values()]
         .filter((org) => {
           if (filter.status !== undefined && org['status'] !== filter.status) {
             return false;
           }
+          const search = String(filter.search ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+          if (search && !String(org.nameNormalized).includes(search)) return false;
           return true;
         })
         .map((org) => ({ ...org }));
+      items.sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')) || String(b._id).localeCompare(String(a._id)));
+      const total = items.length;
+      if (filter.skip !== undefined || filter.pageSize !== undefined) items = items.slice(filter.skip ?? 0, (filter.skip ?? 0) + (filter.pageSize ?? 25));
+      return { items, total };
     },
 
     async insertOrganization(_session, doc) {

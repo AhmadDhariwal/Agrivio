@@ -1,6 +1,7 @@
 const { sendSuccessEnvelope } = require('../../../platform/http/response-envelope');
 const { forbidden } = require('../../../platform/errors/app-error');
 const { parseMasterStatusQuery } = require('../../../platform/http/master-status-query');
+const { parsePaginationQuery } = require('../../../platform/http/parse-pagination-query');
 
 function requireOrganizationId(req) {
   const organizationId = req.authContext?.organizationId;
@@ -14,10 +15,12 @@ function createLocationsController(deps) {
   return {
     async listBranches(req, res, next) {
       try {
-        const data = await deps.locationsService.listBranches(requireOrganizationId(req), {
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.locationsService.listBranches(requireOrganizationId(req), {
           status: parseMasterStatusQuery(req.query),
+          search: req.query.search || undefined, skip, pageSize,
         });
-        sendSuccessEnvelope(res, 200, data);
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
         next(error);
       }
@@ -75,10 +78,12 @@ function createLocationsController(deps) {
 
     async listWarehouses(req, res, next) {
       try {
-        const data = await deps.locationsService.listWarehouses(requireOrganizationId(req), {
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.locationsService.listWarehouses(requireOrganizationId(req), {
           status: parseMasterStatusQuery(req.query),
+          search: req.query.search || undefined, skip, pageSize,
         });
-        sendSuccessEnvelope(res, 200, data);
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
         next(error);
       }

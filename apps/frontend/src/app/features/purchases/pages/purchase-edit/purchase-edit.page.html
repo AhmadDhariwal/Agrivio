@@ -79,6 +79,8 @@
 
   <form class="ag-stack form ag-form ag-form--with-required-hint" [formGroup]="form" (ngSubmit)="save()" data-testid="purchase-form">
     <div class="ag-field">
+      <agrivio-ui-field-label label="Find supplier" for="purchase-supplier-search" />
+      <input id="purchase-supplier-search" class="ag-input" type="search" (change)="onSupplierSearch($event)" />
       <agrivio-ui-field-label
         label="Warehouse"
         for="purchase-warehouse"
@@ -158,6 +160,8 @@
         <fieldset class="line" [formGroup]="lineGroup(index)">
           <legend>Line {{ index + 1 }}</legend>
           <div class="ag-field">
+            <agrivio-ui-field-label label="Find product" [for]="'purchase-line-product-search-' + index" />
+            <input [id]="'purchase-line-product-search-' + index" class="ag-input" type="search" (change)="onProductSearch($event)" />
             <agrivio-ui-field-label
               label="Product"
               [for]="'purchase-line-product-' + index"

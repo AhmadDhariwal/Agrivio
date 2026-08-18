@@ -14,6 +14,8 @@
   }
 </agrivio-ui-page-header>
 
+<agrivio-ui-search-input placeholder="Filter by payment date (YYYY-MM-DD)â€¦" [value]="search()" (searchChange)="onSearchChange($event)" />
+
 @if (loading()) {
   <agrivio-ui-loading-state label="Loading customer payments…" />
 } @else if (errorMessage(); as error) {
@@ -40,4 +42,5 @@
       </article>
     }
   </div>
+  <agrivio-ui-pagination [page]="page()" [pageSize]="pageSize()" [total]="total()" [disabled]="loading()" (pageChange)="onPageChange($event)" (pageSizeChange)="onPageSizeChange($event)" />
 }
