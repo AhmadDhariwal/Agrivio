@@ -12,6 +12,7 @@ import { UiStatusBadgeComponent } from '../../../../shared/ui/ui-status-badge/ui
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { UiLifecycleFilterComponent } from '../../../../shared/ui/ui-lifecycle-filter/ui-lifecycle-filter.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
+import { applyPaginationMeta } from '../../../../shared/data-access/pagination';
 import { UiSearchInputComponent } from '../../../../shared/ui/ui-search-input/ui-search-input.component';
 import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, startWith, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -96,7 +97,10 @@ export class ProductsPage {
       if (this.clampAfterLoad && meta.total > 0 && this.page() > totalPages) {
         this.clampAfterLoad = false; this.page.set(totalPages); this.reload(); return;
       }
-      this.clampAfterLoad = false; this.items.set(items); this.total.set(meta.total); this.loading.set(false);
+      this.clampAfterLoad = false;
+      this.items.set(items);
+      applyPaginationMeta(meta, { total: this.total, pageSize: this.pageSize });
+      this.loading.set(false);
     });
   }
 

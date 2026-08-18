@@ -11,6 +11,7 @@ import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.compon
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { InventoryBalanceRecord } from '../../models/inventory.models';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
+import { applyPaginationMeta } from '../../../../shared/data-access/pagination';
 
 @Component({
   selector: 'agrivio-stock-inquiry-page',
@@ -55,7 +56,11 @@ export class StockInquiryPage {
     }), takeUntilDestroyed(this.destroyRef)).subscribe(({ balances, products, warehouses }) => {
       const productMap: Record<string, string> = {}; for (const product of products) productMap[product.id] = product.name;
       const warehouseMap: Record<string, string> = {}; for (const warehouse of warehouses) warehouseMap[warehouse.id] = warehouse.name;
-      this.productNames.set(productMap); this.warehouseNames.set(warehouseMap); this.balances.set(balances.items); this.total.set(balances.meta.total); this.loading.set(false);
+      this.productNames.set(productMap);
+      this.warehouseNames.set(warehouseMap);
+      this.balances.set(balances.items);
+      applyPaginationMeta(balances.meta, { total: this.total, pageSize: this.pageSize });
+      this.loading.set(false);
     });
   }
 

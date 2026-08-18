@@ -6,78 +6,82 @@ import { Component, computed, input, output } from '@angular/core';
   template: `
     @if (visible()) {
       <nav class="pagination" aria-label="Pagination" data-testid="pagination">
-        <p class="pagination__range" aria-live="polite">
-          {{ rangeStart() }}â€“{{ rangeEnd() }} of {{ total() }}
-        </p>
+        <div class="pagination__zone pagination__zone--start">
+          <p class="pagination__range" aria-live="polite">
+            Showing {{ rangeStart() }}&ndash;{{ rangeEnd() }} of {{ total() }}
+          </p>
+        </div>
 
-        <label class="pagination__size">
-          Rows per page
-          <select
-            [value]="pageSize()"
-            [disabled]="disabled()"
-            (change)="changePageSize($event)"
-            data-testid="pagination-page-size"
-          >
-            @for (option of pageSizeOptions(); track option) {
-              <option [value]="option">{{ option }}</option>
-            }
-          </select>
-        </label>
+        <div class="pagination__zone pagination__zone--center">
+          @if (showNavigation()) {
+            <div class="pagination__navigation">
+              <button
+                type="button"
+                class="pagination__btn ag-btn ag-btn--secondary ag-btn--sm"
+                [disabled]="disabled() || page() <= 1"
+                (click)="goTo(page() - 1)"
+                data-testid="pagination-previous"
+              >
+                Previous
+              </button>
 
-        @if (totalPages() > 1) {
-          <div class="pagination__navigation">
-            <button
-              type="button"
-              class="ag-btn ag-btn--secondary ag-btn--sm"
-              [disabled]="disabled() || page() <= 1"
-              (click)="goTo(page() - 1)"
-              data-testid="pagination-previous"
+              @if (usePageSelect()) {
+                <label class="pagination__page">
+                  Page
+                  <select
+                    [disabled]="disabled()"
+                    (change)="changePage($event)"
+                    data-testid="pagination-page-select"
+                  >
+                    @for (option of pageOptions(); track option) {
+                      <option [value]="option" [selected]="option === page()">{{ option }}</option>
+                    }
+                  </select>
+                  of {{ totalPages() }}
+                </label>
+              } @else {
+                <label class="pagination__page">
+                  Page
+                  <input
+                    type="number"
+                    min="1"
+                    [max]="totalPages()"
+                    [value]="page()"
+                    [disabled]="disabled()"
+                    (change)="changePage($event)"
+                    data-testid="pagination-page-input"
+                  />
+                  of {{ totalPages() }}
+                </label>
+              }
+
+              <button
+                type="button"
+                class="pagination__btn ag-btn ag-btn--secondary ag-btn--sm"
+                [disabled]="disabled() || page() >= totalPages()"
+                (click)="goTo(page() + 1)"
+                data-testid="pagination-next"
+              >
+                Next
+              </button>
+            </div>
+          }
+        </div>
+
+        <div class="pagination__zone pagination__zone--end">
+          <label class="pagination__size">
+            Rows per page
+            <select
+              [disabled]="disabled()"
+              (change)="changePageSize($event)"
+              data-testid="pagination-page-size"
             >
-              Previous
-            </button>
-
-            @if (usePageSelect()) {
-              <label class="pagination__page">
-                Page
-                <select
-                  [value]="page()"
-                  [disabled]="disabled()"
-                  (change)="changePage($event)"
-                  data-testid="pagination-page-select"
-                >
-                  @for (option of pageOptions(); track option) {
-                    <option [value]="option">{{ option }}</option>
-                  }
-                </select>
-                of {{ totalPages() }}
-              </label>
-            } @else {
-              <label class="pagination__page">
-                Page
-                <input
-                  type="number"
-                  min="1"
-                  [max]="totalPages()"
-                  [value]="page()"
-                  [disabled]="disabled()"
-                  (change)="changePage($event)"
-                  data-testid="pagination-page-input"
-                />
-                of {{ totalPages() }}
-              </label>
-            }
-
-            <button
-              type="button"
-              class="ag-btn ag-btn--secondary ag-btn--sm"
-              [disabled]="disabled() || page() >= totalPages()"
-              (click)="goTo(page() + 1)"
-              data-testid="pagination-next"
-            >
-              Next
-            </button>
-          </div>
-        }
+              @for (option of pageSizeOptions(); track option) {
+                <option [value]="option" [selected]="option === pageSize()">{{ option }}</option>
+              }
+            </select>
+          </label>
+        </div>
       </nav>
     }
   `,
@@ -93,8 +97,11 @@ export class UiPaginationComponent {
   readonly pageSizeChange = output<number>();
 
   readonly visible = computed(() => this.total() > 10);
+  readonly showNavigation = computed(() => this.totalPages() > 1);
   readonly totalPages = computed(() => Math.max(1, Math.ceil(this.total() / this.pageSize())));
-  readonly rangeStart = computed(() => (this.total() === 0 ? 0 : (this.page() - 1) * this.pageSize() + 1));
+  readonly rangeStart = computed(() =>
+    this.total() === 0 ? 0 : (this.page() - 1) * this.pageSize() + 1,
+  );
   readonly rangeEnd = computed(() => Math.min(this.total(), this.page() * this.pageSize()));
   readonly usePageSelect = computed(() => this.totalPages() <= 100);
   readonly pageOptions = computed(() =>
