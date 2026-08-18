@@ -169,7 +169,13 @@ async function createShell(
       { provide: AuthSessionStore, useValue: store },
       { provide: AuthApi, useValue: { logout: () => of({}) } },
       { provide: NavigationApi, useValue: navApi },
-      { provide: CatalogApi, useValue: { listProducts: () => of([]) } },
+      {
+        provide: CatalogApi,
+        useValue: {
+          listProducts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+          searchProductOptions: () => of([]),
+        },
+      },
       NavigationService,
     ],
   }).compileComponents();

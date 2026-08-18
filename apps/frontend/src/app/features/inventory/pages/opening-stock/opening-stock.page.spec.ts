@@ -38,6 +38,15 @@ describe('OpeningStockPage', () => {
           provide: CatalogApi,
           useValue: {
             listProducts: () =>
+              of({
+                items: [
+                  product('prod-none', 'none'),
+                  product('prod-batch', 'batch'),
+                  product('prod-expiry', 'batch_expiry'),
+                ],
+                meta: { page: 1, pageSize: 25, total: 3 },
+              }),
+            searchProductOptions: () =>
               of([
                 product('prod-none', 'none'),
                 product('prod-batch', 'batch'),
@@ -50,6 +59,19 @@ describe('OpeningStockPage', () => {
           provide: BranchesWarehousesApi,
           useValue: {
             listWarehouses: () =>
+              of({
+                items: [
+                  {
+                    id: 'wh-1',
+                    organizationId: 'org-1',
+                    name: 'Main',
+                    status: 'active',
+                    version: 1,
+                  },
+                ],
+                meta: { page: 1, pageSize: 25, total: 1 },
+              }),
+            listWarehouseOptions: () =>
               of([
                 {
                   id: 'wh-1',

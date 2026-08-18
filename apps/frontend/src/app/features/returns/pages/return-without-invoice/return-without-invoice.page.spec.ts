@@ -21,13 +21,13 @@ describe('ReturnWithoutInvoicePage', () => {
       providers: [
         provideRouter([]),
         { provide: ReturnsApi, useValue: { createWithoutInvoice: () => of({}), postReturn: () => of({}) } },
-        { provide: CatalogApi, useValue: { listProducts: () => of([]) } },
-        { provide: CustomersApi, useValue: { listCustomers: () => of([]) } },
-        { provide: AccountsApi, useValue: { listAccounts: () => of([]) } },
+        { provide: CatalogApi, useValue: { searchProductOptions: () => of([]), listProducts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }) } },
+        { provide: CustomersApi, useValue: { searchCustomerOptions: () => of([]), listCustomers: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }) } },
+        { provide: AccountsApi, useValue: { listAccountOptions: () => of([]), listAccounts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }) } },
         { provide: InventoryApi, useValue: { listBatches: () => of([]) } },
         {
           provide: BranchesWarehousesApi,
-          useValue: { listWarehouses: () => of([]) },
+          useValue: { listWarehouseOptions: () => of([]), listWarehouses: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }) },
         },
         {
           provide: AuthSessionStore,

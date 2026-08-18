@@ -92,11 +92,17 @@ function createEmployeesService(deps) {
 
   return {
     async listEmployees(organizationId, options = {}) {
-      const result = await store.listMembershipsPage(organizationId, options, options);
+      let result;
+      if (typeof store.listMembershipsPage === 'function') {
+        result = await store.listMembershipsPage(organizationId, options, options);
+      } else {
+        const all = await store.listMembershipsByOrganizationId(organizationId);
+        result = { items: all.slice(options.skip ?? 0, (options.skip ?? 0) + (options.pageSize ?? 25)), total: all.length };
+      }
       const memberships = result.items;
       const items = [];
       for (const membership of memberships) {
-        const user = membership.user ?? await store.findUserById(String(membership['userId']));
+        const user = membership.user ?? (await store.findUserById(String(membership['userId'])));
         if (user === null) {
           continue;
         }

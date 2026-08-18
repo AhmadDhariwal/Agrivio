@@ -13,7 +13,9 @@ describe('ProductsPage', () => {
         provideRouter([]),
         {
           provide: CatalogApi,
-          useValue: { listProducts: () => of([]) },
+          useValue: {
+            listProducts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+          },
         },
         {
           provide: AuthSessionStore,

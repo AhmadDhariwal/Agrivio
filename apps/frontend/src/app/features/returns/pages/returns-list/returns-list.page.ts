@@ -15,6 +15,8 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
 import { UiStatusBadgeComponent } from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 
+import { applyPaginationMeta } from '../../../../shared/data-access/pagination';
+
 @Component({
   selector: 'agrivio-returns-list-page',
   standalone: true,
@@ -67,7 +69,7 @@ export class ReturnsListPage {
     }).subscribe({
       next: ({ items, warehouses }) => {
         this.items.set(items.items);
-        this.total.set(items.meta.total);
+        applyPaginationMeta(items.meta, { total: this.total, pageSize: this.pageSize });
         this.warehouses.set(warehouses);
         this.loading.set(false);
       },

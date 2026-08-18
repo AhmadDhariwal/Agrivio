@@ -22,11 +22,17 @@ describe('CustomerPaymentFormPage', () => {
         },
         {
           provide: CustomersApi,
-          useValue: { listCustomers: () => of([]) },
+          useValue: {
+            listCustomers: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            searchCustomerOptions: () => of([]),
+          },
         },
         {
           provide: AccountsApi,
-          useValue: { listAccounts: () => of([]) },
+          useValue: {
+            listAccounts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            listAccountOptions: () => of([]),
+          },
         },
         {
           provide: AuthSessionStore,

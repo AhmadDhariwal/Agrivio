@@ -19,7 +19,7 @@
   }
 </agrivio-ui-page-header>
 
-<agrivio-ui-search-input placeholder="Filter by payment date (YYYY-MM-DD)â€¦" [value]="search()" (searchChange)="onSearchChange($event)" />
+<agrivio-ui-search-input placeholder="Filter by payment date (YYYY-MM-DD)..." [value]="search()" (searchChange)="onSearchChange($event)" />
 
 @if (loading()) {
   <agrivio-ui-loading-state label="Loading supplier payments…" />

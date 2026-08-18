@@ -11,7 +11,12 @@ describe('EmployeesPage', () => {
       imports: [EmployeesPage],
       providers: [
         provideRouter([]),
-        { provide: UsersAccessApi, useValue: { listEmployees: () => of([]) } },
+        {
+          provide: UsersAccessApi,
+          useValue: {
+            listEmployees: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+          },
+        },
         { provide: AuthSessionStore, useValue: { hasPermission: () => true } },
       ],
     }).compileComponents();

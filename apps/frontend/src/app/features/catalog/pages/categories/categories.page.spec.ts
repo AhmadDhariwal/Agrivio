@@ -13,7 +13,9 @@ describe('CategoriesPage', () => {
         provideRouter([]),
         {
           provide: CatalogApi,
-          useValue: { listCategories: () => of([]) },
+          useValue: {
+            listCategories: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+          },
         },
         {
           provide: AuthSessionStore,

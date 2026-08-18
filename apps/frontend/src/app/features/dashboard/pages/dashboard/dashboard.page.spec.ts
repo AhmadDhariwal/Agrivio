@@ -58,8 +58,10 @@ describe('DashboardPage', () => {
         {
           provide: BranchesWarehousesApi,
           useValue: {
-            listBranches: () => of([{ id: 'b1', name: 'Main', code: 'MAIN', status: 'active' }]),
-            listWarehouses: () => of([{ id: 'w1', name: 'Central', code: 'CEN', status: 'active' }]),
+            listBranches: () => of({ items: [{ id: 'b1', name: 'Main', code: 'MAIN', status: 'active' }], meta: { page: 1, pageSize: 25, total: 1 } }),
+            listWarehouses: () => of({ items: [{ id: 'w1', name: 'Central', code: 'CEN', status: 'active' }], meta: { page: 1, pageSize: 25, total: 1 } }),
+            listBranchOptions: () => of([{ id: 'b1', name: 'Main', code: 'MAIN', status: 'active' }]),
+            listWarehouseOptions: () => of([{ id: 'w1', name: 'Central', code: 'CEN', status: 'active' }]),
           },
         },
       ],

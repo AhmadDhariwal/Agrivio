@@ -203,7 +203,7 @@ describe('F07 P4 stage-exit reconciliation', () => {
         {},
         jar,
       );
-      expect(sumSigned(movementsAfterReturn.body.data.items).toFixed(2)).toBe('1100.00');
+      expect(sumSigned(movementsAfterReturn.body.data).toFixed(2)).toBe('1100.00');
 
       const immutableSale = await fetchJson(
         baseUrl,
@@ -244,10 +244,10 @@ describe('F07 P4 stage-exit reconciliation', () => {
       expect(cashAfterReverse.body.data.derivedBalances.balance.amount).toBe('1200.00');
 
       const stockMoves = await fetchJson(baseUrl, 'GET', API_INVENTORY_MOVEMENTS_PATH, null, {}, jar);
-      const originalStock = stockMoves.body.data.items.filter(
+      const originalStock = stockMoves.body.data.filter(
         (item) => item.sourceType === 'sales_return' && item.sourceId === postedReturn.body.data.id,
       );
-      const reversalStock = stockMoves.body.data.items.filter(
+      const reversalStock = stockMoves.body.data.filter(
         (item) =>
           item.sourceType === 'sales_return_reversal' &&
           item.sourceId === reversed.body.data.reversedByCorrectiveTransactionId,
@@ -682,13 +682,13 @@ async function movementSum(baseUrl, jar, accountId) {
     jar,
   );
   expect(response.status).toBe(200);
-  return sumSigned(response.body.data.items).toFixed(2);
+  return sumSigned(response.body.data).toFixed(2);
 }
 
 async function productBalance(baseUrl, jar, productId) {
   const response = await fetchJson(baseUrl, 'GET', API_INVENTORY_BALANCES_PATH, null, {}, jar);
   expect(response.status).toBe(200);
-  return response.body.data.items.find((item) => item.productId === productId && !item.batchId);
+  return response.body.data.find((item) => item.productId === productId && !item.batchId);
 }
 
 function scanForeignPersistenceViolations(rootDirectory, consumerDirs, forbiddenFragments) {

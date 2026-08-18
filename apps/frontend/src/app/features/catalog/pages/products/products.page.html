@@ -17,7 +17,7 @@
     <agrivio-ui-alert tone="success" [message]="success" />
   }
   <div class="ag-inline">
-    <agrivio-ui-search-input placeholder="Search by product name or exact SKUâ€¦" [value]="search()" (searchChange)="onSearchChange($event)" />
+    <agrivio-ui-search-input placeholder="Search by product name or exact SKU..." [value]="search()" (searchChange)="onSearchChange($event)" />
     <agrivio-ui-lifecycle-filter [value]="statusFilter()" (changed)="onStatusChange($event)" />
   </div>
   @if (visibleItems().length === 0) {

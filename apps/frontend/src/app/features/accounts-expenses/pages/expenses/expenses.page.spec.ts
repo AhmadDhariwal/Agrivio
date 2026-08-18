@@ -11,7 +11,13 @@ describe('ExpensesPage', () => {
       imports: [ExpensesPage],
       providers: [
         provideRouter([]),
-        { provide: ExpensesApi, useValue: { listExpenses: () => of([]), listCategories: () => of([]) } },
+        {
+          provide: ExpensesApi,
+          useValue: {
+            listExpenses: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            listCategoryOptions: () => of([]),
+          },
+        },
         { provide: AuthSessionStore, useValue: { hasPermission: () => true } },
       ],
     }).compileComponents();
