@@ -9,6 +9,7 @@
   border: 1px solid color-mix(in srgb, var(--ag-border, #d7ddd4) 100%, transparent);
   border-radius: 0.75rem;
   background: color-mix(in srgb, var(--ag-surface, #fff) 92%, #eef3ea);
+  max-width: 48rem;
 }
 
 label {

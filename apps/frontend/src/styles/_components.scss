@@ -1144,23 +1144,63 @@
   }
 }
 
-// Laptop / medium desktop (992px–1439px)
-@media (min-width: 992px) and (max-width: 1439px) {
+// Laptop / medium desktop (992px–1599px)
+@media (min-width: 992px) and (max-width: 1599px) {
   .ag-shell__topbar {
     gap: var(--ag-space-2);
     padding-inline: var(--ag-space-4);
   }
 
   .ag-shell__topbar-center {
-    max-width: min(20rem, 100%);
+    max-width: min(24rem, 100%);
   }
 
   .ag-shell__workspace-context {
-    max-width: clamp(6rem, 12vw, 14rem);
+    max-width: clamp(6rem, 12vw, 16rem);
   }
 
   .ag-shell__content {
     padding: var(--ag-space-5);
+  }
+}
+
+// Large Desktop (1600px–2199px)
+@media (min-width: 1600px) {
+  .ag-shell__topbar {
+    padding: var(--ag-space-3) var(--ag-space-8);
+    gap: var(--ag-space-5);
+  }
+
+  .ag-shell__topbar-center {
+    max-width: min(34rem, 100%);
+  }
+
+  .ag-shell__workspace-context {
+    max-width: clamp(10rem, 16vw, 24rem);
+  }
+
+  .ag-shell__content {
+    padding: var(--ag-space-8);
+  }
+}
+
+// Ultra-wide Desktop (>= 2200px)
+@media (min-width: 2200px) {
+  .ag-shell__topbar {
+    padding: var(--ag-space-3) var(--ag-space-10);
+    gap: var(--ag-space-6);
+  }
+
+  .ag-shell__topbar-center {
+    max-width: min(40rem, 100%);
+  }
+
+  .ag-shell__workspace-context {
+    max-width: clamp(12rem, 18vw, 30rem);
+  }
+
+  .ag-shell__content {
+    padding: var(--ag-space-10);
   }
 }
 

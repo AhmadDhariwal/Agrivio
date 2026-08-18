@@ -19,7 +19,7 @@
 
 .form {
   width: 100%;
-  max-width: 54rem;
+  max-width: min(100%, 80rem);
 }
 
 .line {
@@ -56,6 +56,22 @@
 
   .totals {
     padding: var(--ag-space-3);
+  }
+}
+
+// Large Desktop (>= 1600px)
+@media (min-width: 1600px) {
+  .form {
+    max-width: min(100%, 96rem);
+  }
+
+  .line {
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    padding: var(--ag-space-5);
+  }
+
+  .totals {
+    padding: var(--ag-space-6);
   }
 }
 
