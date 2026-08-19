@@ -1,156 +1,283 @@
-<agrivio-ui-page-header
-  [title]="productId() ? 'Edit product' : 'Create product'"
-  eyebrow="Catalog"
-  lede="Define product identity, tracking mode, base unit, and packaging conversions."
-/>
+<div class="product-form-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">Catalog Management</p>
+      <h1 class="page-head__title">{{ productId() ? 'Edit Product' : 'Create Product' }}</h1>
+      <p class="page-head__lede">Define catalog identity, tracking rules, base measurement unit, and packaging variants.</p>
+    </div>
+    <div class="page-head__actions">
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/products">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        Back to Products
+      </a>
+    </div>
+  </header>
 
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading product…" />
-} @else if (!canManage()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to manage products." />
-} @else {
-  @if (errorMessage(); as error) {
-    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-  }
-  <form
-    class="ag-stack form ag-form ag-form--with-required-hint"
-    [formGroup]="form"
-    (ngSubmit)="save()"
-    data-testid="product-form"
-  >
-    <div class="ag-field">
-      <agrivio-ui-field-label label="Find category" for="product-category-search" />
-      <input id="product-category-search" class="ag-input" type="search" (change)="onCategorySearch($event)" />
-      <agrivio-ui-field-label
-        label="Category"
-        for="product-category"
-        [required]="fieldRequired(form.controls.categoryId)"
-      />
-      <select
-        id="product-category"
-        class="ag-select"
-        formControlName="categoryId"
-        data-testid="product-category"
-        [attr.aria-required]="fieldRequired(form.controls.categoryId) ? 'true' : null"
-      >
-        <option value="" disabled>Select category</option>
-        @for (category of categories(); track category.id) {
-          <option [value]="category.id">{{ category.name }}</option>
-        }
-      </select>
+  @if (loading()) {
+    <div class="state-container">
+      <agrivio-ui-loading-state label="Loading product definition…" />
     </div>
-    <div class="ag-field">
-      <agrivio-ui-field-label
-        label="Name"
-        for="product-name"
-        [required]="fieldRequired(form.controls.name)"
-      />
-      <input
-        id="product-name"
-        class="ag-input"
-        formControlName="name"
-        data-testid="product-name"
-        [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
-      />
+  } @else if (!canManage()) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="warning" message="You do not have permission to manage catalog products." />
     </div>
-    <div class="ag-field">
-      <agrivio-ui-field-label label="SKU (optional)" for="product-sku" />
-      <input id="product-sku" class="ag-input" formControlName="sku" data-testid="product-sku" />
-    </div>
-    <div class="ag-field">
-      <agrivio-ui-field-label
-        label="Tracking mode"
-        for="product-tracking-mode"
-        [required]="fieldRequired(form.controls.trackingMode)"
-      />
-      <select
-        id="product-tracking-mode"
-        class="ag-select"
-        formControlName="trackingMode"
-        data-testid="product-tracking-mode"
-        [attr.aria-required]="fieldRequired(form.controls.trackingMode) ? 'true' : null"
-      >
-        <option value="none">None</option>
-        <option value="batch">Batch</option>
-        <option value="batch_expiry">Batch + expiry</option>
-      </select>
-    </div>
-    <div class="ag-field">
-      <agrivio-ui-field-label
-        label="Base unit code"
-        for="product-base-unit"
-        [required]="fieldRequired(form.controls.baseUnitCode)"
-      />
-      <input
-        id="product-base-unit"
-        class="ag-input"
-        formControlName="baseUnitCode"
-        data-testid="product-base-unit"
-        [attr.aria-required]="fieldRequired(form.controls.baseUnitCode) ? 'true' : null"
-      />
-    </div>
-    <div class="ag-field">
-      <agrivio-ui-field-label
-        label="Measurement dimension"
-        for="product-measurement-dimension"
-        [required]="fieldRequired(form.controls.measurementDimension)"
-      />
-      <select
-        id="product-measurement-dimension"
-        class="ag-select"
-        formControlName="measurementDimension"
-        data-testid="product-measurement-dimension"
-        [attr.aria-required]="fieldRequired(form.controls.measurementDimension) ? 'true' : null"
-      >
-        <option value="mass">Mass</option>
-        <option value="volume">Volume</option>
-      </select>
-    </div>
-    @if (productId()) {
-      <div class="ag-field">
-        <agrivio-ui-field-label label="Status" for="product-status" />
-        <select id="product-status" class="ag-select" formControlName="status" data-testid="product-status">
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
+  } @else {
+    @if (errorMessage(); as error) {
+      <div class="alert-container">
+        <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
       </div>
     }
 
-    <fieldset class="packaging" formArrayName="packagingUnits">
-      <legend>Packaging units</legend>
-      @for (unit of packagingUnits.controls; track $index; let i = $index) {
-        <div class="packaging-row" [formGroupName]="i">
+    <form
+      class="prod-form"
+      [formGroup]="form"
+      (ngSubmit)="save()"
+      data-testid="product-form"
+    >
+      <!-- Section 1: Basic Information -->
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">Basic Information</h2>
+            <p class="form-card__subtitle">Core identity, category classification, and unique SKU.</p>
+          </div>
+        </div>
+
+        <div class="form-card__body">
+          <div class="form-grid form-grid--2col">
+            <!-- Category Search & Select -->
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Category"
+                for="product-category"
+                [required]="fieldRequired(form.controls.categoryId)"
+              />
+              <select
+                id="product-category"
+                class="ag-select"
+                formControlName="categoryId"
+                data-testid="product-category"
+                [attr.aria-required]="fieldRequired(form.controls.categoryId) ? 'true' : null"
+              >
+                <option value="" disabled>Select product category</option>
+                @for (category of categories(); track category.id) {
+                  <option [value]="category.id">{{ category.name }}</option>
+                }
+              </select>
+            </div>
+
+            <!-- SKU -->
+            <div class="ag-field">
+              <agrivio-ui-field-label label="SKU / Barcode (Optional)" for="product-sku" />
+              <input
+                id="product-sku"
+                class="ag-input font-mono"
+                formControlName="sku"
+                placeholder="e.g. FERT-UREA-50KG"
+                data-testid="product-sku"
+              />
+            </div>
+          </div>
+
+          <!-- Product Name -->
           <div class="ag-field">
-            <agrivio-ui-field-label label="Name" [for]="'packaging-unit-name-' + i" />
+            <agrivio-ui-field-label
+              label="Product Name"
+              for="product-name"
+              [required]="fieldRequired(form.controls.name)"
+            />
             <input
-              [id]="'packaging-unit-name-' + i"
+              id="product-name"
               class="ag-input"
               formControlName="name"
-              data-testid="packaging-unit-name"
+              placeholder="e.g. Sona Urea Granular (FFC)"
+              data-testid="product-name"
+              [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
             />
           </div>
-          <div class="ag-field">
-            <agrivio-ui-field-label label="Conversion factor" [for]="'packaging-conversion-' + i" />
-            <input
-              [id]="'packaging-conversion-' + i"
-              class="ag-input"
-              formControlName="conversionFactor"
-              data-testid="packaging-conversion"
-            />
+        </div>
+      </section>
+
+      <!-- Section 2: Inventory & Measurement Dimensions -->
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+              <path d="m3.3 7 8.7 5 8.7-5"/>
+              <path d="M12 22V12"/>
+            </svg>
           </div>
-          <button class="ag-btn ag-btn--secondary" type="button" (click)="removePackagingUnit(i)">
-            Remove
+          <div>
+            <h2 class="form-card__title">Measurement & Tracking</h2>
+            <p class="form-card__subtitle">Base unit of measure, dimension type, and batch/expiry control mode.</p>
+          </div>
+        </div>
+
+        <div class="form-card__body">
+          <div class="form-grid form-grid--3col">
+            <!-- Measurement Dimension -->
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Measurement Dimension"
+                for="product-measurement-dimension"
+                [required]="fieldRequired(form.controls.measurementDimension)"
+              />
+              <select
+                id="product-measurement-dimension"
+                class="ag-select"
+                formControlName="measurementDimension"
+                data-testid="product-measurement-dimension"
+                [attr.aria-required]="fieldRequired(form.controls.measurementDimension) ? 'true' : null"
+              >
+                <option value="mass">Mass (Weight)</option>
+                <option value="volume">Volume (Liquid)</option>
+              </select>
+            </div>
+
+            <!-- Base Unit Code -->
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Base Unit Code"
+                for="product-base-unit"
+                [required]="fieldRequired(form.controls.baseUnitCode)"
+              />
+              <input
+                id="product-base-unit"
+                class="ag-input uppercase font-mono"
+                formControlName="baseUnitCode"
+                placeholder="e.g. KG, LITRE, COUNT"
+                data-testid="product-base-unit"
+                [attr.aria-required]="fieldRequired(form.controls.baseUnitCode) ? 'true' : null"
+              />
+            </div>
+
+            <!-- Tracking Mode -->
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Tracking Mode"
+                for="product-tracking-mode"
+                [required]="fieldRequired(form.controls.trackingMode)"
+              />
+              <select
+                id="product-tracking-mode"
+                class="ag-select"
+                formControlName="trackingMode"
+                data-testid="product-tracking-mode"
+                [attr.aria-required]="fieldRequired(form.controls.trackingMode) ? 'true' : null"
+              >
+                <option value="none">None (Standard Inventory)</option>
+                <option value="batch">Batch Number Tracked</option>
+                <option value="batch_expiry">Batch + Expiry Date Tracked</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Status (if editing) -->
+          @if (productId()) {
+            <div class="ag-field" style="max-width: 280px; margin-top: 8px;">
+              <agrivio-ui-field-label label="Product Lifecycle Status" for="product-status" />
+              <select id="product-status" class="ag-select" formControlName="status" data-testid="product-status">
+                <option value="active">Active (Available for transactions)</option>
+                <option value="inactive">Inactive (Archived)</option>
+              </select>
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- Section 3: Packaging Units & Multi-unit Conversions -->
+      <section class="form-card" formArrayName="packagingUnits">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="7" height="7" x="3" y="3" rx="1"/>
+              <rect width="7" height="7" x="14" y="3" rx="1"/>
+              <rect width="7" height="7" x="14" y="14" rx="1"/>
+              <rect width="7" height="7" x="3" y="14" rx="1"/>
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">Packaging Units & Conversions</h2>
+            <p class="form-card__subtitle">Define secondary sellable packages (e.g. 50 KG Bag = 50 × Base Unit).</p>
+          </div>
+        </div>
+
+        <div class="form-card__body">
+          <div class="packaging-list">
+            @for (unit of packagingUnits.controls; track $index; let i = $index) {
+              <div class="packaging-row" [formGroupName]="i">
+                <div class="ag-field">
+                  <agrivio-ui-field-label label="Packaging Unit Name" [for]="'packaging-unit-name-' + i" />
+                  <input
+                    [id]="'packaging-unit-name-' + i"
+                    class="ag-input"
+                    formControlName="name"
+                    placeholder="e.g. 50 KG Bag, Carton of 24"
+                    data-testid="packaging-unit-name"
+                  />
+                </div>
+                <div class="ag-field">
+                  <agrivio-ui-field-label label="Conversion Factor" [for]="'packaging-conversion-' + i" />
+                  <input
+                    [id]="'packaging-conversion-' + i"
+                    class="ag-input font-mono"
+                    formControlName="conversionFactor"
+                    placeholder="e.g. 50"
+                    data-testid="packaging-conversion"
+                  />
+                </div>
+                <button
+                  class="ag-btn ag-btn--secondary ag-btn--danger-hover"
+                  type="button"
+                  (click)="removePackagingUnit(i)"
+                  title="Remove packaging unit"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                  </svg>
+                  Remove
+                </button>
+              </div>
+            }
+          </div>
+
+          <button class="ag-btn ag-btn--secondary add-unit-btn" type="button" (click)="addPackagingUnit()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Add packaging unit
           </button>
         </div>
-      }
-      <button class="ag-btn ag-btn--secondary" type="button" (click)="addPackagingUnit()">
-        Add packaging unit
-      </button>
-    </fieldset>
+      </section>
 
-    <div class="ag-inline">
-      <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="product-save">Save</button>
-      <a class="ag-btn ag-btn--secondary" routerLink="/app/products">Cancel</a>
-    </div>
-  </form>
-}
+      <!-- Action Footer -->
+      <footer class="form-actions">
+        <button class="ag-btn ag-btn--primary" type="submit" [disabled]="saving()" data-testid="product-save">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/>
+            <polyline points="7 3 7 8 15 8"/>
+          </svg>
+          {{ saving() ? 'Saving…' : 'Save Product' }}
+        </button>
+        <a class="ag-btn ag-btn--secondary" routerLink="/app/products">Cancel</a>
+      </footer>
+    </form>
+  }
+</div>
+

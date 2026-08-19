@@ -15,6 +15,9 @@ describe('ProductsPage', () => {
           provide: CatalogApi,
           useValue: {
             listProducts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            searchCategoryOptions: () => of([]),
+            listPackagingUnits: () => of([]),
+            listPrices: () => of([]),
           },
         },
         {
@@ -31,3 +34,4 @@ describe('ProductsPage', () => {
     expect(fixture.nativeElement.textContent).toContain('No products yet');
   });
 });
+
