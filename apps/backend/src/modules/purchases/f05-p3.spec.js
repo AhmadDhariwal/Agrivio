@@ -356,7 +356,7 @@ describe('F05 P3 supplier payments, cancellations, returns, and reconciliation',
       const balancesAfterPost = await fetchJson(
         baseUrl, 'GET', API_INVENTORY_BALANCES_PATH, null, {}, jar,
       );
-      const stockBefore = balancesAfterPost.body.data.items.find((i) => i.productId === productId);
+      const stockBefore = balancesAfterPost.body.data.find((i) => i.productId === productId);
       expect(stockBefore).toBeDefined();
       expect(stockBefore.quantityBase).toBe('5.0000');
 
@@ -371,7 +371,7 @@ describe('F05 P3 supplier payments, cancellations, returns, and reconciliation',
       const balancesAfterCancel = await fetchJson(
         baseUrl, 'GET', API_INVENTORY_BALANCES_PATH, null, {}, jar,
       );
-      const productBalance = balancesAfterCancel.body.data.items.find((i) => i.productId === productId);
+      const productBalance = balancesAfterCancel.body.data.find((i) => i.productId === productId);
       expect(productBalance === undefined || productBalance.quantityBase === '0.0000').toBe(true);
 
       // --- Test 11: cancel requires reason
@@ -566,7 +566,7 @@ describe('F05 P3 supplier payments, cancellations, returns, and reconciliation',
       const balancesAfterReturn = await fetchJson(
         baseUrl, 'GET', API_INVENTORY_BALANCES_PATH, null, {}, jar,
       );
-      const stockAfterReturn = balancesAfterReturn.body.data.items.find((i) => i.productId === productId);
+      const stockAfterReturn = balancesAfterReturn.body.data.find((i) => i.productId === productId);
       expect(stockAfterReturn).toBeDefined();
       expect(stockAfterReturn.quantityBase).toBe('4.0000');
 
@@ -574,7 +574,7 @@ describe('F05 P3 supplier payments, cancellations, returns, and reconciliation',
         baseUrl, 'GET', API_INVENTORY_MOVEMENTS_PATH, null, {}, jar,
       );
       expect(
-        movements.body.data.items.some((m) => m.sourceType === 'purchase_return'),
+        movements.body.data.some((m) => m.sourceType === 'purchase_return'),
       ).toBe(true);
 
       const supplierLedger = await fetchJson(

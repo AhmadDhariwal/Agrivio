@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, map, switchMap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
+import { PaginatedResult, PaginationQuery } from '../../../shared/data-access/pagination';
 
 export type OrganizationRole = 'Owner' | 'Manager' | 'Cashier' | 'StoreKeeper';
 
@@ -33,12 +34,13 @@ export class UsersAccessApi {
   private readonly http = inject(HttpClient);
   private readonly authApi = inject(AuthApi);
 
-  listEmployees(): Observable<EmployeeRecord[]> {
+  listEmployees(params: PaginationQuery & { search?: string } = {}): Observable<PaginatedResult<EmployeeRecord>> {
     return this.http
-      .get<{ data: { items: EmployeeRecord[] } }>(`${environment.publicApiBaseUrl}/api/v1/users`, {
+      .get<{ data: EmployeeRecord[]; meta: PaginatedResult<EmployeeRecord>['meta'] }>(`${environment.publicApiBaseUrl}/api/v1/users`, {
         withCredentials: true,
+        params: { page: params.page ?? 1, pageSize: params.pageSize ?? 25, ...(params.search ? { search: params.search } : {}) },
       })
-      .pipe(map((response) => response.data.items));
+      .pipe(map((response) => ({ items: response.data, meta: response.meta })));
   }
 
   getEmployee(id: string): Observable<EmployeeRecord> {
@@ -51,24 +53,20 @@ export class UsersAccessApi {
 
   listAssignmentBranches(): Observable<AssignmentTarget[]> {
     return this.http
-      .get<{ data: { items: Array<{ id: string; name: string }> } }>(
+      .get<{ data: Array<{ id: string; name: string }> }>(
         `${environment.publicApiBaseUrl}/api/v1/branches`,
-        { withCredentials: true },
+        { withCredentials: true, params: { page: 1, pageSize: 100, status: 'active' } },
       )
-      .pipe(
-        map((response) => response.data.items.map((item) => ({ id: item.id, name: item.name }))),
-      );
+      .pipe(map((response) => response.data.map((item) => ({ id: item.id, name: item.name }))));
   }
 
   listAssignmentWarehouses(): Observable<AssignmentTarget[]> {
     return this.http
-      .get<{ data: { items: Array<{ id: string; name: string }> } }>(
+      .get<{ data: Array<{ id: string; name: string }> }>(
         `${environment.publicApiBaseUrl}/api/v1/warehouses`,
-        { withCredentials: true },
+        { withCredentials: true, params: { page: 1, pageSize: 100, status: 'active' } },
       )
-      .pipe(
-        map((response) => response.data.items.map((item) => ({ id: item.id, name: item.name }))),
-      );
+      .pipe(map((response) => response.data.map((item) => ({ id: item.id, name: item.name }))));
   }
 
   createEmployee(payload: {

@@ -11,7 +11,7 @@ describe('NavbarSearchComponent', () => {
   let router: Router;
 
   const mockCatalogApi = {
-    listProducts: vi.fn().mockReturnValue(
+    searchProductOptions: vi.fn().mockReturnValue(
       of([
         { id: 'prod-1', name: 'Urea 50kg', sku: 'UREA-50', baseUnitCode: 'bag' } as any,
       ]),
@@ -30,7 +30,7 @@ describe('NavbarSearchComponent', () => {
 
   beforeEach(async () => {
     vi.useFakeTimers();
-    mockCatalogApi.listProducts.mockClear();
+    mockCatalogApi.searchProductOptions.mockClear();
 
     await TestBed.configureTestingModule({
       imports: [NavbarSearchComponent],
@@ -64,7 +64,7 @@ describe('NavbarSearchComponent', () => {
     vi.advanceTimersByTime(350);
     fixture.detectChanges();
 
-    expect(mockCatalogApi.listProducts).not.toHaveBeenCalled();
+    expect(mockCatalogApi.searchProductOptions).not.toHaveBeenCalled();
     expect(component.groups().length).toBe(0);
     expect(fixture.nativeElement.querySelector('.ag-nav-search__dropdown')).toBeFalsy();
   });
@@ -76,7 +76,7 @@ describe('NavbarSearchComponent', () => {
     vi.advanceTimersByTime(350);
     fixture.detectChanges();
 
-    expect(mockCatalogApi.listProducts).toHaveBeenCalledWith({ q: 'Urea', limit: 5, status: 'active' });
+    expect(mockCatalogApi.searchProductOptions).toHaveBeenCalledWith('Urea', 5);
     expect(component.groups().length).toBe(1);
     const dropdown = fixture.nativeElement.querySelector('.ag-nav-search__dropdown');
     expect(dropdown).toBeTruthy();

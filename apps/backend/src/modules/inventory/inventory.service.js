@@ -163,6 +163,13 @@ function createInventoryService(deps) {
   const locationsService = deps.locationsService;
   const idempotency = deps.idempotency;
   const now = deps.now ?? (() => new Date());
+
+  function accessibleWarehouseIds(organizationId, authContext) {
+    if (authContext?.role === 'Owner' || !Array.isArray(authContext?.warehouseAssignments)) return undefined;
+    return authContext.warehouseAssignments
+      .filter((item) => String(item.organizationId) === String(organizationId))
+      .map((item) => String(item.targetId));
+  }
   const createObjectId = deps.createObjectId ?? (() => new mongoose.Types.ObjectId());
   const resolveOrganizationTimezone =
     deps.resolveOrganizationTimezone ??
@@ -397,8 +404,12 @@ function createInventoryService(deps) {
       if (typeof query?.productId === 'string' && query.productId.trim() !== '') {
         filters.productId = query.productId.trim();
       }
+      if (query?.skip !== undefined || query?.pageSize !== undefined) {
+        const { items, total } = await store.listBatchesPage(organizationId, filters, query);
+        return { items: items.map(toBatchDto), total };
+      }
       const items = await store.listBatches(organizationId, filters);
-      return { items: items.map(toBatchDto) };
+      return { items: items.map(toBatchDto), total: items.length };
     },
 
     async getBatch(organizationId, batchId) {
@@ -420,8 +431,12 @@ function createInventoryService(deps) {
       if (typeof query?.batchId === 'string' && query.batchId.trim() !== '') {
         filters.batchId = query.batchId.trim();
       }
-
-      const balances = await store.listBalances(organizationId, filters);
+      if (!filters.warehouseId) filters.warehouseIds = accessibleWarehouseIds(organizationId, authContext);
+      const paginated = query?.skip !== undefined || query?.pageSize !== undefined;
+      const result = paginated
+        ? await store.listBalancesPage(organizationId, filters, query)
+        : { items: await store.listBalances(organizationId, filters), total: undefined };
+      const balances = result.items;
       const scoped = [];
       for (const balance of balances) {
         if (
@@ -448,7 +463,7 @@ function createInventoryService(deps) {
             };
         scoped.push(toBalanceDto(balance, valuation));
       }
-      return { items: scoped };
+      return { items: scoped, total: result.total ?? scoped.length };
     },
 
     async listMovements(organizationId, query, authContext) {
@@ -462,8 +477,12 @@ function createInventoryService(deps) {
       if (typeof query?.batchId === 'string' && query.batchId.trim() !== '') {
         filters.batchId = query.batchId.trim();
       }
-
-      const movements = await store.listMovements(organizationId, filters);
+      if (!filters.warehouseId) filters.warehouseIds = accessibleWarehouseIds(organizationId, authContext);
+      const paginated = query?.skip !== undefined || query?.pageSize !== undefined;
+      const result = paginated
+        ? await store.listMovementsPage(organizationId, filters, query)
+        : { items: await store.listMovements(organizationId, filters), total: undefined };
+      const movements = result.items;
       const items = movements
         .filter((item) => {
           if (typeof deps.canAccessWarehouse !== 'function') {
@@ -472,7 +491,7 @@ function createInventoryService(deps) {
           return deps.canAccessWarehouse(authContext, String(item.warehouseId));
         })
         .map(toMovementDto);
-      return { items };
+      return { items, total: result.total ?? items.length };
     },
 
     async listMovementsBySource(organizationId, sourceType, sourceId, session) {
@@ -731,7 +750,12 @@ function createInventoryService(deps) {
       if (typeof query?.status === 'string' && query.status.trim() !== '') {
         filters.status = query.status.trim();
       }
-      const records = await store.listAdjustments(organizationId, filters);
+      if (!filters.warehouseId) filters.warehouseIds = accessibleWarehouseIds(organizationId, authContext);
+      const paginated = query?.skip !== undefined || query?.pageSize !== undefined;
+      const result = paginated
+        ? await store.listAdjustmentsPage(organizationId, filters, query)
+        : { items: await store.listAdjustments(organizationId, filters), total: undefined };
+      const records = result.items;
       const items = records
         .filter((item) => {
           if (typeof deps.canAccessWarehouse !== 'function') {
@@ -740,7 +764,7 @@ function createInventoryService(deps) {
           return deps.canAccessWarehouse(authContext, String(item.warehouseId));
         })
         .map(toAdjustmentDto);
-      return { items };
+      return { items, total: result.total ?? items.length };
     },
 
     async getAdjustment(organizationId, adjustmentId, authContext) {
@@ -1236,19 +1260,23 @@ function createInventoryService(deps) {
       ) {
         filters.destinationWarehouseId = query.destinationWarehouseId.trim();
       }
-      const items = await store.listTransfers(organizationId, filters);
+      if (!filters.sourceWarehouseId && !filters.destinationWarehouseId) {
+        filters.warehouseIds = accessibleWarehouseIds(organizationId, authContext);
+      }
+      const paginated = query?.skip !== undefined || query?.pageSize !== undefined;
+      const result = paginated
+        ? await store.listTransfersPage(organizationId, filters, query)
+        : { items: await store.listTransfers(organizationId, filters), total: undefined };
+      const items = result.items;
+      const mapped = items
+        .filter((item) => {
+          if (typeof deps.canAccessWarehouse !== 'function') return true;
+          return deps.canAccessWarehouse(authContext, String(item.sourceWarehouseId)) && deps.canAccessWarehouse(authContext, String(item.destinationWarehouseId));
+        })
+        .map(toTransferDto);
       return {
-        items: items
-          .filter((item) => {
-            if (typeof deps.canAccessWarehouse !== 'function') {
-              return true;
-            }
-            return (
-              deps.canAccessWarehouse(authContext, String(item.sourceWarehouseId)) &&
-              deps.canAccessWarehouse(authContext, String(item.destinationWarehouseId))
-            );
-          })
-          .map(toTransferDto),
+        items: mapped,
+        total: result.total ?? mapped.length,
       };
     },
 

@@ -216,10 +216,10 @@ describe('F07 P3 manual account transactions, reversals, and expenses', () => {
         {},
         jar,
       );
-      const transferOut = cashMovements.body.data.items.find(
+      const transferOut = cashMovements.body.data.find(
         (item) => item.sourceType === 'account_transfer_out' && item.sourceId === transfer.body.data.id,
       );
-      const transferIn = bankMovements.body.data.items.find(
+      const transferIn = bankMovements.body.data.find(
         (item) => item.sourceType === 'account_transfer_in' && item.sourceId === transfer.body.data.id,
       );
       expect(transferOut.signedAmount.amount).toBe('-100.00');
@@ -353,7 +353,7 @@ describe('F07 P3 manual account transactions, reversals, and expenses', () => {
         {},
         jar,
       );
-      const cashMovementSum = sumSigned(cashMovements.body.data.items);
+      const cashMovementSum = sumSigned(cashMovements.body.data);
       void cashMovementSum;
       const cashMovesAfter = await fetchJson(
         baseUrl,
@@ -372,10 +372,10 @@ describe('F07 P3 manual account transactions, reversals, and expenses', () => {
         jar,
       );
       expect(cashReconciled.body.data.derivedBalances.balance.amount).toBe(
-        formatSignedSum(cashMovesAfter.body.data.items),
+        formatSignedSum(cashMovesAfter.body.data),
       );
       expect(bankReconciled.body.data.derivedBalances.balance.amount).toBe(
-        formatSignedSum(bankMovesAfter.body.data.items),
+        formatSignedSum(bankMovesAfter.body.data),
       );
       expect(cashReconciled.body.data.derivedBalances.balance.amount).toBe('1000.00');
       expect(bankReconciled.body.data.derivedBalances.balance.amount).toBe('0.00');
@@ -438,7 +438,7 @@ describe('F07 P3 manual account transactions, reversals, and expenses', () => {
         {},
         jar,
       );
-      const expenseOut = expenseMoves.body.data.items.find(
+      const expenseOut = expenseMoves.body.data.find(
         (item) =>
           item.sourceType === 'expense' && item.sourceId === postedExpense.body.data.id,
       );
@@ -501,7 +501,7 @@ describe('F07 P3 manual account transactions, reversals, and expenses', () => {
               {},
               jar,
             )
-          ).body.data.items,
+          ).body.data,
         ),
       );
 

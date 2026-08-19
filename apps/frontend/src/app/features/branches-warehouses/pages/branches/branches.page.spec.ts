@@ -13,7 +13,9 @@ describe('BranchesPage', () => {
         provideRouter([]),
         {
           provide: BranchesWarehousesApi,
-          useValue: { listBranches: () => of([]) },
+          useValue: {
+            listBranches: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+          },
         },
         {
           provide: AuthSessionStore,

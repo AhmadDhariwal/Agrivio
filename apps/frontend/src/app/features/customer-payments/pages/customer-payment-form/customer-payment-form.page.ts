@@ -77,8 +77,8 @@ export class CustomerPaymentFormPage {
     }
 
     forkJoin({
-      customers: this.customersApi.listCustomers(),
-      accounts: this.accountsApi.listAccounts(),
+      customers: this.customersApi.searchCustomerOptions(),
+      accounts: this.accountsApi.listAccountOptions(),
     }).subscribe({
       next: ({ customers, accounts }) => {
         this.customers.set(customers.filter((item) => item.status === 'active'));
@@ -101,6 +101,13 @@ export class CustomerPaymentFormPage {
         error: () => this.ledgerItems.set([]),
       });
     });
+  }
+
+  onCustomerSearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      this.customersApi.searchCustomerOptions(target.value).subscribe((items) => this.customers.set(items.filter((item) => item.status === 'active')));
+    }
   }
 
   save(): void {

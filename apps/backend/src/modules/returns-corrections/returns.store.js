@@ -39,6 +39,18 @@ function createMongooseReturnsStore() {
       return ReturnModel.find(query).sort({ createdAt: -1 }).lean().exec();
     },
 
+    async listReturnsPage(organizationId, filter = {}, pagination = {}) {
+      const query = { organizationId };
+      for (const field of ['status', 'supplierId', 'warehouseId', 'purchaseId', 'saleId', 'customerId', 'returnType']) {
+        if (filter[field]) query[field] = filter[field];
+      }
+      if (Array.isArray(filter.warehouseIds)) query.warehouseId = { $in: filter.warehouseIds };
+      const [total, items] = await Promise.all([
+        ReturnModel.countDocuments(query).exec(),
+        ReturnModel.find(query).sort({ createdAt: -1, _id: -1 }).skip(pagination.skip ?? 0).limit(pagination.pageSize ?? 25).lean().exec(),
+      ]); return { items, total };
+    },
+
     async findReturnById(organizationId, id, session) {
       if (!mongoose.isValidObjectId(id)) {
         return null;
@@ -261,7 +273,7 @@ function createInMemoryReturnsStore() {
           return true;
         })
         .map((item) => ({ ...item, lines: item.lines.map((line) => ({ ...line })) }))
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() || String(b._id).localeCompare(String(a._id)));
     },
 
     async findReturnById(organizationId, id) {

@@ -151,3 +151,34 @@
   }
 }
 
+// Large Desktop (1600px–2199px)
+@media (min-width: 1600px) {
+  .dash-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+    gap: var(--ag-space-5);
+  }
+
+  .dash-charts {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr));
+    gap: var(--ag-space-6);
+  }
+
+  .dash-panel {
+    padding: var(--ag-space-6);
+  }
+}
+
+// Ultra-wide Desktop (>= 2200px)
+@media (min-width: 2200px) {
+  .dash-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+    gap: var(--ag-space-6);
+  }
+
+  .dash-charts {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 34rem), 1fr));
+    gap: var(--ag-space-8);
+  }
+}
+
+

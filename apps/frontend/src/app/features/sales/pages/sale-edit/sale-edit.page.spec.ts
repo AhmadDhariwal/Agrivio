@@ -78,7 +78,8 @@ describe('SaleEditPage', () => {
         {
           provide: CatalogApi,
           useValue: {
-            listProducts: () => of([]),
+            listProducts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            searchProductOptions: () => of([]),
             listPackagingUnits: () => of([]),
             listPrices: () => of([]),
           },
@@ -86,17 +87,25 @@ describe('SaleEditPage', () => {
         {
           provide: BranchesWarehousesApi,
           useValue: {
-            listBranches: () => of([]),
-            listWarehouses: () => of([]),
+            listBranches: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            listWarehouses: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            listBranchOptions: () => of([]),
+            listWarehouseOptions: () => of([]),
           },
         },
         {
           provide: CustomersApi,
-          useValue: { listCustomers: () => of([]) },
+          useValue: {
+            listCustomers: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            searchCustomerOptions: () => of([]),
+          },
         },
         {
           provide: AccountsApi,
-          useValue: { listAccounts: () => of([]) },
+          useValue: {
+            listAccounts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            listAccountOptions: () => of([]),
+          },
         },
         {
           provide: SalesReturnsApi,
@@ -104,7 +113,9 @@ describe('SaleEditPage', () => {
         },
         {
           provide: ReturnsApi,
-          useValue: { listReturns: () => of([]) },
+          useValue: {
+            listReturns: () => of({ items: [], meta: { page: 1, pageSize: 100, total: 0 } }),
+          },
         },
         {
           provide: AuthSessionStore,
@@ -143,7 +154,8 @@ describe('SaleEditPage', () => {
         {
           provide: CatalogApi,
           useValue: {
-            listProducts: () => of([]),
+            listProducts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            searchProductOptions: () => of([]),
             listPackagingUnits: () => of([]),
             listPrices: () => of([]),
           },
@@ -151,17 +163,25 @@ describe('SaleEditPage', () => {
         {
           provide: BranchesWarehousesApi,
           useValue: {
-            listBranches: () => of([]),
-            listWarehouses: () => of([]),
+            listBranches: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            listWarehouses: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            listBranchOptions: () => of([]),
+            listWarehouseOptions: () => of([]),
           },
         },
         {
           provide: CustomersApi,
-          useValue: { listCustomers: () => of([]) },
+          useValue: {
+            listCustomers: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            searchCustomerOptions: () => of([]),
+          },
         },
         {
           provide: AccountsApi,
-          useValue: { listAccounts: () => of([]) },
+          useValue: {
+            listAccounts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            listAccountOptions: () => of([]),
+          },
         },
         {
           provide: SalesReturnsApi,
@@ -169,7 +189,9 @@ describe('SaleEditPage', () => {
         },
         {
           provide: ReturnsApi,
-          useValue: { listReturns: () => of([]) },
+          useValue: {
+            listReturns: () => of({ items: [], meta: { page: 1, pageSize: 100, total: 0 } }),
+          },
         },
         {
           provide: AuthSessionStore,
@@ -206,7 +228,8 @@ describe('SaleEditPage', () => {
         {
           provide: CatalogApi,
           useValue: {
-            listProducts: () => of([]),
+            listProducts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            searchProductOptions: () => of([]),
             listPackagingUnits: () => of([]),
             listPrices: () => of([]),
           },
@@ -214,17 +237,25 @@ describe('SaleEditPage', () => {
         {
           provide: BranchesWarehousesApi,
           useValue: {
-            listBranches: () => of([]),
-            listWarehouses: () => of([]),
+            listBranches: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            listWarehouses: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            listBranchOptions: () => of([]),
+            listWarehouseOptions: () => of([]),
           },
         },
         {
           provide: CustomersApi,
-          useValue: { listCustomers: () => of([]) },
+          useValue: {
+            listCustomers: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            searchCustomerOptions: () => of([]),
+          },
         },
         {
           provide: AccountsApi,
-          useValue: { listAccounts: () => of([]) },
+          useValue: {
+            listAccounts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            listAccountOptions: () => of([]),
+          },
         },
         {
           provide: SalesReturnsApi,
@@ -232,7 +263,9 @@ describe('SaleEditPage', () => {
         },
         {
           provide: ReturnsApi,
-          useValue: { listReturns: () => of([]) },
+          useValue: {
+            listReturns: () => of({ items: [], meta: { page: 1, pageSize: 100, total: 0 } }),
+          },
         },
         {
           provide: AuthSessionStore,

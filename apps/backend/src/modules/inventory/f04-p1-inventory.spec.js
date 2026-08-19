@@ -157,7 +157,7 @@ describe('F04 P1 inventory batches, opening stock, movements, WAC', () => {
 
       const balances = await fetchJson(baseUrl, 'GET', API_INVENTORY_BALANCES_PATH, undefined, {}, jar);
       expect(balances.status).toBe(200);
-      const batchBalances = balances.body.data.items.filter(
+      const batchBalances = balances.body.data.filter(
         (item) => item.productId === fixtureA.batchProductId,
       );
       expect(batchBalances).toHaveLength(2);
@@ -174,11 +174,11 @@ describe('F04 P1 inventory batches, opening stock, movements, WAC', () => {
         jar,
       );
       expect(movements.status).toBe(200);
-      expect(movements.body.data.items.length).toBeGreaterThanOrEqual(3);
+      expect(movements.body.data.length).toBeGreaterThanOrEqual(3);
 
       const batches = await fetchJson(baseUrl, 'GET', API_INVENTORY_BATCHES_PATH, undefined, {}, jar);
       expect(batches.status).toBe(200);
-      expect(batches.body.data.items.some((item) => item.batchNumber === 'LOT-A1')).toBe(true);
+      expect(batches.body.data.some((item) => item.batchNumber === 'LOT-A1')).toBe(true);
 
       // Balance equals sum of movements for LOT-A1.
       const lotA1Sum = await app.agrivio.inventory.store.sumMovementSignedQuantity(orgA.organizationId, {
@@ -195,7 +195,7 @@ describe('F04 P1 inventory batches, opening stock, movements, WAC', () => {
       const crossBalances = await fetchJson(baseUrl, 'GET', API_INVENTORY_BALANCES_PATH, undefined, {}, jar);
       expect(crossBalances.status).toBe(200);
       expect(
-        crossBalances.body.data.items.every(
+        crossBalances.body.data.every(
           (item) =>
             item.warehouseId === fixtureB.warehouseId ||
             item.productId === fixtureB.batchProductId ||
@@ -203,7 +203,7 @@ describe('F04 P1 inventory batches, opening stock, movements, WAC', () => {
         ),
       ).toBe(true);
       expect(
-        crossBalances.body.data.items.some((item) => item.warehouseId === fixtureA.warehouseId),
+        crossBalances.body.data.some((item) => item.warehouseId === fixtureA.warehouseId),
       ).toBe(false);
 
       const crossBatch = await fetchJson(

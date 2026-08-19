@@ -204,7 +204,7 @@ describe('F06 P2 sale posting, tier pricing, and payments', () => {
         jar,
       );
       expect(balancesAfterWalkIn.status).toBe(200);
-      const balance = balancesAfterWalkIn.body.data.items.find(
+      const balance = balancesAfterWalkIn.body.data.find(
         (item) => item.productId === product.body.data.id,
       );
       expect(balance.quantityBase).toBe('98.0000');
@@ -277,7 +277,7 @@ describe('F06 P2 sale posting, tier pricing, and payments', () => {
         jar,
       );
       expect(movements.status).toBe(200);
-      expect(movements.body.data.items.filter((item) => item.sourceType === 'sale').length).toBe(3);
+      expect(movements.body.data.filter((item) => item.sourceType === 'sale').length).toBe(3);
 
       // Walk-in credit blocked
       const walkInCreditDraft = await postJson(baseUrl, jar, 'POST', API_SALES_PATH, {

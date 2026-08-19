@@ -13,6 +13,8 @@ import {
   createApiSuccessEnvelope,
   type ApiHealthResponse,
   type ApiReadinessResponse,
+  type ApiSuccessEnvelope,
+  type PaginationMeta,
 } from './api-contracts';
 
 const packageSrcRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -72,6 +74,18 @@ describe('api-contracts transport surface', () => {
     });
     expect(error).toEqual({
       error: { code: 'INTERNAL_ERROR', message: 'Unexpected' },
+      requestId: 'req-12345678',
+    });
+  });
+
+  it('types pagination metadata on the shared success envelope', () => {
+    const meta: PaginationMeta = { page: 2, pageSize: 25, total: 61 };
+    const success: ApiSuccessEnvelope<string[], PaginationMeta> =
+      createApiSuccessEnvelope('req-12345678', ['item'], meta);
+
+    expect(success).toEqual({
+      data: ['item'],
+      meta,
       requestId: 'req-12345678',
     });
   });

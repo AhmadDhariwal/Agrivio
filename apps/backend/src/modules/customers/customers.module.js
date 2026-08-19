@@ -90,17 +90,18 @@ function createCustomersService(deps) {
 
   return {
     async listCustomers(organizationId, options = {}) {
-      const listed = await store.listCustomers(organizationId);
-      const items =
-        options.status === 'active' || options.status === 'inactive'
-          ? listed.filter((item) => String(item.status) === options.status)
-          : listed;
+      const { status, search, skip, pageSize } = options;
+      const { items, total } = await store.listCustomers(
+        organizationId,
+        { status, search },
+        { skip, pageSize },
+      );
       if (!ledgersService || typeof ledgersService.mapPartyBalances !== 'function') {
         const mapped = [];
         for (const item of items) {
           mapped.push(await buildCustomerDto(organizationId, item));
         }
-        return { items: mapped };
+        return { items: mapped, total };
       }
       const [receivableMap, advanceMap] = await Promise.all([
         ledgersService.mapPartyBalances(organizationId, 'customer', 'receivable'),
@@ -114,8 +115,10 @@ function createCustomersService(deps) {
             advance: advanceMap.get(String(item['_id'])) ?? zero,
           }),
         ),
+        total,
       };
     },
+
 
     async getCustomer(organizationId, customerId) {
       const record = await store.findCustomerById(organizationId, customerId);
@@ -133,7 +136,7 @@ function createCustomersService(deps) {
       if (needle === '') {
         return null;
       }
-      const items = await store.listCustomers(organizationId);
+      const { items } = await store.listCustomers(organizationId);
       const found = items.find((item) => String(item.nameNormalized) === needle);
       return found ? toCustomerDto(found) : null;
     },

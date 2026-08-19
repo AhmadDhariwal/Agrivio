@@ -10,6 +10,11 @@
   }
 </agrivio-ui-page-header>
 
+<div class="ag-inline">
+  <agrivio-ui-search-input placeholder="Search invoice number..." [value]="search()" (searchChange)="onSearchChange($event)" />
+  <label>Status <select [value]="status()" (change)="onStatusChange($event)"><option value="">All</option><option value="draft">Draft</option><option value="posted">Posted</option><option value="cancelled">Cancelled</option></select></label>
+</div>
+
 @if (loading()) {
   <agrivio-ui-loading-state label="Loading sale drafts…" />
 } @else if (errorMessage(); as error) {
@@ -60,4 +65,5 @@
       </article>
     }
   </div>
+  <agrivio-ui-pagination [page]="page()" [pageSize]="pageSize()" [total]="total()" [disabled]="loading()" (pageChange)="onPageChange($event)" (pageSizeChange)="onPageSizeChange($event)" />
 }

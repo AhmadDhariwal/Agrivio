@@ -40,6 +40,8 @@
     data-testid="supplier-payment-form"
   >
     <div class="ag-field">
+      <agrivio-ui-field-label label="Find supplier" for="supplier-payment-supplier-search" />
+      <input id="supplier-payment-supplier-search" class="ag-input" type="search" (change)="onSupplierSearch($event)" />
       <agrivio-ui-field-label
         label="Supplier"
         for="supplier-payment-supplier"

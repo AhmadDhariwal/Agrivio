@@ -83,17 +83,18 @@ function createSuppliersService(deps) {
 
   return {
     async listSuppliers(organizationId, options = {}) {
-      const listed = await store.listSuppliers(organizationId);
-      const items =
-        options.status === 'active' || options.status === 'inactive'
-          ? listed.filter((item) => String(item.status) === options.status)
-          : listed;
+      const { status, search, skip, pageSize } = options;
+      const { items, total } = await store.listSuppliers(
+        organizationId,
+        { status, search },
+        skip !== undefined || pageSize !== undefined ? { skip, pageSize } : {},
+      );
       if (!ledgersService || typeof ledgersService.mapPartyBalances !== 'function') {
         const mapped = [];
         for (const item of items) {
           mapped.push(await buildSupplierDto(organizationId, item));
         }
-        return { items: mapped };
+        return { items: mapped, total };
       }
       const [payableMap, advanceMap] = await Promise.all([
         ledgersService.mapPartyBalances(organizationId, 'supplier', 'payable'),
@@ -107,6 +108,7 @@ function createSuppliersService(deps) {
             advance: advanceMap.get(String(item['_id'])) ?? zero,
           }),
         ),
+        total,
       };
     },
 
@@ -126,7 +128,7 @@ function createSuppliersService(deps) {
       if (needle === '') {
         return null;
       }
-      const items = await store.listSuppliers(organizationId);
+      const { items } = await store.listSuppliers(organizationId);
       const found = items.find((item) => String(item.nameNormalized) === needle);
       return found ? toSupplierDto(found) : null;
     },

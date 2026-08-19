@@ -4,18 +4,24 @@ import { Observable, map, switchMap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
 import { AccountMovementRecord, AccountRecord, AccountTransactionRecord, AccountTransferRecord } from '../models/accounts.models';
+import { PaginatedResult, PaginationQuery } from '../../../shared/data-access/pagination';
 
 @Injectable({ providedIn: 'root' })
 export class AccountsApi {
   private readonly http = inject(HttpClient);
   private readonly authApi = inject(AuthApi);
 
-  listAccounts(): Observable<AccountRecord[]> {
+  listAccounts(params: PaginationQuery & { status?: string; search?: string } = {}): Observable<PaginatedResult<AccountRecord>> {
     return this.http
-      .get<{ data: { items: AccountRecord[] } }>(`${environment.publicApiBaseUrl}/api/v1/accounts`, {
+      .get<{ data: AccountRecord[]; meta: PaginatedResult<AccountRecord>['meta'] }>(`${environment.publicApiBaseUrl}/api/v1/accounts`, {
         withCredentials: true,
+        params: { page: params.page ?? 1, pageSize: params.pageSize ?? 25, ...(params.status ? { status: params.status } : {}), ...(params.search ? { search: params.search } : {}) },
       })
-      .pipe(map((response) => response.data.items));
+      .pipe(map((response) => ({ items: response.data, meta: response.meta })));
+  }
+
+  listAccountOptions(): Observable<AccountRecord[]> {
+    return this.listAccounts({ page: 1, pageSize: 100, status: 'active' }).pipe(map((result) => result.items));
   }
 
   getAccount(id: string): Observable<AccountRecord> {
@@ -26,13 +32,13 @@ export class AccountsApi {
       .pipe(map((response) => response.data));
   }
 
-  listMovements(accountId: string): Observable<AccountMovementRecord[]> {
+  listMovements(accountId: string, params: PaginationQuery = {}): Observable<PaginatedResult<AccountMovementRecord>> {
     return this.http
-      .get<{ data: { items: AccountMovementRecord[] } }>(
+      .get<{ data: AccountMovementRecord[]; meta: PaginatedResult<AccountMovementRecord>['meta'] }>(
         `${environment.publicApiBaseUrl}/api/v1/accounts/${accountId}/movements`,
-        { withCredentials: true },
+        { withCredentials: true, params: { page: params.page ?? 1, pageSize: params.pageSize ?? 25 } },
       )
-      .pipe(map((response) => response.data.items));
+      .pipe(map((response) => ({ items: response.data, meta: response.meta })));
   }
 
   createAccount(payload: {

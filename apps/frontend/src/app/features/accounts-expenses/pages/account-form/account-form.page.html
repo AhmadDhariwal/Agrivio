@@ -67,6 +67,8 @@
             data-testid="account-number-masked"
           />
         </div>
+        <agrivio-ui-pagination [page]="movementsPage()" [pageSize]="movementsPageSize()" [total]="movementsTotal()"
+          (pageChange)="onMovementsPageChange($event)" (pageSizeChange)="onMovementsPageSizeChange($event)" />
       }
       @if (accountType() === 'jazzcash' || accountType() === 'easypaisa') {
         <div class="ag-field">

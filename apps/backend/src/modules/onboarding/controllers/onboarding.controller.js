@@ -1,4 +1,5 @@
 const { sendSuccessEnvelope } = require('../../../platform/http/response-envelope');
+const { parsePaginationQuery } = require('../../../platform/http/parse-pagination-query');
 
 function createOnboardingController(deps) {
   return {
@@ -26,11 +27,14 @@ function createPlatformOrganizationController(deps) {
   return {
     async list(req, res, next) {
       try {
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
         const status = typeof req.query['status'] === 'string' ? req.query['status'] : undefined;
-        const result = await deps.onboardingService.listOrganizations(
-          status === undefined ? {} : { status },
-        );
-        sendSuccessEnvelope(res, 200, { items: result });
+        const result = await deps.onboardingService.listOrganizations({
+          ...(status === undefined ? {} : { status }),
+          search: typeof req.query.search === 'string' ? req.query.search : undefined,
+          skip, pageSize,
+        });
+        sendSuccessEnvelope(res, 200, result.items, { page, pageSize, total: result.total });
       } catch (error) {
         next(error);
       }

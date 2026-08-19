@@ -45,6 +45,17 @@ function createMongooseAccountsStore() {
       return AccountModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
     },
 
+    async listAccountsPage(organizationId, filter, pagination) {
+      const query = { organizationId };
+      if (filter.status === 'active' || filter.status === 'inactive') query.status = filter.status;
+      const search = String(filter.search ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+      if (search) query.nameNormalized = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') };
+      const [total, items] = await Promise.all([
+        AccountModel.countDocuments(query).exec(),
+        AccountModel.find(query).sort({ createdAt: -1, _id: -1 }).skip(pagination.skip ?? 0).limit(pagination.pageSize ?? 25).lean().exec(),
+      ]); return { items, total };
+    },
+
     async countAccounts(organizationId) {
       return AccountModel.countDocuments({ organizationId }).exec();
     },
@@ -147,6 +158,15 @@ function createMongooseAccountsStore() {
         .exec();
     },
 
+    async listMovementsByAccountPage(organizationId, accountId, pagination) {
+      if (!mongoose.isValidObjectId(accountId)) return { items: [], total: 0 };
+      const query = { organizationId, accountId, status: 'posted' };
+      const [total, items] = await Promise.all([
+        AccountMovementModel.countDocuments(query).exec(),
+        AccountMovementModel.find(query).sort({ postedAt: -1, _id: -1 }).skip(pagination.skip ?? 0).limit(pagination.pageSize ?? 25).lean().exec(),
+      ]); return { items, total };
+    },
+
     async listMovementsBySource(organizationId, sourceType, sourceId, session) {
       if (sourceId && !mongoose.isValidObjectId(sourceId)) {
         return [];
@@ -201,6 +221,17 @@ function createMongooseAccountsStore() {
       return ExpenseCategoryModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
     },
 
+    async listExpenseCategoriesPage(organizationId, filter, pagination) {
+      const query = { organizationId };
+      if (filter.status === 'active' || filter.status === 'inactive') query.status = filter.status;
+      const search = String(filter.search ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+      if (search) query.nameNormalized = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') };
+      const [total, items] = await Promise.all([
+        ExpenseCategoryModel.countDocuments(query).exec(),
+        ExpenseCategoryModel.find(query).sort({ createdAt: -1, _id: -1 }).skip(pagination.skip ?? 0).limit(pagination.pageSize ?? 25).lean().exec(),
+      ]); return { items, total };
+    },
+
     async findExpenseCategoryById(organizationId, id, session) {
       if (!mongoose.isValidObjectId(id)) {
         return null;
@@ -246,6 +277,17 @@ function createMongooseAccountsStore() {
 
     async listExpenses(organizationId) {
       return ExpenseModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
+    },
+
+    async listExpensesPage(organizationId, filter, pagination) {
+      const query = { organizationId };
+      if (filter.status) query.status = filter.status;
+      const search = String(filter.search ?? '').trim();
+      if (search) query.expenseDate = search;
+      const [total, items] = await Promise.all([
+        ExpenseModel.countDocuments(query).exec(),
+        ExpenseModel.find(query).sort({ createdAt: -1, _id: -1 }).skip(pagination.skip ?? 0).limit(pagination.pageSize ?? 25).lean().exec(),
+      ]); return { items, total };
     },
 
     async findExpenseById(organizationId, id, session) {
@@ -422,7 +464,8 @@ function createInMemoryAccountsStore() {
     async listAccounts(organizationId) {
       return [...accounts.values()]
         .filter((item) => String(item.organizationId) === String(organizationId))
-        .map((item) => ({ ...item }));
+        .map((item) => ({ ...item }))
+        .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')) || String(b._id).localeCompare(String(a._id)));
     },
 
     async countAccounts(organizationId) {
@@ -560,7 +603,8 @@ function createInMemoryAccountsStore() {
     async listExpenseCategories(organizationId) {
       return [...categories.values()]
         .filter((item) => String(item.organizationId) === String(organizationId))
-        .map((item) => ({ ...item }));
+        .map((item) => ({ ...item }))
+        .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')) || String(b._id).localeCompare(String(a._id)));
     },
 
     async findExpenseCategoryById(organizationId, id) {

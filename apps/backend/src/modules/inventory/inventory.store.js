@@ -27,6 +27,20 @@ function batchKey(batchId) {
   return batchId === null || batchId === undefined || batchId === '' ? null : String(batchId);
 }
 
+async function paginateModel(Model, query, sort, pagination) {
+  const { skip = 0, pageSize = 25 } = pagination;
+  const [total, items] = await Promise.all([
+    Model.countDocuments(query).exec(),
+    Model.find(query).sort(sort).skip(skip).limit(pageSize).lean().exec(),
+  ]);
+  return { items, total };
+}
+
+function paginateRows(items, pagination) {
+  const { skip = 0, pageSize = 25 } = pagination;
+  return { items: items.slice(skip, skip + pageSize), total: items.length };
+}
+
 function createMongooseInventoryStore() {
   return {
     async findBatchById(organizationId, id) {
@@ -46,6 +60,12 @@ function createMongooseInventoryStore() {
         query.productId = filters.productId;
       }
       return ProductBatchModel.find(query).sort({ firstReceivedAt: 1, createdAt: 1 }).lean().exec();
+    },
+
+    async listBatchesPage(organizationId, filters, pagination) {
+      const query = { organizationId };
+      if (filters.productId) query.productId = filters.productId;
+      return paginateModel(ProductBatchModel, query, { firstReceivedAt: 1, createdAt: 1, _id: 1 }, pagination);
     },
 
     async insertBatch(session, doc) {
@@ -91,6 +111,15 @@ function createMongooseInventoryStore() {
         find.session(filters.session);
       }
       return find.lean().exec();
+    },
+
+    async listMovementsPage(organizationId, filters, pagination) {
+      const query = { organizationId, status: 'posted' };
+      if (filters.warehouseId) query.warehouseId = filters.warehouseId;
+      if (Array.isArray(filters.warehouseIds)) query.warehouseId = { $in: filters.warehouseIds };
+      if (filters.productId) query.productId = filters.productId;
+      if (filters.batchId !== undefined) query.batchId = filters.batchId;
+      return paginateModel(StockMovementModel, query, { postedAt: -1, createdAt: -1, _id: -1 }, pagination);
     },
 
     async sumMovementSignedQuantity(organizationId, scope) {
@@ -140,6 +169,15 @@ function createMongooseInventoryStore() {
         query.batchId = filters.batchId;
       }
       return InventoryBalanceModel.find(query).sort({ updatedAt: -1 }).lean().exec();
+    },
+
+    async listBalancesPage(organizationId, filters, pagination) {
+      const query = { organizationId };
+      if (filters.warehouseId) query.warehouseId = filters.warehouseId;
+      if (Array.isArray(filters.warehouseIds)) query.warehouseId = { $in: filters.warehouseIds };
+      if (filters.productId) query.productId = filters.productId;
+      if (filters.batchId !== undefined) query.batchId = filters.batchId;
+      return paginateModel(InventoryBalanceModel, query, { updatedAt: -1, _id: -1 }, pagination);
     },
 
     async insertBalance(session, doc) {
@@ -236,6 +274,14 @@ function createMongooseInventoryStore() {
       return StockAdjustmentModel.find(query).sort({ createdAt: -1 }).lean().exec();
     },
 
+    async listAdjustmentsPage(organizationId, filters, pagination) {
+      const query = { organizationId };
+      if (filters.status) query.status = filters.status;
+      if (filters.warehouseId) query.warehouseId = filters.warehouseId;
+      if (Array.isArray(filters.warehouseIds)) query.warehouseId = { $in: filters.warehouseIds };
+      return paginateModel(StockAdjustmentModel, query, { createdAt: -1, _id: -1 }, pagination);
+    },
+
     async insertAdjustment(session, doc) {
       try {
         const [created] = await StockAdjustmentModel.create([doc], withSession(session));
@@ -317,6 +363,18 @@ function createMongooseInventoryStore() {
         query.destinationWarehouseId = filters.destinationWarehouseId;
       }
       return WarehouseTransferModel.find(query).sort({ createdAt: -1 }).lean().exec();
+    },
+
+    async listTransfersPage(organizationId, filters, pagination) {
+      const query = { organizationId };
+      if (filters.status) query.status = filters.status;
+      if (filters.sourceWarehouseId) query.sourceWarehouseId = filters.sourceWarehouseId;
+      if (filters.destinationWarehouseId) query.destinationWarehouseId = filters.destinationWarehouseId;
+      if (Array.isArray(filters.warehouseIds)) {
+        query.sourceWarehouseId = { $in: filters.warehouseIds };
+        query.destinationWarehouseId = { $in: filters.warehouseIds };
+      }
+      return paginateModel(WarehouseTransferModel, query, { createdAt: -1, _id: -1 }, pagination);
     },
 
     async insertTransfer(session, doc) {
@@ -419,8 +477,17 @@ function createInMemoryInventoryStore() {
           }
           return true;
         })
-        .sort((a, b) => String(a.firstReceivedAt).localeCompare(String(b.firstReceivedAt)))
+        .sort(
+          (a, b) =>
+            String(a.firstReceivedAt).localeCompare(String(b.firstReceivedAt)) ||
+            String(a.createdAt).localeCompare(String(b.createdAt)) ||
+            String(a._id).localeCompare(String(b._id)),
+        )
         .map((item) => ({ ...item }));
+    },
+
+    async listBatchesPage(organizationId, filters, pagination) {
+      return paginateRows(await this.listBatches(organizationId, filters), pagination);
     },
 
     async insertBatch(session, doc) {
@@ -485,8 +552,20 @@ function createInMemoryInventoryStore() {
           }
           return true;
         })
-        .sort((a, b) => String(b.postedAt).localeCompare(String(a.postedAt)))
+        .sort(
+          (a, b) =>
+            String(b.postedAt).localeCompare(String(a.postedAt)) ||
+            String(b.createdAt).localeCompare(String(a.createdAt)) ||
+            String(b._id).localeCompare(String(a._id)),
+        )
         .map((item) => ({ ...item }));
+    },
+
+    async listMovementsPage(organizationId, filters, pagination) {
+      const items = (await this.listMovements(organizationId, filters)).filter((item) =>
+        !Array.isArray(filters.warehouseIds) || filters.warehouseIds.map(String).includes(String(item.warehouseId)),
+      );
+      return paginateRows(items, pagination);
     },
 
     async sumMovementSignedQuantity(organizationId, scope) {
@@ -530,6 +609,13 @@ function createInMemoryInventoryStore() {
           return true;
         })
         .map((item) => ({ ...item }));
+    },
+
+    async listBalancesPage(organizationId, filters, pagination) {
+      const items = (await this.listBalances(organizationId, filters))
+        .filter((item) => !Array.isArray(filters.warehouseIds) || filters.warehouseIds.map(String).includes(String(item.warehouseId)))
+        .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)) || String(b._id).localeCompare(String(a._id)));
+      return paginateRows(items, pagination);
     },
 
     async insertBalance(session, doc) {
@@ -684,8 +770,19 @@ function createInMemoryInventoryStore() {
           }
           return true;
         })
-        .sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)))
+        .sort(
+          (left, right) =>
+            String(right.createdAt).localeCompare(String(left.createdAt)) ||
+            String(right._id).localeCompare(String(left._id)),
+        )
         .map((item) => ({ ...item }));
+    },
+
+    async listAdjustmentsPage(organizationId, filters, pagination) {
+      const items = (await this.listAdjustments(organizationId, filters)).filter((item) =>
+        !Array.isArray(filters.warehouseIds) || filters.warehouseIds.map(String).includes(String(item.warehouseId)),
+      );
+      return paginateRows(items, pagination);
     },
 
     async insertAdjustment(session, doc) {
@@ -793,8 +890,20 @@ function createInMemoryInventoryStore() {
           }
           return true;
         })
-        .sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)))
+        .sort(
+          (left, right) =>
+            String(right.createdAt).localeCompare(String(left.createdAt)) ||
+            String(right._id).localeCompare(String(left._id)),
+        )
         .map((item) => ({ ...item }));
+    },
+
+    async listTransfersPage(organizationId, filters, pagination) {
+      const items = (await this.listTransfers(organizationId, filters)).filter((item) =>
+        !Array.isArray(filters.warehouseIds) ||
+        (filters.warehouseIds.map(String).includes(String(item.sourceWarehouseId)) && filters.warehouseIds.map(String).includes(String(item.destinationWarehouseId))),
+      );
+      return paginateRows(items, pagination);
     },
 
     async insertTransfer(session, doc) {

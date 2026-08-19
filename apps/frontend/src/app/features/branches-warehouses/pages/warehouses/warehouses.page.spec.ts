@@ -11,7 +11,12 @@ describe('WarehousesPage', () => {
       imports: [WarehousesPage],
       providers: [
         provideRouter([]),
-        { provide: BranchesWarehousesApi, useValue: { listWarehouses: () => of([]) } },
+        {
+          provide: BranchesWarehousesApi,
+          useValue: {
+            listWarehouses: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+          },
+        },
         { provide: AuthSessionStore, useValue: { hasPermission: () => true } },
       ],
     }).compileComponents();

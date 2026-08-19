@@ -16,7 +16,14 @@
   @if (successMessage(); as success) {
     <agrivio-ui-alert tone="success" [message]="success" />
   }
-  <agrivio-ui-lifecycle-filter [value]="statusFilter()" (changed)="statusFilter.set($event)" />
+  <div class="ag-inline">
+    <agrivio-ui-search-input
+      placeholder="Search customers by name…"
+      [value]="search()"
+      (searchChange)="onSearchChange($event)"
+    />
+    <agrivio-ui-lifecycle-filter [value]="statusFilter()" (changed)="onStatusChange($event)" />
+  </div>
   @if (visibleItems().length === 0) {
     <agrivio-ui-empty-state
       title="No customers yet"
@@ -83,6 +90,14 @@
         </article>
       }
     </div>
+    <agrivio-ui-pagination
+      [page]="page()"
+      [pageSize]="pageSize()"
+      [total]="total()"
+      [disabled]="loading()"
+      (pageChange)="onPageChange($event)"
+      (pageSizeChange)="onPageSizeChange($event)"
+    />
   }
 }
 

@@ -13,7 +13,9 @@ describe('AccountsPage', () => {
         provideRouter([]),
         {
           provide: AccountsApi,
-          useValue: { listAccounts: () => of([]) },
+          useValue: {
+            listAccounts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+          },
         },
         {
           provide: AuthSessionStore,

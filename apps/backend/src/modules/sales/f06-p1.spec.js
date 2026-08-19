@@ -158,7 +158,8 @@ describe('F06 P1 customer payments, accounts, and sale drafts', () => {
         jar,
       );
       expect(paymentsList.status).toBe(200);
-      expect(paymentsList.body.data.items).toHaveLength(1);
+      expect(paymentsList.body.data).toHaveLength(1);
+      expect(paymentsList.body.meta).toMatchObject({ page: 1, pageSize: 25, total: 1 });
 
       const customerLedger = await fetchJson(
         baseUrl,
@@ -203,8 +204,8 @@ describe('F06 P1 customer payments, accounts, and sale drafts', () => {
         jar,
       );
       expect(movements.status).toBe(200);
-      expect(movements.body.data.items).toHaveLength(2);
-      const movementSum = movements.body.data.items.reduce(
+      expect(movements.body.data).toHaveLength(2);
+      const movementSum = movements.body.data.reduce(
         (total, item) => total + Number(item.signedAmount.amount),
         0,
       );
@@ -294,7 +295,7 @@ describe('F06 P1 customer payments, accounts, and sale drafts', () => {
         jar,
       );
       expect(balancesAfterDraft.status).toBe(200);
-      expect(balancesAfterDraft.body.data.items).toHaveLength(0);
+      expect(balancesAfterDraft.body.data).toHaveLength(0);
 
       const movementsAfterDraft = await fetchJson(
         baseUrl,
@@ -305,7 +306,7 @@ describe('F06 P1 customer payments, accounts, and sale drafts', () => {
         jar,
       );
       expect(movementsAfterDraft.status).toBe(200);
-      expect(movementsAfterDraft.body.data.items).toHaveLength(0);
+      expect(movementsAfterDraft.body.data).toHaveLength(0);
 
       const ledgerCountAfterDraft = (
         await ledgers.ledgersService.listCustomerEffects(orgA.organizationId, customerA.body.data.id)

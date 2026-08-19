@@ -13,7 +13,12 @@ describe('ProductsPage', () => {
         provideRouter([]),
         {
           provide: CatalogApi,
-          useValue: { listProducts: () => of([]) },
+          useValue: {
+            listProducts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            searchCategoryOptions: () => of([]),
+            listPackagingUnits: () => of([]),
+            listPrices: () => of([]),
+          },
         },
         {
           provide: AuthSessionStore,
@@ -29,3 +34,4 @@ describe('ProductsPage', () => {
     expect(fixture.nativeElement.textContent).toContain('No products yet');
   });
 });
+

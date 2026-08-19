@@ -8,7 +8,7 @@ import {
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin, of, catchError, switchMap } from 'rxjs';
+import { forkJoin, of, catchError, map, switchMap } from 'rxjs';
 import { SalesApi } from '../../data-access/sales.api';
 import { SalesReturnsApi } from '../../data-access/sales-returns.api';
 import { ReturnsApi } from '../../../returns/data-access/returns.api';
@@ -187,15 +187,15 @@ export class SaleEditPage {
     }
 
     const masters$ = forkJoin({
-      products: this.catalogApi.listProducts({ status: 'active' }),
-      branches: this.locationsApi.listBranches(),
-      warehouses: this.locationsApi.listWarehouses(),
-      customers: this.customersApi.listCustomers(),
+      products: this.catalogApi.searchProductOptions(),
+      branches: this.locationsApi.listBranchOptions(),
+      warehouses: this.locationsApi.listWarehouseOptions(),
+      customers: this.customersApi.searchCustomerOptions(),
       accounts: this.api.listPosPaymentAccounts().pipe(catchError(() => of([]))),
-      refundAccounts: this.accountsApi.listAccounts().pipe(catchError(() => of([]))),
+      refundAccounts: this.accountsApi.listAccountOptions().pipe(catchError(() => of([]))),
       relatedReturns:
         isEdit && id && this.canViewReturns()
-          ? this.returnsApi.listReturns({ saleId: id }).pipe(catchError(() => of([])))
+          ? this.returnsApi.listReturns({ saleId: id, page: 1, pageSize: 100 }).pipe(map((result) => result.items), catchError(() => of([])))
           : of([]),
     });
 
@@ -248,6 +248,14 @@ export class SaleEditPage {
     const target = event.target;
     if (target instanceof HTMLInputElement) {
       this.productSearchQuery.set(target.value);
+      this.catalogApi.searchProductOptions(target.value).subscribe((items) => this.products.set(items));
+    }
+  }
+
+  onCustomerSearchInput(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      this.customersApi.searchCustomerOptions(target.value).subscribe((items) => this.customers.set(items));
     }
   }
 
@@ -860,8 +868,8 @@ export class SaleEditPage {
     if (!this.canViewReturns()) {
       return;
     }
-    this.returnsApi.listReturns({ saleId }).subscribe({
-      next: (items) => this.relatedReturns.set(items),
+    this.returnsApi.listReturns({ saleId, page: 1, pageSize: 100 }).subscribe({
+      next: (result) => this.relatedReturns.set(result.items),
     });
   }
 

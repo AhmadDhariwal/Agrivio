@@ -81,8 +81,8 @@ export class SupplierPaymentFormPage {
     }
 
     forkJoin({
-      suppliers: this.suppliersApi.listSuppliers(),
-      accounts: this.accountsApi.listAccounts(),
+      suppliers: this.suppliersApi.searchSupplierOptions(),
+      accounts: this.accountsApi.listAccountOptions(),
     }).subscribe({
       next: ({ suppliers, accounts }) => {
         this.suppliers.set(suppliers.filter((item) => item.status === 'active'));
@@ -118,6 +118,13 @@ export class SupplierPaymentFormPage {
         this.unpaidPurchases.set([]);
       }
     });
+  }
+
+  onSupplierSearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      this.suppliersApi.searchSupplierOptions(target.value).subscribe((items) => this.suppliers.set(items.filter((item) => item.status === 'active')));
+    }
   }
 
   private loadUnpaidPurchases(supplierId: string): void {

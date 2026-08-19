@@ -188,7 +188,7 @@ describe('F05 P2 purchase posting, landed cost, and payments', () => {
         jar,
       );
       expect(balancesBefore.status).toBe(200);
-      expect(balancesBefore.body.data.items).toHaveLength(0);
+      expect(balancesBefore.body.data).toHaveLength(0);
 
       const creditPost = await fetchJson(
         baseUrl,
@@ -219,8 +219,8 @@ describe('F05 P2 purchase posting, landed cost, and payments', () => {
         jar,
       );
       expect(balancesAfterCredit.status).toBe(200);
-      expect(balancesAfterCredit.body.data.items.length).toBeGreaterThan(0);
-      const stock = balancesAfterCredit.body.data.items.find(
+      expect(balancesAfterCredit.body.data.length).toBeGreaterThan(0);
+      const stock = balancesAfterCredit.body.data.find(
         (item) => item.productId === product.body.data.id,
       );
       expect(stock.quantityBase).toBe('100.0000');
@@ -236,7 +236,7 @@ describe('F05 P2 purchase posting, landed cost, and payments', () => {
         jar,
       );
       expect(movements.status).toBe(200);
-      expect(movements.body.data.items.some((item) => item.sourceType === 'purchase')).toBe(true);
+      expect(movements.body.data.some((item) => item.sourceType === 'purchase')).toBe(true);
 
       const ledger = await fetchJson(
         baseUrl,

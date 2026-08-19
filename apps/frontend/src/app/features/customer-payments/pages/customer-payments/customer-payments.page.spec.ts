@@ -13,7 +13,9 @@ describe('CustomerPaymentsPage', () => {
         provideRouter([]),
         {
           provide: CustomerPaymentsApi,
-          useValue: { listCustomerPayments: () => of([]) },
+          useValue: {
+            listCustomerPayments: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+          },
         },
         {
           provide: AuthSessionStore,

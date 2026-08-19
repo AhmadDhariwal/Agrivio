@@ -146,6 +146,8 @@
     </div>
 
     <div class="ag-field">
+      <agrivio-ui-field-label label="Find customer" for="sale-customer-search" />
+      <input id="sale-customer-search" class="ag-input" type="search" (change)="onCustomerSearchInput($event)" />
       <agrivio-ui-field-label label="Customer" for="sale-customer" />
       <select id="sale-customer" class="ag-select" formControlName="customerId" data-testid="sale-customer">
         <option value="">Walk-in (cash only)</option>
@@ -197,7 +199,7 @@
               type="search"
               data-testid="sale-product-search"
               [value]="productSearchQuery()"
-              (input)="onProductSearchInput($event)"
+              (change)="onProductSearchInput($event)"
             />
           </div>
           <div class="ag-field">

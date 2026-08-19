@@ -1,54 +1,163 @@
-<agrivio-ui-page-header
-  [title]="'Pricing · ' + productName()"
-  eyebrow="Catalog"
-  lede="Set retail, wholesale, dealer, and distributor prices for this product."
-/>
+<div class="pricing-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">Pricing Management</p>
+      <h1 class="page-head__title">Pricing · {{ productName() }}</h1>
+      <p class="page-head__lede">Set multi-tier sales prices for retail customers, wholesale buyers, dealers, and distributors in PKR.</p>
+    </div>
+    <div class="page-head__actions">
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/products">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        Back to Products
+      </a>
+    </div>
+  </header>
 
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading pricing…" />
-} @else if (!canManage()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to manage product pricing." />
-} @else {
-  @if (errorMessage(); as error) {
-    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  @if (loading()) {
+    <div class="state-container">
+      <agrivio-ui-loading-state label="Loading product pricing tiers…" />
+    </div>
+  } @else if (!canManage()) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="warning" message="You do not have permission to manage product pricing." />
+    </div>
+  } @else {
+    @if (errorMessage(); as error) {
+      <div class="alert-container">
+        <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+      </div>
+    }
+
+    <form
+      class="pricing-form"
+      [formGroup]="form"
+      (ngSubmit)="save()"
+      data-testid="product-pricing"
+    >
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/>
+              <path d="M7 7h.01"/>
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">Sales Price Tiers (PKR)</h2>
+            <p class="form-card__subtitle">Prices applied automatically at POS cashiering and sales invoicing.</p>
+          </div>
+        </div>
+
+        <div class="form-card__body">
+          <div class="tiers-grid">
+            <!-- Retail Price (Primary / Required) -->
+            <div class="tier-card tier-card--highlight">
+              <div class="tier-card__header">
+                <span class="tier-card__badge tier-card__badge--retail">Retail</span>
+                <span class="tier-card__desc">Direct counter sales & smallholder farmers</span>
+              </div>
+              <div class="ag-field">
+                <agrivio-ui-field-label
+                  label="Retail Price (Required)"
+                  for="price-retail"
+                  [required]="fieldRequired(form.controls.retail)"
+                />
+                <div class="currency-input-wrapper">
+                  <span class="currency-symbol">PKR</span>
+                  <input
+                    id="price-retail"
+                    class="ag-input currency-input"
+                    formControlName="retail"
+                    placeholder="0.00"
+                    data-testid="price-retail"
+                    [attr.aria-required]="fieldRequired(form.controls.retail) ? 'true' : null"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Wholesale Price -->
+            <div class="tier-card">
+              <div class="tier-card__header">
+                <span class="tier-card__badge">Wholesale</span>
+                <span class="tier-card__desc">Bulk purchasing & institutional buyers</span>
+              </div>
+              <div class="ag-field">
+                <agrivio-ui-field-label label="Wholesale Price" for="price-wholesale" />
+                <div class="currency-input-wrapper">
+                  <span class="currency-symbol">PKR</span>
+                  <input
+                    id="price-wholesale"
+                    class="ag-input currency-input"
+                    formControlName="wholesale"
+                    placeholder="0.00"
+                    data-testid="price-wholesale"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Dealer Price -->
+            <div class="tier-card">
+              <div class="tier-card__header">
+                <span class="tier-card__badge">Dealer</span>
+                <span class="tier-card__desc">Registered local dealer network</span>
+              </div>
+              <div class="ag-field">
+                <agrivio-ui-field-label label="Dealer Price" for="price-dealer" />
+                <div class="currency-input-wrapper">
+                  <span class="currency-symbol">PKR</span>
+                  <input
+                    id="price-dealer"
+                    class="ag-input currency-input"
+                    formControlName="dealer"
+                    placeholder="0.00"
+                    data-testid="price-dealer"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Distributor Price -->
+            <div class="tier-card">
+              <div class="tier-card__header">
+                <span class="tier-card__badge">Distributor</span>
+                <span class="tier-card__desc">Regional key distributor rate</span>
+              </div>
+              <div class="ag-field">
+                <agrivio-ui-field-label label="Distributor Price" for="price-distributor" />
+                <div class="currency-input-wrapper">
+                  <span class="currency-symbol">PKR</span>
+                  <input
+                    id="price-distributor"
+                    class="ag-input currency-input"
+                    formControlName="distributor"
+                    placeholder="0.00"
+                    data-testid="price-distributor"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Actions -->
+      <footer class="form-actions">
+        <button class="ag-btn ag-btn--primary" type="submit" [disabled]="saving()" data-testid="product-pricing-save">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/>
+            <polyline points="7 3 7 8 15 8"/>
+          </svg>
+          {{ saving() ? 'Saving…' : 'Save Pricing' }}
+        </button>
+        <a class="ag-btn ag-btn--secondary" routerLink="/app/products">Cancel</a>
+      </footer>
+    </form>
   }
-  <form
-    class="ag-stack form ag-form ag-form--with-required-hint"
-    [formGroup]="form"
-    (ngSubmit)="save()"
-    data-testid="product-pricing"
-  >
-    <div class="ag-field">
-      <agrivio-ui-field-label
-        label="Retail"
-        for="price-retail"
-        [required]="fieldRequired(form.controls.retail)"
-      />
-      <input
-        id="price-retail"
-        class="ag-input"
-        formControlName="retail"
-        data-testid="price-retail"
-        [attr.aria-required]="fieldRequired(form.controls.retail) ? 'true' : null"
-      />
-    </div>
-    <div class="ag-field">
-      <agrivio-ui-field-label label="Wholesale" for="price-wholesale" />
-      <input id="price-wholesale" class="ag-input" formControlName="wholesale" data-testid="price-wholesale" />
-    </div>
-    <div class="ag-field">
-      <agrivio-ui-field-label label="Dealer" for="price-dealer" />
-      <input id="price-dealer" class="ag-input" formControlName="dealer" data-testid="price-dealer" />
-    </div>
-    <div class="ag-field">
-      <agrivio-ui-field-label label="Distributor" for="price-distributor" />
-      <input id="price-distributor" class="ag-input" formControlName="distributor" data-testid="price-distributor" />
-    </div>
-    <div class="ag-inline">
-      <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="product-pricing-save">
-        Save
-      </button>
-      <a class="ag-btn ag-btn--secondary" routerLink="/app/products">Cancel</a>
-    </div>
-  </form>
-}
+</div>
+

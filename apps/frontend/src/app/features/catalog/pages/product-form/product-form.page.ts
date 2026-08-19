@@ -61,7 +61,7 @@ export class ProductFormPage {
 
   constructor() {
     const id = this.route.snapshot.paramMap.get('id');
-    const categories$ = this.api.listCategories();
+    const categories$ = this.api.searchCategoryOptions();
 
     if (id && id !== 'new') {
       this.productId.set(id);
@@ -197,6 +197,11 @@ export class ProductFormPage {
       name: [name],
       conversionFactor: [conversionFactor],
     });
+  }
+
+  onCategorySearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) this.api.searchCategoryOptions(target.value).subscribe((items) => this.categories.set(items));
   }
 
   private mapError(error: unknown, fallback: string): string {

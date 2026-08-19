@@ -66,8 +66,8 @@ export class OpeningStockPage {
       return;
     }
     forkJoin({
-      products: this.catalogApi.listProducts({ status: 'active' }),
-      warehouses: this.locationsApi.listWarehouses(),
+      products: this.catalogApi.searchProductOptions(),
+      warehouses: this.locationsApi.listWarehouseOptions(),
     }).subscribe({
       next: ({ products, warehouses }) => {
         this.products.set(products.filter((item) => item.status === 'active'));
@@ -167,5 +167,10 @@ export class OpeningStockPage {
       }
     }
     return fallback;
+  }
+
+  onProductSearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) this.catalogApi.searchProductOptions(target.value).subscribe((items) => this.products.set(items));
   }
 }

@@ -71,13 +71,23 @@ describe('ReturnDetailPage', () => {
         {
           provide: AccountsApi,
           useValue: {
-            listAccounts: () => of([{ id: 'acc-1', name: 'F07 Cash', accountType: 'cash' }]),
+            listAccounts: () => of({ items: [{ id: 'acc-1', name: 'F07 Cash', accountType: 'cash' }], meta: { page: 1, pageSize: 25, total: 1 } }),
+            listAccountOptions: () => of([{ id: 'acc-1', name: 'F07 Cash', accountType: 'cash' }]),
           },
         },
-        { provide: CustomersApi, useValue: { listCustomers: () => of([]) } },
+        {
+          provide: CustomersApi,
+          useValue: {
+            listCustomers: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            searchCustomerOptions: () => of([]),
+          },
+        },
         {
           provide: BranchesWarehousesApi,
-          useValue: { listWarehouses: () => of([{ id: 'wh-1', name: 'F07 WH' }]) },
+          useValue: {
+            listWarehouses: () => of({ items: [{ id: 'wh-1', name: 'F07 WH' }], meta: { page: 1, pageSize: 25, total: 1 } }),
+            listWarehouseOptions: () => of([{ id: 'wh-1', name: 'F07 WH' }]),
+          },
         },
         { provide: AuthSessionStore, useValue: { hasPermission: () => true } },
       ],

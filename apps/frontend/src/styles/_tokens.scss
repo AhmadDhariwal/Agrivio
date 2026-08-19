@@ -73,7 +73,10 @@
   --ag-touch-target-min: 2.75rem; // 44px minimum touch target
   --ag-sidebar-width: 16.5rem;
   --ag-sidebar-collapsed-width: 4.5rem;
-  --ag-content-max: 72rem;
+  --ag-content-max: 100%;
+  --ag-content-max-contained: 110rem;
+  --ag-form-max: 48rem;
+  --ag-form-max-wide: 75rem;
   --ag-auth-max: 26rem;
 
   // Safe area insets for mobile devices

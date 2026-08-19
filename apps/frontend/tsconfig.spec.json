@@ -1,9 +1,18 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "rootDir": "src",
+    "rootDir": "../..",
     "outDir": "../../dist/out-tsc",
     "types": ["vitest/globals"]
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "../../packages/api-contracts/src/index.ts",
+    "../../packages/api-contracts/src/lib/api-contracts.ts"
+  ],
+  "exclude": [
+    "../../packages/api-contracts/src/**/*.spec.ts",
+    "../../packages/api-contracts/src/**/*.test.ts"
+  ]
 }

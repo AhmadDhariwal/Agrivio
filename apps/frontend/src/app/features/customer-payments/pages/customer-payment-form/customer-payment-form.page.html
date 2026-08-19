@@ -40,6 +40,8 @@
     data-testid="customer-payment-form"
   >
     <div class="ag-field">
+      <agrivio-ui-field-label label="Find customer" for="customer-payment-customer-search" />
+      <input id="customer-payment-customer-search" class="ag-input" type="search" (change)="onCustomerSearch($event)" />
       <agrivio-ui-field-label
         label="Customer"
         for="customer-payment-customer"

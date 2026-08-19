@@ -14,6 +14,7 @@ import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-f
 import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 import { UiStatusBadgeComponent, UiBadgeTone } from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
+import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 
 @Component({
   selector: 'agrivio-platform-organizations-page',
@@ -28,6 +29,7 @@ import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialo
     UiStatusBadgeComponent,
     UiConfirmDialogComponent,
     UiFieldLabelComponent,
+    UiPaginationComponent,
   ],
   templateUrl: './organizations-admin.page.html',
   styleUrl: './organizations-admin.page.scss',
@@ -42,6 +44,9 @@ export class PlatformOrganizationsPage {
   readonly successMessage = signal<string | null>(null);
   readonly activationHandoff = signal<PlatformOrganizationActivationHandoff | null>(null);
   readonly copyFeedback = signal<string | null>(null);
+  readonly page = signal(1);
+  readonly pageSize = signal(25);
+  readonly total = signal(0);
 
   readonly confirmOpen = signal(false);
   readonly confirmTitle = signal('Confirm action');
@@ -83,9 +88,10 @@ export class PlatformOrganizationsPage {
 
   reload(): void {
     this.loading.set(true);
-    this.api.list().subscribe({
-      next: (items) => {
+    this.api.list({ page: this.page(), pageSize: this.pageSize() }).subscribe({
+      next: ({ items, meta }) => {
         this.items.set(items);
+        this.total.set(meta.total);
         this.loading.set(false);
       },
       error: () => {
@@ -94,6 +100,9 @@ export class PlatformOrganizationsPage {
       },
     });
   }
+
+  onPageChange(page: number): void { this.page.set(page); this.reload(); }
+  onPageSizeChange(pageSize: number): void { this.pageSize.set(pageSize); this.page.set(1); this.reload(); }
 
   createOrganization(): void {
     if (this.createForm.invalid) {

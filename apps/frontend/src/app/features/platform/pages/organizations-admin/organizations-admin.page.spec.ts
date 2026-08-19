@@ -25,15 +25,18 @@ describe('PlatformOrganizationsPage', () => {
         });
       },
       list: () =>
-        of([
-          {
-            id: 'org-approved',
-            name: 'Approved Co',
-            status: 'approved',
-            ownerEmail: 'pending@example.com',
-            ownerNeedsActivation: true,
-          },
-        ]),
+        of({
+          items: [
+            {
+              id: 'org-approved',
+              name: 'Approved Co',
+              status: 'approved',
+              ownerEmail: 'pending@example.com',
+              ownerNeedsActivation: true,
+            },
+          ],
+          meta: { page: 1, pageSize: 25, total: 1 },
+        }),
       approve: (organizationId: string) => {
         approveCalls.push(organizationId);
         return of({

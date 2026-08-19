@@ -12,8 +12,26 @@ function isDuplicateKeyError(error) {
 
 function createMongooseSuppliersStore() {
   return {
-    async listSuppliers(organizationId) {
-      return SupplierModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
+    async listSuppliers(organizationId, filter = {}, pagination = {}) {
+      const query = { organizationId };
+      if (filter.status === 'active' || filter.status === 'inactive') {
+        query.status = filter.status;
+      }
+      const search = String(filter.search ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+      if (search !== '') {
+        query.nameNormalized = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') };
+      }
+      const hasPagination = pagination.skip !== undefined || pagination.pageSize !== undefined;
+      const { skip = 0, pageSize = 25 } = pagination;
+      let find = SupplierModel.find(query).sort({ createdAt: -1, _id: -1 });
+      if (hasPagination) {
+        find = find.skip(skip).limit(pageSize);
+      }
+      const [total, items] = await Promise.all([
+        SupplierModel.countDocuments(query).exec(),
+        find.lean().exec(),
+      ]);
+      return { items, total };
     },
 
     async countSuppliers(organizationId) {
@@ -96,10 +114,22 @@ function createInMemorySuppliersStore() {
   }
 
   return {
-    async listSuppliers(organizationId) {
-      return [...suppliers.values()]
-        .filter((item) => String(item.organizationId) === String(organizationId))
-        .map((item) => ({ ...item }));
+    async listSuppliers(organizationId, filter = {}, pagination = {}) {
+      let all = [...suppliers.values()].filter(
+        (item) => String(item.organizationId) === String(organizationId),
+      );
+      if (filter.status === 'active' || filter.status === 'inactive') {
+        all = all.filter((item) => String(item.status) === filter.status);
+      }
+      const search = String(filter.search ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+      if (search !== '') {
+        all = all.filter((item) => String(item.nameNormalized).includes(search));
+      }
+      const total = all.length;
+      const hasPagination = pagination.skip !== undefined || pagination.pageSize !== undefined;
+      const { skip = 0, pageSize = 25 } = pagination;
+      const selected = hasPagination ? all.slice(skip, skip + pageSize) : all;
+      return { items: selected.map((item) => ({ ...item })), total };
     },
 
     async countSuppliers(organizationId) {

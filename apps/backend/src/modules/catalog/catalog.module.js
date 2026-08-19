@@ -74,12 +74,13 @@ function createCatalogService(deps) {
 
   return {
     async listCategories(organizationId, options = {}) {
-      const items = await store.listCategories(organizationId);
-      const filtered =
-        options.status === 'active' || options.status === 'inactive'
-          ? items.filter((item) => String(item.status) === options.status)
-          : items;
-      return { items: filtered.map(toCategoryDto) };
+      const { status, search, skip, pageSize } = options;
+      const { items, total } = await store.listCategories(
+        organizationId,
+        { status, search },
+        { skip, pageSize },
+      );
+      return { items: items.map(toCategoryDto), total };
     },
 
     async getCategory(organizationId, categoryId) {
@@ -94,7 +95,7 @@ function createCatalogService(deps) {
       if (needle === '') {
         return null;
       }
-      const items = await store.listCategories(organizationId);
+      const { items } = await store.listCategories(organizationId);
       const found = items.find((item) => String(item.nameNormalized) === needle);
       return found ? toCategoryDto(found) : null;
     },
@@ -110,7 +111,7 @@ function createCatalogService(deps) {
         const found = await store.findProductBySku(organizationId, needle);
         return found ? toProductDto(found) : null;
       }
-      const items = await store.listProducts(organizationId);
+      const { items } = await store.listProducts(organizationId, {});
       const found = items.find((item) => String(item.sku ?? '').toUpperCase() === needle);
       return found ? toProductDto(found) : null;
     },
@@ -177,7 +178,7 @@ function createCatalogService(deps) {
 
     async deleteCategory(organizationId, categoryId, actor) {
       const current = await requireCategory(organizationId, categoryId);
-      const products = await store.listProducts(organizationId);
+      const { items: products } = await store.listProducts(organizationId, {});
       const owned = products.filter((item) => String(item.categoryId) === String(categoryId));
       const extra =
         typeof deps.listCategoryReferences === 'function'
@@ -210,19 +211,20 @@ function createCatalogService(deps) {
         const items = await store.listProductCategoryPairs(organizationId);
         return new Map(items.map((item) => [String(item.id), String(item.categoryId)]));
       }
-      const listed = await store.listProducts(organizationId);
+      const listed = await store.listProducts(organizationId, {});
       return new Map(
-        listed.map((item) => [String(item._id ?? item.id), String(item.categoryId)]),
+        listed.items.map((item) => [String(item._id ?? item.id), String(item.categoryId)]),
       );
     },
 
     async listProducts(organizationId, options = {}) {
-      const items = await store.listProducts(organizationId, options);
-      const filtered =
-        options.status === 'active' || options.status === 'inactive'
-          ? items.filter((item) => String(item.status) === options.status)
-          : items;
-      return { items: filtered.map(toProductDto) };
+      const { status, search, skip, pageSize, q, limit } = options;
+      const { items, total } = await store.listProducts(
+        organizationId,
+        { status, search, q, limit },
+        skip !== undefined || pageSize !== undefined ? { skip, pageSize } : {},
+      );
+      return { items: items.map(toProductDto), total };
     },
 
     async getProduct(organizationId, productId) {

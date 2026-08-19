@@ -14,7 +14,8 @@ describe('ProductFormPage', () => {
         {
           provide: CatalogApi,
           useValue: {
-            listCategories: () => of([]),
+            listCategories: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            searchCategoryOptions: () => of([]),
             getProduct: () => of(null),
             listPackagingUnits: () => of([]),
             createProduct: () => of({}),

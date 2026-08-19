@@ -16,7 +16,7 @@
   @if (successMessage(); as success) {
     <agrivio-ui-alert tone="success" [message]="success" />
   }
-  <agrivio-ui-lifecycle-filter [value]="statusFilter()" (changed)="statusFilter.set($event)" />
+  <agrivio-ui-lifecycle-filter [value]="statusFilter()" (changed)="onStatusChange($event)" />
   @if (visibleItems().length === 0) {
     <agrivio-ui-empty-state
       title="No accounts yet"
@@ -59,6 +59,8 @@
         </article>
       }
     </div>
+    <agrivio-ui-pagination [page]="page()" [pageSize]="pageSize()" [total]="total()" [disabled]="loading()"
+      (pageChange)="onPageChange($event)" (pageSizeChange)="onPageSizeChange($event)" />
   }
 }
 

@@ -68,15 +68,15 @@ describe('R1-F09-006/007 pilot onboarding and UAT stabilization', () => {
         expect(customer.status).toBe(201);
 
         const listed = await fetchJson(baseUrl, 'GET', API_CUSTOMERS_PATH, undefined, {}, jar);
-        expect(listed.body.data.items).toHaveLength(1);
-        expect(listed.body.data.items[0].name).toBe(pilot.customer);
+        expect(listed.body.data).toHaveLength(1);
+        expect(listed.body.data[0].name).toBe(pilot.customer);
       }
 
       expect(new Set(organizationIds).size).toBe(2);
 
       await login(baseUrl, jar, pilots[0].ownerEmail, pilots[0].password);
       const leak = await fetchJson(baseUrl, 'GET', API_CUSTOMERS_PATH, undefined, {}, jar);
-      expect(leak.body.data.items.some((item) => item.name === pilots[1].customer)).toBe(false);
+      expect(leak.body.data.some((item) => item.name === pilots[1].customer)).toBe(false);
     } finally {
       await closeServer(server);
     }

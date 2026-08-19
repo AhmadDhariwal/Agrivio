@@ -13,7 +13,9 @@ describe('SupplierPaymentsPage', () => {
         provideRouter([]),
         {
           provide: SupplierPaymentsApi,
-          useValue: { listSupplierPayments: () => of([]) },
+          useValue: {
+            listSupplierPayments: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+          },
         },
         {
           provide: AuthSessionStore,

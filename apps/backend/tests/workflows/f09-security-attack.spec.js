@@ -182,13 +182,13 @@ describe('R1-F09-002 tenant-isolation attack suite', () => {
 
       const listedCustomers = await fetchJson(baseUrl, 'GET', API_CUSTOMERS_PATH, undefined, {}, jar);
       expect(listedCustomers.status).toBe(200);
-      expect(listedCustomers.body.data.items.every((item) => item.name !== CUSTOMER_B_NAME)).toBe(
+      expect(listedCustomers.body.data.every((item) => item.name !== CUSTOMER_B_NAME)).toBe(
         true,
       );
 
       const listedSuppliers = await fetchJson(baseUrl, 'GET', API_SUPPLIERS_PATH, undefined, {}, jar);
       expect(listedSuppliers.status).toBe(200);
-      expect(listedSuppliers.body.data.items.every((item) => item.name !== SUPPLIER_B_NAME)).toBe(
+      expect(listedSuppliers.body.data.every((item) => item.name !== SUPPLIER_B_NAME)).toBe(
         true,
       );
 
@@ -284,7 +284,7 @@ describe('R1-F09-002 tenant-isolation attack suite', () => {
         jar,
       );
       expect(systemScopeQuery.status).toBe(200);
-      expect(systemScopeQuery.body.data.items.every((item) => item.name !== CUSTOMER_B_NAME)).toBe(
+      expect(systemScopeQuery.body.data.every((item) => item.name !== CUSTOMER_B_NAME)).toBe(
         true,
       );
     } finally {

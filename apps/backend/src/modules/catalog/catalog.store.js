@@ -46,8 +46,28 @@ function markDuplicate(error) {
 
 function createMongooseCatalogStore() {
   return {
-    async listCategories(organizationId) {
-      return ProductCategoryModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
+    async listCategories(organizationId, filter = {}, pagination = {}) {
+      const query = { organizationId };
+      if (filter.status === 'active' || filter.status === 'inactive') {
+        query.status = filter.status;
+      }
+      if (filter.search) {
+        const escaped = String(filter.search).trim().toLowerCase().replace(/\s+/g, ' ');
+        if (escaped) {
+          query.nameNormalized = { $regex: escaped.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') };
+        }
+      }
+      const hasPagination = pagination.skip !== undefined || pagination.pageSize !== undefined;
+      const { skip = 0, pageSize = 25 } = pagination;
+      let find = ProductCategoryModel.find(query).sort({ createdAt: -1, _id: -1 });
+      if (hasPagination) {
+        find = find.skip(skip).limit(pageSize);
+      }
+      const [total, items] = await Promise.all([
+        ProductCategoryModel.countDocuments(query).exec(),
+        find.lean().exec(),
+      ]);
+      return { items, total };
     },
 
     async countCategories(organizationId) {
@@ -84,14 +104,32 @@ function createMongooseCatalogStore() {
       }
     },
 
-    async listProducts(organizationId, options = {}) {
-      const filter = productSearchFilter(organizationId, options.q);
-      let query = ProductModel.find(filter).sort({ createdAt: -1 });
-      const limit = toPositiveInt(options.limit);
-      if (limit !== null) {
-        query = query.limit(limit);
+    async listProducts(organizationId, options = {}, pagination = {}) {
+      const filter = productSearchFilter(organizationId, options.q || options.search);
+      if (options.status === 'active' || options.status === 'inactive') {
+        filter.status = options.status;
       }
-      return query.lean().exec();
+      // POS / autocomplete path: caller passes limit without pagination — return unbounded slice
+      if (pagination.pageSize === undefined && options.limit !== undefined) {
+        const limit = toPositiveInt(options.limit);
+        let q = ProductModel.find(filter).sort({ createdAt: -1, _id: -1 });
+        if (limit !== null) {
+          q = q.limit(limit);
+        }
+        const items = await q.lean().exec();
+        return { items, total: items.length };
+      }
+      const hasPagination = pagination.skip !== undefined || pagination.pageSize !== undefined;
+      const { skip = 0, pageSize = 25 } = pagination;
+      let find = ProductModel.find(filter).sort({ createdAt: -1, _id: -1 });
+      if (hasPagination) {
+        find = find.skip(skip).limit(pageSize);
+      }
+      const [total, items] = await Promise.all([
+        ProductModel.countDocuments(filter).exec(),
+        find.lean().exec(),
+      ]);
+      return { items, total };
     },
 
     async findProductBySku(organizationId, sku) {
@@ -336,10 +374,25 @@ function createInMemoryCatalogStore() {
   }
 
   return {
-    async listCategories(organizationId) {
-      return [...categories.values()]
-        .filter((item) => String(item.organizationId) === String(organizationId))
-        .map((item) => ({ ...item }));
+    async listCategories(organizationId, filter = {}, pagination = {}) {
+      let all = [...categories.values()].filter(
+        (item) => String(item.organizationId) === String(organizationId),
+      );
+      if (filter.status === 'active' || filter.status === 'inactive') {
+        all = all.filter((item) => String(item.status) === filter.status);
+      }
+      if (filter.search) {
+        const needle = String(filter.search).trim().toLowerCase().replace(/\s+/g, ' ');
+        if (needle) {
+          all = all.filter(
+            (item) => typeof item.nameNormalized === 'string' && item.nameNormalized.includes(needle),
+          );
+        }
+      }
+      const total = all.length;
+      const { skip = 0, pageSize = 25 } = pagination;
+      const items = all.slice(skip, skip + pageSize).map((item) => ({ ...item }));
+      return { items, total };
     },
 
     async countCategories(organizationId) {
@@ -375,15 +428,11 @@ function createInMemoryCatalogStore() {
       return { ...next };
     },
 
-    async listProducts(organizationId, options = {}) {
-      const needle = String(options.q ?? '')
-        .trim()
-        .toUpperCase();
-      const nameNeedle = String(options.q ?? '')
-        .trim()
-        .replace(/\s+/g, ' ')
-        .toLowerCase();
-      let items = [...products.values()]
+    async listProducts(organizationId, options = {}, pagination = {}) {
+      const searchQ = options.q || options.search || '';
+      const needle = String(searchQ).trim().toUpperCase();
+      const nameNeedle = String(searchQ).trim().replace(/\s+/g, ' ').toLowerCase();
+      let all = [...products.values()]
         .filter((item) => String(item.organizationId) === String(organizationId))
         .filter((item) => {
           if (needle === '') {
@@ -393,13 +442,20 @@ function createInMemoryCatalogStore() {
             String(item.sku ?? '').toUpperCase() === needle ||
             String(item.nameNormalized ?? '').includes(nameNeedle)
           );
-        })
-        .map((item) => ({ ...item }));
-      const limit = toPositiveInt(options.limit);
-      if (limit !== null) {
-        items = items.slice(0, limit);
+        });
+      if (options.status === 'active' || options.status === 'inactive') {
+        all = all.filter((item) => String(item.status) === options.status);
       }
-      return items;
+      // POS / autocomplete path
+      if (pagination.pageSize === undefined && options.limit !== undefined) {
+        const limit = toPositiveInt(options.limit);
+        const items = (limit !== null ? all.slice(0, limit) : all).map((item) => ({ ...item }));
+        return { items, total: items.length };
+      }
+      const total = all.length;
+      const { skip = 0, pageSize = 25 } = pagination;
+      const items = all.slice(skip, skip + pageSize).map((item) => ({ ...item }));
+      return { items, total };
     },
 
     async findProductBySku(organizationId, sku) {
