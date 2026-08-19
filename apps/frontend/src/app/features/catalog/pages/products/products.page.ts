@@ -26,6 +26,42 @@ import {
   recordInUseMessage,
 } from '../../../../shared/lifecycle/master-lifecycle';
 
+/**
+ * ============================================================================
+ * AGRIVIO LARGE-DATA RESPONSIVE PATTERN (Reference Implementation: Products)
+ * ============================================================================
+ *
+ * LEVEL 1 — Identity Fields (Flexible / Descriptive)
+ *   May compress and truncate with ellipsis and tooltips:
+ *   - Product Name (min ~180px, preferred ~280–340px)
+ *   - SKU / Code (min ~115px, preferred ~150–180px)
+ *   - Category / Classification (min ~120px, preferred ~160–210px)
+ *
+ * LEVEL 2 — Operational / Data Values (Fixed & Readable)
+ *   Must remain stable, readable, and NEVER progressively truncated to force-fit:
+ *   - Tracking mode badge (fixed ~125px)
+ *   - Base Unit code (fixed ~90px)
+ *   - Selling Price (fixed ~130px)
+ *   - Available Stock + unit (fixed ~125px)
+ *   - Lifecycle Status (fixed ~95px)
+ *   - Version / Update date (fixed ~85px)
+ *   - Primary row actions (fixed ~85px)
+ *
+ * LEVEL 3 — Secondary Actions
+ *   Collapse into 'More' (⋯) overflow dropdown rather than stealing column width.
+ *
+ * LEVEL 4 — Responsive Breakpoint Transition
+ *   - Large Desktop (>= 1440px): Generous column sizing, no horizontal scroll.
+ *   - Normal Desktop (1200px–1439px): Only Level 1 columns shrink/truncate.
+ *   - Tablet / Small Desktop (768px–1199px): Level 1 columns reach minimums;
+ *     contained horizontal scrolling inside table container (`overflow-x: auto`)
+ *     prevents page-level scroll or operational data corruption.
+ *   - Phone (< 768px): Desktop table is completely hidden. Products automatically
+ *     render purpose-built mobile cards with full-width search, slide-over filter
+ *     drawer, compact 2x2 KPIs (~72px), and full-width inspector.
+ * ============================================================================
+ */
+
 export interface ProductAuxData {
   id: string;
   price?: string | undefined;
@@ -63,7 +99,17 @@ export class ProductsPage {
   readonly statusFilter = signal<MasterLifecycleFilter>('active');
   readonly categoryFilter = signal<string>('');
   readonly trackingFilter = signal<string>('');
-  readonly viewMode = signal<'table' | 'cards'>('table');
+  
+  // Responsive View Mode: separate user preferred mode from effective mode on mobile
+  readonly preferredViewMode = signal<'table' | 'cards'>('table');
+  readonly isMobile = signal<boolean>(false);
+  readonly effectiveViewMode = computed<'table' | 'cards'>(() => {
+    return this.isMobile() ? 'cards' : this.preferredViewMode();
+  });
+
+  // Mobile Filter Drawer State
+  readonly mobileFiltersOpen = signal<boolean>(false);
+
   readonly openMenuProductId = signal<string | null>(null);
 
   readonly page = signal(1);
@@ -133,6 +179,14 @@ export class ProductsPage {
     return Boolean(this.search() || this.categoryFilter() || this.trackingFilter() || this.statusFilter() !== 'active');
   });
 
+  readonly activeFiltersCount = computed(() => {
+    let count = 0;
+    if (this.categoryFilter()) count++;
+    if (this.trackingFilter()) count++;
+    if (this.statusFilter() !== 'active') count++;
+    return count;
+  });
+
   readonly confirmOpen = signal(false);
   readonly confirmTitle = signal('');
   readonly confirmMessage = signal('');
@@ -143,6 +197,8 @@ export class ProductsPage {
     | null = null;
 
   constructor() {
+    this.updateMobileState();
+
     // Load categories for filter dropdown & table categorization
     this.api
       .searchCategoryOptions()
@@ -208,10 +264,23 @@ export class ProductsPage {
       });
   }
 
+  @HostListener('window:resize')
+  onResize(): void {
+    this.updateMobileState();
+  }
+
+  private updateMobileState(): void {
+    if (typeof window !== 'undefined') {
+      this.isMobile.set(window.innerWidth < 768);
+    }
+  }
+
   @HostListener('document:keydown.escape')
   onEscape(): void {
     if (this.openMenuProductId()) {
       this.closeRowMenu();
+    } else if (this.mobileFiltersOpen()) {
+      this.closeMobileFilters();
     } else if (this.selectedProduct()) {
       this.closeInspector();
     }
@@ -342,7 +411,19 @@ export class ProductsPage {
   }
 
   setViewMode(mode: 'table' | 'cards'): void {
-    this.viewMode.set(mode);
+    this.preferredViewMode.set(mode);
+  }
+
+  openMobileFilters(): void {
+    this.mobileFiltersOpen.set(true);
+  }
+
+  closeMobileFilters(): void {
+    this.mobileFiltersOpen.set(false);
+  }
+
+  toggleMobileFilters(): void {
+    this.mobileFiltersOpen.update((open) => !open);
   }
 
   onPageChange(page: number): void {
@@ -478,5 +559,3 @@ export class ProductsPage {
       });
   }
 }
-
-
