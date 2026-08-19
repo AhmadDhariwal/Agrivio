@@ -6,10 +6,7 @@ const { createAuditWriter } = require('../../platform/audit/audit-writer');
 const { assertOptimisticVersion } = require('../../platform/validation/request-validation');
 const { conflict, notFound } = require('../../platform/errors/app-error');
 const { assertMasterUnused } = require('../../platform/lifecycle/record-in-use');
-const {
-  assertCreationLimit,
-  attachSoftWarning,
-} = require('../subscriptions/creation-limit');
+const { assertCreationLimit, attachSoftWarning } = require('../subscriptions/creation-limit');
 const {
   parseCategoryCreate,
   parseCategoryPatch,
@@ -232,6 +229,9 @@ function createCatalogService(deps) {
     },
 
     async createProduct(organizationId, body, actor, options = {}) {
+      if (typeof deps.capabilityService?.assertProductCreateAllowed === 'function') {
+        await deps.capabilityService.assertProductCreateAllowed(organizationId);
+      }
       const input = parseProductCreate(body);
       const category = await requireCategory(organizationId, input.categoryId);
       assertTrackingModeAllowed(category.productClass, input.trackingMode);
@@ -275,6 +275,9 @@ function createCatalogService(deps) {
         return await transactionRunner.run(async (session) => {
           const current = await requireProduct(organizationId, productId);
           assertOptimisticVersion(current, expectedVersion);
+          if (typeof deps.capabilityService?.assertProductPatchAllowed === 'function') {
+            await deps.capabilityService.assertProductPatchAllowed(organizationId, current, patch);
+          }
           const categoryId = patch.categoryId ?? String(current.categoryId);
           const category = await requireCategory(organizationId, categoryId);
           const trackingMode = patch.trackingMode ?? current.trackingMode;
@@ -299,6 +302,9 @@ function createCatalogService(deps) {
     },
 
     async deleteProduct(organizationId, productId, actor) {
+      if (typeof deps.capabilityService?.assertProductDeleteAllowed === 'function') {
+        await deps.capabilityService.assertProductDeleteAllowed(organizationId);
+      }
       const current = await requireProduct(organizationId, productId);
       const extra =
         typeof deps.listProductReferences === 'function'
@@ -333,6 +339,9 @@ function createCatalogService(deps) {
       try {
         return await transactionRunner.run(async (session) => {
           const product = await requireProduct(organizationId, productId);
+          if (typeof deps.capabilityService?.assertProductEditAllowed === 'function') {
+            await deps.capabilityService.assertProductEditAllowed(organizationId);
+          }
           assertOptimisticVersion(product, expectedVersion);
           const existing = await store.listPackagingUnits(organizationId, productId);
           const desiredKeys = new Set(items.map((item) => item.nameNormalized));
@@ -398,6 +407,9 @@ function createCatalogService(deps) {
     },
 
     async createPrice(organizationId, productId, body, actor, options = {}) {
+      if (typeof deps.capabilityService?.assertProductPricingAllowed === 'function') {
+        await deps.capabilityService.assertProductPricingAllowed(organizationId);
+      }
       const input = parsePriceCreate(body);
       try {
         return await transactionRunner.runWithOptionalSession(options.session, async (session) => {
@@ -428,6 +440,9 @@ function createCatalogService(deps) {
     },
 
     async replacePrices(organizationId, productId, body, actor) {
+      if (typeof deps.capabilityService?.assertProductPricingAllowed === 'function') {
+        await deps.capabilityService.assertProductPricingAllowed(organizationId);
+      }
       const { expectedVersion, items } = parsePricesReplace(body);
       try {
         return await transactionRunner.run(async (session) => {
@@ -510,6 +525,9 @@ function createCatalogModule(options) {
     ...(options.evaluateEntitlement === undefined
       ? {}
       : { evaluateEntitlement: options.evaluateEntitlement }),
+    ...(options.capabilityService === undefined
+      ? {}
+      : { capabilityService: options.capabilityService }),
     ...(options.listProductReferences === undefined
       ? {}
       : { listProductReferences: options.listProductReferences }),

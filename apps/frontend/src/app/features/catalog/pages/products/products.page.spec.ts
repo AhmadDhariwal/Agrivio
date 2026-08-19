@@ -1,16 +1,21 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
+import { signal } from '@angular/core';
 import { ProductsPage } from './products.page';
 import { CatalogApi } from '../../data-access/catalog.api';
 import { InventoryApi } from '../../../inventory/data-access/inventory.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 describe('ProductsPage', () => {
   let component: ProductsPage;
   let fixture: ComponentFixture<ProductsPage>;
+  let capabilityState: ReturnType<typeof signal<Record<string, Record<string, boolean>>>>;
 
   beforeEach(async () => {
+    capabilityState = signal({});
+    const capabilityValue = (key: string, mode: string) => capabilityState()[key]?.[mode] ?? true;
     await TestBed.configureTestingModule({
       imports: [ProductsPage],
       providers: [
@@ -18,39 +23,62 @@ describe('ProductsPage', () => {
         {
           provide: CatalogApi,
           useValue: {
-            listProducts: () => of({
-              items: [
+            listProducts: () =>
+              of({
+                items: [
+                  {
+                    id: 'prod-1',
+                    name: 'Bio-Enhanced Multi-Element Micronutrient Complex Fertilizer 50kg',
+                    sku: 'FERT-MICRO-50',
+                    categoryId: 'cat-1',
+                    measurementDimension: 'mass',
+                    baseUnitCode: 'KG',
+                    trackingMode: 'batch_expiry',
+                    status: 'active',
+                    version: 1,
+                  },
+                ],
+                meta: { page: 1, pageSize: 25, total: 1 },
+              }),
+            searchCategoryOptions: () =>
+              of([{ id: 'cat-1', name: 'Fertilizers', productClass: 'fertilizer' }]),
+            listPackagingUnits: () => of([]),
+            listPrices: () =>
+              of([
                 {
-                  id: 'prod-1',
-                  name: 'Bio-Enhanced Multi-Element Micronutrient Complex Fertilizer 50kg',
-                  sku: 'FERT-MICRO-50',
-                  categoryId: 'cat-1',
-                  measurementDimension: 'mass',
-                  baseUnitCode: 'KG',
-                  trackingMode: 'batch_expiry',
+                  id: 'pr-1',
+                  productId: 'prod-1',
+                  priceTier: 'retail',
+                  price: { amount: '5800.00', currency: 'PKR' },
                   status: 'active',
                   version: 1,
                 },
-              ],
-              meta: { page: 1, pageSize: 25, total: 1 },
-            }),
-            searchCategoryOptions: () => of([{ id: 'cat-1', name: 'Fertilizers', productClass: 'fertilizer' }]),
-            listPackagingUnits: () => of([]),
-            listPrices: () => of([{ id: 'pr-1', productId: 'prod-1', priceTier: 'retail', price: { amount: '5800.00', currency: 'PKR' }, status: 'active', version: 1 }]),
+              ]),
           },
         },
         {
           provide: InventoryApi,
           useValue: {
-            listBalances: () => of({
-              items: [{ productId: 'prod-1', quantityBase: '160' }],
-              meta: { page: 1, pageSize: 25, total: 1 },
-            }),
+            listBalances: () =>
+              of({
+                items: [{ productId: 'prod-1', quantityBase: '160' }],
+                meta: { page: 1, pageSize: 25, total: 1 },
+              }),
           },
         },
         {
           provide: AuthSessionStore,
           useValue: { hasPermission: () => true },
+        },
+        {
+          provide: CapabilityService,
+          useValue: {
+            canUseView: (key: string) => capabilityValue(key, 'enabled'),
+            canShowWidget: (key: string) => capabilityValue(key, 'visible'),
+            canViewField: (key: string) => capabilityValue(key, 'visible'),
+            canEditField: (key: string) => capabilityValue(key, 'editable'),
+            canPerformAction: (key: string) => capabilityValue(key, 'allowed'),
+          },
         },
       ],
     }).compileComponents();
@@ -61,7 +89,9 @@ describe('ProductsPage', () => {
   });
 
   it('renders products list with deliberate column structure on desktop', () => {
-    expect(fixture.nativeElement.textContent).toContain('Bio-Enhanced Multi-Element Micronutrient Complex');
+    expect(fixture.nativeElement.textContent).toContain(
+      'Bio-Enhanced Multi-Element Micronutrient Complex',
+    );
     expect(fixture.nativeElement.textContent).toContain('FERT-MICRO-50');
     expect(fixture.nativeElement.textContent).toContain('Batch + Expiry');
     expect(component.effectiveViewMode()).toBe('table');
@@ -100,5 +130,35 @@ describe('ProductsPage', () => {
     expect(component.activeFiltersCount()).toBe(2);
     component.statusFilter.set('inactive');
     expect(component.activeFiltersCount()).toBe(3);
+  });
+
+  it('hides configured widgets and fields without leaving empty KPI cards', () => {
+    capabilityState.set({
+      'inventory.products.widgets.lowStock': { visible: false },
+      'inventory.products.fields.sku': { visible: false },
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).not.toContain('Low / Out of Stock');
+    expect(fixture.nativeElement.textContent).not.toContain('FERT-MICRO-50');
+    expect(fixture.nativeElement.querySelectorAll('.kpi-card')).toHaveLength(3);
+  });
+
+  it('removes blocked actions and the optional desktop cards view', () => {
+    capabilityState.set({
+      'inventory.products.actions.managePricing': { allowed: false },
+      'inventory.products.views.desktopCards': { enabled: false },
+    });
+    component.toggleRowMenu('prod-1', new MouseEvent('click'));
+    fixture.detectChanges();
+
+    expect(component.canManagePricing()).toBe(false);
+    expect(fixture.nativeElement.textContent).not.toContain('Manage Pricing');
+    expect(fixture.nativeElement.querySelector('[aria-label="Card grid view"]')).toBeFalsy();
+    component.setViewMode('cards');
+    expect(component.effectiveViewMode()).toBe('table');
+
+    component.isMobile.set(true);
+    expect(component.effectiveViewMode()).toBe('cards');
   });
 });

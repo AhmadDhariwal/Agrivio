@@ -16,6 +16,8 @@ const API_AUTH_PASSWORD_RESET_REQUEST_PATH = `${API_V1_PREFIX}/auth/password-res
 const API_AUTH_PASSWORD_RESET_CONFIRM_PATH = `${API_V1_PREFIX}/auth/password-reset/confirm`;
 const API_PLATFORM_ORGANIZATIONS_PATH = `${API_V1_PREFIX}/platform/organizations`;
 const API_PLATFORM_ORGANIZATION_REISSUE_ACTIVATION_SUFFIX = 'reissue-activation';
+const API_ME_CAPABILITIES_PATH = `${API_V1_PREFIX}/me/capabilities`;
+const API_PLATFORM_CAPABILITY_REGISTRY_PATH = `${API_V1_PREFIX}/platform/organization-capabilities/registry`;
 const API_ORGANIZATION_PATH = `${API_V1_PREFIX}/organization`;
 const API_SETTINGS_PATH = `${API_V1_PREFIX}/settings`;
 const API_BRANCHES_PATH = `${API_V1_PREFIX}/branches`;
@@ -74,6 +76,9 @@ const ApiTransportErrorCode = {
   RecordInUse: 'RECORD_IN_USE',
   VersionConflict: 'VERSION_CONFLICT',
   IdempotencyConflict: 'IDEMPOTENCY_CONFLICT',
+  OrgCapabilityDisabled: 'ORG_CAPABILITY_DISABLED',
+  OrgActionNotAllowed: 'ORG_ACTION_NOT_ALLOWED',
+  OrgFieldNotEditable: 'ORG_FIELD_NOT_EDITABLE',
   InternalError: 'INTERNAL_ERROR',
 };
 
@@ -114,6 +119,8 @@ module.exports = {
   API_AUTH_PASSWORD_RESET_CONFIRM_PATH,
   API_PLATFORM_ORGANIZATIONS_PATH,
   API_PLATFORM_ORGANIZATION_REISSUE_ACTIVATION_SUFFIX,
+  API_ME_CAPABILITIES_PATH,
+  API_PLATFORM_CAPABILITY_REGISTRY_PATH,
   API_ORGANIZATION_PATH,
   API_SETTINGS_PATH,
   API_BRANCHES_PATH,

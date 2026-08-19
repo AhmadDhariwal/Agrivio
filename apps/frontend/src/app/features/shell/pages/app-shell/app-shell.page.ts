@@ -23,6 +23,7 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
 import { UiSearchInputComponent } from '../../../../shared/ui/ui-search-input/ui-search-input.component';
 import { lockBodyScroll, unlockBodyScroll } from '../../../../shared/ui/body-scroll-lock';
 import { VisibleNavGroup } from '../../data-access/navigation.model';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 const SIDEBAR_COLLAPSED_KEY = 'agrivio_sidebar_collapsed';
 
@@ -56,6 +57,7 @@ export class AppShellPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly elementRef = inject(ElementRef);
   readonly navService = inject(NavigationService);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
 
   readonly signingOut = signal(false);
   readonly sessionRestoring = signal(false);
@@ -153,7 +155,9 @@ export class AppShellPage {
           this.sidebarCollapsed.set(true);
         }
       }
-    } catch {}
+    } catch {
+      // Storage can be unavailable in hardened browser contexts.
+    }
 
     // 2. Reference-counted scroll lock for mobile navigation drawer
     effect((onCleanup) => {
@@ -172,6 +176,7 @@ export class AppShellPage {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe(() => {
+        this.refreshCapabilities();
         if (this.navOpen()) {
           this.closeMobileDrawer();
         }
@@ -186,6 +191,7 @@ export class AppShellPage {
       this.sessionStore.loadSession().subscribe({
         next: () => {
           this.sessionRestoring.set(false);
+          this.refreshCapabilities();
           this.navService.loadPreferences();
           this.navService.initFromCurrentRoute();
         },
@@ -195,9 +201,18 @@ export class AppShellPage {
         },
       });
     } else {
+      this.refreshCapabilities();
       this.navService.loadPreferences();
       this.navService.initFromCurrentRoute();
     }
+  }
+
+  private refreshCapabilities(): void {
+    if (this.sessionStore.activeContext()?.contextType !== 'organization') {
+      this.capabilityService?.clear();
+      return;
+    }
+    this.capabilityService?.refresh().subscribe({ error: () => undefined });
   }
 
   toggleSidebar(): void {
@@ -208,7 +223,9 @@ export class AppShellPage {
     this.hideTooltip();
     try {
       localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
-    } catch {}
+    } catch {
+      // Keep the in-memory preference when storage is unavailable.
+    }
   }
 
   openMobileDrawer(trigger?: HTMLElement): void {

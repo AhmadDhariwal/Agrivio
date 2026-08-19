@@ -49,12 +49,17 @@ export const API_AUTH_PASSWORD_RESET_CONFIRM_PATH =
   `${API_V1_PREFIX}/auth/password-reset/confirm` as const;
 
 /** Platform organization list/detail base path. */
-export const API_PLATFORM_ORGANIZATIONS_PATH =
-  `${API_V1_PREFIX}/platform/organizations` as const;
+export const API_PLATFORM_ORGANIZATIONS_PATH = `${API_V1_PREFIX}/platform/organizations` as const;
 
 /** Reissue Owner activation token for approved org without usable credentials. */
-export const API_PLATFORM_ORGANIZATION_REISSUE_ACTIVATION_SUFFIX =
-  'reissue-activation' as const;
+export const API_PLATFORM_ORGANIZATION_REISSUE_ACTIVATION_SUFFIX = 'reissue-activation' as const;
+
+/** Current organization user's effective capability policy. */
+export const API_ME_CAPABILITIES_PATH = `${API_V1_PREFIX}/me/capabilities` as const;
+
+/** Backend-authoritative semantic control registry for Super Admin. */
+export const API_PLATFORM_CAPABILITY_REGISTRY_PATH =
+  `${API_V1_PREFIX}/platform/organization-capabilities/registry` as const;
 
 /** Current organization profile for the authenticated membership context (R1-F02-008 sample). */
 export const API_ORGANIZATION_PATH = `${API_V1_PREFIX}/organization` as const;
@@ -126,8 +131,7 @@ export const API_INVENTORY_MOVEMENTS_PATH = `${API_V1_PREFIX}/inventory/movement
 export const API_INVENTORY_BATCHES_PATH = `${API_V1_PREFIX}/inventory/batches` as const;
 
 /** Opening stock posting (R1-F04-002). */
-export const API_INVENTORY_OPENING_STOCK_PATH =
-  `${API_V1_PREFIX}/inventory/opening-stock` as const;
+export const API_INVENTORY_OPENING_STOCK_PATH = `${API_V1_PREFIX}/inventory/opening-stock` as const;
 
 /** Expiry-oriented inventory query (R1-F04-006). */
 export const API_INVENTORY_EXPIRY_PATH = `${API_V1_PREFIX}/inventory/expiry` as const;
@@ -186,8 +190,7 @@ export const API_SUBSCRIPTION_BILLING_RECORDS_PATH =
   `${API_V1_PREFIX}/subscription/billing-records` as const;
 
 /** Platform subscription overview and lifecycle actions. */
-export const API_PLATFORM_SUBSCRIPTIONS_PATH =
-  `${API_V1_PREFIX}/platform/subscriptions` as const;
+export const API_PLATFORM_SUBSCRIPTIONS_PATH = `${API_V1_PREFIX}/platform/subscriptions` as const;
 
 /** Platform plan definition versioning. */
 export const API_PLATFORM_SUBSCRIPTION_PLANS_PATH =
@@ -235,6 +238,9 @@ export const ApiTransportErrorCode = {
   RecordInUse: 'RECORD_IN_USE',
   VersionConflict: 'VERSION_CONFLICT',
   IdempotencyConflict: 'IDEMPOTENCY_CONFLICT',
+  OrgCapabilityDisabled: 'ORG_CAPABILITY_DISABLED',
+  OrgActionNotAllowed: 'ORG_ACTION_NOT_ALLOWED',
+  OrgFieldNotEditable: 'ORG_FIELD_NOT_EDITABLE',
   InternalError: 'INTERNAL_ERROR',
 } as const;
 
@@ -275,10 +281,7 @@ export interface PaginationMeta {
   readonly total: number;
 }
 
-export interface ApiSuccessEnvelope<
-  TData,
-  TMeta extends object = Record<string, unknown>,
-> {
+export interface ApiSuccessEnvelope<TData, TMeta extends object = Record<string, unknown>> {
   readonly data: TData;
   readonly meta?: TMeta;
   readonly requestId: string;
@@ -301,10 +304,7 @@ export function createApiErrorEnvelope(requestId: string, error: ApiErrorBody): 
 /**
  * Builds a transport-level success envelope for HTTP responses.
  */
-export function createApiSuccessEnvelope<
-  TData,
-  TMeta extends object = Record<string, unknown>,
->(
+export function createApiSuccessEnvelope<TData, TMeta extends object = Record<string, unknown>>(
   requestId: string,
   data: TData,
   meta?: TMeta,

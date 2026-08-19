@@ -2,6 +2,7 @@ import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { catchError, map, of } from 'rxjs';
 import { AuthSessionStore } from '../../features/auth/data-access/auth-session.store';
+import { CapabilityService } from '../../features/capabilities/data-access/capability.service';
 
 /**
  * Non-authoritative session presence check for UX routing only.
@@ -48,3 +49,25 @@ export const requirePlatformContextGuard: CanActivateFn = () => {
 
   return router.createUrlTree(['/context']);
 };
+
+export function requireCapabilityGuard(
+  key: string,
+  mode: 'module' | 'view' | 'action' = 'module',
+): CanActivateFn {
+  return () => {
+    const capabilities = inject(CapabilityService);
+    const router = inject(Router);
+    return capabilities.ensureLoaded().pipe(
+      map(() => {
+        const allowed =
+          mode === 'action'
+            ? capabilities.canPerformAction(key)
+            : mode === 'view'
+              ? capabilities.canUseView(key)
+              : capabilities.canUseModule(key);
+        return allowed ? true : router.createUrlTree(['/app/feature-unavailable']);
+      }),
+      catchError(() => of(router.createUrlTree(['/app/feature-unavailable']))),
+    );
+  };
+}

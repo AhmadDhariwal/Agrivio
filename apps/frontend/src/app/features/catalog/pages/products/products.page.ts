@@ -16,7 +16,18 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 import { applyPaginationMeta } from '../../../../shared/data-access/pagination';
-import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, forkJoin, map, of, startWith, switchMap } from 'rxjs';
+import {
+  EMPTY,
+  Subject,
+  catchError,
+  debounceTime,
+  distinctUntilChanged,
+  forkJoin,
+  map,
+  of,
+  startWith,
+  switchMap,
+} from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   MasterLifecycleFilter,
@@ -25,6 +36,7 @@ import {
   reactivateCopy,
   recordInUseMessage,
 } from '../../../../shared/lifecycle/master-lifecycle';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 /**
  * ============================================================================
@@ -88,6 +100,7 @@ export class ProductsPage {
   private readonly api = inject(CatalogApi);
   private readonly inventoryApi = inject(InventoryApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
   private readonly reloadRequests = new Subject<void>();
   private readonly searchChanges = new Subject<string>();
@@ -99,12 +112,15 @@ export class ProductsPage {
   readonly statusFilter = signal<MasterLifecycleFilter>('active');
   readonly categoryFilter = signal<string>('');
   readonly trackingFilter = signal<string>('');
-  
+
   // Responsive View Mode: separate user preferred mode from effective mode on mobile
   readonly preferredViewMode = signal<'table' | 'cards'>('table');
   readonly isMobile = signal<boolean>(false);
   readonly effectiveViewMode = computed<'table' | 'cards'>(() => {
-    return this.isMobile() ? 'cards' : this.preferredViewMode();
+    if (this.isMobile()) {
+      return 'cards';
+    }
+    return this.preferredViewMode() === 'cards' && this.canUseDesktopCards() ? 'cards' : 'table';
   });
 
   // Mobile Filter Drawer State
@@ -127,8 +143,73 @@ export class ProductsPage {
   readonly inspectorLoading = signal(false);
 
   readonly canManage = computed(() => this.sessionStore.hasPermission('catalog.manage'));
-  readonly canManagePricing = computed(() => this.sessionStore.hasPermission('pricing.manage'));
+  readonly canCreate = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('inventory.products.actions.create') ?? true),
+  );
+  readonly canInspect = computed(
+    () =>
+      this.sessionStore.hasPermission('catalog.view') &&
+      (this.capabilityService?.canPerformAction('inventory.products.actions.inspect') ?? true),
+  );
+  readonly canEdit = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('inventory.products.actions.edit') ?? true),
+  );
+  readonly canManagePricing = computed(
+    () =>
+      this.sessionStore.hasPermission('pricing.manage') &&
+      (this.capabilityService?.canPerformAction('inventory.products.actions.managePricing') ??
+        true) &&
+      (this.capabilityService?.canEditField('inventory.products.fields.sellingPrice') ?? true),
+  );
+  readonly canDeactivate = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('inventory.products.actions.deactivate') ?? true),
+  );
+  readonly canReactivate = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('inventory.products.actions.reactivate') ?? true),
+  );
+  readonly canDelete = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('inventory.products.actions.delete') ?? true),
+  );
   readonly canView = computed(() => this.sessionStore.hasPermission('catalog.view'));
+  readonly canUseDesktopCards = computed(
+    () => this.capabilityService?.canUseView('inventory.products.views.desktopCards') ?? true,
+  );
+  readonly showSku = computed(
+    () => this.capabilityService?.canViewField('inventory.products.fields.sku') ?? true,
+  );
+  readonly showSellingPrice = computed(
+    () => this.capabilityService?.canViewField('inventory.products.fields.sellingPrice') ?? true,
+  );
+  readonly showTotalProducts = computed(
+    () => this.capabilityService?.canShowWidget('inventory.products.widgets.totalProducts') ?? true,
+  );
+  readonly showActiveProducts = computed(
+    () =>
+      this.capabilityService?.canShowWidget('inventory.products.widgets.activeProducts') ?? true,
+  );
+  readonly showLowStock = computed(
+    () => this.capabilityService?.canShowWidget('inventory.products.widgets.lowStock') ?? true,
+  );
+  readonly showTrackedItems = computed(
+    () => this.capabilityService?.canShowWidget('inventory.products.widgets.trackedItems') ?? true,
+  );
+  readonly hasWidgets = computed(
+    () =>
+      this.showTotalProducts() ||
+      this.showActiveProducts() ||
+      this.showLowStock() ||
+      this.showTrackedItems(),
+  );
 
   // Category Map for fast lookup
   readonly categoriesMap = computed(() => {
@@ -168,7 +249,12 @@ export class ProductsPage {
 
     return {
       total: this.total(),
-      active: this.statusFilter() === 'inactive' ? active : (this.statusFilter() === 'all' ? active : this.total()),
+      active:
+        this.statusFilter() === 'inactive'
+          ? active
+          : this.statusFilter() === 'all'
+            ? active
+            : this.total(),
       tracked: tracked,
       lowStock: lowStock,
       inactive: this.statusFilter() === 'inactive' ? this.total() : inactive,
@@ -176,7 +262,12 @@ export class ProductsPage {
   });
 
   readonly hasActiveFilters = computed(() => {
-    return Boolean(this.search() || this.categoryFilter() || this.trackingFilter() || this.statusFilter() !== 'active');
+    return Boolean(
+      this.search() ||
+      this.categoryFilter() ||
+      this.trackingFilter() ||
+      this.statusFilter() !== 'active',
+    );
   });
 
   readonly activeFiltersCount = computed(() => {
@@ -304,8 +395,8 @@ export class ProductsPage {
       }).pipe(
         map(({ prices, balances }) => {
           const retailPrice =
-            prices.find((pr) => pr.status === 'active' && pr.priceTier === 'retail')?.price.amount ||
-            prices.find((pr) => pr.status === 'active')?.price.amount;
+            prices.find((pr) => pr.status === 'active' && pr.priceTier === 'retail')?.price
+              .amount || prices.find((pr) => pr.status === 'active')?.price.amount;
           let totalAvail = 0;
           for (const bal of balances.items) {
             const q = parseFloat(bal.quantityBase || '0');
@@ -332,7 +423,7 @@ export class ProductsPage {
           }
           this.productAuxMap.set(map);
         },
-        error: () => {},
+        error: () => undefined,
       });
   }
 
@@ -411,6 +502,9 @@ export class ProductsPage {
   }
 
   setViewMode(mode: 'table' | 'cards'): void {
+    if (mode === 'cards' && !this.canUseDesktopCards()) {
+      return;
+    }
     this.preferredViewMode.set(mode);
   }
 
@@ -439,6 +533,9 @@ export class ProductsPage {
 
   // Inspector Drawer Actions
   openInspector(item: ProductRecord): void {
+    if (!this.canInspect()) {
+      return;
+    }
     this.selectedProduct.set(item);
     this.selectedPackagingUnits.set([]);
     this.selectedPrices.set([]);
@@ -516,7 +613,13 @@ export class ProductsPage {
     const pending = this.pending;
     this.confirmOpen.set(false);
     this.pending = null;
-    if (!pending || !this.canManage()) {
+    if (
+      !pending ||
+      (pending.kind === 'delete' && !this.canDelete()) ||
+      (pending.kind === 'status' &&
+        ((pending.nextStatus === 'active' && !this.canReactivate()) ||
+          (pending.nextStatus === 'inactive' && !this.canDeactivate())))
+    ) {
       return;
     }
     if (pending.kind === 'delete') {

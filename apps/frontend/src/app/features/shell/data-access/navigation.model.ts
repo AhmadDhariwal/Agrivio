@@ -3,6 +3,7 @@ export interface NavItem {
   readonly label: string;
   readonly route: string;
   readonly permission?: string | undefined;
+  readonly capabilityKey?: string | undefined;
   readonly testId?: string | undefined;
   readonly exact?: boolean | undefined;
 }
@@ -147,6 +148,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Products',
           route: '/app/products',
           permission: 'catalog.view',
+          capabilityKey: 'inventory.products',
           testId: 'nav-products',
         },
         {

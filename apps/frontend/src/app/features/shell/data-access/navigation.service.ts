@@ -5,7 +5,6 @@ import { NavigationApi, NavigationPreferencesPayload } from './navigation.api';
 import {
   CANONICAL_NAVIGATION,
   NavCustomizerEntry,
-  NavCustomizerGroup,
   NavCustomizerGroupItem,
   NavCustomizerTree,
   NavEntry,
@@ -14,12 +13,14 @@ import {
   VisibleNavEntry,
 } from './navigation.model';
 import { insertIdBefore, mergeCanonicalOrder, moveIdInOrder } from './navigation-order';
+import { CapabilityService } from '../../capabilities/data-access/capability.service';
 
 @Injectable({ providedIn: 'root' })
 export class NavigationService {
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly navigationApi = inject(NavigationApi);
   private readonly router = inject(Router);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
 
   readonly hiddenItemIds = signal<Set<string>>(new Set());
   readonly groupOrder = signal<readonly string[]>([]);
@@ -31,9 +32,9 @@ export class NavigationService {
   readonly isSaving = signal<boolean>(false);
   readonly customizerDraftHidden = signal<Set<string>>(new Set());
   readonly customizerDraftGroupOrder = signal<readonly string[]>([]);
-  readonly customizerDraftItemOrderByGroup = signal<
-    Readonly<Record<string, readonly string[]>>
-  >({});
+  readonly customizerDraftItemOrderByGroup = signal<Readonly<Record<string, readonly string[]>>>(
+    {},
+  );
   readonly saveError = signal<string | null>(null);
   readonly isLoaded = signal<boolean>(false);
   readonly reorderAnnouncement = signal<string>('');
@@ -42,6 +43,9 @@ export class NavigationService {
 
   isItemPermitted(item: NavItem): boolean {
     if (item.permission && !this.sessionStore.hasPermission(item.permission)) {
+      return false;
+    }
+    if (item.capabilityKey && !(this.capabilityService?.canUseModule(item.capabilityKey) ?? true)) {
       return false;
     }
     return true;

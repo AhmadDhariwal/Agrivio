@@ -176,6 +176,7 @@ describe('R1-F09-003 endpoint permission map', () => {
           'GET /api/v1/platform/operations/readiness',
           'GET /api/v1/auth/navigation-preferences',
           'PUT /api/v1/auth/navigation-preferences',
+          'GET /api/v1/me/capabilities',
         ]).toContain(extra.key);
         continue;
       }
