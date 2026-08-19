@@ -10,6 +10,7 @@ import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.compon
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
 import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 const PRICE_TIERS: PriceTier[] = ['retail', 'wholesale', 'dealer', 'distributor'];
 
@@ -29,6 +30,7 @@ const PRICE_TIERS: PriceTier[] = ['retail', 'wholesale', 'dealer', 'distributor'
 export class ProductPricingPage {
   private readonly api = inject(CatalogApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
@@ -38,7 +40,13 @@ export class ProductPricingPage {
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly errorMessage = signal<string | null>(null);
-  readonly canManage = computed(() => this.sessionStore.hasPermission('pricing.manage'));
+  readonly canManage = computed(
+    () =>
+      this.sessionStore.hasPermission('pricing.manage') &&
+      (this.capabilityService?.canPerformAction('inventory.products.actions.managePricing') ??
+        true) &&
+      (this.capabilityService?.canEditField('inventory.products.fields.sellingPrice') ?? true),
+  );
   private version = 1;
 
   readonly fieldRequired = hasRequiredValidator;
@@ -65,7 +73,9 @@ export class ProductPricingPage {
       next: ({ product, prices }) => {
         this.version = product.version;
         this.productName.set(product.name);
-        const byTier = new Map(prices.filter((p) => p.status === 'active').map((p) => [p.priceTier, p]));
+        const byTier = new Map(
+          prices.filter((p) => p.status === 'active').map((p) => [p.priceTier, p]),
+        );
         this.form.patchValue({
           retail: byTier.get('retail')?.price.amount ?? '',
           wholesale: byTier.get('wholesale')?.price.amount ?? '',

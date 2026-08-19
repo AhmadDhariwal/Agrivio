@@ -1,0 +1,176 @@
+<section class="controls-shell" data-testid="organization-controls">
+  <a class="back-link" routerLink="/app/platform/organizations">← Back to organizations</a>
+
+  @if (loading()) {
+  <agrivio-ui-loading-state label="Loading organization controls…" />
+  } @else if (snapshot(); as state) {
+  <agrivio-ui-page-header
+    eyebrow="Platform · Organization Controls"
+    [title]="state.organization.name"
+    lede="Manage approved Product surfaces for this organization without changing its users' RBAC permissions."
+  />
+
+  <div class="identity-grid">
+    <div><span>Organization ID</span><strong>{{ state.organization.id }}</strong></div>
+    <div>
+      <span>Owner</span
+      ><strong
+        >{{ state.organization.owner?.email || state.organization.ownerEmail || '—' }}</strong
+      >
+    </div>
+    <div>
+      <span>Plan</span
+      ><strong>{{ state.organization.subscription?.planCode || 'Unassigned' }}</strong>
+    </div>
+    <div><span>Policy version</span><strong>v{{ state.policy.version }}</strong></div>
+  </div>
+
+  <agrivio-ui-alert
+    tone="warning"
+    message="Changes apply to all users in this organization. Existing permissions, subscription limits, and lifecycle rules remain enforced."
+  />
+
+  @if (successMessage(); as success) {
+  <agrivio-ui-alert tone="success" [message]="success" />
+  } @if (errorMessage(); as error) {
+  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+
+  <div class="controls-layout">
+    <aside class="module-nav" aria-label="Configurable modules">
+      <p class="module-nav__label">Modules</p>
+      <button type="button" class="module-nav__item module-nav__item--active">Products</button>
+      <p class="module-nav__note">Additional modules are not configurable in Phase 1.</p>
+    </aside>
+
+    <main class="controls-main">
+      <div class="controls-toolbar">
+        <input
+          class="ag-input"
+          type="search"
+          placeholder="Search Product controls"
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+          aria-label="Search Product controls"
+        />
+        <button type="button" class="ag-btn ag-btn--secondary" (click)="resetProducts()">
+          Reset Products
+        </button>
+        <button type="button" class="ag-btn ag-btn--secondary" (click)="resetProducts()">
+          Reset organization
+        </button>
+      </div>
+
+      @for (section of [ { title: 'Products module', controls: moduleControls() }, { title: 'Views',
+      controls: viewControls() }, { title: 'Fields', controls: fieldControls() }, { title:
+      'Widgets', controls: widgetControls() }, { title: 'Actions', controls: actionControls() } ];
+      track section.title) { @if (section.controls.length > 0) {
+      <section class="control-section">
+        <h2>{{ section.title }}</h2>
+        <div class="control-list">
+          @for (control of section.controls; track control.key) {
+          <article
+            class="control-row"
+            [class.control-row--parent-disabled]="parentDisabled(control)"
+          >
+            <div class="control-copy">
+              <strong>{{ control.label }}</strong>
+              <span>{{ control.description }}</span>
+              @if (control.reason) {
+              <small>{{ control.reason }}</small>
+              } @if (parentDisabled(control)) {
+              <small>Effective result is restricted because Products is disabled.</small>
+              }
+            </div>
+
+            <div class="control-modes">
+              @for (mode of modes(control); track mode) {
+              <label class="policy-toggle">
+                <span>{{ mode }}</span>
+                <input
+                  type="checkbox"
+                  [checked]="value(control, mode)"
+                  [disabled]="!isConfigurable(control, mode) || parentDisabled(control)"
+                  (change)="setValue(control, mode, $any($event.target).checked)"
+                  [attr.aria-label]="control.label + ' ' + mode"
+                />
+                <b>{{ value(control, mode) ? onLabel(mode) : offLabel(mode) }}</b>
+              </label>
+              }
+            </div>
+
+            <dl class="policy-state">
+              <div>
+                <dt>Default</dt>
+                <dd>{{ control.defaultPolicy | json }}</dd>
+              </div>
+              <div>
+                <dt>Override</dt>
+                <dd>{{ control.override ? (control.override | json) : 'None' }}</dd>
+              </div>
+              <div>
+                <dt>Effective</dt>
+                <dd>
+                  @for (mode of modes(control); track mode) {
+                  <span>{{ mode }}={{ effectiveValue(control, mode) }}</span>
+                  }
+                </dd>
+              </div>
+            </dl>
+
+            <button type="button" class="reset-link" (click)="resetControl(control)">
+              Reset control
+            </button>
+          </article>
+          }
+        </div>
+      </section>
+      } }
+
+      <section class="save-panel">
+        <div>
+          <strong
+            >{{ changes().length }} staged change{{ changes().length === 1 ? '' : 's' }}</strong
+          >
+          @if (changeSummary().length > 0) {
+          <ul>
+            @for (line of changeSummary(); track line) {
+            <li>{{ line }}</li>
+            }
+          </ul>
+          }
+        </div>
+        <label class="reason-field">
+          <span>Reason / comment (optional)</span>
+          <input
+            class="ag-input"
+            [ngModel]="reason()"
+            (ngModelChange)="reason.set($event)"
+            placeholder="Why is this policy changing?"
+          />
+        </label>
+        <button
+          type="button"
+          class="ag-btn ag-btn--primary"
+          [disabled]="changes().length === 0 || saving()"
+          (click)="askSave()"
+          data-testid="save-organization-controls"
+        >
+          {{ saving() ? 'Saving…' : 'Save policy' }}
+        </button>
+      </section>
+    </main>
+  </div>
+
+  <agrivio-ui-confirm-dialog
+    [open]="confirmOpen()"
+    [title]="'Apply ' + changes().length + ' changes to ' + state.organization.name + '?'"
+    message="All users in this organization will receive this policy. The policy cannot bypass permissions, subscriptions, or lifecycle protections."
+    confirmLabel="Apply policy"
+    (confirmed)="save()"
+    (dismiss)="confirmOpen.set(false)"
+  />
+  } @if (!loading() && errorMessage() && !snapshot()) {
+  <agrivio-ui-alert tone="danger" [message]="errorMessage()!" role="alert" />
+  }
+</section>
