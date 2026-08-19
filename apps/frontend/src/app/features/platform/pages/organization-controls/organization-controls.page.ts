@@ -2,7 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
-import { JsonPipe } from '@angular/common';
+import { Observable } from 'rxjs';
 import { CapabilitiesApi } from '../../../capabilities/data-access/capabilities.api';
 import {
   CapabilityControlType,
@@ -16,13 +16,18 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 
 type DraftValues = Readonly<Record<string, Readonly<Record<string, boolean>>>>;
+type ConfigurableModule = 'inventory.products' | 'inventory.categories';
+type PendingConfirmation =
+  | { readonly kind: 'save' }
+  | { readonly kind: 'reset-control'; readonly control: PlatformCapabilityControl }
+  | { readonly kind: 'reset-module'; readonly moduleKey: ConfigurableModule }
+  | { readonly kind: 'reset-organization' };
 
 @Component({
   selector: 'agrivio-organization-controls-page',
   standalone: true,
   imports: [
     FormsModule,
-    JsonPipe,
     RouterLink,
     UiAlertComponent,
     UiConfirmDialogComponent,
@@ -39,29 +44,31 @@ export class OrganizationControlsPage {
 
   readonly snapshot = signal<PlatformOrganizationCapabilitySnapshot | null>(null);
   readonly draftValues = signal<DraftValues>({});
+  readonly selectedModule = signal<ConfigurableModule>('inventory.products');
   readonly search = signal('');
   readonly reason = signal('');
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
-  readonly confirmOpen = signal(false);
+  readonly pendingConfirmation = signal<PendingConfirmation | null>(null);
 
   readonly controls = computed(() => this.snapshot()?.policy.controls ?? []);
-  readonly productControls = computed(() => {
+  readonly selectedControls = computed(() => {
     const query = this.search().trim().toLowerCase();
     return this.controls().filter(
       (control) =>
-        control.moduleKey === 'inventory.products' &&
+        control.moduleKey === this.selectedModule() &&
         control.key !== 'inventory' &&
         (!query ||
           control.label.toLowerCase().includes(query) ||
           control.key.toLowerCase().includes(query)),
     );
   });
-  readonly moduleControls = computed(() => this.byType('FEATURE'));
+  readonly moduleControls = computed(() => this.byType('FEATURE', true));
   readonly viewControls = computed(() => this.byType('VIEW'));
   readonly fieldControls = computed(() => this.byType('FIELD'));
+  readonly featureControls = computed(() => this.byType('FEATURE', false));
   readonly widgetControls = computed(() => this.byType('WIDGET'));
   readonly actionControls = computed(() => this.byType('ACTION'));
 
@@ -70,14 +77,10 @@ export class OrganizationControlsPage {
     const changes: CapabilityPolicyChange[] = [];
     for (const control of this.controls()) {
       const next = draft[control.key];
-      if (next === undefined) {
-        continue;
-      }
+      if (next === undefined) continue;
       const changedValue: Record<string, boolean> = {};
       for (const [mode, value] of Object.entries(next)) {
-        if (value !== control.configuredValue[mode]) {
-          changedValue[mode] = value;
-        }
+        if (value !== control.configuredValue[mode]) changedValue[mode] = value;
       }
       if (Object.keys(changedValue).length > 0) {
         changes.push({ key: control.key, value: changedValue });
@@ -87,14 +90,67 @@ export class OrganizationControlsPage {
   });
 
   readonly changeSummary = computed(() =>
-    this.changes().map((change) => {
+    this.changes().flatMap((change) => {
       const control = this.controls().find((item) => item.key === change.key);
-      const parts = Object.entries(change.value ?? {}).map(
-        ([mode, value]) => `${mode}: ${value ? this.onLabel(mode) : this.offLabel(mode)}`,
-      );
-      return `${control?.label ?? change.key} — ${parts.join(', ')}`;
+      return Object.entries(change.value ?? {}).map(([mode, value]) => ({
+        key: `${change.key}.${mode}`,
+        label: control?.label ?? change.key,
+        before: this.stateLabel(mode, control?.configuredValue[mode] === true),
+        after: this.stateLabel(mode, value),
+        risk: control?.risk ?? 'NORMAL',
+      }));
     }),
   );
+  readonly selectedOverrideCount = computed(
+    () =>
+      this.controls().filter(
+        (control) => control.moduleKey === this.selectedModule() && control.override !== null,
+      ).length,
+  );
+  readonly organizationOverrideCount = computed(
+    () => this.controls().filter((control) => control.override !== null).length,
+  );
+  readonly confirmOpen = computed(() => this.pendingConfirmation() !== null);
+  readonly confirmationTitle = computed(() => {
+    const pending = this.pendingConfirmation();
+    const organization = this.snapshot()?.organization.name ?? 'this organization';
+    if (pending?.kind === 'reset-control') return `Reset “${pending.control.label}”?`;
+    if (pending?.kind === 'reset-module') {
+      return `Reset ${this.moduleLabel(pending.moduleKey)} controls for ${organization}?`;
+    }
+    if (pending?.kind === 'reset-organization') return `Reset all controls for ${organization}?`;
+    const single = this.changeSummary().length === 1 ? this.changeSummary()[0] : null;
+    if (single?.risk === 'CRITICAL' && single.after === 'Disabled') {
+      return `Disable ${single.label} for ${organization}?`;
+    }
+    return `Apply ${this.changeSummary().length} changes to ${organization}?`;
+  });
+  readonly confirmationMessage = computed(() => {
+    const pending = this.pendingConfirmation();
+    const organization = this.snapshot()?.organization.name ?? 'this organization';
+    if (pending?.kind === 'reset-control') {
+      return `The organization-specific override will be removed and Agrivio's default behavior will apply. This affects ${organization} only.`;
+    }
+    if (pending?.kind === 'reset-module') {
+      return `${this.selectedOverrideCount()} organization-specific override(s) in ${this.moduleLabel(pending.moduleKey)} will be removed. Existing organization data is unchanged.`;
+    }
+    if (pending?.kind === 'reset-organization') {
+      return `${this.organizationOverrideCount()} organization-specific override(s) will be removed. Agrivio defaults, subscription, RBAC, and platform rules will apply. Organization data is unchanged.`;
+    }
+    const critical = this.changeSummary()
+      .filter((change) => change.risk === 'CRITICAL')
+      .map((change) => `${change.label}: ${change.before} → ${change.after}`);
+    return critical.length > 0
+      ? `Critical impact: ${critical.join('; ')}. Changes affect all users in ${organization} only. Existing records are not deleted.`
+      : `Changes affect all users in ${organization} only. Permissions, subscription limits, and lifecycle protections remain enforced.`;
+  });
+  readonly confirmationLabel = computed(() => {
+    const pending = this.pendingConfirmation();
+    if (pending?.kind === 'reset-control') return 'Reset control';
+    if (pending?.kind === 'reset-module') return `Reset ${this.moduleLabel(pending.moduleKey)}`;
+    if (pending?.kind === 'reset-organization') return 'Reset all controls';
+    return 'Apply changes';
+  });
 
   constructor() {
     this.reload();
@@ -123,6 +179,11 @@ export class OrganizationControlsPage {
     });
   }
 
+  selectModule(moduleKey: ConfigurableModule): void {
+    this.selectedModule.set(moduleKey);
+    this.search.set('');
+  }
+
   modes(control: PlatformCapabilityControl): readonly string[] {
     return Object.keys(control.defaultPolicy);
   }
@@ -137,25 +198,36 @@ export class OrganizationControlsPage {
 
   parentDisabled(control: PlatformCapabilityControl): boolean {
     return (
-      control.key !== 'inventory.products' &&
-      this.draftValues()['inventory.products']?.['enabled'] === false
+      control.key !== control.moduleKey &&
+      this.draftValues()[control.moduleKey]?.['enabled'] === false
     );
   }
 
   effectiveValue(control: PlatformCapabilityControl, mode: string): boolean {
-    if (this.parentDisabled(control)) {
+    if (this.parentDisabled(control) || this.snapshot()?.policy.operationalAllowed === false) {
       return false;
     }
     if (control.type === 'FIELD' && mode === 'editable') {
       return this.value(control, 'visible') && this.value(control, mode);
     }
-    return this.value(control, mode) && this.snapshot()?.policy.operationalAllowed !== false;
+    return this.value(control, mode);
+  }
+
+  effectiveReason(control: PlatformCapabilityControl, mode: string): string | null {
+    if (this.snapshot()?.policy.operationalAllowed === false) {
+      return 'Unavailable on the current subscription state.';
+    }
+    if (this.parentDisabled(control)) {
+      return `${this.moduleLabel(control.moduleKey as ConfigurableModule)} is disabled.`;
+    }
+    if (control.type === 'FIELD' && mode === 'editable' && !this.value(control, 'visible')) {
+      return 'Hidden fields are read-only.';
+    }
+    return null;
   }
 
   setValue(control: PlatformCapabilityControl, mode: string, value: boolean): void {
-    if (!this.isConfigurable(control, mode) || this.parentDisabled(control)) {
-      return;
-    }
+    if (!this.isConfigurable(control, mode)) return;
     this.draftValues.update((draft) => ({
       ...draft,
       [control.key]: { ...draft[control.key], [mode]: value },
@@ -163,59 +235,73 @@ export class OrganizationControlsPage {
     this.successMessage.set(null);
   }
 
-  resetControl(control: PlatformCapabilityControl): void {
-    this.draftValues.update((draft) => ({
-      ...draft,
-      [control.key]: { ...control.defaultPolicy },
-    }));
+  overrideLabel(control: PlatformCapabilityControl, mode: string): string {
+    const staged = this.changes().find((change) => change.key === control.key)?.value?.[mode];
+    if (staged !== undefined) return `Staged · ${this.stateLabel(mode, staged)}`;
+    if (control.override?.[mode] === undefined) return '— Uses default';
+    return this.stateLabel(mode, control.override[mode] === true);
   }
 
-  resetProducts(): void {
-    this.draftValues.update((draft) => {
-      const next = { ...draft };
-      for (const control of this.controls()) {
-        if (control.moduleKey === 'inventory.products') {
-          next[control.key] = { ...control.defaultPolicy };
-        }
-      }
-      return next;
-    });
+  stateLabel(mode: string, value: boolean): string {
+    return value ? this.onLabel(mode) : this.offLabel(mode);
   }
 
   askSave(): void {
-    if (this.changes().length > 0) {
-      this.confirmOpen.set(true);
+    if (this.changes().length > 0) this.pendingConfirmation.set({ kind: 'save' });
+  }
+
+  askResetControl(control: PlatformCapabilityControl): void {
+    if (control.override !== null) this.pendingConfirmation.set({ kind: 'reset-control', control });
+  }
+
+  askResetModule(): void {
+    if (this.selectedOverrideCount() > 0) {
+      this.pendingConfirmation.set({ kind: 'reset-module', moduleKey: this.selectedModule() });
     }
   }
 
-  save(): void {
-    const snapshot = this.snapshot();
-    const changes = this.changes();
-    this.confirmOpen.set(false);
-    if (snapshot === null || changes.length === 0 || this.saving()) {
+  askResetOrganization(): void {
+    if (this.organizationOverrideCount() > 0) {
+      this.pendingConfirmation.set({ kind: 'reset-organization' });
+    }
+  }
+
+  confirm(): void {
+    const pending = this.pendingConfirmation();
+    this.pendingConfirmation.set(null);
+    if (pending === null || this.saving()) return;
+    if (pending.kind === 'save') {
+      this.save();
       return;
     }
-    this.saving.set(true);
-    this.errorMessage.set(null);
-    this.api
-      .updateOrganizationPolicy(
-        this.organizationId,
-        snapshot.policy.version,
-        changes,
-        this.reason(),
-      )
-      .subscribe({
-        next: () => {
-          this.saving.set(false);
-          this.successMessage.set('Organization capability policy saved.');
-          this.reason.set('');
-          this.reload();
-        },
-        error: (error: unknown) => {
-          this.saving.set(false);
-          this.errorMessage.set(this.mapError(error));
-        },
-      });
+    const snapshot = this.snapshot();
+    if (snapshot === null) return;
+    if (pending.kind === 'reset-control') {
+      this.runOperation(
+        this.api.resetOrganizationControl(
+          this.organizationId,
+          pending.control.key,
+          snapshot.policy.version,
+          this.reason(),
+        ),
+        `${pending.control.label} now uses Agrivio defaults.`,
+      );
+    } else if (pending.kind === 'reset-module') {
+      this.runOperation(
+        this.api.resetOrganizationModule(
+          this.organizationId,
+          pending.moduleKey,
+          snapshot.policy.version,
+          this.reason(),
+        ),
+        `${this.moduleLabel(pending.moduleKey)} controls reset to defaults.`,
+      );
+    } else {
+      this.runOperation(
+        this.api.resetOrganization(this.organizationId, snapshot.policy.version, this.reason()),
+        'Organization controls reset to defaults.',
+      );
+    }
   }
 
   onLabel(mode: string): string {
@@ -238,8 +324,51 @@ export class OrganizationControlsPage {
           : 'Disabled';
   }
 
-  private byType(type: CapabilityControlType): readonly PlatformCapabilityControl[] {
-    return this.productControls().filter((control) => control.type === type);
+  moduleLabel(moduleKey: ConfigurableModule): string {
+    return moduleKey === 'inventory.products' ? 'Products' : 'Categories';
+  }
+
+  private save(): void {
+    const snapshot = this.snapshot();
+    const changes = this.changes();
+    if (snapshot === null || changes.length === 0) return;
+    this.runOperation(
+      this.api.updateOrganizationPolicy(
+        this.organizationId,
+        snapshot.policy.version,
+        changes,
+        this.reason(),
+      ),
+      'Organization capability policy saved.',
+    );
+  }
+
+  private runOperation(request: Observable<unknown>, success: string): void {
+    this.saving.set(true);
+    this.errorMessage.set(null);
+    request.subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.successMessage.set(success);
+        this.reason.set('');
+        this.reload();
+      },
+      error: (error: unknown) => {
+        this.saving.set(false);
+        this.errorMessage.set(this.mapError(error));
+      },
+    });
+  }
+
+  private byType(
+    type: CapabilityControlType,
+    moduleRoot?: boolean,
+  ): readonly PlatformCapabilityControl[] {
+    return this.selectedControls().filter(
+      (control) =>
+        control.type === type &&
+        (moduleRoot === undefined || (control.key === control.moduleKey) === moduleRoot),
+    );
   }
 
   private mapError(error: unknown): string {
@@ -247,8 +376,8 @@ export class OrganizationControlsPage {
       if (error.error?.error?.code === 'VERSION_CONFLICT') {
         return 'This policy changed elsewhere. Reload and review your changes.';
       }
-      return error.error?.error?.message ?? 'Unable to save organization controls.';
+      return error.error?.error?.message ?? 'Unable to update organization controls.';
     }
-    return 'Unable to save organization controls.';
+    return 'Unable to update organization controls.';
   }
 }

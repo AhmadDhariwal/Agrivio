@@ -4,6 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { CatalogApi } from '../../data-access/catalog.api';
 import { CategoryRecord } from '../../models/catalog.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
@@ -45,6 +46,7 @@ import {
 export class CategoriesPage {
   private readonly api = inject(CatalogApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
   private readonly reloadRequests = new Subject<void>();
   private readonly searchChanges = new Subject<string>();
@@ -61,7 +63,9 @@ export class CategoriesPage {
     if (this.isMobile()) {
       return 'cards';
     }
-    return this.preferredViewMode();
+    return this.preferredViewMode() === 'cards' && !this.canUseDesktopCards()
+      ? 'table'
+      : this.preferredViewMode();
   });
 
   // Mobile Filter Drawer State
@@ -83,6 +87,58 @@ export class CategoriesPage {
 
   readonly canManage = computed(() => this.sessionStore.hasPermission('catalog.manage'));
   readonly canView = computed(() => this.sessionStore.hasPermission('catalog.view'));
+  readonly canCreate = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('inventory.categories.actions.create') ?? true),
+  );
+  readonly canInspect = computed(
+    () =>
+      this.canView() &&
+      (this.capabilityService?.canPerformAction('inventory.categories.actions.inspect') ?? true),
+  );
+  readonly canEdit = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('inventory.categories.actions.edit') ?? true),
+  );
+  readonly canDeactivate = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('inventory.categories.actions.deactivate') ?? true),
+  );
+  readonly canReactivate = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('inventory.categories.actions.reactivate') ?? true),
+  );
+  readonly canDelete = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('inventory.categories.actions.delete') ?? true),
+  );
+  readonly canUseDesktopCards = computed(
+    () => this.capabilityService?.canUseView('inventory.categories.views.desktopCards') ?? true,
+  );
+  readonly showTotalCategories = computed(
+    () =>
+      this.capabilityService?.canShowWidget('inventory.categories.widgets.totalCategories') ?? true,
+  );
+  readonly showName = computed(
+    () => this.capabilityService?.canViewField('inventory.categories.fields.name') ?? true,
+  );
+  readonly showProductClass = computed(
+    () => this.capabilityService?.canViewField('inventory.categories.fields.productClass') ?? true,
+  );
+  readonly showStatus = computed(
+    () => this.capabilityService?.canViewField('inventory.categories.fields.status') ?? true,
+  );
+  readonly showTrackingRequirement = computed(
+    () =>
+      this.capabilityService?.canUseView(
+        'inventory.categories.features.trackingRequirementDisplay',
+      ) ?? true,
+  );
 
   readonly hasActiveFilters = computed(() => {
     return Boolean(this.search() || this.statusFilter() !== 'active');
@@ -220,6 +276,9 @@ export class CategoriesPage {
   }
 
   setViewMode(mode: 'table' | 'cards'): void {
+    if (mode === 'cards' && !this.canUseDesktopCards()) {
+      return;
+    }
     this.preferredViewMode.set(mode);
   }
 
@@ -241,6 +300,9 @@ export class CategoriesPage {
   }
 
   openInspector(item: CategoryRecord): void {
+    if (!this.canInspect()) {
+      return;
+    }
     this.selectedCategory.set(item);
   }
 
@@ -319,10 +381,11 @@ export class CategoriesPage {
     const pending = this.pending;
     this.confirmOpen.set(false);
     this.pending = null;
-    if (!pending || !this.canManage()) {
+    if (!pending) {
       return;
     }
     if (pending.kind === 'delete') {
+      if (!this.canDelete()) return;
       this.api.deleteCategory(pending.item.id).subscribe({
         next: () => {
           this.successMessage.set('Category deleted.');
@@ -335,6 +398,12 @@ export class CategoriesPage {
           this.errorMessage.set(recordInUseMessage(error, 'Unable to delete category.'));
         },
       });
+      return;
+    }
+    if (
+      (pending.nextStatus === 'inactive' && !this.canDeactivate()) ||
+      (pending.nextStatus === 'active' && !this.canReactivate())
+    ) {
       return;
     }
     this.api
@@ -362,4 +431,3 @@ export class CategoriesPage {
       });
   }
 }
-

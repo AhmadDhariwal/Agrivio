@@ -8,6 +8,7 @@ const {
 } = require('../../platform/errors/app-error');
 const {
   CONTROL_TYPES,
+  CATEGORIES_MODULE_KEY,
   PRODUCTS_MODULE_KEY,
   getCapabilityControl,
   listCapabilityControls,
@@ -29,6 +30,11 @@ const PRODUCT_FIELD_CONTROLS = Object.freeze({
   trackingMode: 'inventory.products.fields.trackingMode',
   baseUnitCode: 'inventory.products.fields.baseUnit',
   measurementDimension: 'inventory.products.fields.measurementDimension',
+});
+
+const CATEGORY_FIELD_CONTROLS = Object.freeze({
+  name: 'inventory.categories.fields.name',
+  productClass: 'inventory.categories.fields.productClass',
 });
 
 function cloneValue(value) {
@@ -352,7 +358,26 @@ function createCapabilityService(deps) {
         }
       }
 
+      const beforeEffective = await resolveEffective(organizationId, { policy: current });
+      const afterPolicy = {
+        organizationId,
+        version: Number(persisted.version),
+        overrides: (persisted.overrides ?? []).map((override) => ({
+          key: override.key,
+          value: cloneValue(override.value),
+        })),
+        updatedBy: persisted.updatedBy ?? actor.actorId,
+        updatedAt: persisted.updatedAt ?? new Date(),
+      };
+      const afterEffective = await resolveEffective(organizationId, { policy: afterPolicy });
+
       for (const change of auditChanges) {
+        const effectiveBefore = beforeEffective.controls.find(
+          (control) => control.key === change.key,
+        )?.effectiveValue;
+        const effectiveAfter = afterEffective.controls.find(
+          (control) => control.key === change.key,
+        )?.effectiveValue;
         await auditWriter.appendBusinessEvent(session, {
           organizationId,
           actorId: actor.actorId,
@@ -367,22 +392,13 @@ function createCapabilityService(deps) {
             controlKey: change.key,
             previousOverride: change.previousOverride,
             newOverride: change.newOverride,
+            effectiveBefore,
+            effectiveAfter,
           },
         });
       }
 
-      return resolveEffective(organizationId, {
-        policy: {
-          organizationId,
-          version: Number(persisted.version),
-          overrides: (persisted.overrides ?? []).map((override) => ({
-            key: override.key,
-            value: cloneValue(override.value),
-          })),
-          updatedBy: persisted.updatedBy ?? actor.actorId,
-          updatedAt: persisted.updatedAt ?? new Date(),
-        },
-      });
+      return afterEffective;
     });
   }
 
@@ -402,7 +418,7 @@ function createCapabilityService(deps) {
     },
 
     async resetModule(organizationId, moduleKey, expectedVersion, actor, reason) {
-      if (moduleKey !== PRODUCTS_MODULE_KEY) {
+      if (![PRODUCTS_MODULE_KEY, CATEGORIES_MODULE_KEY].includes(moduleKey)) {
         throw validationFailed(`Unknown configurable module ${moduleKey}`);
       }
       const current = await loadPolicy(organizationId);
@@ -482,11 +498,40 @@ function createCapabilityService(deps) {
       await assertAllowed(organizationId, 'inventory.products.actions.managePricing', 'allowed');
       await assertAllowed(organizationId, 'inventory.products.fields.sellingPrice', 'editable');
     },
+
+    async assertCategoryCreateAllowed(organizationId) {
+      await assertAllowed(organizationId, 'inventory.categories.actions.create', 'allowed');
+    },
+
+    async assertCategoryInspectAllowed(organizationId) {
+      await assertAllowed(organizationId, 'inventory.categories.actions.inspect', 'allowed');
+    },
+
+    async assertCategoryPatchAllowed(organizationId, current, patch) {
+      const changedFields = Object.keys(CATEGORY_FIELD_CONTROLS).filter(
+        (field) => patch[field] !== undefined && String(patch[field]) !== String(current[field]),
+      );
+      if (changedFields.length > 0) {
+        await assertAllowed(organizationId, 'inventory.categories.actions.edit', 'allowed');
+      }
+      for (const field of changedFields) {
+        await assertAllowed(organizationId, CATEGORY_FIELD_CONTROLS[field], 'editable');
+      }
+      if (patch.status !== undefined && patch.status !== current.status) {
+        const action = patch.status === 'active' ? 'reactivate' : 'deactivate';
+        await assertAllowed(organizationId, `inventory.categories.actions.${action}`, 'allowed');
+      }
+    },
+
+    async assertCategoryDeleteAllowed(organizationId) {
+      await assertAllowed(organizationId, 'inventory.categories.actions.delete', 'allowed');
+    },
   };
 }
 
 module.exports = {
   createCapabilityService,
   MODE_BY_TYPE,
+  CATEGORY_FIELD_CONTROLS,
   PRODUCT_FIELD_CONTROLS,
 };

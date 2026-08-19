@@ -1,7 +1,7 @@
 # Organization Capability & UI Policy — Phase 1
 
 Status: Implementation complete; repository-level validation exceptions recorded below  
-Scope: Generic platform foundation plus Products reference integration only  
+Scope: Generic platform foundation plus Products and Categories reference integrations
 Completed: 2026-08-19
 
 ## Implemented
@@ -10,11 +10,13 @@ Completed: 2026-08-19
 - One organization-scoped policy document with sparse overrides, monotonic optimistic versioning, and per-control audit events.
 - Most-restrictive effective resolver across defaults, organization overrides, parent/dependency state, subscription access, and RBAC permissions.
 - Authenticated effective-capability endpoint and Super Admin-only registry, policy, reset, and history operations.
-- Organization Controls page in the existing platform UI with organization context, search, default/override/effective values, staged diff, reason, reset controls, confirmation, and version-safe save.
+- Organization Controls page in the existing platform UI with organization context, module navigation, business-readable default/override/effective values, risk labels, staged diff, critical impact confirmation, reason, real reset operations, and version-safe save.
 - Products navigation, routes, table/desktop cards, responsive cards, fields, KPI widgets, lifecycle actions, pricing, forms, and backend mutations wired to policy. Responsive phone cards remain an internal required renderer.
+- Categories registered as reference module #2 with module, desktop-card view, Category fields, derived tracking display, Total Categories widget, and create/inspect/edit/deactivate/reactivate/delete actions. Angular navigation/routes/screens and Category APIs enforce the effective policy; responsive phone cards and the underlying product-class tracking rule remain platform enforced.
+- Individual, module, and organization reset operations remove sparse overrides through the transactional backend endpoints, increment policy versions on material changes, emit per-control audit evidence, re-resolve effective policy, and refresh the Super Admin UI.
 - Stable policy denial codes: `ORG_CAPABILITY_DISABLED`, `ORG_ACTION_NOT_ALLOWED`, and `ORG_FIELD_NOT_EDITABLE`.
 
-No capability controls were added for later Agrivio modules.
+No capability controls were added for Inventory/Warehouses or later Agrivio modules.
 
 ## Products registry safety decisions
 
@@ -25,6 +27,15 @@ No capability controls were added for later Agrivio modules.
 - Base unit and measurement dimension visibility/editability remain non-configurable because stock and transaction history may reference them.
 - Lifecycle status is non-configurable and read-only as a field; deactivate/reactivate actions control status changes and retain existing lifecycle rules.
 - Required fields remain collectable during initial creation. Field editability policy applies to later Product mutations; the separate Create action controls whether creation is available.
+
+## Categories registry safety decisions
+
+- `inventory.categories` is a critical organization control. Disabling it blocks Category navigation, direct routes, and Category API operations for the selected organization without deleting records.
+- Only the user-selectable desktop/tablet card view is configurable. Responsive phone cards remain a platform-enforced renderer.
+- Category name and product-class visibility/editability are configurable for existing-record presentation and mutation. Required creation values remain collectable when the Create action is allowed.
+- Lifecycle status visibility is configurable, but status editability is platform enforced; deactivate/reactivate actions retain the existing lifecycle rules.
+- The tracking-requirement display is configurable presentation only. Its underlying product-class-derived tracking rule is not registered and cannot be overridden.
+- Category deletion policy can block the action but cannot bypass existing record-in-use protection.
 
 ## Model review checklist outcome
 
@@ -45,17 +56,18 @@ No capability controls were added for later Agrivio modules.
 
 ## Validation
 
-- Focused capability resolver/authorization/catalog regression: passed (3 files, 9 tests).
+- Focused backend capability resolver/routes: passed (2 files, 12 tests).
 - Real Mongo capability persistence: passed (1 file, 1 test).
-- Frontend: passed (76 files, 141 tests).
+- Focused Organization Controls/Categories Angular coverage: passed (4 files, 17 tests).
+- Complete frontend: passed (76 files, 154 tests).
+- Complete backend: passed (101 files, 337 tests).
 - Repository typecheck: passed (4 projects).
 - Architecture boundary gate: passed (6 tests).
-- Changed-file lint: passed with no errors (two pre-existing Product non-null-assertion warnings remain).
-- Complete backend target: passed (101 files, 333 tests), including the corrected endpoint-permission inventory.
+- Changed-file lint: passed with no errors (non-null-assertion warnings remain in existing Category test/form patterns).
 - Repository lint remains blocked by pre-existing errors in files outside this task (`auth-error.interceptor.spec.ts`, `navbar-search.component.html`, `user-profile-menu.component.html`, and `employees.store.js`).
-- Production build compiles the capability and Organization Controls chunks but remains blocked by the unchanged pre-existing Products stylesheet budget (20.48 kB against an 8 kB error limit).
-- Lightweight visual browser verification could not run because the local browser-control runtime rejected its trusted plugin path; automated component/template/build coverage completed instead.
+- Production build compiles the capability, Organization Controls, Categories, and Category form chunks. It remains blocked by unchanged pre-existing stylesheet budgets for Products (20.48 kB) and Categories (18.77 kB) against the 8 kB error limit; Organization Controls is 5.16 kB and below the error budget.
+- Lightweight visual browser verification could not run because the local browser-control runtime rejected its trusted plugin path before page interaction; automated Angular template compilation and component coverage completed instead.
 
 ## Remaining risk
 
-Authenticated cross-organization visual verification should be completed once the local browser-control runtime is available. Foundation + Products are complete; later modules are intentionally not configurable.
+Authenticated cross-organization visual verification should be completed once the local browser-control runtime is available. Foundation + Products + Categories are complete; Inventory/Warehouses and later modules are intentionally not configurable.

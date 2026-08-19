@@ -67,4 +67,62 @@ export class CapabilitiesApi {
         ),
       );
   }
+
+  resetOrganizationControl(
+    organizationId: string,
+    controlKey: string,
+    expectedVersion: number,
+    reason?: string,
+  ): Observable<unknown> {
+    return this.deletePolicyResource(
+      `${this.baseUrl}${API_PLATFORM_ORGANIZATIONS_PATH}/${organizationId}/capabilities/overrides/${encodeURIComponent(controlKey)}`,
+      expectedVersion,
+      reason,
+    );
+  }
+
+  resetOrganizationModule(
+    organizationId: string,
+    moduleKey: string,
+    expectedVersion: number,
+    reason?: string,
+  ): Observable<unknown> {
+    return this.deletePolicyResource(
+      `${this.baseUrl}${API_PLATFORM_ORGANIZATIONS_PATH}/${organizationId}/capabilities/modules/${encodeURIComponent(moduleKey)}`,
+      expectedVersion,
+      reason,
+    );
+  }
+
+  resetOrganization(
+    organizationId: string,
+    expectedVersion: number,
+    reason?: string,
+  ): Observable<unknown> {
+    return this.deletePolicyResource(
+      `${this.baseUrl}${API_PLATFORM_ORGANIZATIONS_PATH}/${organizationId}/capabilities`,
+      expectedVersion,
+      reason,
+    );
+  }
+
+  private deletePolicyResource(
+    url: string,
+    expectedVersion: number,
+    reason?: string,
+  ): Observable<unknown> {
+    const params: Record<string, string> = { expectedVersion: String(expectedVersion) };
+    if (reason?.trim()) {
+      params['reason'] = reason.trim();
+    }
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http.delete(url, {
+          withCredentials: true,
+          headers: { 'X-CSRF-Token': csrfToken },
+          params,
+        }),
+      ),
+    );
+  }
 }

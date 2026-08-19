@@ -14,7 +14,7 @@
       </p>
     </div>
     <div class="page-head__actions">
-      @if (canManage()) {
+      @if (canCreate()) {
       <a
         class="ag-btn ag-btn--primary page-head__add-btn"
         routerLink="/app/categories/new"
@@ -52,6 +52,7 @@
   }
 
   <!-- Authoritative KPI Summary -->
+  @if (showTotalCategories()) {
   <section class="kpi-row" aria-label="Category Summary">
     <div class="kpi-card">
       <div class="kpi-card__icon kpi-card__icon--neutral">
@@ -78,6 +79,7 @@
       </div>
     </div>
   </section>
+  }
 
   <!-- Filter & Control Toolbar -->
   <section class="toolbar" aria-label="Filters and view controls">
@@ -176,6 +178,7 @@
             </svg>
             Table
           </button>
+          @if (canUseDesktopCards()) {
           <button
             type="button"
             class="view-toggle__btn"
@@ -199,6 +202,7 @@
             </svg>
             Cards
           </button>
+          }
         </div>
       </div>
       }
@@ -385,10 +389,15 @@
       </colgroup>
       <thead>
         <tr>
+          @if (showName()) {
           <th scope="col" class="cat-table__th cat-table__th--category">Category</th>
+          } @if (showProductClass()) {
           <th scope="col" class="cat-table__th cat-table__th--class">Product Class</th>
+          } @if (showTrackingRequirement()) {
           <th scope="col" class="cat-table__th cat-table__th--tracking">Tracking Requirement</th>
+          } @if (showStatus()) {
           <th scope="col" class="cat-table__th cat-table__th--status">Status</th>
+          }
           <th scope="col" class="cat-table__th cat-table__th--actions">Actions</th>
         </tr>
       </thead>
@@ -400,6 +409,7 @@
           [class.cat-table__row--inactive]="item.status === 'inactive'"
         >
           <!-- Category Identity (Level 1: Flexible & Truncated) -->
+          @if (showName()) {
           <td class="cat-table__td cat-table__td--category">
             <div class="category-cell">
               <div
@@ -407,7 +417,8 @@
                 [attr.data-class]="item.productClass"
                 aria-hidden="true"
               >
-                @if (item.productClass === 'pesticide' || item.productClass === 'fertilizer' || item.productClass === 'chemical') {
+                @if (item.productClass === 'pesticide' || item.productClass === 'fertilizer' ||
+                item.productClass === 'chemical') {
                 <svg
                   width="14"
                   height="14"
@@ -456,19 +467,25 @@
                 >
                   {{ item.name }}
                 </button>
-                <span class="category-cell__sub">{{ getProductClassLabel(item.productClass) }}</span>
+                <span class="category-cell__sub"
+                  >{{ getProductClassLabel(item.productClass) }}</span
+                >
               </div>
             </div>
           </td>
+          }
 
           <!-- Product Class (Level 1: Flexible & Truncated) -->
+          @if (showProductClass()) {
           <td class="cat-table__td cat-table__td--class">
             <span class="class-label" [title]="getProductClassLabel(item.productClass)">
               {{ getProductClassLabel(item.productClass) }}
             </span>
           </td>
+          }
 
           <!-- Tracking Requirement (Level 2: Fixed & Readable) -->
+          @if (showTrackingRequirement()) {
           <td class="cat-table__td cat-table__td--tracking">
             <span
               class="tracking-chip"
@@ -477,8 +494,10 @@
               {{ getTrackingRequirement(item.productClass) }}
             </span>
           </td>
+          }
 
           <!-- Status (Level 2: Fixed & Readable) -->
+          @if (showStatus()) {
           <td class="cat-table__td cat-table__td--status">
             <span
               class="status-indicator"
@@ -489,11 +508,13 @@
               {{ item.status === 'active' ? 'Active' : 'Inactive' }}
             </span>
           </td>
+          }
 
           <!-- Actions (Level 2/3: Fixed with More dropdown) -->
           <td class="cat-table__td cat-table__td--actions">
             <div class="row-actions">
               <!-- Inspect Button -->
+              @if (canInspect()) {
               <button
                 type="button"
                 class="row-action-btn"
@@ -513,9 +534,10 @@
                   <circle cx="12" cy="12" r="3" />
                 </svg>
               </button>
+              }
 
               <!-- Edit Button -->
-              @if (canManage()) {
+              @if (canEdit()) {
               <a
                 class="row-action-btn"
                 [routerLink]="['/app/categories', item.id]"
@@ -537,7 +559,7 @@
               }
 
               <!-- More Actions Menu Dropdown -->
-              @if (canManage()) {
+              @if (canDeactivate() || canReactivate() || canDelete()) {
               <div class="menu-container">
                 <button
                   type="button"
@@ -562,7 +584,7 @@
 
                 @if (openMenuCategoryId() === item.id) {
                 <div class="menu-dropdown">
-                  @if (item.status === 'active') {
+                  @if (item.status === 'active' && canDeactivate()) {
                   <button
                     class="menu-dropdown__item"
                     type="button"
@@ -582,7 +604,7 @@
                     </svg>
                     Deactivate
                   </button>
-                  } @else {
+                  } @else if (item.status === 'inactive' && canReactivate()) {
                   <button
                     class="menu-dropdown__item"
                     type="button"
@@ -604,7 +626,7 @@
                     </svg>
                     Reactivate
                   </button>
-                  }
+                  } @if (canDelete()) {
                   <div class="menu-dropdown__divider"></div>
                   <button
                     class="menu-dropdown__item menu-dropdown__item--danger"
@@ -627,6 +649,7 @@
                     </svg>
                     Delete permanently
                   </button>
+                  }
                 </div>
                 }
               </div>
@@ -649,12 +672,9 @@
     >
       <!-- Card Header: Glyph + Name & Class + Status Dot -->
       <div class="cat-card__header">
-        <div
-          class="cat-card__glyph"
-          [attr.data-class]="item.productClass"
-          aria-hidden="true"
-        >
-          @if (item.productClass === 'pesticide' || item.productClass === 'fertilizer' || item.productClass === 'chemical') {
+        <div class="cat-card__glyph" [attr.data-class]="item.productClass" aria-hidden="true">
+          @if (item.productClass === 'pesticide' || item.productClass === 'fertilizer' ||
+          item.productClass === 'chemical') {
           <svg
             width="15"
             height="15"
@@ -696,6 +716,7 @@
         </div>
 
         <div class="cat-card__title-group">
+          @if (showName()) {
           <button
             type="button"
             class="cat-card__title"
@@ -704,19 +725,24 @@
           >
             {{ item.name }}
           </button>
+          } @if (showProductClass()) {
           <span class="cat-card__class" [title]="getProductClassLabel(item.productClass)">
             {{ getProductClassLabel(item.productClass) }}
           </span>
+          }
         </div>
 
+        @if (showStatus()) {
         <span
           class="status-dot"
           [class.status-dot--active]="item.status === 'active'"
           [title]="item.status === 'active' ? 'Active' : 'Inactive'"
         ></span>
+        }
       </div>
 
       <!-- Card Metadata Strip: Tracking Requirement -->
+      @if (showTrackingRequirement()) {
       <div class="cat-card__meta-strip">
         <span
           class="tracking-chip tracking-chip--sm"
@@ -725,9 +751,11 @@
           {{ getTrackingRequirement(item.productClass) }}
         </span>
       </div>
+      }
 
       <!-- Card Footer: Status Indicator + Primary/Secondary Actions -->
       <div class="cat-card__footer">
+        @if (showStatus()) {
         <div class="cat-card__status-wrap">
           <span
             class="status-indicator"
@@ -738,8 +766,10 @@
             {{ item.status === 'active' ? 'Active' : 'Inactive' }}
           </span>
         </div>
+        }
 
         <div class="cat-card__actions">
+          @if (canInspect()) {
           <button
             type="button"
             class="card-action-btn"
@@ -759,7 +789,7 @@
             </svg>
             Inspect
           </button>
-          @if (canManage()) {
+          } @if (canEdit()) {
           <a
             class="card-action-btn"
             [routerLink]="['/app/categories', item.id]"
@@ -777,8 +807,10 @@
             </svg>
             Edit
           </a>
+          }
 
           <!-- More Actions Menu for Cards -->
+          @if (canDeactivate() || canReactivate() || canDelete()) {
           <div class="menu-container">
             <button
               type="button"
@@ -803,7 +835,7 @@
 
             @if (openMenuCategoryId() === item.id) {
             <div class="menu-dropdown menu-dropdown--up">
-              @if (item.status === 'active') {
+              @if (item.status === 'active' && canDeactivate()) {
               <button class="menu-dropdown__item" type="button" (click)="askDeactivate(item)">
                 <svg
                   width="14"
@@ -818,7 +850,7 @@
                 </svg>
                 Deactivate
               </button>
-              } @else {
+              } @else if (item.status === 'inactive' && canReactivate()) {
               <button class="menu-dropdown__item" type="button" (click)="askReactivate(item)">
                 <svg
                   width="14"
@@ -835,7 +867,7 @@
                 </svg>
                 Reactivate
               </button>
-              }
+              } @if (canDelete()) {
               <div class="menu-dropdown__divider"></div>
               <button
                 class="menu-dropdown__item menu-dropdown__item--danger"
@@ -857,6 +889,7 @@
                 </svg>
                 Delete permanently
               </button>
+              }
             </div>
             }
           </div>
@@ -906,9 +939,7 @@
         </div>
         <div class="inspector-drawer__titles">
           <h2 class="drawer-title" [title]="sel.name">{{ sel.name }}</h2>
-          <p class="drawer-sub">
-            {{ getProductClassLabel(sel.productClass) }}
-          </p>
+          <p class="drawer-sub">{{ getProductClassLabel(sel.productClass) }}</p>
         </div>
       </div>
       <button
@@ -938,14 +969,17 @@
       <section class="drawer-sec">
         <h3 class="drawer-sec__title">Category Identity</h3>
         <div class="spec-grid">
+          @if (showName()) {
           <div class="spec-row">
             <span class="spec-row__k">Category Name</span>
             <span class="spec-row__v">{{ sel.name }}</span>
           </div>
+          } @if (showProductClass()) {
           <div class="spec-row">
             <span class="spec-row__k">Product Class</span>
             <span class="spec-row__v">{{ getProductClassLabel(sel.productClass) }}</span>
           </div>
+          } @if (showStatus()) {
           <div class="spec-row">
             <span class="spec-row__k">Lifecycle Status</span>
             <span class="spec-row__v">
@@ -959,6 +993,7 @@
               </span>
             </span>
           </div>
+          }
           <div class="spec-row">
             <span class="spec-row__k">Record Version</span>
             <span class="spec-row__v">v{{ sel.version }}</span>
@@ -971,6 +1006,7 @@
       </section>
 
       <!-- Section 2: Classification & Inventory Tracking Policy -->
+      @if (showTrackingRequirement()) {
       <section class="drawer-sec">
         <h3 class="drawer-sec__title">Classification &amp; Tracking Policy</h3>
         <div class="spec-grid">
@@ -991,26 +1027,24 @@
           </div>
         </div>
         <p class="drawer-note">
-          @if (isBatchRequired(sel.productClass)) {
-          Batch tracking is mandatory for {{ getProductClassLabel(sel.productClass) }} products in Agrivio to meet agricultural compliance standards.
-          } @else {
-          Standard items allow flexible tracking modes (None, Batch, or Batch + Expiry) configured at the individual product level.
-          }
+          @if (isBatchRequired(sel.productClass)) { Batch tracking is mandatory for {{
+          getProductClassLabel(sel.productClass) }} products in Agrivio to meet agricultural
+          compliance standards. } @else { Standard items allow flexible tracking modes (None, Batch,
+          or Batch + Expiry) configured at the individual product level. }
         </p>
       </section>
+      }
 
       <!-- Section 3: Catalog Navigation -->
       <section class="drawer-sec">
         <h3 class="drawer-sec__title">Catalog Navigation</h3>
-        <p class="drawer-sec__empty">
-          View products categorized under {{ sel.name }}.
-        </p>
+        <p class="drawer-sec__empty">View products categorized under {{ sel.name }}.</p>
       </section>
     </div>
 
     <!-- Drawer Footer Actions -->
     <div class="inspector-drawer__footer">
-      @if (canManage()) {
+      @if (canEdit()) {
       <a class="ag-btn ag-btn--primary" [routerLink]="['/app/categories', sel.id]">
         <svg
           width="14"
@@ -1034,27 +1068,27 @@
           stroke="currentColor"
           stroke-width="2"
         >
-          <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+          <path
+            d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+          />
           <path d="m3.3 7 8.7 5 8.7-5" />
           <path d="M12 22V12" />
         </svg>
         View Products
       </a>
-      @if (canManage()) {
-        @if (sel.status === 'active') {
-        <button
-          class="ag-btn ag-btn--secondary ag-btn--danger-text"
-          type="button"
-          (click)="askDeactivate(sel)"
-        >
-          Deactivate
-        </button>
-        } @else {
-        <button class="ag-btn ag-btn--secondary" type="button" (click)="askReactivate(sel)">
-          Reactivate
-        </button>
-        }
-      }
+      @if (canDeactivate() || canReactivate()) { @if (sel.status === 'active' && canDeactivate()) {
+      <button
+        class="ag-btn ag-btn--secondary ag-btn--danger-text"
+        type="button"
+        (click)="askDeactivate(sel)"
+      >
+        Deactivate
+      </button>
+      } @else if (sel.status === 'inactive' && canReactivate()) {
+      <button class="ag-btn ag-btn--secondary" type="button" (click)="askReactivate(sel)">
+        Reactivate
+      </button>
+      } }
     </div>
   </aside>
   }
@@ -1071,4 +1105,3 @@
   />
   }
 </div>
-

@@ -1,5 +1,6 @@
 export type CapabilityControlType = 'MODULE' | 'FEATURE' | 'VIEW' | 'FIELD' | 'WIDGET' | 'ACTION';
 export type CapabilityValue = Readonly<Record<string, boolean>>;
+export type CapabilityRisk = 'NORMAL' | 'RECOMMENDED' | 'CRITICAL';
 
 export interface EffectiveCapabilityControl {
   readonly key: string;
@@ -23,6 +24,8 @@ export interface CapabilityRegistryControl {
   readonly description: string;
   readonly defaultPolicy: CapabilityValue;
   readonly configurable: CapabilityValue;
+  readonly risk: CapabilityRisk;
+  readonly platformEnforced?: boolean;
   readonly dependencies?: readonly string[];
   readonly reason?: string;
 }

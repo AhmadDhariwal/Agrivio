@@ -7,16 +7,14 @@
   <agrivio-ui-page-header
     eyebrow="Platform · Organization Controls"
     [title]="state.organization.name"
-    lede="Manage approved Product surfaces for this organization without changing its users' RBAC permissions."
+    lede="Configure registered Products and Categories controls without changing registry defaults or user RBAC permissions."
   />
 
   <div class="identity-grid">
     <div><span>Organization ID</span><strong>{{ state.organization.id }}</strong></div>
     <div>
-      <span>Owner</span
-      ><strong
-        >{{ state.organization.owner?.email || state.organization.ownerEmail || '—' }}</strong
-      >
+      <span>Owner / admin context</span>
+      <strong>{{ state.organization.owner?.email || state.organization.ownerEmail || '—' }}</strong>
     </div>
     <div>
       <span>Plan</span
@@ -27,7 +25,7 @@
 
   <agrivio-ui-alert
     tone="warning"
-    message="Changes apply to all users in this organization. Existing permissions, subscription limits, and lifecycle rules remain enforced."
+    [message]="'Changes apply to all users in ' + state.organization.name + ' only. Subscription, RBAC, lifecycle, tenant-isolation, audit, and transaction safety remain platform enforced.'"
   />
 
   @if (successMessage(); as success) {
@@ -38,9 +36,25 @@
 
   <div class="controls-layout">
     <aside class="module-nav" aria-label="Configurable modules">
-      <p class="module-nav__label">Modules</p>
-      <button type="button" class="module-nav__item module-nav__item--active">Products</button>
-      <p class="module-nav__note">Additional modules are not configurable in Phase 1.</p>
+      <p class="module-nav__label">Configured modules</p>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'inventory.products'"
+        (click)="selectModule('inventory.products')"
+      >
+        Products
+      </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'inventory.categories'"
+        (click)="selectModule('inventory.categories')"
+        data-testid="categories-control-module"
+      >
+        Categories
+      </button>
+      <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>
 
     <main class="controls-main">
@@ -48,23 +62,34 @@
         <input
           class="ag-input"
           type="search"
-          placeholder="Search Product controls"
+          [placeholder]="'Search ' + moduleLabel(selectedModule()) + ' controls'"
           [ngModel]="search()"
           (ngModelChange)="search.set($event)"
-          aria-label="Search Product controls"
+          [attr.aria-label]="'Search ' + moduleLabel(selectedModule()) + ' controls'"
         />
-        <button type="button" class="ag-btn ag-btn--secondary" (click)="resetProducts()">
-          Reset Products
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary"
+          [disabled]="selectedOverrideCount() === 0 || saving()"
+          (click)="askResetModule()"
+        >
+          Reset {{ moduleLabel(selectedModule()) }}
         </button>
-        <button type="button" class="ag-btn ag-btn--secondary" (click)="resetProducts()">
-          Reset organization
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary ag-btn--danger"
+          [disabled]="organizationOverrideCount() === 0 || saving()"
+          (click)="askResetOrganization()"
+        >
+          Reset organization to defaults
         </button>
       </div>
 
-      @for (section of [ { title: 'Products module', controls: moduleControls() }, { title: 'Views',
-      controls: viewControls() }, { title: 'Fields', controls: fieldControls() }, { title:
-      'Widgets', controls: widgetControls() }, { title: 'Actions', controls: actionControls() } ];
-      track section.title) { @if (section.controls.length > 0) {
+      @for ( section of [ { title: moduleLabel(selectedModule()) + ' module', controls:
+      moduleControls() }, { title: 'Views', controls: viewControls() }, { title: 'Fields', controls:
+      fieldControls() }, { title: 'Derived UI', controls: featureControls() }, { title: 'Widgets',
+      controls: widgetControls() }, { title: 'Actions', controls: actionControls() } ]; track
+      section.title ) { @if (section.controls.length > 0) {
       <section class="control-section">
         <h2>{{ section.title }}</h2>
         <div class="control-list">
@@ -74,52 +99,88 @@
             [class.control-row--parent-disabled]="parentDisabled(control)"
           >
             <div class="control-copy">
-              <strong>{{ control.label }}</strong>
+              <div class="control-title">
+                <strong>{{ control.label }}</strong>
+                <span class="risk-badge" [attr.data-risk]="control.risk">
+                  Risk: {{ control.risk === 'NORMAL' ? 'Normal' : control.risk === 'RECOMMENDED' ?
+                  'Recommended' : 'Critical' }}
+                </span>
+              </div>
               <span>{{ control.description }}</span>
               @if (control.reason) {
               <small>{{ control.reason }}</small>
-              } @if (parentDisabled(control)) {
-              <small>Effective result is restricted because Products is disabled.</small>
+              } @if (control.platformEnforced) {
+              <small class="platform-enforced"
+                >Platform enforced · Not organization-configurable where marked below</small
+              >
               }
             </div>
 
             <div class="control-modes">
-              @for (mode of modes(control); track mode) {
+              @for (mode of modes(control); track mode) { @if (isConfigurable(control, mode)) {
               <label class="policy-toggle">
                 <span>{{ mode }}</span>
                 <input
                   type="checkbox"
+                  role="switch"
                   [checked]="value(control, mode)"
-                  [disabled]="!isConfigurable(control, mode) || parentDisabled(control)"
                   (change)="setValue(control, mode, $any($event.target).checked)"
                   [attr.aria-label]="control.label + ' ' + mode"
                 />
-                <b>{{ value(control, mode) ? onLabel(mode) : offLabel(mode) }}</b>
+                <b>{{ stateLabel(mode, value(control, mode)) }}</b>
               </label>
+              } @else {
+              <div class="enforced-mode">
+                <span>{{ mode }}</span>
+                <b>Platform enforced</b>
+                <small>{{ stateLabel(mode, control.defaultPolicy[mode] === true) }}</small>
+              </div>
+              } }
+            </div>
+
+            <div class="policy-state" aria-label="Default override and effective state">
+              @for (mode of modes(control); track mode) {
+              <div class="policy-state__mode">
+                <strong>{{ mode }}</strong>
+                <dl>
+                  <div>
+                    <dt>Default</dt>
+                    <dd>
+                      <span class="state-badge"
+                        >{{ stateLabel(mode, control.defaultPolicy[mode] === true) }}</span
+                      >
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Organization override</dt>
+                    <dd>{{ overrideLabel(control, mode) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Effective</dt>
+                    <dd>
+                      <span
+                        class="state-badge"
+                        [class.state-badge--off]="!effectiveValue(control, mode)"
+                      >
+                        {{ stateLabel(mode, effectiveValue(control, mode)) }}
+                      </span>
+                      @if (effectiveReason(control, mode); as explanation) {
+                      <small>{{ explanation }}</small>
+                      }
+                    </dd>
+                  </div>
+                </dl>
+              </div>
               }
             </div>
 
-            <dl class="policy-state">
-              <div>
-                <dt>Default</dt>
-                <dd>{{ control.defaultPolicy | json }}</dd>
-              </div>
-              <div>
-                <dt>Override</dt>
-                <dd>{{ control.override ? (control.override | json) : 'None' }}</dd>
-              </div>
-              <div>
-                <dt>Effective</dt>
-                <dd>
-                  @for (mode of modes(control); track mode) {
-                  <span>{{ mode }}={{ effectiveValue(control, mode) }}</span>
-                  }
-                </dd>
-              </div>
-            </dl>
-
-            <button type="button" class="reset-link" (click)="resetControl(control)">
-              Reset control
+            <button
+              type="button"
+              class="reset-link"
+              [disabled]="control.override === null || saving()"
+              (click)="askResetControl(control)"
+            >
+              {{ control.override === null ? 'Using default' : 'Reset control' }}
             </button>
           </article>
           }
@@ -130,14 +191,20 @@
       <section class="save-panel">
         <div>
           <strong
-            >{{ changes().length }} staged change{{ changes().length === 1 ? '' : 's' }}</strong
+            >{{ changeSummary().length }} staged change{{ changeSummary().length === 1 ? '' : 's'
+            }}</strong
           >
           @if (changeSummary().length > 0) {
-          <ul>
-            @for (line of changeSummary(); track line) {
-            <li>{{ line }}</li>
+          <ul class="change-list">
+            @for (change of changeSummary(); track change.key) {
+            <li>
+              <span>{{ change.label }}</span>
+              <b>{{ change.before }} → {{ change.after }}</b>
+              <em [attr.data-risk]="change.risk">{{ change.risk }}</em>
+            </li>
             }
           </ul>
+          <small>Changes affect all users in {{ state.organization.name }} only.</small>
           }
         </div>
         <label class="reason-field">
@@ -156,7 +223,7 @@
           (click)="askSave()"
           data-testid="save-organization-controls"
         >
-          {{ saving() ? 'Saving…' : 'Save policy' }}
+          {{ saving() ? 'Applying…' : 'Review & apply' }}
         </button>
       </section>
     </main>
@@ -164,11 +231,11 @@
 
   <agrivio-ui-confirm-dialog
     [open]="confirmOpen()"
-    [title]="'Apply ' + changes().length + ' changes to ' + state.organization.name + '?'"
-    message="All users in this organization will receive this policy. The policy cannot bypass permissions, subscriptions, or lifecycle protections."
-    confirmLabel="Apply policy"
-    (confirmed)="save()"
-    (dismiss)="confirmOpen.set(false)"
+    [title]="confirmationTitle()"
+    [message]="confirmationMessage()"
+    [confirmLabel]="confirmationLabel()"
+    (confirmed)="confirm()"
+    (dismiss)="pendingConfirmation.set(null)"
   />
   } @if (!loading() && errorMessage() && !snapshot()) {
   <agrivio-ui-alert tone="danger" [message]="errorMessage()!" role="alert" />

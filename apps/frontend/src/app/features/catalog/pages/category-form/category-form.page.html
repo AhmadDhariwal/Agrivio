@@ -5,13 +5,13 @@
       <nav class="page-head__breadcrumbs" aria-label="Breadcrumb">
         <a class="breadcrumb-link" routerLink="/app/categories">Categories</a>
         <span class="breadcrumb-sep">/</span>
-        <span class="breadcrumb-current">{{ categoryId() ? 'Edit Category' : 'Create Category' }}</span>
+        <span class="breadcrumb-current"
+          >{{ categoryId() ? 'Edit Category' : 'Create Category' }}</span
+        >
       </nav>
       <div class="page-head__heading-wrap">
-        <h1 class="page-head__title">
-          {{ categoryId() ? 'Edit Category' : 'Create Category' }}
-        </h1>
-        @if (categoryId()) {
+        <h1 class="page-head__title">{{ categoryId() ? 'Edit Category' : 'Create Category' }}</h1>
+        @if (categoryId() && showStatus()) {
         <span
           class="status-pill"
           [class.status-pill--active]="form.controls.status.value === 'active'"
@@ -23,7 +23,8 @@
         }
       </div>
       <p class="page-head__lede">
-        Configure category identity, regulatory product classification, and derived tracking policies.
+        Configure category identity, regulatory product classification, and derived tracking
+        policies.
       </p>
     </div>
     <div class="page-head__actions">
@@ -86,13 +87,16 @@
         </div>
         <div>
           <h2 class="form-card__title">Basic Information</h2>
-          <p class="form-card__subtitle">Core category classification and catalog display identity.</p>
+          <p class="form-card__subtitle">
+            Core category classification and catalog display identity.
+          </p>
         </div>
       </div>
 
       <div class="form-card__body">
         <div class="form-grid form-grid--2col">
           <!-- Category Name -->
+          @if (showName()) {
           <div class="ag-field">
             <agrivio-ui-field-label
               label="Category Name"
@@ -105,12 +109,20 @@
               formControlName="name"
               placeholder="e.g. Fertilizers, Crop Protection, Seed Varieties"
               data-testid="category-name"
+              [readOnly]="!canEditName()"
               [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
             />
-            <p class="field-hint">Primary grouping name displayed across catalog, inventory, and sales vouchers.</p>
+            <p class="field-hint">
+              Primary grouping name displayed across catalog, inventory, and sales vouchers.
+            </p>
+            @if (!canEditName()) {
+            <p class="field-hint">Read-only for this organization.</p>
+            }
           </div>
+          }
 
           <!-- Product Class -->
+          @if (showProductClass()) {
           <div class="ag-field">
             <agrivio-ui-field-label
               label="Product Class"
@@ -122,21 +134,33 @@
               class="ag-select"
               formControlName="productClass"
               data-testid="category-product-class"
+              [attr.disabled]="!canEditProductClass() ? true : null"
               [attr.aria-required]="fieldRequired(form.controls.productClass) ? 'true' : null"
             >
               <option value="general">General (Standard items, equipment, tools)</option>
-              <option value="fertilizer">Fertilizer (Regulated nutrients — Batch tracking mandatory)</option>
+              <option value="fertilizer">
+                Fertilizer (Regulated nutrients — Batch tracking mandatory)
+              </option>
               <option value="seed">Seed (Hybrid/open-pollinated — Batch & lot mandatory)</option>
-              <option value="pesticide">Pesticide (Plant protection — Regulated lot tracked)</option>
+              <option value="pesticide">
+                Pesticide (Plant protection — Regulated lot tracked)
+              </option>
               <option value="chemical">Chemical (Agrochemicals — Batch mandatory)</option>
             </select>
-            <p class="field-hint">Defines the regulatory classification and dictates mandatory inventory tracking rules.</p>
+            <p class="field-hint">
+              Defines the regulatory classification and dictates mandatory inventory tracking rules.
+            </p>
+            @if (!canEditProductClass()) {
+            <p class="field-hint">Read-only for this organization.</p>
+            }
           </div>
+          }
         </div>
       </div>
     </section>
 
     <!-- Section 2: Inventory & Regulatory Policy (Derived Rule) -->
+    @if (showTrackingRequirement()) {
     <section class="form-card">
       <div class="form-card__header">
         <div class="form-card__icon">
@@ -163,7 +187,10 @@
       </div>
 
       <div class="form-card__body">
-        <div class="policy-card" [class.policy-card--regulated]="isBatchRequired(form.controls.productClass.value)">
+        <div
+          class="policy-card"
+          [class.policy-card--regulated]="isBatchRequired(form.controls.productClass.value)"
+        >
           <div class="policy-card__header">
             <div class="policy-card__badge-group">
               <span class="policy-card__class-tag">
@@ -181,29 +208,37 @@
           <div class="policy-card__content">
             @if (isBatchRequired(form.controls.productClass.value)) {
             <p class="policy-card__lead">
-              <strong>Regulatory Notice:</strong> Products assigned to the <em>{{ getProductClassLabel(form.controls.productClass.value) }}</em> class are regulated agricultural inputs.
+              <strong>Regulatory Notice:</strong> Products assigned to the
+              <em>{{ getProductClassLabel(form.controls.productClass.value) }}</em> class are
+              regulated agricultural inputs.
             </p>
             <ul class="policy-card__rules">
               <li>
-                <strong>Mandatory Batch Tracking:</strong> Goods receipts, warehouse transfers, and sales dispatches will strictly require batch identifiers.
+                <strong>Mandatory Batch Tracking:</strong> Goods receipts, warehouse transfers, and
+                sales dispatches will strictly require batch identifiers.
               </li>
               <li>
-                <strong>Optional Expiry Control:</strong> Products can optionally configure expiration date tracking in addition to mandatory batch tracking.
+                <strong>Optional Expiry Control:</strong> Products can optionally configure
+                expiration date tracking in addition to mandatory batch tracking.
               </li>
               <li>
-                <strong>Full Audit Traceability:</strong> Lot history and regulatory reports will maintain complete end-to-end traceability for compliance.
+                <strong>Full Audit Traceability:</strong> Lot history and regulatory reports will
+                maintain complete end-to-end traceability for compliance.
               </li>
             </ul>
             } @else {
             <p class="policy-card__lead">
-              <strong>Standard Tracking:</strong> Products assigned to the <em>General</em> class allow configurable inventory controls.
+              <strong>Standard Tracking:</strong> Products assigned to the <em>General</em> class
+              allow configurable inventory controls.
             </p>
             <ul class="policy-card__rules">
               <li>
-                <strong>Flexible Tracking Modes:</strong> Products may use Standard (None), Batch Tracked, or Batch + Expiry modes configured individually per SKU.
+                <strong>Flexible Tracking Modes:</strong> Products may use Standard (None), Batch
+                Tracked, or Batch + Expiry modes configured individually per SKU.
               </li>
               <li>
-                <strong>Non-Regulated Workflow:</strong> No mandatory regulatory lot verification on purchase or sale transactions.
+                <strong>Non-Regulated Workflow:</strong> No mandatory regulatory lot verification on
+                purchase or sale transactions.
               </li>
             </ul>
             }
@@ -211,6 +246,7 @@
         </div>
       </div>
     </section>
+    }
 
     <!-- Section 3: Lifecycle & Administration (Only on Edit) -->
     @if (categoryId()) {
@@ -228,7 +264,9 @@
             stroke-linejoin="round"
           >
             <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+            />
           </svg>
         </div>
         <div>
@@ -241,6 +279,7 @@
 
       <div class="form-card__body">
         <div class="form-grid form-grid--2col">
+          @if (showStatus()) {
           <div class="ag-field">
             <agrivio-ui-field-label label="Category Lifecycle Status" for="category-status" />
             <select
@@ -248,14 +287,19 @@
               class="ag-select"
               formControlName="status"
               data-testid="category-status"
+              [attr.disabled]="!canChangeStatus() ? true : null"
             >
-              <option value="active">Active (Available for product creation and catalog browsing)</option>
+              <option value="active">
+                Active (Available for product creation and catalog browsing)
+              </option>
               <option value="inactive">Inactive (Archived / Read-only in catalog)</option>
             </select>
             <p class="field-hint">
-              Archiving a category preserves all historical inventory and financial transactions but hides it from quick product creation menus.
+              Archiving a category preserves all historical inventory and financial transactions but
+              hides it from quick product creation menus.
             </p>
           </div>
+          }
 
           <div class="spec-summary-box">
             <span class="spec-summary-box__label">Record Metadata</span>
@@ -289,8 +333,7 @@
         >
           <path d="M21 12a9 9 0 1 1-6.219-8.56" />
         </svg>
-        Saving Category…
-        } @else {
+        Saving Category… } @else {
         <svg
           width="15"
           height="15"
@@ -305,13 +348,10 @@
           <polyline points="17 21 17 13 7 13 7 21" />
           <polyline points="7 3 7 8 15 8" />
         </svg>
-        Save Category
-        }
+        Save Category }
       </button>
       <a class="ag-btn ag-btn--secondary" routerLink="/app/categories">Cancel</a>
     </footer>
   </form>
   }
 </div>
-
-

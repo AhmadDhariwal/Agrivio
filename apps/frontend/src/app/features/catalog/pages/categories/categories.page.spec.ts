@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
@@ -5,10 +6,12 @@ import { CategoriesPage } from './categories.page';
 import { CatalogApi } from '../../data-access/catalog.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CategoryRecord } from '../../models/catalog.models';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 describe('CategoriesPage', () => {
   let component: CategoriesPage;
   let fixture: ComponentFixture<CategoriesPage>;
+  let capabilityState: ReturnType<typeof signal<Record<string, Record<string, boolean>>>>;
 
   const mockCategories: CategoryRecord[] = [
     {
@@ -28,8 +31,11 @@ describe('CategoriesPage', () => {
       version: 2,
     },
   ];
+  const firstCategory = mockCategories[0] as CategoryRecord;
 
   beforeEach(async () => {
+    capabilityState = signal({});
+    const capabilityValue = (key: string, mode: string) => capabilityState()[key]?.[mode] ?? true;
     await TestBed.configureTestingModule({
       imports: [CategoriesPage],
       providers: [
@@ -43,12 +49,21 @@ describe('CategoriesPage', () => {
                 meta: { page: 1, pageSize: 25, total: 2 },
               }),
             deleteCategory: () => of({ id: 'cat-1', deleted: true }),
-            updateCategory: () => of(mockCategories[0]!),
+            updateCategory: () => of(firstCategory),
           },
         },
         {
           provide: AuthSessionStore,
           useValue: { hasPermission: () => true },
+        },
+        {
+          provide: CapabilityService,
+          useValue: {
+            canUseView: (key: string) => capabilityValue(key, 'enabled'),
+            canShowWidget: (key: string) => capabilityValue(key, 'visible'),
+            canViewField: (key: string) => capabilityValue(key, 'visible'),
+            canPerformAction: (key: string) => capabilityValue(key, 'allowed'),
+          },
         },
       ],
     }).compileComponents();
@@ -79,6 +94,35 @@ describe('CategoriesPage', () => {
     expect(component.effectiveViewMode()).toBe('cards');
   });
 
+  it('keeps mobile cards but removes disabled desktop cards and the Total Categories widget', () => {
+    capabilityState.set({
+      'inventory.categories.views.desktopCards': { enabled: false },
+      'inventory.categories.widgets.totalCategories': { visible: false },
+    });
+    fixture.detectChanges();
+
+    component.setViewMode('cards');
+    expect(component.preferredViewMode()).toBe('table');
+    expect(fixture.nativeElement.textContent).not.toContain('Total Categories');
+    component.isMobile.set(true);
+    expect(component.effectiveViewMode()).toBe('cards');
+  });
+
+  it('hides configured Category fields and blocked actions', () => {
+    capabilityState.set({
+      'inventory.categories.fields.productClass': { visible: false },
+      'inventory.categories.actions.create': { allowed: false },
+      'inventory.categories.actions.edit': { allowed: false },
+      'inventory.categories.actions.delete': { allowed: false },
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="category-create-link"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.cat-table__th--class')).toBeNull();
+    expect(component.canEdit()).toBe(false);
+    expect(component.canDelete()).toBe(false);
+  });
+
   it('forces effective view mode to cards when on mobile viewport', () => {
     component.setViewMode('table');
     component.isMobile.set(true);
@@ -99,12 +143,14 @@ describe('CategoriesPage', () => {
 
   it('opens and closes category inspector drawer with derived policy', () => {
     expect(component.selectedCategory()).toBeNull();
-    component.openInspector(mockCategories[0]!);
+    component.openInspector(firstCategory);
     fixture.detectChanges();
 
     expect(component.selectedCategory()?.id).toBe('cat-1');
     expect(fixture.nativeElement.textContent).toContain('Category Identity');
-    expect(fixture.nativeElement.textContent).toContain('Batch tracking is mandatory for Fertilizer products');
+    expect(fixture.nativeElement.textContent).toContain(
+      'Batch tracking is mandatory for Fertilizer products',
+    );
 
     component.closeInspector();
     expect(component.selectedCategory()).toBeNull();
@@ -119,5 +165,3 @@ describe('CategoriesPage', () => {
     expect(component.openMenuCategoryId()).toBeNull();
   });
 });
-
-
