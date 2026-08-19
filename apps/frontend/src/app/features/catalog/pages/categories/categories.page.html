@@ -1,70 +1,1074 @@
-<agrivio-ui-page-header
-  title="Categories"
-  eyebrow="Catalog"
-  lede="Organize products by category and product class."
->
-  @if (canManage()) {
-    <a class="ag-btn" routerLink="/app/categories/new" data-testid="category-create-link">Create category</a>
-  }
-</agrivio-ui-page-header>
+<div class="categories-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">Catalog &amp; Inventory</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">Categories</h1>
+        <span class="page-head__count-pill" aria-label="Total categories"
+          >{{ total() }} categories</span
+        >
+      </div>
+      <p class="page-head__lede">
+        Organize product classifications, tracking rules, and lifecycle status.
+      </p>
+    </div>
+    <div class="page-head__actions">
+      @if (canManage()) {
+      <a
+        class="ag-btn ag-btn--primary page-head__add-btn"
+        routerLink="/app/categories/new"
+        data-testid="category-create-link"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span class="btn-text-full">Add Category</span>
+        <span class="btn-text-mobile">Add</span>
+      </a>
+      }
+    </div>
+  </header>
 
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading categories…" />
-} @else if (errorMessage(); as error) {
-  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-} @else {
-  @if (successMessage(); as success) {
-    <agrivio-ui-alert tone="success" [message]="success" />
-  }
-  <div class="ag-inline">
-    <agrivio-ui-search-input placeholder="Search categories by name..." [value]="search()" (searchChange)="onSearchChange($event)" />
-    <agrivio-ui-lifecycle-filter [value]="statusFilter()" (changed)="onStatusChange($event)" />
+  <!-- Alerts -->
+  @if (errorMessage(); as error) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
   </div>
-  @if (visibleItems().length === 0) {
+  } @if (successMessage(); as success) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="success" [message]="success" />
+  </div>
+  }
+
+  <!-- Authoritative KPI Summary -->
+  <section class="kpi-row" aria-label="Category Summary">
+    <div class="kpi-card">
+      <div class="kpi-card__icon kpi-card__icon--neutral">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path
+            d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+          />
+          <path d="m3.3 7 8.7 5 8.7-5" />
+          <path d="M12 22V12" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Total Categories</span>
+        <span class="kpi-card__value">{{ total() }}</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Filter & Control Toolbar -->
+  <section class="toolbar" aria-label="Filters and view controls">
+    <!-- Desktop / Tablet Inline Controls -->
+    <div class="toolbar__desktop">
+      <div class="toolbar__left">
+        <!-- Search Input -->
+        <div class="search-field">
+          <svg
+            class="search-field__icon"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            class="search-field__input"
+            type="search"
+            [value]="search()"
+            (input)="onSearchInput($event)"
+            placeholder="Search categories by name…"
+            aria-label="Search categories"
+          />
+          @if (search()) {
+          <button
+            type="button"
+            class="search-field__clear"
+            (click)="onSearchClear()"
+            aria-label="Clear search"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          }
+        </div>
+
+        <!-- Status Filter -->
+        <div class="select-field">
+          <select
+            class="select-field__input"
+            [value]="statusFilter()"
+            (change)="onStatusChange($any($event.target).value)"
+            aria-label="Filter by status"
+          >
+            <option value="active">Active Categories</option>
+            <option value="all">All Statuses</option>
+            <option value="inactive">Inactive / Archived</option>
+          </select>
+        </div>
+
+        <!-- Clear Filters Button -->
+        @if (hasActiveFilters()) {
+        <button class="clear-filters-btn" type="button" (click)="clearFilters()">
+          Clear filters
+        </button>
+        }
+      </div>
+
+      <!-- View Mode Switcher (Desktop/Tablet Only) -->
+      @if (!isMobile()) {
+      <div class="toolbar__right">
+        <div class="view-toggle" role="group" aria-label="View mode">
+          <button
+            type="button"
+            class="view-toggle__btn"
+            [class.view-toggle__btn--active]="preferredViewMode() === 'table'"
+            (click)="setViewMode('table')"
+            title="Table view"
+            aria-label="Table view"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+            Table
+          </button>
+          <button
+            type="button"
+            class="view-toggle__btn"
+            [class.view-toggle__btn--active]="preferredViewMode() === 'cards'"
+            (click)="setViewMode('cards')"
+            title="Card grid view"
+            aria-label="Card grid view"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect width="7" height="7" x="3" y="3" rx="1"></rect>
+              <rect width="7" height="7" x="14" y="3" rx="1"></rect>
+              <rect width="7" height="7" x="14" y="14" rx="1"></rect>
+              <rect width="7" height="7" x="3" y="14" rx="1"></rect>
+            </svg>
+            Cards
+          </button>
+        </div>
+      </div>
+      }
+    </div>
+
+    <!-- Mobile 2-Row Controls (< 768px) -->
+    <div class="toolbar__mobile">
+      <!-- Row 1: Full-Width Search Input -->
+      <div class="search-field search-field--mobile">
+        <svg
+          class="search-field__icon"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          class="search-field__input"
+          type="search"
+          [value]="search()"
+          (input)="onSearchInput($event)"
+          placeholder="Search categories by name…"
+          aria-label="Search categories"
+        />
+        @if (search()) {
+        <button
+          type="button"
+          class="search-field__clear"
+          (click)="onSearchClear()"
+          aria-label="Clear search"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        }
+      </div>
+
+      <!-- Row 2: Filter Button + Result Count -->
+      <div class="toolbar__mobile-row">
+        <button
+          type="button"
+          class="mobile-filter-trigger"
+          [class.mobile-filter-trigger--active]="activeFiltersCount() > 0"
+          (click)="openMobileFilters()"
+          aria-label="Open filter options"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+          </svg>
+          <span>Filters</span>
+          @if (activeFiltersCount() > 0) {
+          <span class="mobile-filter-trigger__badge">{{ activeFiltersCount() }}</span>
+          }
+        </button>
+
+        @if (hasActiveFilters()) {
+        <button type="button" class="mobile-clear-btn" (click)="clearFilters()">Reset</button>
+        }
+
+        <span class="toolbar__mobile-count">
+          {{ total() }} {{ total() === 1 ? 'category' : 'categories' }}
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Mobile Filter Slide-Over Drawer / Bottom Sheet -->
+  @if (mobileFiltersOpen()) {
+  <div class="mobile-filter-backdrop" (click)="closeMobileFilters()" aria-hidden="true"></div>
+  <div class="mobile-filter-sheet" role="dialog" aria-modal="true" aria-label="Filter categories">
+    <div class="mobile-filter-sheet__head">
+      <div class="mobile-filter-sheet__title-group">
+        <h2 class="mobile-filter-sheet__title">Filter Categories</h2>
+        @if (activeFiltersCount() > 0) {
+        <span class="mobile-filter-sheet__badge">{{ activeFiltersCount() }} active</span>
+        }
+      </div>
+      <button
+        type="button"
+        class="mobile-filter-sheet__close"
+        (click)="closeMobileFilters()"
+        aria-label="Close filters"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="mobile-filter-sheet__body">
+      <!-- Status Filter -->
+      <div class="mobile-filter-group">
+        <label class="mobile-filter-group__label" for="mobile-filter-status">Status</label>
+        <select
+          id="mobile-filter-status"
+          class="mobile-filter-group__select"
+          [value]="statusFilter()"
+          (change)="onStatusChange($any($event.target).value)"
+        >
+          <option value="active">Active Categories</option>
+          <option value="all">All Statuses</option>
+          <option value="inactive">Inactive / Archived</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="mobile-filter-sheet__foot">
+      @if (hasActiveFilters()) {
+      <button type="button" class="ag-btn ag-btn--secondary" (click)="clearFilters()">
+        Clear All
+      </button>
+      }
+      <button
+        type="button"
+        class="ag-btn ag-btn--primary mobile-filter-sheet__apply"
+        (click)="closeMobileFilters()"
+      >
+        Show Results ({{ total() }})
+      </button>
+    </div>
+  </div>
+  }
+
+  <!-- Content States -->
+  @if (loading()) {
+  <div class="state-container">
+    <agrivio-ui-loading-state label="Loading categories…" />
+  </div>
+  } @else if (visibleItems().length === 0) {
+  <!-- Empty State -->
+  <div class="state-container">
+    @if (hasActiveFilters()) {
+    <agrivio-ui-empty-state
+      title="No categories match your search"
+      message="Try adjusting your search query or lifecycle status filter."
+    />
+    } @else {
     <agrivio-ui-empty-state
       title="No categories yet"
       message="Create the first product category to classify catalog items."
     />
+    }
+  </div>
   } @else {
-    <div class="ag-stack" data-testid="categories-list">
-      @for (item of visibleItems(); track item.id) {
-        <article class="row">
-          <div>
-            <strong>{{ item.name }}</strong>
-            <p class="ag-muted">{{ item.productClass }}</p>
-          </div>
-          <div class="ag-inline">
-            <agrivio-ui-status-badge [label]="item.status" [tone]="item.status === 'active' ? 'success' : 'neutral'" />
-            @if (canManage()) {
-              <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/categories', item.id]">Edit</a>
-              @if (item.status === 'active') {
-                <button type="button" class="ag-btn ag-btn--danger" data-testid="category-deactivate" (click)="askDeactivate(item)">
-                  Deactivate
+  <!-- VIEW MODE: TABLE (Primary High-Density View for Desktop/Tablet) -->
+  @if (effectiveViewMode() === 'table') {
+  <div class="table-container" data-testid="categories-list">
+    <table class="cat-table">
+      <colgroup>
+        <col class="col-category" />
+        <col class="col-class" />
+        <col class="col-tracking" />
+        <col class="col-status" />
+        <col class="col-actions" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col" class="cat-table__th cat-table__th--category">Category</th>
+          <th scope="col" class="cat-table__th cat-table__th--class">Product Class</th>
+          <th scope="col" class="cat-table__th cat-table__th--tracking">Tracking Requirement</th>
+          <th scope="col" class="cat-table__th cat-table__th--status">Status</th>
+          <th scope="col" class="cat-table__th cat-table__th--actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of visibleItems(); track item.id) {
+        <tr
+          class="cat-table__row"
+          [class.cat-table__row--selected]="selectedCategory()?.id === item.id"
+          [class.cat-table__row--inactive]="item.status === 'inactive'"
+        >
+          <!-- Category Identity (Level 1: Flexible & Truncated) -->
+          <td class="cat-table__td cat-table__td--category">
+            <div class="category-cell">
+              <div
+                class="category-cell__glyph"
+                [attr.data-class]="item.productClass"
+                aria-hidden="true"
+              >
+                @if (item.productClass === 'pesticide' || item.productClass === 'fertilizer' || item.productClass === 'chemical') {
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+                </svg>
+                } @else if (item.productClass === 'seed') {
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12A10 10 0 0 1 12 2z"
+                  />
+                  <path d="M12 6v6l4 2" />
+                </svg>
+                } @else {
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                  <line x1="3" y1="9" x2="21" y2="9" />
+                  <line x1="9" y1="21" x2="9" y2="9" />
+                </svg>
+                }
+              </div>
+              <div class="category-cell__meta">
+                <button
+                  type="button"
+                  class="category-cell__name"
+                  (click)="openInspector(item)"
+                  [title]="item.name"
+                >
+                  {{ item.name }}
                 </button>
-              } @else {
-                <button type="button" class="ag-btn ag-btn--secondary" data-testid="category-reactivate" (click)="askReactivate(item)">
-                  Reactivate
-                </button>
+                <span class="category-cell__sub">{{ getProductClassLabel(item.productClass) }}</span>
+              </div>
+            </div>
+          </td>
+
+          <!-- Product Class (Level 1: Flexible & Truncated) -->
+          <td class="cat-table__td cat-table__td--class">
+            <span class="class-label" [title]="getProductClassLabel(item.productClass)">
+              {{ getProductClassLabel(item.productClass) }}
+            </span>
+          </td>
+
+          <!-- Tracking Requirement (Level 2: Fixed & Readable) -->
+          <td class="cat-table__td cat-table__td--tracking">
+            <span
+              class="tracking-chip"
+              [class.tracking-chip--batch]="isBatchRequired(item.productClass)"
+            >
+              {{ getTrackingRequirement(item.productClass) }}
+            </span>
+          </td>
+
+          <!-- Status (Level 2: Fixed & Readable) -->
+          <td class="cat-table__td cat-table__td--status">
+            <span
+              class="status-indicator"
+              [class.status-indicator--active]="item.status === 'active'"
+              [class.status-indicator--inactive]="item.status === 'inactive'"
+            >
+              <span class="status-indicator__dot"></span>
+              {{ item.status === 'active' ? 'Active' : 'Inactive' }}
+            </span>
+          </td>
+
+          <!-- Actions (Level 2/3: Fixed with More dropdown) -->
+          <td class="cat-table__td cat-table__td--actions">
+            <div class="row-actions">
+              <!-- Inspect Button -->
+              <button
+                type="button"
+                class="row-action-btn"
+                (click)="openInspector(item)"
+                title="Inspect specifications"
+                aria-label="Inspect specifications"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
+
+              <!-- Edit Button -->
+              @if (canManage()) {
+              <a
+                class="row-action-btn"
+                [routerLink]="['/app/categories', item.id]"
+                title="Edit category"
+                aria-label="Edit category"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                  <path d="m15 5 4 4" />
+                </svg>
+              </a>
               }
-              <button type="button" class="ag-btn ag-btn--danger" data-testid="category-delete" (click)="askDelete(item)">
+
+              <!-- More Actions Menu Dropdown -->
+              @if (canManage()) {
+              <div class="menu-container">
+                <button
+                  type="button"
+                  class="row-action-btn row-action-btn--more"
+                  (click)="toggleRowMenu(item.id, $event)"
+                  title="More actions"
+                  aria-label="More actions"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <circle cx="12" cy="12" r="1" />
+                    <circle cx="12" cy="5" r="1" />
+                    <circle cx="12" cy="19" r="1" />
+                  </svg>
+                </button>
+
+                @if (openMenuCategoryId() === item.id) {
+                <div class="menu-dropdown">
+                  @if (item.status === 'active') {
+                  <button
+                    class="menu-dropdown__item"
+                    type="button"
+                    (click)="askDeactivate(item)"
+                    data-testid="category-deactivate"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                    </svg>
+                    Deactivate
+                  </button>
+                  } @else {
+                  <button
+                    class="menu-dropdown__item"
+                    type="button"
+                    (click)="askReactivate(item)"
+                    data-testid="category-reactivate"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                      <path d="M21 3v5h-5" />
+                      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                      <path d="M8 16H3v5" />
+                    </svg>
+                    Reactivate
+                  </button>
+                  }
+                  <div class="menu-dropdown__divider"></div>
+                  <button
+                    class="menu-dropdown__item menu-dropdown__item--danger"
+                    type="button"
+                    (click)="askDelete(item)"
+                    data-testid="category-delete"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <polyline points="3 6 5 6 21 6" />
+                      <path
+                        d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                      />
+                    </svg>
+                    Delete permanently
+                  </button>
+                </div>
+                }
+              </div>
+              }
+            </div>
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  } @else {
+  <!-- VIEW MODE: CARD GRID / MOBILE PURPOSE-BUILT CARDS -->
+  <div class="card-grid" data-testid="categories-grid">
+    @for (item of visibleItems(); track item.id) {
+    <article
+      class="cat-card"
+      [class.cat-card--selected]="selectedCategory()?.id === item.id"
+      [class.cat-card--inactive]="item.status === 'inactive'"
+    >
+      <!-- Card Header: Glyph + Name & Class + Status Dot -->
+      <div class="cat-card__header">
+        <div
+          class="cat-card__glyph"
+          [attr.data-class]="item.productClass"
+          aria-hidden="true"
+        >
+          @if (item.productClass === 'pesticide' || item.productClass === 'fertilizer' || item.productClass === 'chemical') {
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+          </svg>
+          } @else if (item.productClass === 'seed') {
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12A10 10 0 0 1 12 2z"
+            />
+            <path d="M12 6v6l4 2" />
+          </svg>
+          } @else {
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+            <line x1="3" y1="9" x2="21" y2="9" />
+            <line x1="9" y1="21" x2="9" y2="9" />
+          </svg>
+          }
+        </div>
+
+        <div class="cat-card__title-group">
+          <button
+            type="button"
+            class="cat-card__title"
+            (click)="openInspector(item)"
+            [title]="item.name"
+          >
+            {{ item.name }}
+          </button>
+          <span class="cat-card__class" [title]="getProductClassLabel(item.productClass)">
+            {{ getProductClassLabel(item.productClass) }}
+          </span>
+        </div>
+
+        <span
+          class="status-dot"
+          [class.status-dot--active]="item.status === 'active'"
+          [title]="item.status === 'active' ? 'Active' : 'Inactive'"
+        ></span>
+      </div>
+
+      <!-- Card Metadata Strip: Tracking Requirement -->
+      <div class="cat-card__meta-strip">
+        <span
+          class="tracking-chip tracking-chip--sm"
+          [class.tracking-chip--batch]="isBatchRequired(item.productClass)"
+        >
+          {{ getTrackingRequirement(item.productClass) }}
+        </span>
+      </div>
+
+      <!-- Card Footer: Status Indicator + Primary/Secondary Actions -->
+      <div class="cat-card__footer">
+        <div class="cat-card__status-wrap">
+          <span
+            class="status-indicator"
+            [class.status-indicator--active]="item.status === 'active'"
+            [class.status-indicator--inactive]="item.status === 'inactive'"
+          >
+            <span class="status-indicator__dot"></span>
+            {{ item.status === 'active' ? 'Active' : 'Inactive' }}
+          </span>
+        </div>
+
+        <div class="cat-card__actions">
+          <button
+            type="button"
+            class="card-action-btn"
+            (click)="openInspector(item)"
+            title="Inspect category"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            Inspect
+          </button>
+          @if (canManage()) {
+          <a
+            class="card-action-btn"
+            [routerLink]="['/app/categories', item.id]"
+            title="Edit category"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+            </svg>
+            Edit
+          </a>
+
+          <!-- More Actions Menu for Cards -->
+          <div class="menu-container">
+            <button
+              type="button"
+              class="card-action-btn card-action-btn--icon"
+              (click)="toggleRowMenu(item.id, $event)"
+              title="More actions"
+              aria-label="More actions"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="1" />
+                <circle cx="12" cy="5" r="1" />
+                <circle cx="12" cy="19" r="1" />
+              </svg>
+            </button>
+
+            @if (openMenuCategoryId() === item.id) {
+            <div class="menu-dropdown menu-dropdown--up">
+              @if (item.status === 'active') {
+              <button class="menu-dropdown__item" type="button" (click)="askDeactivate(item)">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                </svg>
+                Deactivate
+              </button>
+              } @else {
+              <button class="menu-dropdown__item" type="button" (click)="askReactivate(item)">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                  <path d="M21 3v5h-5" />
+                  <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                  <path d="M8 16H3v5" />
+                </svg>
+                Reactivate
+              </button>
+              }
+              <div class="menu-dropdown__divider"></div>
+              <button
+                class="menu-dropdown__item menu-dropdown__item--danger"
+                type="button"
+                (click)="askDelete(item)"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="3 6 5 6 21 6" />
+                  <path
+                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                  />
+                </svg>
                 Delete permanently
               </button>
+            </div>
             }
           </div>
-        </article>
+          }
+        </div>
+      </div>
+    </article>
+    }
+  </div>
+  }
+
+  <!-- Pagination -->
+  <agrivio-ui-pagination
+    [page]="page()"
+    [pageSize]="pageSize()"
+    [total]="total()"
+    (pageChange)="onPageChange($event)"
+    (pageSizeChange)="onPageSizeChange($event)"
+  />
+  }
+
+  <!-- Slide-Over Category Inspector Drawer (~400px on Desktop/Tablet, Full Width on Mobile) -->
+  @if (selectedCategory(); as sel) {
+  <div class="inspector-backdrop" (click)="closeInspector()" aria-hidden="true"></div>
+  <aside
+    class="inspector-drawer"
+    role="dialog"
+    aria-label="Category details inspector"
+    aria-modal="true"
+  >
+    <!-- Drawer Header -->
+    <div class="inspector-drawer__head">
+      <div class="inspector-drawer__head-title">
+        <div class="inspector-glyph" [attr.data-class]="sel.productClass">
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+            <line x1="3" y1="9" x2="21" y2="9" />
+            <line x1="9" y1="21" x2="9" y2="9" />
+          </svg>
+        </div>
+        <div class="inspector-drawer__titles">
+          <h2 class="drawer-title" [title]="sel.name">{{ sel.name }}</h2>
+          <p class="drawer-sub">
+            {{ getProductClassLabel(sel.productClass) }}
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        class="drawer-close-btn"
+        (click)="closeInspector()"
+        title="Close inspector (Esc)"
+        aria-label="Close inspector"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Drawer Body -->
+    <div class="inspector-drawer__body">
+      <!-- Section 1: Category Identity -->
+      <section class="drawer-sec">
+        <h3 class="drawer-sec__title">Category Identity</h3>
+        <div class="spec-grid">
+          <div class="spec-row">
+            <span class="spec-row__k">Category Name</span>
+            <span class="spec-row__v">{{ sel.name }}</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-row__k">Product Class</span>
+            <span class="spec-row__v">{{ getProductClassLabel(sel.productClass) }}</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-row__k">Lifecycle Status</span>
+            <span class="spec-row__v">
+              <span
+                class="status-indicator"
+                [class.status-indicator--active]="sel.status === 'active'"
+                [class.status-indicator--inactive]="sel.status === 'inactive'"
+              >
+                <span class="status-indicator__dot"></span>
+                {{ sel.status === 'active' ? 'Active' : 'Inactive' }}
+              </span>
+            </span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-row__k">Record Version</span>
+            <span class="spec-row__v">v{{ sel.version }}</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-row__k">Internal ID</span>
+            <span class="spec-row__v font-mono">{{ sel.id }}</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 2: Classification & Inventory Tracking Policy -->
+      <section class="drawer-sec">
+        <h3 class="drawer-sec__title">Classification &amp; Tracking Policy</h3>
+        <div class="spec-grid">
+          <div class="spec-row">
+            <span class="spec-row__k">Tracking Requirement</span>
+            <span class="spec-row__v">
+              <span
+                class="tracking-chip"
+                [class.tracking-chip--batch]="isBatchRequired(sel.productClass)"
+              >
+                {{ getTrackingRequirement(sel.productClass) }}
+              </span>
+            </span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-row__k">Derivation Source</span>
+            <span class="spec-row__v">Product Class Rules</span>
+          </div>
+        </div>
+        <p class="drawer-note">
+          @if (isBatchRequired(sel.productClass)) {
+          Batch tracking is mandatory for {{ getProductClassLabel(sel.productClass) }} products in Agrivio to meet agricultural compliance standards.
+          } @else {
+          Standard items allow flexible tracking modes (None, Batch, or Batch + Expiry) configured at the individual product level.
+          }
+        </p>
+      </section>
+
+      <!-- Section 3: Catalog Navigation -->
+      <section class="drawer-sec">
+        <h3 class="drawer-sec__title">Catalog Navigation</h3>
+        <p class="drawer-sec__empty">
+          View products categorized under {{ sel.name }}.
+        </p>
+      </section>
+    </div>
+
+    <!-- Drawer Footer Actions -->
+    <div class="inspector-drawer__footer">
+      @if (canManage()) {
+      <a class="ag-btn ag-btn--primary" [routerLink]="['/app/categories', sel.id]">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+        </svg>
+        Edit Category
+      </a>
+      }
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/products">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+          <path d="m3.3 7 8.7 5 8.7-5" />
+          <path d="M12 22V12" />
+        </svg>
+        View Products
+      </a>
+      @if (canManage()) {
+        @if (sel.status === 'active') {
+        <button
+          class="ag-btn ag-btn--secondary ag-btn--danger-text"
+          type="button"
+          (click)="askDeactivate(sel)"
+        >
+          Deactivate
+        </button>
+        } @else {
+        <button class="ag-btn ag-btn--secondary" type="button" (click)="askReactivate(sel)">
+          Reactivate
+        </button>
+        }
       }
     </div>
-    <agrivio-ui-pagination [page]="page()" [pageSize]="pageSize()" [total]="total()" [disabled]="loading()"
-      (pageChange)="onPageChange($event)" (pageSizeChange)="onPageSizeChange($event)" />
+  </aside>
   }
-}
 
-<agrivio-ui-confirm-dialog
-  [open]="confirmOpen()"
-  [title]="confirmTitle()"
-  [message]="confirmMessage()"
-  [confirmLabel]="confirmLabel()"
-  [danger]="confirmLabel() === 'Deactivate' || confirmLabel() === 'Delete permanently'"
-  (confirmed)="confirmLifecycle()"
-  (dismiss)="confirmOpen.set(false)"
-/>
+  <!-- Master Lifecycle Confirmation Dialog -->
+  @if (confirmOpen()) {
+  <agrivio-ui-confirm-dialog
+    [title]="confirmTitle()"
+    [message]="confirmMessage()"
+    [confirmLabel]="confirmLabel()"
+    tone="danger"
+    (confirm)="confirmLifecycle()"
+    (cancel)="confirmOpen.set(false)"
+  />
+  }
+</div>
+

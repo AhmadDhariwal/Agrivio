@@ -4,7 +4,6 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { CatalogApi } from '../../data-access/catalog.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
@@ -16,7 +15,6 @@ import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
     UiFieldLabelComponent,
@@ -32,6 +30,7 @@ export class CategoryFormPage {
   private readonly formBuilder = inject(FormBuilder);
 
   readonly categoryId = signal<string | null>(null);
+  readonly loadedCategoryName = signal<string>('');
   readonly loading = signal(false);
   readonly saving = signal(false);
   readonly errorMessage = signal<string | null>(null);
@@ -54,6 +53,7 @@ export class CategoryFormPage {
       this.api.getCategory(id).subscribe({
         next: (category) => {
           this.version = category.version;
+          this.loadedCategoryName.set(category.name);
           this.form.patchValue({
             name: category.name,
             productClass: category.productClass,
@@ -67,6 +67,27 @@ export class CategoryFormPage {
         },
       });
     }
+  }
+
+  isBatchRequired(productClass: string): boolean {
+    const cls = productClass?.toLowerCase();
+    return cls === 'fertilizer' || cls === 'seed' || cls === 'pesticide' || cls === 'chemical';
+  }
+
+  getTrackingRequirement(productClass: string): string {
+    return this.isBatchRequired(productClass) ? 'Batch required' : 'Standard';
+  }
+
+  getProductClassLabel(productClass: string): string {
+    if (!productClass) return 'General';
+    const map: Record<string, string> = {
+      general: 'General',
+      fertilizer: 'Fertilizer',
+      seed: 'Seed',
+      pesticide: 'Pesticide',
+      chemical: 'Chemical',
+    };
+    return map[productClass.toLowerCase()] || productClass;
   }
 
   save(): void {
@@ -112,3 +133,4 @@ export class CategoryFormPage {
     return error.error?.error?.message ?? fallback;
   }
 }
+
