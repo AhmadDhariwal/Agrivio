@@ -16,11 +16,7 @@ body {
   font-size: var(--ag-text-md);
   line-height: var(--ag-leading-normal);
   color: var(--ag-color-text);
-  background:
-    radial-gradient(ellipse at 0% 0%, rgba(27, 90, 60, 0.08), transparent 42%),
-    radial-gradient(ellipse at 100% 0%, rgba(20, 70, 48, 0.05), transparent 36%),
-    linear-gradient(180deg, var(--ag-color-bg) 0%, var(--ag-color-bg-accent) 100%);
-  background-attachment: fixed;
+  background: var(--ag-color-bg);
 }
 
 /* Lock document scroll while the authenticated shell owns its panes. */

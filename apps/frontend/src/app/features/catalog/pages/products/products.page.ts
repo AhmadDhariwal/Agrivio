@@ -2,6 +2,7 @@ import { Component, DestroyRef, HostListener, computed, inject, signal } from '@
 import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { CatalogApi } from '../../data-access/catalog.api';
+import { InventoryApi } from '../../../inventory/data-access/inventory.api';
 import {
   CategoryRecord,
   PackagingUnitRecord,
@@ -9,15 +10,13 @@ import {
   ProductRecord,
 } from '../../models/catalog.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
-import { UiStatusBadgeComponent } from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 import { applyPaginationMeta } from '../../../../shared/data-access/pagination';
-import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, forkJoin, startWith, switchMap } from 'rxjs';
+import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, forkJoin, map, of, startWith, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   MasterLifecycleFilter,
@@ -27,16 +26,58 @@ import {
   recordInUseMessage,
 } from '../../../../shared/lifecycle/master-lifecycle';
 
+/**
+ * ============================================================================
+ * AGRIVIO LARGE-DATA RESPONSIVE PATTERN (Reference Implementation: Products)
+ * ============================================================================
+ *
+ * LEVEL 1 — Identity Fields (Flexible / Descriptive)
+ *   May compress and truncate with ellipsis and tooltips:
+ *   - Product Name (min ~180px, preferred ~280–340px)
+ *   - SKU / Code (min ~115px, preferred ~150–180px)
+ *   - Category / Classification (min ~120px, preferred ~160–210px)
+ *
+ * LEVEL 2 — Operational / Data Values (Fixed & Readable)
+ *   Must remain stable, readable, and NEVER progressively truncated to force-fit:
+ *   - Tracking mode badge (fixed ~125px)
+ *   - Base Unit code (fixed ~90px)
+ *   - Selling Price (fixed ~130px)
+ *   - Available Stock + unit (fixed ~125px)
+ *   - Lifecycle Status (fixed ~95px)
+ *   - Version / Update date (fixed ~85px)
+ *   - Primary row actions (fixed ~85px)
+ *
+ * LEVEL 3 — Secondary Actions
+ *   Collapse into 'More' (⋯) overflow dropdown rather than stealing column width.
+ *
+ * LEVEL 4 — Responsive Breakpoint Transition
+ *   - Large Desktop (>= 1440px): Generous column sizing, no horizontal scroll.
+ *   - Normal Desktop (1200px–1439px): Only Level 1 columns shrink/truncate.
+ *   - Tablet / Small Desktop (768px–1199px): Level 1 columns reach minimums;
+ *     contained horizontal scrolling inside table container (`overflow-x: auto`)
+ *     prevents page-level scroll or operational data corruption.
+ *   - Phone (< 768px): Desktop table is completely hidden. Products automatically
+ *     render purpose-built mobile cards with full-width search, slide-over filter
+ *     drawer, compact 2x2 KPIs (~72px), and full-width inspector.
+ * ============================================================================
+ */
+
+export interface ProductAuxData {
+  id: string;
+  price?: string | undefined;
+  stock?: number | undefined;
+  isLowStock?: boolean | undefined;
+  isOutOfStock?: boolean | undefined;
+}
+
 @Component({
   selector: 'agrivio-products-page',
   standalone: true,
   imports: [
     RouterLink,
-    UiPageHeaderComponent,
     UiAlertComponent,
     UiEmptyStateComponent,
     UiLoadingStateComponent,
-    UiStatusBadgeComponent,
     UiConfirmDialogComponent,
     UiPaginationComponent,
   ],
@@ -45,6 +86,7 @@ import {
 })
 export class ProductsPage {
   private readonly api = inject(CatalogApi);
+  private readonly inventoryApi = inject(InventoryApi);
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly destroyRef = inject(DestroyRef);
   private readonly reloadRequests = new Subject<void>();
@@ -53,10 +95,22 @@ export class ProductsPage {
 
   readonly rawItems = signal<ProductRecord[]>([]);
   readonly categories = signal<CategoryRecord[]>([]);
+  readonly productAuxMap = signal<Map<string, ProductAuxData>>(new Map());
   readonly statusFilter = signal<MasterLifecycleFilter>('active');
   readonly categoryFilter = signal<string>('');
   readonly trackingFilter = signal<string>('');
-  readonly viewMode = signal<'table' | 'cards'>('table');
+  
+  // Responsive View Mode: separate user preferred mode from effective mode on mobile
+  readonly preferredViewMode = signal<'table' | 'cards'>('table');
+  readonly isMobile = signal<boolean>(false);
+  readonly effectiveViewMode = computed<'table' | 'cards'>(() => {
+    return this.isMobile() ? 'cards' : this.preferredViewMode();
+  });
+
+  // Mobile Filter Drawer State
+  readonly mobileFiltersOpen = signal<boolean>(false);
+
+  readonly openMenuProductId = signal<string | null>(null);
 
   readonly page = signal(1);
   readonly pageSize = signal(25);
@@ -103,19 +157,34 @@ export class ProductsPage {
   // KPI Metrics computed from current dataset & pagination stats
   readonly kpis = computed(() => {
     const items = this.rawItems();
+    const aux = this.productAuxMap();
     const active = items.filter((p) => p.status === 'active').length;
     const inactive = items.filter((p) => p.status === 'inactive').length;
     const tracked = items.filter((p) => p.trackingMode !== 'none').length;
+    const lowStock = items.filter((p) => {
+      const data = aux.get(p.id);
+      return data?.isLowStock || data?.isOutOfStock;
+    }).length;
+
     return {
       total: this.total(),
       active: this.statusFilter() === 'inactive' ? active : (this.statusFilter() === 'all' ? active : this.total()),
       tracked: tracked,
+      lowStock: lowStock,
       inactive: this.statusFilter() === 'inactive' ? this.total() : inactive,
     };
   });
 
   readonly hasActiveFilters = computed(() => {
     return Boolean(this.search() || this.categoryFilter() || this.trackingFilter() || this.statusFilter() !== 'active');
+  });
+
+  readonly activeFiltersCount = computed(() => {
+    let count = 0;
+    if (this.categoryFilter()) count++;
+    if (this.trackingFilter()) count++;
+    if (this.statusFilter() !== 'active') count++;
+    return count;
   });
 
   readonly confirmOpen = signal(false);
@@ -128,6 +197,8 @@ export class ProductsPage {
     | null = null;
 
   constructor() {
+    this.updateMobileState();
+
     // Load categories for filter dropdown & table categorization
     this.api
       .searchCategoryOptions()
@@ -189,14 +260,111 @@ export class ProductsPage {
         this.rawItems.set(items);
         applyPaginationMeta(meta, { total: this.total, pageSize: this.pageSize });
         this.loading.set(false);
+        this.loadAuxData(items);
       });
+  }
+
+  @HostListener('window:resize')
+  onResize(): void {
+    this.updateMobileState();
+  }
+
+  private updateMobileState(): void {
+    if (typeof window !== 'undefined') {
+      this.isMobile.set(window.innerWidth < 768);
+    }
   }
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.selectedProduct()) {
+    if (this.openMenuProductId()) {
+      this.closeRowMenu();
+    } else if (this.mobileFiltersOpen()) {
+      this.closeMobileFilters();
+    } else if (this.selectedProduct()) {
       this.closeInspector();
     }
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.openMenuProductId()) {
+      this.closeRowMenu();
+    }
+  }
+
+  private loadAuxData(products: ProductRecord[]): void {
+    if (products.length === 0) return;
+    const requests = products.map((p) =>
+      forkJoin({
+        prices: this.api.listPrices(p.id).pipe(catchError(() => of([]))),
+        balances: this.inventoryApi
+          .listBalances({ productId: p.id, pageSize: 50 })
+          .pipe(catchError(() => of({ items: [], meta: { page: 1, pageSize: 50, total: 0 } }))),
+      }).pipe(
+        map(({ prices, balances }) => {
+          const retailPrice =
+            prices.find((pr) => pr.status === 'active' && pr.priceTier === 'retail')?.price.amount ||
+            prices.find((pr) => pr.status === 'active')?.price.amount;
+          let totalAvail = 0;
+          for (const bal of balances.items) {
+            const q = parseFloat(bal.quantityBase || '0');
+            if (!isNaN(q)) totalAvail += q;
+          }
+          return {
+            id: p.id,
+            price: retailPrice ?? undefined,
+            stock: totalAvail,
+            isLowStock: totalAvail > 0 && totalAvail <= 20,
+            isOutOfStock: totalAvail === 0,
+          };
+        }),
+      ),
+    );
+
+    forkJoin(requests)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (results) => {
+          const map = new Map<string, ProductAuxData>();
+          for (const r of results) {
+            map.set(r.id, r);
+          }
+          this.productAuxMap.set(map);
+        },
+        error: () => {},
+      });
+  }
+
+  toggleRowMenu(productId: string, event: Event): void {
+    event.stopPropagation();
+    this.openMenuProductId.update((current) => (current === productId ? null : productId));
+  }
+
+  closeRowMenu(): void {
+    this.openMenuProductId.set(null);
+  }
+
+  getSellingPrice(productId: string): string {
+    const aux = this.productAuxMap().get(productId);
+    if (!aux?.price) return '—';
+    const num = Number(aux.price);
+    if (isNaN(num)) return `PKR ${aux.price}`;
+    return `PKR ${num.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
+  getStockData(productId: string): { amount: string; tone: 'normal' | 'low' | 'out' } {
+    const aux = this.productAuxMap().get(productId);
+    if (!aux || aux.stock === undefined) {
+      return { amount: '0', tone: 'out' };
+    }
+    if (aux.isOutOfStock) {
+      return { amount: '0', tone: 'out' };
+    }
+    if (aux.isLowStock) {
+      return { amount: aux.stock.toLocaleString(), tone: 'low' };
+    }
+    return { amount: aux.stock.toLocaleString(), tone: 'normal' };
   }
 
   reload(clampAfterLoad = false): void {
@@ -243,7 +411,19 @@ export class ProductsPage {
   }
 
   setViewMode(mode: 'table' | 'cards'): void {
-    this.viewMode.set(mode);
+    this.preferredViewMode.set(mode);
+  }
+
+  openMobileFilters(): void {
+    this.mobileFiltersOpen.set(true);
+  }
+
+  closeMobileFilters(): void {
+    this.mobileFiltersOpen.set(false);
+  }
+
+  toggleMobileFilters(): void {
+    this.mobileFiltersOpen.update((open) => !open);
   }
 
   onPageChange(page: number): void {
@@ -265,8 +445,8 @@ export class ProductsPage {
     this.inspectorLoading.set(true);
 
     forkJoin({
-      packagingUnits: this.api.listPackagingUnits(item.id).pipe(catchError(() => EMPTY)),
-      prices: this.api.listPrices(item.id).pipe(catchError(() => EMPTY)),
+      packagingUnits: this.api.listPackagingUnits(item.id).pipe(catchError(() => of([]))),
+      prices: this.api.listPrices(item.id).pipe(catchError(() => of([]))),
     }).subscribe({
       next: ({ packagingUnits, prices }) => {
         if (packagingUnits) this.selectedPackagingUnits.set(packagingUnits);
@@ -300,6 +480,7 @@ export class ProductsPage {
   }
 
   askDeactivate(item: ProductRecord): void {
+    this.closeRowMenu();
     const copy = deactivateCopy(
       'product',
       'Existing invoices, purchases and stock history will remain unchanged.',
@@ -312,6 +493,7 @@ export class ProductsPage {
   }
 
   askReactivate(item: ProductRecord): void {
+    this.closeRowMenu();
     const copy = reactivateCopy('product');
     this.pending = { kind: 'status', item, nextStatus: 'active' };
     this.confirmTitle.set(copy.title);
@@ -321,6 +503,7 @@ export class ProductsPage {
   }
 
   askDelete(item: ProductRecord): void {
+    this.closeRowMenu();
     const copy = deletePermanentlyCopy('product');
     this.pending = { kind: 'delete', item };
     this.confirmTitle.set(copy.title);
@@ -376,4 +559,3 @@ export class ProductsPage {
       });
   }
 }
-

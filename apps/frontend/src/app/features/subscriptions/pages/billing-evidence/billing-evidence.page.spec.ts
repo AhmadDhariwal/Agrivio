@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { BillingEvidencePage } from './billing-evidence.page';
@@ -13,6 +14,7 @@ describe('BillingEvidencePage', () => {
     await TestBed.configureTestingModule({
       imports: [BillingEvidencePage],
       providers: [
+        provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
         {

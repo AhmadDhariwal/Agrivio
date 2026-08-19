@@ -89,23 +89,23 @@
                 data-testid="product-sku"
               />
             </div>
-          </div>
 
-          <!-- Product Name -->
-          <div class="ag-field">
-            <agrivio-ui-field-label
-              label="Product Name"
-              for="product-name"
-              [required]="fieldRequired(form.controls.name)"
-            />
-            <input
-              id="product-name"
-              class="ag-input"
-              formControlName="name"
-              placeholder="e.g. Sona Urea Granular (FFC)"
-              data-testid="product-name"
-              [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
-            />
+            <!-- Product Name (Spans full width of 2-col grid) -->
+            <div class="ag-field form-field--full-width">
+              <agrivio-ui-field-label
+                label="Product Name"
+                for="product-name"
+                [required]="fieldRequired(form.controls.name)"
+              />
+              <input
+                id="product-name"
+                class="ag-input"
+                formControlName="name"
+                placeholder="e.g. Sona Urea Granular (FFC)"
+                data-testid="product-name"
+                [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
+              />
+            </div>
           </div>
         </div>
       </section>
