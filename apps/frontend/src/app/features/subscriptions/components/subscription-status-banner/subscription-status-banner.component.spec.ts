@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { SubscriptionStatusBannerComponent } from './subscription-status-banner.component';
 
 describe('SubscriptionStatusBannerComponent', () => {
@@ -7,6 +8,7 @@ describe('SubscriptionStatusBannerComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [SubscriptionStatusBannerComponent],
+      providers: [provideRouter([])],
     }).compileComponents();
 
     fixture = TestBed.createComponent(SubscriptionStatusBannerComponent);

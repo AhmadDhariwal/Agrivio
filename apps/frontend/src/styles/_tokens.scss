@@ -1,24 +1,24 @@
 // Agrivio design tokens — keep component styles on these variables.
 :root {
   // Surfaces
-  --ag-color-bg: #eef3ef;
-  --ag-color-bg-accent: #e4ebe5;
+  --ag-color-bg: #f8fafc;
+  --ag-color-bg-accent: #f1f5f9;
   --ag-color-surface: #ffffff;
-  --ag-color-surface-elevated: #f7faf8;
-  --ag-color-border: #74867c;
-  --ag-color-border-strong: #5e7066;
+  --ag-color-surface-elevated: #ffffff;
+  --ag-color-border: #e2e8f0;
+  --ag-color-border-strong: #cbd5e1;
   --ag-border: var(--ag-color-border);
   --ag-muted: var(--ag-color-text-muted);
 
   // Brand / primary
-  --ag-color-primary: #1b5a3c;
-  --ag-color-primary-hover: #14462f;
-  --ag-color-primary-muted: #d8ebe1;
+  --ag-color-primary: #065f46;
+  --ag-color-primary-hover: #047857;
+  --ag-color-primary-muted: #ecfdf5;
   --ag-color-primary-contrast: #f5faf7;
 
   // Text
-  --ag-color-text: #14241b;
-  --ag-color-text-muted: #55665c;
+  --ag-color-text: #0f172a;
+  --ag-color-text-muted: #64748b;
   --ag-color-text-inverse: #f5faf7;
 
   // Status
@@ -32,7 +32,7 @@
   --ag-color-info-bg: #eff6ff;
 
   // Focus
-  --ag-color-focus: #2f7d55;
+  --ag-color-focus: #065f46;
   --ag-focus-ring: 0 0 0 2px var(--ag-color-surface), 0 0 0 4px var(--ag-color-focus);
 
   // Spacing scale
@@ -48,11 +48,11 @@
 
   // Radius / shadow
   --ag-radius-sm: 0.375rem;
-  --ag-radius-md: 0.625rem;
-  --ag-radius-lg: 0.875rem;
-  --ag-shadow-sm: 0 1px 2px rgba(20, 36, 27, 0.06);
-  --ag-shadow-md: 0 8px 24px rgba(20, 36, 27, 0.08);
-  --ag-shadow-lg: 0 16px 40px rgba(20, 36, 27, 0.1);
+  --ag-radius-md: 0.5rem;
+  --ag-radius-lg: 0.75rem;
+  --ag-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --ag-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06);
+  --ag-shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.08);
 
   // Typography
   --ag-font-sans: 'Manrope', 'Segoe UI', sans-serif;

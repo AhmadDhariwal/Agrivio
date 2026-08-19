@@ -2,9 +2,12 @@
   <!-- Page Header -->
   <header class="page-head">
     <div class="page-head__title-group">
-      <p class="page-head__eyebrow">Pricing Management</p>
-      <h1 class="page-head__title">Pricing · {{ productName() }}</h1>
-      <p class="page-head__lede">Set multi-tier sales prices for retail customers, wholesale buyers, dealers, and distributors in PKR.</p>
+      <p class="page-head__eyebrow">Catalog & Pricing</p>
+      <h1 class="page-head__title">Pricing</h1>
+      <div class="page-head__product-identity">
+        <span class="product-identity-name" [title]="productName()">{{ productName() }}</span>
+      </div>
+      <p class="page-head__lede">Configure multi-tier sales prices in PKR for cashiering and sales workflows.</p>
     </div>
     <div class="page-head__actions">
       <a class="ag-btn ag-btn--secondary" routerLink="/app/products">

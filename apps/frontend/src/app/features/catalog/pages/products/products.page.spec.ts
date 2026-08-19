@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { ProductsPage } from './products.page';
 import { CatalogApi } from '../../data-access/catalog.api';
+import { InventoryApi } from '../../../inventory/data-access/inventory.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 
 describe('ProductsPage', () => {
@@ -21,6 +22,12 @@ describe('ProductsPage', () => {
           },
         },
         {
+          provide: InventoryApi,
+          useValue: {
+            listBalances: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+          },
+        },
+        {
           provide: AuthSessionStore,
           useValue: { hasPermission: () => true },
         },
@@ -34,4 +41,5 @@ describe('ProductsPage', () => {
     expect(fixture.nativeElement.textContent).toContain('No products yet');
   });
 });
+
 

@@ -5,7 +5,7 @@
 .pricing-shell {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   max-width: 760px;
   margin: 0 auto;
   width: 100%;
@@ -24,7 +24,7 @@
 
   &__eyebrow {
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--ag-color-primary, #065f46);
@@ -32,12 +32,17 @@
   }
 
   &__title {
-    font-size: 24px;
-    font-weight: 700;
+    font-size: 28px;
+    font-weight: 600;
     color: var(--ag-color-text, #0f172a);
-    margin: 0 0 4px 0;
+    margin: 0 0 2px 0;
     line-height: 1.2;
     letter-spacing: -0.02em;
+    font-family: var(--ag-font-sans);
+  }
+
+  &__product-identity {
+    margin: 0 0 4px 0;
   }
 
   &__lede {
@@ -54,21 +59,33 @@
   }
 }
 
+.product-identity-name {
+  display: inline-block;
+  font-size: 15px;
+  font-weight: 500;
+  color: #065f46;
+  max-width: 480px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--ag-font-sans);
+}
+
 .pricing-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 .form-card {
   background: var(--ag-color-surface, #ffffff);
   border: 1px solid var(--ag-color-border, #e2e8f0);
-  border-radius: 8px;
+  border-radius: 6px;
   overflow: hidden;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
 
   &__header {
-    padding: 14px 20px;
+    padding: 12px 18px;
     background: #f8fafc;
     border-bottom: 1px solid #e2e8f0;
     display: flex;
@@ -77,8 +94,8 @@
   }
 
   &__icon {
-    width: 34px;
-    height: 34px;
+    width: 32px;
+    height: 32px;
     border-radius: 6px;
     background: #ecfdf5;
     color: var(--ag-color-primary, #065f46);
@@ -90,28 +107,29 @@
   }
 
   &__title {
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 16px;
+    font-weight: 600;
     color: var(--ag-color-text, #0f172a);
     margin: 0 0 2px 0;
     line-height: 1.2;
+    font-family: var(--ag-font-sans);
   }
 
   &__subtitle {
-    font-size: 12px;
+    font-size: 12.5px;
     color: var(--ag-color-text-muted, #64748b);
     margin: 0;
   }
 
   &__body {
-    padding: 20px;
+    padding: 18px;
   }
 }
 
 .tiers-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 14px;
 
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
@@ -122,15 +140,14 @@
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
-  padding: 14px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 
   &--highlight {
     background: #ffffff;
-    border-color: var(--ag-color-primary, #065f46);
-    box-shadow: 0 0 0 1px rgba(6, 95, 70, 0.15);
+    border-color: #cbd5e1;
   }
 
   &__header {
@@ -140,19 +157,18 @@
   }
 
   &__badge {
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
+    font-size: 13px;
+    font-weight: 600;
     color: #334155;
+    font-family: var(--ag-font-sans);
 
     &--retail {
-      color: var(--ag-color-primary, #065f46);
+      color: #065f46;
     }
   }
 
   &__desc {
-    font-size: 11px;
+    font-size: 12px;
     color: #64748b;
   }
 }
@@ -165,13 +181,14 @@
 
 .currency-symbol {
   position: absolute;
-  left: 10px;
-  font-family: 'JetBrains Mono', monospace, Consolas;
-  font-size: 11px;
-  font-weight: 700;
-  color: #64748b;
+  left: 8px;
+  font-family: var(--ag-font-sans);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #475569;
   pointer-events: none;
-  background: #e2e8f0;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
   padding: 2px 6px;
   border-radius: 4px;
 }
@@ -181,9 +198,10 @@
   height: 38px;
   padding-left: 54px;
   padding-right: 12px;
-  font-family: 'JetBrains Mono', monospace, Consolas;
+  font-family: var(--ag-font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   color: #0f172a;
   background: #ffffff;
   border: 1px solid #cbd5e1;
@@ -192,8 +210,8 @@
   transition: all 0.15s ease;
 
   &:focus {
-    border-color: var(--ag-color-primary, #065f46);
-    box-shadow: 0 0 0 2px rgba(6, 95, 70, 0.15);
+    border-color: #065f46;
+    box-shadow: 0 0 0 2px rgba(6, 95, 70, 0.12);
   }
 }
 
@@ -201,7 +219,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px 0;
+  padding: 14px 0;
   border-top: 1px solid #e2e8f0;
 }
 
@@ -209,4 +227,5 @@
 .state-container {
   margin-bottom: 12px;
 }
+
 
