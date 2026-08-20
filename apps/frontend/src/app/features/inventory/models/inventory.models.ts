@@ -20,6 +20,7 @@ export interface InventoryBalanceRecord {
   productId: string;
   batchId: string | null;
   quantityBase: string;
+  unsellableQuantityBase?: string;
   version: number;
   valuation?: {
     inventoryValue: MoneyAmount;

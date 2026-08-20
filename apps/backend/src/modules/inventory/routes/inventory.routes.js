@@ -15,11 +15,17 @@ const {
   createRequireWarehouseAccessMiddleware,
 } = require('../../identity/permission.middleware');
 const { createInventoryController } = require('../controllers/inventory.controller');
+const { createRequireCapabilityMiddleware } = require('../../capabilities/capability.middleware');
 
 function registerInventoryRoutes(deps) {
   const router = Router();
   const controller = createInventoryController(deps);
   const requireOrganizationContext = createRequireOrganizationContextMiddleware();
+  const requireStockModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.stock',
+    'enabled',
+  );
 
   router.get(
     API_INVENTORY_BALANCES_PATH,
@@ -27,6 +33,7 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.view'),
     deps.requireOperationalAccess,
+    requireStockModule,
     (req, res, next) => {
       void controller.listBalances(req, res, next);
     },

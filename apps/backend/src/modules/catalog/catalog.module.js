@@ -81,6 +81,9 @@ function createCatalogService(deps) {
     },
 
     async getCategory(organizationId, categoryId) {
+      if (typeof deps.capabilityService?.assertCategoryInspectAllowed === 'function') {
+        await deps.capabilityService.assertCategoryInspectAllowed(organizationId);
+      }
       return toCategoryDto(await requireCategory(organizationId, categoryId));
     },
 
@@ -120,6 +123,9 @@ function createCatalogService(deps) {
     },
 
     async createCategory(organizationId, body, actor, options = {}) {
+      if (typeof deps.capabilityService?.assertCategoryCreateAllowed === 'function') {
+        await deps.capabilityService.assertCategoryCreateAllowed(organizationId);
+      }
       const input = parseCategoryCreate(body);
       try {
         return await transactionRunner.runWithOptionalSession(options.session, async (session) => {
@@ -149,6 +155,9 @@ function createCatalogService(deps) {
         return await transactionRunner.run(async (session) => {
           const current = await requireCategory(organizationId, categoryId);
           assertOptimisticVersion(current, expectedVersion);
+          if (typeof deps.capabilityService?.assertCategoryPatchAllowed === 'function') {
+            await deps.capabilityService.assertCategoryPatchAllowed(organizationId, current, patch);
+          }
           const nextProductClass = patch.productClass ?? current.productClass;
           if (patch.productClass !== undefined || patch.status !== undefined) {
             // no-op guard for future product revalidation hooks
@@ -174,6 +183,9 @@ function createCatalogService(deps) {
     },
 
     async deleteCategory(organizationId, categoryId, actor) {
+      if (typeof deps.capabilityService?.assertCategoryDeleteAllowed === 'function') {
+        await deps.capabilityService.assertCategoryDeleteAllowed(organizationId);
+      }
       const current = await requireCategory(organizationId, categoryId);
       const { items: products } = await store.listProducts(organizationId, {});
       const owned = products.filter((item) => String(item.categoryId) === String(categoryId));

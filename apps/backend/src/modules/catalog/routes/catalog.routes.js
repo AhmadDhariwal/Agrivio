@@ -16,6 +16,11 @@ function registerCatalogRoutes(deps) {
     'inventory.products',
     'enabled',
   );
+  const requireCategoriesModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.categories',
+    'enabled',
+  );
 
   router.get(
     API_PRODUCT_CATEGORIES_PATH,
@@ -23,6 +28,7 @@ function registerCatalogRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('catalog.view'),
     deps.requireOperationalAccess,
+    requireCategoriesModule,
     (req, res, next) => {
       void controller.listCategories(req, res, next);
     },
@@ -35,6 +41,7 @@ function registerCatalogRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('catalog.manage'),
     deps.requireOperationalAccess,
+    requireCategoriesModule,
     (req, res, next) => {
       void controller.createCategory(req, res, next);
     },
@@ -46,6 +53,7 @@ function registerCatalogRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('catalog.view'),
     deps.requireOperationalAccess,
+    requireCategoriesModule,
     (req, res, next) => {
       void controller.getCategory(req, res, next);
     },
@@ -58,6 +66,7 @@ function registerCatalogRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('catalog.manage'),
     deps.requireOperationalAccess,
+    requireCategoriesModule,
     (req, res, next) => {
       void controller.updateCategory(req, res, next);
     },
@@ -70,6 +79,7 @@ function registerCatalogRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('catalog.manage'),
     deps.requireOperationalAccess,
+    requireCategoriesModule,
     (req, res, next) => {
       void controller.deleteCategory(req, res, next);
     },

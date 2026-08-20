@@ -156,6 +156,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Categories',
           route: '/app/categories',
           permission: 'catalog.view',
+          capabilityKey: 'inventory.categories',
           testId: 'nav-categories',
         },
         {
@@ -163,6 +164,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Inventory',
           route: '/app/inventory/stock',
           permission: 'inventory.view',
+          capabilityKey: 'inventory.stock',
           testId: 'nav-inventory',
           exact: true,
         },

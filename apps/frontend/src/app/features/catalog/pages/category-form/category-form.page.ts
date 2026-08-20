@@ -4,7 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { CatalogApi } from '../../data-access/catalog.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
@@ -16,7 +16,6 @@ import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
     UiFieldLabelComponent,
@@ -27,15 +26,54 @@ import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 export class CategoryFormPage {
   private readonly api = inject(CatalogApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
 
   readonly categoryId = signal<string | null>(null);
+  readonly loadedCategoryName = signal<string>('');
+  readonly loadedStatus = signal<'active' | 'inactive'>('active');
   readonly loading = signal(false);
   readonly saving = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly canManage = computed(() => this.sessionStore.hasPermission('catalog.manage'));
+  readonly showName = computed(
+    () =>
+      this.categoryId() === null ||
+      (this.capabilityService?.canViewField('inventory.categories.fields.name') ?? true),
+  );
+  readonly showProductClass = computed(
+    () =>
+      this.categoryId() === null ||
+      (this.capabilityService?.canViewField('inventory.categories.fields.productClass') ?? true),
+  );
+  readonly canEditName = computed(
+    () =>
+      this.categoryId() === null ||
+      (this.capabilityService?.canEditField('inventory.categories.fields.name') ?? true),
+  );
+  readonly canEditProductClass = computed(
+    () =>
+      this.categoryId() === null ||
+      (this.capabilityService?.canEditField('inventory.categories.fields.productClass') ?? true),
+  );
+  readonly showStatus = computed(
+    () => this.capabilityService?.canViewField('inventory.categories.fields.status') ?? true,
+  );
+  readonly showTrackingRequirement = computed(
+    () =>
+      this.capabilityService?.canUseView(
+        'inventory.categories.features.trackingRequirementDisplay',
+      ) ?? true,
+  );
+  readonly canChangeStatus = computed(() => {
+    if (this.categoryId() === null) return false;
+    const action = this.loadedStatus() === 'active' ? 'deactivate' : 'reactivate';
+    return (
+      this.capabilityService?.canPerformAction(`inventory.categories.actions.${action}`) ?? true
+    );
+  });
   private version = 1;
 
   readonly fieldRequired = hasRequiredValidator;
@@ -54,6 +92,8 @@ export class CategoryFormPage {
       this.api.getCategory(id).subscribe({
         next: (category) => {
           this.version = category.version;
+          this.loadedCategoryName.set(category.name);
+          this.loadedStatus.set(category.status === 'inactive' ? 'inactive' : 'active');
           this.form.patchValue({
             name: category.name,
             productClass: category.productClass,
@@ -69,6 +109,27 @@ export class CategoryFormPage {
     }
   }
 
+  isBatchRequired(productClass: string): boolean {
+    const cls = productClass?.toLowerCase();
+    return cls === 'fertilizer' || cls === 'seed' || cls === 'pesticide' || cls === 'chemical';
+  }
+
+  getTrackingRequirement(productClass: string): string {
+    return this.isBatchRequired(productClass) ? 'Batch required' : 'Standard';
+  }
+
+  getProductClassLabel(productClass: string): string {
+    if (!productClass) return 'General';
+    const map: Record<string, string> = {
+      general: 'General',
+      fertilizer: 'Fertilizer',
+      seed: 'Seed',
+      pesticide: 'Pesticide',
+      chemical: 'Chemical',
+    };
+    return map[productClass.toLowerCase()] || productClass;
+  }
+
   save(): void {
     if (!this.canManage() || this.form.invalid) {
       this.form.markAllAsTouched();
@@ -77,13 +138,14 @@ export class CategoryFormPage {
     this.saving.set(true);
     this.errorMessage.set(null);
     const value = this.form.getRawValue();
+    const categoryId = this.categoryId();
     const request$ =
-      this.categoryId() === null
+      categoryId === null
         ? this.api.createCategory({
             name: value.name,
             productClass: value.productClass,
           })
-        : this.api.updateCategory(this.categoryId()!, {
+        : this.api.updateCategory(categoryId, {
             expectedVersion: this.version,
             name: value.name,
             productClass: value.productClass,

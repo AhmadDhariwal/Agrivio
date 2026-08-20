@@ -211,6 +211,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'categories',
+        canActivate: [requireCapabilityGuard('inventory.categories')],
         loadComponent: () =>
           import('./features/catalog/pages/categories/categories.page').then(
             (m) => m.CategoriesPage,
@@ -218,6 +219,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'categories/new',
+        canActivate: [
+          requireCapabilityGuard('inventory.categories'),
+          requireCapabilityGuard('inventory.categories.actions.create', 'action'),
+        ],
         loadComponent: () =>
           import('./features/catalog/pages/category-form/category-form.page').then(
             (m) => m.CategoryFormPage,
@@ -225,6 +230,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'categories/:id',
+        canActivate: [
+          requireCapabilityGuard('inventory.categories'),
+          requireCapabilityGuard('inventory.categories.actions.edit', 'action'),
+        ],
         loadComponent: () =>
           import('./features/catalog/pages/category-form/category-form.page').then(
             (m) => m.CategoryFormPage,
@@ -488,6 +497,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'inventory/stock',
+        canActivate: [requireCapabilityGuard('inventory.stock')],
         loadComponent: () =>
           import('./features/inventory/pages/stock/stock-inquiry.page').then(
             (m) => m.StockInquiryPage,

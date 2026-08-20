@@ -603,6 +603,7 @@ function createApp(options) {
 
   const inventoryRoutes = registerInventoryRoutes({
     inventoryService: inventory.inventoryService,
+    capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
