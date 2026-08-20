@@ -36,6 +36,16 @@ function registerInventoryRoutes(deps) {
     'inventory.openingStock.actions.post',
     'allowed',
   );
+  const requireBatchesModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.batches',
+    'enabled',
+  );
+  const requireInspectBatch = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.batches.actions.inspect',
+    'allowed',
+  );
 
   router.get(
     API_INVENTORY_BALANCES_PATH,
@@ -66,6 +76,7 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.view'),
     deps.requireOperationalAccess,
+    requireBatchesModule,
     (req, res, next) => {
       void controller.listBatches(req, res, next);
     },
@@ -77,6 +88,8 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.view'),
     deps.requireOperationalAccess,
+    requireBatchesModule,
+    requireInspectBatch,
     (req, res, next) => {
       void controller.getBatch(req, res, next);
     },

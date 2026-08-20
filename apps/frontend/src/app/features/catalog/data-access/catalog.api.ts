@@ -113,17 +113,35 @@ export class CatalogApi {
         `${environment.publicApiBaseUrl}/api/v1/products`,
         { withCredentials: true, params },
       )
-      .pipe(map((response) => ({ items: response.data, meta: response.meta! })));
+      .pipe(
+        map((response) => ({
+          items: (response.data || []).map((p: any) => ({
+            ...p,
+            id: p.id || p._id || '',
+          })),
+          meta: response.meta!,
+        })),
+      );
   }
 
-  searchProductOptions(q = '', limit = 25): Observable<ProductRecord[]> {
-    const params: Record<string, string> = { q, limit: String(Math.min(100, Math.max(1, limit))), status: 'active' };
+  searchProductOptions(q = '', limit = 500, status = 'all'): Observable<ProductRecord[]> {
+    const params: Record<string, string> = { q, limit: String(Math.min(500, Math.max(1, limit))) };
+    if (status && status !== 'all') {
+      params['status'] = status;
+    }
     return this.http
       .get<ApiSuccessEnvelope<ProductRecord[]>>(`${environment.publicApiBaseUrl}/api/v1/products`, {
         withCredentials: true,
         params,
       })
-      .pipe(map((response) => response.data));
+      .pipe(
+        map((response) =>
+          (response.data || []).map((p: any) => ({
+            ...p,
+            id: p.id || p._id || '',
+          })),
+        ),
+      );
   }
 
   private paginationParams(query: PaginationQuery): Record<string, string> {

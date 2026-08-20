@@ -1,52 +1,1404 @@
-<agrivio-ui-page-header
-  title="Product batches"
-  eyebrow="Inventory"
-  lede="Batch identity inquiry. Distinct lots remain separate."
-/>
-
-@if (!canView()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to view inventory." />
-} @else if (loading()) {
-  <agrivio-ui-loading-state label="Loading batches…" />
-} @else {
-  @if (errorMessage(); as error) {
-    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-  }
-
-  <div class="ag-inline" style="margin-bottom: 1rem">
-    <button class="ag-btn ag-btn--secondary" type="button" data-testid="batches-refresh" (click)="reload()">
-      Refresh
-    </button>
-    <a class="ag-btn ag-btn--secondary" routerLink="/app/inventory/stock">Stock</a>
-  </div>
-
-  @if (batches().length === 0) {
-    <p class="ag-muted" data-testid="batches-empty">No batches yet.</p>
-  } @else {
-    <div class="ag-table-wrap" data-testid="batches-list">
-      <table class="ag-table">
-        <thead>
-          <tr>
-            <th>Batch number</th>
-            <th>Product</th>
-            <th>Manufacture</th>
-            <th>Expiry</th>
-            <th>First received</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (row of batches(); track row.id) {
-            <tr data-testid="batch-row">
-              <td>{{ row.batchNumber }}</td>
-              <td>{{ row.productId }}</td>
-              <td>{{ row.manufacturingDate ?? '—' }}</td>
-              <td>{{ row.expiryDate ?? '—' }}</td>
-              <td>{{ row.firstReceivedAt }}</td>
-            </tr>
-          }
-        </tbody>
-      </table>
+<div class="batches-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">Inventory</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">Product batches</h1>
+        <span class="page-head__count-pill" aria-label="Total batches">
+          {{ total() }} {{ total() === 1 ? 'batch' : 'batches' }}
+        </span>
+      </div>
+      <p class="page-head__lede">Batch identity inquiry. Distinct lots remain separate.</p>
     </div>
-    <agrivio-ui-pagination [page]="page()" [pageSize]="pageSize()" [total]="total()" [disabled]="loading()" (pageChange)="onPageChange($event)" (pageSizeChange)="onPageSizeChange($event)" />
+
+    <div class="page-head__actions">
+      <!-- Subtle Refresh Icon Button -->
+      <button
+        class="row-action-btn page-head__refresh-btn"
+        type="button"
+        data-testid="batches-refresh"
+        (click)="reload()"
+        title="Refresh batch data"
+        aria-label="Refresh batch data"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+          <path d="M3 3v5h5" />
+          <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+          <path d="M16 21h5v-5" />
+        </svg>
+      </button>
+
+      <!-- Secondary Workflows -->
+      @if (canViewStock()) {
+      <a
+        class="ag-btn ag-btn--secondary"
+        routerLink="/app/inventory/stock"
+        data-testid="batches-stock-link"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path
+            d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+          />
+          <path d="m3.3 7 8.7 5 8.7-5" />
+          <path d="M12 22V12" />
+        </svg>
+        <span class="btn-text-full">Stock</span>
+        <span class="btn-text-mobile">Stock</span>
+      </a>
+      } @if (canViewMovements()) {
+      <a
+        class="ag-btn ag-btn--secondary"
+        routerLink="/app/inventory/movements"
+        data-testid="batches-movements-link"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="17 1 21 5 17 9" />
+          <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+          <polyline points="7 23 3 19 7 15" />
+          <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+        </svg>
+        <span class="btn-text-full">Movements</span>
+        <span class="btn-text-mobile">Movements</span>
+      </a>
+      }
+
+      <div class="nav-overflow-group">
+        @if (canViewExpiry()) {
+        <a class="nav-overflow-link" routerLink="/app/inventory/expiry" title="Expiry Management"
+          >Expiry</a
+        >
+        }
+        <a
+          class="nav-overflow-link"
+          routerLink="/app/inventory/adjustments"
+          title="Stock Adjustments"
+          >Adjustments</a
+        >
+        <a
+          class="nav-overflow-link"
+          routerLink="/app/inventory/transfers"
+          title="Warehouse Transfers"
+          >Transfers</a
+        >
+      </div>
+    </div>
+  </header>
+
+  <!-- Alerts -->
+  @if (!canView()) {
+  <div class="alert-container">
+    <agrivio-ui-alert
+      tone="warning"
+      message="You do not have permission to view inventory batches."
+    />
+  </div>
+  } @else { @if (errorMessage(); as error) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  </div>
   }
-}
+
+  <!-- Module Information Section -->
+  @if (showBatchModuleInfo()) {
+  <agrivio-ui-module-info
+    [title]="infoTitle"
+    [description]="infoDescription"
+    [items]="infoItems"
+    [defaultExpanded]="false"
+  />
+  }
+
+  <!-- Authoritative KPI Summary Row -->
+  @if (showAnyBatchKpi()) {
+  <section class="kpi-row" aria-label="Batches Summary">
+    <!-- Total Batches -->
+    @if (showBatchTotalKpi()) {
+    <div class="kpi-card">
+      <div class="kpi-card__icon kpi-card__icon--neutral">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect width="18" height="18" x="3" y="3" rx="2" />
+          <path d="M7 7h10" />
+          <path d="M7 12h10" />
+          <path d="M7 17h10" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Total Batches</span>
+        <span class="kpi-card__value" data-testid="kpi-total-batches">{{ total() }}</span>
+        <span class="kpi-card__sub">Across all warehouses</span>
+      </div>
+    </div>
+    }
+
+    <!-- Expiring Soon -->
+    @if (showBatchExpiringKpi()) {
+    <div class="kpi-card">
+      <div class="kpi-card__icon kpi-card__icon--amber">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Expiring Soon</span>
+        <span class="kpi-card__value" data-testid="kpi-expiring-soon">{{ expiringCount() }}</span>
+        <span class="kpi-card__sub">Within next 30 days</span>
+      </div>
+    </div>
+    }
+
+    <!-- Expired -->
+    @if (showBatchExpiredKpi()) {
+    <div class="kpi-card">
+      <div class="kpi-card__icon kpi-card__icon--red">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Expired</span>
+        <span class="kpi-card__value" data-testid="kpi-expired">{{ expiredCount() }}</span>
+        <span class="kpi-card__sub">Requires attention</span>
+      </div>
+    </div>
+    }
+
+    <!-- Warehouses / Tracked Products -->
+    @if (showBatchWarehouseProductKpi()) {
+    <div class="kpi-card">
+      <div class="kpi-card__icon kpi-card__icon--blue">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M20 7h-9" />
+          <path d="M14 17H5" />
+          <circle cx="17" cy="17" r="3" />
+          <circle cx="7" cy="7" r="3" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Warehouses / Products</span>
+        <span class="kpi-card__value" data-testid="kpi-wh-products">
+          {{ warehouseList().length }} / {{ productList().length }}
+        </span>
+        <span class="kpi-card__sub">Warehouses / Products</span>
+      </div>
+    </div>
+    }
+  </section>
+  }
+
+  <!-- Filter & Control Toolbar -->
+  @if (showAnyBatchFilter() || allowDesktopCards()) {
+  <section class="toolbar" aria-label="Filters and view controls">
+    <!-- Desktop / Tablet Inline Controls -->
+    <div class="toolbar__desktop">
+      <div class="toolbar__left">
+        <!-- Search Input -->
+        @if (showBatchSearch()) {
+        <div class="search-field">
+          <svg
+            class="search-field__icon"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            class="search-field__input"
+            type="search"
+            [value]="search()"
+            (input)="onSearchInput($event)"
+            placeholder="Search batch number or product…"
+            aria-label="Search batches"
+            data-testid="batches-search-input"
+          />
+        </div>
+        }
+
+        <!-- Warehouse Filter -->
+        @if (showBatchWarehouseFilter()) {
+        <div class="select-field">
+          <select
+            class="select-field__input"
+            [value]="warehouseFilter()"
+            (change)="onWarehouseChange($event)"
+            aria-label="Filter by warehouse"
+            data-testid="batches-warehouse-filter"
+          >
+            <option value="">All Warehouses</option>
+            @for (wh of warehouseList(); track wh.id) {
+            <option [value]="wh.id">{{ wh.name }}</option>
+            }
+          </select>
+        </div>
+        }
+
+        <!-- Product Filter -->
+        @if (showBatchProductFilter()) {
+        <div class="select-field">
+          <select
+            class="select-field__input"
+            [value]="productFilter()"
+            (change)="onProductChange($event)"
+            aria-label="Filter by product"
+            data-testid="batches-product-filter"
+          >
+            <option value="">All Products</option>
+            @for (prod of productList(); track prod.id) {
+            <option [value]="prod.id">{{ prod.name }}</option>
+            }
+          </select>
+        </div>
+        }
+
+        <!-- Clear Filters Button -->
+        @if (hasActiveFilters()) {
+        <button
+          class="clear-filters-btn"
+          type="button"
+          (click)="clearFilters()"
+          data-testid="batches-clear-filters"
+        >
+          Clear filters
+        </button>
+        }
+      </div>
+
+      <!-- View Mode Switcher (Desktop/Tablet Only) -->
+      @if (!isMobile() && allowDesktopCards()) {
+      <div class="toolbar__right">
+        <div class="view-toggle" role="group" aria-label="View mode">
+          <button
+            type="button"
+            class="view-toggle__btn"
+            [class.view-toggle__btn--active]="preferredViewMode() === 'table'"
+            (click)="setViewMode('table')"
+            title="Table view"
+            aria-label="Table view"
+            data-testid="view-mode-table"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+            Table
+          </button>
+          <button
+            type="button"
+            class="view-toggle__btn"
+            [class.view-toggle__btn--active]="preferredViewMode() === 'cards'"
+            (click)="setViewMode('cards')"
+            title="Card grid view"
+            aria-label="Card grid view"
+            data-testid="view-mode-cards"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect width="7" height="7" x="3" y="3" rx="1"></rect>
+              <rect width="7" height="7" x="14" y="3" rx="1"></rect>
+              <rect width="7" height="7" x="14" y="14" rx="1"></rect>
+              <rect width="7" height="7" x="3" y="14" rx="1"></rect>
+            </svg>
+            Cards
+          </button>
+        </div>
+      </div>
+      }
+    </div>
+
+    <!-- Mobile 2-Row Controls (< 768px) -->
+    <div class="toolbar__mobile">
+      <!-- Row 1: Full-Width Search Input -->
+      @if (showBatchSearch()) {
+      <div class="search-field search-field--mobile">
+        <svg
+          class="search-field__icon"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          class="search-field__input"
+          type="search"
+          [value]="search()"
+          (input)="onSearchInput($event)"
+          placeholder="Search batch number or product…"
+          aria-label="Search batches"
+        />
+        @if (search()) {
+        <button
+          type="button"
+          class="search-field__clear"
+          (click)="onSearchClear()"
+          aria-label="Clear search"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        }
+      </div>
+      }
+
+      <!-- Row 2: Filter Button + Result Count -->
+      <div class="toolbar__mobile-row">
+        @if (showBatchProductFilter() || showBatchWarehouseFilter()) {
+        <button
+          type="button"
+          class="mobile-filter-trigger"
+          [class.mobile-filter-trigger--active]="activeFiltersCount() > 0"
+          (click)="openMobileFilters()"
+          aria-label="Open filter options"
+          data-testid="batches-mobile-filter-trigger"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+          </svg>
+          <span>Filters</span>
+          @if (activeFiltersCount() > 0) {
+          <span class="mobile-filter-trigger__badge">{{ activeFiltersCount() }}</span>
+          }
+        </button>
+        } @if (hasActiveFilters()) {
+        <button type="button" class="mobile-clear-btn" (click)="clearFilters()">Reset</button>
+        }
+
+        <span class="toolbar__mobile-count">
+          {{ total() }} {{ total() === 1 ? 'batch' : 'batches' }}
+        </span>
+      </div>
+    </div>
+  </section>
+  }
+
+  <!-- Mobile Filter Slide-Over Drawer Sheet -->
+  @if (mobileFiltersOpen() && (showBatchProductFilter() || showBatchWarehouseFilter())) {
+  <div class="mobile-filter-backdrop" (click)="closeMobileFilters()" aria-hidden="true"></div>
+  <div class="mobile-filter-sheet" role="dialog" aria-modal="true" aria-label="Filter batches">
+    <div class="mobile-filter-sheet__head">
+      <div class="mobile-filter-sheet__title-group">
+        <h2 class="mobile-filter-sheet__title">Filter Batches</h2>
+        @if (activeFiltersCount() > 0) {
+        <span class="mobile-filter-sheet__badge">{{ activeFiltersCount() }} active</span>
+        }
+      </div>
+      <button
+        type="button"
+        class="mobile-filter-sheet__close"
+        (click)="closeMobileFilters()"
+        aria-label="Close filters"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="mobile-filter-sheet__body">
+      <!-- Warehouse Filter -->
+      @if (showBatchWarehouseFilter()) {
+      <div class="mobile-filter-group">
+        <label class="mobile-filter-group__label" for="mobile-filter-wh">Warehouse</label>
+        <select
+          id="mobile-filter-wh"
+          class="mobile-filter-group__select"
+          [value]="warehouseFilter()"
+          (change)="onWarehouseChange($event)"
+        >
+          <option value="">All Warehouses</option>
+          @for (wh of warehouseList(); track wh.id) {
+          <option [value]="wh.id">{{ wh.name }}</option>
+          }
+        </select>
+      </div>
+      }
+
+      <!-- Product Filter -->
+      @if (showBatchProductFilter()) {
+      <div class="mobile-filter-group">
+        <label class="mobile-filter-group__label" for="mobile-filter-prod">Product</label>
+        <select
+          id="mobile-filter-prod"
+          class="mobile-filter-group__select"
+          [value]="productFilter()"
+          (change)="onProductChange($event)"
+        >
+          <option value="">All Products</option>
+          @for (prod of productList(); track prod.id) {
+          <option [value]="prod.id">{{ prod.name }}</option>
+          }
+        </select>
+      </div>
+      }
+    </div>
+
+    <div class="mobile-filter-sheet__foot">
+      @if (hasActiveFilters()) {
+      <button type="button" class="ag-btn ag-btn--secondary" (click)="clearFilters()">
+        Clear All
+      </button>
+      }
+      <button
+        type="button"
+        class="ag-btn ag-btn--primary mobile-filter-sheet__apply"
+        (click)="closeMobileFilters()"
+      >
+        Show Results ({{ total() }})
+      </button>
+    </div>
+  </div>
+  }
+
+  <!-- Content States -->
+  @if (loading()) {
+  <div class="state-container">
+    <agrivio-ui-loading-state label="Loading product batches…" />
+  </div>
+  } @else if (batches().length === 0) {
+  <!-- Empty State -->
+  <div class="state-container" data-testid="batches-empty">
+    @if (hasActiveFilters()) {
+    <agrivio-ui-empty-state
+      title="No batches match your filters"
+      message="Try adjusting your search criteria, product, or warehouse filters."
+    />
+    } @else {
+    <agrivio-ui-empty-state
+      title="No product batches found"
+      message="Product batches are generated when tracked inventory is received through opening stock, purchases, or returns."
+    />
+    }
+  </div>
+  } @else {
+  <!-- VIEW MODE: TABLE (Primary Desktop & Tablet View) -->
+  @if (effectiveViewMode() === 'table') {
+  <div class="table-container" data-testid="batches-list">
+    <table class="batch-table">
+      <colgroup>
+        <!-- Level 1 Flexible Columns (shrink and truncate with ellipsis) -->
+        <col class="col-batch" />
+        <col class="col-product" />
+        @if (showBatchLocations()) {
+        <col class="col-locations" />
+        }
+        <!-- Level 2 Operational Data Columns (fixed, stable, readable) -->
+        @if (showBatchManufacture()) {
+        <col class="col-manufacture" />
+        } @if (showBatchExpiry()) {
+        <col class="col-expiry" />
+        } @if (showBatchFirstReceived()) {
+        <col class="col-received" />
+        } @if (showBatchQuantity()) {
+        <col class="col-quantity" />
+        } @if (showBatchStatus()) {
+        <col class="col-status" />
+        } @if (hasBatchRowActions()) {
+        <col class="col-actions" />
+        }
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col" class="batch-table__th batch-table__th--batch">Batch Number</th>
+          <th scope="col" class="batch-table__th batch-table__th--product">Product</th>
+          @if (showBatchLocations()) {
+          <th scope="col" class="batch-table__th batch-table__th--locations">Locations</th>
+          } @if (showBatchManufacture()) {
+          <th scope="col" class="batch-table__th batch-table__th--manufacture">Manufacture</th>
+          } @if (showBatchExpiry()) {
+          <th scope="col" class="batch-table__th batch-table__th--expiry">Expiry</th>
+          } @if (showBatchFirstReceived()) {
+          <th scope="col" class="batch-table__th batch-table__th--received">First Received</th>
+          } @if (showBatchQuantity()) {
+          <th scope="col" class="batch-table__th batch-table__th--quantity">Available Qty</th>
+          } @if (showBatchStatus()) {
+          <th scope="col" class="batch-table__th batch-table__th--status">Status</th>
+          } @if (hasBatchRowActions()) {
+          <th scope="col" class="batch-table__th batch-table__th--actions">Actions</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of batches(); track row.id) {
+        <tr
+          class="batch-table__row"
+          [class.batch-table__row--selected]="selectedBatch()?.id === row.id"
+          data-testid="batch-row"
+        >
+          <!-- Batch Number (Level 1: Flexible & Truncated with Link to Inspector) -->
+          <td class="batch-table__td batch-table__td--batch">
+            @if (canInspectBatch()) {
+            <button
+              type="button"
+              class="batch-cell__name"
+              (click)="openInspector(row)"
+              [title]="row.batchNumber"
+              data-testid="batch-inspect-trigger"
+            >
+              {{ row.batchNumber }}
+            </button>
+            } @else {
+            <span class="batch-cell__name" [title]="row.batchNumber">{{ row.batchNumber }}</span>
+            }
+          </td>
+
+          <!-- Product Name & SKU (Level 1: Flexible) -->
+          <td class="batch-table__td batch-table__td--product">
+            <div class="product-meta">
+              <span class="product-meta__name" [title]="productName(row.productId)">
+                {{ productName(row.productId) }}
+              </span>
+              @if (productSku(row.productId); as sku) {
+              <span class="product-meta__sku">{{ sku }}</span>
+              }
+            </div>
+          </td>
+
+          <!-- Warehouse / Locations Summary (Level 1: Flexible) -->
+          @if (showBatchLocations()) {
+          <td class="batch-table__td batch-table__td--locations">
+            <span class="location-summary" [title]="getBatchLocationSummary(row.id)">
+              {{ getBatchLocationSummary(row.id) }}
+            </span>
+          </td>
+          }
+
+          <!-- Manufacture Date (Level 2: Fixed & Readable) -->
+          @if (showBatchManufacture()) {
+          <td class="batch-table__td batch-table__td--manufacture">
+            <span class="date-cell">{{ formatDate(row.manufacturingDate) }}</span>
+          </td>
+          }
+
+          <!-- Expiry Date (Level 2: Fixed & Readable) -->
+          @if (showBatchExpiry()) {
+          <td class="batch-table__td batch-table__td--expiry">
+            @if (row.expiryDate) {
+            <span
+              class="expiry-cell"
+              [class.expiry-cell--expired]="getBatchStatus(row).tone === 'red'"
+              [class.expiry-cell--upcoming]="getBatchStatus(row).tone === 'amber'"
+            >
+              {{ formatDate(row.expiryDate) }}
+            </span>
+            } @else {
+            <span class="date-cell date-cell--none">—</span>
+            }
+          </td>
+          }
+
+          <!-- First Received (Level 2: Fixed & Readable) -->
+          @if (showBatchFirstReceived()) {
+          <td class="batch-table__td batch-table__td--received">
+            <span class="date-cell">{{ formatDateTime(row.firstReceivedAt) }}</span>
+          </td>
+          }
+
+          <!-- Available Quantity + Base Unit (Level 2: Fixed & Readable) -->
+          @if (showBatchQuantity()) {
+          <td class="batch-table__td batch-table__td--quantity">
+            <div class="quantity-cell">
+              <span class="quantity-cell__amount">
+                {{ getBatchTotalQuantity(row.id).formatted }}
+              </span>
+              @if (productBaseUnit(row.productId); as unit) {
+              <span class="quantity-cell__unit">{{ unit }}</span>
+              }
+            </div>
+          </td>
+          }
+
+          <!-- Status Badge (Level 2: Fixed & Readable) -->
+          @if (showBatchStatus()) {
+          <td class="batch-table__td batch-table__td--status">
+            <span
+              class="status-badge"
+              [class.status-badge--green]="getBatchStatus(row).tone === 'green'"
+              [class.status-badge--amber]="getBatchStatus(row).tone === 'amber'"
+              [class.status-badge--red]="getBatchStatus(row).tone === 'red'"
+              [class.status-badge--neutral]="getBatchStatus(row).tone === 'neutral'"
+            >
+              <span class="status-badge__dot"></span>
+              {{ getBatchStatus(row).label }}
+            </span>
+          </td>
+          }
+
+          <!-- Actions (Level 3: Inspect + More Overflow Dropdown) -->
+          @if (hasBatchRowActions()) {
+          <td class="batch-table__td batch-table__td--actions">
+            <div class="row-actions">
+              @if (canInspectBatch()) {
+              <button
+                type="button"
+                class="ag-btn ag-btn--sm ag-btn--secondary row-actions__inspect"
+                (click)="openInspector(row)"
+                title="Inspect Batch"
+                aria-label="Inspect Batch"
+              >
+                Inspect
+              </button>
+              } @if (hasBatchOverflowActions()) {
+              <div class="row-menu-wrap">
+                <button
+                  type="button"
+                  class="row-action-btn row-actions__more"
+                  (click)="toggleRowMenu(row.id, $event)"
+                  title="More actions"
+                  aria-label="More actions"
+                  [attr.aria-expanded]="openMenuBatchId() === row.id"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="1" />
+                    <circle cx="19" cy="12" r="1" />
+                    <circle cx="5" cy="12" r="1" />
+                  </svg>
+                </button>
+
+                @if (openMenuBatchId() === row.id) {
+                <div class="row-menu" role="menu">
+                  @if (canInspectBatch()) {
+                  <button
+                    type="button"
+                    class="row-menu__item"
+                    role="menuitem"
+                    (click)="openInspector(row); closeRowMenu()"
+                  >
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                    Inspect Batch
+                  </button>
+                  } @if (canViewStock()) {
+                  <a
+                    class="row-menu__item"
+                    role="menuitem"
+                    routerLink="/app/inventory/stock"
+                    (click)="closeRowMenu()"
+                  >
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+                      />
+                      <path d="m3.3 7 8.7 5 8.7-5" />
+                      <path d="M12 22V12" />
+                    </svg>
+                    View Stock
+                  </a>
+                  } @if (canViewMovements()) {
+                  <a
+                    class="row-menu__item"
+                    role="menuitem"
+                    routerLink="/app/inventory/movements"
+                    (click)="closeRowMenu()"
+                  >
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <polyline points="17 1 21 5 17 9" />
+                      <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                      <polyline points="7 23 3 19 7 15" />
+                      <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                    </svg>
+                    View Movements
+                  </a>
+                  } @if (canViewProducts()) {
+                  <a
+                    class="row-menu__item"
+                    role="menuitem"
+                    routerLink="/app/products"
+                    (click)="closeRowMenu()"
+                  >
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                      <line x1="3" y1="9" x2="21" y2="9" />
+                      <line x1="9" y1="21" x2="9" y2="9" />
+                    </svg>
+                    View Product
+                  </a>
+                  }
+                </div>
+                }
+              </div>
+              }
+            </div>
+          </td>
+          }
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  }
+
+  <!-- VIEW MODE: CARDS (Mobile Automatic & Desktop Optional) -->
+  @if (effectiveViewMode() === 'cards') {
+  <div class="cards-grid" data-testid="batches-cards-grid">
+    @for (row of batches(); track row.id) {
+    <article
+      class="batch-card"
+      [class.batch-card--selected]="selectedBatch()?.id === row.id"
+      data-testid="batch-card"
+    >
+      <!-- Card Head: Batch Number & Status -->
+      <div class="batch-card__head">
+        @if (canInspectBatch()) {
+        <button
+          type="button"
+          class="batch-card__batch-number"
+          (click)="openInspector(row)"
+          [title]="row.batchNumber"
+        >
+          {{ row.batchNumber }}
+        </button>
+        } @else {
+        <span class="batch-card__batch-number" [title]="row.batchNumber">
+          {{ row.batchNumber }}
+        </span>
+        } @if (showBatchStatus()) {
+        <span
+          class="status-badge"
+          [class.status-badge--green]="getBatchStatus(row).tone === 'green'"
+          [class.status-badge--amber]="getBatchStatus(row).tone === 'amber'"
+          [class.status-badge--red]="getBatchStatus(row).tone === 'red'"
+          [class.status-badge--neutral]="getBatchStatus(row).tone === 'neutral'"
+        >
+          <span class="status-badge__dot"></span>
+          {{ getBatchStatus(row).label }}
+        </span>
+        }
+      </div>
+
+      <!-- Card Body: Product and Location -->
+      <div class="batch-card__body">
+        <div class="batch-card__product">
+          <span class="batch-card__product-name">{{ productName(row.productId) }}</span>
+          @if (productSku(row.productId); as sku) {
+          <span class="batch-card__product-sku">{{ sku }}</span>
+          }
+        </div>
+
+        @if (showBatchLocations()) {
+        <div class="batch-card__location">
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+            <circle cx="12" cy="10" r="3" />
+          </svg>
+          <span>{{ getBatchLocationSummary(row.id) }}</span>
+        </div>
+        }
+
+        <!-- Metrics Grid -->
+        @if (showBatchExpiry() || showBatchQuantity() || showBatchFirstReceived()) {
+        <div class="batch-card__metrics">
+          @if (showBatchExpiry()) {
+          <div class="batch-card__metric">
+            <span class="batch-card__metric-label">Expiry</span>
+            <span
+              class="batch-card__metric-val"
+              [class.expiry-cell--expired]="getBatchStatus(row).tone === 'red'"
+              [class.expiry-cell--upcoming]="getBatchStatus(row).tone === 'amber'"
+            >
+              {{ formatDate(row.expiryDate) }}
+            </span>
+          </div>
+          } @if (showBatchQuantity()) {
+          <div class="batch-card__metric">
+            <span class="batch-card__metric-label">Available Qty</span>
+            <span class="batch-card__metric-val batch-card__metric-val--highlight">
+              {{ getBatchTotalQuantity(row.id).formatted }}
+              <span class="batch-card__metric-unit">{{ productBaseUnit(row.productId) }}</span>
+            </span>
+          </div>
+          } @if (showBatchFirstReceived()) {
+          <div class="batch-card__metric">
+            <span class="batch-card__metric-label">First Received</span>
+            <span class="batch-card__metric-val">{{ formatDateTime(row.firstReceivedAt) }}</span>
+          </div>
+          }
+        </div>
+        }
+      </div>
+
+      <!-- Card Footer: Row Actions -->
+      @if (hasBatchRowActions()) {
+      <div class="batch-card__foot">
+        @if (canInspectBatch()) {
+        <button
+          type="button"
+          class="ag-btn ag-btn--sm ag-btn--secondary batch-card__inspect-btn"
+          (click)="openInspector(row)"
+        >
+          Inspect
+        </button>
+        } @if (hasBatchOverflowActions()) {
+        <div class="row-menu-wrap">
+          <button
+            type="button"
+            class="row-action-btn"
+            (click)="toggleRowMenu(row.id, $event)"
+            title="More actions"
+            aria-label="More actions"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="1" />
+              <circle cx="19" cy="12" r="1" />
+              <circle cx="5" cy="12" r="1" />
+            </svg>
+          </button>
+
+          @if (openMenuBatchId() === row.id) {
+          <div class="row-menu" role="menu">
+            @if (canInspectBatch()) {
+            <button
+              type="button"
+              class="row-menu__item"
+              role="menuitem"
+              (click)="openInspector(row); closeRowMenu()"
+            >
+              Inspect Batch
+            </button>
+            } @if (canViewStock()) {
+            <a
+              class="row-menu__item"
+              role="menuitem"
+              routerLink="/app/inventory/stock"
+              (click)="closeRowMenu()"
+            >
+              View Stock
+            </a>
+            } @if (canViewMovements()) {
+            <a
+              class="row-menu__item"
+              role="menuitem"
+              routerLink="/app/inventory/movements"
+              (click)="closeRowMenu()"
+            >
+              View Movements
+            </a>
+            } @if (canViewProducts()) {
+            <a
+              class="row-menu__item"
+              role="menuitem"
+              routerLink="/app/products"
+              (click)="closeRowMenu()"
+            >
+              View Product
+            </a>
+            }
+          </div>
+          }
+        </div>
+        }
+      </div>
+      }
+    </article>
+    }
+  </div>
+  }
+
+  <!-- Server-Side Pagination Controls -->
+  <agrivio-ui-pagination
+    [page]="page()"
+    [pageSize]="pageSize()"
+    [total]="total()"
+    [disabled]="loading()"
+    (pageChange)="onPageChange($event)"
+    (pageSizeChange)="onPageSizeChange($event)"
+  />
+  } }
+
+  <!-- ========================================================================
+       BATCH INSPECTOR DRAWER (Desktop ~400-440px / Mobile Full-Width)
+       ======================================================================== -->
+  @if (selectedBatch(); as batch) {
+  <div class="inspector-backdrop" (click)="closeInspector()" aria-hidden="true"></div>
+  <aside
+    class="inspector-drawer"
+    role="dialog"
+    aria-modal="true"
+    [attr.aria-label]="'Inspect Batch ' + batch.batchNumber"
+    data-testid="batch-inspector"
+  >
+    <!-- Drawer Header -->
+    <div class="inspector-drawer__head">
+      <div class="inspector-drawer__head-title">
+        <div class="inspector-glyph" aria-hidden="true">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M7 7h10" />
+            <path d="M7 12h10" />
+            <path d="M7 17h10" />
+          </svg>
+        </div>
+        <div class="inspector-drawer__titles">
+          <h2 class="drawer-title" [title]="batch.batchNumber">{{ batch.batchNumber }}</h2>
+          <div class="drawer-badge-row">
+            @if (showBatchStatus()) {
+            <span
+              class="status-badge"
+              [class.status-badge--green]="getBatchStatus(batch).tone === 'green'"
+              [class.status-badge--amber]="getBatchStatus(batch).tone === 'amber'"
+              [class.status-badge--red]="getBatchStatus(batch).tone === 'red'"
+              [class.status-badge--neutral]="getBatchStatus(batch).tone === 'neutral'"
+            >
+              <span class="status-badge__dot"></span>
+              {{ getBatchStatus(batch).label }}
+            </span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="drawer-close-btn"
+        (click)="closeInspector()"
+        aria-label="Close batch inspector"
+        data-testid="batch-inspector-close"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Drawer Body -->
+    <div class="inspector-drawer__body">
+      <!-- Section 1: Batch Identity -->
+      <div class="drawer-sec">
+        <h3 class="drawer-sec__title">Batch Identity</h3>
+        <div class="drawer-field-grid">
+          <div class="drawer-field">
+            <span class="drawer-field__label">Batch Number</span>
+            <span class="drawer-field__val drawer-field__val--strong">{{ batch.batchNumber }}</span>
+          </div>
+          <div class="drawer-field">
+            <span class="drawer-field__label">Product</span>
+            <span class="drawer-field__val">{{ productName(batch.productId) }}</span>
+          </div>
+          @if (productSku(batch.productId); as sku) {
+          <div class="drawer-field">
+            <span class="drawer-field__label">SKU</span>
+            <span class="drawer-field__val">{{ sku }}</span>
+          </div>
+          }
+          <div class="drawer-field">
+            <span class="drawer-field__label">Base Unit</span>
+            <span class="drawer-field__val">{{ productBaseUnit(batch.productId) || '—' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Dates -->
+      @if (showBatchManufacture() || showBatchExpiry() || showBatchFirstReceived()) {
+      <div class="drawer-sec">
+        <h3 class="drawer-sec__title">Dates</h3>
+        <div class="drawer-field-grid">
+          @if (showBatchManufacture()) {
+          <div class="drawer-field">
+            <span class="drawer-field__label">Manufacture Date</span>
+            <span class="drawer-field__val">{{ formatDate(batch.manufacturingDate) }}</span>
+          </div>
+          } @if (showBatchExpiry()) {
+          <div class="drawer-field">
+            <span class="drawer-field__label">Expiry Date</span>
+            <span
+              class="drawer-field__val"
+              [class.expiry-cell--expired]="getBatchStatus(batch).tone === 'red'"
+              [class.expiry-cell--upcoming]="getBatchStatus(batch).tone === 'amber'"
+            >
+              {{ formatDate(batch.expiryDate) }}
+            </span>
+          </div>
+          } @if (showBatchFirstReceived()) {
+          <div class="drawer-field drawer-field--full">
+            <span class="drawer-field__label">First Received</span>
+            <span class="drawer-field__val">{{ formatDateTimeFull(batch.firstReceivedAt) }}</span>
+          </div>
+          }
+        </div>
+      </div>
+      }
+
+      <!-- Section 3: Stock by Location -->
+      @if (showBatchStockByLocation() && (showBatchLocations() || showBatchQuantity())) {
+      <div class="drawer-sec">
+        <h3 class="drawer-sec__title">Stock by Location</h3>
+        @if (getBatchLocations(batch.id).length === 0) {
+        <p class="drawer-empty-hint">No stock on hand across registered warehouses.</p>
+        } @else {
+        <div class="stock-location-list">
+          @for (loc of getBatchLocations(batch.id); track loc.warehouseId) {
+          <div class="stock-location-item">
+            @if (showBatchLocations()) {
+            <div class="stock-location-item__meta">
+              <span class="stock-location-item__name">{{ loc.warehouseName }}</span>
+              @if (loc.warehouseCode) {
+              <span class="stock-location-item__code">{{ loc.warehouseCode }}</span>
+              }
+            </div>
+            } @if (showBatchQuantity()) {
+            <div class="stock-location-item__qty">
+              <span class="stock-location-item__amount"
+                >{{ formatQuantity(loc.quantityBase) }}</span
+              >
+              <span class="stock-location-item__unit">{{ productBaseUnit(batch.productId) }}</span>
+            </div>
+            }
+          </div>
+          }
+          <!-- Total Summary Row -->
+          @if (showBatchQuantity()) {
+          <div class="stock-location-total">
+            <span class="stock-location-total__label">Total On Hand</span>
+            <span class="stock-location-total__val">
+              {{ getBatchTotalQuantity(batch.id).formatted }} {{ productBaseUnit(batch.productId) }}
+            </span>
+          </div>
+          }
+        </div>
+        }
+      </div>
+      }
+
+      <!-- Section 4: Technical Details (Collapsed by default) -->
+      @if (showBatchTechnicalDetails()) {
+      <div class="drawer-sec drawer-sec--collapsible">
+        <button
+          type="button"
+          class="drawer-sec__toggle"
+          (click)="toggleTechnicalDetails()"
+          [attr.aria-expanded]="technicalDetailsOpen()"
+        >
+          <span class="drawer-sec__title">Technical Details</span>
+          <svg
+            class="drawer-sec__chevron"
+            [class.drawer-sec__chevron--open]="technicalDetailsOpen()"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+
+        @if (technicalDetailsOpen()) {
+        <div class="drawer-field-grid drawer-field-grid--tech">
+          <div class="drawer-field drawer-field--full">
+            <span class="drawer-field__label">Batch ID</span>
+            <code class="drawer-field__code">{{ batch.id }}</code>
+          </div>
+          <div class="drawer-field drawer-field--full">
+            <span class="drawer-field__label">Product ID</span>
+            <code class="drawer-field__code">{{ batch.productId }}</code>
+          </div>
+          <div class="drawer-field drawer-field--full">
+            <span class="drawer-field__label">Organization ID</span>
+            <code class="drawer-field__code">{{ batch.organizationId }}</code>
+          </div>
+        </div>
+        }
+      </div>
+      }
+
+      <!-- Section 5: Quick Navigation -->
+      @if (canViewStock() || canViewMovements() || canViewProducts()) {
+      <div class="drawer-sec">
+        <h3 class="drawer-sec__title">Quick Navigation</h3>
+        <div class="quick-nav-list">
+          @if (canViewStock()) {
+          <a class="quick-nav-card" routerLink="/app/inventory/stock" (click)="closeInspector()">
+            <div class="quick-nav-card__icon">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+                />
+                <path d="m3.3 7 8.7 5 8.7-5" />
+                <path d="M12 22V12" />
+              </svg>
+            </div>
+            <div class="quick-nav-card__text">
+              <span class="quick-nav-card__title">View Stock</span>
+              <span class="quick-nav-card__sub">See current stock by warehouse location</span>
+            </div>
+            <svg
+              class="quick-nav-card__arrow"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </a>
+          } @if (canViewMovements()) {
+          <a
+            class="quick-nav-card"
+            routerLink="/app/inventory/movements"
+            (click)="closeInspector()"
+          >
+            <div class="quick-nav-card__icon">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="17 1 21 5 17 9" />
+                <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                <polyline points="7 23 3 19 7 15" />
+                <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+              </svg>
+            </div>
+            <div class="quick-nav-card__text">
+              <span class="quick-nav-card__title">Movements</span>
+              <span class="quick-nav-card__sub">View batch movement and transaction history</span>
+            </div>
+            <svg
+              class="quick-nav-card__arrow"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </a>
+          } @if (canViewProducts()) {
+          <a class="quick-nav-card" routerLink="/app/products" (click)="closeInspector()">
+            <div class="quick-nav-card__icon">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                <line x1="3" y1="9" x2="21" y2="9" />
+                <line x1="9" y1="21" x2="9" y2="9" />
+              </svg>
+            </div>
+            <div class="quick-nav-card__text">
+              <span class="quick-nav-card__title">View Product</span>
+              <span class="quick-nav-card__sub">Open master catalog product record</span>
+            </div>
+            <svg
+              class="quick-nav-card__arrow"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </a>
+          }
+        </div>
+      </div>
+      }
+    </div>
+  </aside>
+  }
+</div>

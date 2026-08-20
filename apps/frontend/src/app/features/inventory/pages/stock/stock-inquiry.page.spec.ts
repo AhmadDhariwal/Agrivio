@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { StockInquiryPage } from './stock-inquiry.page';
 import { InventoryApi } from '../../data-access/inventory.api';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
@@ -13,6 +13,7 @@ describe('StockInquiryPage', () => {
   let component: StockInquiryPage;
   let fixture: ComponentFixture<StockInquiryPage>;
   let capabilityState: ReturnType<typeof signal<Record<string, Record<string, boolean>>>>;
+  let batchListFails: boolean;
 
   const mockBalances = [
     {
@@ -104,6 +105,7 @@ describe('StockInquiryPage', () => {
 
   beforeEach(async () => {
     capabilityState = signal({});
+    batchListFails = false;
     const capabilityValue = (key: string, mode: string) => capabilityState()[key]?.[mode] ?? true;
     await TestBed.configureTestingModule({
       imports: [StockInquiryPage],
@@ -118,10 +120,12 @@ describe('StockInquiryPage', () => {
                 meta: { page: 1, pageSize: 25, total: 2 },
               }),
             listBatches: () =>
-              of({
-                items: mockBatches,
-                meta: { page: 1, pageSize: 100, total: 1 },
-              }),
+              batchListFails
+                ? throwError(() => new Error('Product Batches unavailable'))
+                : of({
+                    items: mockBatches,
+                    meta: { page: 1, pageSize: 100, total: 1 },
+                  }),
             listExpiry: () =>
               of({
                 items: [
@@ -351,6 +355,32 @@ describe('StockInquiryPage', () => {
     });
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('[data-testid="stock-opening-link"]')).toBeNull();
+  });
+
+  it('hides Product Batches cross-links when the target module is disabled', () => {
+    const firstBalance = mockBalances[0];
+    if (!firstBalance) throw new Error('Expected balance fixture');
+    capabilityState.set({
+      'inventory.batches': { enabled: false },
+    });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="stock-batches-link"]')).toBeNull();
+
+    component.selectBalance(firstBalance);
+    fixture.detectChanges();
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="inspector-batches-link"]'),
+    ).toBeNull();
+  });
+
+  it('keeps Stock on Hand available when Batch label enrichment is denied', () => {
+    batchListFails = true;
+    component.reload();
+    fixture.detectChanges();
+
+    expect(component.errorMessage()).toBeNull();
+    expect(component.balances()).toHaveLength(2);
+    expect(component.batchList()).toEqual([]);
   });
 
   it('shows a feature-unavailable state if the organization disables Stock on Hand', () => {

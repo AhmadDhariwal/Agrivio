@@ -7,7 +7,7 @@
   <agrivio-ui-page-header
     eyebrow="Platform · Organization Controls"
     [title]="state.organization.name"
-    lede="Configure registered Products, Categories, Stock-on-Hand, and Opening Stock controls without changing registry defaults or user RBAC permissions."
+    lede="Configure registered Products, Categories, Stock-on-Hand, Opening Stock, and Product Batches controls without changing registry defaults or user RBAC permissions."
   />
 
   <div class="identity-grid">
@@ -72,6 +72,15 @@
       >
         Opening Stock
       </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'inventory.batches'"
+        (click)="selectModule('inventory.batches')"
+        data-testid="batches-control-module"
+      >
+        Product Batches
+      </button>
       <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>
 
@@ -106,10 +115,13 @@
       @for ( section of [ { title: moduleLabel(selectedModule()) + ' Module', controls:
       moduleControls() }, { title: 'Views', controls: viewControls() }, { title: selectedModule()
       === 'inventory.openingStock' ? 'Optional UI' : 'Derived UI', controls: featureControls() }, {
-      title: selectedModule() === 'inventory.openingStock' ? 'Optional Fields' : 'Fields', controls:
-      fieldControls() }, { title: 'Required Workflow Fields', controls: requiredWorkflowControls()
-      }, { title: 'Widgets', controls: widgetControls() }, { title: 'Actions', controls:
-      actionControls() } ]; track section.title ) { @if (section.controls.length > 0) {
+      title: 'Module Information', controls: moduleInfoControls() }, { title: 'Filters', controls:
+      filterControls() }, { title: 'Inspector', controls: inspectorControls() }, { title:
+      selectedModule() === 'inventory.openingStock' ? 'Optional Fields' : 'Fields', controls:
+      fieldControls() }, { title: selectedModule() === 'inventory.batches' ? 'Required Fields' :
+      'Required Workflow Fields', controls: requiredWorkflowControls() }, { title: 'Widgets',
+      controls: widgetControls() }, { title: 'Actions', controls: actionControls() } ]; track
+      section.title ) { @if (section.controls.length > 0) {
       <section class="control-section">
         <h2>{{ section.title }}</h2>
         <div class="control-list">

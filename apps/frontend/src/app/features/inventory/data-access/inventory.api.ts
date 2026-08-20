@@ -67,10 +67,21 @@ export class InventoryApi {
       .pipe(map((response) => ({ items: response.data, meta: response.meta! })));
   }
 
-  listBatches(query: PaginationQuery & { productId?: string } = {}): Observable<PaginatedResult<ProductBatchRecord>> {
-    const params: Record<string, string> = { page: String(query.page ?? 1), pageSize: String(query.pageSize ?? 25) };
+  listBatches(
+    query: PaginationQuery & { productId?: string; warehouseId?: string; search?: string } = {},
+  ): Observable<PaginatedResult<ProductBatchRecord>> {
+    const params: Record<string, string> = {
+      page: String(query.page ?? 1),
+      pageSize: String(query.pageSize ?? 25),
+    };
     if (query?.productId) {
       params['productId'] = query.productId;
+    }
+    if (query?.warehouseId) {
+      params['warehouseId'] = query.warehouseId;
+    }
+    if (query?.search) {
+      params['search'] = query.search;
     }
     return this.http
       .get<ApiSuccessEnvelope<ProductBatchRecord[], PaginationMeta>>(

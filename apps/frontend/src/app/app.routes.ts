@@ -520,6 +520,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'inventory/batches',
+        canActivate: [requireCapabilityGuard('inventory.batches')],
         loadComponent: () =>
           import('./features/inventory/pages/batches/batches.page').then((m) => m.BatchesPage),
       },
