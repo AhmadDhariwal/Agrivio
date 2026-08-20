@@ -338,6 +338,21 @@ describe('StockInquiryPage', () => {
     expect(fixture.nativeElement.querySelector('.inspector-drawer')).toBeNull();
   });
 
+  it('hides the cross-module Opening Stock action when its module or Post action is disabled', () => {
+    capabilityState.set({
+      'inventory.openingStock': { enabled: false },
+    });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="stock-opening-link"]')).toBeNull();
+
+    capabilityState.set({
+      'inventory.openingStock': { enabled: true },
+      'inventory.openingStock.actions.post': { allowed: false },
+    });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="stock-opening-link"]')).toBeNull();
+  });
+
   it('shows a feature-unavailable state if the organization disables Stock on Hand', () => {
     capabilityState.set({
       'inventory.stock': { enabled: false },
@@ -348,5 +363,11 @@ describe('StockInquiryPage', () => {
       fixture.nativeElement.querySelector('[data-testid="stock-feature-unavailable"]'),
     ).toBeTruthy();
     expect(fixture.nativeElement.textContent).toContain('Stock on Hand is unavailable');
+  });
+
+  it('renders the module info section', () => {
+    const moduleInfo = fixture.nativeElement.querySelector('agrivio-ui-module-info');
+    expect(moduleInfo).not.toBeNull();
+    expect(moduleInfo.textContent).toContain('About Stock on Hand');
   });
 });

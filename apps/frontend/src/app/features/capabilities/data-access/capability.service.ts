@@ -61,6 +61,18 @@ const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string,
   'inventory.stock.features.valuationSection': { enabled: true },
   'inventory.stock.features.trackingSection': { enabled: true },
   'inventory.stock.actions.inspect': { allowed: true },
+  'inventory.openingStock': { enabled: true },
+  'inventory.openingStock.features.moduleInfo': { enabled: true },
+  'inventory.openingStock.features.productSearch': { enabled: true },
+  'inventory.openingStock.fields.packagingUnit': { visible: true },
+  'inventory.openingStock.fields.manufacturingDate': { visible: true },
+  'inventory.openingStock.fields.warehouse': { visible: true },
+  'inventory.openingStock.fields.product': { visible: true },
+  'inventory.openingStock.fields.quantity': { visible: true },
+  'inventory.openingStock.fields.inventoryValue': { visible: true },
+  'inventory.openingStock.fields.batchExpiry': { visible: true },
+  'inventory.openingStock.actions.post': { allowed: true },
+  'inventory.openingStock.actions.viewStock': { allowed: true },
 };
 
 @Injectable({ providedIn: 'root' })

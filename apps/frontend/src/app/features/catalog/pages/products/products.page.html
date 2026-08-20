@@ -51,6 +51,14 @@
   </div>
   }
 
+  <!-- Module Information Section -->
+  <agrivio-ui-module-info
+    [title]="infoTitle"
+    [description]="infoDescription"
+    [items]="infoItems"
+    [defaultExpanded]="false"
+  />
+
   <!-- KPI Summary Row (Desktop 4 cards, Tablet 2x2, Mobile compact 2x2 ~72px) -->
   @if (hasWidgets()) {
   <section class="kpi-row" aria-label="Catalog Summary">

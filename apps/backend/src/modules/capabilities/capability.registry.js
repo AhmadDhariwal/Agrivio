@@ -16,6 +16,7 @@ const RISK_LEVELS = Object.freeze({
 const PRODUCTS_MODULE_KEY = 'inventory.products';
 const CATEGORIES_MODULE_KEY = 'inventory.categories';
 const STOCK_MODULE_KEY = 'inventory.stock';
+const OPENING_STOCK_MODULE_KEY = 'inventory.openingStock';
 
 const definitions = [
   {
@@ -490,6 +491,101 @@ const definitions = [
     risk: RISK_LEVELS.Normal,
     requiredPermissions: { allowed: 'inventory.view' },
   },
+  {
+    key: OPENING_STOCK_MODULE_KEY,
+    parentKey: 'inventory',
+    moduleKey: OPENING_STOCK_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label: 'Opening Stock',
+    description: 'Opening Stock workflow access for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'inventory.view' },
+    reason:
+      'Disabling access blocks Opening Stock posting without changing existing stock or historical transactions.',
+  },
+  ...[
+    ['moduleInfo', 'Module Information', 'Show the Opening Stock guidance panel.'],
+    [
+      'productSearch',
+      'Find Product Search',
+      'Show the optional helper used to filter product options.',
+    ],
+  ].map(([id, label, description]) => ({
+    key: `inventory.openingStock.features.${id}`,
+    parentKey: OPENING_STOCK_MODULE_KEY,
+    moduleKey: OPENING_STOCK_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'inventory.view' },
+  })),
+  ...[
+    [
+      'packagingUnit',
+      'Packaging Unit',
+      'Optional packaging conversion selector. The product base unit is used when hidden.',
+    ],
+    ['manufacturingDate', 'Manufacturing Date', 'Optional production date for tracked stock.'],
+  ].map(([id, label, description]) => ({
+    key: `inventory.openingStock.fields.${id}`,
+    parentKey: OPENING_STOCK_MODULE_KEY,
+    moduleKey: OPENING_STOCK_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description,
+    defaultPolicy: { visible: true },
+    configurable: { visible: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { visible: 'inventory.view' },
+  })),
+  ...[
+    ['warehouse', 'Warehouse', 'Opening Stock must identify the destination warehouse.'],
+    ['product', 'Product', 'Opening Stock must identify the product being initialized.'],
+    ['quantity', 'Quantity', 'A positive starting quantity is required for stock posting.'],
+    [
+      'inventoryValue',
+      'Opening Inventory Value',
+      'Opening Stock requires a value to establish the authoritative starting cost basis.',
+    ],
+    [
+      'batchExpiry',
+      'Batch / Expiry',
+      'Batch and expiry requirements are enforced conditionally by the selected product tracking mode.',
+    ],
+  ].map(([id, label, reason]) => ({
+    key: `inventory.openingStock.fields.${id}`,
+    parentKey: OPENING_STOCK_MODULE_KEY,
+    moduleKey: OPENING_STOCK_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description: 'Required Opening Stock workflow data.',
+    defaultPolicy: { visible: true },
+    configurable: { visible: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'inventory.view' },
+    reason,
+  })),
+  ...[
+    ['post', 'Post Opening Stock', 'inventory.opening-stock.post', RISK_LEVELS.Critical],
+    ['viewStock', 'View Stock', 'inventory.view', RISK_LEVELS.Normal],
+  ].map(([id, label, permission, risk]) => ({
+    key: `inventory.openingStock.actions.${id}`,
+    parentKey: OPENING_STOCK_MODULE_KEY,
+    moduleKey: OPENING_STOCK_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label,
+    description: `${label} action. Existing RBAC and inventory validation still apply.`,
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk,
+    requiredPermissions: { allowed: permission },
+  })),
 ];
 
 const registry = new Map(
@@ -525,6 +621,7 @@ module.exports = {
   PRODUCTS_MODULE_KEY,
   CATEGORIES_MODULE_KEY,
   STOCK_MODULE_KEY,
+  OPENING_STOCK_MODULE_KEY,
   listCapabilityControls,
   getCapabilityControl,
 };

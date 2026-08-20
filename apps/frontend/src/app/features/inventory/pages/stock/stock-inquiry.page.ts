@@ -7,7 +7,6 @@ import {
   debounceTime,
   distinctUntilChanged,
   forkJoin,
-  of,
   startWith,
   switchMap,
 } from 'rxjs';
@@ -23,6 +22,7 @@ import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.compon
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
+import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import { applyPaginationMeta } from '../../../../shared/data-access/pagination';
 import {
   ExpiryInventoryRecord,
@@ -46,11 +46,21 @@ export interface StockStatusInfo {
     UiEmptyStateComponent,
     UiLoadingStateComponent,
     UiPaginationComponent,
+    UiModuleInfoComponent,
   ],
   templateUrl: './stock-inquiry.page.html',
   styleUrl: './stock-inquiry.page.scss',
 })
 export class StockInquiryPage {
+  readonly infoTitle = 'About Stock on Hand';
+  readonly infoDescription =
+    'Monitor live inventory balances, warehouse distributions, batch states, and WAC valuations.';
+  readonly infoItems = [
+    'View real-time stock quantities across all registered warehouses',
+    'Inspect batch numbers, manufacturing dates, and expiry tracking',
+    'Review weighted-average cost (WAC) and total inventory valuation in PKR',
+    'Identify low-stock items, unsellable stock, and operational alerts',
+  ];
   private readonly inventoryApi = inject(InventoryApi);
   private readonly catalogApi = inject(CatalogApi);
   private readonly locationsApi = inject(BranchesWarehousesApi);
@@ -113,8 +123,11 @@ export class StockInquiryPage {
   readonly canView = computed(
     () => this.sessionStore.hasPermission('inventory.view') && this.canUseInventoryStock(),
   );
-  readonly canPostOpening = computed(() =>
-    this.sessionStore.hasPermission('inventory.opening-stock.post'),
+  readonly canPostOpening = computed(
+    () =>
+      this.sessionStore.hasPermission('inventory.opening-stock.post') &&
+      (this.capabilityService?.canUseModule('inventory.openingStock') ?? true) &&
+      (this.capabilityService?.canPerformAction('inventory.openingStock.actions.post') ?? true),
   );
   readonly canViewExpiry = computed(() => this.sessionStore.hasPermission('inventory.expiry.view'));
   readonly canViewMovements = computed(() => this.sessionStore.hasPermission('inventory.view'));

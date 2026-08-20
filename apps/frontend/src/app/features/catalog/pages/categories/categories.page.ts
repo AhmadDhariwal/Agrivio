@@ -10,6 +10,7 @@ import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-e
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
+import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import { applyPaginationMeta } from '../../../../shared/data-access/pagination';
 import {
   EMPTY,
@@ -39,11 +40,21 @@ import {
     UiLoadingStateComponent,
     UiConfirmDialogComponent,
     UiPaginationComponent,
+    UiModuleInfoComponent,
   ],
   templateUrl: './categories.page.html',
   styleUrl: './categories.page.scss',
 })
 export class CategoriesPage {
+  readonly infoTitle = 'About Product Categories';
+  readonly infoDescription =
+    'Organize product classification and enforce regulatory tracking and lifecycle consistency.';
+  readonly infoItems = [
+    'Classify products into agricultural categories and taxonomies',
+    'Enforce derived regulatory tracking rules (Pesticides, Fertilizers, Seeds)',
+    'Manage catalog-wide lifecycle status and active availability',
+    'Ensure consistent unit dimensions across related product lines',
+  ];
   private readonly api = inject(CatalogApi);
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly capabilityService = inject(CapabilityService, { optional: true });

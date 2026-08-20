@@ -158,6 +158,14 @@
   </div>
   }
 
+  <!-- Module Information Section -->
+  <agrivio-ui-module-info
+    [title]="infoTitle"
+    [description]="infoDescription"
+    [items]="infoItems"
+    [defaultExpanded]="false"
+  />
+
   <!-- Authoritative KPI Summary Row (Compact 80px Cards, same as Products) -->
   @if (showAnyWidget()) {
   <section class="kpi-row" aria-label="Inventory Summary" data-testid="stock-kpis">

@@ -7,7 +7,7 @@ import requestIdModule from '../../platform/http/request-id.middleware';
 import inventoryRoutesModule from './routes/inventory.routes';
 
 const { createErrorHandlerMiddleware } = errorHandlerModule;
-const { orgCapabilityDisabled } = appErrorModule;
+const { orgActionNotAllowed, orgCapabilityDisabled } = appErrorModule;
 const { createRequestIdMiddleware } = requestIdModule;
 const { registerInventoryRoutes } = inventoryRoutesModule;
 
@@ -75,6 +75,93 @@ describe('Stock-on-Hand capability route enforcement', () => {
       const movements = await fetch(`${baseUrl}/api/v1/inventory/movements`);
       expect(movements.status).toBe(200);
       expect(listMovements).toHaveBeenCalledOnce();
+      expect(assertAllowed).toHaveBeenCalledOnce();
+    });
+  });
+});
+
+describe('Opening Stock capability route enforcement', () => {
+  it('checks both module access and the posting action before posting', async () => {
+    const postOpeningStock = vi.fn();
+    const assertAllowed = vi.fn(async (_organizationId, key, mode) => {
+      if (key === 'inventory.openingStock') {
+        expect(mode).toBe('enabled');
+        return;
+      }
+      expect(key).toBe('inventory.openingStock.actions.post');
+      expect(mode).toBe('allowed');
+      throw orgActionNotAllowed('Post Opening Stock is not allowed', { controlKey: key });
+    });
+    const app = express();
+    app.use(createRequestIdMiddleware());
+    app.use(
+      registerInventoryRoutes({
+        requireAuth: (req, _res, next) => {
+          req.auth = { session: {}, user: {} };
+          req.authContext = {
+            contextType: 'organization',
+            organizationId: 'org-a',
+            userId: 'user-a',
+            permissions: ['inventory.view', 'inventory.opening-stock.post'],
+          };
+          next();
+        },
+        requireCsrf: (_req, _res, next) => next(),
+        requireOperationalAccess: (_req, _res, next) => next(),
+        capabilityService: { assertAllowed },
+        inventoryService: { postOpeningStock },
+      }),
+    );
+    app.use(createErrorHandlerMiddleware('test', () => undefined));
+
+    await withServer(app, async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/v1/inventory/opening-stock`, {
+        method: 'POST',
+      });
+      const body = await response.json();
+      expect(response.status).toBe(403);
+      expect(body.error.code).toBe('ORG_ACTION_NOT_ALLOWED');
+      expect(postOpeningStock).not.toHaveBeenCalled();
+      expect(assertAllowed).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('blocks posting at the module boundary when Opening Stock is disabled', async () => {
+    const postOpeningStock = vi.fn();
+    const assertAllowed = vi.fn(async (_organizationId, key) => {
+      expect(key).toBe('inventory.openingStock');
+      throw orgCapabilityDisabled('Opening Stock is disabled', { controlKey: key });
+    });
+    const app = express();
+    app.use(createRequestIdMiddleware());
+    app.use(
+      registerInventoryRoutes({
+        requireAuth: (req, _res, next) => {
+          req.auth = { session: {}, user: {} };
+          req.authContext = {
+            contextType: 'organization',
+            organizationId: 'org-a',
+            userId: 'user-a',
+            permissions: ['inventory.view', 'inventory.opening-stock.post'],
+          };
+          next();
+        },
+        requireCsrf: (_req, _res, next) => next(),
+        requireOperationalAccess: (_req, _res, next) => next(),
+        capabilityService: { assertAllowed },
+        inventoryService: { postOpeningStock },
+      }),
+    );
+    app.use(createErrorHandlerMiddleware('test', () => undefined));
+
+    await withServer(app, async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/v1/inventory/opening-stock`, {
+        method: 'POST',
+      });
+      const body = await response.json();
+      expect(response.status).toBe(403);
+      expect(body.error.code).toBe('ORG_CAPABILITY_DISABLED');
+      expect(postOpeningStock).not.toHaveBeenCalled();
       expect(assertAllowed).toHaveBeenCalledOnce();
     });
   });

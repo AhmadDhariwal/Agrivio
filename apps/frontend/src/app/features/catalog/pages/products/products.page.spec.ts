@@ -161,4 +161,10 @@ describe('ProductsPage', () => {
     component.isMobile.set(true);
     expect(component.effectiveViewMode()).toBe('cards');
   });
+
+  it('renders the module info section', () => {
+    const moduleInfo = fixture.nativeElement.querySelector('agrivio-ui-module-info');
+    expect(moduleInfo).not.toBeNull();
+    expect(moduleInfo.textContent).toContain('About Product Catalog');
+  });
 });

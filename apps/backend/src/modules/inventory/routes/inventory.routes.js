@@ -26,6 +26,16 @@ function registerInventoryRoutes(deps) {
     'inventory.stock',
     'enabled',
   );
+  const requireOpeningStockModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.openingStock',
+    'enabled',
+  );
+  const requirePostOpeningStock = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.openingStock.actions.post',
+    'allowed',
+  );
 
   router.get(
     API_INVENTORY_BALANCES_PATH,
@@ -101,6 +111,8 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.opening-stock.post'),
     deps.requireOperationalAccess,
+    requireOpeningStockModule,
+    requirePostOpeningStock,
     createRequireWarehouseAccessMiddleware(),
     (req, res, next) => {
       void controller.postOpeningStock(req, res, next);

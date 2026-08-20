@@ -16,7 +16,8 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 
 type DraftValues = Readonly<Record<string, Readonly<Record<string, boolean>>>>;
-type ConfigurableModule = 'inventory.products' | 'inventory.categories' | 'inventory.stock';
+type ConfigurableModule =
+  'inventory.products' | 'inventory.categories' | 'inventory.stock' | 'inventory.openingStock';
 type PendingConfirmation =
   | { readonly kind: 'save' }
   | { readonly kind: 'reset-control'; readonly control: PlatformCapabilityControl }
@@ -67,7 +68,12 @@ export class OrganizationControlsPage {
   });
   readonly moduleControls = computed(() => this.byType('FEATURE', true));
   readonly viewControls = computed(() => this.byType('VIEW'));
-  readonly fieldControls = computed(() => this.byType('FIELD'));
+  readonly fieldControls = computed(() =>
+    this.byType('FIELD').filter((control) => !this.isRequiredWorkflowControl(control)),
+  );
+  readonly requiredWorkflowControls = computed(() =>
+    this.byType('FIELD').filter((control) => this.isRequiredWorkflowControl(control)),
+  );
   readonly featureControls = computed(() => this.byType('FEATURE', false));
   readonly widgetControls = computed(() => this.byType('WIDGET'));
   readonly actionControls = computed(() => this.byType('ACTION'));
@@ -111,6 +117,14 @@ export class OrganizationControlsPage {
     () => this.controls().filter((control) => control.override !== null).length,
   );
   readonly confirmOpen = computed(() => this.pendingConfirmation() !== null);
+  readonly disablingOpeningStock = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'inventory.openingStock' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
   readonly confirmationTitle = computed(() => {
     const pending = this.pendingConfirmation();
     const organization = this.snapshot()?.organization.name ?? 'this organization';
@@ -119,6 +133,7 @@ export class OrganizationControlsPage {
       return `Reset ${this.moduleLabel(pending.moduleKey)} controls for ${organization}?`;
     }
     if (pending?.kind === 'reset-organization') return `Reset all controls for ${organization}?`;
+    if (this.disablingOpeningStock()) return `Disable Opening Stock for ${organization}?`;
     const single = this.changeSummary().length === 1 ? this.changeSummary()[0] : null;
     if (single?.risk === 'CRITICAL' && single.after === 'Disabled') {
       return `Disable ${single.label} for ${organization}?`;
@@ -137,6 +152,9 @@ export class OrganizationControlsPage {
     if (pending?.kind === 'reset-organization') {
       return `${this.organizationOverrideCount()} organization-specific override(s) will be removed. Agrivio defaults, subscription, RBAC, and platform rules will apply. Organization data is unchanged.`;
     }
+    if (this.disablingOpeningStock()) {
+      return `Users in this organization will no longer be able to access or post Opening Stock. Existing stock and historical transactions will not be changed.`;
+    }
     const critical = this.changeSummary()
       .filter((change) => change.risk === 'CRITICAL')
       .map((change) => `${change.label}: ${change.before} → ${change.after}`);
@@ -149,6 +167,7 @@ export class OrganizationControlsPage {
     if (pending?.kind === 'reset-control') return 'Reset control';
     if (pending?.kind === 'reset-module') return `Reset ${this.moduleLabel(pending.moduleKey)}`;
     if (pending?.kind === 'reset-organization') return 'Reset all controls';
+    if (this.disablingOpeningStock()) return 'Disable Opening Stock';
     return 'Apply changes';
   });
 
@@ -327,7 +346,16 @@ export class OrganizationControlsPage {
   moduleLabel(moduleKey: ConfigurableModule): string {
     if (moduleKey === 'inventory.products') return 'Products';
     if (moduleKey === 'inventory.categories') return 'Categories';
-    return 'Inventory / Stock on Hand';
+    if (moduleKey === 'inventory.stock') return 'Inventory / Stock on Hand';
+    return 'Opening Stock';
+  }
+
+  isRequiredWorkflowControl(control: PlatformCapabilityControl): boolean {
+    return (
+      control.moduleKey === 'inventory.openingStock' &&
+      control.type === 'FIELD' &&
+      control.platformEnforced === true
+    );
   }
 
   private save(): void {
