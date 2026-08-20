@@ -27,7 +27,7 @@ function control(result, key) {
   return result.controls.find((item) => item.key === key);
 }
 
-describe('Organization Capability Policy with Products and Categories reference modules', () => {
+describe('Organization Capability Policy with Products, Categories, and Stock-on-Hand modules', () => {
   it('preserves current Products behavior when an organization has no policy document', async () => {
     const { capabilityService } = createHarness();
     const effective = await capabilityService.resolveEffective('org-a', {
@@ -65,6 +65,159 @@ describe('Organization Capability Policy with Products and Categories reference 
     expect(
       control(effective, 'inventory.categories.widgets.totalCategories').effectiveValue.visible,
     ).toBe(true);
+  });
+
+  it('preserves current Stock-on-Hand behavior when an organization has no override', async () => {
+    const { capabilityService } = createHarness();
+    const effective = await capabilityService.resolveEffective('org-a', {
+      permissions: ['inventory.view'],
+    });
+
+    expect(control(effective, 'inventory.stock').effectiveValue.enabled).toBe(true);
+    expect(control(effective, 'inventory.stock.views.desktopCards').effectiveValue.enabled).toBe(
+      true,
+    );
+    expect(control(effective, 'inventory.stock.fields.product').effectiveValue.visible).toBe(true);
+    expect(control(effective, 'inventory.stock.fields.quantityBase').effectiveValue.visible).toBe(
+      true,
+    );
+    expect(control(effective, 'inventory.stock.fields.wac').effectiveValue.visible).toBe(true);
+    expect(control(effective, 'inventory.stock.actions.inspect').effectiveValue.allowed).toBe(true);
+  });
+
+  it('isolates Stock-on-Hand module and valuation visibility policy by organization', async () => {
+    const { capabilityService } = createHarness();
+    await capabilityService.updatePolicy(
+      'org-a',
+      {
+        expectedVersion: 0,
+        changes: [
+          { key: 'inventory.stock', value: { enabled: false } },
+          { key: 'inventory.stock.fields.wac', value: { visible: false } },
+        ],
+      },
+      { actorId: 'platform-admin' },
+    );
+    await capabilityService.updatePolicy(
+      'org-b',
+      {
+        expectedVersion: 0,
+        changes: [{ key: 'inventory.stock.fields.inventoryValue', value: { visible: false } }],
+      },
+      { actorId: 'platform-admin' },
+    );
+
+    const orgA = await capabilityService.resolveEffective('org-a');
+    const orgB = await capabilityService.resolveEffective('org-b');
+    expect(control(orgA, 'inventory.stock').effectiveValue.enabled).toBe(false);
+    expect(control(orgA, 'inventory.stock.actions.inspect').effectiveValue.allowed).toBe(false);
+    expect(control(orgA, 'inventory.stock.fields.wac').override).toEqual({ visible: false });
+    expect(control(orgB, 'inventory.stock').effectiveValue.enabled).toBe(true);
+    expect(control(orgB, 'inventory.stock.fields.wac').effectiveValue.visible).toBe(true);
+    expect(control(orgB, 'inventory.stock.fields.inventoryValue').effectiveValue.visible).toBe(
+      false,
+    );
+  });
+
+  it('rejects unknown Stock controls and safety-controlled Stock identity fields', async () => {
+    const { capabilityService } = createHarness();
+
+    await expect(
+      capabilityService.updatePolicy(
+        'org-a',
+        {
+          expectedVersion: 0,
+          changes: [{ key: 'inventory.stock.fields.unknown', value: { visible: false } }],
+        },
+        { actorId: 'platform-admin' },
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+
+    await expect(
+      capabilityService.updatePolicy(
+        'org-a',
+        {
+          expectedVersion: 0,
+          changes: [{ key: 'inventory.stock.fields.quantityBase', value: { visible: false } }],
+        },
+        { actorId: 'platform-admin' },
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  });
+
+  it('resets only Stock-on-Hand overrides and emits auditable version transitions', async () => {
+    const { capabilityService, auditStore } = createHarness();
+    const updated = await capabilityService.updatePolicy(
+      'org-a',
+      {
+        expectedVersion: 0,
+        reason: 'Hide valuation from store users',
+        changes: [
+          { key: 'inventory.stock.fields.wac', value: { visible: false } },
+          { key: 'inventory.stock.widgets.expiringExpired', value: { visible: false } },
+          { key: 'inventory.categories.widgets.totalCategories', value: { visible: false } },
+        ],
+      },
+      { actorId: 'platform-admin' },
+    );
+    expect(updated.version).toBe(1);
+
+    const oneReset = await capabilityService.resetOverride(
+      'org-a',
+      'inventory.stock.fields.wac',
+      1,
+      { actorId: 'platform-admin' },
+      'Restore WAC',
+    );
+    expect(oneReset.version).toBe(2);
+    expect(control(oneReset, 'inventory.stock.fields.wac').override).toBeNull();
+
+    const moduleReset = await capabilityService.resetModule('org-a', 'inventory.stock', 2, {
+      actorId: 'platform-admin',
+    });
+    expect(moduleReset.version).toBe(3);
+    expect(control(moduleReset, 'inventory.stock.widgets.expiringExpired').override).toBeNull();
+    expect(control(moduleReset, 'inventory.categories.widgets.totalCategories').override).toEqual({
+      visible: false,
+    });
+
+    const events = auditStore.listForTest();
+    expect(events).toHaveLength(5);
+    expect(events.at(-1)).toMatchObject({
+      actorId: 'platform-admin',
+      metadata: {
+        controlKey: 'inventory.stock.widgets.expiringExpired',
+        versionBefore: 2,
+        versionAfter: 3,
+        previousOverride: { visible: false },
+        newOverride: null,
+      },
+    });
+  });
+
+  it('lets platform policy management re-enable a disabled Stock-on-Hand module', async () => {
+    const { capabilityService } = createHarness();
+    const disabled = await capabilityService.updatePolicy(
+      'org-a',
+      {
+        expectedVersion: 0,
+        changes: [{ key: 'inventory.stock', value: { enabled: false } }],
+      },
+      { actorId: 'platform-admin' },
+    );
+    expect(control(disabled, 'inventory.stock').effectiveValue.enabled).toBe(false);
+
+    const enabled = await capabilityService.updatePolicy(
+      'org-a',
+      {
+        expectedVersion: 1,
+        changes: [{ key: 'inventory.stock', value: { enabled: true } }],
+      },
+      { actorId: 'platform-admin' },
+    );
+    expect(enabled.version).toBe(2);
+    expect(control(enabled, 'inventory.stock').effectiveValue.enabled).toBe(true);
+    expect(control(enabled, 'inventory.stock').override).toBeNull();
   });
 
   it('rejects unknown controls and safety-controlled modes', async () => {

@@ -497,6 +497,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'inventory/stock',
+        canActivate: [requireCapabilityGuard('inventory.stock')],
         loadComponent: () =>
           import('./features/inventory/pages/stock/stock-inquiry.page').then(
             (m) => m.StockInquiryPage,

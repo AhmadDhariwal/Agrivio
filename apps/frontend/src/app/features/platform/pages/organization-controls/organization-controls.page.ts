@@ -16,7 +16,7 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 
 type DraftValues = Readonly<Record<string, Readonly<Record<string, boolean>>>>;
-type ConfigurableModule = 'inventory.products' | 'inventory.categories';
+type ConfigurableModule = 'inventory.products' | 'inventory.categories' | 'inventory.stock';
 type PendingConfirmation =
   | { readonly kind: 'save' }
   | { readonly kind: 'reset-control'; readonly control: PlatformCapabilityControl }
@@ -325,7 +325,9 @@ export class OrganizationControlsPage {
   }
 
   moduleLabel(moduleKey: ConfigurableModule): string {
-    return moduleKey === 'inventory.products' ? 'Products' : 'Categories';
+    if (moduleKey === 'inventory.products') return 'Products';
+    if (moduleKey === 'inventory.categories') return 'Categories';
+    return 'Inventory / Stock on Hand';
   }
 
   private save(): void {

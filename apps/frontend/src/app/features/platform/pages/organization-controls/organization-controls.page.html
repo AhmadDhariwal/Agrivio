@@ -7,7 +7,7 @@
   <agrivio-ui-page-header
     eyebrow="Platform · Organization Controls"
     [title]="state.organization.name"
-    lede="Configure registered Products and Categories controls without changing registry defaults or user RBAC permissions."
+    lede="Configure registered Products, Categories, and Stock-on-Hand controls without changing registry defaults or user RBAC permissions."
   />
 
   <div class="identity-grid">
@@ -53,6 +53,15 @@
         data-testid="categories-control-module"
       >
         Categories
+      </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'inventory.stock'"
+        (click)="selectModule('inventory.stock')"
+        data-testid="inventory-control-module"
+      >
+        Inventory / Stock on Hand
       </button>
       <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>

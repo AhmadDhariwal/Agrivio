@@ -10,6 +10,7 @@ const {
   CONTROL_TYPES,
   CATEGORIES_MODULE_KEY,
   PRODUCTS_MODULE_KEY,
+  STOCK_MODULE_KEY,
   getCapabilityControl,
   listCapabilityControls,
 } = require('./capability.registry');
@@ -418,7 +419,7 @@ function createCapabilityService(deps) {
     },
 
     async resetModule(organizationId, moduleKey, expectedVersion, actor, reason) {
-      if (![PRODUCTS_MODULE_KEY, CATEGORIES_MODULE_KEY].includes(moduleKey)) {
+      if (![PRODUCTS_MODULE_KEY, CATEGORIES_MODULE_KEY, STOCK_MODULE_KEY].includes(moduleKey)) {
         throw validationFailed(`Unknown configurable module ${moduleKey}`);
       }
       const current = await loadPolicy(organizationId);

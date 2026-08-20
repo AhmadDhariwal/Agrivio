@@ -8,7 +8,7 @@ import { OrganizationControlsPage } from './organization-controls.page';
 
 function control(
   key: string,
-  moduleKey: 'inventory.products' | 'inventory.categories',
+  moduleKey: 'inventory.products' | 'inventory.categories' | 'inventory.stock',
   type: PlatformCapabilityControl['type'],
   label: string,
   policy: Record<string, boolean>,
@@ -36,10 +36,12 @@ describe('OrganizationControlsPage', () => {
   let fixture: ComponentFixture<OrganizationControlsPage>;
   let saved: { expectedVersion: number; changes: readonly unknown[] } | null;
   const resetControl = vi.fn();
+  const resetModule = vi.fn();
 
   beforeEach(async () => {
     saved = null;
     resetControl.mockReset().mockReturnValue(of({}));
+    resetModule.mockReset().mockReturnValue(of({}));
     const controls = [
       control(
         'inventory.products',
@@ -78,6 +80,29 @@ describe('OrganizationControlsPage', () => {
         'Total Categories',
         { visible: true },
       ),
+      control(
+        'inventory.stock',
+        'inventory.stock',
+        'FEATURE',
+        'Stock on Hand',
+        { enabled: true },
+        { risk: 'CRITICAL' },
+      ),
+      control(
+        'inventory.stock.fields.wac',
+        'inventory.stock',
+        'FIELD',
+        'Weighted Average Cost (WAC)',
+        { visible: true },
+      ),
+      control(
+        'inventory.stock.widgets.stockRecords',
+        'inventory.stock',
+        'WIDGET',
+        'Stock Records',
+        { visible: true },
+        { override: { visible: false } },
+      ),
     ];
     await TestBed.configureTestingModule({
       imports: [OrganizationControlsPage],
@@ -115,7 +140,7 @@ describe('OrganizationControlsPage', () => {
               return of({});
             },
             resetOrganizationControl: resetControl,
-            resetOrganizationModule: () => of({}),
+            resetOrganizationModule: resetModule,
             resetOrganization: () => of({}),
           },
         },
@@ -126,14 +151,31 @@ describe('OrganizationControlsPage', () => {
     fixture.detectChanges();
   });
 
-  it('shows Products and Categories with business-readable policy state and no raw JSON', () => {
+  it('shows Products, Categories, and Inventory with business-readable policy state and no raw JSON', () => {
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Products');
     expect(text).toContain('Categories');
+    expect(text).toContain('Inventory / Stock on Hand');
     expect(text).toContain('Organization override');
     expect(text).toContain('— Uses default');
     expect(text).not.toContain('{"enabled"');
     expect(fixture.nativeElement.querySelector('input[role="switch"]:disabled')).toBeNull();
+  });
+
+  it('uses the shared renderer for Inventory controls and stages WAC visibility', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.stock');
+    fixture.detectChanges();
+
+    const wac = component.controls().find((item) => item.key === 'inventory.stock.fields.wac');
+    if (!wac) throw new Error('Expected WAC control');
+    component.setValue(wac, 'visible', false);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Weighted Average Cost (WAC)');
+    expect(component.changeSummary()).toContainEqual(
+      expect.objectContaining({ label: 'Weighted Average Cost (WAC)', after: 'Hidden' }),
+    );
   });
 
   it('stages a critical change, presents its impact, and saves version-safely', () => {
@@ -165,5 +207,14 @@ describe('OrganizationControlsPage', () => {
     component.confirm();
 
     expect(resetControl).toHaveBeenCalledWith('org-a', lowStock.key, 4, '');
+  });
+
+  it('calls the shared module reset API with the semantic Stock-on-Hand module key', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.stock');
+    component.askResetModule();
+    component.confirm();
+
+    expect(resetModule).toHaveBeenCalledWith('org-a', 'inventory.stock', 4, '');
   });
 });

@@ -59,7 +59,10 @@ describe('Organization Capability Policy HTTP authorization', () => {
         {
           method: 'PUT',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ expectedVersion: 0, changes: [] }),
+          body: JSON.stringify({
+            expectedVersion: 0,
+            changes: [{ key: 'inventory.stock', value: { enabled: false } }],
+          }),
         },
       );
       const body = await response.json();
