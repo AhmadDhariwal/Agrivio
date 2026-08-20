@@ -349,4 +349,10 @@ describe('StockInquiryPage', () => {
     ).toBeTruthy();
     expect(fixture.nativeElement.textContent).toContain('Stock on Hand is unavailable');
   });
+
+  it('renders the module info section', () => {
+    const moduleInfo = fixture.nativeElement.querySelector('agrivio-ui-module-info');
+    expect(moduleInfo).not.toBeNull();
+    expect(moduleInfo.textContent).toContain('About Stock on Hand');
+  });
 });

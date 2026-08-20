@@ -95,6 +95,14 @@ describe('OpeningStockPage', () => {
     fixture.detectChanges();
   });
 
+  it('renders the module info section with business guidance', () => {
+    const compiled = fixture.nativeElement as HTMLElement;
+    const moduleInfo = compiled.querySelector('agrivio-ui-module-info');
+    expect(moduleInfo).not.toBeNull();
+    expect(moduleInfo?.textContent).toContain('About Opening Stock');
+    expect(moduleInfo?.textContent).toContain('Use Opening Stock when initializing a warehouse');
+  });
+
   it('keeps batch and expiry optional when tracking is off', () => {
     page.form.controls.productId.setValue('prod-none');
     fixture.detectChanges();
@@ -113,9 +121,9 @@ describe('OpeningStockPage', () => {
       '[data-testid="opening-batch-number"]',
     ) as HTMLInputElement;
     expect(batchInput.getAttribute('aria-required')).toBe('true');
-    expect(
-      batchInput.closest('.ag-field')?.querySelector('.ag-field__required')?.textContent,
-    ).toBe('*');
+    expect(batchInput.closest('.ag-field')?.querySelector('.ag-field__required')?.textContent).toBe(
+      '*',
+    );
     expect(fixture.nativeElement.querySelector('[data-testid="opening-expiry-date"]')).toBeFalsy();
   });
 
@@ -142,5 +150,17 @@ describe('OpeningStockPage', () => {
     expect(hasRequiredValidator(page.form.controls.expiryDate)).toBe(false);
     expect(fixture.nativeElement.querySelector('[data-testid="opening-batch-number"]')).toBeFalsy();
     expect(fixture.nativeElement.querySelector('[data-testid="opening-expiry-date"]')).toBeFalsy();
+  });
+
+  it('displays selected product context when a product is selected', () => {
+    page.form.controls.productId.setValue('prod-batch');
+    fixture.detectChanges();
+    const contextEl = fixture.nativeElement.querySelector(
+      '[data-testid="opening-product-context"]',
+    );
+    expect(contextEl).not.toBeNull();
+    expect(contextEl?.textContent).toContain('prod-batch');
+    expect(contextEl?.textContent).toContain('KG');
+    expect(contextEl?.textContent).toContain('Batch Tracked');
   });
 });

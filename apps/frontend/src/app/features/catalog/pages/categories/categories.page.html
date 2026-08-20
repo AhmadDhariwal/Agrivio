@@ -51,6 +51,14 @@
   </div>
   }
 
+  <!-- Module Information Section -->
+  <agrivio-ui-module-info
+    [title]="infoTitle"
+    [description]="infoDescription"
+    [items]="infoItems"
+    [defaultExpanded]="false"
+  />
+
   <!-- Authoritative KPI Summary -->
   @if (showTotalCategories()) {
   <section class="kpi-row" aria-label="Category Summary">

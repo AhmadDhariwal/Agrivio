@@ -15,6 +15,7 @@ import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-e
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
+import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import { applyPaginationMeta } from '../../../../shared/data-access/pagination';
 import {
   EMPTY,
@@ -92,11 +93,21 @@ export interface ProductAuxData {
     UiLoadingStateComponent,
     UiConfirmDialogComponent,
     UiPaginationComponent,
+    UiModuleInfoComponent,
   ],
   templateUrl: './products.page.html',
   styleUrl: './products.page.scss',
 })
 export class ProductsPage {
+  readonly infoTitle = 'About Product Catalog';
+  readonly infoDescription =
+    'Manage product catalog, pricing, packaging and tracking across the catalog.';
+  readonly infoItems = [
+    'Configure product identity, SKU codes, and category classification',
+    'Manage multi-tier customer pricing and packaging conversion units',
+    'Configure inventory tracking behavior (Standard, Batch, Batch + Expiry)',
+    'View real-time stock-related availability across workflows',
+  ];
   private readonly api = inject(CatalogApi);
   private readonly inventoryApi = inject(InventoryApi);
   private readonly sessionStore = inject(AuthSessionStore);
