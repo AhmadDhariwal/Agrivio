@@ -1,11 +1,4 @@
-import {
-  Component,
-  DestroyRef,
-  HostListener,
-  computed,
-  inject,
-  signal,
-} from '@angular/core';
+import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import {
   EMPTY,
@@ -32,11 +25,7 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import { applyPaginationMeta } from '../../../../shared/data-access/pagination';
-import {
-  ExpiryInventoryRecord,
-  InventoryBalanceRecord,
-  ProductBatchRecord,
-} from '../../models/inventory.models';
+import { ExpiryInventoryRecord, ProductBatchRecord } from '../../models/inventory.models';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
@@ -117,6 +106,9 @@ export class BatchesPage {
     if (this.isMobile()) {
       return 'cards';
     }
+    if (!this.allowDesktopCards()) {
+      return 'table';
+    }
     return this.preferredViewMode();
   });
 
@@ -132,12 +124,115 @@ export class BatchesPage {
   readonly expiringCount = signal<number>(0);
   readonly expiredCount = signal<number>(0);
 
-  // Permission Computeds
-  readonly canView = computed(() => this.sessionStore.hasPermission('inventory.view'));
-  readonly canViewStock = computed(() => this.sessionStore.hasPermission('inventory.view'));
-  readonly canViewMovements = computed(() => this.sessionStore.hasPermission('inventory.view'));
+  // Permission and organization-capability computeds
+  readonly canUseBatches = computed(
+    () => this.capabilityService?.canUseModule('inventory.batches') ?? true,
+  );
+  readonly canView = computed(
+    () => this.sessionStore.hasPermission('inventory.view') && this.canUseBatches(),
+  );
+  readonly allowDesktopCards = computed(
+    () => this.capabilityService?.canUseView('inventory.batches.views.desktopCards') ?? true,
+  );
+  readonly showBatchModuleInfo = computed(
+    () => this.capabilityService?.canUseView('inventory.batches.features.moduleInfo') ?? true,
+  );
+  readonly showBatchTotalKpi = computed(
+    () => this.capabilityService?.canShowWidget('inventory.batches.widgets.totalBatches') ?? true,
+  );
+  readonly showBatchExpiringKpi = computed(
+    () =>
+      this.canViewExpiry() &&
+      (this.capabilityService?.canShowWidget('inventory.batches.widgets.expiringSoon') ?? true),
+  );
+  readonly showBatchExpiredKpi = computed(
+    () =>
+      this.canViewExpiry() &&
+      (this.capabilityService?.canShowWidget('inventory.batches.widgets.expired') ?? true),
+  );
+  readonly showBatchWarehouseProductKpi = computed(
+    () =>
+      this.capabilityService?.canShowWidget('inventory.batches.widgets.warehouseProductSummary') ??
+      true,
+  );
+  readonly showAnyBatchKpi = computed(
+    () =>
+      this.showBatchTotalKpi() ||
+      this.showBatchExpiringKpi() ||
+      this.showBatchExpiredKpi() ||
+      this.showBatchWarehouseProductKpi(),
+  );
+  readonly showBatchSearch = computed(
+    () => this.capabilityService?.canUseView('inventory.batches.features.search') ?? true,
+  );
+  readonly showBatchProductFilter = computed(
+    () => this.capabilityService?.canUseView('inventory.batches.features.productFilter') ?? true,
+  );
+  readonly showBatchWarehouseFilter = computed(
+    () => this.capabilityService?.canUseView('inventory.batches.features.warehouseFilter') ?? true,
+  );
+  readonly showAnyBatchFilter = computed(
+    () =>
+      this.showBatchSearch() || this.showBatchProductFilter() || this.showBatchWarehouseFilter(),
+  );
+  readonly showBatchLocations = computed(
+    () => this.capabilityService?.canViewField('inventory.batches.fields.locations') ?? true,
+  );
+  readonly showBatchManufacture = computed(
+    () => this.capabilityService?.canViewField('inventory.batches.fields.manufactureDate') ?? true,
+  );
+  readonly showBatchExpiry = computed(
+    () => this.capabilityService?.canViewField('inventory.batches.fields.expiryDate') ?? true,
+  );
+  readonly showBatchFirstReceived = computed(
+    () => this.capabilityService?.canViewField('inventory.batches.fields.firstReceived') ?? true,
+  );
+  readonly showBatchQuantity = computed(
+    () =>
+      this.capabilityService?.canViewField('inventory.batches.fields.availableQuantity') ?? true,
+  );
+  readonly showBatchStatus = computed(
+    () => this.capabilityService?.canViewField('inventory.batches.fields.status') ?? true,
+  );
+  readonly showBatchStockByLocation = computed(
+    () => this.capabilityService?.canUseView('inventory.batches.features.stockByLocation') ?? true,
+  );
+  readonly showBatchTechnicalDetails = computed(
+    () => this.capabilityService?.canUseView('inventory.batches.features.technicalDetails') ?? true,
+  );
+  readonly canInspectBatch = computed(
+    () =>
+      this.sessionStore.hasPermission('inventory.view') &&
+      (this.capabilityService?.canPerformAction('inventory.batches.actions.inspect') ?? true),
+  );
+  readonly canViewStock = computed(
+    () =>
+      this.sessionStore.hasPermission('inventory.view') &&
+      (this.capabilityService?.canUseModule('inventory.stock') ?? true) &&
+      (this.capabilityService?.canPerformAction('inventory.batches.actions.viewStock') ?? true),
+  );
+  readonly canViewMovements = computed(
+    () =>
+      this.sessionStore.hasPermission('inventory.view') &&
+      (this.capabilityService?.canPerformAction('inventory.batches.actions.viewMovements') ?? true),
+  );
   readonly canViewExpiry = computed(() => this.sessionStore.hasPermission('inventory.expiry.view'));
-  readonly canViewProducts = computed(() => this.sessionStore.hasPermission('catalog.view'));
+  readonly canViewProducts = computed(
+    () =>
+      this.sessionStore.hasPermission('catalog.view') &&
+      (this.capabilityService?.canUseModule('inventory.products') ?? true) &&
+      (this.capabilityService?.canPerformAction('inventory.batches.actions.viewProduct') ?? true),
+  );
+  readonly hasBatchRowActions = computed(
+    () =>
+      this.canInspectBatch() ||
+      this.canViewStock() ||
+      this.canViewMovements() ||
+      this.canViewProducts(),
+  );
+  readonly hasBatchOverflowActions = computed(
+    () => this.canViewStock() || this.canViewMovements() || this.canViewProducts(),
+  );
 
   readonly hasActiveFilters = computed(() => {
     return Boolean(this.search() || this.productFilter() || this.warehouseFilter());
@@ -208,7 +303,9 @@ export class BatchesPage {
             warehouses: this.locationsApi.listWarehouseOptions().pipe(catchError(() => of([]))),
             balances: this.inventoryApi
               .listBalances({ pageSize: 100 })
-              .pipe(catchError(() => of({ items: [], meta: { page: 1, pageSize: 100, total: 0 } }))),
+              .pipe(
+                catchError(() => of({ items: [], meta: { page: 1, pageSize: 100, total: 0 } })),
+              ),
           };
 
           if (this.canViewExpiry()) {
@@ -379,7 +476,7 @@ export class BatchesPage {
   }
 
   setViewMode(mode: 'table' | 'cards'): void {
-    if (mode === 'cards' && this.isMobile()) return;
+    if (mode === 'cards' && (this.isMobile() || !this.allowDesktopCards())) return;
     this.preferredViewMode.set(mode);
   }
 
@@ -392,6 +489,7 @@ export class BatchesPage {
   }
 
   openInspector(batch: ProductBatchRecord): void {
+    if (!this.canInspectBatch()) return;
     this.selectedBatch.set(batch);
     this.technicalDetailsOpen.set(false);
   }
@@ -550,9 +648,7 @@ export class BatchesPage {
       const expDate = new Date(batch.expiryDate);
       if (!isNaN(expDate.getTime())) {
         const now = new Date();
-        const diffDays = Math.round(
-          (expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
-        );
+        const diffDays = Math.round((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
         if (diffDays < 0) {
           return { label: 'Expired', tone: 'red' };
         }

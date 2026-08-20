@@ -7,6 +7,7 @@ import {
   debounceTime,
   distinctUntilChanged,
   forkJoin,
+  of,
   startWith,
   switchMap,
 } from 'rxjs';
@@ -131,7 +132,11 @@ export class StockInquiryPage {
   );
   readonly canViewExpiry = computed(() => this.sessionStore.hasPermission('inventory.expiry.view'));
   readonly canViewMovements = computed(() => this.sessionStore.hasPermission('inventory.view'));
-  readonly canViewBatches = computed(() => this.sessionStore.hasPermission('inventory.view'));
+  readonly canViewBatches = computed(
+    () =>
+      this.sessionStore.hasPermission('inventory.view') &&
+      (this.capabilityService?.canUseModule('inventory.batches') ?? true),
+  );
   readonly canViewProducts = computed(() => this.sessionStore.hasPermission('catalog.view'));
   readonly allowDesktopCards = computed(
     () => this.capabilityService?.canUseView('inventory.stock.views.desktopCards') ?? true,
@@ -287,7 +292,11 @@ export class StockInquiryPage {
             balances: this.inventoryApi.listBalances(balanceQuery),
             products: this.catalogApi.searchProductOptions('', 500),
             warehouses: this.locationsApi.listWarehouseOptions(),
-            batches: this.inventoryApi.listBatches({ page: 1, pageSize: 100 }),
+            batches: this.inventoryApi
+              .listBatches({ page: 1, pageSize: 100 })
+              .pipe(
+                catchError(() => of({ items: [], meta: { page: 1, pageSize: 100, total: 0 } })),
+              ),
           };
 
           if (this.canViewExpiry()) {

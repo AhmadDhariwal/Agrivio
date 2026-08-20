@@ -27,7 +27,7 @@ function control(result, key) {
   return result.controls.find((item) => item.key === key);
 }
 
-describe('Organization Capability Policy with Products, Categories, Stock-on-Hand, and Opening Stock modules', () => {
+describe('Organization Capability Policy with registered inventory modules', () => {
   it('preserves current Products behavior when an organization has no policy document', async () => {
     const { capabilityService } = createHarness();
     const effective = await capabilityService.resolveEffective('org-a', {
@@ -653,5 +653,157 @@ describe('Organization Capability Policy with Products, Categories, Stock-on-Han
     expect(
       control(organizationReset, 'inventory.categories.widgets.totalCategories').override,
     ).toBeNull();
+  });
+
+  it('registers safe Product Batch controls and rejects unknown or enforced-field overrides', async () => {
+    const { capabilityService } = createHarness();
+    const effective = await capabilityService.resolveEffective('org-a', {
+      permissions: ['inventory.view', 'catalog.view'],
+    });
+
+    expect(control(effective, 'inventory.batches').effectiveValue.enabled).toBe(true);
+    expect(control(effective, 'inventory.batches.views.desktopCards').effectiveValue.enabled).toBe(
+      true,
+    );
+    expect(control(effective, 'inventory.batches.fields.batchNumber')).toMatchObject({
+      platformEnforced: true,
+      configurable: { visible: false },
+      effectiveValue: { visible: true },
+    });
+    expect(control(effective, 'inventory.batches.fields.product')).toMatchObject({
+      platformEnforced: true,
+      configurable: { visible: false },
+      effectiveValue: { visible: true },
+    });
+    expect(control(effective, 'inventory.batches.actions.inspect').effectiveValue.allowed).toBe(
+      true,
+    );
+
+    await expect(
+      capabilityService.updatePolicy(
+        'org-a',
+        {
+          expectedVersion: 0,
+          changes: [{ key: 'inventory.batches.fields.unknown', value: { visible: false } }],
+        },
+        { actorId: 'platform-admin' },
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    await expect(
+      capabilityService.updatePolicy(
+        'org-a',
+        {
+          expectedVersion: 0,
+          changes: [{ key: 'inventory.batches.fields.batchNumber', value: { visible: false } }],
+        },
+        { actorId: 'platform-admin' },
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  });
+
+  it('isolates Product Batch policy and resets only its namespace with audit and versions', async () => {
+    const { capabilityService, auditStore } = createHarness();
+    await capabilityService.updatePolicy(
+      'org-a',
+      {
+        expectedVersion: 0,
+        changes: [{ key: 'inventory.batches', value: { enabled: false } }],
+      },
+      { actorId: 'platform-admin' },
+    );
+    await capabilityService.updatePolicy(
+      'org-b',
+      {
+        expectedVersion: 0,
+        reason: 'Limit Batch presentation',
+        changes: [
+          { key: 'inventory.batches.fields.expiryDate', value: { visible: false } },
+          { key: 'inventory.batches.actions.inspect', value: { allowed: false } },
+          { key: 'inventory.stock.fields.wac', value: { visible: false } },
+        ],
+      },
+      { actorId: 'platform-admin' },
+    );
+
+    const orgA = await capabilityService.resolveEffective('org-a');
+    const orgB = await capabilityService.resolveEffective('org-b');
+    expect(control(orgA, 'inventory.batches').effectiveValue.enabled).toBe(false);
+    expect(control(orgA, 'inventory.batches.actions.inspect').effectiveValue.allowed).toBe(false);
+    expect(control(orgB, 'inventory.batches').effectiveValue.enabled).toBe(true);
+    expect(control(orgB, 'inventory.batches.fields.expiryDate').effectiveValue.visible).toBe(false);
+    expect(control(orgB, 'inventory.batches.actions.inspect').effectiveValue.allowed).toBe(false);
+
+    await expect(
+      capabilityService.assertAllowed('org-a', 'inventory.batches', 'enabled'),
+    ).rejects.toMatchObject({ code: 'ORG_CAPABILITY_DISABLED' });
+    await expect(
+      capabilityService.assertAllowed('org-b', 'inventory.batches', 'enabled'),
+    ).resolves.toBeTruthy();
+
+    const oneReset = await capabilityService.resetOverride(
+      'org-b',
+      'inventory.batches.fields.expiryDate',
+      1,
+      { actorId: 'platform-admin' },
+      'Restore expiry presentation',
+    );
+    expect(oneReset.version).toBe(2);
+    expect(control(oneReset, 'inventory.batches.fields.expiryDate').override).toBeNull();
+    expect(control(oneReset, 'inventory.batches.fields.expiryDate').effectiveValue.visible).toBe(
+      true,
+    );
+
+    const moduleReset = await capabilityService.resetModule(
+      'org-b',
+      'inventory.batches',
+      2,
+      { actorId: 'platform-admin' },
+      'Restore Product Batch defaults',
+    );
+    expect(moduleReset.version).toBe(3);
+    expect(control(moduleReset, 'inventory.batches.actions.inspect').override).toBeNull();
+    expect(control(moduleReset, 'inventory.stock.fields.wac').override).toEqual({ visible: false });
+    expect(
+      control(await capabilityService.resolveEffective('org-a'), 'inventory.batches'),
+    ).toMatchObject({ effectiveValue: { enabled: false } });
+    expect(auditStore.listForTest().at(-1)).toMatchObject({
+      actorId: 'platform-admin',
+      organizationId: 'org-b',
+      metadata: {
+        controlKey: 'inventory.batches.actions.inspect',
+        versionBefore: 2,
+        versionAfter: 3,
+        previousOverride: { allowed: false },
+        newOverride: null,
+      },
+    });
+  });
+
+  it('blocks Batch cross-module actions when their target module is unavailable', async () => {
+    const { capabilityService } = createHarness();
+    await capabilityService.updatePolicy(
+      'org-a',
+      {
+        expectedVersion: 0,
+        changes: [
+          { key: 'inventory.products', value: { enabled: false } },
+          { key: 'inventory.stock', value: { enabled: false } },
+        ],
+      },
+      { actorId: 'platform-admin' },
+    );
+
+    const effective = await capabilityService.resolveEffective('org-a');
+    expect(control(effective, 'inventory.batches.actions.viewProduct')).toMatchObject({
+      effectiveValue: { allowed: false },
+      reasons: ['dependency_disabled'],
+    });
+    expect(control(effective, 'inventory.batches.actions.viewStock')).toMatchObject({
+      effectiveValue: { allowed: false },
+      reasons: ['dependency_disabled'],
+    });
+    expect(
+      control(effective, 'inventory.batches.actions.viewMovements').effectiveValue.allowed,
+    ).toBe(true);
   });
 });

@@ -17,7 +17,11 @@ import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-p
 
 type DraftValues = Readonly<Record<string, Readonly<Record<string, boolean>>>>;
 type ConfigurableModule =
-  'inventory.products' | 'inventory.categories' | 'inventory.stock' | 'inventory.openingStock';
+  | 'inventory.products'
+  | 'inventory.categories'
+  | 'inventory.stock'
+  | 'inventory.openingStock'
+  | 'inventory.batches';
 type PendingConfirmation =
   | { readonly kind: 'save' }
   | { readonly kind: 'reset-control'; readonly control: PlatformCapabilityControl }
@@ -74,7 +78,16 @@ export class OrganizationControlsPage {
   readonly requiredWorkflowControls = computed(() =>
     this.byType('FIELD').filter((control) => this.isRequiredWorkflowControl(control)),
   );
-  readonly featureControls = computed(() => this.byType('FEATURE', false));
+  readonly featureControls = computed(() =>
+    this.byType('FEATURE', false).filter((control) => !this.isBatchGroupedFeature(control)),
+  );
+  readonly moduleInfoControls = computed(() => this.batchFeatures('moduleInfo'));
+  readonly filterControls = computed(() =>
+    this.batchFeatures('search', 'productFilter', 'warehouseFilter'),
+  );
+  readonly inspectorControls = computed(() =>
+    this.batchFeatures('stockByLocation', 'technicalDetails'),
+  );
   readonly widgetControls = computed(() => this.byType('WIDGET'));
   readonly actionControls = computed(() => this.byType('ACTION'));
 
@@ -125,6 +138,14 @@ export class OrganizationControlsPage {
       changes[0].value?.['enabled'] === false
     );
   });
+  readonly disablingBatches = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'inventory.batches' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
   readonly confirmationTitle = computed(() => {
     const pending = this.pendingConfirmation();
     const organization = this.snapshot()?.organization.name ?? 'this organization';
@@ -134,6 +155,7 @@ export class OrganizationControlsPage {
     }
     if (pending?.kind === 'reset-organization') return `Reset all controls for ${organization}?`;
     if (this.disablingOpeningStock()) return `Disable Opening Stock for ${organization}?`;
+    if (this.disablingBatches()) return `Disable Product Batches for ${organization}?`;
     const single = this.changeSummary().length === 1 ? this.changeSummary()[0] : null;
     if (single?.risk === 'CRITICAL' && single.after === 'Disabled') {
       return `Disable ${single.label} for ${organization}?`;
@@ -155,6 +177,9 @@ export class OrganizationControlsPage {
     if (this.disablingOpeningStock()) {
       return `Users in this organization will no longer be able to access or post Opening Stock. Existing stock and historical transactions will not be changed.`;
     }
+    if (this.disablingBatches()) {
+      return `Users in ${organization} will no longer be able to access Product Batches or its organization Batch inquiry APIs. Existing batches, stock balances, and transaction history will not be deleted or changed. This affects ${organization} only.`;
+    }
     const critical = this.changeSummary()
       .filter((change) => change.risk === 'CRITICAL')
       .map((change) => `${change.label}: ${change.before} → ${change.after}`);
@@ -168,6 +193,7 @@ export class OrganizationControlsPage {
     if (pending?.kind === 'reset-module') return `Reset ${this.moduleLabel(pending.moduleKey)}`;
     if (pending?.kind === 'reset-organization') return 'Reset all controls';
     if (this.disablingOpeningStock()) return 'Disable Opening Stock';
+    if (this.disablingBatches()) return 'Disable Product Batches';
     return 'Apply changes';
   });
 
@@ -223,7 +249,11 @@ export class OrganizationControlsPage {
   }
 
   effectiveValue(control: PlatformCapabilityControl, mode: string): boolean {
-    if (this.parentDisabled(control) || this.snapshot()?.policy.operationalAllowed === false) {
+    if (
+      this.parentDisabled(control) ||
+      this.dependencyBlockReason(control) !== null ||
+      this.snapshot()?.policy.operationalAllowed === false
+    ) {
       return false;
     }
     if (control.type === 'FIELD' && mode === 'editable') {
@@ -239,6 +269,8 @@ export class OrganizationControlsPage {
     if (this.parentDisabled(control)) {
       return `${this.moduleLabel(control.moduleKey as ConfigurableModule)} is disabled.`;
     }
+    const dependencyReason = this.dependencyBlockReason(control);
+    if (dependencyReason !== null) return dependencyReason;
     if (control.type === 'FIELD' && mode === 'editable' && !this.value(control, 'visible')) {
       return 'Hidden fields are read-only.';
     }
@@ -347,15 +379,53 @@ export class OrganizationControlsPage {
     if (moduleKey === 'inventory.products') return 'Products';
     if (moduleKey === 'inventory.categories') return 'Categories';
     if (moduleKey === 'inventory.stock') return 'Inventory / Stock on Hand';
-    return 'Opening Stock';
+    if (moduleKey === 'inventory.openingStock') return 'Opening Stock';
+    return 'Product Batches';
   }
 
   isRequiredWorkflowControl(control: PlatformCapabilityControl): boolean {
     return (
-      control.moduleKey === 'inventory.openingStock' &&
+      (control.moduleKey === 'inventory.openingStock' ||
+        control.moduleKey === 'inventory.batches') &&
       control.type === 'FIELD' &&
       control.platformEnforced === true
     );
+  }
+
+  private batchFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
+    const keys = new Set(ids.map((id) => `inventory.batches.features.${id}`));
+    return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
+  }
+
+  private isBatchGroupedFeature(control: PlatformCapabilityControl): boolean {
+    return (
+      control.moduleKey === 'inventory.batches' &&
+      (control.key === 'inventory.batches.features.moduleInfo' ||
+        control.key === 'inventory.batches.features.search' ||
+        control.key === 'inventory.batches.features.productFilter' ||
+        control.key === 'inventory.batches.features.warehouseFilter' ||
+        control.key === 'inventory.batches.features.stockByLocation' ||
+        control.key === 'inventory.batches.features.technicalDetails')
+    );
+  }
+
+  private dependencyBlockReason(control: PlatformCapabilityControl): string | null {
+    for (const dependencyKey of control.dependencies ?? []) {
+      const dependency = this.controls().find((item) => item.key === dependencyKey);
+      if (dependency === undefined) continue;
+      const disabled = Object.keys(dependency.defaultPolicy).some(
+        (mode) => this.draftValues()[dependency.key]?.[mode] !== true,
+      );
+      if (!disabled) continue;
+      if (dependency.key === 'inventory.products') {
+        return 'Products is disabled for this organization.';
+      }
+      if (dependency.key === 'inventory.stock') {
+        return 'Stock on Hand is disabled for this organization.';
+      }
+      return `${dependency.label} is disabled for this organization.`;
+    }
+    return null;
   }
 
   private save(): void {

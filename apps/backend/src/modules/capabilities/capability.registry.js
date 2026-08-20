@@ -17,6 +17,7 @@ const PRODUCTS_MODULE_KEY = 'inventory.products';
 const CATEGORIES_MODULE_KEY = 'inventory.categories';
 const STOCK_MODULE_KEY = 'inventory.stock';
 const OPENING_STOCK_MODULE_KEY = 'inventory.openingStock';
+const BATCHES_MODULE_KEY = 'inventory.batches';
 
 const definitions = [
   {
@@ -586,6 +587,164 @@ const definitions = [
     risk,
     requiredPermissions: { allowed: permission },
   })),
+  {
+    key: BATCHES_MODULE_KEY,
+    parentKey: 'inventory',
+    moduleKey: BATCHES_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label: 'Product Batches',
+    description: 'Product Batch inquiry and traceability access for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'inventory.view' },
+    reason:
+      'Disabling access blocks Product Batch inquiry without deleting batches, changing stock, or altering transaction history.',
+  },
+  {
+    key: 'inventory.batches.views.desktopCards',
+    parentKey: BATCHES_MODULE_KEY,
+    moduleKey: BATCHES_MODULE_KEY,
+    type: CONTROL_TYPES.View,
+    label: 'Desktop Card View',
+    description: 'Optional user-selectable Product Batch card layout on desktop and tablet.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'inventory.view' },
+    reason:
+      'Responsive phone cards remain platform enforced so Product Batches stays usable on mobile.',
+  },
+  {
+    key: 'inventory.batches.features.moduleInfo',
+    parentKey: BATCHES_MODULE_KEY,
+    moduleKey: BATCHES_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label: 'About Product Batches',
+    description: 'Show the Product Batches guidance panel.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'inventory.view' },
+  },
+  ...[
+    ['totalBatches', 'Total Batches'],
+    ['expiringSoon', 'Expiring Soon'],
+    ['expired', 'Expired'],
+    ['warehouseProductSummary', 'Warehouses / Products'],
+  ].map(([id, label]) => ({
+    key: `inventory.batches.widgets.${id}`,
+    parentKey: BATCHES_MODULE_KEY,
+    moduleKey: BATCHES_MODULE_KEY,
+    type: CONTROL_TYPES.Widget,
+    label,
+    description: `${label} Product Batch summary widget.`,
+    defaultPolicy: { visible: true },
+    configurable: { visible: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { visible: 'inventory.view' },
+  })),
+  ...[
+    ['search', 'Search', 'Search Product Batches by batch number or product.'],
+    ['productFilter', 'Product Filter', 'Filter Product Batches by product.'],
+    ['warehouseFilter', 'Warehouse Filter', 'Filter Product Batches by warehouse.'],
+  ].map(([id, label, description]) => ({
+    key: `inventory.batches.features.${id}`,
+    parentKey: BATCHES_MODULE_KEY,
+    moduleKey: BATCHES_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'inventory.view' },
+  })),
+  ...[
+    [
+      'batchNumber',
+      'Batch Number',
+      'Primary Batch identity must remain visible for a meaningful inquiry.',
+    ],
+    ['product', 'Product', 'A Batch cannot be meaningfully identified without its Product.'],
+  ].map(([id, label, reason]) => ({
+    key: `inventory.batches.fields.${id}`,
+    parentKey: BATCHES_MODULE_KEY,
+    moduleKey: BATCHES_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description: 'Required Product Batch identity.',
+    defaultPolicy: { visible: true },
+    configurable: { visible: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'inventory.view' },
+    reason,
+  })),
+  ...[
+    ['locations', 'Locations', RISK_LEVELS.Normal],
+    ['manufactureDate', 'Manufacture Date', RISK_LEVELS.Normal],
+    ['expiryDate', 'Expiry Date', RISK_LEVELS.Recommended],
+    ['firstReceived', 'First Received', RISK_LEVELS.Normal],
+    ['availableQuantity', 'Available Quantity', RISK_LEVELS.Recommended],
+    ['status', 'Status', RISK_LEVELS.Normal],
+  ].map(([id, label, risk]) => ({
+    key: `inventory.batches.fields.${id}`,
+    parentKey: BATCHES_MODULE_KEY,
+    moduleKey: BATCHES_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description: `${label} presentation in Product Batch tables, cards, and inspector where applicable.`,
+    defaultPolicy: { visible: true },
+    configurable: { visible: true },
+    risk,
+    requiredPermissions: { visible: 'inventory.view' },
+    ...(id === 'expiryDate'
+      ? {
+          reason:
+            'This controls presentation only. Expiry validation, FEFO, alerts, and inventory rules remain unchanged.',
+        }
+      : {}),
+    ...(id === 'availableQuantity'
+      ? {
+          reason:
+            'This controls presentation only. Authoritative stock balances cannot be edited or overridden here.',
+        }
+      : {}),
+  })),
+  ...[
+    ['stockByLocation', 'Stock by Location'],
+    ['technicalDetails', 'Technical Details'],
+  ].map(([id, label]) => ({
+    key: `inventory.batches.features.${id}`,
+    parentKey: BATCHES_MODULE_KEY,
+    moduleKey: BATCHES_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description: `${label} section in the Product Batch inspector.`,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'inventory.view' },
+  })),
+  ...[
+    ['inspect', 'Inspect Batch', 'inventory.view', RISK_LEVELS.Normal, []],
+    ['viewProduct', 'View Product', 'catalog.view', RISK_LEVELS.Normal, [PRODUCTS_MODULE_KEY]],
+    ['viewStock', 'View Stock', 'inventory.view', RISK_LEVELS.Normal, [STOCK_MODULE_KEY]],
+    ['viewMovements', 'View Movements', 'inventory.view', RISK_LEVELS.Normal, []],
+  ].map(([id, label, permission, risk, dependencies]) => ({
+    key: `inventory.batches.actions.${id}`,
+    parentKey: BATCHES_MODULE_KEY,
+    moduleKey: BATCHES_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label,
+    description: `${label} action. Existing RBAC and target-module policy still apply.`,
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk,
+    requiredPermissions: { allowed: permission },
+    ...(dependencies.length === 0 ? {} : { dependencies }),
+  })),
 ];
 
 const registry = new Map(
@@ -622,6 +781,7 @@ module.exports = {
   CATEGORIES_MODULE_KEY,
   STOCK_MODULE_KEY,
   OPENING_STOCK_MODULE_KEY,
+  BATCHES_MODULE_KEY,
   listCapabilityControls,
   getCapabilityControl,
 };

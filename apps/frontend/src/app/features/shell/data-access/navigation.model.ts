@@ -181,6 +181,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Batches',
           route: '/app/inventory/batches',
           permission: 'inventory.view',
+          capabilityKey: 'inventory.batches',
           testId: 'nav-batches',
         },
         {

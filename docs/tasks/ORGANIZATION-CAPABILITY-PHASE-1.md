@@ -1,8 +1,8 @@
 # Organization Capability & UI Policy — Phase 1
 
 Status: Implementation complete; lightweight authenticated browser review remains environment-dependent
-Scope: Generic platform foundation plus Products, Categories, Inventory / Stock-on-Hand, and Opening Stock integrations
-Completed: 2026-08-20
+Scope: Generic platform foundation plus Products, Categories, Inventory / Stock-on-Hand, Opening Stock, and Product Batches integrations
+Completed: 2026-08-21
 
 ## Implemented
 
@@ -14,14 +14,16 @@ Completed: 2026-08-20
 - Products navigation, routes, table/desktop cards, responsive cards, fields, KPI widgets, lifecycle actions, pricing, forms, and backend mutations wired to policy. Responsive phone cards remain an internal required renderer.
 - Categories registered as reference module #2 with module, desktop-card view, Category fields, derived tracking display, Total Categories widget, and create/inspect/edit/deactivate/reactivate/delete actions. Angular navigation/routes/screens and Category APIs enforce the effective policy; responsive phone cards and the underlying product-class tracking rule remain platform enforced.
 - Inventory / Stock on Hand registered as module #3 with module access, desktop cards, the four implemented KPI widgets, search/warehouse/product filters, safe field visibility, inspector sections, and Inspect Stock. The same registry-driven Super Admin renderer, staged changes, policy versioning, reset APIs, resolver, and audit path are reused.
-- Stock-on-Hand navigation, direct routes, table, desktop/mobile cards, and inspector resolve the same organization policy. Balance inquiry is blocked backend-side when the module is disabled; Batches, Expiry, Adjustments, Transfers, Reconciliation, and Movements remain under their existing RBAC/subscription rules pending their own capability integrations.
+- Stock-on-Hand navigation, direct routes, table, desktop/mobile cards, and inspector resolve the same organization policy. Balance inquiry is blocked backend-side when the module is disabled; Expiry, Adjustments, Transfers, Reconciliation, and Movements remain under their existing RBAC/subscription rules pending their own capability integrations.
 - Opening Stock owns the separate `inventory.openingStock` namespace. Its critical module switch, optional module information and product search, safe Packaging Unit and Manufacturing Date presentation, Post action, and View Stock action reuse the same registry, resolver, sparse policy, reset, version, audit, Angular service, guard, navigation filter, and generic Super Admin renderer.
 - Warehouse, Product, Quantity, Opening Inventory Value, and conditionally required Batch / Expiry appear as required platform-enforced workflow controls. Product tracking rules and all existing posting, WAC, valuation, batch/expiry, warehouse, transaction, RBAC, and subscription validation remain authoritative.
 - Disabling Opening Stock hides tenant navigation, sends direct tenant routes to the shared unavailable state, removes the Stock-on-Hand posting link, and blocks posting through both module and Post-action backend middleware. Platform Super Admin policy routes remain outside tenant capability enforcement so the module can be re-enabled.
+- Product Batches owns the separate `inventory.batches` namespace. Its critical module switch, desktop-card view, module information, four implemented KPI widgets, three real filters, safe field visibility, inspector sections, and inquiry/navigation actions reuse the same registry, resolver, sparse policy, reset, version, audit, Angular service, guard, navigation filter, and generic Super Admin renderer.
+- Disabling Product Batches hides tenant navigation, sends direct routes to the shared unavailable state, and blocks Batch list/detail inquiry. The dedicated detail endpoint additionally enforces Inspect; cosmetic visibility controls remain frontend-only. View Product and View Stock resolve target-module dependencies, while View Movements preserves existing RBAC/subscription ownership.
 - Individual, module, and organization reset operations remove sparse overrides through the transactional backend endpoints, increment policy versions on material changes, emit per-control audit evidence, re-resolve effective policy, and refresh the Super Admin UI.
 - Stable policy denial codes: `ORG_CAPABILITY_DISABLED`, `ORG_ACTION_NOT_ALLOWED`, and `ORG_FIELD_NOT_EDITABLE`.
 
-No capability controls were added for Warehouses, Batches, Expiry inquiry, Adjustments, Transfers, Reconciliation, or Stock Movements.
+No capability controls were added for Warehouses, Expiry inquiry, Adjustments, Transfers, Reconciliation, or Stock Movements.
 
 ## Products registry safety decisions
 
@@ -61,6 +63,15 @@ No capability controls were added for Warehouses, Batches, Expiry inquiry, Adjus
 - `inventory.openingStock.actions.post` is enforced in Angular and backend middleware after existing RBAC/subscription checks and before posting. `inventory.openingStock.actions.viewStock` controls only its Opening Stock-owned navigation affordance.
 - Individual reset removes one sparse override. Module reset matches only definitions whose `moduleKey` is `inventory.openingStock`, preserving Stock-on-Hand, Products, Categories, and every other module override while incrementing the policy version and emitting the existing per-control audit event.
 
+## Product Batches registry safety decisions
+
+- `inventory.batches` is independent from Stock on Hand and Opening Stock. Its critical switch governs Product Batch inquiry only; it does not delete or change batches, balances, expiry logic, FEFO, WAC, movements, or transaction history.
+- Batch Number and Product are required platform-enforced identity fields. Locations, Manufacture Date, Expiry Date, First Received, Available Quantity, and Status are presentation-only visibility controls; quantity cannot be edited or overridden.
+- The four registered widgets are exactly the implemented Total Batches, Expiring Soon, Expired, and Warehouses / Products cards. Search, Product Filter, and Warehouse Filter are the three implemented Batch filters; no non-existent Expiry Status filter was added.
+- Desktop cards are configurable while responsive phone cards remain platform enforced. Module Information, Stock by Location, Technical Details, and Inspect Batch are separately configurable without allowing Batch CRUD.
+- View Product depends on Products and View Stock depends on Stock on Hand, with effective blocking reasons shown in Organization Controls. View Movements remains a Batch-owned navigation affordance layered on existing movement RBAC/subscription behavior because Stock Movements has no capability namespace yet.
+- Individual reset removes one sparse override. Module reset matches only definitions whose `moduleKey` is `inventory.batches`, preserving Products, Categories, Stock-on-Hand, Opening Stock, and every unrelated override while incrementing policy version and emitting per-control audit evidence.
+
 ## Model review checklist outcome
 
 | Check | Outcome |
@@ -93,8 +104,12 @@ No capability controls were added for Warehouses, Batches, Expiry inquiry, Adjus
 - Opening Stock, Stock-on-Hand cross-link, Organization Controls, navigation, and routing Angular coverage: passed (5 files, 44 tests across focused runs).
 - Frontend and API-contract typecheck: passed. Changed-file ESLint: passed with no errors (three pre-existing Stock Inquiry spec warnings); project-wide lint remains blocked by unrelated pre-existing errors outside this task.
 - Final frontend/backend production build: passed, including Angular template compilation for Opening Stock and Organization Controls.
+- Product Batches focused backend registry/resolver, tenant isolation, dependency, scoped reset/audit/version, authorization, and route enforcement: passed (3 files, 28 tests).
+- Product Batches, Stock-on-Hand fail-soft enrichment/cross-link, Organization Controls, navigation, and routing Angular coverage: passed (5 files, 54 tests across focused runs).
+- Product Batches frontend and API-contract typecheck: passed. Changed-file ESLint passed with no errors; existing non-null-assertion warnings remain in the pre-existing Batch and Stock specs.
+- Final development build for all four projects passed, including Angular template compilation for Product Batches and Organization Controls.
 - Lightweight browser review could not start because the installed browser-control runtime referenced a missing bundled browser service before connecting to the local app. No substitute browser mechanism was used; component and template coverage passed.
 
 ## Remaining risk
 
-Authenticated cross-organization browser smoke remains outstanding; focused component, route, policy, persistence-boundary, and build validation passed. Foundation + Products + Categories + Stock on Hand + Opening Stock are complete; Warehouses and later Inventory submodules are intentionally not configurable.
+Authenticated cross-organization browser smoke remains outstanding; focused component, route, policy, persistence-boundary, and build validation passed. Foundation + Products + Categories + Stock on Hand + Opening Stock + Product Batches are complete; Warehouses and later Inventory submodules are intentionally not configurable.

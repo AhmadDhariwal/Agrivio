@@ -9,7 +9,11 @@ import { OrganizationControlsPage } from './organization-controls.page';
 function control(
   key: string,
   moduleKey:
-    'inventory.products' | 'inventory.categories' | 'inventory.stock' | 'inventory.openingStock',
+    | 'inventory.products'
+    | 'inventory.categories'
+    | 'inventory.stock'
+    | 'inventory.openingStock'
+    | 'inventory.batches',
   type: PlatformCapabilityControl['type'],
   label: string,
   policy: Record<string, boolean>,
@@ -170,6 +174,82 @@ describe('OrganizationControlsPage', () => {
         { visible: true },
         { override: { visible: false } },
       ),
+      control(
+        'inventory.batches',
+        'inventory.batches',
+        'FEATURE',
+        'Product Batches',
+        { enabled: true },
+        { risk: 'CRITICAL' },
+      ),
+      control(
+        'inventory.batches.features.moduleInfo',
+        'inventory.batches',
+        'FEATURE',
+        'About Product Batches',
+        { enabled: true },
+      ),
+      control('inventory.batches.features.search', 'inventory.batches', 'FEATURE', 'Search', {
+        enabled: true,
+      }),
+      control(
+        'inventory.batches.features.stockByLocation',
+        'inventory.batches',
+        'FEATURE',
+        'Stock by Location',
+        { enabled: true },
+      ),
+      control(
+        'inventory.batches.fields.batchNumber',
+        'inventory.batches',
+        'FIELD',
+        'Batch Number',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Primary Batch identity.',
+        },
+      ),
+      control(
+        'inventory.batches.fields.product',
+        'inventory.batches',
+        'FIELD',
+        'Product',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'A Batch cannot be meaningfully identified without its Product.',
+        },
+      ),
+      control(
+        'inventory.batches.fields.expiryDate',
+        'inventory.batches',
+        'FIELD',
+        'Expiry Date',
+        { visible: true },
+        { override: { visible: false } },
+      ),
+      control(
+        'inventory.batches.widgets.totalBatches',
+        'inventory.batches',
+        'WIDGET',
+        'Total Batches',
+        { visible: true },
+      ),
+      {
+        ...control(
+          'inventory.batches.actions.viewStock',
+          'inventory.batches',
+          'ACTION',
+          'View Stock',
+          { allowed: true },
+        ),
+        dependencies: ['inventory.stock'],
+      },
     ];
     await TestBed.configureTestingModule({
       imports: [OrganizationControlsPage],
@@ -224,6 +304,7 @@ describe('OrganizationControlsPage', () => {
     expect(text).toContain('Categories');
     expect(text).toContain('Inventory / Stock on Hand');
     expect(text).toContain('Opening Stock');
+    expect(text).toContain('Product Batches');
     expect(text).toContain('Organization override');
     expect(text).toContain('— Uses default');
     expect(text).not.toContain('{"enabled"');
@@ -284,6 +365,67 @@ describe('OrganizationControlsPage', () => {
     );
   });
 
+  it('renders Product Batches grouped controls and required identity through the shared renderer', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.batches');
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Product Batches Module');
+    expect(text).toContain('Module Information');
+    expect(text).toContain('Filters');
+    expect(text).toContain('Inspector');
+    expect(text).toContain('Batch Number');
+    expect(text).toContain('Product');
+    expect(text).toContain('Requirement');
+    expect(text).toContain('Required');
+    expect(text).toContain('Platform enforced');
+    expect(text).toContain('Expiry Date');
+    expect(text).toContain('— Uses default');
+    expect(text).not.toContain('{"visible"');
+    expect(fixture.nativeElement.querySelector('input[role="switch"]:disabled')).toBeNull();
+  });
+
+  it('explains Batch action dependency blocking in effective policy state', () => {
+    const component = fixture.componentInstance;
+    const stock = component.controls().find((item) => item.key === 'inventory.stock');
+    if (!stock) throw new Error('Expected Stock on Hand control');
+    component.setValue(stock, 'enabled', false);
+    component.selectModule('inventory.batches');
+    fixture.detectChanges();
+
+    const viewStock = component
+      .controls()
+      .find((item) => item.key === 'inventory.batches.actions.viewStock');
+    if (!viewStock) throw new Error('Expected View Stock control');
+    expect(component.effectiveValue(viewStock, 'allowed')).toBe(false);
+    expect(component.effectiveReason(viewStock, 'allowed')).toBe(
+      'Stock on Hand is disabled for this organization.',
+    );
+    expect(fixture.nativeElement.textContent).toContain(
+      'Stock on Hand is disabled for this organization.',
+    );
+  });
+
+  it('uses the Product Batches critical confirmation with organization-scoped data safety copy', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.batches');
+    const batches = component.controls().find((item) => item.key === 'inventory.batches');
+    if (!batches) throw new Error('Expected Product Batches control');
+    component.setValue(batches, 'enabled', false);
+    component.askSave();
+
+    expect(component.confirmationTitle()).toBe(
+      'Disable Product Batches for Greenfield Agro Center?',
+    );
+    expect(component.confirmationMessage()).toContain('organization Batch inquiry APIs');
+    expect(component.confirmationMessage()).toContain(
+      'Existing batches, stock balances, and transaction history will not be deleted or changed.',
+    );
+    expect(component.confirmationMessage()).toContain('Greenfield Agro Center only');
+    expect(component.confirmationLabel()).toBe('Disable Product Batches');
+  });
+
   it('stages a critical change, presents its impact, and saves version-safely', () => {
     const component = fixture.componentInstance;
     const products = component.controls().find((item) => item.key === 'inventory.products');
@@ -331,5 +473,14 @@ describe('OrganizationControlsPage', () => {
     component.confirm();
 
     expect(resetModule).toHaveBeenCalledWith('org-a', 'inventory.openingStock', 4, '');
+  });
+
+  it('calls the shared module reset API with only the Product Batches namespace', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.batches');
+    component.askResetModule();
+    component.confirm();
+
+    expect(resetModule).toHaveBeenCalledWith('org-a', 'inventory.batches', 4, '');
   });
 });

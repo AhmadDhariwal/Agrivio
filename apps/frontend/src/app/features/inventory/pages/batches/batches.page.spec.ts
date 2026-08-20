@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { BatchesPage } from './batches.page';
@@ -6,10 +7,12 @@ import { InventoryApi } from '../../data-access/inventory.api';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
 import { BranchesWarehousesApi } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 describe('BatchesPage', () => {
   let component: BatchesPage;
   let fixture: ComponentFixture<BatchesPage>;
+  let capabilityState: ReturnType<typeof signal<Record<string, Readonly<Record<string, boolean>>>>>;
 
   const mockBatches = [
     {
@@ -119,6 +122,8 @@ describe('BatchesPage', () => {
 
   beforeEach(async () => {
     lastListBatchesQuery = null;
+    capabilityState = signal({});
+    const capabilityValue = (key: string, mode: string) => capabilityState()[key]?.[mode] ?? true;
 
     await TestBed.configureTestingModule({
       imports: [BatchesPage],
@@ -159,6 +164,16 @@ describe('BatchesPage', () => {
           provide: AuthSessionStore,
           useValue: {
             hasPermission: () => true,
+          },
+        },
+        {
+          provide: CapabilityService,
+          useValue: {
+            canUseModule: (key: string) => capabilityValue(key, 'enabled'),
+            canUseView: (key: string) => capabilityValue(key, 'enabled'),
+            canShowWidget: (key: string) => capabilityValue(key, 'visible'),
+            canViewField: (key: string) => capabilityValue(key, 'visible'),
+            canPerformAction: (key: string) => capabilityValue(key, 'allowed'),
           },
         },
       ],
@@ -248,5 +263,104 @@ describe('BatchesPage', () => {
     const status = component.getBatchStatus(mockBatches[0]!);
     expect(status.label).toBe('Active');
     expect(status.tone).toBe('green');
+  });
+
+  it('applies Batch KPI, filter, and field visibility without removing required identity', () => {
+    capabilityState.set({
+      'inventory.batches.widgets.totalBatches': { visible: false },
+      'inventory.batches.widgets.expiringSoon': { visible: false },
+      'inventory.batches.widgets.expired': { visible: false },
+      'inventory.batches.widgets.warehouseProductSummary': { visible: false },
+      'inventory.batches.features.search': { enabled: false },
+      'inventory.batches.features.productFilter': { enabled: false },
+      'inventory.batches.features.warehouseFilter': { enabled: false },
+      'inventory.batches.fields.locations': { visible: false },
+      'inventory.batches.fields.manufactureDate': { visible: false },
+      'inventory.batches.fields.expiryDate': { visible: false },
+      'inventory.batches.fields.availableQuantity': { visible: false },
+      'inventory.batches.fields.status': { visible: false },
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.kpi-row')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="batches-search-input"]')).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="batches-product-filter"]'),
+    ).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="batches-warehouse-filter"]'),
+    ).toBeNull();
+    const tableText = fixture.nativeElement.querySelector('.batch-table')?.textContent ?? '';
+    expect(tableText).toContain('Batch Number');
+    expect(tableText).toContain('Product');
+    expect(tableText).not.toContain('Locations');
+    expect(tableText).not.toContain('Manufacture');
+    expect(tableText).not.toContain('Expiry');
+    expect(tableText).not.toContain('Available Qty');
+    expect(tableText).not.toContain('Status');
+  });
+
+  it('keeps responsive mobile cards while Desktop Cards is disabled', () => {
+    component.setViewMode('cards');
+    expect(component.effectiveViewMode()).toBe('cards');
+
+    capabilityState.set({
+      'inventory.batches.views.desktopCards': { enabled: false },
+    });
+    fixture.detectChanges();
+    expect(component.effectiveViewMode()).toBe('table');
+    expect(fixture.nativeElement.querySelector('[data-testid="view-mode-cards"]')).toBeNull();
+
+    component.isMobile.set(true);
+    fixture.detectChanges();
+    expect(component.effectiveViewMode()).toBe('cards');
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="batches-cards-grid"]'),
+    ).not.toBeNull();
+  });
+
+  it('enforces Batch inspector and cross-module navigation actions', () => {
+    const firstBatch = mockBatches[0];
+    if (!firstBatch) throw new Error('Expected Batch fixture');
+    capabilityState.set({
+      'inventory.batches.actions.inspect': { allowed: false },
+      'inventory.batches.actions.viewProduct': { allowed: false },
+      'inventory.batches.actions.viewStock': { allowed: false },
+      'inventory.batches.actions.viewMovements': { allowed: false },
+    });
+    fixture.detectChanges();
+
+    component.openInspector(firstBatch);
+    expect(component.selectedBatch()).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="batch-inspect-trigger"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="batches-stock-link"]')).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="batches-movements-link"]'),
+    ).toBeNull();
+    expect(fixture.nativeElement.querySelector('.batch-table__th--actions')).toBeNull();
+  });
+
+  it('hides optional module and inspector sections without leaving empty sections', () => {
+    const firstBatch = mockBatches[0];
+    if (!firstBatch) throw new Error('Expected Batch fixture');
+    component.openInspector(firstBatch);
+    capabilityState.set({
+      'inventory.batches.features.moduleInfo': { enabled: false },
+      'inventory.batches.features.stockByLocation': { enabled: false },
+      'inventory.batches.features.technicalDetails': { enabled: false },
+      'inventory.batches.fields.manufactureDate': { visible: false },
+      'inventory.batches.fields.expiryDate': { visible: false },
+      'inventory.batches.fields.firstReceived': { visible: false },
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('agrivio-ui-module-info')).toBeNull();
+    const inspectorText = fixture.nativeElement.querySelector(
+      '[data-testid="batch-inspector"]',
+    )?.textContent;
+    expect(inspectorText).not.toContain('Dates');
+    expect(inspectorText).not.toContain('Stock by Location');
+    expect(inspectorText).not.toContain('Technical Details');
+    expect(inspectorText).toContain('Batch Identity');
   });
 });

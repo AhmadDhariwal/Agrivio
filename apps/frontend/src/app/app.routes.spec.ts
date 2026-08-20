@@ -41,6 +41,8 @@ describe('appRoutes F02 routing', () => {
     expect(products?.canActivate?.length).toBeGreaterThan(0);
     const openingStock = app?.children?.find((route) => route.path === 'inventory/opening-stock');
     expect(openingStock?.canActivate?.length).toBeGreaterThan(0);
+    const batches = app?.children?.find((route) => route.path === 'inventory/batches');
+    expect(batches?.canActivate?.length).toBeGreaterThan(0);
     expect(app?.children?.find((route) => route.path === 'feature-unavailable')).toBeTruthy();
 
     const withoutInvoice = app?.children?.find((route) => route.path === 'returns/without-invoice');

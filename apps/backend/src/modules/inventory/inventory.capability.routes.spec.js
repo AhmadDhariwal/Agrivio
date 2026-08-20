@@ -166,3 +166,78 @@ describe('Opening Stock capability route enforcement', () => {
     });
   });
 });
+
+describe('Product Batches capability route enforcement', () => {
+  function createApp(assertAllowed, inventoryService) {
+    const app = express();
+    app.use(createRequestIdMiddleware());
+    app.use(
+      registerInventoryRoutes({
+        requireAuth: (req, _res, next) => {
+          req.auth = { session: {}, user: {} };
+          req.authContext = {
+            contextType: 'organization',
+            organizationId: 'org-a',
+            userId: 'user-a',
+            permissions: ['inventory.view'],
+          };
+          next();
+        },
+        requireCsrf: (_req, _res, next) => next(),
+        requireOperationalAccess: (_req, _res, next) => next(),
+        capabilityService: { assertAllowed },
+        inventoryService,
+      }),
+    );
+    app.use(createErrorHandlerMiddleware('test', () => undefined));
+    return app;
+  }
+
+  it('blocks Batch list inquiry for only the organization whose module is disabled', async () => {
+    const listBatches = vi.fn(async () => ({ items: [], total: 0 }));
+    const listMovements = vi.fn(async () => ({ items: [], total: 0 }));
+    const assertAllowed = vi.fn(async (organizationId, key, mode) => {
+      expect(organizationId).toBe('org-a');
+      expect(key).toBe('inventory.batches');
+      expect(mode).toBe('enabled');
+      throw orgCapabilityDisabled('Product Batches is disabled', { controlKey: key });
+    });
+    const app = createApp(assertAllowed, { listBatches, listMovements });
+
+    await withServer(app, async (baseUrl) => {
+      const batches = await fetch(`${baseUrl}/api/v1/inventory/batches`);
+      const body = await batches.json();
+      expect(batches.status).toBe(403);
+      expect(body.error.code).toBe('ORG_CAPABILITY_DISABLED');
+      expect(listBatches).not.toHaveBeenCalled();
+
+      const movements = await fetch(`${baseUrl}/api/v1/inventory/movements`);
+      expect(movements.status).toBe(200);
+      expect(listMovements).toHaveBeenCalledOnce();
+      expect(assertAllowed).toHaveBeenCalledOnce();
+    });
+  });
+
+  it('checks the Inspect action after module access on the dedicated Batch detail endpoint', async () => {
+    const getBatch = vi.fn();
+    const assertAllowed = vi.fn(async (_organizationId, key, mode) => {
+      if (key === 'inventory.batches') {
+        expect(mode).toBe('enabled');
+        return;
+      }
+      expect(key).toBe('inventory.batches.actions.inspect');
+      expect(mode).toBe('allowed');
+      throw orgActionNotAllowed('Inspect Batch is not allowed', { controlKey: key });
+    });
+    const app = createApp(assertAllowed, { getBatch });
+
+    await withServer(app, async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/v1/inventory/batches/batch-1`);
+      const body = await response.json();
+      expect(response.status).toBe(403);
+      expect(body.error.code).toBe('ORG_ACTION_NOT_ALLOWED');
+      expect(getBatch).not.toHaveBeenCalled();
+      expect(assertAllowed).toHaveBeenCalledTimes(2);
+    });
+  });
+});
