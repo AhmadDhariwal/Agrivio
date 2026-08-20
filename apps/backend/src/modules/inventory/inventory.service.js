@@ -404,6 +404,33 @@ function createInventoryService(deps) {
       if (typeof query?.productId === 'string' && query.productId.trim() !== '') {
         filters.productId = query.productId.trim();
       }
+      if (typeof query?.warehouseId === 'string' && query.warehouseId.trim() !== '') {
+        const whBalances = await store.listBalances(organizationId, { warehouseId: query.warehouseId.trim() });
+        const distinctBatchIds = [
+          ...new Set(
+            whBalances
+              .filter((b) => b.batchId)
+              .map((b) => String(b.batchId)),
+          ),
+        ];
+        filters.batchIds = distinctBatchIds;
+      }
+      if (typeof query?.search === 'string' && query.search.trim() !== '') {
+        filters.search = query.search.trim();
+        if (catalogService && typeof catalogService.listProducts === 'function') {
+          try {
+            const { items: matchedProducts } = await catalogService.listProducts(organizationId, {
+              search: filters.search,
+              limit: 50,
+            });
+            if (matchedProducts && matchedProducts.length > 0) {
+              filters.productIds = matchedProducts.map((p) => String(p.id ?? p._id));
+            }
+          } catch {
+            // ignore catalog search failure, fallback to search on batchNumber
+          }
+        }
+      }
       if (query?.skip !== undefined || query?.pageSize !== undefined) {
         const { items, total } = await store.listBatchesPage(organizationId, filters, query);
         return { items: items.map(toBatchDto), total };

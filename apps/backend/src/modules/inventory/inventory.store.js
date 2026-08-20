@@ -59,12 +59,46 @@ function createMongooseInventoryStore() {
       if (filters.productId) {
         query.productId = filters.productId;
       }
+      if (filters.batchIds && Array.isArray(filters.batchIds)) {
+        query._id = { $in: filters.batchIds };
+      }
+      if (filters.productIds && Array.isArray(filters.productIds) && filters.productIds.length > 0) {
+        if (filters.search) {
+          const escaped = filters.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          query.$or = [
+            { batchNumber: { $regex: escaped, $options: 'i' } },
+            { productId: { $in: filters.productIds } },
+          ];
+        } else {
+          query.productId = { $in: filters.productIds };
+        }
+      } else if (filters.search) {
+        const escaped = filters.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        query.batchNumber = { $regex: escaped, $options: 'i' };
+      }
       return ProductBatchModel.find(query).sort({ firstReceivedAt: 1, createdAt: 1 }).lean().exec();
     },
 
     async listBatchesPage(organizationId, filters, pagination) {
       const query = { organizationId };
       if (filters.productId) query.productId = filters.productId;
+      if (filters.batchIds && Array.isArray(filters.batchIds)) {
+        query._id = { $in: filters.batchIds };
+      }
+      if (filters.productIds && Array.isArray(filters.productIds) && filters.productIds.length > 0) {
+        if (filters.search) {
+          const escaped = filters.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          query.$or = [
+            { batchNumber: { $regex: escaped, $options: 'i' } },
+            { productId: { $in: filters.productIds } },
+          ];
+        } else {
+          query.productId = { $in: filters.productIds };
+        }
+      } else if (filters.search) {
+        const escaped = filters.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        query.batchNumber = { $regex: escaped, $options: 'i' };
+      }
       return paginateModel(ProductBatchModel, query, { firstReceivedAt: 1, createdAt: 1, _id: 1 }, pagination);
     },
 
@@ -467,6 +501,9 @@ function createInMemoryInventoryStore() {
     },
 
     async listBatches(organizationId, filters) {
+      const searchNeedle = filters.search ? String(filters.search).toLowerCase() : null;
+      const matchedProductSet = filters.productIds ? new Set(filters.productIds.map(String)) : null;
+      const allowedBatchIds = filters.batchIds ? new Set(filters.batchIds.map(String)) : null;
       return [...batches.values()]
         .filter((item) => {
           if (String(item.organizationId) !== String(organizationId)) {
@@ -474,6 +511,16 @@ function createInMemoryInventoryStore() {
           }
           if (filters.productId && String(item.productId) !== String(filters.productId)) {
             return false;
+          }
+          if (allowedBatchIds && !allowedBatchIds.has(String(item._id))) {
+            return false;
+          }
+          if (searchNeedle) {
+            const matchesBatch = String(item.batchNumber).toLowerCase().includes(searchNeedle);
+            const matchesProduct = matchedProductSet ? matchedProductSet.has(String(item.productId)) : false;
+            if (!matchesBatch && !matchesProduct) {
+              return false;
+            }
           }
           return true;
         })
