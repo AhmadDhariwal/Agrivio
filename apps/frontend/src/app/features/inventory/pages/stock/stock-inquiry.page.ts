@@ -285,7 +285,7 @@ export class StockInquiryPage {
             expiry?: ReturnType<InventoryApi['listExpiry']>;
           } = {
             balances: this.inventoryApi.listBalances(balanceQuery),
-            products: this.catalogApi.searchProductOptions('', 100),
+            products: this.catalogApi.searchProductOptions('', 500),
             warehouses: this.locationsApi.listWarehouseOptions(),
             batches: this.inventoryApi.listBatches({ page: 1, pageSize: 100 }),
           };
@@ -310,7 +310,8 @@ export class StockInquiryPage {
         // Populate Product Map
         const prodMap = new Map<string, ProductRecord>();
         for (const p of products) {
-          prodMap.set(p.id, p);
+          const id = p.id || (p as unknown as { _id?: string })._id;
+          if (id) prodMap.set(id, p);
         }
         this.productMap.set(prodMap);
         this.productList.set(products);
@@ -318,7 +319,8 @@ export class StockInquiryPage {
         // Populate Warehouse Map
         const whMap = new Map<string, WarehouseRecord>();
         for (const w of warehouses) {
-          whMap.set(w.id, w);
+          const id = w.id || (w as unknown as { _id?: string })._id;
+          if (id) whMap.set(id, w);
         }
         this.warehouseMap.set(whMap);
         this.warehouseList.set(warehouses);
@@ -326,7 +328,8 @@ export class StockInquiryPage {
         // Populate Batch Map
         const bMap = new Map<string, ProductBatchRecord>();
         for (const b of batches.items) {
-          bMap.set(b.id, b);
+          const id = b.id || (b as unknown as { _id?: string })._id;
+          if (id) bMap.set(id, b);
         }
         this.batchMap.set(bMap);
         this.batchList.set(batches.items);

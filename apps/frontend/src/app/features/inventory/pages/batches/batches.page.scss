@@ -22,6 +22,7 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
+    flex: 1;
   }
 
   &__eyebrow {
@@ -73,6 +74,7 @@
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
+    flex-wrap: wrap;
   }
 
   .btn-text-full {
@@ -119,8 +121,10 @@
   align-items: center;
   gap: 4px;
   margin-left: 4px;
+  border-left: 1px solid var(--ag-color-border, #e2e8f0);
+  padding-left: 6px;
 
-  @media (max-width: 1023px) {
+  @media (max-width: 1200px) {
     display: none;
   }
 }
@@ -162,20 +166,20 @@
 }
 
 /* ==========================================================================
-   2. Authoritative KPI Summary Row
+   2. Authoritative KPI Summary Row (Desktop 4 cards, Tablet 2x2, Mobile 2x2)
    ========================================================================== */
 .kpi-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 
-  @media (max-width: 1023px) and (min-width: 768px) {
-    grid-template-columns: repeat(2, 1fr);
+  @media (max-width: 1100px) and (min-width: 768px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
 
   @media (max-width: 767px) {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
 }
@@ -190,6 +194,7 @@
   align-items: center;
   gap: 12px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+  min-width: 0;
 
   &__icon {
     width: 36px;
@@ -235,6 +240,7 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
+    flex: 1;
   }
 
   &__label {
@@ -297,7 +303,7 @@
 }
 
 /* ==========================================================================
-   3. Toolbar (Desktop Inline Filters vs Mobile 2-Row Layout)
+   3. Toolbar (Desktop / Laptop Intentional Layout vs Mobile Controls)
    ========================================================================== */
 .toolbar {
   background: var(--ag-color-surface, #ffffff);
@@ -312,6 +318,12 @@
     gap: 12px;
     width: 100%;
 
+    @media (max-width: 1180px) and (min-width: 768px) {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
     @media (max-width: 767px) {
       display: none;
     }
@@ -321,14 +333,27 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    flex-wrap: wrap;
     flex: 1;
+    min-width: 0;
+
+    @media (max-width: 1180px) and (min-width: 768px) {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
   }
 
   &__right {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
+
+    @media (max-width: 1180px) and (min-width: 768px) {
+      width: 100%;
+      justify-content: flex-end;
+    }
   }
 
   &__mobile {
@@ -361,7 +386,9 @@
   position: relative;
   display: flex;
   align-items: center;
-  width: 280px;
+  flex: 1 1 220px;
+  min-width: 180px;
+  max-width: 320px;
 
   &__icon {
     position: absolute;
@@ -381,6 +408,7 @@
     color: #0f172a;
     outline: none;
     transition: all 0.15s ease;
+    box-sizing: border-box;
 
     &::placeholder {
       color: #94a3b8;
@@ -395,6 +423,8 @@
 
   &--mobile {
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
 
     .search-field__input {
       height: 38px;
@@ -424,7 +454,11 @@
 }
 
 .select-field {
+  flex: 0 1 180px;
+  min-width: 140px;
+
   &__input {
+    width: 100%;
     height: 32px;
     padding: 0 28px 0 10px;
     background: #f8fafc;
@@ -439,6 +473,7 @@
     background-repeat: no-repeat;
     background-position: right 10px center;
     transition: all 0.15s ease;
+    box-sizing: border-box;
 
     &:focus {
       background-color: #ffffff;
@@ -458,6 +493,8 @@
   font-weight: 500;
   color: #64748b;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: all 0.15s ease;
 
   &:hover {
@@ -698,61 +735,87 @@
 }
 
 /* ==========================================================================
-   5. Desktop & Tablet Primary Table (High-Density & Column Priorities)
+   5. Deliberate Desktop Table Column Sizing & Shrink Model
    ========================================================================== */
 .table-container {
   background: var(--ag-color-surface, #ffffff);
   border: 1px solid var(--ag-color-border, #e2e8f0);
   border-radius: 6px;
   overflow-x: auto;
+  overflow-y: visible;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+  width: 100%;
   max-width: 100%;
   -webkit-overflow-scrolling: touch;
 }
 
 .batch-table {
   width: 100%;
-  min-width: 960px;
+  min-width: 1200px;
   border-collapse: collapse;
   font-size: 13px;
   text-align: left;
   table-layout: fixed;
 
-  /* Column Widths */
+  /* Level 1: Flexible Descriptive / Identity Columns (Priority Shrink: Batch -> Product -> Locations) */
   .col-batch {
-    width: 17%;
+    min-width: 150px;
+    width: 18%;
   }
+
   .col-product {
+    min-width: 180px;
     width: 22%;
   }
+
   .col-locations {
+    min-width: 130px;
     width: 15%;
   }
+
+  /* Level 2: Stable Operational Data Columns (Fixed Stable Widths - NEVER Squeezed) */
   .col-manufacture {
-    width: 10%;
+    width: 100px;
+    min-width: 100px;
+    max-width: 100px;
   }
+
   .col-expiry {
-    width: 10%;
+    width: 100px;
+    min-width: 100px;
+    max-width: 100px;
   }
+
   .col-received {
-    width: 10%;
+    width: 115px;
+    min-width: 115px;
+    max-width: 115px;
   }
+
   .col-quantity {
-    width: 9%;
+    width: 110px;
+    min-width: 110px;
+    max-width: 110px;
   }
+
   .col-status {
-    width: 9%;
+    width: 105px;
+    min-width: 105px;
+    max-width: 105px;
   }
+
   .col-actions {
-    width: 80px;
+    width: 130px;
+    min-width: 130px;
+    max-width: 130px;
   }
 
   &__th {
-    padding: 10px 12px;
-    font-size: 11.5px;
+    padding: 10px 10px;
+    font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.03em;
     color: #475569;
     background: #f8fafc;
     border-bottom: 1px solid #e2e8f0;
@@ -762,14 +825,21 @@
       text-align: right;
     }
 
+    &--status {
+      padding-left: 10px;
+      padding-right: 10px;
+    }
+
     &--actions {
       text-align: right;
+      padding-right: 14px;
     }
   }
 
   &__row {
     border-bottom: 1px solid #f1f5f9;
     transition: background-color 0.12s ease;
+    height: 54px;
 
     &:hover {
       background-color: #f8fafc;
@@ -785,7 +855,7 @@
   }
 
   &__td {
-    padding: 10px 12px;
+    padding: 10px 10px;
     vertical-align: middle;
     color: #334155;
 
@@ -793,8 +863,15 @@
       text-align: right;
     }
 
+    &--status {
+      padding-left: 10px;
+      padding-right: 10px;
+    }
+
     &--actions {
       text-align: right;
+      padding-right: 14px;
+      padding-left: 6px;
     }
   }
 }
@@ -902,6 +979,9 @@
     font-size: 11px;
     font-weight: 500;
     color: #64748b;
+    min-width: 36px;
+    text-align: left;
+    white-space: nowrap;
   }
 }
 
@@ -971,6 +1051,22 @@
   justify-content: flex-end;
   gap: 6px;
   position: relative;
+  white-space: nowrap;
+
+  &__inspect {
+    height: 28px;
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  &__more {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+  }
 }
 
 .row-menu-wrap {

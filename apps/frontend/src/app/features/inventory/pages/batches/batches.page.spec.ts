@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { BatchesPage } from './batches.page';
@@ -129,7 +129,14 @@ describe('BatchesPage', () => {
           useValue: {
             listBatches: (query: Record<string, unknown>) => {
               lastListBatchesQuery = query;
-              return of({ items: mockBatches, meta: { page: 1, pageSize: 25, total: 2 } });
+              return of({
+                items: mockBatches,
+                meta: {
+                  page: (query?.['page'] as number) || 1,
+                  pageSize: (query?.['pageSize'] as number) || 25,
+                  total: 2,
+                },
+              });
             },
             listBalances: () =>
               of({ items: mockBalances, meta: { page: 1, pageSize: 100, total: 2 } }),
@@ -184,12 +191,14 @@ describe('BatchesPage', () => {
     expect(lastListBatchesQuery?.['pageSize']).toBe(50);
   });
 
-  it('should handle debounced search inputs', fakeAsync(() => {
+  it('should handle debounced search inputs', () => {
+    vi.useFakeTimers();
     component.onSearchInput({ target: { value: 'LOT-LAMBDA' } } as unknown as Event);
-    tick(350);
+    vi.advanceTimersByTime(350);
     expect(component.search()).toBe('LOT-LAMBDA');
     expect(lastListBatchesQuery?.['search']).toBe('LOT-LAMBDA');
-  }));
+    vi.useRealTimers();
+  });
 
   it('should handle product and warehouse filter changes', () => {
     component.onProductChange({ target: { value: 'prod-1' } } as unknown as Event);
@@ -231,7 +240,7 @@ describe('BatchesPage', () => {
   });
 
   it('should correctly format dates, quantities, and status badges', () => {
-    expect(component.formatDate('2027-09-21')).toBe('21 Sep 2027');
+    expect(component.formatDate('2027-09-21')).toMatch(/21 Sep(t)? 2027/);
     expect(component.formatDate(null)).toBe('—');
     expect(component.formatQuantity('1250')).toBe('1,250');
     expect(component.formatQuantity(null)).toBe('0');

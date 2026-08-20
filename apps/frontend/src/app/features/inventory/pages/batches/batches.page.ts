@@ -204,7 +204,7 @@ export class BatchesPage {
             expiry?: ReturnType<InventoryApi['listExpiry']>;
           } = {
             batches: this.inventoryApi.listBatches(batchQuery),
-            products: this.catalogApi.searchProductOptions('', 100).pipe(catchError(() => of([]))),
+            products: this.catalogApi.searchProductOptions('', 500).pipe(catchError(() => of([]))),
             warehouses: this.locationsApi.listWarehouseOptions().pipe(catchError(() => of([]))),
             balances: this.inventoryApi
               .listBalances({ pageSize: 100 })
@@ -239,7 +239,8 @@ export class BatchesPage {
         // Populate Product Map
         const prodMap = new Map<string, ProductRecord>();
         for (const p of products) {
-          prodMap.set(p.id, p);
+          const id = p.id || (p as unknown as { _id?: string })._id;
+          if (id) prodMap.set(id, p);
         }
         this.productMap.set(prodMap);
         this.productList.set(products);
@@ -247,7 +248,8 @@ export class BatchesPage {
         // Populate Warehouse Map
         const whMap = new Map<string, WarehouseRecord>();
         for (const w of warehouses) {
-          whMap.set(w.id, w);
+          const id = w.id || (w as unknown as { _id?: string })._id;
+          if (id) whMap.set(id, w);
         }
         this.warehouseMap.set(whMap);
         this.warehouseList.set(warehouses);
