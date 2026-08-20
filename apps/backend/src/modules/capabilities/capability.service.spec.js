@@ -27,7 +27,7 @@ function control(result, key) {
   return result.controls.find((item) => item.key === key);
 }
 
-describe('Organization Capability Policy with Products, Categories, and Stock-on-Hand modules', () => {
+describe('Organization Capability Policy with Products, Categories, Stock-on-Hand, and Opening Stock modules', () => {
   it('preserves current Products behavior when an organization has no policy document', async () => {
     const { capabilityService } = createHarness();
     const effective = await capabilityService.resolveEffective('org-a', {
@@ -83,6 +83,147 @@ describe('Organization Capability Policy with Products, Categories, and Stock-on
     );
     expect(control(effective, 'inventory.stock.fields.wac').effectiveValue.visible).toBe(true);
     expect(control(effective, 'inventory.stock.actions.inspect').effectiveValue.allowed).toBe(true);
+  });
+
+  it('registers safe Opening Stock controls while keeping required workflow fields enforced', async () => {
+    const { capabilityService } = createHarness();
+    const effective = await capabilityService.resolveEffective('org-a', {
+      permissions: ['inventory.view', 'inventory.opening-stock.post'],
+    });
+
+    expect(control(effective, 'inventory.openingStock').effectiveValue.enabled).toBe(true);
+    expect(
+      control(effective, 'inventory.openingStock.features.productSearch').effectiveValue.enabled,
+    ).toBe(true);
+    expect(
+      control(effective, 'inventory.openingStock.fields.packagingUnit').effectiveValue.visible,
+    ).toBe(true);
+    expect(control(effective, 'inventory.openingStock.actions.post').effectiveValue.allowed).toBe(
+      true,
+    );
+
+    await expect(
+      capabilityService.updatePolicy(
+        'org-a',
+        {
+          expectedVersion: 0,
+          changes: [
+            { key: 'inventory.openingStock.fields.batchExpiry', value: { visible: false } },
+          ],
+        },
+        { actorId: 'platform-admin' },
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  });
+
+  it('isolates Opening Stock module and optional presentation policy by organization', async () => {
+    const { capabilityService } = createHarness();
+    await capabilityService.updatePolicy(
+      'org-a',
+      {
+        expectedVersion: 0,
+        changes: [{ key: 'inventory.openingStock', value: { enabled: false } }],
+      },
+      { actorId: 'platform-admin' },
+    );
+    await capabilityService.updatePolicy(
+      'org-b',
+      {
+        expectedVersion: 0,
+        changes: [
+          { key: 'inventory.openingStock.fields.manufacturingDate', value: { visible: false } },
+        ],
+      },
+      { actorId: 'platform-admin' },
+    );
+
+    const orgA = await capabilityService.resolveEffective('org-a');
+    const orgB = await capabilityService.resolveEffective('org-b');
+    expect(control(orgA, 'inventory.openingStock').effectiveValue.enabled).toBe(false);
+    expect(control(orgA, 'inventory.openingStock.actions.post').effectiveValue.allowed).toBe(false);
+    expect(
+      control(orgA, 'inventory.openingStock.fields.manufacturingDate').effectiveValue.visible,
+    ).toBe(false);
+    expect(control(orgB, 'inventory.openingStock').effectiveValue.enabled).toBe(true);
+    expect(control(orgB, 'inventory.openingStock.actions.post').effectiveValue.allowed).toBe(true);
+    expect(
+      control(orgB, 'inventory.openingStock.fields.manufacturingDate').effectiveValue.visible,
+    ).toBe(false);
+    expect(
+      control(orgB, 'inventory.openingStock.fields.packagingUnit').effectiveValue.visible,
+    ).toBe(true);
+
+    await expect(
+      capabilityService.assertAllowed('org-a', 'inventory.openingStock', 'enabled'),
+    ).rejects.toMatchObject({ code: 'ORG_CAPABILITY_DISABLED' });
+    await expect(
+      capabilityService.assertAllowed('org-a', 'inventory.openingStock.actions.post', 'allowed'),
+    ).rejects.toMatchObject({ code: 'ORG_ACTION_NOT_ALLOWED' });
+    await expect(
+      capabilityService.assertAllowed('org-b', 'inventory.openingStock.actions.post', 'allowed'),
+    ).resolves.toBeTruthy();
+
+    const reenabled = await capabilityService.updatePolicy(
+      'org-a',
+      {
+        expectedVersion: 1,
+        changes: [{ key: 'inventory.openingStock', value: { enabled: true } }],
+      },
+      { actorId: 'platform-admin' },
+    );
+    expect(reenabled.version).toBe(2);
+    expect(control(reenabled, 'inventory.openingStock').override).toBeNull();
+    expect(control(reenabled, 'inventory.openingStock').effectiveValue.enabled).toBe(true);
+  });
+
+  it('resets only Opening Stock overrides with audit and monotonic policy versions', async () => {
+    const { capabilityService, auditStore } = createHarness();
+    const updated = await capabilityService.updatePolicy(
+      'org-a',
+      {
+        expectedVersion: 0,
+        reason: 'Limit opening workflow presentation',
+        changes: [
+          { key: 'inventory.openingStock.actions.post', value: { allowed: false } },
+          { key: 'inventory.openingStock.features.moduleInfo', value: { enabled: false } },
+          { key: 'inventory.stock.fields.wac', value: { visible: false } },
+        ],
+      },
+      { actorId: 'platform-admin' },
+    );
+    expect(updated.version).toBe(1);
+
+    const oneReset = await capabilityService.resetOverride(
+      'org-a',
+      'inventory.openingStock.features.moduleInfo',
+      1,
+      { actorId: 'platform-admin' },
+      'Restore guidance',
+    );
+    expect(oneReset.version).toBe(2);
+    expect(control(oneReset, 'inventory.openingStock.features.moduleInfo').override).toBeNull();
+
+    const moduleReset = await capabilityService.resetModule(
+      'org-a',
+      'inventory.openingStock',
+      2,
+      { actorId: 'platform-admin' },
+      'Restore Opening Stock defaults',
+    );
+    expect(moduleReset.version).toBe(3);
+    expect(control(moduleReset, 'inventory.openingStock.actions.post').override).toBeNull();
+    expect(control(moduleReset, 'inventory.stock.fields.wac').override).toEqual({ visible: false });
+    expect(auditStore.listForTest().at(-1)).toMatchObject({
+      actorId: 'platform-admin',
+      organizationId: 'org-a',
+      metadata: {
+        controlKey: 'inventory.openingStock.actions.post',
+        versionBefore: 2,
+        versionAfter: 3,
+        previousOverride: { allowed: false },
+        newOverride: null,
+      },
+    });
   });
 
   it('isolates Stock-on-Hand module and valuation visibility policy by organization', async () => {

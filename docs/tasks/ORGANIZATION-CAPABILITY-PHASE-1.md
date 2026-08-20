@@ -1,7 +1,7 @@
 # Organization Capability & UI Policy — Phase 1
 
 Status: Implementation complete; lightweight authenticated browser review remains environment-dependent
-Scope: Generic platform foundation plus Products, Categories, and Inventory / Stock-on-Hand integrations
+Scope: Generic platform foundation plus Products, Categories, Inventory / Stock-on-Hand, and Opening Stock integrations
 Completed: 2026-08-20
 
 ## Implemented
@@ -14,11 +14,14 @@ Completed: 2026-08-20
 - Products navigation, routes, table/desktop cards, responsive cards, fields, KPI widgets, lifecycle actions, pricing, forms, and backend mutations wired to policy. Responsive phone cards remain an internal required renderer.
 - Categories registered as reference module #2 with module, desktop-card view, Category fields, derived tracking display, Total Categories widget, and create/inspect/edit/deactivate/reactivate/delete actions. Angular navigation/routes/screens and Category APIs enforce the effective policy; responsive phone cards and the underlying product-class tracking rule remain platform enforced.
 - Inventory / Stock on Hand registered as module #3 with module access, desktop cards, the four implemented KPI widgets, search/warehouse/product filters, safe field visibility, inspector sections, and Inspect Stock. The same registry-driven Super Admin renderer, staged changes, policy versioning, reset APIs, resolver, and audit path are reused.
-- Stock-on-Hand navigation, direct routes, table, desktop/mobile cards, and inspector resolve the same organization policy. Balance inquiry is blocked backend-side when the module is disabled; Opening Stock, Batches, Expiry, Adjustments, Transfers, Reconciliation, and Movements remain under their existing RBAC/subscription rules pending their own capability integrations.
+- Stock-on-Hand navigation, direct routes, table, desktop/mobile cards, and inspector resolve the same organization policy. Balance inquiry is blocked backend-side when the module is disabled; Batches, Expiry, Adjustments, Transfers, Reconciliation, and Movements remain under their existing RBAC/subscription rules pending their own capability integrations.
+- Opening Stock owns the separate `inventory.openingStock` namespace. Its critical module switch, optional module information and product search, safe Packaging Unit and Manufacturing Date presentation, Post action, and View Stock action reuse the same registry, resolver, sparse policy, reset, version, audit, Angular service, guard, navigation filter, and generic Super Admin renderer.
+- Warehouse, Product, Quantity, Opening Inventory Value, and conditionally required Batch / Expiry appear as required platform-enforced workflow controls. Product tracking rules and all existing posting, WAC, valuation, batch/expiry, warehouse, transaction, RBAC, and subscription validation remain authoritative.
+- Disabling Opening Stock hides tenant navigation, sends direct tenant routes to the shared unavailable state, removes the Stock-on-Hand posting link, and blocks posting through both module and Post-action backend middleware. Platform Super Admin policy routes remain outside tenant capability enforcement so the module can be re-enabled.
 - Individual, module, and organization reset operations remove sparse overrides through the transactional backend endpoints, increment policy versions on material changes, emit per-control audit evidence, re-resolve effective policy, and refresh the Super Admin UI.
 - Stable policy denial codes: `ORG_CAPABILITY_DISABLED`, `ORG_ACTION_NOT_ALLOWED`, and `ORG_FIELD_NOT_EDITABLE`.
 
-No capability controls were added for Warehouses or later Inventory submodules.
+No capability controls were added for Warehouses, Batches, Expiry inquiry, Adjustments, Transfers, Reconciliation, or Stock Movements.
 
 ## Products registry safety decisions
 
@@ -49,6 +52,15 @@ No capability controls were added for Warehouses or later Inventory submodules.
 - Inspector Identity and Quantity sections are platform enforced. Valuation and Tracking sections are configurable, and empty valuation presentation is removed when WAC and Inventory Value are both hidden.
 - Inspect Stock is the only Stock-on-Hand-owned action registered. Cross-module links were intentionally not duplicated as Stock capabilities.
 
+## Opening Stock registry safety decisions
+
+- `inventory.openingStock` is independent from `inventory.stock`. Its critical switch controls only tenant Opening Stock access and posting; existing inventory and historical transactions are unchanged.
+- Module Information and Find Product Search are optional UI helpers. The required Product selector remains available when helper search is hidden.
+- Packaging Unit is optional because omission already resolves through the product base unit. Manufacturing Date is optional under existing validation. Hiding either removes only its presentation and does not weaken transaction rules.
+- Warehouse, Product, Quantity, Opening Inventory Value, and Batch / Expiry are registered as non-configurable, platform-enforced requirements. Batch and expiry remain conditionally required by the selected product tracking mode; no organization override exists for those rules.
+- `inventory.openingStock.actions.post` is enforced in Angular and backend middleware after existing RBAC/subscription checks and before posting. `inventory.openingStock.actions.viewStock` controls only its Opening Stock-owned navigation affordance.
+- Individual reset removes one sparse override. Module reset matches only definitions whose `moduleKey` is `inventory.openingStock`, preserving Stock-on-Hand, Products, Categories, and every other module override while incrementing the policy version and emitting the existing per-control audit event.
+
 ## Model review checklist outcome
 
 | Check | Outcome |
@@ -77,8 +89,12 @@ No capability controls were added for Warehouses or later Inventory submodules.
 - Architecture boundary gate: passed (6 tests).
 - Repository lint plus changed-file formatting: passed with no errors.
 - Repository production build and development frontend build: passed, including Angular template compilation for Organization Controls and Stock Inquiry.
+- Opening Stock focused backend capability resolver, tenant isolation, scoped reset/audit/version, re-enable, and route enforcement: passed (2 files, 22 tests).
+- Opening Stock, Stock-on-Hand cross-link, Organization Controls, navigation, and routing Angular coverage: passed (5 files, 44 tests across focused runs).
+- Frontend and API-contract typecheck: passed. Changed-file ESLint: passed with no errors (three pre-existing Stock Inquiry spec warnings); project-wide lint remains blocked by unrelated pre-existing errors outside this task.
+- Final frontend/backend production build: passed, including Angular template compilation for Opening Stock and Organization Controls.
 - Lightweight browser review could not start because the installed browser-control runtime referenced a missing bundled browser service before connecting to the local app. No substitute browser mechanism was used; component and template coverage passed.
 
 ## Remaining risk
 
-Authenticated cross-organization visual verification remains required if browser control or local authentication is unavailable. Foundation + Products + Categories + Stock on Hand are complete; Warehouses and later Inventory submodules are intentionally not configurable.
+Authenticated cross-organization browser smoke remains outstanding; focused component, route, policy, persistence-boundary, and build validation passed. Foundation + Products + Categories + Stock on Hand + Opening Stock are complete; Warehouses and later Inventory submodules are intentionally not configurable.

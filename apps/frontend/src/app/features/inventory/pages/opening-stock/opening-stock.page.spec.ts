@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { signal, WritableSignal } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { OpeningStockPage } from './opening-stock.page';
@@ -8,6 +9,7 @@ import { BranchesWarehousesApi } from '../../../branches-warehouses/data-access/
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 function product(id: string, trackingMode: ProductRecord['trackingMode']): ProductRecord {
   return {
@@ -27,8 +29,10 @@ function product(id: string, trackingMode: ProductRecord['trackingMode']): Produ
 describe('OpeningStockPage', () => {
   let fixture: ComponentFixture<OpeningStockPage>;
   let page: OpeningStockPage;
+  let capabilityValues: WritableSignal<Record<string, boolean>>;
 
   beforeEach(async () => {
+    capabilityValues = signal({});
     await TestBed.configureTestingModule({
       imports: [OpeningStockPage],
       providers: [
@@ -87,6 +91,15 @@ describe('OpeningStockPage', () => {
           provide: AuthSessionStore,
           useValue: { hasPermission: () => true },
         },
+        {
+          provide: CapabilityService,
+          useValue: {
+            canUseModule: (key: string) => capabilityValues()[key] ?? true,
+            canUseView: (key: string) => capabilityValues()[key] ?? true,
+            canViewField: (key: string) => capabilityValues()[key] ?? true,
+            canPerformAction: (key: string) => capabilityValues()[key] ?? true,
+          },
+        },
       ],
     }).compileComponents();
 
@@ -101,6 +114,41 @@ describe('OpeningStockPage', () => {
     expect(moduleInfo).not.toBeNull();
     expect(moduleInfo?.textContent).toContain('About Opening Stock');
     expect(moduleInfo?.textContent).toContain('Use Opening Stock when initializing a warehouse');
+  });
+
+  it('hides only optional presentation controls while retaining required workflow fields', () => {
+    capabilityValues.set({
+      'inventory.openingStock.features.moduleInfo': false,
+      'inventory.openingStock.features.productSearch': false,
+      'inventory.openingStock.fields.packagingUnit': false,
+      'inventory.openingStock.fields.manufacturingDate': false,
+    });
+    page.form.controls.productId.setValue('prod-batch');
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('agrivio-ui-module-info')).toBeNull();
+    expect(compiled.querySelector('#opening-product-search')).toBeNull();
+    expect(compiled.querySelector('[data-testid="opening-packaging"]')).toBeNull();
+    expect(compiled.querySelector('[data-testid="opening-manufacturing-date"]')).toBeNull();
+    expect(compiled.querySelector('[data-testid="opening-warehouse"]')).not.toBeNull();
+    expect(compiled.querySelector('[data-testid="opening-product"]')).not.toBeNull();
+    expect(compiled.querySelector('[data-testid="opening-quantity"]')).not.toBeNull();
+    expect(compiled.querySelector('[data-testid="opening-inventory-value"]')).not.toBeNull();
+    expect(compiled.querySelector('[data-testid="opening-batch-number"]')).not.toBeNull();
+  });
+
+  it('enforces Post and View Stock actions from the capability service', () => {
+    capabilityValues.set({
+      'inventory.openingStock.actions.post': false,
+      'inventory.openingStock.actions.viewStock': false,
+    });
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('[data-testid="opening-stock-form"]')).toBeNull();
+    expect(compiled.textContent).toContain('do not have permission to post opening stock');
+    expect(compiled.querySelector('[data-testid="opening-stock-view-stock"]')).toBeNull();
   });
 
   it('keeps batch and expiry optional when tracking is off', () => {

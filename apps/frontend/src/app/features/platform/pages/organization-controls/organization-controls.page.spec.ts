@@ -8,11 +8,18 @@ import { OrganizationControlsPage } from './organization-controls.page';
 
 function control(
   key: string,
-  moduleKey: 'inventory.products' | 'inventory.categories' | 'inventory.stock',
+  moduleKey:
+    'inventory.products' | 'inventory.categories' | 'inventory.stock' | 'inventory.openingStock',
   type: PlatformCapabilityControl['type'],
   label: string,
   policy: Record<string, boolean>,
-  options: { override?: Record<string, boolean>; risk?: PlatformCapabilityControl['risk'] } = {},
+  options: {
+    override?: Record<string, boolean>;
+    risk?: PlatformCapabilityControl['risk'];
+    configurable?: Record<string, boolean>;
+    platformEnforced?: boolean;
+    reason?: string;
+  } = {},
 ): PlatformCapabilityControl {
   const override = options.override ?? null;
   return {
@@ -23,12 +30,15 @@ function control(
     label,
     description: `${label} control`,
     defaultPolicy: policy,
-    configurable: Object.fromEntries(Object.keys(policy).map((mode) => [mode, true])),
+    configurable:
+      options.configurable ?? Object.fromEntries(Object.keys(policy).map((mode) => [mode, true])),
     risk: options.risk ?? 'NORMAL',
     override,
     configuredValue: { ...policy, ...(override ?? {}) },
     effectiveValue: { ...policy, ...(override ?? {}) },
     reasons: [],
+    ...(options.platformEnforced ? { platformEnforced: true } : {}),
+    ...(options.reason ? { reason: options.reason } : {}),
   };
 }
 
@@ -60,6 +70,63 @@ describe('OrganizationControlsPage', () => {
         'Low Stock',
         { visible: true },
         { override: { visible: false } },
+      ),
+      control(
+        'inventory.openingStock',
+        'inventory.openingStock',
+        'FEATURE',
+        'Opening Stock',
+        { enabled: true },
+        { risk: 'CRITICAL' },
+      ),
+      control(
+        'inventory.openingStock.features.moduleInfo',
+        'inventory.openingStock',
+        'FEATURE',
+        'Module Information',
+        { enabled: true },
+      ),
+      control(
+        'inventory.openingStock.fields.packagingUnit',
+        'inventory.openingStock',
+        'FIELD',
+        'Packaging Unit',
+        { visible: true },
+        { override: { visible: false } },
+      ),
+      control(
+        'inventory.openingStock.fields.warehouse',
+        'inventory.openingStock',
+        'FIELD',
+        'Warehouse',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Opening Stock must identify the destination warehouse.',
+        },
+      ),
+      control(
+        'inventory.openingStock.fields.batchExpiry',
+        'inventory.openingStock',
+        'FIELD',
+        'Batch / Expiry',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Selected product tracking rules remain authoritative.',
+        },
+      ),
+      control(
+        'inventory.openingStock.actions.post',
+        'inventory.openingStock',
+        'ACTION',
+        'Post Opening Stock',
+        { allowed: true },
+        { risk: 'CRITICAL' },
       ),
       control('inventory.products.fields.sku', 'inventory.products', 'FIELD', 'SKU', {
         visible: true,
@@ -151,15 +218,54 @@ describe('OrganizationControlsPage', () => {
     fixture.detectChanges();
   });
 
-  it('shows Products, Categories, and Inventory with business-readable policy state and no raw JSON', () => {
+  it('shows all registered modules with business-readable policy state and no raw JSON', () => {
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Products');
     expect(text).toContain('Categories');
     expect(text).toContain('Inventory / Stock on Hand');
+    expect(text).toContain('Opening Stock');
     expect(text).toContain('Organization override');
     expect(text).toContain('— Uses default');
     expect(text).not.toContain('{"enabled"');
     expect(fixture.nativeElement.querySelector('input[role="switch"]:disabled')).toBeNull();
+  });
+
+  it('renders Opening Stock optional and required controls through the shared renderer', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.openingStock');
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Opening Stock Module');
+    expect(text).toContain('Optional UI');
+    expect(text).toContain('Optional Fields');
+    expect(text).toContain('Required Workflow Fields');
+    expect(text).toContain('Warehouse');
+    expect(text).toContain('Requirement');
+    expect(text).toContain('Required');
+    expect(text).toContain('Control');
+    expect(text).toContain('Platform enforced');
+    expect(text).toContain('Opening Stock must identify the destination warehouse.');
+    expect(text).toContain('Batch / Expiry');
+    expect(fixture.nativeElement.querySelector('input[role="switch"]:disabled')).toBeNull();
+  });
+
+  it('uses the required critical confirmation when disabling Opening Stock', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.openingStock');
+    const module = component.controls().find((item) => item.key === 'inventory.openingStock');
+    if (!module) throw new Error('Expected Opening Stock control');
+    component.setValue(module, 'enabled', false);
+    component.askSave();
+
+    expect(component.confirmationTitle()).toBe('Disable Opening Stock for Greenfield Agro Center?');
+    expect(component.confirmationMessage()).toContain(
+      'Users in this organization will no longer be able to access or post Opening Stock.',
+    );
+    expect(component.confirmationMessage()).toContain(
+      'Existing stock and historical transactions will not be changed.',
+    );
+    expect(component.confirmationLabel()).toBe('Disable Opening Stock');
   });
 
   it('uses the shared renderer for Inventory controls and stages WAC visibility', () => {
@@ -216,5 +322,14 @@ describe('OrganizationControlsPage', () => {
     component.confirm();
 
     expect(resetModule).toHaveBeenCalledWith('org-a', 'inventory.stock', 4, '');
+  });
+
+  it('calls the shared module reset API with only the Opening Stock namespace', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.openingStock');
+    component.askResetModule();
+    component.confirm();
+
+    expect(resetModule).toHaveBeenCalledWith('org-a', 'inventory.openingStock', 4, '');
   });
 });

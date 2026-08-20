@@ -7,7 +7,7 @@
   <agrivio-ui-page-header
     eyebrow="Platform · Organization Controls"
     [title]="state.organization.name"
-    lede="Configure registered Products, Categories, and Stock-on-Hand controls without changing registry defaults or user RBAC permissions."
+    lede="Configure registered Products, Categories, Stock-on-Hand, and Opening Stock controls without changing registry defaults or user RBAC permissions."
   />
 
   <div class="identity-grid">
@@ -63,6 +63,15 @@
       >
         Inventory / Stock on Hand
       </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'inventory.openingStock'"
+        (click)="selectModule('inventory.openingStock')"
+        data-testid="opening-stock-control-module"
+      >
+        Opening Stock
+      </button>
       <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>
 
@@ -94,11 +103,13 @@
         </button>
       </div>
 
-      @for ( section of [ { title: moduleLabel(selectedModule()) + ' module', controls:
-      moduleControls() }, { title: 'Views', controls: viewControls() }, { title: 'Fields', controls:
-      fieldControls() }, { title: 'Derived UI', controls: featureControls() }, { title: 'Widgets',
-      controls: widgetControls() }, { title: 'Actions', controls: actionControls() } ]; track
-      section.title ) { @if (section.controls.length > 0) {
+      @for ( section of [ { title: moduleLabel(selectedModule()) + ' Module', controls:
+      moduleControls() }, { title: 'Views', controls: viewControls() }, { title: selectedModule()
+      === 'inventory.openingStock' ? 'Optional UI' : 'Derived UI', controls: featureControls() }, {
+      title: selectedModule() === 'inventory.openingStock' ? 'Optional Fields' : 'Fields', controls:
+      fieldControls() }, { title: 'Required Workflow Fields', controls: requiredWorkflowControls()
+      }, { title: 'Widgets', controls: widgetControls() }, { title: 'Actions', controls:
+      actionControls() } ]; track section.title ) { @if (section.controls.length > 0) {
       <section class="control-section">
         <h2>{{ section.title }}</h2>
         <div class="control-list">
@@ -138,13 +149,20 @@
                 />
                 <b>{{ stateLabel(mode, value(control, mode)) }}</b>
               </label>
+              } @else { @if (isRequiredWorkflowControl(control)) {
+              <div class="enforced-mode enforced-mode--requirement">
+                <span>Requirement</span>
+                <b>Required</b>
+                <span>Control</span>
+                <b>Platform enforced</b>
+              </div>
               } @else {
               <div class="enforced-mode">
                 <span>{{ mode }}</span>
                 <b>Platform enforced</b>
                 <small>{{ stateLabel(mode, control.defaultPolicy[mode] === true) }}</small>
               </div>
-              } }
+              } } }
             </div>
 
             <div class="policy-state" aria-label="Default override and effective state">

@@ -338,6 +338,21 @@ describe('StockInquiryPage', () => {
     expect(fixture.nativeElement.querySelector('.inspector-drawer')).toBeNull();
   });
 
+  it('hides the cross-module Opening Stock action when its module or Post action is disabled', () => {
+    capabilityState.set({
+      'inventory.openingStock': { enabled: false },
+    });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="stock-opening-link"]')).toBeNull();
+
+    capabilityState.set({
+      'inventory.openingStock': { enabled: true },
+      'inventory.openingStock.actions.post': { allowed: false },
+    });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="stock-opening-link"]')).toBeNull();
+  });
+
   it('shows a feature-unavailable state if the organization disables Stock on Hand', () => {
     capabilityState.set({
       'inventory.stock': { enabled: false },

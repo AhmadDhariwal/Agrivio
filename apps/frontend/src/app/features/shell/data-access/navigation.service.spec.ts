@@ -157,6 +157,23 @@ describe('NavigationService', () => {
     expect(itemIds).toContain('inventory.movements');
   });
 
+  it('hides only Opening Stock navigation when its organization module is disabled', () => {
+    const { service } = setup(ALL_PERMISSIONS, [], 'organization', undefined, {
+      'inventory.openingStock': false,
+    });
+    const inventory = service
+      .permittedEntries()
+      .find((entry) => entry.type === 'group' && entry.group.id === 'inventory');
+    const itemIds =
+      inventory && inventory.type === 'group'
+        ? inventory.group.children.map((item) => item.id)
+        : [];
+
+    expect(itemIds).not.toContain('inventory.opening-stock');
+    expect(itemIds).toContain('inventory.stock');
+    expect(itemIds).toContain('inventory.batches');
+  });
+
   it('performs normal search filtering only on currently visible items', () => {
     const { service } = setup(ALL_PERMISSIONS);
     service.hiddenItemIds.set(new Set(['operations.audit']));

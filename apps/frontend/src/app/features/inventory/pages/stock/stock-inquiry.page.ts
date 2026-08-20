@@ -123,8 +123,11 @@ export class StockInquiryPage {
   readonly canView = computed(
     () => this.sessionStore.hasPermission('inventory.view') && this.canUseInventoryStock(),
   );
-  readonly canPostOpening = computed(() =>
-    this.sessionStore.hasPermission('inventory.opening-stock.post'),
+  readonly canPostOpening = computed(
+    () =>
+      this.sessionStore.hasPermission('inventory.opening-stock.post') &&
+      (this.capabilityService?.canUseModule('inventory.openingStock') ?? true) &&
+      (this.capabilityService?.canPerformAction('inventory.openingStock.actions.post') ?? true),
   );
   readonly canViewExpiry = computed(() => this.sessionStore.hasPermission('inventory.expiry.view'));
   readonly canViewMovements = computed(() => this.sessionStore.hasPermission('inventory.view'));

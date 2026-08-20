@@ -28,18 +28,18 @@
   </header>
 
   <!-- Module Information Section -->
+  @if (showOpeningStockModuleInfo()) {
   <agrivio-ui-module-info
     [title]="infoTitle"
     [description]="infoDescription"
     [items]="infoItems"
     [defaultExpanded]="false"
   />
-
-  @if (loading()) {
+  } @if (loading()) {
   <div class="state-container">
     <agrivio-ui-loading-state label="Loading opening stock form…" />
   </div>
-  } @else if (!canPost()) {
+  } @else if (!canPostOpeningStock()) {
   <div class="alert-container">
     <agrivio-ui-alert tone="warning" message="You do not have permission to post opening stock." />
   </div>
@@ -86,6 +86,7 @@
       <div class="form-card__body">
         <div class="form-grid form-grid--3col">
           <!-- Find Product -->
+          @if (showOpeningStockProductSearch()) {
           <div class="ag-field">
             <agrivio-ui-field-label label="Find Product" for="opening-product-search" />
             <input
@@ -98,6 +99,7 @@
             />
             <p class="field-hint">Filter the product dropdown options.</p>
           </div>
+          }
 
           <!-- Warehouse -->
           <div class="ag-field">
@@ -193,6 +195,7 @@
           </div>
 
           <!-- Packaging Unit -->
+          @if (showOpeningStockPackaging()) {
           <div class="ag-field">
             <agrivio-ui-field-label label="Packaging Unit (Optional)" for="opening-packaging" />
             <select
@@ -208,6 +211,7 @@
             </select>
             <p class="field-hint">Optional packaging unit conversion.</p>
           </div>
+          }
 
           <!-- Opening Inventory Value -->
           <div class="ag-field">
@@ -298,6 +302,7 @@
             <p class="field-hint">Unique batch or lot code.</p>
           </div>
 
+          @if (showOpeningStockManufacturingDate()) {
           <div class="ag-field">
             <agrivio-ui-field-label
               label="Manufacturing Date (Optional)"
@@ -312,8 +317,7 @@
             />
             <p class="field-hint">Production date if provided.</p>
           </div>
-
-          @if (selectedTrackingMode() === 'batch_expiry') {
+          } @if (selectedTrackingMode() === 'batch_expiry') {
           <div class="ag-field">
             <agrivio-ui-field-label
               label="Expiry Date"
@@ -392,6 +396,7 @@
         </svg>
         Post opening stock }
       </button>
+      @if (showViewStockAction()) {
       <a
         class="ag-btn ag-btn--secondary"
         routerLink="/app/inventory/stock"
@@ -399,6 +404,7 @@
       >
         View stock
       </a>
+      }
       <a
         class="ag-btn ag-btn--secondary"
         routerLink="/app/inventory/stock"

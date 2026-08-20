@@ -19,6 +19,7 @@ import {
   setRequiredValidator,
 } from '../../../../shared/form/form-field.util';
 import { PackagingUnitRecord, ProductRecord } from '../../../catalog/models/catalog.models';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 @Component({
   selector: 'agrivio-opening-stock-page',
@@ -40,6 +41,7 @@ export class OpeningStockPage {
   private readonly locationsApi = inject(BranchesWarehousesApi);
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly formBuilder = inject(FormBuilder);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
 
   readonly loading = signal(true);
   readonly saving = signal(false);
@@ -49,8 +51,36 @@ export class OpeningStockPage {
   readonly warehouses = signal<WarehouseRecord[]>([]);
   readonly packagingUnits = signal<PackagingUnitRecord[]>([]);
   readonly selectedTrackingMode = signal<string>('none');
-  readonly canPost = computed(() =>
-    this.sessionStore.hasPermission('inventory.opening-stock.post'),
+  readonly canUseOpeningStock = computed(
+    () => this.capabilityService?.canUseModule('inventory.openingStock') ?? true,
+  );
+  readonly showOpeningStockModuleInfo = computed(
+    () => this.capabilityService?.canUseView('inventory.openingStock.features.moduleInfo') ?? true,
+  );
+  readonly showOpeningStockProductSearch = computed(
+    () =>
+      this.capabilityService?.canUseView('inventory.openingStock.features.productSearch') ?? true,
+  );
+  readonly showOpeningStockPackaging = computed(
+    () =>
+      this.capabilityService?.canViewField('inventory.openingStock.fields.packagingUnit') ?? true,
+  );
+  readonly showOpeningStockManufacturingDate = computed(
+    () =>
+      this.capabilityService?.canViewField('inventory.openingStock.fields.manufacturingDate') ??
+      true,
+  );
+  readonly canPostOpeningStock = computed(
+    () =>
+      this.canUseOpeningStock() &&
+      this.sessionStore.hasPermission('inventory.opening-stock.post') &&
+      (this.capabilityService?.canPerformAction('inventory.openingStock.actions.post') ?? true),
+  );
+  readonly showViewStockAction = computed(
+    () =>
+      this.sessionStore.hasPermission('inventory.view') &&
+      (this.capabilityService?.canPerformAction('inventory.openingStock.actions.viewStock') ??
+        true),
   );
 
   readonly selectedProduct = signal<ProductRecord | null>(null);
@@ -79,7 +109,7 @@ export class OpeningStockPage {
   });
 
   constructor() {
-    if (!this.canPost()) {
+    if (!this.canPostOpeningStock()) {
       this.loading.set(false);
       return;
     }
@@ -106,7 +136,7 @@ export class OpeningStockPage {
       this.syncTrackingRequired(mode);
       this.packagingUnits.set([]);
       this.form.patchValue({ packagingUnitId: '' });
-      if (!productId) {
+      if (!productId || !this.showOpeningStockPackaging()) {
         return;
       }
       this.catalogApi.listPackagingUnits(productId).subscribe({
@@ -132,7 +162,7 @@ export class OpeningStockPage {
   }
 
   submit(): void {
-    if (!this.canPost() || this.form.invalid) {
+    if (!this.canPostOpeningStock() || this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }

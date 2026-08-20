@@ -173,6 +173,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Opening stock',
           route: '/app/inventory/opening-stock',
           permission: 'inventory.view',
+          capabilityKey: 'inventory.openingStock',
           testId: 'nav-opening-stock',
         },
         {

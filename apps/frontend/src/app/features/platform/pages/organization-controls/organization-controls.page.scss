@@ -241,6 +241,11 @@
   color: var(--ag-color-text-muted, #607066);
 }
 
+.enforced-mode--requirement {
+  grid-template-columns: 1fr auto;
+  text-transform: none;
+}
+
 .policy-toggle b {
   font-size: 0.78rem;
 }
