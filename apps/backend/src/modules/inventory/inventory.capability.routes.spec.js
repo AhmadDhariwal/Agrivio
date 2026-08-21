@@ -241,3 +241,71 @@ describe('Product Batches capability route enforcement', () => {
     });
   });
 });
+
+describe('Expiry Inquiry capability route enforcement', () => {
+  function createApp(assertAllowed, inventoryService) {
+    const app = express();
+    app.use(createRequestIdMiddleware());
+    app.use(
+      registerInventoryRoutes({
+        requireAuth: (req, _res, next) => {
+          req.auth = { session: {}, user: {} };
+          req.authContext = {
+            contextType: 'organization',
+            organizationId: 'org-a',
+            userId: 'user-a',
+            permissions: ['inventory.expiry.view', 'inventory.view'],
+          };
+          next();
+        },
+        requireCsrf: (_req, _res, next) => next(),
+        requireOperationalAccess: (_req, _res, next) => next(),
+        capabilityService: { assertAllowed },
+        inventoryService,
+      }),
+    );
+    app.use(createErrorHandlerMiddleware('test', () => undefined));
+    return app;
+  }
+
+  it('blocks expiry inquiry for the organization whose module is disabled', async () => {
+    const queryExpiry = vi.fn(async () => ({ items: [], businessDate: '2026-08-21', thresholdDays: 30 }));
+    const listMovements = vi.fn(async () => ({ items: [], total: 0 }));
+    const assertAllowed = vi.fn(async (organizationId, key, mode) => {
+      expect(organizationId).toBe('org-a');
+      expect(key).toBe('inventory.expiry');
+      expect(mode).toBe('enabled');
+      throw orgCapabilityDisabled('Expiry Inquiry is disabled', { controlKey: key });
+    });
+    const app = createApp(assertAllowed, { queryExpiry, listMovements });
+
+    await withServer(app, async (baseUrl) => {
+      const expiry = await fetch(`${baseUrl}/api/v1/inventory/expiry`);
+      const body = await expiry.json();
+      expect(expiry.status).toBe(403);
+      expect(body.error.code).toBe('ORG_CAPABILITY_DISABLED');
+      expect(queryExpiry).not.toHaveBeenCalled();
+
+      const movements = await fetch(`${baseUrl}/api/v1/inventory/movements`);
+      expect(movements.status).toBe(200);
+      expect(listMovements).toHaveBeenCalledOnce();
+      expect(assertAllowed).toHaveBeenCalledOnce();
+    });
+  });
+
+  it('allows expiry inquiry for a second organization that has not disabled the module', async () => {
+    const queryExpiry = vi.fn(async () => ({ items: [], businessDate: '2026-08-21', thresholdDays: 30 }));
+    const assertAllowed = vi.fn(async (_organizationId, key, mode) => {
+      expect(key).toBe('inventory.expiry');
+      expect(mode).toBe('enabled');
+    });
+    const app = createApp(assertAllowed, { queryExpiry });
+
+    await withServer(app, async (baseUrl) => {
+      const expiry = await fetch(`${baseUrl}/api/v1/inventory/expiry`);
+      expect(expiry.status).toBe(200);
+      expect(queryExpiry).toHaveBeenCalledOnce();
+      expect(assertAllowed).toHaveBeenCalledOnce();
+    });
+  });
+});

@@ -46,6 +46,11 @@ function registerInventoryRoutes(deps) {
     'inventory.batches.actions.inspect',
     'allowed',
   );
+  const requireExpiryModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.expiry',
+    'enabled',
+  );
 
   router.get(
     API_INVENTORY_BALANCES_PATH,
@@ -101,6 +106,7 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.expiry.view'),
     deps.requireOperationalAccess,
+    requireExpiryModule,
     (req, res, next) => {
       void controller.queryExpiry(req, res, next);
     },

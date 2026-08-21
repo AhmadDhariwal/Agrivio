@@ -26,6 +26,7 @@ import {
   WarehouseRecord,
 } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
@@ -79,6 +80,7 @@ export class ExpiryInquiryPage {
   private readonly catalogApi = inject(CatalogApi);
   private readonly locationsApi = inject(BranchesWarehousesApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly reloadRequests = new Subject<void>();
@@ -116,9 +118,111 @@ export class ExpiryInquiryPage {
   // Responsive View Mode
   readonly preferredViewMode = signal<'table' | 'cards'>('table');
   readonly isMobile = signal<boolean>(false);
+
+  // Capability Computeds — module and view
+  readonly canUseExpiry = computed(
+    () => this.capabilityService?.canUseModule('inventory.expiry') ?? true,
+  );
+  readonly allowDesktopCards = computed(
+    () => this.capabilityService?.canUseView('inventory.expiry.views.desktopCards') ?? true,
+  );
+
+  // Capability Computeds — widgets
+  readonly showTotalRecordsKpi = computed(
+    () => this.capabilityService?.canShowWidget('inventory.expiry.widgets.totalRecords') ?? true,
+  );
+  readonly showExpiringSoonKpi = computed(
+    () => this.capabilityService?.canShowWidget('inventory.expiry.widgets.expiringSoon') ?? true,
+  );
+  readonly showExpiredKpi = computed(
+    () => this.capabilityService?.canShowWidget('inventory.expiry.widgets.expired') ?? true,
+  );
+  readonly showTrackedProductsKpi = computed(
+    () =>
+      this.capabilityService?.canShowWidget('inventory.expiry.widgets.trackedProductsWarehouses') ??
+      true,
+  );
+  readonly showAnyKpi = computed(
+    () =>
+      this.showTotalRecordsKpi() ||
+      this.showExpiringSoonKpi() ||
+      this.showExpiredKpi() ||
+      this.showTrackedProductsKpi(),
+  );
+
+  // Capability Computeds — features (module info + filters)
+  readonly showModuleInfo = computed(
+    () => this.capabilityService?.canUseModule('inventory.expiry.features.moduleInfo') ?? true,
+  );
+  readonly showSearch = computed(
+    () => this.capabilityService?.canUseModule('inventory.expiry.features.search') ?? true,
+  );
+  readonly showProductFilter = computed(
+    () => this.capabilityService?.canUseModule('inventory.expiry.features.productFilter') ?? true,
+  );
+  readonly showWarehouseFilter = computed(
+    () => this.capabilityService?.canUseModule('inventory.expiry.features.warehouseFilter') ?? true,
+  );
+  readonly showClassificationFilter = computed(
+    () =>
+      this.capabilityService?.canUseModule('inventory.expiry.features.classificationFilter') ?? true,
+  );
+
+  // Capability Computeds — optional fields (required fields are always shown)
+  readonly showWarehouseField = computed(
+    () => this.capabilityService?.canViewField('inventory.expiry.fields.warehouse') ?? true,
+  );
+  readonly showQuantityField = computed(
+    () => this.capabilityService?.canViewField('inventory.expiry.fields.quantity') ?? true,
+  );
+
+  // Capability Computeds — inspector sections
+  // Field visibility dominates: the quantity section is suppressed when quantity field is hidden.
+  readonly showTimelineSection = computed(
+    () =>
+      this.capabilityService?.canUseModule('inventory.expiry.features.timelineSection') ?? true,
+  );
+  readonly showQuantitySection = computed(
+    () =>
+      this.showQuantityField() &&
+      (this.capabilityService?.canUseModule('inventory.expiry.features.quantitySection') ?? true),
+  );
+  readonly showTechnicalDetails = computed(
+    () =>
+      this.capabilityService?.canUseModule('inventory.expiry.features.technicalDetails') ?? true,
+  );
+
+  // Capability Computeds — actions (RBAC + capability)
+  readonly canInspect = computed(
+    () => this.capabilityService?.canPerformAction('inventory.expiry.actions.inspect') ?? true,
+  );
+  readonly canViewBatch = computed(
+    () =>
+      this.sessionStore.hasPermission('inventory.view') &&
+      (this.capabilityService?.canPerformAction('inventory.expiry.actions.viewBatch') ?? true),
+  );
+  readonly canViewProduct = computed(
+    () =>
+      this.sessionStore.hasPermission('catalog.view') &&
+      (this.capabilityService?.canPerformAction('inventory.expiry.actions.viewProduct') ?? true),
+  );
+  readonly canViewStock = computed(
+    () =>
+      this.sessionStore.hasPermission('inventory.view') &&
+      (this.capabilityService?.canPerformAction('inventory.expiry.actions.viewStock') ?? true),
+  );
+  readonly canViewMovements = computed(
+    () =>
+      this.sessionStore.hasPermission('inventory.view') &&
+      (this.capabilityService?.canPerformAction('inventory.expiry.actions.viewMovements') ?? true),
+  );
+
   readonly effectiveViewMode = computed<'table' | 'cards'>(() => {
     if (this.isMobile()) {
       return 'cards';
+    }
+    if (!this.allowDesktopCards()) {
+      return 'table';
     }
     return this.preferredViewMode();
   });
@@ -132,20 +236,15 @@ export class ExpiryInquiryPage {
   readonly openMenuBatchId = signal<string | null>(null);
 
   // Permission Computeds
-  readonly canView = computed(() =>
-    this.sessionStore.hasPermission('inventory.expiry.view'),
+  readonly canView = computed(
+    () =>
+      this.sessionStore.hasPermission('inventory.expiry.view') && this.canUseExpiry(),
   );
-  readonly canViewStock = computed(() =>
-    this.sessionStore.hasPermission('inventory.view'),
+  readonly canViewBatches = computed(
+    () => this.sessionStore.hasPermission('inventory.view'),
   );
-  readonly canViewMovements = computed(() =>
-    this.sessionStore.hasPermission('inventory.view'),
-  );
-  readonly canViewBatches = computed(() =>
-    this.sessionStore.hasPermission('inventory.view'),
-  );
-  readonly canViewProducts = computed(() =>
-    this.sessionStore.hasPermission('catalog.view'),
+  readonly canViewProducts = computed(
+    () => this.sessionStore.hasPermission('catalog.view'),
   );
 
   // Authoritative KPI Computeds (Across entire organization scope)
@@ -477,6 +576,7 @@ export class ExpiryInquiryPage {
 
   setViewMode(mode: 'table' | 'cards'): void {
     if (mode === 'cards' && this.isMobile()) return;
+    if (mode === 'cards' && !this.allowDesktopCards()) return;
     this.preferredViewMode.set(mode);
   }
 

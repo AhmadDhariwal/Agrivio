@@ -302,3 +302,52 @@ describe('ExpiryInquiryPage', () => {
     expect(overdueDays?.text).toContain('29 days overdue');
   });
 });
+
+describe('ExpiryInquiryPage — capability controls', () => {
+  it('defaults all capability computeds to true when CapabilityService is not provided', async () => {
+    const { TestBed: TB } = await import('@angular/core/testing');
+    const { provideRouter: pr } = await import('@angular/router');
+    const { of: rxOf } = await import('rxjs');
+    const { ExpiryInquiryPage: P } = await import('./expiry-inquiry.page');
+    const { InventoryApi: IApi } = await import('../../data-access/inventory.api');
+    const { CatalogApi: CApi } = await import('../../../catalog/data-access/catalog.api');
+    const { BranchesWarehousesApi: BApi } = await import('../../../branches-warehouses/data-access/branches-warehouses.api');
+    const { AuthSessionStore: SS } = await import('../../../auth/data-access/auth-session.store');
+
+    await TB.configureTestingModule({
+      imports: [P],
+      providers: [
+        pr([]),
+        { provide: IApi, useValue: { listExpiry: vi.fn().mockReturnValue(rxOf({ items: [], businessDate: '2026-08-21', thresholdDays: 30 })), listBatches: vi.fn().mockReturnValue(rxOf({ items: [], meta: { page: 1, pageSize: 500, total: 0 } })) } },
+        { provide: CApi, useValue: { searchProductOptions: vi.fn().mockReturnValue(rxOf([])) } },
+        { provide: BApi, useValue: { listWarehouseOptions: vi.fn().mockReturnValue(rxOf([])) } },
+        { provide: SS, useValue: { hasPermission: vi.fn(() => true) } },
+        // CapabilityService intentionally NOT provided — optional inject
+      ],
+    }).compileComponents();
+
+    const fix = TB.createComponent(P);
+    const comp = fix.componentInstance;
+    fix.detectChanges();
+
+    // All defaults should be true when service is absent
+    expect(comp.canUseExpiry()).toBe(true);
+    expect(comp.allowDesktopCards()).toBe(true);
+    expect(comp.showModuleInfo()).toBe(true);
+    expect(comp.showSearch()).toBe(true);
+    expect(comp.showProductFilter()).toBe(true);
+    expect(comp.showWarehouseFilter()).toBe(true);
+    expect(comp.showClassificationFilter()).toBe(true);
+    expect(comp.showWarehouseField()).toBe(true);
+    expect(comp.showQuantityField()).toBe(true);
+    expect(comp.showTimelineSection()).toBe(true);
+    expect(comp.showQuantitySection()).toBe(true);
+    expect(comp.showTechnicalDetails()).toBe(true);
+    expect(comp.canInspect()).toBe(true);
+    expect(comp.canViewBatch()).toBe(true);
+    expect(comp.canViewProduct()).toBe(true);
+    expect(comp.canViewStock()).toBe(true);
+    expect(comp.canViewMovements()).toBe(true);
+  });
+});
+

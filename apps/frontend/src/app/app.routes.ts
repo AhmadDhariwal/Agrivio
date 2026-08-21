@@ -526,6 +526,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'inventory/expiry',
+        canActivate: [requireCapabilityGuard('inventory.expiry')],
         loadComponent: () =>
           import('./features/inventory/pages/expiry/expiry-inquiry.page').then(
             (m) => m.ExpiryInquiryPage,

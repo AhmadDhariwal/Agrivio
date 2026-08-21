@@ -7,7 +7,7 @@
   <agrivio-ui-page-header
     eyebrow="Platform · Organization Controls"
     [title]="state.organization.name"
-    lede="Configure registered Products, Categories, Stock-on-Hand, Opening Stock, and Product Batches controls without changing registry defaults or user RBAC permissions."
+    lede="Configure registered Products, Categories, Stock-on-Hand, Opening Stock, Product Batches, and Expiry Inquiry controls without changing registry defaults or user RBAC permissions."
   />
 
   <div class="identity-grid">
@@ -81,6 +81,15 @@
       >
         Product Batches
       </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'inventory.expiry'"
+        (click)="selectModule('inventory.expiry')"
+        data-testid="expiry-control-module"
+      >
+        Expiry Inquiry
+      </button>
       <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>
 
@@ -118,7 +127,7 @@
       title: 'Module Information', controls: moduleInfoControls() }, { title: 'Filters', controls:
       filterControls() }, { title: 'Inspector', controls: inspectorControls() }, { title:
       selectedModule() === 'inventory.openingStock' ? 'Optional Fields' : 'Fields', controls:
-      fieldControls() }, { title: selectedModule() === 'inventory.batches' ? 'Required Fields' :
+      fieldControls() }, { title: selectedModule() === 'inventory.batches' || selectedModule() === 'inventory.expiry' ? 'Required Fields' :
       'Required Workflow Fields', controls: requiredWorkflowControls() }, { title: 'Widgets',
       controls: widgetControls() }, { title: 'Actions', controls: actionControls() } ]; track
       section.title ) { @if (section.controls.length > 0) {

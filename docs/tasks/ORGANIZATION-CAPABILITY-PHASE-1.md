@@ -1,7 +1,7 @@
 # Organization Capability & UI Policy — Phase 1
 
 Status: Implementation complete; lightweight authenticated browser review remains environment-dependent
-Scope: Generic platform foundation plus Products, Categories, Inventory / Stock-on-Hand, Opening Stock, and Product Batches integrations
+Scope: Generic platform foundation plus Products, Categories, Inventory / Stock-on-Hand, Opening Stock, Product Batches, and Expiry Inquiry integrations
 Completed: 2026-08-21
 
 ## Implemented
@@ -20,10 +20,12 @@ Completed: 2026-08-21
 - Disabling Opening Stock hides tenant navigation, sends direct tenant routes to the shared unavailable state, removes the Stock-on-Hand posting link, and blocks posting through both module and Post-action backend middleware. Platform Super Admin policy routes remain outside tenant capability enforcement so the module can be re-enabled.
 - Product Batches owns the separate `inventory.batches` namespace. Its critical module switch, desktop-card view, module information, four implemented KPI widgets, three real filters, safe field visibility, inspector sections, and inquiry/navigation actions reuse the same registry, resolver, sparse policy, reset, version, audit, Angular service, guard, navigation filter, and generic Super Admin renderer.
 - Disabling Product Batches hides tenant navigation, sends direct routes to the shared unavailable state, and blocks Batch list/detail inquiry. The dedicated detail endpoint additionally enforces Inspect; cosmetic visibility controls remain frontend-only. View Product and View Stock resolve target-module dependencies, while View Movements preserves existing RBAC/subscription ownership.
+- Expiry Inquiry owns the separate `inventory.expiry` namespace. Its critical module switch, desktop-card view, module information, four authoritative KPI widgets, four real filters (search, product, warehouse, classification), safe field visibility, inspector sections, and inquiry/navigation actions reuse the same registry, resolver, sparse policy, reset, version, audit, Angular service, guard, navigation filter, and generic Super Admin renderer.
+- Disabling Expiry Inquiry hides tenant navigation, sends direct routes to the shared unavailable state, and blocks Expiry inquiry API operations. Batch Number, Product, Expiry Date, and Classification remain platform-enforced required workflow controls; Warehouse and Quantity visibility controls remain frontend-only presentation toggles. Inspect, View Batch, View Product, View Stock, and View Movements resolve existing action and cross-module permissions/capabilities.
 - Individual, module, and organization reset operations remove sparse overrides through the transactional backend endpoints, increment policy versions on material changes, emit per-control audit evidence, re-resolve effective policy, and refresh the Super Admin UI.
 - Stable policy denial codes: `ORG_CAPABILITY_DISABLED`, `ORG_ACTION_NOT_ALLOWED`, and `ORG_FIELD_NOT_EDITABLE`.
 
-No capability controls were added for Warehouses, Expiry inquiry, Adjustments, Transfers, Reconciliation, or Stock Movements.
+No capability controls were added for Warehouses, Adjustments, Transfers, Reconciliation, or Stock Movements.
 
 ## Products registry safety decisions
 
@@ -71,6 +73,15 @@ No capability controls were added for Warehouses, Expiry inquiry, Adjustments, T
 - Desktop cards are configurable while responsive phone cards remain platform enforced. Module Information, Stock by Location, Technical Details, and Inspect Batch are separately configurable without allowing Batch CRUD.
 - View Product depends on Products and View Stock depends on Stock on Hand, with effective blocking reasons shown in Organization Controls. View Movements remains a Batch-owned navigation affordance layered on existing movement RBAC/subscription behavior because Stock Movements has no capability namespace yet.
 - Individual reset removes one sparse override. Module reset matches only definitions whose `moduleKey` is `inventory.batches`, preserving Products, Categories, Stock-on-Hand, Opening Stock, and every unrelated override while incrementing policy version and emitting per-control audit evidence.
+
+## Expiry Inquiry registry safety decisions
+
+- `inventory.expiry` is independent from Stock on Hand, Opening Stock, and Product Batches. Its critical switch governs Expiry Inquiry only; it does not delete or change batches, balances, expiry dates, threshold days, business date calculations, FEFO, WAC, movements, or transaction history.
+- Batch Number, Product, Expiry Date, and Classification are required platform-enforced fields. Warehouse and Quantity are presentation-only visibility controls; classification calculation, threshold days, business date, and quantity cannot be edited or overridden. Field visibility dominates inspector presentation (hiding quantity field suppresses the quantity section in the inspector).
+- The four registered widgets are exactly the implemented Total Records, Expiring Soon, Expired, and Tracked Products / Warehouses KPI cards. Search, Product Filter, Warehouse Filter, and Classification Filter are the four implemented Expiry filters.
+- Desktop cards are configurable while responsive phone cards remain platform enforced. Module Information, Timeline Section, Quantity Section, Technical Details, and Inspect are separately configurable.
+- View Batch depends on Batches, View Product depends on Products, and View Stock depends on Stock on Hand, with effective blocking reasons shown in Organization Controls. View Movements remains an Expiry-owned navigation affordance layered on existing movement RBAC/subscription behavior because Stock Movements has no capability namespace yet.
+- Individual reset removes one sparse override. Module reset matches only definitions whose `moduleKey` is `inventory.expiry`, preserving Products, Categories, Stock-on-Hand, Opening Stock, Batches, and every unrelated override while incrementing policy version and emitting per-control audit evidence.
 
 ## Model review checklist outcome
 

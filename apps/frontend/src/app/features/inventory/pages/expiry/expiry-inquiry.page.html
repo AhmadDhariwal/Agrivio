@@ -152,211 +152,231 @@
     }
 
     <!-- Module Information Section -->
-    <agrivio-ui-module-info
-      [title]="infoTitle"
-      [description]="infoDescription"
-      [items]="infoItems"
-      [defaultExpanded]="false"
-    />
+    @if (showModuleInfo()) {
+      <agrivio-ui-module-info
+        [title]="infoTitle"
+        [description]="infoDescription"
+        [items]="infoItems"
+        [defaultExpanded]="false"
+      />
+    }
 
     <!-- Authoritative KPI Summary Row -->
-    <section class="kpi-row" aria-label="Expiry Inquiry Summary">
-      <!-- Total Records -->
-      <div class="kpi-card" data-testid="kpi-total-records">
-        <div class="kpi-card__icon kpi-card__icon--neutral">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path
-              d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
-            />
-            <path d="m3.3 7 8.7 5 8.7-5" />
-            <path d="M12 22V12" />
-          </svg>
-        </div>
-        <div class="kpi-card__body">
-          <span class="kpi-card__label">TOTAL RECORDS</span>
-          <span class="kpi-card__value">{{ totalRecordsCount() }}</span>
-          <span class="kpi-card__subtext">Across all warehouses</span>
-        </div>
-      </div>
+    @if (showAnyKpi()) {
+      <section class="kpi-row" aria-label="Expiry Inquiry Summary">
+        <!-- Total Records -->
+        @if (showTotalRecordsKpi()) {
+          <div class="kpi-card" data-testid="kpi-total-records">
+            <div class="kpi-card__icon kpi-card__icon--neutral">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+                />
+                <path d="m3.3 7 8.7 5 8.7-5" />
+                <path d="M12 22V12" />
+              </svg>
+            </div>
+            <div class="kpi-card__body">
+              <span class="kpi-card__label">TOTAL RECORDS</span>
+              <span class="kpi-card__value">{{ totalRecordsCount() }}</span>
+              <span class="kpi-card__subtext">Across all warehouses</span>
+            </div>
+          </div>
+        }
 
-      <!-- Expiring Soon -->
-      <div class="kpi-card" data-testid="kpi-expiring-soon">
-        <div class="kpi-card__icon kpi-card__icon--amber">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
-        </div>
-        <div class="kpi-card__body">
-          <span class="kpi-card__label">EXPIRING SOON</span>
-          <span class="kpi-card__value">{{ expiringSoonCount() }}</span>
-          <span class="kpi-card__subtext">Within next {{ thresholdDays() }} days</span>
-        </div>
-      </div>
+        <!-- Expiring Soon -->
+        @if (showExpiringSoonKpi()) {
+          <div class="kpi-card" data-testid="kpi-expiring-soon">
+            <div class="kpi-card__icon kpi-card__icon--amber">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </div>
+            <div class="kpi-card__body">
+              <span class="kpi-card__label">EXPIRING SOON</span>
+              <span class="kpi-card__value">{{ expiringSoonCount() }}</span>
+              <span class="kpi-card__subtext">Within next {{ thresholdDays() }} days</span>
+            </div>
+          </div>
+        }
 
-      <!-- Expired -->
-      <div class="kpi-card" data-testid="kpi-expired">
-        <div class="kpi-card__icon kpi-card__icon--red">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path
-              d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"
-            />
-            <line x1="12" y1="9" x2="12" y2="13" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
-          </svg>
-        </div>
-        <div class="kpi-card__body">
-          <span class="kpi-card__label">EXPIRED</span>
-          <span class="kpi-card__value">{{ expiredCount() }}</span>
-          <span class="kpi-card__subtext">Past expiry date</span>
-        </div>
-      </div>
+        <!-- Expired -->
+        @if (showExpiredKpi()) {
+          <div class="kpi-card" data-testid="kpi-expired">
+            <div class="kpi-card__icon kpi-card__icon--red">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"
+                />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            </div>
+            <div class="kpi-card__body">
+              <span class="kpi-card__label">EXPIRED</span>
+              <span class="kpi-card__value">{{ expiredCount() }}</span>
+              <span class="kpi-card__subtext">Past expiry date</span>
+            </div>
+          </div>
+        }
 
-      <!-- Tracked Products / Warehouses -->
-      <div class="kpi-card" data-testid="kpi-tracked-entities">
-        <div class="kpi-card__icon kpi-card__icon--purple">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="18" cy="5" r="3" />
-            <circle cx="6" cy="12" r="3" />
-            <circle cx="18" cy="19" r="3" />
-            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-          </svg>
-        </div>
-        <div class="kpi-card__body">
-          <span class="kpi-card__label">TRACKED PRODUCTS / WAREHOUSES</span>
-          <span class="kpi-card__value">{{ trackedProductsCount() }} / {{ trackedWarehousesCount() }}</span>
-          <span class="kpi-card__subtext">Products / Warehouses</span>
-        </div>
-      </div>
-    </section>
+        <!-- Tracked Products / Warehouses -->
+        @if (showTrackedProductsKpi()) {
+          <div class="kpi-card" data-testid="kpi-tracked-entities">
+            <div class="kpi-card__icon kpi-card__icon--purple">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+              </svg>
+            </div>
+            <div class="kpi-card__body">
+              <span class="kpi-card__label">TRACKED PRODUCTS / WAREHOUSES</span>
+              <span class="kpi-card__value">{{ trackedProductsCount() }} / {{ trackedWarehousesCount() }}</span>
+              <span class="kpi-card__subtext">Products / Warehouses</span>
+            </div>
+          </div>
+        }
+      </section>
+    }
 
     <!-- Toolbar: Search, Filters, and View Switcher -->
     <section class="toolbar-card" aria-label="Expiry filters and search">
       <div class="toolbar">
         <!-- Search Input -->
-        <div class="toolbar__search">
-          <svg
-            class="toolbar__search-icon"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            class="toolbar__search-input"
-            type="search"
-            placeholder="Search batch number or product..."
-            [value]="search()"
-            (input)="onSearchInput($event)"
-            data-testid="expiry-search"
-            aria-label="Search expiry records"
-          />
-          @if (search()) {
-            <button
-              class="toolbar__search-clear"
-              type="button"
-              (click)="onSearchClear()"
-              title="Clear search"
-              aria-label="Clear search"
+        @if (showSearch()) {
+          <div class="toolbar__search">
+            <svg
+              class="toolbar__search-icon"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
             >
-              &times;
-            </button>
-          }
-        </div>
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              class="toolbar__search-input"
+              type="search"
+              placeholder="Search batch number or product..."
+              [value]="search()"
+              (input)="onSearchInput($event)"
+              data-testid="expiry-search"
+              aria-label="Search expiry records"
+            />
+            @if (search()) {
+              <button
+                class="toolbar__search-clear"
+                type="button"
+                (click)="onSearchClear()"
+                title="Clear search"
+                aria-label="Clear search"
+              >
+                &times;
+              </button>
+            }
+          </div>
+        }
 
         <!-- Desktop Filter Dropdowns -->
         <div class="toolbar__filters-desktop">
           <!-- Product Filter -->
-          <div class="toolbar__select-wrapper">
-            <select
-              class="toolbar__select"
-              [value]="productFilter()"
-              (change)="onProductChange($event)"
-              data-testid="expiry-filter-product"
-              aria-label="Filter by product"
-            >
-              <option value="">All Products</option>
-              @for (prod of productList(); track prod.id) {
-                <option [value]="prod.id">{{ prod.name }}</option>
-              }
-            </select>
-          </div>
+          @if (showProductFilter()) {
+            <div class="toolbar__select-wrapper">
+              <select
+                class="toolbar__select"
+                [value]="productFilter()"
+                (change)="onProductChange($event)"
+                data-testid="expiry-filter-product"
+                aria-label="Filter by product"
+              >
+                <option value="">All Products</option>
+                @for (prod of productList(); track prod.id) {
+                  <option [value]="prod.id">{{ prod.name }}</option>
+                }
+              </select>
+            </div>
+          }
 
           <!-- Warehouse Filter -->
-          <div class="toolbar__select-wrapper">
-            <select
-              class="toolbar__select"
-              [value]="warehouseFilter()"
-              (change)="onWarehouseChange($event)"
-              data-testid="expiry-filter-warehouse"
-              aria-label="Filter by warehouse"
-            >
-              <option value="">All Warehouses</option>
-              @for (wh of warehouseList(); track wh.id) {
-                <option [value]="wh.id">{{ wh.name }}</option>
-              }
-            </select>
-          </div>
+          @if (showWarehouseFilter()) {
+            <div class="toolbar__select-wrapper">
+              <select
+                class="toolbar__select"
+                [value]="warehouseFilter()"
+                (change)="onWarehouseChange($event)"
+                data-testid="expiry-filter-warehouse"
+                aria-label="Filter by warehouse"
+              >
+                <option value="">All Warehouses</option>
+                @for (wh of warehouseList(); track wh.id) {
+                  <option [value]="wh.id">{{ wh.name }}</option>
+                }
+              </select>
+            </div>
+          }
 
           <!-- Classification Filter -->
-          <div class="toolbar__select-wrapper">
-            <select
-              class="toolbar__select"
-              [value]="classificationFilter()"
-              (change)="onClassificationChange($event)"
-              data-testid="expiry-filter-classification"
-              aria-label="Filter by classification"
-            >
-              <option value="">All Classifications</option>
-              <option value="upcoming">Expiring Soon (Upcoming)</option>
-              <option value="expired">Expired</option>
-              <option value="normal">Normal</option>
-            </select>
-          </div>
+          @if (showClassificationFilter()) {
+            <div class="toolbar__select-wrapper">
+              <select
+                class="toolbar__select"
+                [value]="classificationFilter()"
+                (change)="onClassificationChange($event)"
+                data-testid="expiry-filter-classification"
+                aria-label="Filter by classification"
+              >
+                <option value="">All Classifications</option>
+                <option value="upcoming">Expiring Soon (Upcoming)</option>
+                <option value="expired">Expired</option>
+                <option value="normal">Normal</option>
+              </select>
+            </div>
+          }
         </div>
 
         <!-- Mobile Filter Button Trigger -->
@@ -561,18 +581,20 @@
                   </th>
 
                   <!-- Warehouse / Location -->
-                  <th
-                    class="th-sortable col-location"
-                    (click)="toggleSort('warehouse')"
-                    [class.th-sorted]="sortField() === 'warehouse'"
-                  >
-                    <div class="th-content">
-                      <span>WAREHOUSE / LOCATION</span>
-                      @if (sortField() === 'warehouse') {
-                        <span class="sort-indicator">{{ sortOrder() === 'asc' ? '↑' : '↓' }}</span>
-                      }
-                    </div>
-                  </th>
+                  @if (showWarehouseField()) {
+                    <th
+                      class="th-sortable col-location"
+                      (click)="toggleSort('warehouse')"
+                      [class.th-sorted]="sortField() === 'warehouse'"
+                    >
+                      <div class="th-content">
+                        <span>WAREHOUSE / LOCATION</span>
+                        @if (sortField() === 'warehouse') {
+                          <span class="sort-indicator">{{ sortOrder() === 'asc' ? '↑' : '↓' }}</span>
+                        }
+                      </div>
+                    </th>
+                  }
 
                   <!-- Expiry Date -->
                   <th
@@ -589,18 +611,20 @@
                   </th>
 
                   <!-- Qty -->
-                  <th
-                    class="th-sortable col-qty"
-                    (click)="toggleSort('quantityBase')"
-                    [class.th-sorted]="sortField() === 'quantityBase'"
-                  >
-                    <div class="th-content">
-                      <span>QTY</span>
-                      @if (sortField() === 'quantityBase') {
-                        <span class="sort-indicator">{{ sortOrder() === 'asc' ? '↑' : '↓' }}</span>
-                      }
-                    </div>
-                  </th>
+                  @if (showQuantityField()) {
+                    <th
+                      class="th-sortable col-qty"
+                      (click)="toggleSort('quantityBase')"
+                      [class.th-sorted]="sortField() === 'quantityBase'"
+                    >
+                      <div class="th-content">
+                        <span>QTY</span>
+                        @if (sortField() === 'quantityBase') {
+                          <span class="sort-indicator">{{ sortOrder() === 'asc' ? '↑' : '↓' }}</span>
+                        }
+                      </div>
+                    </th>
+                  }
 
                   <!-- Classification -->
                   <th
@@ -652,14 +676,16 @@
                     </td>
 
                     <!-- Warehouse / Location -->
-                    <td class="col-location">
-                      <div class="cell-entity">
-                        <span class="cell-entity__primary">{{ warehouseName(item.warehouseId) }}</span>
-                        @if (warehouseCode(item.warehouseId); as code) {
-                          <span class="cell-entity__secondary">{{ code }}</span>
-                        }
-                      </div>
-                    </td>
+                    @if (showWarehouseField()) {
+                      <td class="col-location">
+                        <div class="cell-entity">
+                          <span class="cell-entity__primary">{{ warehouseName(item.warehouseId) }}</span>
+                          @if (warehouseCode(item.warehouseId); as code) {
+                            <span class="cell-entity__secondary">{{ code }}</span>
+                          }
+                        </div>
+                      </td>
+                    }
 
                     <!-- Expiry Date -->
                     <td class="col-expiry">
@@ -678,12 +704,14 @@
                     </td>
 
                     <!-- Qty -->
-                    <td class="col-qty">
-                      <div class="qty-cell">
-                        <span class="qty-cell__val">{{ formatQuantity(item.quantityBase) }}</span>
-                        <span class="qty-cell__unit">{{ productBaseUnit(item.productId) }}</span>
-                      </div>
-                    </td>
+                    @if (showQuantityField()) {
+                      <td class="col-qty">
+                        <div class="qty-cell">
+                          <span class="qty-cell__val">{{ formatQuantity(item.quantityBase) }}</span>
+                          <span class="qty-cell__unit">{{ productBaseUnit(item.productId) }}</span>
+                        </div>
+                      </td>
+                    }
 
                     <!-- Classification (Single semantic column) -->
                     <td class="col-classification">
@@ -697,27 +725,29 @@
                     <!-- Actions -->
                     <td class="col-actions" (click)="$event.stopPropagation()">
                       <div class="row-actions">
-                        <button
-                          class="ag-btn ag-btn--sm ag-btn--subtle row-action-inspect"
-                          type="button"
-                          (click)="openInspector(item)"
-                          data-testid="expiry-inspect-btn"
-                        >
-                          <svg
-                            width="13"
-                            height="13"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
+                        @if (canInspect()) {
+                          <button
+                            class="ag-btn ag-btn--sm ag-btn--subtle row-action-inspect"
+                            type="button"
+                            (click)="openInspector(item)"
+                            data-testid="expiry-inspect-btn"
                           >
-                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                            <circle cx="12" cy="12" r="3" />
-                          </svg>
-                          Inspect
-                        </button>
+                            <svg
+                              width="13"
+                              height="13"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            >
+                              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                              <circle cx="12" cy="12" r="3" />
+                            </svg>
+                            Inspect
+                          </button>
+                        }
 
                         @if (canViewStock()) {
                           <a
@@ -760,7 +790,7 @@
                           </button>
                           @if (openMenuBatchId() === ((item.batchId ?? '') + '-' + item.productId + '-' + item.warehouseId)) {
                             <div class="row-menu-dropdown" (click)="$event.stopPropagation()">
-                              @if (canViewBatches() && item.batchNumber) {
+                              @if (canViewBatch() && item.batchNumber) {
                                 <a
                                   class="row-menu-item"
                                   [routerLink]="['/app/inventory/batches']"
@@ -770,7 +800,7 @@
                                   View in Batches
                                 </a>
                               }
-                              @if (canViewProducts()) {
+                              @if (canViewProduct()) {
                                 <a
                                   class="row-menu-item"
                                   [routerLink]="['/app/catalog/products']"
@@ -963,93 +993,99 @@
               <dd class="drawer__val">{{ sku }}</dd>
             </div>
           }
-          <div class="drawer__kv">
-            <dt class="drawer__key">Warehouse Location</dt>
-            <dd class="drawer__val">
-              {{ warehouseName(item.warehouseId) }}
-              @if (warehouseCode(item.warehouseId); as code) {
-                <span class="val-subtext">({{ code }})</span>
-              }
-            </dd>
-          </div>
+          @if (showWarehouseField()) {
+            <div class="drawer__kv">
+              <dt class="drawer__key">Warehouse Location</dt>
+              <dd class="drawer__val">
+                {{ warehouseName(item.warehouseId) }}
+                @if (warehouseCode(item.warehouseId); as code) {
+                  <span class="val-subtext">({{ code }})</span>
+                }
+              </dd>
+            </div>
+          }
         </dl>
       </section>
 
       <!-- Section 2: Expiry & Timeline -->
-      <section class="drawer__section">
-        <h3 class="drawer__section-title">EXPIRY & TIMELINE</h3>
-        <dl class="drawer__kv-list">
-          <div class="drawer__kv">
-            <dt class="drawer__key">Expiry Date</dt>
-            <dd class="drawer__val">
-              <span
-                class="font-semibold"
-                [class.text-danger]="item.classification === 'expired'"
-                [class.text-warning]="item.classification === 'upcoming'"
-              >
-                {{ formatDate(item.expiryDate) }}
-              </span>
-            </dd>
-          </div>
-
-          <div class="drawer__kv">
-            <dt class="drawer__key">Classification</dt>
-            <dd class="drawer__val">
-              @let cls = getClassificationInfo(item.classification);
-              <span class="ag-badge ag-badge--{{ cls.tone }}">
-                <span class="ag-badge__dot"></span>
-                {{ cls.label }}
-              </span>
-            </dd>
-          </div>
-
-          @if (calculateDaysRemaining(item.expiryDate, item.businessDate); as rel) {
+      @if (showTimelineSection()) {
+        <section class="drawer__section">
+          <h3 class="drawer__section-title">EXPIRY & TIMELINE</h3>
+          <dl class="drawer__kv-list">
             <div class="drawer__kv">
-              <dt class="drawer__key">Days Status</dt>
-              <dd
-                class="drawer__val"
-                [class.text-danger]="rel.isOverdue"
-                [class.text-warning]="rel.isToday"
-              >
-                {{ rel.text }}
+              <dt class="drawer__key">Expiry Date</dt>
+              <dd class="drawer__val">
+                <span
+                  class="font-semibold"
+                  [class.text-danger]="item.classification === 'expired'"
+                  [class.text-warning]="item.classification === 'upcoming'"
+                >
+                  {{ formatDate(item.expiryDate) }}
+                </span>
               </dd>
             </div>
-          }
 
-          <div class="drawer__kv">
-            <dt class="drawer__key">Business Date</dt>
-            <dd class="drawer__val">{{ formatDate(item.businessDate) }}</dd>
-          </div>
+            <div class="drawer__kv">
+              <dt class="drawer__key">Classification</dt>
+              <dd class="drawer__val">
+                @let cls = getClassificationInfo(item.classification);
+                <span class="ag-badge ag-badge--{{ cls.tone }}">
+                  <span class="ag-badge__dot"></span>
+                  {{ cls.label }}
+                </span>
+              </dd>
+            </div>
 
-          <div class="drawer__kv">
-            <dt class="drawer__key">Expiry Window</dt>
-            <dd class="drawer__val">{{ item.thresholdDays }} days</dd>
-          </div>
-        </dl>
-      </section>
+            @if (calculateDaysRemaining(item.expiryDate, item.businessDate); as rel) {
+              <div class="drawer__kv">
+                <dt class="drawer__key">Days Status</dt>
+                <dd
+                  class="drawer__val"
+                  [class.text-danger]="rel.isOverdue"
+                  [class.text-warning]="rel.isToday"
+                >
+                  {{ rel.text }}
+                </dd>
+              </div>
+            }
+
+            <div class="drawer__kv">
+              <dt class="drawer__key">Business Date</dt>
+              <dd class="drawer__val">{{ formatDate(item.businessDate) }}</dd>
+            </div>
+
+            <div class="drawer__kv">
+              <dt class="drawer__key">Expiry Window</dt>
+              <dd class="drawer__val">{{ item.thresholdDays }} days</dd>
+            </div>
+          </dl>
+        </section>
+      }
 
       <!-- Section 3: Quantity & Stock -->
-      <section class="drawer__section">
-        <h3 class="drawer__section-title">QUANTITY & STOCK</h3>
-        <dl class="drawer__kv-list">
-          <div class="drawer__kv">
-            <dt class="drawer__key">Tracked Quantity</dt>
-            <dd class="drawer__val font-semibold">
-              {{ formatQuantity(item.quantityBase) }} {{ productBaseUnit(item.productId) }}
-            </dd>
-          </div>
-          <div class="drawer__kv">
-            <dt class="drawer__key">Base Unit</dt>
-            <dd class="drawer__val">{{ productBaseUnit(item.productId) || '—' }}</dd>
-          </div>
-        </dl>
-      </section>
+      @if (showQuantitySection()) {
+        <section class="drawer__section">
+          <h3 class="drawer__section-title">QUANTITY & STOCK</h3>
+          <dl class="drawer__kv-list">
+            <div class="drawer__kv">
+              <dt class="drawer__key">Tracked Quantity</dt>
+              <dd class="drawer__val font-semibold">
+                {{ formatQuantity(item.quantityBase) }} {{ productBaseUnit(item.productId) }}
+              </dd>
+            </div>
+            <div class="drawer__kv">
+              <dt class="drawer__key">Base Unit</dt>
+              <dd class="drawer__val">{{ productBaseUnit(item.productId) || '—' }}</dd>
+            </div>
+          </dl>
+        </section>
+      }
 
       <!-- Section 4: Quick Navigation -->
       <section class="drawer__section">
         <h3 class="drawer__section-title">QUICK NAVIGATION</h3>
         <div class="drawer__quick-links">
-          @if (canViewBatches() && item.batchNumber) {
+          @if (canViewBatch() && item.batchNumber) {
             <a
               class="quick-nav-link"
               [routerLink]="['/app/inventory/batches']"
@@ -1093,7 +1129,7 @@
               View Stock Movements
             </a>
           }
-          @if (canViewProducts()) {
+          @if (canViewProduct()) {
             <a
               class="quick-nav-link"
               [routerLink]="['/app/catalog/products']"
@@ -1110,47 +1146,49 @@
       </section>
 
       <!-- Section 5: Technical Details Accordion -->
-      <section class="drawer__section drawer__section--tech">
-        <button
-          class="tech-details-toggle"
-          type="button"
-          (click)="toggleTechnicalDetails()"
-          [attr.aria-expanded]="technicalDetailsOpen()"
-        >
-          <span class="drawer__section-title">TECHNICAL DETAILS</span>
-          <svg
-            class="tech-details-arrow"
-            [class.tech-details-arrow--open]="technicalDetailsOpen()"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
+      @if (showTechnicalDetails()) {
+        <section class="drawer__section drawer__section--tech">
+          <button
+            class="tech-details-toggle"
+            type="button"
+            (click)="toggleTechnicalDetails()"
+            [attr.aria-expanded]="technicalDetailsOpen()"
           >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </button>
+            <span class="drawer__section-title">TECHNICAL DETAILS</span>
+            <svg
+              class="tech-details-arrow"
+              [class.tech-details-arrow--open]="technicalDetailsOpen()"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
 
-        @if (technicalDetailsOpen()) {
-          <dl class="drawer__kv-list drawer__kv-list--tech">
-            <div class="drawer__kv">
-              <dt class="drawer__key">Batch ID</dt>
-              <dd class="drawer__val"><code class="tech-id">{{ item.batchId ?? '—' }}</code></dd>
-            </div>
-            <div class="drawer__kv">
-              <dt class="drawer__key">Product ID</dt>
-              <dd class="drawer__val"><code class="tech-id">{{ item.productId }}</code></dd>
-            </div>
-            <div class="drawer__kv">
-              <dt class="drawer__key">Warehouse ID</dt>
-              <dd class="drawer__val"><code class="tech-id">{{ item.warehouseId }}</code></dd>
-            </div>
-          </dl>
-        }
-      </section>
+          @if (technicalDetailsOpen()) {
+            <dl class="drawer__kv-list drawer__kv-list--tech">
+              <div class="drawer__kv">
+                <dt class="drawer__key">Batch ID</dt>
+                <dd class="drawer__val"><code class="tech-id">{{ item.batchId ?? '—' }}</code></dd>
+              </div>
+              <div class="drawer__kv">
+                <dt class="drawer__key">Product ID</dt>
+                <dd class="drawer__val"><code class="tech-id">{{ item.productId }}</code></dd>
+              </div>
+              <div class="drawer__kv">
+                <dt class="drawer__key">Warehouse ID</dt>
+                <dd class="drawer__val"><code class="tech-id">{{ item.warehouseId }}</code></dd>
+              </div>
+            </dl>
+          }
+        </section>
+      }
     </div>
   </aside>
 }

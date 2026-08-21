@@ -21,7 +21,8 @@ type ConfigurableModule =
   | 'inventory.categories'
   | 'inventory.stock'
   | 'inventory.openingStock'
-  | 'inventory.batches';
+  | 'inventory.batches'
+  | 'inventory.expiry';
 type PendingConfirmation =
   | { readonly kind: 'save' }
   | { readonly kind: 'reset-control'; readonly control: PlatformCapabilityControl }
@@ -82,12 +83,18 @@ export class OrganizationControlsPage {
     this.byType('FEATURE', false).filter((control) => !this.isBatchGroupedFeature(control)),
   );
   readonly moduleInfoControls = computed(() => this.batchFeatures('moduleInfo'));
-  readonly filterControls = computed(() =>
-    this.batchFeatures('search', 'productFilter', 'warehouseFilter'),
-  );
-  readonly inspectorControls = computed(() =>
-    this.batchFeatures('stockByLocation', 'technicalDetails'),
-  );
+  readonly filterControls = computed(() => {
+    if (this.selectedModule() === 'inventory.expiry') {
+      return this.batchFeatures('search', 'productFilter', 'warehouseFilter', 'classificationFilter');
+    }
+    return this.batchFeatures('search', 'productFilter', 'warehouseFilter');
+  });
+  readonly inspectorControls = computed(() => {
+    if (this.selectedModule() === 'inventory.expiry') {
+      return this.batchFeatures('timelineSection', 'quantitySection', 'technicalDetails');
+    }
+    return this.batchFeatures('stockByLocation', 'technicalDetails');
+  });
   readonly widgetControls = computed(() => this.byType('WIDGET'));
   readonly actionControls = computed(() => this.byType('ACTION'));
 
@@ -146,6 +153,14 @@ export class OrganizationControlsPage {
       changes[0].value?.['enabled'] === false
     );
   });
+  readonly disablingExpiry = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'inventory.expiry' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
   readonly confirmationTitle = computed(() => {
     const pending = this.pendingConfirmation();
     const organization = this.snapshot()?.organization.name ?? 'this organization';
@@ -156,6 +171,7 @@ export class OrganizationControlsPage {
     if (pending?.kind === 'reset-organization') return `Reset all controls for ${organization}?`;
     if (this.disablingOpeningStock()) return `Disable Opening Stock for ${organization}?`;
     if (this.disablingBatches()) return `Disable Product Batches for ${organization}?`;
+    if (this.disablingExpiry()) return `Disable Expiry Inquiry for ${organization}?`;
     const single = this.changeSummary().length === 1 ? this.changeSummary()[0] : null;
     if (single?.risk === 'CRITICAL' && single.after === 'Disabled') {
       return `Disable ${single.label} for ${organization}?`;
@@ -180,6 +196,9 @@ export class OrganizationControlsPage {
     if (this.disablingBatches()) {
       return `Users in ${organization} will no longer be able to access Product Batches or its organization Batch inquiry APIs. Existing batches, stock balances, and transaction history will not be deleted or changed. This affects ${organization} only.`;
     }
+    if (this.disablingExpiry()) {
+      return `Users in ${organization} will no longer be able to access the Expiry Inquiry. Existing batches, expiry information, and stock are not modified. This affects ${organization} only.`;
+    }
     const critical = this.changeSummary()
       .filter((change) => change.risk === 'CRITICAL')
       .map((change) => `${change.label}: ${change.before} → ${change.after}`);
@@ -194,6 +213,7 @@ export class OrganizationControlsPage {
     if (pending?.kind === 'reset-organization') return 'Reset all controls';
     if (this.disablingOpeningStock()) return 'Disable Opening Stock';
     if (this.disablingBatches()) return 'Disable Product Batches';
+    if (this.disablingExpiry()) return 'Disable Expiry Inquiry';
     return 'Apply changes';
   });
 
@@ -380,32 +400,46 @@ export class OrganizationControlsPage {
     if (moduleKey === 'inventory.categories') return 'Categories';
     if (moduleKey === 'inventory.stock') return 'Inventory / Stock on Hand';
     if (moduleKey === 'inventory.openingStock') return 'Opening Stock';
+    if (moduleKey === 'inventory.expiry') return 'Expiry Inquiry';
     return 'Product Batches';
   }
 
   isRequiredWorkflowControl(control: PlatformCapabilityControl): boolean {
     return (
       (control.moduleKey === 'inventory.openingStock' ||
-        control.moduleKey === 'inventory.batches') &&
+        control.moduleKey === 'inventory.batches' ||
+        control.moduleKey === 'inventory.expiry') &&
       control.type === 'FIELD' &&
       control.platformEnforced === true
     );
   }
 
   private batchFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
-    const keys = new Set(ids.map((id) => `inventory.batches.features.${id}`));
+    const module = this.selectedModule();
+    const prefix =
+      module === 'inventory.expiry' ? 'inventory.expiry.features.' : 'inventory.batches.features.';
+    const keys = new Set(ids.map((id) => `${prefix}${id}`));
     return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
   }
 
   private isBatchGroupedFeature(control: PlatformCapabilityControl): boolean {
     return (
-      control.moduleKey === 'inventory.batches' &&
-      (control.key === 'inventory.batches.features.moduleInfo' ||
-        control.key === 'inventory.batches.features.search' ||
-        control.key === 'inventory.batches.features.productFilter' ||
-        control.key === 'inventory.batches.features.warehouseFilter' ||
-        control.key === 'inventory.batches.features.stockByLocation' ||
-        control.key === 'inventory.batches.features.technicalDetails')
+      (control.moduleKey === 'inventory.batches' &&
+        (control.key === 'inventory.batches.features.moduleInfo' ||
+          control.key === 'inventory.batches.features.search' ||
+          control.key === 'inventory.batches.features.productFilter' ||
+          control.key === 'inventory.batches.features.warehouseFilter' ||
+          control.key === 'inventory.batches.features.stockByLocation' ||
+          control.key === 'inventory.batches.features.technicalDetails')) ||
+      (control.moduleKey === 'inventory.expiry' &&
+        (control.key === 'inventory.expiry.features.moduleInfo' ||
+          control.key === 'inventory.expiry.features.search' ||
+          control.key === 'inventory.expiry.features.productFilter' ||
+          control.key === 'inventory.expiry.features.warehouseFilter' ||
+          control.key === 'inventory.expiry.features.classificationFilter' ||
+          control.key === 'inventory.expiry.features.timelineSection' ||
+          control.key === 'inventory.expiry.features.quantitySection' ||
+          control.key === 'inventory.expiry.features.technicalDetails'))
     );
   }
 
