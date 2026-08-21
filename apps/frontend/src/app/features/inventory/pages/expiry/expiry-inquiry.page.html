@@ -1,45 +1,1239 @@
-<agrivio-ui-page-header
-  title="Expiry inquiry"
-  subtitle="Authoritative batch expiry classification from inventory balances."
-/>
-
-@if (!canView()) {
-  <agrivio-ui-alert variant="warning">You do not have permission to view expiry inquiry.</agrivio-ui-alert>
-} @else {
-  @if (loading()) {
-    <agrivio-ui-loading-state label="Loading expiry stock…" />
-  } @else {
-    @if (errorMessage()) {
-      <agrivio-ui-alert variant="error">{{ errorMessage() }}</agrivio-ui-alert>
-    } @else {
-      <p data-testid="expiry-meta">
-        Business date {{ businessDate() }} · threshold {{ thresholdDays() }} days
-      </p>
-      <div class="ag-table-wrap">
-        <table class="ag-table" data-testid="expiry-list">
-          <thead>
-            <tr>
-              <th>Batch</th>
-              <th>Expiry</th>
-              <th>Qty</th>
-              <th>Classification</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (item of items(); track item.batchId ?? item.productId) {
-              <tr data-testid="expiry-row">
-                <td>{{ item.batchNumber ?? '—' }}</td>
-                <td>{{ item.expiryDate ?? '—' }}</td>
-                <td>{{ item.quantityBase }}</td>
-                <td>{{ item.classification }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
+<div class="expiry-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">Inventory</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">Expiry inquiry</h1>
+        <span class="page-head__count-pill" aria-label="Total expiry records">
+          {{ totalRecordsCount() }} {{ totalRecordsCount() === 1 ? 'expiry record' : 'expiry records' }}
+        </span>
       </div>
-      <button type="button" data-testid="expiry-refresh" (click)="reload()">Refresh</button>
+      <p class="page-head__lede">
+        Monitor upcoming and expired inventory by batch, quantity and business-date threshold.
+      </p>
+    </div>
+
+    <div class="page-head__actions">
+      <!-- Subtle Refresh Icon Button -->
+      <button
+        class="row-action-btn page-head__refresh-btn"
+        type="button"
+        data-testid="expiry-refresh"
+        (click)="reload()"
+        title="Refresh expiry data"
+        aria-label="Refresh expiry data"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+          <path d="M3 3v5h5" />
+          <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+          <path d="M16 21h5v-5" />
+        </svg>
+      </button>
+
+      <!-- Secondary Workflows -->
+      @if (canViewStock()) {
+        <a
+          class="ag-btn ag-btn--secondary"
+          routerLink="/app/inventory/stock"
+          data-testid="expiry-stock-link"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+            />
+            <path d="m3.3 7 8.7 5 8.7-5" />
+            <path d="M12 22V12" />
+          </svg>
+          <span class="btn-text-full">Stock</span>
+          <span class="btn-text-mobile">Stock</span>
+        </a>
+      }
+      @if (canViewBatches()) {
+        <a
+          class="ag-btn ag-btn--secondary"
+          routerLink="/app/inventory/batches"
+          data-testid="expiry-batches-link"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="m7.5 4.27 9 5.15" />
+            <path
+              d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+            />
+            <path d="m3.3 7 8.7 5 8.7-5" />
+            <path d="M12 22V12" />
+          </svg>
+          <span class="btn-text-full">Batches</span>
+          <span class="btn-text-mobile">Batches</span>
+        </a>
+      }
+      @if (canViewMovements()) {
+        <a
+          class="ag-btn ag-btn--secondary"
+          routerLink="/app/inventory/movements"
+          data-testid="expiry-movements-link"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="17 1 21 5 17 9" />
+            <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+            <polyline points="7 23 3 19 7 15" />
+            <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+          </svg>
+          <span class="btn-text-full">Movements</span>
+          <span class="btn-text-mobile">Movements</span>
+        </a>
+      }
+
+      <div class="nav-overflow-group">
+        <a
+          class="nav-overflow-link"
+          routerLink="/app/inventory/adjustments"
+          title="Stock Adjustments"
+        >Adjustments</a>
+        <a
+          class="nav-overflow-link"
+          routerLink="/app/inventory/transfers"
+          title="Warehouse Transfers"
+        >Transfers</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Alerts -->
+  @if (!canView()) {
+    <div class="alert-container">
+      <agrivio-ui-alert
+        tone="warning"
+        message="You do not have permission to view expiry inquiry."
+      />
+    </div>
+  } @else {
+    @if (errorMessage(); as error) {
+      <div class="alert-container">
+        <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+      </div>
     }
+
+    <!-- Module Information Section -->
+    <agrivio-ui-module-info
+      [title]="infoTitle"
+      [description]="infoDescription"
+      [items]="infoItems"
+      [defaultExpanded]="false"
+    />
+
+    <!-- Authoritative KPI Summary Row -->
+    <section class="kpi-row" aria-label="Expiry Inquiry Summary">
+      <!-- Total Records -->
+      <div class="kpi-card" data-testid="kpi-total-records">
+        <div class="kpi-card__icon kpi-card__icon--neutral">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+            />
+            <path d="m3.3 7 8.7 5 8.7-5" />
+            <path d="M12 22V12" />
+          </svg>
+        </div>
+        <div class="kpi-card__body">
+          <span class="kpi-card__label">TOTAL RECORDS</span>
+          <span class="kpi-card__value">{{ totalRecordsCount() }}</span>
+          <span class="kpi-card__subtext">Across all warehouses</span>
+        </div>
+      </div>
+
+      <!-- Expiring Soon -->
+      <div class="kpi-card" data-testid="kpi-expiring-soon">
+        <div class="kpi-card__icon kpi-card__icon--amber">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+        </div>
+        <div class="kpi-card__body">
+          <span class="kpi-card__label">EXPIRING SOON</span>
+          <span class="kpi-card__value">{{ expiringSoonCount() }}</span>
+          <span class="kpi-card__subtext">Within next {{ thresholdDays() }} days</span>
+        </div>
+      </div>
+
+      <!-- Expired -->
+      <div class="kpi-card" data-testid="kpi-expired">
+        <div class="kpi-card__icon kpi-card__icon--red">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"
+            />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </div>
+        <div class="kpi-card__body">
+          <span class="kpi-card__label">EXPIRED</span>
+          <span class="kpi-card__value">{{ expiredCount() }}</span>
+          <span class="kpi-card__subtext">Past expiry date</span>
+        </div>
+      </div>
+
+      <!-- Tracked Products / Warehouses -->
+      <div class="kpi-card" data-testid="kpi-tracked-entities">
+        <div class="kpi-card__icon kpi-card__icon--purple">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="18" cy="5" r="3" />
+            <circle cx="6" cy="12" r="3" />
+            <circle cx="18" cy="19" r="3" />
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+          </svg>
+        </div>
+        <div class="kpi-card__body">
+          <span class="kpi-card__label">TRACKED PRODUCTS / WAREHOUSES</span>
+          <span class="kpi-card__value">{{ trackedProductsCount() }} / {{ trackedWarehousesCount() }}</span>
+          <span class="kpi-card__subtext">Products / Warehouses</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Toolbar: Search, Filters, and View Switcher -->
+    <section class="toolbar-card" aria-label="Expiry filters and search">
+      <div class="toolbar">
+        <!-- Search Input -->
+        <div class="toolbar__search">
+          <svg
+            class="toolbar__search-icon"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            class="toolbar__search-input"
+            type="search"
+            placeholder="Search batch number or product..."
+            [value]="search()"
+            (input)="onSearchInput($event)"
+            data-testid="expiry-search"
+            aria-label="Search expiry records"
+          />
+          @if (search()) {
+            <button
+              class="toolbar__search-clear"
+              type="button"
+              (click)="onSearchClear()"
+              title="Clear search"
+              aria-label="Clear search"
+            >
+              &times;
+            </button>
+          }
+        </div>
+
+        <!-- Desktop Filter Dropdowns -->
+        <div class="toolbar__filters-desktop">
+          <!-- Product Filter -->
+          <div class="toolbar__select-wrapper">
+            <select
+              class="toolbar__select"
+              [value]="productFilter()"
+              (change)="onProductChange($event)"
+              data-testid="expiry-filter-product"
+              aria-label="Filter by product"
+            >
+              <option value="">All Products</option>
+              @for (prod of productList(); track prod.id) {
+                <option [value]="prod.id">{{ prod.name }}</option>
+              }
+            </select>
+          </div>
+
+          <!-- Warehouse Filter -->
+          <div class="toolbar__select-wrapper">
+            <select
+              class="toolbar__select"
+              [value]="warehouseFilter()"
+              (change)="onWarehouseChange($event)"
+              data-testid="expiry-filter-warehouse"
+              aria-label="Filter by warehouse"
+            >
+              <option value="">All Warehouses</option>
+              @for (wh of warehouseList(); track wh.id) {
+                <option [value]="wh.id">{{ wh.name }}</option>
+              }
+            </select>
+          </div>
+
+          <!-- Classification Filter -->
+          <div class="toolbar__select-wrapper">
+            <select
+              class="toolbar__select"
+              [value]="classificationFilter()"
+              (change)="onClassificationChange($event)"
+              data-testid="expiry-filter-classification"
+              aria-label="Filter by classification"
+            >
+              <option value="">All Classifications</option>
+              <option value="upcoming">Expiring Soon (Upcoming)</option>
+              <option value="expired">Expired</option>
+              <option value="normal">Normal</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Mobile Filter Button Trigger -->
+        <div class="toolbar__mobile-actions">
+          <button
+            class="ag-btn ag-btn--secondary toolbar__mobile-filter-btn"
+            type="button"
+            (click)="openMobileFilters()"
+            data-testid="expiry-mobile-filters-trigger"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+            </svg>
+            Filters
+            @if (activeFiltersCount() > 0) {
+              <span class="active-badge">{{ activeFiltersCount() }}</span>
+            }
+          </button>
+        </div>
+
+        <!-- View Mode Switcher (Desktop) -->
+        <div class="toolbar__view-modes" role="group" aria-label="View mode">
+          <button
+            type="button"
+            class="view-mode-btn"
+            [class.view-mode-btn--active]="effectiveViewMode() === 'table'"
+            (click)="setViewMode('table')"
+            title="Table view"
+            aria-label="Table view"
+            data-testid="expiry-view-mode-table"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M3 9h18" />
+              <path d="M3 15h18" />
+              <path d="M9 3v18" />
+            </svg>
+            <span>Table</span>
+          </button>
+          <button
+            type="button"
+            class="view-mode-btn"
+            [class.view-mode-btn--active]="effectiveViewMode() === 'cards'"
+            (click)="setViewMode('cards')"
+            title="Cards view"
+            aria-label="Cards view"
+            data-testid="expiry-view-mode-cards"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+            </svg>
+            <span>Cards</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Active Filter Pills -->
+      @if (hasActiveFilters()) {
+        <div class="active-filter-chips">
+          <span class="active-filter-chips__label">Active filters:</span>
+          @if (search()) {
+            <span class="filter-chip">
+              Search: "{{ search() }}"
+              <button
+                type="button"
+                (click)="onSearchClear()"
+                aria-label="Remove search filter"
+              >&times;</button>
+            </span>
+          }
+          @if (productFilter()) {
+            <span class="filter-chip">
+              Product: {{ productName(productFilter()) }}
+              <button
+                type="button"
+                (click)="productFilter.set(''); page.set(1)"
+                aria-label="Remove product filter"
+              >&times;</button>
+            </span>
+          }
+          @if (warehouseFilter()) {
+            <span class="filter-chip">
+              Warehouse: {{ warehouseName(warehouseFilter()) }}
+              <button
+                type="button"
+                (click)="warehouseFilter.set(''); page.set(1)"
+                aria-label="Remove warehouse filter"
+              >&times;</button>
+            </span>
+          }
+          @if (classificationFilter()) {
+            <span class="filter-chip">
+              Classification: {{ getClassificationInfo(classificationFilter()).label }}
+              <button
+                type="button"
+                (click)="classificationFilter.set(''); page.set(1)"
+                aria-label="Remove classification filter"
+              >&times;</button>
+            </span>
+          }
+          <button
+            class="active-filter-chips__clear-all"
+            type="button"
+            (click)="clearFilters()"
+            data-testid="expiry-clear-filters"
+          >
+            Clear all
+          </button>
+        </div>
+      }
+    </section>
+
+    <!-- Content Area: Table / Cards / Empty / Loading -->
+    <main class="content-surface">
+      @if (loading()) {
+        <div class="loading-wrap">
+          <agrivio-ui-loading-state label="Loading expiry records..." />
+        </div>
+      } @else if (totalFiltered() === 0) {
+        @if (hasActiveFilters()) {
+          <agrivio-ui-empty-state
+            title="No expiry records match your filters"
+            message="Try adjusting or clearing your search criteria to see inventory expiry records."
+          >
+            <button
+              class="ag-btn ag-btn--secondary"
+              type="button"
+              (click)="clearFilters()"
+            >
+              Clear filters
+            </button>
+          </agrivio-ui-empty-state>
+        } @else {
+          <agrivio-ui-empty-state
+            title="No expiry-tracked inventory found"
+            message="No positive-balance inventory records with batch expiry dates exist for this organization."
+          />
+        }
+      } @else {
+        <!-- Table View -->
+        @if (effectiveViewMode() === 'table') {
+          <div class="table-container">
+            <table class="ag-table" data-testid="expiry-list">
+              <thead>
+                <tr>
+                  <!-- Batch Number -->
+                  <th
+                    class="th-sortable col-batch"
+                    (click)="toggleSort('batchNumber')"
+                    [class.th-sorted]="sortField() === 'batchNumber'"
+                  >
+                    <div class="th-content">
+                      <span>BATCH NUMBER</span>
+                      @if (sortField() === 'batchNumber') {
+                        <span class="sort-indicator">{{ sortOrder() === 'asc' ? '↑' : '↓' }}</span>
+                      }
+                    </div>
+                  </th>
+
+                  <!-- Product -->
+                  <th
+                    class="th-sortable col-product"
+                    (click)="toggleSort('product')"
+                    [class.th-sorted]="sortField() === 'product'"
+                  >
+                    <div class="th-content">
+                      <span>PRODUCT</span>
+                      @if (sortField() === 'product') {
+                        <span class="sort-indicator">{{ sortOrder() === 'asc' ? '↑' : '↓' }}</span>
+                      }
+                    </div>
+                  </th>
+
+                  <!-- Warehouse / Location -->
+                  <th
+                    class="th-sortable col-location"
+                    (click)="toggleSort('warehouse')"
+                    [class.th-sorted]="sortField() === 'warehouse'"
+                  >
+                    <div class="th-content">
+                      <span>WAREHOUSE / LOCATION</span>
+                      @if (sortField() === 'warehouse') {
+                        <span class="sort-indicator">{{ sortOrder() === 'asc' ? '↑' : '↓' }}</span>
+                      }
+                    </div>
+                  </th>
+
+                  <!-- Expiry Date -->
+                  <th
+                    class="th-sortable col-expiry"
+                    (click)="toggleSort('expiryDate')"
+                    [class.th-sorted]="sortField() === 'expiryDate'"
+                  >
+                    <div class="th-content">
+                      <span>EXPIRY DATE</span>
+                      @if (sortField() === 'expiryDate') {
+                        <span class="sort-indicator">{{ sortOrder() === 'asc' ? '↑' : '↓' }}</span>
+                      }
+                    </div>
+                  </th>
+
+                  <!-- Qty -->
+                  <th
+                    class="th-sortable col-qty"
+                    (click)="toggleSort('quantityBase')"
+                    [class.th-sorted]="sortField() === 'quantityBase'"
+                  >
+                    <div class="th-content">
+                      <span>QTY</span>
+                      @if (sortField() === 'quantityBase') {
+                        <span class="sort-indicator">{{ sortOrder() === 'asc' ? '↑' : '↓' }}</span>
+                      }
+                    </div>
+                  </th>
+
+                  <!-- Classification -->
+                  <th
+                    class="th-sortable col-classification"
+                    (click)="toggleSort('classification')"
+                    [class.th-sorted]="sortField() === 'classification'"
+                  >
+                    <div class="th-content">
+                      <span>CLASSIFICATION</span>
+                      @if (sortField() === 'classification') {
+                        <span class="sort-indicator">{{ sortOrder() === 'asc' ? '↑' : '↓' }}</span>
+                      }
+                    </div>
+                  </th>
+
+                  <!-- Actions -->
+                  <th class="col-actions">
+                    <span class="th-content">ACTIONS</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (
+                  item of paginatedItems();
+                  track (item.batchId ?? '') + '-' + item.productId + '-' + item.warehouseId
+                ) {
+                  <tr
+                    data-testid="expiry-row"
+                    [class.row-selected]="selectedItem() === item"
+                    [class.row--expired]="item.classification === 'expired'"
+                    [class.row--upcoming]="item.classification === 'upcoming'"
+                    (click)="openInspector(item)"
+                  >
+                    <!-- Batch Number -->
+                    <td class="col-batch">
+                      <div class="batch-num-wrap">
+                        <code class="batch-code">{{ item.batchNumber ?? '—' }}</code>
+                      </div>
+                    </td>
+
+                    <!-- Product -->
+                    <td class="col-product">
+                      <div class="cell-entity">
+                        <span class="cell-entity__primary">{{ productName(item.productId) }}</span>
+                        @if (productSku(item.productId); as sku) {
+                          <span class="cell-entity__secondary">SKU: {{ sku }}</span>
+                        }
+                      </div>
+                    </td>
+
+                    <!-- Warehouse / Location -->
+                    <td class="col-location">
+                      <div class="cell-entity">
+                        <span class="cell-entity__primary">{{ warehouseName(item.warehouseId) }}</span>
+                        @if (warehouseCode(item.warehouseId); as code) {
+                          <span class="cell-entity__secondary">{{ code }}</span>
+                        }
+                      </div>
+                    </td>
+
+                    <!-- Expiry Date -->
+                    <td class="col-expiry">
+                      <div
+                        class="expiry-cell"
+                        [class.expiry-cell--expired]="item.classification === 'expired'"
+                        [class.expiry-cell--upcoming]="item.classification === 'upcoming'"
+                      >
+                        <span class="expiry-cell__date">{{ formatDate(item.expiryDate) }}</span>
+                        @if (calculateDaysRemaining(item.expiryDate, item.businessDate); as rel) {
+                          <span class="expiry-cell__relative" [class.expiry-cell__relative--overdue]="rel.isOverdue">
+                            {{ rel.text }}
+                          </span>
+                        }
+                      </div>
+                    </td>
+
+                    <!-- Qty -->
+                    <td class="col-qty">
+                      <div class="qty-cell">
+                        <span class="qty-cell__val">{{ formatQuantity(item.quantityBase) }}</span>
+                        <span class="qty-cell__unit">{{ productBaseUnit(item.productId) }}</span>
+                      </div>
+                    </td>
+
+                    <!-- Classification (Single semantic column) -->
+                    <td class="col-classification">
+                      @let cls = getClassificationInfo(item.classification);
+                      <span class="ag-badge ag-badge--{{ cls.tone }}">
+                        <span class="ag-badge__dot"></span>
+                        {{ cls.label }}
+                      </span>
+                    </td>
+
+                    <!-- Actions -->
+                    <td class="col-actions" (click)="$event.stopPropagation()">
+                      <div class="row-actions">
+                        <button
+                          class="ag-btn ag-btn--sm ag-btn--subtle row-action-inspect"
+                          type="button"
+                          (click)="openInspector(item)"
+                          data-testid="expiry-inspect-btn"
+                        >
+                          <svg
+                            width="13"
+                            height="13"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          >
+                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                          Inspect
+                        </button>
+
+                        @if (canViewStock()) {
+                          <a
+                            class="ag-btn ag-btn--sm ag-btn--secondary row-action-stock"
+                            [routerLink]="['/app/inventory/stock']"
+                            [queryParams]="{ productId: item.productId, warehouseId: item.warehouseId }"
+                            title="View stock on hand"
+                            data-testid="expiry-row-stock-link"
+                          >
+                            <svg
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            >
+                              <path
+                                d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+                              />
+                              <path d="m3.3 7 8.7 5 8.7-5" />
+                              <path d="M12 22V12" />
+                            </svg>
+                            Stock
+                          </a>
+                        }
+
+                        <!-- Row Overflow Menu -->
+                        <div class="row-menu-wrapper">
+                          <button
+                            class="row-action-btn"
+                            type="button"
+                            (click)="toggleRowMenu((item.batchId ?? '') + '-' + item.productId + '-' + item.warehouseId, $event)"
+                            title="More options"
+                            aria-label="More options"
+                          >
+                            &hellip;
+                          </button>
+                          @if (openMenuBatchId() === ((item.batchId ?? '') + '-' + item.productId + '-' + item.warehouseId)) {
+                            <div class="row-menu-dropdown" (click)="$event.stopPropagation()">
+                              @if (canViewBatches() && item.batchNumber) {
+                                <a
+                                  class="row-menu-item"
+                                  [routerLink]="['/app/inventory/batches']"
+                                  [queryParams]="{ search: item.batchNumber }"
+                                  (click)="closeRowMenu()"
+                                >
+                                  View in Batches
+                                </a>
+                              }
+                              @if (canViewProducts()) {
+                                <a
+                                  class="row-menu-item"
+                                  [routerLink]="['/app/catalog/products']"
+                                  [queryParams]="{ search: productName(item.productId) }"
+                                  (click)="closeRowMenu()"
+                                >
+                                  View Product
+                                </a>
+                              }
+                              @if (canViewMovements()) {
+                                <a
+                                  class="row-menu-item"
+                                  [routerLink]="['/app/inventory/movements']"
+                                  [queryParams]="{ productId: item.productId, warehouseId: item.warehouseId }"
+                                  (click)="closeRowMenu()"
+                                >
+                                  View Movements
+                                </a>
+                              }
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+
+        <!-- Cards View (Mobile & Desktop Toggle) -->
+        @if (effectiveViewMode() === 'cards') {
+          <div class="cards-grid">
+            @for (
+              item of paginatedItems();
+              track (item.batchId ?? '') + '-' + item.productId + '-' + item.warehouseId
+            ) {
+              <div
+                class="batch-card"
+                data-testid="expiry-row"
+                [class.batch-card--expired]="item.classification === 'expired'"
+                [class.batch-card--upcoming]="item.classification === 'upcoming'"
+                (click)="openInspector(item)"
+              >
+                <!-- Card Header -->
+                <div class="batch-card__head">
+                  <div class="batch-card__identity">
+                    <code class="batch-code">{{ item.batchNumber ?? '—' }}</code>
+                    <p class="batch-card__product-name">{{ productName(item.productId) }}</p>
+                    @if (productSku(item.productId); as sku) {
+                      <span class="batch-card__sku">SKU: {{ sku }}</span>
+                    }
+                  </div>
+                  @let cls = getClassificationInfo(item.classification);
+                  <span class="ag-badge ag-badge--{{ cls.tone }}">
+                    <span class="ag-badge__dot"></span>
+                    {{ cls.label }}
+                  </span>
+                </div>
+
+                <!-- Card Body -->
+                <div class="batch-card__body">
+                  <div class="batch-card__row">
+                    <span class="batch-card__prop-label">Warehouse:</span>
+                    <span class="batch-card__prop-value">{{ warehouseName(item.warehouseId) }}</span>
+                  </div>
+
+                  <div class="batch-card__row">
+                    <span class="batch-card__prop-label">Expiry Date:</span>
+                    <span
+                      class="batch-card__prop-value expiry-date-val"
+                      [class.text-danger]="item.classification === 'expired'"
+                      [class.text-warning]="item.classification === 'upcoming'"
+                    >
+                      {{ formatDate(item.expiryDate) }}
+                      @if (calculateDaysRemaining(item.expiryDate, item.businessDate); as rel) {
+                        <span class="relative-days">({{ rel.text }})</span>
+                      }
+                    </span>
+                  </div>
+
+                  <div class="batch-card__row">
+                    <span class="batch-card__prop-label">Stock Quantity:</span>
+                    <span class="batch-card__prop-value font-medium">
+                      {{ formatQuantity(item.quantityBase) }} {{ productBaseUnit(item.productId) }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Card Footer Actions -->
+                <div class="batch-card__footer" (click)="$event.stopPropagation()">
+                  <button
+                    class="ag-btn ag-btn--sm ag-btn--subtle"
+                    type="button"
+                    (click)="openInspector(item)"
+                  >
+                    Inspect
+                  </button>
+                  @if (canViewStock()) {
+                    <a
+                      class="ag-btn ag-btn--sm ag-btn--secondary"
+                      [routerLink]="['/app/inventory/stock']"
+                      [queryParams]="{ productId: item.productId, warehouseId: item.warehouseId }"
+                    >
+                      Stock
+                    </a>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Pagination Component -->
+        <agrivio-ui-pagination
+          [page]="page()"
+          [pageSize]="pageSize()"
+          [total]="totalFiltered()"
+          (pageChange)="onPageChange($event)"
+          (pageSizeChange)="onPageSizeChange($event)"
+        />
+      }
+    </main>
   }
+</div>
+
+<!-- =========================================================================
+     Expiry Inspector Slide-Out Drawer
+     ========================================================================= -->
+@if (selectedItem(); as item) {
+  <div class="drawer-overlay" (click)="closeInspector()" aria-hidden="true"></div>
+  <aside
+    class="drawer"
+    role="dialog"
+    aria-labelledby="drawer-title"
+    aria-modal="true"
+    data-testid="expiry-inspector"
+  >
+    <!-- Drawer Header -->
+    <header class="drawer__header">
+      <div class="drawer__header-content">
+        <span class="drawer__eyebrow">EXPIRY DETAILS</span>
+        <h2 id="drawer-title" class="drawer__title">
+          {{ item.batchNumber ?? 'Expiry Record' }}
+        </h2>
+        <p class="drawer__subtitle">{{ productName(item.productId) }}</p>
+      </div>
+      <button
+        class="drawer__close-btn"
+        type="button"
+        (click)="closeInspector()"
+        title="Close inspector"
+        aria-label="Close inspector"
+        data-testid="expiry-inspector-close"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </header>
+
+    <!-- Drawer Body -->
+    <div class="drawer__body">
+      <!-- Section 1: Expiry Identity -->
+      <section class="drawer__section">
+        <h3 class="drawer__section-title">EXPIRY IDENTITY</h3>
+        <dl class="drawer__kv-list">
+          <div class="drawer__kv">
+            <dt class="drawer__key">Batch Number</dt>
+            <dd class="drawer__val"><code class="batch-code">{{ item.batchNumber ?? '—' }}</code></dd>
+          </div>
+          <div class="drawer__kv">
+            <dt class="drawer__key">Product</dt>
+            <dd class="drawer__val">{{ productName(item.productId) }}</dd>
+          </div>
+          @if (productSku(item.productId); as sku) {
+            <div class="drawer__kv">
+              <dt class="drawer__key">SKU</dt>
+              <dd class="drawer__val">{{ sku }}</dd>
+            </div>
+          }
+          <div class="drawer__kv">
+            <dt class="drawer__key">Warehouse Location</dt>
+            <dd class="drawer__val">
+              {{ warehouseName(item.warehouseId) }}
+              @if (warehouseCode(item.warehouseId); as code) {
+                <span class="val-subtext">({{ code }})</span>
+              }
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <!-- Section 2: Expiry & Timeline -->
+      <section class="drawer__section">
+        <h3 class="drawer__section-title">EXPIRY & TIMELINE</h3>
+        <dl class="drawer__kv-list">
+          <div class="drawer__kv">
+            <dt class="drawer__key">Expiry Date</dt>
+            <dd class="drawer__val">
+              <span
+                class="font-semibold"
+                [class.text-danger]="item.classification === 'expired'"
+                [class.text-warning]="item.classification === 'upcoming'"
+              >
+                {{ formatDate(item.expiryDate) }}
+              </span>
+            </dd>
+          </div>
+
+          <div class="drawer__kv">
+            <dt class="drawer__key">Classification</dt>
+            <dd class="drawer__val">
+              @let cls = getClassificationInfo(item.classification);
+              <span class="ag-badge ag-badge--{{ cls.tone }}">
+                <span class="ag-badge__dot"></span>
+                {{ cls.label }}
+              </span>
+            </dd>
+          </div>
+
+          @if (calculateDaysRemaining(item.expiryDate, item.businessDate); as rel) {
+            <div class="drawer__kv">
+              <dt class="drawer__key">Days Status</dt>
+              <dd
+                class="drawer__val"
+                [class.text-danger]="rel.isOverdue"
+                [class.text-warning]="rel.isToday"
+              >
+                {{ rel.text }}
+              </dd>
+            </div>
+          }
+
+          <div class="drawer__kv">
+            <dt class="drawer__key">Business Date</dt>
+            <dd class="drawer__val">{{ formatDate(item.businessDate) }}</dd>
+          </div>
+
+          <div class="drawer__kv">
+            <dt class="drawer__key">Expiry Window</dt>
+            <dd class="drawer__val">{{ item.thresholdDays }} days</dd>
+          </div>
+        </dl>
+      </section>
+
+      <!-- Section 3: Quantity & Stock -->
+      <section class="drawer__section">
+        <h3 class="drawer__section-title">QUANTITY & STOCK</h3>
+        <dl class="drawer__kv-list">
+          <div class="drawer__kv">
+            <dt class="drawer__key">Tracked Quantity</dt>
+            <dd class="drawer__val font-semibold">
+              {{ formatQuantity(item.quantityBase) }} {{ productBaseUnit(item.productId) }}
+            </dd>
+          </div>
+          <div class="drawer__kv">
+            <dt class="drawer__key">Base Unit</dt>
+            <dd class="drawer__val">{{ productBaseUnit(item.productId) || '—' }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <!-- Section 4: Quick Navigation -->
+      <section class="drawer__section">
+        <h3 class="drawer__section-title">QUICK NAVIGATION</h3>
+        <div class="drawer__quick-links">
+          @if (canViewBatches() && item.batchNumber) {
+            <a
+              class="quick-nav-link"
+              [routerLink]="['/app/inventory/batches']"
+              [queryParams]="{ search: item.batchNumber }"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m7.5 4.27 9 5.15" />
+                <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+                <path d="m3.3 7 8.7 5 8.7-5" />
+                <path d="M12 22V12" />
+              </svg>
+              View in Batches
+            </a>
+          }
+          @if (canViewStock()) {
+            <a
+              class="quick-nav-link"
+              [routerLink]="['/app/inventory/stock']"
+              [queryParams]="{ productId: item.productId, warehouseId: item.warehouseId }"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+                <path d="m3.3 7 8.7 5 8.7-5" />
+                <path d="M12 22V12" />
+              </svg>
+              View Stock on Hand
+            </a>
+          }
+          @if (canViewMovements()) {
+            <a
+              class="quick-nav-link"
+              [routerLink]="['/app/inventory/movements']"
+              [queryParams]="{ productId: item.productId, warehouseId: item.warehouseId }"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="17 1 21 5 17 9" />
+                <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                <polyline points="7 23 3 19 7 15" />
+                <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+              </svg>
+              View Stock Movements
+            </a>
+          }
+          @if (canViewProducts()) {
+            <a
+              class="quick-nav-link"
+              [routerLink]="['/app/catalog/products']"
+              [queryParams]="{ search: productName(item.productId) }"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m7.5 4.27 9 5.15" />
+                <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+              </svg>
+              View Product in Catalog
+            </a>
+          }
+        </div>
+      </section>
+
+      <!-- Section 5: Technical Details Accordion -->
+      <section class="drawer__section drawer__section--tech">
+        <button
+          class="tech-details-toggle"
+          type="button"
+          (click)="toggleTechnicalDetails()"
+          [attr.aria-expanded]="technicalDetailsOpen()"
+        >
+          <span class="drawer__section-title">TECHNICAL DETAILS</span>
+          <svg
+            class="tech-details-arrow"
+            [class.tech-details-arrow--open]="technicalDetailsOpen()"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+
+        @if (technicalDetailsOpen()) {
+          <dl class="drawer__kv-list drawer__kv-list--tech">
+            <div class="drawer__kv">
+              <dt class="drawer__key">Batch ID</dt>
+              <dd class="drawer__val"><code class="tech-id">{{ item.batchId ?? '—' }}</code></dd>
+            </div>
+            <div class="drawer__kv">
+              <dt class="drawer__key">Product ID</dt>
+              <dd class="drawer__val"><code class="tech-id">{{ item.productId }}</code></dd>
+            </div>
+            <div class="drawer__kv">
+              <dt class="drawer__key">Warehouse ID</dt>
+              <dd class="drawer__val"><code class="tech-id">{{ item.warehouseId }}</code></dd>
+            </div>
+          </dl>
+        }
+      </section>
+    </div>
+  </aside>
 }
 
-<p><a routerLink="/app/inventory/stock">Back to stock</a></p>
+<!-- Mobile Filter Bottom Sheet Modal -->
+@if (mobileFiltersOpen()) {
+  <div class="drawer-overlay" (click)="closeMobileFilters()" aria-hidden="true"></div>
+  <div class="mobile-filter-sheet" role="dialog" aria-modal="true" aria-label="Filters">
+    <div class="mobile-filter-sheet__head">
+      <h2 class="mobile-filter-sheet__title">Filter Expiry Records</h2>
+      <button
+        class="drawer__close-btn"
+        type="button"
+        (click)="closeMobileFilters()"
+        aria-label="Close filters"
+      >
+        &times;
+      </button>
+    </div>
+    <div class="mobile-filter-sheet__body">
+      <!-- Product -->
+      <div class="mobile-filter-group">
+        <label class="mobile-filter-label" for="mobile-filter-product">Product</label>
+        <select
+          id="mobile-filter-product"
+          class="toolbar__select"
+          [value]="productFilter()"
+          (change)="onProductChange($event)"
+        >
+          <option value="">All Products</option>
+          @for (prod of productList(); track prod.id) {
+            <option [value]="prod.id">{{ prod.name }}</option>
+          }
+        </select>
+      </div>
+
+      <!-- Warehouse -->
+      <div class="mobile-filter-group">
+        <label class="mobile-filter-label" for="mobile-filter-warehouse">Warehouse</label>
+        <select
+          id="mobile-filter-warehouse"
+          class="toolbar__select"
+          [value]="warehouseFilter()"
+          (change)="onWarehouseChange($event)"
+        >
+          <option value="">All Warehouses</option>
+          @for (wh of warehouseList(); track wh.id) {
+            <option [value]="wh.id">{{ wh.name }}</option>
+          }
+        </select>
+      </div>
+
+      <!-- Classification -->
+      <div class="mobile-filter-group">
+        <label class="mobile-filter-label" for="mobile-filter-classification">Classification</label>
+        <select
+          id="mobile-filter-classification"
+          class="toolbar__select"
+          [value]="classificationFilter()"
+          (change)="onClassificationChange($event)"
+        >
+          <option value="">All Classifications</option>
+          <option value="upcoming">Expiring Soon (Upcoming)</option>
+          <option value="expired">Expired</option>
+          <option value="normal">Normal</option>
+        </select>
+      </div>
+    </div>
+    <div class="mobile-filter-sheet__foot">
+      <button
+        class="ag-btn ag-btn--secondary w-full"
+        type="button"
+        (click)="clearFilters(); closeMobileFilters()"
+      >
+        Reset filters
+      </button>
+      <button
+        class="ag-btn ag-btn--primary w-full"
+        type="button"
+        (click)="closeMobileFilters()"
+      >
+        Apply ({{ totalFiltered() }} records)
+      </button>
+    </div>
+  </div>
+}
