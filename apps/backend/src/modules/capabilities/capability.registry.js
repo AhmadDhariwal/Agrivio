@@ -18,6 +18,7 @@ const CATEGORIES_MODULE_KEY = 'inventory.categories';
 const STOCK_MODULE_KEY = 'inventory.stock';
 const OPENING_STOCK_MODULE_KEY = 'inventory.openingStock';
 const BATCHES_MODULE_KEY = 'inventory.batches';
+const EXPIRY_MODULE_KEY = 'inventory.expiry';
 
 const definitions = [
   {
@@ -745,6 +746,195 @@ const definitions = [
     requiredPermissions: { allowed: permission },
     ...(dependencies.length === 0 ? {} : { dependencies }),
   })),
+  {
+    key: EXPIRY_MODULE_KEY,
+    parentKey: 'inventory',
+    moduleKey: EXPIRY_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label: 'Expiry Inquiry',
+    description: 'Expiry Inquiry screens and expiry read operations for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'inventory.expiry.view' },
+    reason:
+      'Disabling access hides Expiry Inquiry and blocks expiry read operations without deleting batches, changing stock, or altering expiry classification, FEFO, or threshold rules.',
+  },
+  {
+    key: 'inventory.expiry.views.desktopCards',
+    parentKey: EXPIRY_MODULE_KEY,
+    moduleKey: EXPIRY_MODULE_KEY,
+    type: CONTROL_TYPES.View,
+    label: 'Desktop Card View',
+    description: 'Optional user-selectable Expiry Inquiry card layout on desktop and tablet.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'inventory.expiry.view' },
+    reason:
+      'Responsive phone cards remain platform enforced so Expiry Inquiry stays usable on mobile.',
+  },
+  {
+    key: 'inventory.expiry.features.moduleInfo',
+    parentKey: EXPIRY_MODULE_KEY,
+    moduleKey: EXPIRY_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label: 'About Expiry Inquiry',
+    description: 'Show the Expiry Inquiry guidance panel.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'inventory.expiry.view' },
+  },
+  ...[
+    ['totalRecords', 'Total Records'],
+    ['expiringSoon', 'Expiring Soon'],
+    ['expired', 'Expired'],
+    ['trackedProductsWarehouses', 'Tracked Products / Warehouses'],
+  ].map(([id, label]) => ({
+    key: `inventory.expiry.widgets.${id}`,
+    parentKey: EXPIRY_MODULE_KEY,
+    moduleKey: EXPIRY_MODULE_KEY,
+    type: CONTROL_TYPES.Widget,
+    label,
+    description: `${label} Expiry Inquiry summary widget.`,
+    defaultPolicy: { visible: true },
+    configurable: { visible: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { visible: 'inventory.expiry.view' },
+  })),
+  ...[
+    ['search', 'Search', 'Search Expiry Inquiry by batch number, product, or warehouse.'],
+    ['productFilter', 'Product Filter', 'Filter Expiry Inquiry by product.'],
+    ['warehouseFilter', 'Warehouse Filter', 'Filter Expiry Inquiry by warehouse.'],
+    [
+      'classificationFilter',
+      'Classification Filter',
+      'Filter Expiry Inquiry by expiry classification.',
+    ],
+  ].map(([id, label, description]) => ({
+    key: `inventory.expiry.features.${id}`,
+    parentKey: EXPIRY_MODULE_KEY,
+    moduleKey: EXPIRY_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'inventory.expiry.view' },
+  })),
+  ...[
+    [
+      'batchNumber',
+      'Batch Number',
+      'Primary Batch identity must remain visible for a meaningful Expiry Inquiry.',
+    ],
+    [
+      'product',
+      'Product',
+      'An expiry record cannot be meaningfully identified without its Product.',
+    ],
+    [
+      'expiryDate',
+      'Expiry Date',
+      'The authoritative expiry date drives FEFO, classification, and alerts. Hiding it makes Expiry Inquiry operationally meaningless.',
+    ],
+    [
+      'classification',
+      'Classification',
+      'The authoritative result of expiry evaluation. Hiding classification makes Expiry Inquiry operationally meaningless.',
+    ],
+  ].map(([id, label, reason]) => ({
+    key: `inventory.expiry.fields.${id}`,
+    parentKey: EXPIRY_MODULE_KEY,
+    moduleKey: EXPIRY_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description: 'Required Expiry Inquiry identity.',
+    defaultPolicy: { visible: true },
+    configurable: { visible: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'inventory.expiry.view' },
+    reason,
+  })),
+  ...[
+    ['warehouse', 'Warehouse', RISK_LEVELS.Recommended],
+    ['quantity', 'Quantity', RISK_LEVELS.Recommended],
+  ].map(([id, label, risk]) => ({
+    key: `inventory.expiry.fields.${id}`,
+    parentKey: EXPIRY_MODULE_KEY,
+    moduleKey: EXPIRY_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description: `${label} presentation in Expiry Inquiry tables, cards, and inspector where applicable.`,
+    defaultPolicy: { visible: true },
+    configurable: { visible: true },
+    risk,
+    requiredPermissions: { visible: 'inventory.expiry.view' },
+    ...(id === 'quantity'
+      ? {
+          reason:
+            'This controls presentation only. Authoritative stock balances cannot be edited or overridden here. The Inspector Quantity section must also hide when this field is hidden.',
+        }
+      : {}),
+  })),
+  ...[
+    ['timelineSection', 'Inspector Timeline Section'],
+    ['technicalDetails', 'Inspector Technical Details'],
+  ].map(([id, label]) => ({
+    key: `inventory.expiry.features.${id}`,
+    parentKey: EXPIRY_MODULE_KEY,
+    moduleKey: EXPIRY_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description: `${label} in the Expiry Inquiry inspector drawer.`,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'inventory.expiry.view' },
+  })),
+  {
+    key: 'inventory.expiry.features.quantitySection',
+    parentKey: EXPIRY_MODULE_KEY,
+    moduleKey: EXPIRY_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label: 'Inspector Quantity Section',
+    description:
+      'Inspector drawer quantity section. Field visibility dominates: this section is suppressed whenever inventory.expiry.fields.quantity is hidden.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'inventory.expiry.view' },
+    reason:
+      'Effective only when inventory.expiry.fields.quantity is also visible. Field visibility dominates inspector section visibility.',
+  },
+  ...[
+    ['inspect', 'Inspect Expiry Record', 'inventory.expiry.view', RISK_LEVELS.Normal, []],
+    ['viewBatch', 'View Batch', 'inventory.view', RISK_LEVELS.Normal, [BATCHES_MODULE_KEY]],
+    ['viewProduct', 'View Product', 'catalog.view', RISK_LEVELS.Normal, [PRODUCTS_MODULE_KEY]],
+    ['viewStock', 'View Stock', 'inventory.view', RISK_LEVELS.Normal, [STOCK_MODULE_KEY]],
+    ['viewMovements', 'View Movements', 'inventory.view', RISK_LEVELS.Normal, []],
+  ].map(([id, label, permission, risk, dependencies]) => ({
+    key: `inventory.expiry.actions.${id}`,
+    parentKey: EXPIRY_MODULE_KEY,
+    moduleKey: EXPIRY_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label,
+    description: `${label} action. Existing RBAC and target-module policy still apply.`,
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk,
+    requiredPermissions: { allowed: permission },
+    ...(dependencies.length === 0 ? {} : { dependencies }),
+    ...(id === 'viewMovements'
+      ? {
+          reason:
+            'View Movements preserves existing RBAC and subscription behavior. Stock Movements has no capability namespace yet.',
+        }
+      : {}),
+  })),
 ];
 
 const registry = new Map(
@@ -782,6 +972,7 @@ module.exports = {
   STOCK_MODULE_KEY,
   OPENING_STOCK_MODULE_KEY,
   BATCHES_MODULE_KEY,
+  EXPIRY_MODULE_KEY,
   listCapabilityControls,
   getCapabilityControl,
 };

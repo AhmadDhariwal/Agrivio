@@ -807,3 +807,197 @@ describe('Organization Capability Policy with registered inventory modules', () 
     ).toBe(true);
   });
 });
+
+describe('Expiry Inquiry capability controls', () => {
+  it('preserves current Expiry Inquiry behavior when an organization has no override', async () => {
+    const { capabilityService } = createHarness();
+    const effective = await capabilityService.resolveEffective('org-a', {
+      permissions: ['inventory.expiry.view', 'inventory.view', 'catalog.view'],
+    });
+
+    expect(control(effective, 'inventory.expiry').effectiveValue.enabled).toBe(true);
+    expect(
+      control(effective, 'inventory.expiry.views.desktopCards').effectiveValue.enabled,
+    ).toBe(true);
+    expect(
+      control(effective, 'inventory.expiry.features.moduleInfo').effectiveValue.enabled,
+    ).toBe(true);
+    expect(
+      control(effective, 'inventory.expiry.widgets.totalRecords').effectiveValue.visible,
+    ).toBe(true);
+    expect(
+      control(effective, 'inventory.expiry.widgets.expiringSoon').effectiveValue.visible,
+    ).toBe(true);
+    expect(
+      control(effective, 'inventory.expiry.widgets.expired').effectiveValue.visible,
+    ).toBe(true);
+    expect(
+      control(effective, 'inventory.expiry.widgets.trackedProductsWarehouses').effectiveValue.visible,
+    ).toBe(true);
+    expect(
+      control(effective, 'inventory.expiry.fields.batchNumber').effectiveValue.visible,
+    ).toBe(true);
+    expect(
+      control(effective, 'inventory.expiry.fields.product').effectiveValue.visible,
+    ).toBe(true);
+    expect(
+      control(effective, 'inventory.expiry.fields.expiryDate').effectiveValue.visible,
+    ).toBe(true);
+    expect(
+      control(effective, 'inventory.expiry.fields.classification').effectiveValue.visible,
+    ).toBe(true);
+    expect(
+      control(effective, 'inventory.expiry.fields.warehouse').effectiveValue.visible,
+    ).toBe(true);
+    expect(
+      control(effective, 'inventory.expiry.fields.quantity').effectiveValue.visible,
+    ).toBe(true);
+    expect(
+      control(effective, 'inventory.expiry.features.quantitySection').effectiveValue.enabled,
+    ).toBe(true);
+    expect(
+      control(effective, 'inventory.expiry.actions.inspect').effectiveValue.allowed,
+    ).toBe(true);
+    expect(
+      control(effective, 'inventory.expiry.actions.viewBatch').effectiveValue.allowed,
+    ).toBe(true);
+    expect(
+      control(effective, 'inventory.expiry.actions.viewProduct').effectiveValue.allowed,
+    ).toBe(true);
+    expect(
+      control(effective, 'inventory.expiry.actions.viewStock').effectiveValue.allowed,
+    ).toBe(true);
+    expect(
+      control(effective, 'inventory.expiry.actions.viewMovements').effectiveValue.allowed,
+    ).toBe(true);
+  });
+
+  it('rejects override attempts on required platform-enforced Expiry Inquiry fields', async () => {
+    const { capabilityService } = createHarness();
+
+    for (const field of ['batchNumber', 'product', 'expiryDate', 'classification']) {
+      await expect(
+        capabilityService.updatePolicy(
+          'org-a',
+          {
+            expectedVersion: 0,
+            changes: [{ key: `inventory.expiry.fields.${field}`, value: { visible: false } }],
+          },
+          { actorId: 'platform-admin' },
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    }
+  });
+
+  it('isolates Expiry Inquiry module and optional presentation policy by organization', async () => {
+    const { capabilityService } = createHarness();
+    await capabilityService.updatePolicy(
+      'org-a',
+      {
+        expectedVersion: 0,
+        changes: [{ key: 'inventory.expiry', value: { enabled: false } }],
+      },
+      { actorId: 'platform-admin' },
+    );
+    await capabilityService.updatePolicy(
+      'org-b',
+      {
+        expectedVersion: 0,
+        changes: [{ key: 'inventory.expiry.fields.warehouse', value: { visible: false } }],
+      },
+      { actorId: 'platform-admin' },
+    );
+
+    const orgA = await capabilityService.resolveEffective('org-a');
+    const orgB = await capabilityService.resolveEffective('org-b');
+
+    expect(control(orgA, 'inventory.expiry').effectiveValue.enabled).toBe(false);
+    expect(control(orgA, 'inventory.expiry.actions.inspect').effectiveValue.allowed).toBe(false);
+    expect(control(orgA, 'inventory.expiry.fields.warehouse').effectiveValue.visible).toBe(false);
+    expect(control(orgB, 'inventory.expiry').effectiveValue.enabled).toBe(true);
+    expect(control(orgB, 'inventory.expiry.actions.inspect').effectiveValue.allowed).toBe(true);
+    expect(control(orgB, 'inventory.expiry.fields.warehouse').effectiveValue.visible).toBe(false);
+    expect(control(orgB, 'inventory.expiry.fields.quantity').effectiveValue.visible).toBe(true);
+
+    await expect(
+      capabilityService.assertAllowed('org-a', 'inventory.expiry', 'enabled'),
+    ).rejects.toMatchObject({ code: 'ORG_CAPABILITY_DISABLED' });
+    await expect(
+      capabilityService.assertAllowed('org-b', 'inventory.expiry', 'enabled'),
+    ).resolves.toBeTruthy();
+  });
+
+  it('resets only Expiry Inquiry overrides with audit and monotonic policy versions', async () => {
+    const { capabilityService, auditStore } = createHarness();
+    const updated = await capabilityService.updatePolicy(
+      'org-a',
+      {
+        expectedVersion: 0,
+        reason: 'Limit expiry presentation',
+        changes: [
+          { key: 'inventory.expiry.features.moduleInfo', value: { enabled: false } },
+          { key: 'inventory.expiry.fields.warehouse', value: { visible: false } },
+          { key: 'inventory.stock.fields.wac', value: { visible: false } },
+        ],
+      },
+      { actorId: 'platform-admin' },
+    );
+    expect(updated.version).toBe(1);
+
+    const moduleReset = await capabilityService.resetModule(
+      'org-a',
+      'inventory.expiry',
+      1,
+      { actorId: 'platform-admin' },
+      'Restore Expiry defaults',
+    );
+    expect(moduleReset.version).toBe(2);
+    expect(control(moduleReset, 'inventory.expiry.features.moduleInfo').override).toBeNull();
+    expect(control(moduleReset, 'inventory.expiry.fields.warehouse').override).toBeNull();
+    expect(control(moduleReset, 'inventory.stock.fields.wac').override).toEqual({ visible: false });
+    expect(auditStore.listForTest().at(-1)).toMatchObject({
+      actorId: 'platform-admin',
+      organizationId: 'org-a',
+      metadata: {
+        versionBefore: 1,
+        versionAfter: 2,
+        previousOverride: { visible: false },
+        newOverride: null,
+      },
+    });
+  });
+
+  it('blocks Expiry cross-module actions when their target module is unavailable', async () => {
+    const { capabilityService } = createHarness();
+    await capabilityService.updatePolicy(
+      'org-a',
+      {
+        expectedVersion: 0,
+        changes: [
+          { key: 'inventory.products', value: { enabled: false } },
+          { key: 'inventory.stock', value: { enabled: false } },
+          { key: 'inventory.batches', value: { enabled: false } },
+        ],
+      },
+      { actorId: 'platform-admin' },
+    );
+
+    const effective = await capabilityService.resolveEffective('org-a');
+    expect(control(effective, 'inventory.expiry.actions.viewProduct')).toMatchObject({
+      effectiveValue: { allowed: false },
+      reasons: ['dependency_disabled'],
+    });
+    expect(control(effective, 'inventory.expiry.actions.viewStock')).toMatchObject({
+      effectiveValue: { allowed: false },
+      reasons: ['dependency_disabled'],
+    });
+    expect(control(effective, 'inventory.expiry.actions.viewBatch')).toMatchObject({
+      effectiveValue: { allowed: false },
+      reasons: ['dependency_disabled'],
+    });
+    expect(
+      control(effective, 'inventory.expiry.actions.viewMovements').effectiveValue.allowed,
+    ).toBe(true);
+  });
+});
+

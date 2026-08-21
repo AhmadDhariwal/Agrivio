@@ -189,6 +189,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Expiry',
           route: '/app/inventory/expiry',
           permission: 'inventory.view',
+          capabilityKey: 'inventory.expiry',
           testId: 'nav-expiry',
         },
         {

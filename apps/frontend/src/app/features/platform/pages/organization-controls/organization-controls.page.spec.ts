@@ -13,7 +13,8 @@ function control(
     | 'inventory.categories'
     | 'inventory.stock'
     | 'inventory.openingStock'
-    | 'inventory.batches',
+    | 'inventory.batches'
+    | 'inventory.expiry',
   type: PlatformCapabilityControl['type'],
   label: string,
   policy: Record<string, boolean>,
@@ -250,6 +251,49 @@ describe('OrganizationControlsPage', () => {
         ),
         dependencies: ['inventory.stock'],
       },
+      control(
+        'inventory.expiry',
+        'inventory.expiry',
+        'FEATURE',
+        'Expiry Inquiry',
+        { enabled: true },
+        { risk: 'CRITICAL' },
+      ),
+      control(
+        'inventory.expiry.features.moduleInfo',
+        'inventory.expiry',
+        'FEATURE',
+        'About Expiry Inquiry',
+        { enabled: true },
+      ),
+      control(
+        'inventory.expiry.fields.batchNumber',
+        'inventory.expiry',
+        'FIELD',
+        'Batch Number',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Primary Batch identity.',
+        },
+      ),
+      control(
+        'inventory.expiry.fields.warehouse',
+        'inventory.expiry',
+        'FIELD',
+        'Warehouse',
+        { visible: true },
+        { override: { visible: false } },
+      ),
+      control(
+        'inventory.expiry.widgets.totalRecords',
+        'inventory.expiry',
+        'WIDGET',
+        'Total Records',
+        { visible: true },
+      ),
     ];
     await TestBed.configureTestingModule({
       imports: [OrganizationControlsPage],
@@ -482,5 +526,62 @@ describe('OrganizationControlsPage', () => {
     component.confirm();
 
     expect(resetModule).toHaveBeenCalledWith('org-a', 'inventory.batches', 4, '');
+  });
+
+  it('renders the Expiry Inquiry nav button and selects the module', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.expiry');
+    expect(component.selectedModule()).toBe('inventory.expiry');
+    expect(component.moduleLabel('inventory.expiry')).toBe('Expiry Inquiry');
+  });
+
+  it('marks platform-enforced Expiry Inquiry fields as required workflow controls', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.expiry');
+    const requiredField = control(
+      'inventory.expiry.fields.batchNumber',
+      'inventory.expiry',
+      'FIELD',
+      'Batch Number',
+      { visible: true },
+      { configurable: { visible: false }, platformEnforced: true, risk: 'CRITICAL' },
+    );
+    expect(component.isRequiredWorkflowControl(requiredField)).toBe(true);
+  });
+
+  it('does not mark optional Expiry Inquiry fields as required workflow controls', () => {
+    const component = fixture.componentInstance;
+    const optionalField = control(
+      'inventory.expiry.fields.warehouse',
+      'inventory.expiry',
+      'FIELD',
+      'Warehouse',
+      { visible: true },
+    );
+    expect(component.isRequiredWorkflowControl(optionalField)).toBe(false);
+  });
+
+  it('produces the correct disable confirmation message for Expiry Inquiry', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.expiry');
+    const expiryControl = component
+      .controls()
+      .find((item) => item.key === 'inventory.expiry');
+    if (expiryControl) {
+      component.setValue(expiryControl, 'enabled', false);
+      expect(component.disablingExpiry()).toBe(true);
+      expect(component.confirmationTitle()).toContain('Disable Expiry Inquiry');
+      expect(component.confirmationLabel()).toBe('Disable Expiry Inquiry');
+      expect(component.confirmationMessage()).toContain('Expiry Inquiry');
+    }
+  });
+
+  it('calls the shared module reset API with only the Expiry Inquiry namespace', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.expiry');
+    component.askResetModule();
+    component.confirm();
+
+    expect(resetModule).toHaveBeenCalledWith('org-a', 'inventory.expiry', 4, '');
   });
 });
