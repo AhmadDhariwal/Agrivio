@@ -129,4 +129,47 @@ describe('CapabilityService', () => {
     expect(service.canPerformAction('inventory.transfers.actions.inspect')).toBe(true);
     expect(service.canPerformAction('inventory.transfers.actions.viewStock')).toBe(true);
   });
+
+  it('provides default enabled/visible/allowed values for all 20 inventory.reconciliation.* controls', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        CapabilityService,
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            activeContext: () => ({ contextType: 'organization', organizationId: 'org-1' }),
+          },
+        },
+      ],
+    });
+    const service = TestBed.inject(CapabilityService);
+
+    // Root module
+    expect(service.canUseModule('inventory.reconciliation')).toBe(true);
+
+    // 7 Features
+    expect(service.canUseView('inventory.reconciliation.features.moduleInfo')).toBe(true);
+    expect(service.canUseView('inventory.reconciliation.features.search')).toBe(true);
+    expect(service.canUseView('inventory.reconciliation.features.warehouseFilter')).toBe(true);
+    expect(service.canUseView('inventory.reconciliation.features.findingFilter')).toBe(true);
+    expect(service.canUseView('inventory.reconciliation.features.kpiCards')).toBe(true);
+    expect(service.canUseView('inventory.reconciliation.features.inspector')).toBe(true);
+    expect(service.canUseView('inventory.reconciliation.features.technicalDetails')).toBe(true);
+
+    // 7 Fields
+    expect(service.canViewField('inventory.reconciliation.fields.product')).toBe(true);
+    expect(service.canViewField('inventory.reconciliation.fields.warehouse')).toBe(true);
+    expect(service.canViewField('inventory.reconciliation.fields.batch')).toBe(true);
+    expect(service.canViewField('inventory.reconciliation.fields.balanceQuantity')).toBe(true);
+    expect(service.canViewField('inventory.reconciliation.fields.movementQuantity')).toBe(true);
+    expect(service.canViewField('inventory.reconciliation.fields.variance')).toBe(true);
+    expect(service.canViewField('inventory.reconciliation.fields.findingCode')).toBe(true);
+
+    // 5 Actions
+    expect(service.canPerformAction('inventory.reconciliation.actions.refresh')).toBe(true);
+    expect(service.canPerformAction('inventory.reconciliation.actions.inspect')).toBe(true);
+    expect(service.canPerformAction('inventory.reconciliation.actions.viewStock')).toBe(true);
+    expect(service.canPerformAction('inventory.reconciliation.actions.viewMovements')).toBe(true);
+    expect(service.canPerformAction('inventory.reconciliation.actions.viewBatch')).toBe(true);
+  });
 });

@@ -7,6 +7,7 @@ import { InventoryApi } from '../../data-access/inventory.api';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
 import { BranchesWarehousesApi } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 import { ProductBatchRecord } from '../../models/inventory.models';
 
@@ -21,6 +22,8 @@ describe('ReconciliationPage', () => {
   let mockLocationsApi: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockSessionStore: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockCapabilityService: any;
 
   const mockProducts: ProductRecord[] = [
     {
@@ -127,6 +130,15 @@ describe('ReconciliationPage', () => {
       hasPermission: vi.fn((perm: string) => perm === 'inventory.view'),
     };
 
+    mockCapabilityService = {
+      canUseModule: vi.fn(() => true),
+      canUseView: vi.fn(() => true),
+      canShowWidget: vi.fn(() => true),
+      canViewField: vi.fn(() => true),
+      canEditField: vi.fn(() => true),
+      canPerformAction: vi.fn(() => true),
+    };
+
     await TestBed.configureTestingModule({
       imports: [ReconciliationPage],
       providers: [
@@ -135,6 +147,7 @@ describe('ReconciliationPage', () => {
         { provide: CatalogApi, useValue: mockCatalogApi },
         { provide: BranchesWarehousesApi, useValue: mockLocationsApi },
         { provide: AuthSessionStore, useValue: mockSessionStore },
+        { provide: CapabilityService, useValue: mockCapabilityService },
       ],
     }).compileComponents();
 
@@ -360,6 +373,147 @@ describe('ReconciliationPage', () => {
       page.reload();
       expect(page.errorMessage()).toBeNull();
       expect(page.isOk()).toBe(true);
+    });
+  });
+
+  describe('Capability & Permission Guards', () => {
+    it('handles disabled organization module by rendering warning alert and skipping reload', () => {
+      mockCapabilityService.canUseModule.mockImplementation(
+        (key: string) => key !== 'inventory.reconciliation',
+      );
+      mockInventoryApi.reconcileInventory.mockClear();
+
+      const capFixture = TestBed.createComponent(ReconciliationPage);
+      const capPage = capFixture.componentInstance;
+      capFixture.detectChanges();
+
+      expect(capPage.canUseReconciliation()).toBe(false);
+      expect(capPage.loading()).toBe(false);
+      expect(mockInventoryApi.reconcileInventory).not.toHaveBeenCalled();
+
+      const compiled = capFixture.nativeElement as HTMLElement;
+      expect(compiled.textContent).toContain(
+        'Inventory reconciliation is not enabled for this organization.',
+      );
+    });
+
+    it('respects showModuleInfo capability view control', () => {
+      mockCapabilityService.canUseView.mockImplementation(
+        (key: string) => key !== 'inventory.reconciliation.features.moduleInfo',
+      );
+      const capFixture = TestBed.createComponent(ReconciliationPage);
+      capFixture.detectChanges();
+
+      expect(capFixture.componentInstance.showModuleInfo()).toBe(false);
+      const compiled = capFixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('agrivio-ui-module-info')).toBeNull();
+    });
+
+    it('respects showKpiCards capability view control', () => {
+      mockCapabilityService.canUseView.mockImplementation(
+        (key: string) => key !== 'inventory.reconciliation.features.kpiCards',
+      );
+      const capFixture = TestBed.createComponent(ReconciliationPage);
+      capFixture.detectChanges();
+
+      expect(capFixture.componentInstance.showKpiCards()).toBe(false);
+      const compiled = capFixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('.kpi-row')).toBeNull();
+    });
+
+    it('respects search and filter capability view controls', () => {
+      mockCapabilityService.canUseView.mockImplementation((key: string) => {
+        if (key === 'inventory.reconciliation.features.search') return false;
+        if (key === 'inventory.reconciliation.features.warehouseFilter') return false;
+        if (key === 'inventory.reconciliation.features.findingFilter') return false;
+        return true;
+      });
+      const capFixture = TestBed.createComponent(ReconciliationPage);
+      capFixture.detectChanges();
+
+      expect(capFixture.componentInstance.showSearch()).toBe(false);
+      expect(capFixture.componentInstance.showWarehouseFilter()).toBe(false);
+      expect(capFixture.componentInstance.showFindingFilter()).toBe(false);
+
+      const compiled = capFixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="reconciliation-search-input"]')).toBeNull();
+      expect(compiled.querySelector('[data-testid="reconciliation-warehouse-filter"]')).toBeNull();
+      expect(compiled.querySelector('[data-testid="reconciliation-finding-filter"]')).toBeNull();
+    });
+
+    it('hides inspect buttons and blocks opening inspector when inspector capability is disabled', () => {
+      mockCapabilityService.canUseView.mockImplementation(
+        (key: string) => key !== 'inventory.reconciliation.features.inspector',
+      );
+      const capFixture = TestBed.createComponent(ReconciliationPage);
+      const capPage = capFixture.componentInstance;
+      capFixture.detectChanges();
+
+      expect(capPage.showInspector()).toBe(false);
+      const compiled = capFixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="reconciliation-inspect-btn"]')).toBeNull();
+
+      // Calling openInspector programmatically is blocked
+      const target = mockFindings[0];
+      if (target) {
+        capPage.openInspector(target);
+        expect(capPage.selectedFinding()).toBeNull();
+      }
+    });
+
+    it('hides technical details collapsible in inspector drawer when technicalDetails capability is disabled', () => {
+      mockCapabilityService.canUseView.mockImplementation(
+        (key: string) => key !== 'inventory.reconciliation.features.technicalDetails',
+      );
+      const capFixture = TestBed.createComponent(ReconciliationPage);
+      const capPage = capFixture.componentInstance;
+      capFixture.detectChanges();
+
+      expect(capPage.showTechnicalDetails()).toBe(false);
+      const target = mockFindings[0];
+      if (target) {
+        capPage.openInspector(target);
+        capFixture.detectChanges();
+
+        const compiled = capFixture.nativeElement as HTMLElement;
+        expect(compiled.querySelector('.inspector-drawer')).toBeTruthy();
+        expect(compiled.querySelector('.drawer-details')).toBeNull();
+      }
+    });
+
+    it('respects canRefresh action capability on header refresh and KPI card refresh', () => {
+      mockCapabilityService.canPerformAction.mockImplementation(
+        (key: string) => key !== 'inventory.reconciliation.actions.refresh',
+      );
+      const capFixture = TestBed.createComponent(ReconciliationPage);
+      const capPage = capFixture.componentInstance;
+      capFixture.detectChanges();
+
+      expect(capPage.canRefresh()).toBe(false);
+      const compiled = capFixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="reconciliation-header-refresh"]')).toBeNull();
+      const kpiRefreshBtn = compiled.querySelector(
+        '[data-testid="reconciliation-refresh"]',
+      ) as HTMLButtonElement;
+      expect(kpiRefreshBtn.disabled).toBe(true);
+    });
+
+    it('hides secondary workflow links when target module capabilities are disabled', () => {
+      mockCapabilityService.canUseModule.mockImplementation((key: string) => {
+        if (key === 'inventory.stock') return false;
+        if (key === 'inventory.batches') return false;
+        return true;
+      });
+      const capFixture = TestBed.createComponent(ReconciliationPage);
+      const capPage = capFixture.componentInstance;
+      capFixture.detectChanges();
+
+      expect(capPage.canViewStock()).toBe(false);
+      expect(capPage.canViewBatches()).toBe(false);
+
+      const compiled = capFixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="reconciliation-back-link"]')).toBeNull();
+      expect(compiled.querySelector('a[routerLink="/app/inventory/batches"]')).toBeNull();
     });
   });
 });

@@ -21,6 +21,7 @@ const BATCHES_MODULE_KEY = 'inventory.batches';
 const EXPIRY_MODULE_KEY = 'inventory.expiry';
 const ADJUSTMENTS_MODULE_KEY = 'inventory.adjustments';
 const TRANSFERS_MODULE_KEY = 'inventory.transfers';
+const RECONCILIATION_MODULE_KEY = 'inventory.reconciliation';
 
 const definitions = [
   {
@@ -1219,6 +1220,115 @@ const definitions = [
         }
       : {}),
   })),
+  {
+    key: RECONCILIATION_MODULE_KEY,
+    parentKey: 'inventory',
+    moduleKey: RECONCILIATION_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Inventory Reconciliation',
+    description: 'Inventory Reconciliation inquiry screens and reconciliation read operations for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'inventory.view' },
+    reason:
+      'Disabling access hides Inventory Reconciliation and blocks reconciliation inquiries without deleting inventory data, changing posted balances, or altering finding generation rules.',
+  },
+  ...[
+    ['moduleInfo', 'About Inventory Reconciliation', 'Show the Inventory Reconciliation guidance panel.'],
+    ['search', 'Search', 'Search Inventory Reconciliation by product name or SKU.'],
+    ['warehouseFilter', 'Warehouse Filter', 'Filter Inventory Reconciliation by warehouse.'],
+    ['findingFilter', 'Finding Filter', 'Filter Inventory Reconciliation by reconciliation finding code.'],
+    ['kpiCards', 'KPI Cards', 'Show reconciliation summary KPI cards (total records, discrepancies, matches, pending review).'],
+    ['inspector', 'Reconciliation Inspector', 'Open the reconciliation record details drawer.'],
+    ['technicalDetails', 'Technical Details', 'Show the technical details section in the reconciliation inspector.'],
+  ].map(([id, label, description]) => ({
+    key: `inventory.reconciliation.features.${id}`,
+    parentKey: RECONCILIATION_MODULE_KEY,
+    moduleKey: RECONCILIATION_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'inventory.view' },
+  })),
+  ...[
+    [
+      'product',
+      'Product',
+      'Product identity is required for a meaningful reconciliation record.',
+    ],
+    [
+      'warehouse',
+      'Warehouse',
+      'Warehouse identity is required to locate the reconciliation stock position.',
+    ],
+    [
+      'batch',
+      'Batch',
+      'Batch identity is required for batch-tracked reconciliation records.',
+    ],
+    [
+      'balanceQuantity',
+      'Balance Quantity',
+      'The authoritative system balance quantity drives reconciliation calculations and cannot be hidden.',
+    ],
+    [
+      'movementQuantity',
+      'Movement Quantity',
+      'The movement quantity is the reconciliation input source and cannot be hidden.',
+    ],
+    [
+      'variance',
+      'Variance',
+      'Variance is the authoritative result of balance-to-movement comparison. Hiding it makes Reconciliation operationally meaningless.',
+    ],
+    [
+      'findingCode',
+      'Finding Code',
+      'The platform-generated finding code is the authoritative reconciliation outcome and must remain visible for audit and operational integrity.',
+    ],
+  ].map(([id, label, reason]) => ({
+    key: `inventory.reconciliation.fields.${id}`,
+    parentKey: RECONCILIATION_MODULE_KEY,
+    moduleKey: RECONCILIATION_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description: 'Required Inventory Reconciliation integrity data.',
+    defaultPolicy: { visible: true },
+    configurable: { visible: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'inventory.view' },
+    reason,
+  })),
+  ...[
+    ['refresh', 'Refresh Reconciliation', 'inventory.view', RISK_LEVELS.Normal, []],
+    ['inspect', 'Inspect Reconciliation Record', 'inventory.view', RISK_LEVELS.Normal, []],
+    ['viewStock', 'View Stock', 'inventory.view', RISK_LEVELS.Normal, [STOCK_MODULE_KEY]],
+    ['viewMovements', 'View Movements', 'inventory.view', RISK_LEVELS.Normal, []],
+    ['viewBatch', 'View Batch', 'inventory.view', RISK_LEVELS.Normal, [BATCHES_MODULE_KEY]],
+  ].map(([id, label, permission, risk, dependencies]) => ({
+    key: `inventory.reconciliation.actions.${id}`,
+    parentKey: RECONCILIATION_MODULE_KEY,
+    moduleKey: RECONCILIATION_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label,
+    description: `${label} action. Existing RBAC and target-module policy still apply.`,
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk,
+    requiredPermissions: { allowed: permission },
+    ...(dependencies.length === 0 ? {} : { dependencies }),
+    ...(id === 'viewMovements'
+      ? {
+          reason:
+            'View Movements preserves existing RBAC and subscription behavior. Stock Movements has no capability namespace yet.',
+        }
+      : {}),
+  })),
 ];
 
 const registry = new Map(
@@ -1259,6 +1369,7 @@ module.exports = {
   EXPIRY_MODULE_KEY,
   ADJUSTMENTS_MODULE_KEY,
   TRANSFERS_MODULE_KEY,
+  RECONCILIATION_MODULE_KEY,
   listCapabilityControls,
   getCapabilityControl,
 };

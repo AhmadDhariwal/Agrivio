@@ -108,6 +108,15 @@
       >
         Warehouse Transfers
       </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'inventory.reconciliation'"
+        (click)="selectModule('inventory.reconciliation')"
+        data-testid="reconciliation-control-module"
+      >
+        Inventory Reconciliation
+      </button>
       <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>
 
@@ -139,17 +148,38 @@
         </button>
       </div>
 
-      @for ( section of [ { title: moduleLabel(selectedModule()) + ' Module', controls:
-      moduleControls() }, { title: 'Views', controls: viewControls() }, { title: selectedModule()
-      === 'inventory.openingStock' ? 'Optional UI' : 'Derived UI', controls: featureControls() }, {
-      title: 'Module Information', controls: moduleInfoControls() }, { title: 'Form Experience', controls:
-      formExperienceControls() }, { title: 'Filters', controls: filterControls() }, { title: 'Inspector',
-      controls: inspectorControls() }, { title: selectedModule() === 'inventory.openingStock' ?
-      'Optional Fields' : 'Fields', controls: fieldControls() }, { title: selectedModule() ===
-      'inventory.batches' || selectedModule() === 'inventory.expiry' ? 'Required Fields' :
-      'Required Workflow Fields', controls: requiredWorkflowControls() }, { title: 'History', controls:
-      historyControls() }, { title: 'Widgets', controls: widgetControls() }, { title: 'Actions',
-      controls: actionControls() } ]; track section.title ) { @if (section.controls.length > 0) {
+      @for (
+        section of [
+          { title: moduleLabel(selectedModule()) + ' Module', controls: moduleControls() },
+          { title: 'Views', controls: viewControls() },
+          {
+            title: selectedModule() === 'inventory.openingStock' ? 'Optional UI' : 'Derived UI',
+            controls: featureControls()
+          },
+          { title: 'Module Information', controls: moduleInfoControls() },
+          { title: 'Form Experience', controls: formExperienceControls() },
+          { title: 'Filters', controls: filterControls() },
+          { title: 'KPI', controls: kpiControls() },
+          { title: 'Inspector', controls: inspectorControls() },
+          {
+            title: selectedModule() === 'inventory.openingStock' ? 'Optional Fields' : 'Fields',
+            controls: fieldControls()
+          },
+          {
+            title:
+              selectedModule() === 'inventory.batches' ||
+              selectedModule() === 'inventory.expiry' ||
+              selectedModule() === 'inventory.reconciliation'
+                ? 'Required Fields'
+                : 'Required Workflow Fields',
+            controls: requiredWorkflowControls()
+          },
+          { title: 'History', controls: historyControls() },
+          { title: 'Widgets', controls: widgetControls() },
+          { title: 'Actions', controls: actionControls() }
+        ];
+        track section.title
+      ) { @if (section.controls.length > 0) {
       <section class="control-section">
         <h2>{{ section.title }}</h2>
         <div class="control-list">

@@ -232,6 +232,27 @@ describe('NavigationService', () => {
     expect(itemIds).toContain('inventory.movements');
   });
 
+  it('hides only Inventory Reconciliation navigation when its organization module is disabled', () => {
+    const { service } = setup(ALL_PERMISSIONS, [], 'organization', undefined, {
+      'inventory.reconciliation': false,
+    });
+    const inventory = service
+      .permittedEntries()
+      .find((entry) => entry.type === 'group' && entry.group.id === 'inventory');
+    const itemIds =
+      inventory && inventory.type === 'group'
+        ? inventory.group.children.map((item) => item.id)
+        : [];
+
+    expect(itemIds).not.toContain('inventory.reconciliation');
+    expect(itemIds).toContain('inventory.stock');
+    expect(itemIds).toContain('inventory.opening-stock');
+    expect(itemIds).toContain('inventory.batches');
+    expect(itemIds).toContain('inventory.adjustments');
+    expect(itemIds).toContain('inventory.transfers');
+    expect(itemIds).toContain('inventory.movements');
+  });
+
   it('performs normal search filtering only on currently visible items', () => {
     const { service } = setup(ALL_PERMISSIONS);
     service.hiddenItemIds.set(new Set(['operations.audit']));

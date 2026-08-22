@@ -12,6 +12,7 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 import { ProductBatchRecord } from '../../models/inventory.models';
 
@@ -112,6 +113,7 @@ export class ReconciliationPage {
   private readonly catalogApi = inject(CatalogApi);
   private readonly locationsApi = inject(BranchesWarehousesApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
 
   // State Signals
   readonly loading = signal<boolean>(true);
@@ -137,12 +139,74 @@ export class ReconciliationPage {
   readonly batchMap = signal<Map<string, ProductBatchRecord>>(new Map());
   readonly warehouseList = signal<WarehouseRecord[]>([]);
 
-  // Permissions & Organization Visibility Computeds
+  // Permissions & Capability Computeds
   readonly canView = computed(() => this.sessionStore.hasPermission('inventory.view'));
-  readonly canViewStock = computed(() => this.sessionStore.hasPermission('inventory.view'));
-  readonly canViewBatches = computed(() => this.sessionStore.hasPermission('inventory.view'));
-  readonly canViewMovements = computed(() => this.sessionStore.hasPermission('inventory.view'));
-  readonly canViewExpiry = computed(() => this.sessionStore.hasPermission('inventory.view'));
+  readonly canUseReconciliation = computed(
+    () => this.capabilityService?.canUseModule('inventory.reconciliation') ?? true,
+  );
+  readonly showModuleInfo = computed(
+    () => this.capabilityService?.canUseView('inventory.reconciliation.features.moduleInfo') ?? true,
+  );
+  readonly showSearch = computed(
+    () => this.capabilityService?.canUseView('inventory.reconciliation.features.search') ?? true,
+  );
+  readonly showWarehouseFilter = computed(
+    () =>
+      this.capabilityService?.canUseView('inventory.reconciliation.features.warehouseFilter') ?? true,
+  );
+  readonly showFindingFilter = computed(
+    () =>
+      this.capabilityService?.canUseView('inventory.reconciliation.features.findingFilter') ?? true,
+  );
+  readonly showKpiCards = computed(
+    () => this.capabilityService?.canUseView('inventory.reconciliation.features.kpiCards') ?? true,
+  );
+  readonly showInspector = computed(
+    () => this.capabilityService?.canUseView('inventory.reconciliation.features.inspector') ?? true,
+  );
+  readonly showTechnicalDetails = computed(
+    () =>
+      this.capabilityService?.canUseView('inventory.reconciliation.features.technicalDetails') ?? true,
+  );
+
+  readonly canRefresh = computed(
+    () =>
+      this.canUseReconciliation() &&
+      this.sessionStore.hasPermission('inventory.view') &&
+      (this.capabilityService?.canPerformAction('inventory.reconciliation.actions.refresh') ?? true),
+  );
+  readonly canInspect = computed(
+    () =>
+      this.canUseReconciliation() &&
+      this.sessionStore.hasPermission('inventory.view') &&
+      (this.capabilityService?.canPerformAction('inventory.reconciliation.actions.inspect') ?? true),
+  );
+  readonly canViewStock = computed(
+    () =>
+      this.canUseReconciliation() &&
+      this.sessionStore.hasPermission('inventory.view') &&
+      (this.capabilityService?.canUseModule('inventory.stock') ?? true) &&
+      (this.capabilityService?.canPerformAction('inventory.reconciliation.actions.viewStock') ?? true),
+  );
+  readonly canViewBatches = computed(
+    () =>
+      this.canUseReconciliation() &&
+      this.sessionStore.hasPermission('inventory.view') &&
+      (this.capabilityService?.canUseModule('inventory.batches') ?? true) &&
+      (this.capabilityService?.canPerformAction('inventory.reconciliation.actions.viewBatch') ?? true),
+  );
+  readonly canViewMovements = computed(
+    () =>
+      this.canUseReconciliation() &&
+      this.sessionStore.hasPermission('inventory.view') &&
+      (this.capabilityService?.canPerformAction('inventory.reconciliation.actions.viewMovements') ?? true),
+  );
+  readonly canViewExpiry = computed(
+    () =>
+      this.canUseReconciliation() &&
+      this.sessionStore.hasPermission('inventory.view') &&
+      (this.capabilityService?.canUseModule('inventory.expiry') ?? true),
+  );
 
   // Module Info Content
   readonly infoTitle = 'About Inventory Reconciliation';
@@ -303,7 +367,7 @@ export class ReconciliationPage {
   }
 
   reload(): void {
-    if (!this.canView()) {
+    if (!this.canView() || !this.canUseReconciliation()) {
       this.loading.set(false);
       return;
     }
@@ -416,6 +480,9 @@ export class ReconciliationPage {
 
   // Inspector Drawer Actions
   openInspector(finding: ReconciliationFindingItem): void {
+    if (!this.canInspect() || !this.showInspector()) {
+      return;
+    }
     this.selectedFinding.set(finding);
   }
 
