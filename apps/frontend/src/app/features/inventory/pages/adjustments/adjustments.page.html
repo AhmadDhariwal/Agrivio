@@ -599,7 +599,12 @@
                       {{ item.direction }}
                     </span>
                   </td>
-                  <td class="font-mono">{{ item.quantityBase }} {{ item.unitCode }}</td>
+                  <td>
+                    <div class="quantity-cell">
+                      <span class="quantity-cell__amount">{{ item.quantityBase }}</span>
+                      <span class="quantity-cell__unit">{{ item.unitCode }}</span>
+                    </div>
+                  </td>
                   <td class="reason-cell">{{ item.reason || '—' }}</td>
                   <td>
                     <span class="status-badge status-badge--{{ item.status }}">
