@@ -15,7 +15,8 @@ function control(
     | 'inventory.openingStock'
     | 'inventory.batches'
     | 'inventory.expiry'
-    | 'inventory.adjustments',
+    | 'inventory.adjustments'
+    | 'inventory.transfers',
   type: PlatformCapabilityControl['type'],
   label: string,
   policy: Record<string, boolean>,
@@ -490,6 +491,175 @@ describe('OrganizationControlsPage', () => {
         'View Movements',
         { allowed: true },
       ),
+      control(
+        'inventory.transfers',
+        'inventory.transfers',
+        'MODULE',
+        'Warehouse Transfers',
+        { enabled: true },
+        { risk: 'CRITICAL' },
+      ),
+      control(
+        'inventory.transfers.features.moduleInfo',
+        'inventory.transfers',
+        'FEATURE',
+        'About Warehouse Transfers',
+        { enabled: true },
+      ),
+      control(
+        'inventory.transfers.features.productSearch',
+        'inventory.transfers',
+        'FEATURE',
+        'Product Search',
+        { enabled: true },
+      ),
+      control(
+        'inventory.transfers.features.productContext',
+        'inventory.transfers',
+        'FEATURE',
+        'Product Context',
+        { enabled: true },
+      ),
+      control(
+        'inventory.transfers.features.stockContext',
+        'inventory.transfers',
+        'FEATURE',
+        'Stock Context',
+        { enabled: true },
+      ),
+      control(
+        'inventory.transfers.features.guidance',
+        'inventory.transfers',
+        'FEATURE',
+        'Guidance',
+        { enabled: true },
+        { override: { enabled: false } },
+      ),
+      control(
+        'inventory.transfers.features.recentTransfers',
+        'inventory.transfers',
+        'FEATURE',
+        'Recent Transfers',
+        { enabled: true },
+      ),
+      control(
+        'inventory.transfers.features.serverTransferDate',
+        'inventory.transfers',
+        'FEATURE',
+        'Server Transfer Date',
+        { enabled: true },
+      ),
+      control(
+        'inventory.transfers.fields.sourceWarehouse',
+        'inventory.transfers',
+        'FIELD',
+        'Source Warehouse',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Source warehouse is required.',
+        },
+      ),
+      control(
+        'inventory.transfers.fields.destinationWarehouse',
+        'inventory.transfers',
+        'FIELD',
+        'Destination Warehouse',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Destination warehouse is required.',
+        },
+      ),
+      control(
+        'inventory.transfers.fields.product',
+        'inventory.transfers',
+        'FIELD',
+        'Product',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Product is required.',
+        },
+      ),
+      control(
+        'inventory.transfers.fields.quantity',
+        'inventory.transfers',
+        'FIELD',
+        'Quantity',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Quantity is required.',
+        },
+      ),
+      control(
+        'inventory.transfers.fields.reason',
+        'inventory.transfers',
+        'FIELD',
+        'Reason',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Reason is required.',
+        },
+      ),
+      control(
+        'inventory.transfers.fields.batch',
+        'inventory.transfers',
+        'FIELD',
+        'Batch',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Required for tracked products.',
+        },
+      ),
+      control(
+        'inventory.transfers.actions.post',
+        'inventory.transfers',
+        'ACTION',
+        'Post Transfer',
+        { allowed: true },
+        { risk: 'CRITICAL' },
+      ),
+      control(
+        'inventory.transfers.actions.reverse',
+        'inventory.transfers',
+        'ACTION',
+        'Reverse Transfer',
+        { allowed: true },
+        { risk: 'CRITICAL' },
+      ),
+      control(
+        'inventory.transfers.actions.inspect',
+        'inventory.transfers',
+        'ACTION',
+        'Inspect Transfer',
+        { allowed: true },
+      ),
+      {
+        ...control(
+          'inventory.transfers.actions.viewStock',
+          'inventory.transfers',
+          'ACTION',
+          'View Stock',
+          { allowed: true },
+        ),
+        dependencies: ['inventory.stock'],
+      },
     ];
     await TestBed.configureTestingModule({
       imports: [OrganizationControlsPage],
@@ -795,13 +965,17 @@ describe('OrganizationControlsPage', () => {
       .controls()
       .find((item) => item.key === 'inventory.adjustments.fields.warehouse');
     expect(warehouseField).toBeDefined();
-    expect(component.isRequiredWorkflowControl(warehouseField!)).toBe(true);
+    if (warehouseField) {
+      expect(component.isRequiredWorkflowControl(warehouseField)).toBe(true);
+    }
 
     const batchField = component
       .controls()
       .find((item) => item.key === 'inventory.adjustments.fields.batch');
     expect(batchField).toBeDefined();
-    expect(component.isRequiredWorkflowControl(batchField!)).toBe(true);
+    if (batchField) {
+      expect(component.isRequiredWorkflowControl(batchField)).toBe(true);
+    }
   });
 
   it('groups Stock Adjustments controls into Module, Module Info, Form Experience, Required Workflow Fields, History, and Actions', () => {
@@ -847,7 +1021,9 @@ describe('OrganizationControlsPage', () => {
       .controls()
       .find((item) => item.key === 'inventory.adjustments');
     expect(adjustmentsControl).toBeDefined();
-    component.setValue(adjustmentsControl!, 'enabled', false);
+    if (adjustmentsControl) {
+      component.setValue(adjustmentsControl, 'enabled', false);
+    }
 
     expect(component.disablingAdjustments()).toBe(true);
     expect(component.confirmationTitle()).toContain('Disable Stock Adjustments for Greenfield Agro Center?');
@@ -862,16 +1038,20 @@ describe('OrganizationControlsPage', () => {
     component.selectModule('inventory.adjustments');
     const stockModule = component.controls().find((item) => item.key === 'inventory.stock');
     expect(stockModule).toBeDefined();
-    component.setValue(stockModule!, 'enabled', false);
+    if (stockModule) {
+      component.setValue(stockModule, 'enabled', false);
+    }
 
     const viewStock = component
       .actionControls()
       .find((item) => item.key === 'inventory.adjustments.actions.viewStock');
     expect(viewStock).toBeDefined();
-    expect(component.effectiveValue(viewStock!, 'allowed')).toBe(false);
-    expect(component.effectiveReason(viewStock!, 'allowed')).toBe(
-      'Stock on Hand is disabled for this organization.',
-    );
+    if (viewStock) {
+      expect(component.effectiveValue(viewStock, 'allowed')).toBe(false);
+      expect(component.effectiveReason(viewStock, 'allowed')).toBe(
+        'Stock on Hand is disabled for this organization.',
+      );
+    }
   });
 
   it('calls the shared module reset API with only the Stock Adjustments namespace', () => {
@@ -881,5 +1061,123 @@ describe('OrganizationControlsPage', () => {
     component.confirm();
 
     expect(resetModule).toHaveBeenCalledWith('org-a', 'inventory.adjustments', 4, '');
+  });
+
+  it('renders the Warehouse Transfers nav button and selects the module', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.transfers');
+    expect(component.selectedModule()).toBe('inventory.transfers');
+    expect(component.moduleLabel('inventory.transfers')).toBe('Warehouse Transfers');
+  });
+
+  it('marks platform-enforced Warehouse Transfers fields as required workflow controls', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.transfers');
+    const sourceField = component
+      .controls()
+      .find((item) => item.key === 'inventory.transfers.fields.sourceWarehouse');
+    expect(sourceField).toBeDefined();
+    if (sourceField) {
+      expect(component.isRequiredWorkflowControl(sourceField)).toBe(true);
+    }
+
+    const destField = component
+      .controls()
+      .find((item) => item.key === 'inventory.transfers.fields.destinationWarehouse');
+    expect(destField).toBeDefined();
+    if (destField) {
+      expect(component.isRequiredWorkflowControl(destField)).toBe(true);
+    }
+
+    const batchField = component
+      .controls()
+      .find((item) => item.key === 'inventory.transfers.fields.batch');
+    expect(batchField).toBeDefined();
+    if (batchField) {
+      expect(component.isRequiredWorkflowControl(batchField)).toBe(true);
+    }
+  });
+
+  it('groups Warehouse Transfers controls into Module, Module Info, Form Experience, Required Workflow Fields, History, and Actions', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.transfers');
+
+    expect(component.moduleControls().map((c) => c.key)).toEqual(['inventory.transfers']);
+    expect(component.moduleInfoControls().map((c) => c.key)).toEqual([
+      'inventory.transfers.features.moduleInfo',
+    ]);
+    expect(component.formExperienceControls().map((c) => c.key)).toEqual([
+      'inventory.transfers.features.productSearch',
+      'inventory.transfers.features.productContext',
+      'inventory.transfers.features.stockContext',
+      'inventory.transfers.features.guidance',
+      'inventory.transfers.features.serverTransferDate',
+    ]);
+    expect(component.requiredWorkflowControls().map((c) => c.key)).toEqual([
+      'inventory.transfers.fields.sourceWarehouse',
+      'inventory.transfers.fields.destinationWarehouse',
+      'inventory.transfers.fields.product',
+      'inventory.transfers.fields.quantity',
+      'inventory.transfers.fields.reason',
+      'inventory.transfers.fields.batch',
+    ]);
+    expect(component.historyControls().map((c) => c.key)).toEqual([
+      'inventory.transfers.features.recentTransfers',
+    ]);
+    expect(component.actionControls().map((c) => c.key)).toEqual([
+      'inventory.transfers.actions.post',
+      'inventory.transfers.actions.reverse',
+      'inventory.transfers.actions.inspect',
+      'inventory.transfers.actions.viewStock',
+    ]);
+  });
+
+  it('produces the exact disable confirmation message for Warehouse Transfers', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.transfers');
+    const transfersControl = component
+      .controls()
+      .find((item) => item.key === 'inventory.transfers');
+    expect(transfersControl).toBeDefined();
+    if (transfersControl) {
+      component.setValue(transfersControl, 'enabled', false);
+    }
+
+    expect(component.disablingTransfers()).toBe(true);
+    expect(component.confirmationTitle()).toContain('Disable Warehouse Transfers for Greenfield Agro Center?');
+    expect(component.confirmationLabel()).toBe('Disable Warehouse Transfers');
+    expect(component.confirmationMessage()).toBe(
+      'Users in this organization will no longer be able to access or use Warehouse Transfers. Existing transfers, stock movements, batches and inventory balances are not deleted or modified.',
+    );
+  });
+
+  it('shows dependency blocking reason for View Stock when target inventory.stock module is disabled on transfers', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.transfers');
+    const stockModule = component.controls().find((item) => item.key === 'inventory.stock');
+    expect(stockModule).toBeDefined();
+    if (stockModule) {
+      component.setValue(stockModule, 'enabled', false);
+    }
+
+    const viewStock = component
+      .actionControls()
+      .find((item) => item.key === 'inventory.transfers.actions.viewStock');
+    expect(viewStock).toBeDefined();
+    if (viewStock) {
+      expect(component.effectiveValue(viewStock, 'allowed')).toBe(false);
+      expect(component.effectiveReason(viewStock, 'allowed')).toBe(
+        'Stock on Hand is disabled for this organization.',
+      );
+    }
+  });
+
+  it('calls the shared module reset API with only the Warehouse Transfers namespace', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.transfers');
+    component.askResetModule();
+    component.confirm();
+
+    expect(resetModule).toHaveBeenCalledWith('org-a', 'inventory.transfers', 4, '');
   });
 });

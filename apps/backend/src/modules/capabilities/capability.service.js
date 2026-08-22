@@ -15,6 +15,7 @@ const {
   BATCHES_MODULE_KEY,
   EXPIRY_MODULE_KEY,
   ADJUSTMENTS_MODULE_KEY,
+  TRANSFERS_MODULE_KEY,
   getCapabilityControl,
   listCapabilityControls,
 } = require('./capability.registry');
@@ -432,6 +433,7 @@ function createCapabilityService(deps) {
           BATCHES_MODULE_KEY,
           EXPIRY_MODULE_KEY,
           ADJUSTMENTS_MODULE_KEY,
+          TRANSFERS_MODULE_KEY,
         ].includes(moduleKey)
       ) {
         throw validationFailed(`Unknown configurable module ${moduleKey}`);

@@ -7,7 +7,7 @@
   <agrivio-ui-page-header
     eyebrow="Platform · Organization Controls"
     [title]="state.organization.name"
-    lede="Configure registered Products, Categories, Stock-on-Hand, Opening Stock, Product Batches, Expiry Inquiry, and Stock Adjustments controls without changing registry defaults or user RBAC permissions."
+    lede="Configure registered Products, Categories, Stock-on-Hand, Opening Stock, Product Batches, Expiry Inquiry, Stock Adjustments, and Warehouse Transfers controls without changing registry defaults or user RBAC permissions."
   />
 
   <div class="identity-grid">
@@ -98,6 +98,15 @@
         data-testid="adjustments-control-module"
       >
         Stock Adjustments
+      </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'inventory.transfers'"
+        (click)="selectModule('inventory.transfers')"
+        data-testid="transfers-control-module"
+      >
+        Warehouse Transfers
       </button>
       <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>

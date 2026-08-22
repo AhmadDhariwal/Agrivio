@@ -264,6 +264,15 @@ export class InventoryApi {
       .pipe(map((response) => ({ items: response.data, meta: response.meta! })));
   }
 
+  getTransfer(id: string): Observable<WarehouseTransferRecord> {
+    return this.http
+      .get<{ data: WarehouseTransferRecord }>(
+        `${environment.publicApiBaseUrl}/api/v1/warehouse-transfers/${id}`,
+        { withCredentials: true },
+      )
+      .pipe(map((response) => response.data));
+  }
+
   createTransferDraft(payload: {
     sourceWarehouseId: string;
     destinationWarehouseId: string;

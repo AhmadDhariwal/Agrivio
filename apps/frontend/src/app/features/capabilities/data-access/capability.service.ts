@@ -142,6 +142,24 @@ const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string,
   'inventory.adjustments.actions.reverse': { allowed: true },
   'inventory.adjustments.actions.viewStock': { allowed: true },
   'inventory.adjustments.actions.viewMovements': { allowed: true },
+  'inventory.transfers': { enabled: true },
+  'inventory.transfers.features.moduleInfo': { enabled: true },
+  'inventory.transfers.features.productSearch': { enabled: true },
+  'inventory.transfers.features.productContext': { enabled: true },
+  'inventory.transfers.features.stockContext': { enabled: true },
+  'inventory.transfers.features.guidance': { enabled: true },
+  'inventory.transfers.features.recentTransfers': { enabled: true },
+  'inventory.transfers.features.serverTransferDate': { enabled: true },
+  'inventory.transfers.fields.sourceWarehouse': { visible: true },
+  'inventory.transfers.fields.destinationWarehouse': { visible: true },
+  'inventory.transfers.fields.product': { visible: true },
+  'inventory.transfers.fields.quantity': { visible: true },
+  'inventory.transfers.fields.reason': { visible: true },
+  'inventory.transfers.fields.batch': { visible: true },
+  'inventory.transfers.actions.post': { allowed: true },
+  'inventory.transfers.actions.reverse': { allowed: true },
+  'inventory.transfers.actions.inspect': { allowed: true },
+  'inventory.transfers.actions.viewStock': { allowed: true },
 };
 
 @Injectable({ providedIn: 'root' })
@@ -245,17 +263,18 @@ export class CapabilityService {
       version: 0,
       controls: Object.entries(CURRENT_BEHAVIOR_DEFAULTS).map(([key, value]) => ({
         key,
-        type: key === 'inventory.adjustments'
-          ? 'MODULE'
-          : key.includes('.actions.')
-            ? 'ACTION'
-            : key.includes('.widgets.')
-              ? 'WIDGET'
-              : key.includes('.fields.')
-                ? 'FIELD'
-                : key.includes('.views.')
-                  ? 'VIEW'
-                  : 'FEATURE',
+        type:
+          key === 'inventory.adjustments' || key === 'inventory.transfers'
+            ? 'MODULE'
+            : key.includes('.actions.')
+              ? 'ACTION'
+              : key.includes('.widgets.')
+                ? 'WIDGET'
+                : key.includes('.fields.')
+                  ? 'FIELD'
+                  : key.includes('.views.')
+                    ? 'VIEW'
+                    : 'FEATURE',
         value,
         reasons: [],
       })),
