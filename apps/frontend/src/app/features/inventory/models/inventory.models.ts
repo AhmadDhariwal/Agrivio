@@ -114,13 +114,18 @@ export interface WarehouseTransferRecord {
   quantityBase: string;
   enteredQuantity: string;
   unitCode: string;
+  conversionFactorSnapshot?: string;
+  packagingUnitId?: string | null;
   transferValue: MoneyAmount | null;
   reason: string | null;
   status: 'draft' | 'posted' | 'reversed';
+  postedAt?: string | null;
+  postedBy?: string | null;
   outboundMovementId: string | null;
   inboundMovementId: string | null;
   reversalOfId: string | null;
   reversedByTransferId: string | null;
+  negativeStockOverride?: boolean;
   version: number;
 }
 
