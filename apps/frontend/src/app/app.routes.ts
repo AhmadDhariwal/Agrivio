@@ -534,6 +534,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'inventory/adjustments',
+        canActivate: [requireCapabilityGuard('inventory.adjustments')],
         loadComponent: () =>
           import('./features/inventory/pages/adjustments/adjustments.page').then(
             (m) => m.AdjustmentsPage,

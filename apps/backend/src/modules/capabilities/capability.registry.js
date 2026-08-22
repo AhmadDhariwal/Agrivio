@@ -19,6 +19,7 @@ const STOCK_MODULE_KEY = 'inventory.stock';
 const OPENING_STOCK_MODULE_KEY = 'inventory.openingStock';
 const BATCHES_MODULE_KEY = 'inventory.batches';
 const EXPIRY_MODULE_KEY = 'inventory.expiry';
+const ADJUSTMENTS_MODULE_KEY = 'inventory.adjustments';
 
 const definitions = [
   {
@@ -935,6 +936,155 @@ const definitions = [
         }
       : {}),
   })),
+  {
+    key: ADJUSTMENTS_MODULE_KEY,
+    parentKey: 'inventory',
+    moduleKey: ADJUSTMENTS_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Stock Adjustments',
+    description: 'Stock Adjustment workflow access and API operations for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'inventory.view' },
+    reason:
+      'Disabling access blocks all Stock Adjustment endpoints without deleting records, changing posted balances, or altering existing transaction history.',
+  },
+  ...[
+    ['moduleInfo', 'About Stock Adjustments', 'Show the Stock Adjustments guidance panel.'],
+    [
+      'productSearch',
+      'Find Product Search',
+      'Show the optional helper used to search and filter product options in the adjustment form.',
+    ],
+    [
+      'productContext',
+      'Product Context Panel',
+      'Show the product information panel alongside the adjustment form.',
+    ],
+    [
+      'stockContext',
+      'Stock Context Panel',
+      'Show the current stock-on-hand context alongside the adjustment form.',
+    ],
+    [
+      'guidance',
+      'Adjustment Guidance',
+      'Show inline guidance notes on adjustment types and direction rules.',
+    ],
+    [
+      'recentAdjustments',
+      'Recent Adjustments',
+      'Show the recent adjustments list in the adjustment workflow.',
+    ],
+    [
+      'serverPostingDate',
+      'Server Posting Date',
+      'Show the server-resolved posting date in the adjustment form.',
+    ],
+  ].map(([id, label, description]) => ({
+    key: `inventory.adjustments.features.${id}`,
+    parentKey: ADJUSTMENTS_MODULE_KEY,
+    moduleKey: ADJUSTMENTS_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'inventory.view' },
+  })),
+  ...[
+    [
+      'warehouse',
+      'Warehouse',
+      'The destination warehouse is required to identify the stock location being adjusted.',
+    ],
+    [
+      'product',
+      'Product',
+      'The product being adjusted must be identified before any quantity change is applied.',
+    ],
+    [
+      'adjustmentType',
+      'Adjustment Type',
+      'The adjustment type governs whether the entry is a write-off, correction, or count correction.',
+    ],
+    [
+      'quantity',
+      'Quantity',
+      'A valid quantity is required for every stock adjustment. Existing quantity semantics and negative-stock validation remain authoritative.',
+    ],
+    [
+      'reason',
+      'Reason',
+      'A reason is required by domain rules for every stock adjustment and cannot be bypassed by capability policy.',
+    ],
+    [
+      'batch',
+      'Batch',
+      'Batch is conditionally required by the selected product tracking mode. The platform-enforced tracking rule cannot be overridden.',
+    ],
+    [
+      'direction',
+      'Direction',
+      'Direction is conditionally required for correction-type adjustments. The platform-enforced direction rule cannot be overridden.',
+    ],
+    [
+      'inventoryValue',
+      'Inventory Value',
+      'Inventory Value is conditionally required for inbound correction adjustments. The platform-enforced valuation requirement cannot be overridden.',
+    ],
+  ].map(([id, label, reason]) => ({
+    key: `inventory.adjustments.fields.${id}`,
+    parentKey: ADJUSTMENTS_MODULE_KEY,
+    moduleKey: ADJUSTMENTS_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description: 'Required Stock Adjustment workflow data.',
+    defaultPolicy: { visible: true },
+    configurable: { visible: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'inventory.view' },
+    reason,
+  })),
+  ...[
+    ['post', 'Post Adjustment', 'inventory.adjust', RISK_LEVELS.Critical, []],
+    ['reverse', 'Reverse Adjustment', 'inventory.adjust.reverse', RISK_LEVELS.Critical, []],
+    ['viewStock', 'View Stock', 'inventory.view', RISK_LEVELS.Normal, [STOCK_MODULE_KEY]],
+    ['viewMovements', 'View Movements', 'inventory.view', RISK_LEVELS.Normal, []],
+  ].map(([id, label, permission, risk, dependencies]) => ({
+    key: `inventory.adjustments.actions.${id}`,
+    parentKey: ADJUSTMENTS_MODULE_KEY,
+    moduleKey: ADJUSTMENTS_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label,
+    description: `${label} action. Existing RBAC, lifecycle rules, and target-module policy still apply.`,
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk,
+    requiredPermissions: { allowed: permission },
+    ...(dependencies.length === 0 ? {} : { dependencies }),
+    ...(id === 'post'
+      ? {
+          reason:
+            'Disabling this action prevents draft creation, draft update, and final posting. Discard of stale drafts remains available.',
+        }
+      : {}),
+    ...(id === 'reverse'
+      ? {
+          reason:
+            'Disabling this action prevents reversal. The original posted adjustment and its stock impact remain unchanged.',
+        }
+      : {}),
+    ...(id === 'viewMovements'
+      ? {
+          reason:
+            'View Movements preserves existing RBAC and subscription behavior. Stock Movements has no capability namespace yet.',
+        }
+      : {}),
+  })),
 ];
 
 const registry = new Map(
@@ -973,6 +1123,7 @@ module.exports = {
   OPENING_STOCK_MODULE_KEY,
   BATCHES_MODULE_KEY,
   EXPIRY_MODULE_KEY,
+  ADJUSTMENTS_MODULE_KEY,
   listCapabilityControls,
   getCapabilityControl,
 };

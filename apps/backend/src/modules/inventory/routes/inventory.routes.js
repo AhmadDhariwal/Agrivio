@@ -51,6 +51,21 @@ function registerInventoryRoutes(deps) {
     'inventory.expiry',
     'enabled',
   );
+  const requireAdjustmentsModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.adjustments',
+    'enabled',
+  );
+  const requireAdjustmentPost = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.adjustments.actions.post',
+    'allowed',
+  );
+  const requireAdjustmentReverse = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.adjustments.actions.reverse',
+    'allowed',
+  );
 
   router.get(
     API_INVENTORY_BALANCES_PATH,
@@ -144,6 +159,7 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.view'),
     deps.requireOperationalAccess,
+    requireAdjustmentsModule,
     (req, res, next) => {
       void controller.listAdjustments(req, res, next);
     },
@@ -156,6 +172,8 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.adjust'),
     deps.requireOperationalAccess,
+    requireAdjustmentsModule,
+    requireAdjustmentPost,
     createRequireWarehouseAccessMiddleware(),
     (req, res, next) => {
       void controller.createAdjustment(req, res, next);
@@ -168,6 +186,7 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.view'),
     deps.requireOperationalAccess,
+    requireAdjustmentsModule,
     (req, res, next) => {
       void controller.getAdjustment(req, res, next);
     },
@@ -180,6 +199,8 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.adjust'),
     deps.requireOperationalAccess,
+    requireAdjustmentsModule,
+    requireAdjustmentPost,
     createRequireWarehouseAccessMiddleware(),
     (req, res, next) => {
       void controller.updateAdjustment(req, res, next);
@@ -193,6 +214,7 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.adjust'),
     deps.requireOperationalAccess,
+    requireAdjustmentsModule,
     (req, res, next) => {
       void controller.discardAdjustment(req, res, next);
     },
@@ -205,6 +227,8 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.adjust'),
     deps.requireOperationalAccess,
+    requireAdjustmentsModule,
+    requireAdjustmentPost,
     (req, res, next) => {
       void controller.postAdjustment(req, res, next);
     },
@@ -217,6 +241,8 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.adjust.reverse'),
     deps.requireOperationalAccess,
+    requireAdjustmentsModule,
+    requireAdjustmentReverse,
     (req, res, next) => {
       void controller.reverseAdjustment(req, res, next);
     },

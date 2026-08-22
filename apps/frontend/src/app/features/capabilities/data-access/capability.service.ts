@@ -122,6 +122,26 @@ const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string,
   'inventory.expiry.actions.viewProduct': { allowed: true },
   'inventory.expiry.actions.viewStock': { allowed: true },
   'inventory.expiry.actions.viewMovements': { allowed: true },
+  'inventory.adjustments': { enabled: true },
+  'inventory.adjustments.features.moduleInfo': { enabled: true },
+  'inventory.adjustments.features.productSearch': { enabled: true },
+  'inventory.adjustments.features.productContext': { enabled: true },
+  'inventory.adjustments.features.stockContext': { enabled: true },
+  'inventory.adjustments.features.guidance': { enabled: true },
+  'inventory.adjustments.features.recentAdjustments': { enabled: true },
+  'inventory.adjustments.features.serverPostingDate': { enabled: true },
+  'inventory.adjustments.fields.warehouse': { visible: true },
+  'inventory.adjustments.fields.product': { visible: true },
+  'inventory.adjustments.fields.adjustmentType': { visible: true },
+  'inventory.adjustments.fields.quantity': { visible: true },
+  'inventory.adjustments.fields.reason': { visible: true },
+  'inventory.adjustments.fields.batch': { visible: true },
+  'inventory.adjustments.fields.direction': { visible: true },
+  'inventory.adjustments.fields.inventoryValue': { visible: true },
+  'inventory.adjustments.actions.post': { allowed: true },
+  'inventory.adjustments.actions.reverse': { allowed: true },
+  'inventory.adjustments.actions.viewStock': { allowed: true },
+  'inventory.adjustments.actions.viewMovements': { allowed: true },
 };
 
 @Injectable({ providedIn: 'root' })
@@ -225,15 +245,17 @@ export class CapabilityService {
       version: 0,
       controls: Object.entries(CURRENT_BEHAVIOR_DEFAULTS).map(([key, value]) => ({
         key,
-        type: key.includes('.actions.')
-          ? 'ACTION'
-          : key.includes('.widgets.')
-            ? 'WIDGET'
-            : key.includes('.fields.')
-              ? 'FIELD'
-              : key.includes('.views.')
-                ? 'VIEW'
-                : 'FEATURE',
+        type: key === 'inventory.adjustments'
+          ? 'MODULE'
+          : key.includes('.actions.')
+            ? 'ACTION'
+            : key.includes('.widgets.')
+              ? 'WIDGET'
+              : key.includes('.fields.')
+                ? 'FIELD'
+                : key.includes('.views.')
+                  ? 'VIEW'
+                  : 'FEATURE',
         value,
         reasons: [],
       })),
