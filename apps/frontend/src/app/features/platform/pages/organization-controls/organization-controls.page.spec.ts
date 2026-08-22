@@ -14,7 +14,8 @@ function control(
     | 'inventory.stock'
     | 'inventory.openingStock'
     | 'inventory.batches'
-    | 'inventory.expiry',
+    | 'inventory.expiry'
+    | 'inventory.adjustments',
   type: PlatformCapabilityControl['type'],
   label: string,
   policy: Record<string, boolean>,
@@ -293,6 +294,201 @@ describe('OrganizationControlsPage', () => {
         'WIDGET',
         'Total Records',
         { visible: true },
+      ),
+      control(
+        'inventory.adjustments',
+        'inventory.adjustments',
+        'MODULE',
+        'Stock Adjustments',
+        { enabled: true },
+        { risk: 'CRITICAL' },
+      ),
+      control(
+        'inventory.adjustments.features.moduleInfo',
+        'inventory.adjustments',
+        'FEATURE',
+        'About Stock Adjustments',
+        { enabled: true },
+      ),
+      control(
+        'inventory.adjustments.features.productSearch',
+        'inventory.adjustments',
+        'FEATURE',
+        'Product Search',
+        { enabled: true },
+      ),
+      control(
+        'inventory.adjustments.features.productContext',
+        'inventory.adjustments',
+        'FEATURE',
+        'Product Context',
+        { enabled: true },
+      ),
+      control(
+        'inventory.adjustments.features.stockContext',
+        'inventory.adjustments',
+        'FEATURE',
+        'Stock Context',
+        { enabled: true },
+      ),
+      control(
+        'inventory.adjustments.features.guidance',
+        'inventory.adjustments',
+        'FEATURE',
+        'Guidance',
+        { enabled: true },
+        { override: { enabled: false } },
+      ),
+      control(
+        'inventory.adjustments.features.recentAdjustments',
+        'inventory.adjustments',
+        'FEATURE',
+        'Recent Adjustments',
+        { enabled: true },
+      ),
+      control(
+        'inventory.adjustments.features.serverPostingDate',
+        'inventory.adjustments',
+        'FEATURE',
+        'Server Posting Date',
+        { enabled: true },
+      ),
+      control(
+        'inventory.adjustments.fields.warehouse',
+        'inventory.adjustments',
+        'FIELD',
+        'Warehouse',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Warehouse is required.',
+        },
+      ),
+      control(
+        'inventory.adjustments.fields.product',
+        'inventory.adjustments',
+        'FIELD',
+        'Product',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Product is required.',
+        },
+      ),
+      control(
+        'inventory.adjustments.fields.adjustmentType',
+        'inventory.adjustments',
+        'FIELD',
+        'Adjustment Type',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Adjustment Type is required.',
+        },
+      ),
+      control(
+        'inventory.adjustments.fields.quantity',
+        'inventory.adjustments',
+        'FIELD',
+        'Quantity',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Quantity is required.',
+        },
+      ),
+      control(
+        'inventory.adjustments.fields.reason',
+        'inventory.adjustments',
+        'FIELD',
+        'Reason',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Reason is required.',
+        },
+      ),
+      control(
+        'inventory.adjustments.fields.batch',
+        'inventory.adjustments',
+        'FIELD',
+        'Batch',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Required for tracked products.',
+        },
+      ),
+      control(
+        'inventory.adjustments.fields.direction',
+        'inventory.adjustments',
+        'FIELD',
+        'Direction',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Required for correction.',
+        },
+      ),
+      control(
+        'inventory.adjustments.fields.inventoryValue',
+        'inventory.adjustments',
+        'FIELD',
+        'Inventory Value',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Required for inbound correction.',
+        },
+      ),
+      control(
+        'inventory.adjustments.actions.post',
+        'inventory.adjustments',
+        'ACTION',
+        'Post Adjustment',
+        { allowed: true },
+        { risk: 'CRITICAL' },
+      ),
+      control(
+        'inventory.adjustments.actions.reverse',
+        'inventory.adjustments',
+        'ACTION',
+        'Reverse Adjustment',
+        { allowed: true },
+        { risk: 'CRITICAL' },
+      ),
+      {
+        ...control(
+          'inventory.adjustments.actions.viewStock',
+          'inventory.adjustments',
+          'ACTION',
+          'View Stock',
+          { allowed: true },
+        ),
+        dependencies: ['inventory.stock'],
+      },
+      control(
+        'inventory.adjustments.actions.viewMovements',
+        'inventory.adjustments',
+        'ACTION',
+        'View Movements',
+        { allowed: true },
       ),
     ];
     await TestBed.configureTestingModule({
@@ -583,5 +779,107 @@ describe('OrganizationControlsPage', () => {
     component.confirm();
 
     expect(resetModule).toHaveBeenCalledWith('org-a', 'inventory.expiry', 4, '');
+  });
+
+  it('renders the Stock Adjustments nav button and selects the module', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.adjustments');
+    expect(component.selectedModule()).toBe('inventory.adjustments');
+    expect(component.moduleLabel('inventory.adjustments')).toBe('Stock Adjustments');
+  });
+
+  it('marks platform-enforced Stock Adjustments fields as required workflow controls', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.adjustments');
+    const warehouseField = component
+      .controls()
+      .find((item) => item.key === 'inventory.adjustments.fields.warehouse');
+    expect(warehouseField).toBeDefined();
+    expect(component.isRequiredWorkflowControl(warehouseField!)).toBe(true);
+
+    const batchField = component
+      .controls()
+      .find((item) => item.key === 'inventory.adjustments.fields.batch');
+    expect(batchField).toBeDefined();
+    expect(component.isRequiredWorkflowControl(batchField!)).toBe(true);
+  });
+
+  it('groups Stock Adjustments controls into Module, Module Info, Form Experience, Required Workflow Fields, History, and Actions', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.adjustments');
+
+    expect(component.moduleControls().map((c) => c.key)).toEqual(['inventory.adjustments']);
+    expect(component.moduleInfoControls().map((c) => c.key)).toEqual([
+      'inventory.adjustments.features.moduleInfo',
+    ]);
+    expect(component.formExperienceControls().map((c) => c.key)).toEqual([
+      'inventory.adjustments.features.productSearch',
+      'inventory.adjustments.features.productContext',
+      'inventory.adjustments.features.stockContext',
+      'inventory.adjustments.features.guidance',
+      'inventory.adjustments.features.serverPostingDate',
+    ]);
+    expect(component.requiredWorkflowControls().map((c) => c.key)).toEqual([
+      'inventory.adjustments.fields.warehouse',
+      'inventory.adjustments.fields.product',
+      'inventory.adjustments.fields.adjustmentType',
+      'inventory.adjustments.fields.quantity',
+      'inventory.adjustments.fields.reason',
+      'inventory.adjustments.fields.batch',
+      'inventory.adjustments.fields.direction',
+      'inventory.adjustments.fields.inventoryValue',
+    ]);
+    expect(component.historyControls().map((c) => c.key)).toEqual([
+      'inventory.adjustments.features.recentAdjustments',
+    ]);
+    expect(component.actionControls().map((c) => c.key)).toEqual([
+      'inventory.adjustments.actions.post',
+      'inventory.adjustments.actions.reverse',
+      'inventory.adjustments.actions.viewStock',
+      'inventory.adjustments.actions.viewMovements',
+    ]);
+  });
+
+  it('produces the exact disable confirmation message for Stock Adjustments', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.adjustments');
+    const adjustmentsControl = component
+      .controls()
+      .find((item) => item.key === 'inventory.adjustments');
+    expect(adjustmentsControl).toBeDefined();
+    component.setValue(adjustmentsControl!, 'enabled', false);
+
+    expect(component.disablingAdjustments()).toBe(true);
+    expect(component.confirmationTitle()).toContain('Disable Stock Adjustments for Greenfield Agro Center?');
+    expect(component.confirmationLabel()).toBe('Disable Stock Adjustments');
+    expect(component.confirmationMessage()).toBe(
+      'Users in this organization will no longer be able to access or use Stock Adjustments. Existing adjustments, stock movements and inventory balances are not deleted or modified.',
+    );
+  });
+
+  it('shows dependency blocking reason for View Stock when target inventory.stock module is disabled', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.adjustments');
+    const stockModule = component.controls().find((item) => item.key === 'inventory.stock');
+    expect(stockModule).toBeDefined();
+    component.setValue(stockModule!, 'enabled', false);
+
+    const viewStock = component
+      .actionControls()
+      .find((item) => item.key === 'inventory.adjustments.actions.viewStock');
+    expect(viewStock).toBeDefined();
+    expect(component.effectiveValue(viewStock!, 'allowed')).toBe(false);
+    expect(component.effectiveReason(viewStock!, 'allowed')).toBe(
+      'Stock on Hand is disabled for this organization.',
+    );
+  });
+
+  it('calls the shared module reset API with only the Stock Adjustments namespace', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.adjustments');
+    component.askResetModule();
+    component.confirm();
+
+    expect(resetModule).toHaveBeenCalledWith('org-a', 'inventory.adjustments', 4, '');
   });
 });

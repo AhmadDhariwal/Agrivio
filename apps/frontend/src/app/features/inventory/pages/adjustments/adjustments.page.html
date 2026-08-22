@@ -28,16 +28,22 @@
   </header>
 
   <!-- Module Information Section -->
-  <agrivio-ui-module-info
-    [title]="infoTitle"
-    [description]="infoDescription"
-    [items]="infoItems"
-    [defaultExpanded]="false"
-  />
+  @if (showModuleInfo()) {
+    <agrivio-ui-module-info
+      [title]="infoTitle"
+      [description]="infoDescription"
+      [items]="infoItems"
+      [defaultExpanded]="false"
+    />
+  }
 
   @if (loading()) {
     <div class="state-container">
       <agrivio-ui-loading-state label="Loading adjustments…" />
+    </div>
+  } @else if (!canUseAdjustments()) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="warning" message="Stock Adjustments is not enabled for this organization." />
     </div>
   } @else if (!canAdjust()) {
     <div class="alert-container">
@@ -86,36 +92,38 @@
         </div>
 
         <div class="form-card__body">
-          <div class="form-grid form-grid--3col">
+          <div class="form-grid" [class.form-grid--3col]="showProductSearch()" [class.form-grid--2col]="!showProductSearch()">
             <!-- Find Product -->
-            <div class="ag-field">
-              <agrivio-ui-field-label label="Find product" for="adjustment-product-search" />
-              <div class="ag-input-with-icon">
-                <svg
-                  class="input-icon"
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-                <input
-                  id="adjustment-product-search"
-                  class="ag-input"
-                  type="search"
-                  placeholder="Search by product name or SKU…"
-                  (input)="onProductSearch($event)"
-                  (change)="onProductSearch($event)"
-                />
+            @if (showProductSearch()) {
+              <div class="ag-field">
+                <agrivio-ui-field-label label="Find product" for="adjustment-product-search" />
+                <div class="ag-input-with-icon">
+                  <svg
+                    class="input-icon"
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <input
+                    id="adjustment-product-search"
+                    class="ag-input"
+                    type="search"
+                    placeholder="Search by product name or SKU…"
+                    (input)="onProductSearch($event)"
+                    (change)="onProductSearch($event)"
+                  />
+                </div>
+                <p class="field-hint">Filter the product dropdown options.</p>
               </div>
-              <p class="field-hint">Filter the product dropdown options.</p>
-            </div>
+            }
 
             <!-- Warehouse -->
             <div class="ag-field">
@@ -163,7 +171,7 @@
           </div>
 
           <!-- Selected Product Context Strip -->
-          @if (selectedProduct(); as prod) {
+          @if (showProductContext() && selectedProduct(); as prod) {
             <div class="product-context-strip" data-testid="adjustment-product-context">
               <div class="product-context-strip__title">
                 <span>{{ prod.name }}</span>
@@ -203,17 +211,19 @@
                     {{ formatTrackingLabel(prod.trackingMode) }}
                   </span>
                 </span>
-                <span class="meta-sep">•</span>
-                <span class="meta-item">
-                  <span class="meta-item__key">Warehouse Stock On-hand:</span>
-                  @if (productStockOnHand(); as onHand) {
-                    <span class="meta-item__val stock-highlight">{{ onHand }} {{ prod.baseUnitCode }}</span>
-                  } @else {
-                    <span class="meta-item__val text-muted">
-                      {{ form.controls.warehouseId.value ? '0 ' + prod.baseUnitCode : 'Select warehouse' }}
-                    </span>
-                  }
-                </span>
+                @if (showStockContext()) {
+                  <span class="meta-sep">•</span>
+                  <span class="meta-item">
+                    <span class="meta-item__key">Warehouse Stock On-hand:</span>
+                    @if (productStockOnHand(); as onHand) {
+                      <span class="meta-item__val stock-highlight">{{ onHand }} {{ prod.baseUnitCode }}</span>
+                    } @else {
+                      <span class="meta-item__val text-muted">
+                        {{ form.controls.warehouseId.value ? '0 ' + prod.baseUnitCode : 'Select warehouse' }}
+                      </span>
+                    }
+                  </span>
+                }
               </div>
             </div>
           }
@@ -338,8 +348,8 @@
               stroke-linejoin="round"
             >
               <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-              <line x1="16" x2="16" y1="2" y2="6" />
-              <line x1="8" x2="8" y1="2" y2="6" />
+              <line x1="16" y1="16" x2="16" y2="6" />
+              <line x1="8" y1="8" x2="8" y2="6" />
               <line x1="3" x2="21" y1="10" y2="10" />
             </svg>
           </div>
@@ -361,7 +371,7 @@
         </div>
 
         <div class="form-card__body">
-          <div class="context-layout">
+          <div class="context-layout" [class.context-layout--single-col]="!showGuidance()">
             <!-- Left Side: Fields & Operational Context -->
             <div class="context-fields">
               @if (selectedTrackingMode() === 'none') {
@@ -393,7 +403,7 @@
                   <p class="field-hint">Required for batch-tracked products. Inbound corrections may use zero-balance batches.</p>
                 </div>
 
-                @if (selectedBatchStockOnHand(); as batchStock) {
+                @if (showStockContext() && selectedBatchStockOnHand(); as batchStock) {
                   <div class="batch-stock-indicator" data-testid="batch-stock-indicator">
                     <span class="batch-stock-indicator__label">Selected Batch On-hand:</span>
                     <span class="batch-stock-indicator__val">{{ batchStock }} {{ selectedProduct()?.baseUnitCode }}</span>
@@ -402,10 +412,12 @@
               }
 
               <!-- Read-only Adjustment Date Context -->
-              <div class="context-date-strip">
-                <span class="context-date-strip__label">Adjustment Date:</span>
-                <span class="context-date-strip__value">Today (Server auto-assigned upon post)</span>
-              </div>
+              @if (showServerPostingDate()) {
+                <div class="context-date-strip">
+                  <span class="context-date-strip__label">Adjustment Date:</span>
+                  <span class="context-date-strip__value">Today (Server auto-assigned upon post)</span>
+                </div>
+              }
 
               <!-- Negative Stock Override (when authorized) -->
               @if (canOverride()) {
@@ -441,42 +453,44 @@
             </div>
 
             <!-- Right Side: Guidance Panel -->
-            <div class="guidance-panel">
-              <div class="guidance-panel__header">
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="16" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12.01" y2="8" />
-                </svg>
-                <h3 class="guidance-panel__title">When is batch information required?</h3>
+            @if (showGuidance()) {
+              <div class="guidance-panel">
+                <div class="guidance-panel__header">
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                  <h3 class="guidance-panel__title">When is batch information required?</h3>
+                </div>
+                <p class="guidance-panel__desc">
+                  Provide batch or lot number when the product is batch-tracked.
+                </p>
+                <ul class="guidance-panel__list">
+                  <li>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    <span>Adjustments update on-hand quantity immediately.</span>
+                  </li>
+                  <li>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    <span>All changes are recorded in stock history.</span>
+                  </li>
+                  <li>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    <span>Ensure accuracy to maintain auditability and reporting integrity.</span>
+                  </li>
+                </ul>
               </div>
-              <p class="guidance-panel__desc">
-                Provide batch or lot number when the product is batch-tracked.
-              </p>
-              <ul class="guidance-panel__list">
-                <li>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                  <span>Adjustments update on-hand quantity immediately.</span>
-                </li>
-                <li>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                  <span>All changes are recorded in stock history.</span>
-                </li>
-                <li>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                  <span>Ensure accuracy to maintain auditability and reporting integrity.</span>
-                </li>
-              </ul>
-            </div>
+            }
           </div>
         </div>
       </section>
@@ -491,30 +505,32 @@
           Cancel
         </a>
         <div class="form-actions__right">
-          <a
-            class="ag-btn ag-btn--secondary"
-            routerLink="/app/inventory/stock"
-            data-testid="adjustment-view-stock"
-          >
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
+          @if (canViewStock()) {
+            <a
+              class="ag-btn ag-btn--secondary"
+              routerLink="/app/inventory/stock"
+              data-testid="adjustment-view-stock"
             >
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-            View stock
-          </a>
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              View stock
+            </a>
+          }
           <button
             class="ag-btn ag-btn--primary"
             type="submit"
-            [disabled]="saving()"
+            [disabled]="saving() || !canPostAdjustment()"
             data-testid="adjustment-submit"
           >
             @if (saving()) {
@@ -551,75 +567,77 @@
     </form>
 
     <!-- Adjustments History Section -->
-    <section class="history-card">
-      <div class="history-card__header">
-        <h2 class="history-card__title">Recent adjustments</h2>
-        <span class="history-card__count">{{ total() }} {{ total() === 1 ? 'record' : 'records' }}</span>
-      </div>
+    @if (showRecentAdjustments()) {
+      <section class="history-card">
+        <div class="history-card__header">
+          <h2 class="history-card__title">Recent adjustments</h2>
+          <span class="history-card__count">{{ total() }} {{ total() === 1 ? 'record' : 'records' }}</span>
+        </div>
 
-      <div class="ag-table-wrap">
-        <table class="ag-table" data-testid="adjustments-list">
-          <thead>
-            <tr>
-              <th>Type</th>
-              <th>Direction</th>
-              <th>Quantity</th>
-              <th>Reason</th>
-              <th>Status</th>
-              <th class="text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (item of adjustments(); track item.id) {
-              <tr data-testid="adjustment-row">
-                <td>
-                  <span class="type-badge type-badge--{{ item.adjustmentType }}">
-                    {{ formatAdjustmentTypeLabel(item.adjustmentType) }}
-                  </span>
-                </td>
-                <td>
-                  <span class="direction-badge direction-badge--{{ item.direction }}">
-                    {{ item.direction }}
-                  </span>
-                </td>
-                <td class="font-mono">{{ item.quantityBase }} {{ item.unitCode }}</td>
-                <td class="reason-cell">{{ item.reason || '—' }}</td>
-                <td>
-                  <span class="status-badge status-badge--{{ item.status }}">
-                    {{ item.status }}
-                  </span>
-                </td>
-                <td class="text-right">
-                  @if (canReverse() && item.status === 'posted') {
-                    <button
-                      type="button"
-                      class="ag-btn-sm ag-btn-sm--danger"
-                      data-testid="adjustment-reverse"
-                      (click)="reverse(item)"
-                    >
-                      Reverse
-                    </button>
-                  }
-                </td>
-              </tr>
-            } @empty {
+        <div class="ag-table-wrap">
+          <table class="ag-table" data-testid="adjustments-list">
+            <thead>
               <tr>
-                <td colspan="6" class="text-center text-muted py-4">No adjustments recorded yet.</td>
+                <th>Type</th>
+                <th>Direction</th>
+                <th>Quantity</th>
+                <th>Reason</th>
+                <th>Status</th>
+                <th class="text-right">Actions</th>
               </tr>
-            }
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              @for (item of adjustments(); track item.id) {
+                <tr data-testid="adjustment-row">
+                  <td>
+                    <span class="type-badge type-badge--{{ item.adjustmentType }}">
+                      {{ formatAdjustmentTypeLabel(item.adjustmentType) }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="direction-badge direction-badge--{{ item.direction }}">
+                      {{ item.direction }}
+                    </span>
+                  </td>
+                  <td class="font-mono">{{ item.quantityBase }} {{ item.unitCode }}</td>
+                  <td class="reason-cell">{{ item.reason || '—' }}</td>
+                  <td>
+                    <span class="status-badge status-badge--{{ item.status }}">
+                      {{ item.status }}
+                    </span>
+                  </td>
+                  <td class="text-right">
+                    @if (canReverseAdjustment() && item.status === 'posted') {
+                      <button
+                        type="button"
+                        class="ag-btn-sm ag-btn-sm--danger"
+                        data-testid="adjustment-reverse"
+                        (click)="reverse(item)"
+                      >
+                        Reverse
+                      </button>
+                    }
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="6" class="text-center text-muted py-4">No adjustments recorded yet.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
 
-      <agrivio-ui-pagination
-        [page]="page()"
-        [pageSize]="pageSize()"
-        [total]="total()"
-        [disabled]="loading()"
-        (pageChange)="onPageChange($event)"
-        (pageSizeChange)="onPageSizeChange($event)"
-      />
-    </section>
+        <agrivio-ui-pagination
+          [page]="page()"
+          [pageSize]="pageSize()"
+          [total]="total()"
+          [disabled]="loading()"
+          (pageChange)="onPageChange($event)"
+          (pageSizeChange)="onPageSizeChange($event)"
+        />
+      </section>
+    }
   }
 
   <!-- Confirm Reversal Dialog -->

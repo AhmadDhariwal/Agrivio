@@ -1,11 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { signal } from '@angular/core';
+import { of } from 'rxjs';
 import { AdjustmentsPage } from './adjustments.page';
 import { InventoryApi } from '../../data-access/inventory.api';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
 import { BranchesWarehousesApi } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 import { StockAdjustmentRecord } from '../../models/inventory.models';
@@ -32,8 +34,10 @@ describe('AdjustmentsPage', () => {
   let mockCatalogApi: any;
   let mockLocationsApi: any;
   let mockSessionStore: any;
+  const capabilityValues = signal<Record<string, boolean>>({});
 
   beforeEach(async () => {
+    capabilityValues.set({});
     mockInventoryApi = {
       listAdjustments: vi.fn(() =>
         of({
@@ -156,7 +160,7 @@ describe('AdjustmentsPage', () => {
     };
 
     mockSessionStore = {
-      hasPermission: vi.fn((perm: string) => true),
+      hasPermission: vi.fn((_perm: string) => true),
     };
 
     await TestBed.configureTestingModule({
@@ -167,6 +171,15 @@ describe('AdjustmentsPage', () => {
         { provide: CatalogApi, useValue: mockCatalogApi },
         { provide: BranchesWarehousesApi, useValue: mockLocationsApi },
         { provide: AuthSessionStore, useValue: mockSessionStore },
+        {
+          provide: CapabilityService,
+          useValue: {
+            canUseModule: (key: string) => capabilityValues()[key] ?? true,
+            canUseView: (key: string) => capabilityValues()[key] ?? true,
+            canViewField: (key: string) => capabilityValues()[key] ?? true,
+            canPerformAction: (key: string) => capabilityValues()[key] ?? true,
+          },
+        },
       ],
     }).compileComponents();
 
@@ -329,5 +342,164 @@ describe('AdjustmentsPage', () => {
     );
     expect(page.reverseConfirmOpen()).toBe(false);
     expect(page.successMessage()).toContain('reversed successfully');
+  });
+
+  describe('Organization Capability Enforcement', () => {
+    it('blocks page workflow and displays warning alert when module is disabled', () => {
+      capabilityValues.set({
+        'inventory.adjustments': false,
+      });
+      fixture = TestBed.createComponent(AdjustmentsPage);
+      page = fixture.componentInstance;
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(page.canUseAdjustments()).toBe(false);
+      expect(page.loading()).toBe(false);
+      expect(compiled.querySelector('[data-testid="adjustment-form"]')).toBeNull();
+      expect(compiled.textContent).toContain('Stock Adjustments is not enabled for this organization.');
+    });
+
+    it('hides Module Info section when moduleInfo feature is disabled', () => {
+      capabilityValues.set({
+        'inventory.adjustments.features.moduleInfo': false,
+      });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('agrivio-ui-module-info')).toBeNull();
+    });
+
+    it('hides Product Search while keeping Warehouse and Product dropdowns functional', () => {
+      capabilityValues.set({
+        'inventory.adjustments.features.productSearch': false,
+      });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('#adjustment-product-search')).toBeNull();
+      expect(compiled.querySelector('[data-testid="adjustment-warehouse"]')).not.toBeNull();
+      expect(compiled.querySelector('[data-testid="adjustment-product"]')).not.toBeNull();
+    });
+
+    it('hides Product Context strip when productContext feature is disabled', () => {
+      capabilityValues.set({
+        'inventory.adjustments.features.productContext': false,
+      });
+      page.form.controls.warehouseId.setValue('wh-1');
+      page.form.controls.productId.setValue('prod-batch');
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="adjustment-product-context"]')).toBeNull();
+    });
+
+    it('hides informational stock context without weakening domain validation', () => {
+      capabilityValues.set({
+        'inventory.adjustments.features.stockContext': false,
+      });
+      page.form.controls.warehouseId.setValue('wh-1');
+      page.form.controls.productId.setValue('prod-batch');
+      page.form.controls.batchId.setValue('BATCH-2026-A');
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      // Product context strip should not contain warehouse stock on hand
+      expect(compiled.querySelector('.stock-highlight')).toBeNull();
+      // Batch stock indicator should be hidden
+      expect(compiled.querySelector('[data-testid="batch-stock-indicator"]')).toBeNull();
+      // But batch field is still required by product tracking mode
+      expect(hasRequiredValidator(page.form.controls.batchId)).toBe(true);
+    });
+
+    it('hides Guidance panel and applies single-col layout modifier', () => {
+      capabilityValues.set({
+        'inventory.adjustments.features.guidance': false,
+      });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('.guidance-panel')).toBeNull();
+      expect(compiled.querySelector('.context-layout--single-col')).not.toBeNull();
+    });
+
+    it('hides Server Posting Date context when disabled', () => {
+      capabilityValues.set({
+        'inventory.adjustments.features.serverPostingDate': false,
+      });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('.context-date-strip')).toBeNull();
+    });
+
+    it('hides Recent Adjustments history section cleanly', () => {
+      capabilityValues.set({
+        'inventory.adjustments.features.recentAdjustments': false,
+      });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('.history-card')).toBeNull();
+    });
+
+    it('disables Post adjustment submission when post action is disabled', () => {
+      capabilityValues.set({
+        'inventory.adjustments.actions.post': false,
+      });
+      page.form.controls.warehouseId.setValue('wh-1');
+      page.form.controls.productId.setValue('prod-none');
+      page.form.controls.adjustmentType.setValue('damage');
+      page.form.controls.quantity.setValue('5.0000');
+      page.form.controls.reason.setValue('Valid reason');
+      fixture.detectChanges();
+
+      expect(page.canPostAdjustment()).toBe(false);
+      const submitBtn = fixture.nativeElement.querySelector(
+        '[data-testid="adjustment-submit"]',
+      ) as HTMLButtonElement;
+      expect(submitBtn.disabled).toBe(true);
+
+      page.submit();
+      expect(mockInventoryApi.createAdjustmentDraft).not.toHaveBeenCalled();
+      expect(mockInventoryApi.postAdjustment).not.toHaveBeenCalled();
+    });
+
+    it('removes Reverse button and blocks reverse method when reverse action is disabled', () => {
+      capabilityValues.set({
+        'inventory.adjustments.actions.reverse': false,
+      });
+      fixture.detectChanges();
+
+      expect(page.canReverseAdjustment()).toBe(false);
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="adjustment-reverse"]')).toBeNull();
+
+      const item = page.adjustments()[0]!;
+      page.reverse(item);
+      expect(page.reverseConfirmOpen()).toBe(false);
+    });
+
+    it('hides View Stock action button when action is disabled or target stock module is disabled', () => {
+      capabilityValues.set({
+        'inventory.adjustments.actions.viewStock': false,
+      });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="adjustment-view-stock"]')).toBeNull();
+    });
+
+    it('retains negative-stock override permission control via RBAC, not capability', () => {
+      // Capability values do not affect negative stock override
+      mockSessionStore.hasPermission = vi.fn((perm: string) => perm !== 'inventory.negative-stock.override');
+      fixture = TestBed.createComponent(AdjustmentsPage);
+      page = fixture.componentInstance;
+      fixture.detectChanges();
+
+      expect(page.canOverride()).toBe(false);
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="adjustment-override"]')).toBeNull();
+    });
   });
 });

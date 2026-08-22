@@ -2,7 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { Observable, forkJoin } from 'rxjs';
 import { InventoryApi } from '../../data-access/inventory.api';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
 import {
@@ -10,6 +10,7 @@ import {
   WarehouseRecord,
 } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
@@ -50,6 +51,7 @@ export class AdjustmentsPage {
   private readonly catalogApi = inject(CatalogApi);
   private readonly locationsApi = inject(BranchesWarehousesApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly formBuilder = inject(FormBuilder);
 
   // Loading & Action State
@@ -76,9 +78,61 @@ export class AdjustmentsPage {
   readonly productStockOnHand = signal<string | null>(null);
   readonly selectedBatchStockOnHand = signal<string | null>(null);
 
-  // Permissions
+  // Permissions & Organization Capability Computeds
+  readonly canUseAdjustments = computed(
+    () => this.capabilityService?.canUseModule('inventory.adjustments') ?? true,
+  );
+  readonly showModuleInfo = computed(
+    () => this.capabilityService?.canUseView('inventory.adjustments.features.moduleInfo') ?? true,
+  );
+  readonly showProductSearch = computed(
+    () => this.capabilityService?.canUseView('inventory.adjustments.features.productSearch') ?? true,
+  );
+  readonly showProductContext = computed(
+    () => this.capabilityService?.canUseView('inventory.adjustments.features.productContext') ?? true,
+  );
+  readonly showStockContext = computed(
+    () => this.capabilityService?.canUseView('inventory.adjustments.features.stockContext') ?? true,
+  );
+  readonly showGuidance = computed(
+    () => this.capabilityService?.canUseView('inventory.adjustments.features.guidance') ?? true,
+  );
+  readonly showRecentAdjustments = computed(
+    () =>
+      this.capabilityService?.canUseView('inventory.adjustments.features.recentAdjustments') ?? true,
+  );
+  readonly showServerPostingDate = computed(
+    () =>
+      this.capabilityService?.canUseView('inventory.adjustments.features.serverPostingDate') ?? true,
+  );
+
+  readonly canPostAdjustment = computed(
+    () =>
+      this.canUseAdjustments() &&
+      this.sessionStore.hasPermission('inventory.adjust') &&
+      (this.capabilityService?.canPerformAction('inventory.adjustments.actions.post') ?? true),
+  );
+  readonly canReverseAdjustment = computed(
+    () =>
+      this.canUseAdjustments() &&
+      this.sessionStore.hasPermission('inventory.adjust.reverse') &&
+      (this.capabilityService?.canPerformAction('inventory.adjustments.actions.reverse') ?? true),
+  );
+  readonly canViewStock = computed(
+    () =>
+      this.sessionStore.hasPermission('inventory.view') &&
+      (this.capabilityService?.canUseModule('inventory.stock') ?? true) &&
+      (this.capabilityService?.canPerformAction('inventory.adjustments.actions.viewStock') ?? true),
+  );
+  readonly canViewMovements = computed(
+    () =>
+      this.sessionStore.hasPermission('inventory.view') &&
+      (this.capabilityService?.canPerformAction('inventory.adjustments.actions.viewMovements') ??
+        true),
+  );
+
   readonly canAdjust = computed(() => this.sessionStore.hasPermission('inventory.adjust'));
-  readonly canReverse = computed(() => this.sessionStore.hasPermission('inventory.adjust.reverse'));
+  readonly canReverse = computed(() => this.canReverseAdjustment());
   readonly canOverride = computed(() =>
     this.sessionStore.hasPermission('inventory.negative-stock.override'),
   );
@@ -114,24 +168,35 @@ export class AdjustmentsPage {
   });
 
   constructor() {
-    if (!this.canAdjust()) {
+    if (!this.canUseAdjustments() || !this.canAdjust()) {
       this.loading.set(false);
       return;
     }
 
-    forkJoin({
+    const requests: {
+      products: Observable<ProductRecord[]>;
+      warehouses: Observable<WarehouseRecord[]>;
+      adjustments?: Observable<{ items: StockAdjustmentRecord[]; meta: { total: number } }>;
+    } = {
       products: this.catalogApi.searchProductOptions('', 500, 'active'),
       warehouses: this.locationsApi.listWarehouseOptions(),
-      adjustments: this.inventoryApi.listAdjustments({
+    };
+
+    if (this.showRecentAdjustments()) {
+      requests.adjustments = this.inventoryApi.listAdjustments({
         page: this.page(),
         pageSize: this.pageSize(),
-      }),
-    }).subscribe({
+      });
+    }
+
+    forkJoin(requests).subscribe({
       next: ({ products, warehouses, adjustments }) => {
         this.products.set(products.filter((item) => item.status === 'active'));
         this.warehouses.set(warehouses.filter((item) => item.status === 'active'));
-        this.adjustments.set(adjustments.items);
-        this.total.set(adjustments.meta.total);
+        if (adjustments) {
+          this.adjustments.set(adjustments.items);
+          this.total.set(adjustments.meta.total);
+        }
         this.loading.set(false);
       },
       error: (error: unknown) => {
@@ -327,7 +392,7 @@ export class AdjustmentsPage {
   }
 
   submit(): void {
-    if (this.form.invalid || this.saving()) {
+    if (this.form.invalid || this.saving() || !this.canPostAdjustment()) {
       this.form.markAllAsTouched();
       return;
     }
@@ -413,7 +478,7 @@ export class AdjustmentsPage {
   }
 
   reverse(adjustment: StockAdjustmentRecord): void {
-    if (!this.canReverse() || adjustment.status !== 'posted') {
+    if (!this.canReverseAdjustment() || adjustment.status !== 'posted') {
       return;
     }
     this.pendingReverse = adjustment;
@@ -425,7 +490,7 @@ export class AdjustmentsPage {
     this.reverseConfirmOpen.set(false);
     this.pendingReverse = null;
 
-    if (!adjustment || !this.canReverse() || reason.trim() === '') {
+    if (!adjustment || !this.canReverseAdjustment() || reason.trim() === '') {
       return;
     }
 
@@ -445,6 +510,7 @@ export class AdjustmentsPage {
   }
 
   private reloadAdjustments(): void {
+    if (!this.showRecentAdjustments()) return;
     this.inventoryApi
       .listAdjustments({ page: this.page(), pageSize: this.pageSize() })
       .subscribe({

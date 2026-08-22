@@ -1,8 +1,8 @@
 # Organization Capability & UI Policy — Phase 1
 
 Status: Implementation complete; lightweight authenticated browser review remains environment-dependent
-Scope: Generic platform foundation plus Products, Categories, Inventory / Stock-on-Hand, Opening Stock, Product Batches, and Expiry Inquiry integrations
-Completed: 2026-08-21
+Scope: Generic platform foundation plus Products, Categories, Inventory / Stock-on-Hand, Opening Stock, Product Batches, Expiry Inquiry, and Stock Adjustments integrations
+Completed: 2026-08-22
 
 ## Implemented
 
@@ -22,10 +22,12 @@ Completed: 2026-08-21
 - Disabling Product Batches hides tenant navigation, sends direct routes to the shared unavailable state, and blocks Batch list/detail inquiry. The dedicated detail endpoint additionally enforces Inspect; cosmetic visibility controls remain frontend-only. View Product and View Stock resolve target-module dependencies, while View Movements preserves existing RBAC/subscription ownership.
 - Expiry Inquiry owns the separate `inventory.expiry` namespace. Its critical module switch, desktop-card view, module information, four authoritative KPI widgets, four real filters (search, product, warehouse, classification), safe field visibility, inspector sections, and inquiry/navigation actions reuse the same registry, resolver, sparse policy, reset, version, audit, Angular service, guard, navigation filter, and generic Super Admin renderer.
 - Disabling Expiry Inquiry hides tenant navigation, sends direct routes to the shared unavailable state, and blocks Expiry inquiry API operations. Batch Number, Product, Expiry Date, and Classification remain platform-enforced required workflow controls; Warehouse and Quantity visibility controls remain frontend-only presentation toggles. Inspect, View Batch, View Product, View Stock, and View Movements resolve existing action and cross-module permissions/capabilities.
+- Stock Adjustments owns the separate `inventory.adjustments` namespace. Its critical module switch, 7 optional form experience features (moduleInfo, productSearch, productContext, stockContext, guidance, recentAdjustments, serverPostingDate), 8 platform-enforced workflow fields (warehouse, product, adjustmentType, quantity, reason, batch, direction, inventoryValue), and 4 actions (post, reverse, viewStock, viewMovements) reuse the same registry, resolver, sparse policy, reset, version, audit, Angular service, guard, navigation filter, and generic Super Admin renderer.
+- Disabling Stock Adjustments hides tenant navigation, sends direct routes to the shared unavailable state, and blocks adjustment draft/post/reverse endpoints across backend middleware. Negative stock override strictly preserves RBAC `inventory.negative-stock.override` authorization.
 - Individual, module, and organization reset operations remove sparse overrides through the transactional backend endpoints, increment policy versions on material changes, emit per-control audit evidence, re-resolve effective policy, and refresh the Super Admin UI.
 - Stable policy denial codes: `ORG_CAPABILITY_DISABLED`, `ORG_ACTION_NOT_ALLOWED`, and `ORG_FIELD_NOT_EDITABLE`.
 
-No capability controls were added for Warehouses, Adjustments, Transfers, Reconciliation, or Stock Movements.
+No capability controls were added for Warehouses, Transfers, Reconciliation, or Stock Movements.
 
 ## Products registry safety decisions
 
@@ -83,6 +85,15 @@ No capability controls were added for Warehouses, Adjustments, Transfers, Reconc
 - View Batch depends on Batches, View Product depends on Products, and View Stock depends on Stock on Hand, with effective blocking reasons shown in Organization Controls. View Movements remains an Expiry-owned navigation affordance layered on existing movement RBAC/subscription behavior because Stock Movements has no capability namespace yet.
 - Individual reset removes one sparse override. Module reset matches only definitions whose `moduleKey` is `inventory.expiry`, preserving Products, Categories, Stock-on-Hand, Opening Stock, Batches, and every unrelated override while incrementing policy version and emitting per-control audit evidence.
 
+## Stock Adjustments registry safety decisions
+
+- `inventory.adjustments` is independent from Stock on Hand, Opening Stock, Product Batches, and Expiry Inquiry. Its critical switch governs Stock Adjustments creation, draft mutation, and reversal only; it does not delete or alter historical adjustments, stock balances, movements, WAC, FEFO/FIFO, or transaction history.
+- Warehouse, Product, Adjustment Type, Quantity, and Reason are non-configurable, platform-enforced required workflow fields. Batch (product tracking), Direction (correction), and Total Inventory Value (inbound correction) are conditional platform-enforced fields that cannot be bypassed by organization overrides.
+- Find Product Search, Product Context, Stock Context, Guidance Panel, Recent Adjustments History, Module Information, and Server Posting Date are optional presentation features. Hiding search leaves the native product selector; hiding guidance reflows the form to single-column; hiding stock context removes balance indicators without weakening domain validation; hiding history leaves the form clean and avoids list network calls.
+- Post and Reverse actions are protected as CRITICAL capability actions. Disabling Post blocks draft submission in Angular and rejects post requests with `ORG_ACTION_NOT_ALLOWED`. Disabling Reverse removes the history table action and blocks reversal API requests with `ORG_ACTION_NOT_ALLOWED`. View Stock depends on `inventory.stock` availability. View Movements is an Adjustments-owned navigation affordance.
+- Negative Stock Override is intentionally NOT a capability control and strictly preserves RBAC `inventory.negative-stock.override` authorization.
+- Individual reset removes one sparse override. Module reset matches only definitions whose `moduleKey` is `inventory.adjustments`, preserving all other module overrides while incrementing policy version and emitting per-control audit evidence.
+
 ## Model review checklist outcome
 
 | Check | Outcome |
@@ -105,22 +116,22 @@ No capability controls were added for Warehouses, Adjustments, Transfers, Reconc
 - Focused backend capability resolver/routes, including Stock balance-route enforcement: passed (3 files, 18 tests).
 - Real Mongo capability persistence: passed (1 file, 1 test).
 - Focused Organization Controls, Stock Inquiry, and navigation Angular coverage: passed through the frontend project test target.
-- Complete frontend target: passed.
-- Complete backend target: passed.
-- Repository typecheck: passed (4 projects).
+- Complete frontend target: passed (79 test files, 247 tests).
+- Complete backend target: passed (104 test files, 386 tests).
+- Repository typecheck: passed.
 - Architecture boundary gate: passed (6 tests).
 - Repository lint plus changed-file formatting: passed with no errors.
-- Repository production build and development frontend build: passed, including Angular template compilation for Organization Controls and Stock Inquiry.
+- Repository production build and development frontend build: passed, including Angular template compilation for Organization Controls, Adjustments, and Stock Inquiry.
 - Opening Stock focused backend capability resolver, tenant isolation, scoped reset/audit/version, re-enable, and route enforcement: passed (2 files, 22 tests).
 - Opening Stock, Stock-on-Hand cross-link, Organization Controls, navigation, and routing Angular coverage: passed (5 files, 44 tests across focused runs).
-- Frontend and API-contract typecheck: passed. Changed-file ESLint: passed with no errors (three pre-existing Stock Inquiry spec warnings); project-wide lint remains blocked by unrelated pre-existing errors outside this task.
-- Final frontend/backend production build: passed, including Angular template compilation for Opening Stock and Organization Controls.
 - Product Batches focused backend registry/resolver, tenant isolation, dependency, scoped reset/audit/version, authorization, and route enforcement: passed (3 files, 28 tests).
 - Product Batches, Stock-on-Hand fail-soft enrichment/cross-link, Organization Controls, navigation, and routing Angular coverage: passed (5 files, 54 tests across focused runs).
-- Product Batches frontend and API-contract typecheck: passed. Changed-file ESLint passed with no errors; existing non-null-assertion warnings remain in the pre-existing Batch and Stock specs.
-- Final development build for all four projects passed, including Angular template compilation for Product Batches and Organization Controls.
+- Expiry Inquiry focused backend registry/resolver, tenant isolation, dependency, scoped reset/audit/version, authorization, and route enforcement: passed (3 files, 28 tests).
+- Stock Adjustments focused backend registry/resolver, tenant isolation, 3 middleware instances across 7 endpoints, scoped reset/audit/version, and route enforcement: passed (2 files, 26 tests).
+- Stock Adjustments Angular page computed helpers, template reflow, action gating, history toggling, navigation capability filter, routing guard, and Super Admin Organization Controls coverage: passed (4 test files, 44 tests across focused runs).
+- Final development and production builds for all projects passed.
 - Lightweight browser review could not start because the installed browser-control runtime referenced a missing bundled browser service before connecting to the local app. No substitute browser mechanism was used; component and template coverage passed.
 
 ## Remaining risk
 
-Authenticated cross-organization browser smoke remains outstanding; focused component, route, policy, persistence-boundary, and build validation passed. Foundation + Products + Categories + Stock on Hand + Opening Stock + Product Batches are complete; Warehouses and later Inventory submodules are intentionally not configurable.
+Authenticated cross-organization browser smoke remains outstanding; focused component, route, policy, persistence-boundary, and build validation passed. Foundation + Products + Categories + Stock on Hand + Opening Stock + Product Batches + Expiry Inquiry + Stock Adjustments are complete; Warehouses, Transfers, and later Inventory submodules are intentionally not configurable.

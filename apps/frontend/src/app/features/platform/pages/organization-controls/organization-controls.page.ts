@@ -22,7 +22,8 @@ type ConfigurableModule =
   | 'inventory.stock'
   | 'inventory.openingStock'
   | 'inventory.batches'
-  | 'inventory.expiry';
+  | 'inventory.expiry'
+  | 'inventory.adjustments';
 type PendingConfirmation =
   | { readonly kind: 'save' }
   | { readonly kind: 'reset-control'; readonly control: PlatformCapabilityControl }
@@ -71,7 +72,13 @@ export class OrganizationControlsPage {
           control.key.toLowerCase().includes(query)),
     );
   });
-  readonly moduleControls = computed(() => this.byType('FEATURE', true));
+  readonly moduleControls = computed(() =>
+    this.selectedControls().filter(
+      (control) =>
+        (control.type === 'FEATURE' || control.type === 'MODULE') &&
+        control.key === control.moduleKey,
+    ),
+  );
   readonly viewControls = computed(() => this.byType('VIEW'));
   readonly fieldControls = computed(() =>
     this.byType('FIELD').filter((control) => !this.isRequiredWorkflowControl(control)),
@@ -82,7 +89,30 @@ export class OrganizationControlsPage {
   readonly featureControls = computed(() =>
     this.byType('FEATURE', false).filter((control) => !this.isBatchGroupedFeature(control)),
   );
-  readonly moduleInfoControls = computed(() => this.batchFeatures('moduleInfo'));
+  readonly moduleInfoControls = computed(() => {
+    if (this.selectedModule() === 'inventory.adjustments') {
+      return this.adjustmentsFeatures('moduleInfo');
+    }
+    return this.batchFeatures('moduleInfo');
+  });
+  readonly formExperienceControls = computed(() => {
+    if (this.selectedModule() === 'inventory.adjustments') {
+      return this.adjustmentsFeatures(
+        'productSearch',
+        'productContext',
+        'stockContext',
+        'guidance',
+        'serverPostingDate',
+      );
+    }
+    return [];
+  });
+  readonly historyControls = computed(() => {
+    if (this.selectedModule() === 'inventory.adjustments') {
+      return this.adjustmentsFeatures('recentAdjustments');
+    }
+    return [];
+  });
   readonly filterControls = computed(() => {
     if (this.selectedModule() === 'inventory.expiry') {
       return this.batchFeatures('search', 'productFilter', 'warehouseFilter', 'classificationFilter');
@@ -161,6 +191,14 @@ export class OrganizationControlsPage {
       changes[0].value?.['enabled'] === false
     );
   });
+  readonly disablingAdjustments = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'inventory.adjustments' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
   readonly confirmationTitle = computed(() => {
     const pending = this.pendingConfirmation();
     const organization = this.snapshot()?.organization.name ?? 'this organization';
@@ -172,6 +210,7 @@ export class OrganizationControlsPage {
     if (this.disablingOpeningStock()) return `Disable Opening Stock for ${organization}?`;
     if (this.disablingBatches()) return `Disable Product Batches for ${organization}?`;
     if (this.disablingExpiry()) return `Disable Expiry Inquiry for ${organization}?`;
+    if (this.disablingAdjustments()) return `Disable Stock Adjustments for ${organization}?`;
     const single = this.changeSummary().length === 1 ? this.changeSummary()[0] : null;
     if (single?.risk === 'CRITICAL' && single.after === 'Disabled') {
       return `Disable ${single.label} for ${organization}?`;
@@ -199,6 +238,9 @@ export class OrganizationControlsPage {
     if (this.disablingExpiry()) {
       return `Users in ${organization} will no longer be able to access the Expiry Inquiry. Existing batches, expiry information, and stock are not modified. This affects ${organization} only.`;
     }
+    if (this.disablingAdjustments()) {
+      return `Users in this organization will no longer be able to access or use Stock Adjustments. Existing adjustments, stock movements and inventory balances are not deleted or modified.`;
+    }
     const critical = this.changeSummary()
       .filter((change) => change.risk === 'CRITICAL')
       .map((change) => `${change.label}: ${change.before} → ${change.after}`);
@@ -214,6 +256,7 @@ export class OrganizationControlsPage {
     if (this.disablingOpeningStock()) return 'Disable Opening Stock';
     if (this.disablingBatches()) return 'Disable Product Batches';
     if (this.disablingExpiry()) return 'Disable Expiry Inquiry';
+    if (this.disablingAdjustments()) return 'Disable Stock Adjustments';
     return 'Apply changes';
   });
 
@@ -401,6 +444,7 @@ export class OrganizationControlsPage {
     if (moduleKey === 'inventory.stock') return 'Inventory / Stock on Hand';
     if (moduleKey === 'inventory.openingStock') return 'Opening Stock';
     if (moduleKey === 'inventory.expiry') return 'Expiry Inquiry';
+    if (moduleKey === 'inventory.adjustments') return 'Stock Adjustments';
     return 'Product Batches';
   }
 
@@ -408,10 +452,16 @@ export class OrganizationControlsPage {
     return (
       (control.moduleKey === 'inventory.openingStock' ||
         control.moduleKey === 'inventory.batches' ||
-        control.moduleKey === 'inventory.expiry') &&
+        control.moduleKey === 'inventory.expiry' ||
+        control.moduleKey === 'inventory.adjustments') &&
       control.type === 'FIELD' &&
       control.platformEnforced === true
     );
+  }
+
+  private adjustmentsFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
+    const keys = new Set(ids.map((id) => `inventory.adjustments.features.${id}`));
+    return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
   }
 
   private batchFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
@@ -439,7 +489,15 @@ export class OrganizationControlsPage {
           control.key === 'inventory.expiry.features.classificationFilter' ||
           control.key === 'inventory.expiry.features.timelineSection' ||
           control.key === 'inventory.expiry.features.quantitySection' ||
-          control.key === 'inventory.expiry.features.technicalDetails'))
+          control.key === 'inventory.expiry.features.technicalDetails')) ||
+      (control.moduleKey === 'inventory.adjustments' &&
+        (control.key === 'inventory.adjustments.features.moduleInfo' ||
+          control.key === 'inventory.adjustments.features.productSearch' ||
+          control.key === 'inventory.adjustments.features.productContext' ||
+          control.key === 'inventory.adjustments.features.stockContext' ||
+          control.key === 'inventory.adjustments.features.guidance' ||
+          control.key === 'inventory.adjustments.features.recentAdjustments' ||
+          control.key === 'inventory.adjustments.features.serverPostingDate'))
     );
   }
 

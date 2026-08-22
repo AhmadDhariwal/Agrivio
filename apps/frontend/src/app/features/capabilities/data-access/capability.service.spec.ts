@@ -45,4 +45,47 @@ describe('CapabilityService', () => {
     expect(service.canUseView('inventory.products.views.desktopCards')).toBe(false);
     expect(service.version()).toBe(2);
   });
+
+  it('provides default enabled/visible/allowed values for all 20 inventory.adjustments.* controls', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        CapabilityService,
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            activeContext: () => ({ contextType: 'organization', organizationId: 'org-1' }),
+          },
+        },
+      ],
+    });
+    const service = TestBed.inject(CapabilityService);
+
+    // Root module
+    expect(service.canUseModule('inventory.adjustments')).toBe(true);
+
+    // 7 Features
+    expect(service.canUseView('inventory.adjustments.features.moduleInfo')).toBe(true);
+    expect(service.canUseView('inventory.adjustments.features.productSearch')).toBe(true);
+    expect(service.canUseView('inventory.adjustments.features.productContext')).toBe(true);
+    expect(service.canUseView('inventory.adjustments.features.stockContext')).toBe(true);
+    expect(service.canUseView('inventory.adjustments.features.guidance')).toBe(true);
+    expect(service.canUseView('inventory.adjustments.features.recentAdjustments')).toBe(true);
+    expect(service.canUseView('inventory.adjustments.features.serverPostingDate')).toBe(true);
+
+    // 8 Fields
+    expect(service.canViewField('inventory.adjustments.fields.warehouse')).toBe(true);
+    expect(service.canViewField('inventory.adjustments.fields.product')).toBe(true);
+    expect(service.canViewField('inventory.adjustments.fields.adjustmentType')).toBe(true);
+    expect(service.canViewField('inventory.adjustments.fields.quantity')).toBe(true);
+    expect(service.canViewField('inventory.adjustments.fields.reason')).toBe(true);
+    expect(service.canViewField('inventory.adjustments.fields.batch')).toBe(true);
+    expect(service.canViewField('inventory.adjustments.fields.direction')).toBe(true);
+    expect(service.canViewField('inventory.adjustments.fields.inventoryValue')).toBe(true);
+
+    // 4 Actions
+    expect(service.canPerformAction('inventory.adjustments.actions.post')).toBe(true);
+    expect(service.canPerformAction('inventory.adjustments.actions.reverse')).toBe(true);
+    expect(service.canPerformAction('inventory.adjustments.actions.viewStock')).toBe(true);
+    expect(service.canPerformAction('inventory.adjustments.actions.viewMovements')).toBe(true);
+  });
 });

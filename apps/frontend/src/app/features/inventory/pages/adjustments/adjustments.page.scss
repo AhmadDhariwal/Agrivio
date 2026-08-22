@@ -369,6 +369,10 @@
   gap: 20px;
   align-items: start;
 
+  &--single-col {
+    grid-template-columns: 1fr;
+  }
+
   @media (max-width: 991px) {
     grid-template-columns: 1fr;
   }

@@ -197,6 +197,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Adjustments',
           route: '/app/inventory/adjustments',
           permission: 'inventory.view',
+          capabilityKey: 'inventory.adjustments',
           testId: 'nav-adjustments',
         },
         {
