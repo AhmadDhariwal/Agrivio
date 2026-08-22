@@ -1,11 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { signal } from '@angular/core';
 import { of, throwError } from 'rxjs';
 import { TransfersPage } from './transfers.page';
 import { InventoryApi } from '../../data-access/inventory.api';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
 import { BranchesWarehousesApi } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 import { WarehouseTransferRecord } from '../../models/inventory.models';
@@ -36,8 +38,10 @@ describe('TransfersPage', () => {
   let mockLocationsApi: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockSessionStore: any;
+  const capabilityValues = signal<Record<string, boolean>>({});
 
   beforeEach(async () => {
+    capabilityValues.set({});
     mockInventoryApi = {
       listTransfers: vi.fn(() =>
         of({
@@ -220,6 +224,15 @@ describe('TransfersPage', () => {
         { provide: CatalogApi, useValue: mockCatalogApi },
         { provide: BranchesWarehousesApi, useValue: mockLocationsApi },
         { provide: AuthSessionStore, useValue: mockSessionStore },
+        {
+          provide: CapabilityService,
+          useValue: {
+            canUseModule: (key: string) => capabilityValues()[key] ?? true,
+            canUseView: (key: string) => capabilityValues()[key] ?? true,
+            canViewField: (key: string) => capabilityValues()[key] ?? true,
+            canPerformAction: (key: string) => capabilityValues()[key] ?? true,
+          },
+        },
       ],
     }).compileComponents();
 
@@ -676,5 +689,193 @@ describe('TransfersPage', () => {
     // 0 HTTP lookup calls triggered because prod-batch and warehouses are already cached
     expect(mockCatalogApi.getProduct).not.toHaveBeenCalled();
     expect(mockLocationsApi.getWarehouse).not.toHaveBeenCalled();
+  });
+
+  describe('Organization Capability & UI Policy Integration', () => {
+    it('shows module disabled alert and blocks loading when inventory.transfers module is disabled', () => {
+      capabilityValues.set({
+        'inventory.transfers': false,
+      });
+      fixture = TestBed.createComponent(TransfersPage);
+      page = fixture.componentInstance;
+      fixture.detectChanges();
+
+      expect(page.canUseTransfers()).toBe(false);
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.textContent).toContain(
+        'Warehouse Transfers is not enabled for this organization.',
+      );
+      expect(compiled.querySelector('[data-testid="transfer-form"]')).toBeNull();
+    });
+
+    it('hides module info when moduleInfo feature is disabled', () => {
+      capabilityValues.set({
+        'inventory.transfers.features.moduleInfo': false,
+      });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('agrivio-ui-module-info')).toBeNull();
+    });
+
+    it('hides Find Product search and adjusts form grid to 2 columns when productSearch is disabled', () => {
+      capabilityValues.set({
+        'inventory.transfers.features.productSearch': false,
+      });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="transfer-product-search"]')).toBeNull();
+      expect(compiled.querySelector('.form-grid--2col')).not.toBeNull();
+    });
+
+    it('hides Product Context strip when productContext is disabled', () => {
+      capabilityValues.set({
+        'inventory.transfers.features.productContext': false,
+      });
+      page.form.controls.productId.setValue('prod-batch');
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="transfer-product-context"]')).toBeNull();
+    });
+
+    it('hides on-hand stock and batch stock indicator when stockContext is disabled, while maintaining batch required validation', () => {
+      capabilityValues.set({
+        'inventory.transfers.features.stockContext': false,
+      });
+      page.form.controls.sourceWarehouseId.setValue('wh-source');
+      page.form.controls.destinationWarehouseId.setValue('wh-dest');
+      page.form.controls.productId.setValue('prod-batch');
+      page.form.controls.batchId.setValue('BATCH-001');
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      // Product context strip should not contain warehouse stock on hand
+      expect(compiled.querySelector('.stock-highlight')).toBeNull();
+      // Batch stock indicator should be hidden
+      expect(compiled.querySelector('[data-testid="batch-stock-indicator"]')).toBeNull();
+      // But batch field is still required by product tracking mode
+      expect(hasRequiredValidator(page.form.controls.batchId)).toBe(true);
+    });
+
+    it('hides Guidance panel and applies single-col layout modifier when guidance is disabled', () => {
+      capabilityValues.set({
+        'inventory.transfers.features.guidance': false,
+      });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('.guidance-panel')).toBeNull();
+      expect(compiled.querySelector('.context-layout--single-col')).not.toBeNull();
+    });
+
+    it('hides Server Transfer Date context when serverTransferDate is disabled', () => {
+      capabilityValues.set({
+        'inventory.transfers.features.serverTransferDate': false,
+      });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('.context-date-strip')).toBeNull();
+    });
+
+    it('hides Recent Transfers history section and skips transfers list fetch when recentTransfers is disabled', () => {
+      capabilityValues.set({
+        'inventory.transfers.features.recentTransfers': false,
+      });
+      mockInventoryApi.listTransfers.mockClear();
+      fixture = TestBed.createComponent(TransfersPage);
+      page = fixture.componentInstance;
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('.history-card')).toBeNull();
+      expect(mockInventoryApi.listTransfers).not.toHaveBeenCalled();
+    });
+
+    it('disables Post transfer submission when post action is disabled', () => {
+      capabilityValues.set({
+        'inventory.transfers.actions.post': false,
+      });
+      page.form.controls.sourceWarehouseId.setValue('wh-source');
+      page.form.controls.destinationWarehouseId.setValue('wh-dest');
+      page.form.controls.productId.setValue('prod-none');
+      page.form.controls.quantity.setValue('10.0000');
+      page.form.controls.reason.setValue('Valid transfer');
+      fixture.detectChanges();
+
+      expect(page.canPostTransfer()).toBe(false);
+      const submitBtn = fixture.nativeElement.querySelector(
+        '[data-testid="transfer-submit"]',
+      ) as HTMLButtonElement;
+      expect(submitBtn.disabled).toBe(true);
+
+      page.submit();
+      expect(mockInventoryApi.createTransferDraft).not.toHaveBeenCalled();
+      expect(mockInventoryApi.postTransfer).not.toHaveBeenCalled();
+    });
+
+    it('removes Reverse button and blocks reverse method when reverse action is disabled', () => {
+      capabilityValues.set({
+        'inventory.transfers.actions.reverse': false,
+      });
+      fixture.detectChanges();
+
+      expect(page.canReverseTransfer()).toBe(false);
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="transfer-reverse"]')).toBeNull();
+      expect(compiled.querySelector('[data-testid="transfer-reverse-card"]')).toBeNull();
+
+      const item = page.transfers()[0];
+      expect(item).toBeDefined();
+      if (item) {
+        page.reverse(item);
+      }
+      expect(page.reverseConfirmOpen()).toBe(false);
+    });
+
+    it('removes Inspect button and blocks openInspector method when inspect action is disabled', () => {
+      capabilityValues.set({
+        'inventory.transfers.actions.inspect': false,
+      });
+      fixture.detectChanges();
+
+      expect(page.canInspectTransfer()).toBe(false);
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="transfer-inspect"]')).toBeNull();
+      expect(compiled.querySelector('[data-testid="transfer-inspect-card"]')).toBeNull();
+
+      const item = page.transfers()[0];
+      expect(item).toBeDefined();
+      if (item) {
+        page.openInspector(item);
+      }
+      expect(page.selectedTransfer()).toBeNull();
+    });
+
+    it('hides View Stock action button when action is disabled or target stock module is disabled', () => {
+      capabilityValues.set({
+        'inventory.transfers.actions.viewStock': false,
+      });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="transfer-view-stock"]')).toBeNull();
+    });
+
+    it('retains negative-stock override permission control via RBAC, not capability', () => {
+      // Capability values do not affect negative stock override
+      mockSessionStore.hasPermission = vi.fn(
+        (perm: string) => perm !== 'inventory.negative-stock.override',
+      );
+      fixture = TestBed.createComponent(TransfersPage);
+      page = fixture.componentInstance;
+      fixture.detectChanges();
+
+      expect(page.canOverride()).toBe(false);
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="transfer-override"]')).toBeNull();
+    });
   });
 });

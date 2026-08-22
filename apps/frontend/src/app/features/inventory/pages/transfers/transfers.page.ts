@@ -15,6 +15,7 @@ import {
   WarehouseRecord,
 } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
@@ -68,6 +69,7 @@ export class TransfersPage {
   private readonly catalogApi = inject(CatalogApi);
   private readonly locationsApi = inject(BranchesWarehousesApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly formBuilder = inject(FormBuilder);
 
   // Core State
@@ -95,15 +97,63 @@ export class TransfersPage {
   readonly selectedBatchStockOnHand = signal<string | null>(null);
   readonly overrideActive = signal<boolean>(false);
 
-  // Permissions
-  readonly canTransfer = computed(() => this.sessionStore.hasPermission('inventory.transfer'));
-  readonly canReverse = computed(() =>
-    this.sessionStore.hasPermission('inventory.transfer.reverse'),
+  // Permissions & Organization Capability Computeds
+  readonly canUseTransfers = computed(
+    () => this.capabilityService?.canUseModule('inventory.transfers') ?? true,
   );
+  readonly showModuleInfo = computed(
+    () => this.capabilityService?.canUseView('inventory.transfers.features.moduleInfo') ?? true,
+  );
+  readonly showProductSearch = computed(
+    () => this.capabilityService?.canUseView('inventory.transfers.features.productSearch') ?? true,
+  );
+  readonly showProductContext = computed(
+    () => this.capabilityService?.canUseView('inventory.transfers.features.productContext') ?? true,
+  );
+  readonly showStockContext = computed(
+    () => this.capabilityService?.canUseView('inventory.transfers.features.stockContext') ?? true,
+  );
+  readonly showGuidance = computed(
+    () => this.capabilityService?.canUseView('inventory.transfers.features.guidance') ?? true,
+  );
+  readonly showRecentTransfers = computed(
+    () => this.capabilityService?.canUseView('inventory.transfers.features.recentTransfers') ?? true,
+  );
+  readonly showServerTransferDate = computed(
+    () =>
+      this.capabilityService?.canUseView('inventory.transfers.features.serverTransferDate') ?? true,
+  );
+
+  readonly canPostTransfer = computed(
+    () =>
+      this.canUseTransfers() &&
+      this.sessionStore.hasPermission('inventory.transfer') &&
+      (this.capabilityService?.canPerformAction('inventory.transfers.actions.post') ?? true),
+  );
+  readonly canReverseTransfer = computed(
+    () =>
+      this.canUseTransfers() &&
+      this.sessionStore.hasPermission('inventory.transfer.reverse') &&
+      (this.capabilityService?.canPerformAction('inventory.transfers.actions.reverse') ?? true),
+  );
+  readonly canInspectTransfer = computed(
+    () =>
+      this.canUseTransfers() &&
+      this.sessionStore.hasPermission('inventory.view') &&
+      (this.capabilityService?.canPerformAction('inventory.transfers.actions.inspect') ?? true),
+  );
+  readonly canViewStock = computed(
+    () =>
+      this.sessionStore.hasPermission('inventory.view') &&
+      (this.capabilityService?.canUseModule('inventory.stock') ?? true) &&
+      (this.capabilityService?.canPerformAction('inventory.transfers.actions.viewStock') ?? true),
+  );
+
+  readonly canTransfer = computed(() => this.sessionStore.hasPermission('inventory.transfer'));
+  readonly canReverse = computed(() => this.canReverseTransfer());
   readonly canOverride = computed(() =>
     this.sessionStore.hasPermission('inventory.negative-stock.override'),
   );
-  readonly canViewStock = computed(() => this.sessionStore.hasPermission('inventory.view'));
 
   // Reversal Dialog State
   readonly reverseConfirmOpen = signal(false);
@@ -142,29 +192,40 @@ export class TransfersPage {
   );
 
   constructor() {
-    if (!this.canTransfer()) {
+    if (!this.canUseTransfers() || !this.canTransfer()) {
       this.loading.set(false);
       return;
     }
 
-    forkJoin({
+    const requests: {
+      products: Observable<ProductRecord[]>;
+      warehouses: Observable<WarehouseRecord[]>;
+      transfers?: Observable<{ items: WarehouseTransferRecord[]; meta: { total: number } }>;
+    } = {
       products: this.catalogApi.searchProductOptions('', 100, 'active'),
       warehouses: this.locationsApi.listWarehouseOptions(),
-      transfers: this.inventoryApi.listTransfers({
+    };
+
+    if (this.showRecentTransfers()) {
+      requests.transfers = this.inventoryApi.listTransfers({
         page: this.page(),
         pageSize: this.pageSize(),
-      }),
-    }).subscribe({
+      });
+    }
+
+    forkJoin(requests).subscribe({
       next: ({ products, warehouses, transfers }) => {
-        const prodMap = new Map(products.map((p) => [p.id, p]));
-        const whMap = new Map(warehouses.map((w) => [w.id, w]));
+        const prodMap = new Map<string, ProductRecord>(products.map((p) => [p.id, p]));
+        const whMap = new Map<string, WarehouseRecord>((warehouses || []).map((w) => [w.id, w]));
         this.allProductsMap.set(prodMap);
         this.allWarehousesMap.set(whMap);
         this.products.set(products.filter((item) => item.status === 'active'));
-        this.warehouses.set(warehouses.filter((item) => item.status === 'active'));
-        this.transfers.set(transfers.items);
-        this.total.set(transfers.meta.total);
-        this.enrichMissingReferences(transfers.items);
+        this.warehouses.set((warehouses || []).filter((item) => item.status === 'active'));
+        if (transfers) {
+          this.transfers.set(transfers.items);
+          this.total.set(transfers.meta.total);
+          this.enrichMissingReferences(transfers.items);
+        }
         this.loading.set(false);
       },
       error: (error: unknown) => {
@@ -311,7 +372,7 @@ export class TransfersPage {
 
   submit(): void {
     this.validateDifferentWarehouses();
-    if (this.form.invalid || this.saving()) {
+    if (this.form.invalid || this.saving() || !this.canPostTransfer()) {
       this.form.markAllAsTouched();
       return;
     }
@@ -390,7 +451,7 @@ export class TransfersPage {
   }
 
   reverse(transfer: WarehouseTransferRecord): void {
-    if (!this.canReverse() || transfer.status !== 'posted') {
+    if (!this.canReverseTransfer() || transfer.status !== 'posted') {
       return;
     }
     this.pendingReverse = transfer;
@@ -401,7 +462,7 @@ export class TransfersPage {
     const transfer = this.pendingReverse;
     this.reverseConfirmOpen.set(false);
     this.pendingReverse = null;
-    if (!transfer || !this.canReverse() || reason.trim() === '') {
+    if (!transfer || !this.canReverseTransfer() || reason.trim() === '') {
       return;
     }
     const idempotencyKey = `xfer-reverse-${transfer.id}-${Date.now()}`;
@@ -419,6 +480,9 @@ export class TransfersPage {
   }
 
   openInspector(transfer: WarehouseTransferRecord): void {
+    if (!this.canInspectTransfer()) {
+      return;
+    }
     this.selectedTransfer.set(transfer);
   }
 
@@ -426,7 +490,10 @@ export class TransfersPage {
     this.selectedTransfer.set(null);
   }
 
-  private reloadTransfers(): void {
+  reloadTransfers(): void {
+    if (!this.showRecentTransfers()) {
+      return;
+    }
     this.inventoryApi
       .listTransfers({ page: this.page(), pageSize: this.pageSize() })
       .subscribe({

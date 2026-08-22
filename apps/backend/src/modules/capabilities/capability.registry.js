@@ -20,6 +20,7 @@ const OPENING_STOCK_MODULE_KEY = 'inventory.openingStock';
 const BATCHES_MODULE_KEY = 'inventory.batches';
 const EXPIRY_MODULE_KEY = 'inventory.expiry';
 const ADJUSTMENTS_MODULE_KEY = 'inventory.adjustments';
+const TRANSFERS_MODULE_KEY = 'inventory.transfers';
 
 const definitions = [
   {
@@ -1085,6 +1086,139 @@ const definitions = [
         }
       : {}),
   })),
+  {
+    key: TRANSFERS_MODULE_KEY,
+    parentKey: 'inventory',
+    moduleKey: TRANSFERS_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Warehouse Transfers',
+    description: 'Warehouse Transfer workflow access and API operations for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'inventory.view' },
+    reason:
+      'Disabling access blocks all Warehouse Transfer endpoints without deleting records, changing posted stock movements, or altering existing transfer history.',
+  },
+  ...[
+    ['moduleInfo', 'About Warehouse Transfers', 'Show the Warehouse Transfers guidance panel.'],
+    [
+      'productSearch',
+      'Find Product Search',
+      'Show the optional helper used to search and filter product options in the transfer form.',
+    ],
+    [
+      'productContext',
+      'Product Context Panel',
+      'Show the product information panel alongside the transfer form.',
+    ],
+    [
+      'stockContext',
+      'Stock Context Panel',
+      'Show the current stock-on-hand context alongside the transfer form.',
+    ],
+    [
+      'guidance',
+      'Transfer Guidance',
+      'Show inline guidance notes on warehouse transfer rules and batch traceability.',
+    ],
+    [
+      'recentTransfers',
+      'Recent Transfers',
+      'Show the recent transfers list in the transfer workflow.',
+    ],
+    [
+      'serverTransferDate',
+      'Server Transfer Date',
+      'Show the server-resolved transfer date in the transfer form.',
+    ],
+  ].map(([id, label, description]) => ({
+    key: `inventory.transfers.features.${id}`,
+    parentKey: TRANSFERS_MODULE_KEY,
+    moduleKey: TRANSFERS_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'inventory.view' },
+  })),
+  ...[
+    [
+      'sourceWarehouse',
+      'Source Warehouse',
+      'The source warehouse is required to identify the stock location being transferred from. Source must differ from destination.',
+    ],
+    [
+      'destinationWarehouse',
+      'Destination Warehouse',
+      'The destination warehouse is required to identify the stock location receiving the transfer. Must differ from source.',
+    ],
+    [
+      'product',
+      'Product',
+      'The product being transferred must be identified before any quantity movement is applied.',
+    ],
+    [
+      'quantity',
+      'Quantity',
+      'A valid quantity is required for every warehouse transfer. Existing quantity semantics, base-unit conversion, and WAC valuation remain authoritative.',
+    ],
+    [
+      'reason',
+      'Reason',
+      'A reason is required by domain rules for every warehouse transfer and cannot be bypassed by capability policy.',
+    ],
+    [
+      'batch',
+      'Batch',
+      'Batch is conditionally required by the selected product tracking mode. The platform-enforced tracking rule and batch identity cannot be overridden.',
+    ],
+  ].map(([id, label, reason]) => ({
+    key: `inventory.transfers.fields.${id}`,
+    parentKey: TRANSFERS_MODULE_KEY,
+    moduleKey: TRANSFERS_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description: 'Required Warehouse Transfer workflow data.',
+    defaultPolicy: { visible: true },
+    configurable: { visible: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'inventory.view' },
+    reason,
+  })),
+  ...[
+    ['post', 'Post Transfer', 'inventory.transfer', RISK_LEVELS.Critical, []],
+    ['reverse', 'Reverse Transfer', 'inventory.transfer.reverse', RISK_LEVELS.Critical, []],
+    ['inspect', 'Inspect Transfer', 'inventory.view', RISK_LEVELS.Normal, []],
+    ['viewStock', 'View Stock', 'inventory.view', RISK_LEVELS.Normal, [STOCK_MODULE_KEY]],
+  ].map(([id, label, permission, risk, dependencies]) => ({
+    key: `inventory.transfers.actions.${id}`,
+    parentKey: TRANSFERS_MODULE_KEY,
+    moduleKey: TRANSFERS_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label,
+    description: `${label} action. Existing RBAC, lifecycle rules, and target-module policy still apply.`,
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk,
+    requiredPermissions: { allowed: permission },
+    ...(dependencies.length === 0 ? {} : { dependencies }),
+    ...(id === 'post'
+      ? {
+          reason:
+            'Disabling this action prevents draft creation, draft update, and final posting. Discard of stale drafts remains available.',
+        }
+      : {}),
+    ...(id === 'reverse'
+      ? {
+          reason:
+            'Disabling this action prevents reversal. The original posted transfer and its stock movements remain unchanged.',
+        }
+      : {}),
+  })),
 ];
 
 const registry = new Map(
@@ -1124,6 +1258,7 @@ module.exports = {
   BATCHES_MODULE_KEY,
   EXPIRY_MODULE_KEY,
   ADJUSTMENTS_MODULE_KEY,
+  TRANSFERS_MODULE_KEY,
   listCapabilityControls,
   getCapabilityControl,
 };

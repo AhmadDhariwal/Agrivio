@@ -23,7 +23,8 @@ type ConfigurableModule =
   | 'inventory.openingStock'
   | 'inventory.batches'
   | 'inventory.expiry'
-  | 'inventory.adjustments';
+  | 'inventory.adjustments'
+  | 'inventory.transfers';
 type PendingConfirmation =
   | { readonly kind: 'save' }
   | { readonly kind: 'reset-control'; readonly control: PlatformCapabilityControl }
@@ -90,12 +91,24 @@ export class OrganizationControlsPage {
     this.byType('FEATURE', false).filter((control) => !this.isBatchGroupedFeature(control)),
   );
   readonly moduleInfoControls = computed(() => {
+    if (this.selectedModule() === 'inventory.transfers') {
+      return this.transfersFeatures('moduleInfo');
+    }
     if (this.selectedModule() === 'inventory.adjustments') {
       return this.adjustmentsFeatures('moduleInfo');
     }
     return this.batchFeatures('moduleInfo');
   });
   readonly formExperienceControls = computed(() => {
+    if (this.selectedModule() === 'inventory.transfers') {
+      return this.transfersFeatures(
+        'productSearch',
+        'productContext',
+        'stockContext',
+        'guidance',
+        'serverTransferDate',
+      );
+    }
     if (this.selectedModule() === 'inventory.adjustments') {
       return this.adjustmentsFeatures(
         'productSearch',
@@ -108,6 +121,9 @@ export class OrganizationControlsPage {
     return [];
   });
   readonly historyControls = computed(() => {
+    if (this.selectedModule() === 'inventory.transfers') {
+      return this.transfersFeatures('recentTransfers');
+    }
     if (this.selectedModule() === 'inventory.adjustments') {
       return this.adjustmentsFeatures('recentAdjustments');
     }
@@ -199,6 +215,14 @@ export class OrganizationControlsPage {
       changes[0].value?.['enabled'] === false
     );
   });
+  readonly disablingTransfers = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'inventory.transfers' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
   readonly confirmationTitle = computed(() => {
     const pending = this.pendingConfirmation();
     const organization = this.snapshot()?.organization.name ?? 'this organization';
@@ -211,6 +235,7 @@ export class OrganizationControlsPage {
     if (this.disablingBatches()) return `Disable Product Batches for ${organization}?`;
     if (this.disablingExpiry()) return `Disable Expiry Inquiry for ${organization}?`;
     if (this.disablingAdjustments()) return `Disable Stock Adjustments for ${organization}?`;
+    if (this.disablingTransfers()) return `Disable Warehouse Transfers for ${organization}?`;
     const single = this.changeSummary().length === 1 ? this.changeSummary()[0] : null;
     if (single?.risk === 'CRITICAL' && single.after === 'Disabled') {
       return `Disable ${single.label} for ${organization}?`;
@@ -241,6 +266,9 @@ export class OrganizationControlsPage {
     if (this.disablingAdjustments()) {
       return `Users in this organization will no longer be able to access or use Stock Adjustments. Existing adjustments, stock movements and inventory balances are not deleted or modified.`;
     }
+    if (this.disablingTransfers()) {
+      return `Users in this organization will no longer be able to access or use Warehouse Transfers. Existing transfers, stock movements, batches and inventory balances are not deleted or modified.`;
+    }
     const critical = this.changeSummary()
       .filter((change) => change.risk === 'CRITICAL')
       .map((change) => `${change.label}: ${change.before} → ${change.after}`);
@@ -257,6 +285,7 @@ export class OrganizationControlsPage {
     if (this.disablingBatches()) return 'Disable Product Batches';
     if (this.disablingExpiry()) return 'Disable Expiry Inquiry';
     if (this.disablingAdjustments()) return 'Disable Stock Adjustments';
+    if (this.disablingTransfers()) return 'Disable Warehouse Transfers';
     return 'Apply changes';
   });
 
@@ -445,6 +474,7 @@ export class OrganizationControlsPage {
     if (moduleKey === 'inventory.openingStock') return 'Opening Stock';
     if (moduleKey === 'inventory.expiry') return 'Expiry Inquiry';
     if (moduleKey === 'inventory.adjustments') return 'Stock Adjustments';
+    if (moduleKey === 'inventory.transfers') return 'Warehouse Transfers';
     return 'Product Batches';
   }
 
@@ -453,10 +483,16 @@ export class OrganizationControlsPage {
       (control.moduleKey === 'inventory.openingStock' ||
         control.moduleKey === 'inventory.batches' ||
         control.moduleKey === 'inventory.expiry' ||
-        control.moduleKey === 'inventory.adjustments') &&
+        control.moduleKey === 'inventory.adjustments' ||
+        control.moduleKey === 'inventory.transfers') &&
       control.type === 'FIELD' &&
       control.platformEnforced === true
     );
+  }
+
+  private transfersFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
+    const keys = new Set(ids.map((id) => `inventory.transfers.features.${id}`));
+    return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
   }
 
   private adjustmentsFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
@@ -497,7 +533,15 @@ export class OrganizationControlsPage {
           control.key === 'inventory.adjustments.features.stockContext' ||
           control.key === 'inventory.adjustments.features.guidance' ||
           control.key === 'inventory.adjustments.features.recentAdjustments' ||
-          control.key === 'inventory.adjustments.features.serverPostingDate'))
+          control.key === 'inventory.adjustments.features.serverPostingDate')) ||
+      (control.moduleKey === 'inventory.transfers' &&
+        (control.key === 'inventory.transfers.features.moduleInfo' ||
+          control.key === 'inventory.transfers.features.productSearch' ||
+          control.key === 'inventory.transfers.features.productContext' ||
+          control.key === 'inventory.transfers.features.stockContext' ||
+          control.key === 'inventory.transfers.features.guidance' ||
+          control.key === 'inventory.transfers.features.recentTransfers' ||
+          control.key === 'inventory.transfers.features.serverTransferDate'))
     );
   }
 

@@ -205,6 +205,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Transfers',
           route: '/app/inventory/transfers',
           permission: 'inventory.view',
+          capabilityKey: 'inventory.transfers',
           testId: 'nav-transfers',
         },
         {

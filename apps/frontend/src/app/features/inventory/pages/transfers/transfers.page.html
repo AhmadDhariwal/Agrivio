@@ -28,16 +28,22 @@
   </header>
 
   <!-- Module Information Section -->
-  <agrivio-ui-module-info
-    [title]="infoTitle"
-    [description]="infoDescription"
-    [items]="infoItems"
-    [defaultExpanded]="false"
-  />
+  @if (showModuleInfo()) {
+    <agrivio-ui-module-info
+      [title]="infoTitle"
+      [description]="infoDescription"
+      [items]="infoItems"
+      [defaultExpanded]="false"
+    />
+  }
 
   @if (loading()) {
     <div class="state-container">
       <agrivio-ui-loading-state label="Loading transfers…" />
+    </div>
+  } @else if (!canUseTransfers()) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="warning" message="Warehouse Transfers is not enabled for this organization." />
     </div>
   } @else if (!canTransfer()) {
     <div class="alert-container">
@@ -83,37 +89,39 @@
 
         <div class="form-card__body">
           <!-- Row 1: Find Product, Source Warehouse, Destination Warehouse -->
-          <div class="form-grid form-grid--3col">
+          <div class="form-grid" [class.form-grid--3col]="showProductSearch()" [class.form-grid--2col]="!showProductSearch()">
             <!-- Find Product -->
-            <div class="ag-field">
-              <agrivio-ui-field-label label="Find product" for="transfer-product-search" />
-              <div class="ag-input-with-icon">
-                <svg
-                  class="input-icon"
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-                <input
-                  id="transfer-product-search"
-                  class="ag-input"
-                  type="search"
-                  placeholder="Search by product name or SKU…"
-                  (input)="onProductSearch($event)"
-                  (change)="onProductSearch($event)"
-                  data-testid="transfer-product-search"
-                />
+            @if (showProductSearch()) {
+              <div class="ag-field">
+                <agrivio-ui-field-label label="Find product" for="transfer-product-search" />
+                <div class="ag-input-with-icon">
+                  <svg
+                    class="input-icon"
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <input
+                    id="transfer-product-search"
+                    class="ag-input"
+                    type="search"
+                    placeholder="Search by product name or SKU…"
+                    (input)="onProductSearch($event)"
+                    (change)="onProductSearch($event)"
+                    data-testid="transfer-product-search"
+                  />
+                </div>
+                <p class="field-hint">Filter the product dropdown options.</p>
               </div>
-              <p class="field-hint">Filter the product dropdown options.</p>
-            </div>
+            }
 
             <!-- Source Warehouse -->
             <div class="ag-field">
@@ -229,7 +237,7 @@
           </div>
 
           <!-- Selected Product Context Strip -->
-          @if (selectedProduct(); as prod) {
+          @if (showProductContext() && selectedProduct(); as prod) {
             <div class="product-context-strip" data-testid="transfer-product-context">
               <div class="product-context-strip__title">
                 <span>{{ prod.name }}</span>
@@ -269,17 +277,19 @@
                     {{ formatTrackingLabel(prod.trackingMode) }}
                   </span>
                 </span>
-                <span class="meta-sep">•</span>
-                <span class="meta-item">
-                  <span class="meta-item__key">Source Stock On-hand:</span>
-                  @if (productSourceStockOnHand(); as onHand) {
-                    <span class="meta-item__val stock-highlight">{{ onHand }} {{ prod.baseUnitCode }}</span>
-                  } @else {
-                    <span class="meta-item__val text-muted">
-                      {{ form.controls.sourceWarehouseId.value ? '0 ' + prod.baseUnitCode : 'Select source warehouse' }}
-                    </span>
-                  }
-                </span>
+                @if (showStockContext()) {
+                  <span class="meta-sep">•</span>
+                  <span class="meta-item">
+                    <span class="meta-item__key">Source Stock On-hand:</span>
+                    @if (productSourceStockOnHand(); as onHand) {
+                      <span class="meta-item__val stock-highlight">{{ onHand }} {{ prod.baseUnitCode }}</span>
+                    } @else {
+                      <span class="meta-item__val text-muted">
+                        {{ form.controls.sourceWarehouseId.value ? '0 ' + prod.baseUnitCode : 'Select source warehouse' }}
+                      </span>
+                    }
+                  </span>
+                }
               </div>
             </div>
           }
@@ -324,7 +334,7 @@
         </div>
 
         <div class="form-card__body">
-          <div class="context-layout">
+          <div class="context-layout" [class.context-layout--single-col]="!showGuidance()">
             <!-- Left Side: Fields & Context -->
             <div class="context-fields">
               @if (selectedTrackingMode() === 'none') {
@@ -356,7 +366,7 @@
                   <p class="field-hint">Scoped to available positive stock in the selected source warehouse.</p>
                 </div>
 
-                @if (selectedBatchStockOnHand(); as batchStock) {
+                @if (showStockContext() && selectedBatchStockOnHand(); as batchStock) {
                   <div class="batch-stock-indicator" data-testid="batch-stock-indicator">
                     <span class="batch-stock-indicator__label">Selected Batch Source On-hand:</span>
                     <span class="batch-stock-indicator__val">{{ batchStock }} {{ selectedProduct()?.baseUnitCode }}</span>
@@ -365,10 +375,12 @@
               }
 
               <!-- Read-only Transfer Date Context -->
-              <div class="context-date-strip">
-                <span class="context-date-strip__label">Transfer Date:</span>
-                <span class="context-date-strip__value">Today (Server auto-assigned upon post)</span>
-              </div>
+              @if (showServerTransferDate()) {
+                <div class="context-date-strip">
+                  <span class="context-date-strip__label">Transfer Date:</span>
+                  <span class="context-date-strip__value">Today (Server auto-assigned upon post)</span>
+                </div>
+              }
 
               <!-- Negative Stock Override (when authorized) -->
               @if (canOverride()) {
@@ -404,42 +416,44 @@
             </div>
 
             <!-- Right Side: Guidance Panel -->
-            <div class="guidance-panel">
-              <div class="guidance-panel__header">
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="16" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12.01" y2="8" />
-                </svg>
-                <h3 class="guidance-panel__title">Transfer Guidance</h3>
+            @if (showGuidance()) {
+              <div class="guidance-panel">
+                <div class="guidance-panel__header">
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                  <h3 class="guidance-panel__title">Transfer Guidance</h3>
+                </div>
+                <p class="guidance-panel__desc">
+                  Key requirements for warehouse inventory transfers.
+                </p>
+                <ul class="guidance-panel__list">
+                  <li>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    <span>Batch selection is required for tracked products.</span>
+                  </li>
+                  <li>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    <span>Posting updates stock in both warehouses according to existing transaction rules.</span>
+                  </li>
+                  <li>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    <span>Transfer history remains auditable with stock movement records.</span>
+                  </li>
+                </ul>
               </div>
-              <p class="guidance-panel__desc">
-                Key requirements for warehouse inventory transfers.
-              </p>
-              <ul class="guidance-panel__list">
-                <li>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                  <span>Batch selection is required for tracked products.</span>
-                </li>
-                <li>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                  <span>Posting updates stock in both warehouses according to existing transaction rules.</span>
-                </li>
-                <li>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                  <span>Transfer history remains auditable with stock movement records.</span>
-                </li>
-              </ul>
-            </div>
+            }
           </div>
         </div>
       </section>
@@ -479,7 +493,7 @@
           <button
             class="ag-btn ag-btn--primary"
             type="submit"
-            [disabled]="saving() || !canTransfer() || form.invalid"
+            [disabled]="saving() || !canPostTransfer() || form.invalid"
             data-testid="transfer-submit"
           >
             @if (saving()) {
@@ -516,145 +530,151 @@
     </form>
 
     <!-- Recent Transfers Section -->
-    <section class="history-card">
-      <div class="history-card__header">
-        <div>
-          <h2 class="history-card__title">Recent transfers</h2>
-          <p class="history-card__subtitle">Latest stock transfers between warehouses.</p>
+    @if (showRecentTransfers()) {
+      <section class="history-card">
+        <div class="history-card__header">
+          <div>
+            <h2 class="history-card__title">Recent transfers</h2>
+            <p class="history-card__subtitle">Latest stock transfers between warehouses.</p>
+          </div>
+          <span class="history-card__count">{{ total() }} {{ total() === 1 ? 'transfer' : 'transfers' }}</span>
         </div>
-        <span class="history-card__count">{{ total() }} {{ total() === 1 ? 'transfer' : 'transfers' }}</span>
-      </div>
 
-      <!-- Desktop & Tablet Table (>= 768px) -->
-      <div class="ag-table-wrap desktop-table-view">
-        <table class="ag-table" data-testid="transfers-list">
-          <thead>
-            <tr>
-              <th>Source</th>
-              <th>Destination</th>
-              <th>Product</th>
-              <th>Qty</th>
-              <th>Status</th>
-              <th>Posted</th>
-              <th class="text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (item of transfers(); track item.id) {
-              <tr data-testid="transfer-row">
-                <td class="font-medium">{{ warehouseName(item.sourceWarehouseId) }}</td>
-                <td class="font-medium">{{ warehouseName(item.destinationWarehouseId) }}</td>
-                <td>
-                  <div class="product-cell">
-                    <span class="product-cell__name">{{ productName(item.productId) }}</span>
-                    <span class="product-cell__sku font-mono">SKU: {{ productSku(item.productId) }}</span>
-                  </div>
-                </td>
-                <td class="font-mono font-medium">{{ item.quantityBase }} {{ item.unitCode }}</td>
-                <td>
-                  <span class="status-badge status-badge--{{ item.status }}">
-                    {{ item.status }}
-                  </span>
-                </td>
-                <td>
-                  <span class="posted-date font-mono">{{ formatDate(item.postedAt) }}</span>
-                </td>
-                <td class="text-right actions-cell">
+        <!-- Desktop & Tablet Table (>= 768px) -->
+        <div class="ag-table-wrap desktop-table-view">
+          <table class="ag-table" data-testid="transfers-list">
+            <thead>
+              <tr>
+                <th>Source</th>
+                <th>Destination</th>
+                <th>Product</th>
+                <th>Qty</th>
+                <th>Status</th>
+                <th>Posted</th>
+                <th class="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of transfers(); track item.id) {
+                <tr data-testid="transfer-row">
+                  <td class="font-medium">{{ warehouseName(item.sourceWarehouseId) }}</td>
+                  <td class="font-medium">{{ warehouseName(item.destinationWarehouseId) }}</td>
+                  <td>
+                    <div class="product-cell">
+                      <span class="product-cell__name">{{ productName(item.productId) }}</span>
+                      <span class="product-cell__sku font-mono">SKU: {{ productSku(item.productId) }}</span>
+                    </div>
+                  </td>
+                  <td class="font-mono font-medium">{{ item.quantityBase }} {{ item.unitCode }}</td>
+                  <td>
+                    <span class="status-badge status-badge--{{ item.status }}">
+                      {{ item.status }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="posted-date font-mono">{{ formatDate(item.postedAt) }}</span>
+                  </td>
+                  <td class="text-right actions-cell">
+                    @if (canInspectTransfer()) {
+                      <button
+                        type="button"
+                        class="ag-btn-sm ag-btn-sm--ghost"
+                        data-testid="transfer-inspect"
+                        (click)="openInspector(item)"
+                      >
+                        Inspect
+                      </button>
+                    }
+                    @if (canReverseTransfer() && item.status === 'posted') {
+                      <button
+                        type="button"
+                        class="ag-btn-sm ag-btn-sm--danger"
+                        data-testid="transfer-reverse"
+                        (click)="reverse(item)"
+                      >
+                        Reverse
+                      </button>
+                    }
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="7" class="text-center text-muted py-4">No warehouse transfers found.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Mobile Purpose-Built Cards (< 768px) -->
+        <div class="mobile-cards-view" data-testid="transfers-cards">
+          @for (item of transfers(); track item.id) {
+            <article class="mobile-transfer-card" data-testid="transfer-card">
+              <div class="mobile-transfer-card__header">
+                <div class="mobile-transfer-card__title-group">
+                  <h3 class="mobile-transfer-card__title">{{ productName(item.productId) }}</h3>
+                  <span class="mobile-transfer-card__sku font-mono">{{ productSku(item.productId) }}</span>
+                </div>
+                <span class="status-badge status-badge--{{ item.status }}">
+                  {{ item.status }}
+                </span>
+              </div>
+
+              <div class="mobile-transfer-card__route">
+                <span class="route-point">{{ warehouseName(item.sourceWarehouseId) }}</span>
+                <span class="route-arrow" aria-hidden="true">→</span>
+                <span class="route-point">{{ warehouseName(item.destinationWarehouseId) }}</span>
+              </div>
+
+              <div class="mobile-transfer-card__metrics">
+                <div class="mobile-metric">
+                  <span class="mobile-metric__label">Quantity</span>
+                  <span class="mobile-metric__value font-mono font-semibold">{{ item.quantityBase }} {{ item.unitCode }}</span>
+                </div>
+                <div class="mobile-metric">
+                  <span class="mobile-metric__label">Posted</span>
+                  <span class="mobile-metric__value font-mono">{{ formatDate(item.postedAt) }}</span>
+                </div>
+              </div>
+
+              <div class="mobile-transfer-card__actions">
+                @if (canInspectTransfer()) {
                   <button
                     type="button"
                     class="ag-btn-sm ag-btn-sm--ghost"
-                    data-testid="transfer-inspect"
+                    data-testid="transfer-inspect-card"
                     (click)="openInspector(item)"
                   >
                     Inspect
                   </button>
-                  @if (canReverse() && item.status === 'posted') {
-                    <button
-                      type="button"
-                      class="ag-btn-sm ag-btn-sm--danger"
-                      data-testid="transfer-reverse"
-                      (click)="reverse(item)"
-                    >
-                      Reverse
-                    </button>
-                  }
-                </td>
-              </tr>
-            } @empty {
-              <tr>
-                <td colspan="7" class="text-center text-muted py-4">No warehouse transfers found.</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Mobile Purpose-Built Cards (< 768px) -->
-      <div class="mobile-cards-view" data-testid="transfers-cards">
-        @for (item of transfers(); track item.id) {
-          <article class="mobile-transfer-card" data-testid="transfer-card">
-            <div class="mobile-transfer-card__header">
-              <div class="mobile-transfer-card__title-group">
-                <h3 class="mobile-transfer-card__title">{{ productName(item.productId) }}</h3>
-                <span class="mobile-transfer-card__sku font-mono">{{ productSku(item.productId) }}</span>
+                }
+                @if (canReverseTransfer() && item.status === 'posted') {
+                  <button
+                    type="button"
+                    class="ag-btn-sm ag-btn-sm--danger"
+                    data-testid="transfer-reverse-card"
+                    (click)="reverse(item)"
+                  >
+                    Reverse
+                  </button>
+                }
               </div>
-              <span class="status-badge status-badge--{{ item.status }}">
-                {{ item.status }}
-              </span>
-            </div>
+            </article>
+          } @empty {
+            <div class="empty-cards-state text-center text-muted py-4">No warehouse transfers found.</div>
+          }
+        </div>
 
-            <div class="mobile-transfer-card__route">
-              <span class="route-point">{{ warehouseName(item.sourceWarehouseId) }}</span>
-              <span class="route-arrow" aria-hidden="true">→</span>
-              <span class="route-point">{{ warehouseName(item.destinationWarehouseId) }}</span>
-            </div>
-
-            <div class="mobile-transfer-card__metrics">
-              <div class="mobile-metric">
-                <span class="mobile-metric__label">Quantity</span>
-                <span class="mobile-metric__value font-mono font-semibold">{{ item.quantityBase }} {{ item.unitCode }}</span>
-              </div>
-              <div class="mobile-metric">
-                <span class="mobile-metric__label">Posted</span>
-                <span class="mobile-metric__value font-mono">{{ formatDate(item.postedAt) }}</span>
-              </div>
-            </div>
-
-            <div class="mobile-transfer-card__actions">
-              <button
-                type="button"
-                class="ag-btn-sm ag-btn-sm--ghost"
-                data-testid="transfer-inspect-card"
-                (click)="openInspector(item)"
-              >
-                Inspect
-              </button>
-              @if (canReverse() && item.status === 'posted') {
-                <button
-                  type="button"
-                  class="ag-btn-sm ag-btn-sm--danger"
-                  data-testid="transfer-reverse-card"
-                  (click)="reverse(item)"
-                >
-                  Reverse
-                </button>
-              }
-            </div>
-          </article>
-        } @empty {
-          <div class="empty-cards-state text-center text-muted py-4">No warehouse transfers found.</div>
-        }
-      </div>
-
-      <agrivio-ui-pagination
-        [page]="page()"
-        [pageSize]="pageSize()"
-        [total]="total()"
-        [disabled]="loading()"
-        (pageChange)="onPageChange($event)"
-        (pageSizeChange)="onPageSizeChange($event)"
-      />
-    </section>
+        <agrivio-ui-pagination
+          [page]="page()"
+          [pageSize]="pageSize()"
+          [total]="total()"
+          [disabled]="loading()"
+          (pageChange)="onPageChange($event)"
+          (pageSizeChange)="onPageSizeChange($event)"
+        />
+      </section>
+    }
   }
 
   <!-- Transfer Inspector Drawer -->

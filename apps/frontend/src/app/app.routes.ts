@@ -542,6 +542,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'inventory/transfers',
+        canActivate: [requireCapabilityGuard('inventory.transfers')],
         loadComponent: () =>
           import('./features/inventory/pages/transfers/transfers.page').then(
             (m) => m.TransfersPage,

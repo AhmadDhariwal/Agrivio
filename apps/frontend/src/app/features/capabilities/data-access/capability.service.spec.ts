@@ -88,4 +88,45 @@ describe('CapabilityService', () => {
     expect(service.canPerformAction('inventory.adjustments.actions.viewStock')).toBe(true);
     expect(service.canPerformAction('inventory.adjustments.actions.viewMovements')).toBe(true);
   });
+
+  it('provides default enabled/visible/allowed values for all 18 inventory.transfers.* controls', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        CapabilityService,
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            activeContext: () => ({ contextType: 'organization', organizationId: 'org-1' }),
+          },
+        },
+      ],
+    });
+    const service = TestBed.inject(CapabilityService);
+
+    // Root module
+    expect(service.canUseModule('inventory.transfers')).toBe(true);
+
+    // 7 Features
+    expect(service.canUseView('inventory.transfers.features.moduleInfo')).toBe(true);
+    expect(service.canUseView('inventory.transfers.features.productSearch')).toBe(true);
+    expect(service.canUseView('inventory.transfers.features.productContext')).toBe(true);
+    expect(service.canUseView('inventory.transfers.features.stockContext')).toBe(true);
+    expect(service.canUseView('inventory.transfers.features.guidance')).toBe(true);
+    expect(service.canUseView('inventory.transfers.features.recentTransfers')).toBe(true);
+    expect(service.canUseView('inventory.transfers.features.serverTransferDate')).toBe(true);
+
+    // 6 Fields
+    expect(service.canViewField('inventory.transfers.fields.sourceWarehouse')).toBe(true);
+    expect(service.canViewField('inventory.transfers.fields.destinationWarehouse')).toBe(true);
+    expect(service.canViewField('inventory.transfers.fields.product')).toBe(true);
+    expect(service.canViewField('inventory.transfers.fields.quantity')).toBe(true);
+    expect(service.canViewField('inventory.transfers.fields.reason')).toBe(true);
+    expect(service.canViewField('inventory.transfers.fields.batch')).toBe(true);
+
+    // 4 Actions
+    expect(service.canPerformAction('inventory.transfers.actions.post')).toBe(true);
+    expect(service.canPerformAction('inventory.transfers.actions.reverse')).toBe(true);
+    expect(service.canPerformAction('inventory.transfers.actions.inspect')).toBe(true);
+    expect(service.canPerformAction('inventory.transfers.actions.viewStock')).toBe(true);
+  });
 });
