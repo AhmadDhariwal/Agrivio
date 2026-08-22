@@ -1,218 +1,637 @@
-<agrivio-ui-page-header
-  title="Stock adjustments"
-  subtitle="Post damage, expiry, loss, or correction adjustments with audit."
-/>
+<div class="adjustments-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">INVENTORY / ADJUSTMENTS</p>
+      <h1 class="page-head__title">Stock adjustments</h1>
+      <p class="page-head__lede">
+        Record auditable inventory increases or decreases for damage, expiry, loss, and authorized corrections.
+      </p>
+    </div>
+    <div class="page-head__actions">
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/inventory/stock">
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        Back to Inventory
+      </a>
+    </div>
+  </header>
 
-@if (!canAdjust()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to adjust stock." />
-} @else {
+  <!-- Module Information Section -->
+  <agrivio-ui-module-info
+    [title]="infoTitle"
+    [description]="infoDescription"
+    [items]="infoItems"
+    [defaultExpanded]="false"
+  />
+
   @if (loading()) {
-    <agrivio-ui-loading-state label="Loading adjustments…" />
+    <div class="state-container">
+      <agrivio-ui-loading-state label="Loading adjustments…" />
+    </div>
+  } @else if (!canAdjust()) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="warning" message="You do not have permission to adjust stock." />
+    </div>
   } @else {
     @if (errorMessage(); as error) {
-      <agrivio-ui-alert tone="danger" [message]="error" />
+      <div class="alert-container">
+        <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+      </div>
     }
     @if (successMessage(); as success) {
-      <agrivio-ui-alert tone="success" [message]="success" data-testid="adjustment-success" />
+      <div class="alert-container">
+        <agrivio-ui-alert tone="success" [message]="success" data-testid="adjustment-success" />
+      </div>
     }
 
-    <form [formGroup]="form" (ngSubmit)="submit()" data-testid="adjustment-form" class="ag-form ag-form--with-required-hint">
-      <div class="ag-field">
-        <agrivio-ui-field-label label="Find product" for="adjustment-product-search" />
-        <input id="adjustment-product-search" class="ag-input" type="search" (change)="onProductSearch($event)" />
-        <agrivio-ui-field-label
-          label="Warehouse"
-          for="adjustment-warehouse"
-          [required]="fieldRequired(form.controls.warehouseId)"
-        />
-        <select
-          id="adjustment-warehouse"
-          class="ag-select"
-          formControlName="warehouseId"
-          data-testid="adjustment-warehouse"
-          [attr.aria-required]="fieldRequired(form.controls.warehouseId) ? 'true' : null"
-        >
-          <option value="">Select warehouse</option>
-          @for (warehouse of warehouses(); track warehouse.id) {
-            <option [value]="warehouse.id">{{ warehouse.name }}</option>
-          }
-        </select>
-      </div>
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Product"
-          for="adjustment-product"
-          [required]="fieldRequired(form.controls.productId)"
-        />
-        <select
-          id="adjustment-product"
-          class="ag-select"
-          formControlName="productId"
-          data-testid="adjustment-product"
-          [attr.aria-required]="fieldRequired(form.controls.productId) ? 'true' : null"
-        >
-          <option value="">Select product</option>
-          @for (product of products(); track product.id) {
-            <option [value]="product.id">{{ product.name }}</option>
-          }
-        </select>
-      </div>
-      @if (selectedTrackingMode() !== 'none') {
-        <div class="ag-field">
-          <agrivio-ui-field-label
-            label="Batch"
-            for="adjustment-batch"
-            [required]="fieldRequired(form.controls.batchId)"
-          />
-          <select
-            id="adjustment-batch"
-            class="ag-select"
-            formControlName="batchId"
-            data-testid="adjustment-batch"
-            [attr.aria-required]="fieldRequired(form.controls.batchId) ? 'true' : null"
-          >
-            <option value="">Select batch</option>
-            @for (option of batchOptions(); track option.batchId) {
-              <option [value]="option.batchId">{{ option.label }}</option>
-            }
-          </select>
-        </div>
-      }
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Type"
-          for="adjustment-type"
-          [required]="fieldRequired(form.controls.adjustmentType)"
-        />
-        <select
-          id="adjustment-type"
-          class="ag-select"
-          formControlName="adjustmentType"
-          data-testid="adjustment-type"
-          [attr.aria-required]="fieldRequired(form.controls.adjustmentType) ? 'true' : null"
-        >
-          <option value="damage">Damage</option>
-          <option value="expiry">Expiry</option>
-          <option value="loss">Loss</option>
-          <option value="correction">Correction</option>
-        </select>
-      </div>
-      @if (form.controls.adjustmentType.value === 'correction') {
-        <div class="ag-field">
-          <agrivio-ui-field-label label="Direction" for="adjustment-direction" />
-          <select id="adjustment-direction" class="ag-select" formControlName="direction" data-testid="adjustment-direction">
-            <option value="outbound">Outbound</option>
-            <option value="inbound">Inbound</option>
-          </select>
-        </div>
-        @if (form.controls.direction.value === 'inbound') {
-          <div class="ag-field">
-            <agrivio-ui-field-label
-              label="Inventory value (PKR)"
-              for="adjustment-inventory-value"
-              [required]="fieldRequired(form.controls.inventoryValue)"
-            />
-            <input
-              id="adjustment-inventory-value"
-              class="ag-input"
-              formControlName="inventoryValue"
-              data-testid="adjustment-inventory-value"
-              [attr.aria-required]="fieldRequired(form.controls.inventoryValue) ? 'true' : null"
-            />
+    <form class="adj-form" [formGroup]="form" (ngSubmit)="submit()" data-testid="adjustment-form">
+      <!-- Section 1: Adjustment Details -->
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
           </div>
-        }
-      }
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Quantity"
-          for="adjustment-quantity"
-          [required]="fieldRequired(form.controls.quantity)"
-        />
-        <input
-          id="adjustment-quantity"
-          class="ag-input"
-          formControlName="quantity"
-          data-testid="adjustment-quantity"
-          [attr.aria-required]="fieldRequired(form.controls.quantity) ? 'true' : null"
-        />
-      </div>
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Reason"
-          for="adjustment-reason"
-          [required]="fieldRequired(form.controls.reason)"
-        />
-        <input
-          id="adjustment-reason"
-          class="ag-input"
-          formControlName="reason"
-          data-testid="adjustment-reason"
-          [attr.aria-required]="fieldRequired(form.controls.reason) ? 'true' : null"
-        />
-      </div>
-      @if (canOverride()) {
-        <label>
-          <input type="checkbox" formControlName="negativeStockOverride" data-testid="adjustment-override" />
-          Allow negative stock override
-        </label>
-        <div class="ag-field">
-          <agrivio-ui-field-label
-            label="Override reason"
-            for="adjustment-override-reason"
-            [required]="fieldRequired(form.controls.negativeStockOverrideReason)"
-          />
-          <input
-            id="adjustment-override-reason"
-            class="ag-input"
-            formControlName="negativeStockOverrideReason"
-            data-testid="adjustment-override-reason"
-            [attr.aria-required]="fieldRequired(form.controls.negativeStockOverrideReason) ? 'true' : null"
-          />
+          <div>
+            <h2 class="form-card__title">Adjustment Details</h2>
+            <p class="form-card__subtitle">
+              Select warehouse, product, adjustment type, and enter the adjustment quantity.
+            </p>
+          </div>
         </div>
-      }
-      <button type="submit" [disabled]="saving()" data-testid="adjustment-submit">Post adjustment</button>
+
+        <div class="form-card__body">
+          <div class="form-grid form-grid--3col">
+            <!-- Find Product -->
+            <div class="ag-field">
+              <agrivio-ui-field-label label="Find product" for="adjustment-product-search" />
+              <div class="ag-input-with-icon">
+                <svg
+                  class="input-icon"
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input
+                  id="adjustment-product-search"
+                  class="ag-input"
+                  type="search"
+                  placeholder="Search by product name or SKU…"
+                  (input)="onProductSearch($event)"
+                  (change)="onProductSearch($event)"
+                />
+              </div>
+              <p class="field-hint">Filter the product dropdown options.</p>
+            </div>
+
+            <!-- Warehouse -->
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Warehouse"
+                for="adjustment-warehouse"
+                [required]="fieldRequired(form.controls.warehouseId)"
+              />
+              <select
+                id="adjustment-warehouse"
+                class="ag-select"
+                formControlName="warehouseId"
+                data-testid="adjustment-warehouse"
+                [attr.aria-required]="fieldRequired(form.controls.warehouseId) ? 'true' : null"
+              >
+                <option value="" disabled>Select warehouse</option>
+                @for (warehouse of warehouses(); track warehouse.id) {
+                  <option [value]="warehouse.id">{{ warehouse.name }}</option>
+                }
+              </select>
+              <p class="field-hint">Choose the warehouse where adjustment occurs.</p>
+            </div>
+
+            <!-- Product -->
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Product"
+                for="adjustment-product"
+                [required]="fieldRequired(form.controls.productId)"
+              />
+              <select
+                id="adjustment-product"
+                class="ag-select"
+                formControlName="productId"
+                data-testid="adjustment-product"
+                [attr.aria-required]="fieldRequired(form.controls.productId) ? 'true' : null"
+              >
+                <option value="" disabled>Select product</option>
+                @for (product of products(); track product.id) {
+                  <option [value]="product.id">{{ product.name }} ({{ product.baseUnitCode }})</option>
+                }
+              </select>
+              <p class="field-hint">Select the product to adjust.</p>
+            </div>
+          </div>
+
+          <!-- Selected Product Context Strip -->
+          @if (selectedProduct(); as prod) {
+            <div class="product-context-strip" data-testid="adjustment-product-context">
+              <div class="product-context-strip__title">
+                <span>{{ prod.name }}</span>
+                <svg
+                  class="verified-icon"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+              </div>
+              <div class="product-context-strip__meta">
+                <span class="meta-item">
+                  <span class="meta-item__key">SKU:</span>
+                  <span class="meta-item__val font-mono">{{ prod.sku || '—' }}</span>
+                </span>
+                <span class="meta-sep">•</span>
+                <span class="meta-item">
+                  <span class="meta-item__key">Base Unit:</span>
+                  <span class="meta-item__val">{{ prod.baseUnitCode }}</span>
+                </span>
+                <span class="meta-sep">•</span>
+                <span class="meta-item">
+                  <span class="meta-item__key">Tracking:</span>
+                  <span
+                    class="tracking-chip"
+                    [class.tracking-chip--batch]="prod.trackingMode === 'batch'"
+                    [class.tracking-chip--expiry]="prod.trackingMode === 'batch_expiry'"
+                  >
+                    {{ formatTrackingLabel(prod.trackingMode) }}
+                  </span>
+                </span>
+                <span class="meta-sep">•</span>
+                <span class="meta-item">
+                  <span class="meta-item__key">Warehouse Stock On-hand:</span>
+                  @if (productStockOnHand(); as onHand) {
+                    <span class="meta-item__val stock-highlight">{{ onHand }} {{ prod.baseUnitCode }}</span>
+                  } @else {
+                    <span class="meta-item__val text-muted">
+                      {{ form.controls.warehouseId.value ? '0 ' + prod.baseUnitCode : 'Select warehouse' }}
+                    </span>
+                  }
+                </span>
+              </div>
+            </div>
+          }
+
+          <div class="form-grid form-grid--3col">
+            <!-- Adjustment Type -->
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Adjustment type"
+                for="adjustment-type"
+                [required]="fieldRequired(form.controls.adjustmentType)"
+              />
+              <select
+                id="adjustment-type"
+                class="ag-select"
+                formControlName="adjustmentType"
+                data-testid="adjustment-type"
+                [attr.aria-required]="fieldRequired(form.controls.adjustmentType) ? 'true' : null"
+              >
+                <option value="damage">Damage</option>
+                <option value="expiry">Expiry</option>
+                <option value="loss">Loss</option>
+                <option value="correction">Correction</option>
+              </select>
+              <p class="field-hint">Select the type of adjustment.</p>
+            </div>
+
+            <!-- Quantity -->
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Quantity"
+                for="adjustment-quantity"
+                [required]="fieldRequired(form.controls.quantity)"
+              />
+              <div class="ag-input-group">
+                <input
+                  id="adjustment-quantity"
+                  class="ag-input font-mono"
+                  formControlName="quantity"
+                  placeholder="0.00"
+                  data-testid="adjustment-quantity"
+                  [attr.aria-required]="fieldRequired(form.controls.quantity) ? 'true' : null"
+                />
+                <span class="ag-input-addon">{{ selectedProduct()?.baseUnitCode || 'Units' }}</span>
+              </div>
+              <p class="field-hint">Enter quantity to be adjusted in base units.</p>
+            </div>
+
+            <!-- Reason -->
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Reason"
+                for="adjustment-reason"
+                [required]="fieldRequired(form.controls.reason)"
+              />
+              <input
+                id="adjustment-reason"
+                class="ag-input"
+                formControlName="reason"
+                placeholder="Enter reason for adjustment…"
+                data-testid="adjustment-reason"
+                [attr.aria-required]="fieldRequired(form.controls.reason) ? 'true' : null"
+              />
+              <p class="field-hint">Operational reason for stock adjustment audit.</p>
+            </div>
+          </div>
+
+          <!-- Correction Sub-fields (when adjustmentType === 'correction') -->
+          @if (form.controls.adjustmentType.value === 'correction') {
+            <div class="correction-box">
+              <div class="form-grid form-grid--2col">
+                <div class="ag-field">
+                  <agrivio-ui-field-label label="Direction" for="adjustment-direction" />
+                  <select
+                    id="adjustment-direction"
+                    class="ag-select"
+                    formControlName="direction"
+                    data-testid="adjustment-direction"
+                  >
+                    <option value="outbound">Outbound (Decrease stock)</option>
+                    <option value="inbound">Inbound (Increase stock)</option>
+                  </select>
+                  <p class="field-hint">Direction of quantity correction.</p>
+                </div>
+
+                @if (form.controls.direction.value === 'inbound') {
+                  <div class="ag-field">
+                    <agrivio-ui-field-label
+                      label="Total Inventory Value (PKR)"
+                      for="adjustment-inventory-value"
+                      [required]="fieldRequired(form.controls.inventoryValue)"
+                    />
+                    <input
+                      id="adjustment-inventory-value"
+                      class="ag-input font-mono"
+                      formControlName="inventoryValue"
+                      placeholder="e.g. 50000.00"
+                      data-testid="adjustment-inventory-value"
+                      [attr.aria-required]="fieldRequired(form.controls.inventoryValue) ? 'true' : null"
+                    />
+                    <p class="field-hint">Total cost value for this inbound quantity.</p>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- Section 2: Batch & Adjustment Context -->
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+              <line x1="16" x2="16" y1="2" y2="6" />
+              <line x1="8" x2="8" y1="2" y2="6" />
+              <line x1="3" x2="21" y1="10" y2="10" />
+            </svg>
+          </div>
+          <div class="form-card__heading-group">
+            <div class="form-card__title-wrap">
+              <h2 class="form-card__title">Batch &amp; Adjustment Context</h2>
+              @if (selectedTrackingMode() === 'none') {
+                <span class="tracking-chip">Standard</span>
+              } @else if (selectedTrackingMode() === 'batch') {
+                <span class="tracking-chip tracking-chip--batch">Batch Required</span>
+              } @else if (selectedTrackingMode() === 'batch_expiry') {
+                <span class="tracking-chip tracking-chip--expiry">Batch + Expiry</span>
+              }
+            </div>
+            <p class="form-card__subtitle">
+              Provide tracking details and operational notes when required for the selected product.
+            </p>
+          </div>
+        </div>
+
+        <div class="form-card__body">
+          <div class="context-layout">
+            <!-- Left Side: Fields & Operational Context -->
+            <div class="context-fields">
+              @if (selectedTrackingMode() === 'none') {
+                <div class="standard-tracking-note" data-testid="standard-tracking-note">
+                  <p class="standard-tracking-note__title">Standard tracking</p>
+                  <p class="standard-tracking-note__desc">
+                    No batch or expiry information is required for this product.
+                  </p>
+                </div>
+              } @else {
+                <div class="ag-field">
+                  <agrivio-ui-field-label
+                    label="Batch / Lot Number"
+                    for="adjustment-batch"
+                    [required]="fieldRequired(form.controls.batchId)"
+                  />
+                  <select
+                    id="adjustment-batch"
+                    class="ag-select font-mono"
+                    formControlName="batchId"
+                    data-testid="adjustment-batch"
+                    [attr.aria-required]="fieldRequired(form.controls.batchId) ? 'true' : null"
+                  >
+                    <option value="">Select batch</option>
+                    @for (option of batchOptions(); track option.batchId) {
+                      <option [value]="option.batchId">{{ option.label }}</option>
+                    }
+                  </select>
+                  <p class="field-hint">Required for batch-tracked products. Inbound corrections may use zero-balance batches.</p>
+                </div>
+
+                @if (selectedBatchStockOnHand(); as batchStock) {
+                  <div class="batch-stock-indicator" data-testid="batch-stock-indicator">
+                    <span class="batch-stock-indicator__label">Selected Batch On-hand:</span>
+                    <span class="batch-stock-indicator__val">{{ batchStock }} {{ selectedProduct()?.baseUnitCode }}</span>
+                  </div>
+                }
+              }
+
+              <!-- Read-only Adjustment Date Context -->
+              <div class="context-date-strip">
+                <span class="context-date-strip__label">Adjustment Date:</span>
+                <span class="context-date-strip__value">Today (Server auto-assigned upon post)</span>
+              </div>
+
+              <!-- Negative Stock Override (when authorized) -->
+              @if (canOverride()) {
+                <div class="override-box">
+                  <label class="override-checkbox-label">
+                    <input
+                      type="checkbox"
+                      formControlName="negativeStockOverride"
+                      data-testid="adjustment-override"
+                    />
+                    <span>Allow negative stock override</span>
+                  </label>
+                  @if (form.controls.negativeStockOverride.value) {
+                    <div class="ag-field override-reason-field">
+                      <agrivio-ui-field-label
+                        label="Override reason"
+                        for="adjustment-override-reason"
+                        [required]="fieldRequired(form.controls.negativeStockOverrideReason)"
+                      />
+                      <input
+                        id="adjustment-override-reason"
+                        class="ag-input"
+                        formControlName="negativeStockOverrideReason"
+                        placeholder="Enter negative stock override authorization reason…"
+                        data-testid="adjustment-override-reason"
+                        [attr.aria-required]="fieldRequired(form.controls.negativeStockOverrideReason) ? 'true' : null"
+                      />
+                      <p class="field-hint">Required when bypassing negative stock prevention.</p>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+
+            <!-- Right Side: Guidance Panel -->
+            <div class="guidance-panel">
+              <div class="guidance-panel__header">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+                <h3 class="guidance-panel__title">When is batch information required?</h3>
+              </div>
+              <p class="guidance-panel__desc">
+                Provide batch or lot number when the product is batch-tracked.
+              </p>
+              <ul class="guidance-panel__list">
+                <li>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                  <span>Adjustments update on-hand quantity immediately.</span>
+                </li>
+                <li>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                  <span>All changes are recorded in stock history.</span>
+                </li>
+                <li>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                  <span>Ensure accuracy to maintain auditability and reporting integrity.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Action Footer -->
+      <footer class="form-actions">
+        <a
+          class="ag-btn ag-btn--secondary"
+          routerLink="/app/inventory/stock"
+          data-testid="adjustment-cancel"
+        >
+          Cancel
+        </a>
+        <div class="form-actions__right">
+          <a
+            class="ag-btn ag-btn--secondary"
+            routerLink="/app/inventory/stock"
+            data-testid="adjustment-view-stock"
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            View stock
+          </a>
+          <button
+            class="ag-btn ag-btn--primary"
+            type="submit"
+            [disabled]="saving()"
+            data-testid="adjustment-submit"
+          >
+            @if (saving()) {
+              <svg
+                class="spin-icon"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              </svg>
+              Posting…
+            } @else {
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Post adjustment
+            }
+          </button>
+        </div>
+      </footer>
     </form>
 
-    <div class="ag-table-wrap">
-      <table class="ag-table" data-testid="adjustments-list">
-        <thead>
-          <tr>
-            <th>Type</th>
-            <th>Qty</th>
-            <th>Status</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (item of adjustments(); track item.id) {
-            <tr data-testid="adjustment-row">
-              <td>{{ item.adjustmentType }}</td>
-              <td>{{ item.quantityBase }}</td>
-              <td>{{ item.status }}</td>
-              <td>
-                @if (canReverse() && item.status === 'posted') {
-                  <button type="button" data-testid="adjustment-reverse" (click)="reverse(item)">Reverse</button>
-                }
-              </td>
+    <!-- Adjustments History Section -->
+    <section class="history-card">
+      <div class="history-card__header">
+        <h2 class="history-card__title">Recent adjustments</h2>
+        <span class="history-card__count">{{ total() }} {{ total() === 1 ? 'record' : 'records' }}</span>
+      </div>
+
+      <div class="ag-table-wrap">
+        <table class="ag-table" data-testid="adjustments-list">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Direction</th>
+              <th>Quantity</th>
+              <th>Reason</th>
+              <th>Status</th>
+              <th class="text-right">Actions</th>
             </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-    <agrivio-ui-pagination [page]="page()" [pageSize]="pageSize()" [total]="total()" [disabled]="loading()" (pageChange)="onPageChange($event)" (pageSizeChange)="onPageSizeChange($event)" />
+          </thead>
+          <tbody>
+            @for (item of adjustments(); track item.id) {
+              <tr data-testid="adjustment-row">
+                <td>
+                  <span class="type-badge type-badge--{{ item.adjustmentType }}">
+                    {{ formatAdjustmentTypeLabel(item.adjustmentType) }}
+                  </span>
+                </td>
+                <td>
+                  <span class="direction-badge direction-badge--{{ item.direction }}">
+                    {{ item.direction }}
+                  </span>
+                </td>
+                <td class="font-mono">{{ item.quantityBase }} {{ item.unitCode }}</td>
+                <td class="reason-cell">{{ item.reason || '—' }}</td>
+                <td>
+                  <span class="status-badge status-badge--{{ item.status }}">
+                    {{ item.status }}
+                  </span>
+                </td>
+                <td class="text-right">
+                  @if (canReverse() && item.status === 'posted') {
+                    <button
+                      type="button"
+                      class="ag-btn-sm ag-btn-sm--danger"
+                      data-testid="adjustment-reverse"
+                      (click)="reverse(item)"
+                    >
+                      Reverse
+                    </button>
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="6" class="text-center text-muted py-4">No adjustments recorded yet.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <agrivio-ui-pagination
+        [page]="page()"
+        [pageSize]="pageSize()"
+        [total]="total()"
+        [disabled]="loading()"
+        (pageChange)="onPageChange($event)"
+        (pageSizeChange)="onPageSizeChange($event)"
+      />
+    </section>
   }
-}
 
-<p><a routerLink="/app/inventory/stock">Back to stock</a></p>
-
-<agrivio-ui-confirm-dialog
-  [open]="reverseConfirmOpen()"
-  title="Reverse posted adjustment?"
-  message="The original adjustment remains in history. Corrective stock effects will be recorded."
-  confirmLabel="Reverse"
-  cancelLabel="Keep adjustment"
-  [danger]="true"
-  [requireReason]="true"
-  (confirmed)="confirmReverse($event)"
-  (dismiss)="reverseConfirmOpen.set(false)"
-/>
+  <!-- Confirm Reversal Dialog -->
+  <agrivio-ui-confirm-dialog
+    [open]="reverseConfirmOpen()"
+    title="Reverse posted adjustment?"
+    message="The original adjustment remains in history. Corrective stock effects will be recorded."
+    confirmLabel="Reverse"
+    cancelLabel="Keep adjustment"
+    [danger]="true"
+    [requireReason]="true"
+    (confirmed)="confirmReverse($event)"
+    (dismiss)="reverseConfirmOpen.set(false)"
+  />
+</div>
