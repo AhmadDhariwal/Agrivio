@@ -86,6 +86,11 @@ function registerInventoryRoutes(deps) {
     'inventory.transfers.actions.inspect',
     'allowed',
   );
+  const requireReconciliationModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.reconciliation',
+    'enabled',
+  );
 
   router.get(
     API_INVENTORY_BALANCES_PATH,
@@ -153,6 +158,7 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.view'),
     deps.requireOperationalAccess,
+    requireReconciliationModule,
     (req, res, next) => {
       void controller.reconcileInventory(req, res, next);
     },

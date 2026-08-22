@@ -1,54 +1,1005 @@
-<agrivio-ui-page-header
-  title="Inventory reconciliation"
-  subtitle="Compare movements, balances, and cost state for integrity findings."
-/>
+<div class="reconciliation-shell" data-testid="reconciliation-view">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">INVENTORY / RECONCILIATION</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">Inventory reconciliation</h1>
+        <span class="page-head__count-pill" aria-label="Total findings">
+          {{ kpiTotalFindings() }} {{ kpiTotalFindings() === 1 ? 'finding' : 'findings' }}
+        </span>
+      </div>
+      <p class="page-head__lede">
+        Identify and resolve differences between recorded balances, stock movements, and cost state invariants.
+      </p>
+    </div>
 
-@if (!canView()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to view inventory." />
-} @else if (loading()) {
-  <agrivio-ui-loading-state label="Loading reconciliation…" />
-} @else {
-  @if (errorMessage(); as error) {
-    <agrivio-ui-alert tone="danger" [message]="error" />
+    <div class="page-head__actions">
+      <!-- Subtle Refresh Icon Button -->
+      @if (canRefresh()) {
+        <button
+          class="row-action-btn page-head__refresh-btn"
+          type="button"
+          data-testid="reconciliation-header-refresh"
+          (click)="reload()"
+          title="Refresh reconciliation data"
+          aria-label="Refresh reconciliation data"
+        >
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
+            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+            <path d="M16 21h5v-5" />
+          </svg>
+        </button>
+      }
+
+      <!-- Secondary Workflows -->
+      @if (canViewStock()) {
+        <a
+          class="ag-btn ag-btn--secondary"
+          routerLink="/app/inventory/stock"
+          data-testid="reconciliation-back-link"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+            />
+            <path d="m3.3 7 8.7 5 8.7-5" />
+            <path d="M12 22V12" />
+          </svg>
+          <span class="btn-text-full">Stock</span>
+          <span class="btn-text-mobile">Stock</span>
+        </a>
+      }
+
+      @if (canViewMovements()) {
+        <a
+          class="ag-btn ag-btn--secondary"
+          routerLink="/app/inventory/movements"
+          data-testid="reconciliation-movements-link"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="17 1 21 5 17 9" />
+            <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+            <polyline points="7 23 3 19 7 15" />
+            <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+          </svg>
+          <span class="btn-text-full">Movements</span>
+          <span class="btn-text-mobile">Movements</span>
+        </a>
+      }
+
+      <div class="nav-overflow-group">
+        @if (canViewBatches()) {
+          <a class="nav-overflow-link" routerLink="/app/inventory/batches" title="Product Batches">Batches</a>
+        }
+        @if (canViewExpiry()) {
+          <a class="nav-overflow-link" routerLink="/app/inventory/expiry" title="Expiry Inquiry">Expiry</a>
+        }
+        <a class="nav-overflow-link" routerLink="/app/inventory/adjustments" title="Stock Adjustments">Adjustments</a>
+        <a class="nav-overflow-link" routerLink="/app/inventory/transfers" title="Warehouse Transfers">Transfers</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Module Information Section -->
+  @if (showModuleInfo()) {
+    <agrivio-ui-module-info
+      [title]="infoTitle"
+      [description]="infoDescription"
+      [items]="infoItems"
+      [defaultExpanded]="false"
+    />
   }
 
-  <div data-testid="reconciliation-view">
-    <button
-      class="ag-btn ag-btn--secondary"
-      type="button"
-      data-testid="reconciliation-refresh"
-      (click)="reload()"
-    >
-      Refresh
-    </button>
-
-    @if (result(); as recon) {
-      <p data-testid="reconciliation-ok">Status: {{ recon.ok ? 'OK' : 'Findings present' }}</p>
-
-      <div class="ag-table-wrap">
-        <table class="ag-table" data-testid="reconciliation-findings">
-          <thead>
-            <tr>
-              <th>Code</th>
-              <th>Detail</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (finding of recon.findings; track $index) {
-              <tr>
-                <td>{{ finding.code }}</td>
-                <td>{{ finding | json }}</td>
-              </tr>
-            } @empty {
-              <tr>
-                <td colspan="2">No findings.</td>
-              </tr>
-            }
-          </tbody>
-        </table>
+  <!-- Main Content & States -->
+  @if (loading()) {
+    <div class="state-container">
+      <agrivio-ui-loading-state label="Loading inventory reconciliation…" />
+    </div>
+  } @else if (!canUseReconciliation()) {
+    <div class="alert-container">
+      <agrivio-ui-alert
+        tone="warning"
+        message="Inventory reconciliation is not enabled for this organization."
+      />
+    </div>
+  } @else if (!canView()) {
+    <div class="alert-container">
+      <agrivio-ui-alert
+        tone="warning"
+        message="You do not have permission to view inventory reconciliation."
+      />
+    </div>
+  } @else {
+    @if (errorMessage(); as error) {
+      <div class="alert-container">
+        <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary alert-retry-btn"
+          (click)="reload()"
+        >
+          Retry
+        </button>
       </div>
     }
-  </div>
-}
 
-<p><a routerLink="/app/inventory/stock">Back to stock</a></p>
+    <!-- Authoritative KPI Summary Grid -->
+    @if (showKpiCards()) {
+      <section class="kpi-row" aria-label="Reconciliation KPI Summary">
+        <!-- Status & Last Checked Box -->
+        <div class="kpi-card kpi-card--status" data-testid="kpi-status-card">
+          <div class="kpi-status-head">
+            <span class="kpi-card__label">System Status</span>
+            @if (isOk()) {
+              <span class="status-pill status-pill--ok" data-testid="reconciliation-ok">
+                <span class="status-dot status-dot--ok"></span>
+                OK
+              </span>
+            } @else {
+              <span class="status-pill status-pill--warning" data-testid="reconciliation-findings-detected">
+                <span class="status-dot status-dot--warning"></span>
+                Findings detected
+              </span>
+            }
+          </div>
+          <div class="kpi-status-body">
+            <span class="kpi-status-sub">Last checked</span>
+            <span class="kpi-status-date">
+              {{ (lastCheckedAt() | date: 'dd MMM yyyy, hh:mm a') || '—' }}
+            </span>
+          </div>
+        </div>
+
+        <!-- KPI 1: Total Findings -->
+        <div class="kpi-card" data-testid="kpi-total-findings">
+          <div class="kpi-card__icon kpi-card__icon--neutral">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+              />
+              <path d="m3.3 7 8.7 5 8.7-5" />
+              <path d="M12 22V12" />
+            </svg>
+          </div>
+          <div class="kpi-card__content">
+            <span class="kpi-card__label">TOTAL FINDINGS</span>
+            <span class="kpi-card__value">{{ kpiTotalFindings() }}</span>
+            <span class="kpi-card__sub">Across all inventory scopes</span>
+          </div>
+        </div>
+
+        <!-- KPI 2: Quantity Issues -->
+        <div class="kpi-card" data-testid="kpi-quantity-issues">
+          <div class="kpi-card__icon kpi-card__icon--amber">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"
+              />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          </div>
+          <div class="kpi-card__content">
+            <span class="kpi-card__label">QUANTITY ISSUES</span>
+            <span class="kpi-card__value">{{ kpiQuantityIssues() }}</span>
+            <span class="kpi-card__sub">Movements vs balances</span>
+          </div>
+        </div>
+
+        <!-- KPI 3: Balance Integrity -->
+        <div class="kpi-card" data-testid="kpi-integrity-issues">
+          <div class="kpi-card__icon kpi-card__icon--blue">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+          </div>
+          <div class="kpi-card__content">
+            <span class="kpi-card__label">BALANCE INTEGRITY</span>
+            <span class="kpi-card__value">{{ kpiIntegrityIssues() }}</span>
+            <span class="kpi-card__sub">Missing balances &amp; costs</span>
+          </div>
+        </div>
+
+        <!-- KPI 4: Valuation Issues -->
+        <div class="kpi-card" data-testid="kpi-valuation-issues">
+          <div class="kpi-card__icon kpi-card__icon--purple">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+              <path d="M12 18V6" />
+            </svg>
+          </div>
+          <div class="kpi-card__content">
+            <span class="kpi-card__label">VALUATION ISSUES</span>
+            <span class="kpi-card__value">{{ kpiValuationIssues() }}</span>
+            <span class="kpi-card__sub">Cost state &amp; WAC variance</span>
+          </div>
+        </div>
+
+        <!-- Action Card: Refresh -->
+        <div class="kpi-card kpi-card--action" data-testid="kpi-action-card">
+          <button
+            type="button"
+            class="ag-btn ag-btn--primary kpi-refresh-btn"
+            [disabled]="!canRefresh()"
+            (click)="reload()"
+            data-testid="reconciliation-refresh"
+            title="Run full comparison against system stock"
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+              <path d="M16 21h5v-5" />
+            </svg>
+            Refresh
+          </button>
+          <span class="kpi-action-sub">Runs full comparison against system stock</span>
+        </div>
+      </section>
+    }
+
+    <!-- Toolbar: Tabs + Search & Filters -->
+    <section class="toolbar-shell" aria-label="Reconciliation filters and tabs">
+      <!-- Category Tabs -->
+      <div class="category-tabs" role="tablist" aria-label="Finding category filters">
+        <button
+          type="button"
+          role="tab"
+          class="category-tab"
+          [class.category-tab--active]="activeCategory() === 'all'"
+          [attr.aria-selected]="activeCategory() === 'all'"
+          (click)="setCategory('all')"
+          data-testid="tab-all"
+        >
+          All
+          <span class="category-tab__badge">{{ kpiTotalFindings() }}</span>
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          class="category-tab"
+          [class.category-tab--active]="activeCategory() === 'quantity'"
+          [attr.aria-selected]="activeCategory() === 'quantity'"
+          (click)="setCategory('quantity')"
+          data-testid="tab-quantity"
+        >
+          Quantity Issues
+          <span class="category-tab__badge">{{ kpiQuantityIssues() }}</span>
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          class="category-tab"
+          [class.category-tab--active]="activeCategory() === 'integrity'"
+          [attr.aria-selected]="activeCategory() === 'integrity'"
+          (click)="setCategory('integrity')"
+          data-testid="tab-integrity"
+        >
+          Balance Integrity
+          <span class="category-tab__badge">{{ kpiIntegrityIssues() }}</span>
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          class="category-tab"
+          [class.category-tab--active]="activeCategory() === 'valuation'"
+          [attr.aria-selected]="activeCategory() === 'valuation'"
+          (click)="setCategory('valuation')"
+          data-testid="tab-valuation"
+        >
+          Valuation Issues
+          <span class="category-tab__badge">{{ kpiValuationIssues() }}</span>
+        </button>
+      </div>
+
+      <!-- Filters Row -->
+      <div class="filter-bar">
+        <!-- Search Input -->
+        @if (showSearch()) {
+          <div class="filter-search">
+            <svg
+              class="filter-search__icon"
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              type="search"
+              class="filter-search__input"
+              placeholder="Search products, SKUs, batches..."
+              [value]="search()"
+              (input)="onSearch($event)"
+              aria-label="Search reconciliation findings"
+              data-testid="reconciliation-search-input"
+            />
+            @if (search()) {
+              <button
+                type="button"
+                class="filter-search__clear"
+                (click)="onSearchClear()"
+                aria-label="Clear search"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            }
+          </div>
+        }
+
+        <!-- Warehouse Dropdown -->
+        @if (showWarehouseFilter()) {
+          <div class="filter-select-wrap">
+            <select
+              class="ag-select filter-select"
+              [value]="warehouseFilter()"
+              (change)="onWarehouseChange($event)"
+              aria-label="Filter by warehouse"
+              data-testid="reconciliation-warehouse-filter"
+            >
+              <option value="">All warehouses</option>
+              @for (wh of warehouseList(); track wh.id) {
+                <option [value]="wh.id">{{ wh.name }}</option>
+              }
+            </select>
+          </div>
+        }
+
+        <!-- Finding Code Dropdown -->
+        @if (showFindingFilter()) {
+          <div class="filter-select-wrap">
+            <select
+              class="ag-select filter-select"
+              [value]="findingCodeFilter()"
+              (change)="onFindingCodeChange($event)"
+              aria-label="Filter by finding type"
+              data-testid="reconciliation-finding-filter"
+            >
+              <option value="">All findings</option>
+              @for (code of availableFindingCodes(); track code) {
+                <option [value]="code">{{ findingMeta(code).label }}</option>
+              }
+            </select>
+          </div>
+        }
+
+        <!-- Reset Button -->
+        @if (hasActiveFilters()) {
+          <button
+            type="button"
+            class="ag-btn ag-btn--secondary filter-clear-btn"
+            (click)="clearFilters()"
+            data-testid="reconciliation-clear-filters"
+          >
+            Clear filters
+          </button>
+        }
+      </div>
+    </section>
+
+    <!-- Table / Content Area -->
+    @if (filteredFindings().length === 0) {
+      <!-- Production Empty State -->
+      <div class="empty-state-card" data-testid="reconciliation-empty-state">
+        <div class="empty-state-icon">
+          <svg
+            width="56"
+            height="56"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+            />
+            <path d="m3.3 7 8.7 5 8.7-5" />
+            <path d="M12 22V12" />
+            <path d="m9 12 2 2 4-4" stroke="#10b981" stroke-width="2" />
+          </svg>
+        </div>
+        <h3 class="empty-state-title">
+          @if (hasActiveFilters()) {
+            No findings match your filter criteria
+          } @else {
+            No reconciliation findings
+          }
+        </h3>
+        <p class="empty-state-desc">
+          @if (hasActiveFilters()) {
+            Try resetting your search query, warehouse, or category filters.
+          } @else {
+            Your inventory is currently synchronized and integrity checks pass.
+          }
+        </p>
+        <button
+          type="button"
+          class="ag-btn ag-btn--primary empty-state-btn"
+          (click)="hasActiveFilters() ? clearFilters() : reload()"
+          data-testid="reconciliation-empty-action"
+        >
+          {{ hasActiveFilters() ? 'Reset filters' : 'Refresh now' }}
+        </button>
+      </div>
+    } @else {
+      <!-- Desktop & Tablet Production Table -->
+      <div class="table-container desktop-only">
+        <div class="ag-table-wrap">
+          <table class="ag-table recon-table" data-testid="reconciliation-findings-table">
+            <thead>
+              <tr>
+                <th scope="col">Product</th>
+                <th scope="col">SKU</th>
+                <th scope="col">Warehouse</th>
+                <th scope="col">Batch / Lot</th>
+                <th scope="col" class="text-right">Balance Quantity</th>
+                <th scope="col" class="text-right">Movement Quantity</th>
+                <th scope="col" class="text-right">Variance</th>
+                <th scope="col">Finding</th>
+                <th scope="col">Last Checked</th>
+                <th scope="col" class="text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of paginatedFindings(); track $index) {
+                <tr
+                  class="recon-row"
+                  [class.recon-row--selected]="selectedFinding() === row"
+                  data-testid="reconciliation-row"
+                >
+                  <!-- Product Name -->
+                  <td>
+                    <div class="product-cell">
+                      <span class="product-cell__name font-medium">{{ productName(row.productId) }}</span>
+                    </div>
+                  </td>
+
+                  <!-- SKU -->
+                  <td class="font-mono text-muted">
+                    {{ productSku(row.productId) }}
+                  </td>
+
+                  <!-- Warehouse -->
+                  <td>
+                    {{ warehouseName(row.warehouseId) }}
+                  </td>
+
+                  <!-- Batch / Lot -->
+                  <td class="font-mono text-muted">
+                    {{ batchNumber(row.batchId) }}
+                  </td>
+
+                  <!-- Balance Quantity -->
+                  <td class="text-right">
+                    <div class="quantity-cell">
+                      <span class="quantity-cell__amount">{{ formatQuantity(row.balanceQuantityBaseMinorUnits) }}</span>
+                      @if (productBaseUnit(row.productId); as unit) {
+                        <span class="quantity-cell__unit">{{ unit }}</span>
+                      }
+                    </div>
+                  </td>
+
+                  <!-- Movement Quantity -->
+                  <td class="text-right">
+                    <div class="quantity-cell">
+                      <span class="quantity-cell__amount">{{ formatQuantity(row.movementQuantityBaseMinorUnits) }}</span>
+                      @if (productBaseUnit(row.productId); as unit) {
+                        <span class="quantity-cell__unit">{{ unit }}</span>
+                      }
+                    </div>
+                  </td>
+
+                  <!-- Variance -->
+                  <td class="text-right">
+                    @if (getFindingDifference(row); as diff) {
+                      <div class="quantity-cell" [class.text-danger]="diff !== '0.0000'">
+                        <span class="quantity-cell__amount">{{ diff }}</span>
+                        @if (productBaseUnit(row.productId); as unit) {
+                          <span class="quantity-cell__unit">{{ unit }}</span>
+                        }
+                      </div>
+                    } @else {
+                      <span class="text-muted">—</span>
+                    }
+                  </td>
+
+                  <!-- Finding Badge -->
+                  <td>
+                    <span
+                      class="finding-badge finding-badge--{{ findingMeta(row.code).severity }}"
+                      [title]="findingMeta(row.code).description"
+                    >
+                      {{ findingMeta(row.code).label }}
+                    </span>
+                  </td>
+
+                  <!-- Last Checked -->
+                  <td class="font-mono text-muted text-sm">
+                    {{ lastCheckedAt() | date: 'dd MMM, hh:mm a' }}
+                  </td>
+
+                  <!-- Actions -->
+                  <td class="text-center">
+                    @if (canInspect() && showInspector()) {
+                      <button
+                        type="button"
+                        class="ag-btn ag-btn--secondary ag-btn--sm row-inspect-btn"
+                        (click)="openInspector(row)"
+                        title="Inspect finding details"
+                        aria-label="Inspect finding details"
+                        data-testid="reconciliation-inspect-btn"
+                      >
+                        Inspect
+                      </button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Mobile Cards View (< 768px) -->
+      <div class="mobile-cards-view mobile-only" data-testid="reconciliation-mobile-list">
+        @for (row of paginatedFindings(); track $index) {
+          <div class="mobile-recon-card" data-testid="reconciliation-mobile-card">
+            <div class="mobile-recon-card__head">
+              <div class="mobile-recon-card__title-group">
+                <span class="mobile-recon-card__title">{{ productName(row.productId) }}</span>
+                <span class="mobile-recon-card__sku font-mono">{{ productSku(row.productId) }}</span>
+              </div>
+              <span
+                class="finding-badge finding-badge--{{ findingMeta(row.code).severity }}"
+              >
+                {{ findingMeta(row.code).label }}
+              </span>
+            </div>
+
+            <div class="mobile-recon-card__grid">
+              <div class="mobile-recon-field">
+                <span class="mobile-recon-field__label">Warehouse</span>
+                <span class="mobile-recon-field__val">{{ warehouseName(row.warehouseId) }}</span>
+              </div>
+              <div class="mobile-recon-field">
+                <span class="mobile-recon-field__label">Batch / Lot</span>
+                <span class="mobile-recon-field__val font-mono">{{ batchNumber(row.batchId) }}</span>
+              </div>
+              <div class="mobile-recon-field">
+                <span class="mobile-recon-field__label">Balance Qty</span>
+                <div class="quantity-cell">
+                  <span class="quantity-cell__amount">{{ formatQuantity(row.balanceQuantityBaseMinorUnits) }}</span>
+                  @if (productBaseUnit(row.productId); as unit) {
+                    <span class="quantity-cell__unit">{{ unit }}</span>
+                  }
+                </div>
+              </div>
+              <div class="mobile-recon-field">
+                <span class="mobile-recon-field__label">Movement Qty</span>
+                <div class="quantity-cell">
+                  <span class="quantity-cell__amount">{{ formatQuantity(row.movementQuantityBaseMinorUnits) }}</span>
+                  @if (productBaseUnit(row.productId); as unit) {
+                    <span class="quantity-cell__unit">{{ unit }}</span>
+                  }
+                </div>
+              </div>
+              @if (getFindingDifference(row); as diff) {
+                <div class="mobile-recon-field">
+                  <span class="mobile-recon-field__label">Variance</span>
+                  <div class="quantity-cell text-danger">
+                    <span class="quantity-cell__amount">{{ diff }}</span>
+                    @if (productBaseUnit(row.productId); as unit) {
+                      <span class="quantity-cell__unit">{{ unit }}</span>
+                    }
+                  </div>
+                </div>
+              }
+              <div class="mobile-recon-field">
+                <span class="mobile-recon-field__label">Last Checked</span>
+                <span class="mobile-recon-field__val font-mono text-muted">
+                  {{ lastCheckedAt() | date: 'dd MMM, hh:mm a' }}
+                </span>
+              </div>
+            </div>
+
+            @if (canInspect() && showInspector()) {
+              <div class="mobile-recon-card__foot">
+                <button
+                  type="button"
+                  class="ag-btn ag-btn--secondary ag-btn--sm mobile-inspect-btn"
+                  (click)="openInspector(row)"
+                >
+                  Inspect Details
+                </button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Pagination Toolbar -->
+      <footer class="pagination-bar" aria-label="Pagination controls">
+        <span class="pagination-count">
+          Showing {{ paginationStart() }}-{{ paginationEnd() }} of {{ totalFiltered() }} findings
+        </span>
+
+        <div class="pagination-controls">
+          <div class="page-size-picker">
+            <label for="recon-page-size" class="page-size-label">Rows per page</label>
+            <select
+              id="recon-page-size"
+              class="ag-select page-size-select"
+              [value]="pageSize()"
+              (change)="onPageSizeChange($event)"
+              aria-label="Select rows per page"
+            >
+              <option [value]="10">10</option>
+              <option [value]="25">25</option>
+              <option [value]="50">50</option>
+              <option [value]="100">100</option>
+            </select>
+          </div>
+
+          <div class="pagination-nav">
+            <button
+              type="button"
+              class="pagination-btn"
+              [disabled]="page() <= 1"
+              (click)="onPageChange(page() - 1)"
+              aria-label="Previous page"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <span class="pagination-page-indicator">
+              Page {{ page() }} of {{ totalPages() }}
+            </span>
+            <button
+              type="button"
+              class="pagination-btn"
+              [disabled]="page() >= totalPages()"
+              (click)="onPageChange(page() + 1)"
+              aria-label="Next page"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </footer>
+    }
+  }
+
+  <!-- Detail Inspector Drawer -->
+  @if (showInspector() && selectedFinding(); as sel) {
+    <div class="inspector-backdrop" (click)="closeInspector()" aria-hidden="true"></div>
+    <aside
+      class="inspector-drawer"
+      role="dialog"
+      aria-label="Reconciliation finding inspector"
+      aria-modal="true"
+    >
+      <div class="inspector-drawer__head">
+        <div class="inspector-drawer__head-title">
+          <div class="inspector-glyph">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+              />
+              <path d="m3.3 7 8.7 5 8.7-5" />
+              <path d="M12 22V12" />
+            </svg>
+          </div>
+          <div class="inspector-drawer__titles">
+            <h2 class="drawer-title">Reconciliation Inspector</h2>
+            <p class="drawer-sub">
+              {{ productName(sel.productId) }} — {{ warehouseName(sel.warehouseId) }}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="drawer-close-btn"
+          (click)="closeInspector()"
+          title="Close inspector (Esc)"
+          aria-label="Close inspector"
+          data-testid="reconciliation-drawer-close"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="inspector-drawer__body">
+        <!-- Section 1: Reconciliation Identity -->
+        <section class="drawer-sec">
+          <h3 class="drawer-sec__title">Reconciliation Identity</h3>
+          <div class="drawer-grid">
+            <div class="drawer-field">
+              <span class="drawer-field__label">Product</span>
+              <span class="drawer-field__val">{{ productName(sel.productId) }}</span>
+            </div>
+            <div class="drawer-field">
+              <span class="drawer-field__label">SKU</span>
+              <span class="drawer-field__val font-mono">{{ productSku(sel.productId) }}</span>
+            </div>
+            <div class="drawer-field">
+              <span class="drawer-field__label">Base Unit</span>
+              <span class="drawer-field__val">{{ productBaseUnit(sel.productId) || '—' }}</span>
+            </div>
+            <div class="drawer-field">
+              <span class="drawer-field__label">Warehouse</span>
+              <span class="drawer-field__val">{{ warehouseName(sel.warehouseId) }}</span>
+            </div>
+            <div class="drawer-field">
+              <span class="drawer-field__label">Batch / Lot</span>
+              <span class="drawer-field__val font-mono">{{ batchNumber(sel.batchId) }}</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Section 2: Quantity Comparison -->
+        <section class="drawer-sec">
+          <h3 class="drawer-sec__title">Quantity Comparison</h3>
+          <div class="drawer-grid">
+            <div class="drawer-field">
+              <span class="drawer-field__label">Balance Quantity</span>
+              <div class="quantity-cell">
+                <span class="quantity-cell__amount">{{ formatQuantity(sel.balanceQuantityBaseMinorUnits) }}</span>
+                @if (productBaseUnit(sel.productId); as unit) {
+                  <span class="quantity-cell__unit">{{ unit }}</span>
+                }
+              </div>
+            </div>
+            <div class="drawer-field">
+              <span class="drawer-field__label">Movement Quantity</span>
+              <div class="quantity-cell">
+                <span class="quantity-cell__amount">{{ formatQuantity(sel.movementQuantityBaseMinorUnits) }}</span>
+                @if (productBaseUnit(sel.productId); as unit) {
+                  <span class="quantity-cell__unit">{{ unit }}</span>
+                }
+              </div>
+            </div>
+            @if (sel.costQuantityBaseMinorUnits !== undefined) {
+              <div class="drawer-field">
+                <span class="drawer-field__label">Cost State Quantity</span>
+                <div class="quantity-cell">
+                  <span class="quantity-cell__amount">{{ formatQuantity(sel.costQuantityBaseMinorUnits) }}</span>
+                  @if (productBaseUnit(sel.productId); as unit) {
+                    <span class="quantity-cell__unit">{{ unit }}</span>
+                  }
+                </div>
+              </div>
+            }
+            @if (getFindingDifference(sel); as diff) {
+              <div class="drawer-field">
+                <span class="drawer-field__label">Calculated Difference</span>
+                <div class="quantity-cell text-danger font-medium">
+                  <span class="quantity-cell__amount">{{ diff }}</span>
+                  @if (productBaseUnit(sel.productId); as unit) {
+                    <span class="quantity-cell__unit">{{ unit }}</span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </section>
+
+        <!-- Section 3: Valuation Comparison (if applicable) -->
+        @if (sel.costInventoryValueMinorUnits || sel.expectedInventoryValueMinorUnits) {
+          <section class="drawer-sec">
+            <h3 class="drawer-sec__title">Valuation Comparison</h3>
+            <div class="drawer-grid">
+              @if (sel.costInventoryValueMinorUnits) {
+                <div class="drawer-field">
+                  <span class="drawer-field__label">Recorded Cost Value</span>
+                  <span class="drawer-field__val font-mono">
+                    {{ formatMoney(sel.costInventoryValueMinorUnits) }}
+                  </span>
+                </div>
+              }
+              @if (sel.expectedInventoryValueMinorUnits) {
+                <div class="drawer-field">
+                  <span class="drawer-field__label">Expected Valuation</span>
+                  <span class="drawer-field__val font-mono">
+                    {{ formatMoney(sel.expectedInventoryValueMinorUnits) }}
+                  </span>
+                </div>
+              }
+            </div>
+          </section>
+        }
+
+        <!-- Section 4: Finding Details -->
+        <section class="drawer-sec">
+          <h3 class="drawer-sec__title">Finding Details</h3>
+          <div class="drawer-finding-box">
+            <div class="drawer-finding-badge-wrap">
+              <span
+                class="finding-badge finding-badge--{{ findingMeta(sel.code).severity }}"
+              >
+                {{ findingMeta(sel.code).label }}
+              </span>
+            </div>
+            <p class="drawer-finding-desc">
+              {{ findingMeta(sel.code).description }}
+            </p>
+          </div>
+        </section>
+
+        <!-- Section 5: Technical Details (Collapsible) -->
+        @if (showTechnicalDetails()) {
+          <details class="drawer-details">
+            <summary class="drawer-details__summary">Technical Identifiers &amp; Minor Units</summary>
+            <div class="drawer-details__content">
+              <div class="drawer-tech-field">
+                <span class="drawer-tech-field__label">Finding Code:</span>
+                <span class="font-mono text-xs">{{ sel.code }}</span>
+              </div>
+              @if (sel.warehouseId) {
+                <div class="drawer-tech-field">
+                  <span class="drawer-tech-field__label">Warehouse ID:</span>
+                  <span class="font-mono text-xs">{{ sel.warehouseId }}</span>
+                </div>
+              }
+              @if (sel.productId) {
+                <div class="drawer-tech-field">
+                  <span class="drawer-tech-field__label">Product ID:</span>
+                  <span class="font-mono text-xs">{{ sel.productId }}</span>
+                </div>
+              }
+              @if (sel.batchId) {
+                <div class="drawer-tech-field">
+                  <span class="drawer-tech-field__label">Batch ID:</span>
+                  <span class="font-mono text-xs">{{ sel.batchId }}</span>
+                </div>
+              }
+              @if (sel.balanceQuantityBaseMinorUnits) {
+                <div class="drawer-tech-field">
+                  <span class="drawer-tech-field__label">balanceQuantityBaseMinorUnits:</span>
+                  <span class="font-mono text-xs">{{ sel.balanceQuantityBaseMinorUnits }}</span>
+                </div>
+              }
+              @if (sel.movementQuantityBaseMinorUnits) {
+                <div class="drawer-tech-field">
+                  <span class="drawer-tech-field__label">movementQuantityBaseMinorUnits:</span>
+                  <span class="font-mono text-xs">{{ sel.movementQuantityBaseMinorUnits }}</span>
+                </div>
+              }
+              @if (sel.costQuantityBaseMinorUnits) {
+                <div class="drawer-tech-field">
+                  <span class="drawer-tech-field__label">costQuantityBaseMinorUnits:</span>
+                  <span class="font-mono text-xs">{{ sel.costQuantityBaseMinorUnits }}</span>
+                </div>
+              }
+              @if (sel.costInventoryValueMinorUnits) {
+                <div class="drawer-tech-field">
+                  <span class="drawer-tech-field__label">costInventoryValueMinorUnits:</span>
+                  <span class="font-mono text-xs">{{ sel.costInventoryValueMinorUnits }}</span>
+                </div>
+              }
+              @if (sel.expectedInventoryValueMinorUnits) {
+                <div class="drawer-tech-field">
+                  <span class="drawer-tech-field__label">expectedInventoryValueMinorUnits:</span>
+                  <span class="font-mono text-xs">{{ sel.expectedInventoryValueMinorUnits }}</span>
+                </div>
+              }
+            </div>
+          </details>
+        }
+      </div>
+    </aside>
+  }
+</div>

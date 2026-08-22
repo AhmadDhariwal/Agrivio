@@ -565,7 +565,14 @@
                       <span class="product-cell__sku font-mono">SKU: {{ productSku(item.productId) }}</span>
                     </div>
                   </td>
-                  <td class="font-mono font-medium">{{ item.quantityBase }} {{ item.unitCode }}</td>
+                  <td>
+                    <div class="quantity-cell">
+                      <span class="quantity-cell__amount">
+                        {{ item.quantityBase }}
+                      </span>
+                      <span class="quantity-cell__unit">{{ item.unitCode }}</span>
+                    </div>
+                  </td>
                   <td>
                     <span class="status-badge status-badge--{{ item.status }}">
                       {{ item.status }}
@@ -629,7 +636,12 @@
               <div class="mobile-transfer-card__metrics">
                 <div class="mobile-metric">
                   <span class="mobile-metric__label">Quantity</span>
-                  <span class="mobile-metric__value font-mono font-semibold">{{ item.quantityBase }} {{ item.unitCode }}</span>
+                  <div class="quantity-cell">
+                    <span class="quantity-cell__amount">
+                      {{ item.quantityBase }}
+                    </span>
+                    <span class="quantity-cell__unit">{{ item.unitCode }}</span>
+                  </div>
                 </div>
                 <div class="mobile-metric">
                   <span class="mobile-metric__label">Posted</span>
@@ -760,7 +772,12 @@
           <div class="drawer-grid">
             <div class="drawer-field">
               <span class="drawer-field__label">Quantity</span>
-              <span class="drawer-field__val font-mono font-medium">{{ sel.quantityBase }} {{ sel.unitCode }}</span>
+              <div class="quantity-cell">
+                <span class="quantity-cell__amount font-mono font-medium">
+                  {{ sel.quantityBase }}
+                </span>
+                <span class="quantity-cell__unit">{{ sel.unitCode }}</span>
+              </div>
             </div>
             <div class="drawer-field">
               <span class="drawer-field__label">Base Unit</span>

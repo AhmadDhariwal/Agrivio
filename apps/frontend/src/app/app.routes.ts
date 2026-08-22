@@ -550,6 +550,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'inventory/reconciliation',
+        canActivate: [requireCapabilityGuard('inventory.reconciliation')],
         loadComponent: () =>
           import('./features/inventory/pages/reconciliation/reconciliation.page').then(
             (m) => m.ReconciliationPage,

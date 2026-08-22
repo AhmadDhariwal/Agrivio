@@ -16,7 +16,8 @@ function control(
     | 'inventory.batches'
     | 'inventory.expiry'
     | 'inventory.adjustments'
-    | 'inventory.transfers',
+    | 'inventory.transfers'
+    | 'inventory.reconciliation',
   type: PlatformCapabilityControl['type'],
   label: string,
   policy: Record<string, boolean>,
@@ -660,6 +661,196 @@ describe('OrganizationControlsPage', () => {
         ),
         dependencies: ['inventory.stock'],
       },
+      control(
+        'inventory.reconciliation',
+        'inventory.reconciliation',
+        'FEATURE',
+        'Inventory Reconciliation',
+        { enabled: true },
+        { risk: 'CRITICAL' },
+      ),
+      control(
+        'inventory.reconciliation.features.moduleInfo',
+        'inventory.reconciliation',
+        'FEATURE',
+        'About Inventory Reconciliation',
+        { enabled: true },
+      ),
+      control(
+        'inventory.reconciliation.features.search',
+        'inventory.reconciliation',
+        'FEATURE',
+        'Reconciliation Search',
+        { enabled: true },
+      ),
+      control(
+        'inventory.reconciliation.features.warehouseFilter',
+        'inventory.reconciliation',
+        'FEATURE',
+        'Warehouse Filter',
+        { enabled: true },
+      ),
+      control(
+        'inventory.reconciliation.features.findingFilter',
+        'inventory.reconciliation',
+        'FEATURE',
+        'Finding Filter',
+        { enabled: true },
+      ),
+      control(
+        'inventory.reconciliation.features.kpiCards',
+        'inventory.reconciliation',
+        'FEATURE',
+        'KPI Summary Cards',
+        { enabled: true },
+      ),
+      control(
+        'inventory.reconciliation.features.inspector',
+        'inventory.reconciliation',
+        'FEATURE',
+        'Detail Inspector Drawer',
+        { enabled: true },
+      ),
+      control(
+        'inventory.reconciliation.features.technicalDetails',
+        'inventory.reconciliation',
+        'FEATURE',
+        'Technical Details Section',
+        { enabled: true },
+        { override: { enabled: false } },
+      ),
+      control(
+        'inventory.reconciliation.fields.product',
+        'inventory.reconciliation',
+        'FIELD',
+        'Product',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Product is required.',
+        },
+      ),
+      control(
+        'inventory.reconciliation.fields.warehouse',
+        'inventory.reconciliation',
+        'FIELD',
+        'Warehouse',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Warehouse is required.',
+        },
+      ),
+      control(
+        'inventory.reconciliation.fields.batch',
+        'inventory.reconciliation',
+        'FIELD',
+        'Batch',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Batch is required.',
+        },
+      ),
+      control(
+        'inventory.reconciliation.fields.balanceQuantity',
+        'inventory.reconciliation',
+        'FIELD',
+        'Balance Quantity',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Balance quantity is required.',
+        },
+      ),
+      control(
+        'inventory.reconciliation.fields.movementQuantity',
+        'inventory.reconciliation',
+        'FIELD',
+        'Movement Quantity',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Movement quantity is required.',
+        },
+      ),
+      control(
+        'inventory.reconciliation.fields.variance',
+        'inventory.reconciliation',
+        'FIELD',
+        'Variance',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Variance is required.',
+        },
+      ),
+      control(
+        'inventory.reconciliation.fields.findingCode',
+        'inventory.reconciliation',
+        'FIELD',
+        'Finding Code',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Finding code is required.',
+        },
+      ),
+      control(
+        'inventory.reconciliation.actions.refresh',
+        'inventory.reconciliation',
+        'ACTION',
+        'Refresh',
+        { allowed: true },
+      ),
+      control(
+        'inventory.reconciliation.actions.inspect',
+        'inventory.reconciliation',
+        'ACTION',
+        'Inspect Finding',
+        { allowed: true },
+      ),
+      {
+        ...control(
+          'inventory.reconciliation.actions.viewStock',
+          'inventory.reconciliation',
+          'ACTION',
+          'View Stock',
+          { allowed: true },
+        ),
+        dependencies: ['inventory.stock'],
+      },
+      control(
+        'inventory.reconciliation.actions.viewMovements',
+        'inventory.reconciliation',
+        'ACTION',
+        'View Stock Movements',
+        { allowed: true },
+      ),
+      {
+        ...control(
+          'inventory.reconciliation.actions.viewBatch',
+          'inventory.reconciliation',
+          'ACTION',
+          'View Batch',
+          { allowed: true },
+        ),
+        dependencies: ['inventory.batches'],
+      },
     ];
     await TestBed.configureTestingModule({
       imports: [OrganizationControlsPage],
@@ -1179,5 +1370,114 @@ describe('OrganizationControlsPage', () => {
     component.confirm();
 
     expect(resetModule).toHaveBeenCalledWith('org-a', 'inventory.transfers', 4, '');
+  });
+
+  it('groups Inventory Reconciliation controls into Module, Module Info, Filters, KPI, Inspector, Required Fields, and Actions', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.reconciliation');
+
+    expect(component.moduleControls().map((c) => c.key)).toEqual(['inventory.reconciliation']);
+    expect(component.moduleInfoControls().map((c) => c.key)).toEqual([
+      'inventory.reconciliation.features.moduleInfo',
+    ]);
+    expect(component.filterControls().map((c) => c.key)).toEqual([
+      'inventory.reconciliation.features.search',
+      'inventory.reconciliation.features.warehouseFilter',
+      'inventory.reconciliation.features.findingFilter',
+    ]);
+    expect(component.kpiControls().map((c) => c.key)).toEqual([
+      'inventory.reconciliation.features.kpiCards',
+    ]);
+    expect(component.inspectorControls().map((c) => c.key)).toEqual([
+      'inventory.reconciliation.features.inspector',
+      'inventory.reconciliation.features.technicalDetails',
+    ]);
+    expect(component.requiredWorkflowControls().map((c) => c.key)).toEqual([
+      'inventory.reconciliation.fields.product',
+      'inventory.reconciliation.fields.warehouse',
+      'inventory.reconciliation.fields.batch',
+      'inventory.reconciliation.fields.balanceQuantity',
+      'inventory.reconciliation.fields.movementQuantity',
+      'inventory.reconciliation.fields.variance',
+      'inventory.reconciliation.fields.findingCode',
+    ]);
+    expect(component.actionControls().map((c) => c.key)).toEqual([
+      'inventory.reconciliation.actions.refresh',
+      'inventory.reconciliation.actions.inspect',
+      'inventory.reconciliation.actions.viewStock',
+      'inventory.reconciliation.actions.viewMovements',
+      'inventory.reconciliation.actions.viewBatch',
+    ]);
+  });
+
+  it('produces the exact disable confirmation message for Inventory Reconciliation', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.reconciliation');
+    const reconciliationControl = component
+      .controls()
+      .find((item) => item.key === 'inventory.reconciliation');
+    expect(reconciliationControl).toBeDefined();
+    if (reconciliationControl) {
+      component.setValue(reconciliationControl, 'enabled', false);
+    }
+
+    expect(component.disablingReconciliation()).toBe(true);
+    expect(component.confirmationTitle()).toContain(
+      'Disable Inventory Reconciliation for Greenfield Agro Center?',
+    );
+    expect(component.confirmationLabel()).toBe('Disable Inventory Reconciliation');
+    expect(component.confirmationMessage()).toBe(
+      'Users in this organization will no longer be able to access reconciliation checks. Existing inventory records, movements, balances and cost data are not modified.',
+    );
+  });
+
+  it('shows dependency blocking reason for View Stock and View Batch when target modules are disabled on reconciliation', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.reconciliation');
+
+    // Test View Stock dependency on inventory.stock
+    const stockModule = component.controls().find((item) => item.key === 'inventory.stock');
+    expect(stockModule).toBeDefined();
+    if (stockModule) {
+      component.setValue(stockModule, 'enabled', false);
+    }
+
+    const viewStock = component
+      .actionControls()
+      .find((item) => item.key === 'inventory.reconciliation.actions.viewStock');
+    expect(viewStock).toBeDefined();
+    if (viewStock) {
+      expect(component.effectiveValue(viewStock, 'allowed')).toBe(false);
+      expect(component.effectiveReason(viewStock, 'allowed')).toBe(
+        'Stock on Hand is disabled for this organization.',
+      );
+    }
+
+    // Test View Batch dependency on inventory.batches
+    const batchesModule = component.controls().find((item) => item.key === 'inventory.batches');
+    expect(batchesModule).toBeDefined();
+    if (batchesModule) {
+      component.setValue(batchesModule, 'enabled', false);
+    }
+
+    const viewBatch = component
+      .actionControls()
+      .find((item) => item.key === 'inventory.reconciliation.actions.viewBatch');
+    expect(viewBatch).toBeDefined();
+    if (viewBatch) {
+      expect(component.effectiveValue(viewBatch, 'allowed')).toBe(false);
+      expect(component.effectiveReason(viewBatch, 'allowed')).toBe(
+        'Product Batches is disabled for this organization.',
+      );
+    }
+  });
+
+  it('calls the shared module reset API with only the Inventory Reconciliation namespace', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.reconciliation');
+    component.askResetModule();
+    component.confirm();
+
+    expect(resetModule).toHaveBeenCalledWith('org-a', 'inventory.reconciliation', 4, '');
   });
 });

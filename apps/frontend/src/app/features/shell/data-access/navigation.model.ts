@@ -213,6 +213,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Reconciliation',
           route: '/app/inventory/reconciliation',
           permission: 'inventory.view',
+          capabilityKey: 'inventory.reconciliation',
           testId: 'nav-reconciliation',
         },
         {

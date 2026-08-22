@@ -24,7 +24,8 @@ type ConfigurableModule =
   | 'inventory.batches'
   | 'inventory.expiry'
   | 'inventory.adjustments'
-  | 'inventory.transfers';
+  | 'inventory.transfers'
+  | 'inventory.reconciliation';
 type PendingConfirmation =
   | { readonly kind: 'save' }
   | { readonly kind: 'reset-control'; readonly control: PlatformCapabilityControl }
@@ -91,6 +92,9 @@ export class OrganizationControlsPage {
     this.byType('FEATURE', false).filter((control) => !this.isBatchGroupedFeature(control)),
   );
   readonly moduleInfoControls = computed(() => {
+    if (this.selectedModule() === 'inventory.reconciliation') {
+      return this.reconciliationFeatures('moduleInfo');
+    }
     if (this.selectedModule() === 'inventory.transfers') {
       return this.transfersFeatures('moduleInfo');
     }
@@ -130,12 +134,24 @@ export class OrganizationControlsPage {
     return [];
   });
   readonly filterControls = computed(() => {
+    if (this.selectedModule() === 'inventory.reconciliation') {
+      return this.reconciliationFeatures('search', 'warehouseFilter', 'findingFilter');
+    }
     if (this.selectedModule() === 'inventory.expiry') {
       return this.batchFeatures('search', 'productFilter', 'warehouseFilter', 'classificationFilter');
     }
     return this.batchFeatures('search', 'productFilter', 'warehouseFilter');
   });
+  readonly kpiControls = computed(() => {
+    if (this.selectedModule() === 'inventory.reconciliation') {
+      return this.reconciliationFeatures('kpiCards');
+    }
+    return [];
+  });
   readonly inspectorControls = computed(() => {
+    if (this.selectedModule() === 'inventory.reconciliation') {
+      return this.reconciliationFeatures('inspector', 'technicalDetails');
+    }
     if (this.selectedModule() === 'inventory.expiry') {
       return this.batchFeatures('timelineSection', 'quantitySection', 'technicalDetails');
     }
@@ -223,6 +239,14 @@ export class OrganizationControlsPage {
       changes[0].value?.['enabled'] === false
     );
   });
+  readonly disablingReconciliation = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'inventory.reconciliation' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
   readonly confirmationTitle = computed(() => {
     const pending = this.pendingConfirmation();
     const organization = this.snapshot()?.organization.name ?? 'this organization';
@@ -236,6 +260,9 @@ export class OrganizationControlsPage {
     if (this.disablingExpiry()) return `Disable Expiry Inquiry for ${organization}?`;
     if (this.disablingAdjustments()) return `Disable Stock Adjustments for ${organization}?`;
     if (this.disablingTransfers()) return `Disable Warehouse Transfers for ${organization}?`;
+    if (this.disablingReconciliation()) {
+      return `Disable Inventory Reconciliation for ${organization}?`;
+    }
     const single = this.changeSummary().length === 1 ? this.changeSummary()[0] : null;
     if (single?.risk === 'CRITICAL' && single.after === 'Disabled') {
       return `Disable ${single.label} for ${organization}?`;
@@ -269,6 +296,9 @@ export class OrganizationControlsPage {
     if (this.disablingTransfers()) {
       return `Users in this organization will no longer be able to access or use Warehouse Transfers. Existing transfers, stock movements, batches and inventory balances are not deleted or modified.`;
     }
+    if (this.disablingReconciliation()) {
+      return `Users in this organization will no longer be able to access reconciliation checks. Existing inventory records, movements, balances and cost data are not modified.`;
+    }
     const critical = this.changeSummary()
       .filter((change) => change.risk === 'CRITICAL')
       .map((change) => `${change.label}: ${change.before} → ${change.after}`);
@@ -286,6 +316,7 @@ export class OrganizationControlsPage {
     if (this.disablingExpiry()) return 'Disable Expiry Inquiry';
     if (this.disablingAdjustments()) return 'Disable Stock Adjustments';
     if (this.disablingTransfers()) return 'Disable Warehouse Transfers';
+    if (this.disablingReconciliation()) return 'Disable Inventory Reconciliation';
     return 'Apply changes';
   });
 
@@ -475,6 +506,7 @@ export class OrganizationControlsPage {
     if (moduleKey === 'inventory.expiry') return 'Expiry Inquiry';
     if (moduleKey === 'inventory.adjustments') return 'Stock Adjustments';
     if (moduleKey === 'inventory.transfers') return 'Warehouse Transfers';
+    if (moduleKey === 'inventory.reconciliation') return 'Inventory Reconciliation';
     return 'Product Batches';
   }
 
@@ -484,10 +516,16 @@ export class OrganizationControlsPage {
         control.moduleKey === 'inventory.batches' ||
         control.moduleKey === 'inventory.expiry' ||
         control.moduleKey === 'inventory.adjustments' ||
-        control.moduleKey === 'inventory.transfers') &&
+        control.moduleKey === 'inventory.transfers' ||
+        control.moduleKey === 'inventory.reconciliation') &&
       control.type === 'FIELD' &&
       control.platformEnforced === true
     );
+  }
+
+  private reconciliationFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
+    const keys = new Set(ids.map((id) => `inventory.reconciliation.features.${id}`));
+    return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
   }
 
   private transfersFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
@@ -541,7 +579,15 @@ export class OrganizationControlsPage {
           control.key === 'inventory.transfers.features.stockContext' ||
           control.key === 'inventory.transfers.features.guidance' ||
           control.key === 'inventory.transfers.features.recentTransfers' ||
-          control.key === 'inventory.transfers.features.serverTransferDate'))
+          control.key === 'inventory.transfers.features.serverTransferDate')) ||
+      (control.moduleKey === 'inventory.reconciliation' &&
+        (control.key === 'inventory.reconciliation.features.moduleInfo' ||
+          control.key === 'inventory.reconciliation.features.search' ||
+          control.key === 'inventory.reconciliation.features.warehouseFilter' ||
+          control.key === 'inventory.reconciliation.features.findingFilter' ||
+          control.key === 'inventory.reconciliation.features.kpiCards' ||
+          control.key === 'inventory.reconciliation.features.inspector' ||
+          control.key === 'inventory.reconciliation.features.technicalDetails'))
     );
   }
 
@@ -558,6 +604,9 @@ export class OrganizationControlsPage {
       }
       if (dependency.key === 'inventory.stock') {
         return 'Stock on Hand is disabled for this organization.';
+      }
+      if (dependency.key === 'inventory.batches') {
+        return 'Product Batches is disabled for this organization.';
       }
       return `${dependency.label} is disabled for this organization.`;
     }
