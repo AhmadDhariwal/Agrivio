@@ -24,6 +24,16 @@ describe('LoginPage', () => {
     fixture.detectChanges();
   });
 
+  it('marks required fields with visible asterisks and aria-required', () => {
+    const requiredMarkers = fixture.nativeElement.querySelectorAll('.ag-field__required');
+    expect(requiredMarkers.length).toBe(2);
+    const emailInput = fixture.nativeElement.querySelector('#login-email') as HTMLInputElement;
+    const passwordInput = fixture.nativeElement.querySelector('#login-password') as HTMLInputElement;
+    expect(emailInput.getAttribute('aria-required')).toBe('true');
+    expect(passwordInput.getAttribute('aria-required')).toBe('true');
+    expect(fixture.nativeElement.querySelector('.ag-form--with-required-hint')).toBeTruthy();
+  });
+
   it('requests CSRF then posts login credentials', () => {
     const page = fixture.componentInstance;
     page.form.setValue({

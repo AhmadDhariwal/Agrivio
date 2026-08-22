@@ -13,7 +13,9 @@ describe('SalesPage', () => {
         provideRouter([]),
         {
           provide: SalesApi,
-          useValue: { listSales: () => of([]) },
+          useValue: {
+            listSales: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+          },
         },
         {
           provide: AuthSessionStore,

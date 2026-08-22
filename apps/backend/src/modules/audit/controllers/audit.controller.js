@@ -1,5 +1,6 @@
 const { sendSuccessEnvelope } = require('../../../platform/http/response-envelope');
 const { forbidden } = require('../../../platform/errors/app-error');
+const { parsePaginationQuery } = require('../../../platform/http/parse-pagination-query');
 
 function requireOrganizationId(req) {
   const organizationId = req.authContext?.organizationId;
@@ -13,11 +14,12 @@ function createAuditController(deps) {
   return {
     async listOrganization(req, res, next) {
       try {
-        const data = await deps.auditService.queryOrganizationEvents(
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.auditService.queryOrganizationEvents(
           requireOrganizationId(req),
-          req.query,
+          { ...req.query, skip, pageSize },
         );
-        sendSuccessEnvelope(res, 200, data);
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
         next(error);
       }
@@ -37,8 +39,9 @@ function createAuditController(deps) {
 
     async listPlatform(req, res, next) {
       try {
-        const data = await deps.auditService.queryPlatformEvents(req.query);
-        sendSuccessEnvelope(res, 200, data);
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.auditService.queryPlatformEvents({ ...req.query, skip, pageSize });
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
         next(error);
       }

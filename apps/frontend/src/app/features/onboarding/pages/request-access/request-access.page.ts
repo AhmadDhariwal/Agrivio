@@ -5,11 +5,13 @@ import { AuthApi } from '../../../auth/data-access/auth.api';
 import { environment } from '../../../../../environments/environment';
 import { AuthLayoutComponent } from '../../../../shared/ui/auth-layout/auth-layout.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 
 @Component({
   selector: 'agrivio-request-access-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, AuthLayoutComponent, UiAlertComponent],
+  imports: [ReactiveFormsModule, RouterLink, AuthLayoutComponent, UiAlertComponent, UiFieldLabelComponent],
   templateUrl: './request-access.page.html',
   styleUrl: './request-access.page.scss',
 })
@@ -20,6 +22,8 @@ export class RequestAccessPage {
   readonly submitting = signal(false);
   readonly successMessage = signal<string | null>(null);
   readonly errorMessage = signal<string | null>(null);
+
+  readonly fieldRequired = hasRequiredValidator;
 
   readonly form = this.formBuilder.nonNullable.group({
     organizationName: ['', [Validators.required, Validators.maxLength(200)]],

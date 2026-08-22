@@ -56,7 +56,7 @@ export class SupplierLedgerPage {
       this.loadingSuppliers.set(false);
       return;
     }
-    this.suppliersApi.listSuppliers().subscribe({
+    this.suppliersApi.searchSupplierOptions().subscribe({
       next: (items) => {
         this.suppliers.set(items.filter((s) => s.status === 'active'));
         this.loadingSuppliers.set(false);
@@ -139,5 +139,10 @@ export class SupplierLedgerPage {
       supplier_opening_advance: 'Opening advance',
     };
     return labels[type] ?? type;
+  }
+
+  onSupplierSearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) this.suppliersApi.searchSupplierOptions(target.value).subscribe((items) => this.suppliers.set(items));
   }
 }

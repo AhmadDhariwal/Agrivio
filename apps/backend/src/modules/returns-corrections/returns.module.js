@@ -822,7 +822,9 @@ function createReturnsService(deps) {
 
   return {
     async listReturns(organizationId, query = {}, authContext) {
-      const items = await store.listReturns(organizationId, {
+      const assignments = Array.isArray(authContext?.warehouseAssignments) ? authContext.warehouseAssignments : null;
+      const warehouseIds = authContext?.role === 'Owner' || assignments === null ? undefined : assignments.filter((item) => String(item.organizationId) === String(organizationId)).map((item) => String(item.targetId));
+      const filters = {
         status: query.status,
         supplierId: query.supplierId,
         warehouseId: query.warehouseId,
@@ -830,7 +832,12 @@ function createReturnsService(deps) {
         saleId: query.saleId,
         customerId: query.customerId,
         returnType: query.returnType,
-      });
+        warehouseIds: query.warehouseId ? undefined : warehouseIds,
+      };
+      let result;
+      if (typeof store.listReturnsPage === 'function') result = await store.listReturnsPage(organizationId, filters, query);
+      else { let all = await store.listReturns(organizationId, filters); if (warehouseIds) all = all.filter((item) => warehouseIds.includes(String(item.warehouseId))); result = { items: all.slice(query.skip ?? 0, (query.skip ?? 0) + (query.pageSize ?? 25)), total: all.length }; }
+      const items = result.items;
       const filtered = [];
       for (const item of items) {
         if (
@@ -841,7 +848,7 @@ function createReturnsService(deps) {
         }
         filtered.push(toReturnDto(item));
       }
-      return { items: filtered };
+      return { items: filtered, total: result.total };
     },
 
     async getReturn(organizationId, returnId, authContext) {
@@ -1360,6 +1367,35 @@ function createReturnsService(deps) {
 
         return toReturnDto(updated);
       });
+    },
+
+    async discardReturnDraft(organizationId, returnId, authContext) {
+      const existing = await store.findReturnById(organizationId, returnId);
+      if (existing === null) {
+        throw notFound('Return not found');
+      }
+      if (existing.status !== 'draft') {
+        throw conflict('Only draft returns can be discarded');
+      }
+      if (
+        typeof deps.canAccessWarehouse === 'function' &&
+        !deps.canAccessWarehouse(authContext, String(existing.warehouseId))
+      ) {
+        throw notFound('Return not found');
+      }
+      const deleted = await store.deleteReturnIfDraft(null, organizationId, returnId);
+      if (!deleted) {
+        throw conflict('Only draft returns can be discarded');
+      }
+      await auditWriter.appendBusinessEvent(null, {
+        organizationId,
+        actorId: authContext.userId,
+        action: 'return.draft.discarded',
+        resourceType: 'return',
+        resourceId: returnId,
+        metadata: {},
+      });
+      return { id: returnId, discarded: true };
     },
 
     async postReturn(organizationId, returnId, body, authContext, idempotencyKey) {

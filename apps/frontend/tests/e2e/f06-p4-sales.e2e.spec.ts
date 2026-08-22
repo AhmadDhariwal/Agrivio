@@ -1,6 +1,6 @@
+import { API, activationTokenFromUrl } from './e2e-origins';
 import { expect, test, type Page } from '@playwright/test';
 
-const API = 'http://localhost:3000';
 const OWNER_PASSWORD = 'owner-activation-passphrase';
 const CASHIER_PASSWORD = 'cashier-activation-passphrase';
 
@@ -37,7 +37,7 @@ test.describe('F06 P4 printing and cashier POS', () => {
     const activationUrl = page.getByTestId('activation-url');
     const urlText = (await activationUrl.textContent())?.trim() ?? '';
     const activationToken =
-      new URL(urlText, 'http://localhost:4200').searchParams.get('token') ?? '';
+      activationTokenFromUrl(urlText);
 
     await page.getByTestId('sign-out').click();
     await page.goto(`/activate?token=${encodeURIComponent(activationToken)}`);
@@ -77,7 +77,7 @@ test.describe('F06 P4 printing and cashier POS', () => {
     await page.getByTestId('account-opening-save').click();
     await expect(page.getByTestId('account-derived-balance')).toContainText('10000.00');
 
-    await page.getByRole('link', { name: 'Categories' }).click();
+    await page.getByRole('link', { name: 'Categories', exact: true }).click();
     await page.getByTestId('category-create-link').click();
     await page.getByTestId('category-name').fill('P4 Cat');
     await page.getByTestId('category-product-class').selectOption('general');
@@ -133,7 +133,7 @@ test.describe('F06 P4 printing and cashier POS', () => {
     await expect(page.getByText(/activation link/i)).toBeVisible();
     const handoff = (await page.getByText(/activation link/i).textContent()) ?? '';
     const cashierUrl = handoff.match(/https?:\/\/\S+|\/activate\?token=\S+/)?.[0] ?? '';
-    const cashierToken = new URL(cashierUrl, 'http://localhost:4200').searchParams.get('token') ?? '';
+    const cashierToken = activationTokenFromUrl(cashierUrl);
     expect(cashierToken).toBeTruthy();
 
     await page.getByTestId('sign-out').click();

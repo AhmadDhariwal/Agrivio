@@ -10,7 +10,7 @@
   <agrivio-ui-alert tone="warning" message="You do not have permission to view returns." />
 } @else {
   @if (errorMessage(); as error) {
-    <agrivio-ui-alert tone="danger" [message]="error" />
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
   }
   @if (successMessage(); as success) {
     <agrivio-ui-alert tone="success" [message]="success" />
@@ -80,4 +80,6 @@
       }
     }
   </div>
+  <agrivio-ui-pagination [page]="page()" [pageSize]="pageSize()" [total]="total()" [disabled]="loading()"
+    (pageChange)="onPageChange($event)" (pageSizeChange)="onPageSizeChange($event)" />
 }

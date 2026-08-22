@@ -12,31 +12,64 @@
   <agrivio-ui-loading-state label="Loading accounts…" />
 } @else if (errorMessage(); as error) {
   <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-} @else if (items().length === 0) {
-  <agrivio-ui-empty-state
-    title="No accounts yet"
-    message="Create the first cash, bank, or wallet account."
-  />
 } @else {
-  <div class="ag-stack" data-testid="accounts-list">
-    @for (item of items(); track item.id) {
-      <article class="row">
-        <div>
-          <strong>{{ item.name }}</strong>
-          <p class="ag-muted">{{ item.accountType }}</p>
-          @if (item.derivedBalances?.balance) {
-            <p data-testid="account-list-balance">
-              Balance: {{ item.derivedBalances.balance.amount }} {{ item.derivedBalances.balance.currency }}
-            </p>
-          }
-        </div>
-        <div class="ag-inline">
-          <agrivio-ui-status-badge [label]="item.status" [tone]="item.status === 'active' ? 'success' : 'neutral'" />
-          <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/accounts', item.id]" data-testid="account-open">
-            {{ canManage() ? 'Edit' : 'Open' }}
-          </a>
-        </div>
-      </article>
-    }
-  </div>
+  @if (successMessage(); as success) {
+    <agrivio-ui-alert tone="success" [message]="success" />
+  }
+  <agrivio-ui-lifecycle-filter [value]="statusFilter()" (changed)="onStatusChange($event)" />
+  @if (visibleItems().length === 0) {
+    <agrivio-ui-empty-state
+      title="No accounts yet"
+      message="Create the first cash, bank, or wallet account."
+    />
+  } @else {
+    <div class="ag-stack" data-testid="accounts-list">
+      @for (item of visibleItems(); track item.id) {
+        <article class="row">
+          <div>
+            <strong>{{ item.name }}</strong>
+            <p class="ag-muted">{{ item.accountType }}</p>
+            @if (item.derivedBalances?.balance) {
+              <p data-testid="account-list-balance">
+                Balance: {{ item.derivedBalances.balance.amount }} {{ item.derivedBalances.balance.currency }}
+              </p>
+            }
+          </div>
+          <div class="ag-inline">
+            <agrivio-ui-status-badge [label]="item.status" [tone]="item.status === 'active' ? 'success' : 'neutral'" />
+            <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/accounts', item.id]" data-testid="account-open">
+              {{ canManage() ? 'Edit' : 'Open' }}
+            </a>
+            @if (canManage() && item.status === 'active') {
+              <button type="button" class="ag-btn ag-btn--danger" data-testid="account-deactivate" (click)="askDeactivate(item)">
+                Deactivate
+              </button>
+            }
+            @if (canManage() && item.status !== 'active') {
+              <button type="button" class="ag-btn ag-btn--secondary" data-testid="account-reactivate" (click)="askReactivate(item)">
+                Reactivate
+              </button>
+            }
+            @if (canManage()) {
+              <button type="button" class="ag-btn ag-btn--danger" data-testid="account-delete" (click)="askDelete(item)">
+                Delete permanently
+              </button>
+            }
+          </div>
+        </article>
+      }
+    </div>
+    <agrivio-ui-pagination [page]="page()" [pageSize]="pageSize()" [total]="total()" [disabled]="loading()"
+      (pageChange)="onPageChange($event)" (pageSizeChange)="onPageSizeChange($event)" />
+  }
 }
+
+<agrivio-ui-confirm-dialog
+  [open]="confirmOpen()"
+  [title]="confirmTitle()"
+  [message]="confirmMessage()"
+  [confirmLabel]="confirmLabel()"
+  [danger]="confirmLabel() === 'Deactivate' || confirmLabel() === 'Delete permanently'"
+  (confirmed)="confirmLifecycle()"
+  (dismiss)="confirmOpen.set(false)"
+/>

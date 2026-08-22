@@ -1,8 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map, switchMap } from 'rxjs';
+import { API_CSRF_HEADER, API_IDEMPOTENCY_KEY_HEADER } from '@agrivio/api-contracts';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
+import { PaginatedResult, PaginationQuery } from '../../../shared/data-access/pagination';
 
 export interface PlatformOrganizationSummary {
   id: string;
@@ -31,16 +33,15 @@ export class PlatformOrganizationsApi {
   private readonly http = inject(HttpClient);
   private readonly authApi = inject(AuthApi);
 
-  list(status?: string): Observable<PlatformOrganizationSummary[]> {
-    const query = status === undefined || status === '' ? '' : `?status=${encodeURIComponent(status)}`;
+  list(params: PaginationQuery & { status?: string; search?: string } = {}): Observable<PaginatedResult<PlatformOrganizationSummary>> {
     return this.http
-      .get<{ data: { items: Array<Record<string, unknown>> } }>(
-        `${environment.publicApiBaseUrl}/api/v1/platform/organizations${query}`,
-        { withCredentials: true },
+      .get<{ data: Array<Record<string, unknown>>; meta: PaginatedResult<PlatformOrganizationSummary>['meta'] }>(
+        `${environment.publicApiBaseUrl}/api/v1/platform/organizations`,
+        { withCredentials: true, params: { page: params.page ?? 1, pageSize: params.pageSize ?? 25, ...(params.status ? { status: params.status } : {}), ...(params.search ? { search: params.search } : {}) } },
       )
       .pipe(
         map((response) =>
-          response.data.items.map((item) => ({
+          ({ items: response.data.map((item) => ({
             id: String(item['id'] ?? item['_id'] ?? ''),
             name: String(item['name'] ?? ''),
             status: String(item['status'] ?? ''),
@@ -50,9 +51,42 @@ export class PlatformOrganizationsApi {
             ...(typeof item['ownerNeedsActivation'] === 'boolean'
               ? { ownerNeedsActivation: item['ownerNeedsActivation'] }
               : {}),
-          })),
+          })), meta: response.meta }),
         ),
       );
+  }
+
+  create(input: {
+    organizationName: string;
+    ownerEmail: string;
+    ownerDisplayName: string;
+    timezone?: string;
+  }): Observable<{ organizationId: string; status: string; ownerEmail: string; duplicate: boolean }> {
+    const key = crypto.randomUUID();
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http.post<{
+          data: {
+            organizationId: string;
+            status: string;
+            ownerEmail: string;
+            duplicate?: boolean;
+          };
+        }>(`${environment.publicApiBaseUrl}/api/v1/platform/organizations`, input, {
+          withCredentials: true,
+          headers: {
+            [API_CSRF_HEADER]: csrfToken,
+            [API_IDEMPOTENCY_KEY_HEADER]: key,
+          },
+        }),
+      ),
+      map((response) => ({
+        organizationId: response.data.organizationId,
+        status: response.data.status,
+        ownerEmail: response.data.ownerEmail,
+        duplicate: response.data.duplicate === true,
+      })),
+    );
   }
 
   approve(organizationId: string): Observable<PlatformOrganizationActivationHandoff> {

@@ -1,5 +1,7 @@
 const { sendSuccessEnvelope } = require('../../../platform/http/response-envelope');
 const { forbidden } = require('../../../platform/errors/app-error');
+const { parseMasterStatusQuery } = require('../../../platform/http/master-status-query');
+const { parsePaginationQuery } = require('../../../platform/http/parse-pagination-query');
 
 function requireOrganizationId(req) {
   const organizationId = req.authContext?.organizationId;
@@ -13,8 +15,12 @@ function createAccountsController(deps) {
   return {
     async listAccounts(req, res, next) {
       try {
-        const data = await deps.accountsService.listAccounts(requireOrganizationId(req));
-        sendSuccessEnvelope(res, 200, data);
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.accountsService.listAccounts(requireOrganizationId(req), {
+          status: parseMasterStatusQuery(req.query),
+          search: req.query.search || undefined, skip, pageSize,
+        });
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
         next(error);
       }
@@ -59,6 +65,19 @@ function createAccountsController(deps) {
       }
     },
 
+    async deleteAccount(req, res, next) {
+      try {
+        const data = await deps.accountsService.deleteAccount(
+          requireOrganizationId(req),
+          String(req.params.id),
+          { actorId: String(req.authContext.userId) },
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async postOpeningBalance(req, res, next) {
       try {
         const result = await deps.accountsService.postOpeningBalance(
@@ -76,11 +95,13 @@ function createAccountsController(deps) {
 
     async listAccountMovements(req, res, next) {
       try {
-        const data = await deps.accountsService.listAccountMovements(
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.accountsService.listAccountMovements(
           requireOrganizationId(req),
           String(req.params.id),
+          { skip, pageSize },
         );
-        sendSuccessEnvelope(res, 200, data);
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
         next(error);
       }

@@ -5,60 +5,79 @@
 .draft-banner,
 .posted-banner,
 .cancelled-banner {
-  margin-bottom: 1rem;
-  padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
-  font-size: 0.95rem;
-}
-
-.draft-banner {
-  background: color-mix(in srgb, #c47b2b 14%, transparent);
-  border: 1px solid color-mix(in srgb, #c47b2b 35%, transparent);
-  color: #6b3f0f;
-}
-
-.posted-banner {
-  background: color-mix(in srgb, #2f6b3a 14%, transparent);
-  border: 1px solid color-mix(in srgb, #2f6b3a 35%, transparent);
-  color: #1f4d28;
-}
-
-.cancelled-banner {
-  background: color-mix(in srgb, #8a2f2f 14%, transparent);
-  border: 1px solid color-mix(in srgb, #8a2f2f 35%, transparent);
-  color: #5c1d1d;
+  margin-bottom: var(--ag-space-4);
 }
 
 .totals {
-  margin-bottom: 1rem;
+  margin-bottom: var(--ag-space-4);
+  background: var(--ag-color-surface);
+  border: 1px solid var(--ag-color-border);
+  border-radius: var(--ag-radius-lg);
+  padding: var(--ag-space-5);
+  box-shadow: var(--ag-shadow-sm);
 }
 
 .form {
-  max-width: 40rem;
+  width: 100%;
+  max-width: min(100%, 80rem);
 }
 
-label {
+.form-grid {
   display: grid;
-  gap: 0.35rem;
-}
-
-input,
-select,
-textarea {
-  padding: 0.65rem 0.75rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--ag-border, #cfd6cb);
-  font: inherit;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: var(--ag-space-3) var(--ag-space-4);
 }
 
 .line {
   display: grid;
-  gap: 0.75rem;
-  padding: 1rem;
-  border: 1px solid var(--ag-border, #d7ddd4);
-  border-radius: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: var(--ag-space-3);
+  padding: var(--ag-space-4);
+  border: 1px solid var(--ag-color-border);
+  border-radius: var(--ag-radius-lg);
+  background: var(--ag-color-surface);
+  box-shadow: var(--ag-shadow-sm);
+
+  legend {
+    font-weight: 700;
+    font-size: var(--ag-text-sm);
+    color: var(--ag-color-primary);
+    padding: 0 var(--ag-space-2);
+  }
 }
 
 .lines__header {
+  display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
+  align-items: center;
+  gap: var(--ag-space-2);
 }
+
+@media (max-width: 767px) {
+  .line {
+    grid-template-columns: 1fr;
+    padding: var(--ag-space-3);
+  }
+
+  .totals {
+    padding: var(--ag-space-3);
+  }
+}
+
+// Large Desktop (>= 1600px)
+@media (min-width: 1600px) {
+  .form {
+    max-width: min(100%, 96rem);
+  }
+
+  .line {
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    padding: var(--ag-space-5);
+  }
+
+  .totals {
+    padding: var(--ag-space-6);
+  }
+}
+

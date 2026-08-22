@@ -124,10 +124,15 @@ const PasswordResetTokenModel =
   mongoose.models['PasswordResetToken'] ||
   mongoose.model('PasswordResetToken', passwordResetTokenSchema);
 
+const {
+  NavigationPreferenceModel,
+} = require('./navigation-preference.model');
+
 module.exports = {
   UserModel,
   OrganizationMembershipModel,
   AccountActivationTokenModel,
   AuthSessionModel,
   PasswordResetTokenModel,
+  NavigationPreferenceModel,
 };

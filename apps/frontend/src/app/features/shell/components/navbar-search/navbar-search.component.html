@@ -1,0 +1,105 @@
+<div class="ag-nav-search" (keydown)="onKeyDown($event)">
+  <div class="ag-nav-search__input-wrapper">
+    <span class="ag-nav-search__icon" aria-hidden="true">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+    </span>
+
+    <input
+      type="search"
+      class="ag-input ag-nav-search__input"
+      placeholder="Search products…"
+      [value]="searchTerm()"
+      (input)="onInput($event)"
+      (focus)="onFocus()"
+      role="combobox"
+      aria-autocomplete="list"
+      [attr.aria-expanded]="isOpen()"
+      aria-controls="ag-navbar-search-results"
+      aria-label="Search products"
+      data-testid="navbar-search-input"
+    />
+
+    @if (searchTerm()) {
+      <button
+        type="button"
+        class="ag-nav-search__clear"
+        aria-label="Clear search"
+        (click)="clearSearch()"
+        data-testid="navbar-search-clear"
+      >
+        <span aria-hidden="true">&times;</span>
+      </button>
+    }
+  </div>
+
+  @if (isOpen()) {
+    <div
+      id="ag-navbar-search-results"
+      class="ag-nav-search__dropdown"
+      role="listbox"
+      data-testid="navbar-search-results"
+    >
+      @if (isLoading()) {
+        <div class="ag-nav-search__status" role="status">
+          <div class="ag-nav-search__spinner" aria-hidden="true"></div>
+          <span>Searching…</span>
+        </div>
+      } @else if (hasError()) {
+        <div class="ag-nav-search__status ag-nav-search__status--error" role="status">
+          <span>Search temporarily unavailable</span>
+        </div>
+      } @else if (groups().length === 0 && searchTerm().trim().length >= 2) {
+        <div class="ag-nav-search__status" role="status">
+          <span>No results found for &ldquo;<strong>{{ searchTerm() }}</strong>&rdquo;</span>
+        </div>
+      } @else {
+        @for (group of groups(); track group.name) {
+          <div class="ag-nav-search__group">
+            <div class="ag-nav-search__group-header">
+              <span class="ag-nav-search__group-title">{{ group.name }}</span>
+            </div>
+
+            <div class="ag-nav-search__group-items">
+              @for (item of group.items; track item.id) {
+                @let isCurrent = activeIndex() === getItemFlatIndex(item);
+                <button
+                  type="button"
+                  class="ag-nav-search__result-item"
+                  [class.is-active]="isCurrent"
+                  role="option"
+                  [attr.aria-selected]="isCurrent"
+                  (click)="selectResult(item)"
+                  [attr.data-testid]="'navbar-search-item-' + item.id"
+                >
+                  <span class="ag-nav-search__item-icon" aria-hidden="true">
+                    @if (item.group === 'Products') {
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                      </svg>
+                    } @else {
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                      </svg>
+                    }
+                  </span>
+
+                  <div class="ag-nav-search__item-text">
+                    <span class="ag-nav-search__item-title">{{ item.title }}</span>
+                    @if (item.subtitle) {
+                      <span class="ag-nav-search__item-subtitle">{{ item.subtitle }}</span>
+                    }
+                  </div>
+                </button>
+              }
+            </div>
+          </div>
+        }
+      }
+    </div>
+  }
+</div>

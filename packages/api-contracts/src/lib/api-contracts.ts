@@ -36,6 +36,10 @@ export const API_AUTH_SESSION_PATH = `${API_V1_PREFIX}/auth/session` as const;
 /** Select authorized active context; rotates session id and CSRF (R1-F02-003/007). */
 export const API_AUTH_SESSION_CONTEXT_PATH = `${API_V1_PREFIX}/auth/session/context` as const;
 
+/** User navigation presentation preferences for the active context. */
+export const API_AUTH_NAVIGATION_PREFERENCES_PATH =
+  `${API_V1_PREFIX}/auth/navigation-preferences` as const;
+
 /** Password reset request (R1-F02-004). */
 export const API_AUTH_PASSWORD_RESET_REQUEST_PATH =
   `${API_V1_PREFIX}/auth/password-reset/request` as const;
@@ -45,12 +49,17 @@ export const API_AUTH_PASSWORD_RESET_CONFIRM_PATH =
   `${API_V1_PREFIX}/auth/password-reset/confirm` as const;
 
 /** Platform organization list/detail base path. */
-export const API_PLATFORM_ORGANIZATIONS_PATH =
-  `${API_V1_PREFIX}/platform/organizations` as const;
+export const API_PLATFORM_ORGANIZATIONS_PATH = `${API_V1_PREFIX}/platform/organizations` as const;
 
 /** Reissue Owner activation token for approved org without usable credentials. */
-export const API_PLATFORM_ORGANIZATION_REISSUE_ACTIVATION_SUFFIX =
-  'reissue-activation' as const;
+export const API_PLATFORM_ORGANIZATION_REISSUE_ACTIVATION_SUFFIX = 'reissue-activation' as const;
+
+/** Current organization user's effective capability policy. */
+export const API_ME_CAPABILITIES_PATH = `${API_V1_PREFIX}/me/capabilities` as const;
+
+/** Backend-authoritative semantic control registry for Super Admin. */
+export const API_PLATFORM_CAPABILITY_REGISTRY_PATH =
+  `${API_V1_PREFIX}/platform/organization-capabilities/registry` as const;
 
 /** Current organization profile for the authenticated membership context (R1-F02-008 sample). */
 export const API_ORGANIZATION_PATH = `${API_V1_PREFIX}/organization` as const;
@@ -106,6 +115,9 @@ export const API_SALES_PATH = `${API_V1_PREFIX}/sales` as const;
 /** Customer payments (R1-F06-001). */
 export const API_CUSTOMER_PAYMENTS_PATH = `${API_V1_PREFIX}/customer-payments` as const;
 
+/** Payment correction base path (R1-F09-003 gap close). */
+export const API_PAYMENTS_PATH = `${API_V1_PREFIX}/payments` as const;
+
 /** Purchase returns and corrections (R1-F05-006+). */
 export const API_RETURNS_PATH = `${API_V1_PREFIX}/returns` as const;
 
@@ -119,8 +131,7 @@ export const API_INVENTORY_MOVEMENTS_PATH = `${API_V1_PREFIX}/inventory/movement
 export const API_INVENTORY_BATCHES_PATH = `${API_V1_PREFIX}/inventory/batches` as const;
 
 /** Opening stock posting (R1-F04-002). */
-export const API_INVENTORY_OPENING_STOCK_PATH =
-  `${API_V1_PREFIX}/inventory/opening-stock` as const;
+export const API_INVENTORY_OPENING_STOCK_PATH = `${API_V1_PREFIX}/inventory/opening-stock` as const;
 
 /** Expiry-oriented inventory query (R1-F04-006). */
 export const API_INVENTORY_EXPIRY_PATH = `${API_V1_PREFIX}/inventory/expiry` as const;
@@ -179,8 +190,7 @@ export const API_SUBSCRIPTION_BILLING_RECORDS_PATH =
   `${API_V1_PREFIX}/subscription/billing-records` as const;
 
 /** Platform subscription overview and lifecycle actions. */
-export const API_PLATFORM_SUBSCRIPTIONS_PATH =
-  `${API_V1_PREFIX}/platform/subscriptions` as const;
+export const API_PLATFORM_SUBSCRIPTIONS_PATH = `${API_V1_PREFIX}/platform/subscriptions` as const;
 
 /** Platform plan definition versioning. */
 export const API_PLATFORM_SUBSCRIPTION_PLANS_PATH =
@@ -225,8 +235,12 @@ export const ApiTransportErrorCode = {
   Forbidden: 'FORBIDDEN',
   NotFound: 'NOT_FOUND',
   Conflict: 'CONFLICT',
+  RecordInUse: 'RECORD_IN_USE',
   VersionConflict: 'VERSION_CONFLICT',
   IdempotencyConflict: 'IDEMPOTENCY_CONFLICT',
+  OrgCapabilityDisabled: 'ORG_CAPABILITY_DISABLED',
+  OrgActionNotAllowed: 'ORG_ACTION_NOT_ALLOWED',
+  OrgFieldNotEditable: 'ORG_FIELD_NOT_EDITABLE',
   InternalError: 'INTERNAL_ERROR',
 } as const;
 
@@ -261,9 +275,15 @@ export interface ApiErrorEnvelope {
 }
 
 /** Frozen successful response envelope (API_DESIGN.md §3.1). */
-export interface ApiSuccessEnvelope<TData> {
+export interface PaginationMeta {
+  readonly page: number;
+  readonly pageSize: number;
+  readonly total: number;
+}
+
+export interface ApiSuccessEnvelope<TData, TMeta extends object = Record<string, unknown>> {
   readonly data: TData;
-  readonly meta?: Record<string, unknown>;
+  readonly meta?: TMeta;
   readonly requestId: string;
 }
 
@@ -284,10 +304,10 @@ export function createApiErrorEnvelope(requestId: string, error: ApiErrorBody): 
 /**
  * Builds a transport-level success envelope for HTTP responses.
  */
-export function createApiSuccessEnvelope<TData>(
+export function createApiSuccessEnvelope<TData, TMeta extends object = Record<string, unknown>>(
   requestId: string,
   data: TData,
-  meta?: Record<string, unknown>,
-): ApiSuccessEnvelope<TData> {
+  meta?: TMeta,
+): ApiSuccessEnvelope<TData, TMeta> {
   return meta === undefined ? { data, requestId } : { data, meta, requestId };
 }

@@ -25,7 +25,13 @@
     "test:unit": "nx run-many -t test --all",
     "test:integration": "nx run test-support:test-integration",
     "test:architecture": "node scripts/run-architecture-tests.mjs",
+    "test:regression": "node scripts/run-regression.mjs",
+    "test:regression:release": "node scripts/run-regression.mjs --release",
     "e2e": "playwright test",
+    "test:perf:baseline": "node scripts/f09-performance-baseline.mjs",
+    "test:perf:navigation": "playwright test f09-perf-navigation",
+    "test:a11y:baseline": "playwright test f09-accessibility f09-a11y-shell f09-a11y-workflows f09-a11y-contrast",
+    "test:ops:rehearsal": "node scripts/ops/f09-backup-restore-import-rehearsal.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run test:unit && npm run test:architecture && npm run build",
@@ -37,7 +43,8 @@
     "db:logs": "node scripts/mongodb/logs.mjs",
     "db:down": "node scripts/mongodb/down.mjs",
     "db:reset": "node scripts/mongodb/reset.mjs",
-    "bootstrap:super-admin": "node scripts/bootstrap-super-admin.mjs"
+    "bootstrap:super-admin": "node scripts/bootstrap-super-admin.mjs",
+    "seed:demo": "node scripts/seed-demo-dataset.mjs"
   },
   "dependencies": {
     "@agrivio/api-contracts": "*",

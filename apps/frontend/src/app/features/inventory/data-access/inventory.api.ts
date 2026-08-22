@@ -3,6 +3,8 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, map, switchMap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
+import { ApiSuccessEnvelope, PaginationMeta } from '@agrivio/api-contracts';
+import { PaginatedResult, PaginationQuery } from '../../../shared/data-access/pagination';
 import {
   ExpiryInventoryRecord,
   InventoryBalanceRecord,
@@ -19,12 +21,12 @@ export class InventoryApi {
   private readonly http = inject(HttpClient);
   private readonly authApi = inject(AuthApi);
 
-  listBalances(query?: {
+  listBalances(query: PaginationQuery & {
     warehouseId?: string;
     productId?: string;
     batchId?: string;
-  }): Observable<InventoryBalanceRecord[]> {
-    const params: Record<string, string> = {};
+  } = {}): Observable<PaginatedResult<InventoryBalanceRecord>> {
+    const params: Record<string, string> = { page: String(query.page ?? 1), pageSize: String(query.pageSize ?? 25) };
     if (query?.warehouseId) {
       params['warehouseId'] = query.warehouseId;
     }
@@ -35,19 +37,19 @@ export class InventoryApi {
       params['batchId'] = query.batchId;
     }
     return this.http
-      .get<{ data: { items: InventoryBalanceRecord[] } }>(
+      .get<ApiSuccessEnvelope<InventoryBalanceRecord[], PaginationMeta>>(
         `${environment.publicApiBaseUrl}/api/v1/inventory/balances`,
         { withCredentials: true, params },
       )
-      .pipe(map((response) => response.data.items));
+      .pipe(map((response) => ({ items: response.data, meta: response.meta! })));
   }
 
-  listMovements(query?: {
+  listMovements(query: PaginationQuery & {
     warehouseId?: string;
     productId?: string;
     batchId?: string;
-  }): Observable<StockMovementRecord[]> {
-    const params: Record<string, string> = {};
+  } = {}): Observable<PaginatedResult<StockMovementRecord>> {
+    const params: Record<string, string> = { page: String(query.page ?? 1), pageSize: String(query.pageSize ?? 25) };
     if (query?.warehouseId) {
       params['warehouseId'] = query.warehouseId;
     }
@@ -58,24 +60,35 @@ export class InventoryApi {
       params['batchId'] = query.batchId;
     }
     return this.http
-      .get<{ data: { items: StockMovementRecord[] } }>(
+      .get<ApiSuccessEnvelope<StockMovementRecord[], PaginationMeta>>(
         `${environment.publicApiBaseUrl}/api/v1/inventory/movements`,
         { withCredentials: true, params },
       )
-      .pipe(map((response) => response.data.items));
+      .pipe(map((response) => ({ items: response.data, meta: response.meta! })));
   }
 
-  listBatches(query?: { productId?: string }): Observable<ProductBatchRecord[]> {
-    const params: Record<string, string> = {};
+  listBatches(
+    query: PaginationQuery & { productId?: string; warehouseId?: string; search?: string } = {},
+  ): Observable<PaginatedResult<ProductBatchRecord>> {
+    const params: Record<string, string> = {
+      page: String(query.page ?? 1),
+      pageSize: String(query.pageSize ?? 25),
+    };
     if (query?.productId) {
       params['productId'] = query.productId;
     }
+    if (query?.warehouseId) {
+      params['warehouseId'] = query.warehouseId;
+    }
+    if (query?.search) {
+      params['search'] = query.search;
+    }
     return this.http
-      .get<{ data: { items: ProductBatchRecord[] } }>(
+      .get<ApiSuccessEnvelope<ProductBatchRecord[], PaginationMeta>>(
         `${environment.publicApiBaseUrl}/api/v1/inventory/batches`,
         { withCredentials: true, params },
       )
-      .pipe(map((response) => response.data.items));
+      .pipe(map((response) => ({ items: response.data, meta: response.meta! })));
   }
 
   postOpeningStock(
@@ -135,8 +148,8 @@ export class InventoryApi {
       .pipe(map((response) => response.data));
   }
 
-  listAdjustments(query?: { warehouseId?: string; status?: string }): Observable<StockAdjustmentRecord[]> {
-    const params: Record<string, string> = {};
+  listAdjustments(query: PaginationQuery & { warehouseId?: string } = {}): Observable<PaginatedResult<StockAdjustmentRecord>> {
+    const params: Record<string, string> = { page: String(query.page ?? 1), pageSize: String(query.pageSize ?? 25) };
     if (query?.warehouseId) {
       params['warehouseId'] = query.warehouseId;
     }
@@ -144,11 +157,11 @@ export class InventoryApi {
       params['status'] = query.status;
     }
     return this.http
-      .get<{ data: { items: StockAdjustmentRecord[] } }>(
+      .get<ApiSuccessEnvelope<StockAdjustmentRecord[], PaginationMeta>>(
         `${environment.publicApiBaseUrl}/api/v1/stock-adjustments`,
         { withCredentials: true, params },
       )
-      .pipe(map((response) => response.data.items));
+      .pipe(map((response) => ({ items: response.data, meta: response.meta! })));
   }
 
   createAdjustmentDraft(payload: {
@@ -229,12 +242,11 @@ export class InventoryApi {
     );
   }
 
-  listTransfers(query?: {
-    status?: string;
+  listTransfers(query: PaginationQuery & {
     sourceWarehouseId?: string;
     destinationWarehouseId?: string;
-  }): Observable<WarehouseTransferRecord[]> {
-    const params: Record<string, string> = {};
+  } = {}): Observable<PaginatedResult<WarehouseTransferRecord>> {
+    const params: Record<string, string> = { page: String(query.page ?? 1), pageSize: String(query.pageSize ?? 25) };
     if (query?.status) {
       params['status'] = query.status;
     }
@@ -245,11 +257,20 @@ export class InventoryApi {
       params['destinationWarehouseId'] = query.destinationWarehouseId;
     }
     return this.http
-      .get<{ data: { items: WarehouseTransferRecord[] } }>(
+      .get<ApiSuccessEnvelope<WarehouseTransferRecord[], PaginationMeta>>(
         `${environment.publicApiBaseUrl}/api/v1/warehouse-transfers`,
         { withCredentials: true, params },
       )
-      .pipe(map((response) => response.data.items));
+      .pipe(map((response) => ({ items: response.data, meta: response.meta! })));
+  }
+
+  getTransfer(id: string): Observable<WarehouseTransferRecord> {
+    return this.http
+      .get<{ data: WarehouseTransferRecord }>(
+        `${environment.publicApiBaseUrl}/api/v1/warehouse-transfers/${id}`,
+        { withCredentials: true },
+      )
+      .pipe(map((response) => response.data));
   }
 
   createTransferDraft(payload: {

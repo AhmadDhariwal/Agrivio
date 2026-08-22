@@ -1,6 +1,6 @@
+import { API, activationTokenFromUrl } from './e2e-origins';
 import { expect, test, type Page } from '@playwright/test';
 
-const API = 'http://localhost:3000';
 const OWNER_PASSWORD = 'owner-activation-passphrase';
 
 test.describe('F07 P1 sales returns', () => {
@@ -32,7 +32,7 @@ test.describe('F07 P1 sales returns', () => {
     const activationUrl = page.getByTestId('activation-url');
     const urlText = (await activationUrl.textContent())?.trim() ?? '';
     const activationToken =
-      new URL(urlText, 'http://localhost:4200').searchParams.get('token') ?? '';
+      activationTokenFromUrl(urlText);
 
     await page.getByTestId('sign-out').click();
     await page.goto(`/activate?token=${encodeURIComponent(activationToken)}`);
@@ -72,7 +72,7 @@ test.describe('F07 P1 sales returns', () => {
     await page.getByTestId('account-opening-save').click();
     await expect(page.getByTestId('account-derived-balance')).toContainText('10000.00');
 
-    await page.getByRole('link', { name: 'Categories' }).click();
+    await page.getByRole('link', { name: 'Categories', exact: true }).click();
     await page.getByTestId('category-create-link').click();
     await page.getByTestId('category-name').fill('F07 Cat');
     await page.getByTestId('category-product-class').selectOption('general');

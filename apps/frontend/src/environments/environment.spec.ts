@@ -8,7 +8,7 @@ import {
 
 describe('web public configuration', () => {
   it('exposes only browser-safe values in the Angular environment', () => {
-    expect(environment.publicApiBaseUrl).toMatch(/^https?:\/\//);
+    expect(environment.publicApiBaseUrl).toBe('http://localhost:3000');
     expect(environment).not.toHaveProperty('SESSION_SECRET');
     expect(environment).not.toHaveProperty('MONGODB_URI');
   });

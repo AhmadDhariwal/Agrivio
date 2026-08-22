@@ -9,6 +9,30 @@ function withSession(session) {
   return session ? { session } : {};
 }
 
+function toPositiveInt(value) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    return null;
+  }
+  return parsed;
+}
+
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function productSearchFilter(organizationId, q) {
+  const filter = { organizationId };
+  const raw = String(q ?? '').trim();
+  if (raw === '') {
+    return filter;
+  }
+  const sku = raw.toUpperCase();
+  const name = raw.replace(/\s+/g, ' ').toLowerCase();
+  filter.$or = [{ sku }, { nameNormalized: { $regex: `^${escapeRegex(name)}` } }];
+  return filter;
+}
+
 function isDuplicateKeyError(error) {
   return error && (error.code === 11000 || error.code === 11001);
 }
@@ -22,8 +46,28 @@ function markDuplicate(error) {
 
 function createMongooseCatalogStore() {
   return {
-    async listCategories(organizationId) {
-      return ProductCategoryModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
+    async listCategories(organizationId, filter = {}, pagination = {}) {
+      const query = { organizationId };
+      if (filter.status === 'active' || filter.status === 'inactive') {
+        query.status = filter.status;
+      }
+      if (filter.search) {
+        const escaped = String(filter.search).trim().toLowerCase().replace(/\s+/g, ' ');
+        if (escaped) {
+          query.nameNormalized = { $regex: escaped.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') };
+        }
+      }
+      const hasPagination = pagination.skip !== undefined || pagination.pageSize !== undefined;
+      const { skip = 0, pageSize = 25 } = pagination;
+      let find = ProductCategoryModel.find(query).sort({ createdAt: -1, _id: -1 });
+      if (hasPagination) {
+        find = find.skip(skip).limit(pageSize);
+      }
+      const [total, items] = await Promise.all([
+        ProductCategoryModel.countDocuments(query).exec(),
+        find.lean().exec(),
+      ]);
+      return { items, total };
     },
 
     async countCategories(organizationId) {
@@ -60,8 +104,60 @@ function createMongooseCatalogStore() {
       }
     },
 
-    async listProducts(organizationId) {
-      return ProductModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
+    async listProducts(organizationId, options = {}, pagination = {}) {
+      const filter = productSearchFilter(organizationId, options.q || options.search);
+      if (options.status === 'active' || options.status === 'inactive') {
+        filter.status = options.status;
+      }
+      // POS / autocomplete path: caller passes limit without pagination — return unbounded slice
+      if (pagination.pageSize === undefined && options.limit !== undefined) {
+        const limit = toPositiveInt(options.limit);
+        let q = ProductModel.find(filter).sort({ createdAt: -1, _id: -1 });
+        if (limit !== null) {
+          q = q.limit(limit);
+        }
+        const items = await q.lean().exec();
+        return { items, total: items.length };
+      }
+      const hasPagination = pagination.skip !== undefined || pagination.pageSize !== undefined;
+      const { skip = 0, pageSize = 25 } = pagination;
+      let find = ProductModel.find(filter).sort({ createdAt: -1, _id: -1 });
+      if (hasPagination) {
+        find = find.skip(skip).limit(pageSize);
+      }
+      const [total, items] = await Promise.all([
+        ProductModel.countDocuments(filter).exec(),
+        find.lean().exec(),
+      ]);
+      return { items, total };
+    },
+
+    async findProductBySku(organizationId, sku) {
+      const needle = String(sku ?? '')
+        .trim()
+        .toUpperCase();
+      if (needle === '') {
+        return null;
+      }
+      try {
+        return await ProductModel.findOne({ organizationId, sku: needle })
+          .hint({ organizationId: 1, sku: 1 })
+          .lean()
+          .exec();
+      } catch {
+        return ProductModel.findOne({ organizationId, sku: needle }).lean().exec();
+      }
+    },
+
+    async listProductCategoryPairs(organizationId) {
+      const rows = await ProductModel.find({ organizationId })
+        .select({ categoryId: 1 })
+        .lean()
+        .exec();
+      return rows.map((row) => ({
+        id: String(row._id),
+        categoryId: String(row.categoryId),
+      }));
     },
 
     async countProducts(organizationId) {
@@ -107,6 +203,27 @@ function createMongooseCatalogStore() {
       } catch (error) {
         throw markDuplicate(error);
       }
+    },
+
+    async deleteProduct(session, organizationId, id) {
+      await ProductPackagingUnitModel.deleteMany(
+        { organizationId, productId: id },
+        withSession(session),
+      );
+      await ProductPriceModel.deleteMany({ organizationId, productId: id }, withSession(session));
+      const result = await ProductModel.deleteOne(
+        { _id: id, organizationId },
+        withSession(session),
+      );
+      return result.deletedCount === 1;
+    },
+
+    async deleteCategory(session, organizationId, id) {
+      const result = await ProductCategoryModel.deleteOne(
+        { _id: id, organizationId },
+        withSession(session),
+      );
+      return result.deletedCount === 1;
     },
 
     async listPackagingUnits(organizationId, productId) {
@@ -257,10 +374,25 @@ function createInMemoryCatalogStore() {
   }
 
   return {
-    async listCategories(organizationId) {
-      return [...categories.values()]
-        .filter((item) => String(item.organizationId) === String(organizationId))
-        .map((item) => ({ ...item }));
+    async listCategories(organizationId, filter = {}, pagination = {}) {
+      let all = [...categories.values()].filter(
+        (item) => String(item.organizationId) === String(organizationId),
+      );
+      if (filter.status === 'active' || filter.status === 'inactive') {
+        all = all.filter((item) => String(item.status) === filter.status);
+      }
+      if (filter.search) {
+        const needle = String(filter.search).trim().toLowerCase().replace(/\s+/g, ' ');
+        if (needle) {
+          all = all.filter(
+            (item) => typeof item.nameNormalized === 'string' && item.nameNormalized.includes(needle),
+          );
+        }
+      }
+      const total = all.length;
+      const { skip = 0, pageSize = 25 } = pagination;
+      const items = all.slice(skip, skip + pageSize).map((item) => ({ ...item }));
+      return { items, total };
     },
 
     async countCategories(organizationId) {
@@ -296,10 +428,58 @@ function createInMemoryCatalogStore() {
       return { ...next };
     },
 
-    async listProducts(organizationId) {
+    async listProducts(organizationId, options = {}, pagination = {}) {
+      const searchQ = options.q || options.search || '';
+      const needle = String(searchQ).trim().toUpperCase();
+      const nameNeedle = String(searchQ).trim().replace(/\s+/g, ' ').toLowerCase();
+      let all = [...products.values()]
+        .filter((item) => String(item.organizationId) === String(organizationId))
+        .filter((item) => {
+          if (needle === '') {
+            return true;
+          }
+          return (
+            String(item.sku ?? '').toUpperCase() === needle ||
+            String(item.nameNormalized ?? '').includes(nameNeedle)
+          );
+        });
+      if (options.status === 'active' || options.status === 'inactive') {
+        all = all.filter((item) => String(item.status) === options.status);
+      }
+      // POS / autocomplete path
+      if (pagination.pageSize === undefined && options.limit !== undefined) {
+        const limit = toPositiveInt(options.limit);
+        const items = (limit !== null ? all.slice(0, limit) : all).map((item) => ({ ...item }));
+        return { items, total: items.length };
+      }
+      const total = all.length;
+      const { skip = 0, pageSize = 25 } = pagination;
+      const items = all.slice(skip, skip + pageSize).map((item) => ({ ...item }));
+      return { items, total };
+    },
+
+    async findProductBySku(organizationId, sku) {
+      const needle = String(sku ?? '')
+        .trim()
+        .toUpperCase();
+      if (needle === '') {
+        return null;
+      }
+      const found = [...products.values()].find(
+        (item) =>
+          String(item.organizationId) === String(organizationId) &&
+          String(item.sku ?? '').toUpperCase() === needle,
+      );
+      return found ? { ...found } : null;
+    },
+
+    async listProductCategoryPairs(organizationId) {
       return [...products.values()]
         .filter((item) => String(item.organizationId) === String(organizationId))
-        .map((item) => ({ ...item }));
+        .map((item) => ({
+          id: String(item._id),
+          categoryId: String(item.categoryId),
+        }));
     },
 
     async countProducts(organizationId) {
@@ -346,6 +526,40 @@ function createInMemoryCatalogStore() {
       assertUniqueSku(organizationId, next.sku, id);
       products.set(id, next);
       return { ...next };
+    },
+
+    async deleteProduct(_session, organizationId, id) {
+      const existing = await this.findProductById(organizationId, id);
+      if (existing === null) {
+        return false;
+      }
+      for (const [packagingId, unit] of packagingUnits) {
+        if (
+          String(unit.organizationId) === String(organizationId) &&
+          String(unit.productId) === String(id)
+        ) {
+          packagingUnits.delete(packagingId);
+        }
+      }
+      for (const [priceId, price] of prices) {
+        if (
+          String(price.organizationId) === String(organizationId) &&
+          String(price.productId) === String(id)
+        ) {
+          prices.delete(priceId);
+        }
+      }
+      products.delete(id);
+      return true;
+    },
+
+    async deleteCategory(_session, organizationId, id) {
+      const existing = await this.findCategoryById(organizationId, id);
+      if (existing === null) {
+        return false;
+      }
+      categories.delete(id);
+      return true;
     },
 
     async listPackagingUnits(organizationId, productId) {
@@ -412,6 +626,41 @@ function createInMemoryCatalogStore() {
 
     listAuditsForTest() {
       return [...audits];
+    },
+
+    exportRehearsalSnapshot() {
+      return {
+        seq,
+        categories: [...categories.entries()].map(([id, record]) => [id, { ...record }]),
+        products: [...products.entries()].map(([id, record]) => [id, { ...record }]),
+        packagingUnits: [...packagingUnits.entries()].map(([id, record]) => [id, { ...record }]),
+        prices: [...prices.entries()].map(([id, record]) => [id, { ...record }]),
+        audits: audits.map((event) => ({ ...event })),
+      };
+    },
+
+    restoreRehearsalSnapshot(snapshot) {
+      categories.clear();
+      products.clear();
+      packagingUnits.clear();
+      prices.clear();
+      audits.length = 0;
+      seq = snapshot.seq;
+      for (const [id, record] of snapshot.categories) {
+        categories.set(id, { ...record });
+      }
+      for (const [id, record] of snapshot.products) {
+        products.set(id, { ...record });
+      }
+      for (const [id, record] of snapshot.packagingUnits) {
+        packagingUnits.set(id, { ...record });
+      }
+      for (const [id, record] of snapshot.prices) {
+        prices.set(id, { ...record });
+      }
+      for (const event of snapshot.audits) {
+        audits.push({ ...event });
+      }
     },
   };
 }

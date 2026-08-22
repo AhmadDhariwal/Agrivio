@@ -1,6 +1,7 @@
+import { API, activationTokenFromUrl } from './e2e-origins';
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 
-export const API = 'http://localhost:3000';
+export { API };
 export const OWNER_PASSWORD = 'owner-activation-passphrase';
 
 export async function seedStarterPlan(
@@ -54,8 +55,24 @@ export async function bootstrapApprovedOwner(
     entitlements?: Record<string, unknown>;
   },
 ): Promise<void> {
-  const bootstrap = await request.post(`${API}/api/v1/test/e2e/bootstrap`);
-  expect(bootstrap.status()).toBe(200);
+  let bootstrap;
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      bootstrap = await request.post(`${API}/api/v1/test/e2e/bootstrap`);
+      if (bootstrap.status() === 200) {
+        lastError = undefined;
+        break;
+      }
+      lastError = new Error(`e2e bootstrap HTTP ${bootstrap.status()}`);
+    } catch (error) {
+      lastError = error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+  }
+  if (bootstrap === undefined || bootstrap.status() !== 200) {
+    throw lastError instanceof Error ? lastError : new Error('e2e bootstrap failed');
+  }
   const bootstrapBody = await bootstrap.json();
   const superAdmin = bootstrapBody.data.superAdmin as { email: string; password: string };
 
@@ -74,7 +91,7 @@ export async function bootstrapApprovedOwner(
   await orgRow.getByTestId('approve-org').click();
   await page.getByRole('button', { name: 'Approve organization' }).click();
   const urlText = (await page.getByTestId('activation-url').textContent())?.trim() ?? '';
-  const activationToken = new URL(urlText, 'http://localhost:4200').searchParams.get('token') ?? '';
+  const activationToken = activationTokenFromUrl(urlText);
 
   await page.getByTestId('sign-out').click();
   await page.goto(`/activate?token=${encodeURIComponent(activationToken)}`);
@@ -146,7 +163,7 @@ export async function createSellableProductWithOpening(
     retailPrice: string;
   },
 ): Promise<void> {
-  await page.getByRole('link', { name: 'Categories' }).click();
+  await page.getByRole('link', { name: 'Categories', exact: true }).click();
   await page.getByTestId('category-create-link').click();
   await page.getByTestId('category-name').fill(input.category);
   await page.getByTestId('category-product-class').selectOption('general');

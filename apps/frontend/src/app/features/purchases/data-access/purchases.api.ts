@@ -3,6 +3,8 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, map, switchMap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
+import { ApiSuccessEnvelope, PaginationMeta } from '@agrivio/api-contracts';
+import { PaginatedResult, PaginationQuery } from '../../../shared/data-access/pagination';
 import {
   PurchaseCancelInput,
   PurchaseDraftInput,
@@ -16,17 +18,16 @@ export class PurchasesApi {
   private readonly http = inject(HttpClient);
   private readonly authApi = inject(AuthApi);
 
-  listPurchases(params?: {
-    status?: string;
+  listPurchases(params: PaginationQuery & {
     supplierId?: string;
     warehouseId?: string;
-  }): Observable<PurchaseRecord[]> {
+  } = {}): Observable<PaginatedResult<PurchaseRecord>> {
     return this.http
-      .get<{ data: { items: PurchaseRecord[] } }>(
+      .get<ApiSuccessEnvelope<PurchaseRecord[], PaginationMeta>>(
         `${environment.publicApiBaseUrl}/api/v1/purchases`,
-        { withCredentials: true, params: params ?? {} },
+        { withCredentials: true, params: { ...params, page: params.page ?? 1, pageSize: params.pageSize ?? 25 } },
       )
-      .pipe(map((response) => response.data.items));
+      .pipe(map((response) => ({ items: response.data, meta: response.meta! })));
   }
 
   getPurchase(id: string): Observable<PurchaseRecord> {

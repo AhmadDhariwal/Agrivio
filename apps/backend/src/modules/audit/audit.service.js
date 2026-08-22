@@ -95,7 +95,7 @@ function createAuditService(deps) {
       : filters.from === undefined || filters.from < window.from
         ? window.from
         : filters.from;
-    const items = await store.query({
+    const result = await store.queryPage({
       organizationId,
       ...(filters.actorId === undefined ? {} : { actorId: filters.actorId }),
       ...(filters.action === undefined ? {} : { action: filters.action }),
@@ -104,8 +104,8 @@ function createAuditService(deps) {
       ...(filters.reason === undefined ? {} : { reason: filters.reason }),
       ...(from === undefined ? {} : { from }),
       ...(filters.to === undefined ? {} : { to: filters.to }),
-    });
-    return { items: items.map(toAuditDto) };
+    }, { skip: query.skip, pageSize: query.pageSize });
+    return { items: result.items.map(toAuditDto), total: result.total };
   }
 
   async function getOrganizationEvent(organizationId, id) {
@@ -124,7 +124,7 @@ function createAuditService(deps) {
 
   async function queryPlatformEvents(query) {
     const filters = parseFilters(query ?? {});
-    const items = await store.query({
+    const result = await store.queryPage({
       ...(filters.organizationId === undefined ? {} : { organizationId: filters.organizationId }),
       ...(filters.actorId === undefined ? {} : { actorId: filters.actorId }),
       ...(filters.action === undefined ? {} : { action: filters.action }),
@@ -133,8 +133,8 @@ function createAuditService(deps) {
       ...(filters.reason === undefined ? {} : { reason: filters.reason }),
       ...(filters.from === undefined ? {} : { from: filters.from }),
       ...(filters.to === undefined ? {} : { to: filters.to }),
-    });
-    return { items: items.map(toAuditDto) };
+    }, { skip: query.skip, pageSize: query.pageSize });
+    return { items: result.items.map(toAuditDto), total: result.total };
   }
 
   return {

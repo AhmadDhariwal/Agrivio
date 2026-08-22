@@ -1,7 +1,7 @@
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { bootstrapApprovedOwner, createBranchAndWarehouse } from './f07-p4-support';
 
-export const API = 'http://localhost:3000';
+export { API } from './e2e-origins';
 
 export async function bootstrapF08Owner(
   page: Page,

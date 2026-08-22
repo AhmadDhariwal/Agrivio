@@ -1,0 +1,374 @@
+{
+  "status": "passed",
+  "rehearsalEnvironment": {
+    "os": "win32 10.0.26200",
+    "node": "v24.19.0",
+    "mongodbUriSanitized": "mongodb://127.0.0.1:27017/?replicaSet=rs0"
+  },
+  "databases": {
+    "runId": "1786798687334",
+    "source": "agrivio_rehearsal_source_1786798687334",
+    "restored": "agrivio_rehearsal_restored_1786798687334",
+    "importDb": "agrivio_rehearsal_import_1786798687334"
+  },
+  "sourceDbSafety": {
+    "sourceMatchesPolicy": true,
+    "restoredMatchesPolicy": true,
+    "importMatchesPolicy": true,
+    "agrivioRefused": true
+  },
+  "localTechnicalRehearsal": "passed",
+  "productionTargetVendorBackupVerification": "pending",
+  "relG08": "pass",
+  "relG09": "pass",
+  "relG10": "pass",
+  "backupTools": {
+    "mongodumpBin": "C:\\Program Files\\MongoDB\\mongodb-database-tools-windows-x86_64-100.17.0\\bin\\mongodump.exe",
+    "mongorestoreBin": "C:\\Program Files\\MongoDB\\mongodb-database-tools-windows-x86_64-100.17.0\\bin\\mongorestore.exe"
+  },
+  "representativeSourceDataset": {
+    "organizationId": "6a806260005e013e139441d5",
+    "collections": {
+      "access_assignments": 0,
+      "account_activation_tokens": 1,
+      "account_movements": 2,
+      "accounts": 1,
+      "alert_settings": 0,
+      "audit_events": 33,
+      "auth_sessions": 3,
+      "backup_operation_records": 0,
+      "branches": 1,
+      "corrective_transactions": 0,
+      "customers": 2,
+      "expense_categories": 0,
+      "expenses": 0,
+      "idempotency_records": 9,
+      "import_jobs": 0,
+      "import_row_errors": 0,
+      "inventory_balances": 2,
+      "inventory_cost_states": 2,
+      "inventory_settings": 0,
+      "invoice_sequences": 1,
+      "ledger_effects": 7,
+      "low_stock_thresholds": 0,
+      "notification_items": 0,
+      "organization_memberships": 1,
+      "organization_settings": 0,
+      "organizations": 1,
+      "password_reset_tokens": 0,
+      "payment_allocations": 1,
+      "payments": 1,
+      "product_batches": 1,
+      "product_categories": 2,
+      "product_packaging_units": 0,
+      "product_prices": 1,
+      "products": 2,
+      "purchases": 1,
+      "restore_operation_records": 0,
+      "returns": 0,
+      "sales": 1,
+      "stock_adjustments": 0,
+      "stock_movements": 4,
+      "subscription_billing_records": 0,
+      "subscription_plans": 1,
+      "subscriptions": 1,
+      "suppliers": 2,
+      "users": 1,
+      "warehouse_transfers": 0,
+      "warehouses": 1
+    }
+  },
+  "sourcePreBackupReconciliation": {
+    "inventoryOk": true,
+    "findings": [],
+    "customerReceivable": "150000",
+    "customerAdvance": "25000",
+    "supplierPayable": "270000",
+    "supplierAdvance": "30000",
+    "accountMovementSum": "10024000",
+    "http": {
+      "inventoryOk": true,
+      "dashboardStatus": 200,
+      "salesStatus": 200,
+      "supplierReconOk": true
+    }
+  },
+  "dumpComparisonSnapshot": {
+    "capturedAt": "immediately-before-mongodump",
+    "afterBackupCoordinationRecord": true,
+    "collections": {
+      "access_assignments": 0,
+      "account_activation_tokens": 1,
+      "account_movements": 2,
+      "accounts": 1,
+      "alert_settings": 0,
+      "audit_events": 33,
+      "auth_sessions": 3,
+      "backup_operation_records": 1,
+      "branches": 1,
+      "corrective_transactions": 0,
+      "customers": 2,
+      "expense_categories": 0,
+      "expenses": 0,
+      "idempotency_records": 9,
+      "import_jobs": 0,
+      "import_row_errors": 0,
+      "inventory_balances": 2,
+      "inventory_cost_states": 2,
+      "inventory_settings": 0,
+      "invoice_sequences": 1,
+      "ledger_effects": 7,
+      "low_stock_thresholds": 0,
+      "notification_items": 0,
+      "organization_memberships": 1,
+      "organization_settings": 0,
+      "organizations": 1,
+      "password_reset_tokens": 0,
+      "payment_allocations": 1,
+      "payments": 1,
+      "product_batches": 1,
+      "product_categories": 2,
+      "product_packaging_units": 0,
+      "product_prices": 1,
+      "products": 2,
+      "purchases": 1,
+      "restore_operation_records": 0,
+      "returns": 0,
+      "sales": 1,
+      "stock_adjustments": 0,
+      "stock_movements": 4,
+      "subscription_billing_records": 0,
+      "subscription_plans": 1,
+      "subscriptions": 1,
+      "suppliers": 2,
+      "users": 1,
+      "warehouse_transfers": 0,
+      "warehouses": 1
+    }
+  },
+  "backup": {
+    "tool": "mongodump",
+    "version": "mongodump version: 100.17.0",
+    "command": "C:\\Program Files\\MongoDB\\mongodb-database-tools-windows-x86_64-100.17.0\\bin\\mongodump.exe --uri=<replica-set-uri> --db=<sourceDb> --out=<dumpDir>",
+    "exactSanitizedCommand": "C:\\Program Files\\MongoDB\\mongodb-database-tools-windows-x86_64-100.17.0\\bin\\mongodump.exe --uri mongodb://127.0.0.1:27017/?replicaSet=rs0 --db agrivio_rehearsal_source_1786798687334 --out C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334",
+    "sourceDb": "agrivio_rehearsal_source_1786798687334",
+    "start": "2026-08-15T12:58:14.141Z",
+    "end": "2026-08-15T12:58:14.858Z",
+    "exitStatus": 0,
+    "artifactPath": "C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334",
+    "artifactSizeBytes": 81251,
+    "expectedNamespace": "agrivio_rehearsal_source_1786798687334",
+    "stderr": "2026-08-15T17:58:14.587+0500\twriting `agrivio_rehearsal_source_1786798687334.audit_events` to `C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334\\audit_events.bson`\n2026-08-15T17:58:14.590+0500\twriting `agrivio_rehearsal_source_1786798687334.idempotency_records` to `C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334\\idempotency_records.bson`\n2026-08-15T17:58:14.590+0500\twriting `agrivio_rehearsal_source_1786798687334.ledger_effects` to `C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334\\ledger_effects.bson`\n2026-08-15T17:58:14.590+0500\twriting `agrivio_rehearsal_source_1786798687334.stock_movements` to `C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334\\stock_movements.bson`\n2026-08-15T17:58:14.604+0500\tdone dumping `agrivio_rehearsal_source_1786798687334.audit_events` (33 documents)\n2026-08-15T17:58:14.604+0500\twriting `agrivio_rehearsal_source_1786798687334.auth_sessions` to `C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334\\auth_sessions.bson`\n2026-08-15T17:58:14.608+0500\tdone dumping `agrivio_rehearsal_source_1786798687334.stock_movements` (4 documents)\n2026-08-15T17:58:14.608+0500\twriting `agrivio_rehearsal_source_1786798687334.inventory_balances` to `C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334\\inventory_balances.bson`\n2026-08-15T17:58:14.610+0500\tdone dumping `agrivio_rehearsal_source_1786798687334.idempotency_records` (9 documents)\n2026-08-15T17:58:14.610+0500\twriting `agrivio_rehearsal_source_1786798687334.products` to `C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334\\products.bson`\n2026-08-15T17:58:14.611+0500\tdone dumping `agrivio_rehearsal_",
+    "nonEmptyArtifact": true
+  },
+  "restore": {
+    "tool": "mongorestore",
+    "version": "mongorestore version: 100.17.0",
+    "command": "C:\\Program Files\\MongoDB\\mongodb-database-tools-windows-x86_64-100.17.0\\bin\\mongorestore.exe --uri=<replica-set-uri> --nsFrom=<sourceDb>.* --nsTo=<restoredDb>.* --dir=<dumpDir>",
+    "exactSanitizedCommand": "C:\\Program Files\\MongoDB\\mongodb-database-tools-windows-x86_64-100.17.0\\bin\\mongorestore.exe --uri mongodb://127.0.0.1:27017/?replicaSet=rs0 --nsFrom agrivio_rehearsal_source_1786798687334.* --nsTo agrivio_rehearsal_restored_1786798687334.* --dir C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334",
+    "exitStatus": 0,
+    "restoredDatabase": "agrivio_rehearsal_restored_1786798687334",
+    "stderr": "2026-08-15T17:58:15.761+0500\tpreparing collections to restore from\n2026-08-15T17:58:15.810+0500\tdon't know what to do with file `C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334\\prelude.json`, skipping...\n2026-08-15T17:58:15.818+0500\treading metadata for `agrivio_rehearsal_restored_1786798687334.corrective_transactions` from `C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334\\corrective_transactions.metadata.json`\n2026-08-15T17:58:15.819+0500\treading metadata for `agrivio_rehearsal_restored_1786798687334.idempotency_records` from `C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334\\idempotency_records.metadata.json`\n2026-08-15T17:58:15.820+0500\treading metadata for `agrivio_rehearsal_restored_1786798687334.import_jobs` from `C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334\\import_jobs.metadata.json`\n2026-08-15T17:58:15.820+0500\treading metadata for `agrivio_rehearsal_restored_1786798687334.stock_movements` from `C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334\\stock_movements.metadata.json`\n2026-08-15T17:58:15.820+0500\treading metadata for `agrivio_rehearsal_restored_1786798687334.suppliers` from `C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334\\suppliers.metadata.json`\n2026-08-15T17:58:15.821+0500\treading metadata for `agrivio_rehearsal_restored_1786798687334.warehouse_transfers` from `C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334\\warehouse_transfers.metadata.json`\n2026-08-15T17:58:15.821+0500\treading metadata for `agrivio_rehearsal_restored_1786798687334.branches` from `C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334\\branches.metadata.json`\n2026-08-15T17:58:15.821+0500\treading metadata for `agrivio_rehearsal_restored_1786798687334.organizations` from `C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334\\organizations.metadata.json`\n2026-08-15T17:58:15.822+0500\treading metadata for `agrivio_rehearsal_restored_1786798687334.product_packaging_units` from `C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334\\product_packaging_units.metadata.json`\n2026-08-15T17:58:15.822+0500\treading metadata for `agrivio_rehearsal_restored_1786798687334.stock_adjustments` from `C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334\\stock_adjustments.metadata.json`\n2026-08-15T17:58:15.823+0500\treading metadata for `agrivio_rehearsal_restored_1786798687334.subscription_plans` from `C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334\\subscription_plans.metadata.json`\n2026-08-15T17:58:15.823+0500\treading metadata for `agrivio_rehearsal_restored_1786798687334.users` from `C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334\\users.metadata.json`\n2026-08-15T17:58:15.824+0500\treading metadata for `agrivio_rehearsal_restored_1786798687334.audit_events` from `C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334\\audit_events.metadata.json`\n2026-08-15T17:58:15.824+0500\treading metadata for `agrivio_rehearsal_restored_1786798687334.backup_operation_records` from `C:\\Users\\Ahmad\\AppData\\Local\\Temp\\agrivio-rehearsal-dump-1786798687334\\agrivio_rehearsal_source_1786798687334\\backup_operation_records.metadata.json`\n2026-08-15T17:58:15.825+0500\treading metadata for `agrivio_rehearsal_restored_1786798687334.expense_categories` from `C:\\Users\\Ahmad\\AppDa",
+    "warnings": [],
+    "collections": {
+      "access_assignments": 0,
+      "account_activation_tokens": 1,
+      "account_movements": 2,
+      "accounts": 1,
+      "alert_settings": 0,
+      "audit_events": 33,
+      "auth_sessions": 3,
+      "backup_operation_records": 1,
+      "branches": 1,
+      "corrective_transactions": 0,
+      "customers": 2,
+      "expense_categories": 0,
+      "expenses": 0,
+      "idempotency_records": 9,
+      "import_jobs": 0,
+      "import_row_errors": 0,
+      "inventory_balances": 2,
+      "inventory_cost_states": 2,
+      "inventory_settings": 0,
+      "invoice_sequences": 1,
+      "ledger_effects": 7,
+      "low_stock_thresholds": 0,
+      "notification_items": 0,
+      "organization_memberships": 1,
+      "organization_settings": 0,
+      "organizations": 1,
+      "password_reset_tokens": 0,
+      "payment_allocations": 1,
+      "payments": 1,
+      "product_batches": 1,
+      "product_categories": 2,
+      "product_packaging_units": 0,
+      "product_prices": 1,
+      "products": 2,
+      "purchases": 1,
+      "restore_operation_records": 0,
+      "returns": 0,
+      "sales": 1,
+      "stock_adjustments": 0,
+      "stock_movements": 4,
+      "subscription_billing_records": 0,
+      "subscription_plans": 1,
+      "subscriptions": 1,
+      "suppliers": 2,
+      "users": 1,
+      "warehouse_transfers": 0,
+      "warehouses": 1
+    },
+    "comparedAgainst": "dumpComparisonSnapshot",
+    "documentCountsMatchSource": true
+  },
+  "inventoryReconciliation": {
+    "sourceOk": true,
+    "restoredOk": true,
+    "match": true
+  },
+  "valuationWacReconciliation": {
+    "source": [
+      {
+        "warehouseId": "6a806262005e013e13944295",
+        "productId": "6a806263005e013e139442e5",
+        "quantityBaseMinorUnits": "1080000",
+        "inventoryValueMinorUnits": "540000",
+        "weightedAverageCostMinorUnits": "5000"
+      },
+      {
+        "warehouseId": "6a806262005e013e13944295",
+        "productId": "6a806263005e013e139442f7",
+        "quantityBaseMinorUnits": "200000",
+        "inventoryValueMinorUnits": "80000",
+        "weightedAverageCostMinorUnits": "4000"
+      }
+    ],
+    "restored": [
+      {
+        "warehouseId": "6a806262005e013e13944295",
+        "productId": "6a806263005e013e139442e5",
+        "quantityBaseMinorUnits": "1080000",
+        "inventoryValueMinorUnits": "540000",
+        "weightedAverageCostMinorUnits": "5000"
+      },
+      {
+        "warehouseId": "6a806262005e013e13944295",
+        "productId": "6a806263005e013e139442f7",
+        "quantityBaseMinorUnits": "200000",
+        "inventoryValueMinorUnits": "80000",
+        "weightedAverageCostMinorUnits": "4000"
+      }
+    ],
+    "match": true
+  },
+  "ledgerReconciliation": {
+    "customerReceivable": {
+      "source": "150000",
+      "restored": "150000"
+    },
+    "customerAdvance": {
+      "source": "25000",
+      "restored": "25000"
+    },
+    "supplierPayable": {
+      "source": "270000",
+      "restored": "270000"
+    },
+    "supplierAdvance": {
+      "source": "30000",
+      "restored": "30000"
+    },
+    "match": true
+  },
+  "accountReconciliation": {
+    "source": "10024000",
+    "restored": "10024000",
+    "match": true
+  },
+  "reportReconciliation": {
+    "dashboardMatch": true,
+    "salesMatch": true,
+    "stockValuationMatch": true,
+    "supplierReconMatch": true
+  },
+  "restoreFailureDetection": {
+    "missingArtifactExitStatus": 1,
+    "missingArtifactNotSuccess": true,
+    "agrivioRestoreRefused": true,
+    "targetNotVerified": true
+  },
+  "authorizationAudit": {
+    "orgUserRestoreStatus": 403,
+    "coordinationOnly": true,
+    "productionRestoreExecuted": true,
+    "backupListStatus": 200
+  },
+  "importTypesRehearsed": [
+    "product_categories",
+    "products",
+    "customers",
+    "suppliers",
+    "customer_opening_receivables",
+    "supplier_opening_payables",
+    "cash_opening_balances",
+    "opening_stock"
+  ],
+  "validImport": {
+    "types": [
+      {
+        "type": "product_categories",
+        "validRows": 1,
+        "executed": "completed",
+        "createdCount": 1
+      },
+      {
+        "type": "products",
+        "validRows": 1,
+        "createdCount": 1
+      },
+      {
+        "type": "customers",
+        "createdCount": 1
+      },
+      {
+        "type": "suppliers",
+        "createdCount": 1
+      },
+      {
+        "type": "customer_opening_receivables",
+        "createdCount": 1
+      },
+      {
+        "type": "supplier_opening_payables",
+        "createdCount": 1
+      },
+      {
+        "type": "cash_opening_balances",
+        "createdCount": 1
+      },
+      {
+        "type": "opening_stock",
+        "createdCount": 1
+      }
+    ],
+    "allExecuted": true
+  },
+  "invalidPreview": {
+    "invalidRows": 1,
+    "confirmHttpStatus": 400,
+    "executed": null,
+    "errorField": "name",
+    "errorRow": 3,
+    "errorCode": "REQUIRED",
+    "ledgerUnchanged": true,
+    "accountUnchanged": true
+  },
+  "importReconciliation": {
+    "inventoryOk": true,
+    "customerReceivable": "7500",
+    "supplierPayable": "9000",
+    "accountMovementSum": "50000",
+    "previewAcceptedRows": 8
+  }
+}

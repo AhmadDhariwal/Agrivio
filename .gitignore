@@ -17,6 +17,7 @@ bun.lockb
 # Builds and caches
 dist/
 tmp/
+tmp/rehearsal-dumps/
 out-tsc/
 .nx/cache/
 .nx/workspace-data/

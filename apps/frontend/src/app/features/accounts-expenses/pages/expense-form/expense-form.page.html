@@ -23,41 +23,102 @@
     <p class="ag-muted" data-testid="expense-corrected">This expense has been corrected. The original record is preserved.</p>
   }
 
-  <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="expense-form">
-    <label>
-      Category
-      <select formControlName="categoryId" data-testid="expense-category">
+  <form
+    class="ag-stack form ag-form ag-form--with-required-hint"
+    [formGroup]="form"
+    (ngSubmit)="save()"
+    data-testid="expense-form"
+  >
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Category"
+        for="expense-category"
+        [required]="fieldRequired(form.controls.categoryId)"
+      />
+      <select
+        id="expense-category"
+        class="ag-select"
+        formControlName="categoryId"
+        data-testid="expense-category"
+        [attr.aria-required]="fieldRequired(form.controls.categoryId) ? 'true' : null"
+      >
         <option value="">Select category</option>
         @for (item of categories(); track item.id) {
           <option [value]="item.id">{{ item.name }}</option>
         }
       </select>
-    </label>
-    <label>
-      Account
-      <select formControlName="accountId" data-testid="expense-account">
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Account"
+        for="expense-account"
+        [required]="fieldRequired(form.controls.accountId)"
+      />
+      <select
+        id="expense-account"
+        class="ag-select"
+        formControlName="accountId"
+        data-testid="expense-account"
+        [attr.aria-required]="fieldRequired(form.controls.accountId) ? 'true' : null"
+      >
         <option value="">Select account</option>
         @for (item of accounts(); track item.id) {
           <option [value]="item.id">{{ item.name }}</option>
         }
       </select>
-    </label>
-    <label>
-      Amount (PKR)
-      <input formControlName="amount" data-testid="expense-amount" />
-    </label>
-    <label>
-      Purpose
-      <input formControlName="purpose" data-testid="expense-purpose" />
-    </label>
-    <label>
-      Date
-      <input type="date" formControlName="expenseDate" data-testid="expense-date" />
-    </label>
-    <label>
-      Reference (optional)
-      <input formControlName="reference" data-testid="expense-reference" />
-    </label>
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Amount (PKR)"
+        for="expense-amount"
+        [required]="fieldRequired(form.controls.amount)"
+      />
+      <input
+        id="expense-amount"
+        class="ag-input"
+        formControlName="amount"
+        data-testid="expense-amount"
+        [attr.aria-required]="fieldRequired(form.controls.amount) ? 'true' : null"
+      />
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Purpose"
+        for="expense-purpose"
+        [required]="fieldRequired(form.controls.purpose)"
+      />
+      <input
+        id="expense-purpose"
+        class="ag-input"
+        formControlName="purpose"
+        data-testid="expense-purpose"
+        [attr.aria-required]="fieldRequired(form.controls.purpose) ? 'true' : null"
+      />
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Date"
+        for="expense-date"
+        [required]="fieldRequired(form.controls.expenseDate)"
+      />
+      <input
+        id="expense-date"
+        class="ag-input"
+        type="date"
+        formControlName="expenseDate"
+        data-testid="expense-date"
+        [attr.aria-required]="fieldRequired(form.controls.expenseDate) ? 'true' : null"
+      />
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label label="Reference (optional)" for="expense-reference" />
+      <input
+        id="expense-reference"
+        class="ag-input"
+        formControlName="reference"
+        data-testid="expense-reference"
+      />
+    </div>
     @if (isDraft && canPost()) {
       <div class="ag-inline">
         <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="expense-save">
@@ -75,17 +136,36 @@
       <button class="ag-btn" type="button" [disabled]="posting()" (click)="post()" data-testid="expense-post">
         {{ posting() ? 'Posting…' : 'Post expense' }}
       </button>
+      <button
+        class="ag-btn ag-btn--danger"
+        type="button"
+        [disabled]="discarding()"
+        (click)="askDiscard()"
+        data-testid="expense-discard"
+      >
+        {{ discarding() ? 'Discarding…' : 'Discard draft' }}
+      </button>
     </section>
   }
 
   @if (expense()?.status === 'posted' && canCorrect()) {
     <section class="ag-stack form" data-testid="expense-correct-section">
       <h2>Correct expense</h2>
-      <form class="ag-stack" [formGroup]="correctForm" (ngSubmit)="correct()">
-        <label>
-          Reason
-          <input formControlName="reason" data-testid="expense-correct-reason" />
-        </label>
+      <form class="ag-stack ag-form ag-form--with-required-hint" [formGroup]="correctForm" (ngSubmit)="correct()">
+        <div class="ag-field">
+          <agrivio-ui-field-label
+            label="Reason"
+            for="expense-correct-reason"
+            [required]="fieldRequired(correctForm.controls.reason)"
+          />
+          <input
+            id="expense-correct-reason"
+            class="ag-input"
+            formControlName="reason"
+            data-testid="expense-correct-reason"
+            [attr.aria-required]="fieldRequired(correctForm.controls.reason) ? 'true' : null"
+          />
+        </div>
         <button class="ag-btn" type="submit" [disabled]="correcting()" data-testid="expense-correct-save">
           {{ correcting() ? 'Correcting…' : 'Correct' }}
         </button>
@@ -93,3 +173,14 @@
     </section>
   }
 }
+
+<agrivio-ui-confirm-dialog
+  [open]="discardConfirmOpen()"
+  title="Discard draft?"
+  message="This expense draft has no posted account effects and will be removed."
+  confirmLabel="Discard draft"
+  cancelLabel="Keep draft"
+  [danger]="true"
+  (confirmed)="confirmDiscard()"
+  (dismiss)="discardConfirmOpen.set(false)"
+/>

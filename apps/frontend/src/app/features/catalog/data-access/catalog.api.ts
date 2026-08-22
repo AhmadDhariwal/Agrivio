@@ -11,19 +11,31 @@ import {
   ProductPricesReplaceResult,
   ProductRecord,
 } from '../models/catalog.models';
+import { ApiSuccessEnvelope, PaginationMeta } from '@agrivio/api-contracts';
+import { PaginatedResult, PaginationQuery } from '../../../shared/data-access/pagination';
+
+interface ProductListQuery extends PaginationQuery {
+  q?: string;
+}
 
 @Injectable({ providedIn: 'root' })
 export class CatalogApi {
   private readonly http = inject(HttpClient);
   private readonly authApi = inject(AuthApi);
 
-  listCategories(): Observable<CategoryRecord[]> {
+  listCategories(query: PaginationQuery = {}): Observable<PaginatedResult<CategoryRecord>> {
     return this.http
-      .get<{ data: { items: CategoryRecord[] } }>(
+      .get<ApiSuccessEnvelope<CategoryRecord[], PaginationMeta>>(
         `${environment.publicApiBaseUrl}/api/v1/product-categories`,
-        { withCredentials: true },
+        { withCredentials: true, params: this.paginationParams(query) },
       )
-      .pipe(map((response) => response.data.items));
+      .pipe(map((response) => ({ items: response.data, meta: response.meta! })));
+  }
+
+  searchCategoryOptions(search = ''): Observable<CategoryRecord[]> {
+    return this.listCategories({ page: 1, pageSize: 25, search, status: 'active' }).pipe(
+      map((result) => result.items),
+    );
   }
 
   getCategory(id: string): Observable<CategoryRecord> {
@@ -80,13 +92,66 @@ export class CatalogApi {
     );
   }
 
-  listProducts(): Observable<ProductRecord[]> {
+  deleteCategory(id: string): Observable<{ id: string; deleted: boolean }> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .delete<{ data: { id: string; deleted: boolean } }>(
+            `${environment.publicApiBaseUrl}/api/v1/product-categories/${id}`,
+            { withCredentials: true, headers: { 'X-CSRF-Token': csrfToken } },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
+  listProducts(query: ProductListQuery = {}): Observable<PaginatedResult<ProductRecord>> {
+    const params = this.paginationParams(query);
+    if (query.q) params['q'] = query.q;
     return this.http
-      .get<{ data: { items: ProductRecord[] } }>(
+      .get<ApiSuccessEnvelope<ProductRecord[], PaginationMeta>>(
         `${environment.publicApiBaseUrl}/api/v1/products`,
-        { withCredentials: true },
+        { withCredentials: true, params },
       )
-      .pipe(map((response) => response.data.items));
+      .pipe(
+        map((response) => ({
+          items: (response.data || []).map((p: any) => ({
+            ...p,
+            id: p.id || p._id || '',
+          })),
+          meta: response.meta!,
+        })),
+      );
+  }
+
+  searchProductOptions(q = '', limit = 500, status = 'all'): Observable<ProductRecord[]> {
+    const params: Record<string, string> = { q, limit: String(Math.min(500, Math.max(1, limit))) };
+    if (status && status !== 'all') {
+      params['status'] = status;
+    }
+    return this.http
+      .get<ApiSuccessEnvelope<ProductRecord[]>>(`${environment.publicApiBaseUrl}/api/v1/products`, {
+        withCredentials: true,
+        params,
+      })
+      .pipe(
+        map((response) =>
+          (response.data || []).map((p: any) => ({
+            ...p,
+            id: p.id || p._id || '',
+          })),
+        ),
+      );
+  }
+
+  private paginationParams(query: PaginationQuery): Record<string, string> {
+    const params: Record<string, string> = {
+      page: String(query.page ?? 1),
+      pageSize: String(query.pageSize ?? 25),
+    };
+    if (query.search) params['search'] = query.search;
+    if (query.status && query.status !== 'all') params['status'] = query.status;
+    return params;
   }
 
   getProduct(id: string): Observable<ProductRecord> {
@@ -144,6 +209,19 @@ export class CatalogApi {
               withCredentials: true,
               headers: { 'X-CSRF-Token': csrfToken },
             },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
+  deleteProduct(id: string): Observable<{ id: string; deleted: boolean }> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .delete<{ data: { id: string; deleted: boolean } }>(
+            `${environment.publicApiBaseUrl}/api/v1/products/${id}`,
+            { withCredentials: true, headers: { 'X-CSRF-Token': csrfToken } },
           )
           .pipe(map((response) => response.data)),
       ),

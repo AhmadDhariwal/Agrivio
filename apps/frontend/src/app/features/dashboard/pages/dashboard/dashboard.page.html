@@ -1,114 +1,185 @@
 <div data-testid="dashboard-page">
-<agrivio-ui-page-header title="Dashboard" lede="Operational overview for today" />
+  <agrivio-ui-page-header title="Dashboard" lede="Operational overview from Agrivio reporting">
+    <button type="button" class="ag-btn ag-btn--secondary" (click)="reload()">Refresh</button>
+  </agrivio-ui-page-header>
 
-@if (!canView()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to view the dashboard." />
-} @else if (loading()) {
-  <agrivio-ui-loading-state label="Loading dashboard…" />
-} @else if (errorMessage(); as error) {
-  <agrivio-ui-alert tone="danger" [message]="error" />
-} @else if (dashboard(); as data) {
-  <p class="dash-meta" data-testid="dashboard-business-date">Business date: {{ data.businessDate }}</p>
+  @if (!canView()) {
+    <agrivio-ui-alert tone="warning" message="You do not have permission to view the dashboard." />
+  } @else if (loading()) {
+    <agrivio-ui-loading-state label="Loading dashboard…" />
+  } @else if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  } @else if (dashboard(); as data) {
+    <form class="dash-toolbar ag-form" (submit)="$event.preventDefault(); reload()">
+      <p class="dash-meta" data-testid="dashboard-business-date">Business date: {{ data.businessDate }}</p>
+      <div class="ag-field">
+        <label class="ag-field__label" for="dash-from">From</label>
+        <input id="dash-from" class="ag-input" type="date" [ngModel]="fromDate()" (ngModelChange)="fromDate.set($event)" name="fromDate" />
+      </div>
+      <div class="ag-field">
+        <label class="ag-field__label" for="dash-to">To</label>
+        <input id="dash-to" class="ag-input" type="date" [ngModel]="toDate()" (ngModelChange)="toDate.set($event)" name="toDate" />
+      </div>
+      <div class="ag-field">
+        <label class="ag-field__label" for="dash-branch">Branch</label>
+        <select id="dash-branch" class="ag-select" [ngModel]="branchId()" (ngModelChange)="branchId.set($event)" name="branchId" [disabled]="filtersLoading()">
+          <option value="">All permitted branches</option>
+          @for (branch of branches(); track branch.id) {
+            <option [value]="branch.id">{{ branch.name }}</option>
+          }
+        </select>
+      </div>
+      <div class="ag-field">
+        <label class="ag-field__label" for="dash-warehouse">Warehouse</label>
+        <select id="dash-warehouse" class="ag-select" [ngModel]="warehouseId()" (ngModelChange)="warehouseId.set($event)" name="warehouseId" [disabled]="filtersLoading()">
+          <option value="">All permitted warehouses</option>
+          @for (warehouse of warehouses(); track warehouse.id) {
+            <option [value]="warehouse.id">{{ warehouse.name }}</option>
+          }
+        </select>
+      </div>
+      <button type="submit" class="ag-btn">Apply filters</button>
+    </form>
 
-  <section class="dash-grid" aria-label="Today metrics">
-    <div>
-      <h2>Today's sales</h2>
-      <p data-testid="dash-todays-sales">{{ data.todaysSales.amount }} {{ data.todaysSales.currency }}</p>
-    </div>
-    <div>
-      <h2>Today's purchases</h2>
-      <p data-testid="dash-todays-purchases">
-        {{ data.todaysPurchases.amount }} {{ data.todaysPurchases.currency }}
-      </p>
-    </div>
-    <div>
-      <h2>Today's expenses</h2>
-      <p data-testid="dash-todays-expenses">
-        {{ data.todaysExpenses.amount }} {{ data.todaysExpenses.currency }}
-      </p>
-    </div>
-    <div>
-      <h2>Gross profit</h2>
-      <p data-testid="dash-gross-profit">{{ data.grossProfit.amount }} {{ data.grossProfit.currency }}</p>
-    </div>
-  </section>
+    <section class="dash-grid" aria-label="Primary KPIs">
+      <a routerLink="/app/sales" class="dash-card">
+        <h2>Sales</h2>
+        <p class="dash-card__value" data-testid="dash-todays-sales">{{ formatMoney(data.periodSales ?? data.todaysSales) }}</p>
+        <span class="ag-muted">Today {{ formatMoney(data.todaysSales) }}</span>
+      </a>
+      <a routerLink="/app/purchases" class="dash-card">
+        <h2>Purchases</h2>
+        <p class="dash-card__value" data-testid="dash-todays-purchases">{{ formatMoney(data.periodPurchases ?? data.todaysPurchases) }}</p>
+        <span class="ag-muted">Today {{ formatMoney(data.todaysPurchases) }}</span>
+      </a>
+      <a routerLink="/app/expenses" class="dash-card">
+        <h2>Expenses</h2>
+        <p class="dash-card__value" data-testid="dash-todays-expenses">{{ formatMoney(data.todaysExpenses) }}</p>
+      </a>
+      <a routerLink="/app/reports" class="dash-card">
+        <h2>Gross profit</h2>
+        <p class="dash-card__value" data-testid="dash-gross-profit">{{ formatMoney(data.periodGrossProfit ?? data.grossProfit) }}</p>
+      </a>
+    </section>
 
-  <section class="dash-grid" aria-label="Balances">
-    <div>
-      <h2>Cash</h2>
-      <p>{{ data.cashBalances.amount }} {{ data.cashBalances.currency }}</p>
-    </div>
-    <div>
-      <h2>Bank</h2>
-      <p>{{ data.bankBalances.amount }} {{ data.bankBalances.currency }}</p>
-    </div>
-    <div>
-      <h2>JazzCash</h2>
-      <p>{{ data.jazzCashBalance.amount }} {{ data.jazzCashBalance.currency }}</p>
-    </div>
-    <div>
-      <h2>Easypaisa</h2>
-      <p>{{ data.easypaisaBalance.amount }} {{ data.easypaisaBalance.currency }}</p>
-    </div>
-    <div>
-      <h2>Customer receivables</h2>
-      <p data-testid="dash-receivables">
-        {{ data.customerReceivables.amount }} {{ data.customerReceivables.currency }}
-      </p>
-    </div>
-    <div>
-      <h2>Supplier payables</h2>
-      <p data-testid="dash-payables">
-        {{ data.supplierPayables.amount }} {{ data.supplierPayables.currency }}
-      </p>
-    </div>
-  </section>
-
-  <section class="dash-grid" aria-label="Inventory alerts">
-    <div>
-      <h2>Low stock</h2>
-      <p data-testid="dash-low-stock">{{ data.lowStockCount }}</p>
-    </div>
-    <div>
-      <h2>Upcoming expiry</h2>
-      <p data-testid="dash-upcoming-expiry">{{ data.upcomingExpiryCount }}</p>
-    </div>
-    <div>
-      <h2>Expired stock</h2>
-      <p data-testid="dash-expired-stock">{{ data.expiredStockCount }}</p>
-    </div>
-    <div>
-      <h2>Dead stock</h2>
-      <p data-testid="dash-dead-stock">{{ data.deadStockSummary.count }}</p>
-    </div>
-  </section>
-
-  <section aria-label="Recent sales">
-    <h2>Recent sales</h2>
-    <ul data-testid="dash-recent-sales">
-      @for (sale of data.recentSales; track sale.id) {
-        <li>
-          {{ sale.invoiceNumber || sale.id }} — {{ sale.saleDate }} —
-          {{ sale.saleTotal?.amount }} {{ sale.saleTotal?.currency }}
-        </li>
+    <section class="dash-grid" aria-label="Financial KPIs">
+      <a routerLink="/app/customers" class="dash-card">
+        <h2>Customer receivables</h2>
+        <p class="dash-card__value" data-testid="dash-receivables">{{ formatMoney(data.customerReceivables) }}</p>
+      </a>
+      <a routerLink="/app/suppliers" class="dash-card">
+        <h2>Supplier payables</h2>
+        <p class="dash-card__value" data-testid="dash-payables">{{ formatMoney(data.supplierPayables) }}</p>
+      </a>
+      <div class="dash-card">
+        <h2>Cash</h2>
+        <p class="dash-card__value">{{ formatMoney(data.cashBalances) }}</p>
+      </div>
+      <div class="dash-card">
+        <h2>Bank</h2>
+        <p class="dash-card__value">{{ formatMoney(data.bankBalances) }}</p>
+      </div>
+      <div class="dash-card">
+        <h2>JazzCash</h2>
+        <p class="dash-card__value">{{ formatMoney(data.jazzCashBalance) }}</p>
+      </div>
+      <div class="dash-card">
+        <h2>Easypaisa</h2>
+        <p class="dash-card__value">{{ formatMoney(data.easypaisaBalance) }}</p>
+      </div>
+      @if (data.stockValuation) {
+        <a routerLink="/app/inventory/stock" class="dash-card">
+          <h2>Stock valuation</h2>
+          <p class="dash-card__value">{{ formatMoney(data.stockValuation) }}</p>
+        </a>
       }
-    </ul>
-  </section>
+    </section>
 
-  <section aria-label="Top-selling products">
-    <h2>Top-selling products</h2>
-    <ul data-testid="dash-top-products">
-      @for (product of data.topSellingProducts; track product.productId) {
-        <li>
-          {{ product.productName }} — qty {{ product.quantityBase }} — {{ product.revenue.amount }}
-          {{ product.revenue.currency }}
-        </li>
+    <section class="dash-charts" aria-label="Trends and distributions">
+      <article class="dash-panel">
+        <h2>Sales vs purchases trend</h2>
+        <agrivio-ui-line-chart
+          title="Sales vs purchases trend"
+          [points]="salesVsPurchasePoints()"
+          [seriesList]="salesPurchaseSeries"
+          emptyLabel="No posted sales or purchases in this range."
+        />
+      </article>
+      <article class="dash-panel">
+        <h2>Gross profit trend</h2>
+        <agrivio-ui-line-chart
+          title="Gross profit trend"
+          [points]="grossProfitPoints()"
+          [seriesList]="grossProfitSeries"
+          emptyLabel="No gross-profit rows in this range."
+        />
+      </article>
+      <article class="dash-panel">
+        <h2>Top-selling products</h2>
+        <agrivio-ui-horizontal-bar-chart
+          title="Top-selling products"
+          [items]="topProductBars()"
+          [valueFormatter]="formatQuantity"
+          emptyLabel="No product sales in this range."
+        />
+      </article>
+      <article class="dash-panel">
+        <h2>Payment / account distribution</h2>
+        <agrivio-ui-donut-chart
+          title="Payment and account distribution"
+          [slices]="accountDonutSlices()"
+          [valueFormatter]="formatPkrAmount"
+          emptyLabel="No account balances available."
+        />
+      </article>
+      <article class="dash-panel">
+        <h2>Stock expiry status</h2>
+        <agrivio-ui-horizontal-bar-chart
+          title="Stock expiry status"
+          [items]="expiryBars()"
+          emptyLabel="No expiry alert counts available."
+        />
+      </article>
+    </section>
+
+    <section class="dash-grid" aria-label="Operations">
+      <a routerLink="/app/alerts" class="dash-card">
+        <h2>Low stock</h2>
+        <p class="dash-card__value" data-testid="dash-low-stock">{{ formatCount(data.lowStockCount) }}</p>
+      </a>
+      <a routerLink="/app/inventory/expiry" class="dash-card">
+        <h2>Upcoming expiry</h2>
+        <p class="dash-card__value" data-testid="dash-upcoming-expiry">{{ formatCount(data.upcomingExpiryCount) }}</p>
+      </a>
+      <a routerLink="/app/inventory/expiry" class="dash-card">
+        <h2>Expired stock</h2>
+        <p class="dash-card__value" data-testid="dash-expired-stock">{{ formatCount(data.expiredStockCount) }}</p>
+      </a>
+      <a routerLink="/app/alerts" class="dash-card">
+        <h2>Dead stock</h2>
+        <p class="dash-card__value" data-testid="dash-dead-stock">{{ formatCount(data.deadStockSummary.count) }}</p>
+      </a>
+    </section>
+
+    <section class="dash-panel" aria-label="Recent sales">
+      <h2>Recent sales</h2>
+      @if (data.recentSales.length === 0) {
+        <agrivio-ui-empty-state title="No recent sales" message="Posted sales will appear here." />
+      } @else {
+        <ul class="dash-list" data-testid="dash-recent-sales">
+          @for (sale of data.recentSales; track sale.id) {
+            <li>
+              <a [routerLink]="['/app/sales', sale.id]">{{ sale.invoiceNumber || sale.id }}</a>
+              <span class="ag-muted">{{ sale.saleDate }}</span>
+              <span>{{ sale.saleTotal ? formatMoney(sale.saleTotal) : 'Unavailable' }}</span>
+            </li>
+          }
+        </ul>
       }
-    </ul>
-  </section>
+    </section>
 
-  <p>
-    <a routerLink="/app/alerts" href="/app/alerts" data-testid="dash-alerts-link">Open notification center</a>
-  </p>
-}
+    <p>
+      <a routerLink="/app/alerts" href="/app/alerts" data-testid="dash-alerts-link">Open notification center</a>
+    </p>
+  }
 </div>

@@ -34,30 +34,52 @@
   }
 
   <form
-    class="ag-stack form"
+    class="ag-stack form ag-form ag-form--with-required-hint"
     [formGroup]="form"
     (ngSubmit)="save()"
     data-testid="customer-payment-form"
   >
-    <label>
-      Customer
-      <select formControlName="customerId" data-testid="customer-payment-customer">
+    <div class="ag-field">
+      <agrivio-ui-field-label label="Find customer" for="customer-payment-customer-search" />
+      <input id="customer-payment-customer-search" class="ag-input" type="search" (change)="onCustomerSearch($event)" />
+      <agrivio-ui-field-label
+        label="Customer"
+        for="customer-payment-customer"
+        [required]="fieldRequired(form.controls.customerId)"
+      />
+      <select
+        id="customer-payment-customer"
+        class="ag-select"
+        formControlName="customerId"
+        data-testid="customer-payment-customer"
+        [attr.aria-required]="fieldRequired(form.controls.customerId) ? 'true' : null"
+      >
         <option value="">Select customer</option>
         @for (customer of customers(); track customer.id) {
           <option [value]="customer.id">{{ customer.name }}</option>
         }
       </select>
-    </label>
+    </div>
 
-    <label>
-      Receive into account
-      <select formControlName="accountId" data-testid="customer-payment-account">
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Receive into account"
+        for="customer-payment-account"
+        [required]="fieldRequired(form.controls.accountId)"
+      />
+      <select
+        id="customer-payment-account"
+        class="ag-select"
+        formControlName="accountId"
+        data-testid="customer-payment-account"
+        [attr.aria-required]="fieldRequired(form.controls.accountId) ? 'true' : null"
+      >
         <option value="">Select account</option>
         @for (account of accounts(); track account.id) {
           <option [value]="account.id">{{ account.name }} ({{ account.accountType }})</option>
         }
       </select>
-    </label>
+    </div>
 
     <fieldset class="ag-stack">
       <legend>Allocation mode</legend>
@@ -75,32 +97,74 @@
       <section class="ag-stack invoice-alloc" data-testid="invoice-alloc-section">
         <h2>Invoice allocation</h2>
         <div [formGroup]="invoiceAllocationForm" class="ag-stack">
-          <label>
-            Sale ID
-            <input formControlName="saleId" data-testid="alloc-sale-input" placeholder="Posted sale ID" />
-          </label>
-          <label>
-            Allocation amount (PKR)
-            <input formControlName="allocationAmount" data-testid="alloc-amount-input" />
-          </label>
+        <div class="ag-field">
+          <agrivio-ui-field-label
+            label="Sale ID"
+            for="alloc-sale-input"
+            [required]="fieldRequired(invoiceAllocationForm.controls.saleId)"
+          />
+          <input
+            id="alloc-sale-input"
+            class="ag-input"
+            formControlName="saleId"
+            data-testid="alloc-sale-input"
+            placeholder="Posted sale ID"
+            [attr.aria-required]="fieldRequired(invoiceAllocationForm.controls.saleId) ? 'true' : null"
+          />
+        </div>
+        <div class="ag-field">
+          <agrivio-ui-field-label
+            label="Allocation amount (PKR)"
+            for="alloc-amount-input"
+            [required]="fieldRequired(invoiceAllocationForm.controls.allocationAmount)"
+          />
+          <input
+            id="alloc-amount-input"
+            class="ag-input"
+            formControlName="allocationAmount"
+            data-testid="alloc-amount-input"
+            [attr.aria-required]="fieldRequired(invoiceAllocationForm.controls.allocationAmount) ? 'true' : null"
+          />
+        </div>
         </div>
       </section>
     }
 
-    <label>
-      Amount (PKR)
-      <input formControlName="amount" data-testid="customer-payment-amount" />
-    </label>
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Amount (PKR)"
+        for="customer-payment-amount"
+        [required]="fieldRequired(form.controls.amount)"
+      />
+      <input
+        id="customer-payment-amount"
+        class="ag-input"
+        formControlName="amount"
+        data-testid="customer-payment-amount"
+        [attr.aria-required]="fieldRequired(form.controls.amount) ? 'true' : null"
+      />
+    </div>
 
-    <label>
-      Payment date
-      <input type="date" formControlName="paymentDate" data-testid="customer-payment-date" />
-    </label>
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Payment date"
+        for="customer-payment-date"
+        [required]="fieldRequired(form.controls.paymentDate)"
+      />
+      <input
+        id="customer-payment-date"
+        class="ag-input"
+        type="date"
+        formControlName="paymentDate"
+        data-testid="customer-payment-date"
+        [attr.aria-required]="fieldRequired(form.controls.paymentDate) ? 'true' : null"
+      />
+    </div>
 
-    <label>
-      Notes (optional)
-      <textarea formControlName="notes" rows="3"></textarea>
-    </label>
+    <div class="ag-field">
+      <agrivio-ui-field-label label="Notes (optional)" for="customer-payment-notes" />
+      <textarea id="customer-payment-notes" class="ag-input" formControlName="notes" rows="3"></textarea>
+    </div>
 
     <div class="ag-inline">
       <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="customer-payment-save">

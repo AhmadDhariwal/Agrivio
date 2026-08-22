@@ -18,6 +18,22 @@ function createBridgedEmployeesStore(deps) {
       return [];
     },
 
+    async listMembershipsPage(organizationId, filter = {}, pagination = {}) {
+      const all = await this.listMembershipsByOrganizationId(organizationId);
+      const search = String(filter.search ?? '').trim().toLowerCase();
+      const withUsers = [];
+      for (const membership of all) {
+        const user = await this.findUserById(String(membership.userId));
+        if (user && (!search || String(user.emailNormalized).startsWith(search))) {
+          withUsers.push({ ...membership, user });
+        }
+      }
+      withUsers.sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')) || String(b._id).localeCompare(String(a._id)));
+      const total = withUsers.length;
+      const skip = pagination.skip ?? 0;
+      return { items: withUsers.slice(skip, skip + (pagination.pageSize ?? 25)), total };
+    },
+
     async countActiveUsers(organizationId) {
       const memberships = await this.listMembershipsByOrganizationId(organizationId);
       return memberships.filter(

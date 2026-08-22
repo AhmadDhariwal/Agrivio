@@ -156,6 +156,11 @@ function toPaymentDto(record, allocations = []) {
         ? record['postedAt'].toISOString()
         : String(record['postedAt']),
     postedBy: String(record['postedBy']),
+    correctionOfId: record['correctionOfId'] ? String(record['correctionOfId']) : null,
+    reason: record['reason'] ? String(record['reason']) : '',
+    replacementPaymentId: record['replacementPaymentId']
+      ? String(record['replacementPaymentId'])
+      : null,
     allocations: allocations.map((item) => ({
       id: String(item['_id']),
       targetType: String(item['targetType']),
@@ -231,9 +236,36 @@ function parseCustomerPayment(body) {
   };
 }
 
+function parsePaymentCorrect(body) {
+  assertObjectBody(body);
+  const reason = body.reason;
+  if (typeof reason !== 'string' || reason.trim() === '') {
+    throw validationFailed('reason is required', [
+      { field: 'reason', message: 'reason is required' },
+    ]);
+  }
+  const trimmed = reason.trim();
+  if (trimmed.length > 500) {
+    throw validationFailed('reason exceeds maximum length', [
+      { field: 'reason', message: 'reason must be at most 500 characters' },
+    ]);
+  }
+  let replacement = null;
+  if (body.replacement !== undefined && body.replacement !== null) {
+    if (body.replacement === null || typeof body.replacement !== 'object' || Array.isArray(body.replacement)) {
+      throw validationFailed('replacement must be an object', [
+        { field: 'replacement', message: 'replacement must be an object' },
+      ]);
+    }
+    replacement = body.replacement;
+  }
+  return { reason: trimmed, replacement };
+}
+
 module.exports = {
   parseSupplierPayment,
   parseCustomerPayment,
+  parsePaymentCorrect,
   toPaymentDto,
   toMoneyDto,
 };

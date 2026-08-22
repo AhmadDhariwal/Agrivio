@@ -1,4 +1,4 @@
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, signal } from '@angular/core';
 
 @Component({
   selector: 'agrivio-ui-confirm-dialog',
@@ -22,6 +22,16 @@ import { Component, input, output } from '@angular/core';
         >
           <h2 [id]="titleId">{{ title() }}</h2>
           <p class="ag-muted">{{ message() }}</p>
+          @if (requireReason()) {
+            <label>
+              Reason
+              <input
+                [value]="reason()"
+                (input)="onReasonInput($event)"
+                data-testid="lifecycle-reason-input"
+              />
+            </label>
+          }
           <div class="ag-actions">
             <button type="button" class="ag-btn ag-btn--secondary" (click)="dismiss.emit()">
               {{ cancelLabel() }}
@@ -31,7 +41,8 @@ import { Component, input, output } from '@angular/core';
               class="ag-btn"
               [class.ag-btn--danger]="danger()"
               [class.ag-btn--primary]="!danger()"
-              (click)="confirmed.emit()"
+              [disabled]="requireReason() && reason().trim() === ''"
+              (click)="confirmed.emit(reason().trim())"
             >
               {{ confirmLabel() }}
             </button>
@@ -48,7 +59,16 @@ export class UiConfirmDialogComponent {
   readonly confirmLabel = input('Confirm');
   readonly cancelLabel = input('Cancel');
   readonly danger = input(false);
-  readonly confirmed = output<void>();
+  readonly requireReason = input(false);
+  readonly confirmed = output<string>();
   readonly dismiss = output<void>();
   readonly titleId = `ag-confirm-${Math.random().toString(36).slice(2, 9)}`;
+  readonly reason = signal('');
+
+  onReasonInput(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      this.reason.set(target.value);
+    }
+  }
 }

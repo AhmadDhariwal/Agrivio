@@ -12,19 +12,39 @@
   @if (errorMessage(); as error) {
     <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
   }
-  <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="expense-category-form">
-    <label>
-      Name
-      <input formControlName="name" data-testid="expense-category-name" />
-    </label>
+  <form
+    class="ag-stack form ag-form ag-form--with-required-hint"
+    [formGroup]="form"
+    (ngSubmit)="save()"
+    data-testid="expense-category-form"
+  >
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Name"
+        for="expense-category-name"
+        [required]="fieldRequired(form.controls.name)"
+      />
+      <input
+        id="expense-category-name"
+        class="ag-input"
+        formControlName="name"
+        data-testid="expense-category-name"
+        [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
+      />
+    </div>
     @if (categoryId()) {
-      <label>
-        Status
-        <select formControlName="status" data-testid="expense-category-status">
+      <div class="ag-field">
+        <agrivio-ui-field-label label="Status" for="expense-category-status" />
+        <select
+          id="expense-category-status"
+          class="ag-select"
+          formControlName="status"
+          data-testid="expense-category-status"
+        >
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
-      </label>
+      </div>
     }
     <div class="ag-inline">
       <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="expense-category-save">Save</button>

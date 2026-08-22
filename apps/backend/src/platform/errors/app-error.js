@@ -29,6 +29,10 @@ function conflict(message = 'Conflict') {
   return new AppError(ApiTransportErrorCode.Conflict, message, 409);
 }
 
+function recordInUse(message = 'Record is in use', details) {
+  return new AppError(ApiTransportErrorCode.RecordInUse ?? 'RECORD_IN_USE', message, 409, details);
+}
+
 function versionConflict(message = 'Version conflict', details) {
   return new AppError(ApiTransportErrorCode.VersionConflict, message, 409, details);
 }
@@ -41,14 +45,36 @@ function insufficientStock(message = 'Insufficient stock available', details) {
   return new AppError(ApiTransportErrorCode.Conflict, message, 409, details);
 }
 
+function orgCapabilityDisabled(
+  message = 'This feature is not enabled for your organization',
+  details,
+) {
+  return new AppError(ApiTransportErrorCode.OrgCapabilityDisabled, message, 403, details);
+}
+
+function orgActionNotAllowed(
+  message = 'This action is not allowed for your organization',
+  details,
+) {
+  return new AppError(ApiTransportErrorCode.OrgActionNotAllowed, message, 403, details);
+}
+
+function orgFieldNotEditable(message = 'This field is read-only for your organization', details) {
+  return new AppError(ApiTransportErrorCode.OrgFieldNotEditable, message, 403, details);
+}
+
 module.exports = {
   validationFailed,
   notFound,
   unauthorized,
   forbidden,
   conflict,
+  recordInUse,
   versionConflict,
   idempotencyConflict,
   insufficientStock,
+  orgCapabilityDisabled,
+  orgActionNotAllowed,
+  orgFieldNotEditable,
   AppError,
 };

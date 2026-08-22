@@ -3,6 +3,8 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, map, switchMap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
+import { ApiSuccessEnvelope, PaginationMeta } from '@agrivio/api-contracts';
+import { PaginatedResult, PaginationQuery } from '../../../shared/data-access/pagination';
 import {
   SupplierLedgerEffectRecord,
   SupplierPaymentCreateInput,
@@ -16,13 +18,13 @@ export class SupplierPaymentsApi {
   private readonly http = inject(HttpClient);
   private readonly authApi = inject(AuthApi);
 
-  listSupplierPayments(params?: { supplierId?: string }): Observable<SupplierPaymentRecord[]> {
+  listSupplierPayments(params: PaginationQuery & { supplierId?: string } = {}): Observable<PaginatedResult<SupplierPaymentRecord>> {
     return this.http
-      .get<{ data: { items: SupplierPaymentRecord[] } }>(
+      .get<ApiSuccessEnvelope<SupplierPaymentRecord[], PaginationMeta>>(
         `${environment.publicApiBaseUrl}/api/v1/supplier-payments`,
-        { withCredentials: true, params: params ?? {} },
+        { withCredentials: true, params: { ...params, page: params.page ?? 1, pageSize: params.pageSize ?? 25 } },
       )
-      .pipe(map((response) => response.data.items));
+      .pipe(map((response) => ({ items: response.data, meta: response.meta! })));
   }
 
   postSupplierPayment(

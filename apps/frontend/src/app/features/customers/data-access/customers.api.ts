@@ -4,19 +4,38 @@ import { Observable, map, switchMap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
 import { CustomerRecord } from '../models/customers.models';
+import { ApiSuccessEnvelope, PaginationMeta } from '@agrivio/api-contracts';
+import { PaginatedResult, PaginationQuery } from '../../../shared/data-access/pagination';
 
 @Injectable({ providedIn: 'root' })
 export class CustomersApi {
   private readonly http = inject(HttpClient);
   private readonly authApi = inject(AuthApi);
 
-  listCustomers(): Observable<CustomerRecord[]> {
+  listCustomers(query: PaginationQuery = {}): Observable<PaginatedResult<CustomerRecord>> {
+    const params = this.paginationParams(query);
     return this.http
-      .get<{ data: { items: CustomerRecord[] } }>(
+      .get<ApiSuccessEnvelope<CustomerRecord[], PaginationMeta>>(
         `${environment.publicApiBaseUrl}/api/v1/customers`,
-        { withCredentials: true },
+        { withCredentials: true, params },
       )
-      .pipe(map((response) => response.data.items));
+      .pipe(map((response) => ({ items: response.data, meta: response.meta! })));
+  }
+
+  searchCustomerOptions(search = ''): Observable<CustomerRecord[]> {
+    return this.listCustomers({ page: 1, pageSize: 25, search, status: 'active' }).pipe(
+      map((result) => result.items),
+    );
+  }
+
+  private paginationParams(query: PaginationQuery): Record<string, string> {
+    const params: Record<string, string> = {
+      page: String(query.page ?? 1),
+      pageSize: String(query.pageSize ?? 25),
+    };
+    if (query.search) params['search'] = query.search;
+    if (query.status && query.status !== 'all') params['status'] = query.status;
+    return params;
   }
 
   getCustomer(id: string): Observable<CustomerRecord> {
@@ -73,6 +92,19 @@ export class CustomersApi {
               withCredentials: true,
               headers: { 'X-CSRF-Token': csrfToken },
             },
+          )
+          .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
+  deleteCustomer(id: string): Observable<{ id: string; deleted: boolean }> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .delete<{ data: { id: string; deleted: boolean } }>(
+            `${environment.publicApiBaseUrl}/api/v1/customers/${id}`,
+            { withCredentials: true, headers: { 'X-CSRF-Token': csrfToken } },
           )
           .pipe(map((response) => response.data)),
       ),

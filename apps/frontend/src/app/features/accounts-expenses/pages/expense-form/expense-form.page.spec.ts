@@ -15,12 +15,20 @@ describe('ExpenseFormPage', () => {
         {
           provide: ExpensesApi,
           useValue: {
-            listCategories: () => of([]),
+            listCategories: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            listCategoryOptions: () => of([]),
             getExpense: () => of(null),
             createExpense: () => of({}),
+            discardExpense: () => of({ discarded: true }),
           },
         },
-        { provide: AccountsApi, useValue: { listAccounts: () => of([]) } },
+        {
+          provide: AccountsApi,
+          useValue: {
+            listAccounts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            listAccountOptions: () => of([]),
+          },
+        },
         { provide: AuthSessionStore, useValue: { hasPermission: () => true } },
       ],
     }).compileComponents();

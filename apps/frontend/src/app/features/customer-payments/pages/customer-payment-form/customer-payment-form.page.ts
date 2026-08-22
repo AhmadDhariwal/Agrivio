@@ -16,6 +16,8 @@ import { AccountRecord } from '../../../accounts-expenses/models/accounts.models
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 
 @Component({
   selector: 'agrivio-customer-payment-form-page',
@@ -26,6 +28,7 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
     UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiFieldLabelComponent,
   ],
   templateUrl: './customer-payment-form.page.html',
   styleUrl: './customer-payment-form.page.scss',
@@ -46,6 +49,8 @@ export class CustomerPaymentFormPage {
   readonly ledgerItems = signal<CustomerLedgerEffectRecord[]>([]);
   readonly lastPayment = signal<CustomerPaymentRecord | null>(null);
   readonly canPost = computed(() => this.sessionStore.hasPermission('customer-payments.post'));
+
+  readonly fieldRequired = hasRequiredValidator;
 
   readonly form = this.formBuilder.nonNullable.group({
     customerId: ['', Validators.required],
@@ -72,8 +77,8 @@ export class CustomerPaymentFormPage {
     }
 
     forkJoin({
-      customers: this.customersApi.listCustomers(),
-      accounts: this.accountsApi.listAccounts(),
+      customers: this.customersApi.searchCustomerOptions(),
+      accounts: this.accountsApi.listAccountOptions(),
     }).subscribe({
       next: ({ customers, accounts }) => {
         this.customers.set(customers.filter((item) => item.status === 'active'));
@@ -98,24 +103,32 @@ export class CustomerPaymentFormPage {
     });
   }
 
+  onCustomerSearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      this.customersApi.searchCustomerOptions(target.value).subscribe((items) => this.customers.set(items.filter((item) => item.status === 'active')));
+    }
+  }
+
   save(): void {
     if (!this.canPost() || this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
+    const value = this.form.getRawValue();
+
+    if (value.allocationMode === 'invoice_specific' && this.invoiceAllocationForm.invalid) {
+      this.invoiceAllocationForm.markAllAsTouched();
+      return;
+    }
+
     this.saving.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
-    const value = this.form.getRawValue();
 
     let allocations: Array<{ saleId: string; amount: { amount: string; currency: string } }> | undefined;
     if (value.allocationMode === 'invoice_specific') {
       const inv = this.invoiceAllocationForm.getRawValue();
-      if (!inv.saleId || !inv.allocationAmount) {
-        this.errorMessage.set('Select a sale and enter an allocation amount.');
-        this.saving.set(false);
-        return;
-      }
       allocations = [
         {
           saleId: inv.saleId,

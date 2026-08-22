@@ -54,7 +54,14 @@ Central navigation for Agrivio documentation.
 * F08 Phase 3 complete (`R1-F08-006`) — see [tasks/F08-PHASE-3-EXCEL-IMPORTS.md](tasks/F08-PHASE-3-EXCEL-IMPORTS.md); Excel import preview and all-or-nothing execution
 * F08 Phase 4 complete (`R1-F08-007`–`R1-F08-009`) — see [tasks/F08-PHASE-4-AUDIT-BACKUP-SUSPENDED.md](tasks/F08-PHASE-4-AUDIT-BACKUP-SUSPENDED.md); audit inquiry, backup/restore status, suspended report/import policy
 * F08 Phase 5 complete (`R1-F08-010`) — see [tasks/F08-PHASE-5-ALERTS-REPORTING-IMPORTS-SLICE.md](tasks/F08-PHASE-5-ALERTS-REPORTING-IMPORTS-SLICE.md); alerts/reports/imports/audit/ops vertical slice and E2E; **F08 stage exit ready pending acceptance**
-* Next work item: **F09** (`R1-F09-001`) Full regression suite consolidation
+* F09 Phase 1 complete (`R1-F09-001`) — see [tasks/F09-PHASE-1-REGRESSION-CONSOLIDATION.md](tasks/F09-PHASE-1-REGRESSION-CONSOLIDATION.md); canonical `npm run test:regression:release`
+* F09 Phase 2 **complete for R1-F09-002–004**: REL-G03/G04/G05 evidence in-item; REL-G06 measured within accepted non-SLA thresholds; REL-G07 pass for NFR-A11Y-001–006 (not full WCAG product conformance). Do not start later F09 IDs from this record — see [tasks/F09-PHASE-2-SECURITY-PERF-A11Y.md](tasks/F09-PHASE-2-SECURITY-PERF-A11Y.md)
+* F09 Phase 3 complete for local technical rehearsal (`R1-F09-005`): REL-G08/G09 proven with host `mongodump`/`mongorestore`; REL-G10 passed; production vendor backup verification pending — see [tasks/F09-PHASE-3-BACKUP-RESTORE-IMPORT.md](tasks/F09-PHASE-3-BACKUP-RESTORE-IMPORT.md)
+* F09 Phase 4 **not accepted** (`R1-F09-006`–`007`) — automated orgs are not real pilot UAT; see [tasks/F09-PHASE-4-PILOT-UAT.md](tasks/F09-PHASE-4-PILOT-UAT.md)
+* F09 Phase 5 **not accepted** (`R1-F09-008`–`009`) — procedure drafts; named owners and production launch outstanding; see [tasks/F09-PHASE-5-PRODUCTION-LAUNCH.md](tasks/F09-PHASE-5-PRODUCTION-LAUNCH.md)
+* Project-wide server-side pagination complete — see [tasks/PROJECT-WIDE-SERVER-SIDE-PAGINATION.md](tasks/PROJECT-WIDE-SERVER-SIDE-PAGINATION.md); shared contract/parser/paginator, scoped stable queries, bounded/searchable selectors, and paginated list screens
+* Organization Capability & UI Policy implementation complete for the generic foundation plus Products, Categories, Inventory / Stock-on-Hand, Opening Stock, Product Batches, Expiry Inquiry, Stock Adjustments, and Warehouse Transfers modules — see [tasks/ORGANIZATION-CAPABILITY-PHASE-1.md](tasks/ORGANIZATION-CAPABILITY-PHASE-1.md)
+* Next work item: `R1-F09-005` local technical rehearsal is complete. Do not start `R1-F09-006` until assigned. Production target/vendor backup verification remains pending.
 
 ## Existing Documents
 
@@ -72,7 +79,7 @@ Central navigation for Agrivio documentation.
 | [MODEL_REVIEW_CHECKLIST.md](MODEL_REVIEW_CHECKLIST.md) | Mandatory completeness checklist for every new/changed persisted model (F03 P2+) |
 | [API_DESIGN.md](API_DESIGN.md) | API conventions and endpoint inventory (Frozen for Release 1, v1.0) |
 | [SECURITY_AUTHORIZATION.md](SECURITY_AUTHORIZATION.md) | Authentication, sessions, permissions, security controls (Frozen for Release 1, v1.0) |
-| [SUBSCRIPTION_AND_BILLING.md](SUBSCRIPTION_AND_BILLING.md) | Subscription lifecycle and manual billing (Frozen for Release 1, v1.0) |
+| [ENV.md](ENV.md) | Runtime environment variables (required / optional / production-only) |
 | [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md) | Release 1 implementation stages and work-item catalog (Frozen for Release 1, v1.2.0; 10 stages; 109 work items) |
 | [DELIVERY_PLAN.md](DELIVERY_PLAN.md) | Delivery estimates, risks, pilot and rollout (Frozen for Release 1, v1.0) |
 | [QUALITY_GATES.md](QUALITY_GATES.md) | Per-item, per-stage, and release quality gates (Frozen for Release 1, v1.4.0) |
@@ -80,6 +87,8 @@ Central navigation for Agrivio documentation.
 | [REPOSITORY_INITIALIZATION.md](REPOSITORY_INITIALIZATION.md) | F00 initialization order and bootstrap gates (Frozen for Release 1, v1.4.0) |
 | [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md) | Local commands, branching, PR, and agent workflow (Frozen for Release 1, v1.4.0) |
 | [TEST_STRATEGY.md](TEST_STRATEGY.md) | Test stack, locations, CI layers, and coverage policy (Frozen for Release 1, v1.4.0) |
+| [tasks/PROJECT-WIDE-SERVER-SIDE-PAGINATION.md](tasks/PROJECT-WIDE-SERVER-SIDE-PAGINATION.md) | Project-wide server-side pagination implementation record (complete) |
+| [tasks/ORGANIZATION-CAPABILITY-PHASE-1.md](tasks/ORGANIZATION-CAPABILITY-PHASE-1.md) | Organization Capability & UI Policy generic foundation plus Products, Categories, Inventory / Stock-on-Hand, Opening Stock, Product Batches, Expiry Inquiry, and Stock Adjustments integrations (complete) |
 | [tasks/P1-01.md](tasks/P1-01.md) | Phase 1 task: project documentation baseline |
 | [tasks/P1-02.md](tasks/P1-02.md) | Phase 1 task: product requirements and Release 1 scope |
 | [tasks/P1-03.md](tasks/P1-03.md) | Phase 1 task: business rules and domain glossary (complete and frozen) |
@@ -124,6 +133,18 @@ Central navigation for Agrivio documentation.
 | [tasks/F08-PHASE-3-EXCEL-IMPORTS.md](tasks/F08-PHASE-3-EXCEL-IMPORTS.md) | F08 Phase 3: Excel import preview and execution (`R1-F08-006`) |
 | [tasks/F08-PHASE-4-AUDIT-BACKUP-SUSPENDED.md](tasks/F08-PHASE-4-AUDIT-BACKUP-SUSPENDED.md) | F08 Phase 4: audit views, backup/restore status, suspended policy (`R1-F08-007`–`009`) |
 | [tasks/F08-PHASE-5-ALERTS-REPORTING-IMPORTS-SLICE.md](tasks/F08-PHASE-5-ALERTS-REPORTING-IMPORTS-SLICE.md) | F08 Phase 5: alerts/reporting/imports/audit/ops Angular vertical slice (`R1-F08-010`) |
+| [tasks/F09-PHASE-1-REGRESSION-CONSOLIDATION.md](tasks/F09-PHASE-1-REGRESSION-CONSOLIDATION.md) | F09 Phase 1: full regression suite consolidation (`R1-F09-001`, complete) |
+| [tasks/F09-PHASE-2-SECURITY-PERF-A11Y.md](tasks/F09-PHASE-2-SECURITY-PERF-A11Y.md) | F09 Phase 2: `R1-F09-002`/`003`/`004` complete; REL-G06/G07 evidenced (non-SLA perf; WCAG 2.2 AA contrast criteria only) |
+| [tasks/F09-PHASE-3-BACKUP-RESTORE-IMPORT.md](tasks/F09-PHASE-3-BACKUP-RESTORE-IMPORT.md) | F09 Phase 3: local REL-G08/G09/G10 passed (`R1-F09-005`); production vendor pending |
+| [ops/BACKUP_RESTORE_REHEARSAL.md](ops/BACKUP_RESTORE_REHEARSAL.md) | Path-generic local mongodump/mongorestore/import rehearsal runbook |
+| [tasks/F09-PHASE-4-PILOT-UAT.md](tasks/F09-PHASE-4-PILOT-UAT.md) | F09 Phase 4: automated demo-org rehearsal — Frozen DoD not accepted (`R1-F09-006`–`007`) |
+| [tasks/F09-PHASE-5-PRODUCTION-LAUNCH.md](tasks/F09-PHASE-5-PRODUCTION-LAUNCH.md) | F09 Phase 5: procedure drafts — Frozen DoD not accepted (`R1-F09-008`–`009`) |
+| [ops/RELEASE_NOTES.md](ops/RELEASE_NOTES.md) | Preparatory Release 1 notes draft (pending named operational contacts) |
+| [ops/APPLICATION_ROLLBACK.md](ops/APPLICATION_ROLLBACK.md) | Preparatory application-rollback draft (no automatic database restore) |
+| [ops/DATA_RECOVERY.md](ops/DATA_RECOVERY.md) | Preparatory data-recovery draft (distinct from application rollback) |
+| [ops/CONTROLLED_LAUNCH.md](ops/CONTROLLED_LAUNCH.md) | Preparatory controlled-launch draft (production launch not executed) |
+| [ops/UAT-DEFECT-LOG.md](ops/UAT-DEFECT-LOG.md) | Preparatory automated-rehearsal defect log (not real client UAT) |
+| [ops/F09-RELEASE-GATE-EVIDENCE.md](ops/F09-RELEASE-GATE-EVIDENCE.md) | REL-G01–REL-G15 evidence map; only REL-G01/G02 are in R1-F09-001 scope |
 | [tasks/F01-PHASE-1-PLATFORM-RUNTIME.md](tasks/F01-PHASE-1-PLATFORM-RUNTIME.md) | F01 Phase 1: platform runtime foundation |
 | [tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md](tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md) | F01 Phase 2: transactional platform foundation (completes F01) |
 | [../README.md](../README.md) | Repository landing page |

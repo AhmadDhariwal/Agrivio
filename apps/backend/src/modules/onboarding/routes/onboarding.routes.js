@@ -37,6 +37,17 @@ function registerOnboardingRoutes(deps) {
     },
   );
 
+  router.post(
+    API_PLATFORM_ORGANIZATIONS_PATH,
+    optionalAuth,
+    requireCsrf,
+    platformActor,
+    requirePlatformPermission('platform.organizations.create'),
+    (req, res, next) => {
+      void platformController.create(req, res, next);
+    },
+  );
+
   router.get(
     `${API_PLATFORM_ORGANIZATIONS_PATH}/:id`,
     optionalAuth,
@@ -77,6 +88,17 @@ function registerOnboardingRoutes(deps) {
     requirePlatformPermission('platform.organizations.approve'),
     (req, res, next) => {
       void platformController.reject(req, res, next);
+    },
+  );
+
+  router.post(
+    `${API_PLATFORM_ORGANIZATIONS_PATH}/:id/suspend`,
+    optionalAuth,
+    requireCsrf,
+    platformActor,
+    requirePlatformPermission('platform.organizations.suspend'),
+    (req, res, next) => {
+      void platformController.suspend(req, res, next);
     },
   );
 

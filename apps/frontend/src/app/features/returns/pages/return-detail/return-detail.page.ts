@@ -63,9 +63,9 @@ export class ReturnDetailPage {
     }
     forkJoin({
       record: this.api.getReturn(id),
-      warehouses: this.locationsApi.listWarehouses().pipe(catchError(() => of([]))),
-      customers: this.customersApi.listCustomers().pipe(catchError(() => of([]))),
-      accounts: this.accountsApi.listAccounts().pipe(catchError(() => of([]))),
+      warehouses: this.locationsApi.listWarehouseOptions().pipe(catchError(() => of([]))),
+      customers: this.customersApi.searchCustomerOptions().pipe(catchError(() => of([]))),
+      accounts: this.accountsApi.listAccountOptions().pipe(catchError(() => of([]))),
     }).subscribe({
       next: ({ record, warehouses, customers, accounts }) => {
         this.record.set(record);

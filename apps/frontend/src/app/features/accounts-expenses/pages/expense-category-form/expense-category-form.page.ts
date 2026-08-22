@@ -7,6 +7,8 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 
 @Component({
   selector: 'agrivio-expense-category-form-page',
@@ -17,6 +19,7 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
     UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiFieldLabelComponent,
   ],
   templateUrl: './expense-category-form.page.html',
   styleUrl: './expense-category-form.page.scss',
@@ -35,6 +38,8 @@ export class ExpenseCategoryFormPage {
   readonly canPost = computed(() => this.sessionStore.hasPermission('expenses.post'));
   private version = 1;
 
+  readonly fieldRequired = hasRequiredValidator;
+
   readonly form = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required, Validators.minLength(2)]],
     status: ['active'],
@@ -45,8 +50,8 @@ export class ExpenseCategoryFormPage {
     if (id && id !== 'new') {
       this.categoryId.set(id);
       this.loading.set(true);
-      this.api.listCategories().subscribe({
-        next: (items) => {
+    this.api.listCategories({ page: 1, pageSize: 100 }).subscribe({
+      next: ({ items }) => {
           const category = items.find((item) => item.id === id);
           if (!category) {
             this.errorMessage.set('Expense category not found.');

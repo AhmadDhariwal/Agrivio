@@ -1,0 +1,310 @@
+<section class="controls-shell" data-testid="organization-controls">
+  <a class="back-link" routerLink="/app/platform/organizations">← Back to organizations</a>
+
+  @if (loading()) {
+  <agrivio-ui-loading-state label="Loading organization controls…" />
+  } @else if (snapshot(); as state) {
+  <agrivio-ui-page-header
+    eyebrow="Platform · Organization Controls"
+    [title]="state.organization.name"
+    lede="Configure registered Products, Categories, Stock-on-Hand, Opening Stock, Product Batches, Expiry Inquiry, Stock Adjustments, and Warehouse Transfers controls without changing registry defaults or user RBAC permissions."
+  />
+
+  <div class="identity-grid">
+    <div><span>Organization ID</span><strong>{{ state.organization.id }}</strong></div>
+    <div>
+      <span>Owner / admin context</span>
+      <strong>{{ state.organization.owner?.email || state.organization.ownerEmail || '—' }}</strong>
+    </div>
+    <div>
+      <span>Plan</span
+      ><strong>{{ state.organization.subscription?.planCode || 'Unassigned' }}</strong>
+    </div>
+    <div><span>Policy version</span><strong>v{{ state.policy.version }}</strong></div>
+  </div>
+
+  <agrivio-ui-alert
+    tone="warning"
+    [message]="'Changes apply to all users in ' + state.organization.name + ' only. Subscription, RBAC, lifecycle, tenant-isolation, audit, and transaction safety remain platform enforced.'"
+  />
+
+  @if (successMessage(); as success) {
+  <agrivio-ui-alert tone="success" [message]="success" />
+  } @if (errorMessage(); as error) {
+  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+
+  <div class="controls-layout">
+    <aside class="module-nav" aria-label="Configurable modules">
+      <p class="module-nav__label">Configured modules</p>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'inventory.products'"
+        (click)="selectModule('inventory.products')"
+      >
+        Products
+      </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'inventory.categories'"
+        (click)="selectModule('inventory.categories')"
+        data-testid="categories-control-module"
+      >
+        Categories
+      </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'inventory.stock'"
+        (click)="selectModule('inventory.stock')"
+        data-testid="inventory-control-module"
+      >
+        Inventory / Stock on Hand
+      </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'inventory.openingStock'"
+        (click)="selectModule('inventory.openingStock')"
+        data-testid="opening-stock-control-module"
+      >
+        Opening Stock
+      </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'inventory.batches'"
+        (click)="selectModule('inventory.batches')"
+        data-testid="batches-control-module"
+      >
+        Product Batches
+      </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'inventory.expiry'"
+        (click)="selectModule('inventory.expiry')"
+        data-testid="expiry-control-module"
+      >
+        Expiry Inquiry
+      </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'inventory.adjustments'"
+        (click)="selectModule('inventory.adjustments')"
+        data-testid="adjustments-control-module"
+      >
+        Stock Adjustments
+      </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'inventory.transfers'"
+        (click)="selectModule('inventory.transfers')"
+        data-testid="transfers-control-module"
+      >
+        Warehouse Transfers
+      </button>
+      <p class="module-nav__note">Future modules will be added incrementally.</p>
+    </aside>
+
+    <main class="controls-main">
+      <div class="controls-toolbar">
+        <input
+          class="ag-input"
+          type="search"
+          [placeholder]="'Search ' + moduleLabel(selectedModule()) + ' controls'"
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+          [attr.aria-label]="'Search ' + moduleLabel(selectedModule()) + ' controls'"
+        />
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary"
+          [disabled]="selectedOverrideCount() === 0 || saving()"
+          (click)="askResetModule()"
+        >
+          Reset {{ moduleLabel(selectedModule()) }}
+        </button>
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary ag-btn--danger"
+          [disabled]="organizationOverrideCount() === 0 || saving()"
+          (click)="askResetOrganization()"
+        >
+          Reset organization to defaults
+        </button>
+      </div>
+
+      @for ( section of [ { title: moduleLabel(selectedModule()) + ' Module', controls:
+      moduleControls() }, { title: 'Views', controls: viewControls() }, { title: selectedModule()
+      === 'inventory.openingStock' ? 'Optional UI' : 'Derived UI', controls: featureControls() }, {
+      title: 'Module Information', controls: moduleInfoControls() }, { title: 'Form Experience', controls:
+      formExperienceControls() }, { title: 'Filters', controls: filterControls() }, { title: 'Inspector',
+      controls: inspectorControls() }, { title: selectedModule() === 'inventory.openingStock' ?
+      'Optional Fields' : 'Fields', controls: fieldControls() }, { title: selectedModule() ===
+      'inventory.batches' || selectedModule() === 'inventory.expiry' ? 'Required Fields' :
+      'Required Workflow Fields', controls: requiredWorkflowControls() }, { title: 'History', controls:
+      historyControls() }, { title: 'Widgets', controls: widgetControls() }, { title: 'Actions',
+      controls: actionControls() } ]; track section.title ) { @if (section.controls.length > 0) {
+      <section class="control-section">
+        <h2>{{ section.title }}</h2>
+        <div class="control-list">
+          @for (control of section.controls; track control.key) {
+          <article
+            class="control-row"
+            [class.control-row--parent-disabled]="parentDisabled(control)"
+          >
+            <div class="control-copy">
+              <div class="control-title">
+                <strong>{{ control.label }}</strong>
+                <span class="risk-badge" [attr.data-risk]="control.risk">
+                  Risk: {{ control.risk === 'NORMAL' ? 'Normal' : control.risk === 'RECOMMENDED' ?
+                  'Recommended' : 'Critical' }}
+                </span>
+              </div>
+              <span>{{ control.description }}</span>
+              @if (control.reason) {
+              <small>{{ control.reason }}</small>
+              } @if (control.platformEnforced) {
+              <small class="platform-enforced"
+                >Platform enforced · Not organization-configurable where marked below</small
+              >
+              }
+            </div>
+
+            <div class="control-modes">
+              @for (mode of modes(control); track mode) { @if (isConfigurable(control, mode)) {
+              <label class="policy-toggle">
+                <span>{{ mode }}</span>
+                <input
+                  type="checkbox"
+                  role="switch"
+                  [checked]="value(control, mode)"
+                  (change)="setValue(control, mode, $any($event.target).checked)"
+                  [attr.aria-label]="control.label + ' ' + mode"
+                />
+                <b>{{ stateLabel(mode, value(control, mode)) }}</b>
+              </label>
+              } @else { @if (isRequiredWorkflowControl(control)) {
+              <div class="enforced-mode enforced-mode--requirement">
+                <span>Requirement</span>
+                <b>Required</b>
+                <span>Control</span>
+                <b>Platform enforced</b>
+              </div>
+              } @else {
+              <div class="enforced-mode">
+                <span>{{ mode }}</span>
+                <b>Platform enforced</b>
+                <small>{{ stateLabel(mode, control.defaultPolicy[mode] === true) }}</small>
+              </div>
+              } } }
+            </div>
+
+            <div class="policy-state" aria-label="Default override and effective state">
+              @for (mode of modes(control); track mode) {
+              <div class="policy-state__mode">
+                <strong>{{ mode }}</strong>
+                <dl>
+                  <div>
+                    <dt>Default</dt>
+                    <dd>
+                      <span class="state-badge"
+                        >{{ stateLabel(mode, control.defaultPolicy[mode] === true) }}</span
+                      >
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Organization override</dt>
+                    <dd>{{ overrideLabel(control, mode) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Effective</dt>
+                    <dd>
+                      <span
+                        class="state-badge"
+                        [class.state-badge--off]="!effectiveValue(control, mode)"
+                      >
+                        {{ stateLabel(mode, effectiveValue(control, mode)) }}
+                      </span>
+                      @if (effectiveReason(control, mode); as explanation) {
+                      <small>{{ explanation }}</small>
+                      }
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+              }
+            </div>
+
+            <button
+              type="button"
+              class="reset-link"
+              [disabled]="control.override === null || saving()"
+              (click)="askResetControl(control)"
+            >
+              {{ control.override === null ? 'Using default' : 'Reset control' }}
+            </button>
+          </article>
+          }
+        </div>
+      </section>
+      } }
+
+      <section class="save-panel">
+        <div>
+          <strong
+            >{{ changeSummary().length }} staged change{{ changeSummary().length === 1 ? '' : 's'
+            }}</strong
+          >
+          @if (changeSummary().length > 0) {
+          <ul class="change-list">
+            @for (change of changeSummary(); track change.key) {
+            <li>
+              <span>{{ change.label }}</span>
+              <b>{{ change.before }} → {{ change.after }}</b>
+              <em [attr.data-risk]="change.risk">{{ change.risk }}</em>
+            </li>
+            }
+          </ul>
+          <small>Changes affect all users in {{ state.organization.name }} only.</small>
+          }
+        </div>
+        <label class="reason-field">
+          <span>Reason / comment (optional)</span>
+          <input
+            class="ag-input"
+            [ngModel]="reason()"
+            (ngModelChange)="reason.set($event)"
+            placeholder="Why is this policy changing?"
+          />
+        </label>
+        <button
+          type="button"
+          class="ag-btn ag-btn--primary"
+          [disabled]="changes().length === 0 || saving()"
+          (click)="askSave()"
+          data-testid="save-organization-controls"
+        >
+          {{ saving() ? 'Applying…' : 'Review & apply' }}
+        </button>
+      </section>
+    </main>
+  </div>
+
+  <agrivio-ui-confirm-dialog
+    [open]="confirmOpen()"
+    [title]="confirmationTitle()"
+    [message]="confirmationMessage()"
+    [confirmLabel]="confirmationLabel()"
+    (confirmed)="confirm()"
+    (dismiss)="pendingConfirmation.set(null)"
+  />
+  } @if (!loading() && errorMessage() && !snapshot()) {
+  <agrivio-ui-alert tone="danger" [message]="errorMessage()!" role="alert" />
+  }
+</section>

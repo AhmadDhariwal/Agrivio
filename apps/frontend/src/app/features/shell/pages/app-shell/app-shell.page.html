@@ -3,10 +3,60 @@
     <agrivio-ui-loading-state label="Restoring your session…" />
   </div>
 } @else {
-  <div class="ag-shell" data-testid="authenticated-shell">
+  <div class="ag-shell" [class.is-collapsed]="sidebarCollapsed()" data-testid="authenticated-shell">
+    <a class="ag-skip-link" href="#ag-main" (click)="skipToMain($event)">Skip to main content</a>
+    
+    <!-- Mobile off-canvas drawer backdrop -->
+    <div
+      class="ag-shell__backdrop"
+      [class.is-open]="navOpen()"
+      (click)="closeMobileDrawer()"
+      aria-hidden="true"
+    ></div>
+
     <aside class="ag-shell__sidebar" [class.is-open]="navOpen()" aria-label="Application navigation">
-      <div>
-        <a routerLink="/app" class="ag-shell__brand">Agrivio</a>
+      <!-- Mobile Drawer Header (shown on <768px only) -->
+      <div class="ag-shell__drawer-header">
+        <a routerLink="/app" (click)="onNavLinkClick()" class="ag-shell__brand">
+          <span class="ag-shell__brand-logo" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+          </span>
+          <span class="ag-shell__brand-text">Agrivio</span>
+        </a>
+        <button
+          type="button"
+          class="ag-shell__drawer-close"
+          (click)="closeMobileDrawer()"
+          aria-label="Close navigation drawer"
+        >
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <!-- Top Sidebar Brand & Context Header (Desktop / Laptop / Tablet) -->
+      <div class="ag-shell__brand-block">
+        <a
+          routerLink="/app"
+          (click)="onNavLinkClick()"
+          class="ag-shell__brand"
+          [attr.title]="sidebarCollapsed() ? 'Agrivio Workspace' : null"
+          [attr.aria-label]="sidebarCollapsed() ? 'Agrivio Workspace' : 'Agrivio'"
+          (mouseenter)="onControlHover('Agrivio Workspace', $event.currentTarget)"
+          (mouseleave)="hideTooltip()"
+          (focus)="onControlHover('Agrivio Workspace', $event.currentTarget)"
+          (blur)="hideTooltip()"
+        >
+          <span class="ag-shell__brand-logo" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+          </span>
+          <span class="ag-shell__brand-text">Agrivio</span>
+        </a>
+
+        <!-- Metadata (Expanded only) -->
         <div class="ag-shell__meta" style="margin-top: 0.75rem">
           <span data-testid="active-context">{{ contextLabel() }}</span>
           @if (session(); as current) {
@@ -16,217 +66,419 @@
             }
           }
         </div>
+
+        <!-- Secondary Actions (Context switch & Customize) -->
+        <div class="ag-shell__actions">
+          <a
+            routerLink="/context"
+            (click)="onNavLinkClick()"
+            class="ag-btn ag-btn--ghost ag-btn--sm ag-shell__nav-action"
+            [attr.title]="sidebarCollapsed() ? 'Switch context' : null"
+            [attr.aria-label]="'Switch context'"
+            (mouseenter)="onControlHover('Switch context', $event.currentTarget)"
+            (mouseleave)="hideTooltip()"
+            (focus)="onControlHover('Switch context', $event.currentTarget)"
+            (blur)="hideTooltip()"
+          >
+            <svg class="ag-rail-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            <span class="ag-shell__action-label">Switch context</span>
+          </a>
+          <button
+            type="button"
+            class="ag-btn ag-btn--ghost ag-btn--sm ag-shell__nav-action"
+            (click)="navService.openCustomizer()"
+            [attr.title]="sidebarCollapsed() ? 'Customize navigation' : null"
+            [attr.aria-label]="'Customize navigation'"
+            (mouseenter)="onControlHover('Customize navigation', $event.currentTarget)"
+            (mouseleave)="hideTooltip()"
+            (focus)="onControlHover('Customize navigation', $event.currentTarget)"
+            (blur)="hideTooltip()"
+          >
+            <svg class="ag-rail-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="4" y1="21" x2="4" y2="14"></line>
+              <line x1="4" y1="10" x2="4" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12" y2="3"></line>
+              <line x1="20" y1="21" x2="20" y2="16"></line>
+              <line x1="20" y1="12" x2="20" y2="3"></line>
+              <line x1="1" y1="14" x2="7" y2="14"></line>
+              <line x1="9" y1="8" x2="15" y2="8"></line>
+              <line x1="17" y1="16" x2="23" y2="16"></line>
+            </svg>
+            <span class="ag-shell__action-label">Customize</span>
+          </button>
+        </div>
       </div>
 
-      <nav class="ag-shell__nav">
-        <a routerLink="/app" href="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-          Workspace
+      <!-- Navigation Search Container -->
+      <div class="ag-shell__search-container">
+        @if (!sidebarCollapsed()) {
+          <agrivio-ui-search-input
+            [value]="navService.searchTerm()"
+            placeholder="Search navigation…"
+            ariaLabel="Search navigation"
+            (searchChange)="navService.setSearchTerm($event)"
+          />
+        } @else {
+          <button
+            type="button"
+            class="ag-rail-search-btn"
+            (click)="toggleCollapsedSearch($event.currentTarget)"
+            [attr.aria-expanded]="collapsedSearchOpen()"
+            aria-label="Search navigation"
+            (mouseenter)="onControlHover('Search navigation', $event.currentTarget)"
+            (mouseleave)="hideTooltip()"
+            (focus)="onControlHover('Search navigation', $event.currentTarget)"
+            (blur)="hideTooltip()"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </button>
+        }
+      </div>
+
+      <!-- Main Navigation Menu -->
+      <nav id="ag-primary-nav" class="ag-shell__nav" aria-label="Primary">
+        <!-- Workspace Link -->
+        <a
+          routerLink="/app"
+          href="/app"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: true }"
+          (click)="onNavLinkClick()"
+          class="ag-shell__nav-link"
+          [attr.aria-label]="sidebarCollapsed() ? 'Workspace' : null"
+          (mouseenter)="onNavHover('Workspace', $event.currentTarget)"
+          (mouseleave)="hideTooltip()"
+          (focus)="onNavHover('Workspace', $event.currentTarget)"
+          (blur)="hideTooltip()"
+        >
+          <svg class="ag-rail-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+          <span class="ag-shell__nav-label">Workspace</span>
         </a>
-        @if (canViewDashboard()) {
-          <a
-            routerLink="/app/dashboard"
-            href="/app/dashboard"
-            routerLinkActive="active"
-            data-testid="nav-dashboard"
-          >
-            Dashboard
-          </a>
+
+        @for (entry of navigationEntries(); track entry.type === 'item' ? entry.item.id : entry.group.id) {
+          @if (entry.type === 'item') {
+            <a
+              [routerLink]="entry.item.route"
+              [routerLinkActive]="'active'"
+              [routerLinkActiveOptions]="{ exact: entry.item.exact ?? false }"
+              [attr.data-testid]="entry.item.testId"
+              (click)="onNavLinkClick()"
+              class="ag-shell__nav-link"
+              [attr.aria-label]="sidebarCollapsed() ? entry.item.label : null"
+              (mouseenter)="onNavHover(entry.item.label, $event.currentTarget)"
+              (mouseleave)="hideTooltip()"
+              (focus)="onNavHover(entry.item.label, $event.currentTarget)"
+              (blur)="hideTooltip()"
+            >
+              @switch (entry.item.id) {
+                @case ('dashboard') {
+                  <svg class="ag-rail-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                  </svg>
+                }
+                @default {
+                  <svg class="ag-rail-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </svg>
+                }
+              }
+              <span class="ag-shell__nav-label">{{ entry.item.label }}</span>
+            </a>
+          } @else {
+            <div
+              class="ag-shell__nav-group"
+              [class.is-expanded]="!sidebarCollapsed() && navService.isGroupExpanded(entry.group.id)"
+              [class.is-active-group]="isGroupActive(entry.group)"
+            >
+              <button
+                type="button"
+                class="ag-shell__nav-group-toggle"
+                (click)="onGroupClick(entry.group, $event.currentTarget)"
+                (mouseenter)="onGroupHover(entry.group, $event.currentTarget)"
+                (mouseleave)="onGroupMouseLeave()"
+                (focus)="onGroupHover(entry.group, $event.currentTarget)"
+                (blur)="onGroupBlur()"
+                [attr.aria-expanded]="sidebarCollapsed() ? activeFlyoutGroupId() === entry.group.id : navService.isGroupExpanded(entry.group.id)"
+                [attr.aria-label]="sidebarCollapsed() ? entry.group.label : null"
+                [attr.aria-haspopup]="sidebarCollapsed() ? 'menu' : null"
+              >
+                <span class="ag-shell__nav-group-main">
+                  @switch (entry.group.id) {
+                    @case ('sales') {
+                      <svg class="ag-rail-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="9" cy="21" r="1"></circle>
+                        <circle cx="20" cy="21" r="1"></circle>
+                        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                      </svg>
+                    }
+                    @case ('purchases') {
+                      <svg class="ag-rail-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <path d="M16 10a4 4 0 0 1-8 0"></path>
+                      </svg>
+                    }
+                    @case ('inventory') {
+                      <svg class="ag-rail-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="m21 16-9 5-9-5V8l9-5 9 5v8z"></path>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                      </svg>
+                    }
+                    @case ('partners') {
+                      <svg class="ag-rail-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                      </svg>
+                    }
+                    @case ('returns') {
+                      <svg class="ag-rail-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="1 4 1 10 7 10"></polyline>
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                      </svg>
+                    }
+                    @case ('finance') {
+                      <svg class="ag-rail-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                        <line x1="2" y1="10" x2="22" y2="10"></line>
+                      </svg>
+                    }
+                    @case ('insights') {
+                      <svg class="ag-rail-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                        <polyline points="17 6 23 6 23 12"></polyline>
+                      </svg>
+                    }
+                    @case ('organization') {
+                      <svg class="ag-rail-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                        <line x1="9" y1="22" x2="9" y2="22.01"></line>
+                        <line x1="15" y1="22" x2="15" y2="22.01"></line>
+                        <line x1="9" y1="6" x2="9" y2="6.01"></line>
+                        <line x1="15" y1="6" x2="15" y2="6.01"></line>
+                        <line x1="9" y1="10" x2="9" y2="10.01"></line>
+                        <line x1="15" y1="10" x2="15" y2="10.01"></line>
+                        <line x1="9" y1="14" x2="9" y2="14.01"></line>
+                        <line x1="15" y1="14" x2="15" y2="14.01"></line>
+                        <line x1="9" y1="18" x2="9" y2="18.01"></line>
+                        <line x1="15" y1="18" x2="15" y2="18.01"></line>
+                      </svg>
+                    }
+                    @case ('operations') {
+                      <svg class="ag-rail-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                      </svg>
+                    }
+                    @case ('platform') {
+                      <svg class="ag-rail-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                      </svg>
+                    }
+                    @default {
+                      <svg class="ag-rail-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                      </svg>
+                    }
+                  }
+                  <span class="ag-shell__nav-group-label">{{ entry.group.label }}</span>
+                </span>
+                <span class="ag-shell__nav-group-chevron" aria-hidden="true">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </span>
+              </button>
+
+              <!-- In-flow Expanded Child Links (when sidebar is expanded) -->
+              @if (!sidebarCollapsed() && navService.isGroupExpanded(entry.group.id)) {
+                <div class="ag-shell__nav-group-children">
+                  @for (child of entry.group.children; track child.id) {
+                    <a
+                      [routerLink]="child.route"
+                      [routerLinkActive]="'active'"
+                      [routerLinkActiveOptions]="{ exact: child.exact ?? false }"
+                      [attr.data-testid]="child.testId"
+                      (click)="onNavLinkClick()"
+                      class="ag-shell__nav-link"
+                    >
+                      <span class="ag-shell__nav-label">{{ child.label }}</span>
+                    </a>
+                  }
+                </div>
+              }
+            </div>
+          }
         }
-        @if (canViewAlerts()) {
-          <a
-            routerLink="/app/alerts"
-            href="/app/alerts"
-            routerLinkActive="active"
-            data-testid="nav-alerts"
-          >
-            Alerts
-          </a>
-        }
-        @if (canViewReports()) {
-          <a
-            routerLink="/app/reports"
-            href="/app/reports"
-            routerLinkActive="active"
-            data-testid="nav-reports"
-          >
-            Reports
-          </a>
-        }
-        @if (canPreviewImports()) {
-          <a
-            routerLink="/app/imports"
-            href="/app/imports"
-            routerLinkActive="active"
-            data-testid="nav-imports"
-          >
-            Imports
-          </a>
-        }
-        @if (canViewAudit()) {
-          <a
-            routerLink="/app/audit"
-            href="/app/audit"
-            routerLinkActive="active"
-            data-testid="nav-audit"
-          >
-            Audit
-          </a>
-        }
-        <a routerLink="/context">Switch context</a>
-        @if (canViewSettings()) {
-          <a routerLink="/app/organization/settings" routerLinkActive="active">Settings</a>
-          <a routerLink="/app/organization/setup" routerLinkActive="active" data-testid="nav-setup">
-            Setup
-          </a>
-        }
-        @if (canViewBranches()) {
-          <a routerLink="/app/branches" routerLinkActive="active">Branches</a>
-        }
-        @if (canViewWarehouses()) {
-          <a routerLink="/app/warehouses" routerLinkActive="active">Warehouses</a>
-        }
-        @if (canViewEmployees()) {
-          <a routerLink="/app/employees" routerLinkActive="active">Employees</a>
-        }
-        @if (canViewCatalog()) {
-          <a routerLink="/app/categories" routerLinkActive="active">Categories</a>
-          <a routerLink="/app/products" routerLinkActive="active">Products</a>
-        }
-        @if (canViewCustomers()) {
-          <a routerLink="/app/customers" routerLinkActive="active">Customers</a>
-        }
-        @if (canViewSuppliers()) {
-          <a routerLink="/app/suppliers" routerLinkActive="active">Suppliers</a>
-        }
-        @if (canViewAccounts()) {
-          <a routerLink="/app/accounts" routerLinkActive="active">Accounts</a>
-        }
-        @if (canViewExpenses()) {
-          <a routerLink="/app/expenses" routerLinkActive="active" data-testid="nav-expenses">Expenses</a>
-        }
-        @if (canViewPurchases()) {
-          <a routerLink="/app/purchases" routerLinkActive="active" data-testid="nav-purchases">
-            Purchases
-          </a>
-        }
-        @if (canViewSupplierPayments()) {
-          <a
-            routerLink="/app/supplier-payments"
-            routerLinkActive="active"
-            data-testid="nav-supplier-payments"
-          >
-            Supplier payments
-          </a>
-        }
-        @if (canViewSales()) {
-          <a routerLink="/app/sales" routerLinkActive="active" data-testid="nav-sales">
-            Sales
-          </a>
-        }
-        @if (canViewReturns()) {
-          <a routerLink="/app/returns" routerLinkActive="active" data-testid="nav-returns">
-            Returns
-          </a>
-        }
-        @if (canViewCustomerPayments()) {
-          <a
-            routerLink="/app/customer-payments"
-            routerLinkActive="active"
-            data-testid="nav-customer-payments"
-          >
-            Customer payments
-          </a>
-        }
-        @if (canViewInventory()) {
-          <a routerLink="/app/inventory/stock" routerLinkActive="active" data-testid="nav-inventory">
-            Inventory
-          </a>
-          <a
-            routerLink="/app/inventory/opening-stock"
-            routerLinkActive="active"
-            data-testid="nav-opening-stock"
-          >
-            Opening stock
-          </a>
-          <a routerLink="/app/inventory/expiry" routerLinkActive="active" data-testid="nav-expiry">
-            Expiry
-          </a>
-          <a
-            routerLink="/app/inventory/adjustments"
-            routerLinkActive="active"
-            data-testid="nav-adjustments"
-          >
-            Adjustments
-          </a>
-          <a
-            routerLink="/app/inventory/transfers"
-            routerLinkActive="active"
-            data-testid="nav-transfers"
-          >
-            Transfers
-          </a>
-          <a
-            routerLink="/app/inventory/reconciliation"
-            routerLinkActive="active"
-            data-testid="nav-reconciliation"
-          >
-            Reconciliation
-          </a>
-        }
-        @if (canSubmitBilling()) {
-          <a routerLink="/app/subscription/billing" routerLinkActive="active">Billing</a>
-        }
-        @if (canManagePlatformOrgs()) {
-          <a routerLink="/app/platform/organizations" routerLinkActive="active">Organizations</a>
-        }
-        @if (canManagePlans()) {
-          <a routerLink="/app/platform/plans" routerLinkActive="active">Plans</a>
-        }
-        @if (canReviewBilling()) {
-          <a routerLink="/app/platform/billing-review" routerLinkActive="active">Billing review</a>
-        }
-        @if (canViewBackups()) {
-          <a
-            routerLink="/app/platform/operations"
-            href="/app/platform/operations"
-            routerLinkActive="active"
-            data-testid="nav-operations"
-          >
-            Backup status
-          </a>
+
+        @if (navigationEntries().length === 0) {
+          <div class="ag-shell__nav-empty" role="status">
+            <span>No navigation matches</span>
+          </div>
         }
       </nav>
 
+      <!-- Sign Out Button -->
       <button
         type="button"
-        class="ag-btn ag-btn--secondary"
+        class="ag-btn ag-btn--secondary ag-shell__signout-btn"
         data-testid="sign-out"
         [disabled]="signingOut()"
         (click)="signOut()"
+        [attr.title]="sidebarCollapsed() ? 'Sign out' : null"
+        [attr.aria-label]="'Sign out'"
+        (mouseenter)="onControlHover('Sign out', $event.currentTarget)"
+        (mouseleave)="hideTooltip()"
+        (focus)="onControlHover('Sign out', $event.currentTarget)"
+        (blur)="hideTooltip()"
       >
-        {{ signingOut() ? 'Signing out…' : 'Sign out' }}
+        <svg class="ag-rail-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+        <span class="ag-shell__signout-label">{{ signingOut() ? 'Signing out…' : 'Sign out' }}</span>
       </button>
     </aside>
 
-    <div class="ag-shell__main">
-      <header class="ag-shell__topbar">
-        <div class="ag-inline">
+    <!-- Anchored Flyout Menu (when collapsed and hovering/clicking a group) -->
+    @if (sidebarCollapsed() && activeFlyoutGroup(); as group) {
+      <div
+        class="ag-rail-flyout"
+        [style.top.px]="flyoutTop()"
+        role="menu"
+        [attr.aria-label]="group.label"
+        (mouseenter)="keepFlyoutOpen()"
+        (mouseleave)="closeFlyout()"
+      >
+        <div class="ag-rail-flyout__header">
+          <span>{{ group.label }}</span>
+        </div>
+        <div class="ag-rail-flyout__items">
+          @for (child of group.children; track child.id) {
+            <a
+              [routerLink]="child.route"
+              routerLinkActive="active"
+              [routerLinkActiveOptions]="{ exact: child.exact ?? false }"
+              [attr.data-testid]="child.testId"
+              (click)="onFlyoutItemClick()"
+              class="ag-rail-flyout__link"
+              role="menuitem"
+            >
+              {{ child.label }}
+            </a>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Anchored Collapsed Search Popup -->
+    @if (sidebarCollapsed() && collapsedSearchOpen()) {
+      <div
+        class="ag-rail-search-popup"
+        [style.top.px]="searchPopupTop()"
+        (mouseenter)="keepSearchPopupOpen()"
+        (mouseleave)="closeCollapsedSearch()"
+      >
+        <agrivio-ui-search-input
+          [value]="navService.searchTerm()"
+          placeholder="Search navigation…"
+          ariaLabel="Search navigation"
+          (searchChange)="navService.setSearchTerm($event)"
+        />
+      </div>
+    }
+
+    <!-- Anchored Tooltip (Floating to right of collapsed rail) -->
+    @if (sidebarCollapsed() && activeTooltip(); as tip) {
+      <div
+        class="ag-rail-tooltip"
+        [style.top.px]="tip.top"
+        role="tooltip"
+        aria-hidden="true"
+      >
+        {{ tip.text }}
+      </div>
+    }
+
+    <div class="ag-shell__main" id="ag-main" tabindex="-1">
+      <header class="ag-shell__topbar" data-testid="app-shell-topbar">
+        <div class="ag-shell__topbar-left">
+          <!-- Mobile Hamburger Toggle (<768px) -->
           <button
             type="button"
             class="ag-btn ag-btn--secondary ag-shell__menu-toggle"
-            (click)="navOpen.set(!navOpen())"
+            (click)="openMobileDrawer()"
             [attr.aria-expanded]="navOpen()"
+            aria-controls="ag-primary-nav"
+            aria-label="Open navigation menu"
           >
-            Menu
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+            <span>Menu</span>
           </button>
-          <div>
-            <strong>Workspace</strong>
-            <p class="ag-muted" style="font-size: 0.875rem">{{ contextLabel() }}</p>
+
+          <!-- Desktop Sidebar Collapse/Expand Toggle (>=768px) -->
+          <button
+            type="button"
+            class="ag-btn ag-btn--ghost ag-shell__collapse-toggle"
+            (click)="toggleSidebar()"
+            [attr.aria-label]="sidebarCollapsed() ? 'Expand sidebar navigation' : 'Collapse sidebar navigation'"
+            [attr.title]="sidebarCollapsed() ? 'Expand sidebar' : 'Collapse sidebar'"
+          >
+            @if (sidebarCollapsed()) {
+              <!-- Expand icon pointing right -->
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="9" y1="3" x2="9" y2="21"></line>
+                <polyline points="13 9 16 12 13 15"></polyline>
+              </svg>
+            } @else {
+              <!-- Collapse icon pointing left -->
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="9" y1="3" x2="9" y2="21"></line>
+                <polyline points="16 9 13 12 16 15"></polyline>
+              </svg>
+            }
+          </button>
+
+          <div class="ag-shell__workspace-info">
+            <span class="ag-shell__workspace-label">Workspace</span>
+            <span class="ag-shell__workspace-context" data-testid="topbar-context">{{ contextLabel() }}</span>
           </div>
         </div>
-        @if (session(); as current) {
-          <p class="ag-muted" style="font-size: 0.875rem">{{ current.user.displayName }}</p>
-        }
+
+        <div class="ag-shell__topbar-center">
+          <agrivio-navbar-search />
+        </div>
+
+        <div class="ag-shell__topbar-right">
+          <agrivio-user-profile-menu />
+        </div>
       </header>
 
       <div class="ag-shell__content">
@@ -239,5 +491,7 @@
         <router-outlet></router-outlet>
       </div>
     </div>
+
+    <agrivio-nav-customizer-dialog />
   </div>
 }

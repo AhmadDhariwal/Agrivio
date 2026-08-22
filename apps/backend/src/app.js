@@ -11,10 +11,16 @@ const { registerOnboardingRoutes } = require('./modules/onboarding/routes/onboar
 const { createAuthModule } = require('./modules/identity/auth.module');
 const { createBridgedAuthStore } = require('./modules/identity/auth.bridge-store');
 const { createMongooseAuthStore } = require('./modules/identity/auth.mongoose-store');
-const { registerOrganizationRoutes } = require('./modules/organizations/routes/organization.routes');
+const {
+  registerOrganizationRoutes,
+} = require('./modules/organizations/routes/organization.routes');
 const { createSubscriptionModule } = require('./modules/subscriptions/subscription.module');
-const { registerSubscriptionRoutes } = require('./modules/subscriptions/routes/subscription.routes');
-const { createInMemorySubscriptionStore } = require('./modules/subscriptions/subscription.memory-store');
+const {
+  registerSubscriptionRoutes,
+} = require('./modules/subscriptions/routes/subscription.routes');
+const {
+  createInMemorySubscriptionStore,
+} = require('./modules/subscriptions/subscription.memory-store');
 const {
   createMongooseSubscriptionStore,
 } = require('./modules/subscriptions/subscription.mongoose-store');
@@ -33,6 +39,9 @@ const {
 const { createBridgedEmployeesStore } = require('./modules/identity/employees.bridge-store');
 const { registerEmployeesRoutes } = require('./modules/identity/routes/employees.routes');
 const { createCatalogModule } = require('./modules/catalog/catalog.module');
+const {
+  createMongooseMasterReferenceQueries,
+} = require('./platform/lifecycle/master-reference-queries');
 const { registerCatalogRoutes } = require('./modules/catalog/routes/catalog.routes');
 const { createCustomersModule } = require('./modules/customers/customers.module');
 const { registerCustomersRoutes } = require('./modules/customers/routes/customers.routes');
@@ -59,6 +68,8 @@ const { createImportsModule } = require('./modules/imports/imports.module');
 const { registerImportsRoutes } = require('./modules/imports/routes/imports.routes');
 const { createAuditModule } = require('./modules/audit/audit.module');
 const { registerAuditRoutes } = require('./modules/audit/routes/audit.routes');
+const { createCapabilityModule } = require('./modules/capabilities/capability.module');
+const { registerCapabilityRoutes } = require('./modules/capabilities/routes/capability.routes');
 const { createOperationsModule } = require('./modules/operations/operations.module');
 const { registerOperationsRoutes } = require('./modules/operations/routes/operations.routes');
 const { createSetupProgressService } = require('./modules/settings/setup-progress.service');
@@ -70,6 +81,7 @@ function createApp(options) {
   const logger = options.logger ?? createStructuredLogger({ service: 'backend' });
   const persistence =
     options.onboardingPersistence ?? (config.nodeEnv === 'test' ? 'memory' : 'mongoose');
+  const masterRefs = persistence === 'mongoose' ? createMongooseMasterReferenceQueries() : null;
   const authPersistence = options.authPersistence ?? persistence;
   const subscriptionPersistence = options.subscriptionPersistence ?? persistence;
 
@@ -103,6 +115,10 @@ function createApp(options) {
       subscriptions.subscriptionService.resolveTrialPlanReference(planCode),
     markReferencedPlan: (planCode, planVersion, session, at) =>
       subscriptions.subscriptionService.markReferencedPlan(planCode, planVersion, session, at),
+    getOrganizationSubscription: (organizationId) =>
+      subscriptions.subscriptionService.getOrganizationSubscription(organizationId),
+    suspendSubscription: (subscriptionId, body, actor) =>
+      subscriptions.subscriptionService.suspendSubscription(subscriptionId, body, actor),
   });
 
   const audit =
@@ -114,6 +130,15 @@ function createApp(options) {
         return access?.plan?.entitlements ?? null;
       },
       ...(options.now === undefined ? {} : { now: options.now }),
+    });
+
+  const capabilities =
+    options.capabilities ??
+    createCapabilityModule({
+      persistence,
+      auditStore: audit.store,
+      resolveSubscriptionAccessState: (organizationId) =>
+        subscriptions.subscriptionService.resolveAccessState(organizationId),
     });
 
   const locationsStore =
@@ -177,6 +202,14 @@ function createApp(options) {
       revokeSessionsForUser: (session, userId, revokedAt) =>
         auth.store.revokeAllSessionsForUser(session, userId, revokedAt),
       ...(options.now === undefined ? {} : { now: options.now }),
+      ...(masterRefs === null
+        ? {}
+        : {
+            listBranchReferences: (organizationId, branchId) =>
+              masterRefs.listBranchReferences(organizationId, branchId),
+            listWarehouseReferences: (organizationId, warehouseId) =>
+              masterRefs.listWarehouseReferences(organizationId, warehouseId),
+          }),
     });
 
   const catalog =
@@ -185,7 +218,16 @@ function createApp(options) {
       persistence,
       evaluateEntitlement: (organizationId, entitlementOptions) =>
         subscriptions.subscriptionService.evaluateEntitlement(organizationId, entitlementOptions),
+      capabilityService: capabilities.capabilityService,
       ...(options.now === undefined ? {} : { now: options.now }),
+      ...(masterRefs === null
+        ? {}
+        : {
+            listProductReferences: (organizationId, productId) =>
+              masterRefs.listProductReferences(organizationId, productId),
+            listCategoryReferences: (organizationId, categoryId) =>
+              masterRefs.listCategoryReferences(organizationId, categoryId),
+          }),
     });
 
   const ledgers =
@@ -204,6 +246,12 @@ function createApp(options) {
       ledgersService: options.ledgersService ?? ledgers.ledgersService,
       auditStore: audit.store,
       ...(options.now === undefined ? {} : { now: options.now }),
+      ...(masterRefs === null
+        ? {}
+        : {
+            listCustomerReferences: (organizationId, customerId) =>
+              masterRefs.listCustomerReferences(organizationId, customerId),
+          }),
     });
 
   const suppliers =
@@ -214,6 +262,12 @@ function createApp(options) {
         subscriptions.subscriptionService.evaluateEntitlement(organizationId, entitlementOptions),
       ledgersService: options.ledgersService ?? ledgers.ledgersService,
       ...(options.now === undefined ? {} : { now: options.now }),
+      ...(masterRefs === null
+        ? {}
+        : {
+            listSupplierReferences: (organizationId, supplierId) =>
+              masterRefs.listSupplierReferences(organizationId, supplierId),
+          }),
     });
 
   const accounts =
@@ -221,6 +275,14 @@ function createApp(options) {
     createAccountsModule({
       persistence,
       ...(options.now === undefined ? {} : { now: options.now }),
+      ...(masterRefs === null
+        ? {}
+        : {
+            listAccountReferences: (organizationId, accountId) =>
+              masterRefs.listAccountReferences(organizationId, accountId),
+            listExpenseCategoryReferences: (organizationId, categoryId) =>
+              masterRefs.listExpenseCategoryReferences(organizationId, categoryId),
+          }),
     });
 
   const unpaidPurchasesLookup = {
@@ -447,7 +509,8 @@ function createApp(options) {
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     findOrganizationById: (id) => onboardingCore.store.findOrganizationById(id),
-    updateOrganization: async (id, patch) => onboardingCore.store.updateOrganization(null, id, patch),
+    updateOrganization: async (id, patch) =>
+      onboardingCore.store.updateOrganization(null, id, patch),
     appendOrganizationAudit: async (event) => {
       await onboardingCore.store.appendAuditEvent(null, {
         ...event,
@@ -491,9 +554,23 @@ function createApp(options) {
 
   const catalogRoutes = registerCatalogRoutes({
     catalogService: catalog.catalogService,
+    capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+  });
+
+  const capabilityRoutes = registerCapabilityRoutes({
+    config,
+    capabilityService: capabilities.capabilityService,
+    requireAuth: auth.middlewares.requireAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
+    optionalAuth: auth.middlewares.optionalAuth,
+    requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+    getOrganization: (organizationId) =>
+      onboardingCore.onboardingService.getOrganization(organizationId),
+    requireOrganization: (organizationId) =>
+      onboardingCore.onboardingService.getOrganization(organizationId),
   });
 
   const customersRoutes = registerCustomersRoutes({
@@ -526,6 +603,7 @@ function createApp(options) {
 
   const inventoryRoutes = registerInventoryRoutes({
     inventoryService: inventory.inventoryService,
+    capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
@@ -613,6 +691,7 @@ function createApp(options) {
   app.use(settingsRoutes);
   app.use(locationsRoutes);
   app.use(employeesRoutes);
+  app.use(capabilityRoutes);
   app.use(catalogRoutes);
   app.use(customersRoutes);
   app.use(suppliersRoutes);
@@ -673,6 +752,7 @@ function createApp(options) {
     reporting,
     imports,
     audit,
+    capabilities,
     operations,
     ledgers,
     setupProgressService,

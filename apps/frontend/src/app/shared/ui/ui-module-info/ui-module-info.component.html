@@ -1,0 +1,67 @@
+<aside class="ag-module-info" [attr.aria-label]="title()">
+  <div class="ag-module-info__header">
+    <div class="ag-module-info__leading">
+      <span class="ag-module-info__icon" aria-hidden="true">
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+      </span>
+      <div class="ag-module-info__summary">
+        <h2 class="ag-module-info__title">{{ title() }}</h2>
+        <p class="ag-module-info__desc">{{ description() }}</p>
+      </div>
+    </div>
+
+    @if (items().length > 0) {
+      <button
+        type="button"
+        class="ag-module-info__toggle"
+        (click)="toggleExpanded()"
+        [attr.aria-expanded]="expanded()"
+        aria-controls="module-info-details"
+        data-testid="module-info-toggle"
+      >
+        <span>{{ expanded() ? 'Collapse' : 'Expand' }}</span>
+        <svg
+          class="ag-module-info__chevron"
+          [class.ag-module-info__chevron--expanded]="expanded()"
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </button>
+    }
+  </div>
+
+  @if (items().length > 0 && expanded()) {
+    <div id="module-info-details" class="ag-module-info__details" data-testid="module-info-details">
+      <ul class="ag-module-info__list">
+        @for (item of items(); track item) {
+          <li class="ag-module-info__item">
+            <span class="ag-module-info__bullet" aria-hidden="true">•</span>
+            <span class="ag-module-info__text">{{ item }}</span>
+          </li>
+        }
+      </ul>
+    </div>
+  }
+</aside>

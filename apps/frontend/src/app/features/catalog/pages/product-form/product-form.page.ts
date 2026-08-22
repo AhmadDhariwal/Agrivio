@@ -6,10 +6,12 @@ import { forkJoin, of, switchMap } from 'rxjs';
 import { CatalogApi } from '../../data-access/catalog.api';
 import { CategoryRecord, ProductRecord } from '../../models/catalog.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 import { mapPlanLimitError } from '../../../../core/plan-limits/plan-limit-feedback';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 @Component({
   selector: 'agrivio-product-form-page',
@@ -17,9 +19,9 @@ import { mapPlanLimitError } from '../../../../core/plan-limits/plan-limit-feedb
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiFieldLabelComponent,
   ],
   templateUrl: './product-form.page.html',
   styleUrl: './product-form.page.scss',
@@ -27,6 +29,7 @@ import { mapPlanLimitError } from '../../../../core/plan-limits/plan-limit-feedb
 export class ProductFormPage {
   private readonly api = inject(CatalogApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
@@ -36,8 +39,24 @@ export class ProductFormPage {
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly errorMessage = signal<string | null>(null);
-  readonly canManage = computed(() => this.sessionStore.hasPermission('catalog.manage'));
+  readonly initialStatus = signal('active');
+  readonly canManage = computed(() => {
+    if (!this.sessionStore.hasPermission('catalog.manage')) {
+      return false;
+    }
+    const action = this.productId() === null ? 'create' : 'edit';
+    return this.capabilityService?.canPerformAction(`inventory.products.actions.${action}`) ?? true;
+  });
+  readonly showSku = computed(
+    () => this.capabilityService?.canViewField('inventory.products.fields.sku') ?? true,
+  );
+  readonly canChangeStatus = computed(() => {
+    const action = this.initialStatus() === 'active' ? 'deactivate' : 'reactivate';
+    return this.capabilityService?.canPerformAction(`inventory.products.actions.${action}`) ?? true;
+  });
   private version = 1;
+
+  readonly fieldRequired = hasRequiredValidator;
 
   readonly form = this.formBuilder.nonNullable.group({
     categoryId: ['', [Validators.required]],
@@ -54,9 +73,16 @@ export class ProductFormPage {
     return this.form.controls.packagingUnits;
   }
 
+  isReadOnlyField(key: string): boolean {
+    return (
+      this.productId() !== null &&
+      !(this.capabilityService?.canEditField(`inventory.products.fields.${key}`) ?? true)
+    );
+  }
+
   constructor() {
     const id = this.route.snapshot.paramMap.get('id');
-    const categories$ = this.api.listCategories();
+    const categories$ = this.api.searchCategoryOptions();
 
     if (id && id !== 'new') {
       this.productId.set(id);
@@ -66,7 +92,9 @@ export class ProductFormPage {
         categories: categories$,
       }).subscribe({
         next: ({ product, packagingUnits, categories }) => {
-          this.categories.set(categories);
+          this.categories.set(
+            categories.filter((item) => item.status === 'active' || item.id === product.categoryId),
+          );
           this.applyProduct(product);
           this.packagingUnits.clear();
           const activeUnits = packagingUnits.filter((unit) => unit.status === 'active');
@@ -89,7 +117,7 @@ export class ProductFormPage {
     } else {
       categories$.subscribe({
         next: (categories) => {
-          this.categories.set(categories);
+          this.categories.set(categories.filter((item) => item.status === 'active'));
           this.loading.set(false);
         },
         error: (error: unknown) => {
@@ -174,6 +202,7 @@ export class ProductFormPage {
 
   private applyProduct(product: ProductRecord): void {
     this.version = product.version;
+    this.initialStatus.set(product.status);
     this.form.patchValue({
       categoryId: product.categoryId,
       name: product.name,
@@ -190,6 +219,12 @@ export class ProductFormPage {
       name: [name],
       conversionFactor: [conversionFactor],
     });
+  }
+
+  onCategorySearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement)
+      this.api.searchCategoryOptions(target.value).subscribe((items) => this.categories.set(items));
   }
 
   private mapError(error: unknown, fallback: string): string {

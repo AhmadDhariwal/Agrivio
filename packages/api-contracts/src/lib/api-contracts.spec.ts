@@ -7,12 +7,16 @@ import {
   API_OPERATIONS_READINESS_PATH,
   API_REQUEST_ID_HEADER,
   API_IDEMPOTENCY_KEY_HEADER,
+  API_ME_CAPABILITIES_PATH,
+  API_PLATFORM_CAPABILITY_REGISTRY_PATH,
   API_V1_PREFIX,
   ApiTransportErrorCode,
   createApiErrorEnvelope,
   createApiSuccessEnvelope,
   type ApiHealthResponse,
   type ApiReadinessResponse,
+  type ApiSuccessEnvelope,
+  type PaginationMeta,
 } from './api-contracts';
 
 const packageSrcRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -57,6 +61,13 @@ describe('api-contracts transport surface', () => {
     expect(ApiTransportErrorCode.VersionConflict).toBe('VERSION_CONFLICT');
     expect(ApiTransportErrorCode.IdempotencyConflict).toBe('IDEMPOTENCY_CONFLICT');
     expect(API_IDEMPOTENCY_KEY_HEADER).toBe('Idempotency-Key');
+    expect(API_ME_CAPABILITIES_PATH).toBe('/api/v1/me/capabilities');
+    expect(API_PLATFORM_CAPABILITY_REGISTRY_PATH).toBe(
+      '/api/v1/platform/organization-capabilities/registry',
+    );
+    expect(ApiTransportErrorCode.OrgCapabilityDisabled).toBe('ORG_CAPABILITY_DISABLED');
+    expect(ApiTransportErrorCode.OrgActionNotAllowed).toBe('ORG_ACTION_NOT_ALLOWED');
+    expect(ApiTransportErrorCode.OrgFieldNotEditable).toBe('ORG_FIELD_NOT_EDITABLE');
   });
 
   it('builds frozen success and error envelopes', () => {
@@ -72,6 +83,21 @@ describe('api-contracts transport surface', () => {
     });
     expect(error).toEqual({
       error: { code: 'INTERNAL_ERROR', message: 'Unexpected' },
+      requestId: 'req-12345678',
+    });
+  });
+
+  it('types pagination metadata on the shared success envelope', () => {
+    const meta: PaginationMeta = { page: 2, pageSize: 25, total: 61 };
+    const success: ApiSuccessEnvelope<string[], PaginationMeta> = createApiSuccessEnvelope(
+      'req-12345678',
+      ['item'],
+      meta,
+    );
+
+    expect(success).toEqual({
+      data: ['item'],
+      meta,
       requestId: 'req-12345678',
     });
   });

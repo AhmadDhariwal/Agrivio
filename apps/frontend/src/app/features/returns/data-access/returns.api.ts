@@ -8,6 +8,7 @@ import {
   SalesReturnRecord,
   WithoutInvoiceCreateInput,
 } from '../models/returns.models';
+import { PaginatedResult, PaginationQuery } from '../../../shared/data-access/pagination';
 
 @Injectable({ providedIn: 'root' })
 export class ReturnsApi {
@@ -15,15 +16,13 @@ export class ReturnsApi {
   private readonly authApi = inject(AuthApi);
   private readonly baseUrl = `${environment.publicApiBaseUrl}/api/v1/returns`;
 
-  listReturns(params?: { status?: string; returnType?: string; saleId?: string }): Observable<
-    SalesReturnRecord[]
-  > {
+  listReturns(params: PaginationQuery & { status?: string; returnType?: string; saleId?: string } = {}): Observable<PaginatedResult<SalesReturnRecord>> {
     return this.http
-      .get<{ data: { items: SalesReturnRecord[] } }>(this.baseUrl, {
+      .get<{ data: SalesReturnRecord[]; meta: PaginatedResult<SalesReturnRecord>['meta'] }>(this.baseUrl, {
         withCredentials: true,
-        params: params ?? {},
+        params: { ...params, page: params.page ?? 1, pageSize: params.pageSize ?? 25 },
       })
-      .pipe(map((response) => response.data.items));
+      .pipe(map((response) => ({ items: response.data, meta: response.meta })));
   }
 
   getReturn(id: string): Observable<SalesReturnRecord> {

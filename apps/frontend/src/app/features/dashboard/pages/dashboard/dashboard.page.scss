@@ -1,22 +1,184 @@
 .dash-meta {
-  margin: 0 0 1rem;
-  color: var(--ag-muted, #5b6470);
+  margin: 0;
+  color: var(--ag-color-text-muted);
+  font-size: var(--ag-text-xs);
+  grid-column: 1 / -1;
+}
+
+.dash-toolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--ag-space-3) var(--ag-space-4);
+  align-items: end;
+  margin-bottom: var(--ag-space-5);
+  background: var(--ag-color-surface);
+  border: 1px solid var(--ag-color-border);
+  border-radius: var(--ag-radius-lg);
+  padding: var(--ag-space-4);
 }
 
 .dash-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--ag-space-4);
+  margin-bottom: var(--ag-space-6);
 }
 
-.dash-grid h2 {
-  margin: 0 0 0.35rem;
-  font-size: 0.85rem;
-  font-weight: 600;
+.dash-card,
+.dash-grid a.dash-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--ag-space-4) var(--ag-space-5);
+  border: 1px solid var(--ag-color-border);
+  border-radius: var(--ag-radius-lg);
+  background: var(--ag-color-surface);
+  text-decoration: none;
+  color: inherit;
+  box-shadow: var(--ag-shadow-sm);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  min-width: 0;
+
+  &:hover {
+    border-color: var(--ag-color-primary);
+    box-shadow: var(--ag-shadow-md);
+  }
 }
 
-.dash-grid p {
-  margin: 0;
-  font-size: 1.15rem;
+.dash-card__value {
+  margin: var(--ag-space-1) 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ag-color-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+.dash-grid h2,
+.dash-charts h2,
+.dash-panel h2 {
+  margin: 0 0 var(--ag-space-1);
+  font-size: var(--ag-text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ag-color-text-muted);
+}
+
+.dash-charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ag-space-5);
+  margin-bottom: var(--ag-space-6);
+}
+
+.dash-panel {
+  padding: var(--ag-space-5);
+  border: 1px solid var(--ag-color-border);
+  border-radius: var(--ag-radius-lg);
+  background: var(--ag-color-surface);
+  box-shadow: var(--ag-shadow-sm);
+  min-width: 0;
+}
+
+.dash-list {
+  list-style: none;
+  margin: var(--ag-space-3) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--ag-space-2);
+}
+
+.dash-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  gap: var(--ag-space-3);
+  align-items: center;
+  padding: var(--ag-space-2) var(--ag-space-3);
+  border-radius: var(--ag-radius-md);
+  background: var(--ag-color-surface-elevated);
+  font-size: var(--ag-text-sm);
+
+  a {
+    font-weight: 600;
+    color: var(--ag-color-primary);
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+// Tablet Responsive Breakpoint (768px–1199px)
+@media (max-width: 1199px) {
+  .dash-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+// Tablet Portrait & Mobile Responsive Breakpoint (<768px)
+@media (max-width: 767px) {
+  .dash-toolbar {
+    grid-template-columns: 1fr;
+    padding: var(--ag-space-3);
+    gap: var(--ag-space-3);
+  }
+
+  .dash-grid {
+    grid-template-columns: 1fr;
+    gap: var(--ag-space-3);
+  }
+
+  .dash-charts {
+    grid-template-columns: 1fr;
+    gap: var(--ag-space-4);
+  }
+
+  .dash-panel {
+    padding: var(--ag-space-4);
+  }
+
+  .dash-list li {
+    grid-template-columns: 1fr auto;
+    gap: var(--ag-space-2);
+
+    span:nth-child(2) {
+      grid-column: 1 / -1;
+      font-size: var(--ag-text-xs);
+    }
+  }
+}
+
+// Large Desktop (1600px–2199px)
+@media (min-width: 1600px) {
+  .dash-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+    gap: var(--ag-space-5);
+  }
+
+  .dash-charts {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr));
+    gap: var(--ag-space-6);
+  }
+
+  .dash-panel {
+    padding: var(--ag-space-6);
+  }
+}
+
+// Ultra-wide Desktop (>= 2200px)
+@media (min-width: 2200px) {
+  .dash-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+    gap: var(--ag-space-6);
+  }
+
+  .dash-charts {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 34rem), 1fr));
+    gap: var(--ag-space-8);
+  }
+}
+
+

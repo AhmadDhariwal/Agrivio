@@ -8,7 +8,7 @@ import {
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin, of, catchError, switchMap } from 'rxjs';
+import { forkJoin, of, catchError, map, switchMap } from 'rxjs';
 import { SalesApi } from '../../data-access/sales.api';
 import { SalesReturnsApi } from '../../data-access/sales-returns.api';
 import { ReturnsApi } from '../../../returns/data-access/returns.api';
@@ -37,6 +37,9 @@ import { PackagingUnitRecord, ProductRecord } from '../../../catalog/models/cata
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator, setRequiredValidator } from '../../../../shared/form/form-field.util';
+import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 
 @Component({
   selector: 'agrivio-sale-edit-page',
@@ -47,6 +50,8 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
     UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiConfirmDialogComponent,
+    UiFieldLabelComponent,
   ],
   templateUrl: './sale-edit.page.html',
   styleUrl: './sale-edit.page.scss',
@@ -72,9 +77,26 @@ export class SaleEditPage {
   readonly cancelling = signal(false);
   readonly submittingReturn = signal(false);
   readonly discarding = signal(false);
+  readonly discardConfirmOpen = signal(false);
+  readonly cancelConfirmOpen = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly products = signal<ProductRecord[]>([]);
+  readonly productSearchQuery = signal('');
+  readonly filteredProducts = computed(() => {
+    const needle = this.productSearchQuery().trim().toLowerCase();
+    const items = this.products();
+    if (needle === '') {
+      return items;
+    }
+    return items.filter(
+      (item) =>
+        item.name.toLowerCase().includes(needle) ||
+        String(item.sku ?? '')
+          .toLowerCase()
+          .includes(needle),
+    );
+  });
   readonly branches = signal<BranchRecord[]>([]);
   readonly warehouses = signal<WarehouseRecord[]>([]);
   readonly customers = signal<CustomerRecord[]>([]);
@@ -109,6 +131,8 @@ export class SaleEditPage {
   private version = 1;
   private postIdempotencyKey: string | null = null;
   private postIdempotencySaleId: string | null = null;
+
+  readonly fieldRequired = hasRequiredValidator;
 
   readonly form = this.formBuilder.nonNullable.group({
     branchId: ['', Validators.required],
@@ -147,6 +171,10 @@ export class SaleEditPage {
   }
 
   constructor() {
+    this.returnForm.controls.resolution.valueChanges.subscribe((resolution) => {
+      setRequiredValidator(this.returnForm.controls.refundAccountId, resolution === 'account_refund');
+    });
+
     const id = this.route.snapshot.paramMap.get('id');
     const isEdit = Boolean(id && id !== 'new');
     if (isEdit && id) {
@@ -159,15 +187,15 @@ export class SaleEditPage {
     }
 
     const masters$ = forkJoin({
-      products: this.catalogApi.listProducts(),
-      branches: this.locationsApi.listBranches(),
-      warehouses: this.locationsApi.listWarehouses(),
-      customers: this.customersApi.listCustomers(),
+      products: this.catalogApi.searchProductOptions(),
+      branches: this.locationsApi.listBranchOptions(),
+      warehouses: this.locationsApi.listWarehouseOptions(),
+      customers: this.customersApi.searchCustomerOptions(),
       accounts: this.api.listPosPaymentAccounts().pipe(catchError(() => of([]))),
-      refundAccounts: this.accountsApi.listAccounts().pipe(catchError(() => of([]))),
+      refundAccounts: this.accountsApi.listAccountOptions().pipe(catchError(() => of([]))),
       relatedReturns:
         isEdit && id && this.canViewReturns()
-          ? this.returnsApi.listReturns({ saleId: id }).pipe(catchError(() => of([])))
+          ? this.returnsApi.listReturns({ saleId: id, page: 1, pageSize: 100 }).pipe(map((result) => result.items), catchError(() => of([])))
           : of([]),
     });
 
@@ -214,6 +242,21 @@ export class SaleEditPage {
 
   packagingUnitsForLine(index: number): PackagingUnitRecord[] {
     return this.packagingByLine()[index] ?? [];
+  }
+
+  onProductSearchInput(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      this.productSearchQuery.set(target.value);
+      this.catalogApi.searchProductOptions(target.value).subscribe((items) => this.products.set(items));
+    }
+  }
+
+  onCustomerSearchInput(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      this.customersApi.searchCustomerOptions(target.value).subscribe((items) => this.customers.set(items));
+    }
   }
 
   addLine(): void {
@@ -421,6 +464,15 @@ export class SaleEditPage {
       this.errorMessage.set('A cancellation reason is required.');
       return;
     }
+    this.cancelConfirmOpen.set(true);
+  }
+
+  confirmCancel(): void {
+    const id = this.saleId();
+    this.cancelConfirmOpen.set(false);
+    if (!id || !this.canCancel() || !this.isPosted() || this.cancelling()) {
+      return;
+    }
     this.cancelling.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
@@ -457,6 +509,7 @@ export class SaleEditPage {
         unsellableReason: ['damaged'],
       }),
     );
+    this.bindReturnLineConditionalRequired(this.returnLines.length - 1);
   }
 
   removeReturnLine(index: number): void {
@@ -493,15 +546,12 @@ export class SaleEditPage {
       this.errorMessage.set('Add at least one return line with quantity > 0.');
       return;
     }
+    this.returnForm.controls.reason.markAsTouched();
+    this.returnForm.controls.refundAccountId.markAsTouched();
+    if (this.returnForm.controls.reason.invalid || this.returnForm.controls.refundAccountId.invalid) {
+      return;
+    }
     const { reason, resolution, refundAccountId } = this.returnForm.getRawValue();
-    if (!reason.trim()) {
-      this.errorMessage.set('A return reason is required.');
-      return;
-    }
-    if (resolution === 'account_refund' && !refundAccountId) {
-      this.errorMessage.set('Select a refund account for cash/bank/digital refund.');
-      return;
-    }
     if (!this.sale()?.customerId && resolution === 'ledger_adjustment') {
       this.errorMessage.set('Walk-in returns require an account refund, not a ledger adjustment.');
       return;
@@ -556,6 +606,15 @@ export class SaleEditPage {
     if (!id || !this.canCreate() || this.isPosted()) {
       return;
     }
+    this.discardConfirmOpen.set(true);
+  }
+
+  confirmDiscard(): void {
+    const id = this.saleId();
+    this.discardConfirmOpen.set(false);
+    if (!id || !this.canCreate() || this.isPosted()) {
+      return;
+    }
     this.discarding.set(true);
     this.errorMessage.set(null);
     this.api.discardSale(id).subscribe({
@@ -567,6 +626,17 @@ export class SaleEditPage {
         this.discarding.set(false);
         this.errorMessage.set(this.mapError(error, 'Unable to discard sale draft.'));
       },
+    });
+  }
+
+  private bindReturnLineConditionalRequired(index: number): void {
+    const group = this.returnLineGroup(index);
+    setRequiredValidator(
+      group.get('unsellableReason'),
+      group.get('stockCondition')?.value === 'unsellable',
+    );
+    group.get('stockCondition')?.valueChanges.subscribe((condition) => {
+      setRequiredValidator(group.get('unsellableReason'), condition === 'unsellable');
     });
   }
 
@@ -798,8 +868,8 @@ export class SaleEditPage {
     if (!this.canViewReturns()) {
       return;
     }
-    this.returnsApi.listReturns({ saleId }).subscribe({
-      next: (items) => this.relatedReturns.set(items),
+    this.returnsApi.listReturns({ saleId, page: 1, pageSize: 100 }).subscribe({
+      next: (result) => this.relatedReturns.set(result.items),
     });
   }
 

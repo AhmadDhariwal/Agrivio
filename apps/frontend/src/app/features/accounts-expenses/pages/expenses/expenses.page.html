@@ -41,4 +41,6 @@
       </article>
     }
   </div>
+  <agrivio-ui-pagination [page]="page()" [pageSize]="pageSize()" [total]="total()" [disabled]="loading()"
+    (pageChange)="onPageChange($event)" (pageSizeChange)="onPageSizeChange($event)" />
 }

@@ -307,12 +307,21 @@ function createSalesService(deps) {
 
   return {
     async listSales(organizationId, query = {}, authContext) {
-      const items = await store.listSales(organizationId, {
+      if (query.warehouseId && typeof deps.canAccessWarehouse === 'function' && !deps.canAccessWarehouse(authContext, query.warehouseId)) {
+        return { items: [], total: 0 };
+      }
+      const assignments = Array.isArray(authContext?.warehouseAssignments) ? authContext.warehouseAssignments : null;
+      const warehouseIds = authContext?.role === 'Owner' || assignments === null
+        ? undefined
+        : assignments.filter((item) => String(item.organizationId) === String(organizationId)).map((item) => String(item.targetId));
+      const { items, total } = await store.listSales(organizationId, {
         status: query.status,
         customerId: query.customerId,
         warehouseId: query.warehouseId,
         branchId: query.branchId,
-      });
+        warehouseIds: query.warehouseId ? undefined : warehouseIds,
+        search: query.search,
+      }, { skip: query.skip, pageSize: query.pageSize });
       const filtered = [];
       for (const item of items) {
         if (
@@ -323,7 +332,7 @@ function createSalesService(deps) {
         }
         filtered.push(toSaleDto(item));
       }
-      return { items: filtered };
+      return { items: filtered, total };
     },
 
     async getSale(organizationId, saleId, authContext) {
@@ -1371,7 +1380,7 @@ function createSalesService(deps) {
     },
 
     async listUnpaidCustomerSales(organizationId, customerId) {
-      const items = await store.listSales(organizationId, { status: 'posted', customerId });
+      const { items } = await store.listSales(organizationId, { status: 'posted', customerId });
       const result = [];
       for (const item of items) {
         if (!item.saleTotalMinorUnits) {
@@ -1414,7 +1423,7 @@ function createSalesService(deps) {
         typeof query.toSaleDate === 'string' && query.toSaleDate.trim() !== ''
           ? query.toSaleDate.trim()
           : null;
-      const items = await store.listSales(organizationId, { status: 'posted' });
+      const { items } = await store.listSales(organizationId, { status: 'posted' });
       const productIds = new Set();
       for (const item of items) {
         if (

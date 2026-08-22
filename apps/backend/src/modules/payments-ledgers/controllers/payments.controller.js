@@ -1,5 +1,6 @@
 const { sendSuccessEnvelope } = require('../../../platform/http/response-envelope');
 const { forbidden } = require('../../../platform/errors/app-error');
+const { parsePaginationQuery } = require('../../../platform/http/parse-pagination-query');
 
 function requireOrganizationId(req) {
   const organizationId = req.authContext?.organizationId;
@@ -13,13 +14,17 @@ function createPaymentsController(deps) {
   return {
     async listSupplierPayments(req, res, next) {
       try {
-        const data = await deps.paymentsService.listSupplierPayments(requireOrganizationId(req), {
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.paymentsService.listSupplierPayments(requireOrganizationId(req), {
           supplierId:
             typeof req.query.supplierId === 'string' && req.query.supplierId.trim() !== ''
               ? req.query.supplierId.trim()
               : undefined,
+          search: typeof req.query.search === 'string' ? req.query.search : undefined,
+          skip,
+          pageSize,
         });
-        sendSuccessEnvelope(res, 200, data);
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
         next(error);
       }
@@ -89,13 +94,17 @@ function createPaymentsController(deps) {
 
     async listCustomerPayments(req, res, next) {
       try {
-        const data = await deps.paymentsService.listCustomerPayments(requireOrganizationId(req), {
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.paymentsService.listCustomerPayments(requireOrganizationId(req), {
           customerId:
             typeof req.query.customerId === 'string' && req.query.customerId.trim() !== ''
               ? req.query.customerId.trim()
               : undefined,
+          search: typeof req.query.search === 'string' ? req.query.search : undefined,
+          skip,
+          pageSize,
         });
-        sendSuccessEnvelope(res, 200, data);
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
         next(error);
       }
@@ -134,6 +143,21 @@ function createPaymentsController(deps) {
           String(req.params.id),
         );
         sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async correctPayment(req, res, next) {
+      try {
+        const result = await deps.paymentsService.correctPayment(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.body,
+          { actorId: String(req.authContext.userId) },
+          req.get('Idempotency-Key'),
+        );
+        sendSuccessEnvelope(res, result.statusCode ?? 200, result.data);
       } catch (error) {
         next(error);
       }

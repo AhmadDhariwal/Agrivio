@@ -1,6 +1,7 @@
 import { Route } from '@angular/router';
 import {
   requirePlatformContextGuard,
+  requireCapabilityGuard,
   requireSessionGuard,
 } from './core/guards/session.guards';
 import { AppShellPage } from './features/shell/pages/app-shell/app-shell.page';
@@ -19,26 +20,35 @@ export const appRoutes: Route[] = [
     path: 'context',
     canActivate: [requireSessionGuard],
     loadComponent: () =>
-      import('./features/auth/pages/context-switcher/context-switcher.page').then((m) => m.ContextSwitcherPage),
+      import('./features/auth/pages/context-switcher/context-switcher.page').then(
+        (m) => m.ContextSwitcherPage,
+      ),
   },
   {
     path: 'password-reset',
     loadComponent: () =>
-      import('./features/auth/pages/password-reset-request/password-reset-request.page').then((m) => m.PasswordResetRequestPage),
+      import('./features/auth/pages/password-reset-request/password-reset-request.page').then(
+        (m) => m.PasswordResetRequestPage,
+      ),
   },
   {
     path: 'password-reset/confirm',
     loadComponent: () =>
-      import('./features/auth/pages/password-reset-confirm/password-reset-confirm.page').then((m) => m.PasswordResetConfirmPage),
+      import('./features/auth/pages/password-reset-confirm/password-reset-confirm.page').then(
+        (m) => m.PasswordResetConfirmPage,
+      ),
   },
   {
     path: 'request-access',
     loadComponent: () =>
-      import('./features/onboarding/pages/request-access/request-access.page').then((m) => m.RequestAccessPage),
+      import('./features/onboarding/pages/request-access/request-access.page').then(
+        (m) => m.RequestAccessPage,
+      ),
   },
   {
     path: 'activate',
-    loadComponent: () => import('./features/onboarding/pages/activate/activate.page').then((m) => m.ActivatePage),
+    loadComponent: () =>
+      import('./features/onboarding/pages/activate/activate.page').then((m) => m.ActivatePage),
   },
   {
     path: 'app',
@@ -48,12 +58,16 @@ export const appRoutes: Route[] = [
       {
         path: '',
         loadComponent: () =>
-          import('./features/shell/pages/workspace-home/workspace-home.page').then((m) => m.WorkspaceHomePage),
+          import('./features/shell/pages/workspace-home/workspace-home.page').then(
+            (m) => m.WorkspaceHomePage,
+          ),
       },
       {
         path: 'dashboard',
         loadComponent: () =>
-          import('./features/dashboard/pages/dashboard/dashboard.page').then((m) => m.DashboardPage),
+          import('./features/dashboard/pages/dashboard/dashboard.page').then(
+            (m) => m.DashboardPage,
+          ),
       },
       {
         path: 'alerts',
@@ -98,7 +112,9 @@ export const appRoutes: Route[] = [
         path: 'platform/plans',
         canActivate: [requirePlatformContextGuard],
         loadComponent: () =>
-          import('./features/platform/pages/plans-admin/plans-admin.page').then((m) => m.PlatformPlansPage),
+          import('./features/platform/pages/plans-admin/plans-admin.page').then(
+            (m) => m.PlatformPlansPage,
+          ),
       },
       {
         path: 'platform/billing-review',
@@ -175,7 +191,9 @@ export const appRoutes: Route[] = [
       {
         path: 'employees',
         loadComponent: () =>
-          import('./features/users-access/pages/employees/employees.page').then((m) => m.EmployeesPage),
+          import('./features/users-access/pages/employees/employees.page').then(
+            (m) => m.EmployeesPage,
+          ),
       },
       {
         path: 'employees/new',
@@ -193,11 +211,18 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'categories',
+        canActivate: [requireCapabilityGuard('inventory.categories')],
         loadComponent: () =>
-          import('./features/catalog/pages/categories/categories.page').then((m) => m.CategoriesPage),
+          import('./features/catalog/pages/categories/categories.page').then(
+            (m) => m.CategoriesPage,
+          ),
       },
       {
         path: 'categories/new',
+        canActivate: [
+          requireCapabilityGuard('inventory.categories'),
+          requireCapabilityGuard('inventory.categories.actions.create', 'action'),
+        ],
         loadComponent: () =>
           import('./features/catalog/pages/category-form/category-form.page').then(
             (m) => m.CategoryFormPage,
@@ -205,18 +230,42 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'categories/:id',
+        canActivate: [
+          requireCapabilityGuard('inventory.categories'),
+          requireCapabilityGuard('inventory.categories.actions.edit', 'action'),
+        ],
         loadComponent: () =>
           import('./features/catalog/pages/category-form/category-form.page').then(
             (m) => m.CategoryFormPage,
           ),
       },
       {
+        path: 'feature-unavailable',
+        loadComponent: () =>
+          import('./features/capabilities/pages/feature-unavailable/feature-unavailable.page').then(
+            (m) => m.FeatureUnavailablePage,
+          ),
+      },
+      {
+        path: 'platform/organizations/:id/controls',
+        canActivate: [requirePlatformContextGuard],
+        loadComponent: () =>
+          import('./features/platform/pages/organization-controls/organization-controls.page').then(
+            (m) => m.OrganizationControlsPage,
+          ),
+      },
+      {
         path: 'products',
+        canActivate: [requireCapabilityGuard('inventory.products')],
         loadComponent: () =>
           import('./features/catalog/pages/products/products.page').then((m) => m.ProductsPage),
       },
       {
         path: 'products/new',
+        canActivate: [
+          requireCapabilityGuard('inventory.products'),
+          requireCapabilityGuard('inventory.products.actions.create', 'action'),
+        ],
         loadComponent: () =>
           import('./features/catalog/pages/product-form/product-form.page').then(
             (m) => m.ProductFormPage,
@@ -224,6 +273,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'products/:id/pricing',
+        canActivate: [
+          requireCapabilityGuard('inventory.products'),
+          requireCapabilityGuard('inventory.products.actions.managePricing', 'action'),
+        ],
         loadComponent: () =>
           import('./features/catalog/pages/product-pricing/product-pricing.page').then(
             (m) => m.ProductPricingPage,
@@ -231,6 +284,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'products/:id',
+        canActivate: [
+          requireCapabilityGuard('inventory.products'),
+          requireCapabilityGuard('inventory.products.actions.edit', 'action'),
+        ],
         loadComponent: () =>
           import('./features/catalog/pages/product-form/product-form.page').then(
             (m) => m.ProductFormPage,
@@ -239,7 +296,9 @@ export const appRoutes: Route[] = [
       {
         path: 'customers',
         loadComponent: () =>
-          import('./features/customers/pages/customers/customers.page').then((m) => m.CustomersPage),
+          import('./features/customers/pages/customers/customers.page').then(
+            (m) => m.CustomersPage,
+          ),
       },
       {
         path: 'customers/new',
@@ -258,7 +317,9 @@ export const appRoutes: Route[] = [
       {
         path: 'suppliers',
         loadComponent: () =>
-          import('./features/suppliers/pages/suppliers/suppliers.page').then((m) => m.SuppliersPage),
+          import('./features/suppliers/pages/suppliers/suppliers.page').then(
+            (m) => m.SuppliersPage,
+          ),
       },
       {
         path: 'suppliers/new',
@@ -319,28 +380,30 @@ export const appRoutes: Route[] = [
       {
         path: 'expense-categories',
         loadComponent: () =>
-          import(
-            './features/accounts-expenses/pages/expense-categories/expense-categories.page'
-          ).then((m) => m.ExpenseCategoriesPage),
+          import('./features/accounts-expenses/pages/expense-categories/expense-categories.page').then(
+            (m) => m.ExpenseCategoriesPage,
+          ),
       },
       {
         path: 'expense-categories/new',
         loadComponent: () =>
-          import(
-            './features/accounts-expenses/pages/expense-category-form/expense-category-form.page'
-          ).then((m) => m.ExpenseCategoryFormPage),
+          import('./features/accounts-expenses/pages/expense-category-form/expense-category-form.page').then(
+            (m) => m.ExpenseCategoryFormPage,
+          ),
       },
       {
         path: 'expense-categories/:id',
         loadComponent: () =>
-          import(
-            './features/accounts-expenses/pages/expense-category-form/expense-category-form.page'
-          ).then((m) => m.ExpenseCategoryFormPage),
+          import('./features/accounts-expenses/pages/expense-category-form/expense-category-form.page').then(
+            (m) => m.ExpenseCategoryFormPage,
+          ),
       },
       {
         path: 'purchases',
         loadComponent: () =>
-          import('./features/purchases/pages/purchases/purchases.page').then((m) => m.PurchasesPage),
+          import('./features/purchases/pages/purchases/purchases.page').then(
+            (m) => m.PurchasesPage,
+          ),
       },
       {
         path: 'purchases/new',
@@ -366,9 +429,9 @@ export const appRoutes: Route[] = [
       {
         path: 'supplier-payments/new',
         loadComponent: () =>
-          import(
-            './features/supplier-payments/pages/supplier-payment-form/supplier-payment-form.page'
-          ).then((m) => m.SupplierPaymentFormPage),
+          import('./features/supplier-payments/pages/supplier-payment-form/supplier-payment-form.page').then(
+            (m) => m.SupplierPaymentFormPage,
+          ),
       },
       {
         path: 'sales',
@@ -393,9 +456,9 @@ export const appRoutes: Route[] = [
       {
         path: 'returns/without-invoice',
         loadComponent: () =>
-          import(
-            './features/returns/pages/return-without-invoice/return-without-invoice.page'
-          ).then((m) => m.ReturnWithoutInvoicePage),
+          import('./features/returns/pages/return-without-invoice/return-without-invoice.page').then(
+            (m) => m.ReturnWithoutInvoicePage,
+          ),
       },
       {
         path: 'returns/:id',
@@ -421,9 +484,9 @@ export const appRoutes: Route[] = [
       {
         path: 'customer-payments/new',
         loadComponent: () =>
-          import(
-            './features/customer-payments/pages/customer-payment-form/customer-payment-form.page'
-          ).then((m) => m.CustomerPaymentFormPage),
+          import('./features/customer-payments/pages/customer-payment-form/customer-payment-form.page').then(
+            (m) => m.CustomerPaymentFormPage,
+          ),
       },
       {
         path: 'supplier-payments/ledger',
@@ -434,6 +497,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'inventory/stock',
+        canActivate: [requireCapabilityGuard('inventory.stock')],
         loadComponent: () =>
           import('./features/inventory/pages/stock/stock-inquiry.page').then(
             (m) => m.StockInquiryPage,
@@ -441,6 +505,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'inventory/opening-stock',
+        canActivate: [requireCapabilityGuard('inventory.openingStock')],
         loadComponent: () =>
           import('./features/inventory/pages/opening-stock/opening-stock.page').then(
             (m) => m.OpeningStockPage,
@@ -449,15 +514,19 @@ export const appRoutes: Route[] = [
       {
         path: 'inventory/movements',
         loadComponent: () =>
-          import('./features/inventory/pages/movements/movements.page').then((m) => m.MovementsPage),
+          import('./features/inventory/pages/movements/movements.page').then(
+            (m) => m.MovementsPage,
+          ),
       },
       {
         path: 'inventory/batches',
+        canActivate: [requireCapabilityGuard('inventory.batches')],
         loadComponent: () =>
           import('./features/inventory/pages/batches/batches.page').then((m) => m.BatchesPage),
       },
       {
         path: 'inventory/expiry',
+        canActivate: [requireCapabilityGuard('inventory.expiry')],
         loadComponent: () =>
           import('./features/inventory/pages/expiry/expiry-inquiry.page').then(
             (m) => m.ExpiryInquiryPage,
@@ -465,6 +534,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'inventory/adjustments',
+        canActivate: [requireCapabilityGuard('inventory.adjustments')],
         loadComponent: () =>
           import('./features/inventory/pages/adjustments/adjustments.page').then(
             (m) => m.AdjustmentsPage,
@@ -472,6 +542,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'inventory/transfers',
+        canActivate: [requireCapabilityGuard('inventory.transfers')],
         loadComponent: () =>
           import('./features/inventory/pages/transfers/transfers.page').then(
             (m) => m.TransfersPage,

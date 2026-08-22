@@ -1,5 +1,7 @@
 const { sendSuccessEnvelope } = require('../../../platform/http/response-envelope');
 const { forbidden } = require('../../../platform/errors/app-error');
+const { parseMasterStatusQuery } = require('../../../platform/http/master-status-query');
+const { parsePaginationQuery } = require('../../../platform/http/parse-pagination-query');
 
 function requireOrganizationId(req) {
   const organizationId = req.authContext?.organizationId;
@@ -13,8 +15,12 @@ function createLocationsController(deps) {
   return {
     async listBranches(req, res, next) {
       try {
-        const data = await deps.locationsService.listBranches(requireOrganizationId(req));
-        sendSuccessEnvelope(res, 200, data);
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.locationsService.listBranches(requireOrganizationId(req), {
+          status: parseMasterStatusQuery(req.query),
+          search: req.query.search || undefined, skip, pageSize,
+        });
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
         next(error);
       }
@@ -57,10 +63,27 @@ function createLocationsController(deps) {
       }
     },
 
+    async deleteBranch(req, res, next) {
+      try {
+        const data = await deps.locationsService.deleteBranch(
+          requireOrganizationId(req),
+          String(req.params.id),
+          { actorId: String(req.authContext.userId) },
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async listWarehouses(req, res, next) {
       try {
-        const data = await deps.locationsService.listWarehouses(requireOrganizationId(req));
-        sendSuccessEnvelope(res, 200, data);
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.locationsService.listWarehouses(requireOrganizationId(req), {
+          status: parseMasterStatusQuery(req.query),
+          search: req.query.search || undefined, skip, pageSize,
+        });
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
         next(error);
       }
@@ -97,6 +120,19 @@ function createLocationsController(deps) {
           requireOrganizationId(req),
           String(req.params.id),
           req.body,
+          { actorId: String(req.authContext.userId) },
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async deleteWarehouse(req, res, next) {
+      try {
+        const data = await deps.locationsService.deleteWarehouse(
+          requireOrganizationId(req),
+          String(req.params.id),
           { actorId: String(req.authContext.userId) },
         );
         sendSuccessEnvelope(res, 200, data);

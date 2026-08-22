@@ -14,11 +14,16 @@ describe('ReturnsListPage', () => {
         provideRouter([]),
         {
           provide: ReturnsApi,
-          useValue: { listReturns: () => of([]) },
+          useValue: {
+            listReturns: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+          },
         },
         {
           provide: BranchesWarehousesApi,
-          useValue: { listWarehouses: () => of([]) },
+          useValue: {
+            listWarehouses: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            listWarehouseOptions: () => of([]),
+          },
         },
         {
           provide: AuthSessionStore,
