@@ -5,6 +5,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { switchMap } from 'rxjs';
 import { CustomersApi } from '../../data-access/customers.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
@@ -32,6 +33,7 @@ import { CustomerRecord } from '../../models/customers.models';
 export class CustomerFormPage {
   private readonly api = inject(CustomersApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
@@ -45,10 +47,42 @@ export class CustomerFormPage {
   readonly openingPosted = signal(false);
   readonly derivedReceivable = signal<string | null>(null);
   readonly derivedAdvance = signal<string | null>(null);
-  readonly canManage = computed(() => this.sessionStore.hasPermission('customers.manage'));
-  readonly canPostOpening = computed(() =>
-    this.sessionStore.hasPermission('customers.opening-balance.post'),
+
+  readonly canUseCustomers = computed(
+    () => this.capabilityService?.canUseModule('customers') ?? true,
   );
+
+  readonly canManage = computed(() => {
+    const hasPerm = this.sessionStore.hasPermission('customers.manage');
+    if (!hasPerm || !this.canUseCustomers()) return false;
+    const isEdit = Boolean(this.customerId());
+    const actionKey = isEdit ? 'customers.actions.edit' : 'customers.actions.create';
+    return this.capabilityService?.canPerformAction(actionKey) ?? true;
+  });
+
+  readonly canPostOpening = computed(() => {
+    const hasPerm = this.sessionStore.hasPermission('customers.opening-balance.post');
+    const actionOk =
+      this.capabilityService?.canPerformAction('customers.actions.postOpeningBalance') ?? true;
+    return hasPerm && this.canUseCustomers() && actionOk;
+  });
+
+  readonly showCreditSection = computed(
+    () => this.capabilityService?.canUseView('customers.features.creditSection') ?? true,
+  );
+  readonly showPhone = computed(
+    () => this.capabilityService?.canViewField('customers.fields.phone') ?? true,
+  );
+  readonly showPriceTier = computed(
+    () => this.capabilityService?.canViewField('customers.fields.priceTier') ?? true,
+  );
+  readonly showCreditLimit = computed(
+    () => this.capabilityService?.canViewField('customers.fields.creditLimit') ?? true,
+  );
+  readonly showCreditLimitBehaviour = computed(
+    () => this.capabilityService?.canViewField('customers.fields.creditLimitBehaviour') ?? true,
+  );
+
   private version = 1;
 
   readonly fieldRequired = hasRequiredValidator;

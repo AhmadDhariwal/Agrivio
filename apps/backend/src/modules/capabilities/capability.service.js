@@ -18,6 +18,7 @@ const {
   TRANSFERS_MODULE_KEY,
   RECONCILIATION_MODULE_KEY,
   MOVEMENTS_MODULE_KEY,
+  CUSTOMERS_MODULE_KEY,
   getCapabilityControl,
   listCapabilityControls,
 } = require('./capability.registry');
@@ -438,6 +439,7 @@ function createCapabilityService(deps) {
           TRANSFERS_MODULE_KEY,
           RECONCILIATION_MODULE_KEY,
           MOVEMENTS_MODULE_KEY,
+          CUSTOMERS_MODULE_KEY,
         ].includes(moduleKey)
       ) {
         throw validationFailed(`Unknown configurable module ${moduleKey}`);
@@ -546,6 +548,34 @@ function createCapabilityService(deps) {
 
     async assertCategoryDeleteAllowed(organizationId) {
       await assertAllowed(organizationId, 'inventory.categories.actions.delete', 'allowed');
+    },
+
+    async assertCustomerCreateAllowed(organizationId) {
+      await assertAllowed(organizationId, 'customers.actions.create', 'allowed');
+    },
+
+    async assertCustomerEditAllowed(organizationId) {
+      await assertAllowed(organizationId, 'customers.actions.edit', 'allowed');
+    },
+
+    async assertCustomerDeleteAllowed(organizationId) {
+      await assertAllowed(organizationId, 'customers.actions.delete', 'allowed');
+    },
+
+    async assertCustomerDeactivateAllowed(organizationId) {
+      await assertAllowed(organizationId, 'customers.actions.deactivate', 'allowed');
+    },
+
+    async assertCustomerReactivateAllowed(organizationId) {
+      await assertAllowed(organizationId, 'customers.actions.reactivate', 'allowed');
+    },
+
+    async assertCustomerCreditPolicyAllowed(organizationId) {
+      await assertAllowed(organizationId, 'customers.actions.editCreditPolicy', 'allowed');
+    },
+
+    async assertCustomerOpeningBalanceAllowed(organizationId) {
+      await assertAllowed(organizationId, 'customers.actions.postOpeningBalance', 'allowed');
     },
   };
 }

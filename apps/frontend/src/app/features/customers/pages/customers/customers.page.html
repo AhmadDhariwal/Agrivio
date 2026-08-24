@@ -13,7 +13,7 @@
       </p>
     </div>
     <div class="page-head__actions">
-      @if (canManage()) {
+      @if (canCreate()) {
       <a
         class="ag-btn ag-btn--primary page-head__add-btn"
         routerLink="/app/customers/new"
@@ -52,14 +52,17 @@
   }
 
   <!-- Module Information Section -->
+  @if (showModuleInfo()) {
   <agrivio-ui-module-info
     [title]="infoTitle"
     [description]="infoDescription"
     [items]="infoItems"
     [defaultExpanded]="false"
   />
+  }
 
   <!-- Authoritative KPI Summary (Matched to Products KPI Anatomy) -->
+  @if (showKpiCards()) {
   <section class="kpi-row" aria-label="Customer Summary">
     <div class="kpi-card">
       <div class="kpi-card__icon kpi-card__icon--neutral">
@@ -85,6 +88,7 @@
       </div>
     </div>
   </section>
+  }
 
   <!-- Filter & Control Toolbar (Matched to Products Toolbar Anatomy) -->
   <section class="toolbar" aria-label="Filters and view controls">
@@ -92,6 +96,7 @@
     <div class="toolbar__desktop">
       <div class="toolbar__left">
         <!-- Search Input -->
+        @if (showSearch()) {
         <div class="search-field">
           <svg
             class="search-field__icon"
@@ -135,8 +140,10 @@
           </button>
           }
         </div>
+        }
 
         <!-- Status Filter -->
+        @if (showStatusFilter()) {
         <div class="select-field">
           <select
             class="select-field__input"
@@ -150,9 +157,10 @@
             <option value="inactive">Inactive / Archived</option>
           </select>
         </div>
+        }
 
         <!-- Clear Filters Button -->
-        @if (hasActiveFilters()) {
+        @if (hasActiveFilters() && (showSearch() || showStatusFilter())) {
         <button
           class="clear-filters-btn"
           type="button"
@@ -165,6 +173,7 @@
       </div>
 
       <div class="toolbar__right">
+        @if (canRefresh()) {
         <button
           class="row-action-btn toolbar-refresh-btn"
           type="button"
@@ -188,12 +197,14 @@
             <path d="M16 21h5v-5" />
           </svg>
         </button>
+        }
       </div>
     </div>
 
     <!-- Mobile 2-Row Controls (< 768px) -->
     <div class="toolbar__mobile">
       <!-- Row 1: Full-Width Search Input -->
+      @if (showSearch()) {
       <div class="search-field search-field--mobile">
         <svg
           class="search-field__icon"
@@ -236,9 +247,11 @@
         </button>
         }
       </div>
+      }
 
       <!-- Row 2: Filter Button + Result Count -->
       <div class="toolbar__mobile-row">
+        @if (showStatusFilter()) {
         <button
           type="button"
           class="mobile-filter-trigger"
@@ -265,6 +278,7 @@
         @if (hasActiveFilters()) {
         <button type="button" class="mobile-clear-btn" (click)="clearFilters()">Reset</button>
         }
+        }
 
         <span class="toolbar__mobile-count">
           {{ total() }} {{ total() === 1 ? 'customer' : 'customers' }}
@@ -274,7 +288,7 @@
   </section>
 
   <!-- Mobile Filter Slide-Over Drawer / Bottom Sheet -->
-  @if (mobileFiltersOpen()) {
+  @if (mobileFiltersOpen() && showStatusFilter()) {
   <button
     type="button"
     class="mobile-filter-backdrop"
@@ -372,9 +386,13 @@
         <!-- Level 1 Flexible Columns -->
         <col class="col-customer" />
         <col class="col-type" />
+        @if (showPriceTier()) {
         <col class="col-tier" />
+        }
         <!-- Level 2 Operational Data Columns -->
+        @if (showPhone()) {
         <col class="col-phone" />
+        }
         <col class="col-credit" />
         <col class="col-receivable" />
         <col class="col-status" />
@@ -384,8 +402,12 @@
         <tr>
           <th scope="col" class="cust-table__th cust-table__th--customer">Customer</th>
           <th scope="col" class="cust-table__th cust-table__th--type">Type</th>
+          @if (showPriceTier()) {
           <th scope="col" class="cust-table__th cust-table__th--tier">Price Tier</th>
+          }
+          @if (showPhone()) {
           <th scope="col" class="cust-table__th cust-table__th--phone">Phone</th>
+          }
           <th scope="col" class="cust-table__th cust-table__th--credit">Credit Policy</th>
           <th scope="col" class="cust-table__th cust-table__th--receivable">Outstanding Receivable</th>
           <th scope="col" class="cust-table__th cust-table__th--status">Status</th>
@@ -407,6 +429,7 @@
                 {{ getInitials(item.name) }}
               </div>
               <div class="customer-cell__meta">
+                @if (canInspect()) {
                 <button
                   type="button"
                   class="customer-cell__name"
@@ -416,6 +439,14 @@
                 >
                   {{ item.name }}
                 </button>
+                } @else {
+                <span
+                  class="customer-cell__name customer-cell__name--plain"
+                  [title]="item.name"
+                >
+                  {{ item.name }}
+                </span>
+                }
                 <span class="customer-cell__dim">{{ getCustomerTypeLabel(item.customerType) }}</span>
               </div>
             </div>
@@ -427,6 +458,7 @@
           </td>
 
           <!-- Price Tier (Level 1: Flexible Badge) -->
+          @if (showPriceTier()) {
           <td class="cust-table__td cust-table__td--tier">
             <span
               class="tier-chip"
@@ -438,8 +470,10 @@
               {{ getPriceTierLabel(item.priceTier) }}
             </span>
           </td>
+          }
 
           <!-- Phone (Level 2: Fixed & Readable) -->
+          @if (showPhone()) {
           <td class="cust-table__td cust-table__td--phone">
             @if (item.phone) {
             <span class="phone-text">{{ item.phone }}</span>
@@ -447,15 +481,20 @@
             <span class="muted-dash">—</span>
             }
           </td>
+          }
 
           <!-- Credit Policy (Level 2: Fixed & Readable) -->
           <td class="cust-table__td cust-table__td--credit">
             @if (item.creditEnabled) {
             <div class="credit-cell">
+              @if (showCreditLimit()) {
               <span class="credit-limit tabular-num">
                 Limit: {{ formatCurrency(item.creditLimit.amount, item.creditLimit.currency) }}
               </span>
+              }
+              @if (showCreditLimitBehaviour()) {
               <span class="credit-sub">{{ getCreditLimitBehaviourLabel(item.creditLimitBehaviour) }}</span>
+              }
             </div>
             } @else {
             <span class="credit-disabled">Cash only</span>
@@ -492,6 +531,7 @@
           <td class="cust-table__td cust-table__td--actions">
             <div class="row-actions">
               <!-- Inspect Button -->
+              @if (canInspect()) {
               <button
                 type="button"
                 class="row-action-btn"
@@ -514,9 +554,10 @@
                   <circle cx="12" cy="12" r="3" />
                 </svg>
               </button>
+              }
 
               <!-- Edit Button -->
-              @if (canManage()) {
+              @if (canEdit()) {
               <a
                 class="row-action-btn"
                 [routerLink]="['/app/customers', item.id]"
@@ -538,8 +579,10 @@
                   <path d="m15 5 4 4" />
                 </svg>
               </a>
+              }
 
               <!-- More Actions Menu Dropdown -->
+              @if (canDeactivate() || canReactivate() || canDelete()) {
               <div class="menu-container">
                 <button
                   type="button"
@@ -573,7 +616,7 @@
                   (click)="$event.stopPropagation()"
                   (keydown)="$event.stopPropagation()"
                 >
-                  @if (item.status === 'active') {
+                  @if (item.status === 'active' && canDeactivate()) {
                   <button
                     type="button"
                     class="menu-dropdown__item"
@@ -587,7 +630,7 @@
                     </svg>
                     Deactivate
                   </button>
-                  } @else {
+                  } @else if (item.status !== 'active' && canReactivate()) {
                   <button
                     type="button"
                     class="menu-dropdown__item"
@@ -603,8 +646,11 @@
                   </button>
                   }
 
+                  @if (((item.status === 'active' && canDeactivate()) || (item.status !== 'active' && canReactivate())) && canDelete()) {
                   <div class="menu-dropdown__divider"></div>
+                  }
 
+                  @if (canDelete()) {
                   <button
                     type="button"
                     class="menu-dropdown__item menu-dropdown__item--danger"
@@ -619,6 +665,7 @@
                     </svg>
                     Delete permanently
                   </button>
+                  }
                 </div>
                 }
               </div>
@@ -640,6 +687,7 @@
           {{ getInitials(item.name) }}
         </div>
         <div class="customer-mobile-card__title-group">
+          @if (canInspect()) {
           <button
             type="button"
             class="customer-mobile-card__name-btn"
@@ -647,8 +695,14 @@
           >
             {{ item.name }}
           </button>
+          } @else {
+          <span class="customer-mobile-card__name-btn customer-mobile-card__name-btn--plain">
+            {{ item.name }}
+          </span>
+          }
           <div class="customer-mobile-card__meta-strip">
             <span class="customer-mobile-card__type">{{ getCustomerTypeLabel(item.customerType) }}</span>
+            @if (showPriceTier()) {
             <span class="customer-mobile-card__dot-sep">·</span>
             <span
               class="tier-chip tier-chip--sm"
@@ -659,6 +713,7 @@
             >
               {{ getPriceTierLabel(item.priceTier) }}
             </span>
+            }
           </div>
         </div>
         <span
@@ -675,14 +730,16 @@
             {{ formatCurrency(item.derivedBalances?.receivable?.amount, item.derivedBalances?.receivable?.currency) }}
           </span>
         </div>
+        @if (showPhone()) {
         <div class="card-metric">
           <span class="card-metric__label">Phone</span>
           <span class="card-metric__value">{{ item.phone || '—' }}</span>
         </div>
+        }
         <div class="card-metric card-metric--full">
           <span class="card-metric__label">Credit Policy</span>
           <span class="card-metric__value">
-            {{ item.creditEnabled ? ('Limit: ' + formatCurrency(item.creditLimit.amount, item.creditLimit.currency) + ' (' + getCreditLimitBehaviourLabel(item.creditLimitBehaviour) + ')') : 'Cash only' }}
+            {{ item.creditEnabled ? ((showCreditLimit() ? ('Limit: ' + formatCurrency(item.creditLimit.amount, item.creditLimit.currency)) : '') + (showCreditLimit() && showCreditLimitBehaviour() ? ' ' : '') + (showCreditLimitBehaviour() ? ('(' + getCreditLimitBehaviourLabel(item.creditLimitBehaviour) + ')') : '')) : 'Cash only' }}
           </span>
         </div>
       </div>
@@ -700,6 +757,7 @@
         </div>
 
         <div class="customer-mobile-card__actions">
+          @if (canInspect()) {
           <button
             type="button"
             class="card-action-btn"
@@ -711,7 +769,8 @@
             </svg>
             Details
           </button>
-          @if (canManage()) {
+          }
+          @if (canEdit()) {
           <a
             class="card-action-btn"
             [routerLink]="['/app/customers', item.id]"
@@ -721,7 +780,8 @@
             </svg>
             Edit
           </a>
-          @if (item.status === 'active') {
+          }
+          @if (canDeactivate() && item.status === 'active') {
           <button
             type="button"
             class="card-action-btn card-action-btn--danger"
@@ -733,7 +793,7 @@
             </svg>
             Deactivate
           </button>
-          } @else {
+          } @else if (canReactivate() && item.status !== 'active') {
           <button
             type="button"
             class="card-action-btn"
@@ -745,7 +805,6 @@
             </svg>
             Reactivate
           </button>
-          }
           }
         </div>
       </div>
@@ -765,7 +824,7 @@
   }
 
   <!-- Customer Inspector Slide-Over Drawer (Matched to Products Inspector Anatomy) -->
-  @if (selectedCustomer(); as sel) {
+  @if (showInspector() && selectedCustomer(); as sel) {
   <div
     class="inspector-backdrop"
     (click)="closeInspector()"
@@ -837,9 +896,11 @@
       </section>
 
       <!-- Section: Pricing & Credit Policy -->
+      @if (showCreditSection()) {
       <section class="drawer-sec">
         <h3 class="drawer-sec__title">Pricing & Credit Risk</h3>
         <div class="spec-grid">
+          @if (showPriceTier()) {
           <div class="spec-row">
             <span class="spec-row__k">Price Tier</span>
             <span class="spec-row__v">
@@ -854,24 +915,30 @@
               </span>
             </span>
           </div>
+          }
           <div class="spec-row">
             <span class="spec-row__k">Credit Authorization</span>
             <span class="spec-row__v">{{ sel.creditEnabled ? 'Credit Authorized' : 'Cash Only' }}</span>
           </div>
           @if (sel.creditEnabled) {
+          @if (showCreditLimit()) {
           <div class="spec-row">
             <span class="spec-row__k">Credit Limit</span>
             <span class="spec-row__v tabular-num">
               {{ formatCurrency(sel.creditLimit.amount, sel.creditLimit.currency) }}
             </span>
           </div>
+          }
+          @if (showCreditLimitBehaviour()) {
           <div class="spec-row">
             <span class="spec-row__k">Policy Behaviour</span>
             <span class="spec-row__v">{{ getCreditLimitBehaviourLabel(sel.creditLimitBehaviour) }}</span>
           </div>
           }
+          }
         </div>
       </section>
+      }
 
       <!-- Section: Profile & Contact -->
       <section class="drawer-sec">
@@ -881,10 +948,12 @@
             <span class="spec-row__k">Customer Type</span>
             <span class="spec-row__v">{{ getCustomerTypeLabel(sel.customerType) }}</span>
           </div>
+          @if (showPhone()) {
           <div class="spec-row">
             <span class="spec-row__k">Phone</span>
             <span class="spec-row__v">{{ sel.phone || '—' }}</span>
           </div>
+          }
           <div class="spec-row">
             <span class="spec-row__k">Lifecycle Status</span>
             <span class="spec-row__v">
@@ -929,6 +998,7 @@
       }
 
       <!-- Section: Technical Details -->
+      @if (showTechnicalDetails()) {
       <section class="drawer-sec">
         <details class="tech-details">
           <summary class="tech-details__summary">Technical Details</summary>
@@ -948,11 +1018,12 @@
           </div>
         </details>
       </section>
+      }
     </div>
 
     <!-- Drawer Footer Actions -->
     <div class="inspector-drawer__footer">
-      @if (canManage()) {
+      @if (canEdit()) {
       <a
         class="ag-btn ag-btn--primary"
         [routerLink]="['/app/customers', sel.id]"
@@ -970,7 +1041,7 @@
         </svg>
         Edit Customer
       </a>
-      @if (sel.status === 'active') {
+      @if (sel.status === 'active' && canDeactivate()) {
       <button
         class="ag-btn ag-btn--secondary ag-btn--danger-text"
         type="button"
@@ -978,7 +1049,7 @@
       >
         Deactivate
       </button>
-      } @else {
+      } @else if (sel.status !== 'active' && canReactivate()) {
       <button
         class="ag-btn ag-btn--secondary"
         type="button"
@@ -1010,3 +1081,4 @@
     (dismiss)="confirmOpen.set(false)"
   />
 </div>
+

@@ -732,6 +732,15 @@
       color: #065f46;
       text-decoration: underline;
     }
+
+    &--plain {
+      cursor: default;
+
+      &:hover {
+        color: #0f172a;
+        text-decoration: none;
+      }
+    }
   }
 
   &__dim {
@@ -1070,6 +1079,15 @@
     &:hover {
       color: #065f46;
       text-decoration: underline;
+    }
+
+    &--plain {
+      cursor: default;
+
+      &:hover {
+        color: #0f172a;
+        text-decoration: none;
+      }
     }
   }
 

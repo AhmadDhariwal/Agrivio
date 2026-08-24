@@ -11,6 +11,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { CustomersApi } from '../../data-access/customers.api';
 import { CustomerRecord, CustomerType, PriceTier } from '../../models/customers.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
@@ -76,6 +77,7 @@ export class CustomersPage {
 
   private readonly api = inject(CustomersApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
 
   readonly items = signal<CustomerRecord[]>([]);
@@ -106,8 +108,94 @@ export class CustomersPage {
   private readonly searchChanges = new Subject<string>();
   private clampAfterLoad = false;
 
-  readonly canManage = computed(() => this.sessionStore.hasPermission('customers.manage'));
-  readonly canView = computed(() => this.sessionStore.hasPermission('customers.view'));
+  readonly canUseCustomers = computed(
+    () => this.capabilityService?.canUseModule('customers') ?? true,
+  );
+  readonly canManage = computed(
+    () => this.sessionStore.hasPermission('customers.manage') && this.canUseCustomers(),
+  );
+  readonly canView = computed(
+    () => this.sessionStore.hasPermission('customers.view') && this.canUseCustomers(),
+  );
+  readonly allowDesktopCards = computed(
+    () => this.capabilityService?.canUseView('customers.views.desktopCards') ?? true,
+  );
+
+  // Feature Computeds
+  readonly showModuleInfo = computed(
+    () => this.capabilityService?.canUseView('customers.features.moduleInfo') ?? true,
+  );
+  readonly showSearch = computed(
+    () => this.capabilityService?.canUseView('customers.features.search') ?? true,
+  );
+  readonly showStatusFilter = computed(
+    () => this.capabilityService?.canUseView('customers.features.statusFilter') ?? true,
+  );
+  readonly showKpiCards = computed(
+    () => this.capabilityService?.canUseView('customers.features.kpiCards') ?? true,
+  );
+  readonly showInspector = computed(
+    () => this.capabilityService?.canUseView('customers.features.inspector') ?? true,
+  );
+  readonly showTechnicalDetails = computed(
+    () => this.capabilityService?.canUseView('customers.features.technicalDetails') ?? true,
+  );
+  readonly showCreditSection = computed(
+    () => this.capabilityService?.canUseView('customers.features.creditSection') ?? true,
+  );
+
+  // Field Computeds
+  readonly showPhone = computed(
+    () => this.capabilityService?.canViewField('customers.fields.phone') ?? true,
+  );
+  readonly showPriceTier = computed(
+    () => this.capabilityService?.canViewField('customers.fields.priceTier') ?? true,
+  );
+  readonly showCreditLimit = computed(
+    () => this.capabilityService?.canViewField('customers.fields.creditLimit') ?? true,
+  );
+  readonly showCreditLimitBehaviour = computed(
+    () => this.capabilityService?.canViewField('customers.fields.creditLimitBehaviour') ?? true,
+  );
+
+  // Action Computeds (RBAC + Capability intersection)
+  readonly canCreate = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('customers.actions.create') ?? true),
+  );
+  readonly canInspect = computed(
+    () =>
+      this.canView() &&
+      this.showInspector() &&
+      (this.capabilityService?.canPerformAction('customers.actions.inspect') ?? true),
+  );
+  readonly canEdit = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('customers.actions.edit') ?? true),
+  );
+  readonly canDeactivate = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('customers.actions.deactivate') ?? true),
+  );
+  readonly canReactivate = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('customers.actions.reactivate') ?? true),
+  );
+  readonly canDelete = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('customers.actions.delete') ?? true),
+  );
+  readonly canRefresh = computed(
+    () =>
+      this.canView() &&
+      (this.capabilityService?.canPerformAction('customers.actions.refresh') ?? true),
+  );
+
   readonly hasActiveFilters = computed(
     () => this.statusFilter() !== 'active' || this.search().trim().length > 0,
   );

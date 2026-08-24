@@ -295,6 +295,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'customers',
+        canActivate: [requireCapabilityGuard('customers')],
         loadComponent: () =>
           import('./features/customers/pages/customers/customers.page').then(
             (m) => m.CustomersPage,
@@ -302,6 +303,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'customers/new',
+        canActivate: [
+          requireCapabilityGuard('customers'),
+          requireCapabilityGuard('customers.actions.create', 'action'),
+        ],
         loadComponent: () =>
           import('./features/customers/pages/customer-form/customer-form.page').then(
             (m) => m.CustomerFormPage,
@@ -309,6 +314,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'customers/:id',
+        canActivate: [
+          requireCapabilityGuard('customers'),
+          requireCapabilityGuard('customers.actions.edit', 'action'),
+        ],
         loadComponent: () =>
           import('./features/customers/pages/customer-form/customer-form.page').then(
             (m) => m.CustomerFormPage,

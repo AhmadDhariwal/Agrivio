@@ -575,6 +575,7 @@ function createApp(options) {
 
   const customersRoutes = registerCustomersRoutes({
     customersService: customers.customersService,
+    capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,

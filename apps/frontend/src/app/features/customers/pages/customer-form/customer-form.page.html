@@ -90,6 +90,7 @@
             </div>
 
             <!-- Phone -->
+            @if (showPhone()) {
             <div class="ag-field">
               <agrivio-ui-field-label label="Phone" for="customer-phone" />
               <input
@@ -100,6 +101,7 @@
                 data-testid="customer-phone"
               />
             </div>
+            }
 
             <!-- Customer Type -->
             <div class="ag-field">
@@ -124,6 +126,7 @@
             </div>
 
             <!-- Price Tier -->
+            @if (showPriceTier()) {
             <div class="ag-field">
               <agrivio-ui-field-label
                 label="Price tier"
@@ -143,11 +146,13 @@
                 <option value="distributor">Distributor</option>
               </select>
             </div>
+            }
           </div>
         </div>
       </section>
 
       <!-- Section 2: Credit Policy -->
+      @if (showCreditSection()) {
       <section class="form-card">
         <div class="form-card__header">
           <div class="form-card__icon">
@@ -177,6 +182,7 @@
             </div>
 
             <!-- Credit Limit -->
+            @if (showCreditLimit()) {
             <div class="ag-field">
               <agrivio-ui-field-label label="Credit limit (PKR)" for="customer-credit-limit" />
               <input
@@ -187,8 +193,10 @@
                 placeholder="0.00"
               />
             </div>
+            }
 
             <!-- Credit Limit Behaviour -->
+            @if (showCreditLimitBehaviour()) {
             <div class="ag-field">
               <agrivio-ui-field-label label="Credit limit behaviour" for="customer-credit-behaviour" />
               <select
@@ -202,9 +210,11 @@
                 <option value="block">Block</option>
               </select>
             </div>
+            }
           </div>
         </div>
       </section>
+      }
 
       <!-- Section 3: Status (Only on edit) -->
       @if (customerId()) {

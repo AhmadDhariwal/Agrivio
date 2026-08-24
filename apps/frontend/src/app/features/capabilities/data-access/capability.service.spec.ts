@@ -217,4 +217,63 @@ describe('CapabilityService', () => {
     expect(service.canPerformAction('inventory.movements.actions.viewProduct')).toBe(true);
     expect(service.canPerformAction('inventory.movements.actions.viewBatch')).toBe(true);
   });
+
+  it('provides default enabled/visible/allowed values for all 27 customers.* controls matching backend registry', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        CapabilityService,
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            activeContext: () => ({ contextType: 'organization', organizationId: 'org-1' }),
+          },
+        },
+      ],
+    });
+    const service = TestBed.inject(CapabilityService);
+
+    // Root module (1)
+    expect(service.canUseModule('customers')).toBe(true);
+
+    // 1 View
+    expect(service.canUseView('customers.views.desktopCards')).toBe(true);
+
+    // 7 Features
+    expect(service.canUseView('customers.features.moduleInfo')).toBe(true);
+    expect(service.canUseView('customers.features.search')).toBe(true);
+    expect(service.canUseView('customers.features.statusFilter')).toBe(true);
+    expect(service.canUseView('customers.features.kpiCards')).toBe(true);
+    expect(service.canUseView('customers.features.inspector')).toBe(true);
+    expect(service.canUseView('customers.features.technicalDetails')).toBe(true);
+    expect(service.canUseView('customers.features.creditSection')).toBe(true);
+
+    // 9 Fields
+    expect(service.canViewField('customers.fields.name')).toBe(true);
+    expect(service.canEditField('customers.fields.name')).toBe(true);
+    expect(service.canViewField('customers.fields.customerType')).toBe(true);
+    expect(service.canEditField('customers.fields.customerType')).toBe(true);
+    expect(service.canViewField('customers.fields.creditEnabled')).toBe(true);
+    expect(service.canEditField('customers.fields.creditEnabled')).toBe(true);
+    expect(service.canViewField('customers.fields.phone')).toBe(true);
+    expect(service.canEditField('customers.fields.phone')).toBe(true);
+    expect(service.canViewField('customers.fields.priceTier')).toBe(true);
+    expect(service.canEditField('customers.fields.priceTier')).toBe(true);
+    expect(service.canViewField('customers.fields.creditLimit')).toBe(true);
+    expect(service.canEditField('customers.fields.creditLimit')).toBe(true);
+    expect(service.canViewField('customers.fields.creditLimitBehaviour')).toBe(true);
+    expect(service.canEditField('customers.fields.creditLimitBehaviour')).toBe(true);
+    expect(service.canViewField('customers.fields.derivedBalances')).toBe(true);
+    expect(service.canViewField('customers.fields.openingBalance')).toBe(true);
+
+    // 9 Actions
+    expect(service.canPerformAction('customers.actions.create')).toBe(true);
+    expect(service.canPerformAction('customers.actions.inspect')).toBe(true);
+    expect(service.canPerformAction('customers.actions.edit')).toBe(true);
+    expect(service.canPerformAction('customers.actions.deactivate')).toBe(true);
+    expect(service.canPerformAction('customers.actions.reactivate')).toBe(true);
+    expect(service.canPerformAction('customers.actions.delete')).toBe(true);
+    expect(service.canPerformAction('customers.actions.editCreditPolicy')).toBe(true);
+    expect(service.canPerformAction('customers.actions.postOpeningBalance')).toBe(true);
+    expect(service.canPerformAction('customers.actions.refresh')).toBe(true);
+  });
 });

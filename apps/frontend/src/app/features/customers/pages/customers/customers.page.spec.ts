@@ -207,4 +207,104 @@ describe('CustomersPage', () => {
 
     expect(fixture.nativeElement.textContent).toContain('You do not have permission to view customers.');
   });
+
+  describe('Capability Integration', () => {
+    it('hides create button when customers.actions.create capability is disabled', async () => {
+      mockApi.listCustomers.mockReturnValue(
+        of({ items: makeCustomers(1), meta: { page: 1, pageSize: 25, total: 1 } }),
+      );
+
+      const mockCapability = {
+        canUseModule: vi.fn().mockReturnValue(true),
+        canUseView: vi.fn().mockReturnValue(true),
+        canViewField: vi.fn().mockReturnValue(true),
+        canEditField: vi.fn().mockReturnValue(true),
+        canPerformAction: vi.fn().mockImplementation((key: string) => key !== 'customers.actions.create'),
+      };
+
+      const fixture = TestBed.createComponent(CustomersPage);
+      (fixture.componentInstance as any).capabilityService = mockCapability;
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.canCreate()).toBe(false);
+      expect(fixture.nativeElement.querySelector('[data-testid="customer-create-link"]')).toBeNull();
+    });
+
+    it('hides edit and inspect buttons when capability actions are disabled', () => {
+      mockApi.listCustomers.mockReturnValue(
+        of({ items: makeCustomers(1), meta: { page: 1, pageSize: 25, total: 1 } }),
+      );
+
+      const mockCapability = {
+        canUseModule: vi.fn().mockReturnValue(true),
+        canUseView: vi.fn().mockReturnValue(true),
+        canViewField: vi.fn().mockReturnValue(true),
+        canEditField: vi.fn().mockReturnValue(true),
+        canPerformAction: vi.fn().mockImplementation((key: string) => {
+          if (key === 'customers.actions.inspect' || key === 'customers.actions.edit') return false;
+          return true;
+        }),
+      };
+
+      const fixture = TestBed.createComponent(CustomersPage);
+      (fixture.componentInstance as any).capabilityService = mockCapability;
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.canInspect()).toBe(false);
+      expect(fixture.componentInstance.canEdit()).toBe(false);
+      expect(fixture.nativeElement.querySelector('[data-testid="customer-inspect"]')).toBeNull();
+      expect(fixture.nativeElement.querySelector('[data-testid="customer-edit"]')).toBeNull();
+      expect(fixture.nativeElement.querySelector('.customer-cell__name--plain')).toBeTruthy();
+    });
+
+    it('conditionally hides priceTier and phone columns when capability fields are not visible', () => {
+      mockApi.listCustomers.mockReturnValue(
+        of({ items: makeCustomers(2), meta: { page: 1, pageSize: 25, total: 2 } }),
+      );
+
+      const mockCapability = {
+        canUseModule: vi.fn().mockReturnValue(true),
+        canUseView: vi.fn().mockReturnValue(true),
+        canViewField: vi.fn().mockImplementation((key: string) => {
+          if (key === 'customers.fields.priceTier' || key === 'customers.fields.phone') return false;
+          return true;
+        }),
+        canEditField: vi.fn().mockReturnValue(true),
+        canPerformAction: vi.fn().mockReturnValue(true),
+      };
+
+      const fixture = TestBed.createComponent(CustomersPage);
+      (fixture.componentInstance as any).capabilityService = mockCapability;
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.showPriceTier()).toBe(false);
+      expect(fixture.componentInstance.showPhone()).toBe(false);
+      expect(fixture.nativeElement.querySelector('.col-tier')).toBeNull();
+      expect(fixture.nativeElement.querySelector('.col-phone')).toBeNull();
+      expect(fixture.nativeElement.querySelector('.cust-table__th--tier')).toBeNull();
+      expect(fixture.nativeElement.querySelector('.cust-table__th--phone')).toBeNull();
+    });
+
+    it('enforces RBAC + Capability intersection for manage and view operations', () => {
+      // Capability allows create, but user lacks permission
+      mockSession.hasPermission.mockImplementation((perm: string) => perm !== 'customers.manage');
+      const mockCapability = {
+        canUseModule: vi.fn().mockReturnValue(true),
+        canUseView: vi.fn().mockReturnValue(true),
+        canViewField: vi.fn().mockReturnValue(true),
+        canEditField: vi.fn().mockReturnValue(true),
+        canPerformAction: vi.fn().mockReturnValue(true),
+      };
+
+      const fixture = TestBed.createComponent(CustomersPage);
+      (fixture.componentInstance as any).capabilityService = mockCapability;
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.canManage()).toBe(false);
+      expect(fixture.componentInstance.canCreate()).toBe(false);
+      expect(fixture.componentInstance.canEdit()).toBe(false);
+      expect(fixture.componentInstance.canDeactivate()).toBe(false);
+      expect(fixture.componentInstance.canDelete()).toBe(false);
+    });
+  });
 });
