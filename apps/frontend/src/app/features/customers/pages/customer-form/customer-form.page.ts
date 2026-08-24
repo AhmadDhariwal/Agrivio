@@ -22,7 +22,6 @@ import { CustomerRecord } from '../../models/customers.models';
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
     UiFieldLabelComponent,
