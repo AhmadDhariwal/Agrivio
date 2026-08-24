@@ -117,6 +117,15 @@
       >
         Inventory Reconciliation
       </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'inventory.movements'"
+        (click)="selectModule('inventory.movements')"
+        data-testid="movements-control-module"
+      >
+        Stock Movements
+      </button>
       <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>
 
@@ -157,6 +166,7 @@
             controls: featureControls()
           },
           { title: 'Module Information', controls: moduleInfoControls() },
+          { title: 'Presentation Features', controls: presentationFeatureControls() },
           { title: 'Form Experience', controls: formExperienceControls() },
           { title: 'Filters', controls: filterControls() },
           { title: 'KPI', controls: kpiControls() },
@@ -169,7 +179,8 @@
             title:
               selectedModule() === 'inventory.batches' ||
               selectedModule() === 'inventory.expiry' ||
-              selectedModule() === 'inventory.reconciliation'
+              selectedModule() === 'inventory.reconciliation' ||
+              selectedModule() === 'inventory.movements'
                 ? 'Required Fields'
                 : 'Required Workflow Fields',
             controls: requiredWorkflowControls()

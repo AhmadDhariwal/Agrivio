@@ -36,6 +36,10 @@ describe('Stock-on-Hand capability route enforcement', () => {
     const listMovements = vi.fn(async () => ({ items: [], total: 0 }));
     const assertAllowed = vi.fn(async (organizationId, key, mode) => {
       expect(organizationId).toBe('org-a');
+      if (key === 'inventory.movements') {
+        expect(mode).toBe('enabled');
+        return;
+      }
       expect(key).toBe('inventory.stock');
       expect(mode).toBe('enabled');
       throw orgCapabilityDisabled('Stock on Hand is disabled', { controlKey: key });
@@ -75,7 +79,7 @@ describe('Stock-on-Hand capability route enforcement', () => {
       const movements = await fetch(`${baseUrl}/api/v1/inventory/movements`);
       expect(movements.status).toBe(200);
       expect(listMovements).toHaveBeenCalledOnce();
-      expect(assertAllowed).toHaveBeenCalledOnce();
+      expect(assertAllowed).toHaveBeenCalledTimes(2);
     });
   });
 });
@@ -198,6 +202,10 @@ describe('Product Batches capability route enforcement', () => {
     const listMovements = vi.fn(async () => ({ items: [], total: 0 }));
     const assertAllowed = vi.fn(async (organizationId, key, mode) => {
       expect(organizationId).toBe('org-a');
+      if (key === 'inventory.movements') {
+        expect(mode).toBe('enabled');
+        return;
+      }
       expect(key).toBe('inventory.batches');
       expect(mode).toBe('enabled');
       throw orgCapabilityDisabled('Product Batches is disabled', { controlKey: key });
@@ -214,7 +222,7 @@ describe('Product Batches capability route enforcement', () => {
       const movements = await fetch(`${baseUrl}/api/v1/inventory/movements`);
       expect(movements.status).toBe(200);
       expect(listMovements).toHaveBeenCalledOnce();
-      expect(assertAllowed).toHaveBeenCalledOnce();
+      expect(assertAllowed).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -269,10 +277,18 @@ describe('Expiry Inquiry capability route enforcement', () => {
   }
 
   it('blocks expiry inquiry for the organization whose module is disabled', async () => {
-    const queryExpiry = vi.fn(async () => ({ items: [], businessDate: '2026-08-21', thresholdDays: 30 }));
+    const queryExpiry = vi.fn(async () => ({
+      items: [],
+      businessDate: '2026-08-21',
+      thresholdDays: 30,
+    }));
     const listMovements = vi.fn(async () => ({ items: [], total: 0 }));
     const assertAllowed = vi.fn(async (organizationId, key, mode) => {
       expect(organizationId).toBe('org-a');
+      if (key === 'inventory.movements') {
+        expect(mode).toBe('enabled');
+        return;
+      }
       expect(key).toBe('inventory.expiry');
       expect(mode).toBe('enabled');
       throw orgCapabilityDisabled('Expiry Inquiry is disabled', { controlKey: key });
@@ -289,12 +305,16 @@ describe('Expiry Inquiry capability route enforcement', () => {
       const movements = await fetch(`${baseUrl}/api/v1/inventory/movements`);
       expect(movements.status).toBe(200);
       expect(listMovements).toHaveBeenCalledOnce();
-      expect(assertAllowed).toHaveBeenCalledOnce();
+      expect(assertAllowed).toHaveBeenCalledTimes(2);
     });
   });
 
   it('allows expiry inquiry for a second organization that has not disabled the module', async () => {
-    const queryExpiry = vi.fn(async () => ({ items: [], businessDate: '2026-08-21', thresholdDays: 30 }));
+    const queryExpiry = vi.fn(async () => ({
+      items: [],
+      businessDate: '2026-08-21',
+      thresholdDays: 30,
+    }));
     const assertAllowed = vi.fn(async (_organizationId, key, mode) => {
       expect(key).toBe('inventory.expiry');
       expect(mode).toBe('enabled');

@@ -22,6 +22,7 @@ const EXPIRY_MODULE_KEY = 'inventory.expiry';
 const ADJUSTMENTS_MODULE_KEY = 'inventory.adjustments';
 const TRANSFERS_MODULE_KEY = 'inventory.transfers';
 const RECONCILIATION_MODULE_KEY = 'inventory.reconciliation';
+const MOVEMENTS_MODULE_KEY = 'inventory.movements';
 
 const definitions = [
   {
@@ -1226,7 +1227,8 @@ const definitions = [
     moduleKey: RECONCILIATION_MODULE_KEY,
     type: CONTROL_TYPES.Module,
     label: 'Inventory Reconciliation',
-    description: 'Inventory Reconciliation inquiry screens and reconciliation read operations for this organization.',
+    description:
+      'Inventory Reconciliation inquiry screens and reconciliation read operations for this organization.',
     defaultPolicy: { enabled: true },
     configurable: { enabled: true },
     risk: RISK_LEVELS.Critical,
@@ -1235,13 +1237,29 @@ const definitions = [
       'Disabling access hides Inventory Reconciliation and blocks reconciliation inquiries without deleting inventory data, changing posted balances, or altering finding generation rules.',
   },
   ...[
-    ['moduleInfo', 'About Inventory Reconciliation', 'Show the Inventory Reconciliation guidance panel.'],
+    [
+      'moduleInfo',
+      'About Inventory Reconciliation',
+      'Show the Inventory Reconciliation guidance panel.',
+    ],
     ['search', 'Search', 'Search Inventory Reconciliation by product name or SKU.'],
     ['warehouseFilter', 'Warehouse Filter', 'Filter Inventory Reconciliation by warehouse.'],
-    ['findingFilter', 'Finding Filter', 'Filter Inventory Reconciliation by reconciliation finding code.'],
-    ['kpiCards', 'KPI Cards', 'Show reconciliation summary KPI cards (total records, discrepancies, matches, pending review).'],
+    [
+      'findingFilter',
+      'Finding Filter',
+      'Filter Inventory Reconciliation by reconciliation finding code.',
+    ],
+    [
+      'kpiCards',
+      'KPI Cards',
+      'Show reconciliation summary KPI cards (total records, discrepancies, matches, pending review).',
+    ],
     ['inspector', 'Reconciliation Inspector', 'Open the reconciliation record details drawer.'],
-    ['technicalDetails', 'Technical Details', 'Show the technical details section in the reconciliation inspector.'],
+    [
+      'technicalDetails',
+      'Technical Details',
+      'Show the technical details section in the reconciliation inspector.',
+    ],
   ].map(([id, label, description]) => ({
     key: `inventory.reconciliation.features.${id}`,
     parentKey: RECONCILIATION_MODULE_KEY,
@@ -1255,21 +1273,13 @@ const definitions = [
     requiredPermissions: { enabled: 'inventory.view' },
   })),
   ...[
-    [
-      'product',
-      'Product',
-      'Product identity is required for a meaningful reconciliation record.',
-    ],
+    ['product', 'Product', 'Product identity is required for a meaningful reconciliation record.'],
     [
       'warehouse',
       'Warehouse',
       'Warehouse identity is required to locate the reconciliation stock position.',
     ],
-    [
-      'batch',
-      'Batch',
-      'Batch identity is required for batch-tracked reconciliation records.',
-    ],
+    ['batch', 'Batch', 'Batch identity is required for batch-tracked reconciliation records.'],
     [
       'balanceQuantity',
       'Balance Quantity',
@@ -1329,6 +1339,86 @@ const definitions = [
         }
       : {}),
   })),
+  {
+    key: MOVEMENTS_MODULE_KEY,
+    parentKey: 'inventory',
+    moduleKey: MOVEMENTS_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Stock Movements',
+    description: 'Immutable Stock Movement history and inquiry access for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'inventory.view' },
+    reason:
+      'Disabling access blocks Stock Movement inquiry only. It does not delete or change posted movements, stock balances, valuation, or posting behavior.',
+  },
+  ...[
+    ['moduleInfo', 'About Stock Movements', 'Show the Stock Movements guidance panel.'],
+    ['search', 'Search', 'Search Stock Movements history.'],
+    ['filters', 'Filters', 'Show Stock Movements filter controls.'],
+    ['kpiCards', 'KPI Cards', 'Show Stock Movements summary KPI cards.'],
+    [
+      'referenceResolution',
+      'Reference Resolution',
+      'Resolve product, warehouse, and batch references for movement presentation.',
+    ],
+    ['inspector', 'Movement Inspector', 'Open the Stock Movement details drawer.'],
+    ['technicalDetails', 'Technical Details', 'Show technical movement audit details.'],
+    ['mobileCards', 'Mobile Cards', 'Show Stock Movements as cards on mobile screens.'],
+  ].map(([id, label, description]) => ({
+    key: `inventory.movements.features.${id}`,
+    parentKey: MOVEMENTS_MODULE_KEY,
+    moduleKey: MOVEMENTS_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'inventory.view' },
+  })),
+  ...[
+    ['product', 'Product'],
+    ['warehouse', 'Warehouse'],
+    ['direction', 'Direction'],
+    ['quantity', 'Quantity'],
+    ['sourceType', 'Source Type'],
+    ['batch', 'Batch'],
+    ['inventoryValue', 'Inventory Value'],
+  ].map(([id, label]) => ({
+    key: `inventory.movements.fields.${id}`,
+    parentKey: MOVEMENTS_MODULE_KEY,
+    moduleKey: MOVEMENTS_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description: 'Required Stock Movement identity and audit history data.',
+    defaultPolicy: { visible: true },
+    configurable: { visible: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'inventory.view' },
+    reason: 'Movement history loses audit meaning if core identity fields are hidden.',
+  })),
+  ...[
+    ['refresh', 'Refresh Movements', []],
+    ['inspect', 'Inspect Movement', []],
+    ['viewStock', 'View Stock', [STOCK_MODULE_KEY]],
+    ['viewProduct', 'View Product', [PRODUCTS_MODULE_KEY]],
+    ['viewBatch', 'View Batch', [BATCHES_MODULE_KEY]],
+  ].map(([id, label, dependencies]) => ({
+    key: `inventory.movements.actions.${id}`,
+    parentKey: MOVEMENTS_MODULE_KEY,
+    moduleKey: MOVEMENTS_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label,
+    description: `${label} action. Existing RBAC and target-module policy still apply.`,
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { allowed: 'inventory.view' },
+    ...(dependencies.length === 0 ? {} : { dependencies }),
+  })),
 ];
 
 const registry = new Map(
@@ -1370,6 +1460,7 @@ module.exports = {
   ADJUSTMENTS_MODULE_KEY,
   TRANSFERS_MODULE_KEY,
   RECONCILIATION_MODULE_KEY,
+  MOVEMENTS_MODULE_KEY,
   listCapabilityControls,
   getCapabilityControl,
 };

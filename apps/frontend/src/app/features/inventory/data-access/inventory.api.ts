@@ -91,6 +91,15 @@ export class InventoryApi {
       .pipe(map((response) => ({ items: response.data, meta: response.meta! })));
   }
 
+  getBatch(id: string): Observable<ProductBatchRecord> {
+    return this.http
+      .get<{ data: ProductBatchRecord }>(
+        `${environment.publicApiBaseUrl}/api/v1/inventory/batches/${id}`,
+        { withCredentials: true },
+      )
+      .pipe(map((response) => response.data));
+  }
+
   postOpeningStock(
     payload: {
       warehouseId: string;

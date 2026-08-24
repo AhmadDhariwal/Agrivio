@@ -221,6 +221,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Stock movements',
           route: '/app/inventory/movements',
           permission: 'inventory.view',
+          capabilityKey: 'inventory.movements',
           testId: 'nav-movements',
         },
       ],

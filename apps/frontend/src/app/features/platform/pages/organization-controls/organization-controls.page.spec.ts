@@ -17,7 +17,8 @@ function control(
     | 'inventory.expiry'
     | 'inventory.adjustments'
     | 'inventory.transfers'
-    | 'inventory.reconciliation',
+    | 'inventory.reconciliation'
+    | 'inventory.movements',
   type: PlatformCapabilityControl['type'],
   label: string,
   policy: Record<string, boolean>,
@@ -851,6 +852,206 @@ describe('OrganizationControlsPage', () => {
         ),
         dependencies: ['inventory.batches'],
       },
+      control(
+        'inventory.movements',
+        'inventory.movements',
+        'MODULE',
+        'Stock Movements',
+        { enabled: true },
+        { risk: 'CRITICAL' },
+      ),
+      control(
+        'inventory.movements.features.moduleInfo',
+        'inventory.movements',
+        'FEATURE',
+        'About Stock Movements',
+        { enabled: true },
+      ),
+      control(
+        'inventory.movements.features.search',
+        'inventory.movements',
+        'FEATURE',
+        'Search Filter',
+        { enabled: true },
+      ),
+      control(
+        'inventory.movements.features.filters',
+        'inventory.movements',
+        'FEATURE',
+        'Advanced Filters',
+        { enabled: true },
+      ),
+      control(
+        'inventory.movements.features.kpiCards',
+        'inventory.movements',
+        'FEATURE',
+        'KPI Summary Cards',
+        { enabled: true },
+      ),
+      control(
+        'inventory.movements.features.referenceResolution',
+        'inventory.movements',
+        'FEATURE',
+        'Reference Resolution',
+        { enabled: true },
+      ),
+      control(
+        'inventory.movements.features.inspector',
+        'inventory.movements',
+        'FEATURE',
+        'Detail Inspector Drawer',
+        { enabled: true },
+      ),
+      control(
+        'inventory.movements.features.technicalDetails',
+        'inventory.movements',
+        'FEATURE',
+        'Technical Details Section',
+        { enabled: true },
+        { override: { enabled: false } },
+      ),
+      control(
+        'inventory.movements.features.mobileCards',
+        'inventory.movements',
+        'FEATURE',
+        'Mobile Cards View',
+        { enabled: true },
+      ),
+      control(
+        'inventory.movements.fields.product',
+        'inventory.movements',
+        'FIELD',
+        'Product',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Product is required.',
+        },
+      ),
+      control(
+        'inventory.movements.fields.warehouse',
+        'inventory.movements',
+        'FIELD',
+        'Warehouse',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Warehouse is required.',
+        },
+      ),
+      control(
+        'inventory.movements.fields.direction',
+        'inventory.movements',
+        'FIELD',
+        'Direction',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Direction is required.',
+        },
+      ),
+      control(
+        'inventory.movements.fields.quantity',
+        'inventory.movements',
+        'FIELD',
+        'Quantity',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Quantity is required.',
+        },
+      ),
+      control(
+        'inventory.movements.fields.sourceType',
+        'inventory.movements',
+        'FIELD',
+        'Source Type',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Source type is required.',
+        },
+      ),
+      control(
+        'inventory.movements.fields.batch',
+        'inventory.movements',
+        'FIELD',
+        'Batch',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Batch is required.',
+        },
+      ),
+      control(
+        'inventory.movements.fields.inventoryValue',
+        'inventory.movements',
+        'FIELD',
+        'Inventory Value',
+        { visible: true },
+        {
+          configurable: { visible: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Inventory value is required.',
+        },
+      ),
+      control(
+        'inventory.movements.actions.refresh',
+        'inventory.movements',
+        'ACTION',
+        'Refresh',
+        { allowed: true },
+      ),
+      control(
+        'inventory.movements.actions.inspect',
+        'inventory.movements',
+        'ACTION',
+        'Inspect Movement',
+        { allowed: true },
+      ),
+      {
+        ...control(
+          'inventory.movements.actions.viewStock',
+          'inventory.movements',
+          'ACTION',
+          'View Stock',
+          { allowed: true },
+        ),
+        dependencies: ['inventory.stock'],
+      },
+      {
+        ...control(
+          'inventory.movements.actions.viewProduct',
+          'inventory.movements',
+          'ACTION',
+          'View Product',
+          { allowed: true },
+        ),
+        dependencies: ['inventory.products'],
+      },
+      {
+        ...control(
+          'inventory.movements.actions.viewBatch',
+          'inventory.movements',
+          'ACTION',
+          'View Batch',
+          { allowed: true },
+        ),
+        dependencies: ['inventory.batches'],
+      },
     ];
     await TestBed.configureTestingModule({
       imports: [OrganizationControlsPage],
@@ -1479,5 +1680,165 @@ describe('OrganizationControlsPage', () => {
     component.confirm();
 
     expect(resetModule).toHaveBeenCalledWith('org-a', 'inventory.reconciliation', 4, '');
+  });
+
+  it('renders the Stock Movements nav button and selects the module', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.movements');
+    expect(component.selectedModule()).toBe('inventory.movements');
+    expect(component.moduleLabel('inventory.movements')).toBe('Stock Movements');
+  });
+
+  it('groups Stock Movements controls into the expected sections', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.movements');
+
+    expect(component.moduleControls().map((c) => c.key)).toEqual(['inventory.movements']);
+    expect(component.moduleInfoControls().map((c) => c.key)).toEqual([
+      'inventory.movements.features.moduleInfo',
+    ]);
+    expect(component.presentationFeatureControls().map((c) => c.key)).toEqual([
+      'inventory.movements.features.search',
+      'inventory.movements.features.filters',
+      'inventory.movements.features.kpiCards',
+      'inventory.movements.features.referenceResolution',
+      'inventory.movements.features.inspector',
+      'inventory.movements.features.technicalDetails',
+      'inventory.movements.features.mobileCards',
+    ]);
+    expect(component.requiredWorkflowControls().map((c) => c.key)).toEqual([
+      'inventory.movements.fields.product',
+      'inventory.movements.fields.warehouse',
+      'inventory.movements.fields.direction',
+      'inventory.movements.fields.quantity',
+      'inventory.movements.fields.sourceType',
+      'inventory.movements.fields.batch',
+      'inventory.movements.fields.inventoryValue',
+    ]);
+    expect(component.actionControls().map((c) => c.key)).toEqual([
+      'inventory.movements.actions.refresh',
+      'inventory.movements.actions.inspect',
+      'inventory.movements.actions.viewStock',
+      'inventory.movements.actions.viewProduct',
+      'inventory.movements.actions.viewBatch',
+    ]);
+  });
+
+  it('enforces platform rules for all required Stock Movements fields preventing hiding or disabling', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.movements');
+
+    const requiredFields = [
+      'inventory.movements.fields.product',
+      'inventory.movements.fields.warehouse',
+      'inventory.movements.fields.direction',
+      'inventory.movements.fields.quantity',
+      'inventory.movements.fields.sourceType',
+      'inventory.movements.fields.batch',
+      'inventory.movements.fields.inventoryValue',
+    ];
+
+    for (const key of requiredFields) {
+      const field = component.controls().find((item) => item.key === key);
+      expect(field).toBeDefined();
+      if (field) {
+        expect(component.modeReadonly(field, 'visible')).toBe(true);
+        expect(component.modeLockedReason(field, 'visible')).toBe(
+          'Platform rule: this required workflow field cannot be hidden or disabled.',
+        );
+        // Attempting to toggle has no effect
+        component.setValue(field, 'visible', false);
+        expect(component.isModeEnabled(field, 'visible')).toBe(true);
+      }
+    }
+  });
+
+  it('produces the exact disable confirmation message for Stock Movements', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.movements');
+    const movementsControl = component
+      .controls()
+      .find((item) => item.key === 'inventory.movements');
+    expect(movementsControl).toBeDefined();
+    if (movementsControl) {
+      component.setValue(movementsControl, 'enabled', false);
+    }
+
+    expect(component.disablingMovements()).toBe(true);
+    expect(component.confirmationTitle()).toContain(
+      'Disable Stock Movements for Greenfield Agro Center?',
+    );
+    expect(component.confirmationLabel()).toBe('Disable Stock Movements');
+    expect(component.confirmationMessage()).toBe(
+      'Users in this organization will no longer be able to access Stock Movements. Existing movement history and inventory records are not modified.',
+    );
+  });
+
+  it('shows dependency blocking reason for View Stock, View Product, and View Batch when target modules are disabled on movements', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.movements');
+
+    // Test View Stock dependency on inventory.stock
+    const stockModule = component.controls().find((item) => item.key === 'inventory.stock');
+    expect(stockModule).toBeDefined();
+    if (stockModule) {
+      component.setValue(stockModule, 'enabled', false);
+    }
+
+    const viewStock = component
+      .actionControls()
+      .find((item) => item.key === 'inventory.movements.actions.viewStock');
+    expect(viewStock).toBeDefined();
+    if (viewStock) {
+      expect(component.effectiveValue(viewStock, 'allowed')).toBe(false);
+      expect(component.effectiveReason(viewStock, 'allowed')).toBe(
+        'Stock on Hand is disabled for this organization.',
+      );
+    }
+
+    // Test View Product dependency on inventory.products
+    const productsModule = component.controls().find((item) => item.key === 'inventory.products');
+    expect(productsModule).toBeDefined();
+    if (productsModule) {
+      component.setValue(productsModule, 'enabled', false);
+    }
+
+    const viewProduct = component
+      .actionControls()
+      .find((item) => item.key === 'inventory.movements.actions.viewProduct');
+    expect(viewProduct).toBeDefined();
+    if (viewProduct) {
+      expect(component.effectiveValue(viewProduct, 'allowed')).toBe(false);
+      expect(component.effectiveReason(viewProduct, 'allowed')).toBe(
+        'Products is disabled for this organization.',
+      );
+    }
+
+    // Test View Batch dependency on inventory.batches
+    const batchesModule = component.controls().find((item) => item.key === 'inventory.batches');
+    expect(batchesModule).toBeDefined();
+    if (batchesModule) {
+      component.setValue(batchesModule, 'enabled', false);
+    }
+
+    const viewBatch = component
+      .actionControls()
+      .find((item) => item.key === 'inventory.movements.actions.viewBatch');
+    expect(viewBatch).toBeDefined();
+    if (viewBatch) {
+      expect(component.effectiveValue(viewBatch, 'allowed')).toBe(false);
+      expect(component.effectiveReason(viewBatch, 'allowed')).toBe(
+        'Product Batches is disabled for this organization.',
+      );
+    }
+  });
+
+  it('calls the shared module reset API with only the Stock Movements namespace', () => {
+    const component = fixture.componentInstance;
+    component.selectModule('inventory.movements');
+    component.askResetModule();
+    component.confirm();
+
+    expect(resetModule).toHaveBeenCalledWith('org-a', 'inventory.movements', 4, '');
   });
 });

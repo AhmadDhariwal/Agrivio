@@ -45,6 +45,7 @@ export interface StockMovementRecord {
   unitCost: MoneyAmount | null;
   sourceType: string;
   sourceId: string;
+  stockCondition?: string;
   status: string;
   postedAt: string;
   postedBy: string;

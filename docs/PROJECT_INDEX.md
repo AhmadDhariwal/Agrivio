@@ -60,7 +60,7 @@ Central navigation for Agrivio documentation.
 * F09 Phase 4 **not accepted** (`R1-F09-006`–`007`) — automated orgs are not real pilot UAT; see [tasks/F09-PHASE-4-PILOT-UAT.md](tasks/F09-PHASE-4-PILOT-UAT.md)
 * F09 Phase 5 **not accepted** (`R1-F09-008`–`009`) — procedure drafts; named owners and production launch outstanding; see [tasks/F09-PHASE-5-PRODUCTION-LAUNCH.md](tasks/F09-PHASE-5-PRODUCTION-LAUNCH.md)
 * Project-wide server-side pagination complete — see [tasks/PROJECT-WIDE-SERVER-SIDE-PAGINATION.md](tasks/PROJECT-WIDE-SERVER-SIDE-PAGINATION.md); shared contract/parser/paginator, scoped stable queries, bounded/searchable selectors, and paginated list screens
-* Organization Capability & UI Policy implementation complete for the generic foundation plus Products, Categories, Inventory / Stock-on-Hand, Opening Stock, Product Batches, Expiry Inquiry, Stock Adjustments, and Warehouse Transfers modules — see [tasks/ORGANIZATION-CAPABILITY-PHASE-1.md](tasks/ORGANIZATION-CAPABILITY-PHASE-1.md)
+* Organization Capability & UI Policy implementation complete for the generic foundation plus Products, Categories, Inventory / Stock-on-Hand, Opening Stock, Product Batches, Expiry Inquiry, Stock Adjustments, Warehouse Transfers, Inventory Reconciliation, and Stock Movements modules — see [tasks/ORGANIZATION-CAPABILITY-PHASE-1.md](tasks/ORGANIZATION-CAPABILITY-PHASE-1.md)
 * Next work item: `R1-F09-005` local technical rehearsal is complete. Do not start `R1-F09-006` until assigned. Production target/vendor backup verification remains pending.
 
 ## Existing Documents
@@ -88,7 +88,7 @@ Central navigation for Agrivio documentation.
 | [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md) | Local commands, branching, PR, and agent workflow (Frozen for Release 1, v1.4.0) |
 | [TEST_STRATEGY.md](TEST_STRATEGY.md) | Test stack, locations, CI layers, and coverage policy (Frozen for Release 1, v1.4.0) |
 | [tasks/PROJECT-WIDE-SERVER-SIDE-PAGINATION.md](tasks/PROJECT-WIDE-SERVER-SIDE-PAGINATION.md) | Project-wide server-side pagination implementation record (complete) |
-| [tasks/ORGANIZATION-CAPABILITY-PHASE-1.md](tasks/ORGANIZATION-CAPABILITY-PHASE-1.md) | Organization Capability & UI Policy generic foundation plus Products, Categories, Inventory / Stock-on-Hand, Opening Stock, Product Batches, Expiry Inquiry, and Stock Adjustments integrations (complete) |
+| [tasks/ORGANIZATION-CAPABILITY-PHASE-1.md](tasks/ORGANIZATION-CAPABILITY-PHASE-1.md) | Organization Capability & UI Policy foundation and completed module integrations through Stock Movements |
 | [tasks/P1-01.md](tasks/P1-01.md) | Phase 1 task: project documentation baseline |
 | [tasks/P1-02.md](tasks/P1-02.md) | Phase 1 task: product requirements and Release 1 scope |
 | [tasks/P1-03.md](tasks/P1-03.md) | Phase 1 task: business rules and domain glossary (complete and frozen) |
