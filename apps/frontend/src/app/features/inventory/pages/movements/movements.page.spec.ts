@@ -577,14 +577,253 @@ describe('MovementsPage', () => {
     });
   });
 
-  describe('Action Helpers & Capability Preparation', () => {
-    it('exposes isolated action helpers for future capability integration', () => {
+  describe('Capability Integration & Feature Toggles', () => {
+    it('disables module access and prevents API calls when inventory.movements is disabled', () => {
+      mockInventoryApi.listMovements.mockClear();
+      mockCapabilityService.canUseModule.mockImplementation((mod: string) => mod !== 'inventory.movements');
+
+      const disFixture = TestBed.createComponent(MovementsPage);
+      disFixture.detectChanges();
+      const comp = disFixture.componentInstance;
+
+      expect(comp.canUseMovements()).toBe(false);
+      expect(comp.canView()).toBe(false);
+      expect(comp.movements()).toEqual([]);
+      expect(comp.total()).toBe(0);
+      expect(mockInventoryApi.listMovements).not.toHaveBeenCalled();
+
+      const el = disFixture.nativeElement as HTMLElement;
+      expect(el.querySelector('[data-testid="movements-permission-alert"]')).toBeTruthy();
+      expect(el.querySelector('[data-testid="movements-list"]')).toBeFalsy();
+      expect(el.querySelector('[data-testid="movements-cards"]')).toBeFalsy();
+    });
+
+    it('hides module info when inventory.movements.features.moduleInfo is disabled', () => {
+      mockCapabilityService.canUseView.mockImplementation(
+        (key: string) => key !== 'inventory.movements.features.moduleInfo',
+      );
+      fixture = TestBed.createComponent(MovementsPage);
+      fixture.detectChanges();
+      component = fixture.componentInstance;
+
+      expect(component.showModuleInfo()).toBe(false);
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('agrivio-ui-module-info')).toBeFalsy();
+    });
+
+    it('hides search field when inventory.movements.features.search is disabled', () => {
+      mockCapabilityService.canUseView.mockImplementation(
+        (key: string) => key !== 'inventory.movements.features.search',
+      );
+      fixture = TestBed.createComponent(MovementsPage);
+      fixture.detectChanges();
+      component = fixture.componentInstance;
+
+      expect(component.showSearch()).toBe(false);
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('[data-testid="movements-search"]')).toBeFalsy();
+      expect(el.querySelector('[data-testid="movements-mobile-search"]')).toBeFalsy();
+    });
+
+    it('hides filters when inventory.movements.features.filters is disabled', () => {
+      mockCapabilityService.canUseView.mockImplementation(
+        (key: string) => key !== 'inventory.movements.features.filters',
+      );
+      fixture = TestBed.createComponent(MovementsPage);
+      fixture.detectChanges();
+      component = fixture.componentInstance;
+
+      expect(component.showFilters()).toBe(false);
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('[data-testid="movements-product-filter"]')).toBeFalsy();
+      expect(el.querySelector('[data-testid="movements-warehouse-filter"]')).toBeFalsy();
+      expect(el.querySelector('[data-testid="movements-direction-filter"]')).toBeFalsy();
+      expect(el.querySelector('[data-testid="movements-mobile-filter-trigger"]')).toBeFalsy();
+    });
+
+    it('hides KPI summary cards when inventory.movements.features.kpiCards is disabled', () => {
+      mockCapabilityService.canUseView.mockImplementation(
+        (key: string) => key !== 'inventory.movements.features.kpiCards',
+      );
+      fixture = TestBed.createComponent(MovementsPage);
+      fixture.detectChanges();
+      component = fixture.componentInstance;
+
+      expect(component.showKpis()).toBe(false);
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('[data-testid="movements-kpis"]')).toBeFalsy();
+    });
+
+    it('gracefully degrades reference resolution by hiding secondary SKU/Code while preserving primary human-readable labels and never exposing raw IDs as primary names', () => {
+      mockCapabilityService.canUseView.mockImplementation(
+        (key: string) => key !== 'inventory.movements.features.referenceResolution',
+      );
+      fixture = TestBed.createComponent(MovementsPage);
+      fixture.detectChanges();
+      component = fixture.componentInstance;
+
+      expect(component.showReferenceResolution()).toBe(false);
+
+      const resolvedProd = component.resolveProduct('prod-1');
+      expect(resolvedProd.name).toBe('Urea 46%');
+      expect(resolvedProd.sku).toBe('—');
+
+      const resolvedWh = component.resolveWarehouse('wh-1');
+      expect(resolvedWh.name).toBe('Main Warehouse');
+      expect(resolvedWh.code).toBe('—');
+
+      const fallbackProd = component.resolveProduct('66c000000000000000000099');
+      expect(fallbackProd.name).toBe('Product (000099)');
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('.product-sku')).toBeFalsy();
+    });
+
+    it('hides inspector button and prevents opening drawer when inventory.movements.features.inspector is disabled', () => {
+      mockCapabilityService.canUseView.mockImplementation(
+        (key: string) => key !== 'inventory.movements.features.inspector',
+      );
+      fixture = TestBed.createComponent(MovementsPage);
+      fixture.detectChanges();
+      component = fixture.componentInstance;
+
+      expect(component.showInspector()).toBe(false);
+      expect(component.canInspectMovement()).toBe(false);
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('[data-testid="inspect-movement-btn"]')).toBeFalsy();
+
+      const mov = mockMovements[0];
+      if (mov) {
+        component.openInspector(mov);
+      }
+      fixture.detectChanges();
+      expect(component.selectedMovement()).toBeNull();
+      expect(el.querySelector('[data-testid="movement-inspector-drawer"]')).toBeFalsy();
+    });
+
+    it('hides technical details in drawer when inventory.movements.features.technicalDetails is disabled', () => {
+      mockCapabilityService.canUseView.mockImplementation(
+        (key: string) => key !== 'inventory.movements.features.technicalDetails',
+      );
+      fixture = TestBed.createComponent(MovementsPage);
+      fixture.detectChanges();
+      component = fixture.componentInstance;
+
+      expect(component.showTechnicalDetails()).toBe(false);
+
+      const mov = mockMovements[0];
+      if (mov) {
+        component.openInspector(mov);
+      }
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('[data-testid="movement-inspector-drawer"]')).toBeTruthy();
+      expect(el.querySelector('[data-testid="technical-details"]')).toBeFalsy();
+    });
+
+    it('preserves mobile cards on mobile and forces table on desktop when inventory.movements.features.mobileCards is disabled', () => {
+      mockCapabilityService.canUseView.mockImplementation(
+        (key: string) => key !== 'inventory.movements.features.mobileCards',
+      );
+      fixture = TestBed.createComponent(MovementsPage);
+      fixture.detectChanges();
+      component = fixture.componentInstance;
+
+      expect(component.showMobileCards()).toBe(false);
+      // On mobile screens (< 768px), responsive card renderer is always preserved
+      component.isMobile.set(true);
+      expect(component.effectiveViewMode()).toBe('cards');
+
+      // On desktop, cards view is disabled and forced to table
+      component.isMobile.set(false);
+      component.preferredViewMode.set('cards');
+      expect(component.effectiveViewMode()).toBe('table');
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('.view-toggle')).toBeFalsy();
+    });
+  });
+
+  describe('Capability Dependency Regressions', () => {
+    it('Scenario 1: Disabling inventory.stock disables View Stock action while Stock Movements inquiry continues to work', () => {
+      mockCapabilityService.canUseModule.mockImplementation(
+        (mod: string) => mod !== 'inventory.stock',
+      );
+      fixture = TestBed.createComponent(MovementsPage);
+      fixture.detectChanges();
+      component = fixture.componentInstance;
+
       expect(component.canUseMovements()).toBe(true);
       expect(component.canView()).toBe(true);
-      expect(component.canInspectMovement()).toBe(true);
-      expect(component.canViewStock()).toBe(true);
-      expect(component.canViewBatches()).toBe(true);
-      expect(component.canViewProducts()).toBe(true);
+      expect(component.canViewStock()).toBe(false);
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('[data-testid="movements-stock-link"]')).toBeFalsy();
+      expect(el.querySelector('[data-testid="movements-list"]')).toBeTruthy();
+    });
+
+    it('Scenario 2: Disabling inventory.products disables View Product action while Movement history continues to work', () => {
+      mockCapabilityService.canUseModule.mockImplementation(
+        (mod: string) => mod !== 'inventory.products',
+      );
+      fixture = TestBed.createComponent(MovementsPage);
+      fixture.detectChanges();
+      component = fixture.componentInstance;
+
+      expect(component.canUseMovements()).toBe(true);
+      expect(component.canView()).toBe(true);
+      expect(component.canViewProduct()).toBe(false);
+      expect(component.movements().length).toBe(3);
+    });
+
+    it('Scenario 3: Disabling inventory.batches disables View Batch action while Movements inquiry continues to work', () => {
+      mockCapabilityService.canUseModule.mockImplementation(
+        (mod: string) => mod !== 'inventory.batches',
+      );
+      fixture = TestBed.createComponent(MovementsPage);
+      fixture.detectChanges();
+      component = fixture.componentInstance;
+
+      expect(component.canUseMovements()).toBe(true);
+      expect(component.canView()).toBe(true);
+      expect(component.canViewBatch()).toBe(false);
+      expect(component.canViewBatches()).toBe(false);
+
+      const el = fixture.nativeElement as HTMLElement;
+      const navLinks = Array.from(el.querySelectorAll('.nav-overflow-link')).map(
+        (a) => a.textContent?.trim(),
+      );
+      expect(navLinks).not.toContain('Batches');
+    });
+
+    it('hides refresh button when inventory.movements.actions.refresh is disabled', () => {
+      mockCapabilityService.canPerformAction.mockImplementation(
+        (act: string) => act !== 'inventory.movements.actions.refresh',
+      );
+      fixture = TestBed.createComponent(MovementsPage);
+      fixture.detectChanges();
+      component = fixture.componentInstance;
+
+      expect(component.canRefresh()).toBe(false);
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('[data-testid="movements-refresh"]')).toBeFalsy();
+    });
+
+    it('disables inspect action when inventory.movements.actions.inspect is disabled', () => {
+      mockCapabilityService.canPerformAction.mockImplementation(
+        (act: string) => act !== 'inventory.movements.actions.inspect',
+      );
+      fixture = TestBed.createComponent(MovementsPage);
+      fixture.detectChanges();
+      component = fixture.componentInstance;
+
+      expect(component.canInspect()).toBe(false);
+      expect(component.canInspectMovement()).toBe(false);
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('[data-testid="inspect-movement-btn"]')).toBeFalsy();
     });
   });
 });

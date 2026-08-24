@@ -25,7 +25,8 @@ type ConfigurableModule =
   | 'inventory.expiry'
   | 'inventory.adjustments'
   | 'inventory.transfers'
-  | 'inventory.reconciliation';
+  | 'inventory.reconciliation'
+  | 'inventory.movements';
 type PendingConfirmation =
   | { readonly kind: 'save' }
   | { readonly kind: 'reset-control'; readonly control: PlatformCapabilityControl }
@@ -92,6 +93,9 @@ export class OrganizationControlsPage {
     this.byType('FEATURE', false).filter((control) => !this.isBatchGroupedFeature(control)),
   );
   readonly moduleInfoControls = computed(() => {
+    if (this.selectedModule() === 'inventory.movements') {
+      return this.movementsFeatures('moduleInfo');
+    }
     if (this.selectedModule() === 'inventory.reconciliation') {
       return this.reconciliationFeatures('moduleInfo');
     }
@@ -102,6 +106,20 @@ export class OrganizationControlsPage {
       return this.adjustmentsFeatures('moduleInfo');
     }
     return this.batchFeatures('moduleInfo');
+  });
+  readonly presentationFeatureControls = computed(() => {
+    if (this.selectedModule() === 'inventory.movements') {
+      return this.movementsFeatures(
+        'search',
+        'filters',
+        'kpiCards',
+        'referenceResolution',
+        'inspector',
+        'technicalDetails',
+        'mobileCards',
+      );
+    }
+    return [];
   });
   readonly formExperienceControls = computed(() => {
     if (this.selectedModule() === 'inventory.transfers') {
@@ -140,7 +158,10 @@ export class OrganizationControlsPage {
     if (this.selectedModule() === 'inventory.expiry') {
       return this.batchFeatures('search', 'productFilter', 'warehouseFilter', 'classificationFilter');
     }
-    return this.batchFeatures('search', 'productFilter', 'warehouseFilter');
+    if (this.selectedModule() === 'inventory.batches') {
+      return this.batchFeatures('search', 'productFilter', 'warehouseFilter');
+    }
+    return [];
   });
   readonly kpiControls = computed(() => {
     if (this.selectedModule() === 'inventory.reconciliation') {
@@ -155,7 +176,10 @@ export class OrganizationControlsPage {
     if (this.selectedModule() === 'inventory.expiry') {
       return this.batchFeatures('timelineSection', 'quantitySection', 'technicalDetails');
     }
-    return this.batchFeatures('stockByLocation', 'technicalDetails');
+    if (this.selectedModule() === 'inventory.batches') {
+      return this.batchFeatures('stockByLocation', 'technicalDetails');
+    }
+    return [];
   });
   readonly widgetControls = computed(() => this.byType('WIDGET'));
   readonly actionControls = computed(() => this.byType('ACTION'));
@@ -247,6 +271,14 @@ export class OrganizationControlsPage {
       changes[0].value?.['enabled'] === false
     );
   });
+  readonly disablingMovements = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'inventory.movements' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
   readonly confirmationTitle = computed(() => {
     const pending = this.pendingConfirmation();
     const organization = this.snapshot()?.organization.name ?? 'this organization';
@@ -262,6 +294,9 @@ export class OrganizationControlsPage {
     if (this.disablingTransfers()) return `Disable Warehouse Transfers for ${organization}?`;
     if (this.disablingReconciliation()) {
       return `Disable Inventory Reconciliation for ${organization}?`;
+    }
+    if (this.disablingMovements()) {
+      return `Disable Stock Movements for ${organization}?`;
     }
     const single = this.changeSummary().length === 1 ? this.changeSummary()[0] : null;
     if (single?.risk === 'CRITICAL' && single.after === 'Disabled') {
@@ -299,6 +334,9 @@ export class OrganizationControlsPage {
     if (this.disablingReconciliation()) {
       return `Users in this organization will no longer be able to access reconciliation checks. Existing inventory records, movements, balances and cost data are not modified.`;
     }
+    if (this.disablingMovements()) {
+      return `Users in this organization will no longer be able to access Stock Movements. Existing movement history and inventory records are not modified.`;
+    }
     const critical = this.changeSummary()
       .filter((change) => change.risk === 'CRITICAL')
       .map((change) => `${change.label}: ${change.before} → ${change.after}`);
@@ -317,6 +355,7 @@ export class OrganizationControlsPage {
     if (this.disablingAdjustments()) return 'Disable Stock Adjustments';
     if (this.disablingTransfers()) return 'Disable Warehouse Transfers';
     if (this.disablingReconciliation()) return 'Disable Inventory Reconciliation';
+    if (this.disablingMovements()) return 'Disable Stock Movements';
     return 'Apply changes';
   });
 
@@ -340,9 +379,9 @@ export class OrganizationControlsPage {
         );
         this.loading.set(false);
       },
-      error: () => {
+      error: (error: unknown) => {
         this.loading.set(false);
-        this.errorMessage.set('Unable to load organization controls.');
+        this.errorMessage.set(this.mapError(error));
       },
     });
   }
@@ -404,9 +443,56 @@ export class OrganizationControlsPage {
     if (!this.isConfigurable(control, mode)) return;
     this.draftValues.update((draft) => ({
       ...draft,
-      [control.key]: { ...draft[control.key], [mode]: value },
+      [control.key]: { ...(draft[control.key] ?? {}), [mode]: value },
     }));
     this.successMessage.set(null);
+  }
+
+  modeReadonly(control: PlatformCapabilityControl, mode: string): boolean {
+    if (this.parentDisabled(control) || this.saving()) return true;
+    if (this.dependencyBlockReason(control) !== null) return true;
+    return !this.isConfigurable(control, mode) || control.platformEnforced === true;
+  }
+
+  modeLockedReason(control: PlatformCapabilityControl, _mode?: string): string | null {
+    void _mode;
+    if (this.parentDisabled(control)) {
+      return `${this.moduleLabel(control.moduleKey as ConfigurableModule)} is disabled for this organization.`;
+    }
+    const dependencyReason = this.dependencyBlockReason(control);
+    if (dependencyReason !== null) return dependencyReason;
+    if (control.platformEnforced === true) {
+      return 'Platform rule: this required workflow field cannot be hidden or disabled.';
+    }
+    return null;
+  }
+
+  isModeEnabled(control: PlatformCapabilityControl, mode: string): boolean {
+    return this.value(control, mode);
+  }
+
+  onLabel(mode: string): string {
+    return mode === 'editable'
+      ? 'Editable'
+      : mode === 'allowed'
+        ? 'Allowed'
+        : mode === 'visible'
+          ? 'Visible'
+          : 'Enabled';
+  }
+
+  offLabel(mode: string): string {
+    return mode === 'editable'
+      ? 'Read-only'
+      : mode === 'allowed'
+        ? 'Blocked'
+        : mode === 'visible'
+          ? 'Hidden'
+          : 'Disabled';
+  }
+
+  stateLabel(mode: string, value: boolean): string {
+    return value ? this.onLabel(mode) : this.offLabel(mode);
   }
 
   overrideLabel(control: PlatformCapabilityControl, mode: string): string {
@@ -414,10 +500,6 @@ export class OrganizationControlsPage {
     if (staged !== undefined) return `Staged · ${this.stateLabel(mode, staged)}`;
     if (control.override?.[mode] === undefined) return '— Uses default';
     return this.stateLabel(mode, control.override[mode] === true);
-  }
-
-  stateLabel(mode: string, value: boolean): string {
-    return value ? this.onLabel(mode) : this.offLabel(mode);
   }
 
   askSave(): void {
@@ -478,26 +560,6 @@ export class OrganizationControlsPage {
     }
   }
 
-  onLabel(mode: string): string {
-    return mode === 'editable'
-      ? 'Editable'
-      : mode === 'allowed'
-        ? 'Allowed'
-        : mode === 'visible'
-          ? 'Visible'
-          : 'Enabled';
-  }
-
-  offLabel(mode: string): string {
-    return mode === 'editable'
-      ? 'Read-only'
-      : mode === 'allowed'
-        ? 'Blocked'
-        : mode === 'visible'
-          ? 'Hidden'
-          : 'Disabled';
-  }
-
   moduleLabel(moduleKey: ConfigurableModule): string {
     if (moduleKey === 'inventory.products') return 'Products';
     if (moduleKey === 'inventory.categories') return 'Categories';
@@ -507,6 +569,7 @@ export class OrganizationControlsPage {
     if (moduleKey === 'inventory.adjustments') return 'Stock Adjustments';
     if (moduleKey === 'inventory.transfers') return 'Warehouse Transfers';
     if (moduleKey === 'inventory.reconciliation') return 'Inventory Reconciliation';
+    if (moduleKey === 'inventory.movements') return 'Stock Movements';
     return 'Product Batches';
   }
 
@@ -517,10 +580,16 @@ export class OrganizationControlsPage {
         control.moduleKey === 'inventory.expiry' ||
         control.moduleKey === 'inventory.adjustments' ||
         control.moduleKey === 'inventory.transfers' ||
-        control.moduleKey === 'inventory.reconciliation') &&
+        control.moduleKey === 'inventory.reconciliation' ||
+        control.moduleKey === 'inventory.movements') &&
       control.type === 'FIELD' &&
       control.platformEnforced === true
     );
+  }
+
+  private movementsFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
+    const keys = new Set(ids.map((id) => `inventory.movements.features.${id}`));
+    return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
   }
 
   private reconciliationFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
@@ -587,7 +656,16 @@ export class OrganizationControlsPage {
           control.key === 'inventory.reconciliation.features.findingFilter' ||
           control.key === 'inventory.reconciliation.features.kpiCards' ||
           control.key === 'inventory.reconciliation.features.inspector' ||
-          control.key === 'inventory.reconciliation.features.technicalDetails'))
+          control.key === 'inventory.reconciliation.features.technicalDetails')) ||
+      (control.moduleKey === 'inventory.movements' &&
+        (control.key === 'inventory.movements.features.moduleInfo' ||
+          control.key === 'inventory.movements.features.search' ||
+          control.key === 'inventory.movements.features.filters' ||
+          control.key === 'inventory.movements.features.kpiCards' ||
+          control.key === 'inventory.movements.features.referenceResolution' ||
+          control.key === 'inventory.movements.features.inspector' ||
+          control.key === 'inventory.movements.features.technicalDetails' ||
+          control.key === 'inventory.movements.features.mobileCards'))
     );
   }
 

@@ -180,6 +180,27 @@ const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string,
   'inventory.reconciliation.actions.viewStock': { allowed: true },
   'inventory.reconciliation.actions.viewMovements': { allowed: true },
   'inventory.reconciliation.actions.viewBatch': { allowed: true },
+  'inventory.movements': { enabled: true },
+  'inventory.movements.features.moduleInfo': { enabled: true },
+  'inventory.movements.features.search': { enabled: true },
+  'inventory.movements.features.filters': { enabled: true },
+  'inventory.movements.features.kpiCards': { enabled: true },
+  'inventory.movements.features.referenceResolution': { enabled: true },
+  'inventory.movements.features.inspector': { enabled: true },
+  'inventory.movements.features.technicalDetails': { enabled: true },
+  'inventory.movements.features.mobileCards': { enabled: true },
+  'inventory.movements.fields.product': { visible: true },
+  'inventory.movements.fields.warehouse': { visible: true },
+  'inventory.movements.fields.direction': { visible: true },
+  'inventory.movements.fields.quantity': { visible: true },
+  'inventory.movements.fields.sourceType': { visible: true },
+  'inventory.movements.fields.batch': { visible: true },
+  'inventory.movements.fields.inventoryValue': { visible: true },
+  'inventory.movements.actions.refresh': { allowed: true },
+  'inventory.movements.actions.inspect': { allowed: true },
+  'inventory.movements.actions.viewStock': { allowed: true },
+  'inventory.movements.actions.viewProduct': { allowed: true },
+  'inventory.movements.actions.viewBatch': { allowed: true },
 };
 
 @Injectable({ providedIn: 'root' })
@@ -271,30 +292,38 @@ export class CapabilityService {
     if (snapshot !== null) {
       return snapshot.controls.find((control) => control.key === key)?.value[mode] === true;
     }
-    if (this.loadAttemptedSignal()) {
-      return false;
-    }
     return CURRENT_BEHAVIOR_DEFAULTS[key]?.[mode] === true;
   }
 
   private currentBehaviorSnapshot(): EffectiveCapabilitiesSnapshot {
+    const moduleKeys = new Set([
+      'inventory.products',
+      'inventory.categories',
+      'inventory.stock',
+      'inventory.openingStock',
+      'inventory.batches',
+      'inventory.expiry',
+      'inventory.adjustments',
+      'inventory.transfers',
+      'inventory.reconciliation',
+      'inventory.movements',
+    ]);
     return {
       organizationId: this.sessionStore.activeContext()?.organizationId ?? 'test-organization',
       version: 0,
       controls: Object.entries(CURRENT_BEHAVIOR_DEFAULTS).map(([key, value]) => ({
         key,
-        type:
-          key === 'inventory.adjustments' || key === 'inventory.transfers'
-            ? 'MODULE'
-            : key.includes('.actions.')
-              ? 'ACTION'
-              : key.includes('.widgets.')
-                ? 'WIDGET'
-                : key.includes('.fields.')
-                  ? 'FIELD'
-                  : key.includes('.views.')
-                    ? 'VIEW'
-                    : 'FEATURE',
+        type: moduleKeys.has(key)
+          ? 'MODULE'
+          : key.includes('.actions.')
+            ? 'ACTION'
+            : key.includes('.widgets.')
+              ? 'WIDGET'
+              : key.includes('.fields.')
+                ? 'FIELD'
+                : key.includes('.views.')
+                  ? 'VIEW'
+                  : 'FEATURE',
         value,
         reasons: [],
       })),

@@ -122,7 +122,7 @@ export class MovementsPage {
     if (this.isMobile()) {
       return 'cards';
     }
-    return this.preferredViewMode();
+    return this.showMobileCards() ? this.preferredViewMode() : 'table';
   });
 
   // Mobile Filter Sheet
@@ -207,22 +207,93 @@ export class MovementsPage {
   });
 
   // Permissions & Capability Computeds
-  readonly canUseMovements = computed(() => true);
+  readonly canUseMovements = computed(
+    () => this.capabilityService?.canUseModule('inventory.movements') ?? true,
+  );
   readonly canView = computed(
     () => this.sessionStore.hasPermission('inventory.view') && this.canUseMovements(),
   );
-  readonly canInspectMovement = computed(() => true);
+
+  readonly showModuleInfo = computed(
+    () =>
+      this.canUseMovements() &&
+      (this.capabilityService?.canUseView('inventory.movements.features.moduleInfo') ?? true),
+  );
+  readonly showSearch = computed(
+    () =>
+      this.canUseMovements() &&
+      (this.capabilityService?.canUseView('inventory.movements.features.search') ?? true),
+  );
+  readonly showFilters = computed(
+    () =>
+      this.canUseMovements() &&
+      (this.capabilityService?.canUseView('inventory.movements.features.filters') ?? true),
+  );
+  readonly showKpis = computed(
+    () =>
+      this.canUseMovements() &&
+      (this.capabilityService?.canUseView('inventory.movements.features.kpiCards') ?? true),
+  );
+  readonly showReferenceResolution = computed(
+    () =>
+      this.canUseMovements() &&
+      (this.capabilityService?.canUseView('inventory.movements.features.referenceResolution') ??
+        true),
+  );
+  readonly showInspector = computed(
+    () =>
+      this.canUseMovements() &&
+      (this.capabilityService?.canUseView('inventory.movements.features.inspector') ?? true),
+  );
+  readonly showTechnicalDetails = computed(
+    () =>
+      this.canUseMovements() &&
+      (this.capabilityService?.canUseView('inventory.movements.features.technicalDetails') ?? true),
+  );
+  readonly showMobileCards = computed(
+    () =>
+      this.canUseMovements() &&
+      (this.capabilityService?.canUseView('inventory.movements.features.mobileCards') ?? true),
+  );
+
+  readonly canRefresh = computed(
+    () =>
+      this.canUseMovements() &&
+      this.sessionStore.hasPermission('inventory.view') &&
+      (this.capabilityService?.canPerformAction('inventory.movements.actions.refresh') ?? true),
+  );
+  readonly canInspect = computed(
+    () =>
+      this.canUseMovements() &&
+      this.sessionStore.hasPermission('inventory.view') &&
+      (this.capabilityService?.canPerformAction('inventory.movements.actions.inspect') ?? true),
+  );
   readonly canViewStock = computed(
     () =>
+      this.canUseMovements() &&
       this.sessionStore.hasPermission('inventory.view') &&
-      (this.capabilityService?.canUseModule('inventory.stock') ?? true),
+      (this.capabilityService?.canUseModule('inventory.stock') ?? true) &&
+      (this.capabilityService?.canPerformAction('inventory.movements.actions.viewStock') ?? true),
   );
-  readonly canViewBatches = computed(
+  readonly canViewProduct = computed(
     () =>
-      this.sessionStore.hasPermission('inventory.view') &&
-      (this.capabilityService?.canUseModule('inventory.batches') ?? true),
+      this.canUseMovements() &&
+      (this.sessionStore.hasPermission('inventory.view') ||
+        this.sessionStore.hasPermission('catalog.view')) &&
+      (this.capabilityService?.canUseModule('inventory.products') ?? true) &&
+      (this.capabilityService?.canPerformAction('inventory.movements.actions.viewProduct') ?? true),
   );
-  readonly canViewProducts = computed(() => this.sessionStore.hasPermission('catalog.view'));
+  readonly canViewBatch = computed(
+    () =>
+      this.canUseMovements() &&
+      this.sessionStore.hasPermission('inventory.view') &&
+      (this.capabilityService?.canUseModule('inventory.batches') ?? true) &&
+      (this.capabilityService?.canPerformAction('inventory.movements.actions.viewBatch') ?? true),
+  );
+
+  readonly canInspectMovement = computed(() => this.canInspect() && this.showInspector());
+  readonly canViewBatches = this.canViewBatch;
+  readonly canViewProducts = this.canViewProduct;
 
   readonly hasActiveFilters = computed(() => {
     return (
@@ -274,8 +345,10 @@ export class MovementsPage {
       .pipe(
         startWith(undefined),
         switchMap(() => {
-          if (!this.canView()) {
+          if (!this.canView() || !this.canUseMovements()) {
             this.loading.set(false);
+            this.movements.set([]);
+            this.total.set(0);
             return EMPTY;
           }
           this.loading.set(true);
@@ -403,6 +476,7 @@ export class MovementsPage {
   }
 
   openInspector(movement: StockMovementRecord): void {
+    if (!this.canInspect() || !this.showInspector()) return;
     this.selectedMovement.set(movement);
   }
 
@@ -425,7 +499,7 @@ export class MovementsPage {
     if (p) {
       return {
         name: p.name,
-        sku: p.sku || '—',
+        sku: this.showReferenceResolution() ? (p.sku || '—') : '—',
         baseUnitCode: p.baseUnitCode,
       };
     }
@@ -441,7 +515,7 @@ export class MovementsPage {
     if (w) {
       return {
         name: w.name,
-        code: w.code || '—',
+        code: this.showReferenceResolution() ? (w.code || '—') : '—',
         location: w.name,
       };
     }
@@ -457,7 +531,7 @@ export class MovementsPage {
     if (b) {
       return {
         batchNumber: b.batchNumber,
-        expiryDate: b.expiryDate,
+        expiryDate: this.showReferenceResolution() ? b.expiryDate : null,
       };
     }
     return {

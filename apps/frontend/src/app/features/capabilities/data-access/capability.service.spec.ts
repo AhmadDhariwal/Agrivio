@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
+import { describe, expect, it } from 'vitest';
 import { AuthSessionStore } from '../../auth/data-access/auth-session.store';
 import { CapabilitiesApi } from './capabilities.api';
 import { CapabilityService } from './capability.service';
@@ -171,5 +172,49 @@ describe('CapabilityService', () => {
     expect(service.canPerformAction('inventory.reconciliation.actions.viewStock')).toBe(true);
     expect(service.canPerformAction('inventory.reconciliation.actions.viewMovements')).toBe(true);
     expect(service.canPerformAction('inventory.reconciliation.actions.viewBatch')).toBe(true);
+  });
+
+  it('provides default enabled/visible/allowed values for all 21 inventory.movements.* controls matching backend registry', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        CapabilityService,
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            activeContext: () => ({ contextType: 'organization', organizationId: 'org-1' }),
+          },
+        },
+      ],
+    });
+    const service = TestBed.inject(CapabilityService);
+
+    // Root module (1)
+    expect(service.canUseModule('inventory.movements')).toBe(true);
+
+    // 8 Features
+    expect(service.canUseView('inventory.movements.features.moduleInfo')).toBe(true);
+    expect(service.canUseView('inventory.movements.features.search')).toBe(true);
+    expect(service.canUseView('inventory.movements.features.filters')).toBe(true);
+    expect(service.canUseView('inventory.movements.features.kpiCards')).toBe(true);
+    expect(service.canUseView('inventory.movements.features.referenceResolution')).toBe(true);
+    expect(service.canUseView('inventory.movements.features.inspector')).toBe(true);
+    expect(service.canUseView('inventory.movements.features.technicalDetails')).toBe(true);
+    expect(service.canUseView('inventory.movements.features.mobileCards')).toBe(true);
+
+    // 7 Fields (Platform enforced)
+    expect(service.canViewField('inventory.movements.fields.product')).toBe(true);
+    expect(service.canViewField('inventory.movements.fields.warehouse')).toBe(true);
+    expect(service.canViewField('inventory.movements.fields.direction')).toBe(true);
+    expect(service.canViewField('inventory.movements.fields.quantity')).toBe(true);
+    expect(service.canViewField('inventory.movements.fields.sourceType')).toBe(true);
+    expect(service.canViewField('inventory.movements.fields.batch')).toBe(true);
+    expect(service.canViewField('inventory.movements.fields.inventoryValue')).toBe(true);
+
+    // 5 Actions
+    expect(service.canPerformAction('inventory.movements.actions.refresh')).toBe(true);
+    expect(service.canPerformAction('inventory.movements.actions.inspect')).toBe(true);
+    expect(service.canPerformAction('inventory.movements.actions.viewStock')).toBe(true);
+    expect(service.canPerformAction('inventory.movements.actions.viewProduct')).toBe(true);
+    expect(service.canPerformAction('inventory.movements.actions.viewBatch')).toBe(true);
   });
 });
