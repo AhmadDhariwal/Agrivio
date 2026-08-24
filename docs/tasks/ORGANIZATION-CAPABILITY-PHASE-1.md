@@ -1,7 +1,7 @@
 # Organization Capability & UI Policy — Phase 1
 
 Status: Implementation complete; lightweight authenticated browser review remains environment-dependent
-Scope: Generic platform foundation plus Products, Categories, Inventory / Stock-on-Hand, Opening Stock, Product Batches, Expiry Inquiry, Stock Adjustments, and Warehouse Transfers integrations
+Scope: Generic platform foundation plus completed capability integrations through Stock Movements
 Completed: 2026-08-22
 
 ## Implemented
@@ -25,11 +25,12 @@ Completed: 2026-08-22
 - Stock Adjustments owns the separate `inventory.adjustments` namespace. Its critical module switch, 7 optional form experience features (moduleInfo, productSearch, productContext, stockContext, guidance, recentAdjustments, serverPostingDate), 8 platform-enforced workflow fields (warehouse, product, adjustmentType, quantity, reason, batch, direction, inventoryValue), and 4 actions (post, reverse, viewStock, viewMovements) reuse the same registry, resolver, sparse policy, reset, version, audit, Angular service, guard, navigation filter, and generic Super Admin renderer.
 - Disabling Stock Adjustments hides tenant navigation, sends direct routes to the shared unavailable state, and blocks adjustment draft/post/reverse endpoints across backend middleware. Negative stock override strictly preserves RBAC `inventory.negative-stock.override` authorization.
 - Warehouse Transfers owns the separate `inventory.transfers` namespace. Its critical module switch, 7 optional form experience features (moduleInfo, productSearch, productContext, stockContext, guidance, recentTransfers, serverTransferDate), 6 platform-enforced workflow fields (sourceWarehouse, destinationWarehouse, product, quantity, reason, batch), and 4 actions (post, reverse, inspect, viewStock) reuse the same registry, resolver, sparse policy, reset, version, audit, and generic Super Admin renderer.
+- Stock Movements owns the separate `inventory.movements` namespace. Its critical module switch, 8 presentation features, 7 platform-enforced audit fields, and 5 read-only actions reuse the same registry, resolver, sparse policy, reset, version, audit, tenant isolation, and RBAC behavior. The movement list endpoint enforces the module; no detail endpoint exists. View Stock, View Product, and View Batch resolve target-module dependencies.
 - Disabling Warehouse Transfers blocks all transfer list/detail/create/update/discard/post/reverse endpoints through backend capability middleware. Source warehouse, destination warehouse, product, quantity, reason, and batch remain platform-enforced; negative-stock override strictly preserves RBAC `inventory.negative-stock.override` authorization and has no capability key. Batch identity and expiry metadata preservation remain enforced by the inventory engine; WAC valuation remains 100% backend-owned.
 - Individual, module, and organization reset operations remove sparse overrides through the transactional backend endpoints, increment policy versions on material changes, emit per-control audit evidence, re-resolve effective policy, and refresh the Super Admin UI.
 - Stable policy denial codes: `ORG_CAPABILITY_DISABLED`, `ORG_ACTION_NOT_ALLOWED`, and `ORG_FIELD_NOT_EDITABLE`.
 
-No capability controls were added for Warehouses, Reconciliation, or Stock Movements.
+No capability controls were added for Warehouses.
 
 ## Products registry safety decisions
 
@@ -96,6 +97,14 @@ No capability controls were added for Warehouses, Reconciliation, or Stock Movem
 - Negative Stock Override is intentionally NOT a capability control and strictly preserves RBAC `inventory.negative-stock.override` authorization.
 - Individual reset removes one sparse override. Module reset matches only definitions whose `moduleKey` is `inventory.transfers`, preserving all other module overrides while incrementing policy version and emitting per-control audit evidence.
 
+## Stock Movements registry safety decisions
+
+- `inventory.movements` controls inquiry access only. Disabling it blocks `GET /api/v1/inventory/movements` for the selected organization without changing movement creation, posting, balances, WAC, valuation, corrections, or immutable history.
+- Product, Warehouse, Direction, Quantity, Source Type, Batch, and Inventory Value remain visible and platform enforced because hiding core identity fields would remove the audit meaning of movement history.
+- Refresh, Inspect, View Stock, View Product, and View Batch are the only registered actions. No edit, delete, reverse, or post capability exists for immutable movements.
+- View Stock, View Product, and View Batch depend on `inventory.stock`, `inventory.products`, and `inventory.batches`, respectively. The dependencies affect only the navigation actions.
+- Module reset removes only controls whose `moduleKey` is `inventory.movements`, increments the organization policy version on material changes, and emits the existing per-control audit event with actor, time, reason, and before/after version evidence.
+
 ## Model review checklist outcome
 
 | Check | Outcome |
@@ -133,6 +142,7 @@ No capability controls were added for Warehouses, Reconciliation, or Stock Movem
 - Stock Adjustments Angular page computed helpers, template reflow, action gating, history toggling, navigation capability filter, routing guard, and Super Admin Organization Controls coverage: passed (4 test files, 44 tests across focused runs).
 - Warehouse Transfers focused backend registry/resolver, tenant isolation, 4 middleware instances across 7 endpoints, scoped reset/audit/version, and route enforcement: passed (2 files, 28 tests).
 - Warehouse Transfers Angular page computed helpers, template reflow, action gating, history toggling, navigation capability filter, routing guard, and Super Admin Organization Controls coverage: passed (4 test files, 48 tests across focused runs).
+- Stock Movements focused backend registry/resolver, dependency, RBAC, tenant isolation, scoped reset/audit/version, and route enforcement: passed (2 files, 16 tests). Complete backend capability regression set passed (12 files, 115 tests).
 - Final development and production builds for all projects passed.
 
 ## Remaining risk
