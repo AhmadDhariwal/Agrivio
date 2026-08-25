@@ -244,6 +244,18 @@ function createMongooseAccountsStore() {
         .exec();
     },
 
+    async findExpenseCategoriesByIds(organizationId, ids) {
+      const validIds = ids.filter((id) => mongoose.isValidObjectId(id));
+      if (validIds.length === 0) return [];
+      return ExpenseCategoryModel.find({ _id: { $in: validIds }, organizationId }).lean().exec();
+    },
+
+    async findAccountsByIds(organizationId, ids) {
+      const validIds = ids.filter((id) => mongoose.isValidObjectId(id));
+      if (validIds.length === 0) return [];
+      return AccountModel.find({ _id: { $in: validIds }, organizationId }).lean().exec();
+    },
+
     async insertExpenseCategory(session, doc) {
       try {
         const [created] = await ExpenseCategoryModel.create([doc], withSession(session));
@@ -613,6 +625,20 @@ function createInMemoryAccountsStore() {
         return null;
       }
       return { ...record };
+    },
+
+    async findExpenseCategoriesByIds(organizationId, ids) {
+      return ids
+        .map((id) => categories.get(id))
+        .filter((r) => r !== undefined && String(r.organizationId) === String(organizationId))
+        .map((r) => ({ ...r }));
+    },
+
+    async findAccountsByIds(organizationId, ids) {
+      return ids
+        .map((id) => accounts.get(id))
+        .filter((r) => r !== undefined && String(r.organizationId) === String(organizationId))
+        .map((r) => ({ ...r }));
     },
 
     async insertExpenseCategory(_session, doc) {

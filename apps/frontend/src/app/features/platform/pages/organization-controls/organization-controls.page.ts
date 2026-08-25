@@ -29,7 +29,8 @@ type ConfigurableModule =
   | 'inventory.movements'
   | 'customers'
   | 'suppliers'
-  | 'returns';
+  | 'returns'
+  | 'expenses';
 type PendingConfirmation =
   | { readonly kind: 'save' }
   | { readonly kind: 'reset-control'; readonly control: PlatformCapabilityControl }
@@ -105,6 +106,9 @@ export class OrganizationControlsPage {
     if (this.selectedModule() === 'returns') {
       return this.returnsFeatures('moduleInfo');
     }
+    if (this.selectedModule() === 'expenses') {
+      return this.expensesFeatures('moduleInfo');
+    }
     if (this.selectedModule() === 'inventory.movements') {
       return this.movementsFeatures('moduleInfo');
     }
@@ -172,6 +176,9 @@ export class OrganizationControlsPage {
     }
     if (this.selectedModule() === 'returns') {
       return this.returnsFeatures('typeFilter', 'statusFilter', 'warehouseFilter');
+    }
+    if (this.selectedModule() === 'expenses') {
+      return this.expensesFeatures('statusFilter', 'dateSearch');
     }
     if (this.selectedModule() === 'inventory.reconciliation') {
       return this.reconciliationFeatures('search', 'warehouseFilter', 'findingFilter');
@@ -336,6 +343,14 @@ export class OrganizationControlsPage {
       changes[0].value?.['enabled'] === false
     );
   });
+  readonly disablingExpenses = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'expenses' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
   readonly confirmationTitle = computed(() => {
     const pending = this.pendingConfirmation();
     const organization = this.snapshot()?.organization.name ?? 'this organization';
@@ -363,6 +378,9 @@ export class OrganizationControlsPage {
     }
     if (this.disablingReturns()) {
       return `Disable Returns and Corrections for ${organization}?`;
+    }
+    if (this.disablingExpenses()) {
+      return `Disable Expenses for ${organization}?`;
     }
     const single = this.changeSummary().length === 1 ? this.changeSummary()[0] : null;
     if (single?.risk === 'CRITICAL' && single.after === 'Disabled') {
@@ -412,6 +430,9 @@ export class OrganizationControlsPage {
     if (this.disablingReturns()) {
       return `Users in this organization will no longer be able to access Returns and Corrections or post/reverse returns. Existing posted returns, corrective transactions, stock movements, and ledger history will not be deleted or modified.`;
     }
+    if (this.disablingExpenses()) {
+      return `Users in this organization will no longer be able to access Expenses or post/correct expenses. Existing posted expenses, corrections, and account movements will not be deleted or modified.`;
+    }
     const critical = this.changeSummary()
       .filter((change) => change.risk === 'CRITICAL')
       .map((change) => `${change.label}: ${change.before} → ${change.after}`);
@@ -434,6 +455,7 @@ export class OrganizationControlsPage {
     if (this.disablingCustomers()) return 'Disable Customers';
     if (this.disablingSuppliers()) return 'Disable Suppliers';
     if (this.disablingReturns()) return 'Disable Returns and Corrections';
+    if (this.disablingExpenses()) return 'Disable Expenses';
     return 'Apply changes';
   });
 
@@ -650,6 +672,7 @@ export class OrganizationControlsPage {
     if (moduleKey === 'customers') return 'Customers';
     if (moduleKey === 'suppliers') return 'Suppliers';
     if (moduleKey === 'returns') return 'Returns and Corrections';
+    if (moduleKey === 'expenses') return 'Expenses';
     return 'Product Batches';
   }
 
@@ -664,7 +687,8 @@ export class OrganizationControlsPage {
         control.moduleKey === 'inventory.movements' ||
         control.moduleKey === 'customers' ||
         control.moduleKey === 'suppliers' ||
-        control.moduleKey === 'returns') &&
+        control.moduleKey === 'returns' ||
+        control.moduleKey === 'expenses') &&
       control.type === 'FIELD' &&
       control.platformEnforced === true
     );
@@ -682,6 +706,11 @@ export class OrganizationControlsPage {
 
   private returnsFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
     const keys = new Set(ids.map((id) => `returns.features.${id}`));
+    return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
+  }
+
+  private expensesFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
+    const keys = new Set(ids.map((id) => `expenses.features.${id}`));
     return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
   }
 
@@ -782,7 +811,11 @@ export class OrganizationControlsPage {
         (control.key === 'returns.features.moduleInfo' ||
           control.key === 'returns.features.typeFilter' ||
           control.key === 'returns.features.statusFilter' ||
-          control.key === 'returns.features.warehouseFilter'))
+          control.key === 'returns.features.warehouseFilter')) ||
+      (control.moduleKey === 'expenses' &&
+        (control.key === 'expenses.features.moduleInfo' ||
+          control.key === 'expenses.features.statusFilter' ||
+          control.key === 'expenses.features.dateSearch'))
     );
   }
 

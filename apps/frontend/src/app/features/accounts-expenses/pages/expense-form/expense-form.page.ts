@@ -6,12 +6,17 @@ import { forkJoin, of } from 'rxjs';
 import { ExpensesApi } from '../../data-access/expenses.api';
 import { AccountsApi } from '../../data-access/accounts.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
 import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
+import {
+  UiStatusBadgeComponent,
+  UiBadgeTone,
+} from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
 import { AccountRecord } from '../../models/accounts.models';
 import { ExpenseCategoryRecord, ExpenseRecord } from '../../models/expenses.models';
 
@@ -26,6 +31,7 @@ import { ExpenseCategoryRecord, ExpenseRecord } from '../../models/expenses.mode
     UiLoadingStateComponent,
     UiConfirmDialogComponent,
     UiFieldLabelComponent,
+    UiStatusBadgeComponent,
   ],
   templateUrl: './expense-form.page.html',
   styleUrl: './expense-form.page.scss',
@@ -34,6 +40,7 @@ export class ExpenseFormPage {
   private readonly api = inject(ExpensesApi);
   private readonly accountsApi = inject(AccountsApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
@@ -49,13 +56,34 @@ export class ExpenseFormPage {
   readonly expense = signal<ExpenseRecord | null>(null);
   readonly categories = signal<ExpenseCategoryRecord[]>([]);
   readonly accounts = signal<AccountRecord[]>([]);
-  readonly canPost = computed(() => this.sessionStore.hasPermission('expenses.post'));
-  readonly canCorrect = computed(() => this.sessionStore.hasPermission('expenses.correct'));
+  readonly canPost = computed(
+    () =>
+      this.sessionStore.hasPermission('expenses.post') &&
+      (this.capabilityService?.canPerformAction('expenses.actions.post') ?? true),
+  );
+  readonly canCorrect = computed(
+    () =>
+      this.sessionStore.hasPermission('expenses.correct') &&
+      (this.capabilityService?.canPerformAction('expenses.actions.correct') ?? true),
+  );
   readonly canView = computed(() => this.sessionStore.hasPermission('expenses.view'));
   readonly successMessage = signal<string | null>(null);
   private version = 1;
 
   readonly fieldRequired = hasRequiredValidator;
+
+  statusTone(status: string | undefined): UiBadgeTone {
+    switch (status) {
+      case 'posted':
+        return 'success';
+      case 'corrected':
+        return 'warning';
+      case 'draft':
+        return 'neutral';
+      default:
+        return 'neutral';
+    }
+  }
 
   readonly form = this.formBuilder.nonNullable.group({
     categoryId: ['', [Validators.required]],
@@ -115,10 +143,11 @@ export class ExpenseFormPage {
       expenseDate: value.expenseDate,
       ...(value.reference.trim() === '' ? {} : { reference: value.reference.trim() }),
     };
+    const id = this.expenseId();
     const request$ =
-      this.expenseId() === null
+      id === null
         ? this.api.createExpense(payload)
-        : this.api.updateExpense(this.expenseId()!, {
+        : this.api.updateExpense(id, {
             expectedVersion: this.version,
             ...payload,
           });

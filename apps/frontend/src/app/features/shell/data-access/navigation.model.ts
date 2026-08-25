@@ -289,6 +289,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Expenses',
           route: '/app/expenses',
           permission: 'expenses.view',
+          capabilityKey: 'expenses',
           testId: 'nav-expenses',
           exact: true,
         },
@@ -297,6 +298,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Expense categories',
           route: '/app/expense-categories',
           permission: 'expenses.view',
+          capabilityKey: 'expenses',
           testId: 'nav-expense-categories',
         },
         {
