@@ -2035,17 +2035,45 @@ describe('OrganizationControlsPage', () => {
       expect(component.actionControls().length).toBe(8);
     });
 
-    it('locks platform-enforced supplier fields as non-configurable', () => {
+    it('preserves per-mode configurability for Supplier fields', () => {
       const component = fixture.componentInstance;
       component.selectModule('suppliers');
+      fixture.detectChanges();
 
       const nameControl = component.controls().find((item) => item.key === 'suppliers.fields.name');
       expect(nameControl).toBeDefined();
       if (nameControl) {
         expect(component.isConfigurable(nameControl, 'visible')).toBe(false);
+        expect(component.modeReadonly(nameControl, 'visible')).toBe(true);
         expect(component.modeLockedReason(nameControl, 'visible')).toBe(
           'Platform rule: this required workflow field cannot be hidden or disabled.',
         );
+        component.setValue(nameControl, 'visible', false);
+        expect(component.value(nameControl, 'visible')).toBe(true);
+        expect(component.isConfigurable(nameControl, 'editable')).toBe(true);
+        expect(component.modeReadonly(nameControl, 'editable')).toBe(false);
+        expect(component.modeLockedReason(nameControl, 'editable')).toBeNull();
+        component.setValue(nameControl, 'editable', false);
+        expect(component.value(nameControl, 'editable')).toBe(false);
+      }
+      expect(
+        fixture.nativeElement.querySelector('input[aria-label="Supplier Name visible"]'),
+      ).toBeNull();
+      expect(
+        fixture.nativeElement.querySelector('input[aria-label="Supplier Name editable"]'),
+      ).toBeTruthy();
+
+      for (const key of [
+        'suppliers.fields.contactName',
+        'suppliers.fields.phone',
+        'suppliers.fields.email',
+      ]) {
+        const optionalControl = component.controls().find((item) => item.key === key);
+        expect(optionalControl).toBeDefined();
+        if (optionalControl) {
+          expect(component.isConfigurable(optionalControl, 'visible')).toBe(true);
+          expect(component.isConfigurable(optionalControl, 'editable')).toBe(true);
+        }
       }
 
       const balanceControl = component
@@ -2054,6 +2082,7 @@ describe('OrganizationControlsPage', () => {
       expect(balanceControl).toBeDefined();
       if (balanceControl) {
         expect(component.isConfigurable(balanceControl, 'visible')).toBe(false);
+        expect(component.modeReadonly(balanceControl, 'visible')).toBe(true);
         expect(component.modeLockedReason(balanceControl, 'visible')).toBe(
           'Platform rule: this required workflow field cannot be hidden or disabled.',
         );
@@ -2065,6 +2094,7 @@ describe('OrganizationControlsPage', () => {
       expect(openingControl).toBeDefined();
       if (openingControl) {
         expect(component.isConfigurable(openingControl, 'visible')).toBe(false);
+        expect(component.modeReadonly(openingControl, 'visible')).toBe(true);
         expect(component.modeLockedReason(openingControl, 'visible')).toBe(
           'Platform rule: this required workflow field cannot be hidden or disabled.',
         );

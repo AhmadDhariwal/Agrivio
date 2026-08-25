@@ -507,17 +507,16 @@ export class OrganizationControlsPage {
   modeReadonly(control: PlatformCapabilityControl, mode: string): boolean {
     if (this.parentDisabled(control) || this.saving()) return true;
     if (this.dependencyBlockReason(control) !== null) return true;
-    return !this.isConfigurable(control, mode) || control.platformEnforced === true;
+    return !this.isConfigurable(control, mode);
   }
 
-  modeLockedReason(control: PlatformCapabilityControl, _mode?: string): string | null {
-    void _mode;
+  modeLockedReason(control: PlatformCapabilityControl, mode: string): string | null {
     if (this.parentDisabled(control)) {
       return `${this.moduleLabel(control.moduleKey as ConfigurableModule)} is disabled for this organization.`;
     }
     const dependencyReason = this.dependencyBlockReason(control);
     if (dependencyReason !== null) return dependencyReason;
-    if (control.platformEnforced === true) {
+    if (control.platformEnforced === true && !this.isConfigurable(control, mode)) {
       return 'Platform rule: this required workflow field cannot be hidden or disabled.';
     }
     return null;
