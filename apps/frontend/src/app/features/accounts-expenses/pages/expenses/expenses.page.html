@@ -1,46 +1,211 @@
-<agrivio-ui-page-header
-  title="Expenses"
-  eyebrow="Accounts"
-  lede="Record operating expenses against a selected account. Posted expenses are corrected, not deleted."
->
-  @if (canPost()) {
-    <a class="ag-btn ag-btn--secondary" routerLink="/app/expense-categories" data-testid="expense-categories-link">
-      Categories
-    </a>
-    <a class="ag-btn" routerLink="/app/expenses/new" data-testid="expense-create-link">Record expense</a>
-  }
-</agrivio-ui-page-header>
+<div class="expenses-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <h1 class="page-head__title">Expenses</h1>
+      <p class="page-head__lede">
+        Record operating expenses against selected accounts. Posted expenses are corrected, not deleted.
+      </p>
+    </div>
+    <div class="page-head__actions">
+      <a
+        class="ag-btn ag-btn--secondary"
+        routerLink="/app/expense-categories"
+        data-testid="expense-categories-link"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+        </svg>
+        <span>Categories</span>
+      </a>
+      @if (canPost()) {
+      <a
+        class="ag-btn ag-btn--primary"
+        routerLink="/app/expenses/new"
+        data-testid="expense-create-link"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        <span class="btn-text-full">Record expense</span>
+        <span class="btn-text-mobile">Record</span>
+      </a>
+      }
+    </div>
+  </header>
 
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading expenses…" />
-} @else if (errorMessage(); as error) {
-  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-} @else if (items().length === 0) {
+  <!-- Module Information -->
+  @if (showModuleInfo()) {
+  <agrivio-ui-module-info
+    [title]="infoTitle"
+    [description]="infoDescription"
+    [items]="infoItems"
+    [defaultExpanded]="false"
+  />
+  }
+
+  <!-- Alerts -->
+  @if (errorMessage(); as error) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  </div>
+  }
+
+  @if (loading()) {
+  <div class="state-container">
+    <agrivio-ui-loading-state label="Loading expenses…" />
+  </div>
+  } @else if (!canView()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to view expenses." />
+  } @else {
+  <!-- Filter Toolbar -->
+  <div class="filter-toolbar" data-testid="expenses-filters">
+    <div class="filter-toolbar__filters">
+      @if (showDateSearch()) {
+      <div class="filter-toolbar__search">
+        <svg class="filter-toolbar__search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input
+          class="filter-toolbar__search-input"
+          type="search"
+          placeholder="Search by date (YYYY-MM-DD)…"
+          aria-label="Search expenses by date (YYYY-MM-DD)"
+          [value]="search()"
+          (change)="onSearchChange($event)"
+          data-testid="expenses-search"
+        />
+      </div>
+      }
+      @if (showStatusFilter()) {
+      <select
+        class="filter-toolbar__select"
+        [value]="statusFilter()"
+        (change)="onStatusChange($event)"
+        aria-label="Filter by status"
+        data-testid="expenses-status-filter"
+      >
+        <option value="">All status</option>
+        <option value="posted">Posted</option>
+        <option value="corrected">Corrected</option>
+        <option value="draft">Draft</option>
+      </select>
+      }
+    </div>
+    <div class="filter-toolbar__actions">
+      @if (hasActiveFilters()) {
+      <button class="filter-toolbar__clear" type="button" (click)="clearFilters()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+        Clear filters
+      </button>
+      }
+      <button class="filter-toolbar__refresh" type="button" (click)="reload()" aria-label="Refresh">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  @if (items().length === 0) {
   <agrivio-ui-empty-state
-    title="No expenses yet"
+    title="No expenses found"
     message="Create a category, then record an expense against an active account."
   />
-} @else {
-  <div class="ag-stack" data-testid="expenses-list">
+  } @else {
+  <!-- Desktop Table -->
+  <div class="table-container" data-testid="expenses-list">
+    <table class="expenses-table">
+      <thead>
+        <tr>
+          <th class="expenses-table__th">Expense</th>
+          <th class="expenses-table__th">Category</th>
+          <th class="expenses-table__th">Account</th>
+          <th class="expenses-table__th">Date</th>
+          <th class="expenses-table__th expenses-table__th--amount">Amount (PKR)</th>
+          <th class="expenses-table__th">Status</th>
+          <th class="expenses-table__th expenses-table__th--actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of items(); track item.id) {
+        <tr class="expenses-table__row">
+          <td class="expenses-table__td expenses-table__td--primary">
+            <span class="expense-purpose">{{ item.purpose }}</span>
+            @if (item.reference) {
+            <span class="expense-ref">{{ item.reference }}</span>
+            }
+          </td>
+          <td class="expenses-table__td">
+            <span class="category-pill">{{ categoryName(item) }}</span>
+          </td>
+          <td class="expenses-table__td">{{ accountName(item) }}</td>
+          <td class="expenses-table__td">{{ formatDate(item.expenseDate) }}</td>
+          <td class="expenses-table__td expenses-table__td--amount">{{ formatAmount(item.amount) }}</td>
+          <td class="expenses-table__td">
+            <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+          </td>
+          <td class="expenses-table__td expenses-table__td--actions">
+            @if (canInspect()) {
+            <a
+              class="ag-btn ag-btn--secondary ag-btn--sm"
+              [routerLink]="['/app/expenses', item.id]"
+              data-testid="expense-open"
+            >Open</a>
+            }
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile Cards -->
+  <div class="expenses-cards" data-testid="expenses-mobile-list">
     @for (item of items(); track item.id) {
-      <article class="row">
-        <div>
-          <strong>{{ item.purpose }}</strong>
-          <p class="ag-muted">
-            {{ categoryName(item.categoryId) }} · {{ item.expenseDate }} ·
-            {{ item.amount.amount }} {{ item.amount.currency }}
-          </p>
+    <article class="expense-card">
+      <div class="expense-card__header">
+        <div class="expense-card__identity">
+          <span class="expense-card__purpose">{{ item.purpose }}</span>
+          <span class="expense-card__meta">{{ categoryName(item) }} · {{ formatDate(item.expenseDate) }}</span>
         </div>
-        <div class="ag-inline">
-          <agrivio-ui-status-badge
-            [label]="item.status"
-            [tone]="item.status === 'posted' ? 'success' : item.status === 'corrected' ? 'warning' : 'neutral'"
-          />
-          <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/expenses', item.id]" data-testid="expense-open">Open</a>
+        <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+      </div>
+      <div class="expense-card__body">
+        <div class="expense-card__detail">
+          <span class="expense-card__label">Account</span>
+          <span class="expense-card__value">{{ accountName(item) }}</span>
         </div>
-      </article>
+        <div class="expense-card__detail">
+          <span class="expense-card__label">Amount</span>
+          <span class="expense-card__value expense-card__value--amount">{{ formatAmount(item.amount) }}</span>
+        </div>
+      </div>
+      <div class="expense-card__actions">
+        @if (canInspect()) {
+        <a
+          class="ag-btn ag-btn--secondary ag-btn--sm"
+          [routerLink]="['/app/expenses', item.id]"
+          data-testid="expense-mobile-open"
+        >Open</a>
+        }
+      </div>
+    </article>
     }
   </div>
-  <agrivio-ui-pagination [page]="page()" [pageSize]="pageSize()" [total]="total()" [disabled]="loading()"
-    (pageChange)="onPageChange($event)" (pageSizeChange)="onPageSizeChange($event)" />
-}
+
+  <!-- Pagination -->
+  <agrivio-ui-pagination
+    [page]="page()"
+    [pageSize]="pageSize()"
+    [total]="total()"
+    [disabled]="loading()"
+    (pageChange)="onPageChange($event)"
+    (pageSizeChange)="onPageSizeChange($event)"
+  />
+  }
+  }
+</div>

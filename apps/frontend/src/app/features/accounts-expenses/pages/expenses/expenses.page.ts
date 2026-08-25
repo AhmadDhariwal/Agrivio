@@ -1,28 +1,31 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin } from 'rxjs';
 import { ExpensesApi } from '../../data-access/expenses.api';
-import { ExpenseCategoryRecord, ExpenseRecord } from '../../models/expenses.models';
+import { ExpenseRecord } from '../../models/expenses.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
-import { UiStatusBadgeComponent } from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
+import {
+  UiStatusBadgeComponent,
+  UiBadgeTone,
+} from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
+import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 
 @Component({
   selector: 'agrivio-expenses-page',
   standalone: true,
   imports: [
     RouterLink,
-    UiPageHeaderComponent,
     UiAlertComponent,
     UiEmptyStateComponent,
     UiLoadingStateComponent,
     UiStatusBadgeComponent,
     UiPaginationComponent,
+    UiModuleInfoComponent,
   ],
   templateUrl: './expenses.page.html',
   styleUrl: './expenses.page.scss',
@@ -30,16 +33,66 @@ import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pa
 export class ExpensesPage {
   private readonly api = inject(ExpensesApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
 
   readonly items = signal<ExpenseRecord[]>([]);
-  readonly categories = signal<ExpenseCategoryRecord[]>([]);
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly page = signal(1);
   readonly pageSize = signal(25);
   readonly total = signal(0);
-  readonly canPost = computed(() => this.sessionStore.hasPermission('expenses.post'));
-  readonly canView = computed(() => this.sessionStore.hasPermission('expenses.view'));
+
+  readonly statusFilter = signal<string>('');
+  readonly search = signal<string>('');
+
+  readonly canUseExpenses = computed(
+    () => this.capabilityService?.canUseModule('expenses') ?? true,
+  );
+  readonly canPost = computed(
+    () =>
+      this.sessionStore.hasPermission('expenses.post') &&
+      (this.capabilityService?.canPerformAction('expenses.actions.post') ?? true),
+  );
+  readonly canView = computed(
+    () => this.sessionStore.hasPermission('expenses.view') && this.canUseExpenses(),
+  );
+
+  // Feature visibility
+  readonly showModuleInfo = computed(
+    () => this.capabilityService?.canUseView('expenses.features.moduleInfo') ?? true,
+  );
+  readonly showStatusFilter = computed(
+    () => this.capabilityService?.canUseView('expenses.features.statusFilter') ?? true,
+  );
+  readonly showDateSearch = computed(
+    () => this.capabilityService?.canUseView('expenses.features.dateSearch') ?? true,
+  );
+
+  // Action computeds (RBAC ∩ Capability)
+  readonly canInspect = computed(
+    () =>
+      this.canView() &&
+      (this.capabilityService?.canPerformAction('expenses.actions.inspect') ?? true),
+  );
+  readonly canManageCategories = computed(
+    () =>
+      this.sessionStore.hasPermission('expenses.post') &&
+      (this.capabilityService?.canPerformAction('expenses.actions.manageCategories') ?? true),
+  );
+
+  readonly hasActiveFilters = computed(
+    () => !!this.statusFilter() || !!this.search(),
+  );
+
+  readonly infoTitle = 'About Expenses';
+  readonly infoDescription =
+    'Expenses are recorded against accounts and categories. Once posted, entries are locked for edits to maintain data integrity.';
+  readonly infoItems = [
+    'Record operating expenses against a selected account and category.',
+    'Posted expenses cannot be edited or deleted — use the correction workflow instead.',
+    'Corrections reference the original posted expense and create a separate auditable record.',
+    'Expense categories help organize and report operational spending.',
+  ];
 
   constructor() {
     this.reload();
@@ -52,14 +105,19 @@ export class ExpensesPage {
       return;
     }
     this.loading.set(true);
-    forkJoin({
-      items: this.api.listExpenses({ page: this.page(), pageSize: this.pageSize() }),
-      categories: this.api.listCategoryOptions(),
-    }).subscribe({
-      next: ({ items, categories }) => {
-        this.items.set(items.items);
-        this.total.set(items.meta.total);
-        this.categories.set(categories);
+    this.errorMessage.set(null);
+
+    const params: { page: number; pageSize: number; status?: string; search?: string } = {
+      page: this.page(),
+      pageSize: this.pageSize(),
+    };
+    if (this.statusFilter()) params.status = this.statusFilter();
+    if (this.search()) params.search = this.search();
+
+    this.api.listExpenses(params).subscribe({
+      next: (result) => {
+        this.items.set(result.items);
+        this.total.set(result.meta.total);
         this.loading.set(false);
       },
       error: (error: unknown) => {
@@ -75,10 +133,73 @@ export class ExpensesPage {
     });
   }
 
-  onPageChange(page: number): void { this.page.set(page); this.reload(); }
-  onPageSizeChange(pageSize: number): void { this.pageSize.set(pageSize); this.page.set(1); this.reload(); }
+  onPageChange(page: number): void {
+    this.page.set(page);
+    this.reload();
+  }
 
-  categoryName(categoryId: string): string {
-    return this.categories().find((item) => item.id === categoryId)?.name ?? 'Category';
+  onPageSizeChange(pageSize: number): void {
+    this.pageSize.set(pageSize);
+    this.page.set(1);
+    this.reload();
+  }
+
+  onStatusChange(event: Event): void {
+    const target = event.target as HTMLSelectElement;
+    this.statusFilter.set(target.value);
+    this.page.set(1);
+    this.reload();
+  }
+
+  onSearchChange(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.search.set(target.value.trim());
+    this.page.set(1);
+    this.reload();
+  }
+
+  clearFilters(): void {
+    this.statusFilter.set('');
+    this.search.set('');
+    this.page.set(1);
+    this.reload();
+  }
+
+  categoryName(item: ExpenseRecord): string {
+    return item.categoryName ?? '—';
+  }
+
+  accountName(item: ExpenseRecord): string {
+    return item.accountName ?? '—';
+  }
+
+  formatAmount(amount: { amount: string; currency: string }): string {
+    const value = Number(amount.amount);
+    if (isNaN(value)) return `${amount.currency} ${amount.amount}`;
+    const formatted = value.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    return `${amount.currency} ${formatted}`;
+  }
+
+  formatDate(iso: string | null | undefined): string {
+    if (!iso) return '—';
+    const date = new Date(iso);
+    if (isNaN(date.getTime())) return iso;
+    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  statusTone(status: string): UiBadgeTone {
+    switch (status) {
+      case 'posted':
+        return 'success';
+      case 'corrected':
+        return 'warning';
+      case 'draft':
+        return 'neutral';
+      default:
+        return 'neutral';
+    }
   }
 }

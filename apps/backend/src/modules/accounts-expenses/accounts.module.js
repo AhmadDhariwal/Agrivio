@@ -941,7 +941,25 @@ function createAccountsService(deps) {
       let result;
       if (typeof store.listExpensesPage === 'function') result = await store.listExpensesPage(organizationId, options, options);
       else { let all = await store.listExpenses(organizationId); if (options.status) all = all.filter((item) => item.status === options.status); if (options.search) all = all.filter((item) => String(item.expenseDate) === String(options.search).trim()); result = { items: all.slice(options.skip ?? 0, (options.skip ?? 0) + (options.pageSize ?? 25)), total: all.length }; }
-      return { items: result.items.map(toExpenseDto), total: result.total };
+      const dtos = result.items.map(toExpenseDto);
+      const categoryIds = [...new Set(dtos.map((d) => d.categoryId))];
+      const accountIds = [...new Set(dtos.map((d) => d.accountId))];
+      const [cats, accts] = await Promise.all([
+        typeof store.findExpenseCategoriesByIds === 'function'
+          ? store.findExpenseCategoriesByIds(organizationId, categoryIds)
+          : [],
+        typeof store.findAccountsByIds === 'function'
+          ? store.findAccountsByIds(organizationId, accountIds)
+          : [],
+      ]);
+      const catMap = new Map(cats.map((c) => [String(c._id), c.name]));
+      const acctMap = new Map(accts.map((a) => [String(a._id), a.name]));
+      const enriched = dtos.map((d) => ({
+        ...d,
+        categoryName: catMap.get(d.categoryId) ?? null,
+        accountName: acctMap.get(d.accountId) ?? null,
+      }));
+      return { items: enriched, total: result.total };
     },
 
     async getExpense(organizationId, expenseId) {
@@ -949,7 +967,20 @@ function createAccountsService(deps) {
       if (record === null) {
         throw notFound('Expense not found');
       }
-      return toExpenseDto(record);
+      const dto = toExpenseDto(record);
+      const [cats, accts] = await Promise.all([
+        typeof store.findExpenseCategoriesByIds === 'function'
+          ? store.findExpenseCategoriesByIds(organizationId, [dto.categoryId])
+          : [],
+        typeof store.findAccountsByIds === 'function'
+          ? store.findAccountsByIds(organizationId, [dto.accountId])
+          : [],
+      ]);
+      return {
+        ...dto,
+        categoryName: cats.length > 0 ? cats[0].name : null,
+        accountName: accts.length > 0 ? accts[0].name : null,
+      };
     },
 
     async createExpenseDraft(organizationId, body, actor) {

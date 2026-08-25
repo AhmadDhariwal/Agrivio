@@ -600,6 +600,7 @@ function createApp(options) {
 
   const expensesRoutes = registerExpensesRoutes({
     accountsService: accounts.accountsService,
+    capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,

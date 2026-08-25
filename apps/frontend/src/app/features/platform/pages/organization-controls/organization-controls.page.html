@@ -153,6 +153,15 @@
       >
         Returns
       </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'expenses'"
+        (click)="selectModule('expenses')"
+        data-testid="expenses-control-module"
+      >
+        Expenses
+      </button>
       <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>
 
@@ -210,7 +219,8 @@
               selectedModule() === 'inventory.movements' ||
               selectedModule() === 'customers' ||
               selectedModule() === 'suppliers' ||
-              selectedModule() === 'returns'
+              selectedModule() === 'returns' ||
+              selectedModule() === 'expenses'
                 ? 'Required Fields'
                 : 'Required Workflow Fields',
             controls: requiredWorkflowControls()

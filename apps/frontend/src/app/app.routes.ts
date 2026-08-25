@@ -376,6 +376,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'expenses',
+        canActivate: [requireCapabilityGuard('expenses')],
         loadComponent: () =>
           import('./features/accounts-expenses/pages/expenses/expenses.page').then(
             (m) => m.ExpensesPage,
@@ -383,6 +384,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'expenses/new',
+        canActivate: [
+          requireCapabilityGuard('expenses'),
+          requireCapabilityGuard('expenses.actions.post', 'action'),
+        ],
         loadComponent: () =>
           import('./features/accounts-expenses/pages/expense-form/expense-form.page').then(
             (m) => m.ExpenseFormPage,
@@ -390,6 +395,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'expenses/:id',
+        canActivate: [
+          requireCapabilityGuard('expenses'),
+          requireCapabilityGuard('expenses.actions.inspect', 'action'),
+        ],
         loadComponent: () =>
           import('./features/accounts-expenses/pages/expense-form/expense-form.page').then(
             (m) => m.ExpenseFormPage,
@@ -397,6 +406,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'expense-categories',
+        canActivate: [requireCapabilityGuard('expenses')],
         loadComponent: () =>
           import('./features/accounts-expenses/pages/expense-categories/expense-categories.page').then(
             (m) => m.ExpenseCategoriesPage,
@@ -404,6 +414,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'expense-categories/new',
+        canActivate: [
+          requireCapabilityGuard('expenses'),
+          requireCapabilityGuard('expenses.actions.manageCategories', 'action'),
+        ],
         loadComponent: () =>
           import('./features/accounts-expenses/pages/expense-category-form/expense-category-form.page').then(
             (m) => m.ExpenseCategoryFormPage,
@@ -411,6 +425,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'expense-categories/:id',
+        canActivate: [
+          requireCapabilityGuard('expenses'),
+          requireCapabilityGuard('expenses.actions.manageCategories', 'action'),
+        ],
         loadComponent: () =>
           import('./features/accounts-expenses/pages/expense-category-form/expense-category-form.page').then(
             (m) => m.ExpenseCategoryFormPage,

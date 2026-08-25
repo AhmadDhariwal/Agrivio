@@ -268,6 +268,20 @@ const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string,
   'returns.actions.withoutInvoice': { allowed: true },
   'returns.actions.reverse': { allowed: true },
   'returns.actions.inspect': { allowed: true },
+  // Expenses module controls (12 authoritative controls)
+  expenses: { enabled: true },
+  'expenses.features.moduleInfo': { enabled: true },
+  'expenses.features.statusFilter': { enabled: true },
+  'expenses.features.dateSearch': { enabled: true },
+  'expenses.fields.category': { visible: true },
+  'expenses.fields.account': { visible: true },
+  'expenses.fields.amount': { visible: true },
+  'expenses.fields.purpose': { visible: true },
+  'expenses.fields.expenseDate': { visible: true },
+  'expenses.actions.post': { allowed: true },
+  'expenses.actions.correct': { allowed: true },
+  'expenses.actions.inspect': { allowed: true },
+  'expenses.actions.manageCategories': { allowed: true },
 };
 
 @Injectable({ providedIn: 'root' })
@@ -377,6 +391,7 @@ export class CapabilityService {
       'customers',
       'suppliers',
       'returns',
+      'expenses',
     ]);
     return {
       organizationId: this.sessionStore.activeContext()?.organizationId ?? 'test-organization',

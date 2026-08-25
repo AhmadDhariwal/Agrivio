@@ -15,6 +15,8 @@ export interface ExpenseRecord {
   organizationId: string;
   categoryId: string;
   accountId: string;
+  categoryName: string | null;
+  accountName: string | null;
   amount: MoneyAmount;
   purpose: string;
   expenseDate: string;

@@ -26,6 +26,7 @@ const MOVEMENTS_MODULE_KEY = 'inventory.movements';
 const CUSTOMERS_MODULE_KEY = 'customers';
 const SUPPLIERS_MODULE_KEY = 'suppliers';
 const RETURNS_MODULE_KEY = 'returns';
+const EXPENSES_MODULE_KEY = 'expenses';
 
 const definitions = [
   {
@@ -1854,6 +1855,119 @@ const definitions = [
         }
       : {}),
   })),
+  // ── Expenses Module ─────────────────────────────────────────────────────────
+  {
+    key: EXPENSES_MODULE_KEY,
+    parentKey: null,
+    moduleKey: EXPENSES_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Expenses',
+    description:
+      'Expense recording, posting, correction, and category management for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'expenses.view' },
+    reason:
+      'Disabling access blocks all Expense endpoints without deleting posted expenses, corrective records, account movements, or existing financial history.',
+  },
+  ...[
+    ['moduleInfo', 'About Expenses', 'Show the Expenses guidance panel.'],
+    ['statusFilter', 'Status Filter', 'Filter Expenses by draft, posted, or corrected status.'],
+    ['dateSearch', 'Date Search', 'Search Expenses by date (YYYY-MM-DD).'],
+  ].map(([id, label, description]) => ({
+    key: `expenses.features.${id}`,
+    parentKey: EXPENSES_MODULE_KEY,
+    moduleKey: EXPENSES_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'expenses.view' },
+  })),
+  ...[
+    [
+      'category',
+      'Expense Category',
+      'Required Expenses workflow data.',
+      'An expense category is required for every expense to classify operational spending.',
+    ],
+    [
+      'account',
+      'Account',
+      'Required Expenses workflow data.',
+      'An account is required to identify the financial source against which the expense is recorded.',
+    ],
+    [
+      'amount',
+      'Amount',
+      'Required Expenses workflow data.',
+      'A valid amount is required for every expense. Financial calculations and minor-unit precision remain backend-authoritative.',
+    ],
+    [
+      'purpose',
+      'Purpose / Description',
+      'Required Expenses workflow data.',
+      'A purpose description is required for every expense to maintain audit traceability.',
+    ],
+    [
+      'expenseDate',
+      'Expense Date',
+      'Required Expenses workflow data.',
+      'The expense date is required and cannot be bypassed by capability policy.',
+    ],
+  ].map(([id, label, description, reason]) => ({
+    key: `expenses.fields.${id}`,
+    parentKey: EXPENSES_MODULE_KEY,
+    moduleKey: EXPENSES_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description,
+    defaultPolicy: { visible: true },
+    configurable: { visible: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'expenses.view' },
+    reason,
+  })),
+  ...[
+    ['post', 'Post Expense', 'expenses.post', RISK_LEVELS.Critical, []],
+    ['correct', 'Correct Expense', 'expenses.correct', RISK_LEVELS.Critical, []],
+    ['inspect', 'Inspect Expense', 'expenses.view', RISK_LEVELS.Normal, []],
+    ['manageCategories', 'Manage Expense Categories', 'expenses.post', RISK_LEVELS.Normal, []],
+  ].map(([id, label, permission, risk, dependencies]) => ({
+    key: `expenses.actions.${id}`,
+    parentKey: EXPENSES_MODULE_KEY,
+    moduleKey: EXPENSES_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label,
+    description: `${label} action. Existing RBAC, lifecycle rules, and target-module policy still apply.`,
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk,
+    requiredPermissions: { allowed: permission },
+    ...(dependencies.length === 0 ? {} : { dependencies }),
+    ...(id === 'post'
+      ? {
+          reason:
+            'Disabling this action prevents expense draft creation, draft update, and final posting. Discard of stale drafts remains available.',
+        }
+      : {}),
+    ...(id === 'correct'
+      ? {
+          reason:
+            'Disabling this action prevents expense correction. The original posted expense remains immutable and unchanged.',
+        }
+      : {}),
+    ...(id === 'manageCategories'
+      ? {
+          reason:
+            'Disabling this action prevents creating, updating, and deleting expense categories. Existing categories remain available for expense recording.',
+        }
+      : {}),
+  })),
 ];
 
 const registry = new Map(
@@ -1899,6 +2013,7 @@ module.exports = {
   CUSTOMERS_MODULE_KEY,
   SUPPLIERS_MODULE_KEY,
   RETURNS_MODULE_KEY,
+  EXPENSES_MODULE_KEY,
   listCapabilityControls,
   getCapabilityControl,
 };
