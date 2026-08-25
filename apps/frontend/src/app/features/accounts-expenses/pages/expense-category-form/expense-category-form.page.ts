@@ -49,6 +49,24 @@ export class ExpenseCategoryFormPage {
       this.sessionStore.hasPermission('expenses.post') &&
       (this.capabilityService?.canPerformAction('expenses.actions.manageCategories') ?? true),
   );
+  readonly canCreate = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('expenses.categories.actions.create') ?? true),
+  );
+  readonly canEditCategory = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('expenses.categories.actions.edit') ?? true),
+  );
+  readonly canEditName = computed(
+    () => this.capabilityService?.canEditField('expenses.categories.fields.name') ?? true,
+  );
+  readonly canDelete = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('expenses.categories.actions.delete') ?? true),
+  );
 
   private version = 1;
   readonly fieldRequired = hasRequiredValidator;
@@ -88,7 +106,8 @@ export class ExpenseCategoryFormPage {
   }
 
   save(): void {
-    if (!this.canManage() || this.form.invalid) {
+    const allowed = this.categoryId() === null ? this.canCreate() : this.canEditCategory();
+    if (!allowed || this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
@@ -123,7 +142,7 @@ export class ExpenseCategoryFormPage {
   confirmDelete(): void {
     this.deleteConfirmOpen.set(false);
     const id = this.categoryId();
-    if (!id || !this.canManage()) return;
+    if (!id || !this.canDelete()) return;
     this.deleting.set(true);
     this.api.deleteCategory(id).subscribe({
       next: () => {

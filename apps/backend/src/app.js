@@ -276,6 +276,7 @@ function createApp(options) {
     options.accounts ??
     createAccountsModule({
       persistence,
+      capabilityService: capabilities.capabilityService,
       ...(options.now === undefined ? {} : { now: options.now }),
       ...(masterRefs === null
         ? {}

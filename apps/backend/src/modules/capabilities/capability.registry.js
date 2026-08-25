@@ -27,6 +27,7 @@ const CUSTOMERS_MODULE_KEY = 'customers';
 const SUPPLIERS_MODULE_KEY = 'suppliers';
 const RETURNS_MODULE_KEY = 'returns';
 const EXPENSES_MODULE_KEY = 'expenses';
+const EXPENSE_CATEGORIES_MODULE_KEY = 'expenses.categories';
 
 const definitions = [
   {
@@ -1968,6 +1969,92 @@ const definitions = [
         }
       : {}),
   })),
+  // ── Expense Categories Submodule ────────────────────────────────────────────
+  {
+    key: EXPENSE_CATEGORIES_MODULE_KEY,
+    parentKey: EXPENSES_MODULE_KEY,
+    moduleKey: EXPENSE_CATEGORIES_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label: 'Expense Categories',
+    description:
+      'Expense category management access for this organization. Disabling hides the categories page without deleting existing categories or affecting historical expense records.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'expenses.view' },
+    reason:
+      'Disabling blocks the Expense Categories page. Existing categories remain referenced by posted expenses and are not deleted.',
+  },
+  ...[
+    ['moduleInfo', 'About Expense Categories', 'Show the Expense Categories guidance panel.'],
+    ['search', 'Category Search', 'Search categories by name.'],
+    ['statusFilter', 'Status Filter', 'Filter categories by active or inactive status.'],
+  ].map(([id, label, description]) => ({
+    key: `expenses.categories.features.${id}`,
+    parentKey: EXPENSE_CATEGORIES_MODULE_KEY,
+    moduleKey: EXPENSE_CATEGORIES_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'expenses.view' },
+  })),
+  {
+    key: 'expenses.categories.fields.name',
+    parentKey: EXPENSE_CATEGORIES_MODULE_KEY,
+    moduleKey: EXPENSE_CATEGORIES_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label: 'Category Name',
+    description: 'Required Expense Categories workflow data.',
+    defaultPolicy: { visible: true, editable: true },
+    configurable: { visible: false, editable: true },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'expenses.view', editable: 'expenses.post' },
+    reason:
+      'Category name is the required identity field. It must remain visible for the category workflow to be meaningful.',
+  },
+  {
+    key: 'expenses.categories.fields.status',
+    parentKey: EXPENSE_CATEGORIES_MODULE_KEY,
+    moduleKey: EXPENSE_CATEGORIES_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label: 'Lifecycle Status',
+    description: 'Active or inactive status controls whether the category can be used for new expenses.',
+    defaultPolicy: { visible: true, editable: false },
+    configurable: { visible: true, editable: false },
+    risk: RISK_LEVELS.Recommended,
+    requiredPermissions: { visible: 'expenses.view' },
+    reason:
+      'Status editability is managed by dedicated Deactivate/Reactivate actions and cannot be overridden.',
+  },
+  ...[
+    ['create', 'Create Category', 'expenses.post', RISK_LEVELS.Recommended, ['expenses.actions.manageCategories']],
+    ['edit', 'Edit Category', 'expenses.post', RISK_LEVELS.Recommended, ['expenses.actions.manageCategories']],
+    ['deactivate', 'Deactivate Category', 'expenses.post', RISK_LEVELS.Critical, ['expenses.actions.manageCategories']],
+    ['reactivate', 'Reactivate Category', 'expenses.post', RISK_LEVELS.Normal, ['expenses.actions.manageCategories']],
+    ['delete', 'Delete Category', 'expenses.post', RISK_LEVELS.Critical, ['expenses.actions.manageCategories']],
+  ].map(([id, label, permission, risk, dependencies]) => ({
+    key: `expenses.categories.actions.${id}`,
+    parentKey: EXPENSE_CATEGORIES_MODULE_KEY,
+    moduleKey: EXPENSE_CATEGORIES_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label,
+    description: `${label} action. Existing RBAC, lifecycle rules, and record-in-use protection still apply.`,
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk,
+    requiredPermissions: { allowed: permission },
+    ...(dependencies.length === 0 ? {} : { dependencies }),
+    ...(id === 'delete'
+      ? {
+          reason:
+            'The policy can block deletion but cannot bypass record-in-use protection (categories referenced by posted expenses cannot be deleted).',
+        }
+      : {}),
+  })),
 ];
 
 const registry = new Map(
@@ -2014,6 +2101,7 @@ module.exports = {
   SUPPLIERS_MODULE_KEY,
   RETURNS_MODULE_KEY,
   EXPENSES_MODULE_KEY,
+  EXPENSE_CATEGORIES_MODULE_KEY,
   listCapabilityControls,
   getCapabilityControl,
 };

@@ -57,12 +57,47 @@ export class ExpenseCategoriesPage {
   readonly canManage = computed(
     () =>
       this.sessionStore.hasPermission('expenses.post') &&
+      (this.capabilityService?.canUseModule('expenses.categories') ?? true) &&
       (this.capabilityService?.canPerformAction('expenses.actions.manageCategories') ?? true),
   );
   readonly canView = computed(() => this.sessionStore.hasPermission('expenses.view'));
 
+  readonly canCreate = computed(
+    () => this.canManage() && (this.capabilityService?.canPerformAction('expenses.categories.actions.create') ?? true),
+  );
+  readonly canEdit = computed(
+    () => this.canManage() && (this.capabilityService?.canPerformAction('expenses.categories.actions.edit') ?? true),
+  );
+  readonly canDeactivate = computed(
+    () => this.canManage() && (this.capabilityService?.canPerformAction('expenses.categories.actions.deactivate') ?? true),
+  );
+  readonly canReactivate = computed(
+    () => this.canManage() && (this.capabilityService?.canPerformAction('expenses.categories.actions.reactivate') ?? true),
+  );
+  readonly canDelete = computed(
+    () => this.canManage() && (this.capabilityService?.canPerformAction('expenses.categories.actions.delete') ?? true),
+  );
+
+  // Feature visibility
+  readonly showModuleInfo = computed(
+    () => this.capabilityService?.canUseView('expenses.categories.features.moduleInfo') ?? true,
+  );
+  readonly showSearch = computed(
+    () => this.capabilityService?.canUseView('expenses.categories.features.search') ?? true,
+  );
+  readonly showStatusFilter = computed(
+    () => this.capabilityService?.canUseView('expenses.categories.features.statusFilter') ?? true,
+  );
+
   readonly hasActiveFilters = computed(
     () => this.statusFilter() !== 'active' || !!this.search(),
+  );
+
+  readonly activeCount = computed(
+    () => this.items().filter((i) => i.status === 'active').length,
+  );
+  readonly inactiveCount = computed(
+    () => this.items().filter((i) => i.status === 'inactive').length,
   );
 
   readonly openMenuCategoryId = signal<string | null>(null);

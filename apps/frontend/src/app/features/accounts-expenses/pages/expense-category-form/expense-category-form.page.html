@@ -83,6 +83,7 @@
               placeholder="Enter expense category name"
               data-testid="expense-category-name"
               [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
+              [readonly]="isEdit() && !canEditName()"
             />
             <p class="field-hint">Use a clear, concise name that reflects the type of operating expense.</p>
           </div>
@@ -133,7 +134,7 @@
         </button>
         <a class="ag-btn ag-btn--secondary" routerLink="/app/expense-categories">Cancel</a>
       </div>
-      @if (isEdit()) {
+      @if (isEdit() && canDelete()) {
       <button
         type="button"
         class="delete-link"

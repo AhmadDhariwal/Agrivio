@@ -117,6 +117,7 @@ async function assertExpenseMasters(store, organizationId, input, session, optio
 function createAccountsService(deps) {
   const store = deps.store;
   const idempotency = deps.idempotency;
+  const capabilityService = deps.capabilityService ?? null;
   const now = deps.now ?? (() => new Date());
   const auditWriter = createAuditWriter({
     append: (session, event) => store.appendAuditEvent(session, event),
@@ -855,6 +856,9 @@ function createAccountsService(deps) {
     },
 
     async createExpenseCategory(organizationId, body, actor) {
+      if (capabilityService) {
+        await capabilityService.assertAllowed(organizationId, 'expenses.categories.actions.create', 'allowed');
+      }
       const input = parseExpenseCategoryCreate(body);
       try {
         return await transactionRunner.run(async (session) => {
@@ -880,6 +884,18 @@ function createAccountsService(deps) {
 
     async updateExpenseCategory(organizationId, categoryId, body, actor) {
       const { expectedVersion, patch } = parseExpenseCategoryPatch(body);
+      if (capabilityService) {
+        if (patch.name !== undefined) {
+          await capabilityService.assertAllowed(organizationId, 'expenses.categories.actions.edit', 'allowed');
+          await capabilityService.assertAllowed(organizationId, 'expenses.categories.fields.name', 'editable');
+        }
+        if (patch.status === 'inactive') {
+          await capabilityService.assertAllowed(organizationId, 'expenses.categories.actions.deactivate', 'allowed');
+        }
+        if (patch.status === 'active') {
+          await capabilityService.assertAllowed(organizationId, 'expenses.categories.actions.reactivate', 'allowed');
+        }
+      }
       try {
         return await transactionRunner.run(async (session) => {
           const current = await store.findExpenseCategoryById(organizationId, categoryId, session);
@@ -907,6 +923,9 @@ function createAccountsService(deps) {
     },
 
     async deleteExpenseCategory(organizationId, categoryId, actor) {
+      if (capabilityService) {
+        await capabilityService.assertAllowed(organizationId, 'expenses.categories.actions.delete', 'allowed');
+      }
       const current = await store.findExpenseCategoryById(organizationId, categoryId);
       if (current === null) {
         throw notFound('Expense category not found');
@@ -1328,6 +1347,7 @@ function createAccountsModule(options) {
     store,
     transactionRunner,
     idempotency,
+    capabilityService: options.capabilityService ?? null,
     ...(options.now === undefined ? {} : { now: options.now }),
     ...(options.listAccountReferences === undefined
       ? {}

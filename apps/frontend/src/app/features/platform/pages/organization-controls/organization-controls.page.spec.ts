@@ -20,7 +20,9 @@ function control(
     | 'inventory.reconciliation'
     | 'inventory.movements'
     | 'customers'
-    | 'suppliers',
+    | 'suppliers'
+    | 'expenses'
+    | 'expenses.categories',
   type: PlatformCapabilityControl['type'],
   label: string,
   policy: Record<string, boolean>,
@@ -1111,6 +1113,35 @@ describe('OrganizationControlsPage', () => {
       control('suppliers.actions.delete', 'suppliers', 'ACTION', 'Delete Supplier', { allowed: true }),
       control('suppliers.actions.postOpeningBalance', 'suppliers', 'ACTION', 'Post Opening Balance', { allowed: true }),
       control('suppliers.actions.refresh', 'suppliers', 'ACTION', 'Refresh List', { allowed: true }),
+      // Expenses action
+      control('expenses.actions.manageCategories', 'expenses', 'ACTION', 'Manage Expense Categories', { allowed: true }),
+      // Expense Categories (11)
+      control('expenses.categories', 'expenses.categories', 'MODULE', 'Expense Categories', { enabled: true }, { risk: 'CRITICAL' }),
+      control('expenses.categories.features.moduleInfo', 'expenses.categories', 'FEATURE', 'About Expense Categories', { enabled: true }),
+      control('expenses.categories.features.search', 'expenses.categories', 'FEATURE', 'Category Search', { enabled: true }),
+      control('expenses.categories.features.statusFilter', 'expenses.categories', 'FEATURE', 'Status Filter', { enabled: true }),
+      control('expenses.categories.fields.name', 'expenses.categories', 'FIELD', 'Category Name', { visible: true, editable: true }, { configurable: { visible: false, editable: true }, platformEnforced: true, risk: 'CRITICAL' }),
+      control('expenses.categories.fields.status', 'expenses.categories', 'FIELD', 'Lifecycle Status', { visible: true, editable: false }, { configurable: { visible: true, editable: false } }),
+      {
+        ...control('expenses.categories.actions.create', 'expenses.categories', 'ACTION', 'Create Category', { allowed: true }),
+        dependencies: ['expenses.actions.manageCategories'],
+      },
+      {
+        ...control('expenses.categories.actions.edit', 'expenses.categories', 'ACTION', 'Edit Category', { allowed: true }),
+        dependencies: ['expenses.actions.manageCategories'],
+      },
+      {
+        ...control('expenses.categories.actions.deactivate', 'expenses.categories', 'ACTION', 'Deactivate Category', { allowed: true }),
+        dependencies: ['expenses.actions.manageCategories'],
+      },
+      {
+        ...control('expenses.categories.actions.reactivate', 'expenses.categories', 'ACTION', 'Reactivate Category', { allowed: true }),
+        dependencies: ['expenses.actions.manageCategories'],
+      },
+      {
+        ...control('expenses.categories.actions.delete', 'expenses.categories', 'ACTION', 'Delete Category', { allowed: true }),
+        dependencies: ['expenses.actions.manageCategories'],
+      },
     ];
     await TestBed.configureTestingModule({
       imports: [OrganizationControlsPage],
@@ -2126,6 +2157,108 @@ describe('OrganizationControlsPage', () => {
       component.confirm();
 
       expect(resetModule).toHaveBeenCalledWith('org-a', 'suppliers', 4, '');
+    });
+  });
+
+  describe('Expense Categories Module Controls', () => {
+    it('renders Expense Categories module button, controls count, and sections', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('expenses.categories');
+      fixture.detectChanges();
+
+      expect(component.selectedModule()).toBe('expenses.categories');
+      expect(component.moduleLabel('expenses.categories')).toBe('Expense Categories');
+
+      // Module control (1)
+      expect(component.moduleControls().length).toBe(1);
+      expect(component.moduleControls()[0]?.key).toBe('expenses.categories');
+
+      // Feature controls (3: moduleInfo, search, statusFilter)
+      expect(component.featureControls().length).toBe(3);
+
+      // Field controls (2: name, status)
+      expect(component.fieldControls().length).toBe(2);
+
+      // Action controls (5: create, edit, deactivate, reactivate, delete)
+      expect(component.actionControls().length).toBe(5);
+    });
+
+    it('enforces platform rule for required category name field', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('expenses.categories');
+      fixture.detectChanges();
+
+      const nameControl = component
+        .controls()
+        .find((item) => item.key === 'expenses.categories.fields.name');
+      expect(nameControl).toBeDefined();
+      if (nameControl) {
+        expect(component.isConfigurable(nameControl, 'visible')).toBe(false);
+        expect(component.modeReadonly(nameControl, 'visible')).toBe(true);
+        expect(component.modeLockedReason(nameControl, 'visible')).toBe(
+          'Platform rule: this required workflow field cannot be hidden or disabled.',
+        );
+      }
+    });
+
+    it('blocks all 5 category mutation actions with dependency block reason when manageCategories is disabled', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('expenses.categories');
+      fixture.detectChanges();
+
+      // Disable manageCategories in expenses module
+      const manageCategoriesAction = component
+        .controls()
+        .find((item) => item.key === 'expenses.actions.manageCategories');
+      expect(manageCategoriesAction).toBeDefined();
+      if (manageCategoriesAction) {
+        component.setValue(manageCategoriesAction, 'allowed', false);
+      }
+
+      const mutationKeys = [
+        'expenses.categories.actions.create',
+        'expenses.categories.actions.edit',
+        'expenses.categories.actions.deactivate',
+        'expenses.categories.actions.reactivate',
+        'expenses.categories.actions.delete',
+      ];
+
+      for (const key of mutationKeys) {
+        const actionControl = component.actionControls().find((item) => item.key === key);
+        expect(actionControl).toBeDefined();
+        if (actionControl) {
+          expect(component.effectiveValue(actionControl, 'allowed')).toBe(false);
+          expect(component.effectiveReason(actionControl, 'allowed')).toBe(
+            'Manage Expense Categories is disabled for this organization.',
+          );
+        }
+      }
+    });
+
+    it('allows independent configuration of category actions when manageCategories is enabled', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('expenses.categories');
+      fixture.detectChanges();
+
+      const deleteControl = component
+        .actionControls()
+        .find((item) => item.key === 'expenses.categories.actions.delete');
+      expect(deleteControl).toBeDefined();
+      if (deleteControl) {
+        component.setValue(deleteControl, 'allowed', false);
+        expect(component.effectiveValue(deleteControl, 'allowed')).toBe(false);
+        expect(component.effectiveReason(deleteControl, 'allowed')).toBe(
+          'Configured for this organization.',
+        );
+      }
+
+      const createControl = component
+        .actionControls()
+        .find((item) => item.key === 'expenses.categories.actions.create');
+      expect(createControl).toBeDefined();
+      if (createControl) {
+        expect(component.effectiveValue(createControl, 'allowed')).toBe(true);
+      }
     });
   });
 });

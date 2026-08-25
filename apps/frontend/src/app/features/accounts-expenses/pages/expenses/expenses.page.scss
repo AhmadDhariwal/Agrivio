@@ -6,8 +6,6 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-width: 1400px;
-  margin: 0 auto;
   width: 100%;
 }
 
@@ -28,13 +26,40 @@
     flex: 1 1 auto;
   }
 
+  &__eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ag-color-primary, #065f46);
+    margin: 0 0 2px 0;
+  }
+
+  &__heading-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
   &__title {
     font-size: 28px;
     font-weight: 600;
     color: var(--ag-color-text, #0f172a);
-    margin: 0 0 2px 0;
+    margin: 0;
     line-height: 1.2;
     letter-spacing: -0.02em;
+    font-family: var(--ag-font-sans);
+  }
+
+  &__count-pill {
+    font-size: 12px;
+    font-weight: 500;
+    color: #475569;
+    background: #f1f5f9;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    border: 1px solid #e2e8f0;
     font-family: var(--ag-font-sans);
   }
 
@@ -42,7 +67,7 @@
     font-size: 14px;
     font-weight: 400;
     color: var(--ag-color-text-muted, #64748b);
-    margin: 0;
+    margin: 4px 0 0 0;
   }
 
   &__actions {
@@ -55,9 +80,12 @@
   @media (max-width: 767px) {
     gap: 10px;
 
+    &__eyebrow {
+      display: none;
+    }
+
     &__title {
       font-size: 20px;
-      margin: 0;
     }
 
     &__lede {
@@ -72,7 +100,124 @@
 }
 
 /* ==========================================================================
-   2. Buttons
+   2. KPI Summary Row (4-column responsive grid matching Products)
+   ========================================================================== */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+
+  @media (max-width: 1023px) and (min-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  @media (max-width: 767px) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+}
+
+.kpi-card {
+  height: 80px;
+  background: var(--ag-color-surface, #ffffff);
+  border: 1px solid var(--ag-color-border, #e2e8f0);
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+
+  &__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    &--neutral {
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #e2e8f0;
+    }
+
+    &--green {
+      background: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+
+    &--amber {
+      background: #fffbeb;
+      color: #d97706;
+      border: 1px solid #fde68a;
+    }
+
+    &--blue {
+      background: #eff6ff;
+      color: #2563eb;
+      border: 1px solid #bfdbfe;
+    }
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #64748b;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__value {
+    font-size: 20px;
+    font-weight: 600;
+    color: #0f172a;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    font-family: var(--ag-font-sans);
+  }
+
+  @media (max-width: 767px) {
+    height: 68px;
+    padding: 8px 10px;
+    gap: 8px;
+
+    &__icon {
+      width: 28px;
+      height: 28px;
+
+      svg {
+        width: 14px;
+        height: 14px;
+      }
+    }
+
+    &__label {
+      font-size: 10px;
+      margin-bottom: 1px;
+    }
+
+    &__value {
+      font-size: 17px;
+    }
+  }
+}
+
+/* ==========================================================================
+   3. Buttons
    ========================================================================== */
 .ag-btn {
   display: inline-flex;
@@ -103,7 +248,7 @@
   &--secondary {
     background: #ffffff;
     color: #334155;
-    border-color: #cbd5e1;
+    border-color: var(--ag-color-border, #e2e8f0);
 
     &:hover {
       background: #f8fafc;
@@ -131,7 +276,7 @@
 }
 
 /* ==========================================================================
-   3. Filter Toolbar
+   4. Filter Toolbar
    ========================================================================== */
 .filter-toolbar {
   display: flex;
@@ -157,8 +302,8 @@
     position: relative;
     display: flex;
     align-items: center;
-    min-width: 180px;
-    max-width: 260px;
+    min-width: 200px;
+    max-width: 280px;
     flex: 1 1 auto;
   }
 
@@ -174,13 +319,14 @@
     width: 100%;
     padding: 0 10px 0 34px;
     background: #ffffff;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--ag-color-border, #e2e8f0);
     border-radius: 6px;
     font-size: 13px;
-    color: #0f172a;
+    color: var(--ag-color-text, #0f172a);
     outline: none;
     font-family: var(--ag-font-sans);
     transition: border-color 0.15s ease;
+    box-sizing: border-box;
 
     &:focus {
       border-color: var(--ag-color-primary, #065f46);
@@ -196,13 +342,14 @@
     height: 36px;
     padding: 0 10px;
     background: #ffffff;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--ag-color-border, #e2e8f0);
     border-radius: 6px;
     font-size: 13px;
-    color: #0f172a;
+    color: var(--ag-color-text, #0f172a);
     font-family: var(--ag-font-sans);
     cursor: pointer;
-    min-width: 120px;
+    min-width: 130px;
+    box-sizing: border-box;
 
     &:focus {
       border-color: var(--ag-color-primary, #065f46);
@@ -222,33 +369,14 @@
     align-items: center;
     gap: 4px;
     background: none;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--ag-color-border, #e2e8f0);
     border-radius: 6px;
     padding: 6px 12px;
     font-size: 12.5px;
     font-weight: 500;
     color: #475569;
+    font-family: var(--ag-font-sans);
     cursor: pointer;
-    transition: all 0.15s ease;
-
-    &:hover {
-      background: #f8fafc;
-      border-color: #94a3b8;
-    }
-  }
-
-  &__refresh {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    background: none;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    color: #475569;
-    cursor: pointer;
-    transition: all 0.15s ease;
 
     &:hover {
       background: #f8fafc;
@@ -282,7 +410,7 @@
 }
 
 /* ==========================================================================
-   4. Table (Desktop)
+   5. Dense Table
    ========================================================================== */
 .table-container {
   background: var(--ag-color-surface, #ffffff);
@@ -290,6 +418,10 @@
   border-radius: 6px;
   overflow-x: auto;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+
+  @media (max-width: 767px) {
+    display: none;
+  }
 }
 
 .expenses-table {
@@ -349,45 +481,57 @@
 
     &--actions {
       text-align: right;
-      white-space: nowrap;
     }
   }
+}
 
-  @media (max-width: 767px) {
-    display: none;
+.expense-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  &__purpose {
+    font-weight: 500;
+    color: #0f172a;
+    line-height: 1.3;
+  }
+
+  &__ref {
+    font-size: 11.5px;
+    font-weight: 500;
+    color: #64748b;
+    letter-spacing: 0.01em;
   }
 }
 
-.expense-purpose {
-  display: block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.expense-ref {
-  display: block;
-  font-size: 11.5px;
-  color: #64748b;
-  margin-top: 1px;
-}
-
-.category-pill {
+.badge-category {
   display: inline-block;
-  padding: 2px 8px;
-  background: #f0fdf4;
-  color: #166534;
-  border: 1px solid #bbf7d0;
-  border-radius: 4px;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 500;
+  color: #065f46;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 4px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.badge-account {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  color: #1e40af;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  padding: 2px 8px;
   white-space: nowrap;
 }
 
 /* ==========================================================================
-   5. Mobile Cards
+   6. Mobile Cards
    ========================================================================== */
-.expenses-cards {
+.expense-cards {
   display: none;
   flex-direction: column;
   gap: 10px;
@@ -413,41 +557,40 @@
     gap: 8px;
   }
 
-  &__identity {
+  &__title-group {
     display: flex;
     flex-direction: column;
-    min-width: 0;
+    gap: 2px;
   }
 
   &__purpose {
     font-size: 13.5px;
     font-weight: 600;
     color: #0f172a;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
-  &__meta {
-    font-size: 12px;
+  &__ref {
+    font-size: 11.5px;
     color: #64748b;
-    margin-top: 2px;
   }
 
   &__body {
     display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 0;
+    border-top: 1px solid #f1f5f9;
   }
 
-  &__detail {
+  &__row {
     display: flex;
-    flex-direction: column;
-    gap: 1px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
   }
 
   &__label {
-    font-size: 11px;
+    font-size: 11.5px;
     font-weight: 500;
     color: #64748b;
     text-transform: uppercase;
@@ -473,13 +616,7 @@
   }
 }
 
-/* ==========================================================================
-   6. Utilities
-   ========================================================================== */
+.state-container,
 .alert-container {
-  margin: 0;
-}
-
-.state-container {
-  padding: 24px 0;
+  width: 100%;
 }

@@ -282,6 +282,18 @@ const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string,
   'expenses.actions.correct': { allowed: true },
   'expenses.actions.inspect': { allowed: true },
   'expenses.actions.manageCategories': { allowed: true },
+  // Expense Categories submodule controls (11 authoritative controls)
+  'expenses.categories': { enabled: true },
+  'expenses.categories.features.moduleInfo': { enabled: true },
+  'expenses.categories.features.search': { enabled: true },
+  'expenses.categories.features.statusFilter': { enabled: true },
+  'expenses.categories.fields.name': { visible: true, editable: true },
+  'expenses.categories.fields.status': { visible: true, editable: false },
+  'expenses.categories.actions.create': { allowed: true },
+  'expenses.categories.actions.edit': { allowed: true },
+  'expenses.categories.actions.deactivate': { allowed: true },
+  'expenses.categories.actions.reactivate': { allowed: true },
+  'expenses.categories.actions.delete': { allowed: true },
 };
 
 @Injectable({ providedIn: 'root' })
@@ -392,6 +404,7 @@ export class CapabilityService {
       'suppliers',
       'returns',
       'expenses',
+      'expenses.categories',
     ]);
     return {
       organizationId: this.sessionStore.activeContext()?.organizationId ?? 'test-organization',
