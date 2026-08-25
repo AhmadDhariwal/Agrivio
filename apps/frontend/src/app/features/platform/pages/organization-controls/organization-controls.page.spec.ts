@@ -2173,11 +2173,14 @@ describe('OrganizationControlsPage', () => {
       expect(component.moduleControls().length).toBe(1);
       expect(component.moduleControls()[0]?.key).toBe('expenses.categories');
 
-      // Feature controls (3: moduleInfo, search, statusFilter)
-      expect(component.featureControls().length).toBe(3);
+      // Feature controls (3: moduleInfo → moduleInfoControls, search + statusFilter → filterControls)
+      expect(component.moduleInfoControls().length).toBe(1);
+      expect(component.filterControls().length).toBe(2);
+      expect(component.featureControls().length).toBe(0);
 
-      // Field controls (2: name, status)
-      expect(component.fieldControls().length).toBe(2);
+      // Field controls (name is platform-enforced → requiredWorkflowControls; status is configurable → fieldControls)
+      expect(component.fieldControls().length).toBe(1);
+      expect(component.requiredWorkflowControls().length).toBe(1);
 
       // Action controls (5: create, edit, deactivate, reactivate, delete)
       expect(component.actionControls().length).toBe(5);
@@ -2247,9 +2250,8 @@ describe('OrganizationControlsPage', () => {
       if (deleteControl) {
         component.setValue(deleteControl, 'allowed', false);
         expect(component.effectiveValue(deleteControl, 'allowed')).toBe(false);
-        expect(component.effectiveReason(deleteControl, 'allowed')).toBe(
-          'Configured for this organization.',
-        );
+        // No effective reason when value is directly configured (not blocked by parent/dependency)
+        expect(component.effectiveReason(deleteControl, 'allowed')).toBeNull();
       }
 
       const createControl = component

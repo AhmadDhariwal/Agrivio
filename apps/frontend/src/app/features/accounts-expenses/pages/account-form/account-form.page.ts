@@ -1,13 +1,17 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { DatePipe, UpperCasePipe, TitleCasePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AccountsApi } from '../../data-access/accounts.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import {
+  UiStatusBadgeComponent,
+  UiBadgeTone,
+} from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
 import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 import { AccountMovementRecord, AccountRecord } from '../../models/accounts.models';
 import { forkJoin, of } from 'rxjs';
@@ -19,10 +23,13 @@ import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pa
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    UiPageHeaderComponent,
+    DatePipe,
+    UpperCasePipe,
+    TitleCasePipe,
     UiAlertComponent,
     UiLoadingStateComponent,
     UiFieldLabelComponent,
+    UiStatusBadgeComponent,
     UiPaginationComponent,
   ],
   templateUrl: './account-form.page.html',
@@ -172,8 +179,11 @@ export class AccountFormPage {
       return;
     }
 
+    const id = this.accountId();
+    if (!id) return;
+
     this.api
-      .updateAccount(this.accountId()!, {
+      .updateAccount(id, {
         expectedVersion: this.version,
         name: value.name,
         status: value.status,
@@ -367,6 +377,43 @@ export class AccountFormPage {
       item.sourceType === 'account_transfer_out' &&
       !this.isReversed(item)
     );
+  }
+
+  sourceTypeLabel(sourceType: string): string {
+    switch (sourceType) {
+      case 'opening_balance':
+        return 'Opening Balance';
+      case 'manual_inflow':
+        return 'Manual Inflow';
+      case 'manual_outflow':
+        return 'Manual Outflow';
+      case 'account_transfer_out':
+        return 'Transfer Out';
+      case 'account_transfer_in':
+        return 'Transfer In';
+      case 'expense':
+        return 'Operating Expense';
+      case 'customer_payment':
+        return 'Customer Payment';
+      case 'supplier_payment':
+        return 'Supplier Payment';
+      default:
+        return sourceType;
+    }
+  }
+
+  statusTone(status: string): UiBadgeTone {
+    return status === 'active' ? 'success' : 'neutral';
+  }
+
+  formatAmount(amount: string | null | undefined): string {
+    if (!amount) return '0.00';
+    const num = Number(amount);
+    if (isNaN(num)) return amount;
+    return num.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   }
 
   loadMovements(): void {
