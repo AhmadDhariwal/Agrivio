@@ -27,7 +27,8 @@ type ConfigurableModule =
   | 'inventory.transfers'
   | 'inventory.reconciliation'
   | 'inventory.movements'
-  | 'customers';
+  | 'customers'
+  | 'suppliers';
 type PendingConfirmation =
   | { readonly kind: 'save' }
   | { readonly kind: 'reset-control'; readonly control: PlatformCapabilityControl }
@@ -94,6 +95,9 @@ export class OrganizationControlsPage {
     this.byType('FEATURE', false).filter((control) => !this.isBatchGroupedFeature(control)),
   );
   readonly moduleInfoControls = computed(() => {
+    if (this.selectedModule() === 'suppliers') {
+      return this.suppliersFeatures('moduleInfo');
+    }
     if (this.selectedModule() === 'customers') {
       return this.customersFeatures('moduleInfo');
     }
@@ -156,6 +160,9 @@ export class OrganizationControlsPage {
     return [];
   });
   readonly filterControls = computed(() => {
+    if (this.selectedModule() === 'suppliers') {
+      return this.suppliersFeatures('search', 'statusFilter');
+    }
     if (this.selectedModule() === 'customers') {
       return this.customersFeatures('search', 'statusFilter');
     }
@@ -171,6 +178,9 @@ export class OrganizationControlsPage {
     return [];
   });
   readonly kpiControls = computed(() => {
+    if (this.selectedModule() === 'suppliers') {
+      return this.suppliersFeatures('kpiCards');
+    }
     if (this.selectedModule() === 'customers') {
       return this.customersFeatures('kpiCards');
     }
@@ -180,6 +190,9 @@ export class OrganizationControlsPage {
     return [];
   });
   readonly inspectorControls = computed(() => {
+    if (this.selectedModule() === 'suppliers') {
+      return this.suppliersFeatures('inspector', 'technicalDetails');
+    }
     if (this.selectedModule() === 'customers') {
       return this.customersFeatures('inspector', 'technicalDetails');
     }
@@ -300,6 +313,14 @@ export class OrganizationControlsPage {
       changes[0].value?.['enabled'] === false
     );
   });
+  readonly disablingSuppliers = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'suppliers' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
   readonly confirmationTitle = computed(() => {
     const pending = this.pendingConfirmation();
     const organization = this.snapshot()?.organization.name ?? 'this organization';
@@ -321,6 +342,9 @@ export class OrganizationControlsPage {
     }
     if (this.disablingCustomers()) {
       return `Disable Customers for ${organization}?`;
+    }
+    if (this.disablingSuppliers()) {
+      return `Disable Suppliers for ${organization}?`;
     }
     const single = this.changeSummary().length === 1 ? this.changeSummary()[0] : null;
     if (single?.risk === 'CRITICAL' && single.after === 'Disabled') {
@@ -364,6 +388,9 @@ export class OrganizationControlsPage {
     if (this.disablingCustomers()) {
       return `Users in this organization will no longer be able to access the Customers module or related operational features. Existing customer data, balances, and history will not be deleted.`;
     }
+    if (this.disablingSuppliers()) {
+      return `Users in this organization will no longer be able to access the Suppliers module or related operational features. Existing supplier data, balances, and history will not be deleted.`;
+    }
     const critical = this.changeSummary()
       .filter((change) => change.risk === 'CRITICAL')
       .map((change) => `${change.label}: ${change.before} → ${change.after}`);
@@ -384,6 +411,7 @@ export class OrganizationControlsPage {
     if (this.disablingReconciliation()) return 'Disable Inventory Reconciliation';
     if (this.disablingMovements()) return 'Disable Stock Movements';
     if (this.disablingCustomers()) return 'Disable Customers';
+    if (this.disablingSuppliers()) return 'Disable Suppliers';
     return 'Apply changes';
   });
 
@@ -599,6 +627,7 @@ export class OrganizationControlsPage {
     if (moduleKey === 'inventory.reconciliation') return 'Inventory Reconciliation';
     if (moduleKey === 'inventory.movements') return 'Stock Movements';
     if (moduleKey === 'customers') return 'Customers';
+    if (moduleKey === 'suppliers') return 'Suppliers';
     return 'Product Batches';
   }
 
@@ -611,10 +640,16 @@ export class OrganizationControlsPage {
         control.moduleKey === 'inventory.transfers' ||
         control.moduleKey === 'inventory.reconciliation' ||
         control.moduleKey === 'inventory.movements' ||
-        control.moduleKey === 'customers') &&
+        control.moduleKey === 'customers' ||
+        control.moduleKey === 'suppliers') &&
       control.type === 'FIELD' &&
       control.platformEnforced === true
     );
+  }
+
+  private suppliersFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
+    const keys = new Set(ids.map((id) => `suppliers.features.${id}`));
+    return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
   }
 
   private customersFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
@@ -707,7 +742,14 @@ export class OrganizationControlsPage {
           control.key === 'customers.features.statusFilter' ||
           control.key === 'customers.features.kpiCards' ||
           control.key === 'customers.features.inspector' ||
-          control.key === 'customers.features.technicalDetails'))
+          control.key === 'customers.features.technicalDetails')) ||
+      (control.moduleKey === 'suppliers' &&
+        (control.key === 'suppliers.features.moduleInfo' ||
+          control.key === 'suppliers.features.search' ||
+          control.key === 'suppliers.features.statusFilter' ||
+          control.key === 'suppliers.features.kpiCards' ||
+          control.key === 'suppliers.features.inspector' ||
+          control.key === 'suppliers.features.technicalDetails'))
     );
   }
 

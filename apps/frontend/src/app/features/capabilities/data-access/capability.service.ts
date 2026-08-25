@@ -228,6 +228,28 @@ const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string,
   'customers.actions.editCreditPolicy': { allowed: true },
   'customers.actions.postOpeningBalance': { allowed: true },
   'customers.actions.refresh': { allowed: true },
+  // Suppliers module controls (21 authoritative controls)
+  suppliers: { enabled: true },
+  'suppliers.features.moduleInfo': { enabled: true },
+  'suppliers.features.search': { enabled: true },
+  'suppliers.features.statusFilter': { enabled: true },
+  'suppliers.features.kpiCards': { enabled: true },
+  'suppliers.features.inspector': { enabled: true },
+  'suppliers.features.technicalDetails': { enabled: true },
+  'suppliers.fields.name': { visible: true, editable: true },
+  'suppliers.fields.contactName': { visible: true, editable: true },
+  'suppliers.fields.phone': { visible: true, editable: true },
+  'suppliers.fields.email': { visible: true, editable: true },
+  'suppliers.fields.derivedBalances': { visible: true },
+  'suppliers.fields.openingBalance': { visible: true },
+  'suppliers.actions.create': { allowed: true },
+  'suppliers.actions.inspect': { allowed: true },
+  'suppliers.actions.edit': { allowed: true },
+  'suppliers.actions.deactivate': { allowed: true },
+  'suppliers.actions.reactivate': { allowed: true },
+  'suppliers.actions.delete': { allowed: true },
+  'suppliers.actions.postOpeningBalance': { allowed: true },
+  'suppliers.actions.refresh': { allowed: true },
 };
 
 @Injectable({ providedIn: 'root' })
@@ -335,6 +357,7 @@ export class CapabilityService {
       'inventory.reconciliation',
       'inventory.movements',
       'customers',
+      'suppliers',
     ]);
     return {
       organizationId: this.sessionStore.activeContext()?.organizationId ?? 'test-organization',

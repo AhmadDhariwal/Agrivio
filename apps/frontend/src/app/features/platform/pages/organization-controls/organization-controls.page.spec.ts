@@ -19,7 +19,8 @@ function control(
     | 'inventory.transfers'
     | 'inventory.reconciliation'
     | 'inventory.movements'
-    | 'customers',
+    | 'customers'
+    | 'suppliers',
   type: PlatformCapabilityControl['type'],
   label: string,
   policy: Record<string, boolean>,
@@ -1085,6 +1086,31 @@ describe('OrganizationControlsPage', () => {
       control('customers.actions.editCreditPolicy', 'customers', 'ACTION', 'Edit Credit Policy', { allowed: true }, { risk: 'RECOMMENDED' }),
       control('customers.actions.postOpeningBalance', 'customers', 'ACTION', 'Post Opening Balance', { allowed: true }, { risk: 'CRITICAL' }),
       control('customers.actions.refresh', 'customers', 'ACTION', 'Refresh List', { allowed: true }),
+      // Suppliers Module (1)
+      control('suppliers', 'suppliers', 'MODULE', 'Suppliers', { enabled: true }, { risk: 'CRITICAL' }),
+      // Features (6)
+      control('suppliers.features.moduleInfo', 'suppliers', 'FEATURE', 'About Suppliers', { enabled: true }),
+      control('suppliers.features.search', 'suppliers', 'FEATURE', 'Search Filter', { enabled: true }),
+      control('suppliers.features.statusFilter', 'suppliers', 'FEATURE', 'Status Filter', { enabled: true }),
+      control('suppliers.features.kpiCards', 'suppliers', 'FEATURE', 'KPI Summary Cards', { enabled: true }),
+      control('suppliers.features.inspector', 'suppliers', 'FEATURE', 'Detail Inspector Drawer', { enabled: true }),
+      control('suppliers.features.technicalDetails', 'suppliers', 'FEATURE', 'Technical Details Section', { enabled: true }),
+      // Fields (6)
+      control('suppliers.fields.name', 'suppliers', 'FIELD', 'Supplier Name', { visible: true, editable: true }, { configurable: { visible: false, editable: true }, platformEnforced: true, risk: 'CRITICAL' }),
+      control('suppliers.fields.contactName', 'suppliers', 'FIELD', 'Contact Person', { visible: true, editable: true }),
+      control('suppliers.fields.phone', 'suppliers', 'FIELD', 'Phone', { visible: true, editable: true }, { override: { visible: true, editable: false } }),
+      control('suppliers.fields.email', 'suppliers', 'FIELD', 'Email', { visible: true, editable: true }),
+      control('suppliers.fields.derivedBalances', 'suppliers', 'FIELD', 'Derived Balances', { visible: true }, { configurable: { visible: false }, platformEnforced: true, risk: 'CRITICAL' }),
+      control('suppliers.fields.openingBalance', 'suppliers', 'FIELD', 'Opening Balance', { visible: true }, { configurable: { visible: false }, platformEnforced: true, risk: 'CRITICAL' }),
+      // Actions (8)
+      control('suppliers.actions.create', 'suppliers', 'ACTION', 'Create Supplier', { allowed: true }),
+      control('suppliers.actions.inspect', 'suppliers', 'ACTION', 'Inspect Supplier', { allowed: true }),
+      control('suppliers.actions.edit', 'suppliers', 'ACTION', 'Edit Supplier', { allowed: true }),
+      control('suppliers.actions.deactivate', 'suppliers', 'ACTION', 'Deactivate Supplier', { allowed: true }),
+      control('suppliers.actions.reactivate', 'suppliers', 'ACTION', 'Reactivate Supplier', { allowed: true }),
+      control('suppliers.actions.delete', 'suppliers', 'ACTION', 'Delete Supplier', { allowed: true }),
+      control('suppliers.actions.postOpeningBalance', 'suppliers', 'ACTION', 'Post Opening Balance', { allowed: true }),
+      control('suppliers.actions.refresh', 'suppliers', 'ACTION', 'Refresh List', { allowed: true }),
     ];
     await TestBed.configureTestingModule({
       imports: [OrganizationControlsPage],
@@ -1966,6 +1992,110 @@ describe('OrganizationControlsPage', () => {
       component.confirm();
 
       expect(resetModule).toHaveBeenCalledWith('org-a', 'customers', 4, '');
+    });
+  });
+
+  describe('Suppliers Module Controls', () => {
+    it('renders Suppliers module button, controls count, and sections', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('suppliers');
+      fixture.detectChanges();
+
+      expect(component.selectedModule()).toBe('suppliers');
+      expect(component.moduleLabel('suppliers')).toBe('Suppliers');
+
+      // Module control (1)
+      expect(component.moduleControls().length).toBe(1);
+      expect(component.moduleControls()[0]?.key).toBe('suppliers');
+
+      // View controls (0)
+      expect(component.viewControls().length).toBe(0);
+
+      // Module info controls (1)
+      expect(component.moduleInfoControls().length).toBe(1);
+      expect(component.moduleInfoControls()[0]?.key).toBe('suppliers.features.moduleInfo');
+
+      // Filter controls (2)
+      expect(component.filterControls().length).toBe(2);
+
+      // KPI controls (1)
+      expect(component.kpiControls().length).toBe(1);
+      expect(component.kpiControls()[0]?.key).toBe('suppliers.features.kpiCards');
+
+      // Inspector controls (2)
+      expect(component.inspectorControls().length).toBe(2);
+
+      // Configurable fields (3)
+      expect(component.fieldControls().length).toBe(3);
+
+      // Required platform-enforced fields (3: name, derivedBalances, openingBalance)
+      expect(component.requiredWorkflowControls().length).toBe(3);
+
+      // Actions (8)
+      expect(component.actionControls().length).toBe(8);
+    });
+
+    it('locks platform-enforced supplier fields as non-configurable', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('suppliers');
+
+      const nameControl = component.controls().find((item) => item.key === 'suppliers.fields.name');
+      expect(nameControl).toBeDefined();
+      if (nameControl) {
+        expect(component.isConfigurable(nameControl, 'visible')).toBe(false);
+        expect(component.modeLockedReason(nameControl, 'visible')).toBe(
+          'Platform rule: this required workflow field cannot be hidden or disabled.',
+        );
+      }
+
+      const balanceControl = component
+        .controls()
+        .find((item) => item.key === 'suppliers.fields.derivedBalances');
+      expect(balanceControl).toBeDefined();
+      if (balanceControl) {
+        expect(component.isConfigurable(balanceControl, 'visible')).toBe(false);
+        expect(component.modeLockedReason(balanceControl, 'visible')).toBe(
+          'Platform rule: this required workflow field cannot be hidden or disabled.',
+        );
+      }
+
+      const openingControl = component
+        .controls()
+        .find((item) => item.key === 'suppliers.fields.openingBalance');
+      expect(openingControl).toBeDefined();
+      if (openingControl) {
+        expect(component.isConfigurable(openingControl, 'visible')).toBe(false);
+        expect(component.modeLockedReason(openingControl, 'visible')).toBe(
+          'Platform rule: this required workflow field cannot be hidden or disabled.',
+        );
+      }
+    });
+
+    it('shows disable Suppliers confirmation title and message', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('suppliers');
+
+      const moduleCtrl = component.controls().find((item) => item.key === 'suppliers');
+      expect(moduleCtrl).toBeDefined();
+      if (moduleCtrl) {
+        component.setValue(moduleCtrl, 'enabled', false);
+      }
+
+      expect(component.disablingSuppliers()).toBe(true);
+      expect(component.confirmationTitle()).toBe('Disable Suppliers for Greenfield Agro Center?');
+      expect(component.confirmationMessage()).toBe(
+        'Users in this organization will no longer be able to access the Suppliers module or related operational features. Existing supplier data, balances, and history will not be deleted.',
+      );
+      expect(component.confirmationLabel()).toBe('Disable Suppliers');
+    });
+
+    it('calls the shared module reset API with suppliers module key', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('suppliers');
+      component.askResetModule();
+      component.confirm();
+
+      expect(resetModule).toHaveBeenCalledWith('org-a', 'suppliers', 4, '');
     });
   });
 });

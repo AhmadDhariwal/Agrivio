@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { SuppliersApi } from '../../data-access/suppliers.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
@@ -30,6 +31,7 @@ import { SupplierRecord } from '../../models/suppliers.models';
 export class SupplierFormPage {
   private readonly api = inject(SuppliersApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
@@ -41,10 +43,36 @@ export class SupplierFormPage {
   readonly errorMessage = signal<string | null>(null);
   readonly softWarning = signal<string | null>(null);
   readonly openingPosted = signal(false);
-  readonly canManage = computed(() => this.sessionStore.hasPermission('suppliers.manage'));
-  readonly canPostOpening = computed(() =>
-    this.sessionStore.hasPermission('suppliers.opening-balance.post'),
+
+  readonly canUseSuppliers = computed(
+    () => this.capabilityService?.canUseModule('suppliers') ?? true,
   );
+
+  readonly canManage = computed(() => {
+    const hasPerm = this.sessionStore.hasPermission('suppliers.manage');
+    if (!hasPerm || !this.canUseSuppliers()) return false;
+    const isEdit = Boolean(this.supplierId());
+    const actionKey = isEdit ? 'suppliers.actions.edit' : 'suppliers.actions.create';
+    return this.capabilityService?.canPerformAction(actionKey) ?? true;
+  });
+
+  readonly canPostOpening = computed(() => {
+    const hasPerm = this.sessionStore.hasPermission('suppliers.opening-balance.post');
+    const actionOk =
+      this.capabilityService?.canPerformAction('suppliers.actions.postOpeningBalance') ?? true;
+    return hasPerm && this.canUseSuppliers() && actionOk;
+  });
+
+  readonly showContactName = computed(
+    () => this.capabilityService?.canViewField('suppliers.fields.contactName') ?? true,
+  );
+  readonly showPhone = computed(
+    () => this.capabilityService?.canViewField('suppliers.fields.phone') ?? true,
+  );
+  readonly showEmail = computed(
+    () => this.capabilityService?.canViewField('suppliers.fields.email') ?? true,
+  );
+
   private version = 1;
 
   readonly fieldRequired = hasRequiredValidator;
@@ -63,6 +91,7 @@ export class SupplierFormPage {
   });
 
   constructor() {
+    this.checkFieldPermissions();
     const id = this.route.snapshot.paramMap.get('id');
     if (id && id !== 'new') {
       this.supplierId.set(id);
@@ -165,12 +194,28 @@ export class SupplierFormPage {
       status: supplier.status,
     });
     this.openingPosted.set(Boolean(supplier.openingBalance));
+    this.checkFieldPermissions();
     if (supplier.openingBalance) {
       this.openingForm.patchValue({
         kind: supplier.openingBalance.kind,
         amount: supplier.openingBalance.amount.amount,
       });
       this.openingForm.disable();
+    }
+  }
+
+  private checkFieldPermissions(): void {
+    if (this.capabilityService && !this.capabilityService.canEditField('suppliers.fields.name')) {
+      this.form.controls.name.disable();
+    }
+    if (this.capabilityService && !this.capabilityService.canEditField('suppliers.fields.contactName')) {
+      this.form.controls.contactName.disable();
+    }
+    if (this.capabilityService && !this.capabilityService.canEditField('suppliers.fields.phone')) {
+      this.form.controls.phone.disable();
+    }
+    if (this.capabilityService && !this.capabilityService.canEditField('suppliers.fields.email')) {
+      this.form.controls.email.disable();
     }
   }
 

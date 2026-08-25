@@ -90,6 +90,7 @@
             </div>
 
             <!-- Contact Person -->
+            @if (showContactName()) {
             <div class="ag-field">
               <agrivio-ui-field-label label="Contact name" for="supplier-contact-name" />
               <input
@@ -100,8 +101,10 @@
                 data-testid="supplier-contact-name"
               />
             </div>
+            }
 
             <!-- Phone -->
+            @if (showPhone()) {
             <div class="ag-field">
               <agrivio-ui-field-label label="Phone" for="supplier-phone" />
               <input
@@ -112,8 +115,10 @@
                 data-testid="supplier-phone"
               />
             </div>
+            }
 
             <!-- Email -->
+            @if (showEmail()) {
             <div class="ag-field">
               <agrivio-ui-field-label label="Email" for="supplier-email" />
               <input
@@ -124,6 +129,7 @@
                 data-testid="supplier-email"
               />
             </div>
+            }
           </div>
         </div>
       </section>

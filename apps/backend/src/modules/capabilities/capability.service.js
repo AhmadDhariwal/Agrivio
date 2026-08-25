@@ -19,6 +19,7 @@ const {
   RECONCILIATION_MODULE_KEY,
   MOVEMENTS_MODULE_KEY,
   CUSTOMERS_MODULE_KEY,
+  SUPPLIERS_MODULE_KEY,
   getCapabilityControl,
   listCapabilityControls,
 } = require('./capability.registry');
@@ -57,6 +58,13 @@ const CUSTOMER_CREDIT_FIELD_CONTROLS = Object.freeze({
   creditEnabled: 'customers.fields.creditEnabled',
   creditLimitAmountMinorUnits: 'customers.fields.creditLimit',
   creditLimitBehaviour: 'customers.fields.creditLimitBehaviour',
+});
+
+const SUPPLIER_FIELD_CONTROLS = Object.freeze({
+  name: 'suppliers.fields.name',
+  contactName: 'suppliers.fields.contactName',
+  phone: 'suppliers.fields.phone',
+  email: 'suppliers.fields.email',
 });
 
 function cloneValue(value) {
@@ -453,6 +461,7 @@ function createCapabilityService(deps) {
           RECONCILIATION_MODULE_KEY,
           MOVEMENTS_MODULE_KEY,
           CUSTOMERS_MODULE_KEY,
+          SUPPLIERS_MODULE_KEY,
         ].includes(moduleKey)
       ) {
         throw validationFailed(`Unknown configurable module ${moduleKey}`);
@@ -610,6 +619,32 @@ function createCapabilityService(deps) {
     async assertCustomerOpeningBalanceAllowed(organizationId) {
       await assertAllowed(organizationId, 'customers.actions.postOpeningBalance', 'allowed');
     },
+
+    async assertSupplierCreateAllowed(organizationId) {
+      await assertAllowed(organizationId, 'suppliers.actions.create', 'allowed');
+    },
+
+    async assertSupplierPatchAllowed(organizationId, current, patch) {
+      await assertAllowed(organizationId, 'suppliers.actions.edit', 'allowed');
+      const changedFields = Object.keys(SUPPLIER_FIELD_CONTROLS).filter(
+        (field) => patch[field] !== undefined && String(patch[field]) !== String(current[field]),
+      );
+      for (const field of changedFields) {
+        await assertAllowed(organizationId, SUPPLIER_FIELD_CONTROLS[field], 'editable');
+      }
+      if (patch.status !== undefined && patch.status !== current.status) {
+        const action = patch.status === 'active' ? 'reactivate' : 'deactivate';
+        await assertAllowed(organizationId, `suppliers.actions.${action}`, 'allowed');
+      }
+    },
+
+    async assertSupplierDeleteAllowed(organizationId) {
+      await assertAllowed(organizationId, 'suppliers.actions.delete', 'allowed');
+    },
+
+    async assertSupplierOpeningBalanceAllowed(organizationId) {
+      await assertAllowed(organizationId, 'suppliers.actions.postOpeningBalance', 'allowed');
+    },
   };
 }
 
@@ -620,4 +655,5 @@ module.exports = {
   CUSTOMER_CREDIT_FIELD_CONTROLS,
   CUSTOMER_FIELD_CONTROLS,
   PRODUCT_FIELD_CONTROLS,
+  SUPPLIER_FIELD_CONTROLS,
 };

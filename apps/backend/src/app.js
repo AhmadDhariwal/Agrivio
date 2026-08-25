@@ -262,6 +262,7 @@ function createApp(options) {
       evaluateEntitlement: (organizationId, entitlementOptions) =>
         subscriptions.subscriptionService.evaluateEntitlement(organizationId, entitlementOptions),
       ledgersService: options.ledgersService ?? ledgers.ledgersService,
+      capabilityService: capabilities.capabilityService,
       ...(options.now === undefined ? {} : { now: options.now }),
       ...(masterRefs === null
         ? {}
@@ -584,6 +585,7 @@ function createApp(options) {
 
   const suppliersRoutes = registerSuppliersRoutes({
     suppliersService: suppliers.suppliersService,
+    capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,

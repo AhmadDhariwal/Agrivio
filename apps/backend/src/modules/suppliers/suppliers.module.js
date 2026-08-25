@@ -135,6 +135,9 @@ function createSuppliersService(deps) {
 
     async createSupplier(organizationId, body, actor, options = {}) {
       const input = parseSupplierCreate(body);
+      if (typeof deps.capabilityService?.assertSupplierCreateAllowed === 'function') {
+        await deps.capabilityService.assertSupplierCreateAllowed(organizationId);
+      }
       const currentUsage = await store.countSuppliers(organizationId);
       const entitlement = await assertCreationLimit(
         evaluateEntitlement,
@@ -173,6 +176,9 @@ function createSuppliersService(deps) {
             throw notFound('Supplier not found');
           }
           assertOptimisticVersion(current, expectedVersion);
+          if (typeof deps.capabilityService?.assertSupplierPatchAllowed === 'function') {
+            await deps.capabilityService.assertSupplierPatchAllowed(organizationId, current, patch);
+          }
           const updated = await store.updateSupplier(session, organizationId, supplierId, {
             ...patch,
             version: Number(current['version']) + 1,
@@ -196,6 +202,9 @@ function createSuppliersService(deps) {
       const current = await store.findSupplierById(organizationId, supplierId);
       if (current === null) {
         throw notFound('Supplier not found');
+      }
+      if (typeof deps.capabilityService?.assertSupplierDeleteAllowed === 'function') {
+        await deps.capabilityService.assertSupplierDeleteAllowed(organizationId);
       }
       const reasons = [];
       if (current.openingBalance && current.openingBalance.status === 'posted') {
@@ -227,6 +236,9 @@ function createSuppliersService(deps) {
         throw validationFailed('Ledger service is not configured');
       }
       const input = parseSupplierOpeningBalance(body);
+      if (typeof deps.capabilityService?.assertSupplierOpeningBalanceAllowed === 'function') {
+        await deps.capabilityService.assertSupplierOpeningBalanceAllowed(organizationId);
+      }
 
       const postWork = async (session) => {
             const current = await store.findSupplierById(organizationId, supplierId);
@@ -368,6 +380,9 @@ function createSuppliersModule(options) {
       ? {}
       : { evaluateEntitlement: options.evaluateEntitlement }),
     ...(options.ledgersService === undefined ? {} : { ledgersService: options.ledgersService }),
+    ...(options.capabilityService === undefined
+      ? {}
+      : { capabilityService: options.capabilityService }),
     ...(options.now === undefined ? {} : { now: options.now }),
     ...(options.listSupplierReferences === undefined
       ? {}

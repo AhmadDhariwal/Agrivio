@@ -24,6 +24,7 @@ const TRANSFERS_MODULE_KEY = 'inventory.transfers';
 const RECONCILIATION_MODULE_KEY = 'inventory.reconciliation';
 const MOVEMENTS_MODULE_KEY = 'inventory.movements';
 const CUSTOMERS_MODULE_KEY = 'customers';
+const SUPPLIERS_MODULE_KEY = 'suppliers';
 
 const definitions = [
   {
@@ -1596,6 +1597,131 @@ const definitions = [
       ? { reason: 'The policy can block deletion but cannot bypass record-in-use protection (posted opening balance or transaction references).' }
       : {}),
   })),
+  {
+    key: SUPPLIERS_MODULE_KEY,
+    parentKey: null,
+    moduleKey: SUPPLIERS_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Suppliers',
+    description: 'Supplier management screens and Supplier API operations for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'suppliers.view' },
+    reason:
+      'Disabling access hides Suppliers and blocks all Supplier API operations without deleting supplier records or altering financial history.',
+  },
+  ...[
+    ['moduleInfo', 'About Suppliers', 'Show the Suppliers guidance panel.'],
+    ['search', 'Search', 'Search Suppliers by name.'],
+    ['statusFilter', 'Status Filter', 'Filter Suppliers by active or inactive status.'],
+    ['kpiCards', 'KPI Cards', 'Show the Total Suppliers summary card.'],
+    ['inspector', 'Supplier Inspector', 'Open the Supplier details drawer.'],
+    ['technicalDetails', 'Technical Details', 'Show technical supplier metadata in the inspector.'],
+  ].map(([id, label, description]) => ({
+    key: `suppliers.features.${id}`,
+    parentKey: SUPPLIERS_MODULE_KEY,
+    moduleKey: SUPPLIERS_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'suppliers.view' },
+  })),
+  {
+    key: 'suppliers.fields.name',
+    parentKey: SUPPLIERS_MODULE_KEY,
+    moduleKey: SUPPLIERS_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label: 'Supplier name',
+    description: 'Required supplier identity field.',
+    defaultPolicy: { visible: true, editable: true },
+    configurable: { visible: false, editable: true },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'suppliers.view', editable: 'suppliers.manage' },
+    reason: 'Supplier name visibility is required for identity and valid workflow operation.',
+  },
+  ...[
+    ['contactName', 'Contact name', 'Primary supplier contact person.'],
+    ['phone', 'Phone', 'Supplier phone number.'],
+    ['email', 'Email', 'Supplier email address.'],
+  ].map(([id, label, description]) => ({
+    key: `suppliers.fields.${id}`,
+    parentKey: SUPPLIERS_MODULE_KEY,
+    moduleKey: SUPPLIERS_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description,
+    defaultPolicy: { visible: true, editable: true },
+    configurable: { visible: true, editable: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { visible: 'suppliers.view', editable: 'suppliers.manage' },
+  })),
+  {
+    key: 'suppliers.fields.derivedBalances',
+    parentKey: SUPPLIERS_MODULE_KEY,
+    moduleKey: SUPPLIERS_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label: 'Derived balances (payable / advance)',
+    description: 'Backend-computed payable and advance balances.',
+    defaultPolicy: { visible: true },
+    configurable: { visible: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'suppliers.view' },
+    reason:
+      'Derived balances are backend-owned. The organization capability system cannot alter financial calculations or fabricate balance data.',
+  },
+  {
+    key: 'suppliers.fields.openingBalance',
+    parentKey: SUPPLIERS_MODULE_KEY,
+    moduleKey: SUPPLIERS_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label: 'Opening balance',
+    description: 'Posted supplier opening balance details.',
+    defaultPolicy: { visible: true },
+    configurable: { visible: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'suppliers.view' },
+    reason:
+      'Opening balance is a posted ledger transaction. Hiding it could cause financial decisions based on incomplete supplier history.',
+  },
+  ...[
+    ['create', 'Create supplier', 'suppliers.manage', RISK_LEVELS.Recommended],
+    ['inspect', 'Inspect supplier', 'suppliers.view', RISK_LEVELS.Normal],
+    ['edit', 'Edit supplier', 'suppliers.manage', RISK_LEVELS.Recommended],
+    ['deactivate', 'Deactivate supplier', 'suppliers.manage', RISK_LEVELS.Recommended],
+    ['reactivate', 'Reactivate supplier', 'suppliers.manage', RISK_LEVELS.Recommended],
+    ['delete', 'Delete permanently', 'suppliers.manage', RISK_LEVELS.Critical],
+    [
+      'postOpeningBalance',
+      'Post opening balance',
+      'suppliers.opening-balance.post',
+      RISK_LEVELS.Critical,
+    ],
+    ['refresh', 'Refresh', 'suppliers.view', RISK_LEVELS.Normal],
+  ].map(([id, label, permission, risk]) => ({
+    key: `suppliers.actions.${id}`,
+    parentKey: SUPPLIERS_MODULE_KEY,
+    moduleKey: SUPPLIERS_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label,
+    description: `${label} action. Existing validation, lifecycle rules, and RBAC still apply.`,
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk,
+    requiredPermissions: { allowed: permission },
+    ...(id === 'delete'
+      ? {
+          reason:
+            'The policy can block deletion but cannot bypass record-in-use protection (posted opening balance or transaction references).',
+        }
+      : {}),
+  })),
 ];
 
 const registry = new Map(
@@ -1639,6 +1765,7 @@ module.exports = {
   RECONCILIATION_MODULE_KEY,
   MOVEMENTS_MODULE_KEY,
   CUSTOMERS_MODULE_KEY,
+  SUPPLIERS_MODULE_KEY,
   listCapabilityControls,
   getCapabilityControl,
 };

@@ -325,6 +325,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'suppliers',
+        canActivate: [requireCapabilityGuard('suppliers')],
         loadComponent: () =>
           import('./features/suppliers/pages/suppliers/suppliers.page').then(
             (m) => m.SuppliersPage,
@@ -332,6 +333,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'suppliers/new',
+        canActivate: [
+          requireCapabilityGuard('suppliers'),
+          requireCapabilityGuard('suppliers.actions.create', 'action'),
+        ],
         loadComponent: () =>
           import('./features/suppliers/pages/supplier-form/supplier-form.page').then(
             (m) => m.SupplierFormPage,
@@ -339,6 +344,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'suppliers/:id',
+        canActivate: [
+          requireCapabilityGuard('suppliers'),
+          requireCapabilityGuard('suppliers.actions.edit', 'action'),
+        ],
         loadComponent: () =>
           import('./features/suppliers/pages/supplier-form/supplier-form.page').then(
             (m) => m.SupplierFormPage,

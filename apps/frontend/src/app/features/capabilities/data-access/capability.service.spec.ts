@@ -276,4 +276,53 @@ describe('CapabilityService', () => {
     expect(service.canPerformAction('customers.actions.postOpeningBalance')).toBe(true);
     expect(service.canPerformAction('customers.actions.refresh')).toBe(true);
   });
+
+  it('provides default enabled/visible/allowed values for all 21 suppliers.* controls matching backend registry', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        CapabilityService,
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            activeContext: () => ({ organizationId: 'org-test' }),
+          },
+        },
+      ],
+    });
+
+    const service = TestBed.inject(CapabilityService);
+
+    // 1 Module
+    expect(service.canUseModule('suppliers')).toBe(true);
+
+    // 6 Features
+    expect(service.canUseView('suppliers.features.moduleInfo')).toBe(true);
+    expect(service.canUseView('suppliers.features.search')).toBe(true);
+    expect(service.canUseView('suppliers.features.statusFilter')).toBe(true);
+    expect(service.canUseView('suppliers.features.kpiCards')).toBe(true);
+    expect(service.canUseView('suppliers.features.inspector')).toBe(true);
+    expect(service.canUseView('suppliers.features.technicalDetails')).toBe(true);
+
+    // 6 Fields
+    expect(service.canViewField('suppliers.fields.name')).toBe(true);
+    expect(service.canEditField('suppliers.fields.name')).toBe(true);
+    expect(service.canViewField('suppliers.fields.contactName')).toBe(true);
+    expect(service.canEditField('suppliers.fields.contactName')).toBe(true);
+    expect(service.canViewField('suppliers.fields.phone')).toBe(true);
+    expect(service.canEditField('suppliers.fields.phone')).toBe(true);
+    expect(service.canViewField('suppliers.fields.email')).toBe(true);
+    expect(service.canEditField('suppliers.fields.email')).toBe(true);
+    expect(service.canViewField('suppliers.fields.derivedBalances')).toBe(true);
+    expect(service.canViewField('suppliers.fields.openingBalance')).toBe(true);
+
+    // 8 Actions
+    expect(service.canPerformAction('suppliers.actions.create')).toBe(true);
+    expect(service.canPerformAction('suppliers.actions.inspect')).toBe(true);
+    expect(service.canPerformAction('suppliers.actions.edit')).toBe(true);
+    expect(service.canPerformAction('suppliers.actions.deactivate')).toBe(true);
+    expect(service.canPerformAction('suppliers.actions.reactivate')).toBe(true);
+    expect(service.canPerformAction('suppliers.actions.delete')).toBe(true);
+    expect(service.canPerformAction('suppliers.actions.postOpeningBalance')).toBe(true);
+    expect(service.canPerformAction('suppliers.actions.refresh')).toBe(true);
+  });
 });

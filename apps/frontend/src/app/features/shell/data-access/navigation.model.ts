@@ -246,6 +246,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Suppliers',
           route: '/app/suppliers',
           permission: 'suppliers.view',
+          capabilityKey: 'suppliers',
           testId: 'nav-suppliers',
         },
       ],

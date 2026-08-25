@@ -11,6 +11,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { SuppliersApi } from '../../data-access/suppliers.api';
 import { SupplierRecord } from '../../models/suppliers.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
@@ -76,6 +77,7 @@ export class SuppliersPage {
 
   private readonly api = inject(SuppliersApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
 
   readonly items = signal<SupplierRecord[]>([]);
@@ -106,8 +108,84 @@ export class SuppliersPage {
   private readonly searchChanges = new Subject<string>();
   private clampAfterLoad = false;
 
-  readonly canManage = computed(() => this.sessionStore.hasPermission('suppliers.manage'));
-  readonly canView = computed(() => this.sessionStore.hasPermission('suppliers.view'));
+  readonly canUseSuppliers = computed(
+    () => this.capabilityService?.canUseModule('suppliers') ?? true,
+  );
+  readonly canManage = computed(
+    () => this.sessionStore.hasPermission('suppliers.manage') && this.canUseSuppliers(),
+  );
+  readonly canView = computed(
+    () => this.sessionStore.hasPermission('suppliers.view') && this.canUseSuppliers(),
+  );
+
+  // Feature Computeds
+  readonly showModuleInfo = computed(
+    () => this.capabilityService?.canUseView('suppliers.features.moduleInfo') ?? true,
+  );
+  readonly showSearch = computed(
+    () => this.capabilityService?.canUseView('suppliers.features.search') ?? true,
+  );
+  readonly showStatusFilter = computed(
+    () => this.capabilityService?.canUseView('suppliers.features.statusFilter') ?? true,
+  );
+  readonly showKpiCards = computed(
+    () => this.capabilityService?.canUseView('suppliers.features.kpiCards') ?? true,
+  );
+  readonly showInspector = computed(
+    () => this.capabilityService?.canUseView('suppliers.features.inspector') ?? true,
+  );
+  readonly showTechnicalDetails = computed(
+    () => this.capabilityService?.canUseView('suppliers.features.technicalDetails') ?? true,
+  );
+
+  // Field Computeds
+  readonly showContactName = computed(
+    () => this.capabilityService?.canViewField('suppliers.fields.contactName') ?? true,
+  );
+  readonly showPhone = computed(
+    () => this.capabilityService?.canViewField('suppliers.fields.phone') ?? true,
+  );
+  readonly showEmail = computed(
+    () => this.capabilityService?.canViewField('suppliers.fields.email') ?? true,
+  );
+
+  // Action Computeds
+  readonly canCreate = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('suppliers.actions.create') ?? true),
+  );
+  readonly canInspect = computed(
+    () =>
+      this.canView() &&
+      (this.capabilityService?.canPerformAction('suppliers.actions.inspect') ?? true),
+  );
+  readonly canEdit = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('suppliers.actions.edit') ?? true),
+  );
+  readonly canDeactivate = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('suppliers.actions.deactivate') ?? true),
+  );
+  readonly canReactivate = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('suppliers.actions.reactivate') ?? true),
+  );
+  readonly canDelete = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('suppliers.actions.delete') ?? true),
+  );
+  readonly canRefresh = computed(
+    () =>
+      this.canView() &&
+      (this.capabilityService?.canPerformAction('suppliers.actions.refresh') ?? true),
+  );
+
   readonly hasActiveFilters = computed(
     () => this.statusFilter() !== 'active' || this.search().trim().length > 0,
   );

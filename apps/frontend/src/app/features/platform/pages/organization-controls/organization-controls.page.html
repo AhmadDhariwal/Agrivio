@@ -135,6 +135,15 @@
       >
         Customers
       </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'suppliers'"
+        (click)="selectModule('suppliers')"
+        data-testid="suppliers-control-module"
+      >
+        Suppliers
+      </button>
       <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>
 
@@ -190,7 +199,8 @@
               selectedModule() === 'inventory.expiry' ||
               selectedModule() === 'inventory.reconciliation' ||
               selectedModule() === 'inventory.movements' ||
-              selectedModule() === 'customers'
+              selectedModule() === 'customers' ||
+              selectedModule() === 'suppliers'
                 ? 'Required Fields'
                 : 'Required Workflow Fields',
             controls: requiredWorkflowControls()
