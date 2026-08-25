@@ -1434,19 +1434,6 @@ const definitions = [
     reason:
       'Disabling access hides Customers and blocks all Customer API operations without deleting customer records or altering financial history.',
   },
-  {
-    key: 'customers.views.desktopCards',
-    parentKey: CUSTOMERS_MODULE_KEY,
-    moduleKey: CUSTOMERS_MODULE_KEY,
-    type: CONTROL_TYPES.View,
-    label: 'Desktop card view',
-    description: 'Optional user-selectable card layout for Customers on desktop and tablet.',
-    defaultPolicy: { enabled: true },
-    configurable: { enabled: true },
-    risk: RISK_LEVELS.Normal,
-    requiredPermissions: { enabled: 'customers.view' },
-    reason: 'Responsive phone cards remain a platform-enforced renderer so Customers stays usable on mobile.',
-  },
   ...[
     ['moduleInfo', 'About Customers', 'Show the Customers guidance panel.'],
     ['search', 'Search', 'Search Customers by name or phone.'],

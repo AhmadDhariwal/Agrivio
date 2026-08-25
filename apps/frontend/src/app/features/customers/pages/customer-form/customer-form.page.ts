@@ -6,7 +6,6 @@ import { switchMap } from 'rxjs';
 import { CustomersApi } from '../../data-access/customers.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
@@ -65,6 +64,15 @@ export class CustomerFormPage {
     const actionOk =
       this.capabilityService?.canPerformAction('customers.actions.postOpeningBalance') ?? true;
     return hasPerm && this.canUseCustomers() && actionOk;
+  });
+
+  readonly canEditCreditPolicy = computed(() => {
+    const hasPerm = this.sessionStore.hasPermission('customers.credit-policy.manage');
+    const actionOk =
+      this.capabilityService?.canPerformAction('customers.actions.editCreditPolicy') ?? true;
+    const fieldEditable =
+      this.capabilityService?.canEditField('customers.fields.creditEnabled') ?? true;
+    return hasPerm && this.canUseCustomers() && actionOk && fieldEditable;
   });
 
   readonly showCreditSection = computed(
@@ -163,35 +171,38 @@ export class CustomerFormPage {
       return;
     }
 
-    this.api
-      .updateCustomer(this.customerId()!, {
-        expectedVersion: this.version,
-        name: value.name,
-        phone: value.phone,
-        customerType: value.customerType,
-        priceTier: value.priceTier,
-        status: value.status,
-      })
-      .pipe(
-        switchMap((customer) =>
-          this.api.updateCreditPolicy(this.customerId()!, {
-            expectedVersion: customer.version,
-            creditEnabled: value.creditEnabled,
-            creditLimit,
-            creditLimitBehaviour: value.creditLimitBehaviour,
-          }),
-        ),
-      )
-      .subscribe({
-        next: () => {
-          this.saving.set(false);
-          void this.router.navigateByUrl('/app/customers');
-        },
-        error: (error: unknown) => {
-          this.saving.set(false);
-          this.errorMessage.set(this.mapError(error, 'Unable to save customer.'));
-        },
-      });
+    const update$ = this.api.updateCustomer(this.customerId()!, {
+      expectedVersion: this.version,
+      name: value.name,
+      phone: value.phone,
+      customerType: value.customerType,
+      priceTier: value.priceTier,
+      status: value.status,
+    });
+
+    const pipeline$ = this.canEditCreditPolicy()
+      ? update$.pipe(
+          switchMap((customer) =>
+            this.api.updateCreditPolicy(this.customerId()!, {
+              expectedVersion: customer.version,
+              creditEnabled: value.creditEnabled,
+              creditLimit,
+              creditLimitBehaviour: value.creditLimitBehaviour,
+            }),
+          ),
+        )
+      : update$;
+
+    pipeline$.subscribe({
+      next: () => {
+        this.saving.set(false);
+        void this.router.navigateByUrl('/app/customers');
+      },
+      error: (error: unknown) => {
+        this.saving.set(false);
+        this.errorMessage.set(this.mapError(error, 'Unable to save customer.'));
+      },
+    });
   }
 
   postOpening(): void {
@@ -236,6 +247,29 @@ export class CustomerFormPage {
       creditLimitBehaviour: customer.creditLimitBehaviour,
       status: customer.status,
     });
+    if (this.customerId() && !this.canEditCreditPolicy()) {
+      this.form.controls.creditEnabled.disable();
+      this.form.controls.creditLimitAmount.disable();
+      this.form.controls.creditLimitBehaviour.disable();
+    }
+    if (this.capabilityService && !this.capabilityService.canEditField('customers.fields.name')) {
+      this.form.controls.name.disable();
+    }
+    if (this.capabilityService && !this.capabilityService.canEditField('customers.fields.phone')) {
+      this.form.controls.phone.disable();
+    }
+    if (this.capabilityService && !this.capabilityService.canEditField('customers.fields.customerType')) {
+      this.form.controls.customerType.disable();
+    }
+    if (this.capabilityService && !this.capabilityService.canEditField('customers.fields.priceTier')) {
+      this.form.controls.priceTier.disable();
+    }
+    if (this.capabilityService && !this.capabilityService.canEditField('customers.fields.creditLimit')) {
+      this.form.controls.creditLimitAmount.disable();
+    }
+    if (this.capabilityService && !this.capabilityService.canEditField('customers.fields.creditLimitBehaviour')) {
+      this.form.controls.creditLimitBehaviour.disable();
+    }
     this.openingPosted.set(Boolean(customer.openingBalance));
     this.derivedReceivable.set(customer.derivedBalances?.receivable.amount ?? null);
     this.derivedAdvance.set(customer.derivedBalances?.advance.amount ?? null);

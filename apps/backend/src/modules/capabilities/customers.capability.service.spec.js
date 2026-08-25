@@ -3,11 +3,13 @@ import transactionRunnerModule from '../../platform/transactions/transaction-run
 import auditWriterModule from '../../platform/audit/audit-writer';
 import capabilityStoreModule from './capability.store';
 import capabilityServiceModule from './capability.service';
+import capabilityRegistryModule from './capability.registry';
 
 const { createMockTransactionSessionPort, createTransactionRunner } = transactionRunnerModule;
 const { createInMemoryAuditEventStore } = auditWriterModule;
 const { createInMemoryCapabilityPolicyStore } = capabilityStoreModule;
 const { createCapabilityService } = capabilityServiceModule;
+const { listCapabilityControls } = capabilityRegistryModule;
 
 function createHarness(options = {}) {
   const store = createInMemoryCapabilityPolicyStore();
@@ -28,6 +30,41 @@ function control(result, key) {
 }
 
 describe('Customers capability controls', () => {
+  it('registers the exact authoritative Customers control set', () => {
+    expect(
+      listCapabilityControls()
+        .filter((item) => item.moduleKey === 'customers')
+        .map((item) => item.key),
+    ).toEqual([
+      'customers',
+      'customers.features.moduleInfo',
+      'customers.features.search',
+      'customers.features.statusFilter',
+      'customers.features.kpiCards',
+      'customers.features.inspector',
+      'customers.features.technicalDetails',
+      'customers.features.creditSection',
+      'customers.fields.name',
+      'customers.fields.customerType',
+      'customers.fields.creditEnabled',
+      'customers.fields.phone',
+      'customers.fields.priceTier',
+      'customers.fields.creditLimit',
+      'customers.fields.creditLimitBehaviour',
+      'customers.fields.derivedBalances',
+      'customers.fields.openingBalance',
+      'customers.actions.create',
+      'customers.actions.inspect',
+      'customers.actions.edit',
+      'customers.actions.deactivate',
+      'customers.actions.reactivate',
+      'customers.actions.delete',
+      'customers.actions.editCreditPolicy',
+      'customers.actions.postOpeningBalance',
+      'customers.actions.refresh',
+    ]);
+  });
+
   it('preserves current Customers behavior when an organization has no policy document', async () => {
     const { capabilityService } = createHarness();
     const effective = await capabilityService.resolveEffective('org-a', {
@@ -35,7 +72,6 @@ describe('Customers capability controls', () => {
     });
 
     expect(control(effective, 'customers').effectiveValue.enabled).toBe(true);
-    expect(control(effective, 'customers.views.desktopCards').effectiveValue.enabled).toBe(true);
     expect(control(effective, 'customers.features.moduleInfo').effectiveValue.enabled).toBe(true);
     expect(control(effective, 'customers.features.search').effectiveValue.enabled).toBe(true);
     expect(control(effective, 'customers.features.statusFilter').effectiveValue.enabled).toBe(true);
@@ -73,7 +109,6 @@ describe('Customers capability controls', () => {
       permissions: ['customers.view', 'customers.manage'],
     });
     expect(control(effective, 'customers').effectiveValue.enabled).toBe(false);
-    expect(control(effective, 'customers.views.desktopCards').effectiveValue.enabled).toBe(false);
     expect(control(effective, 'customers.features.moduleInfo').effectiveValue.enabled).toBe(false);
     expect(control(effective, 'customers.actions.create').effectiveValue.allowed).toBe(false);
     expect(control(effective, 'customers.actions.edit').effectiveValue.allowed).toBe(false);
@@ -266,6 +301,148 @@ describe('Customers capability controls', () => {
     const effective = await capabilityService.resolveEffective('org-a', { permissions: ['customers.view', 'customers.manage'] });
     expect(control(effective, 'customers').effectiveValue.enabled).toBe(false);
     expect(control(effective, 'customers').reasons).toContain('subscription_unavailable');
+  });
+
+  it('requires Edit for a normal customer mutation', async () => {
+    const { capabilityService } = createHarness();
+    await capabilityService.updatePolicy(
+      'org-a',
+      {
+        expectedVersion: 0,
+        changes: [{ key: 'customers.actions.edit', value: { allowed: false } }],
+      },
+      { actorId: 'platform-admin' },
+    );
+
+    await expect(
+      capabilityService.assertCustomerPatchAllowed(
+        'org-a',
+        { name: 'Old name', status: 'active' },
+        { name: 'New name' },
+      ),
+    ).rejects.toMatchObject({ code: 'ORG_ACTION_NOT_ALLOWED' });
+  });
+
+  it('also requires Deactivate or Reactivate for the matching lifecycle transition', async () => {
+    const deactivateHarness = createHarness();
+    await deactivateHarness.capabilityService.updatePolicy(
+      'org-a',
+      {
+        expectedVersion: 0,
+        changes: [{ key: 'customers.actions.deactivate', value: { allowed: false } }],
+      },
+      { actorId: 'platform-admin' },
+    );
+    await expect(
+      deactivateHarness.capabilityService.assertCustomerPatchAllowed(
+        'org-a',
+        { status: 'active' },
+        { status: 'inactive' },
+      ),
+    ).rejects.toMatchObject({ code: 'ORG_ACTION_NOT_ALLOWED' });
+
+    const reactivateHarness = createHarness();
+    await reactivateHarness.capabilityService.updatePolicy(
+      'org-a',
+      {
+        expectedVersion: 0,
+        changes: [{ key: 'customers.actions.reactivate', value: { allowed: false } }],
+      },
+      { actorId: 'platform-admin' },
+    );
+    await expect(
+      reactivateHarness.capabilityService.assertCustomerPatchAllowed(
+        'org-a',
+        { status: 'inactive' },
+        { status: 'active' },
+      ),
+    ).rejects.toMatchObject({ code: 'ORG_ACTION_NOT_ALLOWED' });
+  });
+
+  it('enforces configurable customer field editability on backend mutations', async () => {
+    const { capabilityService } = createHarness();
+    await capabilityService.updatePolicy(
+      'org-a',
+      {
+        expectedVersion: 0,
+        changes: [
+          {
+            key: 'customers.fields.phone',
+            value: { visible: true, editable: false },
+          },
+        ],
+      },
+      { actorId: 'platform-admin' },
+    );
+
+    await expect(
+      capabilityService.assertCustomerPatchAllowed(
+        'org-a',
+        { phone: '03001234567', status: 'active' },
+        { phone: '03007654321' },
+      ),
+    ).rejects.toMatchObject({ code: 'ORG_FIELD_NOT_EDITABLE' });
+  });
+
+  it('requires Edit Credit Policy and enforces its configurable field editability', async () => {
+    const actionHarness = createHarness();
+    await actionHarness.capabilityService.updatePolicy(
+      'org-a',
+      {
+        expectedVersion: 0,
+        changes: [
+          { key: 'customers.actions.editCreditPolicy', value: { allowed: false } },
+        ],
+      },
+      { actorId: 'platform-admin' },
+    );
+    await expect(
+      actionHarness.capabilityService.assertCustomerCreditPolicyAllowed(
+        'org-a',
+        { creditEnabled: false },
+        { creditEnabled: true },
+      ),
+    ).rejects.toMatchObject({ code: 'ORG_ACTION_NOT_ALLOWED' });
+
+    const fieldHarness = createHarness();
+    await fieldHarness.capabilityService.updatePolicy(
+      'org-a',
+      {
+        expectedVersion: 0,
+        changes: [
+          {
+            key: 'customers.fields.creditLimit',
+            value: { visible: true, editable: false },
+          },
+        ],
+      },
+      { actorId: 'platform-admin' },
+    );
+    await expect(
+      fieldHarness.capabilityService.assertCustomerCreditPolicyAllowed(
+        'org-a',
+        { creditLimitAmountMinorUnits: '10000' },
+        { creditLimitAmountMinorUnits: '20000' },
+      ),
+    ).rejects.toMatchObject({ code: 'ORG_FIELD_NOT_EDITABLE' });
+  });
+
+  it('requires Post Opening Balance for opening balance mutation', async () => {
+    const { capabilityService } = createHarness();
+    await capabilityService.updatePolicy(
+      'org-a',
+      {
+        expectedVersion: 0,
+        changes: [
+          { key: 'customers.actions.postOpeningBalance', value: { allowed: false } },
+        ],
+      },
+      { actorId: 'platform-admin' },
+    );
+
+    await expect(
+      capabilityService.assertCustomerOpeningBalanceAllowed('org-a'),
+    ).rejects.toMatchObject({ code: 'ORG_ACTION_NOT_ALLOWED' });
   });
 });
 

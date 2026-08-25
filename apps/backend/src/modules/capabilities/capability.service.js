@@ -46,6 +46,19 @@ const CATEGORY_FIELD_CONTROLS = Object.freeze({
   productClass: 'inventory.categories.fields.productClass',
 });
 
+const CUSTOMER_FIELD_CONTROLS = Object.freeze({
+  name: 'customers.fields.name',
+  phone: 'customers.fields.phone',
+  customerType: 'customers.fields.customerType',
+  priceTier: 'customers.fields.priceTier',
+});
+
+const CUSTOMER_CREDIT_FIELD_CONTROLS = Object.freeze({
+  creditEnabled: 'customers.fields.creditEnabled',
+  creditLimitAmountMinorUnits: 'customers.fields.creditLimit',
+  creditLimitBehaviour: 'customers.fields.creditLimitBehaviour',
+});
+
 function cloneValue(value) {
   return Object.fromEntries(Object.entries(value ?? {}).map(([key, item]) => [key, item]));
 }
@@ -554,8 +567,18 @@ function createCapabilityService(deps) {
       await assertAllowed(organizationId, 'customers.actions.create', 'allowed');
     },
 
-    async assertCustomerEditAllowed(organizationId) {
+    async assertCustomerPatchAllowed(organizationId, current, patch) {
       await assertAllowed(organizationId, 'customers.actions.edit', 'allowed');
+      const changedFields = Object.keys(CUSTOMER_FIELD_CONTROLS).filter(
+        (field) => patch[field] !== undefined && String(patch[field]) !== String(current[field]),
+      );
+      for (const field of changedFields) {
+        await assertAllowed(organizationId, CUSTOMER_FIELD_CONTROLS[field], 'editable');
+      }
+      if (patch.status !== undefined && patch.status !== current.status) {
+        const action = patch.status === 'active' ? 'reactivate' : 'deactivate';
+        await assertAllowed(organizationId, `customers.actions.${action}`, 'allowed');
+      }
     },
 
     async assertCustomerDeleteAllowed(organizationId) {
@@ -570,8 +593,18 @@ function createCapabilityService(deps) {
       await assertAllowed(organizationId, 'customers.actions.reactivate', 'allowed');
     },
 
-    async assertCustomerCreditPolicyAllowed(organizationId) {
+    async assertCustomerCreditPolicyAllowed(organizationId, current, patch) {
       await assertAllowed(organizationId, 'customers.actions.editCreditPolicy', 'allowed');
+      const changedFields = Object.keys(CUSTOMER_CREDIT_FIELD_CONTROLS).filter(
+        (field) => patch[field] !== undefined && String(patch[field]) !== String(current[field]),
+      );
+      for (const field of changedFields) {
+        await assertAllowed(
+          organizationId,
+          CUSTOMER_CREDIT_FIELD_CONTROLS[field],
+          'editable',
+        );
+      }
     },
 
     async assertCustomerOpeningBalanceAllowed(organizationId) {
@@ -584,5 +617,7 @@ module.exports = {
   createCapabilityService,
   MODE_BY_TYPE,
   CATEGORY_FIELD_CONTROLS,
+  CUSTOMER_CREDIT_FIELD_CONTROLS,
+  CUSTOMER_FIELD_CONTROLS,
   PRODUCT_FIELD_CONTROLS,
 };

@@ -306,5 +306,91 @@ describe('CustomersPage', () => {
       expect(fixture.componentInstance.canDeactivate()).toBe(false);
       expect(fixture.componentInstance.canDelete()).toBe(false);
     });
+
+    it('hides refresh button when customers.actions.refresh is disabled', () => {
+      mockApi.listCustomers.mockReturnValue(
+        of({ items: makeCustomers(1), meta: { page: 1, pageSize: 25, total: 1 } }),
+      );
+
+      const mockCapability = {
+        canUseModule: vi.fn().mockReturnValue(true),
+        canUseView: vi.fn().mockReturnValue(true),
+        canViewField: vi.fn().mockReturnValue(true),
+        canEditField: vi.fn().mockReturnValue(true),
+        canPerformAction: vi.fn().mockImplementation((key: string) => key !== 'customers.actions.refresh'),
+      };
+
+      const fixture = TestBed.createComponent(CustomersPage);
+      (fixture.componentInstance as any).capabilityService = mockCapability;
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.canRefresh()).toBe(false);
+      expect(fixture.nativeElement.querySelector('.toolbar-refresh-btn')).toBeNull();
+    });
+
+    it('hides module info, search, status filter, and KPI cards when corresponding feature capabilities are disabled', () => {
+      mockApi.listCustomers.mockReturnValue(
+        of({ items: makeCustomers(1), meta: { page: 1, pageSize: 25, total: 1 } }),
+      );
+
+      const mockCapability = {
+        canUseModule: vi.fn().mockReturnValue(true),
+        canUseView: vi.fn().mockImplementation((key: string) => {
+          if (
+            key === 'customers.features.moduleInfo' ||
+            key === 'customers.features.search' ||
+            key === 'customers.features.statusFilter' ||
+            key === 'customers.features.kpiCards'
+          ) {
+            return false;
+          }
+          return true;
+        }),
+        canViewField: vi.fn().mockReturnValue(true),
+        canEditField: vi.fn().mockReturnValue(true),
+        canPerformAction: vi.fn().mockReturnValue(true),
+      };
+
+      const fixture = TestBed.createComponent(CustomersPage);
+      (fixture.componentInstance as any).capabilityService = mockCapability;
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.showModuleInfo()).toBe(false);
+      expect(fixture.componentInstance.showSearch()).toBe(false);
+      expect(fixture.componentInstance.showStatusFilter()).toBe(false);
+      expect(fixture.componentInstance.showKpiCards()).toBe(false);
+      expect(fixture.nativeElement.querySelector('agrivio-ui-module-info')).toBeNull();
+      expect(fixture.nativeElement.querySelector('[data-testid="customers-search-input"]')).toBeNull();
+      expect(fixture.nativeElement.querySelector('[data-testid="customers-status-filter"]')).toBeNull();
+      expect(fixture.nativeElement.querySelector('[data-testid="kpi-total-customers"]')).toBeNull();
+    });
+
+    it('hides credit limit and credit behaviour when fields are disabled in capability', () => {
+      mockApi.listCustomers.mockReturnValue(
+        of({ items: makeCustomers(1), meta: { page: 1, pageSize: 25, total: 1 } }),
+      );
+
+      const mockCapability = {
+        canUseModule: vi.fn().mockReturnValue(true),
+        canUseView: vi.fn().mockReturnValue(true),
+        canViewField: vi.fn().mockImplementation((key: string) => {
+          if (key === 'customers.fields.creditLimit' || key === 'customers.fields.creditLimitBehaviour') {
+            return false;
+          }
+          return true;
+        }),
+        canEditField: vi.fn().mockReturnValue(true),
+        canPerformAction: vi.fn().mockReturnValue(true),
+      };
+
+      const fixture = TestBed.createComponent(CustomersPage);
+      (fixture.componentInstance as any).capabilityService = mockCapability;
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.showCreditLimit()).toBe(false);
+      expect(fixture.componentInstance.showCreditLimitBehaviour()).toBe(false);
+      expect(fixture.nativeElement.querySelector('.credit-limit')).toBeNull();
+      expect(fixture.nativeElement.querySelector('.credit-sub')).toBeNull();
+    });
   });
 });

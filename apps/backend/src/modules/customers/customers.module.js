@@ -185,6 +185,9 @@ function createCustomersService(deps) {
           throw notFound('Customer not found');
         }
         assertOptimisticVersion(current, expectedVersion);
+        if (typeof deps.capabilityService?.assertCustomerPatchAllowed === 'function') {
+          await deps.capabilityService.assertCustomerPatchAllowed(organizationId, current, patch);
+        }
         const nextType = patch.customerType ?? current.customerType;
         const nextName = patch.name ?? current.name;
         const nextPhone = patch.phone ?? current.phone;
@@ -243,6 +246,13 @@ function createCustomersService(deps) {
           throw notFound('Customer not found');
         }
         assertOptimisticVersion(current, expectedVersion);
+        if (typeof deps.capabilityService?.assertCustomerCreditPolicyAllowed === 'function') {
+          await deps.capabilityService.assertCustomerCreditPolicyAllowed(
+            organizationId,
+            current,
+            patch,
+          );
+        }
         const nextEnabled =
           patch.creditEnabled === undefined ? current.creditEnabled : patch.creditEnabled;
         assertWalkInCreditPolicy(
@@ -275,6 +285,9 @@ function createCustomersService(deps) {
         throw validationFailed('Ledger service is not configured');
       }
       const input = parseCustomerOpeningBalance(body);
+      if (typeof deps.capabilityService?.assertCustomerOpeningBalanceAllowed === 'function') {
+        await deps.capabilityService.assertCustomerOpeningBalanceAllowed(organizationId);
+      }
 
       const postWork = async (session) => {
             const current = await store.findCustomerById(organizationId, customerId);
@@ -413,6 +426,9 @@ function createCustomersModule(options) {
       : { evaluateEntitlement: options.evaluateEntitlement }),
     ...(options.ledgersService === undefined ? {} : { ledgersService: options.ledgersService }),
     ...(options.auditStore === undefined ? {} : { auditStore: options.auditStore }),
+    ...(options.capabilityService === undefined
+      ? {}
+      : { capabilityService: options.capabilityService }),
     ...(options.now === undefined ? {} : { now: options.now }),
     ...(options.listCustomerReferences === undefined
       ? {}
