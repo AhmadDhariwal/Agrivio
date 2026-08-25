@@ -16,12 +16,22 @@ export class ReturnsApi {
   private readonly authApi = inject(AuthApi);
   private readonly baseUrl = `${environment.publicApiBaseUrl}/api/v1/returns`;
 
-  listReturns(params: PaginationQuery & { status?: string; returnType?: string; saleId?: string } = {}): Observable<PaginatedResult<SalesReturnRecord>> {
+  listReturns(
+    params: PaginationQuery & {
+      status?: string;
+      returnType?: string;
+      warehouseId?: string;
+      saleId?: string;
+    } = {},
+  ): Observable<PaginatedResult<SalesReturnRecord>> {
     return this.http
-      .get<{ data: SalesReturnRecord[]; meta: PaginatedResult<SalesReturnRecord>['meta'] }>(this.baseUrl, {
-        withCredentials: true,
-        params: { ...params, page: params.page ?? 1, pageSize: params.pageSize ?? 25 },
-      })
+      .get<{ data: SalesReturnRecord[]; meta: PaginatedResult<SalesReturnRecord>['meta'] }>(
+        this.baseUrl,
+        {
+          withCredentials: true,
+          params: { ...params, page: params.page ?? 1, pageSize: params.pageSize ?? 25 },
+        },
+      )
       .pipe(map((response) => ({ items: response.data, meta: response.meta })));
   }
 

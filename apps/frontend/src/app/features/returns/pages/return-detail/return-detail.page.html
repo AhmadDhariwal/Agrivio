@@ -1,113 +1,440 @@
-<agrivio-ui-page-header
-  title="Return detail"
-  eyebrow="Returns and Corrections"
-  lede="Posted returns stay immutable. Reversal posts a linked corrective transaction."
->
-  <a class="ag-btn ag-btn--secondary" routerLink="/app/returns">Back to returns</a>
-</agrivio-ui-page-header>
-
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading return…" />
-} @else if (!canView()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to view returns." />
-} @else if (!record()) {
-  @if (errorMessage(); as error) {
-    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-  } @else {
-    <agrivio-ui-alert tone="warning" message="Return not found." />
-  }
-} @else {
-  @if (errorMessage(); as error) {
-    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-  }
-  @if (successMessage(); as success) {
-    <agrivio-ui-alert tone="success" [message]="success" data-testid="return-detail-success" />
-  }
-
-  @if (record(); as item) {
-    <section class="ag-stack" data-testid="return-detail">
-      <div class="ag-inline">
-        <strong data-testid="return-type-label">{{ typeLabel(item.returnType) }}</strong>
-        <agrivio-ui-status-badge
-          [label]="item.status"
-          [tone]="statusTone(item.status)"
-        />
-      </div>
-      <p data-testid="return-status">Status: {{ item.status }}</p>
-      <p>Warehouse: {{ warehouseName(item.warehouseId) }}</p>
-      <p>Party: {{ partyLabel(item) }}</p>
-      <p>Resolution: {{ resolutionLabel(item.resolution) }}</p>
-      @if (item.resolution === 'account_refund') {
-        <p>Refund account: {{ refundAccountName(item.refundAccountId) }}</p>
-      }
-      @if (item.reason) {
-        <p>Reason: {{ item.reason }}</p>
-      }
-      @if (item.returnTotal) {
-        <p data-testid="return-total">
-          Return total: <strong>{{ item.returnTotal.amount }} {{ item.returnTotal.currency }}</strong>
-        </p>
-      }
-      @if (item.saleId) {
-        <p>
-          <a [routerLink]="['/app/sales', item.saleId]">Open original sale</a>
-        </p>
-      }
-      @if (item.purchaseId) {
-        <p>
-          <a [routerLink]="['/app/purchases', item.purchaseId]">Open original purchase</a>
-        </p>
-      }
-      @if (item.status === 'reversed') {
-        <p class="ag-muted" data-testid="return-reversed">
-          Reversed with a linked corrective transaction. The original return is preserved.
-        </p>
-      }
-
-      <h2>Lines</h2>
-      <div class="ag-stack" data-testid="return-lines">
-        @for (line of item.lines; track $index) {
-          <article class="line-row">
-            <strong>{{ line.productNameSnapshot }}</strong>
-            <p class="ag-muted">
-              Qty {{ line.quantity }} {{ line.unitCodeSnapshot }}
-              · {{ line.stockCondition ?? 'unclassified' }}
-              @if (line.batchNumber) {
-                · Batch {{ line.batchNumber }}
-              }
-              @if (line.unsellableReason) {
-                · {{ line.unsellableReason }}
-              }
-            </p>
-          </article>
+<div class="return-detail-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">Returns and Corrections</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">
+          @if (record(); as item) {
+            Return #{{ item.id.slice(-6).toUpperCase() }}
+          } @else {
+            Return Detail
+          }
+        </h1>
+        @if (record(); as item) {
+          <agrivio-ui-status-badge
+            [label]="item.status"
+            [tone]="statusTone(item.status)"
+            data-testid="return-status-badge"
+          />
         }
       </div>
-
-      @if (canReverse() && item.status === 'posted') {
-        <section class="ag-stack" data-testid="return-reverse-section">
-          <h2>Reverse return</h2>
-          <p class="ag-muted">
-            Requires a reason. Compensating stock and money effects are posted; the original is not edited.
-          </p>
-          <label>
-            Reversal reason
-            <input
-              [value]="reverseReason()"
-              (input)="onReverseReasonInput($event)"
-              data-testid="return-reverse-reason"
-            />
-          </label>
+      <p class="page-head__lede">
+        Posted returns stay immutable. Reversals post a linked corrective transaction to balance stock and financial ledgers.
+      </p>
+    </div>
+    <div class="page-head__actions">
+      <a class="ag-btn ag-btn--secondary back-btn" routerLink="/app/returns" data-testid="back-to-returns">
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        Back to Returns
+      </a>
+      @if (record(); as item) {
+        @if (canReverse() && item.status === 'posted') {
           <button
             type="button"
-            class="ag-btn"
-            data-testid="return-reverse"
+            class="ag-btn ag-btn--danger-outline reverse-btn"
+            (click)="openReverseDialog()"
             [disabled]="reversing()"
-            (click)="reverse()"
+            data-testid="return-reverse-action-btn"
           >
-            {{ reversing() ? 'Reversing…' : 'Reverse return' }}
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="1 4 1 10 7 10" />
+              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+            </svg>
+            {{ reversing() ? 'Reversing…' : 'Reverse Return' }}
           </button>
-        </section>
+        }
       }
-    </section>
+    </div>
+  </header>
+
+  @if (loading()) {
+    <div class="state-container">
+      <agrivio-ui-loading-state label="Loading return details…" />
+    </div>
+  } @else if (!canView()) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="warning" message="You do not have permission to view returns." />
+    </div>
+  } @else if (!record()) {
+    <div class="alert-container">
+      @if (errorMessage(); as error) {
+        <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+      } @else {
+        <agrivio-ui-alert tone="warning" message="Return not found." />
+      }
+    </div>
+  } @else {
+    @if (errorMessage(); as error) {
+      <div class="alert-container">
+        <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+      </div>
+    }
+    @if (successMessage(); as success) {
+      <div class="alert-container">
+        <agrivio-ui-alert tone="success" [message]="success" data-testid="return-detail-success" />
+      </div>
+    }
+
+    @if (record(); as item) {
+      <!-- 1. KPI Summary Cards Row -->
+      <section class="kpi-row" aria-label="Return summary cards">
+        <!-- Return Type Card -->
+        <article class="kpi-card">
+          <div class="kpi-card__icon kpi-card__icon--blue">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="1 4 1 10 7 10" />
+              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+            </svg>
+          </div>
+          <div class="kpi-card__content">
+            <span class="kpi-card__label">Return Type</span>
+            <div class="kpi-card__badge-wrap">
+              <span [class]="typeBadgeClass(item.returnType)" data-testid="return-type-label">
+                {{ typeBadgeLabel(item.returnType) }}
+              </span>
+            </div>
+            <span class="kpi-card__sub">{{ resolutionLabel(item.resolution) }}</span>
+          </div>
+        </article>
+
+        <!-- Status Card -->
+        <article class="kpi-card">
+          <div class="kpi-card__icon" [class.kpi-card__icon--green]="item.status === 'posted'" [class.kpi-card__icon--orange]="item.status === 'reversed'">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+          </div>
+          <div class="kpi-card__content">
+            <span class="kpi-card__label">Lifecycle Status</span>
+            <div class="kpi-card__badge-wrap" data-testid="return-status">
+              <agrivio-ui-status-badge
+                [label]="item.status"
+                [tone]="statusTone(item.status)"
+              />
+            </div>
+            <span class="kpi-card__sub">
+              {{ item.status === 'posted' ? 'Immutable Record' : item.status === 'reversed' ? 'Reversed via Correction' : 'Draft' }}
+            </span>
+          </div>
+        </article>
+
+        <!-- Return Total Card -->
+        <article class="kpi-card">
+          <div class="kpi-card__icon kpi-card__icon--green">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <line x1="2" y1="10" x2="22" y2="10" />
+            </svg>
+          </div>
+          <div class="kpi-card__content">
+            <span class="kpi-card__label">Total Value</span>
+            <span class="kpi-card__value" data-testid="return-total">
+              {{ formatMoney(item.returnTotal) }}
+            </span>
+            <span class="kpi-card__sub">{{ item.currency || 'PKR' }} Currency</span>
+          </div>
+        </article>
+
+        <!-- Record Date Card -->
+        <article class="kpi-card">
+          <div class="kpi-card__icon kpi-card__icon--purple">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+          </div>
+          <div class="kpi-card__content">
+            <span class="kpi-card__label">Posted Date</span>
+            <span class="kpi-card__value kpi-card__value--date">
+              {{ formatDate(item.postedAt || item.createdAt) }}
+            </span>
+            <span class="kpi-card__sub">
+              {{ (item.postedAt || item.createdAt) ? formatDateTime(item.postedAt || item.createdAt).slice(-5) : '—' }}
+            </span>
+          </div>
+        </article>
+      </section>
+
+      <!-- 2. Return & Reference Context Card -->
+      <section class="detail-card" data-testid="return-detail">
+        <div class="detail-card__header">
+          <div class="detail-card__icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="detail-card__title">Return Context & Reference</h2>
+            <p class="detail-card__subtitle">
+              Original transaction reference, party identification, and warehouse allocation.
+            </p>
+          </div>
+        </div>
+
+        <div class="detail-card__body">
+          <div class="detail-grid">
+            <!-- Original Reference Box -->
+            <div class="detail-item detail-item--full">
+              <span class="detail-item__label">Original Reference</span>
+              <div class="ref-card">
+                <div class="ref-card__info">
+                  @if (item.saleId) {
+                    <div class="ref-card__badge-row">
+                      <span class="ref-card__type">SALES INVOICE</span>
+                      <span class="ref-card__id">Sale #{{ item.saleId.slice(-6).toUpperCase() }}</span>
+                    </div>
+                    <p class="ref-card__desc">
+                      Linked to customer sale invoice. Full product and ledger snapshots are linked.
+                    </p>
+                  } @else if (item.purchaseId) {
+                    <div class="ref-card__badge-row">
+                      <span class="ref-card__type ref-card__type--purchase">PURCHASE BILL</span>
+                      <span class="ref-card__id">Purchase #{{ item.purchaseId.slice(-6).toUpperCase() }}</span>
+                    </div>
+                    <p class="ref-card__desc">
+                      Linked to supplier purchase bill. Inventory debit and accounts payable adjusted.
+                    </p>
+                  } @else {
+                    <div class="ref-card__badge-row">
+                      <span class="ref-card__type ref-card__type--direct">DIRECT RETURN</span>
+                      <span class="ref-card__id">Without Invoice</span>
+                    </div>
+                    <p class="ref-card__desc">
+                      Authorized direct walk-in return. Manager approved with explicit stock resolution.
+                    </p>
+                  }
+                </div>
+                @if (item.saleId) {
+                  <a class="ag-btn ag-btn--sm ag-btn--secondary ref-card__action" [routerLink]="['/app/sales', item.saleId]">
+                    <span>View original sale</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </a>
+                } @else if (item.purchaseId) {
+                  <a class="ag-btn ag-btn--sm ag-btn--secondary ref-card__action" [routerLink]="['/app/purchases', item.purchaseId]">
+                    <span>View original purchase</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </a>
+                }
+              </div>
+            </div>
+
+            <!-- Warehouse -->
+            <div class="detail-item">
+              <span class="detail-item__label">Warehouse / Location</span>
+              <div class="detail-item__value-wrap">
+                <span class="detail-item__value">{{ warehouseName(item.warehouseId) }}</span>
+              </div>
+            </div>
+
+            <!-- Party (Customer / Supplier) -->
+            <div class="detail-item">
+              <span class="detail-item__label">Customer / Supplier</span>
+              <div class="detail-item__value-wrap">
+                <span class="detail-item__value">{{ partyLabel(item) }}</span>
+                @if (item.customerIdentifyingPhone) {
+                  <span class="detail-item__pill">{{ item.customerIdentifyingPhone }}</span>
+                }
+              </div>
+            </div>
+
+            <!-- Financial Resolution -->
+            <div class="detail-item">
+              <span class="detail-item__label">Financial Resolution</span>
+              <div class="detail-item__value-wrap">
+                <span class="detail-item__value">{{ resolutionLabel(item.resolution) }}</span>
+                @if (item.resolution === 'account_refund' && item.refundAccountId) {
+                  <span class="detail-item__sub">{{ refundAccountName(item.refundAccountId) }}</span>
+                }
+              </div>
+            </div>
+
+            <!-- Reason -->
+            <div class="detail-item detail-item--full">
+              <span class="detail-item__label">Return Reason</span>
+              <div class="reason-box">
+                <p class="reason-box__text">{{ item.reason || 'No explicit reason specified.' }}</p>
+              </div>
+            </div>
+
+            <!-- Reversal Audit Banner (if reversed) -->
+            @if (item.status === 'reversed') {
+              <div class="detail-item detail-item--full" data-testid="return-reversed">
+                <div class="reversal-alert">
+                  <div class="reversal-alert__icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                  </div>
+                  <div class="reversal-alert__content">
+                    <strong class="reversal-alert__title">Return Reversed with Corrective Transaction</strong>
+                    <p class="reversal-alert__desc">
+                      Reversed on {{ formatDateTime(item.reversedAt) }} by {{ item.reversedBy || 'Authorized User' }}.
+                      @if (item.reversedByCorrectiveTransactionId) {
+                        Corrective transaction reference: <code>{{ item.reversedByCorrectiveTransactionId }}</code>.
+                      }
+                      Original return record is permanently preserved for financial and stock auditability.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. Returned Product Lines Card -->
+      <section class="detail-card" data-testid="return-lines-card">
+        <div class="detail-card__header">
+          <div class="detail-card__icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+              <line x1="12" y1="22.08" x2="12" y2="12" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="detail-card__title">Returned Product Lines</h2>
+            <p class="detail-card__subtitle">
+              Product snapshots, quantities, condition grading, and valuation effects.
+            </p>
+          </div>
+        </div>
+
+        <div class="detail-card__body">
+          <div class="table-container" data-testid="return-lines">
+            <table class="lines-table">
+              <thead>
+                <tr>
+                  <th scope="col" class="lines-table__th">Product</th>
+                  <th scope="col" class="lines-table__th">Quantity</th>
+                  <th scope="col" class="lines-table__th">Condition</th>
+                  <th scope="col" class="lines-table__th">Batch Reference</th>
+                  <th scope="col" class="lines-table__th lines-table__th--right">Inventory Value</th>
+                  @if (item.returnType === 'sales' || item.returnType === 'sales_without_invoice') {
+                    <th scope="col" class="lines-table__th lines-table__th--right">Revenue Effect</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of item.lines; track $index) {
+                  <tr class="lines-table__row" data-testid="return-line-row">
+                    <!-- Product Column -->
+                    <td class="lines-table__td">
+                      <div class="line-product">
+                        <strong class="line-product__name">{{ line.productNameSnapshot || 'Product' }}</strong>
+                        @if (line.unitCodeSnapshot) {
+                          <span class="line-product__unit">Base Unit: {{ line.unitCodeSnapshot }}</span>
+                        }
+                      </div>
+                    </td>
+
+                    <!-- Quantity Column -->
+                    <td class="lines-table__td">
+                      <span class="line-qty">
+                        {{ line.quantity }} {{ line.unitCodeSnapshot || '' }}
+                        @if (line.conversionFactorSnapshot && line.conversionFactorSnapshot !== '1') {
+                          <span class="line-qty__base">({{ line.quantityBase }} base)</span>
+                        }
+                      </span>
+                    </td>
+
+                    <!-- Condition Column -->
+                    <td class="lines-table__td">
+                      <div class="condition-badge-wrap">
+                        <span
+                          class="condition-badge"
+                          [class.condition-badge--sellable]="line.stockCondition === 'sellable'"
+                          [class.condition-badge--unsellable]="line.stockCondition === 'unsellable'"
+                        >
+                          {{ line.stockCondition === 'sellable' ? 'Sellable' : 'Unsellable' }}
+                        </span>
+                        @if (line.unsellableReason) {
+                          <span class="condition-sub">{{ line.unsellableReason }}</span>
+                        }
+                      </div>
+                    </td>
+
+                    <!-- Batch Column -->
+                    <td class="lines-table__td">
+                      @if (line.batchNumber) {
+                        <span class="batch-pill">{{ line.batchNumber }}</span>
+                      } @else {
+                        <span class="empty-dash">—</span>
+                      }
+                    </td>
+
+                    <!-- Inventory Value Column -->
+                    <td class="lines-table__td lines-table__td--right">
+                      <span class="line-value">{{ formatMoney(line.returnInventoryValue) }}</span>
+                    </td>
+
+                    <!-- Revenue Effect Column -->
+                    @if (item.returnType === 'sales' || item.returnType === 'sales_without_invoice') {
+                      <td class="lines-table__td lines-table__td--right">
+                        <span class="line-value">{{ formatMoney(line.returnRevenue) }}</span>
+                      </td>
+                    }
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr class="lines-table__tfoot-row">
+                  <td colspan="4" class="lines-table__tfoot-label">Total Return Value</td>
+                  <td [attr.colspan]="(item.returnType === 'sales' || item.returnType === 'sales_without_invoice') ? 2 : 1" class="lines-table__tfoot-value">
+                    {{ formatMoney(item.returnTotal) }}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Reversal Confirmation Modal Dialog -->
+      <agrivio-ui-confirm-dialog
+        [open]="reverseDialogOpen()"
+        title="Reverse posted return?"
+        message="The original return remains immutable in history. A linked corrective transaction will be created to balance stock and financial ledgers."
+        confirmLabel="Reverse"
+        cancelLabel="Keep return"
+        [danger]="true"
+        [requireReason]="true"
+        (confirmed)="onConfirmReverse($event)"
+        (dismiss)="onDismissReverse()"
+      />
+    }
   }
-}
+</div>

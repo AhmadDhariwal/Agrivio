@@ -636,6 +636,7 @@ function createApp(options) {
 
   const returnsRoutes = registerReturnsRoutes({
     returnsService: returns.returnsService,
+    capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,

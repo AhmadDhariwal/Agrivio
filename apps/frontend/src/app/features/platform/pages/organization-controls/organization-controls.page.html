@@ -144,6 +144,15 @@
       >
         Suppliers
       </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'returns'"
+        (click)="selectModule('returns')"
+        data-testid="returns-control-module"
+      >
+        Returns
+      </button>
       <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>
 
@@ -200,7 +209,8 @@
               selectedModule() === 'inventory.reconciliation' ||
               selectedModule() === 'inventory.movements' ||
               selectedModule() === 'customers' ||
-              selectedModule() === 'suppliers'
+              selectedModule() === 'suppliers' ||
+              selectedModule() === 'returns'
                 ? 'Required Fields'
                 : 'Required Workflow Fields',
             controls: requiredWorkflowControls()

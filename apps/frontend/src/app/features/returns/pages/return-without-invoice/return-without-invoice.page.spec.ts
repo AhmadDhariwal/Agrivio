@@ -14,20 +14,62 @@ import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 describe('ReturnWithoutInvoicePage', () => {
   let fixture: ComponentFixture<ReturnWithoutInvoicePage>;
   let page: ReturnWithoutInvoicePage;
+  let mockReturnsApi: {
+    createWithoutInvoice: ReturnType<typeof vi.fn>;
+    postReturn: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
+    mockReturnsApi = {
+      createWithoutInvoice: vi.fn().mockReturnValue(of({ id: 'ret-draft-1', version: 1 })),
+      postReturn: vi.fn().mockReturnValue(of({ id: 'ret-draft-1', status: 'posted' })),
+    };
+
     await TestBed.configureTestingModule({
       imports: [ReturnWithoutInvoicePage],
       providers: [
         provideRouter([]),
-        { provide: ReturnsApi, useValue: { createWithoutInvoice: () => of({}), postReturn: () => of({}) } },
-        { provide: CatalogApi, useValue: { searchProductOptions: () => of([]), listProducts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }) } },
-        { provide: CustomersApi, useValue: { searchCustomerOptions: () => of([]), listCustomers: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }) } },
-        { provide: AccountsApi, useValue: { listAccountOptions: () => of([]), listAccounts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }) } },
-        { provide: InventoryApi, useValue: { listBatches: () => of([]) } },
+        { provide: ReturnsApi, useValue: mockReturnsApi },
+        {
+          provide: CatalogApi,
+          useValue: {
+            searchProductOptions: () =>
+              of([
+                { id: 'p1', name: 'Engro Urea 50KG', sku: 'ENG-UREA', status: 'active', trackingMode: 'batch' },
+                { id: 'p2', name: 'NPK 20-20-20', sku: 'NPK-20', status: 'active', trackingMode: 'none' },
+              ]),
+            listProducts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+          },
+        },
+        {
+          provide: CustomersApi,
+          useValue: {
+            searchCustomerOptions: () =>
+              of([{ id: 'c1', name: 'Chaudhry Farms', phone: '03001234567' }]),
+            listCustomers: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+          },
+        },
+        {
+          provide: AccountsApi,
+          useValue: {
+            listAccountOptions: () => of([{ id: 'acc-1', name: 'Cash Register Multan', accountType: 'cash', status: 'active' }]),
+            listAccounts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+          },
+        },
+        {
+          provide: InventoryApi,
+          useValue: {
+            listBatches: () =>
+              of({ items: [{ id: 'b1', batchNumber: 'BATCH-2026-A', currentStockBase: '50' }] }),
+          },
+        },
         {
           provide: BranchesWarehousesApi,
-          useValue: { listWarehouseOptions: () => of([]), listWarehouses: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }) },
+          useValue: {
+            listWarehouseOptions: () =>
+              of([{ id: 'wh-1', name: 'Central Warehouse Multan', code: 'CWH-01' }]),
+            listWarehouses: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+          },
         },
         {
           provide: AuthSessionStore,
@@ -45,7 +87,8 @@ describe('ReturnWithoutInvoicePage', () => {
   });
 
   it('renders lookup form when both return and approval permissions are present', () => {
-    expect(fixture.nativeElement.textContent).toContain('Return without invoice');
+    expect(fixture.nativeElement.textContent).toContain('Return Without Invoice');
+    expect(fixture.nativeElement.querySelector('[data-testid="without-invoice-form"]')).toBeTruthy();
   });
 
   it('requires refund account and shows the required marker for account_refund', () => {
@@ -68,5 +111,14 @@ describe('ReturnWithoutInvoicePage', () => {
     expect(hasRequiredValidator(page.form.controls.refundAccountId)).toBe(false);
     expect(refundSelect.getAttribute('aria-required')).toBeNull();
     expect(refundSelect.closest('.ag-field')?.querySelector('.ag-field__required')).toBeFalsy();
+  });
+
+  it('allows adding and removing product lines', () => {
+    expect(page.lines.length).toBe(1);
+    page.addLine();
+    expect(page.lines.length).toBe(2);
+
+    page.removeLine(1);
+    expect(page.lines.length).toBe(1);
   });
 });

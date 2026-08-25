@@ -473,6 +473,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'returns/without-invoice',
+        canActivate: [
+          requireCapabilityGuard('returns'),
+          requireCapabilityGuard('returns.actions.withoutInvoice', 'action'),
+        ],
         loadComponent: () =>
           import('./features/returns/pages/return-without-invoice/return-without-invoice.page').then(
             (m) => m.ReturnWithoutInvoicePage,
@@ -480,6 +484,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'returns/:id',
+        canActivate: [
+          requireCapabilityGuard('returns'),
+          requireCapabilityGuard('returns.actions.inspect', 'action'),
+        ],
         loadComponent: () =>
           import('./features/returns/pages/return-detail/return-detail.page').then(
             (m) => m.ReturnDetailPage,
@@ -487,6 +495,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'returns',
+        canActivate: [requireCapabilityGuard('returns')],
         loadComponent: () =>
           import('./features/returns/pages/returns-list/returns-list.page').then(
             (m) => m.ReturnsListPage,

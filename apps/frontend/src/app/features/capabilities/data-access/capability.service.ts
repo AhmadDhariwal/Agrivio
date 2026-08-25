@@ -250,6 +250,24 @@ const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string,
   'suppliers.actions.delete': { allowed: true },
   'suppliers.actions.postOpeningBalance': { allowed: true },
   'suppliers.actions.refresh': { allowed: true },
+  // Returns and Corrections module controls (17 authoritative controls)
+  returns: { enabled: true },
+  'returns.features.moduleInfo': { enabled: true },
+  'returns.features.typeFilter': { enabled: true },
+  'returns.features.statusFilter': { enabled: true },
+  'returns.features.warehouseFilter': { enabled: true },
+  'returns.fields.warehouse': { visible: true },
+  'returns.fields.product': { visible: true },
+  'returns.fields.quantity': { visible: true },
+  'returns.fields.reason': { visible: true },
+  'returns.fields.batch': { visible: true },
+  'returns.fields.resolution': { visible: true },
+  'returns.fields.refundAccount': { visible: true },
+  'returns.fields.approvedReturnValue': { visible: true },
+  'returns.actions.post': { allowed: true },
+  'returns.actions.withoutInvoice': { allowed: true },
+  'returns.actions.reverse': { allowed: true },
+  'returns.actions.inspect': { allowed: true },
 };
 
 @Injectable({ providedIn: 'root' })
@@ -358,6 +376,7 @@ export class CapabilityService {
       'inventory.movements',
       'customers',
       'suppliers',
+      'returns',
     ]);
     return {
       organizationId: this.sessionStore.activeContext()?.organizationId ?? 'test-organization',
