@@ -1001,3 +1001,93 @@ describe('Expiry Inquiry capability controls', () => {
   });
 });
 
+describe('Expense Categories capability controls', () => {
+  it('preserves current Expense Categories behavior when an organization has no override', async () => {
+    const { capabilityService } = createHarness();
+    const effective = await capabilityService.resolveEffective('org-a', {
+      permissions: ['expenses.view', 'expenses.post'],
+    });
+
+    expect(control(effective, 'expenses.categories').effectiveValue.enabled).toBe(true);
+    expect(control(effective, 'expenses.categories.features.moduleInfo').effectiveValue.enabled).toBe(true);
+    expect(control(effective, 'expenses.categories.features.search').effectiveValue.enabled).toBe(true);
+    expect(control(effective, 'expenses.categories.features.statusFilter').effectiveValue.enabled).toBe(true);
+    expect(control(effective, 'expenses.categories.fields.name').effectiveValue).toEqual({ visible: true, editable: true });
+    expect(control(effective, 'expenses.categories.fields.status').effectiveValue).toEqual({ visible: true, editable: false });
+    expect(control(effective, 'expenses.categories.actions.create').effectiveValue.allowed).toBe(true);
+    expect(control(effective, 'expenses.categories.actions.edit').effectiveValue.allowed).toBe(true);
+    expect(control(effective, 'expenses.categories.actions.deactivate').effectiveValue.allowed).toBe(true);
+    expect(control(effective, 'expenses.categories.actions.reactivate').effectiveValue.allowed).toBe(true);
+    expect(control(effective, 'expenses.categories.actions.delete').effectiveValue.allowed).toBe(true);
+  });
+
+  it('blocks all 5 category mutation actions when expenses.actions.manageCategories is disabled', async () => {
+    const { capabilityService } = createHarness();
+    await capabilityService.updatePolicy(
+      'org-a',
+      {
+        expectedVersion: 0,
+        changes: [
+          { key: 'expenses.actions.manageCategories', value: { allowed: false } },
+        ],
+      },
+      { actorId: 'platform-admin' },
+    );
+
+    const effective = await capabilityService.resolveEffective('org-a', {
+      permissions: ['expenses.view', 'expenses.post'],
+    });
+
+    // Category module and viewing remains available
+    expect(control(effective, 'expenses.categories').effectiveValue.enabled).toBe(true);
+    expect(control(effective, 'expenses.categories.features.search').effectiveValue.enabled).toBe(true);
+
+    // All 5 category mutation actions are effectively blocked with dependency_disabled
+    expect(control(effective, 'expenses.categories.actions.create')).toMatchObject({
+      effectiveValue: { allowed: false },
+      reasons: ['dependency_disabled'],
+    });
+    expect(control(effective, 'expenses.categories.actions.edit')).toMatchObject({
+      effectiveValue: { allowed: false },
+      reasons: ['dependency_disabled'],
+    });
+    expect(control(effective, 'expenses.categories.actions.deactivate')).toMatchObject({
+      effectiveValue: { allowed: false },
+      reasons: ['dependency_disabled'],
+    });
+    expect(control(effective, 'expenses.categories.actions.reactivate')).toMatchObject({
+      effectiveValue: { allowed: false },
+      reasons: ['dependency_disabled'],
+    });
+    expect(control(effective, 'expenses.categories.actions.delete')).toMatchObject({
+      effectiveValue: { allowed: false },
+      reasons: ['dependency_disabled'],
+    });
+  });
+
+  it('allows independent configuration of granular category actions when manageCategories is enabled', async () => {
+    const { capabilityService } = createHarness();
+    await capabilityService.updatePolicy(
+      'org-a',
+      {
+        expectedVersion: 0,
+        changes: [
+          { key: 'expenses.actions.manageCategories', value: { allowed: true } },
+          { key: 'expenses.categories.actions.delete', value: { allowed: false } },
+        ],
+      },
+      { actorId: 'platform-admin' },
+    );
+
+    const effective = await capabilityService.resolveEffective('org-a', {
+      permissions: ['expenses.view', 'expenses.post'],
+    });
+
+    expect(control(effective, 'expenses.categories.actions.create').effectiveValue.allowed).toBe(true);
+    expect(control(effective, 'expenses.categories.actions.edit').effectiveValue.allowed).toBe(true);
+    expect(control(effective, 'expenses.categories.actions.deactivate').effectiveValue.allowed).toBe(true);
+    expect(control(effective, 'expenses.categories.actions.reactivate').effectiveValue.allowed).toBe(true);
+    expect(control(effective, 'expenses.categories.actions.delete').effectiveValue.allowed).toBe(false);
+    expect(control(effective, 'expenses.categories.actions.delete').override).toEqual({ allowed: false });
+  });
+});

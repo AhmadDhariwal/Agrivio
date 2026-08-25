@@ -22,6 +22,7 @@ const {
   SUPPLIERS_MODULE_KEY,
   RETURNS_MODULE_KEY,
   EXPENSES_MODULE_KEY,
+  EXPENSE_CATEGORIES_MODULE_KEY,
   getCapabilityControl,
   listCapabilityControls,
 } = require('./capability.registry');
@@ -466,6 +467,7 @@ function createCapabilityService(deps) {
           SUPPLIERS_MODULE_KEY,
           RETURNS_MODULE_KEY,
           EXPENSES_MODULE_KEY,
+          EXPENSE_CATEGORIES_MODULE_KEY,
         ].includes(moduleKey)
       ) {
         throw validationFailed(`Unknown configurable module ${moduleKey}`);

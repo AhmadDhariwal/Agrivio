@@ -1,54 +1,161 @@
-<agrivio-ui-page-header
-  [title]="categoryId() ? 'Edit expense category' : 'Create expense category'"
-  eyebrow="Accounts"
-  lede="Expense categories classify operating expenses."
-/>
-
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading category…" />
-} @else if (!canPost()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to manage expense categories." />
-} @else {
-  @if (errorMessage(); as error) {
-    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-  }
-  <form
-    class="ag-stack form ag-form ag-form--with-required-hint"
-    [formGroup]="form"
-    (ngSubmit)="save()"
-    data-testid="expense-category-form"
-  >
-    <div class="ag-field">
-      <agrivio-ui-field-label
-        label="Name"
-        for="expense-category-name"
-        [required]="fieldRequired(form.controls.name)"
-      />
-      <input
-        id="expense-category-name"
-        class="ag-input"
-        formControlName="name"
-        data-testid="expense-category-name"
-        [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
-      />
-    </div>
-    @if (categoryId()) {
-      <div class="ag-field">
-        <agrivio-ui-field-label label="Status" for="expense-category-status" />
-        <select
-          id="expense-category-status"
-          class="ag-select"
-          formControlName="status"
-          data-testid="expense-category-status"
+<div class="category-form-shell">
+  <!-- Page Header with Breadcrumbs & Status Pill -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <nav class="page-head__breadcrumbs" aria-label="Breadcrumb">
+        <a class="breadcrumb-link" routerLink="/app/expense-categories">Expense categories</a>
+        <span class="breadcrumb-sep">/</span>
+        <span class="breadcrumb-current">{{ isEdit() ? 'Edit category' : 'Create category' }}</span>
+      </nav>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">{{ pageTitle() }}</h1>
+        @if (isEdit()) {
+        <span
+          class="status-pill"
+          [class.status-pill--active]="form.controls.status.value === 'active'"
+          [class.status-pill--inactive]="form.controls.status.value === 'inactive'"
         >
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
+          <span class="status-pill__dot"></span>
+          {{ form.controls.status.value === 'active' ? 'Active' : 'Inactive' }}
+        </span>
+        }
       </div>
-    }
-    <div class="ag-inline">
-      <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="expense-category-save">Save</button>
-      <a class="ag-btn ag-btn--secondary" routerLink="/app/expense-categories">Cancel</a>
+      <p class="page-head__lede">Define category identity and classification for tracking operating expenses.</p>
+    </div>
+    <div class="page-head__actions">
+      <a class="ag-btn ag-btn--secondary back-btn" routerLink="/app/expense-categories">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        <span>Back to categories</span>
+      </a>
+    </div>
+  </header>
+
+  <p class="required-hint">* Required fields</p>
+
+  @if (loading()) {
+  <div class="state-container">
+    <agrivio-ui-loading-state label="Loading category definition…" />
+  </div>
+  } @else if (!canManage()) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="warning" message="You do not have permission to manage expense categories." />
+  </div>
+  } @else {
+  @if (errorMessage(); as error) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  </div>
+  }
+
+  <form class="cat-form" [formGroup]="form" (ngSubmit)="save()" data-testid="expense-category-form">
+    <section class="form-card">
+      <div class="form-card__header">
+        <div class="form-card__icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+            <polyline points="10 9 9 9 8 9" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="form-card__title">Basic Information</h2>
+          <p class="form-card__subtitle">Core classification and display name for operating expenses.</p>
+        </div>
+      </div>
+
+      <div class="form-card__body">
+        <div class="form-grid form-grid--2col">
+          <!-- Name Field -->
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Name"
+              for="expense-category-name"
+              [required]="fieldRequired(form.controls.name)"
+            />
+            <input
+              id="expense-category-name"
+              class="ag-input"
+              formControlName="name"
+              placeholder="Enter expense category name"
+              data-testid="expense-category-name"
+              [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
+              [readonly]="isEdit() && !canEditName()"
+            />
+            <p class="field-hint">Use a clear, concise name that reflects the type of operating expense.</p>
+          </div>
+
+          <!-- Status Select (if Edit) -->
+          @if (isEdit()) {
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Status"
+              for="expense-category-status"
+              [required]="true"
+            />
+            <select
+              id="expense-category-status"
+              class="ag-select"
+              formControlName="status"
+              data-testid="expense-category-status"
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            <p class="field-hint">Inactive categories cannot be selected on new expense records.</p>
+          </div>
+          }
+        </div>
+
+        @if (isEdit() && category()?.status === 'active') {
+        <div class="info-note">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+          <span>This category is active. You can deactivate it to prevent new usage without affecting historical expense ledgers.</span>
+        </div>
+        }
+      </div>
+    </section>
+
+    <!-- Form Actions -->
+    <div class="form-actions">
+      <div class="form-actions__left">
+        <button
+          class="ag-btn ag-btn--primary"
+          type="submit"
+          [disabled]="saving()"
+          data-testid="expense-category-save"
+        >
+          {{ saving() ? 'Saving…' : (isEdit() ? 'Save changes' : 'Save category') }}
+        </button>
+        <a class="ag-btn ag-btn--secondary" routerLink="/app/expense-categories">Cancel</a>
+      </div>
+      @if (isEdit() && canDelete()) {
+      <button
+        type="button"
+        class="delete-link"
+        [disabled]="deleting()"
+        (click)="askDelete()"
+        data-testid="expense-category-delete"
+      >
+        {{ deleting() ? 'Deleting…' : 'Delete permanently' }}
+      </button>
+      }
     </div>
   </form>
-}
+  }
+</div>
+
+<agrivio-ui-confirm-dialog
+  [open]="deleteConfirmOpen()"
+  title="Delete expense category permanently?"
+  message="This action cannot be undone. Categories with recorded expenses cannot be deleted."
+  confirmLabel="Delete permanently"
+  [danger]="true"
+  (confirmed)="confirmDelete()"
+  (dismiss)="deleteConfirmOpen.set(false)"
+/>

@@ -3,12 +3,15 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ExpensesApi } from '../../data-access/expenses.api';
+import { ExpenseCategoryRecord } from '../../models/expenses.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
+import { recordInUseMessage } from '../../../../shared/lifecycle/master-lifecycle';
 
 @Component({
   selector: 'agrivio-expense-category-form-page',
@@ -16,10 +19,10 @@ import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
     UiFieldLabelComponent,
+    UiConfirmDialogComponent,
   ],
   templateUrl: './expense-category-form.page.html',
   styleUrl: './expense-category-form.page.scss',
@@ -27,6 +30,7 @@ import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 export class ExpenseCategoryFormPage {
   private readonly api = inject(ExpensesApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
@@ -34,10 +38,37 @@ export class ExpenseCategoryFormPage {
   readonly categoryId = signal<string | null>(null);
   readonly loading = signal(false);
   readonly saving = signal(false);
+  readonly deleting = signal(false);
   readonly errorMessage = signal<string | null>(null);
-  readonly canPost = computed(() => this.sessionStore.hasPermission('expenses.post'));
-  private version = 1;
+  readonly successMessage = signal<string | null>(null);
+  readonly category = signal<ExpenseCategoryRecord | null>(null);
+  readonly deleteConfirmOpen = signal(false);
 
+  readonly canManage = computed(
+    () =>
+      this.sessionStore.hasPermission('expenses.post') &&
+      (this.capabilityService?.canPerformAction('expenses.actions.manageCategories') ?? true),
+  );
+  readonly canCreate = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('expenses.categories.actions.create') ?? true),
+  );
+  readonly canEditCategory = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('expenses.categories.actions.edit') ?? true),
+  );
+  readonly canEditName = computed(
+    () => this.capabilityService?.canEditField('expenses.categories.fields.name') ?? true,
+  );
+  readonly canDelete = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('expenses.categories.actions.delete') ?? true),
+  );
+
+  private version = 1;
   readonly fieldRequired = hasRequiredValidator;
 
   readonly form = this.formBuilder.nonNullable.group({
@@ -45,21 +76,25 @@ export class ExpenseCategoryFormPage {
     status: ['active'],
   });
 
+  readonly isEdit = computed(() => this.categoryId() !== null);
+  readonly pageTitle = computed(() => (this.isEdit() ? 'Edit expense category' : 'Create expense category'));
+
   constructor() {
     const id = this.route.snapshot.paramMap.get('id');
     if (id && id !== 'new') {
       this.categoryId.set(id);
       this.loading.set(true);
-    this.api.listCategories({ page: 1, pageSize: 100 }).subscribe({
-      next: ({ items }) => {
-          const category = items.find((item) => item.id === id);
-          if (!category) {
+      this.api.listCategories({ page: 1, pageSize: 100 }).subscribe({
+        next: ({ items }) => {
+          const cat = items.find((item) => item.id === id);
+          if (!cat) {
             this.errorMessage.set('Expense category not found.');
             this.loading.set(false);
             return;
           }
-          this.version = category.version;
-          this.form.patchValue({ name: category.name, status: category.status });
+          this.category.set(cat);
+          this.version = cat.version;
+          this.form.patchValue({ name: cat.name, status: cat.status });
           this.loading.set(false);
         },
         error: (error: unknown) => {
@@ -71,17 +106,19 @@ export class ExpenseCategoryFormPage {
   }
 
   save(): void {
-    if (!this.canPost() || this.form.invalid) {
+    const allowed = this.categoryId() === null ? this.canCreate() : this.canEditCategory();
+    if (!allowed || this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
     this.saving.set(true);
     this.errorMessage.set(null);
     const value = this.form.getRawValue();
+    const catId = this.categoryId();
     const request$ =
-      this.categoryId() === null
+      catId === null
         ? this.api.createCategory({ name: value.name })
-        : this.api.updateCategory(this.categoryId()!, {
+        : this.api.updateCategory(catId, {
             expectedVersion: this.version,
             name: value.name,
             status: value.status,
@@ -98,10 +135,29 @@ export class ExpenseCategoryFormPage {
     });
   }
 
+  askDelete(): void {
+    this.deleteConfirmOpen.set(true);
+  }
+
+  confirmDelete(): void {
+    this.deleteConfirmOpen.set(false);
+    const id = this.categoryId();
+    if (!id || !this.canDelete()) return;
+    this.deleting.set(true);
+    this.api.deleteCategory(id).subscribe({
+      next: () => {
+        this.deleting.set(false);
+        void this.router.navigateByUrl('/app/expense-categories');
+      },
+      error: (error: unknown) => {
+        this.deleting.set(false);
+        this.errorMessage.set(recordInUseMessage(error, 'Unable to delete expense category.'));
+      },
+    });
+  }
+
   private mapError(error: unknown, fallback: string): string {
-    if (!(error instanceof HttpErrorResponse)) {
-      return fallback;
-    }
+    if (!(error instanceof HttpErrorResponse)) return fallback;
     return error.error?.error?.message ?? fallback;
   }
 }

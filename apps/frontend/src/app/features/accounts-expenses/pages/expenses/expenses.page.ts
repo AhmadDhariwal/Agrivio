@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ExpensesApi } from '../../data-access/expenses.api';
@@ -20,6 +21,8 @@ import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-m
   standalone: true,
   imports: [
     RouterLink,
+    DatePipe,
+    DecimalPipe,
     UiAlertComponent,
     UiEmptyStateComponent,
     UiLoadingStateComponent,
@@ -82,6 +85,16 @@ export class ExpensesPage {
 
   readonly hasActiveFilters = computed(
     () => !!this.statusFilter() || !!this.search(),
+  );
+
+  readonly postedCount = computed(
+    () => this.items().filter((i) => i.status === 'posted').length,
+  );
+  readonly correctedCount = computed(
+    () => this.items().filter((i) => i.status === 'corrected').length,
+  );
+  readonly categoriesCount = computed(
+    () => new Set(this.items().map((i) => i.categoryId).filter(Boolean)).size,
   );
 
   readonly infoTitle = 'About Expenses';

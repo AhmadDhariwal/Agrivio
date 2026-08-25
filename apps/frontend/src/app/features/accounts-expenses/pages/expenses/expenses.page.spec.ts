@@ -4,6 +4,7 @@ import { of } from 'rxjs';
 import { ExpensesPage } from './expenses.page';
 import { ExpensesApi } from '../../data-access/expenses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { ExpenseRecord } from '../../models/expenses.models';
 
 const postedExpense: ExpenseRecord = {
@@ -47,6 +48,15 @@ describe('ExpensesPage', () => {
         provideRouter([]),
         { provide: ExpensesApi, useValue: mockExpensesApi },
         { provide: AuthSessionStore, useValue: { hasPermission: () => true } },
+        {
+          provide: CapabilityService,
+          useValue: {
+            canUseModule: () => true,
+            canUseView: () => true,
+            canPerformAction: () => true,
+            canViewField: () => true,
+          },
+        },
       ],
     }).compileComponents();
   });
@@ -54,13 +64,14 @@ describe('ExpensesPage', () => {
   it('renders expenses table with data', () => {
     const fixture: ComponentFixture<ExpensesPage> = TestBed.createComponent(ExpensesPage);
     fixture.detectChanges();
+    fixture.detectChanges();
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('Expenses');
     expect(text).toContain('Pesticide residue testing');
     expect(text).toContain('Machinery Maintenance');
     expect(text).toContain('Cash Register');
     expect(fixture.nativeElement.querySelector('[data-testid="expense-create-link"]')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('[data-testid="expense-open"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="expense-detail-link-exp-1"]')).toBeTruthy();
   });
 
   it('renders empty state when no expenses exist', async () => {
@@ -80,6 +91,15 @@ describe('ExpensesPage', () => {
         provideRouter([]),
         { provide: ExpensesApi, useValue: mockExpensesApi },
         { provide: AuthSessionStore, useValue: { hasPermission: () => false } },
+        {
+          provide: CapabilityService,
+          useValue: {
+            canUseModule: () => true,
+            canUseView: () => true,
+            canPerformAction: () => true,
+            canViewField: () => true,
+          },
+        },
       ],
     }).compileComponents();
 

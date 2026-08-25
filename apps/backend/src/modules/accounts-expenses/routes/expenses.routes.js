@@ -36,6 +36,11 @@ function registerExpensesRoutes(deps) {
     'expenses.actions.manageCategories',
     'allowed',
   );
+  const requireExpenseCategories = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'expenses.categories',
+    'enabled',
+  );
 
   router.get(
     API_EXPENSE_CATEGORIES_PATH,
@@ -44,6 +49,7 @@ function registerExpensesRoutes(deps) {
     createRequirePermissionMiddleware('expenses.view'),
     deps.requireOperationalAccess,
     requireExpensesModule,
+    requireExpenseCategories,
     (req, res, next) => {
       void controller.listExpenseCategories(req, res, next);
     },
@@ -57,6 +63,7 @@ function registerExpensesRoutes(deps) {
     createRequirePermissionMiddleware('expenses.post'),
     deps.requireOperationalAccess,
     requireExpensesModule,
+    requireExpenseCategories,
     requireExpenseManageCategories,
     (req, res, next) => {
       void controller.createExpenseCategory(req, res, next);
@@ -71,6 +78,7 @@ function registerExpensesRoutes(deps) {
     createRequirePermissionMiddleware('expenses.post'),
     deps.requireOperationalAccess,
     requireExpensesModule,
+    requireExpenseCategories,
     requireExpenseManageCategories,
     (req, res, next) => {
       void controller.updateExpenseCategory(req, res, next);
@@ -85,6 +93,7 @@ function registerExpensesRoutes(deps) {
     createRequirePermissionMiddleware('expenses.post'),
     deps.requireOperationalAccess,
     requireExpensesModule,
+    requireExpenseCategories,
     requireExpenseManageCategories,
     (req, res, next) => {
       void controller.deleteExpenseCategory(req, res, next);
