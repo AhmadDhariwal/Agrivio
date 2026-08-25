@@ -56,6 +56,8 @@ export interface SalesReturnRecord {
   reversedByCorrectiveTransactionId: string | null;
   reversedAt: string | null;
   reversedBy: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface SalesReturnPostInput {
