@@ -20,6 +20,7 @@ const {
   MOVEMENTS_MODULE_KEY,
   CUSTOMERS_MODULE_KEY,
   SUPPLIERS_MODULE_KEY,
+  RETURNS_MODULE_KEY,
   getCapabilityControl,
   listCapabilityControls,
 } = require('./capability.registry');
@@ -462,6 +463,7 @@ function createCapabilityService(deps) {
           MOVEMENTS_MODULE_KEY,
           CUSTOMERS_MODULE_KEY,
           SUPPLIERS_MODULE_KEY,
+          RETURNS_MODULE_KEY,
         ].includes(moduleKey)
       ) {
         throw validationFailed(`Unknown configurable module ${moduleKey}`);

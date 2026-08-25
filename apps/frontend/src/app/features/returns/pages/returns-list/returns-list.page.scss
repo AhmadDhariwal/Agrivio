@@ -394,13 +394,14 @@
   &__title {
     font-weight: 600;
     color: #0f172a;
-    font-family: var(--ag-font-mono, monospace);
-    font-size: 12.5px;
+    font-family: var(--ag-font-sans);
+    font-size: 13px;
   }
 
   &__sub {
     font-size: 12px;
     color: #475569;
+    font-family: var(--ag-font-sans);
   }
 
   &__date {
@@ -415,7 +416,7 @@
   gap: 5px;
   font-size: 12px;
   font-weight: 600;
-  font-family: var(--ag-font-mono, monospace);
+  font-family: var(--ag-font-sans);
   color: #0369a1;
   background: #f0f9ff;
   border: 1px solid #bae6fd;
@@ -604,15 +605,16 @@
   }
 
   &__ref-title {
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 600;
     color: #0f172a;
-    font-family: var(--ag-font-mono, monospace);
+    font-family: var(--ag-font-sans);
   }
 
   &__ref-sub {
     font-size: 12px;
     color: #475569;
+    font-family: var(--ag-font-sans);
   }
 
   &__meta-row {

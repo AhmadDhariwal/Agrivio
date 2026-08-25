@@ -19,6 +19,7 @@ import {
   WarehouseRecord,
 } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 import { CustomerRecord } from '../../../customers/models/customers.models';
 import { AccountRecord } from '../../../accounts-expenses/models/accounts.models';
@@ -50,6 +51,7 @@ export class ReturnWithoutInvoicePage {
   private readonly inventoryApi = inject(InventoryApi);
   private readonly locationsApi = inject(BranchesWarehousesApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly formBuilder = inject(FormBuilder);
   private readonly router = inject(Router);
 
@@ -61,9 +63,15 @@ export class ReturnWithoutInvoicePage {
   readonly warehouses = signal<WarehouseRecord[]>([]);
   readonly accounts = signal<AccountRecord[]>([]);
   readonly batchesByLine = signal<Record<number, ProductBatchRecord[]>>({});
-  readonly canPost = computed(() => this.sessionStore.hasPermission('returns.post'));
-  readonly canApprove = computed(() =>
-    this.sessionStore.hasPermission('returns.without-invoice.approve'),
+  readonly canPost = computed(
+    () =>
+      this.sessionStore.hasPermission('returns.post') &&
+      (this.capabilityService?.canPerformAction('returns.actions.post') ?? true),
+  );
+  readonly canApprove = computed(
+    () =>
+      this.sessionStore.hasPermission('returns.without-invoice.approve') &&
+      (this.capabilityService?.canPerformAction('returns.actions.withoutInvoice') ?? true),
   );
 
   readonly fieldRequired = hasRequiredValidator;

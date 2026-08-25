@@ -25,6 +25,7 @@ const RECONCILIATION_MODULE_KEY = 'inventory.reconciliation';
 const MOVEMENTS_MODULE_KEY = 'inventory.movements';
 const CUSTOMERS_MODULE_KEY = 'customers';
 const SUPPLIERS_MODULE_KEY = 'suppliers';
+const RETURNS_MODULE_KEY = 'returns';
 
 const definitions = [
   {
@@ -1722,6 +1723,129 @@ const definitions = [
         }
       : {}),
   })),
+  {
+    key: RETURNS_MODULE_KEY,
+    parentKey: null,
+    moduleKey: RETURNS_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Returns and Corrections',
+    description:
+      'Sales return, purchase return, return-without-invoice, and reversal workflow access and API operations for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'returns.view' },
+    reason:
+      'Disabling access blocks all Returns endpoints without deleting posted returns, altering stock movements, or altering existing ledger and corrective-transaction history.',
+  },
+  ...[
+    ['moduleInfo', 'About Returns and Corrections', 'Show the Returns and Corrections guidance panel.'],
+    ['typeFilter', 'Return Type Filter', 'Filter Returns by linked sales return, return without invoice, or purchase return.'],
+    ['statusFilter', 'Status Filter', 'Filter Returns by draft, posted, or reversed status.'],
+    ['warehouseFilter', 'Warehouse Filter', 'Filter Returns by warehouse.'],
+  ].map(([id, label, description]) => ({
+    key: `returns.features.${id}`,
+    parentKey: RETURNS_MODULE_KEY,
+    moduleKey: RETURNS_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'returns.view' },
+  })),
+  ...[
+    [
+      'warehouse',
+      'Warehouse',
+      'The warehouse is required to identify the stock location receiving or issuing a return.',
+    ],
+    [
+      'product',
+      'Product',
+      'The product being returned must be identified before any quantity or valuation is applied.',
+    ],
+    [
+      'quantity',
+      'Quantity',
+      'A valid quantity is required for every return line. Existing quantity semantics, remaining-returnable caps, and stock/ledger validation remain authoritative.',
+    ],
+    [
+      'reason',
+      'Reason',
+      'A reason is required by domain rules for every return post and reversal and cannot be bypassed by capability policy.',
+    ],
+    [
+      'batch',
+      'Batch',
+      'Batch is conditionally required by the selected product tracking mode and by matching the original sale allocation. The platform-enforced tracking rule and batch identity cannot be overridden.',
+    ],
+    [
+      'resolution',
+      'Financial Resolution',
+      'The financial resolution (ledger adjustment or account refund) determines how the return value is settled. This classification cannot be overridden by capability policy.',
+    ],
+    [
+      'refundAccount',
+      'Refund Account',
+      'A refund account is required when the resolution is an account refund. Account type and validity remain authoritative.',
+    ],
+    [
+      'approvedReturnValue',
+      'Approved Return Value',
+      'The approved return value for a return without invoice is a required, backend-validated financial amount and cannot be edited or fabricated by capability policy.',
+    ],
+  ].map(([id, label, reason]) => ({
+    key: `returns.fields.${id}`,
+    parentKey: RETURNS_MODULE_KEY,
+    moduleKey: RETURNS_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description: 'Required Returns workflow data.',
+    defaultPolicy: { visible: true },
+    configurable: { visible: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'returns.view' },
+    reason,
+  })),
+  ...[
+    ['post', 'Post Return', 'returns.post', RISK_LEVELS.Critical, []],
+    ['withoutInvoice', 'Return Without Invoice', 'returns.without-invoice.approve', RISK_LEVELS.Critical, []],
+    ['reverse', 'Reverse Return', 'returns.reverse', RISK_LEVELS.Critical, []],
+    ['inspect', 'Inspect Return', 'returns.view', RISK_LEVELS.Normal, []],
+  ].map(([id, label, permission, risk, dependencies]) => ({
+    key: `returns.actions.${id}`,
+    parentKey: RETURNS_MODULE_KEY,
+    moduleKey: RETURNS_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label,
+    description: `${label} action. Existing RBAC, lifecycle rules, and target-module policy still apply.`,
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk,
+    requiredPermissions: { allowed: permission },
+    ...(dependencies.length === 0 ? {} : { dependencies }),
+    ...(id === 'post'
+      ? {
+          reason:
+            'Disabling this action prevents linked sales/purchase return draft creation, draft update, and final posting. Discard of stale drafts remains available.',
+        }
+      : {}),
+    ...(id === 'withoutInvoice'
+      ? {
+          reason:
+            'Disabling this action prevents creating a return-without-invoice draft. Existing manager/owner approval permission and posting rules remain authoritative.',
+        }
+      : {}),
+    ...(id === 'reverse'
+      ? {
+          reason:
+            'Disabling this action prevents reversal. The original posted return remains immutable and unchanged; the linked corrective transaction is never created.',
+        }
+      : {}),
+  })),
 ];
 
 const registry = new Map(
@@ -1766,6 +1890,7 @@ module.exports = {
   MOVEMENTS_MODULE_KEY,
   CUSTOMERS_MODULE_KEY,
   SUPPLIERS_MODULE_KEY,
+  RETURNS_MODULE_KEY,
   listCapabilityControls,
   getCapabilityControl,
 };

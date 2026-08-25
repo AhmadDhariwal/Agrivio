@@ -9,6 +9,7 @@ import {
   WarehouseRecord,
 } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import {
@@ -41,6 +42,7 @@ export class ReturnsListPage {
   private readonly api = inject(ReturnsApi);
   private readonly locationsApi = inject(BranchesWarehousesApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
 
   readonly items = signal<SalesReturnRecord[]>([]);
   readonly warehouses = signal<WarehouseRecord[]>([]);
@@ -48,12 +50,47 @@ export class ReturnsListPage {
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
 
-  readonly canView = computed(() => this.sessionStore.hasPermission('returns.view'));
-  readonly canPost = computed(() => this.sessionStore.hasPermission('returns.post'));
-  readonly canApproveWithoutInvoice = computed(() =>
-    this.sessionStore.hasPermission('returns.without-invoice.approve'),
+  // Capability + RBAC intersection
+  readonly canUseReturns = computed(
+    () => this.capabilityService?.canUseModule('returns') ?? true,
   );
-  readonly canReverse = computed(() => this.sessionStore.hasPermission('returns.reverse'));
+  readonly canView = computed(
+    () => this.sessionStore.hasPermission('returns.view') && this.canUseReturns(),
+  );
+  readonly canPost = computed(
+    () =>
+      this.sessionStore.hasPermission('returns.post') &&
+      (this.capabilityService?.canPerformAction('returns.actions.post') ?? true),
+  );
+  readonly canApproveWithoutInvoice = computed(
+    () =>
+      this.sessionStore.hasPermission('returns.without-invoice.approve') &&
+      (this.capabilityService?.canPerformAction('returns.actions.withoutInvoice') ?? true),
+  );
+  readonly canReverse = computed(
+    () =>
+      this.sessionStore.hasPermission('returns.reverse') &&
+      (this.capabilityService?.canPerformAction('returns.actions.reverse') ?? true),
+  );
+  readonly canInspect = computed(
+    () =>
+      this.canView() &&
+      (this.capabilityService?.canPerformAction('returns.actions.inspect') ?? true),
+  );
+
+  // Feature visibility (capability-gated)
+  readonly showModuleInfo = computed(
+    () => this.capabilityService?.canUseView('returns.features.moduleInfo') ?? true,
+  );
+  readonly showTypeFilter = computed(
+    () => this.capabilityService?.canUseView('returns.features.typeFilter') ?? true,
+  );
+  readonly showStatusFilter = computed(
+    () => this.capabilityService?.canUseView('returns.features.statusFilter') ?? true,
+  );
+  readonly showWarehouseFilter = computed(
+    () => this.capabilityService?.canUseView('returns.features.warehouseFilter') ?? true,
+  );
 
   // Server-authoritative filter signals
   readonly returnTypeFilter = signal<string>('');

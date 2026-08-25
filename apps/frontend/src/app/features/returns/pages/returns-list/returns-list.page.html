@@ -99,17 +99,20 @@
   }
 
   <!-- Module Information Section -->
+  @if (showModuleInfo()) {
   <agrivio-ui-module-info
     [title]="infoTitle"
     [description]="infoDescription"
     [items]="infoItems"
     [defaultExpanded]="false"
   />
+  }
 
   <!-- Filter & Control Toolbar -->
   <section class="toolbar" aria-label="Filters and controls" data-testid="returns-toolbar">
     <div class="toolbar__left">
       <!-- Return Type Filter -->
+      @if (showTypeFilter()) {
       <div class="select-field">
         <select
           class="select-field__input"
@@ -124,8 +127,10 @@
           <option value="purchase">Purchase return</option>
         </select>
       </div>
+      }
 
       <!-- Status Filter -->
+      @if (showStatusFilter()) {
       <div class="select-field">
         <select
           class="select-field__input"
@@ -140,9 +145,10 @@
           <option value="draft">Draft</option>
         </select>
       </div>
+      }
 
       <!-- Warehouse Filter -->
-      @if (warehouses().length > 0) {
+      @if (showWarehouseFilter() && warehouses().length > 0) {
       <div class="select-field">
         <select
           class="select-field__input"
@@ -327,6 +333,7 @@
           <!-- Actions Column -->
           <td class="returns-table__td returns-table__td--actions">
             <div class="action-cell">
+              @if (canInspect()) {
               <a
                 class="ag-btn ag-btn--secondary ag-btn--sm"
                 [routerLink]="['/app/returns', item.id]"
@@ -334,6 +341,7 @@
               >
                 Open
               </a>
+              }
               @if (canReverse() && item.status === 'posted') {
               <div class="row-menu-wrap">
                 <button
@@ -475,6 +483,7 @@
       </div>
 
       <div class="return-card__actions">
+        @if (canInspect()) {
         <a
           class="ag-btn ag-btn--secondary ag-btn--sm return-card__btn"
           [routerLink]="['/app/returns', item.id]"
@@ -482,6 +491,7 @@
         >
           Open
         </a>
+        }
         @if (canReverse() && item.status === 'posted') {
         <button
           type="button"

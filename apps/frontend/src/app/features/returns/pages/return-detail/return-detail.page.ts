@@ -20,6 +20,7 @@ import {
   WarehouseRecord,
 } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiStatusBadgeComponent, UiBadgeTone } from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
@@ -45,6 +46,7 @@ export class ReturnDetailPage {
   private readonly suppliersApi = inject(SuppliersApi);
   private readonly locationsApi = inject(BranchesWarehousesApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly route = inject(ActivatedRoute);
 
   readonly loading = signal(true);
@@ -58,7 +60,11 @@ export class ReturnDetailPage {
   readonly suppliers = signal<SupplierRecord[]>([]);
   readonly accounts = signal<AccountRecord[]>([]);
   readonly canView = computed(() => this.sessionStore.hasPermission('returns.view'));
-  readonly canReverse = computed(() => this.sessionStore.hasPermission('returns.reverse'));
+  readonly canReverse = computed(
+    () =>
+      this.sessionStore.hasPermission('returns.reverse') &&
+      (this.capabilityService?.canPerformAction('returns.actions.reverse') ?? true),
+  );
 
   constructor() {
     const id = this.route.snapshot.paramMap.get('id');
