@@ -18,7 +18,9 @@ function control(
     | 'inventory.adjustments'
     | 'inventory.transfers'
     | 'inventory.reconciliation'
-    | 'inventory.movements',
+    | 'inventory.movements'
+    | 'customers'
+    | 'suppliers',
   type: PlatformCapabilityControl['type'],
   label: string,
   policy: Record<string, boolean>,
@@ -1052,6 +1054,63 @@ describe('OrganizationControlsPage', () => {
         ),
         dependencies: ['inventory.batches'],
       },
+      // Customers Module (1)
+      control('customers', 'customers', 'MODULE', 'Customers', { enabled: true }, { risk: 'CRITICAL' }),
+      // View (1)
+      control('customers.views.desktopCards', 'customers', 'VIEW', 'Desktop Cards', { enabled: true }),
+      // Features (7)
+      control('customers.features.moduleInfo', 'customers', 'FEATURE', 'Module Info', { enabled: true }),
+      control('customers.features.search', 'customers', 'FEATURE', 'Search', { enabled: true }),
+      control('customers.features.statusFilter', 'customers', 'FEATURE', 'Status Filter', { enabled: true }),
+      control('customers.features.kpiCards', 'customers', 'FEATURE', 'KPI Cards', { enabled: true }),
+      control('customers.features.inspector', 'customers', 'FEATURE', 'Inspector Drawer', { enabled: true }),
+      control('customers.features.technicalDetails', 'customers', 'FEATURE', 'Technical Details', { enabled: true }),
+      control('customers.features.creditSection', 'customers', 'FEATURE', 'Credit Section', { enabled: true }),
+      // Fields (9)
+      control('customers.fields.name', 'customers', 'FIELD', 'Customer Name', { visible: true, editable: true }, { configurable: { visible: false, editable: true }, platformEnforced: true, risk: 'CRITICAL' }),
+      control('customers.fields.customerType', 'customers', 'FIELD', 'Customer Type', { visible: true, editable: true }, { configurable: { visible: false, editable: true }, platformEnforced: true, risk: 'RECOMMENDED' }),
+      control('customers.fields.creditEnabled', 'customers', 'FIELD', 'Credit Enabled', { visible: true, editable: true }, { configurable: { visible: false, editable: true }, platformEnforced: true, risk: 'CRITICAL' }),
+      control('customers.fields.phone', 'customers', 'FIELD', 'Phone', { visible: true, editable: true }, { override: { visible: true, editable: false } }),
+      control('customers.fields.priceTier', 'customers', 'FIELD', 'Price Tier', { visible: true, editable: true }),
+      control('customers.fields.creditLimit', 'customers', 'FIELD', 'Credit Limit', { visible: true, editable: true }, { risk: 'RECOMMENDED' }),
+      control('customers.fields.creditLimitBehaviour', 'customers', 'FIELD', 'Credit Limit Behaviour', { visible: true, editable: true }, { risk: 'RECOMMENDED' }),
+      control('customers.fields.derivedBalances', 'customers', 'FIELD', 'Derived Balances', { visible: true }, { configurable: { visible: false }, platformEnforced: true, risk: 'CRITICAL' }),
+      control('customers.fields.openingBalance', 'customers', 'FIELD', 'Opening Balance', { visible: true }, { configurable: { visible: false }, platformEnforced: true, risk: 'CRITICAL' }),
+      // Actions (9)
+      control('customers.actions.create', 'customers', 'ACTION', 'Create Customer', { allowed: true }, { risk: 'RECOMMENDED' }),
+      control('customers.actions.inspect', 'customers', 'ACTION', 'Inspect Customer', { allowed: true }),
+      control('customers.actions.edit', 'customers', 'ACTION', 'Edit Customer', { allowed: true }, { risk: 'RECOMMENDED' }),
+      control('customers.actions.deactivate', 'customers', 'ACTION', 'Deactivate Customer', { allowed: true }, { risk: 'RECOMMENDED' }),
+      control('customers.actions.reactivate', 'customers', 'ACTION', 'Reactivate Customer', { allowed: true }, { risk: 'RECOMMENDED' }),
+      control('customers.actions.delete', 'customers', 'ACTION', 'Delete Customer', { allowed: true }, { risk: 'CRITICAL' }),
+      control('customers.actions.editCreditPolicy', 'customers', 'ACTION', 'Edit Credit Policy', { allowed: true }, { risk: 'RECOMMENDED' }),
+      control('customers.actions.postOpeningBalance', 'customers', 'ACTION', 'Post Opening Balance', { allowed: true }, { risk: 'CRITICAL' }),
+      control('customers.actions.refresh', 'customers', 'ACTION', 'Refresh List', { allowed: true }),
+      // Suppliers Module (1)
+      control('suppliers', 'suppliers', 'MODULE', 'Suppliers', { enabled: true }, { risk: 'CRITICAL' }),
+      // Features (6)
+      control('suppliers.features.moduleInfo', 'suppliers', 'FEATURE', 'About Suppliers', { enabled: true }),
+      control('suppliers.features.search', 'suppliers', 'FEATURE', 'Search Filter', { enabled: true }),
+      control('suppliers.features.statusFilter', 'suppliers', 'FEATURE', 'Status Filter', { enabled: true }),
+      control('suppliers.features.kpiCards', 'suppliers', 'FEATURE', 'KPI Summary Cards', { enabled: true }),
+      control('suppliers.features.inspector', 'suppliers', 'FEATURE', 'Detail Inspector Drawer', { enabled: true }),
+      control('suppliers.features.technicalDetails', 'suppliers', 'FEATURE', 'Technical Details Section', { enabled: true }),
+      // Fields (6)
+      control('suppliers.fields.name', 'suppliers', 'FIELD', 'Supplier Name', { visible: true, editable: true }, { configurable: { visible: false, editable: true }, platformEnforced: true, risk: 'CRITICAL' }),
+      control('suppliers.fields.contactName', 'suppliers', 'FIELD', 'Contact Person', { visible: true, editable: true }),
+      control('suppliers.fields.phone', 'suppliers', 'FIELD', 'Phone', { visible: true, editable: true }, { override: { visible: true, editable: false } }),
+      control('suppliers.fields.email', 'suppliers', 'FIELD', 'Email', { visible: true, editable: true }),
+      control('suppliers.fields.derivedBalances', 'suppliers', 'FIELD', 'Derived Balances', { visible: true }, { configurable: { visible: false }, platformEnforced: true, risk: 'CRITICAL' }),
+      control('suppliers.fields.openingBalance', 'suppliers', 'FIELD', 'Opening Balance', { visible: true }, { configurable: { visible: false }, platformEnforced: true, risk: 'CRITICAL' }),
+      // Actions (8)
+      control('suppliers.actions.create', 'suppliers', 'ACTION', 'Create Supplier', { allowed: true }),
+      control('suppliers.actions.inspect', 'suppliers', 'ACTION', 'Inspect Supplier', { allowed: true }),
+      control('suppliers.actions.edit', 'suppliers', 'ACTION', 'Edit Supplier', { allowed: true }),
+      control('suppliers.actions.deactivate', 'suppliers', 'ACTION', 'Deactivate Supplier', { allowed: true }),
+      control('suppliers.actions.reactivate', 'suppliers', 'ACTION', 'Reactivate Supplier', { allowed: true }),
+      control('suppliers.actions.delete', 'suppliers', 'ACTION', 'Delete Supplier', { allowed: true }),
+      control('suppliers.actions.postOpeningBalance', 'suppliers', 'ACTION', 'Post Opening Balance', { allowed: true }),
+      control('suppliers.actions.refresh', 'suppliers', 'ACTION', 'Refresh List', { allowed: true }),
     ];
     await TestBed.configureTestingModule({
       imports: [OrganizationControlsPage],
@@ -1840,5 +1899,233 @@ describe('OrganizationControlsPage', () => {
     component.confirm();
 
     expect(resetModule).toHaveBeenCalledWith('org-a', 'inventory.movements', 4, '');
+  });
+
+  describe('Customers Module Controls', () => {
+    it('renders Customers module button, controls count, and sections', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('customers');
+      fixture.detectChanges();
+
+      expect(component.selectedModule()).toBe('customers');
+      expect(component.moduleLabel('customers')).toBe('Customers');
+
+      // Module control (1)
+      expect(component.moduleControls().length).toBe(1);
+      expect(component.moduleControls()[0]?.key).toBe('customers');
+
+      // View controls (1)
+      expect(component.viewControls().length).toBe(1);
+      expect(component.viewControls()[0]?.key).toBe('customers.views.desktopCards');
+
+      // Module info controls (1)
+      expect(component.moduleInfoControls().length).toBe(1);
+      expect(component.moduleInfoControls()[0]?.key).toBe('customers.features.moduleInfo');
+
+      // Filter controls (2)
+      expect(component.filterControls().length).toBe(2);
+
+      // KPI controls (1)
+      expect(component.kpiControls().length).toBe(1);
+      expect(component.kpiControls()[0]?.key).toBe('customers.features.kpiCards');
+
+      // Inspector controls (2)
+      expect(component.inspectorControls().length).toBe(2);
+
+      // Configurable fields (4)
+      expect(component.fieldControls().length).toBe(4);
+
+      // Required platform-enforced fields (5)
+      expect(component.requiredWorkflowControls().length).toBe(5);
+
+      // Actions (9)
+      expect(component.actionControls().length).toBe(9);
+    });
+
+    it('locks platform-enforced customer fields as non-configurable', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('customers');
+
+      const nameControl = component.controls().find((item) => item.key === 'customers.fields.name');
+      expect(nameControl).toBeDefined();
+      if (nameControl) {
+        expect(component.isConfigurable(nameControl, 'visible')).toBe(false);
+        expect(component.modeLockedReason(nameControl, 'visible')).toBe(
+          'Platform rule: this required workflow field cannot be hidden or disabled.',
+        );
+      }
+
+      const balanceControl = component
+        .controls()
+        .find((item) => item.key === 'customers.fields.derivedBalances');
+      expect(balanceControl).toBeDefined();
+      if (balanceControl) {
+        expect(component.isConfigurable(balanceControl, 'visible')).toBe(false);
+        expect(component.modeLockedReason(balanceControl, 'visible')).toBe(
+          'Platform rule: this required workflow field cannot be hidden or disabled.',
+        );
+      }
+    });
+
+    it('shows disable Customers confirmation title and message', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('customers');
+
+      const moduleCtrl = component.controls().find((item) => item.key === 'customers');
+      expect(moduleCtrl).toBeDefined();
+      if (moduleCtrl) {
+        component.setValue(moduleCtrl, 'enabled', false);
+      }
+
+      expect(component.disablingCustomers()).toBe(true);
+      expect(component.confirmationTitle()).toBe('Disable Customers for Greenfield Agro Center?');
+      expect(component.confirmationMessage()).toBe(
+        'Users in this organization will no longer be able to access the Customers module or related operational features. Existing customer data, balances, and history will not be deleted.',
+      );
+      expect(component.confirmationLabel()).toBe('Disable Customers');
+    });
+
+    it('calls the shared module reset API with customers module key', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('customers');
+      component.askResetModule();
+      component.confirm();
+
+      expect(resetModule).toHaveBeenCalledWith('org-a', 'customers', 4, '');
+    });
+  });
+
+  describe('Suppliers Module Controls', () => {
+    it('renders Suppliers module button, controls count, and sections', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('suppliers');
+      fixture.detectChanges();
+
+      expect(component.selectedModule()).toBe('suppliers');
+      expect(component.moduleLabel('suppliers')).toBe('Suppliers');
+
+      // Module control (1)
+      expect(component.moduleControls().length).toBe(1);
+      expect(component.moduleControls()[0]?.key).toBe('suppliers');
+
+      // View controls (0)
+      expect(component.viewControls().length).toBe(0);
+
+      // Module info controls (1)
+      expect(component.moduleInfoControls().length).toBe(1);
+      expect(component.moduleInfoControls()[0]?.key).toBe('suppliers.features.moduleInfo');
+
+      // Filter controls (2)
+      expect(component.filterControls().length).toBe(2);
+
+      // KPI controls (1)
+      expect(component.kpiControls().length).toBe(1);
+      expect(component.kpiControls()[0]?.key).toBe('suppliers.features.kpiCards');
+
+      // Inspector controls (2)
+      expect(component.inspectorControls().length).toBe(2);
+
+      // Configurable fields (3)
+      expect(component.fieldControls().length).toBe(3);
+
+      // Required platform-enforced fields (3: name, derivedBalances, openingBalance)
+      expect(component.requiredWorkflowControls().length).toBe(3);
+
+      // Actions (8)
+      expect(component.actionControls().length).toBe(8);
+    });
+
+    it('preserves per-mode configurability for Supplier fields', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('suppliers');
+      fixture.detectChanges();
+
+      const nameControl = component.controls().find((item) => item.key === 'suppliers.fields.name');
+      expect(nameControl).toBeDefined();
+      if (nameControl) {
+        expect(component.isConfigurable(nameControl, 'visible')).toBe(false);
+        expect(component.modeReadonly(nameControl, 'visible')).toBe(true);
+        expect(component.modeLockedReason(nameControl, 'visible')).toBe(
+          'Platform rule: this required workflow field cannot be hidden or disabled.',
+        );
+        component.setValue(nameControl, 'visible', false);
+        expect(component.value(nameControl, 'visible')).toBe(true);
+        expect(component.isConfigurable(nameControl, 'editable')).toBe(true);
+        expect(component.modeReadonly(nameControl, 'editable')).toBe(false);
+        expect(component.modeLockedReason(nameControl, 'editable')).toBeNull();
+        component.setValue(nameControl, 'editable', false);
+        expect(component.value(nameControl, 'editable')).toBe(false);
+      }
+      expect(
+        fixture.nativeElement.querySelector('input[aria-label="Supplier Name visible"]'),
+      ).toBeNull();
+      expect(
+        fixture.nativeElement.querySelector('input[aria-label="Supplier Name editable"]'),
+      ).toBeTruthy();
+
+      for (const key of [
+        'suppliers.fields.contactName',
+        'suppliers.fields.phone',
+        'suppliers.fields.email',
+      ]) {
+        const optionalControl = component.controls().find((item) => item.key === key);
+        expect(optionalControl).toBeDefined();
+        if (optionalControl) {
+          expect(component.isConfigurable(optionalControl, 'visible')).toBe(true);
+          expect(component.isConfigurable(optionalControl, 'editable')).toBe(true);
+        }
+      }
+
+      const balanceControl = component
+        .controls()
+        .find((item) => item.key === 'suppliers.fields.derivedBalances');
+      expect(balanceControl).toBeDefined();
+      if (balanceControl) {
+        expect(component.isConfigurable(balanceControl, 'visible')).toBe(false);
+        expect(component.modeReadonly(balanceControl, 'visible')).toBe(true);
+        expect(component.modeLockedReason(balanceControl, 'visible')).toBe(
+          'Platform rule: this required workflow field cannot be hidden or disabled.',
+        );
+      }
+
+      const openingControl = component
+        .controls()
+        .find((item) => item.key === 'suppliers.fields.openingBalance');
+      expect(openingControl).toBeDefined();
+      if (openingControl) {
+        expect(component.isConfigurable(openingControl, 'visible')).toBe(false);
+        expect(component.modeReadonly(openingControl, 'visible')).toBe(true);
+        expect(component.modeLockedReason(openingControl, 'visible')).toBe(
+          'Platform rule: this required workflow field cannot be hidden or disabled.',
+        );
+      }
+    });
+
+    it('shows disable Suppliers confirmation title and message', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('suppliers');
+
+      const moduleCtrl = component.controls().find((item) => item.key === 'suppliers');
+      expect(moduleCtrl).toBeDefined();
+      if (moduleCtrl) {
+        component.setValue(moduleCtrl, 'enabled', false);
+      }
+
+      expect(component.disablingSuppliers()).toBe(true);
+      expect(component.confirmationTitle()).toBe('Disable Suppliers for Greenfield Agro Center?');
+      expect(component.confirmationMessage()).toBe(
+        'Users in this organization will no longer be able to access the Suppliers module or related operational features. Existing supplier data, balances, and history will not be deleted.',
+      );
+      expect(component.confirmationLabel()).toBe('Disable Suppliers');
+    });
+
+    it('calls the shared module reset API with suppliers module key', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('suppliers');
+      component.askResetModule();
+      component.confirm();
+
+      expect(resetModule).toHaveBeenCalledWith('org-a', 'suppliers', 4, '');
+    });
   });
 });

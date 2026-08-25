@@ -5,7 +5,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { switchMap } from 'rxjs';
 import { CustomersApi } from '../../data-access/customers.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
@@ -22,7 +22,6 @@ import { CustomerRecord } from '../../models/customers.models';
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
     UiFieldLabelComponent,
@@ -33,6 +32,7 @@ import { CustomerRecord } from '../../models/customers.models';
 export class CustomerFormPage {
   private readonly api = inject(CustomersApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
@@ -46,10 +46,51 @@ export class CustomerFormPage {
   readonly openingPosted = signal(false);
   readonly derivedReceivable = signal<string | null>(null);
   readonly derivedAdvance = signal<string | null>(null);
-  readonly canManage = computed(() => this.sessionStore.hasPermission('customers.manage'));
-  readonly canPostOpening = computed(() =>
-    this.sessionStore.hasPermission('customers.opening-balance.post'),
+
+  readonly canUseCustomers = computed(
+    () => this.capabilityService?.canUseModule('customers') ?? true,
   );
+
+  readonly canManage = computed(() => {
+    const hasPerm = this.sessionStore.hasPermission('customers.manage');
+    if (!hasPerm || !this.canUseCustomers()) return false;
+    const isEdit = Boolean(this.customerId());
+    const actionKey = isEdit ? 'customers.actions.edit' : 'customers.actions.create';
+    return this.capabilityService?.canPerformAction(actionKey) ?? true;
+  });
+
+  readonly canPostOpening = computed(() => {
+    const hasPerm = this.sessionStore.hasPermission('customers.opening-balance.post');
+    const actionOk =
+      this.capabilityService?.canPerformAction('customers.actions.postOpeningBalance') ?? true;
+    return hasPerm && this.canUseCustomers() && actionOk;
+  });
+
+  readonly canEditCreditPolicy = computed(() => {
+    const hasPerm = this.sessionStore.hasPermission('customers.credit-policy.manage');
+    const actionOk =
+      this.capabilityService?.canPerformAction('customers.actions.editCreditPolicy') ?? true;
+    const fieldEditable =
+      this.capabilityService?.canEditField('customers.fields.creditEnabled') ?? true;
+    return hasPerm && this.canUseCustomers() && actionOk && fieldEditable;
+  });
+
+  readonly showCreditSection = computed(
+    () => this.capabilityService?.canUseView('customers.features.creditSection') ?? true,
+  );
+  readonly showPhone = computed(
+    () => this.capabilityService?.canViewField('customers.fields.phone') ?? true,
+  );
+  readonly showPriceTier = computed(
+    () => this.capabilityService?.canViewField('customers.fields.priceTier') ?? true,
+  );
+  readonly showCreditLimit = computed(
+    () => this.capabilityService?.canViewField('customers.fields.creditLimit') ?? true,
+  );
+  readonly showCreditLimitBehaviour = computed(
+    () => this.capabilityService?.canViewField('customers.fields.creditLimitBehaviour') ?? true,
+  );
+
   private version = 1;
 
   readonly fieldRequired = hasRequiredValidator;
@@ -130,35 +171,38 @@ export class CustomerFormPage {
       return;
     }
 
-    this.api
-      .updateCustomer(this.customerId()!, {
-        expectedVersion: this.version,
-        name: value.name,
-        phone: value.phone,
-        customerType: value.customerType,
-        priceTier: value.priceTier,
-        status: value.status,
-      })
-      .pipe(
-        switchMap((customer) =>
-          this.api.updateCreditPolicy(this.customerId()!, {
-            expectedVersion: customer.version,
-            creditEnabled: value.creditEnabled,
-            creditLimit,
-            creditLimitBehaviour: value.creditLimitBehaviour,
-          }),
-        ),
-      )
-      .subscribe({
-        next: () => {
-          this.saving.set(false);
-          void this.router.navigateByUrl('/app/customers');
-        },
-        error: (error: unknown) => {
-          this.saving.set(false);
-          this.errorMessage.set(this.mapError(error, 'Unable to save customer.'));
-        },
-      });
+    const update$ = this.api.updateCustomer(this.customerId()!, {
+      expectedVersion: this.version,
+      name: value.name,
+      phone: value.phone,
+      customerType: value.customerType,
+      priceTier: value.priceTier,
+      status: value.status,
+    });
+
+    const pipeline$ = this.canEditCreditPolicy()
+      ? update$.pipe(
+          switchMap((customer) =>
+            this.api.updateCreditPolicy(this.customerId()!, {
+              expectedVersion: customer.version,
+              creditEnabled: value.creditEnabled,
+              creditLimit,
+              creditLimitBehaviour: value.creditLimitBehaviour,
+            }),
+          ),
+        )
+      : update$;
+
+    pipeline$.subscribe({
+      next: () => {
+        this.saving.set(false);
+        void this.router.navigateByUrl('/app/customers');
+      },
+      error: (error: unknown) => {
+        this.saving.set(false);
+        this.errorMessage.set(this.mapError(error, 'Unable to save customer.'));
+      },
+    });
   }
 
   postOpening(): void {
@@ -203,6 +247,29 @@ export class CustomerFormPage {
       creditLimitBehaviour: customer.creditLimitBehaviour,
       status: customer.status,
     });
+    if (this.customerId() && !this.canEditCreditPolicy()) {
+      this.form.controls.creditEnabled.disable();
+      this.form.controls.creditLimitAmount.disable();
+      this.form.controls.creditLimitBehaviour.disable();
+    }
+    if (this.capabilityService && !this.capabilityService.canEditField('customers.fields.name')) {
+      this.form.controls.name.disable();
+    }
+    if (this.capabilityService && !this.capabilityService.canEditField('customers.fields.phone')) {
+      this.form.controls.phone.disable();
+    }
+    if (this.capabilityService && !this.capabilityService.canEditField('customers.fields.customerType')) {
+      this.form.controls.customerType.disable();
+    }
+    if (this.capabilityService && !this.capabilityService.canEditField('customers.fields.priceTier')) {
+      this.form.controls.priceTier.disable();
+    }
+    if (this.capabilityService && !this.capabilityService.canEditField('customers.fields.creditLimit')) {
+      this.form.controls.creditLimitAmount.disable();
+    }
+    if (this.capabilityService && !this.capabilityService.canEditField('customers.fields.creditLimitBehaviour')) {
+      this.form.controls.creditLimitBehaviour.disable();
+    }
     this.openingPosted.set(Boolean(customer.openingBalance));
     this.derivedReceivable.set(customer.derivedBalances?.receivable.amount ?? null);
     this.derivedAdvance.set(customer.derivedBalances?.advance.amount ?? null);

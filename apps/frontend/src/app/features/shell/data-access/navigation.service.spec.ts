@@ -435,4 +435,34 @@ describe('NavigationService', () => {
       service.userVisibleEntries().some((e) => e.type === 'group' && e.group.id === 'sales'),
     ).toBe(true);
   });
+
+  it('hides customers navigation item when customers capability is disabled', () => {
+    const { service } = setup(ALL_PERMISSIONS, [], 'organization', undefined, {
+      customers: false,
+    });
+    service.loadPreferences();
+
+    const partners = service
+      .userVisibleEntries()
+      .find((e) => e.type === 'group' && e.group.id === 'partners');
+    expect(partners).toBeDefined();
+    if (partners && partners.type === 'group') {
+      expect(partners.group.children.some((c) => c.id === 'partners.customers')).toBe(false);
+    }
+  });
+
+  it('hides suppliers navigation item when suppliers capability is disabled', () => {
+    const { service } = setup(ALL_PERMISSIONS, [], 'organization', undefined, {
+      suppliers: false,
+    });
+    service.loadPreferences();
+
+    const partners = service
+      .userVisibleEntries()
+      .find((e) => e.type === 'group' && e.group.id === 'partners');
+    expect(partners).toBeDefined();
+    if (partners && partners.type === 'group') {
+      expect(partners.group.children.some((c) => c.id === 'partners.suppliers')).toBe(false);
+    }
+  });
 });

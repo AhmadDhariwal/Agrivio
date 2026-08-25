@@ -18,6 +18,8 @@ const {
   TRANSFERS_MODULE_KEY,
   RECONCILIATION_MODULE_KEY,
   MOVEMENTS_MODULE_KEY,
+  CUSTOMERS_MODULE_KEY,
+  SUPPLIERS_MODULE_KEY,
   getCapabilityControl,
   listCapabilityControls,
 } = require('./capability.registry');
@@ -43,6 +45,26 @@ const PRODUCT_FIELD_CONTROLS = Object.freeze({
 const CATEGORY_FIELD_CONTROLS = Object.freeze({
   name: 'inventory.categories.fields.name',
   productClass: 'inventory.categories.fields.productClass',
+});
+
+const CUSTOMER_FIELD_CONTROLS = Object.freeze({
+  name: 'customers.fields.name',
+  phone: 'customers.fields.phone',
+  customerType: 'customers.fields.customerType',
+  priceTier: 'customers.fields.priceTier',
+});
+
+const CUSTOMER_CREDIT_FIELD_CONTROLS = Object.freeze({
+  creditEnabled: 'customers.fields.creditEnabled',
+  creditLimitAmountMinorUnits: 'customers.fields.creditLimit',
+  creditLimitBehaviour: 'customers.fields.creditLimitBehaviour',
+});
+
+const SUPPLIER_FIELD_CONTROLS = Object.freeze({
+  name: 'suppliers.fields.name',
+  contactName: 'suppliers.fields.contactName',
+  phone: 'suppliers.fields.phone',
+  email: 'suppliers.fields.email',
 });
 
 function cloneValue(value) {
@@ -438,6 +460,8 @@ function createCapabilityService(deps) {
           TRANSFERS_MODULE_KEY,
           RECONCILIATION_MODULE_KEY,
           MOVEMENTS_MODULE_KEY,
+          CUSTOMERS_MODULE_KEY,
+          SUPPLIERS_MODULE_KEY,
         ].includes(moduleKey)
       ) {
         throw validationFailed(`Unknown configurable module ${moduleKey}`);
@@ -547,6 +571,80 @@ function createCapabilityService(deps) {
     async assertCategoryDeleteAllowed(organizationId) {
       await assertAllowed(organizationId, 'inventory.categories.actions.delete', 'allowed');
     },
+
+    async assertCustomerCreateAllowed(organizationId) {
+      await assertAllowed(organizationId, 'customers.actions.create', 'allowed');
+    },
+
+    async assertCustomerPatchAllowed(organizationId, current, patch) {
+      await assertAllowed(organizationId, 'customers.actions.edit', 'allowed');
+      const changedFields = Object.keys(CUSTOMER_FIELD_CONTROLS).filter(
+        (field) => patch[field] !== undefined && String(patch[field]) !== String(current[field]),
+      );
+      for (const field of changedFields) {
+        await assertAllowed(organizationId, CUSTOMER_FIELD_CONTROLS[field], 'editable');
+      }
+      if (patch.status !== undefined && patch.status !== current.status) {
+        const action = patch.status === 'active' ? 'reactivate' : 'deactivate';
+        await assertAllowed(organizationId, `customers.actions.${action}`, 'allowed');
+      }
+    },
+
+    async assertCustomerDeleteAllowed(organizationId) {
+      await assertAllowed(organizationId, 'customers.actions.delete', 'allowed');
+    },
+
+    async assertCustomerDeactivateAllowed(organizationId) {
+      await assertAllowed(organizationId, 'customers.actions.deactivate', 'allowed');
+    },
+
+    async assertCustomerReactivateAllowed(organizationId) {
+      await assertAllowed(organizationId, 'customers.actions.reactivate', 'allowed');
+    },
+
+    async assertCustomerCreditPolicyAllowed(organizationId, current, patch) {
+      await assertAllowed(organizationId, 'customers.actions.editCreditPolicy', 'allowed');
+      const changedFields = Object.keys(CUSTOMER_CREDIT_FIELD_CONTROLS).filter(
+        (field) => patch[field] !== undefined && String(patch[field]) !== String(current[field]),
+      );
+      for (const field of changedFields) {
+        await assertAllowed(
+          organizationId,
+          CUSTOMER_CREDIT_FIELD_CONTROLS[field],
+          'editable',
+        );
+      }
+    },
+
+    async assertCustomerOpeningBalanceAllowed(organizationId) {
+      await assertAllowed(organizationId, 'customers.actions.postOpeningBalance', 'allowed');
+    },
+
+    async assertSupplierCreateAllowed(organizationId) {
+      await assertAllowed(organizationId, 'suppliers.actions.create', 'allowed');
+    },
+
+    async assertSupplierPatchAllowed(organizationId, current, patch) {
+      await assertAllowed(organizationId, 'suppliers.actions.edit', 'allowed');
+      const changedFields = Object.keys(SUPPLIER_FIELD_CONTROLS).filter(
+        (field) => patch[field] !== undefined && String(patch[field]) !== String(current[field]),
+      );
+      for (const field of changedFields) {
+        await assertAllowed(organizationId, SUPPLIER_FIELD_CONTROLS[field], 'editable');
+      }
+      if (patch.status !== undefined && patch.status !== current.status) {
+        const action = patch.status === 'active' ? 'reactivate' : 'deactivate';
+        await assertAllowed(organizationId, `suppliers.actions.${action}`, 'allowed');
+      }
+    },
+
+    async assertSupplierDeleteAllowed(organizationId) {
+      await assertAllowed(organizationId, 'suppliers.actions.delete', 'allowed');
+    },
+
+    async assertSupplierOpeningBalanceAllowed(organizationId) {
+      await assertAllowed(organizationId, 'suppliers.actions.postOpeningBalance', 'allowed');
+    },
   };
 }
 
@@ -554,5 +652,8 @@ module.exports = {
   createCapabilityService,
   MODE_BY_TYPE,
   CATEGORY_FIELD_CONTROLS,
+  CUSTOMER_CREDIT_FIELD_CONTROLS,
+  CUSTOMER_FIELD_CONTROLS,
   PRODUCT_FIELD_CONTROLS,
+  SUPPLIER_FIELD_CONTROLS,
 };

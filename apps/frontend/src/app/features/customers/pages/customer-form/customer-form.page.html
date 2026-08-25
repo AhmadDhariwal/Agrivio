@@ -1,184 +1,362 @@
-<agrivio-ui-page-header
-  [title]="customerId() ? 'Edit customer' : 'Create customer'"
-  eyebrow="Sales"
-  lede="Capture customer type, price tier, and credit policy."
-/>
+<div class="customer-form-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">Sales</p>
+      <h1 class="page-head__title">{{ customerId() ? 'Edit Customer' : 'Create Customer' }}</h1>
+      <p class="page-head__lede">
+        Capture customer type, price tier, and credit policy.
+      </p>
+    </div>
+    <div class="page-head__actions">
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/customers">
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        Back to Customers
+      </a>
+    </div>
+  </header>
 
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading customer…" />
-} @else if (!canManage()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to manage customers." />
-} @else {
-  @if (errorMessage(); as error) {
-    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-  }
-  @if (softWarning(); as warning) {
-    <agrivio-ui-alert tone="warning" [message]="warning" data-testid="plan-soft-warning" />
-  }
-  <form
-    class="ag-stack form ag-form ag-form--with-required-hint"
-    [formGroup]="form"
-    (ngSubmit)="save()"
-    data-testid="customer-form"
-  >
-    <div class="ag-field">
-      <agrivio-ui-field-label
-        label="Name"
-        for="customer-name"
-        [required]="fieldRequired(form.controls.name)"
-      />
-      <input
-        id="customer-name"
-        class="ag-input"
-        formControlName="name"
-        data-testid="customer-name"
-        [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
-      />
+  @if (loading()) {
+  <div class="state-container">
+    <agrivio-ui-loading-state label="Loading customer…" />
+  </div>
+  } @else if (!canManage()) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="warning" message="You do not have permission to manage customers." />
+  </div>
+  } @else {
+    @if (errorMessage(); as error) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
     </div>
-    <div class="ag-field">
-      <agrivio-ui-field-label label="Phone" for="customer-phone" />
-      <input id="customer-phone" class="ag-input" formControlName="phone" data-testid="customer-phone" />
-    </div>
-    <div class="ag-field">
-      <agrivio-ui-field-label
-        label="Customer type"
-        for="customer-type"
-        [required]="fieldRequired(form.controls.customerType)"
-      />
-      <select
-        id="customer-type"
-        class="ag-select"
-        formControlName="customerType"
-        data-testid="customer-type"
-        [attr.aria-required]="fieldRequired(form.controls.customerType) ? 'true' : null"
-      >
-        <option value="walk_in">Walk-in</option>
-        <option value="farmer">Farmer</option>
-        <option value="individual">Individual</option>
-        <option value="business">Business</option>
-        <option value="corporate">Corporate</option>
-      </select>
-    </div>
-    <div class="ag-field">
-      <agrivio-ui-field-label
-        label="Price tier"
-        for="customer-price-tier"
-        [required]="fieldRequired(form.controls.priceTier)"
-      />
-      <select
-        id="customer-price-tier"
-        class="ag-select"
-        formControlName="priceTier"
-        data-testid="customer-price-tier"
-        [attr.aria-required]="fieldRequired(form.controls.priceTier) ? 'true' : null"
-      >
-        <option value="retail">Retail</option>
-        <option value="wholesale">Wholesale</option>
-        <option value="dealer">Dealer</option>
-        <option value="distributor">Distributor</option>
-      </select>
-    </div>
-    <label class="checkbox">
-      <input type="checkbox" formControlName="creditEnabled" data-testid="customer-credit-enabled" />
-      Credit enabled
-    </label>
-    <div class="ag-field">
-      <agrivio-ui-field-label label="Credit limit (PKR)" for="customer-credit-limit" />
-      <input
-        id="customer-credit-limit"
-        class="ag-input"
-        formControlName="creditLimitAmount"
-        data-testid="customer-credit-limit"
-      />
-    </div>
-    <div class="ag-field">
-      <agrivio-ui-field-label label="Credit limit behaviour" for="customer-credit-behaviour" />
-      <select
-        id="customer-credit-behaviour"
-        class="ag-select"
-        formControlName="creditLimitBehaviour"
-        data-testid="customer-credit-behaviour"
-      >
-        <option value="warning">Warning</option>
-        <option value="manager_approval">Manager approval</option>
-        <option value="block">Block</option>
-      </select>
-    </div>
-    @if (customerId()) {
-      <div class="ag-field">
-        <agrivio-ui-field-label label="Status" for="customer-status" />
-        <select id="customer-status" class="ag-select" formControlName="status" data-testid="customer-status">
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-      </div>
     }
-    <div class="ag-inline">
-      <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="customer-save">Save</button>
-      <a class="ag-btn ag-btn--secondary" routerLink="/app/customers">Cancel</a>
+    @if (softWarning(); as warning) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="warning" [message]="warning" data-testid="plan-soft-warning" />
     </div>
-  </form>
+    }
 
-  @if (customerId() && canPostOpening()) {
-    <section class="ag-stack form" data-testid="customer-opening-section">
-      <h2>Opening balance</h2>
-      @if (openingPosted()) {
-        <p class="ag-muted" data-testid="customer-opening-posted">
-          Opening already posted.
-          @if (derivedReceivable(); as receivable) {
-            Receivable {{ receivable }} PKR.
+    <form
+      class="cust-form"
+      [formGroup]="form"
+      (ngSubmit)="save()"
+      data-testid="customer-form"
+    >
+      <!-- Section 1: Customer Information -->
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">Basic Information</h2>
+            <p class="form-card__subtitle">Customer profile identity and primary contact details.</p>
+          </div>
+        </div>
+
+        <div class="form-card__body">
+          <div class="form-grid form-grid--2col">
+            <!-- Name -->
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Name"
+                for="customer-name"
+                [required]="fieldRequired(form.controls.name)"
+              />
+              <input
+                id="customer-name"
+                class="ag-input"
+                formControlName="name"
+                placeholder="e.g. Punjab Agri Corp"
+                data-testid="customer-name"
+                [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
+              />
+            </div>
+
+            <!-- Phone -->
+            @if (showPhone()) {
+            <div class="ag-field">
+              <agrivio-ui-field-label label="Phone" for="customer-phone" />
+              <input
+                id="customer-phone"
+                class="ag-input"
+                formControlName="phone"
+                placeholder="e.g. 042-99200001"
+                data-testid="customer-phone"
+              />
+            </div>
+            }
+
+            <!-- Customer Type -->
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Customer type"
+                for="customer-type"
+                [required]="fieldRequired(form.controls.customerType)"
+              />
+              <select
+                id="customer-type"
+                class="ag-select"
+                formControlName="customerType"
+                data-testid="customer-type"
+                [attr.aria-required]="fieldRequired(form.controls.customerType) ? 'true' : null"
+              >
+                <option value="walk_in">Walk-in</option>
+                <option value="farmer">Farmer</option>
+                <option value="individual">Individual</option>
+                <option value="business">Business</option>
+                <option value="corporate">Corporate</option>
+              </select>
+            </div>
+
+            <!-- Price Tier -->
+            @if (showPriceTier()) {
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Price tier"
+                for="customer-price-tier"
+                [required]="fieldRequired(form.controls.priceTier)"
+              />
+              <select
+                id="customer-price-tier"
+                class="ag-select"
+                formControlName="priceTier"
+                data-testid="customer-price-tier"
+                [attr.aria-required]="fieldRequired(form.controls.priceTier) ? 'true' : null"
+              >
+                <option value="retail">Retail</option>
+                <option value="wholesale">Wholesale</option>
+                <option value="dealer">Dealer</option>
+                <option value="distributor">Distributor</option>
+              </select>
+            </div>
+            }
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 2: Credit Policy -->
+      @if (showCreditSection()) {
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="20" height="14" x="2" y="5" rx="2" />
+              <line x1="2" x2="22" y1="10" y2="10" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">Credit Policy & Limits</h2>
+            <p class="form-card__subtitle">Define credit authorization and risk enforcement behavior.</p>
+          </div>
+        </div>
+
+        <div class="form-card__body">
+          <div class="form-grid form-grid--2col">
+            <!-- Credit Enabled Checkbox -->
+            <div class="ag-field ag-field--span-2">
+              <label class="checkbox-label">
+                <input
+                  type="checkbox"
+                  formControlName="creditEnabled"
+                  data-testid="customer-credit-enabled"
+                />
+                <span class="checkbox-label__text">Credit sales enabled for this customer</span>
+              </label>
+            </div>
+
+            <!-- Credit Limit -->
+            @if (showCreditLimit()) {
+            <div class="ag-field">
+              <agrivio-ui-field-label label="Credit limit (PKR)" for="customer-credit-limit" />
+              <input
+                id="customer-credit-limit"
+                class="ag-input"
+                formControlName="creditLimitAmount"
+                data-testid="customer-credit-limit"
+                placeholder="0.00"
+              />
+            </div>
+            }
+
+            <!-- Credit Limit Behaviour -->
+            @if (showCreditLimitBehaviour()) {
+            <div class="ag-field">
+              <agrivio-ui-field-label label="Credit limit behaviour" for="customer-credit-behaviour" />
+              <select
+                id="customer-credit-behaviour"
+                class="ag-select"
+                formControlName="creditLimitBehaviour"
+                data-testid="customer-credit-behaviour"
+              >
+                <option value="warning">Warning</option>
+                <option value="manager_approval">Manager approval</option>
+                <option value="block">Block</option>
+              </select>
+            </div>
+            }
+          </div>
+        </div>
+      </section>
+      }
+
+      <!-- Section 3: Status (Only on edit) -->
+      @if (customerId()) {
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">Lifecycle Status</h2>
+            <p class="form-card__subtitle">Control customer operational active status.</p>
+          </div>
+        </div>
+
+        <div class="form-card__body">
+          <div class="form-grid form-grid--2col">
+            <div class="ag-field">
+              <agrivio-ui-field-label label="Status" for="customer-status" />
+              <select
+                id="customer-status"
+                class="ag-select"
+                formControlName="status"
+                data-testid="customer-status"
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
+      }
+
+      <!-- Form Actions -->
+      <footer class="form-actions">
+        <button
+          class="ag-btn ag-btn--primary"
+          type="submit"
+          [disabled]="saving()"
+          data-testid="customer-save"
+        >
+          @if (saving()) {
+            Saving Customer…
+          } @else {
+            Save Customer
           }
-          @if (derivedAdvance(); as advance) {
-            Advance {{ advance }} PKR.
-          }
-        </p>
-      } @else {
+        </button>
+        <a class="ag-btn ag-btn--secondary" routerLink="/app/customers">Cancel</a>
+      </footer>
+    </form>
+
+    <!-- Section 4: Opening Balance (Only on edit with post permission) -->
+    @if (customerId() && canPostOpening()) {
+    <section class="form-card opening-card" data-testid="customer-opening-section">
+      <div class="form-card__header">
+        <div class="form-card__icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="form-card__title">Opening Balance</h2>
+          <p class="form-card__subtitle">Record initial ledger balances before regular operations.</p>
+        </div>
+      </div>
+
+      <div class="form-card__body">
+        @if (openingPosted()) {
+        <div class="opening-posted-banner" data-testid="customer-opening-posted">
+          <p class="opening-posted-banner__title">Opening balance already posted.</p>
+          <div class="opening-posted-banner__balances">
+            @if (derivedReceivable(); as receivable) {
+            <span class="opening-stat">Receivable: <strong>{{ receivable }} PKR</strong></span>
+            }
+            @if (derivedAdvance(); as advance) {
+            <span class="opening-stat">Advance: <strong>{{ advance }} PKR</strong></span>
+            }
+          </div>
+        </div>
+        } @else {
         <form
-          class="ag-stack ag-form ag-form--with-required-hint"
+          class="opening-form"
           [formGroup]="openingForm"
           (ngSubmit)="postOpening()"
         >
-          <div class="ag-field">
-            <agrivio-ui-field-label
-              label="Kind"
-              for="customer-opening-kind"
-              [required]="fieldRequired(openingForm.controls.kind)"
-            />
-            <select
-              id="customer-opening-kind"
-              class="ag-select"
-              formControlName="kind"
-              data-testid="customer-opening-kind"
-              [attr.aria-required]="fieldRequired(openingForm.controls.kind) ? 'true' : null"
+          <div class="form-grid form-grid--2col">
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Kind"
+                for="customer-opening-kind"
+                [required]="fieldRequired(openingForm.controls.kind)"
+              />
+              <select
+                id="customer-opening-kind"
+                class="ag-select"
+                formControlName="kind"
+                data-testid="customer-opening-kind"
+                [attr.aria-required]="fieldRequired(openingForm.controls.kind) ? 'true' : null"
+              >
+                <option value="receivable">Receivable</option>
+                <option value="advance">Advance</option>
+              </select>
+            </div>
+
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Amount (PKR)"
+                for="customer-opening-amount"
+                [required]="fieldRequired(openingForm.controls.amount)"
+              />
+              <input
+                id="customer-opening-amount"
+                class="ag-input"
+                formControlName="amount"
+                placeholder="0.00"
+                data-testid="customer-opening-amount"
+                [attr.aria-required]="fieldRequired(openingForm.controls.amount) ? 'true' : null"
+              />
+            </div>
+          </div>
+
+          <div class="opening-form-actions">
+            <button
+              class="ag-btn ag-btn--primary"
+              type="submit"
+              [disabled]="postingOpening()"
+              data-testid="customer-opening-save"
             >
-              <option value="receivable">Receivable</option>
-              <option value="advance">Advance</option>
-            </select>
+              @if (postingOpening()) {
+                Posting opening…
+              } @else {
+                Post opening
+              }
+            </button>
           </div>
-          <div class="ag-field">
-            <agrivio-ui-field-label
-              label="Amount (PKR)"
-              for="customer-opening-amount"
-              [required]="fieldRequired(openingForm.controls.amount)"
-            />
-            <input
-              id="customer-opening-amount"
-              class="ag-input"
-              formControlName="amount"
-              data-testid="customer-opening-amount"
-              [attr.aria-required]="fieldRequired(openingForm.controls.amount) ? 'true' : null"
-            />
-          </div>
-          <button
-            class="ag-btn"
-            type="submit"
-            [disabled]="postingOpening()"
-            data-testid="customer-opening-save"
-          >
-            Post opening
-          </button>
         </form>
-      }
+        }
+      </div>
     </section>
+    }
   }
-}
+</div>
