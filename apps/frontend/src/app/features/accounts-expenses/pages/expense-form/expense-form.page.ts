@@ -7,7 +7,6 @@ import { ExpensesApi } from '../../data-access/expenses.api';
 import { AccountsApi } from '../../data-access/accounts.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
@@ -26,7 +25,6 @@ import { ExpenseCategoryRecord, ExpenseRecord } from '../../models/expenses.mode
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
     UiConfirmDialogComponent,

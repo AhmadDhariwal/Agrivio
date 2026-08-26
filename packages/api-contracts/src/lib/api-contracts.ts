@@ -91,6 +91,9 @@ export const API_SUPPLIERS_PATH = `${API_V1_PREFIX}/suppliers` as const;
 /** Accounts master data (R1-F03-010). */
 export const API_ACCOUNTS_PATH = `${API_V1_PREFIX}/accounts` as const;
 
+/** Accounts summary read model (KPI Cards). */
+export const API_ACCOUNTS_SUMMARY_PATH = `${API_V1_PREFIX}/accounts/summary` as const;
+
 /** Manual account inflow/outflow posting (R1-F07-006/007). */
 export const API_ACCOUNT_TRANSACTIONS_PATH = `${API_V1_PREFIX}/account-transactions` as const;
 

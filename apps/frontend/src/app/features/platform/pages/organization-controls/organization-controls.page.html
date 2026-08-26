@@ -171,6 +171,15 @@
       >
         Expense Categories
       </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'accounts'"
+        (click)="selectModule('accounts')"
+        data-testid="accounts-control-module"
+      >
+        Accounts
+      </button>
       <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>
 
@@ -230,7 +239,8 @@
               selectedModule() === 'suppliers' ||
               selectedModule() === 'returns' ||
               selectedModule() === 'expenses' ||
-              selectedModule() === 'expenses.categories'
+              selectedModule() === 'expenses.categories' ||
+              selectedModule() === 'accounts'
                 ? 'Required Fields'
                 : 'Required Workflow Fields',
             controls: requiredWorkflowControls()

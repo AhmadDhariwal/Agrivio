@@ -306,6 +306,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Accounts',
           route: '/app/accounts',
           permission: 'accounts.view',
+          capabilityKey: 'accounts',
           testId: 'nav-accounts',
         },
       ],

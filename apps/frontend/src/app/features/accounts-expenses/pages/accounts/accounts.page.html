@@ -10,6 +10,7 @@
       <p class="page-head__lede">Manage cash, bank, and wallet accounts used for money movements and settlements.</p>
     </div>
     <div class="page-head__actions">
+      @if (canRefresh()) {
       <button class="ag-btn ag-btn--secondary" type="button" (click)="reload()" aria-label="Refresh">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
@@ -17,7 +18,8 @@
         </svg>
         <span>Refresh</span>
       </button>
-      @if (canManage()) {
+      }
+      @if (canCreate()) {
       <a class="ag-btn ag-btn--primary" routerLink="/app/accounts/new" data-testid="account-create-link">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
@@ -29,12 +31,14 @@
   </header>
 
   <!-- Module Info -->
+  @if (showModuleInfo()) {
   <agrivio-ui-module-info
     [title]="infoTitle"
     [description]="infoDescription"
     [items]="infoItems"
     [defaultExpanded]="false"
   />
+  }
 
   <!-- Alerts -->
   @if (errorMessage(); as error) {
@@ -48,57 +52,6 @@
   </div>
   }
 
-  <!-- KPI Summary Row -->
-  @if (!loading() && canView()) {
-  <section class="kpi-row" aria-label="Accounts Summary">
-    <div class="kpi-card">
-      <div class="kpi-card__icon kpi-card__icon--neutral">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" />
-        </svg>
-      </div>
-      <div class="kpi-card__content">
-        <span class="kpi-card__label">Total Accounts</span>
-        <span class="kpi-card__value">{{ total() }}</span>
-      </div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-card__icon kpi-card__icon--green">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
-        </svg>
-      </div>
-      <div class="kpi-card__content">
-        <span class="kpi-card__label">Active Accounts</span>
-        <span class="kpi-card__value">{{ activeCount() }}</span>
-      </div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-card__icon kpi-card__icon--amber">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-        </svg>
-      </div>
-      <div class="kpi-card__content">
-        <span class="kpi-card__label">Inactive Accounts</span>
-        <span class="kpi-card__value">{{ inactiveCount() }}</span>
-      </div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-card__icon kpi-card__icon--blue">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" />
-          <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" />
-        </svg>
-      </div>
-      <div class="kpi-card__content">
-        <span class="kpi-card__label">Total Balance</span>
-        <span class="kpi-card__value">{{ totalBalanceFormatted() }}</span>
-      </div>
-    </div>
-  </section>
-  }
-
   @if (loading()) {
   <div class="state-container">
     <agrivio-ui-loading-state label="Loading accounts…" />
@@ -108,9 +61,69 @@
     <agrivio-ui-alert tone="warning" message="You do not have permission to view accounts." />
   </div>
   } @else {
+  <!-- KPI Summary Row -->
+  @if (showKpiCards()) {
+  <section class="kpi-row" aria-label="Accounts Summary" data-testid="accounts-kpi-row">
+    <div class="kpi-card" data-testid="kpi-total-accounts">
+      <div class="kpi-card__icon kpi-card__icon--neutral">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="20" height="14" x="2" y="5" rx="2" />
+          <line x1="2" y1="10" x2="22" y2="10" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Total Accounts</span>
+        <span class="kpi-card__value" data-testid="kpi-total-value">{{ summary() ? summary()!.totalAccounts : '—' }}</span>
+      </div>
+    </div>
+
+    <div class="kpi-card" data-testid="kpi-active-accounts">
+      <div class="kpi-card__icon kpi-card__icon--green">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+          <polyline points="22 4 12 14.01 9 11.01" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Active Accounts</span>
+        <span class="kpi-card__value" data-testid="kpi-active-value">{{ summary() ? summary()!.activeAccounts : '—' }}</span>
+      </div>
+    </div>
+
+    <div class="kpi-card" data-testid="kpi-inactive-accounts">
+      <div class="kpi-card__icon kpi-card__icon--amber">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="10" y1="15" x2="10" y2="9" />
+          <line x1="14" y1="15" x2="14" y2="9" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Inactive Accounts</span>
+        <span class="kpi-card__value" data-testid="kpi-inactive-value">{{ summary() ? summary()!.inactiveAccounts : '—' }}</span>
+      </div>
+    </div>
+
+    <div class="kpi-card" data-testid="kpi-total-balance">
+      <div class="kpi-card__icon kpi-card__icon--blue">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="1" x2="12" y2="23" />
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Total Balance</span>
+        <span class="kpi-card__value" data-testid="kpi-balance-value">{{ formatSummaryBalance() }}</span>
+      </div>
+    </div>
+  </section>
+  }
+
   <!-- Filter Toolbar -->
+  @if (showSearch() || showStatusFilter()) {
   <div class="filter-toolbar">
     <div class="filter-toolbar__filters">
+      @if (showSearch()) {
       <div class="filter-toolbar__search">
         <svg class="filter-toolbar__search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -124,6 +137,8 @@
           data-testid="accounts-search"
         />
       </div>
+      }
+      @if (showStatusFilter()) {
       <select
         class="filter-toolbar__select"
         [value]="statusFilter()"
@@ -135,6 +150,7 @@
         <option value="inactive">Inactive</option>
         <option value="all">All statuses</option>
       </select>
+      }
     </div>
     <div class="filter-toolbar__actions">
       @if (hasActiveFilters()) {
@@ -147,6 +163,7 @@
       }
     </div>
   </div>
+  }
 
   @if (items().length === 0) {
   <agrivio-ui-empty-state
@@ -160,10 +177,18 @@
       <thead>
         <tr>
           <th class="accounts-table__th">Account</th>
+          @if (showAccountType()) {
           <th class="accounts-table__th">Type</th>
+          }
+          @if (showDerivedBalance()) {
           <th class="accounts-table__th accounts-table__th--amount">Balance (PKR)</th>
+          }
+          @if (showStatus()) {
           <th class="accounts-table__th">Status</th>
+          }
+          @if (canInspect() || canEdit() || canDeactivate() || canReactivate() || canDelete()) {
           <th class="accounts-table__th accounts-table__th--actions">Actions</th>
+          }
         </tr>
       </thead>
       <tbody>
@@ -171,27 +196,40 @@
         <tr class="accounts-table__row">
           <td class="accounts-table__td accounts-table__td--primary">
             <div class="account-identity">
+              @if (showName()) {
               <span class="account-name">{{ item.name }}</span>
+              }
+              @if (showAccountType()) {
               <span class="badge-type badge-type--{{ item.accountType }}">{{ accountTypeLabel(item.accountType) }}</span>
+              }
             </div>
           </td>
+          @if (showAccountType()) {
           <td class="accounts-table__td">{{ accountTypeLabel(item.accountType) }}</td>
+          }
+          @if (showDerivedBalance()) {
           <td class="accounts-table__td accounts-table__td--amount" data-testid="account-list-balance">
             {{ formatBalance(item) }}
           </td>
+          }
+          @if (showStatus()) {
           <td class="accounts-table__td">
             <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
           </td>
+          }
+          @if (canInspect() || canEdit() || canDeactivate() || canReactivate() || canDelete()) {
           <td class="accounts-table__td accounts-table__td--actions">
             <div class="action-cell">
+              @if (canInspect() || canEdit()) {
               <a
                 class="ag-btn ag-btn--secondary ag-btn--sm"
                 [routerLink]="['/app/accounts', item.id]"
                 data-testid="account-open"
               >
-                {{ canManage() ? 'Edit' : 'Open' }}
+                {{ canEdit() ? 'Edit' : 'Open' }}
               </a>
-              @if (canManage()) {
+              }
+              @if (canDeactivate() || canReactivate() || canDelete()) {
               <div class="row-menu-container">
                 <button
                   type="button"
@@ -206,18 +244,22 @@
                 </button>
                 @if (openMenuAccountId() === item.id) {
                 <div class="row-menu" role="menu">
-                  @if (item.status === 'active') {
+                  @if (canDeactivate() && item.status === 'active') {
                   <button type="button" class="row-menu__item" role="menuitem" (click)="askDeactivate(item)" data-testid="account-deactivate">Deactivate</button>
-                  } @else {
+                  }
+                  @if (canReactivate() && item.status === 'inactive') {
                   <button type="button" class="row-menu__item" role="menuitem" (click)="askReactivate(item)" data-testid="account-reactivate">Reactivate</button>
                   }
+                  @if (canDelete() && (!item.openingBalance || item.openingBalance.status !== 'posted')) {
                   <button type="button" class="row-menu__item row-menu__item--danger" role="menuitem" (click)="askDelete(item)" data-testid="account-delete">Delete permanently</button>
+                  }
                 </div>
                 }
               </div>
               }
             </div>
           </td>
+          }
         </tr>
         }
       </tbody>
@@ -230,29 +272,40 @@
     <article class="account-card">
       <div class="account-card__header">
         <div class="account-card__identity">
+          @if (showName()) {
           <span class="account-card__name">{{ item.name }}</span>
+          }
+          @if (showAccountType()) {
           <span class="badge-type badge-type--{{ item.accountType }}">{{ accountTypeLabel(item.accountType) }}</span>
+          }
         </div>
+        @if (showStatus()) {
         <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+        }
       </div>
+      @if (showDerivedBalance()) {
       <div class="account-card__body">
         <div class="account-card__row">
           <span class="account-card__label">Balance</span>
           <span class="account-card__balance">{{ formatBalance(item) }}</span>
         </div>
       </div>
+      }
+      @if (canInspect() || canEdit() || (canDeactivate() && item.status === 'active') || (canReactivate() && item.status === 'inactive')) {
       <div class="account-card__actions">
+        @if (canInspect() || canEdit()) {
         <a class="ag-btn ag-btn--secondary ag-btn--sm" [routerLink]="['/app/accounts', item.id]">
-          {{ canManage() ? 'Edit' : 'Open' }}
+          {{ canEdit() ? 'Edit' : 'Open' }}
         </a>
-        @if (canManage()) {
-        @if (item.status === 'active') {
+        }
+        @if (canDeactivate() && item.status === 'active') {
         <button type="button" class="ag-btn ag-btn--secondary ag-btn--sm" (click)="askDeactivate(item)">Deactivate</button>
-        } @else {
+        }
+        @if (canReactivate() && item.status === 'inactive') {
         <button type="button" class="ag-btn ag-btn--secondary ag-btn--sm" (click)="askReactivate(item)">Reactivate</button>
         }
-        }
       </div>
+      }
     </article>
     }
   </div>

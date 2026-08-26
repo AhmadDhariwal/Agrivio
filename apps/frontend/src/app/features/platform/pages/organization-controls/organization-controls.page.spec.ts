@@ -21,8 +21,10 @@ function control(
     | 'inventory.movements'
     | 'customers'
     | 'suppliers'
+    | 'returns'
     | 'expenses'
-    | 'expenses.categories',
+    | 'expenses.categories'
+    | 'accounts',
   type: PlatformCapabilityControl['type'],
   label: string,
   policy: Record<string, boolean>,
@@ -1142,6 +1144,36 @@ describe('OrganizationControlsPage', () => {
         ...control('expenses.categories.actions.delete', 'expenses.categories', 'ACTION', 'Delete Category', { allowed: true }),
         dependencies: ['expenses.actions.manageCategories'],
       },
+      // Accounts Module (1)
+      control('accounts', 'accounts', 'MODULE', 'Accounts', { enabled: true }, { risk: 'CRITICAL' }),
+      // Accounts Features (5)
+      control('accounts.features.moduleInfo', 'accounts', 'FEATURE', 'About Accounts', { enabled: true }),
+      control('accounts.features.search', 'accounts', 'FEATURE', 'Search Filter', { enabled: true }),
+      control('accounts.features.statusFilter', 'accounts', 'FEATURE', 'Status Filter', { enabled: true }),
+      control('accounts.features.movementHistory', 'accounts', 'FEATURE', 'Movement History', { enabled: true }),
+      control('accounts.features.kpiCards', 'accounts', 'FEATURE', 'KPI Cards', { enabled: true }),
+      // Accounts Fields (8)
+      control('accounts.fields.name', 'accounts', 'FIELD', 'Account Name', { visible: true, editable: true }, { configurable: { visible: false, editable: true }, platformEnforced: true, risk: 'CRITICAL' }),
+      control('accounts.fields.accountType', 'accounts', 'FIELD', 'Account Type', { visible: true, editable: false }, { configurable: { visible: false, editable: false }, platformEnforced: true, risk: 'CRITICAL' }),
+      control('accounts.fields.status', 'accounts', 'FIELD', 'Lifecycle Status', { visible: true, editable: false }, { configurable: { visible: false, editable: false }, platformEnforced: true, risk: 'CRITICAL' }),
+      control('accounts.fields.derivedBalance', 'accounts', 'FIELD', 'Derived Balance', { visible: true }, { configurable: { visible: false }, platformEnforced: true, risk: 'CRITICAL' }),
+      control('accounts.fields.bankName', 'accounts', 'FIELD', 'Bank Name', { visible: true, editable: true }, { configurable: { visible: false, editable: true }, platformEnforced: true }),
+      control('accounts.fields.accountNumberMasked', 'accounts', 'FIELD', 'Masked Account Number', { visible: true, editable: true }),
+      control('accounts.fields.walletIdentifier', 'accounts', 'FIELD', 'Wallet Identifier', { visible: true, editable: true }, { configurable: { visible: false, editable: true }, platformEnforced: true }),
+      control('accounts.fields.openingBalance', 'accounts', 'FIELD', 'Opening Balance', { visible: true }, { configurable: { visible: false }, platformEnforced: true, risk: 'CRITICAL' }),
+      // Accounts Actions (12)
+      control('accounts.actions.create', 'accounts', 'ACTION', 'Create Account', { allowed: true }),
+      control('accounts.actions.inspect', 'accounts', 'ACTION', 'Inspect Account', { allowed: true }),
+      control('accounts.actions.edit', 'accounts', 'ACTION', 'Edit Account', { allowed: true }),
+      control('accounts.actions.deactivate', 'accounts', 'ACTION', 'Deactivate Account', { allowed: true }),
+      control('accounts.actions.reactivate', 'accounts', 'ACTION', 'Reactivate Account', { allowed: true }),
+      control('accounts.actions.delete', 'accounts', 'ACTION', 'Delete Account', { allowed: true }, { risk: 'CRITICAL' }),
+      control('accounts.actions.postOpeningBalance', 'accounts', 'ACTION', 'Post Opening Balance', { allowed: true }, { risk: 'CRITICAL' }),
+      control('accounts.actions.postManualMovement', 'accounts', 'ACTION', 'Post Manual Movement', { allowed: true }),
+      control('accounts.actions.transfer', 'accounts', 'ACTION', 'Transfer Funds', { allowed: true }),
+      control('accounts.actions.reverseMovement', 'accounts', 'ACTION', 'Reverse Movement', { allowed: true }),
+      control('accounts.actions.reverseTransfer', 'accounts', 'ACTION', 'Reverse Transfer', { allowed: true }),
+      control('accounts.actions.refresh', 'accounts', 'ACTION', 'Refresh Accounts', { allowed: true }),
     ];
     await TestBed.configureTestingModule({
       imports: [OrganizationControlsPage],
@@ -2260,6 +2292,71 @@ describe('OrganizationControlsPage', () => {
       expect(createControl).toBeDefined();
       if (createControl) {
         expect(component.effectiveValue(createControl, 'allowed')).toBe(true);
+      }
+    });
+  });
+
+  describe('Accounts Controls', () => {
+    it('selects Accounts module and renders all expected control sections', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('accounts');
+      fixture.detectChanges();
+
+      expect(component.selectedModule()).toBe('accounts');
+      expect(component.moduleLabel('accounts')).toBe('Accounts');
+      expect(component.moduleControls().length).toBe(1);
+      expect(component.moduleInfoControls().length).toBe(1);
+      expect(component.filterControls().length).toBe(2);
+      expect(component.kpiControls().length).toBe(1);
+      expect(component.historyControls().length).toBe(1);
+      expect(component.requiredWorkflowControls().length).toBe(7);
+      expect(component.fieldControls().length).toBe(1);
+      expect(component.actionControls().length).toBe(12);
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('Accounts Module');
+      expect(text).toContain('Module Information');
+      expect(text).toContain('Filters');
+      expect(text).toContain('KPI');
+      expect(text).toContain('History');
+      expect(text).toContain('Required Fields');
+      expect(text).toContain('Fields');
+      expect(text).toContain('Actions');
+    });
+
+    it('triggers critical confirmation dialog when disabling Accounts module', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('accounts');
+      const moduleControl = component.controls().find((item) => item.key === 'accounts');
+      expect(moduleControl).toBeDefined();
+      if (moduleControl) {
+        component.setValue(moduleControl, 'enabled', false);
+        component.askSave();
+
+        expect(component.disablingAccounts()).toBe(true);
+        expect(component.confirmationTitle()).toBe('Disable Accounts for Greenfield Agro Center?');
+        expect(component.confirmationMessage()).toContain(
+          'Users in this organization will no longer be able to access Accounts',
+        );
+        expect(component.confirmationLabel()).toBe('Disable Accounts');
+      }
+    });
+
+    it('enforces platform rules on required fields like account name, type, and opening balance', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('accounts');
+      fixture.detectChanges();
+
+      const nameControl = component
+        .requiredWorkflowControls()
+        .find((item) => item.key === 'accounts.fields.name');
+      expect(nameControl).toBeDefined();
+      if (nameControl) {
+        expect(component.isConfigurable(nameControl, 'visible')).toBe(false);
+        expect(component.modeReadonly(nameControl, 'visible')).toBe(true);
+        expect(component.modeLockedReason(nameControl, 'visible')).toBe(
+          'Platform rule: this required workflow field cannot be hidden or disabled.',
+        );
       }
     });
   });

@@ -46,12 +46,12 @@
     </div>
     }
 
-    <!-- Section 1: Account Information -->
-    @if (!accountId() && !canManage()) {
+    <!-- Section 1: Account Details Form -->
+    @if (!accountId() && !canCreate()) {
     <div class="alert-container">
-      <agrivio-ui-alert tone="warning" message="You do not have permission to manage accounts." />
+      <agrivio-ui-alert tone="warning" message="You do not have permission to create accounts." />
     </div>
-    } @else if (canManage()) {
+    } @else if (accountId() ? canEdit() : canCreate()) {
     <form class="form-card" [formGroup]="form" (ngSubmit)="save()" data-testid="account-form">
       <div class="form-card__header">
         <div class="form-card__icon">
@@ -68,6 +68,7 @@
       <div class="form-card__body">
         <div class="form-grid">
           <!-- Account Type -->
+          @if (showAccountType()) {
           <div class="form-group">
             <agrivio-ui-field-label
               label="Account type"
@@ -87,8 +88,10 @@
               <option value="easypaisa">Easypaisa</option>
             </select>
           </div>
+          }
 
           <!-- Account Name -->
+          @if (showName()) {
           <div class="form-group">
             <agrivio-ui-field-label
               label="Name"
@@ -101,12 +104,15 @@
               formControlName="name"
               placeholder="e.g. Main Cash Drawer, HBL Operations"
               data-testid="account-name"
+              [readonly]="!canEditName()"
               [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
             />
           </div>
+          }
 
           <!-- Bank-Specific Fields -->
           @if (accountType() === 'bank') {
+          @if (showBankName()) {
           <div class="form-group">
             <agrivio-ui-field-label label="Bank name" for="account-bank-name" />
             <input
@@ -115,8 +121,11 @@
               formControlName="bankName"
               placeholder="e.g. Habib Bank Limited"
               data-testid="account-bank-name"
+              [readonly]="!canEditBankName()"
             />
           </div>
+          }
+          @if (showAccountNumberMasked()) {
           <div class="form-group">
             <agrivio-ui-field-label label="Account number (masked, optional)" for="account-number-masked" />
             <input
@@ -125,12 +134,15 @@
               formControlName="accountNumberMasked"
               placeholder="e.g. ****1234"
               data-testid="account-number-masked"
+              [readonly]="!canEditAccountNumberMasked()"
             />
           </div>
+          }
           }
 
           <!-- Wallet-Specific Fields -->
           @if (accountType() === 'jazzcash' || accountType() === 'easypaisa') {
+          @if (showWalletIdentifier()) {
           <div class="form-group">
             <agrivio-ui-field-label label="Wallet identifier" for="account-wallet-identifier" />
             <input
@@ -139,12 +151,14 @@
               formControlName="walletIdentifier"
               placeholder="e.g. 03001234567"
               data-testid="account-wallet-identifier"
+              [readonly]="!canEditWalletIdentifier()"
             />
           </div>
           }
+          }
 
           <!-- Status (Edit Mode) -->
-          @if (accountId()) {
+          @if (accountId() && showStatus()) {
           <div class="form-group">
             <agrivio-ui-field-label label="Status" for="account-status" />
             <select id="account-status" class="form-control" formControlName="status" data-testid="account-status">
@@ -156,7 +170,7 @@
         </div>
 
         <div class="form-card__actions">
-          <button class="ag-btn ag-btn--primary" type="submit" [disabled]="saving()" data-testid="account-save">
+          <button class="ag-btn ag-btn--primary" type="submit" [disabled]="saving() || (accountId() ? !canEdit() : !canCreate())" data-testid="account-save">
             {{ saving() ? 'Saving…' : 'Save Account' }}
           </button>
           <a class="ag-btn ag-btn--secondary" routerLink="/app/accounts">Cancel</a>
@@ -180,7 +194,7 @@
     }
 
     <!-- Section 2: Opening Balance -->
-    @if (accountId() && canPostOpening()) {
+    @if (accountId() && showOpeningBalance() && (openingPosted() || canPostOpening())) {
     <section class="form-card" data-testid="account-opening-section">
       <div class="form-card__header">
         <div class="form-card__icon form-card__icon--green">
@@ -466,7 +480,7 @@
     }
 
     <!-- Section 6: Account Movements -->
-    @if (accountId() && canView()) {
+    @if (accountId() && showMovementHistory()) {
     <section class="form-card" data-testid="account-movements-section">
       <div class="form-card__header form-card__header--split">
         <div class="form-card__header-left">
@@ -481,10 +495,12 @@
             <p class="form-card__subtitle">Immutable signed financial ledger entries for this account.</p>
           </div>
         </div>
+        @if (showDerivedBalance()) {
         <div class="balance-badge" data-testid="account-derived-balance">
           <span class="balance-badge__label">Derived Balance:</span>
           <span class="balance-badge__value">PKR {{ formatAmount(derivedBalance()) }}</span>
         </div>
+        }
       </div>
 
       <div class="form-card__body form-card__body--flush">

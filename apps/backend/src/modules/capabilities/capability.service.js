@@ -21,6 +21,7 @@ const {
   CUSTOMERS_MODULE_KEY,
   SUPPLIERS_MODULE_KEY,
   RETURNS_MODULE_KEY,
+  ACCOUNTS_MODULE_KEY,
   EXPENSES_MODULE_KEY,
   EXPENSE_CATEGORIES_MODULE_KEY,
   getCapabilityControl,
@@ -68,6 +69,13 @@ const SUPPLIER_FIELD_CONTROLS = Object.freeze({
   contactName: 'suppliers.fields.contactName',
   phone: 'suppliers.fields.phone',
   email: 'suppliers.fields.email',
+});
+
+const ACCOUNT_FIELD_CONTROLS = Object.freeze({
+  name: 'accounts.fields.name',
+  bankName: 'accounts.fields.bankName',
+  accountNumberMasked: 'accounts.fields.accountNumberMasked',
+  walletIdentifier: 'accounts.fields.walletIdentifier',
 });
 
 function cloneValue(value) {
@@ -466,6 +474,7 @@ function createCapabilityService(deps) {
           CUSTOMERS_MODULE_KEY,
           SUPPLIERS_MODULE_KEY,
           RETURNS_MODULE_KEY,
+          ACCOUNTS_MODULE_KEY,
           EXPENSES_MODULE_KEY,
           EXPENSE_CATEGORIES_MODULE_KEY,
         ].includes(moduleKey)
@@ -651,12 +660,57 @@ function createCapabilityService(deps) {
     async assertSupplierOpeningBalanceAllowed(organizationId) {
       await assertAllowed(organizationId, 'suppliers.actions.postOpeningBalance', 'allowed');
     },
+
+    async assertAccountCreateAllowed(organizationId) {
+      await assertAllowed(organizationId, 'accounts.actions.create', 'allowed');
+    },
+
+    async assertAccountPatchAllowed(organizationId, current, patch) {
+      const changedFields = Object.keys(ACCOUNT_FIELD_CONTROLS).filter(
+        (field) => patch[field] !== undefined && String(patch[field]) !== String(current[field]),
+      );
+      if (changedFields.length > 0) {
+        await assertAllowed(organizationId, 'accounts.actions.edit', 'allowed');
+      }
+      for (const field of changedFields) {
+        await assertAllowed(organizationId, ACCOUNT_FIELD_CONTROLS[field], 'editable');
+      }
+      if (patch.status !== undefined && patch.status !== current.status) {
+        const action = patch.status === 'active' ? 'reactivate' : 'deactivate';
+        await assertAllowed(organizationId, `accounts.actions.${action}`, 'allowed');
+      }
+    },
+
+    async assertAccountDeleteAllowed(organizationId) {
+      await assertAllowed(organizationId, 'accounts.actions.delete', 'allowed');
+    },
+
+    async assertAccountOpeningBalanceAllowed(organizationId) {
+      await assertAllowed(organizationId, 'accounts.actions.postOpeningBalance', 'allowed');
+    },
+
+    async assertAccountManualMovementAllowed(organizationId) {
+      await assertAllowed(organizationId, 'accounts.actions.postManualMovement', 'allowed');
+    },
+
+    async assertAccountTransferAllowed(organizationId) {
+      await assertAllowed(organizationId, 'accounts.actions.transfer', 'allowed');
+    },
+
+    async assertAccountMovementReversalAllowed(organizationId) {
+      await assertAllowed(organizationId, 'accounts.actions.reverseMovement', 'allowed');
+    },
+
+    async assertAccountTransferReversalAllowed(organizationId) {
+      await assertAllowed(organizationId, 'accounts.actions.reverseTransfer', 'allowed');
+    },
   };
 }
 
 module.exports = {
   createCapabilityService,
   MODE_BY_TYPE,
+  ACCOUNT_FIELD_CONTROLS,
   CATEGORY_FIELD_CONTROLS,
   CUSTOMER_CREDIT_FIELD_CONTROLS,
   CUSTOMER_FIELD_CONTROLS,

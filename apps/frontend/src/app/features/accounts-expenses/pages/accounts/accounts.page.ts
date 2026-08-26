@@ -2,8 +2,9 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AccountsApi } from '../../data-access/accounts.api';
-import { AccountRecord } from '../../models/accounts.models';
+import { AccountRecord, AccountsSummary } from '../../models/accounts.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
@@ -41,8 +42,10 @@ import {
 export class AccountsPage {
   private readonly api = inject(AccountsApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
 
   readonly items = signal<AccountRecord[]>([]);
+  readonly summary = signal<AccountsSummary | null>(null);
   readonly statusFilter = signal<MasterLifecycleFilter>('active');
   readonly search = signal('');
   readonly page = signal(1);
@@ -51,22 +54,95 @@ export class AccountsPage {
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
-  readonly canManage = computed(() => this.sessionStore.hasPermission('accounts.manage'));
-  readonly canView = computed(() => this.sessionStore.hasPermission('accounts.view'));
 
-  readonly activeCount = computed(
-    () => this.items().filter((i) => i.status === 'active').length,
+  readonly canUseAccounts = computed(
+    () => this.capabilityService?.canUseModule('accounts') ?? true,
   );
-  readonly inactiveCount = computed(
-    () => this.items().filter((i) => i.status === 'inactive').length,
+  readonly canManage = computed(
+    () => this.sessionStore.hasPermission('accounts.manage') && this.canUseAccounts(),
   );
-  readonly totalBalanceFormatted = computed(() => {
-    const total = this.items().reduce((acc, item) => {
-      const num = Number(item.derivedBalances?.balance?.amount ?? 0);
-      return acc + (isNaN(num) ? 0 : num);
-    }, 0);
-    return `PKR ${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  });
+  readonly canView = computed(
+    () => this.sessionStore.hasPermission('accounts.view') && this.canUseAccounts(),
+  );
+
+  // Features (Capability ∩ RBAC)
+  readonly showModuleInfo = computed(
+    () => this.capabilityService?.canUseView('accounts.features.moduleInfo') ?? true,
+  );
+  readonly showSearch = computed(
+    () => this.capabilityService?.canUseView('accounts.features.search') ?? true,
+  );
+  readonly showStatusFilter = computed(
+    () => this.capabilityService?.canUseView('accounts.features.statusFilter') ?? true,
+  );
+  readonly showKpiCards = computed(
+    () =>
+      this.canView() &&
+      (this.capabilityService?.canUseView('accounts.features.kpiCards') ?? true),
+  );
+
+  // Fields
+  readonly showName = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.name') ?? true,
+  );
+  readonly showAccountType = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.accountType') ?? true,
+  );
+  readonly showStatus = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.status') ?? true,
+  );
+  readonly showDerivedBalance = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.derivedBalance') ?? true,
+  );
+  readonly showBankName = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.bankName') ?? true,
+  );
+  readonly showAccountNumberMasked = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.accountNumberMasked') ?? true,
+  );
+  readonly showWalletIdentifier = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.walletIdentifier') ?? true,
+  );
+  readonly showOpeningBalance = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.openingBalance') ?? true,
+  );
+
+  // Actions (Capability ∩ RBAC)
+  readonly canCreate = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.create') ?? true),
+  );
+  readonly canInspect = computed(
+    () =>
+      this.canView() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.inspect') ?? true),
+  );
+  readonly canEdit = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.edit') ?? true),
+  );
+  readonly canDeactivate = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.deactivate') ?? true),
+  );
+  readonly canReactivate = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.reactivate') ?? true),
+  );
+  readonly canDelete = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.delete') ?? true),
+  );
+  readonly canRefresh = computed(
+    () =>
+      this.canView() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.refresh') ?? true),
+  );
 
   readonly hasActiveFilters = computed(
     () => this.statusFilter() !== 'active' || !!this.search(),
@@ -128,6 +204,15 @@ export class AccountsPage {
         );
       },
     });
+
+    if (this.showKpiCards()) {
+      this.api.getSummary().subscribe({
+        next: (summary) => this.summary.set(summary),
+        error: () => this.summary.set(null),
+      });
+    } else {
+      this.summary.set(null);
+    }
   }
 
   onStatusChange(event: Event): void {
@@ -164,6 +249,14 @@ export class AccountsPage {
 
   statusTone(status: string): UiBadgeTone {
     return status === 'active' ? 'success' : 'neutral';
+  }
+
+  formatSummaryBalance(): string {
+    const balance = this.summary()?.totalBalance;
+    if (!balance) return '—';
+    const value = Number(balance.amount);
+    if (isNaN(value)) return `${balance.currency} ${balance.amount}`;
+    return `${balance.currency} ${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
 
   formatBalance(item: AccountRecord): string {
