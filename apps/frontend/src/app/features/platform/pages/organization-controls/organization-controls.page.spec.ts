@@ -2410,7 +2410,6 @@ describe('OrganizationControlsPage', () => {
       }
     });
   });
-
   describe('Reports Controls', () => {
     it('renders the complete Reports registry through the generic policy sections', () => {
       const component = fixture.componentInstance;

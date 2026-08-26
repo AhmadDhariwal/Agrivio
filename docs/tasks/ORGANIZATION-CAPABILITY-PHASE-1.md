@@ -126,7 +126,6 @@ No capability controls were added for Warehouses.
 - Required filter validation, tenant and warehouse isolation, canonical calculations, source-domain invariants, fixed export format availability, and the `reportsExports` plan entitlement remain platform enforced. Capability policy can only remove access; it cannot grant Reports RBAC or source-module access.
 - Reports module reset removes only controls whose `moduleKey` is `reports`, preserves all other organization overrides, increments the policy version on material changes, and emits the existing per-control audit evidence.
 - The Reports capability integration does not redesign report presentation, make required filters configurable, or gate responsive/pagination infrastructure. Report-by-report screenshot refinement remains a separate workflow; this record does not declare the Reports Production UI fully frozen.
-
 ## Model review checklist outcome
 
 | Check | Outcome |

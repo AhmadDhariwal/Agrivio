@@ -386,7 +386,6 @@ describe('CapabilityService', () => {
     expect(service.canPerformAction('accounts.actions.reverseTransfer')).toBe(true);
     expect(service.canPerformAction('accounts.actions.refresh')).toBe(true);
   });
-
   it('provides the exact 22 Reports defaults and wires module route/navigation gating', () => {
     TestBed.configureTestingModule({
       providers: [

@@ -783,7 +783,6 @@ export class OrganizationControlsPage {
     const keys = new Set(ids.map((id) => `reports.features.${id}`));
     return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
   }
-
   private suppliersFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
     const keys = new Set(ids.map((id) => `suppliers.features.${id}`));
     return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
