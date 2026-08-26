@@ -7,7 +7,7 @@
   <agrivio-ui-page-header
     eyebrow="Platform · Organization Controls"
     [title]="state.organization.name"
-    lede="Configure registered Products, Categories, Stock-on-Hand, Opening Stock, Product Batches, Expiry Inquiry, Stock Adjustments, and Warehouse Transfers controls without changing registry defaults or user RBAC permissions."
+    lede="Configure registered organization capabilities through the shared policy renderer without changing registry defaults or user RBAC permissions."
   />
 
   <div class="identity-grid">
@@ -180,6 +180,15 @@
       >
         Accounts
       </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'reports'"
+        (click)="selectModule('reports')"
+        data-testid="reports-control-module"
+      >
+        Reports
+      </button>
       <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>
 
@@ -247,6 +256,7 @@
           },
           { title: 'History', controls: historyControls() },
           { title: 'Widgets', controls: widgetControls() },
+          { title: 'Report Availability', controls: reportAvailabilityControls() },
           { title: 'Actions', controls: actionControls() }
         ];
         track section.title

@@ -1,99 +1,619 @@
-<div data-testid="reports-page">
-<agrivio-ui-page-header title="Reports" lede="Fixed Release 1 reports composed from source modules" />
-
-@if (!canView()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to view reports." />
-} @else if (catalogLoading()) {
-  <agrivio-ui-loading-state label="Loading reports…" />
-} @else {
-  @if (errorMessage(); as error) {
-    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-  }
-  @if (suspended()) {
-    <agrivio-ui-alert
-      tone="warning"
-      message="Subscription is suspended. Historical report viewing and entitled exports remain available. Imports and operational writes stay blocked. Existing data is not deleted."
-    />
-  }
-
-  <form class="report-toolbar" (submit)="$event.preventDefault(); run()">
-    <label>
-      Report
-      <select
-        data-testid="report-select"
-        [ngModel]="selectedKey()"
-        (ngModelChange)="onReportChange($event)"
-        name="reportKey"
-      >
-        @for (item of catalog(); track item.key) {
-          <option [value]="item.key">{{ item.title }}</option>
+<div class="reports-shell" data-testid="reports-page">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">Reports &amp; Insights</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">Reports</h1>
+        @if (dataset(); as data) {
+          <span class="page-head__count-pill" aria-label="Total rows">{{ data.rows.length }} rows</span>
         }
-      </select>
-    </label>
+      </div>
+      <p class="page-head__lede">
+        Fixed Release 1 reports center composed from source modules. Select a report and filter the data you need.
+      </p>
+    </div>
+  </header>
 
-    @if (selected(); as report) {
-      @for (field of report.filters; track field) {
-        <label>
-          {{ field }}
+  <!-- Permission / Suspension Alerts -->
+  @if (!hasViewPermission()) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="warning" message="You do not have permission to view reports." />
+    </div>
+  } @else if (!canView()) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="warning" message="Reports are not enabled for this organization." />
+    </div>
+  } @else if (catalogLoading()) {
+    <div class="state-container">
+      <agrivio-ui-loading-state label="Loading report catalog…" />
+    </div>
+  } @else {
+    @if (errorMessage(); as error) {
+      <div class="alert-container">
+        <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+      </div>
+    }
+    @if (suspended()) {
+      <div class="alert-container">
+        <agrivio-ui-alert
+          tone="warning"
+          message="Subscription is suspended. Historical report viewing and entitled exports remain available. Imports and operational writes stay blocked. Existing data is not deleted."
+        />
+      </div>
+    }
+
+    <!-- Module Info -->
+    @if (canShowModuleInfo()) {
+      <agrivio-ui-module-info
+        title="About Reports"
+        description="Access a curated set of reports powered by data from core modules. Results update based on the report type and filters you select."
+        [items]="moduleInfoItems"
+        [defaultExpanded]="false"
+      />
+    }
+
+    <!-- Report & Filter Workspace Card -->
+    @if (availableCatalog().length === 0) {
+      <div class="state-container">
+        <agrivio-ui-empty-state
+          title="No reports available"
+          message="No report families are enabled for this organization."
+        />
+      </div>
+    } @else {
+    <section class="report-workspace" aria-label="Report configuration">
+      <div class="workspace-card">
+        <!-- Report Selector Bar -->
+        <div class="report-select-bar">
+          <div class="report-select-group">
+            <label class="filter-label" for="report-select">
+              Report
+            </label>
+            <div class="select-field">
+              <select
+                id="report-select"
+                data-testid="report-select"
+                class="select-input report-select-input"
+                [ngModel]="selectedKey()"
+                (ngModelChange)="onReportChange($event)"
+                name="reportKey"
+              >
+                @for (item of availableCatalog(); track item.key) {
+                  <option [value]="item.key">{{ item.title }}</option>
+                }
+              </select>
+            </div>
+          </div>
+          <div class="workspace-info-hint">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>Filters vary based on the selected report.</span>
+          </div>
+        </div>
+
+        <!-- Dynamic Filters -->
+        <div class="filters-container">
+          <!-- REQUIRED FILTERS SECTION -->
+          @if (requiredFilters().length > 0) {
+            <div class="filter-section filter-section--required">
+              <div class="filter-section__header">
+                <div class="filter-section__title-group">
+                  <span class="required-indicator-dot" aria-hidden="true"></span>
+                  <h2 class="filter-section__title">Required filters</h2>
+                </div>
+                <span class="filter-section__subtitle">These filters are required to run the report.</span>
+              </div>
+              <div class="filter-grid">
+                @for (field of requiredFilters(); track field) {
+                  <ng-container *ngTemplateOutlet="filterControlTpl; context: { field: field, required: true }" />
+                }
+              </div>
+            </div>
+          }
+
+          <!-- OPTIONAL FILTERS SECTION -->
+          @if (optionalFilters().length > 0) {
+            <div class="filter-section filter-section--optional">
+              <div class="filter-section__header">
+                <h2 class="filter-section__title">Optional filters</h2>
+                <span class="filter-section__subtitle">Refine your results with optional filters.</span>
+              </div>
+              <div class="filter-grid">
+                @for (field of optionalFilters(); track field) {
+                  <ng-container *ngTemplateOutlet="filterControlTpl; context: { field: field, required: false }" />
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Actions Row -->
+        <div class="workspace-actions">
+          <div class="workspace-actions__primary">
+            @if (canRunAction()) {
+              <button
+                type="button"
+                class="ag-btn ag-btn--primary run-btn"
+                data-testid="report-run"
+                [disabled]="loading() || !canRunReport()"
+                (click)="run()"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span>Run</span>
+              </button>
+            }
+
+            @if (selectedReport(); as report) {
+              @if (report.exports.includes('pdf') && canExportFormat('pdf')) {
+                <button
+                  type="button"
+                  class="ag-btn ag-btn--secondary export-btn"
+                  data-testid="export-pdf"
+                  [disabled]="exporting() || !canRunReport()"
+                  (click)="exportFormat('pdf')"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                  </svg>
+                  <span>PDF</span>
+                </button>
+              }
+              @if (report.exports.includes('excel') && canExportFormat('excel')) {
+                <button
+                  type="button"
+                  class="ag-btn ag-btn--secondary export-btn"
+                  data-testid="export-excel"
+                  [disabled]="exporting() || !canRunReport()"
+                  (click)="exportFormat('excel')"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <rect x="8" y="13" width="8" height="4"></rect>
+                  </svg>
+                  <span>Excel</span>
+                </button>
+              }
+              @if (report.exports.includes('csv') && canExportFormat('csv')) {
+                <button
+                  type="button"
+                  class="ag-btn ag-btn--secondary export-btn"
+                  data-testid="export-csv"
+                  [disabled]="exporting() || !canRunReport()"
+                  (click)="exportFormat('csv')"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="9" y1="15" x2="15" y2="15"></line>
+                  </svg>
+                  <span>CSV</span>
+                </button>
+              }
+            }
+          </div>
+
+          <div class="workspace-actions__secondary">
+            <button
+              type="button"
+              class="ag-btn ag-btn--secondary reset-btn"
+              data-testid="reset-filters"
+              (click)="resetFilters()"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+                <path d="M21 3v5h-5"></path>
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+                <path d="M3 21v-5h5"></path>
+              </svg>
+              <span>Reset filters</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+    }
+
+    <!-- Results Preview Section -->
+    @if (loading()) {
+      <div class="state-container">
+        <agrivio-ui-loading-state label="Loading report data…" />
+      </div>
+    } @else if (dataset(); as data) {
+      <section class="results-section" aria-label="Report results">
+        <div class="results-header">
+          <div class="results-title-group">
+            <h2 class="results-title">Results preview</h2>
+            <span class="report-badge">{{ data.title }}</span>
+          </div>
+        </div>
+
+        <!-- Authoritative KPI Summary Cards matching Products Design Reference -->
+        @if (hasAuthoritativeTotals()) {
+          <div class="kpi-row" data-testid="report-totals">
+            @for (entry of authoritativeTotalsList(); track entry.key) {
+              <div class="kpi-card">
+                <div class="kpi-card__icon" [ngClass]="'kpi-card__icon--' + getKpiTone(entry.key)" aria-hidden="true">
+                  @if (getKpiIconType(entry.key) === 'alert') {
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                      <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                    </svg>
+                  } @else if (getKpiIconType(entry.key) === 'box') {
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                      <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                      <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                  } @else {
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="12" y1="1" x2="12" y2="23"></line>
+                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                  }
+                </div>
+                <div class="kpi-card__content">
+                  <span class="kpi-card__label">{{ entry.label }}</span>
+                  <strong class="kpi-card__value">{{ entry.formattedValue }}</strong>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        @if (data.rows.length === 0) {
+          <div class="state-container">
+            <agrivio-ui-empty-state
+              title="No results found"
+              message="No posted records match the specified filter criteria."
+            />
+          </div>
+        } @else {
+          <div class="table-container" data-testid="report-table-container">
+            <table class="report-table" data-testid="report-table">
+              <thead>
+                <tr>
+                  @for (column of data.columns; track column.key) {
+                    <th
+                      scope="col"
+                      class="report-th"
+                      [class.report-th--numeric]="isNumericColumn(column.key)"
+                      [ngClass]="'col-' + column.key"
+                    >
+                      {{ getColumnHeaderLabel(column) }}
+                    </th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of paginatedRows(); track $index) {
+                  <tr class="report-row" [class.report-row--profit-highlight]="row['metric'] === 'grossProfit'">
+                    @for (column of data.columns; track column.key) {
+                      <td
+                        class="report-td"
+                        [class.report-td--numeric]="isNumericColumn(column.key)"
+                        [ngClass]="'col-' + column.key"
+                      >
+                        @if (column.key === 'invoiceNumber' || column.key === 'id') {
+                          <span class="invoice-badge">{{ formatCellValue(column.key, row[column.key]) }}</span>
+                        } @else if (column.key === 'customer' || column.key === 'customerId' || column.key === 'customerName' || column.key === 'supplier' || column.key === 'supplierId' || column.key === 'product' || column.key === 'productId' || column.key === 'productName' || column.key === 'employee' || column.key === 'employeeId' || column.key === 'accountName' || column.key === 'purpose') {
+                          <strong class="cell-entity">{{ formatCellValue(column.key, row[column.key]) }}</strong>
+                        } @else if (column.key === 'warehouse' || column.key === 'warehouseId') {
+                          <span class="cell-location">{{ formatCellValue(column.key, row[column.key]) }}</span>
+                        } @else if (column.key === 'metric') {
+                          <span class="metric-name" [class.metric-name--highlight]="row['metric'] === 'grossProfit'">{{ formatCellValue(column.key, row[column.key]) }}</span>
+                        } @else if (column.key === 'accountType' || column.key === 'type') {
+                          <span class="type-badge" [ngClass]="'type-badge--' + row[column.key]">{{ formatCellValue(column.key, row[column.key]) }}</span>
+                        } @else if (column.key === 'effectKind') {
+                          <span class="kind-badge" [ngClass]="'kind-badge--' + row[column.key]">{{ formatCellValue(column.key, row[column.key]) }}</span>
+                        } @else if (column.key === 'sourceType') {
+                          <span class="source-tag">{{ formatCellValue(column.key, row[column.key]) }}</span>
+                        } @else if (column.key === 'detail') {
+                          <span class="cell-detail">{{ formatCellValue(column.key, row[column.key]) }}</span>
+                        } @else if (column.key === 'unsellableQuantityBase' || column.key === 'unsellable') {
+                          @if (isPositiveNumber(row[column.key])) {
+                            <span class="unsellable-badge">{{ formatCellValue(column.key, row[column.key]) }}</span>
+                          } @else {
+                            <span class="muted-zero">{{ formatCellValue(column.key, row[column.key]) }}</span>
+                          }
+                        } @else {
+                          {{ formatCellValue(column.key, row[column.key]) }}
+                        }
+                      </td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination Bar -->
+          <div class="pagination-wrap">
+            <agrivio-ui-pagination
+              [page]="page()"
+              [pageSize]="pageSize()"
+              [total]="totalRows()"
+              [disabled]="loading()"
+              (pageChange)="onPageChange($event)"
+              (pageSizeChange)="onPageSizeChange($event)"
+            />
+          </div>
+        }
+      </section>
+    }
+  }
+
+  <!-- Template for Filter Controls -->
+  <ng-template #filterControlTpl let-field="field" let-required="required">
+    <div class="filter-field">
+      <label class="filter-label" [for]="'filter-' + field">
+        {{ getFilterLabel(field) }}
+        @if (required) {
+          <span class="required-star" aria-hidden="true">*</span>
+          <span class="ag-sr-only">(required)</span>
+        }
+      </label>
+
+      @switch (field) {
+        @case ('fromDate') {
           <input
+            [id]="'filter-' + field"
             [attr.data-testid]="'filter-' + field"
+            type="date"
+            class="filter-input date-input"
             [ngModel]="filterValue(field)"
             (ngModelChange)="setFilter(field, $event)"
             [name]="field"
           />
-        </label>
-      }
-    }
-
-    <button type="submit" class="ag-btn" data-testid="report-run">Run</button>
-    @if (canExport()) {
-      <button type="button" class="ag-btn ag-btn--secondary" data-testid="export-pdf" [disabled]="exporting()" (click)="exportFormat('pdf')">
-        PDF
-      </button>
-      <button type="button" class="ag-btn ag-btn--secondary" data-testid="export-excel" [disabled]="exporting()" (click)="exportFormat('excel')">
-        Excel
-      </button>
-      <button type="button" class="ag-btn ag-btn--secondary" data-testid="export-csv" [disabled]="exporting()" (click)="exportFormat('csv')">
-        CSV
-      </button>
-    }
-  </form>
-
-  @if (loading()) {
-    <agrivio-ui-loading-state label="Loading report…" />
-  } @else if (dataset(); as data) {
-    @if (data.rows.length === 0) {
-      <agrivio-ui-empty-state title="No rows" message="No posted source rows match these filters." />
-    } @else {
-      <div class="ag-table-wrap">
-        <table class="ag-table" data-testid="report-table">
-          <thead>
-            <tr>
-              @for (column of data.columns; track column.key) {
-                <th>{{ column.label }}</th>
-              }
-            </tr>
-          </thead>
-          <tbody>
-            @for (row of data.rows; track $index) {
-              <tr>
-                @for (column of data.columns; track column.key) {
-                  <td>{{ row[column.key] }}</td>
-                }
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    }
-    @if (data.totals && (data.totals['total'] || data.totals['amount'] || data.totals['inventoryValue'] || data.totals['signedAmount'] || data.totals['revenue'])) {
-      <p data-testid="report-totals">
-        Totals:
-        @for (entry of data.totals | keyvalue; track entry.key) {
-          <span>{{ entry.key }} {{ entry.value }} </span>
         }
-      </p>
-    }
-  }
-}
+        @case ('toDate') {
+          <input
+            [id]="'filter-' + field"
+            [attr.data-testid]="'filter-' + field"
+            type="date"
+            class="filter-input date-input"
+            [ngModel]="filterValue(field)"
+            (ngModelChange)="setFilter(field, $event)"
+            [name]="field"
+          />
+        }
+        @case ('branchId') {
+          <div class="select-field">
+            <select
+              [id]="'filter-' + field"
+              [attr.data-testid]="'filter-' + field"
+              class="select-input"
+              [ngModel]="filterValue(field)"
+              (ngModelChange)="setFilter(field, $event)"
+              [name]="field"
+            >
+              <option value="">All branches</option>
+              @for (branch of branches(); track branch.id) {
+                <option [value]="branch.id">{{ branch.name }} ({{ branch.code }})</option>
+              }
+            </select>
+          </div>
+        }
+        @case ('warehouseId') {
+          <div class="select-field">
+            <select
+              [id]="'filter-' + field"
+              [attr.data-testid]="'filter-' + field"
+              class="select-input"
+              [ngModel]="filterValue(field)"
+              (ngModelChange)="setFilter(field, $event)"
+              [name]="field"
+            >
+              <option value="">All warehouses</option>
+              @for (warehouse of warehouses(); track warehouse.id) {
+                <option [value]="warehouse.id">{{ warehouse.name }} ({{ warehouse.code }})</option>
+              }
+            </select>
+          </div>
+        }
+        @case ('customerId') {
+          <div class="select-field">
+            <select
+              [id]="'filter-' + field"
+              [attr.data-testid]="'filter-' + field"
+              class="select-input"
+              [ngModel]="filterValue(field)"
+              (ngModelChange)="setFilter(field, $event)"
+              [name]="field"
+            >
+              <option value="">{{ required ? 'Select a customer' : 'All customers' }}</option>
+              @for (customer of customers(); track customer.id) {
+                <option [value]="customer.id">{{ customer.name }}{{ customer.phone ? ' (' + customer.phone + ')' : '' }}</option>
+              }
+            </select>
+          </div>
+        }
+        @case ('supplierId') {
+          <div class="select-field">
+            <select
+              [id]="'filter-' + field"
+              [attr.data-testid]="'filter-' + field"
+              class="select-input"
+              [ngModel]="filterValue(field)"
+              (ngModelChange)="setFilter(field, $event)"
+              [name]="field"
+            >
+              <option value="">{{ required ? 'Select a supplier' : 'All suppliers' }}</option>
+              @for (supplier of suppliers(); track supplier.id) {
+                <option [value]="supplier.id">{{ supplier.name }}</option>
+              }
+            </select>
+          </div>
+        }
+        @case ('productId') {
+          <div class="select-field">
+            <select
+              [id]="'filter-' + field"
+              [attr.data-testid]="'filter-' + field"
+              class="select-input"
+              [ngModel]="filterValue(field)"
+              (ngModelChange)="setFilter(field, $event)"
+              [name]="field"
+            >
+              <option value="">All products</option>
+              @for (product of products(); track product.id) {
+                <option [value]="product.id">{{ product.name }}{{ product.sku ? ' (' + product.sku + ')' : '' }}</option>
+              }
+            </select>
+          </div>
+        }
+        @case ('categoryId') {
+          <div class="select-field">
+            <select
+              [id]="'filter-' + field"
+              [attr.data-testid]="'filter-' + field"
+              class="select-input"
+              [ngModel]="filterValue(field)"
+              (ngModelChange)="setFilter(field, $event)"
+              [name]="field"
+            >
+              <option value="">All categories</option>
+              @for (category of categories(); track category.id) {
+                <option [value]="category.id">{{ category.name }}</option>
+              }
+            </select>
+          </div>
+        }
+        @case ('employeeId') {
+          <div class="select-field">
+            <select
+              [id]="'filter-' + field"
+              [attr.data-testid]="'filter-' + field"
+              class="select-input"
+              [ngModel]="filterValue(field)"
+              (ngModelChange)="setFilter(field, $event)"
+              [name]="field"
+            >
+              <option value="">All employees</option>
+              @for (employee of employees(); track employee.id) {
+                <option [value]="employee.id">{{ employee.displayName }} ({{ employee.role }})</option>
+              }
+            </select>
+          </div>
+        }
+        @case ('accountId') {
+          <div class="select-field">
+            <select
+              [id]="'filter-' + field"
+              [attr.data-testid]="'filter-' + field"
+              class="select-input"
+              [ngModel]="filterValue(field)"
+              (ngModelChange)="setFilter(field, $event)"
+              [name]="field"
+            >
+              <option value="">All accounts</option>
+              @for (account of accounts(); track account.id) {
+                <option [value]="account.id">{{ account.name }} ({{ account.accountType }})</option>
+              }
+            </select>
+          </div>
+        }
+        @case ('customerType') {
+          <div class="select-field">
+            <select
+              [id]="'filter-' + field"
+              [attr.data-testid]="'filter-' + field"
+              class="select-input"
+              [ngModel]="filterValue(field)"
+              (ngModelChange)="setFilter(field, $event)"
+              [name]="field"
+            >
+              @for (opt of customerTypeOptions; track opt.value) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+          </div>
+        }
+        @case ('priceTier') {
+          <div class="select-field">
+            <select
+              [id]="'filter-' + field"
+              [attr.data-testid]="'filter-' + field"
+              class="select-input"
+              [ngModel]="filterValue(field)"
+              (ngModelChange)="setFilter(field, $event)"
+              [name]="field"
+            >
+              @for (opt of priceTierOptions; track opt.value) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+          </div>
+        }
+        @case ('paymentStatus') {
+          <div class="select-field">
+            <select
+              [id]="'filter-' + field"
+              [attr.data-testid]="'filter-' + field"
+              class="select-input"
+              [ngModel]="filterValue(field)"
+              (ngModelChange)="setFilter(field, $event)"
+              [name]="field"
+            >
+              @for (opt of paymentStatusOptions; track opt.value) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+          </div>
+        }
+        @case ('paymentMethod') {
+          <div class="select-field">
+            <select
+              [id]="'filter-' + field"
+              [attr.data-testid]="'filter-' + field"
+              class="select-input"
+              [ngModel]="filterValue(field)"
+              (ngModelChange)="setFilter(field, $event)"
+              [name]="field"
+            >
+              @for (opt of paymentMethodOptions; track opt.value) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+          </div>
+        }
+        @case ('groupBy') {
+          <div class="select-field">
+            <select
+              [id]="'filter-' + field"
+              [attr.data-testid]="'filter-' + field"
+              class="select-input"
+              [ngModel]="filterValue(field)"
+              (ngModelChange)="setFilter(field, $event)"
+              [name]="field"
+            >
+              @for (opt of groupByOptions; track opt.value) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+          </div>
+        }
+        @default {
+          <input
+            [id]="'filter-' + field"
+            [attr.data-testid]="'filter-' + field"
+            type="text"
+            class="filter-input"
+            [ngModel]="filterValue(field)"
+            (ngModelChange)="setFilter(field, $event)"
+            [name]="field"
+          />
+        }
+      }
+    </div>
+  </ng-template>
 </div>

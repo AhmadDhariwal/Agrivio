@@ -1,5 +1,9 @@
 const { createAuditWriter } = require('../../platform/audit/audit-writer');
 const {
+  allowsSubscriptionLabel,
+  evaluateFeatureEntitlement,
+} = require('../subscriptions/entitlement');
+const {
   orgActionNotAllowed,
   orgCapabilityDisabled,
   orgFieldNotEditable,
@@ -24,6 +28,7 @@ const {
   ACCOUNTS_MODULE_KEY,
   EXPENSES_MODULE_KEY,
   EXPENSE_CATEGORIES_MODULE_KEY,
+  REPORTS_MODULE_KEY,
   getCapabilityControl,
   listCapabilityControls,
 } = require('./capability.registry');
@@ -94,6 +99,16 @@ function isOperationalAccess(access) {
     return access.accessLevel === 'operational';
   }
   return access?.status === 'trial' || access?.status === 'active' || access?.status === 'grace';
+}
+
+function hasEntitlement(access, entitlementKey) {
+  if (!entitlementKey) {
+    return true;
+  }
+  if (access === null || access === undefined) {
+    return true;
+  }
+  return evaluateFeatureEntitlement(access.plan, entitlementKey).allowed;
 }
 
 function disabledValue(definition, configuredValue) {
@@ -176,14 +191,19 @@ function createCapabilityService(deps) {
         };
   }
 
-  async function resolveOperationalAllowed(organizationId, explicit) {
-    if (typeof explicit === 'boolean') {
-      return explicit;
-    }
-    if (typeof deps.resolveSubscriptionAccessState !== 'function') {
-      return true;
-    }
-    return isOperationalAccess(await deps.resolveSubscriptionAccessState(organizationId));
+  async function resolveSubscriptionContext(organizationId, options) {
+    const accessState =
+      options.subscriptionAccessState ??
+      (typeof deps.resolveSubscriptionAccessState === 'function'
+        ? await deps.resolveSubscriptionAccessState(organizationId)
+        : null);
+    const operationalAllowed =
+      typeof options.operationalAllowed === 'boolean'
+        ? options.operationalAllowed
+        : accessState === null
+          ? true
+          : isOperationalAccess(accessState);
+    return { accessState, operationalAllowed };
   }
 
   async function resolveEffective(organizationId, options = {}) {
@@ -191,10 +211,8 @@ function createCapabilityService(deps) {
     const policy = options.policy ?? (await loadPolicy(organizationId));
     const overrides = new Map(policy.overrides.map((override) => [override.key, override.value]));
     const permissions = Array.isArray(options.permissions) ? new Set(options.permissions) : null;
-    const operationalAllowed = await resolveOperationalAllowed(
-      organizationId,
-      options.operationalAllowed,
-    );
+    const subscription = await resolveSubscriptionContext(organizationId, options);
+    const operationalAllowed = subscription.operationalAllowed;
     const controls = [];
     const effectiveByKey = new Map();
 
@@ -213,9 +231,24 @@ function createCapabilityService(deps) {
         effectiveValue = disabledValue(definition, effectiveValue);
         reasons.push('parent_disabled');
       }
-      if (!operationalAllowed) {
+      const labeledAccessAllowed =
+        subscription.accessState?.status === undefined
+          ? null
+          : allowsSubscriptionLabel(
+              subscription.accessState.status,
+              definition.subscriptionLabel,
+            );
+      const subscriptionAllowed =
+        definition.subscriptionLabel === undefined
+          ? operationalAllowed
+          : (labeledAccessAllowed ?? operationalAllowed);
+      if (!subscriptionAllowed) {
         effectiveValue = disabledValue(definition, effectiveValue);
         reasons.push('subscription_unavailable');
+      }
+      if (!hasEntitlement(subscription.accessState, definition.entitlementKey)) {
+        effectiveValue = disabledValue(definition, effectiveValue);
+        reasons.push('entitlement_unavailable');
       }
       if (permissions !== null) {
         for (const mode of MODE_BY_TYPE[definition.type] ?? []) {
@@ -477,6 +510,7 @@ function createCapabilityService(deps) {
           ACCOUNTS_MODULE_KEY,
           EXPENSES_MODULE_KEY,
           EXPENSE_CATEGORIES_MODULE_KEY,
+          REPORTS_MODULE_KEY,
         ].includes(moduleKey)
       ) {
         throw validationFailed(`Unknown configurable module ${moduleKey}`);

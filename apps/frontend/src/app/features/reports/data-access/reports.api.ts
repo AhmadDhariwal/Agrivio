@@ -21,7 +21,7 @@ export class ReportsApi {
   getReport(reportKey: string, filters: Record<string, string>): Observable<ReportDataset> {
     const params: Record<string, string> = {};
     for (const [key, value] of Object.entries(filters)) {
-      if (value.trim() !== '') {
+      if (typeof value === 'string' && value.trim() !== '') {
         params[key] = value.trim();
       }
     }
@@ -40,7 +40,7 @@ export class ReportsApi {
   ): Observable<Blob> {
     const cleaned: Record<string, string> = {};
     for (const [key, value] of Object.entries(filters)) {
-      if (value.trim() !== '') {
+      if (typeof value === 'string' && value.trim() !== '') {
         cleaned[key] = value.trim();
       }
     }

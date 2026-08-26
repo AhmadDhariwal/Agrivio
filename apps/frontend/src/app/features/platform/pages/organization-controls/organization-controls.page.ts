@@ -32,7 +32,8 @@ type ConfigurableModule =
   | 'returns'
   | 'expenses'
   | 'expenses.categories'
-  | 'accounts';
+  | 'accounts'
+  | 'reports';
 type PendingConfirmation =
   | { readonly kind: 'save' }
   | { readonly kind: 'reset-control'; readonly control: PlatformCapabilityControl }
@@ -116,6 +117,9 @@ export class OrganizationControlsPage {
     }
     if (this.selectedModule() === 'accounts') {
       return this.accountsFeatures('moduleInfo');
+    }
+    if (this.selectedModule() === 'reports') {
+      return this.reportsFeatures('moduleInfo');
     }
     if (this.selectedModule() === 'inventory.movements') {
       return this.movementsFeatures('moduleInfo');
@@ -242,6 +246,13 @@ export class OrganizationControlsPage {
     return [];
   });
   readonly widgetControls = computed(() => this.byType('WIDGET'));
+  readonly reportAvailabilityControls = computed(() =>
+    this.selectedModule() === 'reports'
+      ? this.byType('FEATURE', false).filter((control) =>
+          control.key.startsWith('reports.reportAvailability.'),
+        )
+      : [],
+  );
   readonly actionControls = computed(() => this.byType('ACTION'));
 
   readonly changes = computed<readonly CapabilityPolicyChange[]>(() => {
@@ -387,6 +398,14 @@ export class OrganizationControlsPage {
       changes[0].value?.['enabled'] === false
     );
   });
+  readonly disablingReports = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'reports' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
   readonly confirmationTitle = computed(() => {
     const pending = this.pendingConfirmation();
     const organization = this.snapshot()?.organization.name ?? 'this organization';
@@ -423,6 +442,9 @@ export class OrganizationControlsPage {
     }
     if (this.disablingAccounts()) {
       return `Disable Accounts for ${organization}?`;
+    }
+    if (this.disablingReports()) {
+      return `Disable Reports for ${organization}?`;
     }
     const single = this.changeSummary().length === 1 ? this.changeSummary()[0] : null;
     if (single?.risk === 'CRITICAL' && single.after === 'Disabled') {
@@ -481,6 +503,9 @@ export class OrganizationControlsPage {
     if (this.disablingAccounts()) {
       return `Users in this organization will no longer be able to access Accounts, register new accounts, or execute financial movements. Existing accounts, opening balances, movements, and transaction history will not be deleted or modified.`;
     }
+    if (this.disablingReports()) {
+      return `Users in ${organization} will no longer be able to open, run, or export Reports. Existing source records and historical data will not be deleted or modified. This affects ${organization} only.`;
+    }
     const critical = this.changeSummary()
       .filter((change) => change.risk === 'CRITICAL')
       .map((change) => `${change.label}: ${change.before} → ${change.after}`);
@@ -506,6 +531,7 @@ export class OrganizationControlsPage {
     if (this.disablingExpenses()) return 'Disable Expenses';
     if (this.disablingExpenseCategories()) return 'Disable Expense Categories';
     if (this.disablingAccounts()) return 'Disable Accounts';
+    if (this.disablingReports()) return 'Disable Reports';
     return 'Apply changes';
   });
 
@@ -564,7 +590,7 @@ export class OrganizationControlsPage {
     if (
       this.parentDisabled(control) ||
       this.dependencyBlockReason(control) !== null ||
-      this.snapshot()?.policy.operationalAllowed === false
+      this.backendRestrictionReason(control) !== null
     ) {
       return false;
     }
@@ -575,14 +601,13 @@ export class OrganizationControlsPage {
   }
 
   effectiveReason(control: PlatformCapabilityControl, mode: string): string | null {
-    if (this.snapshot()?.policy.operationalAllowed === false) {
-      return 'Unavailable on the current subscription state.';
-    }
     if (this.parentDisabled(control)) {
       return `${this.moduleLabel(control.moduleKey as ConfigurableModule)} is disabled.`;
     }
     const dependencyReason = this.dependencyBlockReason(control);
     if (dependencyReason !== null) return dependencyReason;
+    const backendReason = this.backendRestrictionReason(control);
+    if (backendReason !== null) return backendReason;
     if (control.type === 'FIELD' && mode === 'editable' && !this.value(control, 'visible')) {
       return 'Hidden fields are read-only.';
     }
@@ -725,6 +750,7 @@ export class OrganizationControlsPage {
     if (moduleKey === 'expenses') return 'Expenses';
     if (moduleKey === 'expenses.categories') return 'Expense Categories';
     if (moduleKey === 'accounts') return 'Accounts';
+    if (moduleKey === 'reports') return 'Reports';
     return 'Product Batches';
   }
 
@@ -750,6 +776,11 @@ export class OrganizationControlsPage {
 
   private accountsFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
     const keys = new Set(ids.map((id) => `accounts.features.${id}`));
+    return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
+  }
+
+  private reportsFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
+    const keys = new Set(ids.map((id) => `reports.features.${id}`));
     return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
   }
 
@@ -889,8 +920,24 @@ export class OrganizationControlsPage {
           control.key === 'accounts.features.search' ||
           control.key === 'accounts.features.statusFilter' ||
           control.key === 'accounts.features.movementHistory' ||
-          control.key === 'accounts.features.kpiCards'))
+          control.key === 'accounts.features.kpiCards')) ||
+      (control.moduleKey === 'reports' &&
+        (control.key === 'reports.features.moduleInfo' ||
+          control.key.startsWith('reports.reportAvailability.')))
     );
+  }
+
+  private backendRestrictionReason(control: PlatformCapabilityControl): string | null {
+    if (control.reasons.includes('subscription_unavailable')) {
+      return 'Unavailable on the current subscription state.';
+    }
+    if (control.reasons.includes('entitlement_unavailable')) {
+      return 'Unavailable on the current plan entitlement.';
+    }
+    if (control.reasons.includes('permission_denied')) {
+      return 'Unavailable under the effective RBAC permissions.';
+    }
+    return null;
   }
 
   private dependencyBlockReason(control: PlatformCapabilityControl): string | null {

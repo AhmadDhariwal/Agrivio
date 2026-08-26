@@ -323,6 +323,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Reports',
           route: '/app/reports',
           permission: 'reports.view',
+          capabilityKey: 'reports',
           testId: 'nav-reports',
         },
         {

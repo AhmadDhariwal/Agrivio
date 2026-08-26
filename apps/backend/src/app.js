@@ -434,6 +434,7 @@ function createApp(options) {
       inventoryService: inventory.inventoryService,
       catalogService: catalog.catalogService,
       customersService: customers.customersService,
+      capabilityService: capabilities.capabilityService,
       resolveOrganizationTimezone,
       resolvePlanEntitlements: async (organizationId) => {
         const access = await subscriptions.subscriptionService.resolveAccessState(organizationId);
@@ -654,6 +655,7 @@ function createApp(options) {
 
   const reportingRoutes = registerReportingRoutes({
     reportingService: reporting.reportingService,
+    capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,

@@ -4,6 +4,12 @@ import { describe, expect, it } from 'vitest';
 import { AuthSessionStore } from '../../auth/data-access/auth-session.store';
 import { CapabilitiesApi } from './capabilities.api';
 import { CapabilityService } from './capability.service';
+import {
+  REPORT_CAPABILITY_KEY_BY_REPORT_KEY,
+  REPORT_EXPORT_ACTION_BY_FORMAT,
+} from '../../reports/models/reports.models';
+import { appRoutes } from '../../../app.routes';
+import { CANONICAL_NAVIGATION } from '../../shell/data-access/navigation.model';
 
 describe('CapabilityService', () => {
   it('refreshes effective organization capabilities without a new session', () => {
@@ -379,5 +385,51 @@ describe('CapabilityService', () => {
     expect(service.canPerformAction('accounts.actions.reverseMovement')).toBe(true);
     expect(service.canPerformAction('accounts.actions.reverseTransfer')).toBe(true);
     expect(service.canPerformAction('accounts.actions.refresh')).toBe(true);
+  });
+
+  it('provides the exact 22 Reports defaults and wires module route/navigation gating', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        CapabilityService,
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            activeContext: () => ({ contextType: 'organization', organizationId: 'org-1' }),
+          },
+        },
+      ],
+    });
+    const service = TestBed.inject(CapabilityService);
+    const availabilityKeys = Object.values(REPORT_CAPABILITY_KEY_BY_REPORT_KEY);
+    const actionKeys = ['reports.actions.run', ...Object.values(REPORT_EXPORT_ACTION_BY_FORMAT)];
+    const allKeys = [
+      'reports',
+      'reports.features.moduleInfo',
+      ...availabilityKeys,
+      ...actionKeys,
+    ];
+
+    expect(allKeys).toHaveLength(22);
+    expect(new Set(allKeys).size).toBe(22);
+    expect(service.canUseModule('reports')).toBe(true);
+    expect(service.canUseView('reports.features.moduleInfo')).toBe(true);
+    for (const key of availabilityKeys) {
+      expect(service.canUseView(key)).toBe(true);
+    }
+    for (const key of actionKeys) {
+      expect(service.canPerformAction(key)).toBe(true);
+    }
+
+    const app = appRoutes.find((route) => route.path === 'app');
+    const reportsRoute = app?.children?.find((route) => route.path === 'reports');
+    expect(reportsRoute?.canActivate).toHaveLength(1);
+
+    const reportsNav = CANONICAL_NAVIGATION.flatMap((entry) =>
+      entry.type === 'group' ? entry.group.children : [entry.item],
+    ).find((item) => item.id === 'insights.reports');
+    expect(reportsNav).toMatchObject({
+      permission: 'reports.view',
+      capabilityKey: 'reports',
+    });
   });
 });

@@ -29,6 +29,26 @@ const RETURNS_MODULE_KEY = 'returns';
 const ACCOUNTS_MODULE_KEY = 'accounts';
 const EXPENSES_MODULE_KEY = 'expenses';
 const EXPENSE_CATEGORIES_MODULE_KEY = 'expenses.categories';
+const REPORTS_MODULE_KEY = 'reports';
+
+const REPORT_CAPABILITY_KEY_BY_REPORT_KEY = Object.freeze({
+  sales: 'reports.reportAvailability.sales',
+  purchases: 'reports.reportAvailability.purchases',
+  'gross-profit': 'reports.reportAvailability.grossProfit',
+  stock: 'reports.reportAvailability.stock',
+  'stock-valuation': 'reports.reportAvailability.stockValuation',
+  'stock-movements': 'reports.reportAvailability.stockMovements',
+  'customer-ledger': 'reports.reportAvailability.customerLedger',
+  'supplier-ledger': 'reports.reportAvailability.supplierLedger',
+  'account-cash-book': 'reports.reportAvailability.accountCashBook',
+  expenses: 'reports.reportAvailability.expenses',
+  'low-stock': 'reports.reportAvailability.lowStock',
+  expiry: 'reports.reportAvailability.expiry',
+  'dead-stock': 'reports.reportAvailability.deadStock',
+  'top-products': 'reports.reportAvailability.topProducts',
+  'top-customers': 'reports.reportAvailability.topCustomers',
+  'employee-sales': 'reports.reportAvailability.employeeSales',
+});
 
 const definitions = [
   {
@@ -2234,6 +2254,84 @@ const definitions = [
         }
       : {}),
   })),
+  // Reports Module
+  {
+    key: REPORTS_MODULE_KEY,
+    parentKey: null,
+    moduleKey: REPORTS_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Reports',
+    description: 'Fixed read-only operational reports and exports for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'reports.view' },
+    subscriptionLabel: 'suspended-read',
+    reason:
+      'Disabling Reports blocks the catalog, report execution, and exports without changing source records or calculations.',
+  },
+  {
+    key: 'reports.features.moduleInfo',
+    parentKey: REPORTS_MODULE_KEY,
+    moduleKey: REPORTS_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label: 'About Reports',
+    description: 'Show the Reports guidance panel.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'reports.view' },
+    subscriptionLabel: 'suspended-read',
+  },
+  ...[
+    ['sales', 'Sales Report'],
+    ['purchases', 'Purchases Report'],
+    ['gross-profit', 'Gross Profit Report'],
+    ['stock', 'Stock Report'],
+    ['stock-valuation', 'Stock Valuation Report'],
+    ['stock-movements', 'Stock Movements Report'],
+    ['customer-ledger', 'Customer Ledger Report'],
+    ['supplier-ledger', 'Supplier Ledger Report'],
+    ['account-cash-book', 'Account / Cash-book Report'],
+    ['expenses', 'Expenses Report'],
+    ['low-stock', 'Low Stock Report'],
+    ['expiry', 'Expiry Report'],
+    ['dead-stock', 'Dead Stock Report'],
+    ['top-products', 'Top Products Report'],
+    ['top-customers', 'Top Customers Report'],
+    ['employee-sales', 'Employee Sales Report'],
+  ].map(([reportKey, label]) => ({
+    key: REPORT_CAPABILITY_KEY_BY_REPORT_KEY[reportKey],
+    parentKey: REPORTS_MODULE_KEY,
+    moduleKey: REPORTS_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description: `Make the existing ${label} available to tenant report users.`,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Recommended,
+    requiredPermissions: { enabled: 'reports.view' },
+    subscriptionLabel: 'suspended-read',
+  })),
+  ...[
+    ['run', 'Run Report', 'reports.view', null],
+    ['exportPdf', 'Export PDF', 'reports.export', 'reportsExports'],
+    ['exportExcel', 'Export Excel', 'reports.export', 'reportsExports'],
+    ['exportCsv', 'Export CSV', 'reports.export', 'reportsExports'],
+  ].map(([id, label, permission, entitlementKey]) => ({
+    key: `reports.actions.${id}`,
+    parentKey: REPORTS_MODULE_KEY,
+    moduleKey: REPORTS_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label,
+    description: `${label} action. Report validation, tenant isolation, canonical calculations, and existing RBAC still apply.`,
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk: id === 'run' ? RISK_LEVELS.Normal : RISK_LEVELS.Recommended,
+    requiredPermissions: { allowed: permission },
+    subscriptionLabel: 'suspended-read',
+    ...(entitlementKey === null ? {} : { entitlementKey }),
+  })),
 ];
 
 const registry = new Map(
@@ -2282,6 +2380,8 @@ module.exports = {
   ACCOUNTS_MODULE_KEY,
   EXPENSES_MODULE_KEY,
   EXPENSE_CATEGORIES_MODULE_KEY,
+  REPORTS_MODULE_KEY,
+  REPORT_CAPABILITY_KEY_BY_REPORT_KEY,
   listCapabilityControls,
   getCapabilityControl,
 };

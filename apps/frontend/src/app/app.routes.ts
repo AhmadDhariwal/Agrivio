@@ -78,6 +78,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'reports',
+        canActivate: [requireCapabilityGuard('reports')],
         loadComponent: () =>
           import('./features/reports/pages/reports/reports.page').then((m) => m.ReportsPage),
       },
