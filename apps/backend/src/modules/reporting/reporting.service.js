@@ -14,6 +14,15 @@ const { REPORT_BY_KEY, REPORT_FAMILIES } = require('./report-catalog');
 const { parseReportFilters, parseReportKey } = require('./report-filters');
 const { renderExport } = require('./report-exports');
 const { createReportQueries } = require('./report-queries');
+const {
+  REPORT_CAPABILITY_KEY_BY_REPORT_KEY,
+} = require('../capabilities/capability.registry');
+
+const EXPORT_ACTION_BY_FORMAT = Object.freeze({
+  pdf: 'reports.actions.exportPdf',
+  excel: 'reports.actions.exportExcel',
+  csv: 'reports.actions.exportCsv',
+});
 
 function omitFormat(input) {
   const next = { ...input };
@@ -41,6 +50,7 @@ function createReportingService(deps) {
   const alertsService = deps.alertsService;
   const resolveOrganizationTimezone = deps.resolveOrganizationTimezone;
   const resolvePlanEntitlements = deps.resolvePlanEntitlements;
+  const capabilityService = deps.capabilityService ?? null;
   const now = deps.now ?? (() => new Date());
   const queries = createReportQueries(deps);
 
@@ -61,6 +71,21 @@ function createReportingService(deps) {
     if (reportsExports.allowed !== true) {
       throw forbidden('Report export is not entitled for this subscription');
     }
+  }
+
+  async function assertReportCapability(organizationId, key, mode, authContext) {
+    if (capabilityService === null) {
+      return;
+    }
+    await capabilityService.assertAllowed(organizationId, key, mode, {
+      permissions: authContext?.permissions ?? [],
+    });
+  }
+
+  async function buildReportDataset(organizationId, key, rawFilters, authContext) {
+    const filters = parseReportFilters(key, rawFilters);
+    const dataset = await queries.queryReport(organizationId, key, filters, authContext);
+    return { ...dataset, filters };
   }
 
   async function sumTodaySales(organizationId, businessDate, authContext) {
@@ -238,12 +263,19 @@ function createReportingService(deps) {
     },
     async getReport(organizationId, reportKey, rawFilters, authContext) {
       const key = parseReportKey(reportKey);
-      const filters = parseReportFilters(key, rawFilters);
-      const dataset = await queries.queryReport(organizationId, key, filters, authContext);
-      return {
-        ...dataset,
-        filters,
-      };
+      await assertReportCapability(
+        organizationId,
+        REPORT_CAPABILITY_KEY_BY_REPORT_KEY[key],
+        'enabled',
+        authContext,
+      );
+      await assertReportCapability(
+        organizationId,
+        'reports.actions.run',
+        'allowed',
+        authContext,
+      );
+      return buildReportDataset(organizationId, key, rawFilters, authContext);
     },
     async exportReport(organizationId, reportKey, rawInput, authContext) {
       await assertReportsExportEntitlement(organizationId);
@@ -255,7 +287,19 @@ function createReportingService(deps) {
           { field: 'format', message: `format must be one of: ${(REPORT_BY_KEY[key].exports ?? []).join(', ')}` },
         ]);
       }
-      const dataset = await this.getReport(
+      await assertReportCapability(
+        organizationId,
+        REPORT_CAPABILITY_KEY_BY_REPORT_KEY[key],
+        'enabled',
+        authContext,
+      );
+      await assertReportCapability(
+        organizationId,
+        EXPORT_ACTION_BY_FORMAT[format],
+        'allowed',
+        authContext,
+      );
+      const dataset = await buildReportDataset(
         organizationId,
         key,
         input.filters ?? omitFormat(input),
@@ -395,5 +439,6 @@ function createReportingService(deps) {
 }
 
 module.exports = {
+  EXPORT_ACTION_BY_FORMAT,
   createReportingService,
 };

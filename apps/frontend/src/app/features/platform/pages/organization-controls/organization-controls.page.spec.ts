@@ -24,7 +24,8 @@ function control(
     | 'returns'
     | 'expenses'
     | 'expenses.categories'
-    | 'accounts',
+    | 'accounts'
+    | 'reports',
   type: PlatformCapabilityControl['type'],
   label: string,
   policy: Record<string, boolean>,
@@ -34,6 +35,8 @@ function control(
     configurable?: Record<string, boolean>;
     platformEnforced?: boolean;
     reason?: string;
+    effectiveValue?: Record<string, boolean>;
+    reasons?: readonly string[];
   } = {},
 ): PlatformCapabilityControl {
   const override = options.override ?? null;
@@ -50,8 +53,8 @@ function control(
     risk: options.risk ?? 'NORMAL',
     override,
     configuredValue: { ...policy, ...(override ?? {}) },
-    effectiveValue: { ...policy, ...(override ?? {}) },
-    reasons: [],
+    effectiveValue: options.effectiveValue ?? { ...policy, ...(override ?? {}) },
+    reasons: options.reasons ?? [],
     ...(options.platformEnforced ? { platformEnforced: true } : {}),
     ...(options.reason ? { reason: options.reason } : {}),
   };
@@ -1174,6 +1177,53 @@ describe('OrganizationControlsPage', () => {
       control('accounts.actions.reverseMovement', 'accounts', 'ACTION', 'Reverse Movement', { allowed: true }),
       control('accounts.actions.reverseTransfer', 'accounts', 'ACTION', 'Reverse Transfer', { allowed: true }),
       control('accounts.actions.refresh', 'accounts', 'ACTION', 'Refresh Accounts', { allowed: true }),
+      // Reports Module (1)
+      control('reports', 'reports', 'MODULE', 'Reports', { enabled: true }, { risk: 'CRITICAL' }),
+      // Reports Feature (1)
+      control('reports.features.moduleInfo', 'reports', 'FEATURE', 'About Reports', { enabled: true }),
+      // Report Availability (16)
+      ...([
+        ['sales', 'Sales Report'],
+        ['purchases', 'Purchases Report'],
+        ['grossProfit', 'Gross Profit Report'],
+        ['stock', 'Stock Report'],
+        ['stockValuation', 'Stock Valuation Report'],
+        ['stockMovements', 'Stock Movements Report'],
+        ['customerLedger', 'Customer Ledger Report'],
+        ['supplierLedger', 'Supplier Ledger Report'],
+        ['accountCashBook', 'Account / Cash-book Report'],
+        ['expenses', 'Expenses Report'],
+        ['lowStock', 'Low Stock Report'],
+        ['expiry', 'Expiry Report'],
+        ['deadStock', 'Dead Stock Report'],
+        ['topProducts', 'Top Products Report'],
+        ['topCustomers', 'Top Customers Report'],
+        ['employeeSales', 'Employee Sales Report'],
+      ] as const).map(([id, label]) =>
+        control(
+          `reports.reportAvailability.${id}`,
+          'reports',
+          'FEATURE',
+          label,
+          { enabled: true },
+          id === 'sales' ? { override: { enabled: false } } : {},
+        ),
+      ),
+      // Reports Actions (4)
+      control('reports.actions.run', 'reports', 'ACTION', 'Run Report', { allowed: true }),
+      control('reports.actions.exportPdf', 'reports', 'ACTION', 'Export PDF', { allowed: true }),
+      control('reports.actions.exportExcel', 'reports', 'ACTION', 'Export Excel', { allowed: true }),
+      control(
+        'reports.actions.exportCsv',
+        'reports',
+        'ACTION',
+        'Export CSV',
+        { allowed: true },
+        {
+          effectiveValue: { allowed: false },
+          reasons: ['entitlement_unavailable'],
+        },
+      ),
     ];
     await TestBed.configureTestingModule({
       imports: [OrganizationControlsPage],
@@ -2358,6 +2408,88 @@ describe('OrganizationControlsPage', () => {
           'Platform rule: this required workflow field cannot be hidden or disabled.',
         );
       }
+    });
+  });
+  describe('Reports Controls', () => {
+    it('renders the complete Reports registry through the generic policy sections', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('reports');
+      fixture.detectChanges();
+
+      expect(component.moduleLabel('reports')).toBe('Reports');
+      expect(component.selectedControls()).toHaveLength(22);
+      expect(component.moduleControls()).toHaveLength(1);
+      expect(component.moduleInfoControls()).toHaveLength(1);
+      expect(component.reportAvailabilityControls()).toHaveLength(16);
+      expect(component.actionControls()).toHaveLength(4);
+      expect(component.featureControls()).toHaveLength(0);
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('Reports Module');
+      expect(text).toContain('Report Availability');
+      expect(text).toContain('Default');
+      expect(text).toContain('Organization override');
+      expect(text).toContain('Effective');
+      expect(text).toContain('Export PDF');
+      expect(text).toContain('Export Excel');
+      expect(text).toContain('Export CSV');
+    });
+
+    it('supports independent report/action policy changes and backend effective restrictions', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('reports');
+
+      const sales = component
+        .reportAvailabilityControls()
+        .find((item) => item.key === 'reports.reportAvailability.sales');
+      const purchases = component
+        .reportAvailabilityControls()
+        .find((item) => item.key === 'reports.reportAvailability.purchases');
+      const pdf = component
+        .actionControls()
+        .find((item) => item.key === 'reports.actions.exportPdf');
+      const csv = component
+        .actionControls()
+        .find((item) => item.key === 'reports.actions.exportCsv');
+
+      expect(sales).toBeDefined();
+      expect(purchases).toBeDefined();
+      expect(pdf).toBeDefined();
+      expect(csv).toBeDefined();
+      if (sales && purchases && pdf && csv) {
+        expect(component.effectiveValue(sales, 'enabled')).toBe(false);
+        expect(component.effectiveValue(purchases, 'enabled')).toBe(true);
+        component.setValue(sales, 'enabled', true);
+        component.setValue(pdf, 'allowed', false);
+        expect(component.effectiveValue(sales, 'enabled')).toBe(true);
+        expect(component.effectiveValue(purchases, 'enabled')).toBe(true);
+        expect(component.effectiveValue(pdf, 'allowed')).toBe(false);
+        expect(component.effectiveValue(csv, 'allowed')).toBe(false);
+        expect(component.effectiveReason(csv, 'allowed')).toBe(
+          'Unavailable on the current plan entitlement.',
+        );
+      }
+    });
+
+    it('supports Reports disable/re-enable and organization-scoped module reset', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('reports');
+      const moduleControl = component.controls().find((item) => item.key === 'reports');
+      expect(moduleControl).toBeDefined();
+      if (moduleControl) {
+        component.setValue(moduleControl, 'enabled', false);
+        expect(component.disablingReports()).toBe(true);
+        expect(component.confirmationTitle()).toBe(
+          'Disable Reports for Greenfield Agro Center?',
+        );
+        expect(component.confirmationLabel()).toBe('Disable Reports');
+        component.setValue(moduleControl, 'enabled', true);
+        expect(component.effectiveValue(moduleControl, 'enabled')).toBe(true);
+      }
+
+      component.askResetModule();
+      component.confirm();
+      expect(resetModule).toHaveBeenCalledWith('org-a', 'reports', 4, '');
     });
   });
 });

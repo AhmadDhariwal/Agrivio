@@ -14,6 +14,9 @@ function createRequireCapabilityMiddleware(capabilityService, key, mode) {
         permissions: authContext.permissions ?? [],
         ...(req.subscriptionAccessState === undefined
           ? {}
+          : { subscriptionAccessState: req.subscriptionAccessState }),
+        ...(req.subscriptionAccessState === undefined
+          ? {}
           : { operationalAllowed: req.subscriptionAccessState.accessLevel === 'operational' }),
       });
       next();

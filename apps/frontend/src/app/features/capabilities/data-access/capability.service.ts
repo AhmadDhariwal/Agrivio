@@ -321,6 +321,29 @@ const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string,
   'accounts.actions.reverseMovement': { allowed: true },
   'accounts.actions.reverseTransfer': { allowed: true },
   'accounts.actions.refresh': { allowed: true },
+  // Reports module controls (22 authoritative controls)
+  reports: { enabled: true },
+  'reports.features.moduleInfo': { enabled: true },
+  'reports.reportAvailability.sales': { enabled: true },
+  'reports.reportAvailability.purchases': { enabled: true },
+  'reports.reportAvailability.grossProfit': { enabled: true },
+  'reports.reportAvailability.stock': { enabled: true },
+  'reports.reportAvailability.stockValuation': { enabled: true },
+  'reports.reportAvailability.stockMovements': { enabled: true },
+  'reports.reportAvailability.customerLedger': { enabled: true },
+  'reports.reportAvailability.supplierLedger': { enabled: true },
+  'reports.reportAvailability.accountCashBook': { enabled: true },
+  'reports.reportAvailability.expenses': { enabled: true },
+  'reports.reportAvailability.lowStock': { enabled: true },
+  'reports.reportAvailability.expiry': { enabled: true },
+  'reports.reportAvailability.deadStock': { enabled: true },
+  'reports.reportAvailability.topProducts': { enabled: true },
+  'reports.reportAvailability.topCustomers': { enabled: true },
+  'reports.reportAvailability.employeeSales': { enabled: true },
+  'reports.actions.run': { allowed: true },
+  'reports.actions.exportPdf': { allowed: true },
+  'reports.actions.exportExcel': { allowed: true },
+  'reports.actions.exportCsv': { allowed: true },
 };
 
 @Injectable({ providedIn: 'root' })
@@ -433,6 +456,7 @@ export class CapabilityService {
       'expenses',
       'expenses.categories',
       'accounts',
+      'reports',
     ]);
     return {
       organizationId: this.sessionStore.activeContext()?.organizationId ?? 'test-organization',

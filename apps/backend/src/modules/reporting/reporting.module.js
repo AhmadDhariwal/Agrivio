@@ -13,6 +13,7 @@ function createReportingModule(options = {}) {
     customersService: options.customersService,
     resolveOrganizationTimezone: options.resolveOrganizationTimezone,
     resolvePlanEntitlements: options.resolvePlanEntitlements,
+    capabilityService: options.capabilityService,
     ...(options.now === undefined ? {} : { now: options.now }),
   });
 

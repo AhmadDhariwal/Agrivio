@@ -27,6 +27,9 @@ function createCapabilityController(deps) {
           permissions: req.authContext.permissions ?? [],
           ...(req.subscriptionAccessState === undefined
             ? {}
+            : { subscriptionAccessState: req.subscriptionAccessState }),
+          ...(req.subscriptionAccessState === undefined
+            ? {}
             : { operationalAllowed: req.subscriptionAccessState.accessLevel === 'operational' }),
         });
         sendSuccessEnvelope(res, 200, {

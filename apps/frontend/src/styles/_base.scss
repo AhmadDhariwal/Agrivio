@@ -103,6 +103,18 @@ select,
 textarea {
   font: inherit;
   color: inherit;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+select {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+option {
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .ag-sr-only {
