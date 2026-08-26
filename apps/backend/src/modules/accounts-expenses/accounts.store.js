@@ -67,6 +67,45 @@ function createMongooseAccountsStore() {
       }).exec();
     },
 
+    async getAccountsSummary(organizationId) {
+      const [countResult, balanceResult] = await Promise.all([
+        AccountModel.aggregate([
+          { $match: { organizationId: new mongoose.Types.ObjectId(String(organizationId)) } },
+          {
+            $group: {
+              _id: '$status',
+              count: { $sum: 1 },
+            },
+          },
+        ]).exec(),
+        AccountMovementModel.aggregate([
+          {
+            $match: {
+              organizationId: new mongoose.Types.ObjectId(String(organizationId)),
+              status: 'posted',
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalSignedMinorUnits: { $sum: { $toLong: '$signedAmountMinorUnits' } },
+            },
+          },
+        ]).exec(),
+      ]);
+      let totalAccounts = 0;
+      let activeAccounts = 0;
+      let inactiveAccounts = 0;
+      for (const bucket of countResult) {
+        totalAccounts += bucket.count;
+        if (bucket._id === 'active') activeAccounts = bucket.count;
+        else if (bucket._id === 'inactive') inactiveAccounts = bucket.count;
+      }
+      const rawMinor = balanceResult.length > 0 ? balanceResult[0].totalSignedMinorUnits : 0;
+      const totalMinorBigInt = BigInt(String(rawMinor ?? 0));
+      return { totalAccounts, activeAccounts, inactiveAccounts, totalMinorBigInt };
+    },
+
     async findAccountById(organizationId, id, session) {
       if (!mongoose.isValidObjectId(id)) {
         return null;
@@ -493,6 +532,22 @@ function createInMemoryAccountsStore() {
           item.openingBalance &&
           item.openingBalance.status === 'posted',
       ).length;
+    },
+
+    async getAccountsSummary(organizationId) {
+      const orgAccounts = [...accounts.values()].filter(
+        (item) => String(item.organizationId) === String(organizationId),
+      );
+      const totalAccounts = orgAccounts.length;
+      const activeAccounts = orgAccounts.filter((item) => item.status === 'active').length;
+      const inactiveAccounts = orgAccounts.filter((item) => item.status === 'inactive').length;
+      const orgMovements = [...movements.values()].filter(
+        (item) =>
+          String(item.organizationId) === String(organizationId) &&
+          item.status === 'posted',
+      );
+      const totalMinorBigInt = BigInt(sumMinorUnits(orgMovements));
+      return { totalAccounts, activeAccounts, inactiveAccounts, totalMinorBigInt };
     },
 
     async findAccountById(organizationId, id) {

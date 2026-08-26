@@ -26,6 +26,15 @@ function createAccountsController(deps) {
       }
     },
 
+    async getAccountsSummary(req, res, next) {
+      try {
+        const data = await deps.accountsService.getAccountsSummary(requireOrganizationId(req));
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async getAccount(req, res, next) {
       try {
         const data = await deps.accountsService.getAccount(

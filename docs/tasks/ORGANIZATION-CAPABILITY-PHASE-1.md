@@ -1,8 +1,8 @@
 # Organization Capability & UI Policy — Phase 1
 
 Status: Implementation complete; lightweight authenticated browser review remains environment-dependent
-Scope: Generic platform foundation plus completed capability integrations through Stock Movements
-Completed: 2026-08-22
+Scope: Generic platform foundation plus completed capability integrations through Stock Movements and Accounts backend
+Completed: 2026-08-26
 
 ## Implemented
 
@@ -26,6 +26,8 @@ Completed: 2026-08-22
 - Disabling Stock Adjustments hides tenant navigation, sends direct routes to the shared unavailable state, and blocks adjustment draft/post/reverse endpoints across backend middleware. Negative stock override strictly preserves RBAC `inventory.negative-stock.override` authorization.
 - Warehouse Transfers owns the separate `inventory.transfers` namespace. Its critical module switch, 7 optional form experience features (moduleInfo, productSearch, productContext, stockContext, guidance, recentTransfers, serverTransferDate), 6 platform-enforced workflow fields (sourceWarehouse, destinationWarehouse, product, quantity, reason, batch), and 4 actions (post, reverse, inspect, viewStock) reuse the same registry, resolver, sparse policy, reset, version, audit, and generic Super Admin renderer.
 - Stock Movements owns the separate `inventory.movements` namespace. Its critical module switch, 8 presentation features, 7 platform-enforced audit fields, and 5 read-only actions reuse the same registry, resolver, sparse policy, reset, version, audit, tenant isolation, and RBAC behavior. The movement list endpoint enforces the module; no detail endpoint exists. View Stock, View Product, and View Batch resolve target-module dependencies.
+- Accounts owns the `accounts` namespace with 26 authoritative controls: 1 module, 5 real presentation/inquiry features (`moduleInfo`, `search`, `statusFilter`, `movementHistory`, `kpiCards`), 8 real Account fields (`name`, `accountType`, `status`, `derivedBalance`, `bankName`, `accountNumberMasked`, `walletIdentifier`, `openingBalance`), and 12 semantic business actions (`create`, `inspect`, `edit`, `deactivate`, `reactivate`, `delete`, `postOpeningBalance`, `postManualMovement`, `transfer`, `reverseMovement`, `reverseTransfer`, `refresh`). All Accounts API operations enforce the module plus their relevant action, movement-history, or KPI summary control after RBAC/subscription checks; dynamic Account PATCH enforcement distinguishes safe field edits from deactivate/reactivate transitions. Authoritative summary KPI data (total accounts, active, inactive, and organization-wide total balance) is provided via `GET /api/v1/accounts/summary`.
+- Accounts navigation, routes (`/app/accounts`, `/app/accounts/new`, `/app/accounts/:id`), and Angular pages implement capability ∩ RBAC gating across list, create, edit, opening balance, transactions, transfers, reversals, and movement history. Super Admin Organization Controls fully integrates Accounts sidebar navigation, section routing, required workflow field protections, and scoped resets.
 - Disabling Warehouse Transfers blocks all transfer list/detail/create/update/discard/post/reverse endpoints through backend capability middleware. Source warehouse, destination warehouse, product, quantity, reason, and batch remain platform-enforced; negative-stock override strictly preserves RBAC `inventory.negative-stock.override` authorization and has no capability key. Batch identity and expiry metadata preservation remain enforced by the inventory engine; WAC valuation remains 100% backend-owned.
 - Individual, module, and organization reset operations remove sparse overrides through the transactional backend endpoints, increment policy versions on material changes, emit per-control audit evidence, re-resolve effective policy, and refresh the Super Admin UI.
 - Stable policy denial codes: `ORG_CAPABILITY_DISABLED`, `ORG_ACTION_NOT_ALLOWED`, and `ORG_FIELD_NOT_EDITABLE`.
@@ -105,6 +107,15 @@ No capability controls were added for Warehouses.
 - View Stock, View Product, and View Batch depend on `inventory.stock`, `inventory.products`, and `inventory.batches`, respectively. The dependencies affect only the navigation actions.
 - Module reset removes only controls whose `moduleKey` is `inventory.movements`, increments the organization policy version on material changes, and emits the existing per-control audit event with actor, time, reason, and before/after version evidence.
 
+## Accounts backend registry safety decisions
+
+- `accounts` controls direct Account master-data and direct opening/manual-movement/transfer/reversal workflows only. Disabling it does not prevent Sales, Purchases, Payments, Returns, or Expenses from using the Accounts public interface to create required account movements.
+- Account name, type, lifecycle status, derived balance, bank name, wallet identifier, and posted opening-balance information remain visible where applicable and platform enforced. Account type and posted financial history remain non-editable. Masked account number visibility/editability is configurable; safe master-data editability is enforced in the service.
+- Bank name and wallet identifier remain conditionally required by the frozen Account type rules. Create remains a separate action so capability policy cannot bypass required creation input or change the four supported Account types.
+- Create, Inspect, Edit, Deactivate, Reactivate, Delete, Post Opening Balance, Post Manual Inflow / Outflow, Transfer, Reverse Manual Movement, Reverse Transfer, and Refresh are distinct semantic actions mapped to existing permissions. No capability dependency is registered because no Accounts endpoint requires another capability namespace at runtime.
+- Derived balances remain calculated from signed posted movements. Opening balances remain one-time and auditable; transfers remain atomic; reversals create linked corrective movements; posted movements remain immutable; deletion remains subject to opening-balance and record-in-use protection; all queries remain organization-scoped and mutations retain optimistic versioning where applicable.
+- Accounts module reset removes only controls whose `moduleKey` is `accounts`, preserves all other organization overrides, increments the policy version on material changes, and emits the existing per-control audit evidence.
+
 ## Model review checklist outcome
 
 | Check | Outcome |
@@ -143,6 +154,7 @@ No capability controls were added for Warehouses.
 - Warehouse Transfers focused backend registry/resolver, tenant isolation, 4 middleware instances across 7 endpoints, scoped reset/audit/version, and route enforcement: passed (2 files, 28 tests).
 - Warehouse Transfers Angular page computed helpers, template reflow, action gating, history toggling, navigation capability filter, routing guard, and Super Admin Organization Controls coverage: passed (4 test files, 48 tests across focused runs).
 - Stock Movements focused backend registry/resolver, dependency, RBAC, tenant isolation, scoped reset/audit/version, and route enforcement: passed (2 files, 16 tests). Complete backend capability regression set passed (12 files, 115 tests).
+- Accounts focused backend registry/resolver, RBAC, tenant isolation, scoped reset/audit/version, route/action/feature enforcement, safe field/lifecycle mutation enforcement, and direct financial workflow enforcement: passed (3 files, 19 tests).
 - Final development and production builds for all projects passed.
 
 ## Remaining risk

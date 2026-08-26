@@ -157,6 +157,20 @@ function createAccountsService(deps) {
       return { items: mapped, total: result.total };
     },
 
+    async getAccountsSummary(organizationId) {
+      const { totalAccounts, activeAccounts, inactiveAccounts, totalMinorBigInt } =
+        await store.getAccountsSummary(organizationId);
+      return {
+        totalAccounts,
+        activeAccounts,
+        inactiveAccounts,
+        totalBalance: {
+          amount: formatMoneyMinorUnits(totalMinorBigInt),
+          currency: 'PKR',
+        },
+      };
+    },
+
     async getAccount(organizationId, accountId) {
       const record = await store.findAccountById(organizationId, accountId);
       if (record === null) {
@@ -179,6 +193,9 @@ function createAccountsService(deps) {
     },
 
     async createAccount(organizationId, body, actor) {
+      if (typeof capabilityService?.assertAccountCreateAllowed === 'function') {
+        await capabilityService.assertAccountCreateAllowed(organizationId);
+      }
       const input = parseAccountCreate(body);
       try {
         return await transactionRunner.run(async (session) => {
@@ -209,6 +226,9 @@ function createAccountsService(deps) {
           const current = await store.findAccountById(organizationId, accountId);
           if (current === null) {
             throw notFound('Account not found');
+          }
+          if (typeof capabilityService?.assertAccountPatchAllowed === 'function') {
+            await capabilityService.assertAccountPatchAllowed(organizationId, current, patch);
           }
           assertOptimisticVersion(current, expectedVersion);
           if (current.accountType === 'bank' && patch.bankName === '') {
@@ -244,6 +264,9 @@ function createAccountsService(deps) {
     },
 
     async deleteAccount(organizationId, accountId, actor) {
+      if (typeof capabilityService?.assertAccountDeleteAllowed === 'function') {
+        await capabilityService.assertAccountDeleteAllowed(organizationId);
+      }
       const current = await store.findAccountById(organizationId, accountId);
       if (current === null) {
         throw notFound('Account not found');
@@ -347,6 +370,9 @@ function createAccountsService(deps) {
     },
 
     async postOpeningBalance(organizationId, accountId, body, actor, idempotencyKey, options = {}) {
+      if (typeof capabilityService?.assertAccountOpeningBalanceAllowed === 'function') {
+        await capabilityService.assertAccountOpeningBalanceAllowed(organizationId);
+      }
       const input = parseAccountOpeningBalance(body);
 
       const postWork = async (session) => {
@@ -439,6 +465,9 @@ function createAccountsService(deps) {
     },
 
     async postManualAccountTransaction(organizationId, body, actor, idempotencyKey) {
+      if (typeof capabilityService?.assertAccountManualMovementAllowed === 'function') {
+        await capabilityService.assertAccountManualMovementAllowed(organizationId);
+      }
       const key = requireIdempotencyKey(idempotencyKey);
       const input = parseManualAccountTransaction(body);
       const signedAmountMinorUnits =
@@ -526,6 +555,9 @@ function createAccountsService(deps) {
     },
 
     async reverseManualAccountTransaction(organizationId, transactionId, body, actor, idempotencyKey) {
+      if (typeof capabilityService?.assertAccountMovementReversalAllowed === 'function') {
+        await capabilityService.assertAccountMovementReversalAllowed(organizationId);
+      }
       const key = requireIdempotencyKey(idempotencyKey);
       const input = parseReversalReason(body);
 
@@ -614,6 +646,9 @@ function createAccountsService(deps) {
     },
 
     async postAccountTransfer(organizationId, body, actor, idempotencyKey) {
+      if (typeof capabilityService?.assertAccountTransferAllowed === 'function') {
+        await capabilityService.assertAccountTransferAllowed(organizationId);
+      }
       const key = requireIdempotencyKey(idempotencyKey);
       const input = parseAccountTransfer(body);
 
@@ -721,6 +756,9 @@ function createAccountsService(deps) {
     },
 
     async reverseAccountTransfer(organizationId, transferId, body, actor, idempotencyKey) {
+      if (typeof capabilityService?.assertAccountTransferReversalAllowed === 'function') {
+        await capabilityService.assertAccountTransferReversalAllowed(organizationId);
+      }
       const key = requireIdempotencyKey(idempotencyKey);
       const input = parseReversalReason(body);
 

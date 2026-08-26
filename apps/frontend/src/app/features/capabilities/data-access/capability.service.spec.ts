@@ -325,4 +325,59 @@ describe('CapabilityService', () => {
     expect(service.canPerformAction('suppliers.actions.postOpeningBalance')).toBe(true);
     expect(service.canPerformAction('suppliers.actions.refresh')).toBe(true);
   });
+
+  it('provides default enabled/visible/allowed values for all 26 accounts.* controls', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        CapabilityService,
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            activeContext: () => ({ contextType: 'organization', organizationId: 'org-1' }),
+          },
+        },
+      ],
+    });
+    const service = TestBed.inject(CapabilityService);
+
+    // Root module (1)
+    expect(service.canUseModule('accounts')).toBe(true);
+
+    // 5 Features
+    expect(service.canUseView('accounts.features.moduleInfo')).toBe(true);
+    expect(service.canUseView('accounts.features.search')).toBe(true);
+    expect(service.canUseView('accounts.features.statusFilter')).toBe(true);
+    expect(service.canUseView('accounts.features.movementHistory')).toBe(true);
+    expect(service.canUseView('accounts.features.kpiCards')).toBe(true);
+
+    // 8 Fields
+    expect(service.canViewField('accounts.fields.name')).toBe(true);
+    expect(service.canEditField('accounts.fields.name')).toBe(true);
+    expect(service.canViewField('accounts.fields.accountType')).toBe(true);
+    expect(service.canEditField('accounts.fields.accountType')).toBe(false);
+    expect(service.canViewField('accounts.fields.status')).toBe(true);
+    expect(service.canEditField('accounts.fields.status')).toBe(false);
+    expect(service.canViewField('accounts.fields.derivedBalance')).toBe(true);
+    expect(service.canViewField('accounts.fields.bankName')).toBe(true);
+    expect(service.canEditField('accounts.fields.bankName')).toBe(true);
+    expect(service.canViewField('accounts.fields.accountNumberMasked')).toBe(true);
+    expect(service.canEditField('accounts.fields.accountNumberMasked')).toBe(true);
+    expect(service.canViewField('accounts.fields.walletIdentifier')).toBe(true);
+    expect(service.canEditField('accounts.fields.walletIdentifier')).toBe(true);
+    expect(service.canViewField('accounts.fields.openingBalance')).toBe(true);
+
+    // 12 Actions
+    expect(service.canPerformAction('accounts.actions.create')).toBe(true);
+    expect(service.canPerformAction('accounts.actions.inspect')).toBe(true);
+    expect(service.canPerformAction('accounts.actions.edit')).toBe(true);
+    expect(service.canPerformAction('accounts.actions.deactivate')).toBe(true);
+    expect(service.canPerformAction('accounts.actions.reactivate')).toBe(true);
+    expect(service.canPerformAction('accounts.actions.delete')).toBe(true);
+    expect(service.canPerformAction('accounts.actions.postOpeningBalance')).toBe(true);
+    expect(service.canPerformAction('accounts.actions.postManualMovement')).toBe(true);
+    expect(service.canPerformAction('accounts.actions.transfer')).toBe(true);
+    expect(service.canPerformAction('accounts.actions.reverseMovement')).toBe(true);
+    expect(service.canPerformAction('accounts.actions.reverseTransfer')).toBe(true);
+    expect(service.canPerformAction('accounts.actions.refresh')).toBe(true);
+  });
 });

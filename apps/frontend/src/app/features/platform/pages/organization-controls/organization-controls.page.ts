@@ -31,7 +31,8 @@ type ConfigurableModule =
   | 'suppliers'
   | 'returns'
   | 'expenses'
-  | 'expenses.categories';
+  | 'expenses.categories'
+  | 'accounts';
 type PendingConfirmation =
   | { readonly kind: 'save' }
   | { readonly kind: 'reset-control'; readonly control: PlatformCapabilityControl }
@@ -113,6 +114,9 @@ export class OrganizationControlsPage {
     if (this.selectedModule() === 'expenses.categories') {
       return this.expenseCategoriesFeatures('moduleInfo');
     }
+    if (this.selectedModule() === 'accounts') {
+      return this.accountsFeatures('moduleInfo');
+    }
     if (this.selectedModule() === 'inventory.movements') {
       return this.movementsFeatures('moduleInfo');
     }
@@ -163,6 +167,9 @@ export class OrganizationControlsPage {
     return [];
   });
   readonly historyControls = computed(() => {
+    if (this.selectedModule() === 'accounts') {
+      return this.accountsFeatures('movementHistory');
+    }
     if (this.selectedModule() === 'inventory.transfers') {
       return this.transfersFeatures('recentTransfers');
     }
@@ -172,6 +179,9 @@ export class OrganizationControlsPage {
     return [];
   });
   readonly filterControls = computed(() => {
+    if (this.selectedModule() === 'accounts') {
+      return this.accountsFeatures('search', 'statusFilter');
+    }
     if (this.selectedModule() === 'suppliers') {
       return this.suppliersFeatures('search', 'statusFilter');
     }
@@ -199,6 +209,9 @@ export class OrganizationControlsPage {
     return [];
   });
   readonly kpiControls = computed(() => {
+    if (this.selectedModule() === 'accounts') {
+      return this.accountsFeatures('kpiCards');
+    }
     if (this.selectedModule() === 'suppliers') {
       return this.suppliersFeatures('kpiCards');
     }
@@ -366,6 +379,14 @@ export class OrganizationControlsPage {
       changes[0].value?.['enabled'] === false
     );
   });
+  readonly disablingAccounts = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'accounts' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
   readonly confirmationTitle = computed(() => {
     const pending = this.pendingConfirmation();
     const organization = this.snapshot()?.organization.name ?? 'this organization';
@@ -399,6 +420,9 @@ export class OrganizationControlsPage {
     }
     if (this.disablingExpenseCategories()) {
       return `Disable Expense Categories for ${organization}?`;
+    }
+    if (this.disablingAccounts()) {
+      return `Disable Accounts for ${organization}?`;
     }
     const single = this.changeSummary().length === 1 ? this.changeSummary()[0] : null;
     if (single?.risk === 'CRITICAL' && single.after === 'Disabled') {
@@ -454,6 +478,9 @@ export class OrganizationControlsPage {
     if (this.disablingExpenseCategories()) {
       return `Users in this organization will no longer be able to access the Expense Categories page. Existing categories remain referenced by posted expenses and are not deleted.`;
     }
+    if (this.disablingAccounts()) {
+      return `Users in this organization will no longer be able to access Accounts, register new accounts, or execute financial movements. Existing accounts, opening balances, movements, and transaction history will not be deleted or modified.`;
+    }
     const critical = this.changeSummary()
       .filter((change) => change.risk === 'CRITICAL')
       .map((change) => `${change.label}: ${change.before} → ${change.after}`);
@@ -478,6 +505,7 @@ export class OrganizationControlsPage {
     if (this.disablingReturns()) return 'Disable Returns and Corrections';
     if (this.disablingExpenses()) return 'Disable Expenses';
     if (this.disablingExpenseCategories()) return 'Disable Expense Categories';
+    if (this.disablingAccounts()) return 'Disable Accounts';
     return 'Apply changes';
   });
 
@@ -696,6 +724,7 @@ export class OrganizationControlsPage {
     if (moduleKey === 'returns') return 'Returns and Corrections';
     if (moduleKey === 'expenses') return 'Expenses';
     if (moduleKey === 'expenses.categories') return 'Expense Categories';
+    if (moduleKey === 'accounts') return 'Accounts';
     return 'Product Batches';
   }
 
@@ -712,10 +741,16 @@ export class OrganizationControlsPage {
         control.moduleKey === 'suppliers' ||
         control.moduleKey === 'returns' ||
         control.moduleKey === 'expenses' ||
-        control.moduleKey === 'expenses.categories') &&
+        control.moduleKey === 'expenses.categories' ||
+        control.moduleKey === 'accounts') &&
       control.type === 'FIELD' &&
       control.platformEnforced === true
     );
+  }
+
+  private accountsFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
+    const keys = new Set(ids.map((id) => `accounts.features.${id}`));
+    return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
   }
 
   private suppliersFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
@@ -848,7 +883,13 @@ export class OrganizationControlsPage {
       (control.moduleKey === 'expenses.categories' &&
         (control.key === 'expenses.categories.features.moduleInfo' ||
           control.key === 'expenses.categories.features.search' ||
-          control.key === 'expenses.categories.features.statusFilter'))
+          control.key === 'expenses.categories.features.statusFilter')) ||
+      (control.moduleKey === 'accounts' &&
+        (control.key === 'accounts.features.moduleInfo' ||
+          control.key === 'accounts.features.search' ||
+          control.key === 'accounts.features.statusFilter' ||
+          control.key === 'accounts.features.movementHistory' ||
+          control.key === 'accounts.features.kpiCards'))
     );
   }
 

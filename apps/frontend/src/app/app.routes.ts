@@ -355,6 +355,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'accounts',
+        canActivate: [requireCapabilityGuard('accounts')],
         loadComponent: () =>
           import('./features/accounts-expenses/pages/accounts/accounts.page').then(
             (m) => m.AccountsPage,
@@ -362,6 +363,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'accounts/new',
+        canActivate: [
+          requireCapabilityGuard('accounts'),
+          requireCapabilityGuard('accounts.actions.create', 'action'),
+        ],
         loadComponent: () =>
           import('./features/accounts-expenses/pages/account-form/account-form.page').then(
             (m) => m.AccountFormPage,
@@ -369,6 +374,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'accounts/:id',
+        canActivate: [
+          requireCapabilityGuard('accounts'),
+          requireCapabilityGuard('accounts.actions.inspect', 'action'),
+        ],
         loadComponent: () =>
           import('./features/accounts-expenses/pages/account-form/account-form.page').then(
             (m) => m.AccountFormPage,

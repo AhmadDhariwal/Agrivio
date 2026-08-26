@@ -172,7 +172,7 @@ function createInMemoryEmployeesStore(options = {}) {
     },
 
     async listMembershipsPage(organizationId, filter = {}, pagination = {}) {
-      let items = await this.listMembershipsByOrganizationId(organizationId);
+      const items = await this.listMembershipsByOrganizationId(organizationId);
       const search = String(filter.search ?? '').trim().toLowerCase();
       const withUsers = [];
       for (const membership of items) {

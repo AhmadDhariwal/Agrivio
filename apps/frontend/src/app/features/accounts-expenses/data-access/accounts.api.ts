@@ -3,13 +3,21 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, map, switchMap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
-import { AccountMovementRecord, AccountRecord, AccountTransactionRecord, AccountTransferRecord } from '../models/accounts.models';
+import { AccountMovementRecord, AccountRecord, AccountsSummary, AccountTransactionRecord, AccountTransferRecord } from '../models/accounts.models';
 import { PaginatedResult, PaginationQuery } from '../../../shared/data-access/pagination';
 
 @Injectable({ providedIn: 'root' })
 export class AccountsApi {
   private readonly http = inject(HttpClient);
   private readonly authApi = inject(AuthApi);
+
+  getSummary(): Observable<AccountsSummary> {
+    return this.http
+      .get<{ data: AccountsSummary }>(`${environment.publicApiBaseUrl}/api/v1/accounts/summary`, {
+        withCredentials: true,
+      })
+      .pipe(map((response) => response.data));
+  }
 
   listAccounts(params: PaginationQuery & { status?: string; search?: string } = {}): Observable<PaginatedResult<AccountRecord>> {
     return this.http

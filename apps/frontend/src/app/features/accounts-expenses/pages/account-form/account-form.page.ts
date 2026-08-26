@@ -1,13 +1,18 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { DatePipe, UpperCasePipe, TitleCasePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AccountsApi } from '../../data-access/accounts.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import {
+  UiStatusBadgeComponent,
+  UiBadgeTone,
+} from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
 import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 import { AccountMovementRecord, AccountRecord } from '../../models/accounts.models';
 import { forkJoin, of } from 'rxjs';
@@ -19,10 +24,13 @@ import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pa
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    UiPageHeaderComponent,
+    DatePipe,
+    UpperCasePipe,
+    TitleCasePipe,
     UiAlertComponent,
     UiLoadingStateComponent,
     UiFieldLabelComponent,
+    UiStatusBadgeComponent,
     UiPaginationComponent,
   ],
   templateUrl: './account-form.page.html',
@@ -34,6 +42,7 @@ export class AccountFormPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
 
   readonly accountId = signal<string | null>(null);
   readonly loading = signal(false);
@@ -46,20 +55,121 @@ export class AccountFormPage {
   readonly movementsPage = signal(1);
   readonly movementsPageSize = signal(25);
   readonly movementsTotal = signal(0);
-  readonly canManage = computed(() => this.sessionStore.hasPermission('accounts.manage'));
-  readonly canView = computed(() => this.sessionStore.hasPermission('accounts.view'));
-  readonly canPostOpening = computed(() =>
-    this.sessionStore.hasPermission('accounts.opening-balance.post'),
+
+  readonly canUseAccounts = computed(
+    () => this.capabilityService?.canUseModule('accounts') ?? true,
   );
-  readonly canPostTransaction = computed(() =>
-    this.sessionStore.hasPermission('accounts.transaction.post'),
+  readonly canManage = computed(
+    () => this.sessionStore.hasPermission('accounts.manage') && this.canUseAccounts(),
   );
-  readonly canCorrectTransaction = computed(() =>
-    this.sessionStore.hasPermission('accounts.transaction.correct'),
+  readonly canView = computed(
+    () => this.sessionStore.hasPermission('accounts.view') && this.canUseAccounts(),
   );
-  readonly canTransfer = computed(() => this.sessionStore.hasPermission('accounts.transfer'));
-  readonly canReverseTransfer = computed(() =>
-    this.sessionStore.hasPermission('accounts.transfer.reverse'),
+  readonly canCreate = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.create') ?? true),
+  );
+  readonly canInspect = computed(
+    () =>
+      this.canView() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.inspect') ?? true),
+  );
+  readonly canEdit = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.edit') ?? true),
+  );
+  readonly canPostOpening = computed(
+    () =>
+      this.sessionStore.hasPermission('accounts.opening-balance.post') &&
+      this.canUseAccounts() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.postOpeningBalance') ?? true),
+  );
+  readonly canPostTransaction = computed(
+    () =>
+      this.sessionStore.hasPermission('accounts.transaction.post') &&
+      this.canUseAccounts() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.postManualMovement') ?? true),
+  );
+  readonly canCorrectTransaction = computed(
+    () =>
+      this.sessionStore.hasPermission('accounts.transaction.correct') &&
+      this.canUseAccounts() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.reverseMovement') ?? true),
+  );
+  readonly canTransfer = computed(
+    () =>
+      this.sessionStore.hasPermission('accounts.transfer') &&
+      this.canUseAccounts() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.transfer') ?? true),
+  );
+  readonly canReverseTransfer = computed(
+    () =>
+      this.sessionStore.hasPermission('accounts.transfer.reverse') &&
+      this.canUseAccounts() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.reverseTransfer') ?? true),
+  );
+
+  // Features
+  readonly showMovementHistory = computed(
+    () =>
+      this.canView() &&
+      (this.capabilityService?.canUseView('accounts.features.movementHistory') ?? true),
+  );
+
+  // Fields
+  readonly showName = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.name') ?? true,
+  );
+  readonly canEditName = computed(
+    () =>
+      (this.accountId() ? this.canEdit() : this.canCreate()) &&
+      (this.capabilityService?.canEditField('accounts.fields.name') ?? true),
+  );
+  readonly showAccountType = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.accountType') ?? true,
+  );
+  readonly canEditAccountType = computed(
+    () => !this.accountId() && this.canCreate(),
+  );
+  readonly showStatus = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.status') ?? true,
+  );
+  readonly canEditStatus = computed(
+    () =>
+      this.canEdit() &&
+      (this.capabilityService?.canEditField('accounts.fields.status') ?? true),
+  );
+  readonly showDerivedBalance = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.derivedBalance') ?? true,
+  );
+  readonly showBankName = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.bankName') ?? true,
+  );
+  readonly canEditBankName = computed(
+    () =>
+      (this.accountId() ? this.canEdit() : this.canCreate()) &&
+      (this.capabilityService?.canEditField('accounts.fields.bankName') ?? true),
+  );
+  readonly showAccountNumberMasked = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.accountNumberMasked') ?? true,
+  );
+  readonly canEditAccountNumberMasked = computed(
+    () =>
+      (this.accountId() ? this.canEdit() : this.canCreate()) &&
+      (this.capabilityService?.canEditField('accounts.fields.accountNumberMasked') ?? true),
+  );
+  readonly showWalletIdentifier = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.walletIdentifier') ?? true,
+  );
+  readonly canEditWalletIdentifier = computed(
+    () =>
+      (this.accountId() ? this.canEdit() : this.canCreate()) &&
+      (this.capabilityService?.canEditField('accounts.fields.walletIdentifier') ?? true),
+  );
+  readonly showOpeningBalance = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.openingBalance') ?? true,
   );
   readonly accountType = signal('cash');
   readonly destinationAccounts = signal<AccountRecord[]>([]);
@@ -133,7 +243,10 @@ export class AccountFormPage {
   }
 
   save(): void {
-    if (!this.canManage() || this.form.invalid) {
+    if (this.accountId() === null ? !this.canCreate() : !this.canEdit()) {
+      return;
+    }
+    if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
@@ -172,8 +285,11 @@ export class AccountFormPage {
       return;
     }
 
+    const id = this.accountId();
+    if (!id) return;
+
     this.api
-      .updateAccount(this.accountId()!, {
+      .updateAccount(id, {
         expectedVersion: this.version,
         name: value.name,
         status: value.status,
@@ -367,6 +483,43 @@ export class AccountFormPage {
       item.sourceType === 'account_transfer_out' &&
       !this.isReversed(item)
     );
+  }
+
+  sourceTypeLabel(sourceType: string): string {
+    switch (sourceType) {
+      case 'opening_balance':
+        return 'Opening Balance';
+      case 'manual_inflow':
+        return 'Manual Inflow';
+      case 'manual_outflow':
+        return 'Manual Outflow';
+      case 'account_transfer_out':
+        return 'Transfer Out';
+      case 'account_transfer_in':
+        return 'Transfer In';
+      case 'expense':
+        return 'Operating Expense';
+      case 'customer_payment':
+        return 'Customer Payment';
+      case 'supplier_payment':
+        return 'Supplier Payment';
+      default:
+        return sourceType;
+    }
+  }
+
+  statusTone(status: string): UiBadgeTone {
+    return status === 'active' ? 'success' : 'neutral';
+  }
+
+  formatAmount(amount: string | null | undefined): string {
+    if (!amount) return '0.00';
+    const num = Number(amount);
+    if (isNaN(num)) return amount;
+    return num.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   }
 
   loadMovements(): void {
