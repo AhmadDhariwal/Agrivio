@@ -331,6 +331,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Alerts',
           route: '/app/alerts',
           permission: 'alerts.view',
+          capabilityKey: 'alerts',
           testId: 'nav-alerts',
         },
       ],

@@ -344,6 +344,20 @@ const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string,
   'reports.actions.exportPdf': { allowed: true },
   'reports.actions.exportExcel': { allowed: true },
   'reports.actions.exportCsv': { allowed: true },
+  // Alerts module controls (13 authoritative controls)
+  alerts: { enabled: true },
+  'alerts.features.moduleInfo': { enabled: true },
+  'alerts.features.summaryCards': { enabled: true },
+  'alerts.features.navbarNotifications': { enabled: true },
+  'alerts.alertTypeAvailability.lowStock': { enabled: true },
+  'alerts.alertTypeAvailability.upcomingExpiry': { enabled: true },
+  'alerts.alertTypeAvailability.expiredStock': { enabled: true },
+  'alerts.alertTypeAvailability.deadStock': { enabled: true },
+  'alerts.alertTypeAvailability.customerDues': { enabled: true },
+  'alerts.alertTypeAvailability.supplierDues': { enabled: true },
+  'alerts.actions.acknowledge': { allowed: true },
+  'alerts.actions.markRead': { allowed: true },
+  'alerts.actions.markAllRead': { allowed: true },
 };
 
 @Injectable({ providedIn: 'root' })
@@ -410,6 +424,10 @@ export class CapabilityService {
     return this.value(key, 'enabled');
   }
 
+  canUseFeature(key: string): boolean {
+    return this.value(key, 'enabled');
+  }
+
   canUseView(key: string): boolean {
     return this.value(key, 'enabled');
   }
@@ -457,6 +475,7 @@ export class CapabilityService {
       'expenses.categories',
       'accounts',
       'reports',
+      'alerts',
     ]);
     return {
       organizationId: this.sessionStore.activeContext()?.organizationId ?? 'test-organization',

@@ -431,4 +431,68 @@ describe('CapabilityService', () => {
       capabilityKey: 'reports',
     });
   });
+
+  it('provides the exact 13 Alerts defaults and wires module route/navigation gating', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        CapabilityService,
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            activeContext: () => ({ contextType: 'organization', organizationId: 'org-1' }),
+          },
+        },
+      ],
+    });
+    const service = TestBed.inject(CapabilityService);
+    const featureKeys = [
+      'alerts.features.moduleInfo',
+      'alerts.features.summaryCards',
+      'alerts.features.navbarNotifications',
+    ];
+    const alertTypeKeys = [
+      'alerts.alertTypeAvailability.lowStock',
+      'alerts.alertTypeAvailability.upcomingExpiry',
+      'alerts.alertTypeAvailability.expiredStock',
+      'alerts.alertTypeAvailability.deadStock',
+      'alerts.alertTypeAvailability.customerDues',
+      'alerts.alertTypeAvailability.supplierDues',
+    ];
+    const actionKeys = [
+      'alerts.actions.acknowledge',
+      'alerts.actions.markRead',
+      'alerts.actions.markAllRead',
+    ];
+    const allKeys = [
+      'alerts',
+      ...featureKeys,
+      ...alertTypeKeys,
+      ...actionKeys,
+    ];
+
+    expect(allKeys).toHaveLength(13);
+    expect(new Set(allKeys).size).toBe(13);
+    expect(service.canUseModule('alerts')).toBe(true);
+    for (const key of featureKeys) {
+      expect(service.canUseFeature(key)).toBe(true);
+    }
+    for (const key of alertTypeKeys) {
+      expect(service.canUseFeature(key)).toBe(true);
+    }
+    for (const key of actionKeys) {
+      expect(service.canPerformAction(key)).toBe(true);
+    }
+
+    const app = appRoutes.find((route) => route.path === 'app');
+    const alertsRoute = app?.children?.find((route) => route.path === 'alerts');
+    expect(alertsRoute?.canActivate).toHaveLength(1);
+
+    const alertsNav = CANONICAL_NAVIGATION.flatMap((entry) =>
+      entry.type === 'group' ? entry.group.children : [entry.item],
+    ).find((item) => item.id === 'insights.alerts');
+    expect(alertsNav).toMatchObject({
+      permission: 'alerts.view',
+      capabilityKey: 'alerts',
+    });
+  });
 });
