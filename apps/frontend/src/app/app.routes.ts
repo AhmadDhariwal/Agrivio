@@ -482,6 +482,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'supplier-payments',
+        canActivate: [requireCapabilityGuard('payments.supplier')],
         loadComponent: () =>
           import('./features/supplier-payments/pages/supplier-payments/supplier-payments.page').then(
             (m) => m.SupplierPaymentsPage,
@@ -489,6 +490,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'supplier-payments/new',
+        canActivate: [
+          requireCapabilityGuard('payments.supplier'),
+          requireCapabilityGuard('payments.supplier.actions.post', 'action'),
+        ],
         loadComponent: () =>
           import('./features/supplier-payments/pages/supplier-payment-form/supplier-payment-form.page').then(
             (m) => m.SupplierPaymentFormPage,
@@ -560,6 +565,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'supplier-payments/ledger',
+        canActivate: [
+          requireCapabilityGuard('payments.supplier'),
+          requireCapabilityGuard('payments.supplier.actions.viewLedger', 'action'),
+        ],
         loadComponent: () =>
           import('./features/supplier-payments/pages/supplier-ledger/supplier-ledger.page').then(
             (m) => m.SupplierLedgerPage,

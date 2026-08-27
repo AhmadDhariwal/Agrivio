@@ -27,6 +27,7 @@ const CUSTOMERS_MODULE_KEY = 'customers';
 const SUPPLIERS_MODULE_KEY = 'suppliers';
 const RETURNS_MODULE_KEY = 'returns';
 const PURCHASES_MODULE_KEY = 'purchases';
+const SUPPLIER_PAYMENTS_MODULE_KEY = 'payments.supplier';
 const ACCOUNTS_MODULE_KEY = 'accounts';
 const EXPENSES_MODULE_KEY = 'expenses';
 const EXPENSE_CATEGORIES_MODULE_KEY = 'expenses.categories';
@@ -2001,6 +2002,124 @@ const definitions = [
         }
       : {}),
   })),
+  // Supplier Payments Module
+  {
+    key: SUPPLIER_PAYMENTS_MODULE_KEY,
+    parentKey: null,
+    moduleKey: SUPPLIER_PAYMENTS_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Supplier Payments',
+    description:
+      'Standalone supplier payment posting, allocation, ledger inquiry, and correction for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'supplier-payments.view' },
+    reason:
+      'Disabling access blocks direct Supplier Payments operations without deleting posted payments, allocations, advances, ledger effects, account movements, or corrective history.',
+  },
+  ...[
+    ['moduleInfo', 'About Supplier Payments', 'Show the Supplier Payments guidance panel.'],
+    ['paymentDateFilter', 'Payment Date Filter', 'Filter posted supplier payments by payment date.'],
+  ].map(([id, label, description]) => ({
+    key: `payments.supplier.features.${id}`,
+    parentKey: SUPPLIER_PAYMENTS_MODULE_KEY,
+    moduleKey: SUPPLIER_PAYMENTS_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'supplier-payments.view' },
+  })),
+  {
+    key: 'payments.supplier.fields.notes',
+    parentKey: SUPPLIER_PAYMENTS_MODULE_KEY,
+    moduleKey: SUPPLIER_PAYMENTS_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label: 'Notes',
+    description: 'Optional supplier payment notes.',
+    defaultPolicy: { visible: true, editable: true },
+    configurable: { visible: true, editable: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: {
+      visible: 'supplier-payments.view',
+      editable: 'supplier-payments.post',
+    },
+  },
+  ...[
+    ['paymentReference', 'Payment Reference', 'Posted payment identity must remain visible and immutable.'],
+    ['supplier', 'Supplier', 'Supplier identity is required for payable and ledger attribution.'],
+    ['account', 'Payment Account', 'An active Account is required for the immutable account movement.'],
+    ['allocationMode', 'Allocation Mode', 'General or invoice-specific allocation is required for posting.'],
+    ['amount', 'Payment Amount', 'A positive PKR amount is required for financial posting.'],
+    ['paymentDate', 'Payment Date', 'A valid payment date is required for posting.'],
+    ['allocations', 'Payment Allocations', 'Posted purchase and supplier-advance allocations are immutable financial history.'],
+    ['status', 'Posting Status', 'Posted payment and correction lifecycle state is backend-owned.'],
+  ].map(([id, label, reason]) => ({
+    key: `payments.supplier.fields.${id}`,
+    parentKey: SUPPLIER_PAYMENTS_MODULE_KEY,
+    moduleKey: SUPPLIER_PAYMENTS_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description: 'Required workflow data or immutable Supplier Payments history.',
+    defaultPolicy:
+      id === 'paymentReference' || id === 'status'
+        ? { visible: true }
+        : { visible: true, editable: true },
+    configurable:
+      id === 'paymentReference' || id === 'status'
+        ? { visible: false }
+        : { visible: false, editable: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions:
+      id === 'paymentReference' || id === 'status'
+        ? { visible: 'supplier-payments.view' }
+        : {
+            visible: 'supplier-payments.view',
+            editable: 'supplier-payments.post',
+          },
+    reason,
+  })),
+  ...[
+    ['post', 'Post Supplier Payment', 'supplier-payments.post', RISK_LEVELS.Critical, []],
+    [
+      'postInvoiceSpecific',
+      'Post Invoice-specific Payment',
+      'supplier-payments.post',
+      RISK_LEVELS.Critical,
+      ['payments.supplier.actions.post'],
+    ],
+    ['inspect', 'Inspect Supplier Payment', 'supplier-payments.view', RISK_LEVELS.Normal, []],
+    ['viewLedger', 'View Supplier Ledger', 'supplier-payments.view', RISK_LEVELS.Normal, []],
+    ['correct', 'Correct Supplier Payment', 'payments.correct', RISK_LEVELS.Critical, []],
+  ].map(([id, label, permission, risk, dependencies]) => ({
+    key: `payments.supplier.actions.${id}`,
+    parentKey: SUPPLIER_PAYMENTS_MODULE_KEY,
+    moduleKey: SUPPLIER_PAYMENTS_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label,
+    description: `${label} action. Existing RBAC, tenant scope, posting, allocation, idempotency, transaction, and correction safeguards remain authoritative.`,
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk,
+    requiredPermissions: { allowed: permission },
+    ...(dependencies.length === 0 ? {} : { dependencies }),
+    ...(id === 'post'
+      ? {
+          reason:
+            'Posting continues to use the Payments domain transaction and Accounts public movement service; disabling direct Accounts or Suppliers UI access does not weaken or block accounting integrity.',
+        }
+      : {}),
+    ...(id === 'correct'
+      ? {
+          reason:
+            'Correction remains reversal plus optional replacement; original posted payments, allocations, ledger effects, and account movements remain immutable.',
+        }
+      : {}),
+  })),
   // Accounts Module
   {
     key: ACCOUNTS_MODULE_KEY,
@@ -2568,6 +2687,7 @@ module.exports = {
   SUPPLIERS_MODULE_KEY,
   RETURNS_MODULE_KEY,
   PURCHASES_MODULE_KEY,
+  SUPPLIER_PAYMENTS_MODULE_KEY,
   ACCOUNTS_MODULE_KEY,
   EXPENSES_MODULE_KEY,
   EXPENSE_CATEGORIES_MODULE_KEY,

@@ -306,6 +306,7 @@ function createApp(options) {
       accountsService: accounts.accountsService,
       suppliersService: suppliers.suppliersService,
       customersService: customers.customersService,
+      capabilityService: capabilities.capabilityService,
       listUnpaidSupplierPurchases: async (organizationId, supplierId) => {
         if (typeof unpaidPurchasesLookup.fn !== 'function') {
           return [];
@@ -621,6 +622,7 @@ function createApp(options) {
 
   const paymentsRoutes = registerPaymentsRoutes({
     paymentsService: ledgers.paymentsService,
+    capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,

@@ -18,11 +18,21 @@ export class SupplierPaymentsApi {
   private readonly http = inject(HttpClient);
   private readonly authApi = inject(AuthApi);
 
-  listSupplierPayments(params: PaginationQuery & { supplierId?: string } = {}): Observable<PaginatedResult<SupplierPaymentRecord>> {
+  listSupplierPayments(
+    params: PaginationQuery & { supplierId?: string; paymentDate?: string } = {},
+  ): Observable<PaginatedResult<SupplierPaymentRecord>> {
+    const queryParams: Record<string, string | number> = {
+      page: params.page ?? 1,
+      pageSize: params.pageSize ?? 25,
+    };
+    if (params.search) queryParams['search'] = params.search;
+    if (params.paymentDate) queryParams['paymentDate'] = params.paymentDate;
+    if (params.supplierId) queryParams['supplierId'] = params.supplierId;
+
     return this.http
       .get<ApiSuccessEnvelope<SupplierPaymentRecord[], PaginationMeta>>(
         `${environment.publicApiBaseUrl}/api/v1/supplier-payments`,
-        { withCredentials: true, params: { ...params, page: params.page ?? 1, pageSize: params.pageSize ?? 25 } },
+        { withCredentials: true, params: queryParams },
       )
       .pipe(map((response) => ({ items: response.data, meta: response.meta! })));
   }

@@ -207,6 +207,15 @@
       >
         Purchases
       </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'payments.supplier'"
+        (click)="selectModule('payments.supplier')"
+        data-testid="supplier-payments-control-module"
+      >
+        Supplier Payments
+      </button>
       <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>
 
