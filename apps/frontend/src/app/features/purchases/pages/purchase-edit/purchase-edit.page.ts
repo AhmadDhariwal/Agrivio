@@ -29,12 +29,11 @@ import { SupplierRecord } from '../../../suppliers/models/suppliers.models';
 import { PackagingUnitRecord, ProductRecord } from '../../../catalog/models/catalog.models';
 import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
 import { AccountRecord } from '../../../accounts-expenses/models/accounts.models';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
-import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
 import { hasRequiredValidator, setRequiredValidator } from '../../../../shared/form/form-field.util';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 @Component({
   selector: 'agrivio-purchase-edit-page',
@@ -42,11 +41,9 @@ import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialo
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
     UiConfirmDialogComponent,
-    UiFieldLabelComponent,
   ],
   templateUrl: './purchase-edit.page.html',
   styleUrl: './purchase-edit.page.scss',
@@ -62,6 +59,7 @@ export class PurchaseEditPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
 
   readonly purchaseId = signal<string | null>(null);
   readonly purchase = signal<PurchaseRecord | null>(null);
@@ -80,23 +78,88 @@ export class PurchaseEditPage {
   readonly suppliers = signal<SupplierRecord[]>([]);
   readonly accounts = signal<AccountRecord[]>([]);
   readonly packagingByLine = signal<Record<number, PackagingUnitRecord[]>>({});
-  readonly canCreate = computed(() => this.sessionStore.hasPermission('purchases.create'));
-  readonly canPost = computed(() => this.sessionStore.hasPermission('purchases.post'));
-  readonly canView = computed(() => this.sessionStore.hasPermission('purchases.view'));
-  readonly canCancel = computed(() => this.sessionStore.hasPermission('purchases.cancel'));
-  readonly canReturn = computed(() =>
-    this.sessionStore.hasPermission('purchases.return') &&
-    this.sessionStore.hasPermission('returns.post'),
-  );
   readonly isPosted = computed(() => this.purchase()?.status === 'posted');
   readonly isCancelled = computed(() => this.purchase()?.status === 'cancelled');
   readonly isDraft = computed(() => {
     const record = this.purchase();
     return record === null || record.status === 'draft';
   });
+  readonly canUsePurchases = computed(
+    () => this.capabilityService?.canUseModule('purchases') ?? true,
+  );
+  readonly canCreate = computed(
+    () =>
+      this.sessionStore.hasPermission('purchases.create') &&
+      this.canUsePurchases() &&
+      (this.capabilityService?.canPerformAction('purchases.actions.createDraft') ?? true),
+  );
+  readonly canInspect = computed(
+    () =>
+      this.sessionStore.hasPermission('purchases.view') &&
+      this.canUsePurchases() &&
+      (this.capabilityService?.canPerformAction('purchases.actions.inspect') ?? true),
+  );
+  readonly canView = this.canInspect;
+  readonly canEditDraft = computed(
+    () =>
+      this.sessionStore.hasPermission('purchases.create') &&
+      this.canUsePurchases() &&
+      (this.capabilityService?.canPerformAction('purchases.actions.editDraft') ?? true) &&
+      this.isDraft(),
+  );
+  readonly canDiscard = computed(
+    () =>
+      this.sessionStore.hasPermission('purchases.create') &&
+      this.canUsePurchases() &&
+      (this.capabilityService?.canPerformAction('purchases.actions.discardDraft') ?? true) &&
+      this.purchaseId() !== null &&
+      this.isDraft(),
+  );
+  readonly canPost = computed(
+    () =>
+      this.sessionStore.hasPermission('purchases.post') &&
+      this.canUsePurchases() &&
+      (this.capabilityService?.canPerformAction('purchases.actions.post') ?? true) &&
+      this.purchaseId() !== null &&
+      this.isDraft(),
+  );
+  readonly canCancel = computed(
+    () =>
+      this.sessionStore.hasPermission('purchases.cancel') &&
+      this.canUsePurchases() &&
+      (this.capabilityService?.canPerformAction('purchases.actions.cancel') ?? true) &&
+      this.isPosted(),
+  );
+  readonly canReturn = computed(() =>
+    this.sessionStore.hasPermission('purchases.return') &&
+    this.sessionStore.hasPermission('returns.post') &&
+    this.canUsePurchases() &&
+    (this.capabilityService?.canPerformAction('purchases.actions.createReturn') ?? true) &&
+    (this.capabilityService?.canUseModule('returns') ?? true) &&
+    (this.capabilityService?.canPerformAction('returns.actions.post') ?? true) &&
+    this.isPosted(),
+  );
+  readonly canAddPaymentAtPost = computed(
+    () =>
+      this.sessionStore.hasPermission('purchases.post') &&
+      this.canUsePurchases() &&
+      this.isDraft() &&
+      (this.capabilityService?.canPerformAction('purchases.actions.post') ?? true) &&
+      (this.capabilityService?.canPerformAction('purchases.actions.addPaymentAtPost') ?? true),
+  );
   private version = 1;
 
   readonly fieldRequired = hasRequiredValidator;
+
+  canViewPurchaseField(id: string): boolean {
+    return this.capabilityService?.canViewField(`purchases.fields.${id}`) ?? true;
+  }
+
+  canEditPurchaseField(id: string): boolean {
+    const canMutate = this.purchaseId() === null ? this.canCreate() : this.canEditDraft();
+    return canMutate &&
+      (this.capabilityService?.canEditField(`purchases.fields.${id}`) ?? true);
+  }
 
   getLineTotal(index: number): string {
     const group = this.lineGroup(index);
@@ -238,7 +301,7 @@ export class PurchaseEditPage {
   }
 
   addLine(): void {
-    if (this.isPosted()) {
+    if (!this.canEditDraft()) {
       return;
     }
     const index = this.lines.length;
@@ -247,7 +310,7 @@ export class PurchaseEditPage {
   }
 
   removeLine(index: number): void {
-    if (this.isPosted()) {
+    if (!this.canEditDraft()) {
       return;
     }
     if (this.lines.length <= 1) {
@@ -269,14 +332,14 @@ export class PurchaseEditPage {
   }
 
   addPayment(): void {
-    if (this.isPosted()) {
+    if (!this.canAddPaymentAtPost()) {
       return;
     }
     this.payments.push(this.createPaymentGroup());
   }
 
   removePayment(index: number): void {
-    if (this.isPosted()) {
+    if (!this.canAddPaymentAtPost()) {
       return;
     }
     this.payments.removeAt(index);
@@ -402,7 +465,8 @@ export class PurchaseEditPage {
   }
 
   save(): void {
-    if (!this.canCreate() || this.isPosted() || this.form.invalid) {
+    const id = this.purchaseId();
+    if (!(id === null ? this.canCreate() : this.canEditDraft()) || this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
@@ -411,7 +475,6 @@ export class PurchaseEditPage {
     this.successMessage.set(null);
 
     const payload = this.buildPayload();
-    const id = this.purchaseId();
     const request$ =
       id === null
         ? this.api.createPurchase(payload)
@@ -438,7 +501,7 @@ export class PurchaseEditPage {
 
   discard(): void {
     const id = this.purchaseId();
-    if (!id || !this.canCreate() || this.isPosted()) {
+    if (!id || !this.canDiscard()) {
       return;
     }
     this.discardConfirmOpen.set(true);
@@ -447,7 +510,7 @@ export class PurchaseEditPage {
   confirmDiscard(): void {
     const id = this.purchaseId();
     this.discardConfirmOpen.set(false);
-    if (!id || !this.canCreate() || this.isPosted()) {
+    if (!id || !this.canDiscard()) {
       return;
     }
     this.discarding.set(true);
@@ -697,13 +760,19 @@ export class PurchaseEditPage {
         quantity: line['quantity'].trim(),
         unitCost: { amount: line['unitCost'].trim(), currency: 'PKR' },
       };
-      if (line['packagingUnitId'].trim() !== '') {
+      if (
+        this.canEditPurchaseField('packagingUnit') &&
+        line['packagingUnitId'].trim() !== ''
+      ) {
         payload.packagingUnitId = line['packagingUnitId'];
       }
       if (mode !== 'none' && line['batchNumber'].trim() !== '') {
         payload.batchNumber = line['batchNumber'].trim();
       }
-      if (line['manufacturingDate'].trim() !== '') {
+      if (
+        this.canEditPurchaseField('manufacturingDate') &&
+        line['manufacturingDate'].trim() !== ''
+      ) {
         payload.manufacturingDate = line['manufacturingDate'].trim();
       }
       if (mode === 'batch_expiry' && line['expiryDate'].trim() !== '') {
@@ -712,20 +781,27 @@ export class PurchaseEditPage {
       return payload;
     });
 
-    return {
+    const payload: PurchaseDraftInput = {
       warehouseId: value.warehouseId,
       supplierId: value.supplierId,
       purchaseDate: value.purchaseDate,
-      supplierInvoiceReference: value.supplierInvoiceReference.trim(),
-      notes: value.notes.trim(),
       lines,
-      landedCosts: {
+    };
+    if (this.canEditPurchaseField('supplierInvoiceReference')) {
+      payload.supplierInvoiceReference = value.supplierInvoiceReference.trim();
+    }
+    if (this.canEditPurchaseField('notes')) {
+      payload.notes = value.notes.trim();
+    }
+    if (this.canEditPurchaseField('landedCosts')) {
+      payload.landedCosts = {
         freight: { amount: value.freight.trim() || '0.00', currency: 'PKR' },
         loading: { amount: value.loadingCost.trim() || '0.00', currency: 'PKR' },
         transport: { amount: value.transport.trim() || '0.00', currency: 'PKR' },
         other: { amount: value.other.trim() || '0.00', currency: 'PKR' },
-      },
-    };
+      };
+    }
+    return payload;
   }
 
   private mapError(error: unknown, fallback: string): string {

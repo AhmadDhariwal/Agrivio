@@ -11,6 +11,7 @@ import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pa
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, startWith, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 @Component({
   selector: 'agrivio-purchases-page',
@@ -30,14 +31,45 @@ export class PurchasesPage {
   private readonly api = inject(PurchasesApi);
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly reloadRequests = new Subject<void>();
   private readonly searchChanges = new Subject<string>();
 
   readonly items = signal<PurchaseRecord[]>([]);
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
-  readonly canView = computed(() => this.sessionStore.hasPermission('purchases.view'));
-  readonly canCreate = computed(() => this.sessionStore.hasPermission('purchases.create'));
+  readonly canUsePurchases = computed(
+    () => this.capabilityService?.canUseModule('purchases') ?? true,
+  );
+  readonly canView = computed(
+    () => this.sessionStore.hasPermission('purchases.view') && this.canUsePurchases(),
+  );
+  readonly canCreate = computed(
+    () =>
+      this.sessionStore.hasPermission('purchases.create') &&
+      this.canUsePurchases() &&
+      (this.capabilityService?.canPerformAction('purchases.actions.createDraft') ?? true),
+  );
+  readonly canInspect = computed(
+    () =>
+      this.canView() &&
+      (this.capabilityService?.canPerformAction('purchases.actions.inspect') ?? true),
+  );
+  readonly canEditDraft = computed(
+    () =>
+      this.sessionStore.hasPermission('purchases.create') &&
+      this.canUsePurchases() &&
+      (this.capabilityService?.canPerformAction('purchases.actions.editDraft') ?? true),
+  );
+  readonly showModuleInfo = computed(
+    () => this.capabilityService?.canUseFeature('purchases.features.moduleInfo') ?? true,
+  );
+  readonly showSearch = computed(
+    () => this.capabilityService?.canUseFeature('purchases.features.search') ?? true,
+  );
+  readonly showStatusFilter = computed(
+    () => this.capabilityService?.canUseFeature('purchases.features.statusFilter') ?? true,
+  );
   readonly page = signal(1);
   readonly pageSize = signal(25);
   readonly total = signal(0);
@@ -148,8 +180,12 @@ export class PurchasesPage {
     return status;
   }
 
+  canOpen(item: PurchaseRecord): boolean {
+    return item.status === 'draft' ? this.canEditDraft() || this.canInspect() : this.canInspect();
+  }
+
   actionLabel(status: string): string {
-    return status === 'posted' || status === 'cancelled' ? 'View' : 'Edit draft';
+    return status === 'draft' && this.canEditDraft() ? 'Edit draft' : 'View';
   }
 
   statusTone(status: string): 'warning' | 'success' | 'neutral' {

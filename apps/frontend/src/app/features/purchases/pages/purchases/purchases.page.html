@@ -17,11 +17,12 @@
     <div class="page-head__actions">
       @if (canCreate()) {
         <a class="ag-btn ag-btn--primary page-head__create-btn" routerLink="/app/purchases/new" data-testid="purchase-create-link">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
-          Create purchase draft
+          <span class="btn-text-full">Create purchase draft</span>
+          <span class="btn-text-mobile">Create</span>
         </a>
       }
     </div>
@@ -42,15 +43,18 @@
     }
 
     <!-- Module Info Card -->
+    @if (showModuleInfo()) {
     <agrivio-ui-module-info
       title="About Purchases"
       description="Manage purchase drafts, posted purchases, payments and supplier transactions in one place."
       [items]="moduleInfoItems"
       [defaultExpanded]="false"
     />
+    }
 
     <!-- Filter Toolbar -->
     <div class="toolbar" data-testid="purchases-toolbar">
+      @if (showSearch()) {
       <div class="toolbar__search">
         <input
           class="ag-input"
@@ -62,9 +66,11 @@
           data-testid="purchases-search-input"
         />
       </div>
+      }
 
       <div class="toolbar__filters">
         <!-- Status Filter -->
+        @if (showStatusFilter()) {
         <div class="select-wrapper">
           <select
             class="ag-select"
@@ -79,6 +85,7 @@
             <option value="cancelled">Cancelled</option>
           </select>
         </div>
+        }
 
         <!-- Clear Filters Button -->
         @if (search() || status()) {
@@ -202,7 +209,7 @@
 
               <!-- Action -->
               <td class="col-actions">
-                @if (canView() || canCreate()) {
+                @if (canOpen(item)) {
                   <a
                     class="ag-btn ag-btn--sm ag-btn--secondary"
                     [routerLink]="['/app/purchases', item.id]"
@@ -281,7 +288,7 @@
           </div>
 
           <div class="mobile-purchase-card__actions">
-            @if (canView() || canCreate()) {
+            @if (canOpen(item)) {
               <a
                 class="ag-btn ag-btn--sm ag-btn--secondary mobile-purchase-card__btn"
                 [routerLink]="['/app/purchases', item.id]"

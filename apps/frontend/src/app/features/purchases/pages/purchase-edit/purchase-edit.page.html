@@ -205,26 +205,36 @@
             <div class="detail-grid-2col">
               <!-- Left Column -->
               <div class="detail-col">
+                @if (canViewPurchaseField('supplier')) {
                 <div class="detail-row">
                   <span class="detail-label">Supplier</span>
                   <span class="detail-value"><strong>{{ posted.supplierNameSnapshot || '—' }}</strong></span>
                 </div>
+                }
+                @if (canViewPurchaseField('warehouse')) {
                 <div class="detail-row">
                   <span class="detail-label">Warehouse</span>
                   <span class="detail-value">{{ posted.warehouseNameSnapshot || '—' }}</span>
                 </div>
+                }
+                @if (canViewPurchaseField('purchaseDate')) {
                 <div class="detail-row">
                   <span class="detail-label">Purchase date</span>
                   <span class="detail-value">{{ posted.purchaseDate }}</span>
                 </div>
+                }
+                @if (canViewPurchaseField('supplierInvoiceReference')) {
                 <div class="detail-row">
                   <span class="detail-label">Supplier invoice reference</span>
                   <span class="detail-value">{{ posted.supplierInvoiceReference || '—' }}</span>
                 </div>
+                }
+                @if (canViewPurchaseField('notes')) {
                 <div class="detail-row">
                   <span class="detail-label">Notes</span>
                   <span class="detail-value">{{ posted.notes || '—' }}</span>
                 </div>
+                }
               </div>
 
               <!-- Right Column -->
@@ -242,35 +252,36 @@
                   </div>
                 }
                 <div class="detail-row">
-                  <span class="detail-label">Purchase #</span>
-                  <span class="detail-value font-mono">{{ 'PUR-' + posted.id.slice(-6).toUpperCase() }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Currency</span>
-                  <span class="detail-value">PKR</span>
+                  <span class="detail-label">Purchase ID</span>
+                  <span class="detail-value font-mono">{{ posted.id }}</span>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        <!-- Card 2: Purchase Lines (Structured Read-only Table) -->
+        <!-- Card 2: Purchase Lines (Structured Read-only View) -->
         <section class="section-card" data-testid="purchase-lines-card">
           <div class="section-card__header">
             <h2 class="section-card__title">Purchase lines</h2>
           </div>
           <div class="section-card__body no-padding">
-            <div class="table-container">
+            <!-- Desktop Table View (>=768px) -->
+            <div class="table-container desktop-only">
               <table class="data-table" data-testid="purchase-lines-table">
                 <thead>
                   <tr>
                     <th>#</th>
                     <th>PRODUCT</th>
+                    @if (canViewPurchaseField('packagingUnit')) {
                     <th>PACKAGING</th>
+                    }
                     <th>QUANTITY</th>
                     <th>UNIT COST (PKR)</th>
                     <th>BATCH</th>
+                    @if (canViewPurchaseField('manufacturingDate')) {
                     <th>MANUFACTURE DATE</th>
+                    }
                     <th>EXPIRY DATE</th>
                     <th class="text-right">LINE TOTAL (PKR)</th>
                   </tr>
@@ -282,11 +293,15 @@
                       <td>
                         <strong>{{ line.productNameSnapshot }}</strong>
                       </td>
+                      @if (canViewPurchaseField('packagingUnit')) {
                       <td>{{ line.unitCodeSnapshot || 'Base unit' }}</td>
+                      }
                       <td>{{ line.quantity }}</td>
                       <td>{{ line.unitCost.amount }}</td>
                       <td>{{ line.batchNumber || '—' }}</td>
+                      @if (canViewPurchaseField('manufacturingDate')) {
                       <td>{{ line.manufacturingDate || '—' }}</td>
+                      }
                       <td>{{ line.expiryDate || '—' }}</td>
                       <td class="text-right font-medium">{{ line.lineProductAmount.amount }}</td>
                     </tr>
@@ -300,12 +315,69 @@
                 </tfoot>
               </table>
             </div>
+
+            <!-- Mobile Card View (<768px, Non-scrollable) -->
+            <div class="posted-lines-mobile mobile-only" data-testid="purchase-lines-mobile-list">
+              @for (line of posted.lines; track $index; let idx = $index) {
+                <div class="posted-line-mobile-card" data-testid="purchase-line-mobile-card">
+                  <div class="posted-line-mobile-card__header">
+                    <div class="posted-line-mobile-card__title-wrap">
+                      <span class="posted-line-badge">#{{ idx + 1 }}</span>
+                      <strong class="posted-line-name">{{ line.productNameSnapshot }}</strong>
+                    </div>
+                    <span class="posted-line-total">PKR {{ line.lineProductAmount.amount }}</span>
+                  </div>
+
+                  <div class="posted-line-mobile-card__grid">
+                    @if (canViewPurchaseField('packagingUnit')) {
+                      <div class="posted-line-metric">
+                        <span class="metric-label">Packaging</span>
+                        <span class="metric-value">{{ line.unitCodeSnapshot || 'Base unit' }}</span>
+                      </div>
+                    }
+                    <div class="posted-line-metric">
+                      <span class="metric-label">Quantity</span>
+                      <span class="metric-value font-medium">{{ line.quantity }}</span>
+                    </div>
+                    <div class="posted-line-metric">
+                      <span class="metric-label">Unit Cost</span>
+                      <span class="metric-value">PKR {{ line.unitCost.amount }}</span>
+                    </div>
+                    @if (line.batchNumber) {
+                      <div class="posted-line-metric">
+                        <span class="metric-label">Batch</span>
+                        <span class="metric-value font-mono">{{ line.batchNumber }}</span>
+                      </div>
+                    }
+                    @if (canViewPurchaseField('manufacturingDate') && line.manufacturingDate) {
+                      <div class="posted-line-metric">
+                        <span class="metric-label">Mfg Date</span>
+                        <span class="metric-value">{{ line.manufacturingDate }}</span>
+                      </div>
+                    }
+                    @if (line.expiryDate) {
+                      <div class="posted-line-metric">
+                        <span class="metric-label">Expiry Date</span>
+                        <span class="metric-value">{{ line.expiryDate }}</span>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+
+              <!-- Mobile Footer Summary -->
+              <div class="posted-lines-mobile__footer">
+                <span class="text-muted">{{ posted.lines.length }} {{ posted.lines.length === 1 ? 'line' : 'lines' }}</span>
+                <span class="font-semibold text-primary">Lines total: PKR {{ posted.goodsTotal?.amount ?? '0.00' }}</span>
+              </div>
+            </div>
           </div>
         </section>
 
         <!-- Bottom Row: Landed Costs & Payments Snapshots & Actions -->
         <div class="detail-bottom-grid">
           <!-- Landed Costs -->
+          @if (canViewPurchaseField('landedCosts')) {
           <section class="section-card" data-testid="purchase-landed-card">
             <div class="section-card__header">
               <h2 class="section-card__title">Landed costs (optional)</h2>
@@ -314,19 +386,19 @@
               <div class="detail-list">
                 <div class="detail-row">
                   <span class="detail-label">Freight</span>
-                  <span class="detail-value">PKR {{ posted.landedCosts?.freight?.amount ?? '0.00' }}</span>
+                  <span class="detail-value">PKR {{ posted.landedCosts.freight.amount }}</span>
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">Loading</span>
-                  <span class="detail-value">PKR {{ posted.landedCosts?.loading?.amount ?? '0.00' }}</span>
+                  <span class="detail-value">PKR {{ posted.landedCosts.loading.amount }}</span>
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">Transport</span>
-                  <span class="detail-value">PKR {{ posted.landedCosts?.transport?.amount ?? '0.00' }}</span>
+                  <span class="detail-value">PKR {{ posted.landedCosts.transport.amount }}</span>
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">Other</span>
-                  <span class="detail-value">PKR {{ posted.landedCosts?.other?.amount ?? '0.00' }}</span>
+                  <span class="detail-value">PKR {{ posted.landedCosts.other.amount }}</span>
                 </div>
                 <div class="detail-row detail-row--total">
                   <span class="detail-label"><strong>Total landed</strong></span>
@@ -335,6 +407,7 @@
               </div>
             </div>
           </section>
+          }
 
           <!-- Payments Snapshots -->
           <section class="section-card" data-testid="purchase-payment-snapshots">
@@ -512,6 +585,7 @@
             <!-- 3-Column Top Grid -->
             <div class="form-grid-3col">
               <!-- Warehouse -->
+              @if (canViewPurchaseField('warehouse')) {
               <div class="form-field">
                 <label class="form-label" for="purchase-warehouse">
                   Warehouse <span class="required-star">*</span>
@@ -520,6 +594,7 @@
                   id="purchase-warehouse"
                   class="ag-select"
                   formControlName="warehouseId"
+                  [attr.disabled]="!canEditPurchaseField('warehouse') ? true : null"
                   data-testid="purchase-warehouse"
                 >
                   <option value="">Select warehouse</option>
@@ -528,8 +603,10 @@
                   }
                 </select>
               </div>
+              }
 
               <!-- Supplier -->
+              @if (canViewPurchaseField('supplier')) {
               <div class="form-field">
                 <label class="form-label" for="purchase-supplier">
                   Supplier <span class="required-star">*</span>
@@ -538,6 +615,7 @@
                   id="purchase-supplier"
                   class="ag-select"
                   formControlName="supplierId"
+                  [attr.disabled]="!canEditPurchaseField('supplier') ? true : null"
                   data-testid="purchase-supplier"
                 >
                   <option value="">Select supplier</option>
@@ -546,8 +624,10 @@
                   }
                 </select>
               </div>
+              }
 
               <!-- Purchase Date -->
+              @if (canViewPurchaseField('purchaseDate')) {
               <div class="form-field">
                 <label class="form-label" for="purchase-date">
                   Purchase date <span class="required-star">*</span>
@@ -557,21 +637,27 @@
                   class="ag-input"
                   type="date"
                   formControlName="purchaseDate"
+                  [readonly]="!canEditPurchaseField('purchaseDate')"
                   data-testid="purchase-date"
                 />
               </div>
+              }
             </div>
 
             <!-- Bottom Row: Invoice Ref & Notes -->
             <div class="form-grid-2col" style="margin-top: 14px;">
+              @if (canViewPurchaseField('supplierInvoiceReference')) {
               <div class="form-field">
                 <label class="form-label" for="purchase-reference">Supplier invoice reference (optional)</label>
-                <input id="purchase-reference" class="ag-input" placeholder="e.g. TARA-HERB-552" formControlName="supplierInvoiceReference" data-testid="purchase-reference" />
+                <input id="purchase-reference" class="ag-input" placeholder="e.g. TARA-HERB-552" formControlName="supplierInvoiceReference" data-testid="purchase-reference" [readonly]="!canEditPurchaseField('supplierInvoiceReference')" />
               </div>
+              }
+              @if (canViewPurchaseField('notes')) {
               <div class="form-field">
                 <label class="form-label" for="purchase-notes">Notes (optional)</label>
-                <textarea id="purchase-notes" class="ag-input" formControlName="notes" rows="2" placeholder="Add notes…" data-testid="purchase-notes"></textarea>
+                <textarea id="purchase-notes" class="ag-input" formControlName="notes" rows="2" placeholder="Add notes…" data-testid="purchase-notes" [readonly]="!canEditPurchaseField('notes')"></textarea>
               </div>
+              }
             </div>
           </div>
         </section>
@@ -590,9 +676,11 @@
               </svg>
               <h2 class="section-card__title">Purchase lines</h2>
             </div>
+            @if (canEditPurchaseField('product')) {
             <button class="ag-btn ag-btn--secondary ag-btn--sm" type="button" (click)="addLine()" data-testid="purchase-add-line">
               + Add line
             </button>
+            }
           </div>
 
           <div class="section-card__body no-padding">
@@ -601,12 +689,14 @@
                 <div class="line-row-card" [formGroup]="lineGroup(index)">
                   <div class="line-row-card__header">
                     <span class="line-row-badge">Line {{ index + 1 }}</span>
+                    @if (canEditPurchaseField('product')) {
                     <button class="row-remove-btn" type="button" (click)="removeLine(index)" aria-label="Remove line">
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="3 6 5 6 21 6"></polyline>
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                       </svg>
                     </button>
+                    }
                   </div>
 
                   <div class="line-row-grid">
@@ -619,6 +709,7 @@
                         [id]="'purchase-line-product-' + index"
                         class="ag-select"
                         formControlName="productId"
+                        [attr.disabled]="!canEditPurchaseField('product') ? true : null"
                         data-testid="purchase-line-product"
                       >
                         <option value="">Select product</option>
@@ -629,12 +720,14 @@
                     </div>
 
                     <!-- Packaging -->
+                    @if (canViewPurchaseField('packagingUnit')) {
                     <div class="form-field">
                       <label class="form-label" [for]="'purchase-line-packaging-' + index">Packaging</label>
                       <select
                         [id]="'purchase-line-packaging-' + index"
                         class="ag-select"
                         formControlName="packagingUnitId"
+                        [attr.disabled]="!canEditPurchaseField('packagingUnit') ? true : null"
                         data-testid="purchase-line-packaging"
                       >
                         <option value="">Base unit</option>
@@ -643,6 +736,7 @@
                         }
                       </select>
                     </div>
+                    }
 
                     <!-- Quantity -->
                     <div class="form-field">
@@ -656,6 +750,7 @@
                         step="any"
                         placeholder="0.00"
                         formControlName="quantity"
+                        [readonly]="!canEditPurchaseField('quantity')"
                         data-testid="purchase-line-quantity"
                       />
                     </div>
@@ -672,12 +767,14 @@
                         step="any"
                         placeholder="0.00"
                         formControlName="unitCost"
+                        [readonly]="!canEditPurchaseField('unitCost')"
                         data-testid="purchase-line-unit-cost"
                       />
                     </div>
 
                     <!-- Batch Number (Dynamic) -->
                     @if (trackingModeForLine(index) !== 'none') {
+                      @if (canViewPurchaseField('batchNumber')) {
                       <div class="form-field">
                         <label class="form-label" [for]="'purchase-line-batch-' + index">
                           Batch number <span class="required-star">*</span>
@@ -687,18 +784,22 @@
                           class="ag-input"
                           placeholder="e.g. LOT-001"
                           formControlName="batchNumber"
+                          [readonly]="!canEditPurchaseField('batchNumber')"
                           data-testid="purchase-line-batch"
                         />
                       </div>
+                      }
 
+                      @if (canViewPurchaseField('manufacturingDate')) {
                       <div class="form-field">
                         <label class="form-label" [for]="'purchase-line-mfg-' + index">Mfg. date</label>
-                        <input [id]="'purchase-line-mfg-' + index" class="ag-input" type="date" formControlName="manufacturingDate" />
+                        <input [id]="'purchase-line-mfg-' + index" class="ag-input" type="date" formControlName="manufacturingDate" [readonly]="!canEditPurchaseField('manufacturingDate')" />
                       </div>
+                      }
                     }
 
                     <!-- Expiry Date (Dynamic) -->
-                    @if (trackingModeForLine(index) === 'batch_expiry') {
+                    @if (trackingModeForLine(index) === 'batch_expiry' && canViewPurchaseField('expiryDate')) {
                       <div class="form-field">
                         <label class="form-label" [for]="'purchase-line-expiry-' + index">
                           Expiry date <span class="required-star">*</span>
@@ -708,6 +809,7 @@
                           class="ag-input"
                           type="date"
                           formControlName="expiryDate"
+                          [readonly]="!canEditPurchaseField('expiryDate')"
                           data-testid="purchase-line-expiry"
                         />
                       </div>
@@ -723,6 +825,7 @@
               }
 
               <!-- Add Another Line Dotted Box Button -->
+              @if (canEditPurchaseField('product')) {
               <button class="add-line-box-btn" type="button" (click)="addLine()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -730,6 +833,7 @@
                 </svg>
                 Add another line
               </button>
+              }
             </div>
           </div>
         </section>
@@ -737,6 +841,7 @@
         <!-- Bottom 2-Column Grid: Landed Costs & Payments at Post -->
         <div class="form-bottom-grid">
           <!-- Landed Costs Card -->
+          @if (canViewPurchaseField('landedCosts')) {
           <section class="section-card" data-testid="purchase-landed-form-card">
             <div class="section-card__header">
               <div class="section-card__icon-title">
@@ -753,25 +858,27 @@
               <div class="form-grid-2col">
                 <div class="form-field">
                   <label class="form-label" for="purchase-freight">Freight (PKR)</label>
-                  <input id="purchase-freight" class="ag-input" formControlName="freight" placeholder="0.00" data-testid="purchase-freight" />
+                  <input id="purchase-freight" class="ag-input" formControlName="freight" placeholder="0.00" data-testid="purchase-freight" [readonly]="!canEditPurchaseField('landedCosts')" />
                 </div>
                 <div class="form-field">
                   <label class="form-label" for="purchase-loading">Loading (PKR)</label>
-                  <input id="purchase-loading" class="ag-input" formControlName="loadingCost" placeholder="0.00" data-testid="purchase-loading" />
+                  <input id="purchase-loading" class="ag-input" formControlName="loadingCost" placeholder="0.00" data-testid="purchase-loading" [readonly]="!canEditPurchaseField('landedCosts')" />
                 </div>
                 <div class="form-field">
                   <label class="form-label" for="purchase-transport">Transport (PKR)</label>
-                  <input id="purchase-transport" class="ag-input" formControlName="transport" placeholder="0.00" data-testid="purchase-transport" />
+                  <input id="purchase-transport" class="ag-input" formControlName="transport" placeholder="0.00" data-testid="purchase-transport" [readonly]="!canEditPurchaseField('landedCosts')" />
                 </div>
                 <div class="form-field">
                   <label class="form-label" for="purchase-other">Other (PKR)</label>
-                  <input id="purchase-other" class="ag-input" formControlName="other" placeholder="0.00" data-testid="purchase-other" />
+                  <input id="purchase-other" class="ag-input" formControlName="other" placeholder="0.00" data-testid="purchase-other" [readonly]="!canEditPurchaseField('landedCosts')" />
                 </div>
               </div>
             </div>
           </section>
+          }
 
           <!-- Payments at Post Card -->
+          @if (canAddPaymentAtPost()) {
           <section class="section-card" data-testid="purchase-payments">
             <div class="section-card__header flex-between">
               <div class="section-card__icon-title">
@@ -849,6 +956,7 @@
               }
             </div>
           </section>
+          }
         </div>
 
         <!-- Form Action Bar / Footer -->
@@ -857,7 +965,7 @@
             <a class="ag-btn ag-btn--secondary" routerLink="/app/purchases">Cancel</a>
           </div>
           <div class="form-footer-right">
-            @if (purchaseId() && canCreate()) {
+            @if (canDiscard()) {
               <button
                 class="ag-btn ag-btn--danger-outline"
                 type="button"
@@ -868,7 +976,7 @@
                 {{ discarding() ? 'Discarding…' : 'Discard draft' }}
               </button>
             }
-            @if (canCreate()) {
+            @if (purchaseId() === null ? canCreate() : canEditDraft()) {
               <button
                 class="ag-btn ag-btn--secondary"
                 type="submit"
