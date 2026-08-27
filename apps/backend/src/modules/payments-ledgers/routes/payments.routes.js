@@ -11,11 +11,23 @@ const {
   createRequirePermissionMiddleware,
 } = require('../../identity/permission.middleware');
 const { createPaymentsController } = require('../controllers/payments.controller');
+const { createRequireCapabilityMiddleware } = require('../../capabilities/capability.middleware');
 
 function registerPaymentsRoutes(deps) {
   const router = Router();
   const controller = createPaymentsController(deps);
   const requireOrganizationContext = createRequireOrganizationContextMiddleware();
+  const requireSupplierPaymentsModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'payments.supplier',
+    'enabled',
+  );
+  const requireSupplierPaymentsAction = (action) =>
+    createRequireCapabilityMiddleware(
+      deps.capabilityService,
+      `payments.supplier.actions.${action}`,
+      'allowed',
+    );
 
   router.get(
     API_SUPPLIER_PAYMENTS_PATH,
@@ -23,6 +35,7 @@ function registerPaymentsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('supplier-payments.view'),
     deps.requireOperationalAccess,
+    requireSupplierPaymentsModule,
     (req, res, next) => {
       void controller.listSupplierPayments(req, res, next);
     },
@@ -35,6 +48,8 @@ function registerPaymentsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('supplier-payments.post'),
     deps.requireOperationalAccess,
+    requireSupplierPaymentsModule,
+    requireSupplierPaymentsAction('post'),
     (req, res, next) => {
       void controller.postSupplierPayment(req, res, next);
     },
@@ -46,6 +61,8 @@ function registerPaymentsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('supplier-payments.view'),
     deps.requireOperationalAccess,
+    requireSupplierPaymentsModule,
+    requireSupplierPaymentsAction('inspect'),
     (req, res, next) => {
       void controller.getSupplierPayment(req, res, next);
     },
@@ -57,6 +74,8 @@ function registerPaymentsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('supplier-payments.view'),
     deps.requireOperationalAccess,
+    requireSupplierPaymentsModule,
+    requireSupplierPaymentsAction('viewLedger'),
     (req, res, next) => {
       void controller.listSupplierLedger(req, res, next);
     },
@@ -68,6 +87,7 @@ function registerPaymentsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('supplier-payments.view'),
     deps.requireOperationalAccess,
+    requireSupplierPaymentsModule,
     (req, res, next) => {
       void controller.listUnpaidPurchasesForSupplier(req, res, next);
     },
@@ -79,6 +99,8 @@ function registerPaymentsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('supplier-payments.view'),
     deps.requireOperationalAccess,
+    requireSupplierPaymentsModule,
+    requireSupplierPaymentsAction('viewLedger'),
     (req, res, next) => {
       void controller.reconcileSupplierLedger(req, res, next);
     },

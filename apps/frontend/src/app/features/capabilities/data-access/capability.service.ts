@@ -385,6 +385,24 @@ const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string,
   'purchases.actions.cancel': { allowed: true },
   'purchases.actions.createReturn': { allowed: true },
   'purchases.actions.addPaymentAtPost': { allowed: true },
+  // Supplier Payments submodule controls (17 authoritative controls)
+  'payments.supplier': { enabled: true },
+  'payments.supplier.features.moduleInfo': { enabled: true },
+  'payments.supplier.features.paymentDateFilter': { enabled: true },
+  'payments.supplier.fields.notes': { visible: true, editable: true },
+  'payments.supplier.fields.paymentReference': { visible: true },
+  'payments.supplier.fields.supplier': { visible: true, editable: true },
+  'payments.supplier.fields.account': { visible: true, editable: true },
+  'payments.supplier.fields.allocationMode': { visible: true, editable: true },
+  'payments.supplier.fields.amount': { visible: true, editable: true },
+  'payments.supplier.fields.paymentDate': { visible: true, editable: true },
+  'payments.supplier.fields.allocations': { visible: true, editable: true },
+  'payments.supplier.fields.status': { visible: true },
+  'payments.supplier.actions.post': { allowed: true },
+  'payments.supplier.actions.postInvoiceSpecific': { allowed: true },
+  'payments.supplier.actions.inspect': { allowed: true },
+  'payments.supplier.actions.viewLedger': { allowed: true },
+  'payments.supplier.actions.correct': { allowed: true },
 };
 
 @Injectable({ providedIn: 'root' })
@@ -504,6 +522,7 @@ export class CapabilityService {
       'reports',
       'alerts',
       'purchases',
+      'payments.supplier',
     ]);
     return {
       organizationId: this.sessionStore.activeContext()?.organizationId ?? 'test-organization',

@@ -562,4 +562,74 @@ describe('CapabilityService', () => {
     ).find((item) => item.id === 'purchases.list');
     expect(purchasesNav).toMatchObject({ permission: 'purchases.view', capabilityKey: 'purchases' });
   });
+
+  it('provides the exact 17 Supplier Payments defaults and wires routes/navigation', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        CapabilityService,
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            activeContext: () => ({ contextType: 'organization', organizationId: 'org-1' }),
+          },
+        },
+      ],
+    });
+    const service = TestBed.inject(CapabilityService);
+    const features = ['moduleInfo', 'paymentDateFilter'];
+    const editableFields = [
+      'notes',
+      'supplier',
+      'account',
+      'allocationMode',
+      'amount',
+      'paymentDate',
+      'allocations',
+    ];
+    const visibleFields = ['paymentReference', 'status'];
+    const actions = ['post', 'postInvoiceSpecific', 'inspect', 'viewLedger', 'correct'];
+    const allKeys = [
+      'payments.supplier',
+      ...features.map((id) => `payments.supplier.features.${id}`),
+      ...editableFields.map((id) => `payments.supplier.fields.${id}`),
+      ...visibleFields.map((id) => `payments.supplier.fields.${id}`),
+      ...actions.map((id) => `payments.supplier.actions.${id}`),
+    ];
+
+    expect(allKeys).toHaveLength(17);
+    expect(new Set(allKeys).size).toBe(17);
+    expect(service.canUseModule('payments.supplier')).toBe(true);
+    for (const id of features) {
+      expect(service.canUseFeature(`payments.supplier.features.${id}`)).toBe(true);
+    }
+    for (const id of editableFields) {
+      expect(service.canViewField(`payments.supplier.fields.${id}`)).toBe(true);
+      expect(service.canEditField(`payments.supplier.fields.${id}`)).toBe(true);
+    }
+    for (const id of visibleFields) {
+      expect(service.canViewField(`payments.supplier.fields.${id}`)).toBe(true);
+      expect(service.canEditField(`payments.supplier.fields.${id}`)).toBe(false);
+    }
+    for (const id of actions) {
+      expect(service.canPerformAction(`payments.supplier.actions.${id}`)).toBe(true);
+    }
+
+    const app = appRoutes.find((route) => route.path === 'app');
+    expect(app?.children?.find((route) => route.path === 'supplier-payments')?.canActivate).toHaveLength(1);
+    expect(app?.children?.find((route) => route.path === 'supplier-payments/new')?.canActivate).toHaveLength(2);
+    expect(app?.children?.find((route) => route.path === 'supplier-payments/ledger')?.canActivate).toHaveLength(2);
+
+    const navigation = CANONICAL_NAVIGATION.flatMap((entry) =>
+      entry.type === 'group' ? entry.group.children : [entry.item],
+    );
+    expect(navigation.find((item) => item.id === 'purchases.supplier-payments')).toMatchObject({
+      permission: 'supplier-payments.view',
+      capabilityKey: 'payments.supplier',
+    });
+    expect(navigation.find((item) => item.id === 'purchases.supplier-ledger')).toMatchObject({
+      permission: 'supplier-payments.view',
+      capabilityKey: 'payments.supplier',
+      actionCapabilityKey: 'payments.supplier.actions.viewLedger',
+    });
+  });
 });

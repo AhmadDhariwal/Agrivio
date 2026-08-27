@@ -4,6 +4,7 @@ export interface NavItem {
   readonly route: string;
   readonly permission?: string | undefined;
   readonly capabilityKey?: string | undefined;
+  readonly actionCapabilityKey?: string | undefined;
   readonly testId?: string | undefined;
   readonly exact?: boolean | undefined;
 }
@@ -125,6 +126,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Supplier payments',
           route: '/app/supplier-payments',
           permission: 'supplier-payments.view',
+          capabilityKey: 'payments.supplier',
           testId: 'nav-supplier-payments',
           exact: true,
         },
@@ -133,6 +135,8 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Supplier ledger',
           route: '/app/supplier-payments/ledger',
           permission: 'supplier-payments.view',
+          capabilityKey: 'payments.supplier',
+          actionCapabilityKey: 'payments.supplier.actions.viewLedger',
           testId: 'nav-supplier-ledger',
         },
       ],

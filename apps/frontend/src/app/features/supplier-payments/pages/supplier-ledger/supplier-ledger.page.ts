@@ -14,6 +14,7 @@ import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-p
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 @Component({
   selector: 'agrivio-supplier-ledger-page',
@@ -34,8 +35,14 @@ export class SupplierLedgerPage {
   private readonly suppliersApi = inject(SuppliersApi);
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly formBuilder = inject(FormBuilder);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
 
-  readonly canView = computed(() => this.sessionStore.hasPermission('supplier-payments.view'));
+  readonly canView = computed(
+    () =>
+      this.sessionStore.hasPermission('supplier-payments.view') &&
+      (this.capabilityService?.canUseModule('payments.supplier') ?? true) &&
+      (this.capabilityService?.canPerformAction('payments.supplier.actions.viewLedger') ?? true),
+  );
 
   readonly loadingSuppliers = signal(true);
   readonly loadingLedger = signal(false);

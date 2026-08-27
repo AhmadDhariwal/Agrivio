@@ -18,6 +18,16 @@ const {
   parseMoneyMinorUnits,
 } = require('../../platform/primitives/money-and-time');
 
+const SUPPLIER_PAYMENT_FIELD_CONTROLS = Object.freeze({
+  supplierId: 'payments.supplier.fields.supplier',
+  accountId: 'payments.supplier.fields.account',
+  allocationMode: 'payments.supplier.fields.allocationMode',
+  amount: 'payments.supplier.fields.amount',
+  paymentDate: 'payments.supplier.fields.paymentDate',
+  allocations: 'payments.supplier.fields.allocations',
+  notes: 'payments.supplier.fields.notes',
+});
+
 function requireIdempotencyKey(idempotencyKey) {
   if (typeof idempotencyKey !== 'string' || idempotencyKey.trim() === '') {
     throw validationFailed('Idempotency-Key header is required', [
@@ -99,6 +109,45 @@ function createPaymentsService(deps) {
   const auditWriter = createAuditWriter({
     append: (session, event) => store.appendAuditEvent(session, event),
   });
+
+  async function assertSupplierPaymentFieldsEditable(organizationId, body) {
+    if (
+      !deps.capabilityService ||
+      body === null ||
+      typeof body !== 'object' ||
+      Array.isArray(body)
+    ) {
+      return;
+    }
+    for (const [field, controlKey] of Object.entries(SUPPLIER_PAYMENT_FIELD_CONTROLS)) {
+      if (body[field] !== undefined) {
+        await deps.capabilityService.assertAllowed(organizationId, controlKey, 'editable');
+      }
+    }
+  }
+
+  async function assertSupplierPaymentActionAllowed(organizationId, action) {
+    if (!deps.capabilityService) return;
+    await deps.capabilityService.assertAllowed(
+      organizationId,
+      'payments.supplier',
+      'enabled',
+    );
+    await deps.capabilityService.assertAllowed(
+      organizationId,
+      `payments.supplier.actions.${action}`,
+      'allowed',
+    );
+  }
+
+  async function assertInvoiceSpecificPaymentAllowed(organizationId, body) {
+    if (!deps.capabilityService || body?.allocationMode !== 'invoice_specific') return;
+    await deps.capabilityService.assertAllowed(
+      organizationId,
+      'payments.supplier.actions.postInvoiceSpecific',
+      'allowed',
+    );
+  }
 
   async function resolveCustomerAllocationPlan(input, unpaidSales) {
     if (input.allocationMode === 'invoice_specific') {
@@ -591,6 +640,9 @@ function createPaymentsService(deps) {
 
     async postSupplierPayment(organizationId, body, actor, idempotencyKey) {
       const key = requireIdempotencyKey(idempotencyKey);
+      await assertSupplierPaymentActionAllowed(organizationId, 'post');
+      await assertSupplierPaymentFieldsEditable(organizationId, body);
+      await assertInvoiceSpecificPaymentAllowed(organizationId, body);
       const input = parseSupplierPayment(body);
 
       if (!suppliersService) {
@@ -762,6 +814,11 @@ function createPaymentsService(deps) {
             const original = await store.findPaymentById(organizationId, paymentId);
             if (original === null) {
               throw notFound('Payment not found');
+            }
+            if (original.partyType === 'supplier') {
+              await assertSupplierPaymentActionAllowed(organizationId, 'correct');
+              await assertSupplierPaymentFieldsEditable(organizationId, input.replacement);
+              await assertInvoiceSpecificPaymentAllowed(organizationId, input.replacement);
             }
             if (original.correctionOfId) {
               throw conflict('Corrective payments cannot be corrected again');

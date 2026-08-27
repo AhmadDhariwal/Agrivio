@@ -27,7 +27,8 @@ function control(
     | 'accounts'
     | 'reports'
     | 'alerts'
-    | 'purchases',
+    | 'purchases'
+    | 'payments.supplier',
   type: PlatformCapabilityControl['type'],
   label: string,
   policy: Record<string, boolean>,
@@ -1286,6 +1287,35 @@ describe('OrganizationControlsPage', () => {
       ),
       control('purchases.actions.createReturn', 'purchases', 'ACTION', 'Create Purchase Return', { allowed: true }, { risk: 'CRITICAL', dependencies: ['returns.actions.post'] }),
       control('purchases.actions.addPaymentAtPost', 'purchases', 'ACTION', 'Add Payment at Posting', { allowed: true }, { risk: 'CRITICAL', dependencies: ['purchases.actions.post'] }),
+      // Supplier Payments (17 authoritative controls)
+      control('payments.supplier', 'payments.supplier', 'MODULE', 'Supplier Payments', { enabled: true }, { risk: 'CRITICAL' }),
+      control('payments.supplier.features.moduleInfo', 'payments.supplier', 'FEATURE', 'About Supplier Payments', { enabled: true }),
+      control('payments.supplier.features.paymentDateFilter', 'payments.supplier', 'FEATURE', 'Payment Date Filter', { enabled: true }),
+      control('payments.supplier.fields.notes', 'payments.supplier', 'FIELD', 'Notes', { visible: true, editable: true }, { override: { visible: false } }),
+      ...(['paymentReference', 'status'] as const).map((id) =>
+        control(
+          `payments.supplier.fields.${id}`,
+          'payments.supplier',
+          'FIELD',
+          id,
+          { visible: true },
+          { configurable: { visible: false }, platformEnforced: true, risk: 'CRITICAL', reason: 'Immutable Supplier Payments history.' },
+        ),
+      ),
+      ...(['supplier', 'account', 'allocationMode', 'amount', 'paymentDate', 'allocations'] as const).map((id) =>
+        control(
+          `payments.supplier.fields.${id}`,
+          'payments.supplier',
+          'FIELD',
+          id,
+          { visible: true, editable: true },
+          { configurable: { visible: false, editable: false }, platformEnforced: true, risk: 'CRITICAL', reason: 'Required Supplier Payments workflow field.' },
+        ),
+      ),
+      ...(['post', 'inspect', 'viewLedger', 'correct'] as const).map((id) =>
+        control(`payments.supplier.actions.${id}`, 'payments.supplier', 'ACTION', id, { allowed: true }),
+      ),
+      control('payments.supplier.actions.postInvoiceSpecific', 'payments.supplier', 'ACTION', 'Post Invoice-specific Payment', { allowed: true }, { risk: 'CRITICAL', dependencies: ['payments.supplier.actions.post'] }),
     ];
     await TestBed.configureTestingModule({
       imports: [OrganizationControlsPage],
@@ -2684,6 +2714,53 @@ describe('OrganizationControlsPage', () => {
       component.askResetModule();
       component.confirm();
       expect(resetModule).toHaveBeenCalledWith('org-a', 'purchases', 4, '');
+    });
+  });
+
+  describe('Supplier Payments Controls', () => {
+    it('renders all 17 controls with platform-enforced and dependency metadata', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('payments.supplier');
+      fixture.detectChanges();
+
+      expect(component.moduleLabel('payments.supplier')).toBe('Supplier Payments');
+      expect(component.selectedControls()).toHaveLength(17);
+      expect(component.moduleControls()).toHaveLength(1);
+      expect(component.moduleInfoControls()).toHaveLength(1);
+      expect(component.filterControls()).toHaveLength(1);
+      expect(component.fieldControls()).toHaveLength(1);
+      expect(component.requiredWorkflowControls()).toHaveLength(8);
+      expect(component.actionControls()).toHaveLength(5);
+      expect(fixture.nativeElement.textContent).toContain('Platform enforced');
+      expect(fixture.nativeElement.textContent).toContain('Post Invoice-specific Payment');
+
+      const invoiceSpecific = component
+        .actionControls()
+        .find((item) => item.key === 'payments.supplier.actions.postInvoiceSpecific');
+      expect(invoiceSpecific?.dependencies).toEqual(['payments.supplier.actions.post']);
+    });
+
+    it('supports disable/re-enable and organization-scoped reset', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('payments.supplier');
+      const moduleControl = component
+        .controls()
+        .find((item) => item.key === 'payments.supplier');
+      expect(moduleControl).toBeDefined();
+      if (moduleControl) {
+        component.setValue(moduleControl, 'enabled', false);
+        expect(component.disablingSupplierPayments()).toBe(true);
+        expect(component.confirmationTitle()).toBe(
+          'Disable Supplier Payments for Greenfield Agro Center?',
+        );
+        expect(component.confirmationMessage()).toContain('Purchases remains available');
+        component.setValue(moduleControl, 'enabled', true);
+        expect(component.effectiveValue(moduleControl, 'enabled')).toBe(true);
+      }
+
+      component.askResetModule();
+      component.confirm();
+      expect(resetModule).toHaveBeenCalledWith('org-a', 'payments.supplier', 4, '');
     });
   });
 });

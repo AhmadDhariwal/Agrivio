@@ -17,7 +17,7 @@
   }
 
   @if (lastPayment(); as payment) {
-    @if (payment.allocations && payment.allocations.length > 0) {
+    @if (canViewField('allocations') && payment.allocations && payment.allocations.length > 0) {
       <section class="ag-stack allocations" data-testid="payment-allocations">
         <h2>Allocations</h2>
         @for (alloc of payment.allocations; track alloc.id) {
@@ -39,7 +39,7 @@
     (ngSubmit)="save()"
     data-testid="supplier-payment-form"
   >
-    <div class="ag-field">
+    @if (canViewField('supplier')) { <div class="ag-field">
       <agrivio-ui-field-label label="Find supplier" for="supplier-payment-supplier-search" />
       <input id="supplier-payment-supplier-search" class="ag-input" type="search" (change)="onSupplierSearch($event)" />
       <agrivio-ui-field-label
@@ -59,9 +59,9 @@
           <option [value]="supplier.id">{{ supplier.name }}</option>
         }
       </select>
-    </div>
+    </div> }
 
-    <div class="ag-field">
+    @if (canViewField('account')) { <div class="ag-field">
       <agrivio-ui-field-label
         label="Pay from account"
         for="supplier-payment-account"
@@ -79,21 +79,23 @@
           <option [value]="account.id">{{ account.name }} ({{ account.accountType }})</option>
         }
       </select>
-    </div>
+    </div> }
 
-    <fieldset class="ag-stack">
+    @if (canViewField('allocationMode')) { <fieldset class="ag-stack">
       <legend>Allocation mode</legend>
       <label class="radio-label">
         <input type="radio" formControlName="allocationMode" value="general" data-testid="alloc-mode-general" />
         General — oldest unpaid purchase first; remainder becomes supplier advance
       </label>
-      <label class="radio-label">
-        <input type="radio" formControlName="allocationMode" value="invoice_specific" data-testid="alloc-mode-invoice" />
-        Invoice-specific — select a specific unpaid purchase to allocate
-      </label>
-    </fieldset>
+      @if (canPostInvoiceSpecific()) {
+        <label class="radio-label">
+          <input type="radio" formControlName="allocationMode" value="invoice_specific" data-testid="alloc-mode-invoice" />
+          Invoice-specific — select a specific unpaid purchase to allocate
+        </label>
+      }
+    </fieldset> }
 
-    @if (isInvoiceSpecific()) {
+    @if (isInvoiceSpecific() && canPostInvoiceSpecific() && canViewField('allocations')) {
       <section class="ag-stack invoice-alloc" data-testid="invoice-alloc-section">
         <h2>Invoice allocation</h2>
         @if (loadingUnpaid()) {
@@ -142,7 +144,7 @@
       </section>
     }
 
-    <div class="ag-field">
+    @if (canViewField('amount')) { <div class="ag-field">
       <agrivio-ui-field-label
         label="Amount (PKR)"
         for="supplier-payment-amount"
@@ -155,9 +157,9 @@
         data-testid="supplier-payment-amount"
         [attr.aria-required]="fieldRequired(form.controls.amount) ? 'true' : null"
       />
-    </div>
+    </div> }
 
-    <div class="ag-field">
+    @if (canViewField('paymentDate')) { <div class="ag-field">
       <agrivio-ui-field-label
         label="Payment date"
         for="supplier-payment-date"
@@ -171,23 +173,32 @@
         data-testid="supplier-payment-date"
         [attr.aria-required]="fieldRequired(form.controls.paymentDate) ? 'true' : null"
       />
-    </div>
+    </div> }
 
-    <div class="ag-field">
+    @if (canViewField('notes')) { <div class="ag-field">
       <agrivio-ui-field-label label="Notes (optional)" for="supplier-payment-notes" />
-      <textarea id="supplier-payment-notes" class="ag-input" formControlName="notes" rows="3"></textarea>
-    </div>
+      <textarea
+        id="supplier-payment-notes"
+        class="ag-input"
+        formControlName="notes"
+        rows="3"
+        [readOnly]="!canEditField('notes')"
+        [attr.aria-readonly]="!canEditField('notes')"
+      ></textarea>
+    </div> }
 
     <div class="ag-inline">
       <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="supplier-payment-save">
         {{ saving() ? 'Posting…' : 'Post payment' }}
       </button>
       <a class="ag-btn ag-btn--secondary" routerLink="/app/supplier-payments">Back to list</a>
-      <a class="ag-btn ag-btn--secondary" routerLink="/app/supplier-payments/ledger">Supplier ledger</a>
+      @if (canViewLedger()) {
+        <a class="ag-btn ag-btn--secondary" routerLink="/app/supplier-payments/ledger">Supplier ledger</a>
+      }
     </div>
   </form>
 
-  @if (ledgerItems().length > 0) {
+  @if (canViewLedger() && ledgerItems().length > 0) {
     <section class="ag-stack ledger">
       <h2>Supplier ledger preview</h2>
       @for (item of ledgerItems(); track item.id) {

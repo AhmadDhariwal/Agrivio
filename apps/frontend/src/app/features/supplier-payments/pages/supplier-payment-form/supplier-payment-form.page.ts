@@ -20,6 +20,7 @@ import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.compon
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
 import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 @Component({
   selector: 'agrivio-supplier-payment-form-page',
@@ -41,6 +42,7 @@ export class SupplierPaymentFormPage {
   private readonly accountsApi = inject(AccountsApi);
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly formBuilder = inject(FormBuilder);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
 
   readonly loading = signal(true);
   readonly saving = signal(false);
@@ -52,7 +54,28 @@ export class SupplierPaymentFormPage {
   readonly ledgerItems = signal<SupplierLedgerEffectRecord[]>([]);
   readonly unpaidPurchases = signal<UnpaidPurchaseRecord[]>([]);
   readonly lastPayment = signal<SupplierPaymentRecord | null>(null);
-  readonly canPost = computed(() => this.sessionStore.hasPermission('supplier-payments.post'));
+  readonly canUseSupplierPayments = computed(
+    () => this.capabilityService?.canUseModule('payments.supplier') ?? true,
+  );
+  readonly canPost = computed(
+    () =>
+      this.sessionStore.hasPermission('supplier-payments.post') &&
+      this.canUseSupplierPayments() &&
+      (this.capabilityService?.canPerformAction('payments.supplier.actions.post') ?? true),
+  );
+  readonly canPostInvoiceSpecific = computed(
+    () =>
+      this.canPost() &&
+      (this.capabilityService?.canPerformAction(
+        'payments.supplier.actions.postInvoiceSpecific',
+      ) ?? true),
+  );
+  readonly canViewLedger = computed(
+    () =>
+      this.sessionStore.hasPermission('supplier-payments.view') &&
+      this.canUseSupplierPayments() &&
+      (this.capabilityService?.canPerformAction('payments.supplier.actions.viewLedger') ?? true),
+  );
 
   readonly fieldRequired = hasRequiredValidator;
 
@@ -73,6 +96,14 @@ export class SupplierPaymentFormPage {
   readonly isInvoiceSpecific = computed(
     () => this.form.controls.allocationMode.value === 'invoice_specific',
   );
+
+  canViewField(id: string): boolean {
+    return this.capabilityService?.canViewField(`payments.supplier.fields.${id}`) ?? true;
+  }
+
+  canEditField(id: string): boolean {
+    return this.capabilityService?.canEditField(`payments.supplier.fields.${id}`) ?? true;
+  }
 
   constructor() {
     if (!this.canPost()) {
@@ -101,10 +132,12 @@ export class SupplierPaymentFormPage {
       if (!supplierId) {
         return;
       }
-      this.api.listSupplierLedger(supplierId).subscribe({
-        next: (items) => this.ledgerItems.set(items),
-        error: () => this.ledgerItems.set([]),
-      });
+      if (this.canViewLedger()) {
+        this.api.listSupplierLedger(supplierId).subscribe({
+          next: (items) => this.ledgerItems.set(items),
+          error: () => this.ledgerItems.set([]),
+        });
+      }
       if (this.isInvoiceSpecific()) {
         this.loadUnpaidPurchases(supplierId);
       }
@@ -147,6 +180,10 @@ export class SupplierPaymentFormPage {
       return;
     }
     const value = this.form.getRawValue();
+    if (value.allocationMode === 'invoice_specific' && !this.canPostInvoiceSpecific()) {
+      this.errorMessage.set('Invoice-specific supplier payments are not enabled.');
+      return;
+    }
     if (value.allocationMode === 'invoice_specific' && this.invoiceAllocationForm.invalid) {
       this.invoiceAllocationForm.markAllAsTouched();
       return;
@@ -169,7 +206,7 @@ export class SupplierPaymentFormPage {
           amount: { amount: value.amount.trim(), currency: 'PKR' },
           paymentDate: value.paymentDate,
           allocationMode: value.allocationMode,
-          notes: value.notes.trim(),
+          ...(this.canEditField('notes') ? { notes: value.notes.trim() } : {}),
           ...(allocations ? { allocations } : {}),
         },
         crypto.randomUUID(),
@@ -187,7 +224,7 @@ export class SupplierPaymentFormPage {
           );
           this.form.patchValue({ amount: '', notes: '' });
           this.invoiceAllocationForm.reset();
-          if (value.supplierId) {
+          if (value.supplierId && this.canViewLedger()) {
             this.api.listSupplierLedger(value.supplierId).subscribe({
               next: (items) => this.ledgerItems.set(items),
             });

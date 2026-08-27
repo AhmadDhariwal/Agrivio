@@ -261,6 +261,7 @@ function createLedgersModule(options = {}) {
           ledgersService,
           accountsService: options.accountsService,
           suppliersService: options.suppliersService,
+          capabilityService: options.capabilityService,
           listUnpaidSupplierPurchases: options.listUnpaidSupplierPurchases,
           transactionRunner,
           persistence,

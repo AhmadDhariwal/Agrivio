@@ -35,7 +35,8 @@ type ConfigurableModule =
   | 'accounts'
   | 'reports'
   | 'alerts'
-  | 'purchases';
+  | 'purchases'
+  | 'payments.supplier';
 type PendingConfirmation =
   | { readonly kind: 'save' }
   | { readonly kind: 'reset-control'; readonly control: PlatformCapabilityControl }
@@ -129,6 +130,9 @@ export class OrganizationControlsPage {
     if (this.selectedModule() === 'purchases') {
       return this.purchasesFeatures('moduleInfo');
     }
+    if (this.selectedModule() === 'payments.supplier') {
+      return this.supplierPaymentsFeatures('moduleInfo');
+    }
     if (this.selectedModule() === 'inventory.movements') {
       return this.movementsFeatures('moduleInfo');
     }
@@ -199,6 +203,9 @@ export class OrganizationControlsPage {
     }
     if (this.selectedModule() === 'purchases') {
       return this.purchasesFeatures('search', 'statusFilter');
+    }
+    if (this.selectedModule() === 'payments.supplier') {
+      return this.supplierPaymentsFeatures('paymentDateFilter');
     }
     if (this.selectedModule() === 'suppliers') {
       return this.suppliersFeatures('search', 'statusFilter');
@@ -443,6 +450,14 @@ export class OrganizationControlsPage {
       changes[0].value?.['enabled'] === false
     );
   });
+  readonly disablingSupplierPayments = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'payments.supplier' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
   readonly confirmationTitle = computed(() => {
     const pending = this.pendingConfirmation();
     const organization = this.snapshot()?.organization.name ?? 'this organization';
@@ -488,6 +503,9 @@ export class OrganizationControlsPage {
     }
     if (this.disablingPurchases()) {
       return `Disable Purchases for ${organization}?`;
+    }
+    if (this.disablingSupplierPayments()) {
+      return `Disable Supplier Payments for ${organization}?`;
     }
     const single = this.changeSummary().length === 1 ? this.changeSummary()[0] : null;
     if (single?.risk === 'CRITICAL' && single.after === 'Disabled') {
@@ -555,6 +573,9 @@ export class OrganizationControlsPage {
     if (this.disablingPurchases()) {
       return `Users in ${organization} will no longer be able to access or operate Purchases. Existing drafts, posted purchases, inventory movements, supplier payables, payments, cancellations, and returns are not deleted or modified. This affects ${organization} only.`;
     }
+    if (this.disablingSupplierPayments()) {
+      return `Users in ${organization} will no longer be able to access or post standalone Supplier Payments or open the Supplier Ledger workflow. Existing posted payments, allocations, advances, ledger effects, account movements, and corrective history are not deleted or modified. Purchases remains available. This affects ${organization} only.`;
+    }
     const critical = this.changeSummary()
       .filter((change) => change.risk === 'CRITICAL')
       .map((change) => `${change.label}: ${change.before} → ${change.after}`);
@@ -583,6 +604,7 @@ export class OrganizationControlsPage {
     if (this.disablingReports()) return 'Disable Reports';
     if (this.disablingAlerts()) return 'Disable Alerts';
     if (this.disablingPurchases()) return 'Disable Purchases';
+    if (this.disablingSupplierPayments()) return 'Disable Supplier Payments';
     return 'Apply changes';
   });
 
@@ -804,6 +826,7 @@ export class OrganizationControlsPage {
     if (moduleKey === 'reports') return 'Reports';
     if (moduleKey === 'alerts') return 'Alerts';
     if (moduleKey === 'purchases') return 'Purchases';
+    if (moduleKey === 'payments.supplier') return 'Supplier Payments';
     return 'Product Batches';
   }
 
@@ -822,7 +845,8 @@ export class OrganizationControlsPage {
         control.moduleKey === 'expenses' ||
         control.moduleKey === 'expenses.categories' ||
         control.moduleKey === 'accounts' ||
-        control.moduleKey === 'purchases') &&
+        control.moduleKey === 'purchases' ||
+        control.moduleKey === 'payments.supplier') &&
       control.type === 'FIELD' &&
       control.platformEnforced === true
     );
@@ -835,6 +859,11 @@ export class OrganizationControlsPage {
 
   private purchasesFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
     const keys = new Set(ids.map((id) => `purchases.features.${id}`));
+    return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
+  }
+
+  private supplierPaymentsFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
+    const keys = new Set(ids.map((id) => `payments.supplier.features.${id}`));
     return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
   }
 
@@ -995,7 +1024,10 @@ export class OrganizationControlsPage {
       (control.moduleKey === 'purchases' &&
         (control.key === 'purchases.features.moduleInfo' ||
           control.key === 'purchases.features.search' ||
-          control.key === 'purchases.features.statusFilter'))
+          control.key === 'purchases.features.statusFilter')) ||
+      (control.moduleKey === 'payments.supplier' &&
+        (control.key === 'payments.supplier.features.moduleInfo' ||
+          control.key === 'payments.supplier.features.paymentDateFilter'))
     );
   }
 
