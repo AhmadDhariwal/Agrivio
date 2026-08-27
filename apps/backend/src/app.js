@@ -417,6 +417,7 @@ function createApp(options) {
       inventoryService: inventory.inventoryService,
       paymentsService: ledgers.paymentsService,
       salesService: sales.salesService,
+      capabilityService: capabilities.capabilityService,
       canAccessWarehouse,
       resolveOrganizationTimezone,
       ...(options.now === undefined ? {} : { now: options.now }),
@@ -648,6 +649,7 @@ function createApp(options) {
 
   const alertsRoutes = registerAlertsRoutes({
     alertsService: alerts.alertsService,
+    capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,

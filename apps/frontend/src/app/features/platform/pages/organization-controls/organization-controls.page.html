@@ -189,6 +189,15 @@
       >
         Reports
       </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'alerts'"
+        (click)="selectModule('alerts')"
+        data-testid="alerts-control-module"
+      >
+        Alerts
+      </button>
       <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>
 
@@ -257,6 +266,7 @@
           { title: 'History', controls: historyControls() },
           { title: 'Widgets', controls: widgetControls() },
           { title: 'Report Availability', controls: reportAvailabilityControls() },
+          { title: 'Alert Family Availability', controls: alertTypeAvailabilityControls() },
           { title: 'Actions', controls: actionControls() }
         ];
         track section.title

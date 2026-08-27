@@ -25,7 +25,8 @@ function control(
     | 'expenses'
     | 'expenses.categories'
     | 'accounts'
-    | 'reports',
+    | 'reports'
+    | 'alerts',
   type: PlatformCapabilityControl['type'],
   label: string,
   policy: Record<string, boolean>,
@@ -1224,6 +1225,34 @@ describe('OrganizationControlsPage', () => {
           reasons: ['entitlement_unavailable'],
         },
       ),
+      // Alerts Module (1)
+      control('alerts', 'alerts', 'MODULE', 'Alerts', { enabled: true }, { risk: 'CRITICAL' }),
+      // Alerts Features (3)
+      control('alerts.features.moduleInfo', 'alerts', 'FEATURE', 'About Alerts', { enabled: true }),
+      control('alerts.features.summaryCards', 'alerts', 'FEATURE', 'Summary Cards', { enabled: true }),
+      control('alerts.features.navbarNotifications', 'alerts', 'FEATURE', 'Navbar Notifications', { enabled: true }),
+      // Alert Family Availability (6)
+      ...([
+        ['lowStock', 'Low Stock Alerts'],
+        ['upcomingExpiry', 'Upcoming Expiry Alerts'],
+        ['expiredStock', 'Expired Stock Alerts'],
+        ['deadStock', 'Dead Stock Alerts'],
+        ['customerDues', 'Customer Dues Alerts'],
+        ['supplierDues', 'Supplier Dues Alerts'],
+      ] as const).map(([id, label]) =>
+        control(
+          `alerts.alertTypeAvailability.${id}`,
+          'alerts',
+          'FEATURE',
+          label,
+          { enabled: true },
+          id === 'lowStock' ? { override: { enabled: false } } : {},
+        ),
+      ),
+      // Alerts Actions (3)
+      control('alerts.actions.acknowledge', 'alerts', 'ACTION', 'Acknowledge Alert', { allowed: true }, { risk: 'RECOMMENDED' }),
+      control('alerts.actions.markRead', 'alerts', 'ACTION', 'Mark Notification Read', { allowed: true }),
+      control('alerts.actions.markAllRead', 'alerts', 'ACTION', 'Mark All Notifications Read', { allowed: true }),
     ];
     await TestBed.configureTestingModule({
       imports: [OrganizationControlsPage],
@@ -2490,6 +2519,97 @@ describe('OrganizationControlsPage', () => {
       component.askResetModule();
       component.confirm();
       expect(resetModule).toHaveBeenCalledWith('org-a', 'reports', 4, '');
+    });
+  });
+
+  describe('Alerts Controls', () => {
+    it('renders the complete 13 Alerts registry controls through generic policy sections', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('alerts');
+      fixture.detectChanges();
+
+      expect(component.moduleLabel('alerts')).toBe('Alerts');
+      expect(component.selectedControls()).toHaveLength(13);
+      expect(component.moduleControls()).toHaveLength(1);
+      expect(component.moduleInfoControls()).toHaveLength(1);
+      expect(component.presentationFeatureControls()).toHaveLength(2);
+      expect(component.alertTypeAvailabilityControls()).toHaveLength(6);
+      expect(component.actionControls()).toHaveLength(3);
+      expect(component.featureControls()).toHaveLength(0);
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('Alerts Module');
+      expect(text).toContain('About Alerts');
+      expect(text).toContain('Summary Cards');
+      expect(text).toContain('Navbar Notifications');
+      expect(text).toContain('Alert Family Availability');
+      expect(text).toContain('Low Stock Alerts');
+      expect(text).toContain('Upcoming Expiry Alerts');
+      expect(text).toContain('Acknowledge Alert');
+      expect(text).toContain('Mark Notification Read');
+      expect(text).toContain('Mark All Notifications Read');
+    });
+
+    it('supports independent alert family/feature/action policy changes and effective computation', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('alerts');
+
+      const lowStock = component
+        .alertTypeAvailabilityControls()
+        .find((item) => item.key === 'alerts.alertTypeAvailability.lowStock');
+      const upcomingExpiry = component
+        .alertTypeAvailabilityControls()
+        .find((item) => item.key === 'alerts.alertTypeAvailability.upcomingExpiry');
+      const navbar = component
+        .presentationFeatureControls()
+        .find((item) => item.key === 'alerts.features.navbarNotifications');
+      const acknowledge = component
+        .actionControls()
+        .find((item) => item.key === 'alerts.actions.acknowledge');
+
+      expect(lowStock).toBeDefined();
+      expect(upcomingExpiry).toBeDefined();
+      expect(navbar).toBeDefined();
+      expect(acknowledge).toBeDefined();
+
+      if (lowStock && upcomingExpiry && navbar && acknowledge) {
+        expect(component.effectiveValue(lowStock, 'enabled')).toBe(false);
+        expect(component.effectiveValue(upcomingExpiry, 'enabled')).toBe(true);
+        expect(component.effectiveValue(navbar, 'enabled')).toBe(true);
+        expect(component.effectiveValue(acknowledge, 'allowed')).toBe(true);
+
+        component.setValue(lowStock, 'enabled', true);
+        component.setValue(navbar, 'enabled', false);
+        component.setValue(acknowledge, 'allowed', false);
+
+        expect(component.effectiveValue(lowStock, 'enabled')).toBe(true);
+        expect(component.effectiveValue(navbar, 'enabled')).toBe(false);
+        expect(component.effectiveValue(acknowledge, 'allowed')).toBe(false);
+      }
+    });
+
+    it('supports Alerts module disable/re-enable, confirmation modal, and module reset', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('alerts');
+      const moduleControl = component.controls().find((item) => item.key === 'alerts');
+      expect(moduleControl).toBeDefined();
+
+      if (moduleControl) {
+        component.setValue(moduleControl, 'enabled', false);
+        expect(component.disablingAlerts()).toBe(true);
+        expect(component.confirmationTitle()).toBe(
+          'Disable Alerts for Greenfield Agro Center?',
+        );
+        expect(component.confirmationLabel()).toBe('Disable Alerts');
+        expect(component.confirmationMessage()).toContain('Notification Center');
+
+        component.setValue(moduleControl, 'enabled', true);
+        expect(component.effectiveValue(moduleControl, 'enabled')).toBe(true);
+      }
+
+      component.askResetModule();
+      component.confirm();
+      expect(resetModule).toHaveBeenCalledWith('org-a', 'alerts', 4, '');
     });
   });
 });

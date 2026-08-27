@@ -17,11 +17,14 @@ Read-only Alerts queries over Inventory public reads (`listBalances`, `queryExpi
 * Upcoming expiry / expired: Inventory `classifyExpiry` / `queryExpiry` (BR-ALERT-003/004, FR-INVENTORY-013 threshold days)
 * Dead stock: sellable > 0 and no posted sale in configured inactivity window (BR-ALERT-005/006); inactivity days are persisted, never silently hardcoded
 * `notification_items` for in-app presentation/acknowledgement only
+* Stable source fingerprints are reconciled on refresh: resolved source conditions are inactive,
+  continuous conditions preserve state, and recurrence resets read/acknowledgement for the new occurrence
 * Alerts do not mutate Inventory or ledgers
 
 ### R1-F08-002 — Customer / supplier dues alerts
 
 Dues from Payments/Ledgers `listCustomerReceivableBalances` / `listSupplierPayableBalances`, which sum posted `ledger_effects` (same source as `sumCustomerReceivable` / `sumSupplierPayable`).
+Notification summaries expose both counts and ledger-derived PKR totals; they are not calculated from a bounded feed.
 
 ### R1-F08-003 — Dashboard operational views
 
@@ -32,6 +35,7 @@ Reporting `GET /api/v1/dashboard` composes FR-REPORT-001 / RELEASE_1_SCOPE widge
 | Model | Class | Result |
 | --- | --- | --- |
 | `notification_items` | A | Frozen Alerts presentation/acknowledgement |
+| `notification_read_states` | B | Per-user read state required independently from business acknowledgement and source resolution |
 | `alert_settings` (`deadStockInactivityDays`) | B | Org-level inactivity config required by FR-ALERT-010/012; not in Frozen 35-collection list |
 | `low_stock_thresholds` (product+warehouse qty) | B | FR-ALERT-009; not in Frozen 35-collection list |
 | No stock/ledger balance fields on Alerts | — | Calculations read Inventory/Ledgers |

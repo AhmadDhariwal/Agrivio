@@ -16,6 +16,7 @@ import { AuthApi } from '../../../auth/data-access/auth.api';
 import { NavigationService } from '../../data-access/navigation.service';
 import { NavCustomizerDialogComponent } from '../../components/nav-customizer-dialog/nav-customizer-dialog.component';
 import { NavbarSearchComponent } from '../../components/navbar-search/navbar-search.component';
+import { NavbarNotificationsComponent } from '../../components/navbar-notifications/navbar-notifications.component';
 import { UserProfileMenuComponent } from '../../components/user-profile-menu/user-profile-menu.component';
 import { SubscriptionStatusBannerComponent } from '../../../subscriptions/components/subscription-status-banner/subscription-status-banner.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
@@ -45,6 +46,7 @@ export interface TooltipState {
     UiSearchInputComponent,
     NavCustomizerDialogComponent,
     NavbarSearchComponent,
+    NavbarNotificationsComponent,
     UserProfileMenuComponent,
   ],
   templateUrl: './app-shell.page.html',

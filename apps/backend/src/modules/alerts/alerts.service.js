@@ -5,6 +5,9 @@ const {
 } = require('../../platform/primitives/money-and-time');
 const { resolveBusinessDate } = require('../inventory/public');
 const {
+  ALERT_CAPABILITY_KEY_BY_ALERT_TYPE,
+} = require('../capabilities/capability.registry');
+const {
   formatQty,
   inactivityWindowStart,
   isDeadStock,
@@ -20,20 +23,44 @@ function toMoneyDto(amountMinorUnits) {
   };
 }
 
-function toNotificationDto(record) {
+function resolveTargetRoute(alertType) {
+  switch (alertType) {
+    case 'upcoming_expiry':
+    case 'expired_stock':
+      return '/app/inventory/expiry';
+    case 'low_stock':
+    case 'dead_stock':
+      return '/app/inventory/stock';
+    case 'customer_dues':
+      return '/app/customers';
+    case 'supplier_dues':
+      return '/app/suppliers';
+    default:
+      return '/app/alerts';
+  }
+}
+
+function toNotificationDto(record, isRead = false) {
+  const alertType = String(record.alertType);
+  const toIso = (value) => {
+    if (!value) return null;
+    return value instanceof Date ? value.toISOString() : String(value);
+  };
   return {
-    id: String(record['_id']),
-    alertType: String(record.alertType),
+    id: String(record['_id'] ?? record.id),
+    alertType,
     title: String(record.title),
     body: String(record.body),
     subjectKey: String(record.subjectKey),
     fingerprint: String(record.fingerprint),
-    acknowledgedAt: record.acknowledgedAt
-      ? record.acknowledgedAt instanceof Date
-        ? record.acknowledgedAt.toISOString()
-        : String(record.acknowledgedAt)
-      : null,
+    targetRoute: resolveTargetRoute(alertType),
+    isRead: Boolean(isRead),
+    active: record.active !== false,
+    activatedAt: toIso(record.activatedAt ?? record.createdAt),
+    resolvedAt: toIso(record.resolvedAt),
+    acknowledgedAt: toIso(record.acknowledgedAt),
     acknowledgedBy: record.acknowledgedBy ? String(record.acknowledgedBy) : null,
+    createdAt: toIso(record.createdAt),
   };
 }
 
@@ -44,6 +71,75 @@ function createAlertsService(deps) {
   const salesService = deps.salesService;
   const resolveOrganizationTimezone = deps.resolveOrganizationTimezone;
   const now = deps.now ?? (() => new Date());
+
+  async function resolveCapabilityProjection(organizationId, authContext, enforceCapabilities) {
+    const enabledAlertTypes = new Set(Object.keys(ALERT_CAPABILITY_KEY_BY_ALERT_TYPE));
+    if (!enforceCapabilities || typeof deps.capabilityService?.resolveEffective !== 'function') {
+      return { enabledAlertTypes, summaryCardsEnabled: true };
+    }
+
+    const effective = await deps.capabilityService.resolveEffective(organizationId, {
+      permissions: authContext?.permissions ?? [],
+    });
+    const controls = new Map(effective.controls.map((control) => [control.key, control]));
+    for (const [alertType, controlKey] of Object.entries(
+      ALERT_CAPABILITY_KEY_BY_ALERT_TYPE,
+    )) {
+      if (controls.get(controlKey)?.effectiveValue?.enabled !== true) {
+        enabledAlertTypes.delete(alertType);
+      }
+    }
+    return {
+      enabledAlertTypes,
+      summaryCardsEnabled:
+        controls.get('alerts.features.summaryCards')?.effectiveValue?.enabled === true,
+    };
+  }
+
+  function applyCapabilityProjection(alerts, projection) {
+    const family = (value, alertType) => {
+      if (projection.enabledAlertTypes.has(alertType)) {
+        return { ...value, items: [...(value.items ?? [])] };
+      }
+      return {
+        ...value,
+        items: [],
+        count: 0,
+        ...(value.total === undefined ? {} : { total: toMoneyDto(0n) }),
+      };
+    };
+    const lowStock = family(alerts.lowStock, 'low_stock');
+    const upcomingExpiry = family(alerts.upcomingExpiry, 'upcoming_expiry');
+    const expiredStock = family(alerts.expiredStock, 'expired_stock');
+    const deadStock = family(alerts.deadStock, 'dead_stock');
+    const customerDues = family(alerts.customerDues, 'customer_dues');
+    const supplierDues = family(alerts.supplierDues, 'supplier_dues');
+    const summaries = {
+      lowStockCount: lowStock.count,
+      upcomingExpiryCount: upcomingExpiry.count,
+      expiredStockCount: expiredStock.count,
+      deadStockCount: deadStock.count,
+      customerDuesCount: customerDues.count,
+      supplierDuesCount: supplierDues.count,
+      customerDuesAmount: customerDues.total,
+      supplierDuesAmount: supplierDues.total,
+    };
+    return {
+      ...alerts,
+      summaries: projection.summaryCardsEnabled ? summaries : null,
+      lowStock,
+      upcomingExpiry,
+      expiredStock,
+      deadStock,
+      customerDues,
+      supplierDues,
+      items: alerts.items.filter((item) => projection.enabledAlertTypes.has(item.alertType)),
+    };
+  }
+
+  function isActiveAllowedNotification(record, projection) {
+    return record.active !== false && projection.enabledAlertTypes.has(String(record.alertType));
+  }
 
   async function resolveOrgBusinessDate(organizationId) {
     const timezone = await resolveOrganizationTimezone(organizationId);
@@ -208,7 +304,11 @@ function createAlertsService(deps) {
       body: `Customer receivable balance ${item.receivable.amount} ${item.receivable.currency}.`,
       subjectKey: item.customerId,
     }));
-    return { items: mapped, count: mapped.length };
+    const totalMinorUnits = items.reduce(
+      (total, item) => total + BigInt(String(item.receivableMinorUnits ?? '0')),
+      0n,
+    );
+    return { items: mapped, count: mapped.length, total: toMoneyDto(totalMinorUnits) };
   }
 
   async function querySupplierDues(organizationId) {
@@ -222,7 +322,114 @@ function createAlertsService(deps) {
       body: `Supplier payable balance ${item.payable.amount} ${item.payable.currency}.`,
       subjectKey: item.supplierId,
     }));
-    return { items: mapped, count: mapped.length };
+    const totalMinorUnits = items.reduce(
+      (total, item) => total + BigInt(String(item.payableMinorUnits ?? '0')),
+      0n,
+    );
+    return { items: mapped, count: mapped.length, total: toMoneyDto(totalMinorUnits) };
+  }
+
+  async function queryAlerts(organizationId, authContext) {
+    const businessDate = await resolveOrgBusinessDate(organizationId);
+    const [lowStock, expiry, customerDues, supplierDues] = await Promise.all([
+      queryLowStock(organizationId, authContext),
+      queryExpiryAlerts(organizationId, authContext),
+      queryCustomerDues(organizationId),
+      querySupplierDues(organizationId),
+    ]);
+    const deadStock = await queryDeadStock(
+      organizationId,
+      authContext,
+      expiry.businessDate ?? businessDate,
+    );
+
+    const items = [
+      ...lowStock.items,
+      ...expiry.upcoming.items,
+      ...expiry.expired.items,
+      ...deadStock.items,
+      ...customerDues.items,
+      ...supplierDues.items,
+    ];
+
+    return {
+      businessDate: expiry.businessDate ?? businessDate,
+      expiryThresholdDays: expiry.thresholdDays,
+      deadStockInactivityDays: deadStock.deadStockInactivityDays,
+      summaries: {
+        lowStockCount: lowStock.count,
+        upcomingExpiryCount: expiry.upcoming.count,
+        expiredStockCount: expiry.expired.count,
+        deadStockCount: deadStock.count,
+        customerDuesCount: customerDues.count,
+        supplierDuesCount: supplierDues.count,
+        customerDuesAmount: customerDues.total,
+        supplierDuesAmount: supplierDues.total,
+      },
+      lowStock,
+      upcomingExpiry: expiry.upcoming,
+      expiredStock: expiry.expired,
+      deadStock,
+      customerDues,
+      supplierDues,
+      items,
+    };
+  }
+
+  async function syncNotifications(organizationId, authContext, options = {}) {
+    const alerts = await queryAlerts(organizationId, authContext);
+    const observedAt = now();
+    const records = [];
+    for (const alert of alerts.items) {
+      const record = await store.upsertNotificationItem(organizationId, {
+        fingerprint: alert.fingerprint,
+        alertType: alert.alertType,
+        title: alert.title,
+        body: alert.body,
+        subjectKey: alert.subjectKey,
+        observedAt,
+      });
+      records.push(record);
+    }
+    const unrestrictedWarehouseScope =
+      authContext?.role === 'Owner' ||
+      (authContext?.warehouseAssignments === undefined &&
+        authContext?.allowedWarehouses === undefined);
+    if (unrestrictedWarehouseScope) {
+      await store.resolveMissingNotifications(
+        organizationId,
+        alerts.items.map((alert) => alert.fingerprint),
+        observedAt,
+      );
+    }
+
+    const projection = await resolveCapabilityProjection(
+      organizationId,
+      authContext,
+      options.enforceCapabilities === true,
+    );
+    const projectedAlerts = applyCapabilityProjection(alerts, projection);
+    records.sort((a, b) =>
+      String(b.activatedAt ?? b.createdAt ?? '').localeCompare(
+        String(a.activatedAt ?? a.createdAt ?? ''),
+      ),
+    );
+    const projectedRecords = records.filter((record) =>
+      isActiveAllowedNotification(record, projection),
+    );
+    const userId = authContext?.userId;
+    const readIds = userId
+      ? await store.listReadNotificationIds(organizationId, userId)
+      : [];
+    const readSet = new Set(readIds);
+    const items = projectedRecords.map((record) =>
+      toNotificationDto(record, readSet.has(String(record['_id'] ?? record.id))),
+    );
+    return {
+      alerts: projectedAlerts,
+      items,
+      unreadCount: items.filter((item) => !item.isRead).length,
+    };
   }
 
   return {
@@ -278,68 +485,77 @@ function createAlertsService(deps) {
       };
     },
 
-    async listAlerts(organizationId, authContext) {
-      const businessDate = await resolveOrgBusinessDate(organizationId);
-      const [lowStock, expiry, customerDues, supplierDues] = await Promise.all([
-        queryLowStock(organizationId, authContext),
-        queryExpiryAlerts(organizationId, authContext),
-        queryCustomerDues(organizationId),
-        querySupplierDues(organizationId),
-      ]);
-      const deadStock = await queryDeadStock(
-        organizationId,
-        authContext,
-        expiry.businessDate ?? businessDate,
-      );
+    async listAlerts(organizationId, authContext, options = {}) {
+      const alerts = await queryAlerts(organizationId, authContext);
+      if (options.enforceCapabilities !== true) {
+        return alerts;
+      }
+      const projection = await resolveCapabilityProjection(organizationId, authContext, true);
+      return applyCapabilityProjection(alerts, projection);
+    },
 
-      const items = [
-        ...lowStock.items,
-        ...expiry.upcoming.items,
-        ...expiry.expired.items,
-        ...deadStock.items,
-        ...customerDues.items,
-        ...supplierDues.items,
-      ];
-
+    async getNotificationFeed(organizationId, authContext, limit = 6, options = {}) {
+      const synced = await syncNotifications(organizationId, authContext, options);
+      const boundedLimit = Number.isInteger(limit) ? Math.max(1, Math.min(50, limit)) : 6;
       return {
-        businessDate: expiry.businessDate ?? businessDate,
-        expiryThresholdDays: expiry.thresholdDays,
-        deadStockInactivityDays: deadStock.deadStockInactivityDays,
-        summaries: {
-          lowStockCount: lowStock.count,
-          upcomingExpiryCount: expiry.upcoming.count,
-          expiredStockCount: expiry.expired.count,
-          deadStockCount: deadStock.count,
-          customerDuesCount: customerDues.count,
-          supplierDuesCount: supplierDues.count,
-        },
-        lowStock,
-        upcomingExpiry: expiry.upcoming,
-        expiredStock: expiry.expired,
-        deadStock,
-        customerDues,
-        supplierDues,
-        items,
+        items: synced.items.slice(0, boundedLimit),
+        unreadCount: synced.unreadCount,
       };
     },
 
-    async listNotifications(organizationId, authContext) {
-      const alerts = await this.listAlerts(organizationId, authContext);
-      const items = [];
-      for (const alert of alerts.items) {
-        const record = await store.upsertNotificationItem(organizationId, {
-          fingerprint: alert.fingerprint,
-          alertType: alert.alertType,
-          title: alert.title,
-          body: alert.body,
-          subjectKey: alert.subjectKey,
-        });
-        items.push(toNotificationDto(record));
-      }
-      return { items, summaries: alerts.summaries, businessDate: alerts.businessDate };
+    async listNotifications(organizationId, authContext, options = {}) {
+      const { alerts, items, unreadCount } = await syncNotifications(
+        organizationId,
+        authContext,
+        options,
+      );
+
+      return {
+        items,
+        summaries: alerts.summaries,
+        unreadCount,
+        businessDate: alerts.businessDate,
+      };
     },
 
-    async acknowledgeNotification(organizationId, notificationId, actorId) {
+    async markNotificationRead(organizationId, userId, notificationId, authContext, options = {}) {
+      const synced = await syncNotifications(organizationId, authContext, options);
+      if (!synced.items.some((item) => item.id === String(notificationId))) {
+        throw notFound('Notification not found');
+      }
+      const readAt = now();
+      const updated = await store.markNotificationRead(
+        organizationId,
+        userId,
+        notificationId,
+        readAt,
+      );
+      if (updated === null) {
+        throw notFound('Notification not found');
+      }
+      const readIds = new Set(await store.listReadNotificationIds(organizationId, userId));
+      const unreadCount = synced.items.filter((item) => !readIds.has(item.id)).length;
+      return { id: String(notificationId), isRead: true, unreadCount };
+    },
+
+    async markAllNotificationsRead(organizationId, userId, authContext, options = {}) {
+      const synced = await syncNotifications(organizationId, authContext, options);
+      const ids = synced.items.map((item) => item.id);
+      await store.markAllNotificationsRead(organizationId, userId, ids, now());
+      return { success: true, unreadCount: 0 };
+    },
+
+    async acknowledgeNotification(
+      organizationId,
+      notificationId,
+      actorId,
+      authContext,
+      options = {},
+    ) {
+      const synced = await syncNotifications(organizationId, authContext, options);
+      if (!synced.items.some((item) => item.id === String(notificationId))) {
+        throw notFound('Notification not found');
+      }
       const updated = await store.acknowledgeNotification(
         organizationId,
         notificationId,
@@ -349,7 +565,11 @@ function createAlertsService(deps) {
       if (updated === null) {
         throw notFound('Notification not found');
       }
-      return toNotificationDto(updated);
+      const readIds = await store.listReadNotificationIds(organizationId, actorId);
+      return toNotificationDto(
+        updated,
+        readIds.includes(String(updated['_id'] ?? updated.id)),
+      );
     },
 
     async getAlertSummaries(organizationId, authContext) {

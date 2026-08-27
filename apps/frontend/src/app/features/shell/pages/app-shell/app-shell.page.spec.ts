@@ -184,10 +184,3 @@ async function createShell(
   fixture.detectChanges();
   return fixture;
 }
-
-function navLinks(fixture: ComponentFixture<AppShellPage>): string[] {
-  const anchors = Array.from(
-    fixture.nativeElement.querySelectorAll('nav a.ag-shell__nav-link'),
-  ) as HTMLAnchorElement[];
-  return anchors.map((a) => a.textContent?.trim() ?? '');
-}

@@ -1,70 +1,458 @@
-<div data-testid="alerts-page">
-  <agrivio-ui-page-header
-    title="Notification center"
-    lede="In-app inventory and dues alerts. Values are read from inventory and ledgers."
-  />
+<div class="alerts-shell" data-testid="alerts-page">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">REPORTS &amp; INSIGHTS</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">Notification center</h1>
+        <span class="page-head__count-pill" aria-label="Total alerts" data-testid="alerts-count-pill">
+          {{ totalFilteredCount() }} {{ totalFilteredCount() === 1 ? 'alert' : 'alerts' }}
+        </span>
+      </div>
+      <p class="page-head__lede">
+        In-app inventory and dues alerts sourced from inventory and ledgers.
+      </p>
+    </div>
 
+    <div class="page-head__actions">
+      <button
+        class="row-action-btn page-head__refresh-btn"
+        type="button"
+        data-testid="alerts-refresh-btn"
+        (click)="reload()"
+        title="Refresh alerts"
+        aria-label="Refresh alerts"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+          <path d="M3 3v5h5" />
+          <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+          <path d="M16 21h5v-5" />
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Permission / Error / Loading States -->
   @if (!canView()) {
-    <agrivio-ui-alert tone="warning" message="You do not have permission to view alerts." />
+    <div class="alert-container" data-testid="alerts-permission-alert">
+      <agrivio-ui-alert tone="warning" message="You do not have permission to view alerts." />
+    </div>
   } @else if (loading()) {
     <agrivio-ui-loading-state label="Loading notifications…" />
   } @else {
     @if (errorMessage(); as error) {
-      <agrivio-ui-alert tone="danger" [message]="error" />
+      <div class="alert-container">
+        <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+      </div>
     }
 
-    @if (summaries(); as counts) {
-      <section class="dash-grid" aria-label="Alert summaries" data-testid="alert-summaries">
-        <div>
-          <h2>Low stock</h2>
-          <p data-testid="alert-summary-low-stock">{{ counts.lowStockCount }}</p>
-        </div>
-        <div>
-          <h2>Upcoming expiry</h2>
-          <p data-testid="alert-summary-upcoming-expiry">{{ counts.upcomingExpiryCount }}</p>
-        </div>
-        <div>
-          <h2>Expired stock</h2>
-          <p data-testid="alert-summary-expired-stock">{{ counts.expiredStockCount }}</p>
-        </div>
-        <div>
-          <h2>Dead stock</h2>
-          <p data-testid="alert-summary-dead-stock">{{ counts.deadStockCount }}</p>
-        </div>
-        <div>
-          <h2>Customer dues</h2>
-          <p data-testid="alert-summary-customer-dues">{{ counts.customerDuesCount }}</p>
-        </div>
-        <div>
-          <h2>Supplier dues</h2>
-          <p data-testid="alert-summary-supplier-dues">{{ counts.supplierDuesCount }}</p>
-        </div>
+    <!-- Module Info Card -->
+    @if (showModuleInfo()) {
+      <agrivio-ui-module-info
+        title="About Alerts"
+        description="Authoritative organization alerts and notifications for inventory, expiry, and dues."
+        [items]="moduleInfoItems"
+        [defaultExpanded]="false"
+      />
+    }
+
+    <!-- Authoritative KPI Summary Section (6 Cards) -->
+    @if (showSummaryCards() && summaries(); as counts) {
+      <section class="kpi-row" aria-label="Alert summaries" data-testid="alert-summaries">
+        <!-- Low stock -->
+        @if (isFamilyEnabled('low_stock')) {
+          <div class="kpi-card" data-testid="kpi-low-stock">
+            <div class="kpi-card__icon kpi-card__icon--amber">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Low stock</span>
+              <span class="kpi-card__value" data-testid="alert-summary-low-stock">{{ counts.lowStockCount }}</span>
+              <span class="kpi-card__sub">{{ counts.lowStockCount === 1 ? '1 item' : counts.lowStockCount + ' items' }}</span>
+            </div>
+          </div>
+        }
+
+        <!-- Upcoming expiry -->
+        @if (isFamilyEnabled('upcoming_expiry')) {
+          <div class="kpi-card" data-testid="kpi-upcoming-expiry">
+            <div class="kpi-card__icon kpi-card__icon--green">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Upcoming expiry</span>
+              <span class="kpi-card__value" data-testid="alert-summary-upcoming-expiry">{{ counts.upcomingExpiryCount }}</span>
+              <span class="kpi-card__sub">{{ counts.upcomingExpiryCount === 1 ? '1 batch' : counts.upcomingExpiryCount + ' batches' }}</span>
+            </div>
+          </div>
+        }
+
+        <!-- Expired stock -->
+        @if (isFamilyEnabled('expired_stock')) {
+          <div class="kpi-card" data-testid="kpi-expired-stock">
+            <div class="kpi-card__icon kpi-card__icon--red">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+                <line x1="10" y1="14" x2="14" y2="18"></line>
+                <line x1="14" y1="14" x2="10" y2="18"></line>
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Expired stock</span>
+              <span class="kpi-card__value" data-testid="alert-summary-expired-stock">{{ counts.expiredStockCount }}</span>
+              <span class="kpi-card__sub">{{ counts.expiredStockCount === 1 ? '1 batch' : counts.expiredStockCount + ' batches' }}</span>
+            </div>
+          </div>
+        }
+
+        <!-- Dead stock -->
+        @if (isFamilyEnabled('dead_stock')) {
+          <div class="kpi-card" data-testid="kpi-dead-stock">
+            <div class="kpi-card__icon kpi-card__icon--purple">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Dead stock</span>
+              <span class="kpi-card__value" data-testid="alert-summary-dead-stock">{{ counts.deadStockCount }}</span>
+              <span class="kpi-card__sub">{{ counts.deadStockCount === 1 ? '1 item' : counts.deadStockCount + ' items' }}</span>
+            </div>
+          </div>
+        }
+
+        <!-- Customer dues -->
+        @if (isFamilyEnabled('customer_dues')) {
+          <div class="kpi-card" data-testid="kpi-customer-dues">
+            <div class="kpi-card__icon kpi-card__icon--blue">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Customer dues</span>
+              <span class="kpi-card__value" data-testid="alert-summary-customer-dues">{{ counts.customerDuesCount }}</span>
+              <span class="kpi-card__sub">PKR {{ counts.customerDuesAmount.amount }}</span>
+            </div>
+          </div>
+        }
+
+        <!-- Supplier dues -->
+        @if (isFamilyEnabled('supplier_dues')) {
+          <div class="kpi-card" data-testid="kpi-supplier-dues">
+            <div class="kpi-card__icon kpi-card__icon--orange">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Supplier dues</span>
+              <span class="kpi-card__value" data-testid="alert-summary-supplier-dues">{{ counts.supplierDuesCount }}</span>
+              <span class="kpi-card__sub">PKR {{ counts.supplierDuesAmount.amount }}</span>
+            </div>
+          </div>
+        }
       </section>
     }
 
-    <p><a routerLink="/app/dashboard">Back to dashboard</a></p>
+    <!-- Filter Toolbar -->
+    <div class="toolbar" data-testid="alerts-toolbar">
+      <div class="toolbar__search">
+        <input
+          class="ag-input"
+          type="search"
+          placeholder="Search alerts, entities, messages…"
+          [ngModel]="searchFilter()"
+          (ngModelChange)="onSearchChange($event)"
+          aria-label="Search alerts"
+          data-testid="alerts-search-input"
+        />
+      </div>
 
-    <ul class="notification-list" data-testid="notification-list">
-      @for (item of items(); track item.id) {
-        <li [attr.data-testid]="'notification-' + item.alertType">
-          <strong>{{ item.title }}</strong>
-          <p>{{ item.body }}</p>
-          @if (item.acknowledgedAt) {
-            <span>Acknowledged</span>
-          } @else {
-            <button
-              type="button"
-              [disabled]="acknowledgingId() === item.id"
-              (click)="acknowledge(item)"
-              data-testid="acknowledge-notification"
-            >
-              Acknowledge
-            </button>
+      <div class="toolbar__filters">
+        <!-- Type Filter -->
+        <div class="select-wrapper">
+          <select
+            class="ag-select"
+            [ngModel]="typeFilter()"
+            (ngModelChange)="onTypeChange($event)"
+            aria-label="Filter by alert type"
+            data-testid="alerts-type-filter"
+          >
+            <option value="all">All alert types</option>
+            @if (isFamilyEnabled('low_stock')) {
+              <option value="low_stock">Low stock</option>
+            }
+            @if (isFamilyEnabled('upcoming_expiry')) {
+              <option value="upcoming_expiry">Upcoming expiry</option>
+            }
+            @if (isFamilyEnabled('expired_stock')) {
+              <option value="expired_stock">Expired stock</option>
+            }
+            @if (isFamilyEnabled('dead_stock')) {
+              <option value="dead_stock">Dead stock</option>
+            }
+            @if (isFamilyEnabled('customer_dues')) {
+              <option value="customer_dues">Customer dues</option>
+            }
+            @if (isFamilyEnabled('supplier_dues')) {
+              <option value="supplier_dues">Supplier dues</option>
+            }
+          </select>
+        </div>
+
+        <!-- Status Filter -->
+        <div class="select-wrapper">
+          <select
+            class="ag-select"
+            [ngModel]="statusFilter()"
+            (ngModelChange)="onStatusChange($event)"
+            aria-label="Filter by status"
+            data-testid="alerts-status-filter"
+          >
+            <option value="all">All statuses</option>
+            <option value="unacknowledged">Unacknowledged</option>
+            <option value="acknowledged">Acknowledged</option>
+            <option value="unread">Unread</option>
+            <option value="read">Read</option>
+          </select>
+        </div>
+
+        <!-- Sort Select -->
+        <div class="select-wrapper">
+          <select
+            class="ag-select"
+            [ngModel]="sortDirection()"
+            (ngModelChange)="onSortChange($event)"
+            aria-label="Sort alerts"
+            data-testid="alerts-sort-filter"
+          >
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop Table View -->
+    <div class="table-container desktop-only">
+      <table class="data-table" data-testid="alerts-table">
+        <thead>
+          <tr>
+            <th class="col-alert">ALERT</th>
+            <th class="col-message">MESSAGE</th>
+            <th class="col-entity">AFFECTED ENTITY</th>
+            <th class="col-severity">SEVERITY</th>
+            <th class="col-status">STATUS</th>
+            <th class="col-action">ACTION</th>
+          </tr>
+        </thead>
+        <tbody data-testid="notification-list">
+          @for (item of paginatedItems(); track item.id) {
+            <tr [attr.data-testid]="'notification-' + item.alertType" [class.is-unread-row]="!item.isRead">
+              <!-- Alert Column -->
+              <td class="col-alert">
+                <span
+                  class="alert-pill"
+                  [class.alert-pill--green]="item.alertType === 'upcoming_expiry'"
+                  [class.alert-pill--red]="item.alertType === 'expired_stock'"
+                  [class.alert-pill--amber]="item.alertType === 'low_stock' || item.alertType === 'dead_stock'"
+                  [class.alert-pill--blue]="item.alertType === 'customer_dues'"
+                  [class.alert-pill--orange]="item.alertType === 'supplier_dues'"
+                >
+                  {{ getHumanAlertType(item.alertType) }}
+                </span>
+              </td>
+
+              <!-- Message Column -->
+              <td class="col-message">
+                <span class="cell-message">{{ item.body }}</span>
+              </td>
+
+              <!-- Affected Entity Column -->
+              <td class="col-entity">
+                <span class="cell-entity">{{ item.subjectKey }}</span>
+              </td>
+
+              <!-- Severity Column -->
+              <td class="col-severity">
+                <span
+                  class="severity-badge"
+                  [class.severity-badge--high]="getSeverity(item.alertType) === 'High'"
+                  [class.severity-badge--medium]="getSeverity(item.alertType) === 'Medium'"
+                  [class.severity-badge--low]="getSeverity(item.alertType) === 'Low'"
+                >
+                  {{ getSeverity(item.alertType) }}
+                </span>
+              </td>
+
+              <!-- Status Column -->
+              <td class="col-status">
+                <div class="status-indicator">
+                  @if (item.acknowledgedAt) {
+                    <span class="status-dot status-dot--gray" aria-hidden="true"></span>
+                    <span class="status-label">Acknowledged</span>
+                  } @else {
+                    <span class="status-dot status-dot--green" aria-hidden="true"></span>
+                    <span class="status-label">Unacknowledged</span>
+                  }
+                </div>
+              </td>
+
+              <!-- Action Column -->
+              <td class="col-action">
+                <div class="action-btn-group">
+                  @if (!item.acknowledgedAt && canPerformAcknowledge()) {
+                    <button
+                      type="button"
+                      class="ag-btn ag-btn--sm ag-btn--secondary"
+                      [disabled]="acknowledgingId() === item.id"
+                      (click)="acknowledge(item)"
+                      data-testid="acknowledge-notification"
+                    >
+                      Acknowledge
+                    </button>
+                  }
+                  @if (item.targetRoute) {
+                    <a
+                      class="ag-btn ag-btn--sm ag-btn--ghost"
+                      [routerLink]="item.targetRoute"
+                      (click)="markRead(item)"
+                      data-testid="open-notification-route"
+                    >
+                      Open
+                    </a>
+                  }
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6" class="empty-cell" data-testid="alerts-empty-state">
+                <div class="empty-content">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                  </svg>
+                  <p>No active alerts matching the selected criteria.</p>
+                </div>
+              </td>
+            </tr>
           }
-        </li>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mobile Card View (<768px) -->
+    <div class="mobile-cards-list mobile-only" data-testid="alerts-mobile-list">
+      @for (item of paginatedItems(); track item.id) {
+        <div class="mobile-alert-card" [class.is-unread-card]="!item.isRead">
+          <div class="mobile-alert-card__header">
+            <span
+              class="alert-pill"
+              [class.alert-pill--green]="item.alertType === 'upcoming_expiry'"
+              [class.alert-pill--red]="item.alertType === 'expired_stock'"
+              [class.alert-pill--amber]="item.alertType === 'low_stock' || item.alertType === 'dead_stock'"
+              [class.alert-pill--blue]="item.alertType === 'customer_dues'"
+              [class.alert-pill--orange]="item.alertType === 'supplier_dues'"
+            >
+              {{ getHumanAlertType(item.alertType) }}
+            </span>
+            <span
+              class="severity-badge"
+              [class.severity-badge--high]="getSeverity(item.alertType) === 'High'"
+              [class.severity-badge--medium]="getSeverity(item.alertType) === 'Medium'"
+              [class.severity-badge--low]="getSeverity(item.alertType) === 'Low'"
+            >
+              {{ getSeverity(item.alertType) }}
+            </span>
+          </div>
+
+          <div class="mobile-alert-card__body">
+            <p class="mobile-alert-card__text">{{ item.body }}</p>
+            <div class="mobile-alert-card__meta">
+              <span class="mobile-alert-card__entity"><strong>Entity:</strong> {{ item.subjectKey }}</span>
+              <div class="status-indicator">
+                @if (item.acknowledgedAt) {
+                  <span class="status-dot status-dot--gray"></span>
+                  <span>Acknowledged</span>
+                } @else {
+                  <span class="status-dot status-dot--green"></span>
+                  <span>Unacknowledged</span>
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="mobile-alert-card__actions">
+            @if (!item.acknowledgedAt && canPerformAcknowledge()) {
+              <button
+                type="button"
+                class="ag-btn ag-btn--sm ag-btn--secondary"
+                [disabled]="acknowledgingId() === item.id"
+                (click)="acknowledge(item)"
+              >
+                Acknowledge
+              </button>
+            }
+            @if (item.targetRoute) {
+              <a
+                class="ag-btn ag-btn--sm ag-btn--ghost"
+                [routerLink]="item.targetRoute"
+                (click)="markRead(item)"
+              >
+                Open
+              </a>
+            }
+          </div>
+        </div>
       } @empty {
-        <li>No active alerts.</li>
+        <div class="empty-content" data-testid="alerts-mobile-empty">
+          <p>No active alerts matching the selected criteria.</p>
+        </div>
       }
-    </ul>
+    </div>
+
+    <!-- Pagination -->
+    @if (totalFilteredCount() > 0) {
+      <div class="pagination-wrap" data-testid="alerts-pagination">
+        <agrivio-ui-pagination
+          [page]="currentPage()"
+          [total]="totalFilteredCount()"
+          [pageSize]="pageSize()"
+          [pageSizeOptions]="[10, 25, 50]"
+          (pageChange)="onPageChange($event)"
+          (pageSizeChange)="onPageSizeChange($event)"
+        />
+      </div>
+    }
   }
 </div>

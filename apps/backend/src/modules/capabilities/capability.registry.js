@@ -30,6 +30,7 @@ const ACCOUNTS_MODULE_KEY = 'accounts';
 const EXPENSES_MODULE_KEY = 'expenses';
 const EXPENSE_CATEGORIES_MODULE_KEY = 'expenses.categories';
 const REPORTS_MODULE_KEY = 'reports';
+const ALERTS_MODULE_KEY = 'alerts';
 
 const REPORT_CAPABILITY_KEY_BY_REPORT_KEY = Object.freeze({
   sales: 'reports.reportAvailability.sales',
@@ -48,6 +49,15 @@ const REPORT_CAPABILITY_KEY_BY_REPORT_KEY = Object.freeze({
   'top-products': 'reports.reportAvailability.topProducts',
   'top-customers': 'reports.reportAvailability.topCustomers',
   'employee-sales': 'reports.reportAvailability.employeeSales',
+});
+
+const ALERT_CAPABILITY_KEY_BY_ALERT_TYPE = Object.freeze({
+  low_stock: 'alerts.alertTypeAvailability.lowStock',
+  upcoming_expiry: 'alerts.alertTypeAvailability.upcomingExpiry',
+  expired_stock: 'alerts.alertTypeAvailability.expiredStock',
+  dead_stock: 'alerts.alertTypeAvailability.deadStock',
+  customer_dues: 'alerts.alertTypeAvailability.customerDues',
+  supplier_dues: 'alerts.alertTypeAvailability.supplierDues',
 });
 
 const definitions = [
@@ -2332,6 +2342,72 @@ const definitions = [
     subscriptionLabel: 'suspended-read',
     ...(entitlementKey === null ? {} : { entitlementKey }),
   })),
+  // Alerts Module
+  {
+    key: ALERTS_MODULE_KEY,
+    parentKey: null,
+    moduleKey: ALERTS_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Alerts',
+    description: 'Read-only inventory and dues alerts for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'alerts.view' },
+    reason:
+      'Disabling Alerts blocks alert and notification endpoints without changing source inventory, ledger, or sales calculations.',
+  },
+  ...[
+    ['moduleInfo', 'About Alerts', 'Show the Notification Center guidance text.'],
+    ['summaryCards', 'Summary Cards', 'Show counts for the enabled alert families.'],
+    ['navbarNotifications', 'Navbar Notifications', 'Provide the bounded navbar notification feed.'],
+  ].map(([id, label, description]) => ({
+    key: `alerts.features.${id}`,
+    parentKey: ALERTS_MODULE_KEY,
+    moduleKey: ALERTS_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'alerts.view' },
+  })),
+  ...[
+    ['low_stock', 'Low Stock Alerts'],
+    ['upcoming_expiry', 'Upcoming Expiry Alerts'],
+    ['expired_stock', 'Expired Stock Alerts'],
+    ['dead_stock', 'Dead Stock Alerts'],
+    ['customer_dues', 'Customer Dues Alerts'],
+    ['supplier_dues', 'Supplier Dues Alerts'],
+  ].map(([alertType, label]) => ({
+    key: ALERT_CAPABILITY_KEY_BY_ALERT_TYPE[alertType],
+    parentKey: ALERTS_MODULE_KEY,
+    moduleKey: ALERTS_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description: `Make the existing ${label} family available in Alerts and notifications.`,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Recommended,
+    requiredPermissions: { enabled: 'alerts.view' },
+  })),
+  ...[
+    ['acknowledge', 'Acknowledge Alert'],
+    ['markRead', 'Mark Notification Read'],
+    ['markAllRead', 'Mark All Notifications Read'],
+  ].map(([id, label]) => ({
+    key: `alerts.actions.${id}`,
+    parentKey: ALERTS_MODULE_KEY,
+    moduleKey: ALERTS_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label,
+    description: `${label} action. Existing RBAC, tenant isolation, user read scope, and source-domain rules still apply.`,
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk: id === 'acknowledge' ? RISK_LEVELS.Recommended : RISK_LEVELS.Normal,
+    requiredPermissions: { allowed: 'alerts.view' },
+  })),
 ];
 
 const registry = new Map(
@@ -2381,7 +2457,9 @@ module.exports = {
   EXPENSES_MODULE_KEY,
   EXPENSE_CATEGORIES_MODULE_KEY,
   REPORTS_MODULE_KEY,
+  ALERTS_MODULE_KEY,
   REPORT_CAPABILITY_KEY_BY_REPORT_KEY,
+  ALERT_CAPABILITY_KEY_BY_ALERT_TYPE,
   listCapabilityControls,
   getCapabilityControl,
 };

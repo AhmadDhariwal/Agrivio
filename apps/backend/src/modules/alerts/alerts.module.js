@@ -12,6 +12,7 @@ function createAlertsModule(options = {}) {
     inventoryService: options.inventoryService,
     paymentsService: options.paymentsService,
     salesService: options.salesService,
+    capabilityService: options.capabilityService,
     canAccessWarehouse: options.canAccessWarehouse,
     resolveOrganizationTimezone: options.resolveOrganizationTimezone,
     ...(options.now === undefined ? {} : { now: options.now }),

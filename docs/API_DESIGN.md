@@ -536,6 +536,9 @@ There is no public generic `/corrective-transactions` endpoint. `corrective_tran
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | GET | `/api/v1/alerts` | List alert queries/results | `alerts.view` | Membership | operational | No | Alerts |
 | GET | `/api/v1/notifications` | List notification presentation items | `alerts.view` | Membership | operational | No | Alerts |
+| GET | `/api/v1/notifications/feed` | List bounded recent active notifications and authoritative per-user unread count | `alerts.view` | Membership | operational | No | Alerts |
+| POST | `/api/v1/notifications/:id/read` | Mark one active notification read for the current user | `alerts.view` | Membership | operational | No | Alerts |
+| POST | `/api/v1/notifications/mark-all-read` | Mark all active notifications read for the current user | `alerts.view` | Membership | operational | No | Alerts |
 | POST | `/api/v1/notifications/:id/acknowledge` | Acknowledge notification | `alerts.view` | Membership | operational | No | Alerts |
 
 ### 12.17 Reporting

@@ -71,6 +71,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'alerts',
+        canActivate: [requireCapabilityGuard('alerts')],
         loadComponent: () =>
           import('./features/alerts/pages/notification-center/notification-center.page').then(
             (m) => m.NotificationCenterPage,

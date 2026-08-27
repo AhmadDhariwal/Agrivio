@@ -33,7 +33,8 @@ type ConfigurableModule =
   | 'expenses'
   | 'expenses.categories'
   | 'accounts'
-  | 'reports';
+  | 'reports'
+  | 'alerts';
 type PendingConfirmation =
   | { readonly kind: 'save' }
   | { readonly kind: 'reset-control'; readonly control: PlatformCapabilityControl }
@@ -121,6 +122,9 @@ export class OrganizationControlsPage {
     if (this.selectedModule() === 'reports') {
       return this.reportsFeatures('moduleInfo');
     }
+    if (this.selectedModule() === 'alerts') {
+      return this.alertsFeatures('moduleInfo');
+    }
     if (this.selectedModule() === 'inventory.movements') {
       return this.movementsFeatures('moduleInfo');
     }
@@ -146,6 +150,9 @@ export class OrganizationControlsPage {
         'technicalDetails',
         'mobileCards',
       );
+    }
+    if (this.selectedModule() === 'alerts') {
+      return this.alertsFeatures('summaryCards', 'navbarNotifications');
     }
     return [];
   });
@@ -250,6 +257,13 @@ export class OrganizationControlsPage {
     this.selectedModule() === 'reports'
       ? this.byType('FEATURE', false).filter((control) =>
           control.key.startsWith('reports.reportAvailability.'),
+        )
+      : [],
+  );
+  readonly alertTypeAvailabilityControls = computed(() =>
+    this.selectedModule() === 'alerts'
+      ? this.byType('FEATURE', false).filter((control) =>
+          control.key.startsWith('alerts.alertTypeAvailability.'),
         )
       : [],
   );
@@ -406,6 +420,14 @@ export class OrganizationControlsPage {
       changes[0].value?.['enabled'] === false
     );
   });
+  readonly disablingAlerts = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'alerts' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
   readonly confirmationTitle = computed(() => {
     const pending = this.pendingConfirmation();
     const organization = this.snapshot()?.organization.name ?? 'this organization';
@@ -445,6 +467,9 @@ export class OrganizationControlsPage {
     }
     if (this.disablingReports()) {
       return `Disable Reports for ${organization}?`;
+    }
+    if (this.disablingAlerts()) {
+      return `Disable Alerts for ${organization}?`;
     }
     const single = this.changeSummary().length === 1 ? this.changeSummary()[0] : null;
     if (single?.risk === 'CRITICAL' && single.after === 'Disabled') {
@@ -506,6 +531,9 @@ export class OrganizationControlsPage {
     if (this.disablingReports()) {
       return `Users in ${organization} will no longer be able to open, run, or export Reports. Existing source records and historical data will not be deleted or modified. This affects ${organization} only.`;
     }
+    if (this.disablingAlerts()) {
+      return `Users in ${organization} will no longer be able to access the Notification Center, alerts, or the navbar notification feed. Existing inventory, ledger, and sales records are not deleted or modified. This affects ${organization} only.`;
+    }
     const critical = this.changeSummary()
       .filter((change) => change.risk === 'CRITICAL')
       .map((change) => `${change.label}: ${change.before} → ${change.after}`);
@@ -532,6 +560,7 @@ export class OrganizationControlsPage {
     if (this.disablingExpenseCategories()) return 'Disable Expense Categories';
     if (this.disablingAccounts()) return 'Disable Accounts';
     if (this.disablingReports()) return 'Disable Reports';
+    if (this.disablingAlerts()) return 'Disable Alerts';
     return 'Apply changes';
   });
 
@@ -751,6 +780,7 @@ export class OrganizationControlsPage {
     if (moduleKey === 'expenses.categories') return 'Expense Categories';
     if (moduleKey === 'accounts') return 'Accounts';
     if (moduleKey === 'reports') return 'Reports';
+    if (moduleKey === 'alerts') return 'Alerts';
     return 'Product Batches';
   }
 
@@ -772,6 +802,11 @@ export class OrganizationControlsPage {
       control.type === 'FIELD' &&
       control.platformEnforced === true
     );
+  }
+
+  private alertsFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
+    const keys = new Set(ids.map((id) => `alerts.features.${id}`));
+    return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
   }
 
   private accountsFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
@@ -922,7 +957,12 @@ export class OrganizationControlsPage {
           control.key === 'accounts.features.kpiCards')) ||
       (control.moduleKey === 'reports' &&
         (control.key === 'reports.features.moduleInfo' ||
-          control.key.startsWith('reports.reportAvailability.')))
+          control.key.startsWith('reports.reportAvailability.'))) ||
+      (control.moduleKey === 'alerts' &&
+        (control.key === 'alerts.features.moduleInfo' ||
+          control.key === 'alerts.features.summaryCards' ||
+          control.key === 'alerts.features.navbarNotifications' ||
+          control.key.startsWith('alerts.alertTypeAvailability.')))
     );
   }
 
