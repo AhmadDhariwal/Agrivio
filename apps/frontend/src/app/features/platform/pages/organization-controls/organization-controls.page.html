@@ -198,6 +198,15 @@
       >
         Alerts
       </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'purchases'"
+        (click)="selectModule('purchases')"
+        data-testid="purchases-control-module"
+      >
+        Purchases
+      </button>
       <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>
 

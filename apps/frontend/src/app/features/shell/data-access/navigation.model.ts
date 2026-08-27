@@ -116,6 +116,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Purchases',
           route: '/app/purchases',
           permission: 'purchases.view',
+          capabilityKey: 'purchases',
           testId: 'nav-purchases',
           exact: true,
         },

@@ -495,4 +495,71 @@ describe('CapabilityService', () => {
       capabilityKey: 'alerts',
     });
   });
+
+  it('provides the exact 26 Purchases defaults and wires granular routes/navigation', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        CapabilityService,
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            activeContext: () => ({ contextType: 'organization', organizationId: 'org-1' }),
+          },
+        },
+      ],
+    });
+    const service = TestBed.inject(CapabilityService);
+    const features = ['moduleInfo', 'search', 'statusFilter'];
+    const fields = [
+      'branch',
+      'supplierInvoiceReference',
+      'notes',
+      'packagingUnit',
+      'manufacturingDate',
+      'landedCosts',
+      'warehouse',
+      'supplier',
+      'purchaseDate',
+      'product',
+      'quantity',
+      'unitCost',
+      'batchNumber',
+      'expiryDate',
+    ];
+    const actions = [
+      'createDraft',
+      'inspect',
+      'editDraft',
+      'discardDraft',
+      'post',
+      'cancel',
+      'createReturn',
+      'addPaymentAtPost',
+    ];
+    const allKeys = [
+      'purchases',
+      ...features.map((id) => `purchases.features.${id}`),
+      ...fields.map((id) => `purchases.fields.${id}`),
+      ...actions.map((id) => `purchases.actions.${id}`),
+    ];
+
+    expect(allKeys).toHaveLength(26);
+    expect(new Set(allKeys).size).toBe(26);
+    expect(service.canUseModule('purchases')).toBe(true);
+    for (const id of features) expect(service.canUseFeature(`purchases.features.${id}`)).toBe(true);
+    for (const id of fields) {
+      expect(service.canViewField(`purchases.fields.${id}`)).toBe(true);
+      expect(service.canEditField(`purchases.fields.${id}`)).toBe(true);
+    }
+    for (const id of actions) expect(service.canPerformAction(`purchases.actions.${id}`)).toBe(true);
+
+    const app = appRoutes.find((route) => route.path === 'app');
+    expect(app?.children?.find((route) => route.path === 'purchases')?.canActivate).toHaveLength(1);
+    expect(app?.children?.find((route) => route.path === 'purchases/new')?.canActivate).toHaveLength(2);
+    expect(app?.children?.find((route) => route.path === 'purchases/:id')?.canActivate).toHaveLength(2);
+    const purchasesNav = CANONICAL_NAVIGATION.flatMap((entry) =>
+      entry.type === 'group' ? entry.group.children : [entry.item],
+    ).find((item) => item.id === 'purchases.list');
+    expect(purchasesNav).toMatchObject({ permission: 'purchases.view', capabilityKey: 'purchases' });
+  });
 });

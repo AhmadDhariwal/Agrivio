@@ -5,11 +5,23 @@ const {
   createRequirePermissionMiddleware,
 } = require('../../identity/permission.middleware');
 const { createPurchasesController } = require('../controllers/purchases.controller');
+const { createRequireCapabilityMiddleware } = require('../../capabilities/capability.middleware');
 
 function registerPurchasesRoutes(deps) {
   const router = Router();
   const controller = createPurchasesController(deps);
   const requireOrganizationContext = createRequireOrganizationContextMiddleware();
+  const requirePurchasesModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'purchases',
+    'enabled',
+  );
+  const requireAction = (action) =>
+    createRequireCapabilityMiddleware(
+      deps.capabilityService,
+      `purchases.actions.${action}`,
+      'allowed',
+    );
 
   router.get(
     API_PURCHASES_PATH,
@@ -17,6 +29,7 @@ function registerPurchasesRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('purchases.view'),
     deps.requireOperationalAccess,
+    requirePurchasesModule,
     (req, res, next) => {
       void controller.listPurchases(req, res, next);
     },
@@ -29,6 +42,8 @@ function registerPurchasesRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('purchases.create'),
     deps.requireOperationalAccess,
+    requirePurchasesModule,
+    requireAction('createDraft'),
     (req, res, next) => {
       void controller.createPurchase(req, res, next);
     },
@@ -40,6 +55,8 @@ function registerPurchasesRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('purchases.view'),
     deps.requireOperationalAccess,
+    requirePurchasesModule,
+    requireAction('inspect'),
     (req, res, next) => {
       void controller.getPurchase(req, res, next);
     },
@@ -52,6 +69,8 @@ function registerPurchasesRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('purchases.create'),
     deps.requireOperationalAccess,
+    requirePurchasesModule,
+    requireAction('editDraft'),
     (req, res, next) => {
       void controller.updatePurchase(req, res, next);
     },
@@ -64,6 +83,8 @@ function registerPurchasesRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('purchases.create'),
     deps.requireOperationalAccess,
+    requirePurchasesModule,
+    requireAction('discardDraft'),
     (req, res, next) => {
       void controller.discardPurchase(req, res, next);
     },
@@ -76,6 +97,8 @@ function registerPurchasesRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('purchases.post'),
     deps.requireOperationalAccess,
+    requirePurchasesModule,
+    requireAction('post'),
     (req, res, next) => {
       void controller.postPurchase(req, res, next);
     },
@@ -88,6 +111,8 @@ function registerPurchasesRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('purchases.cancel'),
     deps.requireOperationalAccess,
+    requirePurchasesModule,
+    requireAction('cancel'),
     (req, res, next) => {
       void controller.cancelPurchase(req, res, next);
     },

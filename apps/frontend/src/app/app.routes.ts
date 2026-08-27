@@ -452,6 +452,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'purchases',
+        canActivate: [requireCapabilityGuard('purchases')],
         loadComponent: () =>
           import('./features/purchases/pages/purchases/purchases.page').then(
             (m) => m.PurchasesPage,
@@ -459,6 +460,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'purchases/new',
+        canActivate: [
+          requireCapabilityGuard('purchases'),
+          requireCapabilityGuard('purchases.actions.createDraft', 'action'),
+        ],
         loadComponent: () =>
           import('./features/purchases/pages/purchase-edit/purchase-edit.page').then(
             (m) => m.PurchaseEditPage,
@@ -466,6 +471,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'purchases/:id',
+        canActivate: [
+          requireCapabilityGuard('purchases'),
+          requireCapabilityGuard('purchases.actions.inspect', 'action'),
+        ],
         loadComponent: () =>
           import('./features/purchases/pages/purchase-edit/purchase-edit.page').then(
             (m) => m.PurchaseEditPage,

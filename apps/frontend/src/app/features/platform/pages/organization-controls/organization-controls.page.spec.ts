@@ -26,7 +26,8 @@ function control(
     | 'expenses.categories'
     | 'accounts'
     | 'reports'
-    | 'alerts',
+    | 'alerts'
+    | 'purchases',
   type: PlatformCapabilityControl['type'],
   label: string,
   policy: Record<string, boolean>,
@@ -38,6 +39,7 @@ function control(
     reason?: string;
     effectiveValue?: Record<string, boolean>;
     reasons?: readonly string[];
+    dependencies?: readonly string[];
   } = {},
 ): PlatformCapabilityControl {
   const override = options.override ?? null;
@@ -58,6 +60,7 @@ function control(
     reasons: options.reasons ?? [],
     ...(options.platformEnforced ? { platformEnforced: true } : {}),
     ...(options.reason ? { reason: options.reason } : {}),
+    ...(options.dependencies ? { dependencies: options.dependencies } : {}),
   };
 }
 
@@ -1253,6 +1256,36 @@ describe('OrganizationControlsPage', () => {
       control('alerts.actions.acknowledge', 'alerts', 'ACTION', 'Acknowledge Alert', { allowed: true }, { risk: 'RECOMMENDED' }),
       control('alerts.actions.markRead', 'alerts', 'ACTION', 'Mark Notification Read', { allowed: true }),
       control('alerts.actions.markAllRead', 'alerts', 'ACTION', 'Mark All Notifications Read', { allowed: true }),
+      // Purchases (26 authoritative controls)
+      control('purchases', 'purchases', 'MODULE', 'Purchases', { enabled: true }, { risk: 'CRITICAL' }),
+      control('purchases.features.moduleInfo', 'purchases', 'FEATURE', 'About Purchases', { enabled: true }),
+      control('purchases.features.search', 'purchases', 'FEATURE', 'Search', { enabled: true }),
+      control('purchases.features.statusFilter', 'purchases', 'FEATURE', 'Status Filter', { enabled: true }),
+      ...(['branch', 'supplierInvoiceReference', 'notes', 'packagingUnit', 'manufacturingDate', 'landedCosts'] as const).map((id) =>
+        control(
+          `purchases.fields.${id}`,
+          'purchases',
+          'FIELD',
+          id,
+          { visible: true, editable: true },
+          id === 'notes' ? { override: { visible: false } } : {},
+        ),
+      ),
+      ...(['warehouse', 'supplier', 'purchaseDate', 'product', 'quantity', 'unitCost', 'batchNumber', 'expiryDate'] as const).map((id) =>
+        control(
+          `purchases.fields.${id}`,
+          'purchases',
+          'FIELD',
+          id,
+          { visible: true, editable: true },
+          { configurable: { visible: false, editable: false }, platformEnforced: true, risk: 'CRITICAL', reason: 'Required Purchase workflow field.' },
+        ),
+      ),
+      ...(['createDraft', 'inspect', 'editDraft', 'discardDraft', 'post', 'cancel'] as const).map((id) =>
+        control(`purchases.actions.${id}`, 'purchases', 'ACTION', id, { allowed: true }),
+      ),
+      control('purchases.actions.createReturn', 'purchases', 'ACTION', 'Create Purchase Return', { allowed: true }, { risk: 'CRITICAL', dependencies: ['returns.actions.post'] }),
+      control('purchases.actions.addPaymentAtPost', 'purchases', 'ACTION', 'Add Payment at Posting', { allowed: true }, { risk: 'CRITICAL', dependencies: ['purchases.actions.post'] }),
     ];
     await TestBed.configureTestingModule({
       imports: [OrganizationControlsPage],
@@ -2610,6 +2643,47 @@ describe('OrganizationControlsPage', () => {
       component.askResetModule();
       component.confirm();
       expect(resetModule).toHaveBeenCalledWith('org-a', 'alerts', 4, '');
+    });
+  });
+
+  describe('Purchases Controls', () => {
+    it('renders all 26 controls with required-field and dependency metadata', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('purchases');
+      fixture.detectChanges();
+
+      expect(component.moduleLabel('purchases')).toBe('Purchases');
+      expect(component.selectedControls()).toHaveLength(26);
+      expect(component.moduleControls()).toHaveLength(1);
+      expect(component.moduleInfoControls()).toHaveLength(1);
+      expect(component.filterControls()).toHaveLength(2);
+      expect(component.fieldControls()).toHaveLength(6);
+      expect(component.requiredWorkflowControls()).toHaveLength(8);
+      expect(component.actionControls()).toHaveLength(8);
+      expect(fixture.nativeElement.textContent).toContain('Required Workflow Fields');
+      expect(fixture.nativeElement.textContent).toContain('Add Payment at Posting');
+      expect(fixture.nativeElement.textContent).toContain('Create Purchase Return');
+    });
+
+    it('supports Purchases disable/re-enable and organization-scoped reset', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('purchases');
+      const moduleControl = component.controls().find((item) => item.key === 'purchases');
+      expect(moduleControl).toBeDefined();
+      if (moduleControl) {
+        component.setValue(moduleControl, 'enabled', false);
+        expect(component.disablingPurchases()).toBe(true);
+        expect(component.confirmationTitle()).toBe(
+          'Disable Purchases for Greenfield Agro Center?',
+        );
+        expect(component.confirmationMessage()).toContain('supplier payables');
+        component.setValue(moduleControl, 'enabled', true);
+        expect(component.effectiveValue(moduleControl, 'enabled')).toBe(true);
+      }
+
+      component.askResetModule();
+      component.confirm();
+      expect(resetModule).toHaveBeenCalledWith('org-a', 'purchases', 4, '');
     });
   });
 });

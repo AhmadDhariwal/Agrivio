@@ -36,6 +36,11 @@ function registerReturnsRoutes(deps) {
     'returns.actions.inspect',
     'allowed',
   );
+  const requirePurchaseReturn = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'purchases.actions.createReturn',
+    'allowed',
+  );
 
   router.get(
     API_RETURNS_PATH,
@@ -55,9 +60,11 @@ function registerReturnsRoutes(deps) {
     deps.requireCsrf,
     requireOrganizationContext,
     createRequirePermissionMiddleware('returns.post'),
+    createRequirePermissionMiddleware('purchases.return'),
     deps.requireOperationalAccess,
     requireReturnsModule,
     requireReturnPost,
+    requirePurchaseReturn,
     (req, res, next) => {
       void controller.createReturn(req, res, next);
     },
@@ -155,6 +162,7 @@ function registerReturnsRoutes(deps) {
     deps.requireOperationalAccess,
     requireReturnsModule,
     requireReturnPost,
+    requirePurchaseReturn,
     (req, res, next) => {
       void controller.createPurchaseReturn(req, res, next);
     },
