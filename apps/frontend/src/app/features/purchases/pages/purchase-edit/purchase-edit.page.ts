@@ -98,6 +98,31 @@ export class PurchaseEditPage {
 
   readonly fieldRequired = hasRequiredValidator;
 
+  getLineTotal(index: number): string {
+    const group = this.lineGroup(index);
+    const qty = parseFloat(group.get('quantity')?.value ?? '0');
+    const unitCost = parseFloat(group.get('unitCost')?.value ?? '0');
+    if (isNaN(qty) || isNaN(unitCost) || qty <= 0 || unitCost <= 0) return '0.00';
+    return (qty * unitCost).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
+  statusLabel(status?: string | null): string {
+    if (status === 'draft') return 'Draft (unposted)';
+    if (status === 'posted') return 'Posted';
+    if (status === 'cancelled') return 'Cancelled';
+    return status || 'Draft';
+  }
+
+  statusTone(status?: string | null): 'warning' | 'success' | 'danger' | 'neutral' {
+    if (status === 'draft') return 'warning';
+    if (status === 'posted') return 'success';
+    if (status === 'cancelled') return 'danger';
+    return 'neutral';
+  }
+
   readonly form = this.formBuilder.nonNullable.group({
     warehouseId: ['', Validators.required],
     supplierId: ['', Validators.required],

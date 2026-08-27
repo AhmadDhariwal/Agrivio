@@ -347,6 +347,7 @@ function createApp(options) {
       inventoryService: inventory.inventoryService,
       paymentsService: ledgers.paymentsService,
       accountsService: accounts.accountsService,
+      capabilityService: capabilities.capabilityService,
       canAccessWarehouse,
       canAccessBranch,
       listPurchaseReturnCredits: async (organizationId, purchaseId) => {
@@ -627,6 +628,7 @@ function createApp(options) {
 
   const purchasesRoutes = registerPurchasesRoutes({
     purchasesService: purchases.purchasesService,
+    capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,

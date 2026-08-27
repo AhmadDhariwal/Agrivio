@@ -35,6 +35,18 @@ const {
   createMongoosePurchasesStore,
 } = require('./purchases.store');
 
+const PURCHASE_DRAFT_FIELD_CONTROLS = Object.freeze({
+  branchId: 'purchases.fields.branch',
+  supplierInvoiceReference: 'purchases.fields.supplierInvoiceReference',
+  notes: 'purchases.fields.notes',
+  landedCosts: 'purchases.fields.landedCosts',
+});
+
+const PURCHASE_LINE_FIELD_CONTROLS = Object.freeze({
+  packagingUnitId: 'purchases.fields.packagingUnit',
+  manufacturingDate: 'purchases.fields.manufacturingDate',
+});
+
 function requireIdempotencyKey(idempotencyKey) {
   if (typeof idempotencyKey !== 'string' || idempotencyKey.trim() === '') {
     throw validationFailed('Idempotency-Key header is required', [
@@ -208,6 +220,32 @@ function createPurchasesService(deps) {
     append: (session, event) => store.appendAuditEvent(session, event),
   });
 
+  async function assertDraftFieldEditability(organizationId, body) {
+    if (
+      !deps.capabilityService ||
+      body === null ||
+      typeof body !== 'object' ||
+      Array.isArray(body)
+    ) {
+      return;
+    }
+    const controls = new Set();
+    for (const [field, controlKey] of Object.entries(PURCHASE_DRAFT_FIELD_CONTROLS)) {
+      if (body[field] !== undefined) controls.add(controlKey);
+    }
+    if (Array.isArray(body.lines)) {
+      for (const line of body.lines) {
+        if (line === null || typeof line !== 'object' || Array.isArray(line)) continue;
+        for (const [field, controlKey] of Object.entries(PURCHASE_LINE_FIELD_CONTROLS)) {
+          if (line[field] !== undefined) controls.add(controlKey);
+        }
+      }
+    }
+    for (const controlKey of controls) {
+      await deps.capabilityService.assertAllowed(organizationId, controlKey, 'editable');
+    }
+  }
+
   async function assertWarehouseAccess(authContext, warehouseId) {
     if (typeof deps.canAccessWarehouse === 'function') {
       if (!deps.canAccessWarehouse(authContext, String(warehouseId))) {
@@ -337,6 +375,7 @@ function createPurchasesService(deps) {
     },
 
     async createPurchaseDraft(organizationId, body, authContext) {
+      await assertDraftFieldEditability(organizationId, body);
       const input = parsePurchaseDraft(body);
       const { supplier } = await resolveHeaderMasters(organizationId, input, authContext);
       const lines = await buildResolvedLines({ catalogService }, organizationId, input.lines);
@@ -392,6 +431,8 @@ function createPurchasesService(deps) {
       ) {
         throw notFound('Purchase not found');
       }
+
+      await assertDraftFieldEditability(organizationId, body);
 
       const input = parsePurchaseDraft(body, { partial: true });
       assertOptimisticVersion(existing, input.expectedVersion);
@@ -494,6 +535,14 @@ function createPurchasesService(deps) {
     async postPurchase(organizationId, purchaseId, body, authContext, idempotencyKey) {
       if (!inventoryService || !paymentsService || !accountsService) {
         throw validationFailed('Purchase posting dependencies are not configured');
+      }
+
+      if (deps.capabilityService && Array.isArray(body?.payments) && body.payments.length > 0) {
+        await deps.capabilityService.assertAllowed(
+          organizationId,
+          'purchases.actions.addPaymentAtPost',
+          'allowed',
+        );
       }
 
       const key = requireIdempotencyKey(idempotencyKey);
@@ -983,6 +1032,7 @@ function createPurchasesModule(options = {}) {
     inventoryService: options.inventoryService,
     paymentsService: options.paymentsService,
     accountsService: options.accountsService,
+    capabilityService: options.capabilityService,
     canAccessWarehouse: options.canAccessWarehouse,
     canAccessBranch: options.canAccessBranch,
     ...(options.listPurchaseReturnCredits === undefined

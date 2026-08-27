@@ -26,6 +26,7 @@ const MOVEMENTS_MODULE_KEY = 'inventory.movements';
 const CUSTOMERS_MODULE_KEY = 'customers';
 const SUPPLIERS_MODULE_KEY = 'suppliers';
 const RETURNS_MODULE_KEY = 'returns';
+const PURCHASES_MODULE_KEY = 'purchases';
 const ACCOUNTS_MODULE_KEY = 'accounts';
 const EXPENSES_MODULE_KEY = 'expenses';
 const EXPENSE_CATEGORIES_MODULE_KEY = 'expenses.categories';
@@ -1887,6 +1888,119 @@ const definitions = [
         }
       : {}),
   })),
+  // Purchases Module
+  {
+    key: PURCHASES_MODULE_KEY,
+    parentKey: null,
+    moduleKey: PURCHASES_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Purchases',
+    description: 'Purchase draft, posting, cancellation, and linked return access for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'purchases.view' },
+    reason:
+      'Disabling access blocks tenant-facing Purchases endpoints without deleting drafts, changing posted purchases, or altering inventory and financial history.',
+  },
+  ...[
+    ['moduleInfo', 'About Purchases', 'Show the Purchases guidance panel.'],
+    ['search', 'Search', 'Search Purchases by purchase or supplier reference.'],
+    ['statusFilter', 'Status Filter', 'Filter Purchases by draft, posted, or cancelled status.'],
+  ].map(([id, label, description]) => ({
+    key: `purchases.features.${id}`,
+    parentKey: PURCHASES_MODULE_KEY,
+    moduleKey: PURCHASES_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'purchases.view' },
+  })),
+  ...[
+    ['branch', 'Branch', 'Optional organizational branch attribution.'],
+    ['supplierInvoiceReference', 'Supplier Invoice Reference', 'Optional supplier invoice reference.'],
+    ['notes', 'Notes', 'Optional purchase notes.'],
+    ['packagingUnit', 'Packaging Unit', 'Optional purchase packaging unit; base unit remains available.'],
+    ['manufacturingDate', 'Manufacturing Date', 'Optional manufacturing date for tracked stock.'],
+    ['landedCosts', 'Landed Costs', 'Optional freight, loading, transport, and other landed costs.'],
+  ].map(([id, label, description]) => ({
+    key: `purchases.fields.${id}`,
+    parentKey: PURCHASES_MODULE_KEY,
+    moduleKey: PURCHASES_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description,
+    defaultPolicy: { visible: true, editable: true },
+    configurable: { visible: true, editable: true },
+    risk: id === 'landedCosts' ? RISK_LEVELS.Recommended : RISK_LEVELS.Normal,
+    requiredPermissions: { visible: 'purchases.view', editable: 'purchases.create' },
+  })),
+  ...[
+    ['warehouse', 'Warehouse', 'The warehouse is required for stock receipt and warehouse access enforcement.'],
+    ['supplier', 'Supplier', 'The supplier is required for payable and supplier-ledger attribution.'],
+    ['purchaseDate', 'Purchase Date', 'A valid purchase date is required by the purchase contract.'],
+    ['product', 'Product', 'Every purchase line must identify an active product.'],
+    ['quantity', 'Quantity', 'Every purchase line requires a positive quantity.'],
+    ['unitCost', 'Unit Cost', 'Every purchase line requires a positive unit cost.'],
+    ['batchNumber', 'Batch Number', 'Batch identity is conditionally required by product tracking mode.'],
+    ['expiryDate', 'Expiry Date', 'Expiry date is conditionally required by product tracking mode.'],
+  ].map(([id, label, reason]) => ({
+    key: `purchases.fields.${id}`,
+    parentKey: PURCHASES_MODULE_KEY,
+    moduleKey: PURCHASES_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description: 'Required or conditionally required Purchases workflow data.',
+    defaultPolicy: { visible: true, editable: true },
+    configurable: { visible: false, editable: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'purchases.view', editable: 'purchases.create' },
+    reason,
+  })),
+  ...[
+    ['createDraft', 'Create Purchase Draft', 'purchases.create', RISK_LEVELS.Recommended, []],
+    ['inspect', 'Inspect Purchase', 'purchases.view', RISK_LEVELS.Normal, []],
+    ['editDraft', 'Edit Purchase Draft', 'purchases.create', RISK_LEVELS.Recommended, []],
+    ['discardDraft', 'Discard Purchase Draft', 'purchases.create', RISK_LEVELS.Recommended, []],
+    ['post', 'Post Purchase', 'purchases.post', RISK_LEVELS.Critical, []],
+    ['cancel', 'Cancel Posted Purchase', 'purchases.cancel', RISK_LEVELS.Critical, []],
+    ['createReturn', 'Create Purchase Return', 'purchases.return', RISK_LEVELS.Critical, ['returns.actions.post']],
+    ['addPaymentAtPost', 'Add Payment at Posting', 'purchases.post', RISK_LEVELS.Critical, ['purchases.actions.post']],
+  ].map(([id, label, permission, risk, dependencies]) => ({
+    key: `purchases.actions.${id}`,
+    parentKey: PURCHASES_MODULE_KEY,
+    moduleKey: PURCHASES_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label,
+    description: `${label} action. Existing RBAC, tenant and warehouse scope, lifecycle rules, transactions, and idempotency remain authoritative.`,
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk,
+    requiredPermissions: { allowed: permission },
+    ...(dependencies.length === 0 ? {} : { dependencies }),
+    ...(id === 'post'
+      ? {
+          reason:
+            'Posting remains atomic and continues to use Inventory, supplier-ledger, and Accounts public domain services; their direct UI policy cannot bypass or corrupt posting.',
+        }
+      : {}),
+    ...(id === 'cancel'
+      ? {
+          reason:
+            'Cancellation remains a compensating transaction and is still blocked when posted returns exist or inventory and financial reversals are unsafe.',
+        }
+      : {}),
+    ...(id === 'createReturn'
+      ? {
+          reason:
+            'A linked purchase return also requires the Returns module and Return posting action. This control never grants Returns RBAC access.',
+        }
+      : {}),
+  })),
   // Accounts Module
   {
     key: ACCOUNTS_MODULE_KEY,
@@ -2453,6 +2567,7 @@ module.exports = {
   CUSTOMERS_MODULE_KEY,
   SUPPLIERS_MODULE_KEY,
   RETURNS_MODULE_KEY,
+  PURCHASES_MODULE_KEY,
   ACCOUNTS_MODULE_KEY,
   EXPENSES_MODULE_KEY,
   EXPENSE_CATEGORIES_MODULE_KEY,
