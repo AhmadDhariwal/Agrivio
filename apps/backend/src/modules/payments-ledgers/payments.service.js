@@ -527,7 +527,7 @@ function createPaymentsService(deps) {
       const { items, total } = await store.listPaymentsPage(organizationId, {
         partyType: 'supplier',
         supplierId: query.supplierId,
-        search: query.search,
+        paymentDate: query.paymentDate ?? query.search,
       }, { skip: query.skip, pageSize: query.pageSize });
       const mapped = [];
       for (const item of items) {
@@ -1063,7 +1063,7 @@ function createPaymentsService(deps) {
       const { items, total } = await store.listPaymentsPage(organizationId, {
         partyType: 'customer',
         customerId: query.customerId,
-        search: query.search,
+        paymentDate: query.paymentDate ?? query.search,
       }, { skip: query.skip, pageSize: query.pageSize });
       const mapped = [];
       for (const item of items) {

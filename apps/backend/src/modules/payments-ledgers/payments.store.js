@@ -81,8 +81,8 @@ function createMongoosePaymentsStore() {
       const query = { organizationId, status: 'posted', partyType: filter.partyType ?? 'supplier' };
       if (filter.partyType === 'supplier' && filter.supplierId) query.supplierId = filter.supplierId;
       if (filter.partyType === 'customer' && filter.customerId) query.customerId = filter.customerId;
-      const search = String(filter.search ?? '').trim();
-      if (search !== '') query.paymentDate = search;
+      const paymentDate = String(filter.paymentDate ?? filter.search ?? '').trim();
+      if (paymentDate !== '') query.paymentDate = paymentDate;
       const { skip = 0, pageSize = 25 } = pagination;
       const [total, items] = await Promise.all([
         PaymentModel.countDocuments(query).exec(),
@@ -203,9 +203,9 @@ function createInMemoryPaymentsStore() {
     },
 
     async listPaymentsPage(organizationId, filter = {}, pagination = {}) {
-      const search = String(filter.search ?? '').trim();
+      const paymentDate = String(filter.paymentDate ?? filter.search ?? '').trim();
       const all = (await this.listPayments(organizationId, filter)).filter(
-        (item) => search === '' || String(item.paymentDate) === search,
+        (item) => paymentDate === '' || String(item.paymentDate) === paymentDate,
       );
       const { skip = 0, pageSize = 25 } = pagination;
       return { items: all.slice(skip, skip + pageSize), total: all.length };

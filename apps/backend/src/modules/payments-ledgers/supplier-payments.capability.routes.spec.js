@@ -143,4 +143,21 @@ describe('Supplier Payments capability route enforcement', () => {
     );
     expect(assertAllowed).not.toHaveBeenCalled();
   });
+
+  it('forwards paymentDate, supplierId, and pagination parameters to paymentsService', async () => {
+    const paymentsService = serviceWith();
+    const assertAllowed = vi.fn();
+    await withServer(buildApp(assertAllowed, paymentsService), async (baseUrl) => {
+      const response = await fetch(
+        `${baseUrl}/api/v1/supplier-payments?paymentDate=2026-08-12&supplierId=sup-1&page=2&pageSize=10`,
+      );
+      expect(response.status).toBe(200);
+      expect(paymentsService.listSupplierPayments).toHaveBeenCalledWith('org-a', {
+        supplierId: 'sup-1',
+        paymentDate: '2026-08-12',
+        skip: 10,
+        pageSize: 10,
+      });
+    });
+  });
 });

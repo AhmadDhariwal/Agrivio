@@ -20,7 +20,7 @@ function createPaymentsController(deps) {
             typeof req.query.supplierId === 'string' && req.query.supplierId.trim() !== ''
               ? req.query.supplierId.trim()
               : undefined,
-          search:
+          paymentDate:
             typeof req.query.paymentDate === 'string' && req.query.paymentDate.trim() !== ''
               ? req.query.paymentDate.trim()
               : (typeof req.query.search === 'string' && req.query.search.trim() !== ''
@@ -105,7 +105,7 @@ function createPaymentsController(deps) {
             typeof req.query.customerId === 'string' && req.query.customerId.trim() !== ''
               ? req.query.customerId.trim()
               : undefined,
-          search:
+          paymentDate:
             typeof req.query.paymentDate === 'string' && req.query.paymentDate.trim() !== ''
               ? req.query.paymentDate.trim()
               : (typeof req.query.search === 'string' && req.query.search.trim() !== ''
