@@ -45,12 +45,12 @@ export class NavigationService {
     if (item.permission && !this.sessionStore.hasPermission(item.permission)) {
       return false;
     }
-    if (item.capabilityKey && !(this.capabilityService?.canUseModule(item.capabilityKey) ?? true)) {
+    if (item.capabilityKey && !(this.capabilityService?.canUseModule?.(item.capabilityKey) ?? true)) {
       return false;
     }
     if (
       item.actionCapabilityKey &&
-      !(this.capabilityService?.canPerformAction(item.actionCapabilityKey) ?? true)
+      !(this.capabilityService?.canPerformAction?.(item.actionCapabilityKey) ?? true)
     ) {
       return false;
     }

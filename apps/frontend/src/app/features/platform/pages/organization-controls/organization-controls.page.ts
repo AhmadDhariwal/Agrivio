@@ -37,7 +37,8 @@ type ConfigurableModule =
   | 'alerts'
   | 'purchases'
   | 'payments.supplier'
-  | 'payments.supplierLedger';
+  | 'payments.supplierLedger'
+  | 'sales';
 type PendingConfirmation =
   | { readonly kind: 'save' }
   | { readonly kind: 'reset-control'; readonly control: PlatformCapabilityControl }
@@ -187,6 +188,9 @@ export class OrganizationControlsPage {
         'serverPostingDate',
       );
     }
+    if (this.selectedModule() === 'sales') {
+      return this.salesFeatures('customerSearch', 'productSearch');
+    }
     return [];
   });
   readonly historyControls = computed(() => {
@@ -202,6 +206,9 @@ export class OrganizationControlsPage {
     return [];
   });
   readonly filterControls = computed(() => {
+    if (this.selectedModule() === 'sales') {
+      return this.salesFeatures('search', 'statusFilter');
+    }
     if (this.selectedModule() === 'accounts') {
       return this.accountsFeatures('search', 'statusFilter');
     }
@@ -476,6 +483,14 @@ export class OrganizationControlsPage {
       changes[0].value?.['enabled'] === false
     );
   });
+  readonly disablingSales = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'sales' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
   readonly confirmationTitle = computed(() => {
     const pending = this.pendingConfirmation();
     const organization = this.snapshot()?.organization.name ?? 'this organization';
@@ -527,6 +542,9 @@ export class OrganizationControlsPage {
     }
     if (this.disablingSupplierLedger()) {
       return `Disable Supplier Ledger for ${organization}?`;
+    }
+    if (this.disablingSales()) {
+      return `Disable Sales for ${organization}?`;
     }
     const single = this.changeSummary().length === 1 ? this.changeSummary()[0] : null;
     if (single?.risk === 'CRITICAL' && single.after === 'Disabled') {
@@ -600,6 +618,9 @@ export class OrganizationControlsPage {
     if (this.disablingSupplierLedger()) {
       return `Users in ${organization} will no longer be able to open or view the Supplier Ledger & Reconciliation page or access its organization ledger inquiries. Existing posted purchases, supplier payments, allocations, advances, ledger effects, account movements, and corrective history are not deleted or modified. Supplier Payments remains available. This affects ${organization} only.`;
     }
+    if (this.disablingSales()) {
+      return `Users in ${organization} will no longer be able to access Sales/POS screens or create/manage sales. Existing posted/cancelled sales, stock movements, receivables, payments, returns, account movements, invoice history, and audit records are not deleted or modified. This affects ${organization} only.`;
+    }
     const critical = this.changeSummary()
       .filter((change) => change.risk === 'CRITICAL')
       .map((change) => `${change.label}: ${change.before} → ${change.after}`);
@@ -630,6 +651,7 @@ export class OrganizationControlsPage {
     if (this.disablingPurchases()) return 'Disable Purchases';
     if (this.disablingSupplierPayments()) return 'Disable Supplier Payments';
     if (this.disablingSupplierLedger()) return 'Disable Supplier Ledger';
+    if (this.disablingSales()) return 'Disable Sales';
     return 'Apply changes';
   });
 
@@ -853,6 +875,7 @@ export class OrganizationControlsPage {
     if (moduleKey === 'purchases') return 'Purchases';
     if (moduleKey === 'payments.supplier') return 'Supplier Payments';
     if (moduleKey === 'payments.supplierLedger') return 'Supplier Ledger';
+    if (moduleKey === 'sales') return 'Sales';
     return 'Product Batches';
   }
 
@@ -873,10 +896,16 @@ export class OrganizationControlsPage {
         control.moduleKey === 'accounts' ||
         control.moduleKey === 'purchases' ||
         control.moduleKey === 'payments.supplier' ||
-        control.moduleKey === 'payments.supplierLedger') &&
+        control.moduleKey === 'payments.supplierLedger' ||
+        control.moduleKey === 'sales') &&
       control.type === 'FIELD' &&
       control.platformEnforced === true
     );
+  }
+
+  private salesFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
+    const keys = new Set(ids.map((id) => `sales.features.${id}`));
+    return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
   }
 
   private alertsFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
@@ -1064,7 +1093,12 @@ export class OrganizationControlsPage {
         (control.key === 'payments.supplierLedger.features.moduleInfo' ||
           control.key === 'payments.supplierLedger.features.supplierSearch' ||
           control.key === 'payments.supplierLedger.features.reconciliationSummary' ||
-          control.key === 'payments.supplierLedger.features.ledgerFilters'))
+          control.key === 'payments.supplierLedger.features.ledgerFilters')) ||
+      (control.moduleKey === 'sales' &&
+        (control.key === 'sales.features.search' ||
+          control.key === 'sales.features.statusFilter' ||
+          control.key === 'sales.features.customerSearch' ||
+          control.key === 'sales.features.productSearch'))
     );
   }
 

@@ -676,4 +676,88 @@ describe('CapabilityService', () => {
       capabilityKey: 'payments.supplierLedger',
     });
   });
+
+  it('exposes authoritative defaults for Sales (34 controls) and routes', () => {
+    const service = TestBed.inject(CapabilityService);
+    const features = ['search', 'statusFilter', 'customerSearch', 'productSearch'];
+    const editableFields = [
+      'customer',
+      'notes',
+      'packagingUnit',
+      'branch',
+      'warehouse',
+      'saleDate',
+      'product',
+      'quantity',
+      'unitPrice',
+    ];
+    const visibleOnlyFields = [
+      'invoiceNumber',
+      'lifecycleStatus',
+      'saleTotal',
+      'paidTotal',
+      'receivableTotal',
+      'paymentDetails',
+    ];
+    const actions = [
+      'createDraft',
+      'inspect',
+      'editDraft',
+      'discardDraft',
+      'post',
+      'cancel',
+      'print',
+      'createReturn',
+      'addPaymentAtPost',
+      'sellOnCredit',
+      'overridePrice',
+      'approveCreditLimit',
+      'approveExpiredStock',
+      'overrideNegativeStock',
+    ];
+    const allKeys = [
+      'sales',
+      ...features.map((id) => `sales.features.${id}`),
+      ...editableFields.map((id) => `sales.fields.${id}`),
+      ...visibleOnlyFields.map((id) => `sales.fields.${id}`),
+      ...actions.map((id) => `sales.actions.${id}`),
+    ];
+
+    expect(allKeys).toHaveLength(34);
+    expect(new Set(allKeys).size).toBe(34);
+    expect(service.canUseModule('sales')).toBe(true);
+    for (const id of features) {
+      expect(service.canUseFeature(`sales.features.${id}`)).toBe(true);
+    }
+    for (const id of editableFields) {
+      expect(service.canViewField(`sales.fields.${id}`)).toBe(true);
+      expect(service.canEditField(`sales.fields.${id}`)).toBe(true);
+    }
+    for (const id of visibleOnlyFields) {
+      expect(service.canViewField(`sales.fields.${id}`)).toBe(true);
+      expect(service.canEditField(`sales.fields.${id}`)).toBe(false);
+    }
+    for (const id of actions) {
+      expect(service.canPerformAction(`sales.actions.${id}`)).toBe(true);
+    }
+
+    const app = appRoutes.find((route) => route.path === 'app');
+    expect(app?.children?.find((route) => route.path === 'sales')?.canActivate).toHaveLength(1);
+    expect(app?.children?.find((route) => route.path === 'sales/new')?.canActivate).toHaveLength(2);
+    expect(app?.children?.find((route) => route.path === 'sales/:id/print')?.canActivate).toHaveLength(2);
+    expect(app?.children?.find((route) => route.path === 'sales/:id')?.canActivate).toHaveLength(2);
+
+    const navigation = CANONICAL_NAVIGATION.flatMap((entry) =>
+      entry.type === 'group' ? entry.group.children : [entry.item],
+    );
+    expect(navigation.find((item) => item.id === 'sales.new')).toMatchObject({
+      permission: 'sales.view',
+      capabilityKey: 'sales',
+      actionCapabilityKey: 'sales.actions.createDraft',
+    });
+    expect(navigation.find((item) => item.id === 'sales.history')).toMatchObject({
+      permission: 'sales.view',
+      capabilityKey: 'sales',
+    });
+  });
 });

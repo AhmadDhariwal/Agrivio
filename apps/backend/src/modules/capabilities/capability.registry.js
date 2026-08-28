@@ -27,6 +27,7 @@ const CUSTOMERS_MODULE_KEY = 'customers';
 const SUPPLIERS_MODULE_KEY = 'suppliers';
 const RETURNS_MODULE_KEY = 'returns';
 const PURCHASES_MODULE_KEY = 'purchases';
+const SALES_MODULE_KEY = 'sales';
 const SUPPLIER_PAYMENTS_MODULE_KEY = 'payments.supplier';
 const SUPPLIER_LEDGER_MODULE_KEY = 'payments.supplierLedger';
 const ACCOUNTS_MODULE_KEY = 'accounts';
@@ -2081,6 +2082,221 @@ const definitions = [
         }
       : {}),
   })),
+  // Sales Module
+  {
+    key: SALES_MODULE_KEY,
+    parentKey: null,
+    moduleKey: SALES_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Sales / POS',
+    description:
+      'Sale inquiry, draft preparation, posting, cancellation, printing, and linked return launch for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'sales.view' },
+    reason:
+      'Disabling access blocks tenant-facing Sales endpoints without deleting drafts, changing posted invoices, or altering inventory and financial history.',
+  },
+  ...[
+    ['search', 'Search', 'Search Sales by invoice number.'],
+    ['statusFilter', 'Status Filter', 'Filter Sales by draft, posted, or cancelled status.'],
+    [
+      'customerSearch',
+      'Customer Search',
+      'Search and select an active organization customer while preparing a sale.',
+    ],
+    [
+      'productSearch',
+      'Product Search',
+      'Search and select active products while preparing sale lines.',
+    ],
+  ].map(([id, label, description]) => ({
+    key: `sales.features.${id}`,
+    parentKey: SALES_MODULE_KEY,
+    moduleKey: SALES_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: id === 'search' || id === 'statusFilter' },
+    risk:
+      id === 'customerSearch' || id === 'productSearch'
+        ? RISK_LEVELS.Critical
+        : RISK_LEVELS.Normal,
+    ...(id === 'customerSearch' || id === 'productSearch'
+      ? { platformEnforced: true }
+      : {}),
+    requiredPermissions: {
+      enabled: id === 'customerSearch' || id === 'productSearch' ? 'sales.create' : 'sales.view',
+    },
+    ...(id === 'customerSearch'
+      ? {
+          reason:
+            'Server-backed customer search remains available so an enabled Sales workflow can reach the complete active tenant customer set.',
+        }
+      : {}),
+    ...(id === 'productSearch'
+      ? {
+          reason:
+            'Server-backed product search remains available so an enabled Sales workflow can reach the complete active tenant product set.',
+        }
+      : {}),
+  })),
+  ...[
+    ['customer', 'Customer', 'Optional registered-customer selection; walk-in sales remain available.'],
+    ['notes', 'Notes', 'Optional sale notes.'],
+    [
+      'packagingUnit',
+      'Packaging Unit',
+      'Optional packaging selection; the product base unit remains available.',
+    ],
+  ].map(([id, label, description]) => ({
+    key: `sales.fields.${id}`,
+    parentKey: SALES_MODULE_KEY,
+    moduleKey: SALES_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description,
+    defaultPolicy: { visible: true, editable: true },
+    configurable: { visible: true, editable: true },
+    risk: id === 'customer' ? RISK_LEVELS.Recommended : RISK_LEVELS.Normal,
+    requiredPermissions: { visible: 'sales.view', editable: 'sales.create' },
+  })),
+  ...[
+    ['branch', 'Branch', 'Branch identity is required for access and invoice numbering.'],
+    ['warehouse', 'Warehouse', 'Warehouse identity is required for stock allocation and access.'],
+    ['saleDate', 'Sale Date', 'A valid sale date is required by the Sales contract.'],
+    ['product', 'Product', 'Every sale line must identify an active product.'],
+    ['quantity', 'Quantity', 'Every sale line requires a positive quantity.'],
+    ['unitPrice', 'Unit Price', 'Every sale line requires a positive authorized selling price.'],
+  ].map(([id, label, reason]) => ({
+    key: `sales.fields.${id}`,
+    parentKey: SALES_MODULE_KEY,
+    moduleKey: SALES_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description: 'Required or conditionally required Sales workflow data.',
+    defaultPolicy: { visible: true, editable: true },
+    configurable: { visible: false, editable: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'sales.view', editable: 'sales.create' },
+    reason,
+  })),
+  ...[
+    ['invoiceNumber', 'Invoice Number', 'Posted invoice identity must remain understandable.'],
+    ['lifecycleStatus', 'Lifecycle Status', 'Draft, posted, or cancelled status must remain visible.'],
+    ['saleTotal', 'Sale Total', 'The authoritative posted sale total must remain visible.'],
+    ['paidTotal', 'Paid Total', 'The authoritative posted paid total must remain visible.'],
+    ['receivableTotal', 'Receivable Total', 'The authoritative posted receivable must remain visible.'],
+    [
+      'paymentDetails',
+      'Payment Details',
+      'Posted account and tender snapshots must remain visible with the invoice.',
+    ],
+  ].map(([id, label, reason]) => ({
+    key: `sales.fields.${id}`,
+    parentKey: SALES_MODULE_KEY,
+    moduleKey: SALES_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description: 'Read-only posted Sales history.',
+    defaultPolicy: { visible: true },
+    configurable: { visible: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'sales.view' },
+    reason,
+  })),
+  ...[
+    ['createDraft', 'Create Sale Draft', 'sales.create', RISK_LEVELS.Recommended, []],
+    ['inspect', 'Inspect Sale', 'sales.view', RISK_LEVELS.Normal, []],
+    ['editDraft', 'Edit Sale Draft', 'sales.create', RISK_LEVELS.Recommended, []],
+    ['discardDraft', 'Discard Sale Draft', 'sales.create', RISK_LEVELS.Recommended, []],
+    ['post', 'Post Sale', 'sales.post', RISK_LEVELS.Critical, []],
+    ['cancel', 'Cancel Posted Sale', 'sales.cancel', RISK_LEVELS.Critical, []],
+    ['print', 'Print Invoice', 'sales.view', RISK_LEVELS.Normal, []],
+    [
+      'createReturn',
+      'Create Linked Sales Return',
+      'returns.post',
+      RISK_LEVELS.Critical,
+      ['returns.actions.post'],
+    ],
+    [
+      'addPaymentAtPost',
+      'Add Payment at Posting',
+      'sales.post',
+      RISK_LEVELS.Critical,
+      ['sales.actions.post'],
+    ],
+    [
+      'sellOnCredit',
+      'Sell on Credit',
+      'sales.post',
+      RISK_LEVELS.Critical,
+      ['sales.actions.post'],
+    ],
+    [
+      'overridePrice',
+      'Override Tier Price',
+      'pricing.override',
+      RISK_LEVELS.Critical,
+      ['sales.actions.post'],
+    ],
+    [
+      'approveCreditLimit',
+      'Approve Credit-Limit Override',
+      'sales.credit-limit.approve',
+      RISK_LEVELS.Critical,
+      ['sales.actions.post'],
+    ],
+    [
+      'approveExpiredStock',
+      'Approve Expired-Stock Sale',
+      'sales.expired-stock.approve',
+      RISK_LEVELS.Critical,
+      ['sales.actions.post'],
+    ],
+    [
+      'overrideNegativeStock',
+      'Override Negative Stock',
+      'inventory.negative-stock.override',
+      RISK_LEVELS.Critical,
+      ['sales.actions.post'],
+    ],
+  ].map(([id, label, permission, risk, dependencies]) => ({
+    key: `sales.actions.${id}`,
+    parentKey: SALES_MODULE_KEY,
+    moduleKey: SALES_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label,
+    description: `${label} action. Existing RBAC, tenant, branch, warehouse, lifecycle, transaction, and idempotency rules remain authoritative.`,
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk,
+    requiredPermissions: { allowed: permission },
+    ...(dependencies.length === 0 ? {} : { dependencies }),
+    ...(id === 'post'
+      ? {
+          reason:
+            'Posting remains atomic and continues to use Pricing, Inventory, Customer Ledger, and Accounts domain services without changing their calculations.',
+        }
+      : {}),
+    ...(id === 'cancel'
+      ? {
+          reason:
+            'Cancellation remains a compensating transaction and is still blocked whenever lifecycle, stock, return, payment, or account reversal rules make it unsafe.',
+        }
+      : {}),
+    ...(id === 'createReturn'
+      ? {
+          reason:
+            'A linked sales return also requires the Returns posting action and Returns RBAC. This Sales control never grants Returns access.',
+        }
+      : {}),
+  })),
   // Supplier Ledger Module
   {
     key: SUPPLIER_LEDGER_MODULE_KEY,
@@ -2993,6 +3209,7 @@ module.exports = {
   SUPPLIERS_MODULE_KEY,
   RETURNS_MODULE_KEY,
   PURCHASES_MODULE_KEY,
+  SALES_MODULE_KEY,
   SUPPLIER_PAYMENTS_MODULE_KEY,
   SUPPLIER_LEDGER_MODULE_KEY,
   ACCOUNTS_MODULE_KEY,

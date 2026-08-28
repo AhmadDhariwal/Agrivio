@@ -29,7 +29,8 @@ function control(
     | 'alerts'
     | 'purchases'
     | 'payments.supplier'
-    | 'payments.supplierLedger',
+    | 'payments.supplierLedger'
+    | 'sales',
   type: PlatformCapabilityControl['type'],
   label: string,
   policy: Record<string, boolean>,
@@ -1357,6 +1358,82 @@ describe('OrganizationControlsPage', () => {
         ),
       ),
       control('payments.supplierLedger.actions.viewSource', 'payments.supplierLedger', 'ACTION', 'View Source Transaction', { allowed: true }),
+      control('sales', 'sales', 'MODULE', 'Sales', { enabled: true }, { risk: 'CRITICAL' }),
+      control('sales.features.search', 'sales', 'FEATURE', 'Search Sales', { enabled: true }),
+      control('sales.features.statusFilter', 'sales', 'FEATURE', 'Status Filter', { enabled: true }, { override: { enabled: false } }),
+      control(
+        'sales.features.customerSearch',
+        'sales',
+        'FEATURE',
+        'Customer Search',
+        { enabled: true },
+        {
+          configurable: { enabled: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Customer lookup is required.',
+        },
+      ),
+      control(
+        'sales.features.productSearch',
+        'sales',
+        'FEATURE',
+        'Product Search',
+        { enabled: true },
+        {
+          configurable: { enabled: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Product search is required.',
+        },
+      ),
+      control('sales.fields.customer', 'sales', 'FIELD', 'Customer', { visible: true, editable: true }),
+      control('sales.fields.notes', 'sales', 'FIELD', 'Notes', { visible: true, editable: true }),
+      control('sales.fields.packagingUnit', 'sales', 'FIELD', 'Packaging Unit', { visible: true, editable: true }),
+      ...(['branch', 'warehouse', 'saleDate', 'product', 'quantity', 'unitPrice'] as const).map((id) =>
+        control(
+          `sales.fields.${id}`,
+          'sales',
+          'FIELD',
+          id,
+          { visible: true, editable: true },
+          {
+            configurable: { visible: false, editable: false },
+            platformEnforced: true,
+            risk: 'CRITICAL',
+            reason: 'Required Sales workflow field.',
+          },
+        ),
+      ),
+      ...(['invoiceNumber', 'lifecycleStatus', 'saleTotal', 'paidTotal', 'receivableTotal', 'paymentDetails'] as const).map((id) =>
+        control(
+          `sales.fields.${id}`,
+          'sales',
+          'FIELD',
+          id,
+          { visible: true },
+          {
+            configurable: { visible: false },
+            platformEnforced: true,
+            risk: 'CRITICAL',
+            reason: 'Immutable Sales record field.',
+          },
+        ),
+      ),
+      control('sales.actions.createDraft', 'sales', 'ACTION', 'Create Draft', { allowed: true }),
+      control('sales.actions.inspect', 'sales', 'ACTION', 'Inspect', { allowed: true }),
+      control('sales.actions.editDraft', 'sales', 'ACTION', 'Edit Draft', { allowed: true }),
+      control('sales.actions.discardDraft', 'sales', 'ACTION', 'Discard Draft', { allowed: true }),
+      control('sales.actions.post', 'sales', 'ACTION', 'Post Sale', { allowed: true }, { risk: 'CRITICAL' }),
+      control('sales.actions.cancel', 'sales', 'ACTION', 'Cancel Sale', { allowed: true }, { risk: 'CRITICAL' }),
+      control('sales.actions.print', 'sales', 'ACTION', 'Print Invoice', { allowed: true }),
+      control('sales.actions.createReturn', 'sales', 'ACTION', 'Create Return', { allowed: true }, { dependencies: ['returns.actions.post'] }),
+      control('sales.actions.addPaymentAtPost', 'sales', 'ACTION', 'Add Payment at Post', { allowed: true }, { dependencies: ['sales.actions.post'] }),
+      control('sales.actions.sellOnCredit', 'sales', 'ACTION', 'Sell on Credit', { allowed: true }, { dependencies: ['sales.actions.post'] }),
+      control('sales.actions.overridePrice', 'sales', 'ACTION', 'Override Price', { allowed: true }, { dependencies: ['sales.actions.post'] }),
+      control('sales.actions.approveCreditLimit', 'sales', 'ACTION', 'Approve Credit Limit', { allowed: true }, { dependencies: ['sales.actions.post'] }),
+      control('sales.actions.approveExpiredStock', 'sales', 'ACTION', 'Approve Expired Stock', { allowed: true }, { dependencies: ['sales.actions.post'] }),
+      control('sales.actions.overrideNegativeStock', 'sales', 'ACTION', 'Override Negative Stock', { allowed: true }, { dependencies: ['sales.actions.post'] }),
     ];
     await TestBed.configureTestingModule({
       imports: [OrganizationControlsPage],
@@ -2856,6 +2933,60 @@ describe('OrganizationControlsPage', () => {
       component.askResetModule();
       component.confirm();
       expect(resetModule).toHaveBeenCalledWith('org-a', 'payments.supplierLedger', 4, '');
+    });
+  });
+
+  describe('Sales Controls', () => {
+    it('renders all 34 controls with platform-enforced, field, and action metadata', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('sales');
+      fixture.detectChanges();
+
+      expect(component.moduleLabel('sales')).toBe('Sales');
+      expect(component.selectedControls()).toHaveLength(34);
+      expect(component.moduleControls()).toHaveLength(1);
+      expect(component.filterControls()).toHaveLength(2);
+      expect(component.formExperienceControls()).toHaveLength(2);
+      expect(component.fieldControls()).toHaveLength(3);
+      expect(component.requiredWorkflowControls()).toHaveLength(12);
+      expect(component.actionControls()).toHaveLength(14);
+      expect(fixture.nativeElement.textContent).toContain('Platform enforced');
+      expect(fixture.nativeElement.textContent).toContain('Customer lookup is required.');
+      expect(fixture.nativeElement.textContent).toContain('Product search is required.');
+      expect(fixture.nativeElement.textContent).toContain('Create Return');
+      expect(fixture.nativeElement.textContent).toContain('Add Payment at Post');
+      expect(fixture.nativeElement.textContent).toContain('Sell on Credit');
+
+      const createReturn = component
+        .actionControls()
+        .find((item) => item.key === 'sales.actions.createReturn');
+      expect(createReturn?.dependencies).toEqual(['returns.actions.post']);
+
+      const addPayment = component
+        .actionControls()
+        .find((item) => item.key === 'sales.actions.addPaymentAtPost');
+      expect(addPayment?.dependencies).toEqual(['sales.actions.post']);
+    });
+
+    it('supports Sales disable/re-enable and organization-scoped reset', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('sales');
+      const moduleControl = component.controls().find((item) => item.key === 'sales');
+      expect(moduleControl).toBeDefined();
+      if (moduleControl) {
+        component.setValue(moduleControl, 'enabled', false);
+        expect(component.disablingSales()).toBe(true);
+        expect(component.confirmationTitle()).toBe(
+          'Disable Sales for Greenfield Agro Center?',
+        );
+        expect(component.confirmationMessage()).toContain('Sales/POS screens');
+        component.setValue(moduleControl, 'enabled', true);
+        expect(component.effectiveValue(moduleControl, 'enabled')).toBe(true);
+      }
+
+      component.askResetModule();
+      component.confirm();
+      expect(resetModule).toHaveBeenCalledWith('org-a', 'sales', 4, '');
     });
   });
 });

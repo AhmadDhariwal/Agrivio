@@ -8,6 +8,7 @@ import {
   SalePrintInvoice,
 } from '../../models/sales.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 
@@ -22,6 +23,7 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
 export class SalePrintPage {
   private readonly api = inject(SalesApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly route = inject(ActivatedRoute);
 
   readonly layouts = INVOICE_PRINT_LAYOUTS;
@@ -30,11 +32,16 @@ export class SalePrintPage {
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly canView = this.sessionStore.hasPermission('sales.view');
+  readonly canUseSales = this.capabilityService?.canUseModule('sales') ?? true;
+  readonly canPrint =
+    this.sessionStore.hasPermission('sales.view') &&
+    (this.capabilityService?.canPerformAction('sales.actions.print') ?? true);
   readonly saleId = this.route.snapshot.paramMap.get('id');
 
   constructor() {
-    if (!this.canView) {
+    if (!this.canView || !this.canUseSales || !this.canPrint) {
       this.loading.set(false);
+      this.errorMessage.set('You do not have permission to view or print invoices.');
       return;
     }
     const id = this.saleId;

@@ -35,7 +35,10 @@ describe('appRoutes F02 routing', () => {
     expect(app?.children?.find((route) => route.path === 'platform/operations')).toBeTruthy();
     const purchases = app?.children?.find((route) => route.path === 'purchases');
     expect(purchases).toBeTruthy();
-    expect(purchases?.canActivate ?? []).toEqual([]);
+    expect(purchases?.canActivate?.length).toBeGreaterThan(0);
+    const sales = app?.children?.find((route) => route.path === 'sales');
+    expect(sales).toBeTruthy();
+    expect(sales?.canActivate?.length).toBeGreaterThan(0);
 
     const products = app?.children?.find((route) => route.path === 'products');
     expect(products?.canActivate?.length).toBeGreaterThan(0);

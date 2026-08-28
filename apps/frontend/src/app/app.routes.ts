@@ -501,21 +501,34 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'sales',
+        canActivate: [requireCapabilityGuard('sales')],
         loadComponent: () =>
           import('./features/sales/pages/sales/sales.page').then((m) => m.SalesPage),
       },
       {
         path: 'sales/new',
+        canActivate: [
+          requireCapabilityGuard('sales'),
+          requireCapabilityGuard('sales.actions.createDraft', 'action'),
+        ],
         loadComponent: () =>
           import('./features/sales/pages/sale-edit/sale-edit.page').then((m) => m.SaleEditPage),
       },
       {
         path: 'sales/:id/print',
+        canActivate: [
+          requireCapabilityGuard('sales'),
+          requireCapabilityGuard('sales.actions.print', 'action'),
+        ],
         loadComponent: () =>
           import('./features/sales/pages/sale-print/sale-print.page').then((m) => m.SalePrintPage),
       },
       {
         path: 'sales/:id',
+        canActivate: [
+          requireCapabilityGuard('sales'),
+          requireCapabilityGuard('sales.actions.inspect', 'action'),
+        ],
         loadComponent: () =>
           import('./features/sales/pages/sale-edit/sale-edit.page').then((m) => m.SaleEditPage),
       },

@@ -13,6 +13,7 @@ import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pa
 import { UiSearchInputComponent } from '../../../../shared/ui/ui-search-input/ui-search-input.component';
 import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, startWith, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 @Component({
   selector: 'agrivio-sales-page',
@@ -33,6 +34,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 export class SalesPage {
   private readonly api = inject(SalesApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
   private readonly reloadRequests = new Subject<void>();
   private readonly searchChanges = new Subject<string>();
@@ -41,21 +43,81 @@ export class SalesPage {
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly canView = computed(() => this.sessionStore.hasPermission('sales.view'));
-  readonly canCreate = computed(() => this.sessionStore.hasPermission('sales.create'));
-  readonly page = signal(1); readonly pageSize = signal(25); readonly total = signal(0);
-  readonly search = signal(''); readonly status = signal('');
+  readonly canUseSales = computed(() => this.capabilityService?.canUseModule('sales') ?? true);
+  readonly canSearch = computed(
+    () => this.capabilityService?.canUseFeature('sales.features.search') ?? true,
+  );
+  readonly canFilterStatus = computed(
+    () => this.capabilityService?.canUseFeature('sales.features.statusFilter') ?? true,
+  );
+  readonly canCreate = computed(
+    () =>
+      this.sessionStore.hasPermission('sales.create') &&
+      (this.capabilityService?.canPerformAction('sales.actions.createDraft') ?? true),
+  );
+  readonly canInspect = computed(
+    () =>
+      this.sessionStore.hasPermission('sales.view') &&
+      (this.capabilityService?.canPerformAction('sales.actions.inspect') ?? true),
+  );
+  readonly canEditDraft = computed(
+    () =>
+      this.sessionStore.hasPermission('sales.create') &&
+      (this.capabilityService?.canPerformAction('sales.actions.editDraft') ?? true),
+  );
+  readonly canPrint = computed(
+    () =>
+      this.sessionStore.hasPermission('sales.view') &&
+      (this.capabilityService?.canPerformAction('sales.actions.print') ?? true),
+  );
+  readonly page = signal(1);
+  readonly pageSize = signal(25);
+  readonly total = signal(0);
+  readonly search = signal('');
+  readonly status = signal('');
 
   constructor() {
-    this.searchChanges.pipe(debounceTime(300), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
-      .subscribe((value) => { this.search.set(value.trim()); this.page.set(1); this.reload(); });
-    this.reloadRequests.pipe(startWith(undefined), switchMap(() => {
-      if (!this.canView()) { this.loading.set(false); this.errorMessage.set('You do not have permission to view sales.'); return EMPTY; }
-      this.loading.set(true); this.errorMessage.set(null);
-      return this.api.listSales({ page: this.page(), pageSize: this.pageSize(), search: this.search(), ...(this.status() ? { status: this.status() } : {}) })
-        .pipe(catchError((error: unknown) => { this.handleLoadError(error, 'Unable to load sales.'); return EMPTY; }));
-    }), takeUntilDestroyed(this.destroyRef)).subscribe(({ items, meta }) => {
-      this.items.set(items); this.total.set(meta.total); this.loading.set(false);
-    });
+    this.searchChanges
+      .pipe(debounceTime(300), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
+      .subscribe((value) => {
+        this.search.set(value.trim());
+        this.page.set(1);
+        this.reload();
+      });
+    this.reloadRequests
+      .pipe(
+        startWith(undefined),
+        switchMap(() => {
+          if (!this.canView() || !this.canUseSales()) {
+            this.loading.set(false);
+            this.errorMessage.set('You do not have permission to view sales.');
+            return EMPTY;
+          }
+          this.loading.set(true);
+          this.errorMessage.set(null);
+          const effectiveSearch = this.canSearch() ? this.search() : '';
+          const effectiveStatus = this.canFilterStatus() && this.status() ? this.status() : undefined;
+          return this.api
+            .listSales({
+              page: this.page(),
+              pageSize: this.pageSize(),
+              search: effectiveSearch,
+              ...(effectiveStatus ? { status: effectiveStatus } : {}),
+            })
+            .pipe(
+              catchError((error: unknown) => {
+                this.handleLoadError(error, 'Unable to load sales.');
+                return EMPTY;
+              }),
+            );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(({ items, meta }) => {
+        this.items.set(items);
+        this.total.set(meta.total);
+        this.loading.set(false);
+      });
   }
 
   reload(): void {

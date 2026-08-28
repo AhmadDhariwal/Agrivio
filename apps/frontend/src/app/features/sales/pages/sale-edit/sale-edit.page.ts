@@ -34,12 +34,12 @@ import { CustomerRecord } from '../../../customers/models/customers.models';
 import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
 import { AccountRecord } from '../../../accounts-expenses/models/accounts.models';
 import { PackagingUnitRecord, ProductRecord } from '../../../catalog/models/catalog.models';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
 import { hasRequiredValidator, setRequiredValidator } from '../../../../shared/form/form-field.util';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 @Component({
   selector: 'agrivio-sale-edit-page',
@@ -47,7 +47,6 @@ import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialo
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
     UiConfirmDialogComponent,
@@ -65,6 +64,7 @@ export class SaleEditPage {
   private readonly customersApi = inject(CustomersApi);
   private readonly accountsApi = inject(AccountsApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
@@ -105,22 +105,93 @@ export class SaleEditPage {
   readonly relatedReturns = signal<SalesReturnRecord[]>([]);
   readonly lastPostedReturnId = signal<string | null>(null);
   readonly packagingByLine = signal<Record<number, PackagingUnitRecord[]>>({});
+  readonly canUseSales = computed(() => this.capabilityService?.canUseModule('sales') ?? true);
   readonly canCreate = computed(() => this.sessionStore.hasPermission('sales.create'));
-  readonly canPost = computed(() => this.sessionStore.hasPermission('sales.post'));
-  readonly canCancel = computed(() => this.sessionStore.hasPermission('sales.cancel'));
-  readonly canReturn = computed(() => this.sessionStore.hasPermission('returns.post'));
+  readonly canCreateDraft = computed(
+    () =>
+      this.sessionStore.hasPermission('sales.create') &&
+      (this.capabilityService?.canPerformAction('sales.actions.createDraft') ?? true),
+  );
+  readonly canEditDraft = computed(
+    () =>
+      this.sessionStore.hasPermission('sales.create') &&
+      (this.capabilityService?.canPerformAction('sales.actions.editDraft') ?? true),
+  );
+  readonly canDiscardDraft = computed(
+    () =>
+      this.sessionStore.hasPermission('sales.create') &&
+      (this.capabilityService?.canPerformAction('sales.actions.discardDraft') ?? true),
+  );
+  readonly canPost = computed(
+    () =>
+      this.sessionStore.hasPermission('sales.post') &&
+      (this.capabilityService?.canPerformAction('sales.actions.post') ?? true),
+  );
+  readonly canCancel = computed(
+    () =>
+      this.sessionStore.hasPermission('sales.cancel') &&
+      (this.capabilityService?.canPerformAction('sales.actions.cancel') ?? true),
+  );
+  readonly canReturn = computed(
+    () =>
+      this.sessionStore.hasPermission('returns.post') &&
+      (this.capabilityService?.canPerformAction('sales.actions.createReturn') ?? true) &&
+      (this.capabilityService?.canPerformAction('returns.actions.post') ?? true),
+  );
   readonly canViewReturns = computed(() => this.sessionStore.hasPermission('returns.view'));
   readonly canView = computed(() => this.sessionStore.hasPermission('sales.view'));
-  readonly canPrint = computed(() => this.sessionStore.hasPermission('sales.view'));
-  readonly canOverridePrice = computed(() => this.sessionStore.hasPermission('pricing.override'));
-  readonly canApproveCreditLimit = computed(() =>
-    this.sessionStore.hasPermission('sales.credit-limit.approve'),
+  readonly canPrint = computed(
+    () =>
+      this.sessionStore.hasPermission('sales.view') &&
+      (this.capabilityService?.canPerformAction('sales.actions.print') ?? true),
   );
-  readonly canApproveExpiredStock = computed(() =>
-    this.sessionStore.hasPermission('sales.expired-stock.approve'),
+  readonly canAddPaymentAtPost = computed(
+    () => (this.capabilityService?.canPerformAction('sales.actions.addPaymentAtPost') ?? true) && this.canPost(),
   );
-  readonly canOverrideNegativeStock = computed(() =>
-    this.sessionStore.hasPermission('inventory.negative-stock.override'),
+  readonly canSellOnCredit = computed(
+    () => (this.capabilityService?.canPerformAction('sales.actions.sellOnCredit') ?? true) && this.canPost(),
+  );
+  readonly canOverridePrice = computed(
+    () =>
+      this.sessionStore.hasPermission('pricing.override') &&
+      (this.capabilityService?.canPerformAction('sales.actions.overridePrice') ?? true) &&
+      this.canPost(),
+  );
+  readonly canApproveCreditLimit = computed(
+    () =>
+      this.sessionStore.hasPermission('sales.credit-limit.approve') &&
+      (this.capabilityService?.canPerformAction('sales.actions.approveCreditLimit') ?? true) &&
+      this.canPost(),
+  );
+  readonly canApproveExpiredStock = computed(
+    () =>
+      this.sessionStore.hasPermission('sales.expired-stock.approve') &&
+      (this.capabilityService?.canPerformAction('sales.actions.approveExpiredStock') ?? true) &&
+      this.canPost(),
+  );
+  readonly canOverrideNegativeStock = computed(
+    () =>
+      this.sessionStore.hasPermission('inventory.negative-stock.override') &&
+      (this.capabilityService?.canPerformAction('sales.actions.overrideNegativeStock') ?? true) &&
+      this.canPost(),
+  );
+  readonly canViewCustomerField = computed(
+    () => this.capabilityService?.canViewField('sales.fields.customer') ?? true,
+  );
+  readonly canEditCustomerField = computed(
+    () => this.capabilityService?.canEditField('sales.fields.customer') ?? true,
+  );
+  readonly canViewNotesField = computed(
+    () => this.capabilityService?.canViewField('sales.fields.notes') ?? true,
+  );
+  readonly canEditNotesField = computed(
+    () => this.capabilityService?.canEditField('sales.fields.notes') ?? true,
+  );
+  readonly canViewPackagingUnitField = computed(
+    () => this.capabilityService?.canViewField('sales.fields.packagingUnit') ?? true,
+  );
+  readonly canEditPackagingUnitField = computed(
+    () => this.capabilityService?.canEditField('sales.fields.packagingUnit') ?? true,
   );
   readonly isPosted = computed(() => this.sale()?.status === 'posted');
   readonly isCancelled = computed(() => this.sale()?.status === 'cancelled');
@@ -128,6 +199,12 @@ export class SaleEditPage {
     const record = this.sale();
     return record === null || record.status === 'draft';
   });
+
+  statusLabel(status?: string | null): string {
+    if (status === 'posted') return 'Posted';
+    if (status === 'cancelled') return 'Cancelled';
+    return 'Draft';
+  }
   private version = 1;
   private postIdempotencyKey: string | null = null;
   private postIdempotencySaleId: string | null = null;

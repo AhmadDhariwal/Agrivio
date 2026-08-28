@@ -41,6 +41,11 @@ function registerReturnsRoutes(deps) {
     'purchases.actions.createReturn',
     'allowed',
   );
+  const requireSalesReturn = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'sales.actions.createReturn',
+    'allowed',
+  );
 
   router.get(
     API_RETURNS_PATH,
@@ -177,6 +182,7 @@ function registerReturnsRoutes(deps) {
     deps.requireOperationalAccess,
     requireReturnsModule,
     requireReturnPost,
+    requireSalesReturn,
     (req, res, next) => {
       void controller.createSalesReturn(req, res, next);
     },
