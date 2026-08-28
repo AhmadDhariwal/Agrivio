@@ -36,7 +36,8 @@ type ConfigurableModule =
   | 'reports'
   | 'alerts'
   | 'purchases'
-  | 'payments.supplier';
+  | 'payments.supplier'
+  | 'payments.supplierLedger';
 type PendingConfirmation =
   | { readonly kind: 'save' }
   | { readonly kind: 'reset-control'; readonly control: PlatformCapabilityControl }
@@ -133,6 +134,9 @@ export class OrganizationControlsPage {
     if (this.selectedModule() === 'payments.supplier') {
       return this.supplierPaymentsFeatures('moduleInfo');
     }
+    if (this.selectedModule() === 'payments.supplierLedger') {
+      return this.supplierLedgerFeatures('moduleInfo');
+    }
     if (this.selectedModule() === 'inventory.movements') {
       return this.movementsFeatures('moduleInfo');
     }
@@ -207,6 +211,9 @@ export class OrganizationControlsPage {
     if (this.selectedModule() === 'payments.supplier') {
       return this.supplierPaymentsFeatures('paymentDateFilter');
     }
+    if (this.selectedModule() === 'payments.supplierLedger') {
+      return this.supplierLedgerFeatures('ledgerFilters', 'supplierSearch');
+    }
     if (this.selectedModule() === 'suppliers') {
       return this.suppliersFeatures('search', 'statusFilter');
     }
@@ -245,6 +252,9 @@ export class OrganizationControlsPage {
     }
     if (this.selectedModule() === 'inventory.reconciliation') {
       return this.reconciliationFeatures('kpiCards');
+    }
+    if (this.selectedModule() === 'payments.supplierLedger') {
+      return this.supplierLedgerFeatures('reconciliationSummary');
     }
     return [];
   });
@@ -458,6 +468,14 @@ export class OrganizationControlsPage {
       changes[0].value?.['enabled'] === false
     );
   });
+  readonly disablingSupplierLedger = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'payments.supplierLedger' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
   readonly confirmationTitle = computed(() => {
     const pending = this.pendingConfirmation();
     const organization = this.snapshot()?.organization.name ?? 'this organization';
@@ -506,6 +524,9 @@ export class OrganizationControlsPage {
     }
     if (this.disablingSupplierPayments()) {
       return `Disable Supplier Payments for ${organization}?`;
+    }
+    if (this.disablingSupplierLedger()) {
+      return `Disable Supplier Ledger for ${organization}?`;
     }
     const single = this.changeSummary().length === 1 ? this.changeSummary()[0] : null;
     if (single?.risk === 'CRITICAL' && single.after === 'Disabled') {
@@ -576,6 +597,9 @@ export class OrganizationControlsPage {
     if (this.disablingSupplierPayments()) {
       return `Users in ${organization} will no longer be able to access or post standalone Supplier Payments or open the Supplier Ledger workflow. Existing posted payments, allocations, advances, ledger effects, account movements, and corrective history are not deleted or modified. Purchases remains available. This affects ${organization} only.`;
     }
+    if (this.disablingSupplierLedger()) {
+      return `Users in ${organization} will no longer be able to open or view the Supplier Ledger & Reconciliation page or access its organization ledger inquiries. Existing posted purchases, supplier payments, allocations, advances, ledger effects, account movements, and corrective history are not deleted or modified. Supplier Payments remains available. This affects ${organization} only.`;
+    }
     const critical = this.changeSummary()
       .filter((change) => change.risk === 'CRITICAL')
       .map((change) => `${change.label}: ${change.before} → ${change.after}`);
@@ -605,6 +629,7 @@ export class OrganizationControlsPage {
     if (this.disablingAlerts()) return 'Disable Alerts';
     if (this.disablingPurchases()) return 'Disable Purchases';
     if (this.disablingSupplierPayments()) return 'Disable Supplier Payments';
+    if (this.disablingSupplierLedger()) return 'Disable Supplier Ledger';
     return 'Apply changes';
   });
 
@@ -827,6 +852,7 @@ export class OrganizationControlsPage {
     if (moduleKey === 'alerts') return 'Alerts';
     if (moduleKey === 'purchases') return 'Purchases';
     if (moduleKey === 'payments.supplier') return 'Supplier Payments';
+    if (moduleKey === 'payments.supplierLedger') return 'Supplier Ledger';
     return 'Product Batches';
   }
 
@@ -846,7 +872,8 @@ export class OrganizationControlsPage {
         control.moduleKey === 'expenses.categories' ||
         control.moduleKey === 'accounts' ||
         control.moduleKey === 'purchases' ||
-        control.moduleKey === 'payments.supplier') &&
+        control.moduleKey === 'payments.supplier' ||
+        control.moduleKey === 'payments.supplierLedger') &&
       control.type === 'FIELD' &&
       control.platformEnforced === true
     );
@@ -864,6 +891,11 @@ export class OrganizationControlsPage {
 
   private supplierPaymentsFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
     const keys = new Set(ids.map((id) => `payments.supplier.features.${id}`));
+    return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
+  }
+
+  private supplierLedgerFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
+    const keys = new Set(ids.map((id) => `payments.supplierLedger.features.${id}`));
     return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
   }
 
@@ -1027,7 +1059,12 @@ export class OrganizationControlsPage {
           control.key === 'purchases.features.statusFilter')) ||
       (control.moduleKey === 'payments.supplier' &&
         (control.key === 'payments.supplier.features.moduleInfo' ||
-          control.key === 'payments.supplier.features.paymentDateFilter'))
+          control.key === 'payments.supplier.features.paymentDateFilter')) ||
+      (control.moduleKey === 'payments.supplierLedger' &&
+        (control.key === 'payments.supplierLedger.features.moduleInfo' ||
+          control.key === 'payments.supplierLedger.features.supplierSearch' ||
+          control.key === 'payments.supplierLedger.features.reconciliationSummary' ||
+          control.key === 'payments.supplierLedger.features.ledgerFilters'))
     );
   }
 

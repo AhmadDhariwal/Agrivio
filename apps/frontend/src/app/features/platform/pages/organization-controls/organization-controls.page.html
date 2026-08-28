@@ -216,6 +216,15 @@
       >
         Supplier Payments
       </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'payments.supplierLedger'"
+        (click)="selectModule('payments.supplierLedger')"
+        data-testid="supplier-ledger-control-module"
+      >
+        Supplier Ledger
+      </button>
       <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>
 

@@ -27,6 +27,7 @@ const {
   RETURNS_MODULE_KEY,
   PURCHASES_MODULE_KEY,
   SUPPLIER_PAYMENTS_MODULE_KEY,
+  SUPPLIER_LEDGER_MODULE_KEY,
   ACCOUNTS_MODULE_KEY,
   EXPENSES_MODULE_KEY,
   EXPENSE_CATEGORIES_MODULE_KEY,
@@ -237,10 +238,7 @@ function createCapabilityService(deps) {
       const labeledAccessAllowed =
         subscription.accessState?.status === undefined
           ? null
-          : allowsSubscriptionLabel(
-              subscription.accessState.status,
-              definition.subscriptionLabel,
-            );
+          : allowsSubscriptionLabel(subscription.accessState.status, definition.subscriptionLabel);
       const subscriptionAllowed =
         definition.subscriptionLabel === undefined
           ? operationalAllowed
@@ -512,6 +510,7 @@ function createCapabilityService(deps) {
           RETURNS_MODULE_KEY,
           PURCHASES_MODULE_KEY,
           SUPPLIER_PAYMENTS_MODULE_KEY,
+          SUPPLIER_LEDGER_MODULE_KEY,
           ACCOUNTS_MODULE_KEY,
           EXPENSES_MODULE_KEY,
           EXPENSE_CATEGORIES_MODULE_KEY,
@@ -663,11 +662,7 @@ function createCapabilityService(deps) {
         (field) => patch[field] !== undefined && String(patch[field]) !== String(current[field]),
       );
       for (const field of changedFields) {
-        await assertAllowed(
-          organizationId,
-          CUSTOMER_CREDIT_FIELD_CONTROLS[field],
-          'editable',
-        );
+        await assertAllowed(organizationId, CUSTOMER_CREDIT_FIELD_CONTROLS[field], 'editable');
       }
     },
 

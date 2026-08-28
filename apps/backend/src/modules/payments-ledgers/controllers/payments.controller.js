@@ -12,23 +12,38 @@ function requireOrganizationId(req) {
 
 function createPaymentsController(deps) {
   return {
+    async listSupplierLedgerSuppliers(req, res, next) {
+      try {
+        const data = await deps.paymentsService.listSupplierLedgerSuppliers(
+          requireOrganizationId(req),
+          typeof req.query.search === 'string' ? req.query.search : '',
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async listSupplierPayments(req, res, next) {
       try {
         const { page, pageSize, skip } = parsePaginationQuery(req.query);
-        const { items, total } = await deps.paymentsService.listSupplierPayments(requireOrganizationId(req), {
-          supplierId:
-            typeof req.query.supplierId === 'string' && req.query.supplierId.trim() !== ''
-              ? req.query.supplierId.trim()
-              : undefined,
-          paymentDate:
-            typeof req.query.paymentDate === 'string' && req.query.paymentDate.trim() !== ''
-              ? req.query.paymentDate.trim()
-              : (typeof req.query.search === 'string' && req.query.search.trim() !== ''
+        const { items, total } = await deps.paymentsService.listSupplierPayments(
+          requireOrganizationId(req),
+          {
+            supplierId:
+              typeof req.query.supplierId === 'string' && req.query.supplierId.trim() !== ''
+                ? req.query.supplierId.trim()
+                : undefined,
+            paymentDate:
+              typeof req.query.paymentDate === 'string' && req.query.paymentDate.trim() !== ''
+                ? req.query.paymentDate.trim()
+                : typeof req.query.search === 'string' && req.query.search.trim() !== ''
                   ? req.query.search.trim()
-                  : undefined),
-          skip,
-          pageSize,
-        });
+                  : undefined,
+            skip,
+            pageSize,
+          },
+        );
         sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
         next(error);
@@ -100,20 +115,23 @@ function createPaymentsController(deps) {
     async listCustomerPayments(req, res, next) {
       try {
         const { page, pageSize, skip } = parsePaginationQuery(req.query);
-        const { items, total } = await deps.paymentsService.listCustomerPayments(requireOrganizationId(req), {
-          customerId:
-            typeof req.query.customerId === 'string' && req.query.customerId.trim() !== ''
-              ? req.query.customerId.trim()
-              : undefined,
-          paymentDate:
-            typeof req.query.paymentDate === 'string' && req.query.paymentDate.trim() !== ''
-              ? req.query.paymentDate.trim()
-              : (typeof req.query.search === 'string' && req.query.search.trim() !== ''
+        const { items, total } = await deps.paymentsService.listCustomerPayments(
+          requireOrganizationId(req),
+          {
+            customerId:
+              typeof req.query.customerId === 'string' && req.query.customerId.trim() !== ''
+                ? req.query.customerId.trim()
+                : undefined,
+            paymentDate:
+              typeof req.query.paymentDate === 'string' && req.query.paymentDate.trim() !== ''
+                ? req.query.paymentDate.trim()
+                : typeof req.query.search === 'string' && req.query.search.trim() !== ''
                   ? req.query.search.trim()
-                  : undefined),
-          skip,
-          pageSize,
-        });
+                  : undefined,
+            skip,
+            pageSize,
+          },
+        );
         sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
         next(error);

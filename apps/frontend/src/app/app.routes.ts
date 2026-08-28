@@ -565,10 +565,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'supplier-payments/ledger',
-        canActivate: [
-          requireCapabilityGuard('payments.supplier'),
-          requireCapabilityGuard('payments.supplier.actions.viewLedger', 'action'),
-        ],
+        canActivate: [requireCapabilityGuard('payments.supplierLedger')],
         loadComponent: () =>
           import('./features/supplier-payments/pages/supplier-ledger/supplier-ledger.page').then(
             (m) => m.SupplierLedgerPage,

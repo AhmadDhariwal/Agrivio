@@ -54,6 +54,7 @@ export class SupplierPaymentsPage {
   readonly canViewLedger = computed(
     () =>
       this.canView() &&
+      (this.capabilityService?.canUseModule('payments.supplierLedger') ?? true) &&
       (this.capabilityService?.canPerformAction('payments.supplier.actions.viewLedger') ?? true),
   );
   readonly showModuleInfo = computed(
