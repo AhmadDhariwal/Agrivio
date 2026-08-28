@@ -37,6 +37,15 @@ const {
   toPrintInvoiceDto,
 } = require('./sales.validation');
 
+const SALES_DRAFT_FIELD_CONTROLS = Object.freeze({
+  customerId: 'sales.fields.customer',
+  notes: 'sales.fields.notes',
+});
+
+const SALES_LINE_FIELD_CONTROLS = Object.freeze({
+  packagingUnitId: 'sales.fields.packagingUnit',
+});
+
 function requireIdempotencyKey(idempotencyKey) {
   if (typeof idempotencyKey !== 'string' || idempotencyKey.trim() === '') {
     throw validationFailed('Idempotency-Key header is required', [
@@ -219,6 +228,48 @@ function createSalesService(deps) {
     append: (session, event) => store.appendAuditEvent(session, event),
   });
 
+  async function assertActionAllowed(organizationId, action) {
+    if (!deps.capabilityService) return;
+    await deps.capabilityService.assertAllowed(
+      organizationId,
+      `sales.actions.${action}`,
+      'allowed',
+    );
+  }
+
+  async function assertDraftFieldEditability(organizationId, body) {
+    if (
+      !deps.capabilityService ||
+      body === null ||
+      typeof body !== 'object' ||
+      Array.isArray(body)
+    ) {
+      return;
+    }
+    const controls = new Set();
+    if (body.customerId !== undefined && body.customerId !== null && body.customerId !== '') {
+      controls.add(SALES_DRAFT_FIELD_CONTROLS.customerId);
+    }
+    if (typeof body.notes === 'string' && body.notes.trim() !== '') {
+      controls.add(SALES_DRAFT_FIELD_CONTROLS.notes);
+    }
+    if (Array.isArray(body.lines)) {
+      for (const line of body.lines) {
+        if (line === null || typeof line !== 'object' || Array.isArray(line)) continue;
+        if (
+          line.packagingUnitId !== undefined &&
+          line.packagingUnitId !== null &&
+          line.packagingUnitId !== ''
+        ) {
+          controls.add(SALES_LINE_FIELD_CONTROLS.packagingUnitId);
+        }
+      }
+    }
+    for (const controlKey of controls) {
+      await deps.capabilityService.assertAllowed(organizationId, controlKey, 'editable');
+    }
+  }
+
   async function assertWarehouseAccess(authContext, warehouseId) {
     if (typeof deps.canAccessWarehouse === 'function') {
       if (!deps.canAccessWarehouse(authContext, String(warehouseId))) {
@@ -383,6 +434,7 @@ function createSalesService(deps) {
     },
 
     async createSaleDraft(organizationId, body, authContext) {
+      await assertDraftFieldEditability(organizationId, body);
       const input = parseSaleDraft(body);
       const { branch, warehouse, customer } = await resolveHeaderMasters(
         organizationId,
@@ -431,6 +483,7 @@ function createSalesService(deps) {
     },
 
     async updateSaleDraft(organizationId, saleId, body, authContext) {
+      await assertDraftFieldEditability(organizationId, body);
       const existing = await store.findSaleById(organizationId, saleId);
       if (existing === null) {
         throw notFound('Sale not found');
@@ -548,6 +601,18 @@ function createSalesService(deps) {
 
       const key = requireIdempotencyKey(idempotencyKey);
       const input = parseSalePost(body);
+      if (input.payments.length > 0) {
+        await assertActionAllowed(organizationId, 'addPaymentAtPost');
+      }
+      if (input.approvals.creditLimit) {
+        await assertActionAllowed(organizationId, 'approveCreditLimit');
+      }
+      if (input.approvals.expiredStock) {
+        await assertActionAllowed(organizationId, 'approveExpiredStock');
+      }
+      if (input.approvals.negativeStock) {
+        await assertActionAllowed(organizationId, 'overrideNegativeStock');
+      }
       const actor = { actorId: String(authContext.userId) };
       const overrideReasonByLine = new Map(
         input.linePriceOverrides.map((entry) => [entry.lineIndex, entry.reason]),
@@ -622,6 +687,10 @@ function createSalesService(deps) {
               ]);
             }
             const receivablePreview = saleTotalPreview - paidTotal;
+
+            if (receivablePreview > 0n) {
+              await assertActionAllowed(organizationId, 'sellOnCredit');
+            }
 
             if (!customerId && receivablePreview > 0n) {
               throw validationFailed('Anonymous walk-in credit is not allowed', [
@@ -719,6 +788,7 @@ function createSalesService(deps) {
               let priceOverrideReason = null;
 
               if (unitPrice !== catalogPrice) {
+                await assertActionAllowed(organizationId, 'overridePrice');
                 if (!hasPermission(authContext.permissions ?? [], 'pricing.override')) {
                   throw forbidden('Price override permission is required');
                 }
@@ -1471,6 +1541,7 @@ function createSalesModule(options = {}) {
     inventoryService: options.inventoryService,
     paymentsService: options.paymentsService,
     accountsService: options.accountsService,
+    capabilityService: options.capabilityService,
     canAccessWarehouse: options.canAccessWarehouse,
     canAccessBranch: options.canAccessBranch,
     transactionRunner,

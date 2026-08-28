@@ -225,6 +225,15 @@
       >
         Supplier Ledger
       </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'sales'"
+        (click)="selectModule('sales')"
+        data-testid="sales-control-module"
+      >
+        Sales
+      </button>
       <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>
 

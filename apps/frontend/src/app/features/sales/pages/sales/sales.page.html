@@ -10,10 +10,16 @@
   }
 </agrivio-ui-page-header>
 
-<div class="ag-inline">
-  <agrivio-ui-search-input placeholder="Search invoice number..." [value]="search()" (searchChange)="onSearchChange($event)" />
-  <label>Status <select [value]="status()" (change)="onStatusChange($event)"><option value="">All</option><option value="draft">Draft</option><option value="posted">Posted</option><option value="cancelled">Cancelled</option></select></label>
-</div>
+@if (canSearch() || canFilterStatus()) {
+  <div class="ag-inline">
+    @if (canSearch()) {
+      <agrivio-ui-search-input placeholder="Search invoice number..." [value]="search()" (searchChange)="onSearchChange($event)" />
+    }
+    @if (canFilterStatus()) {
+      <label>Status <select [value]="status()" (change)="onStatusChange($event)"><option value="">All</option><option value="draft">Draft</option><option value="posted">Posted</option><option value="cancelled">Cancelled</option></select></label>
+    }
+  </div>
+}
 
 @if (loading()) {
   <agrivio-ui-loading-state label="Loading sale drafts…" />
@@ -47,12 +53,12 @@
             [label]="statusLabel(item.status)"
             [tone]="statusTone(item.status)"
           />
-          @if (canView() || canCreate()) {
+          @if (item.status === 'draft' ? (canEditDraft() || canInspect()) : canInspect()) {
             <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/sales', item.id]">
-              {{ actionLabel(item.status) }}
+              {{ item.status === 'draft' && canEditDraft() ? 'Edit draft' : 'View' }}
             </a>
           }
-          @if (canView() && (item.status === 'posted' || item.status === 'cancelled') && item.invoiceNumber) {
+          @if (canPrint() && (item.status === 'posted' || item.status === 'cancelled') && item.invoiceNumber) {
             <a
               class="ag-btn ag-btn--secondary"
               [routerLink]="['/app/sales', item.id, 'print']"

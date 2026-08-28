@@ -381,6 +381,7 @@ function createApp(options) {
       inventoryService: inventory.inventoryService,
       paymentsService: ledgers.paymentsService,
       accountsService: accounts.accountsService,
+      capabilityService: capabilities.capabilityService,
       canAccessWarehouse,
       canAccessBranch,
       ...(options.now === undefined ? {} : { now: options.now }),
@@ -638,6 +639,7 @@ function createApp(options) {
 
   const salesRoutes = registerSalesRoutes({
     salesService: sales.salesService,
+    capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
