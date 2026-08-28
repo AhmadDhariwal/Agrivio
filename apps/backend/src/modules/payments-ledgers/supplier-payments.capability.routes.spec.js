@@ -48,7 +48,13 @@ function serviceWith() {
 function buildApp(
   assertAllowed,
   paymentsService,
-  permissions = ['supplier-payments.view', 'supplier-payments.post', 'payments.correct'],
+  permissions = [
+    'supplier-payments.view',
+    'supplier-payments.post',
+    'customer-payments.view',
+    'customer-payments.post',
+    'payments.correct',
+  ],
 ) {
   const app = express();
   app.use(express.json());
@@ -86,6 +92,12 @@ const SUPPLIER_LEDGER_ENDPOINTS = [
   ['/api/v1/supplier-ledger/suppliers', 'GET'],
   ['/api/v1/suppliers/supplier-1/ledger', 'GET'],
   ['/api/v1/suppliers/supplier-1/reconciliation', 'GET'],
+];
+
+const CUSTOMER_ENDPOINTS = [
+  ['/api/v1/customer-payments', 'GET'],
+  ['/api/v1/customer-payments', 'POST'],
+  ['/api/v1/customer-payments/payment-1', 'GET'],
 ];
 
 describe('Supplier Payments capability route enforcement', () => {
@@ -197,8 +209,10 @@ describe('Supplier Payments capability route enforcement', () => {
 
   it('does not apply Supplier Payments controls to Customer Payments endpoints', async () => {
     const paymentsService = serviceWith();
-    const assertAllowed = vi.fn(async () => {
-      throw orgCapabilityDisabled('Supplier Payments disabled');
+    const assertAllowed = vi.fn(async (_organizationId, key) => {
+      if (key.startsWith('payments.supplier')) {
+        throw orgCapabilityDisabled('Supplier Payments disabled');
+      }
     });
     await withServer(
       buildApp(assertAllowed, paymentsService, ['customer-payments.view']),
@@ -206,6 +220,55 @@ describe('Supplier Payments capability route enforcement', () => {
         expect((await fetch(`${baseUrl}/api/v1/customer-payments`)).status).toBe(200);
       },
     );
+    expect(assertAllowed).toHaveBeenCalledWith('org-a', 'payments.customer', 'enabled', {
+      permissions: ['customer-payments.view'],
+    });
+  });
+
+  it('blocks direct Customer Payments endpoints while preserving the shared Customer Ledger', async () => {
+    const paymentsService = serviceWith();
+    const assertAllowed = vi.fn(async (_organizationId, key) => {
+      if (key === 'payments.customer') {
+        throw orgCapabilityDisabled('Customer Payments disabled');
+      }
+    });
+    await withServer(buildApp(assertAllowed, paymentsService), async (baseUrl) => {
+      for (const [path, method] of CUSTOMER_ENDPOINTS) {
+        const response = await fetch(`${baseUrl}${path}`, { method });
+        expect(response.status).toBe(403);
+        expect((await response.json()).error.code).toBe('ORG_CAPABILITY_DISABLED');
+      }
+      expect((await fetch(`${baseUrl}/api/v1/customers/customer-1/ledger`)).status).toBe(200);
+    });
+    expect(paymentsService.listCustomerPayments).not.toHaveBeenCalled();
+    expect(paymentsService.postCustomerPayment).not.toHaveBeenCalled();
+    expect(paymentsService.getCustomerPayment).not.toHaveBeenCalled();
+    expect(paymentsService.listCustomerLedger).toHaveBeenCalled();
+  });
+
+  it.each([
+    ['post', '/api/v1/customer-payments', 'POST', 'postCustomerPayment'],
+    ['inspect', '/api/v1/customer-payments/payment-1', 'GET', 'getCustomerPayment'],
+  ])('blocks Customer Payments %s independently', async (action, path, method, serviceMethod) => {
+    const paymentsService = serviceWith();
+    const assertAllowed = vi.fn(async (_organizationId, key) => {
+      if (key === `payments.customer.actions.${action}`) {
+        throw orgActionNotAllowed(`${action} disabled`);
+      }
+    });
+    await withServer(buildApp(assertAllowed, paymentsService), async (baseUrl) => {
+      const response = await fetch(`${baseUrl}${path}`, { method });
+      expect(response.status).toBe(403);
+      expect((await response.json()).error.code).toBe('ORG_ACTION_NOT_ALLOWED');
+    });
+    expect(paymentsService[serviceMethod]).not.toHaveBeenCalled();
+  });
+
+  it('keeps Customer Payments RBAC authoritative before capability evaluation', async () => {
+    const assertAllowed = vi.fn();
+    await withServer(buildApp(assertAllowed, serviceWith(), []), async (baseUrl) => {
+      expect((await fetch(`${baseUrl}/api/v1/customer-payments`)).status).toBe(403);
+    });
     expect(assertAllowed).not.toHaveBeenCalled();
   });
 

@@ -564,6 +564,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'customer-payments',
+        canActivate: [requireCapabilityGuard('payments.customer')],
         loadComponent: () =>
           import('./features/customer-payments/pages/customer-payments/customer-payments.page').then(
             (m) => m.CustomerPaymentsPage,
@@ -571,6 +572,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'customer-payments/new',
+        canActivate: [
+          requireCapabilityGuard('payments.customer'),
+          requireCapabilityGuard('payments.customer.actions.post', 'action'),
+        ],
         loadComponent: () =>
           import('./features/customer-payments/pages/customer-payment-form/customer-payment-form.page').then(
             (m) => m.CustomerPaymentFormPage,

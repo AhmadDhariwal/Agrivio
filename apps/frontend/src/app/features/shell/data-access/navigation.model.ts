@@ -104,6 +104,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Customer payments',
           route: '/app/customer-payments',
           permission: 'customer-payments.view',
+          capabilityKey: 'payments.customer',
           testId: 'nav-customer-payments',
         },
       ],

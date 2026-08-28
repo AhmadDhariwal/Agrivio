@@ -234,6 +234,15 @@
       >
         Sales
       </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'payments.customer'"
+        (click)="selectModule('payments.customer')"
+        data-testid="customer-payments-control-module"
+      >
+        Customer Payments
+      </button>
       <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>
 

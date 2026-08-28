@@ -29,6 +29,16 @@ const SUPPLIER_PAYMENT_FIELD_CONTROLS = Object.freeze({
   notes: 'payments.supplier.fields.notes',
 });
 
+const CUSTOMER_PAYMENT_FIELD_CONTROLS = Object.freeze({
+  customerId: 'payments.customer.fields.customer',
+  accountId: 'payments.customer.fields.account',
+  allocationMode: 'payments.customer.fields.allocationMode',
+  amount: 'payments.customer.fields.amount',
+  paymentDate: 'payments.customer.fields.paymentDate',
+  allocations: 'payments.customer.fields.allocations',
+  notes: 'payments.customer.fields.notes',
+});
+
 function requireIdempotencyKey(idempotencyKey) {
   if (typeof idempotencyKey !== 'string' || idempotencyKey.trim() === '') {
     throw validationFailed('Idempotency-Key header is required', [
@@ -140,11 +150,46 @@ function createPaymentsService(deps) {
     );
   }
 
+  async function assertCustomerPaymentFieldsEditable(organizationId, body) {
+    if (
+      !deps.capabilityService ||
+      body === null ||
+      typeof body !== 'object' ||
+      Array.isArray(body)
+    ) {
+      return;
+    }
+    for (const [field, controlKey] of Object.entries(CUSTOMER_PAYMENT_FIELD_CONTROLS)) {
+      if (body[field] !== undefined) {
+        await deps.capabilityService.assertAllowed(organizationId, controlKey, 'editable');
+      }
+    }
+  }
+
+  async function assertCustomerPaymentActionAllowed(organizationId, action) {
+    if (!deps.capabilityService) return;
+    await deps.capabilityService.assertAllowed(organizationId, 'payments.customer', 'enabled');
+    await deps.capabilityService.assertAllowed(
+      organizationId,
+      `payments.customer.actions.${action}`,
+      'allowed',
+    );
+  }
+
   async function assertInvoiceSpecificPaymentAllowed(organizationId, body) {
     if (!deps.capabilityService || body?.allocationMode !== 'invoice_specific') return;
     await deps.capabilityService.assertAllowed(
       organizationId,
       'payments.supplier.actions.postInvoiceSpecific',
+      'allowed',
+    );
+  }
+
+  async function assertCustomerInvoiceSpecificPaymentAllowed(organizationId, body) {
+    if (!deps.capabilityService || body?.allocationMode !== 'invoice_specific') return;
+    await deps.capabilityService.assertAllowed(
+      organizationId,
+      'payments.customer.actions.postInvoiceSpecific',
       'allowed',
     );
   }
@@ -866,6 +911,11 @@ function createPaymentsService(deps) {
               await assertSupplierPaymentFieldsEditable(organizationId, input.replacement);
               await assertInvoiceSpecificPaymentAllowed(organizationId, input.replacement);
             }
+            if (original.partyType === 'customer') {
+              await assertCustomerPaymentActionAllowed(organizationId, 'correct');
+              await assertCustomerPaymentFieldsEditable(organizationId, input.replacement);
+              await assertCustomerInvoiceSpecificPaymentAllowed(organizationId, input.replacement);
+            }
             if (original.correctionOfId) {
               throw conflict('Corrective payments cannot be corrected again');
             }
@@ -1167,6 +1217,9 @@ function createPaymentsService(deps) {
     },
 
     async postCustomerPayment(organizationId, body, actor, idempotencyKey) {
+      await assertCustomerPaymentActionAllowed(organizationId, 'post');
+      await assertCustomerPaymentFieldsEditable(organizationId, body);
+      await assertCustomerInvoiceSpecificPaymentAllowed(organizationId, body);
       const key = requireIdempotencyKey(idempotencyKey);
       const input = parseCustomerPayment(body);
 

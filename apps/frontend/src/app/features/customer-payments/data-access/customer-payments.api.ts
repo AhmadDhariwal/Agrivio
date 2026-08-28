@@ -18,13 +18,36 @@ export class CustomerPaymentsApi {
   private readonly paymentsUrl = `${environment.publicApiBaseUrl}${API_CUSTOMER_PAYMENTS_PATH}`;
   private readonly customersUrl = `${environment.publicApiBaseUrl}${API_CUSTOMERS_PATH}`;
 
-  listCustomerPayments(params: PaginationQuery & { customerId?: string } = {}): Observable<PaginatedResult<CustomerPaymentRecord>> {
+  listCustomerPayments(
+    params: PaginationQuery & {
+      customerId?: string | undefined;
+      paymentDate?: string | undefined;
+      search?: string | undefined;
+    } = {},
+  ): Observable<PaginatedResult<CustomerPaymentRecord>> {
+    const queryParams: Record<string, string | number> = {
+      page: params.page ?? 1,
+      pageSize: params.pageSize ?? 25,
+    };
+    if (params.search) queryParams['search'] = params.search;
+    if (params.paymentDate) queryParams['paymentDate'] = params.paymentDate;
+    if (params.customerId) queryParams['customerId'] = params.customerId;
+
     return this.http
       .get<ApiSuccessEnvelope<CustomerPaymentRecord[], PaginationMeta>>(this.paymentsUrl, {
         withCredentials: true,
-        params: { ...params, page: params.page ?? 1, pageSize: params.pageSize ?? 25 },
+        params: queryParams,
       })
-      .pipe(map((response) => ({ items: response.data, meta: response.meta! })));
+      .pipe(
+        map((response) => ({
+          items: response.data,
+          meta: response.meta ?? {
+            page: Number(params.page ?? 1),
+            pageSize: Number(params.pageSize ?? 25),
+            total: response.data.length,
+          },
+        })),
+      );
   }
 
   postCustomerPayment(
