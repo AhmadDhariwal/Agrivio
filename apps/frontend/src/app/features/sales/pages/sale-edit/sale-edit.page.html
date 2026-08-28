@@ -148,7 +148,7 @@
             </div>
             <div class="kpi-card__content">
               <span class="kpi-card__label">Sale total</span>
-              <span class="kpi-card__value">PKR {{ posted.saleTotal?.amount ?? '0.00' }}</span>
+              <span class="kpi-card__value">{{ formatCurrency(posted.saleTotal) }}</span>
             </div>
           </div>
 
@@ -162,7 +162,7 @@
             </div>
             <div class="kpi-card__content">
               <span class="kpi-card__label">Paid</span>
-              <span class="kpi-card__value">PKR {{ posted.paidTotal?.amount ?? '0.00' }}</span>
+              <span class="kpi-card__value">{{ formatCurrency(posted.paidTotal) }}</span>
             </div>
           </div>
 
@@ -176,7 +176,7 @@
             </div>
             <div class="kpi-card__content">
               <span class="kpi-card__label">Receivable</span>
-              <span class="kpi-card__value">PKR {{ posted.receivableTotal?.amount ?? '0.00' }}</span>
+              <span class="kpi-card__value">{{ formatCurrency(posted.receivableTotal) }}</span>
             </div>
           </div>
         </section>
@@ -245,7 +245,7 @@
                 @if (posted.postedAt) {
                   <div class="detail-row">
                     <span class="detail-label">Posted at</span>
-                    <span class="detail-value text-muted">{{ posted.postedAt }}</span>
+                    <span class="detail-value text-muted tabular-num">{{ posted.postedAt }}</span>
                   </div>
                 }
               </div>
@@ -275,8 +275,11 @@
                     <div class="detail-row">
                       <div class="payment-account-info">
                         <strong>{{ payment.accountNameSnapshot }}</strong>
+                        @if (payment.accountTypeSnapshot) {
+                          <span class="text-muted" style="margin-left: 6px; font-size: 12px;">({{ payment.accountTypeSnapshot }})</span>
+                        }
                       </div>
-                      <span class="detail-value font-medium">{{ payment.amount.amount }} {{ payment.amount.currency }}</span>
+                      <span class="detail-value tabular-num font-semibold">{{ formatCurrency(payment.amount) }}</span>
                     </div>
                   }
                 </div>
@@ -287,12 +290,12 @@
               <div class="payment-summary-block">
                 <div class="detail-row">
                   <span class="detail-label">Total paid</span>
-                  <span class="detail-value">PKR {{ posted.paidTotal?.amount ?? '0.00' }}</span>
+                  <span class="detail-value tabular-num font-semibold text-primary">{{ formatCurrency(posted.paidTotal) }}</span>
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">Balance receivable</span>
-                  <span class="detail-value font-semibold" [class.text-amber]="posted.receivableTotal?.amount && posted.receivableTotal!.amount !== '0.00'">
-                    PKR {{ posted.receivableTotal?.amount ?? '0.00' }}
+                  <span class="detail-value tabular-num font-semibold" [class.text-amber]="posted.receivableTotal?.amount && posted.receivableTotal!.amount !== '0.00'">
+                    {{ formatCurrency(posted.receivableTotal) }}
                   </span>
                 </div>
               </div>
@@ -324,6 +327,14 @@
             <!-- Desktop Table -->
             <div class="table-container desktop-only">
               <table class="dense-table" aria-label="Posted sale lines">
+                <colgroup>
+                  <col class="col-num" />
+                  <col class="col-prod" />
+                  <col class="col-pkg" />
+                  <col class="col-qty" />
+                  <col class="col-price" />
+                  <col class="col-total" />
+                </colgroup>
                 <thead>
                   <tr>
                     <th>#</th>
@@ -337,29 +348,43 @@
                 <tbody>
                   @for (line of posted.lines; track $index; let i = $index) {
                     <tr>
-                      <td class="font-mono text-muted">{{ i + 1 }}</td>
+                      <td class="tabular-num text-muted">{{ i + 1 }}</td>
                       <td>
-                        <strong class="product-name">{{ line.productNameSnapshot }}</strong>
+                        <div class="product-cell-stack">
+                          <strong class="product-name">{{ line.productNameSnapshot }}</strong>
+                          @if (line.stockAllocations && line.stockAllocations.length > 0) {
+                            <div class="batch-chips-wrap">
+                              @for (alloc of line.stockAllocations; track alloc.batchId ?? $index) {
+                                @if (alloc.batchNumber) {
+                                  <span class="tracking-chip tracking-chip--batch tracking-chip--sm">Batch: {{ alloc.batchNumber }}</span>
+                                }
+                                @if (alloc.expiryDate) {
+                                  <span class="tracking-chip tracking-chip--expiry tracking-chip--sm">Exp: {{ alloc.expiryDate }}</span>
+                                }
+                              }
+                            </div>
+                          }
+                        </div>
                       </td>
                       <td>
                         @if (line.packagingUnitId) {
-                          <span class="badge-pill badge-pill--info">
+                          <span class="tracking-chip tracking-chip--sm">
                             {{ line.unitCodeSnapshot }} (×{{ line.conversionFactorSnapshot }})
                           </span>
                         } @else {
-                          <span class="text-muted">Base unit</span>
+                          <span class="text-muted">{{ line.unitCodeSnapshot || 'Base unit' }}</span>
                         }
                       </td>
-                      <td class="text-right font-mono">{{ line.quantity }}</td>
-                      <td class="text-right font-mono">PKR {{ line.unitPrice.amount }}</td>
-                      <td class="text-right font-mono font-semibold">PKR {{ line.lineProductAmount.amount }}</td>
+                      <td class="text-right tabular-num">{{ formatQuantity(line.quantity) }}</td>
+                      <td class="text-right tabular-num">{{ formatCurrency(line.unitPrice) }}</td>
+                      <td class="text-right tabular-num font-semibold">{{ formatCurrency(line.lineProductAmount) }}</td>
                     </tr>
                   }
                 </tbody>
                 <tfoot>
                   <tr class="table-total-row">
                     <td colspan="5" class="text-right font-semibold">Sale total:</td>
-                    <td class="text-right font-mono font-bold text-primary">PKR {{ posted.saleTotal?.amount ?? '0.00' }}</td>
+                    <td class="text-right tabular-num font-bold text-primary">{{ formatCurrency(posted.saleTotal) }}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -371,9 +396,21 @@
                 <div class="posted-line-card">
                   <div class="posted-line-card__header">
                     <span class="line-badge">Line {{ i + 1 }}</span>
-                    <strong class="line-total font-mono">PKR {{ line.lineProductAmount.amount }}</strong>
+                    <strong class="line-total tabular-num">{{ formatCurrency(line.lineProductAmount) }}</strong>
                   </div>
                   <h3 class="posted-line-card__product">{{ line.productNameSnapshot }}</h3>
+                  @if (line.stockAllocations && line.stockAllocations.length > 0) {
+                    <div class="batch-chips-wrap" style="margin-bottom: 8px;">
+                      @for (alloc of line.stockAllocations; track alloc.batchId ?? $index) {
+                        @if (alloc.batchNumber) {
+                          <span class="tracking-chip tracking-chip--batch tracking-chip--sm">Batch: {{ alloc.batchNumber }}</span>
+                        }
+                        @if (alloc.expiryDate) {
+                          <span class="tracking-chip tracking-chip--expiry tracking-chip--sm">Exp: {{ alloc.expiryDate }}</span>
+                        }
+                      }
+                    </div>
+                  }
                   <div class="posted-line-card__grid">
                     <div class="posted-line-metric">
                       <span class="metric-label">Packaging</span>
@@ -381,18 +418,18 @@
                     </div>
                     <div class="posted-line-metric">
                       <span class="metric-label">Quantity</span>
-                      <span class="metric-value font-mono">{{ line.quantity }}</span>
+                      <span class="metric-value tabular-num">{{ formatQuantity(line.quantity) }}</span>
                     </div>
                     <div class="posted-line-metric">
                       <span class="metric-label">Unit Price</span>
-                      <span class="metric-value font-mono">PKR {{ line.unitPrice.amount }}</span>
+                      <span class="metric-value tabular-num">{{ formatCurrency(line.unitPrice) }}</span>
                     </div>
                   </div>
                 </div>
               }
               <div class="posted-lines-mobile__footer">
                 <span class="text-muted">{{ posted.lines.length }} {{ posted.lines.length === 1 ? 'line' : 'lines' }}</span>
-                <span class="font-semibold text-primary">Total: PKR {{ posted.saleTotal?.amount ?? '0.00' }}</span>
+                <span class="font-semibold text-primary tabular-num">Total: {{ formatCurrency(posted.saleTotal) }}</span>
               </div>
             </div>
           </div>

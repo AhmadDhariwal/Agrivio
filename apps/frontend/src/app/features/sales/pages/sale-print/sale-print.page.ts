@@ -5,6 +5,7 @@ import { SalesApi } from '../../data-access/sales.api';
 import {
   INVOICE_PRINT_LAYOUTS,
   InvoicePrintLayout,
+  MoneyAmount,
   SalePrintInvoice,
 } from '../../models/sales.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
@@ -68,6 +69,21 @@ export class SalePrintPage {
 
   print(): void {
     window.print();
+  }
+
+  formatCurrency(amount?: string | MoneyAmount | null, currency = 'PKR'): string {
+    if (!amount) return `${currency} 0.00`;
+    const num = typeof amount === 'object' ? Number(amount.amount) : Number(amount);
+    const curr = typeof amount === 'object' ? amount.currency || currency : currency;
+    if (isNaN(num)) return `${curr} 0.00`;
+    return `${curr} ${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
+  formatQuantity(val?: string | number | null): string {
+    if (val === undefined || val === null || val === '') return '0';
+    const num = Number(val);
+    if (isNaN(num)) return String(val);
+    return num.toLocaleString('en-US');
   }
 
   private mapError(error: unknown): string {
