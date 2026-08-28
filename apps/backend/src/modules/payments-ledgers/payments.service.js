@@ -1,9 +1,5 @@
 const { createAuditWriter } = require('../../platform/audit/audit-writer');
-const {
-  conflict,
-  notFound,
-  validationFailed,
-} = require('../../platform/errors/app-error');
+const { conflict, notFound, validationFailed } = require('../../platform/errors/app-error');
 const {
   createIdempotencyService,
   createInMemoryIdempotencyStore,
@@ -11,7 +7,12 @@ const {
 } = require('../../platform/idempotency/idempotency-service');
 const { allocateGeneralSupplierPayment } = require('./supplier-allocation');
 const { allocateGeneralCustomerPayment } = require('./customer-allocation');
-const { parseSupplierPayment, parseCustomerPayment, parsePaymentCorrect, toPaymentDto } = require('./payments.validation');
+const {
+  parseSupplierPayment,
+  parseCustomerPayment,
+  parsePaymentCorrect,
+  toPaymentDto,
+} = require('./payments.validation');
 const { reconcileSupplierLedgerState } = require('./supplier-reconciliation');
 const {
   formatMoneyMinorUnits,
@@ -83,7 +84,10 @@ function originalLedgerSourceType(targetType) {
 }
 
 function originalLedgerSourceId(allocation, paymentId) {
-  if (allocation.targetType === 'customer_advance' || allocation.targetType === 'supplier_advance') {
+  if (
+    allocation.targetType === 'customer_advance' ||
+    allocation.targetType === 'supplier_advance'
+  ) {
     return paymentId;
   }
   return String(allocation['_id']);
@@ -128,11 +132,7 @@ function createPaymentsService(deps) {
 
   async function assertSupplierPaymentActionAllowed(organizationId, action) {
     if (!deps.capabilityService) return;
-    await deps.capabilityService.assertAllowed(
-      organizationId,
-      'payments.supplier',
-      'enabled',
-    );
+    await deps.capabilityService.assertAllowed(organizationId, 'payments.supplier', 'enabled');
     await deps.capabilityService.assertAllowed(
       organizationId,
       `payments.supplier.actions.${action}`,
@@ -523,15 +523,46 @@ function createPaymentsService(deps) {
       };
     },
 
+    async listSupplierLedgerSuppliers(organizationId, search = '') {
+      if (!suppliersService || typeof suppliersService.listSuppliers !== 'function') {
+        return { items: [] };
+      }
+      const result = await suppliersService.listSuppliers(organizationId, {
+        status: 'active',
+        search: String(search ?? '').trim(),
+        skip: 0,
+        pageSize: 25,
+      });
+      return {
+        items: (result.items ?? []).map((supplier) => ({
+          id: String(supplier.id),
+          organizationId: String(supplier.organizationId),
+          name: String(supplier.name),
+          contactName: supplier.contactName ?? null,
+          phone: supplier.phone ?? null,
+          email: supplier.email ?? null,
+          status: String(supplier.status),
+          version: Number(supplier.version),
+        })),
+      };
+    },
+
     async listSupplierPayments(organizationId, query = {}) {
-      const { items, total } = await store.listPaymentsPage(organizationId, {
-        partyType: 'supplier',
-        supplierId: query.supplierId,
-        paymentDate: query.paymentDate ?? query.search,
-      }, { skip: query.skip, pageSize: query.pageSize });
+      const { items, total } = await store.listPaymentsPage(
+        organizationId,
+        {
+          partyType: 'supplier',
+          supplierId: query.supplierId,
+          paymentDate: query.paymentDate ?? query.search,
+        },
+        { skip: query.skip, pageSize: query.pageSize },
+      );
       const mapped = [];
       for (const item of items) {
-        const allocations = await store.listAllocationsByPayment(organizationId, String(item['_id']));
+        const allocations = await store.listAllocationsByPayment(
+          organizationId,
+          String(item['_id']),
+        );
         mapped.push(toPaymentDto(item, allocations));
       }
       return { items: mapped, total };
@@ -688,12 +719,18 @@ function createPaymentsService(deps) {
             let unpaidPurchases = [];
             let unpaidById = new Map();
 
-            if (input.allocationMode === 'general' && typeof listUnpaidSupplierPurchases === 'function') {
+            if (
+              input.allocationMode === 'general' &&
+              typeof listUnpaidSupplierPurchases === 'function'
+            ) {
               unpaidPurchases = await listUnpaidSupplierPurchases(organizationId, input.supplierId);
               unpaidById = new Map(unpaidPurchases.map((item) => [String(item.id), item]));
             }
 
-            if (input.allocationMode === 'invoice_specific' && typeof listUnpaidSupplierPurchases === 'function') {
+            if (
+              input.allocationMode === 'invoice_specific' &&
+              typeof listUnpaidSupplierPurchases === 'function'
+            ) {
               unpaidPurchases = await listUnpaidSupplierPurchases(organizationId, input.supplierId);
               unpaidById = new Map(unpaidPurchases.map((item) => [String(item.id), item]));
               for (const allocation of input.invoiceAllocations) {
@@ -706,7 +743,10 @@ function createPaymentsService(deps) {
                     },
                   ]);
                 }
-                if (BigInt(allocation.allocatedAmountMinorUnits) > BigInt(unpaid.outstandingMinorUnits)) {
+                if (
+                  BigInt(allocation.allocatedAmountMinorUnits) >
+                  BigInt(unpaid.outstandingMinorUnits)
+                ) {
                   throw validationFailed('Allocation exceeds outstanding purchase payable', [
                     {
                       field: 'allocations',
@@ -719,7 +759,10 @@ function createPaymentsService(deps) {
 
             // Pre-fetch prior allocation totals so post-check can compute purchaseTotal.
             const priorAllocTotals = new Map();
-            if (input.allocationMode === 'invoice_specific' && typeof listUnpaidSupplierPurchases === 'function') {
+            if (
+              input.allocationMode === 'invoice_specific' &&
+              typeof listUnpaidSupplierPurchases === 'function'
+            ) {
               for (const item of input.invoiceAllocations) {
                 const existing = await store.listAllocationsByTarget(
                   organizationId,
@@ -759,7 +802,10 @@ function createPaymentsService(deps) {
             }
 
             // Post-allocation outstanding validation for invoice-specific payments.
-            if (input.allocationMode === 'invoice_specific' && typeof listUnpaidSupplierPurchases === 'function') {
+            if (
+              input.allocationMode === 'invoice_specific' &&
+              typeof listUnpaidSupplierPurchases === 'function'
+            ) {
               for (const alloc of plan.purchaseAllocations) {
                 const purchaseUnpaid = unpaidById.get(String(alloc.purchaseId));
                 if (!purchaseUnpaid) {
@@ -899,8 +945,9 @@ function createPaymentsService(deps) {
                 partyType: original.partyType,
                 customerId: original.customerId,
                 supplierId: original.supplierId,
-                effectKind: originalEffect?.effectKind
-                  ?? (allocation.targetType === 'sale' || allocation.targetType === 'purchase'
+                effectKind:
+                  originalEffect?.effectKind ??
+                  (allocation.targetType === 'sale' || allocation.targetType === 'purchase'
                     ? original.partyType === 'customer'
                       ? 'receivable'
                       : 'payable'
@@ -921,7 +968,10 @@ function createPaymentsService(deps) {
               });
             }
 
-            if (accountsService && typeof accountsService.listAccountMovementsBySource === 'function') {
+            if (
+              accountsService &&
+              typeof accountsService.listAccountMovementsBySource === 'function'
+            ) {
               const sourceTypes =
                 original.partyType === 'customer'
                   ? ['customer_payment']
@@ -1060,14 +1110,21 @@ function createPaymentsService(deps) {
     },
 
     async listCustomerPayments(organizationId, query = {}) {
-      const { items, total } = await store.listPaymentsPage(organizationId, {
-        partyType: 'customer',
-        customerId: query.customerId,
-        paymentDate: query.paymentDate ?? query.search,
-      }, { skip: query.skip, pageSize: query.pageSize });
+      const { items, total } = await store.listPaymentsPage(
+        organizationId,
+        {
+          partyType: 'customer',
+          customerId: query.customerId,
+          paymentDate: query.paymentDate ?? query.search,
+        },
+        { skip: query.skip, pageSize: query.pageSize },
+      );
       const mapped = [];
       for (const item of items) {
-        const allocations = await store.listAllocationsByPayment(organizationId, String(item['_id']));
+        const allocations = await store.listAllocationsByPayment(
+          organizationId,
+          String(item['_id']),
+        );
         mapped.push(toPaymentDto(item, allocations));
       }
       return { items: mapped, total };
@@ -1161,7 +1218,10 @@ function createPaymentsService(deps) {
               unpaidById = new Map(unpaidSales.map((item) => [String(item.id), item]));
             }
 
-            if (input.allocationMode === 'invoice_specific' && typeof listUnpaidCustomerSales === 'function') {
+            if (
+              input.allocationMode === 'invoice_specific' &&
+              typeof listUnpaidCustomerSales === 'function'
+            ) {
               for (const allocation of input.invoiceAllocations) {
                 const unpaid = unpaidById.get(allocation.saleId);
                 if (!unpaid) {
@@ -1172,7 +1232,10 @@ function createPaymentsService(deps) {
                     },
                   ]);
                 }
-                if (BigInt(allocation.allocatedAmountMinorUnits) > BigInt(unpaid.outstandingMinorUnits)) {
+                if (
+                  BigInt(allocation.allocatedAmountMinorUnits) >
+                  BigInt(unpaid.outstandingMinorUnits)
+                ) {
                   throw validationFailed('Allocation exceeds outstanding sale receivable', [
                     {
                       field: 'allocations',

@@ -13,6 +13,8 @@ const {
 const { createPaymentsController } = require('../controllers/payments.controller');
 const { createRequireCapabilityMiddleware } = require('../../capabilities/capability.middleware');
 
+const API_SUPPLIER_LEDGER_SUPPLIERS_PATH = '/api/v1/supplier-ledger/suppliers';
+
 function registerPaymentsRoutes(deps) {
   const router = Router();
   const controller = createPaymentsController(deps);
@@ -28,6 +30,29 @@ function registerPaymentsRoutes(deps) {
       `payments.supplier.actions.${action}`,
       'allowed',
     );
+  const requireSupplierLedgerModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'payments.supplierLedger',
+    'enabled',
+  );
+  const requireSupplierLedgerFeature = (feature) =>
+    createRequireCapabilityMiddleware(
+      deps.capabilityService,
+      `payments.supplierLedger.features.${feature}`,
+      'enabled',
+    );
+
+  router.get(
+    API_SUPPLIER_LEDGER_SUPPLIERS_PATH,
+    deps.requireAuth,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('supplier-payments.view'),
+    deps.requireOperationalAccess,
+    requireSupplierLedgerModule,
+    (req, res, next) => {
+      void controller.listSupplierLedgerSuppliers(req, res, next);
+    },
+  );
 
   router.get(
     API_SUPPLIER_PAYMENTS_PATH,
@@ -74,8 +99,7 @@ function registerPaymentsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('supplier-payments.view'),
     deps.requireOperationalAccess,
-    requireSupplierPaymentsModule,
-    requireSupplierPaymentsAction('viewLedger'),
+    requireSupplierLedgerModule,
     (req, res, next) => {
       void controller.listSupplierLedger(req, res, next);
     },
@@ -99,8 +123,8 @@ function registerPaymentsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('supplier-payments.view'),
     deps.requireOperationalAccess,
-    requireSupplierPaymentsModule,
-    requireSupplierPaymentsAction('viewLedger'),
+    requireSupplierLedgerModule,
+    requireSupplierLedgerFeature('reconciliationSummary'),
     (req, res, next) => {
       void controller.reconcileSupplierLedger(req, res, next);
     },

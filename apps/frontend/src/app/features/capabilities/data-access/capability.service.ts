@@ -403,6 +403,24 @@ const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string,
   'payments.supplier.actions.inspect': { allowed: true },
   'payments.supplier.actions.viewLedger': { allowed: true },
   'payments.supplier.actions.correct': { allowed: true },
+  // Supplier Ledger submodule controls (17 authoritative controls)
+  'payments.supplierLedger': { enabled: true },
+  'payments.supplierLedger.features.moduleInfo': { enabled: true },
+  'payments.supplierLedger.features.supplierSearch': { enabled: true },
+  'payments.supplierLedger.features.reconciliationSummary': { enabled: true },
+  'payments.supplierLedger.features.ledgerFilters': { enabled: true },
+  'payments.supplierLedger.fields.supplierIdentity': { visible: true },
+  'payments.supplierLedger.fields.outstandingPayable': { visible: true },
+  'payments.supplierLedger.fields.supplierAdvance': { visible: true },
+  'payments.supplierLedger.fields.reconciliationStatus': { visible: true },
+  'payments.supplierLedger.fields.allocationTotal': { visible: true },
+  'payments.supplierLedger.fields.date': { visible: true },
+  'payments.supplierLedger.fields.reference': { visible: true },
+  'payments.supplierLedger.fields.entryType': { visible: true },
+  'payments.supplierLedger.fields.effectKind': { visible: true },
+  'payments.supplierLedger.fields.signedAmount': { visible: true },
+  'payments.supplierLedger.fields.sourceStatus': { visible: true },
+  'payments.supplierLedger.actions.viewSource': { allowed: true },
 };
 
 @Injectable({ providedIn: 'root' })
@@ -523,6 +541,7 @@ export class CapabilityService {
       'alerts',
       'purchases',
       'payments.supplier',
+      'payments.supplierLedger',
     ]);
     return {
       organizationId: this.sessionStore.activeContext()?.organizationId ?? 'test-organization',

@@ -5,6 +5,7 @@ import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
 import { ApiSuccessEnvelope, PaginationMeta } from '@agrivio/api-contracts';
 import { PaginatedResult, PaginationQuery } from '../../../shared/data-access/pagination';
+import { SupplierRecord } from '../../suppliers/models/suppliers.models';
 import {
   SupplierLedgerEffectRecord,
   SupplierPaymentCreateInput,
@@ -58,6 +59,15 @@ export class SupplierPaymentsApi {
           .pipe(map((response) => response.data)),
       ),
     );
+  }
+
+  listSupplierLedgerSuppliers(search = ''): Observable<SupplierRecord[]> {
+    return this.http
+      .get<{ data: { items: SupplierRecord[] } }>(
+        `${environment.publicApiBaseUrl}/api/v1/supplier-ledger/suppliers`,
+        { withCredentials: true, params: search.trim() ? { search: search.trim() } : {} },
+      )
+      .pipe(map((response) => response.data.items));
   }
 
   listSupplierLedger(supplierId: string): Observable<SupplierLedgerEffectRecord[]> {

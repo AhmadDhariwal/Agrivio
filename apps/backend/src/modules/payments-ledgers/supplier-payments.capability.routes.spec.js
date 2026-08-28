@@ -33,7 +33,8 @@ function serviceWith() {
     listSupplierPayments: vi.fn(async () => ({ items: [], total: 0 })),
     postSupplierPayment: vi.fn(async () => ({ statusCode: 201, data: {} })),
     getSupplierPayment: vi.fn(async () => ({})),
-    listSupplierLedger: vi.fn(async () => []),
+    listSupplierLedgerSuppliers: vi.fn(async () => ({ items: [] })),
+    listSupplierLedger: vi.fn(async () => ({ items: [] })),
     listUnpaidPurchasesForSupplier: vi.fn(async () => []),
     reconcileSupplierLedger: vi.fn(async () => ({})),
     listCustomerPayments: vi.fn(async () => ({ items: [], total: 0 })),
@@ -44,11 +45,11 @@ function serviceWith() {
   };
 }
 
-function buildApp(assertAllowed, paymentsService, permissions = [
-  'supplier-payments.view',
-  'supplier-payments.post',
-  'payments.correct',
-]) {
+function buildApp(
+  assertAllowed,
+  paymentsService,
+  permissions = ['supplier-payments.view', 'supplier-payments.post', 'payments.correct'],
+) {
   const app = express();
   app.use(express.json());
   app.use(createRequestIdMiddleware());
@@ -78,13 +79,17 @@ const SUPPLIER_ENDPOINTS = [
   ['/api/v1/supplier-payments', 'GET'],
   ['/api/v1/supplier-payments', 'POST'],
   ['/api/v1/supplier-payments/payment-1', 'GET'],
-  ['/api/v1/suppliers/supplier-1/ledger', 'GET'],
   ['/api/v1/suppliers/supplier-1/unpaid-purchases', 'GET'],
+];
+
+const SUPPLIER_LEDGER_ENDPOINTS = [
+  ['/api/v1/supplier-ledger/suppliers', 'GET'],
+  ['/api/v1/suppliers/supplier-1/ledger', 'GET'],
   ['/api/v1/suppliers/supplier-1/reconciliation', 'GET'],
 ];
 
 describe('Supplier Payments capability route enforcement', () => {
-  it('blocks every Supplier Payments endpoint when the submodule is disabled', async () => {
+  it('blocks Supplier Payments without disabling direct Supplier Ledger endpoints', async () => {
     const paymentsService = serviceWith();
     const assertAllowed = vi.fn(async (_organizationId, key) => {
       if (key === 'payments.supplier') throw orgCapabilityDisabled('Supplier Payments disabled');
@@ -95,18 +100,21 @@ describe('Supplier Payments capability route enforcement', () => {
         expect(response.status).toBe(403);
         expect((await response.json()).error.code).toBe('ORG_CAPABILITY_DISABLED');
       }
-    });
-    for (const [name, method] of Object.entries(paymentsService)) {
-      if (!name.toLowerCase().includes('customer') && name !== 'correctPayment') {
-        expect(method).not.toHaveBeenCalled();
+      for (const [path, method] of SUPPLIER_LEDGER_ENDPOINTS) {
+        expect((await fetch(`${baseUrl}${path}`, { method })).status).toBe(200);
       }
-    }
+    });
+    expect(paymentsService.listSupplierPayments).not.toHaveBeenCalled();
+    expect(paymentsService.postSupplierPayment).not.toHaveBeenCalled();
+    expect(paymentsService.getSupplierPayment).not.toHaveBeenCalled();
+    expect(paymentsService.listUnpaidPurchasesForSupplier).not.toHaveBeenCalled();
+    expect(paymentsService.listSupplierLedger).toHaveBeenCalled();
+    expect(paymentsService.reconcileSupplierLedger).toHaveBeenCalled();
   });
 
   it.each([
     ['post', '/api/v1/supplier-payments', 'POST', 'postSupplierPayment'],
     ['inspect', '/api/v1/supplier-payments/payment-1', 'GET', 'getSupplierPayment'],
-    ['viewLedger', '/api/v1/suppliers/supplier-1/ledger', 'GET', 'listSupplierLedger'],
   ])('blocks %s independently', async (action, path, method, serviceMethod) => {
     const paymentsService = serviceWith();
     const assertAllowed = vi.fn(async (_organizationId, key) => {
@@ -122,10 +130,67 @@ describe('Supplier Payments capability route enforcement', () => {
     expect(paymentsService[serviceMethod]).not.toHaveBeenCalled();
   });
 
+  it('blocks every Supplier Ledger read when its own submodule is disabled', async () => {
+    const paymentsService = serviceWith();
+    const assertAllowed = vi.fn(async (_organizationId, key) => {
+      if (key === 'payments.supplierLedger')
+        throw orgCapabilityDisabled('Supplier Ledger disabled');
+    });
+    await withServer(buildApp(assertAllowed, paymentsService), async (baseUrl) => {
+      for (const [path, method] of SUPPLIER_LEDGER_ENDPOINTS) {
+        const response = await fetch(`${baseUrl}${path}`, { method });
+        expect(response.status).toBe(403);
+        expect((await response.json()).error.code).toBe('ORG_CAPABILITY_DISABLED');
+      }
+      expect((await fetch(`${baseUrl}/api/v1/supplier-payments`)).status).toBe(200);
+    });
+    expect(paymentsService.listSupplierLedgerSuppliers).not.toHaveBeenCalled();
+    expect(paymentsService.listSupplierLedger).not.toHaveBeenCalled();
+    expect(paymentsService.reconcileSupplierLedger).not.toHaveBeenCalled();
+  });
+
+  it('blocks the reconciliation summary feature independently', async () => {
+    const paymentsService = serviceWith();
+    const assertAllowed = vi.fn(async (_organizationId, key) => {
+      if (key === 'payments.supplierLedger.features.reconciliationSummary') {
+        throw orgCapabilityDisabled('Reconciliation summary disabled');
+      }
+    });
+    await withServer(buildApp(assertAllowed, paymentsService), async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/v1/suppliers/supplier-1/reconciliation`);
+      expect(response.status).toBe(403);
+      expect((await response.json()).error.code).toBe('ORG_CAPABILITY_DISABLED');
+    });
+    expect(paymentsService.reconcileSupplierLedger).not.toHaveBeenCalled();
+  });
+
+  it('keeps ledger supplier lookup available when only search presentation is disabled', async () => {
+    const paymentsService = serviceWith();
+    const assertAllowed = vi.fn(async (_organizationId, key) => {
+      if (key === 'payments.supplierLedger.features.supplierSearch') {
+        throw orgCapabilityDisabled('Supplier search disabled');
+      }
+    });
+    await withServer(buildApp(assertAllowed, paymentsService), async (baseUrl) => {
+      expect((await fetch(`${baseUrl}/api/v1/supplier-ledger/suppliers`)).status).toBe(200);
+    });
+    expect(paymentsService.listSupplierLedgerSuppliers).toHaveBeenCalledWith('org-a', '');
+  });
+
   it('keeps RBAC authoritative before capability evaluation', async () => {
     const assertAllowed = vi.fn();
     await withServer(buildApp(assertAllowed, serviceWith(), []), async (baseUrl) => {
       expect((await fetch(`${baseUrl}/api/v1/supplier-payments`)).status).toBe(403);
+    });
+    expect(assertAllowed).not.toHaveBeenCalled();
+  });
+
+  it('keeps Supplier Ledger RBAC authoritative before capability evaluation', async () => {
+    const assertAllowed = vi.fn();
+    await withServer(buildApp(assertAllowed, serviceWith(), []), async (baseUrl) => {
+      for (const [path] of SUPPLIER_LEDGER_ENDPOINTS) {
+        expect((await fetch(`${baseUrl}${path}`)).status).toBe(403);
+      }
     });
     expect(assertAllowed).not.toHaveBeenCalled();
   });
@@ -159,5 +224,15 @@ describe('Supplier Payments capability route enforcement', () => {
         pageSize: 10,
       });
     });
+  });
+
+  it('forwards bounded supplier search to the ledger-owned lookup', async () => {
+    const paymentsService = serviceWith();
+    await withServer(buildApp(vi.fn(), paymentsService), async (baseUrl) => {
+      expect((await fetch(`${baseUrl}/api/v1/supplier-ledger/suppliers?search=agri`)).status).toBe(
+        200,
+      );
+    });
+    expect(paymentsService.listSupplierLedgerSuppliers).toHaveBeenCalledWith('org-a', 'agri');
   });
 });

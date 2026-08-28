@@ -617,7 +617,6 @@ describe('CapabilityService', () => {
     const app = appRoutes.find((route) => route.path === 'app');
     expect(app?.children?.find((route) => route.path === 'supplier-payments')?.canActivate).toHaveLength(1);
     expect(app?.children?.find((route) => route.path === 'supplier-payments/new')?.canActivate).toHaveLength(2);
-    expect(app?.children?.find((route) => route.path === 'supplier-payments/ledger')?.canActivate).toHaveLength(2);
 
     const navigation = CANONICAL_NAVIGATION.flatMap((entry) =>
       entry.type === 'group' ? entry.group.children : [entry.item],
@@ -626,10 +625,55 @@ describe('CapabilityService', () => {
       permission: 'supplier-payments.view',
       capabilityKey: 'payments.supplier',
     });
+  });
+
+  it('exposes authoritative read-only defaults for Supplier Ledger (17 controls)', () => {
+    const service = TestBed.inject(CapabilityService);
+    const features = ['moduleInfo', 'supplierSearch', 'reconciliationSummary', 'ledgerFilters'];
+    const fields = [
+      'supplierIdentity',
+      'outstandingPayable',
+      'supplierAdvance',
+      'reconciliationStatus',
+      'allocationTotal',
+      'date',
+      'reference',
+      'entryType',
+      'effectKind',
+      'signedAmount',
+      'sourceStatus',
+    ];
+    const actions = ['viewSource'];
+    const allKeys = [
+      'payments.supplierLedger',
+      ...features.map((id) => `payments.supplierLedger.features.${id}`),
+      ...fields.map((id) => `payments.supplierLedger.fields.${id}`),
+      ...actions.map((id) => `payments.supplierLedger.actions.${id}`),
+    ];
+
+    expect(allKeys).toHaveLength(17);
+    expect(new Set(allKeys).size).toBe(17);
+    expect(service.canUseModule('payments.supplierLedger')).toBe(true);
+    for (const id of features) {
+      expect(service.canUseFeature(`payments.supplierLedger.features.${id}`)).toBe(true);
+    }
+    for (const id of fields) {
+      expect(service.canViewField(`payments.supplierLedger.fields.${id}`)).toBe(true);
+      expect(service.canEditField(`payments.supplierLedger.fields.${id}`)).toBe(false);
+    }
+    for (const id of actions) {
+      expect(service.canPerformAction(`payments.supplierLedger.actions.${id}`)).toBe(true);
+    }
+
+    const app = appRoutes.find((route) => route.path === 'app');
+    expect(app?.children?.find((route) => route.path === 'supplier-payments/ledger')?.canActivate).toHaveLength(1);
+
+    const navigation = CANONICAL_NAVIGATION.flatMap((entry) =>
+      entry.type === 'group' ? entry.group.children : [entry.item],
+    );
     expect(navigation.find((item) => item.id === 'purchases.supplier-ledger')).toMatchObject({
       permission: 'supplier-payments.view',
-      capabilityKey: 'payments.supplier',
-      actionCapabilityKey: 'payments.supplier.actions.viewLedger',
+      capabilityKey: 'payments.supplierLedger',
     });
   });
 });

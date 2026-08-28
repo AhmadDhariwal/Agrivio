@@ -1,96 +1,578 @@
-<agrivio-ui-page-header
-  title="Supplier ledger & reconciliation"
-  eyebrow="Purchasing"
-  lede="View ledger effects and reconciliation status for any active supplier."
->
-  <a class="ag-btn ag-btn--secondary" routerLink="/app/supplier-payments">Back to payments</a>
-</agrivio-ui-page-header>
-
-@if (!canView()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to view supplier payments." />
-} @else if (loadingSuppliers()) {
-  <agrivio-ui-loading-state label="Loading suppliers…" />
-} @else {
-  <form class="ag-stack form" [formGroup]="form" data-testid="ledger-supplier-form">
-    <label>
-      Supplier
-      <input type="search" placeholder="Find supplier" (change)="onSupplierSearch($event)" />
-      <select formControlName="supplierId" data-testid="ledger-supplier-select">
-        <option value="">Select supplier</option>
-        @for (supplier of suppliers(); track supplier.id) {
-          <option [value]="supplier.id">{{ supplier.name }}</option>
+<div class="ledger-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">Purchasing</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">Supplier ledger &amp; reconciliation</h1>
+        @if (selectedSupplierId()) {
+          <span class="page-head__count-pill" aria-label="Total ledger entries">
+            {{ filteredLedgerItems().length }} {{ filteredLedgerItems().length === 1 ? 'entry' : 'entries' }}
+          </span>
         }
-      </select>
-    </label>
-  </form>
+      </div>
+      <p class="page-head__lede">
+        View authoritative signed ledger effects and financial reconciliation status for any supplier.
+      </p>
+    </div>
+    <div class="page-head__actions">
+      <a
+        class="ag-btn ag-btn--secondary page-head__back-btn"
+        routerLink="/app/supplier-payments"
+        data-testid="back-to-payments-btn"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+        <span class="btn-text-full">Back to payments</span>
+        <span class="btn-text-mobile">Back</span>
+      </a>
+    </div>
+  </header>
 
-  @if (selectedSupplierId()) {
-    @if (errorMessage(); as error) {
+  <!-- Error Alerts -->
+  @if (errorMessage(); as error) {
+    <div class="alert-container">
       <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-    }
-
-    @if (loadingRecon()) {
-      <agrivio-ui-loading-state label="Loading reconciliation…" />
-    } @else if (reconciliation(); as recon) {
-      <section class="ag-stack recon" data-testid="reconciliation-panel">
-        <h2>Reconciliation status</h2>
-        <p>
-          Status:
-          <strong
-            data-testid="supplier-ledger-reconciliation-status"
-            [class.recon-ok]="recon.ok"
-            [class.recon-findings]="!recon.ok"
-          >
-            {{ recon.ok ? 'Healthy' : 'Findings' }}
-          </strong>
-        </p>
-        <p>Payable: {{ recon.payable.amount }} {{ recon.payable.currency }}</p>
-        <p>Advance: {{ recon.advance.amount }} {{ recon.advance.currency }}</p>
-        <p>Allocation total: {{ recon.allocationTotal.amount }} {{ recon.allocationTotal.currency }}</p>
-        <p>
-          Account movement total: {{ recon.accountMovementTotal.amount }}
-          {{ recon.accountMovementTotal.currency }}
-        </p>
-        @if (recon.findings && recon.findings.length > 0) {
-          <ul class="findings-list">
-            @for (finding of recon.findings; track $index) {
-              <li>{{ finding.code }}</li>
-            }
-          </ul>
-        }
-      </section>
-    } @else if (reconErrorMessage(); as reconErr) {
+    </div>
+  }
+  @if (reconErrorMessage(); as reconErr) {
+    <div class="alert-container">
       <agrivio-ui-alert tone="warning" [message]="reconErr" />
+    </div>
+  }
+
+  @if (!canView()) {
+    <agrivio-ui-alert
+      tone="warning"
+      message="You do not have permission to view supplier ledger &amp; reconciliation."
+      data-testid="supplier-ledger-permission-alert"
+    />
+  } @else {
+    <!-- Module Info Section -->
+    @if (showModuleInfo()) {
+      <agrivio-ui-module-info
+        [title]="infoTitle"
+        [description]="infoDescription"
+        [items]="infoItems"
+        [defaultExpanded]="false"
+      />
     }
 
-    @if (loadingLedger()) {
-      <agrivio-ui-loading-state label="Loading ledger…" />
-    } @else if (ledgerItems().length === 0) {
-      <agrivio-ui-empty-state
-        title="No ledger entries"
-        message="No ledger effects found for this supplier."
-      />
-    } @else {
-      <section class="ag-stack ledger" data-testid="ledger-effects-table">
-        <h2>Ledger effects</h2>
-        <div class="ledger-header ledger-row">
-          <span>Kind</span>
-          <span>Source</span>
-          <span>Date</span>
-          <span>Amount</span>
+    <!-- Supplier Selector Card -->
+    <section class="supplier-select-card" aria-label="Supplier selection">
+      <form class="supplier-selector-form" [formGroup]="form" data-testid="ledger-supplier-form">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label" for="searchSupplierInput">Find supplier</label>
+            <div class="input-with-icon">
+              <svg
+                class="field-icon"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input
+                id="searchSupplierInput"
+                type="search"
+                class="ag-input field-input"
+                placeholder="Search by supplier name…"
+                (input)="onSupplierSearch($event)"
+              />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="supplierSelect">Select supplier</label>
+            <select
+              id="supplierSelect"
+              class="ag-select field-select"
+              formControlName="supplierId"
+              data-testid="ledger-supplier-select"
+            >
+              <option value="">-- Choose a supplier --</option>
+              @for (supplier of suppliers(); track supplier.id) {
+                <option [value]="supplier.id">{{ supplier.name }}</option>
+              }
+            </select>
+          </div>
         </div>
-        @for (item of ledgerItems(); track item.id) {
-          <article class="ledger-row">
-            <span>{{ effectKindLabel(item.effectKind) }}</span>
-            <span class="ag-muted">{{ sourceTypeLabel(item.sourceType) }}</span>
-            <span class="ag-muted">{{ item.postedAt }}</span>
-            <span [class.amount-positive]="!item.signedAmount.amount.startsWith('-')"
-                  [class.amount-negative]="item.signedAmount.amount.startsWith('-')">
-              {{ item.signedAmount.amount }} {{ item.signedAmount.currency }}
-            </span>
-          </article>
+      </form>
+    </section>
+
+    @if (loadingSuppliers()) {
+      <agrivio-ui-loading-state label="Loading suppliers…" />
+    } @else if (selectedSupplierId()) {
+      <!-- Supplier Context Header Card -->
+      @if (selectedSupplier(); as supplier) {
+        @if (canViewField('supplierIdentity')) {
+          <div class="supplier-context-card">
+            <div class="supplier-context-card__avatar">
+              {{ supplierInitial() }}
+            </div>
+            <div class="supplier-context-card__details">
+              <div class="supplier-context-card__title-row">
+                <h2 class="supplier-context-card__name">{{ supplier.name }}</h2>
+                <span class="status-pill status-pill--success">{{ supplier.status }}</span>
+              </div>
+              <div class="supplier-context-card__meta">
+                @if (supplier.contactName) {
+                  <span class="meta-item">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    {{ supplier.contactName }}
+                  </span>
+                }
+                @if (supplier.phone) {
+                  <span class="meta-item">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                    </svg>
+                    {{ supplier.phone }}
+                  </span>
+                }
+                @if (supplier.email) {
+                  <span class="meta-item">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                      <polyline points="22,6 12,13 2,6"></polyline>
+                    </svg>
+                    {{ supplier.email }}
+                  </span>
+                }
+              </div>
+            </div>
+          </div>
+        }
+      }
+
+      <!-- Authoritative KPI Summary Row -->
+      @if (loadingRecon()) {
+        <agrivio-ui-loading-state label="Loading reconciliation data…" />
+      } @else if (reconciliation(); as recon) {
+        @if (showReconciliationSummary()) {
+          <section class="kpi-row" aria-label="Supplier financial reconciliation summary">
+            <!-- Outstanding Payable Card -->
+            @if (canViewField('outstandingPayable')) {
+              <div class="kpi-card">
+                <div class="kpi-card__icon kpi-card__icon--neutral">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                </div>
+                <div class="kpi-card__content">
+                  <span class="kpi-card__label">Outstanding Payable</span>
+                  <span class="kpi-card__value">PKR {{ recon.payable.amount }}</span>
+                </div>
+              </div>
+            }
+
+            <!-- Supplier Advance Card -->
+            @if (canViewField('supplierAdvance')) {
+              <div class="kpi-card">
+                <div class="kpi-card__icon kpi-card__icon--green">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                    <line x1="12" y1="8" x2="12" y2="16"></line>
+                    <line x1="8" y1="12" x2="16" y2="12"></line>
+                  </svg>
+                </div>
+                <div class="kpi-card__content">
+                  <span class="kpi-card__label">Supplier Advance</span>
+                  <span class="kpi-card__value">PKR {{ recon.advance.amount }}</span>
+                </div>
+              </div>
+            }
+
+            <!-- Reconciliation Status Card -->
+            @if (canViewField('reconciliationStatus')) {
+              <div class="kpi-card">
+                <div
+                  class="kpi-card__icon"
+                  [class.kpi-card__icon--green]="recon.ok"
+                  [class.kpi-card__icon--amber]="!recon.ok"
+                >
+                  @if (recon.ok) {
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                      <polyline points="9 12 11 14 15 10"></polyline>
+                    </svg>
+                  } @else {
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                      <line x1="12" y1="9" x2="12" y2="13"></line>
+                      <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                  }
+                </div>
+                <div class="kpi-card__content">
+                  <span class="kpi-card__label">Reconciliation</span>
+                  <span
+                    class="kpi-card__value-badge"
+                    data-testid="supplier-ledger-reconciliation-status"
+                    [class.status-pill--success]="recon.ok"
+                    [class.status-pill--warning]="!recon.ok"
+                  >
+                    {{ recon.ok ? 'Healthy' : 'Findings (' + recon.findings.length + ')' }}
+                  </span>
+                </div>
+              </div>
+            }
+
+            <!-- Allocations Total Card -->
+            @if (canViewField('allocationTotal')) {
+              <div class="kpi-card">
+                <div class="kpi-card__icon kpi-card__icon--blue">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path>
+                    <line x1="12" y1="6" x2="12" y2="8"></line>
+                    <line x1="12" y1="16" x2="12" y2="18"></line>
+                  </svg>
+                </div>
+                <div class="kpi-card__content">
+                  <span class="kpi-card__label">Allocations Total</span>
+                  <span class="kpi-card__value">PKR {{ recon.allocationTotal.amount }}</span>
+                </div>
+              </div>
+            }
+          </section>
+
+          <!-- Reconciliation Findings Detail (if any) -->
+          @if (recon.findings && recon.findings.length > 0) {
+            <section class="findings-panel" data-testid="reconciliation-panel">
+              <div class="findings-panel__header">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                  <line x1="12" y1="9" x2="12" y2="13"></line>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <h3 class="findings-panel__title">Reconciliation Findings Detected</h3>
+              </div>
+              <ul class="findings-panel__list">
+                @for (finding of recon.findings; track $index) {
+                  <li class="findings-panel__item">
+                    <span class="finding-code">{{ finding.code }}</span>
+                    @if (finding.expectedMinorUnits && finding.actualMinorUnits) {
+                      <span class="finding-desc">
+                        (Expected: {{ finding.expectedMinorUnits }}, Actual: {{ finding.actualMinorUnits }})
+                      </span>
+                    }
+                  </li>
+                }
+              </ul>
+            </section>
+          }
+        }
+      }
+
+      <!-- Ledger Entries Section -->
+      <section class="table-card" data-testid="ledger-effects-table" aria-label="Ledger entries">
+        <!-- Table Toolbar -->
+        <div class="toolbar">
+          <div class="toolbar__left">
+            @if (showLedgerFilters()) {
+              <div class="toolbar__search-group">
+                <svg
+                  class="search-icon"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input
+                  type="search"
+                  class="toolbar__search-input"
+                  placeholder="Filter entries by reference/type…"
+                  [value]="searchTerm()"
+                  (input)="onSearchTermChange($event)"
+                />
+              </div>
+
+              <select
+                class="toolbar__filter-select"
+                [value]="typeFilter()"
+                (change)="onTypeFilterChange($event)"
+              >
+                <option value="all">All effect kinds</option>
+                <option value="payable">Payable only</option>
+                <option value="supplier_advance">Advance only</option>
+              </select>
+
+              @if (searchTerm() || typeFilter() !== 'all') {
+                <button
+                  type="button"
+                  class="ag-btn ag-btn--secondary toolbar__clear-btn"
+                  (click)="clearTableFilters()"
+                >
+                  Clear
+                </button>
+              }
+            }
+          </div>
+
+          <div class="toolbar__right">
+            <button
+              type="button"
+              class="ag-btn ag-btn--secondary toolbar__refresh-btn"
+              (click)="reloadCurrentSupplier()"
+              title="Refresh ledger entries"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+              <span class="btn-text-full">Refresh</span>
+            </button>
+          </div>
+        </div>
+
+        @if (loadingLedger()) {
+          <div class="loading-wrap">
+            <agrivio-ui-loading-state label="Loading ledger entries…" />
+          </div>
+        } @else if (filteredLedgerItems().length === 0) {
+          <agrivio-ui-empty-state
+            title="No ledger entries"
+            message="No ledger effects found matching the selected criteria."
+          />
+        } @else {
+          <!-- Desktop Table (>= 768px) -->
+          <div class="table-responsive desktop-only">
+            <table class="dense-table" aria-label="Supplier ledger table">
+              <thead>
+                <tr>
+                  @if (canViewField('date')) {
+                    <th scope="col" style="width: 140px;">Date / Time</th>
+                  }
+                  @if (canViewField('reference')) {
+                    <th scope="col" style="width: 140px;">Reference</th>
+                  }
+                  @if (canViewField('entryType')) {
+                    <th scope="col">Entry Type</th>
+                  }
+                  @if (canViewField('effectKind')) {
+                    <th scope="col" style="width: 120px;">Effect Kind</th>
+                  }
+                  @if (canViewField('signedAmount')) {
+                    <th scope="col" class="text-right" style="width: 150px;">Signed Amount</th>
+                  }
+                  @if (canViewField('sourceStatus')) {
+                    <th scope="col" style="width: 90px;">Status</th>
+                  }
+                  @if (canViewSourceAction()) {
+                    <th scope="col" class="text-right" style="width: 100px;">Action</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of filteredLedgerItems(); track item.id) {
+                  <tr>
+                    <!-- Date -->
+                    @if (canViewField('date')) {
+                      <td class="cell-date">
+                        {{ item.postedAt | date: 'mediumDate' }}
+                        <span class="cell-subtext">{{ item.postedAt | date: 'shortTime' }}</span>
+                      </td>
+                    }
+
+                    <!-- Reference -->
+                    @if (canViewField('reference')) {
+                      <td>
+                        @if (sourceRoute(item); as route) {
+                          <a [routerLink]="route" class="ref-link" title="View source record">
+                            {{ item.sourceId }}
+                          </a>
+                        } @else {
+                          <span class="ref-text">{{ item.sourceId }}</span>
+                        }
+                      </td>
+                    }
+
+                    <!-- Entry Type -->
+                    @if (canViewField('entryType')) {
+                      <td>
+                        <span class="entry-type-tag">
+                          {{ sourceTypeLabel(item.sourceType) }}
+                        </span>
+                      </td>
+                    }
+
+                    <!-- Effect Kind -->
+                    @if (canViewField('effectKind')) {
+                      <td>
+                        <span
+                          class="kind-pill"
+                          [class.kind-pill--payable]="item.effectKind === 'payable'"
+                          [class.kind-pill--advance]="item.effectKind === 'supplier_advance'"
+                        >
+                          {{ effectKindLabel(item.effectKind) }}
+                        </span>
+                      </td>
+                    }
+
+                    <!-- Signed Amount -->
+                    @if (canViewField('signedAmount')) {
+                      <td class="text-right font-medium">
+                        <span
+                          [class.amount--positive]="!item.signedAmount.amount.startsWith('-')"
+                          [class.amount--negative]="item.signedAmount.amount.startsWith('-')"
+                        >
+                          PKR {{ item.signedAmount.amount }}
+                        </span>
+                      </td>
+                    }
+
+                    <!-- Status -->
+                    @if (canViewField('sourceStatus')) {
+                      <td>
+                        <span class="status-pill status-pill--success">{{ item.status }}</span>
+                      </td>
+                    }
+
+                    <!-- Source Action -->
+                    @if (canViewSourceAction()) {
+                      <td class="text-right">
+                        @if (sourceRoute(item); as route) {
+                          <a [routerLink]="route" class="view-source-btn" title="Open source record">
+                            View
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                              <polyline points="15 3 21 3 21 9"></polyline>
+                              <line x1="10" y1="14" x2="21" y2="3"></line>
+                            </svg>
+                          </a>
+                        } @else {
+                          <span class="ag-muted">—</span>
+                        }
+                      </td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Mobile Cards (< 768px) -->
+          <div class="mobile-cards-list mobile-only">
+            @for (item of filteredLedgerItems(); track item.id) {
+              <article class="mobile-ledger-card">
+                <div class="mobile-ledger-card__header">
+                  @if (canViewField('date')) {
+                    <div class="mobile-ledger-card__date-group">
+                      <span class="mobile-ledger-card__date">{{ item.postedAt | date: 'mediumDate' }}</span>
+                      <span class="mobile-ledger-card__time">{{ item.postedAt | date: 'shortTime' }}</span>
+                    </div>
+                  }
+                  @if (canViewField('entryType')) {
+                    <span class="entry-type-tag">{{ sourceTypeLabel(item.sourceType) }}</span>
+                  }
+                </div>
+
+                <div class="mobile-ledger-card__body">
+                  @if (canViewField('reference')) {
+                    <div class="mobile-ledger-card__row">
+                      <span class="mobile-ledger-card__label">Reference</span>
+                      <span class="mobile-ledger-card__val">
+                        @if (sourceRoute(item); as route) {
+                          <a [routerLink]="route" class="ref-link">{{ item.sourceId }}</a>
+                        } @else {
+                          {{ item.sourceId }}
+                        }
+                      </span>
+                    </div>
+                  }
+
+                  @if (canViewField('effectKind')) {
+                    <div class="mobile-ledger-card__row">
+                      <span class="mobile-ledger-card__label">Effect Kind</span>
+                      <span
+                        class="kind-pill"
+                        [class.kind-pill--payable]="item.effectKind === 'payable'"
+                        [class.kind-pill--advance]="item.effectKind === 'supplier_advance'"
+                      >
+                        {{ effectKindLabel(item.effectKind) }}
+                      </span>
+                    </div>
+                  }
+
+                  @if (canViewField('signedAmount')) {
+                    <div class="mobile-ledger-card__row">
+                      <span class="mobile-ledger-card__label">Signed Amount</span>
+                      <span
+                        class="mobile-ledger-card__amount"
+                        [class.amount--positive]="!item.signedAmount.amount.startsWith('-')"
+                        [class.amount--negative]="item.signedAmount.amount.startsWith('-')"
+                      >
+                        PKR {{ item.signedAmount.amount }}
+                      </span>
+                    </div>
+                  }
+                </div>
+
+                @if (canViewSourceAction() && sourceRoute(item); as route) {
+                  <div class="mobile-ledger-card__footer">
+                    <a [routerLink]="route" class="mobile-view-source-btn">
+                      View source document
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                      </svg>
+                    </a>
+                  </div>
+                }
+              </article>
+            }
+          </div>
         }
       </section>
+    } @else {
+      <!-- Initial Prompt to Choose Supplier -->
+      <div class="prompt-card">
+        <div class="prompt-card__icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+        </div>
+        <h2 class="prompt-card__title">Select a supplier to view ledger</h2>
+        <p class="prompt-card__desc">
+          Choose any active supplier from the dropdown above to inspect their live payable balance, advances, and full financial ledger history.
+        </p>
+      </div>
     }
   }
-}
+</div>

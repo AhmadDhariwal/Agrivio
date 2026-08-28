@@ -28,6 +28,7 @@ const SUPPLIERS_MODULE_KEY = 'suppliers';
 const RETURNS_MODULE_KEY = 'returns';
 const PURCHASES_MODULE_KEY = 'purchases';
 const SUPPLIER_PAYMENTS_MODULE_KEY = 'payments.supplier';
+const SUPPLIER_LEDGER_MODULE_KEY = 'payments.supplierLedger';
 const ACCOUNTS_MODULE_KEY = 'accounts';
 const EXPENSES_MODULE_KEY = 'expenses';
 const EXPENSE_CATEGORIES_MODULE_KEY = 'expenses.categories';
@@ -1478,7 +1479,11 @@ const definitions = [
     ['kpiCards', 'KPI Cards', 'Show Customer summary KPI cards (total, active, credit-enabled).'],
     ['inspector', 'Customer Inspector', 'Open the Customer details drawer.'],
     ['technicalDetails', 'Technical Details', 'Show technical customer metadata in the inspector.'],
-    ['creditSection', 'Credit Policy Section', 'Show the credit policy section in the Customer inspector and forms.'],
+    [
+      'creditSection',
+      'Credit Policy Section',
+      'Show the credit policy section in the Customer inspector and forms.',
+    ],
   ].map(([id, label, description]) => ({
     key: `customers.features.${id}`,
     parentKey: CUSTOMERS_MODULE_KEY,
@@ -1517,7 +1522,8 @@ const definitions = [
     risk: RISK_LEVELS.Recommended,
     platformEnforced: true,
     requiredPermissions: { visible: 'customers.view', editable: 'customers.manage' },
-    reason: 'Customer type visibility is required because walk-in credit policy enforcement depends on it.',
+    reason:
+      'Customer type visibility is required because walk-in credit policy enforcement depends on it.',
   },
   {
     key: 'customers.fields.creditEnabled',
@@ -1531,7 +1537,8 @@ const definitions = [
     risk: RISK_LEVELS.Critical,
     platformEnforced: true,
     requiredPermissions: { visible: 'customers.view', editable: 'customers.credit-policy.manage' },
-    reason: 'Credit-enabled visibility is required for safe decision-making on credit transactions.',
+    reason:
+      'Credit-enabled visibility is required for safe decision-making on credit transactions.',
   },
   ...[
     [
@@ -1615,8 +1622,18 @@ const definitions = [
     ['deactivate', 'Deactivate customer', 'customers.manage', RISK_LEVELS.Recommended],
     ['reactivate', 'Reactivate customer', 'customers.manage', RISK_LEVELS.Recommended],
     ['delete', 'Delete permanently', 'customers.manage', RISK_LEVELS.Critical],
-    ['editCreditPolicy', 'Edit credit policy', 'customers.credit-policy.manage', RISK_LEVELS.Recommended],
-    ['postOpeningBalance', 'Post opening balance', 'customers.opening-balance.post', RISK_LEVELS.Critical],
+    [
+      'editCreditPolicy',
+      'Edit credit policy',
+      'customers.credit-policy.manage',
+      RISK_LEVELS.Recommended,
+    ],
+    [
+      'postOpeningBalance',
+      'Post opening balance',
+      'customers.opening-balance.post',
+      RISK_LEVELS.Critical,
+    ],
     ['refresh', 'Refresh', 'customers.view', RISK_LEVELS.Normal],
   ].map(([id, label, permission, risk]) => ({
     key: `customers.actions.${id}`,
@@ -1630,7 +1647,10 @@ const definitions = [
     risk,
     requiredPermissions: { allowed: permission },
     ...(id === 'delete'
-      ? { reason: 'The policy can block deletion but cannot bypass record-in-use protection (posted opening balance or transaction references).' }
+      ? {
+          reason:
+            'The policy can block deletion but cannot bypass record-in-use protection (posted opening balance or transaction references).',
+        }
       : {}),
   })),
   {
@@ -1774,8 +1794,16 @@ const definitions = [
       'Disabling access blocks all Returns endpoints without deleting posted returns, altering stock movements, or altering existing ledger and corrective-transaction history.',
   },
   ...[
-    ['moduleInfo', 'About Returns and Corrections', 'Show the Returns and Corrections guidance panel.'],
-    ['typeFilter', 'Return Type Filter', 'Filter Returns by linked sales return, return without invoice, or purchase return.'],
+    [
+      'moduleInfo',
+      'About Returns and Corrections',
+      'Show the Returns and Corrections guidance panel.',
+    ],
+    [
+      'typeFilter',
+      'Return Type Filter',
+      'Filter Returns by linked sales return, return without invoice, or purchase return.',
+    ],
     ['statusFilter', 'Status Filter', 'Filter Returns by draft, posted, or reversed status.'],
     ['warehouseFilter', 'Warehouse Filter', 'Filter Returns by warehouse.'],
   ].map(([id, label, description]) => ({
@@ -1855,7 +1883,13 @@ const definitions = [
   })),
   ...[
     ['post', 'Post Return', 'returns.post', RISK_LEVELS.Critical, []],
-    ['withoutInvoice', 'Return Without Invoice', 'returns.without-invoice.approve', RISK_LEVELS.Critical, []],
+    [
+      'withoutInvoice',
+      'Return Without Invoice',
+      'returns.without-invoice.approve',
+      RISK_LEVELS.Critical,
+      [],
+    ],
     ['reverse', 'Reverse Return', 'returns.reverse', RISK_LEVELS.Critical, []],
     ['inspect', 'Inspect Return', 'returns.view', RISK_LEVELS.Normal, []],
   ].map(([id, label, permission, risk, dependencies]) => ({
@@ -1896,7 +1930,8 @@ const definitions = [
     moduleKey: PURCHASES_MODULE_KEY,
     type: CONTROL_TYPES.Module,
     label: 'Purchases',
-    description: 'Purchase draft, posting, cancellation, and linked return access for this organization.',
+    description:
+      'Purchase draft, posting, cancellation, and linked return access for this organization.',
     defaultPolicy: { enabled: true },
     configurable: { enabled: true },
     risk: RISK_LEVELS.Critical,
@@ -1922,11 +1957,23 @@ const definitions = [
   })),
   ...[
     ['branch', 'Branch', 'Optional organizational branch attribution.'],
-    ['supplierInvoiceReference', 'Supplier Invoice Reference', 'Optional supplier invoice reference.'],
+    [
+      'supplierInvoiceReference',
+      'Supplier Invoice Reference',
+      'Optional supplier invoice reference.',
+    ],
     ['notes', 'Notes', 'Optional purchase notes.'],
-    ['packagingUnit', 'Packaging Unit', 'Optional purchase packaging unit; base unit remains available.'],
+    [
+      'packagingUnit',
+      'Packaging Unit',
+      'Optional purchase packaging unit; base unit remains available.',
+    ],
     ['manufacturingDate', 'Manufacturing Date', 'Optional manufacturing date for tracked stock.'],
-    ['landedCosts', 'Landed Costs', 'Optional freight, loading, transport, and other landed costs.'],
+    [
+      'landedCosts',
+      'Landed Costs',
+      'Optional freight, loading, transport, and other landed costs.',
+    ],
   ].map(([id, label, description]) => ({
     key: `purchases.fields.${id}`,
     parentKey: PURCHASES_MODULE_KEY,
@@ -1940,14 +1987,34 @@ const definitions = [
     requiredPermissions: { visible: 'purchases.view', editable: 'purchases.create' },
   })),
   ...[
-    ['warehouse', 'Warehouse', 'The warehouse is required for stock receipt and warehouse access enforcement.'],
-    ['supplier', 'Supplier', 'The supplier is required for payable and supplier-ledger attribution.'],
-    ['purchaseDate', 'Purchase Date', 'A valid purchase date is required by the purchase contract.'],
+    [
+      'warehouse',
+      'Warehouse',
+      'The warehouse is required for stock receipt and warehouse access enforcement.',
+    ],
+    [
+      'supplier',
+      'Supplier',
+      'The supplier is required for payable and supplier-ledger attribution.',
+    ],
+    [
+      'purchaseDate',
+      'Purchase Date',
+      'A valid purchase date is required by the purchase contract.',
+    ],
     ['product', 'Product', 'Every purchase line must identify an active product.'],
     ['quantity', 'Quantity', 'Every purchase line requires a positive quantity.'],
     ['unitCost', 'Unit Cost', 'Every purchase line requires a positive unit cost.'],
-    ['batchNumber', 'Batch Number', 'Batch identity is conditionally required by product tracking mode.'],
-    ['expiryDate', 'Expiry Date', 'Expiry date is conditionally required by product tracking mode.'],
+    [
+      'batchNumber',
+      'Batch Number',
+      'Batch identity is conditionally required by product tracking mode.',
+    ],
+    [
+      'expiryDate',
+      'Expiry Date',
+      'Expiry date is conditionally required by product tracking mode.',
+    ],
   ].map(([id, label, reason]) => ({
     key: `purchases.fields.${id}`,
     parentKey: PURCHASES_MODULE_KEY,
@@ -1969,8 +2036,20 @@ const definitions = [
     ['discardDraft', 'Discard Purchase Draft', 'purchases.create', RISK_LEVELS.Recommended, []],
     ['post', 'Post Purchase', 'purchases.post', RISK_LEVELS.Critical, []],
     ['cancel', 'Cancel Posted Purchase', 'purchases.cancel', RISK_LEVELS.Critical, []],
-    ['createReturn', 'Create Purchase Return', 'purchases.return', RISK_LEVELS.Critical, ['returns.actions.post']],
-    ['addPaymentAtPost', 'Add Payment at Posting', 'purchases.post', RISK_LEVELS.Critical, ['purchases.actions.post']],
+    [
+      'createReturn',
+      'Create Purchase Return',
+      'purchases.return',
+      RISK_LEVELS.Critical,
+      ['returns.actions.post'],
+    ],
+    [
+      'addPaymentAtPost',
+      'Add Payment at Posting',
+      'purchases.post',
+      RISK_LEVELS.Critical,
+      ['purchases.actions.post'],
+    ],
   ].map(([id, label, permission, risk, dependencies]) => ({
     key: `purchases.actions.${id}`,
     parentKey: PURCHASES_MODULE_KEY,
@@ -2002,6 +2081,145 @@ const definitions = [
         }
       : {}),
   })),
+  // Supplier Ledger Module
+  {
+    key: SUPPLIER_LEDGER_MODULE_KEY,
+    parentKey: null,
+    moduleKey: SUPPLIER_LEDGER_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Supplier Ledger',
+    description:
+      'Read-only supplier payable history and reconciliation inquiry for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'supplier-payments.view' },
+    reason:
+      'Disabling access blocks Supplier Ledger inquiry without changing posted effects, payable or advance balances, allocations, reconciliation calculations, or historical source transactions.',
+  },
+  ...[
+    ['moduleInfo', 'About Supplier Ledger', 'Show the Supplier Ledger guidance panel.'],
+    [
+      'supplierSearch',
+      'Supplier Search',
+      'Search and select an active supplier for ledger inquiry.',
+    ],
+    [
+      'reconciliationSummary',
+      'Reconciliation Summary',
+      'Show the authoritative payable, advance, allocation, and reconciliation summary.',
+    ],
+    [
+      'ledgerFilters',
+      'Ledger Filters',
+      'Filter immutable ledger effects by source or effect kind.',
+    ],
+  ].map(([id, label, description]) => ({
+    key: `payments.supplierLedger.features.${id}`,
+    parentKey: SUPPLIER_LEDGER_MODULE_KEY,
+    moduleKey: SUPPLIER_LEDGER_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: id !== 'supplierSearch' },
+    risk:
+      id === 'supplierSearch'
+        ? RISK_LEVELS.Critical
+        : id === 'reconciliationSummary'
+          ? RISK_LEVELS.Recommended
+          : RISK_LEVELS.Normal,
+    ...(id === 'supplierSearch' ? { platformEnforced: true } : {}),
+    requiredPermissions: { enabled: 'supplier-payments.view' },
+    ...(id === 'supplierSearch'
+      ? {
+          reason:
+            'Supplier selection and server-backed search are required to choose the ledger subject, so this feature remains enabled whenever Supplier Ledger is available.',
+        }
+      : id === 'reconciliationSummary'
+      ? {
+          reason:
+            'This controls access to the read-only summary only; reconciliation calculations and immutable accounting records remain unchanged.',
+        }
+      : {}),
+  })),
+  ...[
+    [
+      'supplierIdentity',
+      'Supplier Identity',
+      'Supplier identity and context are required to identify the ledger owner.',
+    ],
+    [
+      'outstandingPayable',
+      'Outstanding Payable',
+      'The signed payable total is required to understand the supplier financial position.',
+    ],
+    [
+      'supplierAdvance',
+      'Supplier Advance',
+      'The signed advance total is required to understand the supplier financial position.',
+    ],
+    [
+      'reconciliationStatus',
+      'Reconciliation Status',
+      'Reconciliation health and findings must remain visible with the summary.',
+    ],
+    [
+      'allocationTotal',
+      'Allocation Total',
+      'The posted purchase-allocation total is required to interpret reconciliation.',
+    ],
+    ['date', 'Date', 'Posting date is required to interpret immutable ledger chronology.'],
+    ['reference', 'Reference', 'Source reference is required to trace an immutable ledger effect.'],
+    [
+      'entryType',
+      'Entry Type',
+      'Source transaction type is required to explain the ledger effect.',
+    ],
+    [
+      'effectKind',
+      'Effect Kind',
+      'Payable or supplier-advance classification is required to interpret the signed amount.',
+    ],
+    [
+      'signedAmount',
+      'Signed Amount',
+      'The authoritative signed amount cannot be hidden without making the ledger misleading.',
+    ],
+    [
+      'sourceStatus',
+      'Source Status',
+      'Posted source status is required to establish the effect included in accounting truth.',
+    ],
+  ].map(([id, label, reason]) => ({
+    key: `payments.supplierLedger.fields.${id}`,
+    parentKey: SUPPLIER_LEDGER_MODULE_KEY,
+    moduleKey: SUPPLIER_LEDGER_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description: 'Read-only Supplier Ledger presentation required to preserve accounting meaning.',
+    defaultPolicy: { visible: true },
+    configurable: { visible: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'supplier-payments.view' },
+    reason,
+  })),
+  {
+    key: 'payments.supplierLedger.actions.viewSource',
+    parentKey: SUPPLIER_LEDGER_MODULE_KEY,
+    moduleKey: SUPPLIER_LEDGER_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label: 'View Source Transaction',
+    description:
+      'Offer source-transaction drill-down from a ledger effect. The destination route keeps its own RBAC and capability enforcement.',
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { allowed: 'supplier-payments.view' },
+    reason:
+      'This control can remove the ledger-side launch only; it cannot grant access to Purchases, Returns, Supplier Payments, or any other destination module.',
+  },
   // Supplier Payments Module
   {
     key: SUPPLIER_PAYMENTS_MODULE_KEY,
@@ -2020,7 +2238,11 @@ const definitions = [
   },
   ...[
     ['moduleInfo', 'About Supplier Payments', 'Show the Supplier Payments guidance panel.'],
-    ['paymentDateFilter', 'Payment Date Filter', 'Filter posted supplier payments by payment date.'],
+    [
+      'paymentDateFilter',
+      'Payment Date Filter',
+      'Filter posted supplier payments by payment date.',
+    ],
   ].map(([id, label, description]) => ({
     key: `payments.supplier.features.${id}`,
     parentKey: SUPPLIER_PAYMENTS_MODULE_KEY,
@@ -2049,13 +2271,29 @@ const definitions = [
     },
   },
   ...[
-    ['paymentReference', 'Payment Reference', 'Posted payment identity must remain visible and immutable.'],
+    [
+      'paymentReference',
+      'Payment Reference',
+      'Posted payment identity must remain visible and immutable.',
+    ],
     ['supplier', 'Supplier', 'Supplier identity is required for payable and ledger attribution.'],
-    ['account', 'Payment Account', 'An active Account is required for the immutable account movement.'],
-    ['allocationMode', 'Allocation Mode', 'General or invoice-specific allocation is required for posting.'],
+    [
+      'account',
+      'Payment Account',
+      'An active Account is required for the immutable account movement.',
+    ],
+    [
+      'allocationMode',
+      'Allocation Mode',
+      'General or invoice-specific allocation is required for posting.',
+    ],
     ['amount', 'Payment Amount', 'A positive PKR amount is required for financial posting.'],
     ['paymentDate', 'Payment Date', 'A valid payment date is required for posting.'],
-    ['allocations', 'Payment Allocations', 'Posted purchase and supplier-advance allocations are immutable financial history.'],
+    [
+      'allocations',
+      'Payment Allocations',
+      'Posted purchase and supplier-advance allocations are immutable financial history.',
+    ],
     ['status', 'Posting Status', 'Posted payment and correction lifecycle state is backend-owned.'],
   ].map(([id, label, reason]) => ({
     key: `payments.supplier.fields.${id}`,
@@ -2093,7 +2331,13 @@ const definitions = [
       ['payments.supplier.actions.post'],
     ],
     ['inspect', 'Inspect Supplier Payment', 'supplier-payments.view', RISK_LEVELS.Normal, []],
-    ['viewLedger', 'View Supplier Ledger', 'supplier-payments.view', RISK_LEVELS.Normal, []],
+    [
+      'viewLedger',
+      'View Supplier Ledger',
+      'supplier-payments.view',
+      RISK_LEVELS.Normal,
+      [SUPPLIER_LEDGER_MODULE_KEY],
+    ],
     ['correct', 'Correct Supplier Payment', 'payments.correct', RISK_LEVELS.Critical, []],
   ].map(([id, label, permission, risk, dependencies]) => ({
     key: `payments.supplier.actions.${id}`,
@@ -2141,7 +2385,11 @@ const definitions = [
     ['search', 'Search', 'Search Accounts by name.'],
     ['statusFilter', 'Status Filter', 'Filter Accounts by active or inactive status.'],
     ['movementHistory', 'Movement History', 'Show and query immutable signed Account movements.'],
-    ['kpiCards', 'KPI Cards', 'Show Accounts summary KPI cards (total, active, inactive accounts and total balance).'],
+    [
+      'kpiCards',
+      'KPI Cards',
+      'Show Accounts summary KPI cards (total, active, inactive accounts and total balance).',
+    ],
   ].map(([id, label, description]) => ({
     key: `accounts.features.${id}`,
     parentKey: ACCOUNTS_MODULE_KEY,
@@ -2271,11 +2519,31 @@ const definitions = [
     ['deactivate', 'Deactivate Account', 'accounts.manage', RISK_LEVELS.Recommended],
     ['reactivate', 'Reactivate Account', 'accounts.manage', RISK_LEVELS.Recommended],
     ['delete', 'Delete Account Permanently', 'accounts.manage', RISK_LEVELS.Critical],
-    ['postOpeningBalance', 'Post Opening Balance', 'accounts.opening-balance.post', RISK_LEVELS.Critical],
-    ['postManualMovement', 'Post Manual Inflow / Outflow', 'accounts.transaction.post', RISK_LEVELS.Critical],
+    [
+      'postOpeningBalance',
+      'Post Opening Balance',
+      'accounts.opening-balance.post',
+      RISK_LEVELS.Critical,
+    ],
+    [
+      'postManualMovement',
+      'Post Manual Inflow / Outflow',
+      'accounts.transaction.post',
+      RISK_LEVELS.Critical,
+    ],
     ['transfer', 'Transfer Between Accounts', 'accounts.transfer', RISK_LEVELS.Critical],
-    ['reverseMovement', 'Reverse Manual Movement', 'accounts.transaction.correct', RISK_LEVELS.Critical],
-    ['reverseTransfer', 'Reverse Account Transfer', 'accounts.transfer.reverse', RISK_LEVELS.Critical],
+    [
+      'reverseMovement',
+      'Reverse Manual Movement',
+      'accounts.transaction.correct',
+      RISK_LEVELS.Critical,
+    ],
+    [
+      'reverseTransfer',
+      'Reverse Account Transfer',
+      'accounts.transfer.reverse',
+      RISK_LEVELS.Critical,
+    ],
     ['refresh', 'Refresh Accounts', 'accounts.view', RISK_LEVELS.Normal],
   ].map(([id, label, permission, risk]) => ({
     key: `accounts.actions.${id}`,
@@ -2292,7 +2560,10 @@ const definitions = [
       ? { reason: 'Policy cannot bypass opening-balance and record-in-use protection.' }
       : {}),
     ...(id === 'postOpeningBalance'
-      ? { reason: 'One-time posting, active-account, idempotency, transaction, and audit rules remain authoritative.' }
+      ? {
+          reason:
+            'One-time posting, active-account, idempotency, transaction, and audit rules remain authoritative.',
+        }
       : {}),
     ...(id === 'reverseMovement' || id === 'reverseTransfer'
       ? { reason: 'Reversal creates linked corrective movements; originals remain immutable.' }
@@ -2464,7 +2735,8 @@ const definitions = [
     moduleKey: EXPENSE_CATEGORIES_MODULE_KEY,
     type: CONTROL_TYPES.Field,
     label: 'Lifecycle Status',
-    description: 'Active or inactive status controls whether the category can be used for new expenses.',
+    description:
+      'Active or inactive status controls whether the category can be used for new expenses.',
     defaultPolicy: { visible: true, editable: false },
     configurable: { visible: true, editable: false },
     risk: RISK_LEVELS.Recommended,
@@ -2473,11 +2745,41 @@ const definitions = [
       'Status editability is managed by dedicated Deactivate/Reactivate actions and cannot be overridden.',
   },
   ...[
-    ['create', 'Create Category', 'expenses.post', RISK_LEVELS.Recommended, ['expenses.actions.manageCategories']],
-    ['edit', 'Edit Category', 'expenses.post', RISK_LEVELS.Recommended, ['expenses.actions.manageCategories']],
-    ['deactivate', 'Deactivate Category', 'expenses.post', RISK_LEVELS.Critical, ['expenses.actions.manageCategories']],
-    ['reactivate', 'Reactivate Category', 'expenses.post', RISK_LEVELS.Normal, ['expenses.actions.manageCategories']],
-    ['delete', 'Delete Category', 'expenses.post', RISK_LEVELS.Critical, ['expenses.actions.manageCategories']],
+    [
+      'create',
+      'Create Category',
+      'expenses.post',
+      RISK_LEVELS.Recommended,
+      ['expenses.actions.manageCategories'],
+    ],
+    [
+      'edit',
+      'Edit Category',
+      'expenses.post',
+      RISK_LEVELS.Recommended,
+      ['expenses.actions.manageCategories'],
+    ],
+    [
+      'deactivate',
+      'Deactivate Category',
+      'expenses.post',
+      RISK_LEVELS.Critical,
+      ['expenses.actions.manageCategories'],
+    ],
+    [
+      'reactivate',
+      'Reactivate Category',
+      'expenses.post',
+      RISK_LEVELS.Normal,
+      ['expenses.actions.manageCategories'],
+    ],
+    [
+      'delete',
+      'Delete Category',
+      'expenses.post',
+      RISK_LEVELS.Critical,
+      ['expenses.actions.manageCategories'],
+    ],
   ].map(([id, label, permission, risk, dependencies]) => ({
     key: `expenses.categories.actions.${id}`,
     parentKey: EXPENSE_CATEGORIES_MODULE_KEY,
@@ -2593,7 +2895,11 @@ const definitions = [
   ...[
     ['moduleInfo', 'About Alerts', 'Show the Notification Center guidance text.'],
     ['summaryCards', 'Summary Cards', 'Show counts for the enabled alert families.'],
-    ['navbarNotifications', 'Navbar Notifications', 'Provide the bounded navbar notification feed.'],
+    [
+      'navbarNotifications',
+      'Navbar Notifications',
+      'Provide the bounded navbar notification feed.',
+    ],
   ].map(([id, label, description]) => ({
     key: `alerts.features.${id}`,
     parentKey: ALERTS_MODULE_KEY,
@@ -2688,6 +2994,7 @@ module.exports = {
   RETURNS_MODULE_KEY,
   PURCHASES_MODULE_KEY,
   SUPPLIER_PAYMENTS_MODULE_KEY,
+  SUPPLIER_LEDGER_MODULE_KEY,
   ACCOUNTS_MODULE_KEY,
   EXPENSES_MODULE_KEY,
   EXPENSE_CATEGORIES_MODULE_KEY,

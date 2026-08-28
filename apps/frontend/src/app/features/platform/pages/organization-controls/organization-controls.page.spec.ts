@@ -28,7 +28,8 @@ function control(
     | 'reports'
     | 'alerts'
     | 'purchases'
-    | 'payments.supplier',
+    | 'payments.supplier'
+    | 'payments.supplierLedger',
   type: PlatformCapabilityControl['type'],
   label: string,
   policy: Record<string, boolean>,
@@ -1316,6 +1317,46 @@ describe('OrganizationControlsPage', () => {
         control(`payments.supplier.actions.${id}`, 'payments.supplier', 'ACTION', id, { allowed: true }),
       ),
       control('payments.supplier.actions.postInvoiceSpecific', 'payments.supplier', 'ACTION', 'Post Invoice-specific Payment', { allowed: true }, { risk: 'CRITICAL', dependencies: ['payments.supplier.actions.post'] }),
+      control('payments.supplierLedger', 'payments.supplierLedger', 'MODULE', 'Supplier Ledger', { enabled: true }, { risk: 'CRITICAL' }),
+      control('payments.supplierLedger.features.moduleInfo', 'payments.supplierLedger', 'FEATURE', 'About Supplier Ledger', { enabled: true }),
+      control(
+        'payments.supplierLedger.features.supplierSearch',
+        'payments.supplierLedger',
+        'FEATURE',
+        'Supplier Search',
+        { enabled: true },
+        {
+          configurable: { enabled: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Supplier selection and server-backed search are required.',
+        },
+      ),
+      control('payments.supplierLedger.features.reconciliationSummary', 'payments.supplierLedger', 'FEATURE', 'Reconciliation Summary', { enabled: true }),
+      control('payments.supplierLedger.features.ledgerFilters', 'payments.supplierLedger', 'FEATURE', 'Ledger Filters', { enabled: true }, { override: { enabled: false } }),
+      ...([
+        'supplierIdentity',
+        'outstandingPayable',
+        'supplierAdvance',
+        'reconciliationStatus',
+        'allocationTotal',
+        'date',
+        'reference',
+        'entryType',
+        'effectKind',
+        'signedAmount',
+        'sourceStatus',
+      ] as const).map((id) =>
+        control(
+          `payments.supplierLedger.fields.${id}`,
+          'payments.supplierLedger',
+          'FIELD',
+          id,
+          { visible: true },
+          { configurable: { visible: false }, platformEnforced: true, risk: 'CRITICAL', reason: 'Read-only Supplier Ledger presentation.' },
+        ),
+      ),
+      control('payments.supplierLedger.actions.viewSource', 'payments.supplierLedger', 'ACTION', 'View Source Transaction', { allowed: true }),
     ];
     await TestBed.configureTestingModule({
       imports: [OrganizationControlsPage],
@@ -2761,6 +2802,60 @@ describe('OrganizationControlsPage', () => {
       component.askResetModule();
       component.confirm();
       expect(resetModule).toHaveBeenCalledWith('org-a', 'payments.supplier', 4, '');
+    });
+  });
+
+  describe('Supplier Ledger Controls', () => {
+    it('renders all 17 controls with platform-enforced and feature metadata', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('payments.supplierLedger');
+      fixture.detectChanges();
+
+      expect(component.moduleLabel('payments.supplierLedger')).toBe('Supplier Ledger');
+      expect(component.selectedControls()).toHaveLength(17);
+      expect(component.moduleControls()).toHaveLength(1);
+      expect(component.moduleInfoControls()).toHaveLength(1);
+      expect(component.filterControls()).toHaveLength(2);
+      expect(component.kpiControls()).toHaveLength(1);
+      expect(component.fieldControls()).toHaveLength(0);
+      expect(component.requiredWorkflowControls()).toHaveLength(11);
+      expect(component.actionControls()).toHaveLength(1);
+      expect(fixture.nativeElement.textContent).toContain('Platform enforced');
+      expect(fixture.nativeElement.textContent).toContain(
+        'Supplier selection and server-backed search are required.',
+      );
+      const supplierSearch = component
+        .controls()
+        .find((item) => item.key === 'payments.supplierLedger.features.supplierSearch');
+      expect(supplierSearch).toBeDefined();
+      if (supplierSearch) {
+        expect(component.modeReadonly(supplierSearch, 'enabled')).toBe(true);
+        expect(component.effectiveValue(supplierSearch, 'enabled')).toBe(true);
+      }
+      expect(fixture.nativeElement.textContent).toContain('View Source Transaction');
+    });
+
+    it('supports disable/re-enable and organization-scoped reset', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('payments.supplierLedger');
+      const moduleControl = component
+        .controls()
+        .find((item) => item.key === 'payments.supplierLedger');
+      expect(moduleControl).toBeDefined();
+      if (moduleControl) {
+        component.setValue(moduleControl, 'enabled', false);
+        expect(component.disablingSupplierLedger()).toBe(true);
+        expect(component.confirmationTitle()).toBe(
+          'Disable Supplier Ledger for Greenfield Agro Center?',
+        );
+        expect(component.confirmationMessage()).toContain('Supplier Payments remains available');
+        component.setValue(moduleControl, 'enabled', true);
+        expect(component.effectiveValue(moduleControl, 'enabled')).toBe(true);
+      }
+
+      component.askResetModule();
+      component.confirm();
+      expect(resetModule).toHaveBeenCalledWith('org-a', 'payments.supplierLedger', 4, '');
     });
   });
 });
