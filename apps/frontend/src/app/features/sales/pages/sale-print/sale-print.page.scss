@@ -1,128 +1,760 @@
-agrivio-sale-print-page {
+:host {
   display: block;
 }
 
-.print-toolbar {
+.sale-print-shell {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  font-family: var(--ag-font-sans, 'Manrope', 'Segoe UI', sans-serif);
 }
 
-.print-toolbar__layouts {
+/* ==========================================================================
+   1. Page Header (Screen Mode Only)
+   ========================================================================== */
+.page-head {
   display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
   flex-wrap: wrap;
-  gap: 0.5rem;
+
+  &__title-group {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ag-color-primary, #065f46);
+    margin: 0 0 2px 0;
+    font-family: var(--ag-font-sans);
+  }
+
+  &__title {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--ag-color-text, #0f172a);
+    margin: 0 0 2px 0;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    font-family: var(--ag-font-sans);
+  }
+
+  &__lede {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--ag-color-text-muted, #64748b);
+    margin: 0;
+    font-family: var(--ag-font-sans);
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+}
+
+.layout-toggle-group {
+  display: inline-flex;
+  align-items: center;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.layout-btn {
+  background: transparent;
+  border: none;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #64748b;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--ag-font-sans);
+
+  &:hover {
+    color: #0f172a;
+  }
+
+  &--active {
+    background: #ffffff;
+    color: var(--ag-color-primary, #065f46);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  }
+}
+
+/* ==========================================================================
+   2. Print Preview Centered Workspace (Screen Mode)
+   ========================================================================== */
+.print-preview-workspace {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 36px 16px;
+  min-height: 600px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow-x: auto;
+  box-shadow: inset 0 2px 4px rgba(15, 23, 42, 0.03);
 }
 
 .invoice-print {
-  background: #fff;
-  color: #111;
-  padding: 0.75rem;
-  border: 1px solid #d7ddd4;
-}
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+  border-radius: 4px;
+  box-sizing: border-box;
+  margin: 0 auto;
+  font-family: var(--ag-font-sans, 'Manrope', 'Segoe UI', sans-serif);
 
-.invoice-print[data-layout='58mm'] {
-  width: 58mm;
-  font-size: 11px;
-}
-
-.invoice-print[data-layout='80mm'] {
-  width: 80mm;
-  font-size: 12px;
-}
-
-.invoice-print[data-layout='a4'] {
-  width: 210mm;
-  max-width: 100%;
-  font-size: 14px;
-}
-
-.invoice-print__header h1 {
-  margin: 0 0 0.35rem;
-  font-size: 1.15em;
-}
-
-.invoice-print__header p,
-.invoice-print__totals p,
-.invoice-print__notes {
-  margin: 0.15rem 0;
-}
-
-.invoice-print__cancelled {
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.invoice-print__lines {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 0.75rem 0;
-}
-
-.invoice-print__lines th,
-.invoice-print__lines td {
-  text-align: left;
-  border-bottom: 1px solid #ddd;
-  padding: 0.25rem 0.15rem;
-  vertical-align: top;
-}
-
-.invoice-print[data-layout='58mm'] .invoice-print__lines thead {
-  display: none;
-}
-
-.invoice-print[data-layout='58mm'] .invoice-print__lines,
-.invoice-print[data-layout='58mm'] .invoice-print__lines tbody,
-.invoice-print[data-layout='58mm'] .invoice-print__lines tr,
-.invoice-print[data-layout='58mm'] .invoice-print__lines td {
-  display: block;
-  width: 100%;
-  border: 0;
-}
-
-.invoice-print[data-layout='58mm'] .invoice-print__lines tr {
-  margin-bottom: 0.5rem;
-  padding-bottom: 0.35rem;
-  border-bottom: 1px dashed #ccc;
-}
-
-@media print {
-  @page {
-    margin: 4mm;
+  &[data-layout='a4'] {
+    width: 210mm;
+    max-width: 840px;
+    min-height: 297mm;
+    padding: 44px 48px;
+    font-size: 13px;
+    line-height: 1.5;
   }
 
+  &[data-layout='80mm'] {
+    width: 80mm;
+    max-width: 360px;
+    padding: 20px 18px;
+    font-size: 12px;
+    line-height: 1.4;
+    border: 1px solid #e2e8f0;
+  }
+
+  &[data-layout='58mm'] {
+    width: 58mm;
+    max-width: 270px;
+    padding: 14px 12px;
+    font-size: 11px;
+    line-height: 1.35;
+    border: 1px solid #e2e8f0;
+  }
+}
+
+/* ==========================================================================
+   3. A4 Layout Internal Components
+   ========================================================================== */
+.a4-document {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.a4-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 2px solid #065f46;
+  padding-bottom: 16px;
+}
+
+.a4-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  &__logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: #ecfdf5;
+    border-radius: 8px;
+  }
+
+  &__name {
+    font-size: 24px;
+    font-weight: 700;
+    color: #065f46;
+    margin: 0;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    font-family: var(--ag-font-sans);
+  }
+
+  &__tagline {
+    font-size: 12px;
+    color: #64748b;
+    margin: 2px 0 0 0;
+  }
+}
+
+.a4-doc-info {
+  text-align: right;
+}
+
+.cancelled-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  letter-spacing: 0.05em;
+}
+
+.a4-doc-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+  letter-spacing: 0.02em;
+  font-family: var(--ag-font-sans);
+}
+
+.a4-doc-meta {
+  font-size: 12.5px;
+  color: #475569;
+  margin: 2px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.a4-parties {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 16px 20px;
+}
+
+.a4-party {
+  &__label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    margin-bottom: 4px;
+  }
+
+  &__name {
+    display: block;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: #0f172a;
+    margin-bottom: 2px;
+  }
+
+  &__sub,
+  &__country {
+    font-size: 12.5px;
+    color: #64748b;
+    margin: 1px 0;
+  }
+}
+
+.a4-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.a4-meta-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  &__label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+  }
+
+  &__val {
+    font-size: 13px;
+    color: #0f172a;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.a4-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  margin: 8px 0;
+
+  thead tr {
+    background: #f8fafc;
+    border-bottom: 2px solid #e2e8f0;
+  }
+
+  th {
+    padding: 10px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #475569;
+    text-align: left;
+    font-family: var(--ag-font-sans);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 11px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 13px;
+    color: #1e293b;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  .col-num { width: 36px; min-width: 36px; max-width: 36px; }
+  .col-prod { min-width: 200px; width: 36%; overflow: hidden; text-overflow: ellipsis; }
+  .col-pkg { width: 110px; min-width: 110px; max-width: 110px; }
+  .col-qty { width: 70px; min-width: 70px; max-width: 70px; text-align: right; }
+  .col-price { width: 110px; min-width: 110px; max-width: 110px; text-align: right; }
+  .col-total { width: 120px; min-width: 120px; max-width: 120px; text-align: right; }
+}
+
+.a4-summary-section {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.a4-totals-box {
+  width: 280px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 12px 16px;
+}
+
+.a4-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 15px;
+  color: #065f46;
+}
+
+.a4-settlement-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.a4-settle-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+
+  &--paid {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+
+    .a4-settle-card__val {
+      color: #047857;
+    }
+  }
+
+  &--receivable {
+    background: #fffbeb;
+    border-color: #fde68a;
+
+    .a4-settle-card__val {
+      color: #b45309;
+    }
+  }
+
+  &__label {
+    display: block;
+    font-size: 11.5px;
+    color: #64748b;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  &__val {
+    display: block;
+    font-size: 15px;
+  }
+}
+
+.a4-payments {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 12px 16px;
+
+  &__title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #64748b;
+    margin: 0 0 8px 0;
+  }
+
+  &__list {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 12.5px;
+    color: #334155;
+
+    li {
+      margin: 3px 0;
+    }
+  }
+}
+
+.a4-notes {
+  font-size: 12px;
+  color: #64748b;
+  font-style: italic;
+  margin: 0;
+}
+
+.a4-footer {
+  text-align: center;
+  font-size: 12px;
+  color: #94a3b8;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 16px;
+  margin-top: 8px;
+}
+
+/* ==========================================================================
+   4. Thermal Receipt Layout (80mm / 58mm) Internal Components
+   ========================================================================== */
+.receipt-document {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-family: var(--ag-font-sans, 'Manrope', 'Segoe UI', sans-serif);
+}
+
+.receipt-header {
+  text-align: center;
+
+  .receipt-brand-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 2px;
+  }
+
+  .receipt-brand {
+    font-size: 18px;
+    font-weight: 700;
+    color: #065f46;
+    letter-spacing: -0.02em;
+    margin: 0;
+    font-family: var(--ag-font-sans);
+  }
+
+  .receipt-sub {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0 0 6px 0;
+  }
+
+  .receipt-cancelled {
+    font-weight: 700;
+    color: #dc2626;
+    margin: 4px 0;
+    font-size: 11px;
+  }
+
+  .receipt-meta {
+    text-align: left;
+    margin-top: 8px;
+    font-size: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 8px 10px;
+
+    p {
+      margin: 2px 0;
+    }
+  }
+}
+
+.receipt-divider {
+  border-top: 1px dashed #cbd5e1;
+  margin: 4px 0;
+}
+
+.receipt-lines {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+
+  .col-receipt-prod { width: 44%; }
+  .col-receipt-qty { width: 16%; }
+  .col-receipt-price { width: 20%; }
+  .col-receipt-amt { width: 20%; }
+
+  th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #475569;
+    padding: 6px 0;
+    border-bottom: 1px solid #e2e8f0;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 6px 0;
+    vertical-align: top;
+    font-size: 11.5px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .receipt-product-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .product-name {
+    color: #0f172a;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.receipt-totals {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 8px 10px;
+
+  .receipt-total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+
+    &--main {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #065f46;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 4px;
+      margin-bottom: 2px;
+    }
+  }
+}
+
+.receipt-payments {
+  font-size: 11.5px;
+
+  &__title {
+    font-weight: 600;
+    color: #64748b;
+    margin: 0 0 4px 0;
+    text-transform: uppercase;
+    font-size: 11px;
+  }
+
+  .receipt-payment-item {
+    display: flex;
+    justify-content: space-between;
+    margin: 3px 0;
+    color: #334155;
+  }
+}
+
+.receipt-notes {
+  font-size: 11px;
+  font-style: italic;
+  color: #64748b;
+  margin: 2px 0;
+}
+
+.receipt-footer {
+  text-align: center;
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+/* ==========================================================================
+   5. Tracking Chips (Matching Products)
+   ========================================================================== */
+.tracking-chip {
+  display: inline-block;
+  padding: 2px 6px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #475569;
+  white-space: nowrap;
+  font-family: var(--ag-font-sans);
+
+  &--batch {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #dbeafe;
+  }
+
+  &--expiry {
+    background: #f0fdf4;
+    color: #15803d;
+    border-color: #dcfce7;
+  }
+
+  &--sm {
+    font-size: 10.5px;
+    padding: 1px 5px;
+  }
+}
+
+/* ==========================================================================
+   6. Utility Typography Classes
+   ========================================================================== */
+.tabular-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.text-muted {
+  color: #64748b;
+}
+
+/* ==========================================================================
+   7. Print CSS (@media print)
+   ========================================================================== */
+@media print {
+  @page {
+    margin: 5mm;
+    size: auto;
+  }
+
+  /* Hide entire web app chrome */
   body * {
     visibility: hidden !important;
   }
 
+  .no-print {
+    display: none !important;
+  }
+
+  /* Make only invoice print preview container visible */
+  .sale-print-shell,
+  .print-preview-workspace,
   .invoice-print,
   .invoice-print * {
     visibility: visible !important;
   }
 
-  .print-toolbar {
-    display: none !important;
-  }
-
-  .invoice-print {
+  .print-preview-workspace {
     position: absolute;
     left: 0;
     top: 0;
-    border: 0;
-    box-shadow: none;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
   }
 
-  .invoice-print[data-layout='58mm'] {
-    width: 58mm;
+  .invoice-print {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+
+    &[data-layout='a4'] {
+      width: 100% !important;
+      max-width: 100% !important;
+      min-height: auto !important;
+      padding: 0 !important;
+    }
+
+    &[data-layout='80mm'] {
+      width: 80mm !important;
+      max-width: 80mm !important;
+      padding: 0 !important;
+    }
+
+    &[data-layout='58mm'] {
+      width: 58mm !important;
+      max-width: 58mm !important;
+      padding: 0 !important;
+    }
   }
 
-  .invoice-print[data-layout='80mm'] {
-    width: 80mm;
+  .a4-parties {
+    border: 1px solid #cbd5e1 !important;
+    background: #f8fafc !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
-  .invoice-print[data-layout='a4'] {
-    width: 210mm;
+  .a4-meta-card {
+    border: 1px solid #cbd5e1 !important;
+  }
+
+  .a4-settle-card {
+    border: 1px solid #cbd5e1 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }

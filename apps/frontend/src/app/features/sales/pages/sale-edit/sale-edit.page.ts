@@ -950,6 +950,26 @@ export class SaleEditPage {
     });
   }
 
+  formatCurrency(val: { amount?: string; currency?: string } | string | number | undefined | null): string {
+    if (val === undefined || val === null) return 'PKR 0.00';
+    if (typeof val === 'object') {
+      if (!val.amount) return `${val.currency || 'PKR'} 0.00`;
+      const num = Number(val.amount);
+      if (isNaN(num)) return `${val.currency || 'PKR'} ${val.amount}`;
+      return `${val.currency || 'PKR'} ${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    const num = Number(val);
+    if (isNaN(num)) return `PKR ${val}`;
+    return `PKR ${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
+  formatQuantity(val: string | number | undefined | null): string {
+    if (val === undefined || val === null || val === '') return '0';
+    const num = Number(val);
+    if (isNaN(num)) return String(val);
+    return num.toLocaleString('en-US');
+  }
+
   private mapError(error: unknown, fallback: string): string {
     if (!(error instanceof HttpErrorResponse)) {
       return fallback;

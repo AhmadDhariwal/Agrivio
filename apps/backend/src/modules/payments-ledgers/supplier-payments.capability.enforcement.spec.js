@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import appErrorModule from '../../platform/errors/app-error';
 import paymentsServiceModule from './payments.service';
 
-const { conflict, orgActionNotAllowed, orgFieldNotEditable } = appErrorModule;
+const { orgActionNotAllowed, orgFieldNotEditable } = appErrorModule;
 const { createPaymentsService } = paymentsServiceModule;
 
 function createService(assertAllowed, store = {}) {
@@ -20,6 +20,14 @@ function createService(assertAllowed, store = {}) {
 
 const VALID_PAYMENT = {
   supplierId: 'supplier-1',
+  accountId: 'account-1',
+  allocationMode: 'general',
+  amount: { amount: '10.00', currency: 'PKR' },
+  paymentDate: '2026-08-27',
+};
+
+const VALID_CUSTOMER_PAYMENT = {
+  customerId: 'customer-1',
   accountId: 'account-1',
   allocationMode: 'general',
   amount: { amount: '10.00', currency: 'PKR' },
@@ -72,7 +80,7 @@ describe('Supplier Payments capability service enforcement', () => {
     ).rejects.toMatchObject({ code: 'ORG_ACTION_NOT_ALLOWED' });
   });
 
-  it('blocks supplier correction while leaving customer correction outside the submodule', async () => {
+  it('blocks supplier and customer correction through their owning submodules', async () => {
     const assertAllowed = vi.fn(async (_organizationId, key) => {
       if (key === 'payments.supplier.actions.correct') {
         throw orgActionNotAllowed('Supplier correction disabled');
@@ -91,12 +99,15 @@ describe('Supplier Payments capability service enforcement', () => {
       ),
     ).rejects.toMatchObject({ code: 'ORG_ACTION_NOT_ALLOWED' });
 
-    const customerAssertAllowed = vi.fn();
+    const customerAssertAllowed = vi.fn(async (_organizationId, key) => {
+      if (key === 'payments.customer.actions.correct') {
+        throw orgActionNotAllowed('Customer correction disabled');
+      }
+    });
     const customerService = createService(customerAssertAllowed, {
       findPaymentById: vi.fn(async () => ({
         _id: 'payment-2',
         partyType: 'customer',
-        correctionOfId: 'payment-1',
       })),
     });
     await expect(
@@ -107,8 +118,50 @@ describe('Supplier Payments capability service enforcement', () => {
         { actorId: 'user-a' },
         'key-4',
       ),
-    ).rejects.toMatchObject({ code: conflict().code });
-    expect(customerAssertAllowed).not.toHaveBeenCalled();
+    ).rejects.toMatchObject({ code: 'ORG_ACTION_NOT_ALLOWED' });
+    expect(customerAssertAllowed).toHaveBeenCalledWith(
+      'org-a',
+      'payments.customer.actions.correct',
+      'allowed',
+    );
+  });
+
+  it('blocks disabled Customer Payments notes before parsing or mutation', async () => {
+    const assertAllowed = vi.fn(async (_organizationId, key) => {
+      if (key === 'payments.customer.fields.notes') {
+        throw orgFieldNotEditable('Notes disabled');
+      }
+    });
+    const service = createService(assertAllowed);
+    await expect(
+      service.postCustomerPayment(
+        'org-a',
+        { ...VALID_CUSTOMER_PAYMENT, notes: 'Private note' },
+        { actorId: 'user-a' },
+        'customer-key-1',
+      ),
+    ).rejects.toMatchObject({ code: 'ORG_FIELD_NOT_EDITABLE' });
+  });
+
+  it('blocks invoice-specific Customer Payments independently', async () => {
+    const assertAllowed = vi.fn(async (_organizationId, key) => {
+      if (key === 'payments.customer.actions.postInvoiceSpecific') {
+        throw orgActionNotAllowed('Invoice-specific customer payments disabled');
+      }
+    });
+    const service = createService(assertAllowed);
+    await expect(
+      service.postCustomerPayment(
+        'org-a',
+        {
+          ...VALID_CUSTOMER_PAYMENT,
+          allocationMode: 'invoice_specific',
+          allocations: [{ saleId: 'sale-1', amount: { amount: '10.00', currency: 'PKR' } }],
+        },
+        { actorId: 'user-a' },
+        'customer-key-2',
+      ),
+    ).rejects.toMatchObject({ code: 'ORG_ACTION_NOT_ALLOWED' });
   });
 
   it('does not capability-gate the session-scoped supplier posting primitive', async () => {

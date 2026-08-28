@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CapabilitiesApi } from '../../../capabilities/data-access/capabilities.api';
 import { PlatformCapabilityControl } from '../../../capabilities/models/capability.models';
 import { OrganizationControlsPage } from './organization-controls.page';
@@ -28,6 +28,7 @@ function control(
     | 'reports'
     | 'alerts'
     | 'purchases'
+    | 'payments.customer'
     | 'payments.supplier'
     | 'payments.supplierLedger'
     | 'sales',
@@ -1434,6 +1435,57 @@ describe('OrganizationControlsPage', () => {
       control('sales.actions.approveCreditLimit', 'sales', 'ACTION', 'Approve Credit Limit', { allowed: true }, { dependencies: ['sales.actions.post'] }),
       control('sales.actions.approveExpiredStock', 'sales', 'ACTION', 'Approve Expired Stock', { allowed: true }, { dependencies: ['sales.actions.post'] }),
       control('sales.actions.overrideNegativeStock', 'sales', 'ACTION', 'Override Negative Stock', { allowed: true }, { dependencies: ['sales.actions.post'] }),
+      control('payments.customer', 'payments.customer', 'MODULE', 'Customer Payments', { enabled: true }, { risk: 'CRITICAL' }),
+      control('payments.customer.features.moduleInfo', 'payments.customer', 'FEATURE', 'About Customer Payments', { enabled: true }),
+      control('payments.customer.features.search', 'payments.customer', 'FEATURE', 'Search Payments', { enabled: true }),
+      control('payments.customer.features.paymentDateFilter', 'payments.customer', 'FEATURE', 'Payment Date Filter', { enabled: true }, { override: { enabled: false } }),
+      control(
+        'payments.customer.features.customerSearch',
+        'payments.customer',
+        'FEATURE',
+        'Customer Search',
+        { enabled: true },
+        {
+          configurable: { enabled: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Customer lookup is required.',
+        },
+      ),
+      control('payments.customer.features.ledgerPreview', 'payments.customer', 'FEATURE', 'Ledger Preview', { enabled: true }),
+      control('payments.customer.fields.notes', 'payments.customer', 'FIELD', 'Notes', { visible: true, editable: true }),
+      ...(['customer', 'account', 'allocationMode', 'amount', 'paymentDate', 'allocations'] as const).map((id) =>
+        control(
+          `payments.customer.fields.${id}`,
+          'payments.customer',
+          'FIELD',
+          id,
+          { visible: true, editable: true },
+          {
+            configurable: { visible: false, editable: false },
+            platformEnforced: true,
+            risk: 'CRITICAL',
+            reason: 'Required Customer Payment workflow field.',
+          },
+        ),
+      ),
+      control(
+        'payments.customer.fields.status',
+        'payments.customer',
+        'FIELD',
+        'Status',
+        { visible: true, editable: false },
+        {
+          configurable: { visible: false, editable: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Immutable payment status.',
+        },
+      ),
+      control('payments.customer.actions.post', 'payments.customer', 'ACTION', 'Post Payment', { allowed: true }, { risk: 'CRITICAL' }),
+      control('payments.customer.actions.postInvoiceSpecific', 'payments.customer', 'ACTION', 'Post Invoice-specific Payment', { allowed: true }, { dependencies: ['payments.customer.actions.post'] }),
+      control('payments.customer.actions.inspect', 'payments.customer', 'ACTION', 'Inspect Payment', { allowed: true }),
+      control('payments.customer.actions.correct', 'payments.customer', 'ACTION', 'Correct Payment', { allowed: true }, { risk: 'CRITICAL' }),
     ];
     await TestBed.configureTestingModule({
       imports: [OrganizationControlsPage],
@@ -2987,6 +3039,54 @@ describe('OrganizationControlsPage', () => {
       component.askResetModule();
       component.confirm();
       expect(resetModule).toHaveBeenCalledWith('org-a', 'sales', 4, '');
+    });
+  });
+
+  describe('Customer Payments Controls', () => {
+    it('renders all 18 controls with platform-enforced, field, and action metadata', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('payments.customer');
+      fixture.detectChanges();
+
+      expect(component.moduleLabel('payments.customer')).toBe('Customer Payments');
+      expect(component.selectedControls()).toHaveLength(18);
+      expect(component.moduleControls()).toHaveLength(1);
+      expect(component.filterControls()).toHaveLength(2);
+      expect(component.formExperienceControls()).toHaveLength(2);
+      expect(component.fieldControls()).toHaveLength(1);
+      expect(component.requiredWorkflowControls()).toHaveLength(7);
+      expect(component.actionControls()).toHaveLength(4);
+      expect(fixture.nativeElement.textContent).toContain('Platform enforced');
+      expect(fixture.nativeElement.textContent).toContain('Customer lookup is required.');
+      expect(fixture.nativeElement.textContent).toContain('Post Payment');
+      expect(fixture.nativeElement.textContent).toContain('Post Invoice-specific Payment');
+      expect(fixture.nativeElement.textContent).toContain('Correct Payment');
+
+      const postInvoiceSpecific = component
+        .actionControls()
+        .find((item) => item.key === 'payments.customer.actions.postInvoiceSpecific');
+      expect(postInvoiceSpecific?.dependencies).toEqual(['payments.customer.actions.post']);
+    });
+
+    it('supports Customer Payments disable/re-enable and organization-scoped reset', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('payments.customer');
+      const moduleControl = component.controls().find((item) => item.key === 'payments.customer');
+      expect(moduleControl).toBeDefined();
+      if (moduleControl) {
+        component.setValue(moduleControl, 'enabled', false);
+        expect(component.disablingCustomerPayments()).toBe(true);
+        expect(component.confirmationTitle()).toBe(
+          'Disable Customer Payments for Greenfield Agro Center?',
+        );
+        expect(component.confirmationMessage()).toContain('Customer Payments');
+        component.setValue(moduleControl, 'enabled', true);
+        expect(component.effectiveValue(moduleControl, 'enabled')).toBe(true);
+      }
+
+      component.askResetModule();
+      component.confirm();
+      expect(resetModule).toHaveBeenCalledWith('org-a', 'payments.customer', 4, '');
     });
   });
 });

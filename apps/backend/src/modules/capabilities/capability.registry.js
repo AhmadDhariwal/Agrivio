@@ -28,6 +28,7 @@ const SUPPLIERS_MODULE_KEY = 'suppliers';
 const RETURNS_MODULE_KEY = 'returns';
 const PURCHASES_MODULE_KEY = 'purchases';
 const SALES_MODULE_KEY = 'sales';
+const CUSTOMER_PAYMENTS_MODULE_KEY = 'payments.customer';
 const SUPPLIER_PAYMENTS_MODULE_KEY = 'payments.supplier';
 const SUPPLIER_LEDGER_MODULE_KEY = 'payments.supplierLedger';
 const ACCOUNTS_MODULE_KEY = 'accounts';
@@ -2297,6 +2298,152 @@ const definitions = [
         }
       : {}),
   })),
+  // Customer Payments Module
+  {
+    key: CUSTOMER_PAYMENTS_MODULE_KEY,
+    parentKey: null,
+    moduleKey: CUSTOMER_PAYMENTS_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Customer Payments',
+    description:
+      'Standalone customer payment posting, allocation, ledger preview, inquiry, and correction for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'customer-payments.view' },
+    reason:
+      'Disabling access blocks direct Customer Payments operations without deleting posted payments, allocations, advances, ledger effects, account movements, or corrective history.',
+  },
+  ...[
+    ['moduleInfo', 'About Customer Payments', 'Show the Customer Payments guidance panel.'],
+    ['search', 'Search', 'Show the Customer Payments list search experience.'],
+    [
+      'paymentDateFilter',
+      'Payment Date Filter',
+      'Filter posted customer payments by payment date.',
+    ],
+    [
+      'customerSearch',
+      'Customer Search',
+      'Search and select an active organization customer while posting a payment.',
+    ],
+    [
+      'ledgerPreview',
+      'Customer Ledger Preview',
+      'Show recent ledger effects for the selected customer in the payment form.',
+    ],
+  ].map(([id, label, description]) => ({
+    key: `payments.customer.features.${id}`,
+    parentKey: CUSTOMER_PAYMENTS_MODULE_KEY,
+    moduleKey: CUSTOMER_PAYMENTS_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: id !== 'customerSearch' },
+    risk: id === 'customerSearch' ? RISK_LEVELS.Critical : RISK_LEVELS.Normal,
+    ...(id === 'customerSearch' ? { platformEnforced: true } : {}),
+    requiredPermissions: {
+      enabled: id === 'customerSearch' ? 'customer-payments.post' : 'customer-payments.view',
+    },
+    ...(id === 'customerSearch'
+      ? {
+          reason:
+            'Server-backed customer search remains available so an enabled Customer Payments workflow can reach the complete active tenant customer set.',
+        }
+      : {}),
+  })),
+  {
+    key: 'payments.customer.fields.notes',
+    parentKey: CUSTOMER_PAYMENTS_MODULE_KEY,
+    moduleKey: CUSTOMER_PAYMENTS_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label: 'Notes',
+    description: 'Optional customer payment notes.',
+    defaultPolicy: { visible: true, editable: true },
+    configurable: { visible: true, editable: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: {
+      visible: 'customer-payments.view',
+      editable: 'customer-payments.post',
+    },
+  },
+  ...[
+    ['customer', 'Customer', 'Customer identity is required for receivable and ledger attribution.'],
+    [
+      'account',
+      'Receive Into Account',
+      'An active Account is required for the immutable account movement.',
+    ],
+    [
+      'allocationMode',
+      'Allocation Mode',
+      'General or invoice-specific allocation is required for posting.',
+    ],
+    ['amount', 'Payment Amount', 'A positive PKR amount is required for financial posting.'],
+    ['paymentDate', 'Payment Date', 'A valid payment date is required for posting.'],
+    [
+      'allocations',
+      'Payment Allocations',
+      'Posted sale and customer-advance allocations are immutable financial history.',
+    ],
+    ['status', 'Posting Status', 'Posted payment and correction lifecycle state is backend-owned.'],
+  ].map(([id, label, reason]) => ({
+    key: `payments.customer.fields.${id}`,
+    parentKey: CUSTOMER_PAYMENTS_MODULE_KEY,
+    moduleKey: CUSTOMER_PAYMENTS_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description: 'Required workflow data or immutable Customer Payments history.',
+    defaultPolicy: id === 'status' ? { visible: true } : { visible: true, editable: true },
+    configurable: id === 'status' ? { visible: false } : { visible: false, editable: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions:
+      id === 'status'
+        ? { visible: 'customer-payments.view' }
+        : {
+            visible: 'customer-payments.view',
+            editable: 'customer-payments.post',
+          },
+    reason,
+  })),
+  ...[
+    ['post', 'Post Customer Payment', 'customer-payments.post', RISK_LEVELS.Critical, []],
+    [
+      'postInvoiceSpecific',
+      'Post Invoice-specific Payment',
+      'customer-payments.post',
+      RISK_LEVELS.Critical,
+      ['payments.customer.actions.post'],
+    ],
+    ['inspect', 'Inspect Customer Payment', 'customer-payments.view', RISK_LEVELS.Normal, []],
+    ['correct', 'Correct Customer Payment', 'payments.correct', RISK_LEVELS.Critical, []],
+  ].map(([id, label, permission, risk, dependencies]) => ({
+    key: `payments.customer.actions.${id}`,
+    parentKey: CUSTOMER_PAYMENTS_MODULE_KEY,
+    moduleKey: CUSTOMER_PAYMENTS_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label,
+    description: `${label} action. Existing RBAC, tenant scope, posting, allocation, idempotency, transaction, and correction safeguards remain authoritative.`,
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk,
+    requiredPermissions: { allowed: permission },
+    ...(dependencies.length === 0 ? {} : { dependencies }),
+    ...(id === 'post'
+      ? {
+          reason:
+            'Posting continues to use the Payments domain transaction and Accounts public movement service; disabling direct Accounts, Customers, or Sales UI access does not weaken accounting integrity.',
+        }
+      : {}),
+    ...(id === 'correct'
+      ? {
+          reason:
+            'Correction remains reversal plus optional replacement; original posted payments, allocations, ledger effects, and account movements remain immutable.',
+        }
+      : {}),
+  })),
   // Supplier Ledger Module
   {
     key: SUPPLIER_LEDGER_MODULE_KEY,
@@ -3210,6 +3357,7 @@ module.exports = {
   RETURNS_MODULE_KEY,
   PURCHASES_MODULE_KEY,
   SALES_MODULE_KEY,
+  CUSTOMER_PAYMENTS_MODULE_KEY,
   SUPPLIER_PAYMENTS_MODULE_KEY,
   SUPPLIER_LEDGER_MODULE_KEY,
   ACCOUNTS_MODULE_KEY,

@@ -1,46 +1,337 @@
-<agrivio-ui-page-header
-  title="Customer payments"
-  eyebrow="Sales"
-  lede="Record general customer payments. Unallocated remainder becomes customer advance when no unpaid sales apply."
->
-  @if (canPost()) {
-    <a
-      class="ag-btn"
-      routerLink="/app/customer-payments/new"
-      data-testid="customer-payment-create-link"
-    >
-      Post payment
-    </a>
-  }
-</agrivio-ui-page-header>
+<div class="customer-payments-shell" data-testid="customer-payments-page">
+  <!-- Page Header (Products-Standard Hierarchy) -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">SALES</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">Customer payments</h1>
+        <span class="page-head__count-pill" aria-label="Total payments" data-testid="customer-payments-count-pill">
+          {{ total() }} {{ total() === 1 ? 'payment' : 'payments' }}
+        </span>
+      </div>
+      <p class="page-head__lede">
+        Master customer payment ledger, general oldest-first allocation, and direct invoice allocations.
+      </p>
+    </div>
 
-<agrivio-ui-search-input placeholder="Filter by payment date (YYYY-MM-DD)..." [value]="search()" (searchChange)="onSearchChange($event)" />
+    <div class="page-head__actions">
+      @if (canPost()) {
+        <a
+          class="ag-btn ag-btn--primary page-head__create-btn"
+          routerLink="/app/customer-payments/new"
+          data-testid="customer-payment-create-link"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span class="btn-text-full">Post payment</span>
+          <span class="btn-text-mobile">Post</span>
+        </a>
+      }
+    </div>
+  </header>
 
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading customer payments…" />
-} @else if (errorMessage(); as error) {
-  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-} @else if (items().length === 0) {
-  <agrivio-ui-empty-state
-    title="No customer payments yet"
-    message="Post a general customer payment to settle receivables or create an advance."
-  />
-} @else {
-  <div class="ag-stack" data-testid="customer-payments-list">
-    @for (item of items(); track item.id) {
-      <article class="row">
-        <div>
-          <strong>{{ item.amount.amount }} {{ item.amount.currency }}</strong>
-          <p class="ag-muted">
-            {{ item.paymentDate }} · {{ item.allocationMode }}
-            @if (item.notes) {
-              · {{ item.notes }}
-            }
-          </p>
-        </div>
-        <agrivio-ui-status-badge [label]="item.status" tone="success" />
-      </article>
+  <!-- Permission / Loading States -->
+  @if (!canView()) {
+    <div class="alert-container" data-testid="customer-payments-permission-alert">
+      <agrivio-ui-alert tone="warning" message="You do not have permission to view customer payments." />
+    </div>
+  } @else if (loading()) {
+    <div class="state-container">
+      <agrivio-ui-loading-state label="Loading customer payments…" />
+    </div>
+  } @else {
+    @if (errorMessage(); as error) {
+      <div class="alert-container">
+        <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+      </div>
     }
-  </div>
-  <agrivio-ui-pagination [page]="page()" [pageSize]="pageSize()" [total]="total()" [disabled]="loading()" (pageChange)="onPageChange($event)" (pageSizeChange)="onPageSizeChange($event)" />
-}
+
+    <!-- Module Information Section -->
+    @if (showModuleInfo()) {
+      <agrivio-ui-module-info
+        [title]="infoTitle"
+        [description]="infoDescription"
+        [items]="infoItems"
+        [defaultExpanded]="false"
+      />
+    }
+
+    <!-- Filter & Control Toolbar (Products-Standard Compact Toolbar) -->
+    <section class="toolbar" aria-label="Filters and view controls" data-testid="customer-payments-toolbar">
+      <!-- Desktop Toolbar Controls -->
+      <div class="toolbar__desktop">
+        <div class="toolbar__left">
+          <!-- Text Search Input -->
+          @if (showSearch()) {
+            <div class="search-field">
+              <svg class="search-field__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input
+                class="search-field__input"
+                type="search"
+                [value]="search()"
+                (input)="onSearchInput($event)"
+                placeholder="Search payments by note or ID…"
+                aria-label="Search payments"
+                data-testid="customer-payments-search-input"
+              />
+              @if (search()) {
+                <button
+                  type="button"
+                  class="search-field__clear"
+                  (click)="onSearchClear()"
+                  aria-label="Clear search"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              }
+            </div>
+          }
+
+          <!-- Date Filter Picker -->
+          @if (showPaymentDateFilter()) {
+            <div class="date-field">
+              <svg class="date-field__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              <input
+                class="date-field__input"
+                type="date"
+                [value]="paymentDate()"
+                (input)="onDateChange($any($event.target).value)"
+                aria-label="Filter by payment date"
+                data-testid="customer-payments-date-input"
+              />
+            </div>
+          }
+
+          <!-- Clear Filters Action -->
+          @if (hasActiveFilters()) {
+            <button class="clear-filters-btn" type="button" (click)="clearFilters()">
+              Clear filters
+            </button>
+          }
+        </div>
+
+        <!-- Right Side: Refresh -->
+        <div class="toolbar__right">
+          <button
+            type="button"
+            class="refresh-btn"
+            (click)="reload()"
+            title="Refresh payments list"
+            aria-label="Refresh payments list"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+            </svg>
+            <span class="btn-text-full">Refresh</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile Toolbar Controls (< 768px) -->
+      <div class="toolbar__mobile">
+        @if (showSearch()) {
+          <div class="search-field search-field--mobile">
+            <svg class="search-field__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+              class="search-field__input"
+              type="search"
+              [value]="search()"
+              (input)="onSearchInput($event)"
+              placeholder="Search payments…"
+              aria-label="Search payments"
+            />
+            @if (search()) {
+              <button type="button" class="search-field__clear" (click)="onSearchClear()" aria-label="Clear search">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            }
+          </div>
+        }
+
+        <div class="toolbar__mobile-row">
+          @if (showPaymentDateFilter()) {
+            <input
+              class="date-field__input date-field__input--mobile"
+              type="date"
+              [value]="paymentDate()"
+              (input)="onDateChange($any($event.target).value)"
+              aria-label="Filter by payment date"
+            />
+          }
+          @if (hasActiveFilters()) {
+            <button type="button" class="mobile-clear-btn" (click)="clearFilters()">Reset</button>
+          }
+          <span class="toolbar__mobile-count">
+            {{ total() }} {{ total() === 1 ? 'payment' : 'payments' }}
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Empty State or Table -->
+    @if (items().length === 0) {
+      <div class="empty-container" data-testid="customer-payments-empty">
+        @if (hasActiveFilters()) {
+          <agrivio-ui-empty-state
+            title="No payments match your filters"
+            message="Try adjusting your search criteria or date filter."
+          />
+        } @else {
+          <agrivio-ui-empty-state
+            title="No customer payments yet"
+            message="Post a general customer payment to settle receivables or create an advance."
+          />
+        }
+      </div>
+    } @else {
+      <!-- Desktop Dense Table (Products-Standard Table Model) -->
+      <div class="table-container desktop-only" data-testid="customer-payments-list">
+        <table class="prod-table" data-testid="customer-payments-table">
+          <colgroup>
+            <col class="col-date" />
+            <col class="col-mode" />
+            @if (canViewField('notes')) {
+              <col class="col-notes" />
+            }
+            <col class="col-amount" />
+            <col class="col-status" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th scope="col" class="prod-table__th">Payment Date</th>
+              <th scope="col" class="prod-table__th">Allocation Mode</th>
+              @if (canViewField('notes')) {
+                <th scope="col" class="prod-table__th">Notes</th>
+              }
+              <th scope="col" class="prod-table__th text-right">Amount</th>
+              <th scope="col" class="prod-table__th">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of items(); track item.id) {
+              <tr class="prod-table__row" data-testid="customer-payment-row">
+                <!-- Date with Glyph Icon -->
+                <td class="prod-table__td" data-testid="payment-date">
+                  <div class="product-cell">
+                    <div class="product-cell__glyph" aria-hidden="true">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                      </svg>
+                    </div>
+                    <div class="product-cell__meta">
+                      <span class="tabular-num text-date">{{ item.paymentDate }}</span>
+                    </div>
+                  </div>
+                </td>
+
+                <!-- Allocation Mode Chip -->
+                <td class="prod-table__td" data-testid="payment-mode">
+                  <span class="tracking-chip tracking-chip--sm">
+                    {{ formatMode(item.allocationMode) }}
+                  </span>
+                </td>
+
+                <!-- Notes with Truncation -->
+                @if (canViewField('notes')) {
+                  <td class="prod-table__td prod-table__td--notes" data-testid="payment-notes" [title]="item.notes || ''">
+                    <span class="notes-text text-muted">{{ item.notes || '—' }}</span>
+                  </td>
+                }
+
+                <!-- Amount (Right-aligned, clean tabular price) -->
+                <td class="prod-table__td text-right" data-testid="payment-amount">
+                  <span class="tabular-num price-text">{{ formatCurrency(item.amount) }}</span>
+                </td>
+
+                <!-- Status with Products-Style Dot Indicator -->
+                <td class="prod-table__td" data-testid="payment-status">
+                  <span
+                    class="status-indicator"
+                    [class.status-indicator--active]="item.status === 'posted'"
+                    [class.status-indicator--inactive]="item.status !== 'posted'"
+                  >
+                    <span class="status-indicator__dot"></span>
+                    {{ item.status === 'posted' ? 'Posted' : item.status }}
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Mobile Purpose-Built Cards (< 768px) -->
+      <div class="mobile-payments-list mobile-only" data-testid="customer-payments-mobile-list">
+        @for (item of items(); track item.id) {
+          <article class="payment-card" data-testid="customer-payment-mobile-card">
+            <div class="payment-card__header">
+              <div class="payment-card__header-left">
+                <div class="product-cell__glyph product-cell__glyph--sm" aria-hidden="true">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                  </svg>
+                </div>
+                <span class="payment-card__date tabular-num">{{ item.paymentDate }}</span>
+              </div>
+              <span class="payment-card__amount tabular-num price-text">{{ formatCurrency(item.amount) }}</span>
+            </div>
+
+            <div class="payment-card__body">
+              <div class="payment-card__mode">
+                <span class="tracking-chip tracking-chip--sm">{{ formatMode(item.allocationMode) }}</span>
+              </div>
+              @if (canViewField('notes') && item.notes) {
+                <p class="payment-card__notes">{{ item.notes }}</p>
+              }
+            </div>
+
+            <div class="payment-card__footer">
+              <span
+                class="status-indicator"
+                [class.status-indicator--active]="item.status === 'posted'"
+                [class.status-indicator--inactive]="item.status !== 'posted'"
+              >
+                <span class="status-indicator__dot"></span>
+                {{ item.status === 'posted' ? 'Posted' : item.status }}
+              </span>
+            </div>
+          </article>
+        }
+      </div>
+
+      <!-- Products-Standard Pagination Component -->
+      <agrivio-ui-pagination
+        [page]="page()"
+        [pageSize]="pageSize()"
+        [total]="total()"
+        [disabled]="loading()"
+        (pageChange)="onPageChange($event)"
+        (pageSizeChange)="onPageSizeChange($event)"
+      />
+    }
+  }
+</div>

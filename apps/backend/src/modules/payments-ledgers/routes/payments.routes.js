@@ -19,6 +19,17 @@ function registerPaymentsRoutes(deps) {
   const router = Router();
   const controller = createPaymentsController(deps);
   const requireOrganizationContext = createRequireOrganizationContextMiddleware();
+  const requireCustomerPaymentsModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'payments.customer',
+    'enabled',
+  );
+  const requireCustomerPaymentsAction = (action) =>
+    createRequireCapabilityMiddleware(
+      deps.capabilityService,
+      `payments.customer.actions.${action}`,
+      'allowed',
+    );
   const requireSupplierPaymentsModule = createRequireCapabilityMiddleware(
     deps.capabilityService,
     'payments.supplier',
@@ -136,6 +147,7 @@ function registerPaymentsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('customer-payments.view'),
     deps.requireOperationalAccess,
+    requireCustomerPaymentsModule,
     (req, res, next) => {
       void controller.listCustomerPayments(req, res, next);
     },
@@ -148,6 +160,8 @@ function registerPaymentsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('customer-payments.post'),
     deps.requireOperationalAccess,
+    requireCustomerPaymentsModule,
+    requireCustomerPaymentsAction('post'),
     (req, res, next) => {
       void controller.postCustomerPayment(req, res, next);
     },
@@ -159,6 +173,8 @@ function registerPaymentsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('customer-payments.view'),
     deps.requireOperationalAccess,
+    requireCustomerPaymentsModule,
+    requireCustomerPaymentsAction('inspect'),
     (req, res, next) => {
       void controller.getCustomerPayment(req, res, next);
     },

@@ -36,6 +36,7 @@ type ConfigurableModule =
   | 'reports'
   | 'alerts'
   | 'purchases'
+  | 'payments.customer'
   | 'payments.supplier'
   | 'payments.supplierLedger'
   | 'sales';
@@ -132,6 +133,9 @@ export class OrganizationControlsPage {
     if (this.selectedModule() === 'purchases') {
       return this.purchasesFeatures('moduleInfo');
     }
+    if (this.selectedModule() === 'payments.customer') {
+      return this.customerPaymentsFeatures('moduleInfo');
+    }
     if (this.selectedModule() === 'payments.supplier') {
       return this.supplierPaymentsFeatures('moduleInfo');
     }
@@ -170,6 +174,9 @@ export class OrganizationControlsPage {
     return [];
   });
   readonly formExperienceControls = computed(() => {
+    if (this.selectedModule() === 'payments.customer') {
+      return this.customerPaymentsFeatures('customerSearch', 'ledgerPreview');
+    }
     if (this.selectedModule() === 'inventory.transfers') {
       return this.transfersFeatures(
         'productSearch',
@@ -206,6 +213,9 @@ export class OrganizationControlsPage {
     return [];
   });
   readonly filterControls = computed(() => {
+    if (this.selectedModule() === 'payments.customer') {
+      return this.customerPaymentsFeatures('search', 'paymentDateFilter');
+    }
     if (this.selectedModule() === 'sales') {
       return this.salesFeatures('search', 'statusFilter');
     }
@@ -467,6 +477,14 @@ export class OrganizationControlsPage {
       changes[0].value?.['enabled'] === false
     );
   });
+  readonly disablingCustomerPayments = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'payments.customer' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
   readonly disablingSupplierPayments = computed(() => {
     const changes = this.changes();
     return (
@@ -536,6 +554,9 @@ export class OrganizationControlsPage {
     }
     if (this.disablingPurchases()) {
       return `Disable Purchases for ${organization}?`;
+    }
+    if (this.disablingCustomerPayments()) {
+      return `Disable Customer Payments for ${organization}?`;
     }
     if (this.disablingSupplierPayments()) {
       return `Disable Supplier Payments for ${organization}?`;
@@ -612,6 +633,9 @@ export class OrganizationControlsPage {
     if (this.disablingPurchases()) {
       return `Users in ${organization} will no longer be able to access or operate Purchases. Existing drafts, posted purchases, inventory movements, supplier payables, payments, cancellations, and returns are not deleted or modified. This affects ${organization} only.`;
     }
+    if (this.disablingCustomerPayments()) {
+      return `Users in ${organization} will no longer be able to access or post Customer Payments. Existing posted payments, allocations, advances, ledger effects, account movements, and corrective history are not deleted or modified. Sales invoices and Accounts remain intact. This affects ${organization} only.`;
+    }
     if (this.disablingSupplierPayments()) {
       return `Users in ${organization} will no longer be able to access or post standalone Supplier Payments or open the Supplier Ledger workflow. Existing posted payments, allocations, advances, ledger effects, account movements, and corrective history are not deleted or modified. Purchases remains available. This affects ${organization} only.`;
     }
@@ -649,6 +673,7 @@ export class OrganizationControlsPage {
     if (this.disablingReports()) return 'Disable Reports';
     if (this.disablingAlerts()) return 'Disable Alerts';
     if (this.disablingPurchases()) return 'Disable Purchases';
+    if (this.disablingCustomerPayments()) return 'Disable Customer Payments';
     if (this.disablingSupplierPayments()) return 'Disable Supplier Payments';
     if (this.disablingSupplierLedger()) return 'Disable Supplier Ledger';
     if (this.disablingSales()) return 'Disable Sales';
@@ -873,6 +898,7 @@ export class OrganizationControlsPage {
     if (moduleKey === 'reports') return 'Reports';
     if (moduleKey === 'alerts') return 'Alerts';
     if (moduleKey === 'purchases') return 'Purchases';
+    if (moduleKey === 'payments.customer') return 'Customer Payments';
     if (moduleKey === 'payments.supplier') return 'Supplier Payments';
     if (moduleKey === 'payments.supplierLedger') return 'Supplier Ledger';
     if (moduleKey === 'sales') return 'Sales';
@@ -895,12 +921,18 @@ export class OrganizationControlsPage {
         control.moduleKey === 'expenses.categories' ||
         control.moduleKey === 'accounts' ||
         control.moduleKey === 'purchases' ||
+        control.moduleKey === 'payments.customer' ||
         control.moduleKey === 'payments.supplier' ||
         control.moduleKey === 'payments.supplierLedger' ||
         control.moduleKey === 'sales') &&
       control.type === 'FIELD' &&
       control.platformEnforced === true
     );
+  }
+
+  private customerPaymentsFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
+    const keys = new Set(ids.map((id) => `payments.customer.features.${id}`));
+    return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
   }
 
   private salesFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
@@ -1086,6 +1118,12 @@ export class OrganizationControlsPage {
         (control.key === 'purchases.features.moduleInfo' ||
           control.key === 'purchases.features.search' ||
           control.key === 'purchases.features.statusFilter')) ||
+      (control.moduleKey === 'payments.customer' &&
+        (control.key === 'payments.customer.features.moduleInfo' ||
+          control.key === 'payments.customer.features.search' ||
+          control.key === 'payments.customer.features.paymentDateFilter' ||
+          control.key === 'payments.customer.features.customerSearch' ||
+          control.key === 'payments.customer.features.ledgerPreview')) ||
       (control.moduleKey === 'payments.supplier' &&
         (control.key === 'payments.supplier.features.moduleInfo' ||
           control.key === 'payments.supplier.features.paymentDateFilter')) ||
