@@ -11,14 +11,20 @@ import {
   BranchRecord,
   WarehouseRecord,
 } from '../../../branches-warehouses/data-access/branches-warehouses.api';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
+import { UiStatusBadgeComponent } from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
 import { UiLineChartComponent } from '../../../../shared/chart/ui-line-chart.component';
 import { UiHorizontalBarChartComponent } from '../../../../shared/chart/ui-horizontal-bar-chart.component';
 import { UiDonutChartComponent } from '../../../../shared/chart/ui-donut-chart.component';
-import { ChartPoint, ChartSeries, formatPkrAmount, formatQuantity, parseAmount } from '../../../../shared/chart/chart-format.util';
+import {
+  ChartPoint,
+  ChartSeries,
+  formatPkrAmount,
+  formatQuantity,
+  parseAmount,
+} from '../../../../shared/chart/chart-format.util';
 import { DashboardPayload, MoneyDto } from '../../models/dashboard.models';
 
 @Component({
@@ -27,10 +33,10 @@ import { DashboardPayload, MoneyDto } from '../../models/dashboard.models';
   imports: [
     RouterLink,
     FormsModule,
-    UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
     UiEmptyStateComponent,
+    UiStatusBadgeComponent,
     UiLineChartComponent,
     UiHorizontalBarChartComponent,
     UiDonutChartComponent,
@@ -59,13 +65,37 @@ export class DashboardPage {
     () => this.sessionStore.session()?.subscriptionAccessState?.status === 'suspended',
   );
 
+  // Authoritative RBAC permissions for navigation links
+  readonly canViewSales = computed(() => this.sessionStore.hasPermission('sales.view'));
+  readonly canViewPurchases = computed(() => this.sessionStore.hasPermission('purchases.view'));
+  readonly canViewExpenses = computed(() => this.sessionStore.hasPermission('expenses.view'));
+  readonly canViewCustomers = computed(() => this.sessionStore.hasPermission('customers.view'));
+  readonly canViewSuppliers = computed(() => this.sessionStore.hasPermission('suppliers.view'));
+  readonly canViewAccounts = computed(() => this.sessionStore.hasPermission('accounts.view'));
+  readonly canViewInventory = computed(() => this.sessionStore.hasPermission('inventory.view'));
+  readonly canViewAlerts = computed(() => this.sessionStore.hasPermission('alerts.view'));
+  readonly canViewReports = computed(() => this.sessionStore.hasPermission('reports.view'));
+
+  readonly hasActiveFilters = computed(() => {
+    const data = this.dashboard();
+    const hasBranch = this.branchId().trim() !== '';
+    const hasWarehouse = this.warehouseId().trim() !== '';
+    const defaultFrom = data?.period?.fromDate ?? '';
+    const defaultTo = data?.period?.toDate ?? '';
+    const hasCustomFrom = this.fromDate().trim() !== '' && this.fromDate().trim() !== defaultFrom;
+    const hasCustomTo = this.toDate().trim() !== '' && this.toDate().trim() !== defaultTo;
+    return hasBranch || hasWarehouse || hasCustomFrom || hasCustomTo;
+  });
+
   readonly salesPurchaseSeries: ChartSeries[] = [
-    { key: 'sales', label: 'Sales', color: 'var(--ag-color-primary, #1f6b3a)' },
-    { key: 'purchases', label: 'Purchases', color: 'var(--ag-color-accent, #8a6a2f)' },
+    { key: 'sales', label: 'Sales', color: '#065f46' },
+    { key: 'purchases', label: 'Purchases', color: '#2563eb' },
   ];
+
   readonly grossProfitSeries: ChartSeries[] = [
-    { key: 'grossProfit', label: 'Gross profit', color: 'var(--ag-color-primary-strong, #14532d)' },
+    { key: 'grossProfit', label: 'Gross Profit', color: '#065f46' },
   ];
+
   readonly formatPkrAmount = formatPkrAmount;
   readonly formatQuantity = formatQuantity;
 
@@ -99,23 +129,25 @@ export class DashboardPage {
     })),
   );
 
-  readonly accountDonutSlices = computed(() =>
-    (this.dashboard()?.accountDistribution ?? []).map((item, index) => ({
+  readonly accountDonutSlices = computed(() => {
+    const palette = ['#065f46', '#2563eb', '#d97706', '#7c3aed', '#0891b2'];
+    return (this.dashboard()?.accountDistribution ?? []).map((item, index) => ({
       label: item.label,
       value: item.balance.amount,
-      color: ['#1f6b3a', '#2563eb', '#8a6a2f', '#0f766e'][index % 4] ?? '#1f6b3a',
-    })),
-  );
+      color: palette[index % palette.length] ?? '#065f46',
+    }));
+  });
 
-  readonly expiryBars = computed(() => {
-    const data = this.dashboard();
-    if (!data) {
-      return [];
+  readonly totalAccountBalance = computed(() => {
+    const items = this.dashboard()?.accountDistribution ?? [];
+    let sum = 0;
+    for (const item of items) {
+      const parsed = parseAmount(item.balance.amount);
+      if (Number.isFinite(parsed)) {
+        sum += parsed;
+      }
     }
-    return [
-      { label: 'Upcoming expiry', value: String(data.upcomingExpiryCount) },
-      { label: 'Expired stock', value: String(data.expiredStockCount) },
-    ];
+    return sum;
   });
 
   constructor() {
@@ -156,6 +188,23 @@ export class DashboardPage {
         this.filtersLoading.set(false);
       },
     });
+  }
+
+  clearFilters(): void {
+    this.branchId.set('');
+    this.warehouseId.set('');
+    const data = this.dashboard();
+    if (data?.period?.fromDate) {
+      this.fromDate.set(data.period.fromDate);
+    } else {
+      this.fromDate.set('');
+    }
+    if (data?.period?.toDate) {
+      this.toDate.set(data.period.toDate);
+    } else {
+      this.toDate.set('');
+    }
+    this.reload();
   }
 
   reload(): void {
