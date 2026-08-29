@@ -22,6 +22,7 @@ const {
   TRANSFERS_MODULE_KEY,
   RECONCILIATION_MODULE_KEY,
   MOVEMENTS_MODULE_KEY,
+  WAREHOUSES_MODULE_KEY,
   CUSTOMERS_MODULE_KEY,
   SUPPLIERS_MODULE_KEY,
   RETURNS_MODULE_KEY,
@@ -94,6 +95,10 @@ const ACCOUNT_FIELD_CONTROLS = Object.freeze({
 const EMPLOYEE_FIELD_CONTROLS = Object.freeze({
   displayName: 'employees.fields.displayName',
   role: 'employees.fields.role',
+});
+
+const WAREHOUSE_FIELD_CONTROLS = Object.freeze({
+  code: 'warehouses.fields.code',
 });
 
 function cloneValue(value) {
@@ -514,6 +519,7 @@ function createCapabilityService(deps) {
           TRANSFERS_MODULE_KEY,
           RECONCILIATION_MODULE_KEY,
           MOVEMENTS_MODULE_KEY,
+          WAREHOUSES_MODULE_KEY,
           CUSTOMERS_MODULE_KEY,
           SUPPLIERS_MODULE_KEY,
           RETURNS_MODULE_KEY,
@@ -637,6 +643,25 @@ function createCapabilityService(deps) {
 
     async assertCategoryDeleteAllowed(organizationId) {
       await assertAllowed(organizationId, 'inventory.categories.actions.delete', 'allowed');
+    },
+
+    async assertWarehousePatchAllowed(organizationId, current, patch) {
+      const changedFields = ['name', 'code'].filter(
+        (field) => patch[field] !== undefined && String(patch[field]) !== String(current[field]),
+      );
+      if (changedFields.length > 0) {
+        await assertAllowed(organizationId, 'warehouses.actions.edit', 'allowed');
+      }
+      for (const field of changedFields) {
+        const controlKey = WAREHOUSE_FIELD_CONTROLS[field];
+        if (controlKey !== undefined) {
+          await assertAllowed(organizationId, controlKey, 'editable');
+        }
+      }
+      if (patch.status !== undefined && patch.status !== current.status) {
+        const action = patch.status === 'active' ? 'reactivate' : 'deactivate';
+        await assertAllowed(organizationId, `warehouses.actions.${action}`, 'allowed');
+      }
     },
 
     async assertCustomerCreateAllowed(organizationId) {
@@ -790,4 +815,5 @@ module.exports = {
   CUSTOMER_FIELD_CONTROLS,
   PRODUCT_FIELD_CONTROLS,
   SUPPLIER_FIELD_CONTROLS,
+  WAREHOUSE_FIELD_CONTROLS,
 };

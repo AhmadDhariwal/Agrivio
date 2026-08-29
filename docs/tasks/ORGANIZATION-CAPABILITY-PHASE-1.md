@@ -1,7 +1,7 @@
 # Organization Capability & UI Policy — Phase 1
 
 Status: Implementation complete; lightweight authenticated browser review remains environment-dependent
-Scope: Generic platform foundation plus completed capability integrations through Stock Movements, Accounts, Reports, Alerts, Purchases, Supplier Payments, Supplier Ledger, Sales, Customer Payments, and Dashboard (backend, frontend, and Super Admin)
+Scope: Generic platform foundation plus completed capability integrations through Stock Movements, Accounts, Reports, Alerts, Purchases, Supplier Payments, Supplier Ledger, Sales, Customer Payments, Dashboard, and Warehouses backend/generic Super Admin controls
 Completed: 2026-08-29
 
 ## Implemented
@@ -37,9 +37,18 @@ Completed: 2026-08-29
 - Sales navigation, POS create/history routes, list features/actions, draft field visibility/editability, tender/credit settlements, post/cancel/return/print actions, condition-driven approval workflows, and lifecycle-aware read-only detail behavior consume the exact backend registry through `CapabilityService`. The generic Super Admin Organization Controls renderer exposes all 34 Sales controls, required platform-enforced workflow fields, dependencies, Default/Override/Effective state, disable/re-enable confirmation, and scoped reset without a custom Sales admin page.
 - Disabling Warehouse Transfers blocks all transfer list/detail/create/update/discard/post/reverse endpoints through backend capability middleware. Source warehouse, destination warehouse, product, quantity, reason, and batch remain platform-enforced; negative-stock override strictly preserves RBAC `inventory.negative-stock.override` authorization and has no capability key. Batch identity and expiry metadata preservation remain enforced by the inventory engine; WAC valuation remains 100% backend-owned.
 - Individual, module, and organization reset operations remove sparse overrides through the transactional backend endpoints, increment policy versions on material changes, emit per-control audit evidence, re-resolve effective policy, and refresh the Super Admin UI.
+- Warehouses owns the `warehouses` namespace with 13 authoritative backend controls: 1 module, 3 real presentation features (`moduleInfo`, `search`, `statusFilter`), 3 fields (`name`, `code`, `status`), and 6 actions (`create`, `edit`, `deactivate`, `reactivate`, `delete`, `refresh`). All direct Warehouse API operations enforce the module after existing organization context, RBAC, and operational subscription checks. Create and permanent delete enforce their distinct route actions; parsed Warehouse PATCH mutations dynamically enforce Edit, optional Code editability, and the matching lifecycle action without weakening optimistic versioning or tenant scope. Generic module reset and Organization Controls rendering reuse the existing sparse override, Default / Override / Effective, audit, and version paths.
 - Stable policy denial codes: `ORG_CAPABILITY_DISABLED`, `ORG_ACTION_NOT_ALLOWED`, and `ORG_FIELD_NOT_EDITABLE`.
 
-No capability controls were added for Warehouses.
+## Warehouses backend registry safety decisions
+
+- Warehouse Name is required on create and remains visible/editable as a platform-enforced identity field. It is not exposed as a fake organization toggle; ordinary name changes still require the Warehouse Edit action.
+- Warehouse Code is optional and safe to configure for visibility and existing-record editability. Parsed PATCH payloads enforce `warehouses.fields.code.editable`, so crafted requests cannot bypass a read-only organization policy.
+- Lifecycle Status remains visible and read-only as a platform-enforced field. Active/inactive transitions are controlled only through the distinct Deactivate and Reactivate actions on the existing optimistic-concurrency PATCH workflow.
+- Create, Edit, Deactivate, Reactivate, Delete, and Refresh map to the existing `warehouses.manage` / `warehouses.view` RBAC permissions. Organization policy can restrict those permissions but cannot grant them.
+- Permanent deletion remains subject to the existing tenant-scoped record lookup and record-in-use reference checks. Enabling Delete cannot bypass stock history, posted movement, assignment, or other domain references.
+- Module reset matches only definitions whose `moduleKey` is `warehouses`, preserves unrelated sparse overrides and organization isolation, increments policy version on material change, and emits the existing per-control audit evidence.
+- KPI, pagination, table/mobile renderer, internal identifier, and optimistic version controls were not registered because they are not independent configurable Warehouse business capabilities.
 
 ## Products registry safety decisions
 
@@ -361,9 +370,18 @@ No capability controls were added for Warehouses.
 - Supplier Payments focused frontend list/form, exact CapabilityService defaults plus route/navigation wiring, and generic Super Admin Organization Controls integration: passed (4 files, 86 tests).
 - Sales focused backend registry/resolver, RBAC, dependency, organization isolation, scoped reset/audit, route/action enforcement, optional field editability, price override, conditional approvals, and linked return safety: passed (3 files, 18 tests).
 - Sales focused frontend list/draft/detail/print pages, exact CapabilityService defaults plus route/navigation wiring, and generic Super Admin Organization Controls integration: passed (4 files, 90 tests).
+- Warehouses focused backend registry/effective resolution, RBAC intersection, parsed edit and Code-field enforcement, lifecycle and permanent-delete action enforcement, delete-in-use safety, organization isolation, scoped reset, audit/version evidence, and all direct Warehouse route enforcement: passed (2 files, 12 tests).
 - Frontend and backend TypeScript project references typecheck: passed.
 - Final development and production builds for all projects passed.
 
 ## Remaining risk
 
-Authenticated cross-organization browser smoke remains outstanding; focused component, route, policy, persistence-boundary, and build validation passed. Foundation + Products + Categories + Stock on Hand + Opening Stock + Product Batches + Expiry Inquiry + Stock Adjustments + Warehouse Transfers + Stock Movements + Accounts + Reports + Alerts + Purchases + Supplier Payments + Supplier Ledger + Sales + Customer Payments + Dashboard are complete; Warehouses and later unintegrated modules remain intentionally outside this task.
+Authenticated cross-organization browser smoke remains outstanding; focused component, route, policy, persistence-boundary, and build validation passed. Foundation + Products + Categories + Stock on Hand + Opening Stock + Product Batches + Expiry Inquiry + Stock Adjustments + Warehouse Transfers + Stock Movements + Accounts + Reports + Alerts + Purchases + Supplier Payments + Supplier Ledger + Sales + Customer Payments + Dashboard are complete. Warehouses backend capability enforcement and generic Super Admin registry integration are complete; tenant frontend consumption and later unintegrated modules remain separate.
+
+WAREHOUSES SUPER ADMIN REGISTRY: ✅ FROZEN
+
+WAREHOUSES BACKEND CAPABILITY ENFORCEMENT: ✅ VERIFIED
+
+WAREHOUSE LIFECYCLE/DELETE SAFETY: ✅ VERIFIED
+
+WAREHOUSES BACKEND SUPER ADMIN INTEGRATION: ✅ FULLY DONE

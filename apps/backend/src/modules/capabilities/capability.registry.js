@@ -23,6 +23,7 @@ const ADJUSTMENTS_MODULE_KEY = 'inventory.adjustments';
 const TRANSFERS_MODULE_KEY = 'inventory.transfers';
 const RECONCILIATION_MODULE_KEY = 'inventory.reconciliation';
 const MOVEMENTS_MODULE_KEY = 'inventory.movements';
+const WAREHOUSES_MODULE_KEY = 'warehouses';
 const CUSTOMERS_MODULE_KEY = 'customers';
 const SUPPLIERS_MODULE_KEY = 'suppliers';
 const RETURNS_MODULE_KEY = 'returns';
@@ -1461,6 +1462,101 @@ const definitions = [
     risk: RISK_LEVELS.Normal,
     requiredPermissions: { allowed: 'inventory.view' },
     ...(dependencies.length === 0 ? {} : { dependencies }),
+  })),
+  {
+    key: WAREHOUSES_MODULE_KEY,
+    parentKey: null,
+    moduleKey: WAREHOUSES_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Warehouses',
+    description: 'Warehouse management screens and Warehouse API operations for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'warehouses.view' },
+    reason:
+      'Disabling access hides Warehouses and blocks direct Warehouse API operations without deleting locations or altering inventory history.',
+  },
+  ...[
+    ['moduleInfo', 'About Warehouses', 'Show the Warehouses guidance panel.'],
+    ['search', 'Search', 'Search Warehouses by name.'],
+    ['statusFilter', 'Status Filter', 'Filter Warehouses by active or inactive status.'],
+  ].map(([id, label, description]) => ({
+    key: `warehouses.features.${id}`,
+    parentKey: WAREHOUSES_MODULE_KEY,
+    moduleKey: WAREHOUSES_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'warehouses.view' },
+  })),
+  {
+    key: 'warehouses.fields.name',
+    parentKey: WAREHOUSES_MODULE_KEY,
+    moduleKey: WAREHOUSES_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label: 'Warehouse name',
+    description: 'Required Warehouse identity field.',
+    defaultPolicy: { visible: true, editable: true },
+    configurable: { visible: false, editable: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'warehouses.view', editable: 'warehouses.manage' },
+    reason: 'Warehouse name is required for creation and remains platform enforced.',
+  },
+  {
+    key: 'warehouses.fields.code',
+    parentKey: WAREHOUSES_MODULE_KEY,
+    moduleKey: WAREHOUSES_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label: 'Warehouse code',
+    description: 'Optional short Warehouse reference code.',
+    defaultPolicy: { visible: true, editable: true },
+    configurable: { visible: true, editable: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { visible: 'warehouses.view', editable: 'warehouses.manage' },
+  },
+  {
+    key: 'warehouses.fields.status',
+    parentKey: WAREHOUSES_MODULE_KEY,
+    moduleKey: WAREHOUSES_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label: 'Lifecycle status',
+    description: 'Active or inactive Warehouse state.',
+    defaultPolicy: { visible: true, editable: false },
+    configurable: { visible: false, editable: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'warehouses.view', editable: 'warehouses.manage' },
+    reason: 'Lifecycle changes are controlled by deactivate and reactivate actions.',
+  },
+  ...[
+    ['create', 'Create warehouse', 'warehouses.manage', RISK_LEVELS.Recommended],
+    ['edit', 'Edit warehouse', 'warehouses.manage', RISK_LEVELS.Recommended],
+    ['deactivate', 'Deactivate warehouse', 'warehouses.manage', RISK_LEVELS.Recommended],
+    ['reactivate', 'Reactivate warehouse', 'warehouses.manage', RISK_LEVELS.Recommended],
+    ['delete', 'Delete permanently', 'warehouses.manage', RISK_LEVELS.Critical],
+    ['refresh', 'Refresh', 'warehouses.view', RISK_LEVELS.Normal],
+  ].map(([id, label, permission, risk]) => ({
+    key: `warehouses.actions.${id}`,
+    parentKey: WAREHOUSES_MODULE_KEY,
+    moduleKey: WAREHOUSES_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label,
+    description: `${label} action. Existing validation, lifecycle rules, tenant isolation, and RBAC still apply.`,
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk,
+    requiredPermissions: { allowed: permission },
+    ...(id === 'delete'
+      ? {
+          reason:
+            'The policy can block deletion but cannot bypass stock-history, posted-movement, assignment, or other record-in-use protection.',
+        }
+      : {}),
   })),
   {
     key: CUSTOMERS_MODULE_KEY,
@@ -3601,6 +3697,7 @@ module.exports = {
   TRANSFERS_MODULE_KEY,
   RECONCILIATION_MODULE_KEY,
   MOVEMENTS_MODULE_KEY,
+  WAREHOUSES_MODULE_KEY,
   CUSTOMERS_MODULE_KEY,
   SUPPLIERS_MODULE_KEY,
   RETURNS_MODULE_KEY,

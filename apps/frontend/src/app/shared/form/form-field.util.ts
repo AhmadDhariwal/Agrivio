@@ -18,6 +18,30 @@ export function hasRequiredValidator(control: AbstractControl | null | undefined
   return controlIsRequired(control);
 }
 
+export function shouldShowControlError(
+  control: AbstractControl | null | undefined,
+  submitAttempted: boolean,
+): boolean {
+  if (!control) {
+    return false;
+  }
+  return control.invalid && (control.touched || submitAttempted);
+}
+
+export function fieldValidationMessage(
+  control: AbstractControl | null | undefined,
+  label: string,
+  submitAttempted: boolean,
+): string | null {
+  if (!shouldShowControlError(control, submitAttempted)) {
+    return null;
+  }
+  if (control?.hasError('required')) {
+    return `${label} is required.`;
+  }
+  return `${label} is invalid.`;
+}
+
 export function setRequiredValidator(
   control: AbstractControl | null | undefined,
   required: boolean,

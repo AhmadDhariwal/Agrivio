@@ -14,6 +14,7 @@
       </p>
     </div>
     <div class="page-head__actions">
+      @if (canRefresh()) {
       <button
         type="button"
         class="ag-btn ag-btn--secondary page-head__refresh-btn"
@@ -37,8 +38,9 @@
         </svg>
         <span class="btn-text-full">Refresh</span>
       </button>
+      }
 
-      @if (canManage()) {
+      @if (canCreate()) {
       <a
         class="ag-btn ag-btn--primary page-head__add-btn"
         routerLink="/app/warehouses/new"
@@ -76,19 +78,23 @@
   }
 
   <!-- Module Information Section (Products Pattern) -->
+  @if (showModuleInfo()) {
   <agrivio-ui-module-info
     [title]="infoTitle"
     [description]="infoDescription"
     [items]="infoItems"
     [defaultExpanded]="false"
   />
+  }
 
   <!-- Filter & Control Toolbar -->
+  @if (showSearch() || showStatusFilter()) {
   <section class="toolbar" aria-label="Filters and search">
     <!-- Desktop / Tablet Controls -->
     <div class="toolbar__desktop">
       <div class="toolbar__left">
         <!-- Search Input -->
+        @if (showSearch()) {
         <div class="search-field">
           <svg
             class="search-field__icon"
@@ -131,8 +137,10 @@
           </button>
           }
         </div>
+        }
 
         <!-- Status Filter -->
+        @if (showStatusFilter()) {
         <div class="select-field">
           <select
             class="select-field__input"
@@ -145,6 +153,7 @@
             <option value="inactive">Inactive warehouses</option>
           </select>
         </div>
+        }
 
         <!-- Clear Filters Button -->
         @if (hasActiveFilters()) {
@@ -163,6 +172,7 @@
 
     <!-- Mobile Controls (< 768px) -->
     <div class="toolbar__mobile">
+      @if (showSearch()) {
       <div class="search-field search-field--mobile">
         <svg
           class="search-field__icon"
@@ -205,8 +215,10 @@
         </button>
         }
       </div>
+      }
 
       <div class="toolbar__mobile-row">
+        @if (showStatusFilter()) {
         <select
           class="select-field__input"
           [value]="statusFilter()"
@@ -217,6 +229,7 @@
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
+        }
 
         @if (hasActiveFilters()) {
         <button type="button" class="mobile-clear-btn" (click)="clearFilters()">Reset</button>
@@ -224,6 +237,7 @@
       </div>
     </div>
   </section>
+  }
 
   <!-- Loading State -->
   @if (loading()) {
@@ -248,14 +262,18 @@
     <table class="wh-table">
       <colgroup>
         <col class="col-warehouse" />
+        @if (showCode()) {
         <col class="col-code" />
+        }
         <col class="col-status" />
         <col class="col-actions" />
       </colgroup>
       <thead>
         <tr>
           <th scope="col" class="wh-table__th wh-table__th--warehouse">Warehouse</th>
+          @if (showCode()) {
           <th scope="col" class="wh-table__th wh-table__th--code">Code</th>
+          }
           <th scope="col" class="wh-table__th wh-table__th--status">Status</th>
           <th scope="col" class="wh-table__th wh-table__th--actions">Actions</th>
         </tr>
@@ -290,6 +308,7 @@
           </td>
 
           <!-- Code -->
+          @if (showCode()) {
           <td class="wh-table__td wh-table__td--code">
             @if (item.code) {
             <span class="code-text" [title]="item.code">{{ item.code }}</span>
@@ -297,6 +316,7 @@
             <span class="muted-dash">—</span>
             }
           </td>
+          }
 
           <!-- Status -->
           <td class="wh-table__td wh-table__td--status">
@@ -313,7 +333,7 @@
           <!-- Actions -->
           <td class="wh-table__td wh-table__td--actions">
             <div class="row-actions">
-              @if (canManage()) {
+              @if (canEdit()) {
               <a
                 class="row-action-btn"
                 [routerLink]="['/app/warehouses', item.id]"
@@ -334,8 +354,10 @@
                   <path d="m15 5 4 4" />
                 </svg>
               </a>
+              }
 
               <!-- More Actions Dropdown -->
+              @if (hasRowActions(item)) {
               <div class="menu-container">
                 <button
                   type="button"
@@ -360,7 +382,7 @@
 
                 @if (openMenuWarehouseId() === item.id) {
                 <div class="menu-dropdown">
-                  @if (item.status === 'active') {
+                  @if (item.status === 'active' && canDeactivate()) {
                   <button
                     type="button"
                     class="menu-dropdown__item"
@@ -381,7 +403,7 @@
                     </svg>
                     Deactivate
                   </button>
-                  } @else {
+                  } @else if (item.status === 'inactive' && canReactivate()) {
                   <button
                     type="button"
                     class="menu-dropdown__item"
@@ -402,6 +424,7 @@
                   </button>
                   }
 
+                  @if (canDelete()) {
                   <button
                     type="button"
                     class="menu-dropdown__item menu-dropdown__item--danger"
@@ -421,6 +444,7 @@
                     </svg>
                     Delete permanently
                   </button>
+                  }
                 </div>
                 }
               </div>
@@ -443,7 +467,7 @@
       <div class="wh-card__head">
         <div class="wh-card__name-group">
           <h2 class="wh-card__name">{{ item.name }}</h2>
-          @if (item.code) {
+          @if (showCode() && item.code) {
           <span class="wh-card__code">{{ item.code }}</span>
           }
         </div>
@@ -458,11 +482,12 @@
       </div>
 
       <div class="wh-card__foot">
-        @if (canManage()) {
+        @if (canEdit()) {
         <a class="ag-btn ag-btn--secondary wh-card__btn" [routerLink]="['/app/warehouses', item.id]">
           Edit
         </a>
-        @if (item.status === 'active') {
+        }
+        @if (item.status === 'active' && canDeactivate()) {
         <button
           type="button"
           class="ag-btn ag-btn--secondary wh-card__btn"
@@ -470,7 +495,7 @@
         >
           Deactivate
         </button>
-        } @else {
+        } @else if (item.status === 'inactive' && canReactivate()) {
         <button
           type="button"
           class="ag-btn ag-btn--secondary wh-card__btn"
@@ -479,6 +504,7 @@
           Reactivate
         </button>
         }
+        @if (canDelete()) {
         <button
           type="button"
           class="ag-btn ag-btn--danger-outline wh-card__btn"

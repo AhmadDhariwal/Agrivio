@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { BranchesWarehousesApi } from '../../data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
@@ -26,6 +27,7 @@ import { mapPlanLimitError } from '../../../../core/plan-limits/plan-limit-feedb
 export class WarehouseFormPage {
   private readonly api = inject(BranchesWarehousesApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
@@ -34,7 +36,27 @@ export class WarehouseFormPage {
   readonly loading = signal(false);
   readonly saving = signal(false);
   readonly errorMessage = signal<string | null>(null);
-  readonly canManage = computed(() => this.sessionStore.hasPermission('warehouses.manage'));
+
+  readonly isWarehousesEnabled = computed(
+    () => this.capabilityService?.canUseModule('warehouses') ?? true,
+  );
+  readonly canManage = computed(
+    () => this.sessionStore.hasPermission('warehouses.manage') && this.isWarehousesEnabled(),
+  );
+  readonly canSave = computed(() => {
+    if (!this.canManage()) return false;
+    const isEdit = this.warehouseId() !== null;
+    return isEdit
+      ? (this.capabilityService?.canPerformAction('warehouses.actions.edit') ?? true)
+      : (this.capabilityService?.canPerformAction('warehouses.actions.create') ?? true);
+  });
+  readonly showCode = computed(
+    () => this.capabilityService?.canViewField('warehouses.fields.code') ?? true,
+  );
+  readonly isCodeEditable = computed(
+    () => this.capabilityService?.canEditField('warehouses.fields.code') ?? true,
+  );
+
   private version = 1;
 
   readonly fieldRequired = hasRequiredValidator;
@@ -69,8 +91,8 @@ export class WarehouseFormPage {
   }
 
   save(): void {
-    if (!this.canManage()) {
-      this.errorMessage.set('You do not have permission to manage warehouses.');
+    if (!this.canSave()) {
+      this.errorMessage.set('You do not have permission to perform this warehouse operation.');
       return;
     }
     if (this.form.invalid) {

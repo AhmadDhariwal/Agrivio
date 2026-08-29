@@ -5,6 +5,7 @@ import { vi } from 'vitest';
 import { WarehousesPage } from './warehouses.page';
 import { BranchesWarehousesApi, WarehouseRecord } from '../../data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 describe('WarehousesPage', () => {
   const mockWarehouses: WarehouseRecord[] = [
@@ -29,6 +30,10 @@ describe('WarehousesPage', () => {
   let listWarehousesSpy: ReturnType<typeof vi.fn>;
   let updateWarehouseSpy: ReturnType<typeof vi.fn>;
   let deleteWarehouseSpy: ReturnType<typeof vi.fn>;
+  let canUseModuleSpy: ReturnType<typeof vi.fn>;
+  let canUseFeatureSpy: ReturnType<typeof vi.fn>;
+  let canViewFieldSpy: ReturnType<typeof vi.fn>;
+  let canPerformActionSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     listWarehousesSpy = vi.fn().mockReturnValue(
@@ -38,6 +43,10 @@ describe('WarehousesPage', () => {
       of({ ...mockWarehouses[0], status: 'inactive' }),
     );
     deleteWarehouseSpy = vi.fn().mockReturnValue(of({ id: 'wh-1', deleted: true }));
+    canUseModuleSpy = vi.fn().mockReturnValue(true);
+    canUseFeatureSpy = vi.fn().mockReturnValue(true);
+    canViewFieldSpy = vi.fn().mockReturnValue(true);
+    canPerformActionSpy = vi.fn().mockReturnValue(true);
 
     await TestBed.configureTestingModule({
       imports: [WarehousesPage],
@@ -56,6 +65,15 @@ describe('WarehousesPage', () => {
           useValue: {
             hasPermission: (perm: string) =>
               ['warehouses.view', 'warehouses.manage'].includes(perm),
+          },
+        },
+        {
+          provide: CapabilityService,
+          useValue: {
+            canUseModule: canUseModuleSpy,
+            canUseFeature: canUseFeatureSpy,
+            canViewField: canViewFieldSpy,
+            canPerformAction: canPerformActionSpy,
           },
         },
       ],
@@ -140,5 +158,34 @@ describe('WarehousesPage', () => {
       fixture.componentInstance.confirmLifecycle();
       expect(deleteWarehouseSpy).toHaveBeenCalledWith('wh-1');
     }
+  });
+
+  it('hides create button when warehouses.actions.create capability is disallowed', () => {
+    canPerformActionSpy.mockImplementation((action: string) => action !== 'warehouses.actions.create');
+    const fixture: ComponentFixture<WarehousesPage> = TestBed.createComponent(WarehousesPage);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="warehouse-create-link"]')).toBeNull();
+  });
+
+  it('hides code column when warehouses.fields.code capability is not visible', () => {
+    listWarehousesSpy.mockReturnValue(
+      of({ items: mockWarehouses, meta: { page: 1, pageSize: 25, total: 2 } }),
+    );
+    canViewFieldSpy.mockImplementation((field: string) => field !== 'warehouses.fields.code');
+
+    const fixture: ComponentFixture<WarehousesPage> = TestBed.createComponent(WarehousesPage);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.wh-table__th--code')).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('WH-MLT-01');
+  });
+
+  it('hides module info when warehouses.features.moduleInfo capability is disabled', () => {
+    canUseFeatureSpy.mockImplementation((feat: string) => feat !== 'warehouses.features.moduleInfo');
+    const fixture: ComponentFixture<WarehousesPage> = TestBed.createComponent(WarehousesPage);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('agrivio-ui-module-info')).toBeNull();
   });
 });

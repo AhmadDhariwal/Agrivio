@@ -5,6 +5,7 @@ import { vi } from 'vitest';
 import { WarehouseFormPage } from './warehouse-form.page';
 import { BranchesWarehousesApi, WarehouseRecord } from '../../data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 describe('WarehouseFormPage', () => {
   const mockWarehouse: WarehouseRecord = {
@@ -18,10 +19,18 @@ describe('WarehouseFormPage', () => {
 
   let createWarehouseSpy: ReturnType<typeof vi.fn>;
   let updateWarehouseSpy: ReturnType<typeof vi.fn>;
+  let canUseModuleSpy: ReturnType<typeof vi.fn>;
+  let canViewFieldSpy: ReturnType<typeof vi.fn>;
+  let canEditFieldSpy: ReturnType<typeof vi.fn>;
+  let canPerformActionSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     createWarehouseSpy = vi.fn().mockReturnValue(of(mockWarehouse));
     updateWarehouseSpy = vi.fn().mockReturnValue(of(mockWarehouse));
+    canUseModuleSpy = vi.fn().mockReturnValue(true);
+    canViewFieldSpy = vi.fn().mockReturnValue(true);
+    canEditFieldSpy = vi.fn().mockReturnValue(true);
+    canPerformActionSpy = vi.fn().mockReturnValue(true);
 
     await TestBed.configureTestingModule({
       imports: [WarehouseFormPage],
@@ -39,6 +48,15 @@ describe('WarehouseFormPage', () => {
           provide: AuthSessionStore,
           useValue: {
             hasPermission: () => true,
+          },
+        },
+        {
+          provide: CapabilityService,
+          useValue: {
+            canUseModule: canUseModuleSpy,
+            canViewField: canViewFieldSpy,
+            canEditField: canEditFieldSpy,
+            canPerformAction: canPerformActionSpy,
           },
         },
         {
@@ -92,5 +110,26 @@ describe('WarehouseFormPage', () => {
       name: 'Lahore Central Warehouse',
       code: 'LHR-CENTRAL',
     });
+  });
+
+  it('hides code field when warehouses.fields.code is not viewable', () => {
+    canViewFieldSpy.mockImplementation((field: string) => field !== 'warehouses.fields.code');
+    const fixture: ComponentFixture<WarehouseFormPage> = TestBed.createComponent(WarehouseFormPage);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="warehouse-code"]')).toBeNull();
+  });
+
+  it('prevents saving when warehouses.actions.create is disallowed', () => {
+    canPerformActionSpy.mockImplementation((action: string) => action !== 'warehouses.actions.create');
+    const fixture: ComponentFixture<WarehouseFormPage> = TestBed.createComponent(WarehouseFormPage);
+    fixture.detectChanges();
+
+    const comp = fixture.componentInstance;
+    comp.form.patchValue({ name: 'Test', code: 'TST' });
+    comp.save();
+
+    expect(createWarehouseSpy).not.toHaveBeenCalled();
+    expect(comp.errorMessage()).toContain('You do not have permission');
   });
 });

@@ -364,6 +364,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Warehouses',
           route: '/app/warehouses',
           permission: 'warehouses.view',
+          capabilityKey: 'warehouses',
           testId: 'nav-warehouses',
         },
         {

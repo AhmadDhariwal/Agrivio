@@ -91,6 +91,7 @@
           </div>
 
           <!-- Code (optional) -->
+          @if (showCode()) {
           <div class="ag-field">
             <agrivio-ui-field-label label="Code (optional)" for="warehouse-code" />
             <p class="field-helper">A short code to quickly reference this warehouse.</p>
@@ -100,8 +101,10 @@
               formControlName="code"
               placeholder="e.g., LHR-CENTRAL"
               data-testid="warehouse-code"
+              [readOnly]="!isCodeEditable()"
             />
           </div>
+          }
 
           <!-- Info Callout -->
           <div class="info-callout">
@@ -132,7 +135,7 @@
           <button
             class="ag-btn ag-btn--primary"
             type="submit"
-            [disabled]="saving()"
+            [disabled]="saving() || !canSave()"
             data-testid="warehouse-save"
           >
             <svg
@@ -258,6 +261,7 @@
           </div>
 
           <!-- Code (optional) -->
+          @if (showCode()) {
           <div class="ag-field">
             <agrivio-ui-field-label label="Code (optional)" for="warehouse-code" />
             <input
@@ -265,9 +269,11 @@
               class="ag-input"
               formControlName="code"
               data-testid="warehouse-code"
+              [readOnly]="!isCodeEditable()"
             />
             <p class="field-helper">A short code to help identify this warehouse.</p>
           </div>
+          }
 
           <!-- Status -->
           <div class="ag-field">
@@ -293,7 +299,7 @@
           <button
             class="ag-btn ag-btn--primary"
             type="submit"
-            [disabled]="saving()"
+            [disabled]="saving() || !canSave()"
             data-testid="warehouse-save"
           >
             <svg

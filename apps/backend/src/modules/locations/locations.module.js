@@ -223,6 +223,9 @@ function createLocationsService(deps) {
             throw notFound('Warehouse not found');
           }
           assertOptimisticVersion(current, expectedVersion);
+          if (typeof deps.capabilityService?.assertWarehousePatchAllowed === 'function') {
+            await deps.capabilityService.assertWarehousePatchAllowed(organizationId, current, patch);
+          }
           const updated = await store.updateWarehouse(session, organizationId, warehouseId, {
             ...patch,
             version: Number(current['version']) + 1,

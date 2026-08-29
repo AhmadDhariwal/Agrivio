@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { BranchesWarehousesApi, WarehouseRecord } from '../../data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
@@ -34,6 +35,7 @@ import {
 export class WarehousesPage {
   private readonly api = inject(BranchesWarehousesApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
 
   readonly items = signal<WarehouseRecord[]>([]);
   readonly loading = signal(true);
@@ -48,9 +50,58 @@ export class WarehousesPage {
   readonly statusFilter = signal<'all' | 'active' | 'inactive'>('all');
   readonly openMenuWarehouseId = signal<string | null>(null);
 
-  // Permissions
-  readonly canManage = computed(() => this.sessionStore.hasPermission('warehouses.manage'));
-  readonly canView = computed(() => this.sessionStore.hasPermission('warehouses.view'));
+  // Capabilities and Permissions
+  readonly isWarehousesEnabled = computed(
+    () => this.capabilityService?.canUseModule('warehouses') ?? true,
+  );
+  readonly canView = computed(
+    () => this.sessionStore.hasPermission('warehouses.view') && this.isWarehousesEnabled(),
+  );
+  readonly canManage = computed(
+    () => this.sessionStore.hasPermission('warehouses.manage') && this.isWarehousesEnabled(),
+  );
+  readonly canCreate = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('warehouses.actions.create') ?? true),
+  );
+  readonly canEdit = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('warehouses.actions.edit') ?? true),
+  );
+  readonly canDeactivate = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('warehouses.actions.deactivate') ?? true),
+  );
+  readonly canReactivate = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('warehouses.actions.reactivate') ?? true),
+  );
+  readonly canDelete = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('warehouses.actions.delete') ?? true),
+  );
+  readonly canRefresh = computed(
+    () =>
+      this.canView() &&
+      (this.capabilityService?.canPerformAction('warehouses.actions.refresh') ?? true),
+  );
+  readonly showModuleInfo = computed(
+    () => this.capabilityService?.canUseFeature('warehouses.features.moduleInfo') ?? true,
+  );
+  readonly showSearch = computed(
+    () => this.capabilityService?.canUseFeature('warehouses.features.search') ?? true,
+  );
+  readonly showStatusFilter = computed(
+    () => this.capabilityService?.canUseFeature('warehouses.features.statusFilter') ?? true,
+  );
+  readonly showCode = computed(
+    () => this.capabilityService?.canViewField('warehouses.fields.code') ?? true,
+  );
 
   // Module Info Content
   readonly infoTitle = 'About warehouses';
@@ -85,6 +136,14 @@ export class WarehousesPage {
 
   constructor() {
     this.reload();
+  }
+
+  hasRowActions(item: WarehouseRecord): boolean {
+    return (
+      (item.status === 'active' && this.canDeactivate()) ||
+      (item.status === 'inactive' && this.canReactivate()) ||
+      this.canDelete()
+    );
   }
 
   reload(): void {
@@ -221,6 +280,9 @@ export class WarehousesPage {
     }
 
     if (pending.kind === 'delete') {
+      if (!this.canDelete()) {
+        return;
+      }
       this.api.deleteWarehouse(pending.item.id).subscribe({
         next: () => {
           this.successMessage.set(`Warehouse "${pending.item.name}" deleted.`);
@@ -230,6 +292,13 @@ export class WarehousesPage {
           this.errorMessage.set(recordInUseMessage(error, 'Unable to delete warehouse.'));
         },
       });
+      return;
+    }
+
+    if (
+      (pending.nextStatus === 'inactive' && !this.canDeactivate()) ||
+      (pending.nextStatus === 'active' && !this.canReactivate())
+    ) {
       return;
     }
 

@@ -143,6 +143,8 @@ describe('SaleEditPage', () => {
     expect(compiled.querySelector('[data-testid="sale-info-card"]')).toBeTruthy();
     expect(compiled.querySelector('[data-testid="sale-branch"]')).toBeTruthy();
     expect(compiled.querySelector('[data-testid="sale-warehouse"]')).toBeTruthy();
+    expect(compiled.querySelector('[data-testid="sale-customer-type"]')).toBeTruthy();
+    expect(compiled.querySelector('[data-testid="sale-customer-picker"]')).toBeTruthy();
     expect(compiled.querySelector('[data-testid="sale-customer"]')).toBeTruthy();
     expect(compiled.querySelector('[data-testid="sale-date"]')).toBeTruthy();
 
@@ -159,6 +161,8 @@ describe('SaleEditPage', () => {
 
     // Footer actions
     expect(compiled.querySelector('[data-testid="sale-save"]')).toBeTruthy();
+    expect(compiled.querySelector('[data-testid="sale-post"]')).toBeTruthy();
+    expect(compiled.querySelector('[data-testid="sale-post"]')?.textContent).toContain('Register Sale');
     expect(compiled.querySelector('[data-testid="sale-print-link"]')).toBeFalsy();
   });
 
@@ -492,7 +496,8 @@ describe('SaleEditPage', () => {
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
 
-    expect(compiled.querySelector('[data-testid="sale-customer"]')).toBeNull();
+    expect(compiled.querySelector('[data-testid="sale-customer-type"]')).toBeNull();
+    expect(compiled.querySelector('[data-testid="sale-customer-picker"]')).toBeNull();
     expect(compiled.querySelector('[data-testid="sale-customer-search"]')).toBeNull();
     expect(compiled.querySelector('[data-testid="sale-notes"]')).toBeNull();
     expect(compiled.querySelector('[data-testid="sale-line-packaging"]')).toBeNull();
@@ -501,8 +506,11 @@ describe('SaleEditPage', () => {
     expect(compiled.querySelector('[data-testid="sale-fill-credit"]')).toBeNull();
   });
 
-  it('does not preload product or customer catalogs on init', async () => {
-    const searchProductOptions = vi.fn().mockReturnValue(of([]));
+  it('does not preload customers on init', async () => {
+    const searchProductOptions = vi.fn().mockReturnValue(
+      of([{ id: 'p1', name: 'Wheat Seed 50kg', sku: 'WS-50', status: 'active' }]),
+    );
+    const listCustomers = vi.fn().mockReturnValue(of({ items: [], meta: { page: 1, pageSize: 500, total: 0 } }));
     const searchCustomerOptions = vi.fn().mockReturnValue(of([]));
 
     await TestBed.configureTestingModule({
@@ -535,6 +543,7 @@ describe('SaleEditPage', () => {
           provide: CustomersApi,
           useValue: {
             searchCustomerOptions,
+            listCustomers,
             getCustomer: () => of(null),
           },
         },
@@ -559,8 +568,11 @@ describe('SaleEditPage', () => {
 
     const fixture: ComponentFixture<SaleEditPage> = TestBed.createComponent(SaleEditPage);
     fixture.detectChanges();
+    await fixture.whenStable();
 
-    expect(searchProductOptions).not.toHaveBeenCalled();
+    expect(searchProductOptions).toHaveBeenCalledWith('', 500, 'active');
+    expect(listCustomers).not.toHaveBeenCalled();
     expect(searchCustomerOptions).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.products().length).toBe(1);
   });
 });

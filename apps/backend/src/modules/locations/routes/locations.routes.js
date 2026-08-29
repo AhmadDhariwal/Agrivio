@@ -5,11 +5,27 @@ const {
   createRequirePermissionMiddleware,
 } = require('../../identity/permission.middleware');
 const { createLocationsController } = require('../controllers/locations.controller');
+const { createRequireCapabilityMiddleware } = require('../../capabilities/capability.middleware');
 
 function registerLocationsRoutes(deps) {
   const router = Router();
   const controller = createLocationsController(deps);
   const requireOrganizationContext = createRequireOrganizationContextMiddleware();
+  const requireWarehousesModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'warehouses',
+    'enabled',
+  );
+  const requireWarehouseCreateAllowed = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'warehouses.actions.create',
+    'allowed',
+  );
+  const requireWarehouseDeleteAllowed = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'warehouses.actions.delete',
+    'allowed',
+  );
 
   router.get(
     API_BRANCHES_PATH,
@@ -75,6 +91,7 @@ function registerLocationsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('warehouses.view'),
     deps.requireOperationalAccess,
+    requireWarehousesModule,
     (req, res, next) => {
       void controller.listWarehouses(req, res, next);
     },
@@ -87,6 +104,8 @@ function registerLocationsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('warehouses.manage'),
     deps.requireOperationalAccess,
+    requireWarehousesModule,
+    requireWarehouseCreateAllowed,
     (req, res, next) => {
       void controller.createWarehouse(req, res, next);
     },
@@ -98,6 +117,7 @@ function registerLocationsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('warehouses.view'),
     deps.requireOperationalAccess,
+    requireWarehousesModule,
     (req, res, next) => {
       void controller.getWarehouse(req, res, next);
     },
@@ -110,6 +130,7 @@ function registerLocationsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('warehouses.manage'),
     deps.requireOperationalAccess,
+    requireWarehousesModule,
     (req, res, next) => {
       void controller.updateWarehouse(req, res, next);
     },
@@ -122,6 +143,8 @@ function registerLocationsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('warehouses.manage'),
     deps.requireOperationalAccess,
+    requireWarehousesModule,
+    requireWarehouseDeleteAllowed,
     (req, res, next) => {
       void controller.deleteWarehouse(req, res, next);
     },

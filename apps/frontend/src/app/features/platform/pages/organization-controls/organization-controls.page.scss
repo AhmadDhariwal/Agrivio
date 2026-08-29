@@ -56,26 +56,40 @@
 }
 
 .module-nav {
-  display: grid;
-  gap: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
   padding: 0.9rem;
   position: sticky;
   top: 1rem;
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 
 .module-nav__item {
   border: 1px solid transparent;
   border-radius: 0.55rem;
-  padding: 0.75rem;
+  padding: 0.6rem 0.75rem;
   text-align: left;
   font: inherit;
-  font-weight: 700;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--ag-color-text-main, #1e2923);
+  background: transparent;
   cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    background: var(--ag-color-surface-hover, #f0f4f1);
+  }
 }
 
 .module-nav__item--active {
   color: #17472c;
   background: #e8f4ec;
+  font-weight: 700;
 }
 
 .module-nav__note {

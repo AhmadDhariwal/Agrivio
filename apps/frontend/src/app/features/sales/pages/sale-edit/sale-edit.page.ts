@@ -1,4 +1,4 @@
-import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, ElementRef, HostListener, inject, signal, ViewChild } from '@angular/core';
 import {
   FormArray,
   FormBuilder,
@@ -38,7 +38,7 @@ import { PackagingUnitRecord, ProductRecord } from '../../../catalog/models/cata
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
-import { hasRequiredValidator, setRequiredValidator } from '../../../../shared/form/form-field.util';
+import { hasRequiredValidator, fieldValidationMessage, setRequiredValidator } from '../../../../shared/form/form-field.util';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
@@ -71,7 +71,15 @@ export class SaleEditPage {
   private readonly formBuilder = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
   private readonly productSearchChanges = new Subject<string>();
-  private readonly customerSearchChanges = new Subject<string>();
+  @ViewChild('customerPicker') customerPickerRef?: ElementRef<HTMLElement>;
+
+  readonly customerTypeOptions = [
+    { value: 'walk_in', label: 'Walk-in (cash only)' },
+    { value: 'farmer', label: 'Farmer' },
+    { value: 'individual', label: 'Individual' },
+    { value: 'business', label: 'Business' },
+    { value: 'corporate', label: 'Corporate' },
+  ] as const;
 
   readonly saleId = signal<string | null>(null);
   readonly sale = signal<SaleRecord | null>(null);
@@ -85,11 +93,18 @@ export class SaleEditPage {
   readonly cancelConfirmOpen = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
+  readonly formSubmitAttempted = signal(false);
+  readonly customerDropdownOpen = signal(false);
+  readonly customerSearchTerm = signal('');
+  readonly allCustomers = signal<CustomerRecord[]>([]);
+  readonly customersLoaded = signal(false);
+  readonly customerSearchLoading = signal(false);
+  readonly customerSearchError = signal(false);
+  readonly selectedCustomer = signal<CustomerRecord | null>(null);
   readonly products = signal<ProductRecord[]>([]);
   readonly productSearchQuery = signal('');
   readonly branches = signal<BranchRecord[]>([]);
   readonly warehouses = signal<WarehouseRecord[]>([]);
-  readonly customers = signal<CustomerRecord[]>([]);
   readonly accounts = signal<PosPaymentAccount[]>([]);
   readonly refundAccounts = signal<AccountRecord[]>([]);
   readonly relatedReturns = signal<SalesReturnRecord[]>([]);
@@ -165,6 +180,9 @@ export class SaleEditPage {
       (this.capabilityService?.canPerformAction('sales.actions.overrideNegativeStock') ?? true) &&
       this.canPost(),
   );
+  readonly canUseCustomerSearch = computed(
+    () => this.capabilityService?.canUseFeature('sales.features.customerSearch') ?? true,
+  );
   readonly canViewCustomerField = computed(
     () => this.capabilityService?.canViewField('sales.fields.customer') ?? true,
   );
@@ -200,10 +218,28 @@ export class SaleEditPage {
   private postIdempotencySaleId: string | null = null;
 
   readonly fieldRequired = hasRequiredValidator;
+  readonly fieldError = fieldValidationMessage;
+
+  readonly selectedCustomerLabel = computed(() => {
+    const customerId = this.form.controls.customerId.value.trim();
+    if (customerId === '') {
+      return 'Select customer';
+    }
+    const selected = this.selectedCustomer();
+    if (selected?.id === customerId) {
+      return `${selected.name} (${selected.priceTier})`;
+    }
+    const match = this.allCustomers().find((item) => item.id === customerId);
+    if (match) {
+      return `${match.name} (${match.priceTier})`;
+    }
+    return 'Selected customer';
+  });
 
   readonly form = this.formBuilder.nonNullable.group({
     branchId: ['', Validators.required],
     warehouseId: ['', Validators.required],
+    customerTypeMode: ['walk_in'],
     customerId: [''],
     saleDate: ['', Validators.required],
     notes: [''],
@@ -268,19 +304,28 @@ export class SaleEditPage {
       .pipe(
         debounceTime(300),
         distinctUntilChanged(),
-        switchMap((query) => this.catalogApi.searchProductOptions(query, 25, 'active')),
+        switchMap((query) => this.catalogApi.searchProductOptions(query, 500, 'active')),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((items) => this.products.set(items.filter((item) => item.status === 'active')));
 
-    this.customerSearchChanges
-      .pipe(
-        debounceTime(300),
-        distinctUntilChanged(),
-        switchMap((query) => this.customersApi.searchCustomerOptions(query)),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe((items) => this.customers.set(items.filter((item) => item.status === 'active')));
+    this.form.controls.customerTypeMode.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((type) => {
+        setRequiredValidator(this.form.controls.customerId, type !== 'walk_in');
+        if (type === 'walk_in') {
+          this.form.controls.customerId.setValue('');
+          this.selectedCustomer.set(null);
+          this.closeCustomerDropdown();
+        } else {
+          const selected = this.selectedCustomer();
+          if (selected && selected.customerType !== type) {
+            this.form.controls.customerId.setValue('');
+            this.selectedCustomer.set(null);
+          }
+        }
+        this.refreshTierPricesForAllLines();
+      });
 
     this.form.controls.customerId.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -343,9 +388,117 @@ export class SaleEditPage {
 
   onCustomerSearchInput(event: Event): void {
     const target = event.target;
-    if (target instanceof HTMLInputElement) {
-      this.customerSearchChanges.next(target.value.trim());
+    if (!(target instanceof HTMLInputElement)) {
+      return;
     }
+    this.customerSearchTerm.set(target.value);
+  }
+
+  isWalkInCustomerType(): boolean {
+    return this.form.controls.customerTypeMode.value === 'walk_in';
+  }
+
+  filteredCustomers(): CustomerRecord[] {
+    const type = this.form.controls.customerTypeMode.value;
+    const query = this.customerSearchTerm().trim().toLowerCase();
+    let items = this.allCustomers();
+    if (type !== 'walk_in') {
+      items = items.filter((item) => item.customerType === type);
+    }
+    if (query === '') {
+      return items;
+    }
+    return items.filter(
+      (item) =>
+        item.name.toLowerCase().includes(query) ||
+        item.phone.toLowerCase().includes(query) ||
+        item.id.toLowerCase().includes(query),
+    );
+  }
+
+  getCustomerTypeLabel(type: string): string {
+    return this.customerTypeOptions.find((item) => item.value === type)?.label ?? type;
+  }
+
+  toggleCustomerDropdown(event?: Event): void {
+    event?.stopPropagation();
+    if (!this.canEditCustomerField() || this.isPosted()) {
+      return;
+    }
+    const opening = !this.customerDropdownOpen();
+    this.customerDropdownOpen.set(opening);
+    if (opening) {
+      this.loadCustomersForPicker();
+    }
+  }
+
+  private loadCustomersForPicker(): void {
+    if (!this.canUseCustomerSearch() || !this.canSearchCustomers()) {
+      return;
+    }
+    if (this.customersLoaded() || this.customerSearchLoading()) {
+      return;
+    }
+    this.customerSearchLoading.set(true);
+    this.customerSearchError.set(false);
+    this.customersApi.listCustomers({ page: 1, pageSize: 500, status: 'active' }).subscribe({
+      next: (result) => {
+        this.allCustomers.set(result.items.filter((item) => item.status === 'active'));
+        this.customersLoaded.set(true);
+        this.customerSearchLoading.set(false);
+      },
+      error: () => {
+        this.customerSearchError.set(true);
+        this.customerSearchLoading.set(false);
+      },
+    });
+  }
+
+  closeCustomerDropdown(): void {
+    this.customerDropdownOpen.set(false);
+  }
+
+  selectCustomer(customer: CustomerRecord): void {
+    this.form.controls.customerId.setValue(customer.id);
+    this.selectedCustomer.set(customer);
+    if (customer.customerType && customer.customerType !== 'walk_in') {
+      this.form.controls.customerTypeMode.setValue(String(customer.customerType), { emitEvent: false });
+      setRequiredValidator(this.form.controls.customerId, true);
+    }
+    this.customerSearchTerm.set('');
+    this.closeCustomerDropdown();
+    this.refreshTierPricesForAllLines();
+  }
+
+  lineFieldError(index: number, controlName: string, label: string): string | null {
+    return fieldValidationMessage(
+      this.lineGroup(index).get(controlName),
+      label,
+      this.formSubmitAttempted(),
+    );
+  }
+
+  canSearchCustomers(): boolean {
+    return (
+      this.form.controls.branchId.value.trim() !== '' &&
+      this.form.controls.warehouseId.value.trim() !== ''
+    );
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (!this.customerDropdownOpen()) {
+      return;
+    }
+    const target = event.target;
+    if (!(target instanceof Node)) {
+      return;
+    }
+    const picker = this.customerPickerRef?.nativeElement;
+    if (picker?.contains(target)) {
+      return;
+    }
+    this.closeCustomerDropdown();
   }
 
   addLine(): void {
@@ -391,8 +544,12 @@ export class SaleEditPage {
   }
 
   save(): void {
-    if (!this.canCreate() || this.isPosted() || this.form.invalid) {
-      this.form.markAllAsTouched();
+    if (!this.canCreate() || this.isPosted()) {
+      return;
+    }
+    const validationError = this.validateFormForSubmit();
+    if (validationError !== null) {
+      this.errorMessage.set(validationError);
       return;
     }
     this.saving.set(true);
@@ -458,8 +615,12 @@ export class SaleEditPage {
   }
 
   post(): void {
-    const id = this.saleId();
-    if (!id || !this.canPost() || this.isPosted() || this.posting()) {
+    if (!this.canPost() || this.isPosted() || this.posting()) {
+      return;
+    }
+    const validationError = this.validateFormForSubmit();
+    if (validationError !== null) {
+      this.errorMessage.set(validationError);
       return;
     }
     for (const control of this.payments.controls) {
@@ -469,6 +630,31 @@ export class SaleEditPage {
         return;
       }
     }
+
+    const existingId = this.saleId();
+    if (existingId !== null) {
+      this.submitPost(existingId);
+      return;
+    }
+
+    this.posting.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    this.api.createSale(this.buildPayload()).subscribe({
+      next: (record) => {
+        this.saleId.set(record.id);
+        this.version = record.version;
+        void this.router.navigateByUrl(`/app/sales/${record.id}`, { replaceUrl: true });
+        this.submitPost(record.id);
+      },
+      error: (error: unknown) => {
+        this.posting.set(false);
+        this.errorMessage.set(this.mapError(error, 'Unable to save sale before posting.'));
+      },
+    });
+  }
+
+  private submitPost(id: string): void {
     this.posting.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
@@ -779,12 +965,96 @@ export class SaleEditPage {
     if (masters.relatedReturns) {
       this.relatedReturns.set(masters.relatedReturns);
     }
+    this.catalogApi.searchProductOptions('', 500, 'active').subscribe({
+      next: (items) => this.products.set(items.filter((item) => item.status === 'active')),
+    });
+    if (this.saleId() === null && this.form.controls.saleDate.value.trim() === '') {
+      this.form.controls.saleDate.setValue(this.todayIsoDate());
+    }
     this.bindLineProductChanges(0);
+  }
+
+  private todayIsoDate(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private validateFormForSubmit(): string | null {
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    for (let index = 0; index < this.lines.length; index += 1) {
+      this.lineGroup(index).markAllAsTouched();
+    }
+    if (this.form.controls.branchId.invalid) {
+      return 'Select a branch before continuing.';
+    }
+    if (this.form.controls.warehouseId.invalid) {
+      return 'Select a warehouse before continuing.';
+    }
+    if (this.form.controls.saleDate.invalid) {
+      return 'Enter a sale date before continuing.';
+    }
+    if (
+      this.form.controls.customerTypeMode.value !== 'walk_in' &&
+      this.form.controls.customerId.value.trim() === ''
+    ) {
+      return `Select a ${this.getCustomerTypeLabel(this.form.controls.customerTypeMode.value).toLowerCase()} customer before continuing.`;
+    }
+    for (let index = 0; index < this.lines.length; index += 1) {
+      const line = this.lineGroup(index);
+      if (line.get('productId')?.invalid) {
+        return `Line ${index + 1}: select a product.`;
+      }
+      if (line.get('quantity')?.invalid) {
+        return `Line ${index + 1}: enter a quantity.`;
+      }
+      if (line.get('unitPrice')?.invalid) {
+        return `Line ${index + 1}: enter a unit price.`;
+      }
+    }
+    return null;
+  }
+
+  private seedSelectorOptionsFromSale(sale: SaleRecord): void {
+    const seen = new Set<string>();
+    const productOptions: ProductRecord[] = [];
+    for (const line of sale.lines) {
+      if (seen.has(line.productId)) {
+        continue;
+      }
+      seen.add(line.productId);
+      productOptions.push({
+        id: line.productId,
+        organizationId: sale.organizationId,
+        categoryId: '',
+        name: line.productNameSnapshot,
+        sku: '',
+        trackingMode: 'none',
+        baseUnitCode: line.unitCodeSnapshot,
+        measurementDimension: 'mass',
+        status: 'active',
+        version: 1,
+      });
+    }
+    if (productOptions.length === 0) {
+      return;
+    }
+    const merged = [...productOptions];
+    for (const product of this.products()) {
+      if (!seen.has(product.id)) {
+        merged.push(product);
+      }
+    }
+    this.products.set(merged);
   }
 
   private applySale(sale: SaleRecord): void {
     this.sale.set(sale);
     this.version = sale.version;
+    this.seedSelectorOptionsFromSale(sale);
     const locked = sale.status === 'posted' || sale.status === 'cancelled';
 
     this.form.patchValue({
@@ -841,14 +1111,21 @@ export class SaleEditPage {
     }
 
     const customerId = sale.customerId ?? '';
-    if (customerId && !this.customers().some((item) => item.id === customerId)) {
+    if (customerId) {
       this.customersApi.getCustomer(customerId).subscribe({
         next: (customer) => {
           if (customer.status === 'active') {
-            this.customers.set([customer]);
+            this.selectedCustomer.set(customer);
+            this.form.controls.customerTypeMode.setValue(
+              customer.customerType === 'walk_in' ? 'walk_in' : String(customer.customerType),
+              { emitEvent: false },
+            );
           }
         },
       });
+    } else {
+      this.selectedCustomer.set(null);
+      this.form.controls.customerTypeMode.setValue('walk_in', { emitEvent: false });
     }
   }
 
@@ -890,7 +1167,10 @@ export class SaleEditPage {
       return;
     }
     const customerId = this.form.controls.customerId.value.trim();
-    const customer = this.customers().find((item) => item.id === customerId);
+    const customer =
+      this.selectedCustomer()?.id === customerId
+        ? this.selectedCustomer()
+        : this.allCustomers().find((item) => item.id === customerId);
     const priceTier = customer?.priceTier ?? 'retail';
     this.catalogApi.listPrices(productId).subscribe({
       next: (prices) => {

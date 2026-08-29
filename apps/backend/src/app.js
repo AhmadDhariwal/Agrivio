@@ -551,6 +551,7 @@ function createApp(options) {
 
   const locationsRoutes = registerLocationsRoutes({
     locationsService: locations.locationsService,
+    capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
