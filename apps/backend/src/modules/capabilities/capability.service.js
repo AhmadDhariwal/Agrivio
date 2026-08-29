@@ -22,6 +22,7 @@ const {
   TRANSFERS_MODULE_KEY,
   RECONCILIATION_MODULE_KEY,
   MOVEMENTS_MODULE_KEY,
+  WAREHOUSES_MODULE_KEY,
   CUSTOMERS_MODULE_KEY,
   SUPPLIERS_MODULE_KEY,
   RETURNS_MODULE_KEY,
@@ -35,6 +36,8 @@ const {
   EXPENSE_CATEGORIES_MODULE_KEY,
   REPORTS_MODULE_KEY,
   ALERTS_MODULE_KEY,
+  DASHBOARD_MODULE_KEY,
+  EMPLOYEES_MODULE_KEY,
   getCapabilityControl,
   listCapabilityControls,
 } = require('./capability.registry');
@@ -87,6 +90,15 @@ const ACCOUNT_FIELD_CONTROLS = Object.freeze({
   bankName: 'accounts.fields.bankName',
   accountNumberMasked: 'accounts.fields.accountNumberMasked',
   walletIdentifier: 'accounts.fields.walletIdentifier',
+});
+
+const EMPLOYEE_FIELD_CONTROLS = Object.freeze({
+  displayName: 'employees.fields.displayName',
+  role: 'employees.fields.role',
+});
+
+const WAREHOUSE_FIELD_CONTROLS = Object.freeze({
+  code: 'warehouses.fields.code',
 });
 
 function cloneValue(value) {
@@ -507,6 +519,7 @@ function createCapabilityService(deps) {
           TRANSFERS_MODULE_KEY,
           RECONCILIATION_MODULE_KEY,
           MOVEMENTS_MODULE_KEY,
+          WAREHOUSES_MODULE_KEY,
           CUSTOMERS_MODULE_KEY,
           SUPPLIERS_MODULE_KEY,
           RETURNS_MODULE_KEY,
@@ -520,6 +533,8 @@ function createCapabilityService(deps) {
           EXPENSE_CATEGORIES_MODULE_KEY,
           REPORTS_MODULE_KEY,
           ALERTS_MODULE_KEY,
+          DASHBOARD_MODULE_KEY,
+          EMPLOYEES_MODULE_KEY,
         ].includes(moduleKey)
       ) {
         throw validationFailed(`Unknown configurable module ${moduleKey}`);
@@ -628,6 +643,25 @@ function createCapabilityService(deps) {
 
     async assertCategoryDeleteAllowed(organizationId) {
       await assertAllowed(organizationId, 'inventory.categories.actions.delete', 'allowed');
+    },
+
+    async assertWarehousePatchAllowed(organizationId, current, patch) {
+      const changedFields = ['name', 'code'].filter(
+        (field) => patch[field] !== undefined && String(patch[field]) !== String(current[field]),
+      );
+      if (changedFields.length > 0) {
+        await assertAllowed(organizationId, 'warehouses.actions.edit', 'allowed');
+      }
+      for (const field of changedFields) {
+        const controlKey = WAREHOUSE_FIELD_CONTROLS[field];
+        if (controlKey !== undefined) {
+          await assertAllowed(organizationId, controlKey, 'editable');
+        }
+      }
+      if (patch.status !== undefined && patch.status !== current.status) {
+        const action = patch.status === 'active' ? 'reactivate' : 'deactivate';
+        await assertAllowed(organizationId, `warehouses.actions.${action}`, 'allowed');
+      }
     },
 
     async assertCustomerCreateAllowed(organizationId) {
@@ -743,6 +777,31 @@ function createCapabilityService(deps) {
     async assertAccountTransferReversalAllowed(organizationId) {
       await assertAllowed(organizationId, 'accounts.actions.reverseTransfer', 'allowed');
     },
+
+    async assertEmployeeCreateAllowed(organizationId) {
+      await assertAllowed(organizationId, 'employees.actions.create', 'allowed');
+      await assertAllowed(organizationId, 'employees.fields.email', 'editable');
+      await assertAllowed(organizationId, 'employees.fields.displayName', 'editable');
+      await assertAllowed(organizationId, 'employees.fields.role', 'editable');
+    },
+
+    async assertEmployeePatchAllowed(organizationId, current, patch) {
+      await assertAllowed(organizationId, 'employees.actions.edit', 'allowed');
+      const changedFields = Object.keys(EMPLOYEE_FIELD_CONTROLS).filter(
+        (field) => patch[field] !== undefined && String(patch[field]) !== String(current[field]),
+      );
+      for (const field of changedFields) {
+        await assertAllowed(organizationId, EMPLOYEE_FIELD_CONTROLS[field], 'editable');
+      }
+    },
+
+    async assertEmployeeDeactivateAllowed(organizationId) {
+      await assertAllowed(organizationId, 'employees.actions.deactivate', 'allowed');
+    },
+
+    async assertEmployeeAssignAccessAllowed(organizationId) {
+      await assertAllowed(organizationId, 'employees.actions.assignAccess', 'allowed');
+    },
   };
 }
 
@@ -750,9 +809,11 @@ module.exports = {
   createCapabilityService,
   MODE_BY_TYPE,
   ACCOUNT_FIELD_CONTROLS,
+  EMPLOYEE_FIELD_CONTROLS,
   CATEGORY_FIELD_CONTROLS,
   CUSTOMER_CREDIT_FIELD_CONTROLS,
   CUSTOMER_FIELD_CONTROLS,
   PRODUCT_FIELD_CONTROLS,
   SUPPLIER_FIELD_CONTROLS,
+  WAREHOUSE_FIELD_CONTROLS,
 };

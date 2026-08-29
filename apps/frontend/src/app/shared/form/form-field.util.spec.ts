@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UiFieldLabelComponent } from '../ui/ui-field-label/ui-field-label.component';
-import { controlIsRequired, hasRequiredValidator, setRequiredValidator } from './form-field.util';
+import { controlIsRequired, fieldValidationMessage, hasRequiredValidator, setRequiredValidator } from './form-field.util';
 
 @Component({
   standalone: true,
@@ -77,5 +77,13 @@ describe('form-field.util', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.ag-field__required')).toBeFalsy();
     expect(input.getAttribute('aria-required')).toBeNull();
+  });
+
+  it('returns maxlength validation messages after submit', () => {
+    const control = new FormControl('x'.repeat(161), Validators.maxLength(160));
+    control.markAsTouched();
+    expect(fieldValidationMessage(control, 'Name', true)).toBe(
+      'Name must be at most 160 characters.',
+    );
   });
 });

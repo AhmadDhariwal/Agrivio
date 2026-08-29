@@ -113,6 +113,25 @@ describe('SupplierFormPage', () => {
     expect(fixture.nativeElement.querySelector('[data-testid="supplier-email"]')).toBeNull();
   });
 
+  it('disables save while required fields are missing', async () => {
+    const fixture = await createPage();
+    const saveButton = fixture.nativeElement.querySelector(
+      '[data-testid="supplier-save"]',
+    ) as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(true);
+  });
+
+  it('blocks invalid submit without calling createSupplier', async () => {
+    const fixture = await createPage();
+    const page = fixture.componentInstance;
+
+    page.save();
+    fixture.detectChanges();
+
+    expect(mockApi.createSupplier).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain('Name is required.');
+  });
+
   describe('Edit Mode Capability Enforcement', () => {
     it('loads supplier and updates profile when all capabilities allowed', async () => {
       const fixture = await createPage({ routeId: 'supplier-1' });
@@ -134,6 +153,21 @@ describe('SupplierFormPage', () => {
 
       const page = fixture.componentInstance;
       expect(page.form.controls.contactName.disabled).toBe(true);
+    });
+
+    it('omits disabled fields from edit PATCH payload', async () => {
+      const fixture = await createPage({
+        routeId: 'supplier-1',
+        capabilities: { 'suppliers.fields.contactName': false },
+      });
+
+      const page = fixture.componentInstance;
+      page.save();
+
+      expect(mockApi.updateSupplier).toHaveBeenCalledWith(
+        'supplier-1',
+        expect.not.objectContaining({ contactName: expect.anything() }),
+      );
     });
 
     it('disables opening balance posting when suppliers.actions.postOpeningBalance is disabled', async () => {

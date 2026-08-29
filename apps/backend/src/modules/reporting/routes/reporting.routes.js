@@ -18,6 +18,11 @@ function registerReportingRoutes(deps) {
     'reports',
     'enabled',
   );
+  const requireDashboardModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'dashboard',
+    'enabled',
+  );
 
   router.get(
     API_DASHBOARD_PATH,
@@ -25,6 +30,7 @@ function registerReportingRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('dashboard.view'),
     deps.requireOperationalAccess,
+    requireDashboardModule,
     (req, res, next) => {
       void controller.getDashboard(req, res, next);
     },

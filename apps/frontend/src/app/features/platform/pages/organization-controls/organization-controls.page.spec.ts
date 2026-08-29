@@ -19,19 +19,22 @@ function control(
     | 'inventory.transfers'
     | 'inventory.reconciliation'
     | 'inventory.movements'
+    | 'warehouses'
     | 'customers'
     | 'suppliers'
     | 'returns'
     | 'expenses'
     | 'expenses.categories'
     | 'accounts'
+    | 'employees'
     | 'reports'
     | 'alerts'
     | 'purchases'
     | 'payments.customer'
     | 'payments.supplier'
     | 'payments.supplierLedger'
-    | 'sales',
+    | 'sales'
+    | 'dashboard',
   type: PlatformCapabilityControl['type'],
   label: string,
   policy: Record<string, boolean>,
@@ -1101,6 +1104,23 @@ describe('OrganizationControlsPage', () => {
       control('customers.actions.editCreditPolicy', 'customers', 'ACTION', 'Edit Credit Policy', { allowed: true }, { risk: 'RECOMMENDED' }),
       control('customers.actions.postOpeningBalance', 'customers', 'ACTION', 'Post Opening Balance', { allowed: true }, { risk: 'CRITICAL' }),
       control('customers.actions.refresh', 'customers', 'ACTION', 'Refresh List', { allowed: true }),
+      // Warehouses Module (1)
+      control('warehouses', 'warehouses', 'MODULE', 'Warehouses', { enabled: true }, { risk: 'CRITICAL' }),
+      // Warehouses Features (3)
+      control('warehouses.features.moduleInfo', 'warehouses', 'FEATURE', 'About Warehouses', { enabled: true }),
+      control('warehouses.features.search', 'warehouses', 'FEATURE', 'Search', { enabled: true }),
+      control('warehouses.features.statusFilter', 'warehouses', 'FEATURE', 'Status Filter', { enabled: true }),
+      // Warehouses Fields (3)
+      control('warehouses.fields.name', 'warehouses', 'FIELD', 'Warehouse name', { visible: true, editable: true }, { configurable: { visible: false, editable: false }, platformEnforced: true, risk: 'CRITICAL' }),
+      control('warehouses.fields.code', 'warehouses', 'FIELD', 'Warehouse code', { visible: true, editable: true }, { override: { visible: true, editable: false } }),
+      control('warehouses.fields.status', 'warehouses', 'FIELD', 'Lifecycle status', { visible: true, editable: false }, { configurable: { visible: false, editable: false }, platformEnforced: true, risk: 'CRITICAL' }),
+      // Warehouses Actions (6)
+      control('warehouses.actions.create', 'warehouses', 'ACTION', 'Create warehouse', { allowed: true }, { risk: 'RECOMMENDED' }),
+      control('warehouses.actions.edit', 'warehouses', 'ACTION', 'Edit warehouse', { allowed: true }, { risk: 'RECOMMENDED' }),
+      control('warehouses.actions.deactivate', 'warehouses', 'ACTION', 'Deactivate warehouse', { allowed: true }, { risk: 'RECOMMENDED' }),
+      control('warehouses.actions.reactivate', 'warehouses', 'ACTION', 'Reactivate warehouse', { allowed: true }, { risk: 'RECOMMENDED' }),
+      control('warehouses.actions.delete', 'warehouses', 'ACTION', 'Delete permanently', { allowed: true }, { risk: 'CRITICAL' }),
+      control('warehouses.actions.refresh', 'warehouses', 'ACTION', 'Refresh', { allowed: true }),
       // Suppliers Module (1)
       control('suppliers', 'suppliers', 'MODULE', 'Suppliers', { enabled: true }, { risk: 'CRITICAL' }),
       // Features (6)
@@ -1185,6 +1205,24 @@ describe('OrganizationControlsPage', () => {
       control('accounts.actions.reverseMovement', 'accounts', 'ACTION', 'Reverse Movement', { allowed: true }),
       control('accounts.actions.reverseTransfer', 'accounts', 'ACTION', 'Reverse Transfer', { allowed: true }),
       control('accounts.actions.refresh', 'accounts', 'ACTION', 'Refresh Accounts', { allowed: true }),
+      // Employees Module (1)
+      control('employees', 'employees', 'MODULE', 'Employees & Access', { enabled: true }, { risk: 'CRITICAL' }),
+      control('employees.features.moduleInfo', 'employees', 'FEATURE', 'About Employees & Access', { enabled: true }),
+      control('employees.features.search', 'employees', 'FEATURE', 'Search', { enabled: true }),
+      control('employees.features.statusFilter', 'employees', 'FEATURE', 'Status Filter', { enabled: true }),
+      control('employees.features.roleFilter', 'employees', 'FEATURE', 'Role Filter', { enabled: true }),
+      control('employees.features.kpiCards', 'employees', 'FEATURE', 'KPI Cards', { enabled: true }),
+      control('employees.fields.email', 'employees', 'FIELD', 'Email', { visible: true, editable: true }, { configurable: { visible: false, editable: true }, platformEnforced: true, risk: 'CRITICAL' }),
+      control('employees.fields.displayName', 'employees', 'FIELD', 'Display name', { visible: true, editable: true }, { configurable: { visible: false, editable: true }, platformEnforced: true, risk: 'CRITICAL' }),
+      control('employees.fields.role', 'employees', 'FIELD', 'Role', { visible: true, editable: true }, { configurable: { visible: false, editable: false }, platformEnforced: true, risk: 'CRITICAL' }),
+      control('employees.fields.branchAccess', 'employees', 'FIELD', 'Branch access', { visible: true, editable: false }),
+      control('employees.fields.warehouseAccess', 'employees', 'FIELD', 'Warehouse access', { visible: true, editable: false }, { override: { visible: false, editable: false } }),
+      control('employees.fields.status', 'employees', 'FIELD', 'Lifecycle status', { visible: true, editable: false }, { configurable: { visible: false, editable: false }, platformEnforced: true, risk: 'CRITICAL' }),
+      control('employees.actions.create', 'employees', 'ACTION', 'Create employee', { allowed: true }, { risk: 'RECOMMENDED' }),
+      control('employees.actions.edit', 'employees', 'ACTION', 'Edit employee', { allowed: true }, { risk: 'RECOMMENDED' }),
+      control('employees.actions.deactivate', 'employees', 'ACTION', 'Deactivate employee', { allowed: true }, { risk: 'RECOMMENDED' }),
+      control('employees.actions.assignAccess', 'employees', 'ACTION', 'Assign access', { allowed: true }, { risk: 'CRITICAL' }),
+      control('employees.actions.refresh', 'employees', 'ACTION', 'Refresh', { allowed: true }),
       // Reports Module (1)
       control('reports', 'reports', 'MODULE', 'Reports', { enabled: true }, { risk: 'CRITICAL' }),
       // Reports Feature (1)
@@ -1486,6 +1524,17 @@ describe('OrganizationControlsPage', () => {
       control('payments.customer.actions.postInvoiceSpecific', 'payments.customer', 'ACTION', 'Post Invoice-specific Payment', { allowed: true }, { dependencies: ['payments.customer.actions.post'] }),
       control('payments.customer.actions.inspect', 'payments.customer', 'ACTION', 'Inspect Payment', { allowed: true }),
       control('payments.customer.actions.correct', 'payments.customer', 'ACTION', 'Correct Payment', { allowed: true }, { risk: 'CRITICAL' }),
+      control('dashboard', 'dashboard', 'MODULE', 'Dashboard', { enabled: true }),
+      control('dashboard.features.datePeriodFilter', 'dashboard', 'FEATURE', 'Date Period Filter', { enabled: true }, { override: { enabled: false } }),
+      control('dashboard.features.branchFilter', 'dashboard', 'FEATURE', 'Branch Filter', { enabled: true }),
+      control('dashboard.features.warehouseFilter', 'dashboard', 'FEATURE', 'Warehouse Filter', { enabled: true }),
+      control('dashboard.widgets.financialSummary', 'dashboard', 'WIDGET', 'Financial Summary', { visible: true }),
+      control('dashboard.widgets.accountSummary', 'dashboard', 'WIDGET', 'Account Summary', { visible: true }),
+      control('dashboard.widgets.salesVsPurchasesTrend', 'dashboard', 'WIDGET', 'Sales vs Purchases Trend', { visible: true }),
+      control('dashboard.widgets.grossProfitTrend', 'dashboard', 'WIDGET', 'Gross Profit Trend', { visible: true }),
+      control('dashboard.widgets.topSellingProducts', 'dashboard', 'WIDGET', 'Top Selling Products', { visible: true }),
+      control('dashboard.widgets.inventoryHealth', 'dashboard', 'WIDGET', 'Inventory Health', { visible: true }),
+      control('dashboard.widgets.recentSales', 'dashboard', 'WIDGET', 'Recent Sales', { visible: true }),
     ];
     await TestBed.configureTestingModule({
       imports: [OrganizationControlsPage],
@@ -2608,6 +2657,29 @@ describe('OrganizationControlsPage', () => {
     });
   });
 
+  describe('Employees Controls', () => {
+    it('selects Employees module and renders expected control sections', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('employees');
+      fixture.detectChanges();
+
+      expect(component.selectedModule()).toBe('employees');
+      expect(component.moduleLabel('employees')).toBe('Employees & Access');
+      expect(component.moduleControls().length).toBe(1);
+      expect(component.moduleInfoControls().length).toBe(1);
+      expect(component.filterControls().length).toBe(3);
+      expect(component.kpiControls().length).toBe(1);
+      expect(component.requiredWorkflowControls().length).toBe(4);
+      expect(component.fieldControls().length).toBe(2);
+      expect(component.actionControls().length).toBe(5);
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('Employees & Access Module');
+      expect(text).toContain('Required Fields');
+      expect(text).toContain('Assign access');
+    });
+  });
+
   describe('Accounts Controls', () => {
     it('selects Accounts module and renders all expected control sections', () => {
       const component = fixture.componentInstance;
@@ -3087,6 +3159,158 @@ describe('OrganizationControlsPage', () => {
       component.askResetModule();
       component.confirm();
       expect(resetModule).toHaveBeenCalledWith('org-a', 'payments.customer', 4, '');
+    });
+  });
+
+  describe('Dashboard Controls', () => {
+    it('renders all 11 controls with filter features and widget metadata', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('dashboard');
+      fixture.detectChanges();
+
+      expect(component.moduleLabel('dashboard')).toBe('Dashboard');
+      expect(component.selectedControls()).toHaveLength(11);
+      expect(component.moduleControls()).toHaveLength(1);
+      expect(component.filterControls()).toHaveLength(3);
+      expect(component.widgetControls()).toHaveLength(7);
+      expect(component.fieldControls()).toHaveLength(0);
+      expect(component.actionControls()).toHaveLength(0);
+      expect(component.viewControls()).toHaveLength(0);
+
+      expect(fixture.nativeElement.textContent).toContain('Date Period Filter');
+      expect(fixture.nativeElement.textContent).toContain('Branch Filter');
+      expect(fixture.nativeElement.textContent).toContain('Warehouse Filter');
+      expect(fixture.nativeElement.textContent).toContain('Financial Summary');
+      expect(fixture.nativeElement.textContent).toContain('Account Summary');
+      expect(fixture.nativeElement.textContent).toContain('Sales vs Purchases Trend');
+      expect(fixture.nativeElement.textContent).toContain('Gross Profit Trend');
+      expect(fixture.nativeElement.textContent).toContain('Top Selling Products');
+      expect(fixture.nativeElement.textContent).toContain('Inventory Health');
+      expect(fixture.nativeElement.textContent).toContain('Recent Sales');
+    });
+
+    it('supports Dashboard disable/re-enable and organization-scoped reset', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('dashboard');
+      const moduleControl = component.controls().find((item) => item.key === 'dashboard');
+      expect(moduleControl).toBeDefined();
+      if (moduleControl) {
+        component.setValue(moduleControl, 'enabled', false);
+        expect(component.disablingDashboard()).toBe(true);
+        expect(component.confirmationTitle()).toBe(
+          'Disable Dashboard for Greenfield Agro Center?',
+        );
+        expect(component.confirmationMessage()).toContain('Dashboard');
+        expect(component.confirmationLabel()).toBe('Disable Dashboard');
+        component.setValue(moduleControl, 'enabled', true);
+        expect(component.effectiveValue(moduleControl, 'enabled')).toBe(true);
+      }
+
+      component.askResetModule();
+      component.confirm();
+      expect(resetModule).toHaveBeenCalledWith('org-a', 'dashboard', 4, '');
+    });
+  });
+
+  describe('Employees Controls', () => {
+    it('renders all 17 controls with platform-enforced, field, and action metadata', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('employees');
+      fixture.detectChanges();
+
+      expect(component.moduleLabel('employees')).toBe('Employees & Access');
+      expect(component.selectedControls()).toHaveLength(17);
+      expect(component.moduleControls()).toHaveLength(1);
+      expect(component.moduleInfoControls()).toHaveLength(1);
+      expect(component.filterControls()).toHaveLength(3);
+      expect(component.kpiControls()).toHaveLength(1);
+      expect(component.fieldControls()).toHaveLength(2); // branchAccess, warehouseAccess
+      expect(component.requiredWorkflowControls()).toHaveLength(4); // email, displayName, role, status
+      expect(component.actionControls()).toHaveLength(5);
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('About Employees & Access');
+      expect(text).toContain('Role Filter');
+      expect(text).toContain('KPI Cards');
+      expect(text).toContain('Branch access');
+      expect(text).toContain('Warehouse access');
+      expect(text).toContain('Create employee');
+      expect(text).toContain('Assign access');
+    });
+
+    it('supports Employees disable/re-enable and organization-scoped reset', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('employees');
+      const moduleControl = component.controls().find((item) => item.key === 'employees');
+      expect(moduleControl).toBeDefined();
+      if (moduleControl) {
+        component.setValue(moduleControl, 'enabled', false);
+        expect(component.disablingEmployees()).toBe(true);
+        expect(component.confirmationTitle()).toBe(
+          'Disable Employees & Access for Greenfield Agro Center?',
+        );
+        expect(component.confirmationMessage()).toContain('Employees & Access');
+        expect(component.confirmationLabel()).toBe('Disable Employees & Access');
+        component.setValue(moduleControl, 'enabled', true);
+        expect(component.effectiveValue(moduleControl, 'enabled')).toBe(true);
+      }
+
+      component.askResetModule();
+      component.confirm();
+      expect(resetModule).toHaveBeenCalledWith('org-a', 'employees', 4, '');
+    });
+  });
+
+  describe('Warehouses Controls', () => {
+    it('renders all 13 controls with platform-enforced, field, and action metadata', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('warehouses');
+      fixture.detectChanges();
+
+      expect(component.moduleLabel('warehouses')).toBe('Warehouses');
+      expect(component.selectedControls()).toHaveLength(13);
+      expect(component.moduleControls()).toHaveLength(1);
+      expect(component.moduleInfoControls()).toHaveLength(1);
+      expect(component.filterControls()).toHaveLength(2);
+      expect(component.fieldControls()).toHaveLength(1); // code
+      expect(component.requiredWorkflowControls()).toHaveLength(2); // name, status
+      expect(component.actionControls()).toHaveLength(6); // create, edit, deactivate, reactivate, delete, refresh
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('About Warehouses');
+      expect(text).toContain('Search');
+      expect(text).toContain('Status Filter');
+      expect(text).toContain('Warehouse code');
+      expect(text).toContain('Warehouse name');
+      expect(text).toContain('Lifecycle status');
+      expect(text).toContain('Create warehouse');
+      expect(text).toContain('Edit warehouse');
+      expect(text).toContain('Deactivate warehouse');
+      expect(text).toContain('Reactivate warehouse');
+      expect(text).toContain('Delete permanently');
+      expect(text).toContain('Refresh');
+    });
+
+    it('supports Warehouses disable/re-enable and organization-scoped reset', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('warehouses');
+      const moduleControl = component.controls().find((item) => item.key === 'warehouses');
+      expect(moduleControl).toBeDefined();
+      if (moduleControl) {
+        component.setValue(moduleControl, 'enabled', false);
+        expect(component.disablingWarehouses()).toBe(true);
+        expect(component.confirmationTitle()).toBe(
+          'Disable Warehouses for Greenfield Agro Center?',
+        );
+        expect(component.confirmationMessage()).toContain('Warehouses');
+        expect(component.confirmationLabel()).toBe('Disable Warehouses');
+        component.setValue(moduleControl, 'enabled', true);
+        expect(component.effectiveValue(moduleControl, 'enabled')).toBe(true);
+      }
+
+      component.askResetModule();
+      component.confirm();
+      expect(resetModule).toHaveBeenCalledWith('org-a', 'warehouses', 4, '');
     });
   });
 });

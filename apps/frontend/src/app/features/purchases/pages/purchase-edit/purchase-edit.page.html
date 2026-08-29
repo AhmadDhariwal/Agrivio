@@ -594,7 +594,10 @@
                   id="purchase-warehouse"
                   class="ag-select"
                   formControlName="warehouseId"
+                  [class.ag-input--invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted())"
                   [attr.disabled]="!canEditPurchaseField('warehouse') ? true : null"
+                  [attr.aria-required]="fieldRequired(form.controls.warehouseId) ? 'true' : null"
+                  [attr.aria-invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()) ? 'true' : null"
                   data-testid="purchase-warehouse"
                 >
                   <option value="">Select warehouse</option>
@@ -602,20 +605,35 @@
                     <option [value]="warehouse.id">{{ warehouse.name }}</option>
                   }
                 </select>
+                @if (fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()); as warehouseError) {
+                  <p class="field-error" role="alert">{{ warehouseError }}</p>
+                }
               </div>
               }
 
               <!-- Supplier -->
               @if (canViewPurchaseField('supplier')) {
               <div class="form-field">
-                <label class="form-label" for="purchase-supplier">
+                <label class="form-label" for="purchase-supplier-search">
                   Supplier <span class="required-star">*</span>
                 </label>
+                <input
+                  id="purchase-supplier-search"
+                  class="ag-input"
+                  type="search"
+                  placeholder="Search suppliers…"
+                  data-testid="purchase-supplier-search"
+                  [readonly]="!canEditPurchaseField('supplier')"
+                  (input)="onSupplierSearch($event)"
+                />
                 <select
                   id="purchase-supplier"
                   class="ag-select"
                   formControlName="supplierId"
+                  [class.ag-input--invalid]="fieldError(form.controls.supplierId, 'Supplier', formSubmitAttempted())"
                   [attr.disabled]="!canEditPurchaseField('supplier') ? true : null"
+                  [attr.aria-required]="fieldRequired(form.controls.supplierId) ? 'true' : null"
+                  [attr.aria-invalid]="fieldError(form.controls.supplierId, 'Supplier', formSubmitAttempted()) ? 'true' : null"
                   data-testid="purchase-supplier"
                 >
                   <option value="">Select supplier</option>
@@ -623,6 +641,9 @@
                     <option [value]="supplier.id">{{ supplier.name }}</option>
                   }
                 </select>
+                @if (fieldError(form.controls.supplierId, 'Supplier', formSubmitAttempted()); as supplierError) {
+                  <p class="field-error" role="alert">{{ supplierError }}</p>
+                }
               </div>
               }
 
@@ -637,9 +658,15 @@
                   class="ag-input"
                   type="date"
                   formControlName="purchaseDate"
+                  [class.ag-input--invalid]="fieldError(form.controls.purchaseDate, 'Purchase date', formSubmitAttempted())"
                   [readonly]="!canEditPurchaseField('purchaseDate')"
+                  [attr.aria-required]="fieldRequired(form.controls.purchaseDate) ? 'true' : null"
+                  [attr.aria-invalid]="fieldError(form.controls.purchaseDate, 'Purchase date', formSubmitAttempted()) ? 'true' : null"
                   data-testid="purchase-date"
                 />
+                @if (fieldError(form.controls.purchaseDate, 'Purchase date', formSubmitAttempted()); as purchaseDateError) {
+                  <p class="field-error" role="alert">{{ purchaseDateError }}</p>
+                }
               </div>
               }
             </div>
@@ -684,6 +711,19 @@
           </div>
 
           <div class="section-card__body no-padding">
+            @if (canEditPurchaseField('product')) {
+            <div class="lines-search-bar">
+              <label class="form-label" for="purchase-product-search">Search products</label>
+              <input
+                id="purchase-product-search"
+                class="ag-input"
+                type="search"
+                placeholder="Search products…"
+                data-testid="purchase-product-search"
+                (input)="onProductSearch($event)"
+              />
+            </div>
+            }
             <div class="lines-container">
               @for (line of lines.controls; track $index; let index = $index) {
                 <div class="line-row-card" [formGroup]="lineGroup(index)">
@@ -709,7 +749,10 @@
                         [id]="'purchase-line-product-' + index"
                         class="ag-select"
                         formControlName="productId"
+                        [class.ag-input--invalid]="lineFieldError(index, 'productId', 'Product')"
                         [attr.disabled]="!canEditPurchaseField('product') ? true : null"
+                        [attr.aria-required]="fieldRequired(lineGroup(index).controls['productId']) ? 'true' : null"
+                        [attr.aria-invalid]="lineFieldError(index, 'productId', 'Product') ? 'true' : null"
                         data-testid="purchase-line-product"
                       >
                         <option value="">Select product</option>
@@ -717,6 +760,9 @@
                           <option [value]="product.id">{{ product.name }} ({{ product.trackingMode }})</option>
                         }
                       </select>
+                      @if (lineFieldError(index, 'productId', 'Product'); as productError) {
+                        <p class="field-error" role="alert">{{ productError }}</p>
+                      }
                     </div>
 
                     <!-- Packaging -->
@@ -750,9 +796,15 @@
                         step="any"
                         placeholder="0.00"
                         formControlName="quantity"
+                        [class.ag-input--invalid]="lineFieldError(index, 'quantity', 'Quantity')"
                         [readonly]="!canEditPurchaseField('quantity')"
+                        [attr.aria-required]="fieldRequired(lineGroup(index).controls['quantity']) ? 'true' : null"
+                        [attr.aria-invalid]="lineFieldError(index, 'quantity', 'Quantity') ? 'true' : null"
                         data-testid="purchase-line-quantity"
                       />
+                      @if (lineFieldError(index, 'quantity', 'Quantity'); as quantityError) {
+                        <p class="field-error" role="alert">{{ quantityError }}</p>
+                      }
                     </div>
 
                     <!-- Unit Cost -->
@@ -767,9 +819,15 @@
                         step="any"
                         placeholder="0.00"
                         formControlName="unitCost"
+                        [class.ag-input--invalid]="lineFieldError(index, 'unitCost', 'Unit cost')"
                         [readonly]="!canEditPurchaseField('unitCost')"
+                        [attr.aria-required]="fieldRequired(lineGroup(index).controls['unitCost']) ? 'true' : null"
+                        [attr.aria-invalid]="lineFieldError(index, 'unitCost', 'Unit cost') ? 'true' : null"
                         data-testid="purchase-line-unit-cost"
                       />
+                      @if (lineFieldError(index, 'unitCost', 'Unit cost'); as unitCostError) {
+                        <p class="field-error" role="alert">{{ unitCostError }}</p>
+                      }
                     </div>
 
                     <!-- Batch Number (Dynamic) -->
@@ -980,7 +1038,7 @@
               <button
                 class="ag-btn ag-btn--secondary"
                 type="submit"
-                [disabled]="saving() || posting()"
+                [disabled]="!canSaveDraft()"
                 data-testid="purchase-save"
               >
                 {{ saving() ? 'Saving…' : 'Save draft' }}

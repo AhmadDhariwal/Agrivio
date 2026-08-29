@@ -263,6 +263,34 @@ function createMongooseCatalogStore() {
         .exec();
     },
 
+    async listActivePricesByProductIds(organizationId, productIds) {
+      if (!Array.isArray(productIds) || productIds.length === 0) {
+        return [];
+      }
+      return ProductPriceModel.find({
+        organizationId,
+        productId: { $in: productIds.map(String) },
+        status: 'active',
+      })
+        .sort({ priceTier: 1 })
+        .lean()
+        .exec();
+    },
+
+    async findProductsByIds(organizationId, productIds) {
+      if (!Array.isArray(productIds) || productIds.length === 0) {
+        return [];
+      }
+      const mongoose = require('mongoose');
+      const ids = productIds.filter((id) => mongoose.isValidObjectId(id));
+      if (ids.length === 0) {
+        return [];
+      }
+      return ProductModel.find({ organizationId, _id: { $in: ids } })
+        .lean()
+        .exec();
+    },
+
     async insertPrice(session, doc) {
       try {
         const [created] = await ProductPriceModel.create([doc], withSession(session));
@@ -597,6 +625,35 @@ function createInMemoryCatalogStore() {
           (item) =>
             String(item.organizationId) === String(organizationId) &&
             String(item.productId) === String(productId),
+        )
+        .map((item) => ({ ...item }));
+    },
+
+    async listActivePricesByProductIds(organizationId, productIds) {
+      if (!Array.isArray(productIds) || productIds.length === 0) {
+        return [];
+      }
+      const allowed = new Set(productIds.map(String));
+      return [...prices.values()]
+        .filter(
+          (item) =>
+            String(item.organizationId) === String(organizationId) &&
+            allowed.has(String(item.productId)) &&
+            String(item.status) === 'active',
+        )
+        .map((item) => ({ ...item }));
+    },
+
+    async findProductsByIds(organizationId, productIds) {
+      if (!Array.isArray(productIds) || productIds.length === 0) {
+        return [];
+      }
+      const allowed = new Set(productIds.map(String));
+      return [...products.values()]
+        .filter(
+          (item) =>
+            String(item.organizationId) === String(organizationId) &&
+            allowed.has(String(item._id)),
         )
         .map((item) => ({ ...item }));
     },

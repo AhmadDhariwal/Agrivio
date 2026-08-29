@@ -24,6 +24,19 @@ const EXPORT_ACTION_BY_FORMAT = Object.freeze({
   csv: 'reports.actions.exportCsv',
 });
 
+const DASHBOARD_CONTROL_KEYS = Object.freeze({
+  datePeriodFilter: 'dashboard.features.datePeriodFilter',
+  branchFilter: 'dashboard.features.branchFilter',
+  warehouseFilter: 'dashboard.features.warehouseFilter',
+  financialSummary: 'dashboard.widgets.financialSummary',
+  accountSummary: 'dashboard.widgets.accountSummary',
+  salesVsPurchasesTrend: 'dashboard.widgets.salesVsPurchasesTrend',
+  grossProfitTrend: 'dashboard.widgets.grossProfitTrend',
+  topSellingProducts: 'dashboard.widgets.topSellingProducts',
+  inventoryHealth: 'dashboard.widgets.inventoryHealth',
+  recentSales: 'dashboard.widgets.recentSales',
+});
+
 function omitFormat(input) {
   const next = { ...input };
   delete next.format;
@@ -80,6 +93,71 @@ function createReportingService(deps) {
     await capabilityService.assertAllowed(organizationId, key, mode, {
       permissions: authContext?.permissions ?? [],
     });
+  }
+
+  async function resolveDashboardProjection(organizationId, authContext) {
+    const enabled = Object.fromEntries(
+      Object.keys(DASHBOARD_CONTROL_KEYS).map((key) => [key, true]),
+    );
+    if (typeof capabilityService?.resolveEffective !== 'function') {
+      return enabled;
+    }
+    const effective = await capabilityService.resolveEffective(organizationId, {
+      permissions: authContext?.permissions ?? [],
+    });
+    const controls = new Map(effective.controls.map((control) => [control.key, control]));
+    for (const [name, key] of Object.entries(DASHBOARD_CONTROL_KEYS)) {
+      const value = controls.get(key)?.effectiveValue;
+      enabled[name] = value?.enabled === true || value?.visible === true;
+    }
+    return enabled;
+  }
+
+  function applyDashboardProjection(data, projection) {
+    const result = { ...data };
+    const remove = (fields) => {
+      for (const field of fields) {
+        delete result[field];
+      }
+    };
+    if (!projection.financialSummary) {
+      remove([
+        'todaysSales',
+        'todaysPurchases',
+        'todaysExpenses',
+        'grossProfit',
+        'periodSales',
+        'periodPurchases',
+        'periodGrossProfit',
+        'netSalesRevenue',
+        'netCogs',
+        'customerReceivables',
+        'supplierPayables',
+        'stockValuation',
+      ]);
+    }
+    if (!projection.accountSummary) {
+      remove([
+        'cashBalances',
+        'bankBalances',
+        'jazzCashBalance',
+        'easypaisaBalance',
+        'accountDistribution',
+      ]);
+    }
+    if (!projection.salesVsPurchasesTrend) remove(['salesVsPurchases']);
+    if (!projection.grossProfitTrend) remove(['grossProfitTrend']);
+    if (!projection.topSellingProducts) remove(['topSellingProducts']);
+    if (!projection.inventoryHealth) {
+      remove([
+        'lowStockCount',
+        'upcomingExpiryCount',
+        'expiredStockCount',
+        'deadStockSummary',
+      ]);
+    }
+    if (!projection.recentSales) remove(['recentSales']);
+    return result;
   }
 
   async function buildReportDataset(organizationId, key, rawFilters, authContext) {
@@ -207,7 +285,7 @@ function createReportingService(deps) {
     }));
   }
 
-  async function topSellingProducts(organizationId, authContext, limit = 10) {
+  async function topSellingProducts(organizationId, authContext, limit = 10, filters = {}) {
     const { items } = await salesService.listSales(
       organizationId,
       { status: 'posted' },
@@ -215,6 +293,21 @@ function createReportingService(deps) {
     );
     const qtyTotals = new Map();
     for (const sale of items) {
+      if (filters.fromDate || filters.toDate) {
+        const day = String(sale.saleDate ?? '').slice(0, 10);
+        if (filters.fromDate && day < filters.fromDate) {
+          continue;
+        }
+        if (filters.toDate && day > filters.toDate) {
+          continue;
+        }
+      }
+      if (filters.branchId && String(sale.branchId ?? '') !== filters.branchId) {
+        continue;
+      }
+      if (filters.warehouseId && String(sale.warehouseId ?? '') !== filters.warehouseId) {
+        continue;
+      }
       for (const line of sale.lines ?? []) {
         const productId = String(line.productId);
         const current = qtyTotals.get(productId) ?? {
@@ -308,6 +401,7 @@ function createReportingService(deps) {
       return renderExport(dataset, format);
     },
     async getDashboard(organizationId, authContext, query = {}) {
+      const projection = await resolveDashboardProjection(organizationId, authContext);
       const entitlements =
         typeof resolvePlanEntitlements === 'function'
           ? await resolvePlanEntitlements(organizationId)
@@ -319,19 +413,27 @@ function createReportingService(deps) {
 
       const businessDate = await resolveOrgBusinessDate(organizationId);
       const fromDate =
-        typeof query.fromDate === 'string' && query.fromDate.trim() !== ''
+        projection.datePeriodFilter &&
+        typeof query.fromDate === 'string' &&
+        query.fromDate.trim() !== ''
           ? query.fromDate.trim()
           : shiftIsoDate(businessDate, -6);
       const toDate =
-        typeof query.toDate === 'string' && query.toDate.trim() !== ''
+        projection.datePeriodFilter &&
+        typeof query.toDate === 'string' &&
+        query.toDate.trim() !== ''
           ? query.toDate.trim()
           : businessDate;
       const branchId =
-        typeof query.branchId === 'string' && query.branchId.trim() !== ''
+        projection.branchFilter &&
+        typeof query.branchId === 'string' &&
+        query.branchId.trim() !== ''
           ? query.branchId.trim()
           : undefined;
       const warehouseId =
-        typeof query.warehouseId === 'string' && query.warehouseId.trim() !== ''
+        projection.warehouseFilter &&
+        typeof query.warehouseId === 'string' &&
+        query.warehouseId.trim() !== ''
           ? query.warehouseId.trim()
           : undefined;
       const periodFilters = {
@@ -367,7 +469,7 @@ function createReportingService(deps) {
         sumReceivablesPayables(organizationId),
         alertsService.getAlertSummaries(organizationId, authContext),
         recentSales(organizationId, authContext),
-        topSellingProducts(organizationId, authContext),
+        topSellingProducts(organizationId, authContext, 10, periodFilters),
         queries.queryStockValuation
           ? queries.queryStockValuation(
               organizationId,
@@ -398,7 +500,7 @@ function createReportingService(deps) {
         };
       });
 
-      return {
+      return applyDashboardProjection({
         businessDate,
         period: { fromDate, toDate },
         entitlements: {
@@ -433,12 +535,13 @@ function createReportingService(deps) {
         deadStockSummary: alertSummaries.deadStock,
         recentSales: recent,
         topSellingProducts: topProducts,
-      };
+      }, projection);
     },
   };
 }
 
 module.exports = {
+  DASHBOARD_CONTROL_KEYS,
   EXPORT_ACTION_BY_FORMAT,
   createReportingService,
 };

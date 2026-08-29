@@ -32,7 +32,7 @@ export class PurchasesPage {
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly destroyRef = inject(DestroyRef);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
-  private readonly reloadRequests = new Subject<void>();
+  private readonly reloadRequests = new Subject<boolean>();
   private readonly searchChanges = new Subject<string>();
 
   readonly items = signal<PurchaseRecord[]>([]);
@@ -94,8 +94,8 @@ export class PurchasesPage {
 
     this.reloadRequests
       .pipe(
-        startWith(undefined),
-        switchMap(() => {
+        startWith(false),
+        switchMap((forceRefresh) => {
           if (!this.canView()) {
             this.loading.set(false);
             this.errorMessage.set('You do not have permission to view purchases.');
@@ -108,6 +108,7 @@ export class PurchasesPage {
               page: this.page(),
               pageSize: this.pageSize(),
               search: this.search(),
+              forceRefresh: forceRefresh === true,
               ...(this.status() ? { status: this.status() } : {}),
             })
             .pipe(
@@ -131,8 +132,8 @@ export class PurchasesPage {
       });
   }
 
-  reload(): void {
-    this.reloadRequests.next();
+  reload(forceRefresh = false): void {
+    this.reloadRequests.next(forceRefresh);
   }
 
   onSearchChange(value: string): void {

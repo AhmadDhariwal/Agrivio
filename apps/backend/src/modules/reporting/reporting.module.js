@@ -11,6 +11,8 @@ function createReportingModule(options = {}) {
     inventoryService: options.inventoryService,
     catalogService: options.catalogService,
     customersService: options.customersService,
+    locationsService: options.locationsService,
+    employeesService: options.employeesService,
     resolveOrganizationTimezone: options.resolveOrganizationTimezone,
     resolvePlanEntitlements: options.resolvePlanEntitlements,
     capabilityService: options.capabilityService,

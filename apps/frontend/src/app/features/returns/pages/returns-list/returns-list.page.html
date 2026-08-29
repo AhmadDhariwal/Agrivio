@@ -249,7 +249,7 @@
             <div class="return-info">
               <span class="return-info__title">{{ typeLabel(item.returnType) }}</span>
               <span class="return-info__sub">
-                {{ productSnapshotSummary(item) }} · {{ warehouseName(item.warehouseId) }} @if
+                {{ productSnapshotSummary(item) }} · {{ warehouseName(item) }} @if
                 (item.reason) { · {{ item.reason }} }
               </span>
             </div>
@@ -421,7 +421,7 @@
       <div class="return-card__body">
         <h3 class="return-card__title">{{ typeLabel(item.returnType) }}</h3>
         <p class="return-card__sub">
-          {{ productSnapshotSummary(item) }} · {{ warehouseName(item.warehouseId) }} @if
+          {{ productSnapshotSummary(item) }} · {{ warehouseName(item) }} @if
           (item.reason) { · {{ item.reason }} }
         </p>
 

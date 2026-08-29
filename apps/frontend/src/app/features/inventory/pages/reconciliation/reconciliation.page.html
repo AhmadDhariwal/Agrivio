@@ -558,7 +558,7 @@
 
                   <!-- Batch / Lot -->
                   <td class="font-mono text-muted">
-                    {{ batchNumber(row.batchId) }}
+                    {{ batchNumber(row.batchId, row.batchNumberSnapshot) }}
                   </td>
 
                   <!-- Balance Quantity -->
@@ -655,7 +655,7 @@
               </div>
               <div class="mobile-recon-field">
                 <span class="mobile-recon-field__label">Batch / Lot</span>
-                <span class="mobile-recon-field__val font-mono">{{ batchNumber(row.batchId) }}</span>
+                <span class="mobile-recon-field__val font-mono">{{ batchNumber(row.batchId, row.batchNumberSnapshot) }}</span>
               </div>
               <div class="mobile-recon-field">
                 <span class="mobile-recon-field__label">Balance Qty</span>
@@ -845,7 +845,7 @@
             </div>
             <div class="drawer-field">
               <span class="drawer-field__label">Batch / Lot</span>
-              <span class="drawer-field__val font-mono">{{ batchNumber(sel.batchId) }}</span>
+              <span class="drawer-field__val font-mono">{{ batchNumber(sel.batchId, sel.batchNumberSnapshot) }}</span>
             </div>
           </div>
         </section>

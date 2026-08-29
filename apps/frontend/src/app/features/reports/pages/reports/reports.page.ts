@@ -1,9 +1,10 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
-import { of } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { EMPTY, of, Subject } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReportsApi } from '../../data-access/reports.api';
 import {
   AuthoritativeTotalItem,
@@ -61,6 +62,16 @@ export class ReportsPage {
   private readonly usersApi = inject(UsersAccessApi);
   private readonly accountsApi = inject(AccountsApi);
   private readonly capabilityService = inject(CapabilityService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly runRequests = new Subject<void>();
+  private readonly customerSearchChanges = new Subject<string>();
+  private readonly supplierSearchChanges = new Subject<string>();
+  private readonly productSearchChanges = new Subject<string>();
+  private readonly categorySearchChanges = new Subject<string>();
+  private readonly employeeSearchChanges = new Subject<string>();
+  private readonly accountSearchChanges = new Subject<string>();
+
+  private static readonly FILTER_SEARCH_PAGE_SIZE = 25;
 
   readonly moduleInfoItems = [
     'Fixed Release 1 reports derive calculations directly from source modules (Sales, Purchases, Inventory, Payments, Accounts).',
@@ -266,17 +277,143 @@ export class ReportsPage {
     return items;
   });
 
-  // Fast Lookup Maps for Rendering Human-Readable Names in Tables
-  readonly warehouseMap = computed(() => new Map(this.warehouses().map((w) => [w.id, `${w.name} (${w.code})`])));
-  readonly productMap = computed(() => new Map(this.products().map((p) => [p.id, p.name])));
-  readonly categoryMap = computed(() => new Map(this.categories().map((c) => [c.id, c.name])));
-  readonly customerMap = computed(() => new Map(this.customers().map((c) => [c.id, c.name])));
-  readonly supplierMap = computed(() => new Map(this.suppliers().map((s) => [s.id, s.name])));
-  readonly employeeMap = computed(() => new Map(this.employees().map((e) => [e.id, e.displayName])));
-  readonly accountMap = computed(() => new Map(this.accounts().map((a) => [a.id, `${a.name} (${a.accountType})`])));
-
   constructor() {
+    this.setupFilterSearchStreams();
     this.loadCatalog();
+    this.runRequests
+      .pipe(
+        switchMap(() => {
+          if (!this.canView() || !this.canRunReport()) {
+            return EMPTY;
+          }
+          this.loading.set(true);
+          this.errorMessage.set(null);
+          const activeFilters = this.getCleanApplicableFilters();
+          return this.api.getReport(this.selectedKey(), activeFilters).pipe(
+            catchError((error: unknown) => {
+              this.loading.set(false);
+              this.dataset.set(null);
+              this.errorMessage.set(this.readError(error, 'Unable to load report.'));
+              return EMPTY;
+            }),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((data) => {
+        this.dataset.set(data);
+        this.page.set(1);
+        this.loading.set(false);
+      });
+  }
+
+  onCustomerSearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      this.customerSearchChanges.next(target.value.trim());
+    }
+  }
+
+  onSupplierSearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      this.supplierSearchChanges.next(target.value.trim());
+    }
+  }
+
+  onProductSearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      this.productSearchChanges.next(target.value.trim());
+    }
+  }
+
+  onCategorySearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      this.categorySearchChanges.next(target.value.trim());
+    }
+  }
+
+  onEmployeeSearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      this.employeeSearchChanges.next(target.value.trim());
+    }
+  }
+
+  onAccountSearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      this.accountSearchChanges.next(target.value.trim());
+    }
+  }
+
+  private setupFilterSearchStreams(): void {
+    this.customerSearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((query) => this.customersApi.searchCustomerOptions(query)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((items) => this.customers.set(items));
+
+    this.supplierSearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((query) => this.suppliersApi.searchSupplierOptions(query)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((items) => this.suppliers.set(items));
+
+    this.productSearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((query) =>
+          this.catalogApi.searchProductOptions(
+            query,
+            ReportsPage.FILTER_SEARCH_PAGE_SIZE,
+            'active',
+          ),
+        ),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((items) => this.products.set(items));
+
+    this.categorySearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((query) => this.catalogApi.searchCategoryOptions(query)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((items) => this.categories.set(items));
+
+    this.employeeSearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((query) =>
+          this.usersApi.listEmployees({
+            search: query,
+            pageSize: ReportsPage.FILTER_SEARCH_PAGE_SIZE,
+          }),
+        ),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((result) => this.employees.set(result.items));
+
+    this.accountSearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((query) => this.accountsApi.searchAccountOptions(query)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((items) => this.accounts.set(items));
   }
 
   loadCatalog(): void {
@@ -357,22 +494,7 @@ export class ReportsPage {
     if (!this.canView() || !this.canRunReport()) {
       return;
     }
-    this.loading.set(true);
-    this.errorMessage.set(null);
-    const activeFilters = this.getCleanApplicableFilters();
-
-    this.api.getReport(this.selectedKey(), activeFilters).subscribe({
-      next: (data) => {
-        this.dataset.set(data);
-        this.page.set(1);
-        this.loading.set(false);
-      },
-      error: (error: unknown) => {
-        this.loading.set(false);
-        this.dataset.set(null);
-        this.errorMessage.set(this.readError(error, 'Unable to load report.'));
-      },
-    });
+    this.runRequests.next();
   }
 
   exportFormat(format: string): void {
@@ -453,56 +575,32 @@ export class ReportsPage {
 
     if (filters.has('customerId') && !this.loadedLookups.customers) {
       this.loadedLookups.customers = true;
-      this.customersApi
-        .searchCustomerOptions('')
-        .pipe(catchError(() => of([])))
-        .subscribe((items) => this.customers.set(items));
+      this.customerSearchChanges.next('');
     }
 
     if (filters.has('supplierId') && !this.loadedLookups.suppliers) {
       this.loadedLookups.suppliers = true;
-      this.suppliersApi
-        .searchSupplierOptions('')
-        .pipe(catchError(() => of([])))
-        .subscribe((items) => this.suppliers.set(items));
+      this.supplierSearchChanges.next('');
     }
 
     if (filters.has('productId') && !this.loadedLookups.products) {
       this.loadedLookups.products = true;
-      this.catalogApi
-        .searchProductOptions('', 500, 'active')
-        .pipe(catchError(() => of([])))
-        .subscribe((items) => this.products.set(items));
+      this.productSearchChanges.next('');
     }
 
     if (filters.has('categoryId') && !this.loadedLookups.categories) {
       this.loadedLookups.categories = true;
-      this.catalogApi
-        .listCategories({ page: 1, pageSize: 100, status: 'active' })
-        .pipe(
-          map((res) => res.items),
-          catchError(() => of([])),
-        )
-        .subscribe((items) => this.categories.set(items));
+      this.categorySearchChanges.next('');
     }
 
     if (filters.has('employeeId') && !this.loadedLookups.employees) {
       this.loadedLookups.employees = true;
-      this.usersApi
-        .listEmployees({ pageSize: 100 })
-        .pipe(
-          map((res) => res.items),
-          catchError(() => of([])),
-        )
-        .subscribe((items) => this.employees.set(items));
+      this.employeeSearchChanges.next('');
     }
 
     if (filters.has('accountId') && !this.loadedLookups.accounts) {
       this.loadedLookups.accounts = true;
-      this.accountsApi
-        .listAccountOptions()
-        .pipe(catchError(() => of([])))
-        .subscribe((items) => this.accounts.set(items));
+      this.accountSearchChanges.next('');
     }
   }
 
@@ -535,26 +633,6 @@ export class ReportsPage {
     // Quantities
     if (['quantityBase', 'unsellableQuantityBase', 'quantity'].includes(columnKey)) {
       return formatQuantity(str);
-    }
-
-    // Entity lookups (resolve names from maps when available)
-    if (columnKey === 'warehouseId') {
-      return this.warehouseMap().get(str) ?? str;
-    }
-    if (columnKey === 'productId') {
-      return this.productMap().get(str) ?? str;
-    }
-    if (columnKey === 'customerId') {
-      return this.customerMap().get(str) ?? str;
-    }
-    if (columnKey === 'supplierId') {
-      return this.supplierMap().get(str) ?? str;
-    }
-    if (columnKey === 'employeeId') {
-      return this.employeeMap().get(str) ?? str;
-    }
-    if (columnKey === 'accountId') {
-      return this.accountMap().get(str) ?? str;
     }
 
     // Metric humanization

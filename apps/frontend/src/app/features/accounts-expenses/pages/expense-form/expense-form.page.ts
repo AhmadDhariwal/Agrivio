@@ -1,5 +1,11 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormBuilder,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators,
+} from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { forkJoin, of } from 'rxjs';
@@ -10,7 +16,11 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
-import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
+import {
+  fieldValidationMessage,
+  hasRequiredValidator,
+  shouldShowControlError,
+} from '../../../../shared/form/form-field.util';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import {
   UiStatusBadgeComponent,
@@ -18,6 +28,25 @@ import {
 } from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
 import { AccountRecord } from '../../models/accounts.models';
 import { ExpenseCategoryRecord, ExpenseRecord } from '../../models/expenses.models';
+
+const MAX_PURPOSE = 500;
+const MAX_REFERENCE = 120;
+const MAX_REASON = 1000;
+
+function positiveMoneyValidator(control: AbstractControl): ValidationErrors | null {
+  const raw = String(control.value ?? '').trim();
+  if (raw === '') {
+    return null;
+  }
+  if (!/^\d+(\.\d{1,2})?$/.test(raw)) {
+    return { invalidMoney: true };
+  }
+  const amount = Number(raw);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { positiveMoney: true };
+  }
+  return null;
+}
 
 @Component({
   selector: 'agrivio-expense-form-page',
@@ -51,6 +80,7 @@ export class ExpenseFormPage {
   readonly discarding = signal(false);
   readonly discardConfirmOpen = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly formSubmitAttempted = signal(false);
   readonly expense = signal<ExpenseRecord | null>(null);
   readonly categories = signal<ExpenseCategoryRecord[]>([]);
   readonly accounts = signal<AccountRecord[]>([]);
@@ -65,10 +95,29 @@ export class ExpenseFormPage {
       (this.capabilityService?.canPerformAction('expenses.actions.correct') ?? true),
   );
   readonly canView = computed(() => this.sessionStore.hasPermission('expenses.view'));
+  readonly canSave = computed(
+    () => this.canPost() && this.isDraft && this.form.valid && !this.saving(),
+  );
+  readonly showCategory = computed(
+    () => this.capabilityService?.canViewField('expenses.fields.category') ?? true,
+  );
+  readonly showAccount = computed(
+    () => this.capabilityService?.canViewField('expenses.fields.account') ?? true,
+  );
+  readonly showAmount = computed(
+    () => this.capabilityService?.canViewField('expenses.fields.amount') ?? true,
+  );
+  readonly showPurpose = computed(
+    () => this.capabilityService?.canViewField('expenses.fields.purpose') ?? true,
+  );
+  readonly showExpenseDate = computed(
+    () => this.capabilityService?.canViewField('expenses.fields.expenseDate') ?? true,
+  );
   readonly successMessage = signal<string | null>(null);
   private version = 1;
 
   readonly fieldRequired = hasRequiredValidator;
+  readonly fieldError = fieldValidationMessage;
 
   statusTone(status: string | undefined): UiBadgeTone {
     switch (status) {
@@ -86,27 +135,35 @@ export class ExpenseFormPage {
   readonly form = this.formBuilder.nonNullable.group({
     categoryId: ['', [Validators.required]],
     accountId: ['', [Validators.required]],
-    amount: ['', [Validators.required]],
-    purpose: ['', [Validators.required]],
+    amount: ['', [Validators.required, positiveMoneyValidator]],
+    purpose: ['', [Validators.required, Validators.maxLength(MAX_PURPOSE)]],
     expenseDate: ['', [Validators.required]],
-    reference: [''],
+    reference: ['', [Validators.maxLength(MAX_REFERENCE)]],
   });
 
   readonly correctForm = this.formBuilder.nonNullable.group({
-    reason: ['', [Validators.required]],
+    reason: ['', [Validators.required, Validators.maxLength(MAX_REASON)]],
   });
 
   constructor() {
     const id = this.route.snapshot.paramMap.get('id');
     this.loading.set(true);
     forkJoin({
-      categories: this.api.listCategoryOptions(),
-      accounts: this.accountsApi.listAccountOptions(),
+      categories: this.api.searchCategoryOptions(),
+      accounts: this.accountsApi.searchAccountOptions(),
       expense: id && id !== 'new' ? this.api.getExpense(id) : of(null),
     }).subscribe({
       next: ({ categories, accounts, expense }) => {
-        this.categories.set(categories.filter((item) => item.status === 'active' || (expense && item.id === expense.categoryId)));
-        this.accounts.set(accounts.filter((item) => item.status === 'active' || (expense && item.id === expense.accountId)));
+        this.categories.set(
+          categories.filter(
+            (item) => item.status === 'active' || (expense && item.id === expense.categoryId),
+          ),
+        );
+        this.accounts.set(
+          accounts.filter(
+            (item) => item.status === 'active' || (expense && item.id === expense.accountId),
+          ),
+        );
         if (expense) {
           this.expenseId.set(expense.id);
           this.applyExpense(expense);
@@ -124,30 +181,43 @@ export class ExpenseFormPage {
     return this.expense()?.status === 'draft' || this.expenseId() === null;
   }
 
+  moneyFieldError(control: AbstractControl, label: string): string | null {
+    if (!shouldShowControlError(control, this.formSubmitAttempted())) {
+      return null;
+    }
+    if (control.hasError('positiveMoney')) {
+      return `${label} must be greater than zero.`;
+    }
+    if (control.hasError('invalidMoney')) {
+      return `${label} must have up to two decimal places.`;
+    }
+    return fieldValidationMessage(control, label, this.formSubmitAttempted());
+  }
+
+  isReadOnlyField(fieldKey: string): boolean {
+    return (
+      this.expenseId() !== null &&
+      !(this.capabilityService?.canEditField(`expenses.fields.${fieldKey}`) ?? true)
+    );
+  }
+
   save(): void {
-    if (!this.canPost() || this.form.invalid || !this.isDraft) {
-      this.form.markAllAsTouched();
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    if (!this.canPost() || !this.isDraft || this.form.invalid) {
       return;
     }
     this.saving.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
     const value = this.form.getRawValue();
-    const payload = {
-      categoryId: value.categoryId,
-      accountId: value.accountId,
-      amount: { amount: value.amount.trim(), currency: 'PKR' },
-      purpose: value.purpose.trim(),
-      expenseDate: value.expenseDate,
-      ...(value.reference.trim() === '' ? {} : { reference: value.reference.trim() }),
-    };
     const id = this.expenseId();
     const request$ =
       id === null
-        ? this.api.createExpense(payload)
+        ? this.api.createExpense(this.buildExpenseCreatePayload(value))
         : this.api.updateExpense(id, {
             expectedVersion: this.version,
-            ...payload,
+            ...this.buildExpensePatchPayload(value),
           });
     request$.subscribe({
       next: (expense) => {
@@ -242,6 +312,76 @@ export class ExpenseFormPage {
           this.errorMessage.set(this.mapError(error, 'Unable to correct expense.'));
         },
       });
+  }
+
+  private buildExpenseCreatePayload(value: ReturnType<typeof this.form.getRawValue>): {
+    categoryId: string;
+    accountId: string;
+    amount: { amount: string; currency: string };
+    purpose: string;
+    expenseDate: string;
+    reference?: string;
+  } {
+    const payload: {
+      categoryId: string;
+      accountId: string;
+      amount: { amount: string; currency: string };
+      purpose: string;
+      expenseDate: string;
+      reference?: string;
+    } = {
+      categoryId: value.categoryId,
+      accountId: value.accountId,
+      amount: { amount: value.amount.trim(), currency: 'PKR' },
+      purpose: value.purpose.trim(),
+      expenseDate: value.expenseDate,
+    };
+    if (value.reference.trim() !== '') {
+      payload.reference = value.reference.trim();
+    }
+    return payload;
+  }
+
+  private buildExpensePatchPayload(value: ReturnType<typeof this.form.getRawValue>): {
+    categoryId?: string;
+    accountId?: string;
+    amount?: { amount: string; currency: string };
+    purpose?: string;
+    expenseDate?: string;
+    reference?: string;
+  } {
+    const payload: {
+      categoryId?: string;
+      accountId?: string;
+      amount?: { amount: string; currency: string };
+      purpose?: string;
+      expenseDate?: string;
+      reference?: string;
+    } = {};
+
+    if (!this.isReadOnlyField('category')) {
+      payload.categoryId = value.categoryId;
+    }
+    if (!this.isReadOnlyField('account')) {
+      payload.accountId = value.accountId;
+    }
+    if (!this.isReadOnlyField('amount')) {
+      payload.amount = { amount: value.amount.trim(), currency: 'PKR' };
+    }
+    if (!this.isReadOnlyField('purpose')) {
+      payload.purpose = value.purpose.trim();
+    }
+    if (!this.isReadOnlyField('expenseDate')) {
+      payload.expenseDate = value.expenseDate;
+    }
+    if (!this.isReadOnlyField('reference')) {
+      const reference = value.reference.trim();
+      if (reference !== '') {
+        payload.reference = reference;
+      }
+    }
+
+    return payload;
   }
 
   private applyExpense(expense: ExpenseRecord): void {

@@ -1,13 +1,12 @@
 :host {
   display: block;
+  width: 100%;
 }
 
 .category-form-shell {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-width: 1400px;
-  margin: 0 auto;
   width: 100%;
 }
 
@@ -258,6 +257,18 @@
     border-color: var(--ag-color-primary, #065f46);
     box-shadow: 0 0 0 2px rgba(6, 95, 70, 0.12);
   }
+}
+
+.ag-input--invalid,
+.ag-select.ag-input--invalid {
+  border-color: var(--ag-color-danger, #b91c1c);
+}
+
+.field-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ag-color-danger, #b91c1c);
+  line-height: 1.4;
 }
 
 .field-hint {

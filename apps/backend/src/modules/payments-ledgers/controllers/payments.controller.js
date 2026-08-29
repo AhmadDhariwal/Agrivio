@@ -100,6 +100,18 @@ function createPaymentsController(deps) {
       }
     },
 
+    async listUnpaidSalesForCustomer(req, res, next) {
+      try {
+        const data = await deps.paymentsService.listUnpaidSalesForCustomer(
+          requireOrganizationId(req),
+          String(req.params.id),
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async reconcileSupplierLedger(req, res, next) {
       try {
         const data = await deps.paymentsService.reconcileSupplierLedger(

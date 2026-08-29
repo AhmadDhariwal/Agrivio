@@ -579,9 +579,9 @@
                         </svg>
                       </div>
                       <div class="product-info">
-                        <span class="product-name">{{ resolveProduct(row.productId).name }}</span>
-                        @if (showReferenceResolution() && resolveProduct(row.productId).sku !== '—') {
-                          <span class="product-sku">SKU: {{ resolveProduct(row.productId).sku }}</span>
+                        <span class="product-name">{{ resolveProduct(row).name }}</span>
+                        @if (showReferenceResolution() && resolveProduct(row).sku !== '—') {
+                          <span class="product-sku">SKU: {{ resolveProduct(row).sku }}</span>
                         }
                       </div>
                     </div>
@@ -590,9 +590,9 @@
                   <!-- Warehouse / Location -->
                   <td class="cell-warehouse">
                     <div class="warehouse-cell">
-                      <span class="warehouse-name">{{ resolveWarehouse(row.warehouseId).name }}</span>
-                      @if (showReferenceResolution() && resolveWarehouse(row.warehouseId).code !== '—') {
-                        <span class="warehouse-location">{{ resolveWarehouse(row.warehouseId).code }}</span>
+                      <span class="warehouse-name">{{ resolveWarehouse(row).name }}</span>
+                      @if (showReferenceResolution() && resolveWarehouse(row).code !== '—') {
+                        <span class="warehouse-location">{{ resolveWarehouse(row).code }}</span>
                       }
                     </div>
                   </td>
@@ -659,7 +659,7 @@
                   <!-- Batch / Lot -->
                   <td class="cell-batch">
                     @if (row.batchId) {
-                      <span class="batch-tag">{{ resolveBatch(row.batchId).batchNumber }}</span>
+                      <span class="batch-tag">{{ resolveBatch(row).batchNumber }}</span>
                     } @else {
                       <span class="ag-muted">—</span>
                     }
@@ -692,9 +692,9 @@
             <div class="movement-card" data-testid="movement-card">
               <div class="movement-card__header">
                 <div class="movement-card__product">
-                  <span class="movement-card__product-name">{{ resolveProduct(row.productId).name }}</span>
-                  @if (showReferenceResolution() && resolveProduct(row.productId).sku !== '—') {
-                    <span class="movement-card__product-sku">SKU: {{ resolveProduct(row.productId).sku }}</span>
+                  <span class="movement-card__product-name">{{ resolveProduct(row).name }}</span>
+                  @if (showReferenceResolution() && resolveProduct(row).sku !== '—') {
+                    <span class="movement-card__product-sku">SKU: {{ resolveProduct(row).sku }}</span>
                   }
                 </div>
                 @if (row.direction === 'inbound') {
@@ -707,7 +707,7 @@
               <div class="movement-card__body">
                 <div class="meta-item">
                   <span class="meta-label">Warehouse</span>
-                  <span class="meta-value">{{ resolveWarehouse(row.warehouseId).name }}</span>
+                  <span class="meta-value">{{ resolveWarehouse(row).name }}</span>
                 </div>
 
                 <div class="meta-item">
@@ -733,7 +733,7 @@
 
                 <div class="meta-item">
                   <span class="meta-label">Batch</span>
-                  <span class="meta-value">{{ row.batchId ? resolveBatch(row.batchId).batchNumber : '—' }}</span>
+                  <span class="meta-value">{{ row.batchId ? resolveBatch(row).batchNumber : '—' }}</span>
                 </div>
 
                 <div class="meta-item">
@@ -854,11 +854,11 @@
             <div class="detail-grid">
               <div class="detail-item full-width">
                 <span class="detail-label">Product Name</span>
-                <span class="detail-value font-medium">{{ resolveProduct(movement.productId).name }}</span>
+                <span class="detail-value font-medium">{{ resolveProduct(movement).name }}</span>
               </div>
               <div class="detail-item">
                 <span class="detail-label">SKU</span>
-                <span class="detail-value">{{ resolveProduct(movement.productId).sku }}</span>
+                <span class="detail-value">{{ resolveProduct(movement).sku }}</span>
               </div>
               <div class="detail-item">
                 <span class="detail-label">Base Unit</span>
@@ -879,17 +879,17 @@
             <div class="detail-grid">
               <div class="detail-item">
                 <span class="detail-label">Warehouse</span>
-                <span class="detail-value font-medium">{{ resolveWarehouse(movement.warehouseId).name }}</span>
+                <span class="detail-value font-medium">{{ resolveWarehouse(movement).name }}</span>
               </div>
               <div class="detail-item">
                 <span class="detail-label">Warehouse Code</span>
-                <span class="detail-value">{{ resolveWarehouse(movement.warehouseId).code }}</span>
+                <span class="detail-value">{{ resolveWarehouse(movement).code }}</span>
               </div>
               <div class="detail-item">
                 <span class="detail-label">Batch / Lot</span>
                 <span class="detail-value">
                   @if (movement.batchId) {
-                    <span class="batch-tag">{{ resolveBatch(movement.batchId).batchNumber }}</span>
+                    <span class="batch-tag">{{ resolveBatch(movement).batchNumber }}</span>
                   } @else {
                     <span class="ag-muted">Not tracked</span>
                   }
@@ -898,7 +898,7 @@
               <div class="detail-item">
                 <span class="detail-label">Expiry Date</span>
                 <span class="detail-value">
-                  {{ resolveBatch(movement.batchId).expiryDate ?? '—' }}
+                  {{ resolveBatch(movement).expiryDate ?? '—' }}
                 </span>
               </div>
             </div>

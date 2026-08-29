@@ -308,6 +308,17 @@ select.form-control {
   cursor: pointer;
 }
 
+.form-control--invalid {
+  border-color: var(--ag-color-danger, #b91c1c);
+}
+
+.field-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ag-color-danger, #b91c1c);
+  line-height: 1.4;
+}
+
 /* Info Banner */
 .info-banner {
   display: flex;

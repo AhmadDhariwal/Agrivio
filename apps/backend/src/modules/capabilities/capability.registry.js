@@ -23,6 +23,7 @@ const ADJUSTMENTS_MODULE_KEY = 'inventory.adjustments';
 const TRANSFERS_MODULE_KEY = 'inventory.transfers';
 const RECONCILIATION_MODULE_KEY = 'inventory.reconciliation';
 const MOVEMENTS_MODULE_KEY = 'inventory.movements';
+const WAREHOUSES_MODULE_KEY = 'warehouses';
 const CUSTOMERS_MODULE_KEY = 'customers';
 const SUPPLIERS_MODULE_KEY = 'suppliers';
 const RETURNS_MODULE_KEY = 'returns';
@@ -36,6 +37,8 @@ const EXPENSES_MODULE_KEY = 'expenses';
 const EXPENSE_CATEGORIES_MODULE_KEY = 'expenses.categories';
 const REPORTS_MODULE_KEY = 'reports';
 const ALERTS_MODULE_KEY = 'alerts';
+const EMPLOYEES_MODULE_KEY = 'employees';
+const DASHBOARD_MODULE_KEY = 'dashboard';
 
 const REPORT_CAPABILITY_KEY_BY_REPORT_KEY = Object.freeze({
   sales: 'reports.reportAvailability.sales',
@@ -1459,6 +1462,101 @@ const definitions = [
     risk: RISK_LEVELS.Normal,
     requiredPermissions: { allowed: 'inventory.view' },
     ...(dependencies.length === 0 ? {} : { dependencies }),
+  })),
+  {
+    key: WAREHOUSES_MODULE_KEY,
+    parentKey: null,
+    moduleKey: WAREHOUSES_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Warehouses',
+    description: 'Warehouse management screens and Warehouse API operations for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'warehouses.view' },
+    reason:
+      'Disabling access hides Warehouses and blocks direct Warehouse API operations without deleting locations or altering inventory history.',
+  },
+  ...[
+    ['moduleInfo', 'About Warehouses', 'Show the Warehouses guidance panel.'],
+    ['search', 'Search', 'Search Warehouses by name.'],
+    ['statusFilter', 'Status Filter', 'Filter Warehouses by active or inactive status.'],
+  ].map(([id, label, description]) => ({
+    key: `warehouses.features.${id}`,
+    parentKey: WAREHOUSES_MODULE_KEY,
+    moduleKey: WAREHOUSES_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'warehouses.view' },
+  })),
+  {
+    key: 'warehouses.fields.name',
+    parentKey: WAREHOUSES_MODULE_KEY,
+    moduleKey: WAREHOUSES_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label: 'Warehouse name',
+    description: 'Required Warehouse identity field.',
+    defaultPolicy: { visible: true, editable: true },
+    configurable: { visible: false, editable: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'warehouses.view', editable: 'warehouses.manage' },
+    reason: 'Warehouse name is required for creation and remains platform enforced.',
+  },
+  {
+    key: 'warehouses.fields.code',
+    parentKey: WAREHOUSES_MODULE_KEY,
+    moduleKey: WAREHOUSES_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label: 'Warehouse code',
+    description: 'Optional short Warehouse reference code.',
+    defaultPolicy: { visible: true, editable: true },
+    configurable: { visible: true, editable: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { visible: 'warehouses.view', editable: 'warehouses.manage' },
+  },
+  {
+    key: 'warehouses.fields.status',
+    parentKey: WAREHOUSES_MODULE_KEY,
+    moduleKey: WAREHOUSES_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label: 'Lifecycle status',
+    description: 'Active or inactive Warehouse state.',
+    defaultPolicy: { visible: true, editable: false },
+    configurable: { visible: false, editable: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'warehouses.view', editable: 'warehouses.manage' },
+    reason: 'Lifecycle changes are controlled by deactivate and reactivate actions.',
+  },
+  ...[
+    ['create', 'Create warehouse', 'warehouses.manage', RISK_LEVELS.Recommended],
+    ['edit', 'Edit warehouse', 'warehouses.manage', RISK_LEVELS.Recommended],
+    ['deactivate', 'Deactivate warehouse', 'warehouses.manage', RISK_LEVELS.Recommended],
+    ['reactivate', 'Reactivate warehouse', 'warehouses.manage', RISK_LEVELS.Recommended],
+    ['delete', 'Delete permanently', 'warehouses.manage', RISK_LEVELS.Critical],
+    ['refresh', 'Refresh', 'warehouses.view', RISK_LEVELS.Normal],
+  ].map(([id, label, permission, risk]) => ({
+    key: `warehouses.actions.${id}`,
+    parentKey: WAREHOUSES_MODULE_KEY,
+    moduleKey: WAREHOUSES_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label,
+    description: `${label} action. Existing validation, lifecycle rules, tenant isolation, and RBAC still apply.`,
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk,
+    requiredPermissions: { allowed: permission },
+    ...(id === 'delete'
+      ? {
+          reason:
+            'The policy can block deletion but cannot bypass stock-history, posted-movement, assignment, or other record-in-use protection.',
+        }
+      : {}),
   })),
   {
     key: CUSTOMERS_MODULE_KEY,
@@ -3162,6 +3260,108 @@ const definitions = [
         }
       : {}),
   })),
+  // Dashboard Module
+  {
+    key: DASHBOARD_MODULE_KEY,
+    parentKey: null,
+    moduleKey: DASHBOARD_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Dashboard',
+    description: 'Read-only operational overview for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'dashboard.view' },
+    reason:
+      'Disabling Dashboard blocks the overview endpoint without changing source records, balances, alerts, or calculations.',
+  },
+  ...[
+    [
+      'datePeriodFilter',
+      'Date Period Filter',
+      'Allow Dashboard users to select the reporting period used by period metrics and trends.',
+    ],
+    [
+      'branchFilter',
+      'Branch Filter',
+      'Allow Dashboard users to narrow supported period metrics and trends to an authorized branch.',
+    ],
+    [
+      'warehouseFilter',
+      'Warehouse Filter',
+      'Allow Dashboard users to narrow supported metrics to an authorized warehouse.',
+    ],
+  ].map(([id, label, description]) => ({
+    key: `dashboard.features.${id}`,
+    parentKey: DASHBOARD_MODULE_KEY,
+    moduleKey: DASHBOARD_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'dashboard.view' },
+    reason:
+      'Disabling this filter makes the Dashboard ignore its query parameter; authorization scope remains enforced by source services.',
+  })),
+  ...[
+    [
+      'financialSummary',
+      'Financial Summary',
+      'Show Sales, Purchases, Expenses, Gross Profit, Receivables, Payables, and Stock Valuation summaries.',
+      RISK_LEVELS.Recommended,
+    ],
+    [
+      'accountSummary',
+      'Account Balance Summary',
+      'Show current Cash, Bank, JazzCash, and Easypaisa balances and their distribution.',
+      RISK_LEVELS.Recommended,
+    ],
+    [
+      'salesVsPurchasesTrend',
+      'Sales vs Purchases Trend',
+      'Show the selected-period Sales and Purchases comparison.',
+      RISK_LEVELS.Normal,
+    ],
+    [
+      'grossProfitTrend',
+      'Gross Profit Trend',
+      'Show selected-period Gross Profit over time.',
+      RISK_LEVELS.Recommended,
+    ],
+    [
+      'topSellingProducts',
+      'Top Selling Products',
+      'Show the authoritative top-selling product ranking.',
+      RISK_LEVELS.Normal,
+    ],
+    [
+      'inventoryHealth',
+      'Inventory Health',
+      'Show Low Stock, Upcoming Expiry, Expired Stock, Dead Stock, and expiry-status summaries.',
+      RISK_LEVELS.Recommended,
+    ],
+    [
+      'recentSales',
+      'Recent Sales',
+      'Show the latest 10 posted Sales independently of the selected period.',
+      RISK_LEVELS.Recommended,
+    ],
+  ].map(([id, label, description, risk]) => ({
+    key: `dashboard.widgets.${id}`,
+    parentKey: DASHBOARD_MODULE_KEY,
+    moduleKey: DASHBOARD_MODULE_KEY,
+    type: CONTROL_TYPES.Widget,
+    label,
+    description,
+    defaultPolicy: { visible: true },
+    configurable: { visible: true },
+    risk,
+    requiredPermissions: { visible: 'dashboard.view' },
+    reason:
+      'This visibility policy removes the section data from the Dashboard response without changing its source-domain calculations.',
+  })),
   // Reports Module
   {
     key: REPORTS_MODULE_KEY,
@@ -3310,6 +3510,151 @@ const definitions = [
     risk: id === 'acknowledge' ? RISK_LEVELS.Recommended : RISK_LEVELS.Normal,
     requiredPermissions: { allowed: 'alerts.view' },
   })),
+  {
+    key: EMPLOYEES_MODULE_KEY,
+    parentKey: null,
+    moduleKey: EMPLOYEES_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Employees & Access',
+    description:
+      'Employee management screens and user API operations for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'users.view' },
+    reason:
+      'Disabling access hides Employees & Access and blocks employee API operations without deleting memberships or altering audit history.',
+  },
+  ...[
+    ['moduleInfo', 'About Employees & Access', 'Show the Employees guidance panel.'],
+    ['search', 'Search', 'Search employees by display name or email.'],
+    ['statusFilter', 'Status Filter', 'Filter employees by active, pending, or deactivated status.'],
+    ['roleFilter', 'Role Filter', 'Filter employees by predefined organization role.'],
+    [
+      'kpiCards',
+      'KPI Cards',
+      'Show employee summary KPI cards (total, active, pending/inactive).',
+    ],
+  ].map(([id, label, description]) => ({
+    key: `employees.features.${id}`,
+    parentKey: EMPLOYEES_MODULE_KEY,
+    moduleKey: EMPLOYEES_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'users.view' },
+  })),
+  {
+    key: 'employees.fields.email',
+    parentKey: EMPLOYEES_MODULE_KEY,
+    moduleKey: EMPLOYEES_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label: 'Email',
+    description: 'Required employee identity for activation and login.',
+    defaultPolicy: { visible: true, editable: true },
+    configurable: { visible: false, editable: true },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'users.view', editable: 'users.create' },
+    reason: 'Email remains visible because employee identity and activation require it.',
+  },
+  {
+    key: 'employees.fields.displayName',
+    parentKey: EMPLOYEES_MODULE_KEY,
+    moduleKey: EMPLOYEES_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label: 'Display name',
+    description: 'Required employee display name shown across the organization.',
+    defaultPolicy: { visible: true, editable: true },
+    configurable: { visible: false, editable: true },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'users.view', editable: 'users.create' },
+    reason:
+      'Display name remains visible because employee creation and identification require it.',
+  },
+  {
+    key: 'employees.fields.role',
+    parentKey: EMPLOYEES_MODULE_KEY,
+    moduleKey: EMPLOYEES_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label: 'Role',
+    description: 'Predefined organization role that determines RBAC permissions.',
+    defaultPolicy: { visible: true, editable: true },
+    configurable: { visible: false, editable: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'users.view', editable: 'users.update' },
+    reason:
+      'Role visibility and editability remain required because authorization and owner-protection rules depend on it.',
+  },
+  {
+    key: 'employees.fields.branchAccess',
+    parentKey: EMPLOYEES_MODULE_KEY,
+    moduleKey: EMPLOYEES_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label: 'Branch access',
+    description: 'Branch assignment summary and assignment controls.',
+    defaultPolicy: { visible: true, editable: false },
+    configurable: { visible: true, editable: false },
+    risk: RISK_LEVELS.Recommended,
+    requiredPermissions: { visible: 'users.view', editable: 'users.assign-access' },
+    reason: 'Branch assignment changes are controlled by the Assign Access action.',
+  },
+  {
+    key: 'employees.fields.warehouseAccess',
+    parentKey: EMPLOYEES_MODULE_KEY,
+    moduleKey: EMPLOYEES_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label: 'Warehouse access',
+    description: 'Warehouse assignment summary and assignment controls.',
+    defaultPolicy: { visible: true, editable: false },
+    configurable: { visible: true, editable: false },
+    risk: RISK_LEVELS.Recommended,
+    requiredPermissions: { visible: 'users.view', editable: 'users.assign-access' },
+    reason: 'Warehouse assignment changes are controlled by the Assign Access action.',
+  },
+  {
+    key: 'employees.fields.status',
+    parentKey: EMPLOYEES_MODULE_KEY,
+    moduleKey: EMPLOYEES_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label: 'Lifecycle status',
+    description: 'Active, pending activation, or deactivated membership state.',
+    defaultPolicy: { visible: true, editable: false },
+    configurable: { visible: false, editable: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'users.view', editable: 'users.deactivate' },
+    reason: 'Status changes remain controlled by the Deactivate action and owner-protection rules.',
+  },
+  ...[
+    ['create', 'Create employee', 'users.create', RISK_LEVELS.Recommended],
+    ['edit', 'Edit employee', 'users.update', RISK_LEVELS.Recommended],
+    ['deactivate', 'Deactivate employee', 'users.deactivate', RISK_LEVELS.Recommended],
+    ['assignAccess', 'Assign access', 'users.assign-access', RISK_LEVELS.Critical],
+    ['refresh', 'Refresh', 'users.view', RISK_LEVELS.Normal],
+  ].map(([id, label, permission, risk]) => ({
+    key: `employees.actions.${id}`,
+    parentKey: EMPLOYEES_MODULE_KEY,
+    moduleKey: EMPLOYEES_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label,
+    description: `${label} action. Existing RBAC, owner protection, lifecycle rules, and subscription limits still apply.`,
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk,
+    requiredPermissions: { allowed: permission },
+    ...(id === 'assignAccess'
+      ? {
+          reason:
+            'Policy can block assignment changes but cannot bypass branch/warehouse authorization or users.assign-access permission.',
+        }
+      : {}),
+  })),
 ];
 
 const registry = new Map(
@@ -3352,6 +3697,7 @@ module.exports = {
   TRANSFERS_MODULE_KEY,
   RECONCILIATION_MODULE_KEY,
   MOVEMENTS_MODULE_KEY,
+  WAREHOUSES_MODULE_KEY,
   CUSTOMERS_MODULE_KEY,
   SUPPLIERS_MODULE_KEY,
   RETURNS_MODULE_KEY,
@@ -3365,6 +3711,8 @@ module.exports = {
   EXPENSE_CATEGORIES_MODULE_KEY,
   REPORTS_MODULE_KEY,
   ALERTS_MODULE_KEY,
+  EMPLOYEES_MODULE_KEY,
+  DASHBOARD_MODULE_KEY,
   REPORT_CAPABILITY_KEY_BY_REPORT_KEY,
   ALERT_CAPABILITY_KEY_BY_ALERT_TYPE,
   listCapabilityControls,

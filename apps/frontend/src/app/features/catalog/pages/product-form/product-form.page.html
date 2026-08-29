@@ -78,15 +78,26 @@
           <div class="ag-field">
             <agrivio-ui-field-label
               label="Category"
-              for="product-category"
+              for="product-category-search"
               [required]="fieldRequired(form.controls.categoryId)"
+            />
+            <input
+              id="product-category-search"
+              class="ag-input"
+              type="search"
+              placeholder="Search categories…"
+              data-testid="product-category-search"
+              (input)="onCategorySearch($event)"
+              [readOnly]="isReadOnlyField('category')"
             />
             <select
               id="product-category"
               class="ag-select"
               formControlName="categoryId"
               data-testid="product-category"
+              [class.ag-input--invalid]="fieldError(form.controls.categoryId, 'Category', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.categoryId) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.categoryId, 'Category', formSubmitAttempted()) ? 'true' : null"
               [attr.disabled]="isReadOnlyField('category') ? '' : null"
             >
               <option value="" disabled>Select product category</option>
@@ -94,6 +105,9 @@
               <option [value]="category.id">{{ category.name }}</option>
               }
             </select>
+            @if (fieldError(form.controls.categoryId, 'Category', formSubmitAttempted()); as categoryError) {
+            <p class="field-error" role="alert">{{ categoryError }}</p>
+            }
           </div>
 
           <!-- SKU -->
@@ -124,9 +138,14 @@
               formControlName="name"
               placeholder="e.g. Sona Urea Granular (FFC)"
               data-testid="product-name"
+              [class.ag-input--invalid]="fieldError(form.controls.name, 'Product name', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.name, 'Product name', formSubmitAttempted()) ? 'true' : null"
               [readOnly]="isReadOnlyField('productName')"
             />
+            @if (fieldError(form.controls.name, 'Product name', formSubmitAttempted()); as nameError) {
+            <p class="field-error" role="alert">{{ nameError }}</p>
+            }
           </div>
         </div>
       </div>
@@ -175,12 +194,17 @@
               class="ag-select"
               formControlName="measurementDimension"
               data-testid="product-measurement-dimension"
+              [class.ag-input--invalid]="fieldError(form.controls.measurementDimension, 'Measurement dimension', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.measurementDimension) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.measurementDimension, 'Measurement dimension', formSubmitAttempted()) ? 'true' : null"
               [attr.disabled]="isReadOnlyField('measurementDimension') ? '' : null"
             >
               <option value="mass">Mass (Weight)</option>
               <option value="volume">Volume (Liquid)</option>
             </select>
+            @if (fieldError(form.controls.measurementDimension, 'Measurement dimension', formSubmitAttempted()); as dimensionError) {
+            <p class="field-error" role="alert">{{ dimensionError }}</p>
+            }
           </div>
 
           <!-- Base Unit Code -->
@@ -196,9 +220,14 @@
               formControlName="baseUnitCode"
               placeholder="e.g. KG, LITRE, COUNT"
               data-testid="product-base-unit"
+              [class.ag-input--invalid]="fieldError(form.controls.baseUnitCode, 'Base unit code', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.baseUnitCode) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.baseUnitCode, 'Base unit code', formSubmitAttempted()) ? 'true' : null"
               [readOnly]="isReadOnlyField('baseUnit')"
             />
+            @if (fieldError(form.controls.baseUnitCode, 'Base unit code', formSubmitAttempted()); as baseUnitError) {
+            <p class="field-error" role="alert">{{ baseUnitError }}</p>
+            }
           </div>
 
           <!-- Tracking Mode -->
@@ -213,13 +242,18 @@
               class="ag-select"
               formControlName="trackingMode"
               data-testid="product-tracking-mode"
+              [class.ag-input--invalid]="fieldError(form.controls.trackingMode, 'Tracking mode', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.trackingMode) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.trackingMode, 'Tracking mode', formSubmitAttempted()) ? 'true' : null"
               [attr.disabled]="isReadOnlyField('trackingMode') ? '' : null"
             >
               <option value="none">None (Standard Inventory)</option>
               <option value="batch">Batch Number Tracked</option>
               <option value="batch_expiry">Batch + Expiry Date Tracked</option>
             </select>
+            @if (fieldError(form.controls.trackingMode, 'Tracking mode', formSubmitAttempted()); as trackingError) {
+            <p class="field-error" role="alert">{{ trackingError }}</p>
+            }
           </div>
         </div>
 
@@ -285,7 +319,12 @@
                 formControlName="name"
                 placeholder="e.g. 50 KG Bag, Carton of 24"
                 data-testid="packaging-unit-name"
+                [class.ag-input--invalid]="packagingFieldError(i, 'name', 'Packaging unit name')"
+                [attr.aria-invalid]="packagingFieldError(i, 'name', 'Packaging unit name') ? 'true' : null"
               />
+              @if (packagingFieldError(i, 'name', 'Packaging unit name'); as packagingNameError) {
+              <p class="field-error" role="alert">{{ packagingNameError }}</p>
+              }
             </div>
             <div class="ag-field">
               <agrivio-ui-field-label
@@ -298,7 +337,12 @@
                 formControlName="conversionFactor"
                 placeholder="e.g. 50"
                 data-testid="packaging-conversion"
+                [class.ag-input--invalid]="packagingFieldError(i, 'conversionFactor', 'Conversion factor')"
+                [attr.aria-invalid]="packagingFieldError(i, 'conversionFactor', 'Conversion factor') ? 'true' : null"
               />
+              @if (packagingFieldError(i, 'conversionFactor', 'Conversion factor'); as conversionError) {
+              <p class="field-error" role="alert">{{ conversionError }}</p>
+              }
             </div>
             <button
               class="ag-btn ag-btn--secondary ag-btn--danger-hover"
@@ -351,7 +395,7 @@
       <button
         class="ag-btn ag-btn--primary"
         type="submit"
-        [disabled]="saving()"
+        [disabled]="!canSave()"
         data-testid="product-save"
       >
         <svg

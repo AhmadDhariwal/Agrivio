@@ -64,6 +64,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'dashboard',
+        canActivate: [requireCapabilityGuard('dashboard')],
         loadComponent: () =>
           import('./features/dashboard/pages/dashboard/dashboard.page').then(
             (m) => m.DashboardPage,
@@ -171,6 +172,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'warehouses',
+        canActivate: [requireCapabilityGuard('warehouses')],
         loadComponent: () =>
           import('./features/branches-warehouses/pages/warehouses/warehouses.page').then(
             (m) => m.WarehousesPage,
@@ -178,6 +180,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'warehouses/new',
+        canActivate: [
+          requireCapabilityGuard('warehouses'),
+          requireCapabilityGuard('warehouses.actions.create', 'action'),
+        ],
         loadComponent: () =>
           import('./features/branches-warehouses/pages/warehouse-form/warehouse-form.page').then(
             (m) => m.WarehouseFormPage,
@@ -185,6 +191,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'warehouses/:id',
+        canActivate: [
+          requireCapabilityGuard('warehouses'),
+          requireCapabilityGuard('warehouses.actions.edit', 'action'),
+        ],
         loadComponent: () =>
           import('./features/branches-warehouses/pages/warehouse-form/warehouse-form.page').then(
             (m) => m.WarehouseFormPage,
@@ -192,6 +202,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'employees',
+        canActivate: [requireCapabilityGuard('employees')],
         loadComponent: () =>
           import('./features/users-access/pages/employees/employees.page').then(
             (m) => m.EmployeesPage,
@@ -199,6 +210,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'employees/new',
+        canActivate: [
+          requireCapabilityGuard('employees'),
+          requireCapabilityGuard('employees.actions.create', 'action'),
+        ],
         loadComponent: () =>
           import('./features/users-access/pages/employee-form/employee-form.page').then(
             (m) => m.EmployeeFormPage,
@@ -206,6 +221,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'employees/:id',
+        canActivate: [
+          requireCapabilityGuard('employees'),
+          requireCapabilityGuard('employees.actions.edit', 'action'),
+        ],
         loadComponent: () =>
           import('./features/users-access/pages/employee-form/employee-form.page').then(
             (m) => m.EmployeeFormPage,

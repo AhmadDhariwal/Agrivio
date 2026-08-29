@@ -6,6 +6,7 @@ const {
 } = require('../permission.middleware');
 const { createEmployeesController } = require('../controllers/employees.controller');
 const { createLocationsController } = require('../../locations/controllers/locations.controller');
+const { createRequireCapabilityMiddleware } = require('../../capabilities/capability.middleware');
 
 function registerEmployeesRoutes(deps) {
   const router = Router();
@@ -14,6 +15,31 @@ function registerEmployeesRoutes(deps) {
     locationsService: deps.locationsService,
   });
   const requireOrganizationContext = createRequireOrganizationContextMiddleware();
+  const requireEmployeesModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'employees',
+    'enabled',
+  );
+  const requireCreateAllowed = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'employees.actions.create',
+    'allowed',
+  );
+  const requireEditAllowed = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'employees.actions.edit',
+    'allowed',
+  );
+  const requireDeactivateAllowed = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'employees.actions.deactivate',
+    'allowed',
+  );
+  const requireAssignAccessAllowed = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'employees.actions.assignAccess',
+    'allowed',
+  );
 
   router.get(
     API_USERS_PATH,
@@ -21,6 +47,7 @@ function registerEmployeesRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('users.view'),
     deps.requireOperationalAccess,
+    requireEmployeesModule,
     (req, res, next) => {
       void controller.list(req, res, next);
     },
@@ -33,6 +60,8 @@ function registerEmployeesRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('users.create'),
     deps.requireOperationalAccess,
+    requireEmployeesModule,
+    requireCreateAllowed,
     (req, res, next) => {
       void controller.create(req, res, next);
     },
@@ -44,6 +73,7 @@ function registerEmployeesRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('users.view'),
     deps.requireOperationalAccess,
+    requireEmployeesModule,
     (req, res, next) => {
       void controller.get(req, res, next);
     },
@@ -56,6 +86,8 @@ function registerEmployeesRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('users.update'),
     deps.requireOperationalAccess,
+    requireEmployeesModule,
+    requireEditAllowed,
     (req, res, next) => {
       void controller.update(req, res, next);
     },
@@ -68,6 +100,8 @@ function registerEmployeesRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('users.deactivate'),
     deps.requireOperationalAccess,
+    requireEmployeesModule,
+    requireDeactivateAllowed,
     (req, res, next) => {
       void controller.deactivate(req, res, next);
     },
@@ -80,6 +114,8 @@ function registerEmployeesRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('users.assign-access'),
     deps.requireOperationalAccess,
+    requireEmployeesModule,
+    requireAssignAccessAllowed,
     (req, res, next) => {
       void locationsController.replaceAccessAssignments(req, res, next);
     },

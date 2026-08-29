@@ -40,6 +40,39 @@ export function formatQuantity(value: string | number | null | undefined): strin
   }).format(parsed);
 }
 
+export function formatCompactPkr(value: number): string {
+  if (!Number.isFinite(value) || value === 0) return '0';
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) {
+    const m = value / 1_000_000;
+    return `${m % 1 === 0 ? m.toFixed(0) : m.toFixed(1)}M`;
+  }
+  if (abs >= 1_000) {
+    const k = value / 1_000;
+    return `${k % 1 === 0 ? k.toFixed(0) : k.toFixed(1)}K`;
+  }
+  return String(value);
+}
+
+export function formatDateTick(dateStr: string): string {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const monthPart = parts[1];
+    const dayPart = parts[2];
+    if (monthPart && dayPart) {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthIdx = parseInt(monthPart, 10) - 1;
+      const day = parseInt(dayPart, 10);
+      const month = months[monthIdx];
+      if (month && !isNaN(day)) {
+        return `${day} ${month}`;
+      }
+    }
+  }
+  return dateStr;
+}
+
 export function maxSeriesValue(points: ChartPoint[], series: ChartSeries[]): number {
   let max = 0;
   for (const point of points) {

@@ -187,6 +187,7 @@ function createApp(options) {
       publicWebBaseUrl: config.publicWebBaseUrl,
       evaluateEntitlement: (organizationId, entitlementOptions) =>
         subscriptions.subscriptionService.evaluateEntitlement(organizationId, entitlementOptions),
+      capabilityService: capabilities.capabilityService,
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
@@ -201,6 +202,7 @@ function createApp(options) {
         employees.employeesService.findMembershipInOrganization(organizationId, userId),
       revokeSessionsForUser: (session, userId, revokedAt) =>
         auth.store.revokeAllSessionsForUser(session, userId, revokedAt),
+      capabilityService: capabilities.capabilityService,
       ...(options.now === undefined ? {} : { now: options.now }),
       ...(masterRefs === null
         ? {}
@@ -438,6 +440,8 @@ function createApp(options) {
       inventoryService: inventory.inventoryService,
       catalogService: catalog.catalogService,
       customersService: customers.customersService,
+      locationsService: locations.locationsService,
+      employeesService: employees.employeesService,
       capabilityService: capabilities.capabilityService,
       resolveOrganizationTimezone,
       resolvePlanEntitlements: async (organizationId) => {
@@ -547,6 +551,7 @@ function createApp(options) {
 
   const locationsRoutes = registerLocationsRoutes({
     locationsService: locations.locationsService,
+    capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
@@ -555,6 +560,7 @@ function createApp(options) {
   const employeesRoutes = registerEmployeesRoutes({
     employeesService: employees.employeesService,
     locationsService: locations.locationsService,
+    capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
@@ -562,6 +568,7 @@ function createApp(options) {
 
   const catalogRoutes = registerCatalogRoutes({
     catalogService: catalog.catalogService,
+    inventoryReader: inventory.inventoryService,
     capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,

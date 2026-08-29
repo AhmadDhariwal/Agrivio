@@ -18,3 +18,15 @@ select {
   border: 1px solid var(--ag-border, #cfd6cb);
   font: inherit;
 }
+
+.ag-input--invalid,
+.ag-select.ag-input--invalid {
+  border-color: var(--ag-color-danger, #b91c1c);
+}
+
+.field-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ag-color-danger, #b91c1c);
+  line-height: 1.4;
+}

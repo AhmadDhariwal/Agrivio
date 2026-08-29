@@ -34,7 +34,6 @@ import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pa
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import {
   ExpiryInventoryRecord,
-  ProductBatchRecord,
 } from '../../models/inventory.models';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 
@@ -96,7 +95,6 @@ export class ExpiryInquiryPage {
   // Authoritative Relation Maps
   readonly productMap = signal<Map<string, ProductRecord>>(new Map());
   readonly warehouseMap = signal<Map<string, WarehouseRecord>>(new Map());
-  readonly batchMap = signal<Map<string, ProductBatchRecord>>(new Map());
 
   readonly productList = signal<ProductRecord[]>([]);
   readonly warehouseList = signal<WarehouseRecord[]>([]);
@@ -390,6 +388,7 @@ export class ExpiryInquiryPage {
 
   constructor() {
     this.checkViewport();
+    this.loadReferenceData();
 
     // Debounced search handling
     this.searchChanges
@@ -403,7 +402,7 @@ export class ExpiryInquiryPage {
         this.page.set(1);
       });
 
-    // Primary data reload stream
+    // Primary expiry reload stream (expiry only — reference data loads once above)
     this.reloadRequests
       .pipe(
         startWith(undefined),
@@ -415,33 +414,7 @@ export class ExpiryInquiryPage {
           this.loading.set(true);
           this.errorMessage.set(null);
 
-          return forkJoin({
-            expiry: this.inventoryApi.listExpiry().pipe(
-              catchError(() =>
-                of({
-                  items: [] as ExpiryInventoryRecord[],
-                  businessDate: '',
-                  thresholdDays: 30,
-                }),
-              ),
-            ),
-            products: this.catalogApi
-              .searchProductOptions('', 500)
-              .pipe(catchError(() => of([]))),
-            warehouses: this.locationsApi
-              .listWarehouseOptions()
-              .pipe(catchError(() => of([]))),
-            batches: this.inventoryApi
-              .listBatches({ page: 1, pageSize: 500 })
-              .pipe(
-                catchError(() =>
-                  of({
-                    items: [] as ProductBatchRecord[],
-                    meta: { page: 1, pageSize: 500, total: 0 },
-                  }),
-                ),
-              ),
-          }).pipe(
+          return this.inventoryApi.listExpiry().pipe(
             catchError(() => {
               this.loading.set(false);
               this.errorMessage.set('Unable to load expiry inquiry.');
@@ -451,10 +424,36 @@ export class ExpiryInquiryPage {
         }),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((result) => {
-        const { expiry, products, warehouses, batches } = result;
+      .subscribe((expiry) => {
+        this.rawItems.set(expiry.items);
+        this.businessDate.set(expiry.businessDate);
+        this.thresholdDays.set(expiry.thresholdDays);
+        this.loading.set(false);
+      });
+  }
 
-        // Populate Product Map
+  private loadReferenceData(): void {
+    if (!this.canView()) {
+      this.loading.set(false);
+      return;
+    }
+
+    forkJoin({
+      products: this.catalogApi
+        .searchProductOptions('', 500)
+        .pipe(catchError(() => of([]))),
+      warehouses: this.locationsApi
+        .listWarehouseOptions()
+        .pipe(catchError(() => of([]))),
+    })
+      .pipe(
+        catchError(() => {
+          this.errorMessage.set('Unable to load expiry reference data. Please try again.');
+          return EMPTY;
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(({ products, warehouses }) => {
         const prodMap = new Map<string, ProductRecord>();
         for (const p of products) {
           const id = p.id || (p as unknown as { _id?: string })._id;
@@ -463,7 +462,6 @@ export class ExpiryInquiryPage {
         this.productMap.set(prodMap);
         this.productList.set(products);
 
-        // Populate Warehouse Map
         const whMap = new Map<string, WarehouseRecord>();
         for (const w of warehouses) {
           const id = w.id || (w as unknown as { _id?: string })._id;
@@ -471,19 +469,6 @@ export class ExpiryInquiryPage {
         }
         this.warehouseMap.set(whMap);
         this.warehouseList.set(warehouses);
-
-        // Populate Batch Map
-        const bMap = new Map<string, ProductBatchRecord>();
-        for (const b of batches.items) {
-          if (b.id) bMap.set(b.id, b);
-        }
-        this.batchMap.set(bMap);
-
-        // Set Expiry Data
-        this.rawItems.set(expiry.items);
-        this.businessDate.set(expiry.businessDate);
-        this.thresholdDays.set(expiry.thresholdDays);
-        this.loading.set(false);
       });
   }
 

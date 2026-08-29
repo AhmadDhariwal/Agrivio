@@ -1,9 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map, switchMap } from 'rxjs';
+import { Observable, map, switchMap, tap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
 import { PaginatedResult, PaginationQuery } from '../../../shared/data-access/pagination';
+import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
+import { QUERY_CACHE_TAGS } from '../../../shared/data-access/query-cache.tags';
 
 export interface BranchRecord {
   id: string;
@@ -28,6 +30,7 @@ export interface WarehouseRecord {
 export class BranchesWarehousesApi {
   private readonly http = inject(HttpClient);
   private readonly authApi = inject(AuthApi);
+  private readonly queryCache = inject(QueryCacheService);
 
   listBranches(params: PaginationQuery & { status?: string; search?: string } = {}): Observable<PaginatedResult<BranchRecord>> {
     return this.http
@@ -39,7 +42,14 @@ export class BranchesWarehousesApi {
   }
 
   listBranchOptions(): Observable<BranchRecord[]> {
-    return this.listBranches({ page: 1, pageSize: 100, status: 'active' }).pipe(map((result) => result.items));
+    const params = { page: 1, pageSize: 100, status: 'active' };
+    const cacheKey = this.queryCache.buildKey('branches', params);
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'reference',
+      tags: [QUERY_CACHE_TAGS.warehouses],
+      loader: () => this.listBranches(params).pipe(map((result) => result.items)),
+    });
   }
 
   getBranch(id: string): Observable<BranchRecord> {
@@ -62,7 +72,10 @@ export class BranchesWarehousesApi {
             withCredentials: true,
             headers: { 'X-CSRF-Token': csrfToken },
           })
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.queryCache.invalidateTags(QUERY_CACHE_TAGS.warehouses)),
+          ),
       ),
     );
   }
@@ -88,7 +101,10 @@ export class BranchesWarehousesApi {
               headers: { 'X-CSRF-Token': csrfToken },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.queryCache.invalidateTags(QUERY_CACHE_TAGS.warehouses)),
+          ),
       ),
     );
   }
@@ -101,7 +117,10 @@ export class BranchesWarehousesApi {
             `${environment.publicApiBaseUrl}/api/v1/branches/${id}`,
             { withCredentials: true, headers: { 'X-CSRF-Token': csrfToken } },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.queryCache.invalidateTags(QUERY_CACHE_TAGS.warehouses)),
+          ),
       ),
     );
   }
@@ -116,7 +135,14 @@ export class BranchesWarehousesApi {
   }
 
   listWarehouseOptions(): Observable<WarehouseRecord[]> {
-    return this.listWarehouses({ page: 1, pageSize: 100, status: 'active' }).pipe(map((result) => result.items));
+    const params = { page: 1, pageSize: 100, status: 'active' };
+    const cacheKey = this.queryCache.buildKey('warehouses', params);
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'reference',
+      tags: [QUERY_CACHE_TAGS.warehouses],
+      loader: () => this.listWarehouses(params).pipe(map((result) => result.items)),
+    });
   }
 
   getWarehouse(id: string): Observable<WarehouseRecord> {
@@ -139,7 +165,10 @@ export class BranchesWarehousesApi {
               headers: { 'X-CSRF-Token': csrfToken },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.queryCache.invalidateTags(QUERY_CACHE_TAGS.warehouses)),
+          ),
       ),
     );
   }
@@ -164,7 +193,10 @@ export class BranchesWarehousesApi {
               headers: { 'X-CSRF-Token': csrfToken },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.queryCache.invalidateTags(QUERY_CACHE_TAGS.warehouses)),
+          ),
       ),
     );
   }
@@ -177,7 +209,10 @@ export class BranchesWarehousesApi {
             `${environment.publicApiBaseUrl}/api/v1/warehouses/${id}`,
             { withCredentials: true, headers: { 'X-CSRF-Token': csrfToken } },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.queryCache.invalidateTags(QUERY_CACHE_TAGS.warehouses)),
+          ),
       ),
     );
   }

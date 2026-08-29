@@ -73,6 +73,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
       label: 'Dashboard',
       route: '/app/dashboard',
       permission: 'dashboard.view',
+      capabilityKey: 'dashboard',
       testId: 'nav-dashboard',
     },
   },
@@ -363,6 +364,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Warehouses',
           route: '/app/warehouses',
           permission: 'warehouses.view',
+          capabilityKey: 'warehouses',
           testId: 'nav-warehouses',
         },
         {
@@ -370,6 +372,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Employees',
           route: '/app/employees',
           permission: 'users.view',
+          capabilityKey: 'employees',
           testId: 'nav-employees',
         },
         {

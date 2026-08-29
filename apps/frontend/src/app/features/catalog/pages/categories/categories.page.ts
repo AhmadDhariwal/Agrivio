@@ -59,7 +59,7 @@ export class CategoriesPage {
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
-  private readonly reloadRequests = new Subject<void>();
+  private readonly reloadRequests = new Subject<boolean>();
   private readonly searchChanges = new Subject<string>();
   private clampAfterLoad = false;
 
@@ -181,8 +181,8 @@ export class CategoriesPage {
 
     this.reloadRequests
       .pipe(
-        startWith(undefined),
-        switchMap(() => {
+        startWith(false),
+        switchMap((forceRefresh) => {
           if (!this.canView()) {
             this.loading.set(false);
             this.errorMessage.set('You do not have permission to view categories.');
@@ -196,6 +196,7 @@ export class CategoriesPage {
               pageSize: this.pageSize(),
               status: this.statusFilter(),
               search: this.search(),
+              forceRefresh: forceRefresh === true,
             })
             .pipe(
               catchError((error: unknown) => {
@@ -255,9 +256,9 @@ export class CategoriesPage {
     }
   }
 
-  reload(clampAfterLoad = false): void {
+  reload(clampAfterLoad = false, forceRefresh = false): void {
     this.clampAfterLoad = clampAfterLoad;
-    this.reloadRequests.next();
+    this.reloadRequests.next(forceRefresh);
   }
 
   onSearchInput(event: Event): void {

@@ -10,6 +10,8 @@ import { Router, RouterLink } from '@angular/router';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { AuthApi } from '../../../auth/data-access/auth.api';
 
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+
 @Component({
   selector: 'agrivio-user-profile-menu',
   standalone: true,
@@ -22,6 +24,7 @@ export class UserProfileMenuComponent {
   private readonly authApi = inject(AuthApi);
   private readonly router = inject(Router);
   private readonly elementRef = inject(ElementRef);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
 
   readonly isOpen = signal(false);
   readonly isSigningOut = signal(false);
@@ -48,9 +51,11 @@ export class UserProfileMenuComponent {
     return name.slice(0, 2).toUpperCase();
   });
 
-  readonly canViewDashboard = computed(() =>
-    this.sessionStore.hasPermission('dashboard.view'),
-  );
+  readonly canViewDashboard = computed(() => {
+    const hasPerm = this.sessionStore.hasPermission('dashboard.view');
+    const hasCap = this.capabilityService?.canUseModule('dashboard') ?? true;
+    return hasPerm && hasCap;
+  });
 
   readonly canViewSettings = computed(() => {
     const active = this.activeContext();

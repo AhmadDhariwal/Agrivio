@@ -104,7 +104,7 @@ export class CustomersPage {
     | { kind: 'status'; item: CustomerRecord; nextStatus: 'active' | 'inactive' }
     | null = null;
 
-  private readonly reloadRequests = new Subject<void>();
+  private readonly reloadRequests = new Subject<boolean>();
   private readonly searchChanges = new Subject<string>();
   private clampAfterLoad = false;
 
@@ -206,13 +206,13 @@ export class CustomersPage {
       .subscribe((val) => {
         this.search.set(val.trim());
         this.page.set(1);
-        this.reloadRequests.next();
+        this.reloadRequests.next(false);
       });
 
     this.reloadRequests
       .pipe(
-        startWith(undefined),
-        switchMap(() => {
+        startWith(false),
+        switchMap((forceRefresh) => {
           if (!this.canView()) {
             this.errorMessage.set('You do not have permission to view customers.');
             this.loading.set(false);
@@ -226,6 +226,7 @@ export class CustomersPage {
               pageSize: this.pageSize(),
               status: this.statusFilter(),
               search: this.search(),
+              forceRefresh: forceRefresh === true,
             })
             .pipe(
               catchError((error: unknown) => {
@@ -252,9 +253,9 @@ export class CustomersPage {
       });
   }
 
-  reload(clampAfterLoad = false): void {
+  reload(clampAfterLoad = false, forceRefresh = false): void {
     this.clampAfterLoad = clampAfterLoad;
-    this.reloadRequests.next();
+    this.reloadRequests.next(forceRefresh);
   }
 
   onSearchInput(event: Event): void {

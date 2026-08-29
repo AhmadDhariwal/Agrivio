@@ -4,6 +4,7 @@ import { of } from 'rxjs';
 import { AccountFormPage } from './account-form.page';
 import { AccountsApi } from '../../data-access/accounts.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 describe('AccountFormPage', () => {
   let mockApi: {
@@ -41,6 +42,16 @@ describe('AccountFormPage', () => {
         provideRouter([]),
         { provide: AccountsApi, useValue: mockApi },
         { provide: AuthSessionStore, useValue: { hasPermission: () => true } },
+        {
+          provide: CapabilityService,
+          useValue: {
+            canUseModule: () => true,
+            canPerformAction: () => true,
+            canViewField: () => true,
+            canEditField: () => true,
+            canUseView: () => true,
+          },
+        },
       ],
     }).compileComponents();
   });
@@ -70,5 +81,34 @@ describe('AccountFormPage', () => {
     component.form.controls.accountType.setValue('jazzcash');
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('[data-testid="account-wallet-identifier"]')).toBeTruthy();
+  });
+
+  it('disables save while required fields are missing', () => {
+    const fixture: ComponentFixture<AccountFormPage> = TestBed.createComponent(AccountFormPage);
+    fixture.detectChanges();
+    const saveButton = fixture.nativeElement.querySelector(
+      '[data-testid="account-save"]',
+    ) as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(true);
+  });
+
+  it('blocks invalid submit without calling createAccount', () => {
+    const fixture: ComponentFixture<AccountFormPage> = TestBed.createComponent(AccountFormPage);
+    fixture.detectChanges();
+    fixture.componentInstance.save();
+    fixture.detectChanges();
+    expect(mockApi.createAccount).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain('Name is required.');
+  });
+
+  it('requires bank name when account type is bank', () => {
+    const fixture: ComponentFixture<AccountFormPage> = TestBed.createComponent(AccountFormPage);
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    page.form.patchValue({ accountType: 'bank', name: 'Operations Account' });
+    page.save();
+    fixture.detectChanges();
+    expect(mockApi.createAccount).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain('Bank name is required.');
   });
 });

@@ -146,8 +146,12 @@ function createAccountsService(deps) {
         let all = await store.listAccounts(organizationId);
         if (options.status === 'active' || options.status === 'inactive') all = all.filter((item) => item.status === options.status);
         const search = String(options.search ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
-        if (search) all = all.filter((item) => String(item.nameNormalized).includes(search));
-        result.total = all.length; result.items = all.slice(options.skip ?? 0, (options.skip ?? 0) + (options.pageSize ?? 25));
+        if (search) all = all.filter((item) => String(item.nameNormalized ?? '').includes(search));
+        const hasPagination = options.skip !== undefined || options.pageSize !== undefined;
+        result.total = all.length;
+        result.items = hasPagination
+          ? all.slice(options.skip ?? 0, (options.skip ?? 0) + (options.pageSize ?? 25))
+          : all;
       }
       const items = result.items;
       const mapped = [];
@@ -997,7 +1001,18 @@ function createAccountsService(deps) {
     async listExpenses(organizationId, options = {}) {
       let result;
       if (typeof store.listExpensesPage === 'function') result = await store.listExpensesPage(organizationId, options, options);
-      else { let all = await store.listExpenses(organizationId); if (options.status) all = all.filter((item) => item.status === options.status); if (options.search) all = all.filter((item) => String(item.expenseDate) === String(options.search).trim()); result = { items: all.slice(options.skip ?? 0, (options.skip ?? 0) + (options.pageSize ?? 25)), total: all.length }; }
+      else {
+        let all = await store.listExpenses(organizationId);
+        if (options.status) all = all.filter((item) => item.status === options.status);
+        if (options.search) all = all.filter((item) => String(item.expenseDate) === String(options.search).trim());
+        const hasPagination = options.skip !== undefined || options.pageSize !== undefined;
+        result = {
+          items: hasPagination
+            ? all.slice(options.skip ?? 0, (options.skip ?? 0) + (options.pageSize ?? 25))
+            : all,
+          total: all.length,
+        };
+      }
       const dtos = result.items.map(toExpenseDto);
       const categoryIds = [...new Set(dtos.map((d) => d.categoryId))];
       const accountIds = [...new Set(dtos.map((d) => d.accountId))];

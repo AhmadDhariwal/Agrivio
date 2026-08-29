@@ -1,25 +1,57 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map, switchMap } from 'rxjs';
+import { Observable, map, switchMap, tap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
 import { CustomerRecord } from '../models/customers.models';
 import { ApiSuccessEnvelope, PaginationMeta } from '@agrivio/api-contracts';
 import { PaginatedResult, PaginationQuery } from '../../../shared/data-access/pagination';
+import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
+import { QUERY_CACHE_TAGS } from '../../../shared/data-access/query-cache.tags';
 
 @Injectable({ providedIn: 'root' })
 export class CustomersApi {
   private readonly http = inject(HttpClient);
   private readonly authApi = inject(AuthApi);
+  private readonly queryCache = inject(QueryCacheService);
 
-  listCustomers(query: PaginationQuery = {}): Observable<PaginatedResult<CustomerRecord>> {
+  private invalidateCustomerReads(): void {
+    this.queryCache.invalidateTags(
+      QUERY_CACHE_TAGS.customers,
+      QUERY_CACHE_TAGS.customerOptions,
+    );
+  }
+
+  private invalidateCustomerFinancialReads(): void {
+    this.queryCache.invalidateTags(
+      QUERY_CACHE_TAGS.customers,
+      QUERY_CACHE_TAGS.customerOptions,
+      QUERY_CACHE_TAGS.customerLedger,
+      QUERY_CACHE_TAGS.receivables,
+      QUERY_CACHE_TAGS.dashboard,
+      QUERY_CACHE_TAGS.reports,
+      QUERY_CACHE_TAGS.alerts,
+    );
+  }
+
+  listCustomers(
+    query: PaginationQuery & { forceRefresh?: boolean } = {},
+  ): Observable<PaginatedResult<CustomerRecord>> {
     const params = this.paginationParams(query);
-    return this.http
-      .get<ApiSuccessEnvelope<CustomerRecord[], PaginationMeta>>(
-        `${environment.publicApiBaseUrl}/api/v1/customers`,
-        { withCredentials: true, params },
-      )
-      .pipe(map((response) => ({ items: response.data, meta: response.meta! })));
+    const cacheKey = this.queryCache.buildKey('customers', params);
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'reference',
+      tags: [QUERY_CACHE_TAGS.customers, QUERY_CACHE_TAGS.customerOptions],
+      forceRefresh: query.forceRefresh === true,
+      loader: () =>
+        this.http
+          .get<ApiSuccessEnvelope<CustomerRecord[], PaginationMeta>>(
+            `${environment.publicApiBaseUrl}/api/v1/customers`,
+            { withCredentials: true, params },
+          )
+          .pipe(map((response) => ({ items: response.data, meta: response.meta! }))),
+    });
   }
 
   searchCustomerOptions(search = ''): Observable<CustomerRecord[]> {
@@ -39,11 +71,18 @@ export class CustomersApi {
   }
 
   getCustomer(id: string): Observable<CustomerRecord> {
-    return this.http
-      .get<{ data: CustomerRecord }>(`${environment.publicApiBaseUrl}/api/v1/customers/${id}`, {
-        withCredentials: true,
-      })
-      .pipe(map((response) => response.data));
+    const cacheKey = this.queryCache.buildKey('customer-detail', { id });
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'short',
+      tags: [QUERY_CACHE_TAGS.customers],
+      loader: () =>
+        this.http
+          .get<{ data: CustomerRecord }>(`${environment.publicApiBaseUrl}/api/v1/customers/${id}`, {
+            withCredentials: true,
+          })
+          .pipe(map((response) => response.data)),
+    });
   }
 
   createCustomer(payload: {
@@ -66,7 +105,10 @@ export class CustomersApi {
               headers: { 'X-CSRF-Token': csrfToken },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.invalidateCustomerReads()),
+          ),
       ),
     );
   }
@@ -93,7 +135,10 @@ export class CustomersApi {
               headers: { 'X-CSRF-Token': csrfToken },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.invalidateCustomerReads()),
+          ),
       ),
     );
   }
@@ -106,7 +151,10 @@ export class CustomersApi {
             `${environment.publicApiBaseUrl}/api/v1/customers/${id}`,
             { withCredentials: true, headers: { 'X-CSRF-Token': csrfToken } },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.invalidateCustomerReads()),
+          ),
       ),
     );
   }
@@ -131,7 +179,10 @@ export class CustomersApi {
               headers: { 'X-CSRF-Token': csrfToken },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.invalidateCustomerReads()),
+          ),
       ),
     );
   }
@@ -155,7 +206,10 @@ export class CustomersApi {
               },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.invalidateCustomerFinancialReads()),
+          ),
       ),
     );
   }

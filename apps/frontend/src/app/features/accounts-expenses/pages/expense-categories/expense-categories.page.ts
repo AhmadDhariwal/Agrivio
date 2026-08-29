@@ -124,7 +124,7 @@ export class ExpenseCategoriesPage {
     this.reload();
   }
 
-  reload(): void {
+  reload(forceRefresh = false): void {
     if (!this.canView()) {
       this.loading.set(false);
       this.errorMessage.set('You do not have permission to view expense categories.');
@@ -134,9 +134,10 @@ export class ExpenseCategoriesPage {
     this.errorMessage.set(null);
     this.closeMenu();
 
-    const params: { page: number; pageSize: number; status?: string; search?: string } = {
+    const params: { page: number; pageSize: number; status?: string; search?: string; forceRefresh?: boolean } = {
       page: this.page(),
       pageSize: this.pageSize(),
+      forceRefresh,
     };
     if (this.statusFilter() !== 'active') params.status = this.statusFilter();
     else params.status = 'active';

@@ -34,6 +34,24 @@ function createBridgedEmployeesStore(deps) {
       return { items: withUsers.slice(skip, skip + (pagination.pageSize ?? 25)), total };
     },
 
+    async summarizeMembershipStatus(organizationId) {
+      const all = await this.listMembershipsByOrganizationId(organizationId);
+      let active = 0;
+      let pendingInactive = 0;
+      for (const membership of all) {
+        if (String(membership.status) === 'active') {
+          active += 1;
+        } else {
+          pendingInactive += 1;
+        }
+      }
+      return {
+        total: all.length,
+        active,
+        pendingInactive,
+      };
+    },
+
     async countActiveUsers(organizationId) {
       const memberships = await this.listMembershipsByOrganizationId(organizationId);
       return memberships.filter(
@@ -46,6 +64,26 @@ function createBridgedEmployeesStore(deps) {
         return identity.findMembership(organizationId, userId);
       }
       return null;
+    },
+
+    async findMembershipsWithUsersByUserIds(organizationId, userIds) {
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        return [];
+      }
+      const idSet = new Set(userIds.map(String));
+      const all = await this.listMembershipsByOrganizationId(organizationId);
+      const results = [];
+      for (const membership of all) {
+        const userId = String(membership.userId);
+        if (!idSet.has(userId)) {
+          continue;
+        }
+        const user = await this.findUserById(userId);
+        if (user) {
+          results.push({ ...membership, user });
+        }
+      }
+      return results;
     },
 
     async findMembershipById(organizationId, membershipId) {

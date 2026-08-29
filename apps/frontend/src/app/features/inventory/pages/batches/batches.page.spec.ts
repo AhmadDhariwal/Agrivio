@@ -23,6 +23,13 @@ describe('BatchesPage', () => {
       manufacturingDate: '2027-09-21',
       expiryDate: '2027-09-21',
       firstReceivedAt: '2026-08-17T11:34:00.000Z',
+      stockLocations: [
+        {
+          warehouseId: 'wh-1',
+          quantityBase: '1250.0000',
+          unsellableQuantityBase: '0.0000',
+        },
+      ],
     },
     {
       id: 'batch-2',
@@ -119,9 +126,15 @@ describe('BatchesPage', () => {
   };
 
   let lastListBatchesQuery: Record<string, unknown> | null = null;
+  let listBatchesCalls = 0;
+  let listWarehouseOptionsCalls = 0;
+  let searchProductOptionsCalls = 0;
 
   beforeEach(async () => {
     lastListBatchesQuery = null;
+    listBatchesCalls = 0;
+    listWarehouseOptionsCalls = 0;
+    searchProductOptionsCalls = 0;
     capabilityState = signal({});
     const capabilityValue = (key: string, mode: string) => capabilityState()[key]?.[mode] ?? true;
 
@@ -133,6 +146,7 @@ describe('BatchesPage', () => {
           provide: InventoryApi,
           useValue: {
             listBatches: (query: Record<string, unknown>) => {
+              listBatchesCalls += 1;
               lastListBatchesQuery = query;
               return of({
                 items: mockBatches,
@@ -143,21 +157,25 @@ describe('BatchesPage', () => {
                 },
               });
             },
-            listBalances: () =>
-              of({ items: mockBalances, meta: { page: 1, pageSize: 100, total: 2 } }),
             listExpiry: () => of(mockExpiry),
           },
         },
         {
           provide: CatalogApi,
           useValue: {
-            searchProductOptions: () => of(mockProducts),
+            searchProductOptions: () => {
+              searchProductOptionsCalls += 1;
+              return of(mockProducts);
+            },
           },
         },
         {
           provide: BranchesWarehousesApi,
           useValue: {
-            listWarehouseOptions: () => of(mockWarehouses),
+            listWarehouseOptions: () => {
+              listWarehouseOptionsCalls += 1;
+              return of(mockWarehouses);
+            },
           },
         },
         {
@@ -182,6 +200,17 @@ describe('BatchesPage', () => {
     fixture = TestBed.createComponent(BatchesPage);
     component = fixture.componentInstance;
     fixture.detectChanges();
+  });
+
+  it('loads reference data once on init and does not repeat warehouse/product calls on pagination', () => {
+    expect(listWarehouseOptionsCalls).toBe(1);
+    expect(searchProductOptionsCalls).toBe(1);
+    expect(listBatchesCalls).toBe(1);
+
+    component.onPageChange(2);
+    expect(listBatchesCalls).toBe(2);
+    expect(listWarehouseOptionsCalls).toBe(1);
+    expect(searchProductOptionsCalls).toBe(1);
   });
 
   it('should create and load batches with relation maps', () => {

@@ -91,6 +91,22 @@ describe('CategoryFormPage', () => {
     });
   });
 
+  it('disables save while required fields are missing', () => {
+    component.form.controls.name.setValue('');
+    fixture.detectChanges();
+    const saveButton = fixture.nativeElement.querySelector(
+      '[data-testid="category-save"]',
+    ) as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(true);
+  });
+
+  it('blocks invalid submit without calling createCategory', () => {
+    createCategorySpy.mockClear();
+    component.save();
+    expect(createCategorySpy).not.toHaveBeenCalled();
+    expect(component.formSubmitAttempted()).toBe(true);
+  });
+
   it('renders configured Category fields read-only on edit and hides derived tracking UI', () => {
     component.categoryId.set('cat-1');
     capabilityState.set({

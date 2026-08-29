@@ -92,6 +92,27 @@ function createEmployeesService(deps) {
 
   return {
     async listEmployees(organizationId, options = {}) {
+      let summary;
+      if (typeof store.summarizeMembershipStatus === 'function') {
+        summary = await store.summarizeMembershipStatus(organizationId);
+      } else {
+        const all = await store.listMembershipsByOrganizationId(organizationId);
+        let active = 0;
+        let pendingInactive = 0;
+        for (const membership of all) {
+          if (String(membership.status) === 'active') {
+            active += 1;
+          } else {
+            pendingInactive += 1;
+          }
+        }
+        summary = {
+          total: all.length,
+          active,
+          pendingInactive,
+        };
+      }
+
       let result;
       if (typeof store.listMembershipsPage === 'function') {
         result = await store.listMembershipsPage(organizationId, options, options);
@@ -111,7 +132,7 @@ function createEmployeesService(deps) {
         );
         items.push(toEmployeeDto(membership, user, assignments));
       }
-      return { items, total: result.total };
+      return { items, total: result.total, summary };
     },
 
     async getEmployee(organizationId, userId) {
@@ -122,8 +143,37 @@ function createEmployeesService(deps) {
       return toEmployeeDto(loaded.membership, loaded.user, loaded.assignments);
     },
 
+    async findEmployeeDisplayNamesByUserIds(organizationId, userIds) {
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        return new Map();
+      }
+      const uniqueIds = [
+        ...new Set(
+          userIds
+            .filter((id) => id !== null && id !== undefined && String(id).trim() !== '')
+            .map(String),
+        ),
+      ];
+      if (uniqueIds.length === 0 || typeof store.findMembershipsWithUsersByUserIds !== 'function') {
+        return new Map();
+      }
+      const rows = await store.findMembershipsWithUsersByUserIds(organizationId, uniqueIds);
+      const nameMap = new Map();
+      for (const row of rows) {
+        const userId = String(row.userId ?? row.user?.['_id'] ?? '');
+        if (userId === '') {
+          continue;
+        }
+        nameMap.set(userId, String(row.user?.displayName ?? '—'));
+      }
+      return nameMap;
+    },
+
     async createEmployee(organizationId, body, actor) {
       const input = parseEmployeeCreate(body);
+      if (typeof deps.capabilityService?.assertEmployeeCreateAllowed === 'function') {
+        await deps.capabilityService.assertEmployeeCreateAllowed(organizationId);
+      }
       const emailNormalized = normalizeEmail(input.email);
       const currentUsage = await store.countActiveUsers(organizationId);
       const entitlement = await assertCreationLimit(
@@ -232,6 +282,17 @@ function createEmployeesService(deps) {
         const { membership, user } = loaded;
         assertOptimisticVersion(membership, expectedVersion);
 
+        if (typeof deps.capabilityService?.assertEmployeePatchAllowed === 'function') {
+          await deps.capabilityService.assertEmployeePatchAllowed(
+            organizationId,
+            {
+              displayName: user['displayName'],
+              role: membership['role'],
+            },
+            patch,
+          );
+        }
+
         if (patch.role !== undefined && patch.role !== membership['role']) {
           const allMemberships = await store.listMembershipsByOrganizationId(organizationId);
           assertOwnerPresenceAfterMembershipChange(allMemberships, String(membership['_id']), {
@@ -283,6 +344,9 @@ function createEmployeesService(deps) {
     },
 
     async deactivateEmployee(organizationId, userId, actor) {
+      if (typeof deps.capabilityService?.assertEmployeeDeactivateAllowed === 'function') {
+        await deps.capabilityService.assertEmployeeDeactivateAllowed(organizationId);
+      }
       return transactionRunner.run(async (session) => {
         const loaded = await loadEmployee(organizationId, userId);
         if (loaded === null) {
@@ -352,6 +416,9 @@ function createEmployeesModule(options) {
     ...(options.evaluateEntitlement === undefined
       ? {}
       : { evaluateEntitlement: options.evaluateEntitlement }),
+    ...(options.capabilityService === undefined
+      ? {}
+      : { capabilityService: options.capabilityService }),
     ...(options.now === undefined ? {} : { now: options.now }),
     ...(options.activationTtlMs === undefined ? {} : { activationTtlMs: options.activationTtlMs }),
   });

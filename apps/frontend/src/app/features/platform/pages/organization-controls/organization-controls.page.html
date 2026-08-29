@@ -129,6 +129,15 @@
       <button
         type="button"
         class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'warehouses'"
+        (click)="selectModule('warehouses')"
+        data-testid="warehouses-control-module"
+      >
+        Warehouses
+      </button>
+      <button
+        type="button"
+        class="module-nav__item"
         [class.module-nav__item--active]="selectedModule() === 'customers'"
         (click)="selectModule('customers')"
         data-testid="customers-control-module"
@@ -179,6 +188,15 @@
         data-testid="accounts-control-module"
       >
         Accounts
+      </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'employees'"
+        (click)="selectModule('employees')"
+        data-testid="employees-control-module"
+      >
+        Employees &amp; Access
       </button>
       <button
         type="button"
@@ -243,6 +261,15 @@
       >
         Customer Payments
       </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'dashboard'"
+        (click)="selectModule('dashboard')"
+        data-testid="dashboard-control-module"
+      >
+        Dashboard
+      </button>
       <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>
 
@@ -298,12 +325,14 @@
               selectedModule() === 'inventory.expiry' ||
               selectedModule() === 'inventory.reconciliation' ||
               selectedModule() === 'inventory.movements' ||
+              selectedModule() === 'warehouses' ||
               selectedModule() === 'customers' ||
               selectedModule() === 'suppliers' ||
               selectedModule() === 'returns' ||
               selectedModule() === 'expenses' ||
               selectedModule() === 'expenses.categories' ||
-              selectedModule() === 'accounts'
+              selectedModule() === 'accounts' ||
+              selectedModule() === 'employees'
                 ? 'Required Fields'
                 : 'Required Workflow Fields',
             controls: requiredWorkflowControls()

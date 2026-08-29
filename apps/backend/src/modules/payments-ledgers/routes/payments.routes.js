@@ -191,6 +191,18 @@ function registerPaymentsRoutes(deps) {
     },
   );
 
+  router.get(
+    `${API_CUSTOMERS_PATH}/:id/unpaid-sales`,
+    deps.requireAuth,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('customer-payments.view'),
+    deps.requireOperationalAccess,
+    requireCustomerPaymentsModule,
+    (req, res, next) => {
+      void controller.listUnpaidSalesForCustomer(req, res, next);
+    },
+  );
+
   router.post(
     `${API_PAYMENTS_PATH}/:id/correct`,
     deps.requireAuth,

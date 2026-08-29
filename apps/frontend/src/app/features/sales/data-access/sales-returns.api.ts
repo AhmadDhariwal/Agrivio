@@ -1,8 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map, switchMap } from 'rxjs';
+import { Observable, map, switchMap, tap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
+import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
+import { invalidateReturnMutationEffects } from '../../returns/data-access/returns-cache.invalidation';
 
 export interface SalesReturnPostInput {
   reason: string;
@@ -22,6 +24,8 @@ export interface SalesReturnRecord {
   status: string;
   returnType: string;
   saleId: string | null;
+  resolution?: string;
+  purchaseId?: string | null;
 }
 
 export interface SalesReturnCreateInput {
@@ -38,6 +42,7 @@ export interface SalesReturnCreateInput {
 export class SalesReturnsApi {
   private readonly http = inject(HttpClient);
   private readonly authApi = inject(AuthApi);
+  private readonly queryCache = inject(QueryCacheService);
 
   createLinkedReturn(saleId: string, payload: SalesReturnCreateInput): Observable<SalesReturnRecord> {
     return this.authApi.ensureCsrf().pipe(
@@ -75,7 +80,17 @@ export class SalesReturnsApi {
               },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap((record) =>
+              invalidateReturnMutationEffects(this.queryCache, {
+                returnType: record.returnType ?? 'sales',
+                resolution: record.resolution ?? payload.resolution,
+                saleId: record.saleId,
+                purchaseId: record.purchaseId ?? null,
+              }),
+            ),
+          ),
       ),
     );
   }

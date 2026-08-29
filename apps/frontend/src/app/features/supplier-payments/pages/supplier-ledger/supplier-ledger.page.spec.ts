@@ -10,6 +10,7 @@ import {
   SupplierReconciliationRecord,
 } from '../../models/supplier-payments.models';
 import { SupplierRecord } from '../../../suppliers/models/suppliers.models';
+import { vi } from 'vitest';
 
 const MOCK_SUPPLIERS: SupplierRecord[] = [
   {
@@ -148,7 +149,8 @@ describe('SupplierLedgerPage', () => {
     expect(compiled.querySelector('[data-testid="ledger-supplier-select"]')).toBeTruthy();
   });
 
-  it('uses the ledger-owned server-backed supplier search', () => {
+  it('uses the ledger-owned server-backed supplier search', async () => {
+    vi.useFakeTimers();
     const fixture = TestBed.createComponent(SupplierLedgerPage);
     fixture.detectChanges();
     expect(supplierSearches).toEqual(['']);
@@ -156,8 +158,11 @@ describe('SupplierLedgerPage', () => {
     const input = fixture.nativeElement.querySelector('#searchSupplierInput') as HTMLInputElement;
     input.value = 'Engro';
     input.dispatchEvent(new Event('input'));
+    await vi.advanceTimersByTimeAsync(300);
+    fixture.detectChanges();
 
-    expect(supplierSearches.at(-1)).toBe('Engro');
+    expect(supplierSearches).toContain('Engro');
+    vi.useRealTimers();
   });
 
   it('renders initial prompt when no supplier is selected', () => {

@@ -14,6 +14,9 @@ describe('StockInquiryPage', () => {
   let fixture: ComponentFixture<StockInquiryPage>;
   let capabilityState: ReturnType<typeof signal<Record<string, Record<string, boolean>>>>;
   let batchListFails: boolean;
+  let listBalancesCalls: number;
+  let listWarehouseOptionsCalls: number;
+  let searchProductOptionsCalls: number;
 
   const mockBalances = [
     {
@@ -22,6 +25,7 @@ describe('StockInquiryPage', () => {
       warehouseId: 'wh-1',
       productId: 'prod-1',
       batchId: 'batch-1',
+      batchNumberSnapshot: 'BT-240819-03',
       quantityBase: '65.0000',
       unsellableQuantityBase: '0.0000',
       version: 1,
@@ -106,6 +110,9 @@ describe('StockInquiryPage', () => {
   beforeEach(async () => {
     capabilityState = signal({});
     batchListFails = false;
+    listBalancesCalls = 0;
+    listWarehouseOptionsCalls = 0;
+    searchProductOptionsCalls = 0;
     const capabilityValue = (key: string, mode: string) => capabilityState()[key]?.[mode] ?? true;
     await TestBed.configureTestingModule({
       imports: [StockInquiryPage],
@@ -114,11 +121,13 @@ describe('StockInquiryPage', () => {
         {
           provide: InventoryApi,
           useValue: {
-            listBalances: () =>
-              of({
+            listBalances: () => {
+              listBalancesCalls += 1;
+              return of({
                 items: mockBalances,
                 meta: { page: 1, pageSize: 25, total: 2 },
-              }),
+              });
+            },
             listBatches: () =>
               batchListFails
                 ? throwError(() => new Error('Product Batches unavailable'))
@@ -149,13 +158,19 @@ describe('StockInquiryPage', () => {
         {
           provide: CatalogApi,
           useValue: {
-            searchProductOptions: () => of(mockProducts),
+            searchProductOptions: () => {
+              searchProductOptionsCalls += 1;
+              return of(mockProducts);
+            },
           },
         },
         {
           provide: BranchesWarehousesApi,
           useValue: {
-            listWarehouseOptions: () => of(mockWarehouses),
+            listWarehouseOptions: () => {
+              listWarehouseOptionsCalls += 1;
+              return of(mockWarehouses);
+            },
           },
         },
         {
@@ -180,6 +195,24 @@ describe('StockInquiryPage', () => {
     fixture = TestBed.createComponent(StockInquiryPage);
     component = fixture.componentInstance;
     fixture.detectChanges();
+  });
+
+  it('loads reference data once on init and does not repeat warehouse/product calls on pagination', () => {
+    expect(listWarehouseOptionsCalls).toBe(1);
+    expect(searchProductOptionsCalls).toBe(1);
+    expect(listBalancesCalls).toBe(1);
+
+    component.onPageChange(2);
+    expect(listBalancesCalls).toBe(2);
+    expect(listWarehouseOptionsCalls).toBe(1);
+    expect(searchProductOptionsCalls).toBe(1);
+  });
+
+  it('issues one balance request when warehouse filter and page reset change together', () => {
+    listBalancesCalls = 0;
+    component.onWarehouseChange({ target: { value: 'wh-1' } } as unknown as Event);
+    expect(listBalancesCalls).toBe(1);
+    expect(component.page()).toBe(1);
   });
 
   it('renders stock on hand title, KPIs and table rows with resolved names and formatted numbers', () => {
@@ -373,14 +406,21 @@ describe('StockInquiryPage', () => {
     ).toBeNull();
   });
 
-  it('keeps Stock on Hand available when Batch label enrichment is denied', () => {
-    batchListFails = true;
-    component.reload();
-    fixture.detectChanges();
+  it('renders em dash instead of raw batch ID when batchNumberSnapshot is absent', () => {
+    const { batchNumberSnapshot: _ignored, ...balanceWithoutSnapshot } = mockBalances[0]!;
+    expect(component.batchNumber(balanceWithoutSnapshot as typeof mockBalances[number])).toBe('—');
+  });
 
-    expect(component.errorMessage()).toBeNull();
-    expect(component.balances()).toHaveLength(2);
-    expect(component.batchList()).toEqual([]);
+  it('keeps Stock on Hand available without product-scoped batch preload on init', async () => {
+    batchListFails = true;
+    const deniedFixture = TestBed.createComponent(StockInquiryPage);
+    deniedFixture.detectChanges();
+    const deniedComponent = deniedFixture.componentInstance;
+
+    expect(deniedComponent.errorMessage()).toBeNull();
+    expect(deniedComponent.balances()).toHaveLength(2);
+    expect(deniedComponent.batchList()).toEqual([]);
+    expect(deniedFixture.nativeElement.textContent).toContain('BT-240819-03');
   });
 
   it('shows a feature-unavailable state if the organization disables Stock on Hand', () => {

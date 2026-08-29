@@ -49,6 +49,16 @@ export interface SaleAllocationInput {
   amount: MoneyAmount;
 }
 
+export interface UnpaidSaleRecord {
+  id: string;
+  invoiceNumber: string | null;
+  invoiceDate: string;
+  dueDate: string | null;
+  sequence: string | null;
+  outstanding: MoneyAmount;
+  outstandingMinorUnits: string;
+}
+
 export interface CustomerPaymentCreateInput {
   customerId: string;
   accountId: string;

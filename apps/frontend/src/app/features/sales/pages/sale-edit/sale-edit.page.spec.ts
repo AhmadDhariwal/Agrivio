@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { describe, expect, it, vi } from 'vitest';
 import { provideRouter, ActivatedRoute } from '@angular/router';
 import { of } from 'rxjs';
 import { convertToParamMap } from '@angular/router';
@@ -142,6 +143,8 @@ describe('SaleEditPage', () => {
     expect(compiled.querySelector('[data-testid="sale-info-card"]')).toBeTruthy();
     expect(compiled.querySelector('[data-testid="sale-branch"]')).toBeTruthy();
     expect(compiled.querySelector('[data-testid="sale-warehouse"]')).toBeTruthy();
+    expect(compiled.querySelector('[data-testid="sale-customer-type"]')).toBeTruthy();
+    expect(compiled.querySelector('[data-testid="sale-customer-picker"]')).toBeTruthy();
     expect(compiled.querySelector('[data-testid="sale-customer"]')).toBeTruthy();
     expect(compiled.querySelector('[data-testid="sale-date"]')).toBeTruthy();
 
@@ -158,6 +161,8 @@ describe('SaleEditPage', () => {
 
     // Footer actions
     expect(compiled.querySelector('[data-testid="sale-save"]')).toBeTruthy();
+    expect(compiled.querySelector('[data-testid="sale-post"]')).toBeTruthy();
+    expect(compiled.querySelector('[data-testid="sale-post"]')?.textContent).toContain('Register Sale');
     expect(compiled.querySelector('[data-testid="sale-print-link"]')).toBeFalsy();
   });
 
@@ -491,12 +496,168 @@ describe('SaleEditPage', () => {
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
 
-    expect(compiled.querySelector('[data-testid="sale-customer"]')).toBeNull();
+    expect(compiled.querySelector('[data-testid="sale-customer-type"]')).toBeNull();
+    expect(compiled.querySelector('[data-testid="sale-customer-picker"]')).toBeNull();
     expect(compiled.querySelector('[data-testid="sale-customer-search"]')).toBeNull();
     expect(compiled.querySelector('[data-testid="sale-notes"]')).toBeNull();
     expect(compiled.querySelector('[data-testid="sale-line-packaging"]')).toBeNull();
     expect(compiled.querySelector('[data-testid="sale-add-payment"]')).toBeNull();
     expect(compiled.querySelector('[data-testid="sale-fill-cash"]')).toBeNull();
     expect(compiled.querySelector('[data-testid="sale-fill-credit"]')).toBeNull();
+  });
+
+  it('loads customers when the picker opens without requiring branch or warehouse first', async () => {
+    const searchCustomerOptions = vi.fn().mockReturnValue(
+      of([
+        {
+          id: 'cust-1',
+          organizationId: 'org-1',
+          name: 'Kisan Ali',
+          phone: '03001234567',
+          customerType: 'farmer',
+          priceTier: 'retail',
+          creditEnabled: false,
+          creditLimit: { amount: '0', currency: 'PKR' },
+          creditLimitBehaviour: 'warning',
+          status: 'active',
+          version: 1,
+        },
+      ]),
+    );
+
+    await TestBed.configureTestingModule({
+      imports: [SaleEditPage],
+      providers: [
+        provideRouter([]),
+        {
+          provide: SalesApi,
+          useValue: {
+            getSale: () => of(null),
+            listPosPaymentAccounts: () => of([]),
+          },
+        },
+        {
+          provide: CatalogApi,
+          useValue: {
+            searchProductOptions: () => of([]),
+            listPackagingUnits: () => of([]),
+            listPrices: () => of([]),
+          },
+        },
+        {
+          provide: BranchesWarehousesApi,
+          useValue: {
+            listBranchOptions: () => of([]),
+            listWarehouseOptions: () => of([]),
+          },
+        },
+        {
+          provide: CustomersApi,
+          useValue: {
+            searchCustomerOptions,
+            listCustomers: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            getCustomer: () => of(null),
+          },
+        },
+        {
+          provide: AccountsApi,
+          useValue: { listAccountOptions: () => of([]) },
+        },
+        { provide: SalesReturnsApi, useValue: {} },
+        {
+          provide: ReturnsApi,
+          useValue: { listReturns: () => of({ items: [], meta: { page: 1, pageSize: 100, total: 0 } }) },
+        },
+        {
+          provide: AuthSessionStore,
+          useValue: sessionStoreMock(['sales.create', 'sales.view']),
+        },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(SaleEditPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const page = fixture.componentInstance;
+    page.form.controls.customerTypeMode.setValue('farmer');
+    page.toggleCustomerDropdown();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(searchCustomerOptions).toHaveBeenCalledWith('');
+    expect(searchCustomerOptions).toHaveBeenCalledTimes(1);
+    expect(page.filteredCustomers().some((customer) => customer.name === 'Kisan Ali')).toBe(true);
+  });
+
+  it('does not preload customers on init', async () => {
+    const searchProductOptions = vi.fn().mockReturnValue(
+      of([{ id: 'p1', name: 'Wheat Seed 50kg', sku: 'WS-50', status: 'active' }]),
+    );
+    const listCustomers = vi.fn().mockReturnValue(of({ items: [], meta: { page: 1, pageSize: 500, total: 0 } }));
+    const searchCustomerOptions = vi.fn().mockReturnValue(of([]));
+
+    await TestBed.configureTestingModule({
+      imports: [SaleEditPage],
+      providers: [
+        provideRouter([]),
+        {
+          provide: SalesApi,
+          useValue: {
+            getSale: () => of(null),
+            listPosPaymentAccounts: () => of([]),
+          },
+        },
+        {
+          provide: CatalogApi,
+          useValue: {
+            searchProductOptions,
+            listPackagingUnits: () => of([]),
+            listPrices: () => of([]),
+          },
+        },
+        {
+          provide: BranchesWarehousesApi,
+          useValue: {
+            listBranchOptions: () => of([]),
+            listWarehouseOptions: () => of([]),
+          },
+        },
+        {
+          provide: CustomersApi,
+          useValue: {
+            searchCustomerOptions,
+            listCustomers,
+            getCustomer: () => of(null),
+          },
+        },
+        {
+          provide: AccountsApi,
+          useValue: { listAccountOptions: () => of([]) },
+        },
+        {
+          provide: SalesReturnsApi,
+          useValue: {},
+        },
+        {
+          provide: ReturnsApi,
+          useValue: { listReturns: () => of({ items: [], meta: { page: 1, pageSize: 100, total: 0 } }) },
+        },
+        {
+          provide: AuthSessionStore,
+          useValue: sessionStoreMock(['sales.create', 'sales.view']),
+        },
+      ],
+    }).compileComponents();
+
+    const fixture: ComponentFixture<SaleEditPage> = TestBed.createComponent(SaleEditPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    expect(searchProductOptions).toHaveBeenCalledWith('', 25, 'active');
+    expect(listCustomers).not.toHaveBeenCalled();
+    expect(searchCustomerOptions).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.products().length).toBe(1);
   });
 });

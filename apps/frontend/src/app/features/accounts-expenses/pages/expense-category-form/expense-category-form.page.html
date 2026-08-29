@@ -69,7 +69,7 @@
 
       <div class="form-card__body">
         <div class="form-grid form-grid--2col">
-          <!-- Name Field -->
+          @if (showName()) {
           <div class="ag-field">
             <agrivio-ui-field-label
               label="Name"
@@ -79,17 +79,23 @@
             <input
               id="expense-category-name"
               class="ag-input"
+              [class.ag-input--invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted())"
               formControlName="name"
               placeholder="Enter expense category name"
               data-testid="expense-category-name"
               [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted()) ? 'true' : null"
               [readonly]="isEdit() && !canEditName()"
             />
+            @if (fieldError(form.controls.name, 'Name', formSubmitAttempted()); as nameError) {
+            <p class="field-error" role="alert">{{ nameError }}</p>
+            }
             <p class="field-hint">Use a clear, concise name that reflects the type of operating expense.</p>
           </div>
+          }
 
           <!-- Status Select (if Edit) -->
-          @if (isEdit()) {
+          @if (isEdit() && showStatus()) {
           <div class="ag-field">
             <agrivio-ui-field-label
               label="Status"
@@ -127,7 +133,7 @@
         <button
           class="ag-btn ag-btn--primary"
           type="submit"
-          [disabled]="saving()"
+          [disabled]="!canSave()"
           data-testid="expense-category-save"
         >
           {{ saving() ? 'Saving…' : (isEdit() ? 'Save changes' : 'Save category') }}

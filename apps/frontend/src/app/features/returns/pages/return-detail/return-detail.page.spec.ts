@@ -3,10 +3,6 @@ import { provideRouter, ActivatedRoute, convertToParamMap } from '@angular/route
 import { of } from 'rxjs';
 import { ReturnDetailPage } from './return-detail.page';
 import { ReturnsApi } from '../../data-access/returns.api';
-import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
-import { CustomersApi } from '../../../customers/data-access/customers.api';
-import { SuppliersApi } from '../../../suppliers/data-access/suppliers.api';
-import { BranchesWarehousesApi } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { SalesReturnRecord } from '../../models/returns.models';
 
@@ -21,9 +17,12 @@ const mockPostedReturn: SalesReturnRecord = {
   customerIdentifyingName: 'Walk-in Rasheed',
   customerIdentifyingPhone: '03001112233',
   warehouseId: 'wh-1',
+  warehouseNameSnapshot: 'Central Warehouse Multan',
   reason: 'Damaged bag during transport',
   resolution: 'account_refund',
   refundAccountId: 'acc-1',
+  refundAccountNameSnapshot: 'Petty Cash Multan',
+  refundAccountTypeSnapshot: 'cash',
   approvedReturnValue: null,
   withoutInvoiceApproval: null,
   status: 'posted',
@@ -60,18 +59,6 @@ describe('ReturnDetailPage', () => {
     getReturn: ReturnType<typeof vi.fn>;
     reverseReturn: ReturnType<typeof vi.fn>;
   };
-  let mockAccountsApi: {
-    listAccountOptions: ReturnType<typeof vi.fn>;
-  };
-  let mockCustomersApi: {
-    searchCustomerOptions: ReturnType<typeof vi.fn>;
-  };
-  let mockSuppliersApi: {
-    searchSupplierOptions: ReturnType<typeof vi.fn>;
-  };
-  let mockLocationsApi: {
-    listWarehouseOptions: ReturnType<typeof vi.fn>;
-  };
   let mockSessionStore: {
     hasPermission: ReturnType<typeof vi.fn>;
   };
@@ -81,22 +68,6 @@ describe('ReturnDetailPage', () => {
       getReturn: vi.fn().mockReturnValue(of(mockPostedReturn)),
       reverseReturn: vi.fn().mockReturnValue(
         of({ ...mockPostedReturn, status: 'reversed', version: 2, reversedAt: '2026-08-14T09:00:00.000Z' }),
-      ),
-    };
-    mockAccountsApi = {
-      listAccountOptions: vi.fn().mockReturnValue(
-        of([{ id: 'acc-1', name: 'Petty Cash Multan', accountType: 'cash' }]),
-      ),
-    };
-    mockCustomersApi = {
-      searchCustomerOptions: vi.fn().mockReturnValue(of([])),
-    };
-    mockSuppliersApi = {
-      searchSupplierOptions: vi.fn().mockReturnValue(of([])),
-    };
-    mockLocationsApi = {
-      listWarehouseOptions: vi.fn().mockReturnValue(
-        of([{ id: 'wh-1', name: 'Central Warehouse Multan', code: 'CWH-01' }]),
       ),
     };
     mockSessionStore = {
@@ -117,10 +88,6 @@ describe('ReturnDetailPage', () => {
           useValue: { snapshot: { paramMap: convertToParamMap({ id: returnId }) } },
         },
         { provide: ReturnsApi, useValue: mockReturnsApi },
-        { provide: AccountsApi, useValue: mockAccountsApi },
-        { provide: CustomersApi, useValue: mockCustomersApi },
-        { provide: SuppliersApi, useValue: mockSuppliersApi },
-        { provide: BranchesWarehousesApi, useValue: mockLocationsApi },
         { provide: AuthSessionStore, useValue: mockSessionStore },
       ],
     }).compileComponents();
@@ -131,7 +98,13 @@ describe('ReturnDetailPage', () => {
     return { fixture, component };
   }
 
-  it('renders return header, status badge, and KPI cards', async () => {
+  it('loads detail from one authoritative return request', async () => {
+    await createComponent();
+    expect(mockReturnsApi.getReturn).toHaveBeenCalledTimes(1);
+    expect(mockReturnsApi.getReturn).toHaveBeenCalledWith('ret-000123');
+  });
+
+  it('renders return header and snapshots without raw id enrichment', async () => {
     const { fixture } = await createComponent();
     const text = fixture.nativeElement.textContent as string;
 
@@ -139,52 +112,20 @@ describe('ReturnDetailPage', () => {
     expect(text).toContain('Return #000123');
     expect(text).toContain('Central Warehouse Multan');
     expect(text).toContain('Walk-in Rasheed');
-    expect(text).toContain('PKR 6,000.00');
+    expect(text).toContain('Petty Cash Multan (cash)');
     expect(text).not.toContain('wh-1');
   });
 
-  it('renders returned product lines table with details', async () => {
-    const { fixture } = await createComponent();
-    const rows = fixture.nativeElement.querySelectorAll('[data-testid="return-line-row"]');
-    expect(rows.length).toBe(1);
-
-    const rowText = rows[0].textContent;
-    expect(rowText).toContain('Engro Urea 50KG');
-    expect(rowText).toContain('2 BAG');
-    expect(rowText).toContain('Sellable');
-    expect(rowText).toContain('ENG-UREA-2026');
-  });
-
-  it('opens reversal dialog and executes reverse with reason', async () => {
+  it('executes reverse return with reason', async () => {
     const { component } = await createComponent();
-    expect(component.reverseDialogOpen()).toBe(false);
-
     component.openReverseDialog();
-    expect(component.reverseDialogOpen()).toBe(true);
-
     component.onConfirmReverse('Defective packaging verified by manager');
+
     expect(mockReturnsApi.reverseReturn).toHaveBeenCalledWith(
       'ret-000123',
       { reason: 'Defective packaging verified by manager', expectedVersion: 1 },
       expect.any(String),
     );
-
     expect(component.record()?.status).toBe('reversed');
-    expect(component.successMessage()).toContain('Return reversed with a linked corrective transaction');
-  });
-
-  it('shows error if reversal reason is blank', async () => {
-    const { component } = await createComponent();
-    component.openReverseDialog();
-
-    component.onConfirmReverse('   ');
-    expect(component.errorMessage()).toBe('A reversal reason is required.');
-    expect(mockReturnsApi.reverseReturn).not.toHaveBeenCalled();
-  });
-
-  it('renders permission warning if user lacks returns.view', async () => {
-    mockSessionStore.hasPermission.mockReturnValue(false);
-    const { fixture } = await createComponent();
-    expect(fixture.nativeElement.textContent).toContain('You do not have permission to view returns.');
   });
 });

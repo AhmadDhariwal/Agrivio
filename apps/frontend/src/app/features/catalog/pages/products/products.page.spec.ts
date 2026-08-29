@@ -4,7 +4,6 @@ import { of } from 'rxjs';
 import { signal } from '@angular/core';
 import { ProductsPage } from './products.page';
 import { CatalogApi } from '../../data-access/catalog.api';
-import { InventoryApi } from '../../../inventory/data-access/inventory.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
@@ -12,9 +11,13 @@ describe('ProductsPage', () => {
   let component: ProductsPage;
   let fixture: ComponentFixture<ProductsPage>;
   let capabilityState: ReturnType<typeof signal<Record<string, Record<string, boolean>>>>;
+  let searchCategoryOptions: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     capabilityState = signal({});
+    searchCategoryOptions = vi.fn(() =>
+      of([{ id: 'cat-1', name: 'Fertilizers', productClass: 'fertilizer' }]),
+    );
     const capabilityValue = (key: string, mode: string) => capabilityState()[key]?.[mode] ?? true;
     await TestBed.configureTestingModule({
       imports: [ProductsPage],
@@ -36,34 +39,17 @@ describe('ProductsPage', () => {
                     trackingMode: 'batch_expiry',
                     status: 'active',
                     version: 1,
+                    listSummary: {
+                      sellingPrice: { amount: '5800.00', currency: 'PKR' },
+                      availableQuantityBase: '160.0000',
+                    },
                   },
                 ],
                 meta: { page: 1, pageSize: 25, total: 1 },
               }),
-            searchCategoryOptions: () =>
-              of([{ id: 'cat-1', name: 'Fertilizers', productClass: 'fertilizer' }]),
+            searchCategoryOptions,
             listPackagingUnits: () => of([]),
-            listPrices: () =>
-              of([
-                {
-                  id: 'pr-1',
-                  productId: 'prod-1',
-                  priceTier: 'retail',
-                  price: { amount: '5800.00', currency: 'PKR' },
-                  status: 'active',
-                  version: 1,
-                },
-              ]),
-          },
-        },
-        {
-          provide: InventoryApi,
-          useValue: {
-            listBalances: () =>
-              of({
-                items: [{ productId: 'prod-1', quantityBase: '160' }],
-                meta: { page: 1, pageSize: 25, total: 1 },
-              }),
+            listPrices: () => of([]),
           },
         },
         {
@@ -160,6 +146,19 @@ describe('ProductsPage', () => {
 
     component.isMobile.set(true);
     expect(component.effectiveViewMode()).toBe('cards');
+  });
+
+  it('uses bounded category search for the category filter', async () => {
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    searchCategoryOptions.mockClear();
+
+    const input = document.createElement('input');
+    input.value = 'seed';
+    component.onCategorySearch({ target: input } as unknown as Event);
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    expect(searchCategoryOptions).toHaveBeenCalledWith('seed', 'all');
+    expect(searchCategoryOptions).toHaveBeenCalledTimes(1);
   });
 
   it('renders the module info section', () => {

@@ -15,10 +15,10 @@ function createEmployeesController(deps) {
     async list(req, res, next) {
       try {
         const { page, pageSize, skip } = parsePaginationQuery(req.query);
-        const { items, total } = await deps.employeesService.listEmployees(requireOrganizationId(req), {
+        const { items, total, summary } = await deps.employeesService.listEmployees(requireOrganizationId(req), {
           search: req.query.search || undefined, skip, pageSize,
         });
-        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total, summary });
       } catch (error) {
         next(error);
       }

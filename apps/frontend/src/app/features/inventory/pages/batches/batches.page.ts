@@ -248,6 +248,7 @@ export class BatchesPage {
 
   constructor() {
     this.checkViewport();
+    this.loadReferenceData();
 
     // Debounced search handling
     this.searchChanges
@@ -258,7 +259,7 @@ export class BatchesPage {
         this.reload();
       });
 
-    // Primary data reload stream
+    // Primary list reload stream (batches only — reference data loads once above)
     this.reloadRequests
       .pipe(
         startWith(undefined),
@@ -270,57 +271,7 @@ export class BatchesPage {
           this.loading.set(true);
           this.errorMessage.set(null);
 
-          const batchQuery: {
-            page: number;
-            pageSize: number;
-            productId?: string;
-            warehouseId?: string;
-            search?: string;
-          } = {
-            page: this.page(),
-            pageSize: this.pageSize(),
-          };
-
-          if (this.productFilter()) {
-            batchQuery.productId = this.productFilter();
-          }
-          if (this.warehouseFilter()) {
-            batchQuery.warehouseId = this.warehouseFilter();
-          }
-          if (this.search()) {
-            batchQuery.search = this.search();
-          }
-
-          const requests: {
-            batches: ReturnType<InventoryApi['listBatches']>;
-            products: ReturnType<CatalogApi['searchProductOptions']>;
-            warehouses: ReturnType<BranchesWarehousesApi['listWarehouseOptions']>;
-            balances: ReturnType<InventoryApi['listBalances']>;
-            expiry?: ReturnType<InventoryApi['listExpiry']>;
-          } = {
-            batches: this.inventoryApi.listBatches(batchQuery),
-            products: this.catalogApi.searchProductOptions('', 500).pipe(catchError(() => of([]))),
-            warehouses: this.locationsApi.listWarehouseOptions().pipe(catchError(() => of([]))),
-            balances: this.inventoryApi
-              .listBalances({ pageSize: 100 })
-              .pipe(
-                catchError(() => of({ items: [], meta: { page: 1, pageSize: 100, total: 0 } })),
-              ),
-          };
-
-          if (this.canViewExpiry()) {
-            requests.expiry = this.inventoryApi.listExpiry().pipe(
-              catchError(() =>
-                of({
-                  items: [] as ExpiryInventoryRecord[],
-                  businessDate: '',
-                  thresholdDays: 30,
-                }),
-              ),
-            );
-          }
-
-          return forkJoin(requests).pipe(
+          return this.inventoryApi.listBatches(this.buildBatchQuery()).pipe(
             catchError(() => {
               this.loading.set(false);
               this.errorMessage.set('Unable to load product batches. Please try again.');
@@ -330,10 +281,104 @@ export class BatchesPage {
         }),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((result) => {
-        const { batches, products, warehouses, balances } = result;
+      .subscribe((batches) => {
+        this.batches.set(batches.items);
+        applyPaginationMeta(batches.meta, { total: this.total, pageSize: this.pageSize });
+        this.syncBatchLocationMap(batches.items);
+        this.loading.set(false);
+      });
+  }
 
-        // Populate Product Map
+  private syncBatchLocationMap(items: ProductBatchRecord[]): void {
+    const whMap = this.warehouseMap();
+    const locationMap = new Map<string, BatchLocationStock[]>();
+    for (const batch of items) {
+      if (!batch.stockLocations?.length) {
+        continue;
+      }
+      locationMap.set(
+        batch.id,
+        batch.stockLocations.map((location) => ({
+          warehouseId: location.warehouseId,
+          warehouseName: whMap.get(location.warehouseId)?.name ?? location.warehouseId,
+          warehouseCode: whMap.get(location.warehouseId)?.code,
+          quantityBase: location.quantityBase,
+          unsellableQuantityBase: location.unsellableQuantityBase,
+        })),
+      );
+    }
+    this.batchBalancesMap.set(locationMap);
+  }
+
+  private buildBatchQuery(): {
+    page: number;
+    pageSize: number;
+    productId?: string;
+    warehouseId?: string;
+    search?: string;
+  } {
+    const batchQuery: {
+      page: number;
+      pageSize: number;
+      productId?: string;
+      warehouseId?: string;
+      search?: string;
+    } = {
+      page: this.page(),
+      pageSize: this.pageSize(),
+    };
+
+    if (this.productFilter()) {
+      batchQuery.productId = this.productFilter();
+    }
+    if (this.warehouseFilter()) {
+      batchQuery.warehouseId = this.warehouseFilter();
+    }
+    if (this.search()) {
+      batchQuery.search = this.search();
+    }
+
+    return batchQuery;
+  }
+
+  private loadReferenceData(): void {
+    if (!this.canView()) {
+      this.loading.set(false);
+      return;
+    }
+
+    const requests: {
+      products: ReturnType<CatalogApi['searchProductOptions']>;
+      warehouses: ReturnType<BranchesWarehousesApi['listWarehouseOptions']>;
+      expiry?: ReturnType<InventoryApi['listExpiry']>;
+    } = {
+      products: this.catalogApi.searchProductOptions('', 500).pipe(catchError(() => of([]))),
+      warehouses: this.locationsApi.listWarehouseOptions().pipe(catchError(() => of([]))),
+    };
+
+    if (this.canViewExpiry()) {
+      requests.expiry = this.inventoryApi.listExpiry().pipe(
+        catchError(() =>
+          of({
+            items: [] as ExpiryInventoryRecord[],
+            businessDate: '',
+            thresholdDays: 30,
+          }),
+        ),
+      );
+    }
+
+    forkJoin(requests)
+      .pipe(
+        catchError(() => {
+          this.errorMessage.set('Unable to load batch reference data. Please try again.');
+          return EMPTY;
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((result) => {
+        const { products, warehouses } = result;
+
         const prodMap = new Map<string, ProductRecord>();
         for (const p of products) {
           const id = p.id || (p as unknown as { _id?: string })._id;
@@ -342,7 +387,6 @@ export class BatchesPage {
         this.productMap.set(prodMap);
         this.productList.set(products);
 
-        // Populate Warehouse Map
         const whMap = new Map<string, WarehouseRecord>();
         for (const w of warehouses) {
           const id = w.id || (w as unknown as { _id?: string })._id;
@@ -351,25 +395,6 @@ export class BatchesPage {
         this.warehouseMap.set(whMap);
         this.warehouseList.set(warehouses);
 
-        // Populate Batch Balances Map (by batchId)
-        const bMap = new Map<string, BatchLocationStock[]>();
-        for (const bal of balances.items) {
-          if (bal.batchId) {
-            const list = bMap.get(bal.batchId) ?? [];
-            const wh = whMap.get(bal.warehouseId);
-            list.push({
-              warehouseId: bal.warehouseId,
-              warehouseName: wh ? wh.name : bal.warehouseId,
-              warehouseCode: wh?.code,
-              quantityBase: bal.quantityBase ?? '0',
-              unsellableQuantityBase: bal.unsellableQuantityBase ?? '0',
-            });
-            bMap.set(bal.batchId, list);
-          }
-        }
-        this.batchBalancesMap.set(bMap);
-
-        // Populate Expiry Map & Authoritative KPIs if available
         if ('expiry' in result && result.expiry) {
           const expResult = result.expiry as {
             items: ExpiryInventoryRecord[];
@@ -392,10 +417,6 @@ export class BatchesPage {
           this.expiringCount.set(upcoming);
           this.expiredCount.set(expired);
         }
-
-        this.batches.set(batches.items);
-        applyPaginationMeta(batches.meta, { total: this.total, pageSize: this.pageSize });
-        this.loading.set(false);
       });
   }
 

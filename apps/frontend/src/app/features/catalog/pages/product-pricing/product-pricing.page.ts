@@ -9,7 +9,10 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
-import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
+import {
+  fieldValidationMessage,
+  hasRequiredValidator,
+} from '../../../../shared/form/form-field.util';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 const PRICE_TIERS: PriceTier[] = ['retail', 'wholesale', 'dealer', 'distributor'];
@@ -40,6 +43,7 @@ export class ProductPricingPage {
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly formSubmitAttempted = signal(false);
   readonly canManage = computed(
     () =>
       this.sessionStore.hasPermission('pricing.manage') &&
@@ -47,9 +51,13 @@ export class ProductPricingPage {
         true) &&
       (this.capabilityService?.canEditField('inventory.products.fields.sellingPrice') ?? true),
   );
+  readonly canSave = computed(
+    () => this.canManage() && this.productId() !== null && this.form.valid && !this.saving(),
+  );
   private version = 1;
 
   readonly fieldRequired = hasRequiredValidator;
+  readonly fieldError = fieldValidationMessage;
 
   readonly form = this.formBuilder.nonNullable.group({
     retail: ['', [Validators.required]],
@@ -92,8 +100,9 @@ export class ProductPricingPage {
   }
 
   save(): void {
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
     if (!this.canManage() || this.productId() === null || this.form.invalid) {
-      this.form.markAllAsTouched();
       return;
     }
     this.saving.set(true);

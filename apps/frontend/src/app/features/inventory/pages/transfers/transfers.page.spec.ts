@@ -67,6 +67,12 @@ describe('TransfersPage', () => {
               reversedByTransferId: null,
               negativeStockOverride: false,
               version: 1,
+              productNameSnapshot: 'Product prod-batch',
+              productSkuSnapshot: 'SKU-prod-batch',
+              sourceWarehouseNameSnapshot: 'Central Warehouse',
+              sourceWarehouseCodeSnapshot: 'WH-SRC',
+              destinationWarehouseNameSnapshot: 'North Region Warehouse',
+              destinationWarehouseCodeSnapshot: 'WH-DST',
             } as WarehouseTransferRecord,
           ],
           meta: { page: 1, pageSize: 25, total: 1 },
@@ -407,6 +413,36 @@ describe('TransfersPage', () => {
     expect(page.selectedProduct()).toBeNull();
   });
 
+  it('blocks submit without API call and surfaces validation errors when form is invalid', () => {
+    page.submit();
+    fixture.detectChanges();
+
+    expect(mockInventoryApi.createTransferDraft).not.toHaveBeenCalled();
+    expect(page.formSubmitAttempted()).toBe(true);
+    expect(page.canPostTransfer()).toBe(false);
+    expect(
+      (fixture.nativeElement.querySelector('[data-testid="transfer-submit"]') as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(page.fieldError(page.form.controls.quantity, 'Quantity', true)).toContain('required');
+  });
+
+  it('rejects invalid quantity format before posting', () => {
+    page.form.patchValue({
+      sourceWarehouseId: 'wh-source',
+      destinationWarehouseId: 'wh-dest',
+      productId: 'prod-none',
+      quantity: '1.23456',
+      reason: 'Invalid qty',
+    });
+    fixture.detectChanges();
+
+    expect(page.form.valid).toBe(false);
+    page.submit();
+    expect(mockInventoryApi.createTransferDraft).not.toHaveBeenCalled();
+    expect(page.fieldError(page.form.controls.quantity, 'Quantity', true)).toContain('four places');
+  });
+
   it('handles transfer reversal workflow via confirm dialog', () => {
     const transfer = page.transfers().at(0) as WarehouseTransferRecord;
     page.reverse(transfer);
@@ -455,18 +491,19 @@ describe('TransfersPage', () => {
     expect(fixture.nativeElement.querySelector('.inspector-drawer')).toBeNull();
   });
 
-  it('handles product search filtering', () => {
+  it('handles product search filtering', async () => {
     const searchInput = fixture.nativeElement.querySelector(
       '[data-testid="transfer-product-search"]',
     ) as HTMLInputElement;
     searchInput.value = 'Urea';
     searchInput.dispatchEvent(new Event('input'));
+    await new Promise((resolve) => setTimeout(resolve, 350));
     fixture.detectChanges();
 
     expect(mockCatalogApi.searchProductOptions).toHaveBeenCalledWith('Urea', 500, 'active');
   });
 
-  it('enriches missing product and warehouse references for historical records', () => {
+  it('renders transfer history from authoritative list snapshots without per-ID lookups', () => {
     mockInventoryApi.listTransfers.mockReturnValue(
       of({
         items: [
@@ -490,6 +527,10 @@ describe('TransfersPage', () => {
             reversalOfId: null,
             reversedByTransferId: null,
             version: 1,
+            productNameSnapshot: 'Archived Product',
+            productSkuSnapshot: 'SKU-HIST',
+            sourceWarehouseNameSnapshot: 'Archived Source WH',
+            destinationWarehouseNameSnapshot: 'Archived Dest WH',
           } as WarehouseTransferRecord,
         ],
         meta: { page: 1, pageSize: 25, total: 1 },
@@ -499,16 +540,15 @@ describe('TransfersPage', () => {
     page.onPageChange(1);
     fixture.detectChanges();
 
-    expect(mockCatalogApi.getProduct).toHaveBeenCalledWith('prod-archived-99');
-    expect(mockLocationsApi.getWarehouse).toHaveBeenCalledWith('wh-archived-1');
-    expect(mockLocationsApi.getWarehouse).toHaveBeenCalledWith('wh-archived-2');
+    expect(mockCatalogApi.getProduct).not.toHaveBeenCalled();
+    expect(mockLocationsApi.getWarehouse).not.toHaveBeenCalled();
 
-    expect(page.productName('prod-archived-99')).toBe('Historical Product prod-archived-99');
-    expect(page.productSku('prod-archived-99')).toBe('SKU-HIST-prod-archived-99');
-    expect(page.warehouseName('wh-archived-1')).toBe('Archived Warehouse wh-archived-1');
+    expect(page.transferProductName(page.transfers()[0]!)).toBe('Archived Product');
+    expect(page.transferProductSku(page.transfers()[0]!)).toBe('SKU-HIST');
+    expect(page.transferSourceWarehouseName(page.transfers()[0]!)).toBe('Archived Source WH');
   });
 
-  it('deduplicates missing product and warehouse lookups so identical IDs are fetched only once', () => {
+  it('does not issue per-ID product or warehouse lookups when transfer rows share missing references', () => {
     mockInventoryApi.listTransfers.mockReturnValue(
       of({
         items: [
@@ -562,17 +602,13 @@ describe('TransfersPage', () => {
     page.onPageChange(1);
     fixture.detectChanges();
 
-    // Deduplication check: 2 transfer rows referencing prod-missing-101 and wh-missing-A/B only trigger 1 call each
-    expect(mockCatalogApi.getProduct).toHaveBeenCalledTimes(1);
-    expect(mockCatalogApi.getProduct).toHaveBeenCalledWith('prod-missing-101');
-    expect(mockLocationsApi.getWarehouse).toHaveBeenCalledWith('wh-missing-A');
-    expect(mockLocationsApi.getWarehouse).toHaveBeenCalledWith('wh-missing-B');
+    expect(mockCatalogApi.getProduct).not.toHaveBeenCalled();
+    expect(mockLocationsApi.getWarehouse).not.toHaveBeenCalled();
+    expect(page.transferProductName(page.transfers()[0]!)).toBe('—');
+    expect(page.transferSourceWarehouseName(page.transfers()[0]!)).toBe('—');
   });
 
-  it('handles lookup failure gracefully without breaking transfer history rendering', () => {
-    mockCatalogApi.getProduct.mockReturnValue(throwError(() => new Error('Product not found')));
-    mockLocationsApi.getWarehouse.mockReturnValue(throwError(() => new Error('Warehouse not found')));
-
+  it('renders transfer history when list snapshots are absent', () => {
     mockInventoryApi.listTransfers.mockReturnValue(
       of({
         items: [
@@ -606,8 +642,8 @@ describe('TransfersPage', () => {
     fixture.detectChanges();
 
     expect(page.transfers().length).toBe(1);
-    expect(page.productName('prod-deleted-999')).toBe('prod-deleted-999');
-    expect(page.warehouseName('wh-deleted-1')).toBe('wh-deleted-1');
+    expect(page.transferProductName(page.transfers()[0]!)).toBe('—');
+    expect(page.transferSourceWarehouseName(page.transfers()[0]!)).toBe('—');
   });
 
   it('renders mobile-specific transfer cards and supports lifecycle actions', () => {
@@ -649,11 +685,7 @@ describe('TransfersPage', () => {
     expect(mobileCards.querySelector('[data-testid="transfer-card"]')).not.toBeNull();
   });
 
-  it('does not refetch already cached product and warehouse IDs on subsequent transfers reload', () => {
-    // prod-batch and wh-source/wh-dest are already populated in allProductsMap and allWarehousesMap from init
-    mockCatalogApi.getProduct.mockClear();
-    mockLocationsApi.getWarehouse.mockClear();
-
+  it('does not refetch product or warehouse options on subsequent transfers reload', () => {
     mockInventoryApi.listTransfers.mockReturnValue(
       of({
         items: [
@@ -806,6 +838,7 @@ describe('TransfersPage', () => {
       fixture.detectChanges();
 
       expect(page.canPostTransfer()).toBe(false);
+      expect(page.canPostTransferPermission()).toBe(false);
       const submitBtn = fixture.nativeElement.querySelector(
         '[data-testid="transfer-submit"]',
       ) as HTMLButtonElement;

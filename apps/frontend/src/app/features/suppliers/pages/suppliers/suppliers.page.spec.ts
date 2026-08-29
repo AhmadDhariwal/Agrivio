@@ -97,14 +97,26 @@ describe('SuppliersPage', () => {
 
     const fixture = TestBed.createComponent(SuppliersPage);
     fixture.detectChanges();
-    expect(requests[0]).toEqual({ page: 1, pageSize: 25, status: 'active', search: '' });
+    expect(requests[0]).toEqual({
+      page: 1,
+      pageSize: 25,
+      status: 'active',
+      search: '',
+      forceRefresh: false,
+    });
     expect(fixture.nativeElement.querySelectorAll('[data-testid="supplier-row"]').length).toBe(25);
 
     const page = fixture.componentInstance;
     page.onPageSizeChange(10);
     fixture.detectChanges();
 
-    expect(requests.at(-1)).toEqual({ page: 1, pageSize: 10, status: 'active', search: '' });
+    expect(requests.at(-1)).toEqual({
+      page: 1,
+      pageSize: 10,
+      status: 'active',
+      search: '',
+      forceRefresh: false,
+    });
     expect(fixture.nativeElement.querySelectorAll('[data-testid="supplier-row"]').length).toBe(10);
     expect(fixture.nativeElement.textContent).toContain('Showing 1–10 of 37');
   });
@@ -200,5 +212,26 @@ describe('SuppliersPage', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('You do not have permission to view suppliers.');
+  });
+
+  it('requests forceRefresh when toolbar refresh is clicked', () => {
+    mockApi.listSuppliers.mockReturnValue(
+      of({ items: makeSuppliers(1), meta: { page: 1, pageSize: 25, total: 1 } }),
+    );
+
+    const fixture = TestBed.createComponent(SuppliersPage);
+    fixture.detectChanges();
+    expect(mockApi.listSuppliers).toHaveBeenCalledTimes(1);
+    expect(mockApi.listSuppliers).toHaveBeenLastCalledWith(
+      expect.objectContaining({ forceRefresh: false }),
+    );
+
+    fixture.componentInstance.reload(false, true);
+    fixture.detectChanges();
+
+    expect(mockApi.listSuppliers).toHaveBeenCalledTimes(2);
+    expect(mockApi.listSuppliers).toHaveBeenLastCalledWith(
+      expect.objectContaining({ forceRefresh: true }),
+    );
   });
 });

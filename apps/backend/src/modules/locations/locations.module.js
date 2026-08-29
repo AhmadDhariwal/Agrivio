@@ -174,6 +174,14 @@ function createLocationsService(deps) {
       return toWarehouseDto(record);
     },
 
+    async findWarehousesByIds(organizationId, warehouseIds) {
+      if (!Array.isArray(warehouseIds) || warehouseIds.length === 0) {
+        return [];
+      }
+      const records = await store.findWarehousesByIds(organizationId, warehouseIds);
+      return records.map(toWarehouseDto);
+    },
+
     async createWarehouse(organizationId, body, actor) {
       const input = parseWarehouseCreate(body);
       const currentUsage = await store.countWarehouses(organizationId);
@@ -215,6 +223,9 @@ function createLocationsService(deps) {
             throw notFound('Warehouse not found');
           }
           assertOptimisticVersion(current, expectedVersion);
+          if (typeof deps.capabilityService?.assertWarehousePatchAllowed === 'function') {
+            await deps.capabilityService.assertWarehousePatchAllowed(organizationId, current, patch);
+          }
           const updated = await store.updateWarehouse(session, organizationId, warehouseId, {
             ...patch,
             version: Number(current['version']) + 1,
@@ -262,6 +273,9 @@ function createLocationsService(deps) {
     },
 
     async replaceAccessAssignments(organizationId, userId, body, actor) {
+      if (typeof deps.capabilityService?.assertEmployeeAssignAccessAllowed === 'function') {
+        await deps.capabilityService.assertEmployeeAssignAccessAllowed(organizationId);
+      }
       const { branchIds, warehouseIds } = parseAccessAssignmentsReplace(body);
       if (typeof findMembershipInOrganization !== 'function') {
         throw validationFailed('Membership lookup is unavailable');
@@ -398,6 +412,9 @@ function createLocationsModule(options) {
     ...(options.listWarehouseReferences === undefined
       ? {}
       : { listWarehouseReferences: options.listWarehouseReferences }),
+    ...(options.capabilityService === undefined
+      ? {}
+      : { capabilityService: options.capabilityService }),
   });
 
   return {

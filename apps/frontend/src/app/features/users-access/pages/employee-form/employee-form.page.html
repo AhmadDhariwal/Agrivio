@@ -1,108 +1,819 @@
-<agrivio-ui-page-header
-  [title]="employeeId() ? 'Edit employee' : 'Add employee'"
-  eyebrow="Organization"
-  lede="Assign predefined roles and branch/warehouse access. First-password activation uses a one-time token for manual handoff."
-/>
+<div class="employee-form-shell">
+  <!-- Breadcrumb Navigation -->
+  <nav class="breadcrumb-nav" aria-label="Breadcrumb">
+    <ol class="breadcrumb-list">
+      <li class="breadcrumb-item">
+        <a routerLink="/app/employees" class="breadcrumb-link">Organization</a>
+      </li>
+      <li class="breadcrumb-separator" aria-hidden="true">/</li>
+      <li class="breadcrumb-item">
+        <a routerLink="/app/employees" class="breadcrumb-link">Employees</a>
+      </li>
+      <li class="breadcrumb-separator" aria-hidden="true">/</li>
+      <li class="breadcrumb-item breadcrumb-item--current" aria-current="page">
+        {{ employeeId() ? 'Edit' : 'Create' }}
+      </li>
+    </ol>
+  </nav>
 
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading employee…" />
-} @else {
-  @if (errorMessage(); as error) {
-    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-  }
-  @if (activationHandoff(); as url) {
-    <agrivio-ui-alert
-      tone="success"
-      [message]="'Employee created. Copy this one-time activation link for manual delivery: ' + url"
-    />
-    <a class="ag-btn" routerLink="/app/employees">Back to employees</a>
-  } @else {
-    <form
-      class="ag-stack form ag-form ag-form--with-required-hint"
-      [formGroup]="form"
-      (ngSubmit)="save()"
-      data-testid="employee-form"
-    >
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Email"
-          for="employee-email"
-          [required]="fieldRequired(form.controls.email)"
-        />
-        <input
-          id="employee-email"
-          class="ag-input"
-          formControlName="email"
-          data-testid="employee-email"
-          [attr.aria-required]="fieldRequired(form.controls.email) ? 'true' : null"
-        />
-      </div>
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Display name"
-          for="employee-display-name"
-          [required]="fieldRequired(form.controls.displayName)"
-        />
-        <input
-          id="employee-display-name"
-          class="ag-input"
-          formControlName="displayName"
-          data-testid="employee-display-name"
-          [attr.aria-required]="fieldRequired(form.controls.displayName) ? 'true' : null"
-        />
-      </div>
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Role"
-          for="employee-role"
-          [required]="fieldRequired(form.controls.role)"
-        />
-        <select
-          id="employee-role"
-          class="ag-select"
-          formControlName="role"
-          data-testid="employee-role"
-          [attr.aria-required]="fieldRequired(form.controls.role) ? 'true' : null"
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">Organization</p>
+      <h1 class="page-head__title">
+        {{ employeeId() ? 'Edit employee' : 'Add employee' }}
+      </h1>
+      <p class="page-head__lede">
+        @if (employeeId()) {
+        Manage user identity, role, and branch/warehouse assignments for this organization.
+        } @else {
+        Owner-managed employees stay inside this organization. Roles are predefined bundles; Super Admin is platform-only.
+        }
+      </p>
+    </div>
+
+    <div class="page-head__actions">
+      @if (employeeId()) {
+      <div class="status-summary-card">
+        <span
+          class="status-indicator"
+          [class.status-indicator--active]="currentEmployeeStatus() === 'active'"
+          [class.status-indicator--pending]="currentEmployeeStatus() === 'pending'"
+          [class.status-indicator--deactivated]="currentEmployeeStatus() === 'deactivated'"
         >
-          @for (role of roles; track role) {
-            <option [value]="role">{{ role === 'StoreKeeper' ? 'Store Keeper' : role }}</option>
-          }
-        </select>
+          <span class="status-indicator__dot"></span>
+          {{ currentEmployeeStatus() === 'active' ? 'Active' : currentEmployeeStatus() === 'pending' ? 'Pending Activation' : 'Deactivated' }}
+        </span>
       </div>
-
-      @if (canAssign()) {
-        <fieldset>
-          <legend>Branch assignments</legend>
-          @for (branch of branches(); track branch.id) {
-            <label class="check">
-              <input
-                type="checkbox"
-                [checked]="isBranchChecked(branch.id)"
-                (change)="toggleBranch(branch.id, $any($event.target).checked)"
-              />
-              {{ branch.name }}
-            </label>
-          }
-        </fieldset>
-        <fieldset>
-          <legend>Warehouse assignments</legend>
-          @for (warehouse of warehouses(); track warehouse.id) {
-            <label class="check">
-              <input
-                type="checkbox"
-                [checked]="isWarehouseChecked(warehouse.id)"
-                (change)="toggleWarehouse(warehouse.id, $any($event.target).checked)"
-              />
-              {{ warehouse.name }}
-            </label>
-          }
-        </fieldset>
       }
 
-      <div class="ag-inline">
-        <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="employee-save">Save</button>
-        <a class="ag-btn ag-btn--secondary" routerLink="/app/employees">Cancel</a>
-      </div>
-    </form>
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/employees">
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        Back to Employees
+      </a>
+    </div>
+  </header>
+
+  <!-- Loading & Alert States -->
+  @if (loading()) {
+  <div class="state-container">
+    <agrivio-ui-loading-state label="Loading employee definition…" />
+  </div>
+  } @else {
+  @if (errorMessage(); as error) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  </div>
   }
-}
+
+  <!-- Activation Handoff Card (When employee is created in pending status) -->
+  @if (activationHandoff(); as url) {
+  <div class="activation-card">
+    <div class="activation-card__header">
+      <div class="activation-card__icon">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+          <polyline points="22 4 12 14.01 9 11.01" />
+        </svg>
+      </div>
+      <div>
+        <h2 class="activation-card__title">Employee created successfully</h2>
+        <p class="activation-card__subtitle">
+          Copy this one-time activation link and provide it to the employee to set their initial password.
+        </p>
+      </div>
+    </div>
+
+    <div class="activation-card__body">
+      <div class="activation-link-box">
+        <input class="activation-link-input" type="text" readonly [value]="url" />
+        <button
+          type="button"
+          class="ag-btn ag-btn--primary copy-btn"
+          (click)="copyActivationLink(url)"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+            <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+          </svg>
+          {{ linkCopied() ? 'Copied!' : 'Copy link' }}
+        </button>
+      </div>
+    </div>
+
+    <div class="activation-card__footer">
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/employees">
+        Return to Employees list
+      </a>
+    </div>
+  </div>
+  } @else {
+  <form class="emp-form" [formGroup]="form" (ngSubmit)="save()" data-testid="employee-form">
+    <!-- ====================================================================
+         CREATE MODE: 2-COLUMN LAYOUT (Main Form + Guidance Card)
+         ==================================================================== -->
+    @if (!employeeId()) {
+    <div class="create-layout">
+      <!-- Main Left Form Card -->
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">Employee details</h2>
+            <p class="form-card__subtitle">Core identity, login email, and system role bundle.</p>
+          </div>
+        </div>
+
+        <div class="form-card__body">
+          @if (showEmail()) {
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Email"
+              for="employee-email"
+              [required]="fieldRequired(form.controls.email)"
+            />
+            <input
+              id="employee-email"
+              class="ag-input"
+              type="email"
+              formControlName="email"
+              placeholder="Enter email address"
+              data-testid="employee-email"
+              [class.ag-input--invalid]="fieldError(form.controls.email, 'Email', formSubmitAttempted())"
+              [attr.aria-required]="fieldRequired(form.controls.email) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.email, 'Email', formSubmitAttempted()) ? 'true' : null"
+            />
+            @if (fieldError(form.controls.email, 'Email', formSubmitAttempted()); as emailError) {
+            <p class="field-error" role="alert">{{ emailError }}</p>
+            }
+          </div>
+          }
+
+          <div class="form-grid form-grid--2col">
+            @if (showDisplayName()) {
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Display name"
+                for="employee-display-name"
+                [required]="fieldRequired(form.controls.displayName)"
+              />
+              <input
+                id="employee-display-name"
+                class="ag-input"
+                formControlName="displayName"
+                placeholder="Enter full name"
+                data-testid="employee-display-name"
+                [class.ag-input--invalid]="fieldError(form.controls.displayName, 'Display name', formSubmitAttempted())"
+                [attr.aria-required]="fieldRequired(form.controls.displayName) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.displayName, 'Display name', formSubmitAttempted()) ? 'true' : null"
+                [readOnly]="isReadOnlyField('displayName')"
+              />
+              @if (fieldError(form.controls.displayName, 'Display name', formSubmitAttempted()); as displayNameError) {
+              <p class="field-error" role="alert">{{ displayNameError }}</p>
+              }
+            </div>
+            }
+
+            @if (showRole()) {
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Role"
+                for="employee-role"
+                [required]="fieldRequired(form.controls.role)"
+              />
+              <select
+                id="employee-role"
+                class="ag-select"
+                formControlName="role"
+                data-testid="employee-role"
+                [class.ag-input--invalid]="fieldError(form.controls.role, 'Role', formSubmitAttempted())"
+                [attr.aria-required]="fieldRequired(form.controls.role) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.role, 'Role', formSubmitAttempted()) ? 'true' : null"
+                [disabled]="isReadOnlyField('role')"
+              >
+                @for (role of roles; track role) {
+                <option [value]="role">{{ formatRoleLabel(role) }}</option>
+                }
+              </select>
+              @if (fieldError(form.controls.role, 'Role', formSubmitAttempted()); as roleError) {
+              <p class="field-error" role="alert">{{ roleError }}</p>
+              }
+            </div>
+            }
+          </div>
+
+          @if (showBranchAccess()) {
+          <div class="assignment-section">
+            <div class="assignment-section__head">
+              <div>
+                <h3 class="assignment-section__title">Branch assignments</h3>
+                <p class="assignment-section__desc">
+                  Assign one or more branches this employee can access.
+                </p>
+              </div>
+              @if (canEditAssignments()) {
+              <div class="assignment-section__actions">
+                <button
+                  type="button"
+                  class="text-action-btn"
+                  (click)="selectAllBranches()"
+                >
+                  Select all
+                </button>
+                <span class="text-action-sep">·</span>
+                <button
+                  type="button"
+                  class="text-action-btn"
+                  (click)="clearAllBranches()"
+                >
+                  Clear
+                </button>
+              </div>
+              }
+            </div>
+
+            @if (branches().length > 6) {
+            <div class="assignment-search">
+              <input
+                class="ag-input assignment-search__input"
+                type="text"
+                placeholder="Filter branches…"
+                [value]="branchSearch()"
+                (input)="branchSearch.set($any($event.target).value)"
+              />
+            </div>
+            }
+
+            <div class="checkbox-list">
+              @for (branch of filteredBranches(); track branch.id) {
+              <label class="checkbox-item" [class.checkbox-item--checked]="isBranchChecked(branch.id)">
+                <input
+                  type="checkbox"
+                  class="checkbox-item__input"
+                  [checked]="isBranchChecked(branch.id)"
+                  [disabled]="!canEditAssignments()"
+                  (change)="toggleBranch(branch.id, $any($event.target).checked)"
+                />
+                <span class="checkbox-item__label">{{ branch.name }}</span>
+              </label>
+              } @empty {
+              <p class="empty-list-hint">No branches available for assignment.</p>
+              }
+            </div>
+          </div>
+          }
+
+          @if (showWarehouseAccess()) {
+          <div class="assignment-section">
+            <div class="assignment-section__head">
+              <div>
+                <h3 class="assignment-section__title">Warehouse assignments</h3>
+                <p class="assignment-section__desc">
+                  Assign one or more warehouses this employee can access.
+                </p>
+              </div>
+              @if (canEditAssignments()) {
+              <div class="assignment-section__actions">
+                <button
+                  type="button"
+                  class="text-action-btn"
+                  (click)="selectAllWarehouses()"
+                >
+                  Select all
+                </button>
+                <span class="text-action-sep">·</span>
+                <button
+                  type="button"
+                  class="text-action-btn"
+                  (click)="clearAllWarehouses()"
+                >
+                  Clear
+                </button>
+              </div>
+              }
+            </div>
+
+            @if (warehouses().length > 6) {
+            <div class="assignment-search">
+              <input
+                class="ag-input assignment-search__input"
+                type="text"
+                placeholder="Filter warehouses…"
+                [value]="warehouseSearch()"
+                (input)="warehouseSearch.set($any($event.target).value)"
+              />
+            </div>
+            }
+
+            <div class="checkbox-list">
+              @for (warehouse of filteredWarehouses(); track warehouse.id) {
+              <label class="checkbox-item" [class.checkbox-item--checked]="isWarehouseChecked(warehouse.id)">
+                <input
+                  type="checkbox"
+                  class="checkbox-item__input"
+                  [checked]="isWarehouseChecked(warehouse.id)"
+                  [disabled]="!canEditAssignments()"
+                  (change)="toggleWarehouse(warehouse.id, $any($event.target).checked)"
+                />
+                <span class="checkbox-item__label">{{ warehouse.name }}</span>
+              </label>
+              } @empty {
+              <p class="empty-list-hint">No warehouses available for assignment.</p>
+              }
+            </div>
+          </div>
+          }
+        </div>
+
+        <footer class="form-actions">
+          <button
+            class="ag-btn ag-btn--primary"
+            type="submit"
+            [disabled]="!canSave()"
+            data-testid="employee-save"
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
+            </svg>
+            {{ saving() ? 'Saving…' : 'Save employee' }}
+          </button>
+          <a class="ag-btn ag-btn--secondary" routerLink="/app/employees">Cancel</a>
+        </footer>
+      </section>
+
+      <!-- Right Guidance / Overview Card -->
+      <aside class="guidance-card" aria-label="Access and role overview">
+        <div class="guidance-card__header">
+          <div class="guidance-card__icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+          </div>
+          <h2 class="guidance-card__title">Access &amp; role overview</h2>
+        </div>
+
+        <p class="guidance-card__lede">
+          Roles are predefined bundles that determine what employees can see and do. Super Admin is reserved for platform administrators.
+        </p>
+
+        <ul class="guidance-list">
+          <li class="guidance-item">
+            <div class="guidance-item__icon">
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+              </svg>
+            </div>
+            <div class="guidance-item__text">
+              <span class="guidance-item__heading">Roles control module access</span>
+              <p class="guidance-item__desc">
+                Each role grants permissions across modules and operational actions.
+              </p>
+            </div>
+          </li>
+
+          <li class="guidance-item">
+            <div class="guidance-item__icon">
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect width="16" height="20" x="4" y="2" rx="2" ry="2" />
+                <path d="M9 22v-4h6v4" />
+                <path d="M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01" />
+              </svg>
+            </div>
+            <div class="guidance-item__text">
+              <span class="guidance-item__heading">Assignments limit data access</span>
+              <p class="guidance-item__desc">
+                Employees only see data for assigned branches and warehouses.
+              </p>
+            </div>
+          </li>
+
+          <li class="guidance-item">
+            <div class="guidance-item__icon">
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </div>
+            <div class="guidance-item__text">
+              <span class="guidance-item__heading">Least-privilege by design</span>
+              <p class="guidance-item__desc">
+                Grant only the access needed to do the job well and nothing more.
+              </p>
+            </div>
+          </li>
+
+          <li class="guidance-item">
+            <div class="guidance-item__icon">
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            </div>
+            <div class="guidance-item__text">
+              <span class="guidance-item__heading">Need help choosing?</span>
+              <p class="guidance-item__desc">
+                Review role details in Organization Settings or contact your Super Admin.
+              </p>
+            </div>
+          </li>
+        </ul>
+      </aside>
+    </div>
+    }
+
+    <!-- ====================================================================
+         EDIT MODE: 3-CARD LAYOUT (Details + Branches + Warehouses)
+         ==================================================================== -->
+    @else {
+    <div class="edit-layout">
+      <!-- Card 1: Employee Details -->
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">Employee details</h2>
+            <p class="form-card__subtitle">Core identity, login email, and system role bundle.</p>
+          </div>
+        </div>
+
+        <div class="form-card__body">
+          @if (showEmail()) {
+          <div class="ag-field">
+            <agrivio-ui-field-label label="Email" for="employee-email" />
+            <input
+              id="employee-email"
+              class="ag-input ag-input--disabled"
+              formControlName="email"
+              data-testid="employee-email"
+              readonly
+            />
+          </div>
+          }
+
+          @if (showDisplayName()) {
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Display name"
+              for="employee-display-name"
+              [required]="fieldRequired(form.controls.displayName)"
+            />
+            <input
+              id="employee-display-name"
+              class="ag-input"
+              formControlName="displayName"
+              placeholder="e.g. Rashid Ali"
+              data-testid="employee-display-name"
+              [class.ag-input--invalid]="fieldError(form.controls.displayName, 'Display name', formSubmitAttempted())"
+              [attr.aria-required]="fieldRequired(form.controls.displayName) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.displayName, 'Display name', formSubmitAttempted()) ? 'true' : null"
+              [readOnly]="isReadOnlyField('displayName')"
+            />
+            @if (fieldError(form.controls.displayName, 'Display name', formSubmitAttempted()); as displayNameError) {
+            <p class="field-error" role="alert">{{ displayNameError }}</p>
+            }
+          </div>
+          }
+
+          @if (showRole()) {
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Role"
+              for="employee-role"
+              [required]="fieldRequired(form.controls.role)"
+            />
+            <select
+              id="employee-role"
+              class="ag-select"
+              formControlName="role"
+              data-testid="employee-role"
+              [class.ag-input--invalid]="fieldError(form.controls.role, 'Role', formSubmitAttempted())"
+              [attr.aria-required]="fieldRequired(form.controls.role) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.role, 'Role', formSubmitAttempted()) ? 'true' : null"
+              [disabled]="isReadOnlyField('role')"
+            >
+              @for (role of roles; track role) {
+              <option [value]="role">{{ formatRoleLabel(role) }}</option>
+              }
+            </select>
+            @if (fieldError(form.controls.role, 'Role', formSubmitAttempted()); as roleError) {
+            <p class="field-error" role="alert">{{ roleError }}</p>
+            }
+          </div>
+          }
+
+          @if (showStatus()) {
+          <div class="ag-field">
+            <agrivio-ui-field-label label="Status" for="employee-status" />
+            <input
+              id="employee-status"
+              class="ag-input ag-input--disabled"
+              [value]="currentEmployeeStatus()"
+              readonly
+            />
+          </div>
+          }
+
+          @if (showBranchAccess() || showWarehouseAccess()) {
+          <div class="info-callout">
+            <div class="info-callout__icon">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+            </div>
+            <div class="info-callout__content">
+              <span class="info-callout__title">About access</span>
+              <p class="info-callout__text">
+                Branch and warehouse assignments control where this employee can view and manage data. Changes take effect immediately.
+              </p>
+            </div>
+          </div>
+          }
+        </div>
+      </section>
+
+      @if (showBranchAccess()) {
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect width="16" height="20" x="4" y="2" rx="2" ry="2" />
+              <path d="M9 22v-4h6v4" />
+              <path d="M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">Branch assignments</h2>
+            <p class="form-card__subtitle">Assign branches this employee can access.</p>
+          </div>
+        </div>
+
+        <div class="form-card__body">
+          @if (canEditAssignments()) {
+          <div class="assignment-header-tools">
+            <button type="button" class="text-action-btn" (click)="selectAllBranches()">
+              Select all
+            </button>
+            <span class="text-action-sep">·</span>
+            <button type="button" class="text-action-btn" (click)="clearAllBranches()">
+              Clear
+            </button>
+          </div>
+          }
+
+          @if (branches().length > 6) {
+          <div class="assignment-search">
+            <input
+              class="ag-input assignment-search__input"
+              type="text"
+              placeholder="Filter branches…"
+              [value]="branchSearch()"
+              (input)="branchSearch.set($any($event.target).value)"
+            />
+          </div>
+          }
+
+          <div class="checkbox-list">
+            @for (branch of filteredBranches(); track branch.id) {
+            <label class="checkbox-item" [class.checkbox-item--checked]="isBranchChecked(branch.id)">
+              <input
+                type="checkbox"
+                class="checkbox-item__input"
+                [checked]="isBranchChecked(branch.id)"
+                [disabled]="!canEditAssignments()"
+                (change)="toggleBranch(branch.id, $any($event.target).checked)"
+              />
+              <span class="checkbox-item__label">{{ branch.name }}</span>
+            </label>
+            } @empty {
+            <p class="empty-list-hint">No branches available.</p>
+            }
+          </div>
+        </div>
+      </section>
+      }
+
+      @if (showWarehouseAccess()) {
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+              <path d="m3.3 7 8.7 5 8.7-5" />
+              <path d="M12 22V12" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">Warehouse assignments</h2>
+            <p class="form-card__subtitle">Assign warehouses this employee can access.</p>
+          </div>
+        </div>
+
+        <div class="form-card__body">
+          @if (canEditAssignments()) {
+          <div class="assignment-header-tools">
+            <button type="button" class="text-action-btn" (click)="selectAllWarehouses()">
+              Select all
+            </button>
+            <span class="text-action-sep">·</span>
+            <button type="button" class="text-action-btn" (click)="clearAllWarehouses()">
+              Clear
+            </button>
+          </div>
+          }
+
+          @if (warehouses().length > 6) {
+          <div class="assignment-search">
+            <input
+              class="ag-input assignment-search__input"
+              type="text"
+              placeholder="Filter warehouses…"
+              [value]="warehouseSearch()"
+              (input)="warehouseSearch.set($any($event.target).value)"
+            />
+          </div>
+          }
+
+          <div class="checkbox-list">
+            @for (warehouse of filteredWarehouses(); track warehouse.id) {
+            <label class="checkbox-item" [class.checkbox-item--checked]="isWarehouseChecked(warehouse.id)">
+              <input
+                type="checkbox"
+                class="checkbox-item__input"
+                [checked]="isWarehouseChecked(warehouse.id)"
+                [disabled]="!canEditAssignments()"
+                (change)="toggleWarehouse(warehouse.id, $any($event.target).checked)"
+              />
+              <span class="checkbox-item__label">{{ warehouse.name }}</span>
+            </label>
+            } @empty {
+            <p class="empty-list-hint">No warehouses available.</p>
+            }
+          </div>
+        </div>
+      </section>
+      }
+    </div>
+
+    <!-- Action Footer -->
+    <footer class="form-actions">
+      <button
+        class="ag-btn ag-btn--primary"
+        type="submit"
+        [disabled]="!canSave()"
+        data-testid="employee-save"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+          <polyline points="17 21 17 13 7 13 7 21" />
+          <polyline points="7 3 7 8 15 8" />
+        </svg>
+        {{ saving() ? 'Saving…' : 'Save changes' }}
+      </button>
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/employees">Cancel</a>
+    </footer>
+    }
+  </form>
+  }
+  }
+</div>

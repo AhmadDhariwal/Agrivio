@@ -20,7 +20,7 @@
         class="row-action-btn page-head__refresh-btn"
         type="button"
         data-testid="stock-refresh"
-        (click)="reload()"
+        (click)="reload(true)"
         title="Refresh stock data"
         aria-label="Refresh stock data"
       >
@@ -734,8 +734,8 @@
           <td class="stock-table__td stock-table__td--batch">
             <div class="batch-cell">
               @if (row.batchId) {
-              <span class="batch-cell__number font-mono" [title]="batchNumber(row.batchId)">
-                {{ batchNumber(row.batchId) }}
+              <span class="batch-cell__number font-mono" [title]="batchNumber(row)">
+                {{ batchNumber(row) }}
               </span>
               @if (batchExpiry(row.batchId); as exp) {
               <span class="batch-cell__expiry">Exp: {{ exp }}</span>
@@ -854,7 +854,7 @@
         @if (showBatch()) {
         <div class="card-metric">
           <span class="card-metric__label">Batch</span>
-          <span class="card-metric__value font-mono"> {{ batchNumber(row.batchId) }} </span>
+          <span class="card-metric__value font-mono"> {{ batchNumber(row) }} </span>
         </div>
         }
         <div class="card-metric">
@@ -1067,7 +1067,7 @@
           @if (showBatch()) {
           <div class="spec-row">
             <span class="spec-row__k">Batch / Lot #</span>
-            <span class="spec-row__v font-mono">{{ batchNumber(sel.batchId) }}</span>
+            <span class="spec-row__v font-mono">{{ batchNumber(sel) }}</span>
           </div>
           @if (batchExpiry(sel.batchId); as exp) {
           <div class="spec-row">

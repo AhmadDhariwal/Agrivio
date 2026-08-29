@@ -22,6 +22,7 @@ const {
   toProductPriceDto,
 } = require('./catalog.validation');
 const { createInMemoryCatalogStore, createMongooseCatalogStore } = require('./catalog.store');
+const { attachProductListSummaries } = require('./catalog-list-summary');
 
 function createMongooseTransactionSessionPort() {
   const mongoose = require('mongoose');
@@ -234,6 +235,21 @@ function createCatalogService(deps) {
         skip !== undefined || pageSize !== undefined ? { skip, pageSize } : {},
       );
       return { items: items.map(toProductDto), total };
+    },
+
+    async findProductsByIds(organizationId, productIds) {
+      if (!Array.isArray(productIds) || productIds.length === 0) {
+        return [];
+      }
+      const records = await store.findProductsByIds(organizationId, productIds);
+      return records.map(toProductDto);
+    },
+
+    async attachProductListSummaries(organizationId, items, inventoryReader) {
+      if (typeof inventoryReader?.sumAvailableQuantityByProductIds !== 'function') {
+        return items;
+      }
+      return attachProductListSummaries(store, inventoryReader, organizationId, items);
     },
 
     async getProduct(organizationId, productId) {

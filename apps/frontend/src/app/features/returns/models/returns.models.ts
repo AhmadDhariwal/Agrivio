@@ -37,6 +37,11 @@ export interface SalesReturnRecord {
   customerIdentifyingName: string | null;
   customerIdentifyingPhone: string | null;
   warehouseId: string;
+  warehouseNameSnapshot?: string | null;
+  supplierNameSnapshot?: string | null;
+  customerNameSnapshot?: string | null;
+  refundAccountNameSnapshot?: string | null;
+  refundAccountTypeSnapshot?: string | null;
   reason: string;
   resolution: ReturnResolution | string;
   refundAccountId: string | null;

@@ -45,7 +45,7 @@ export class SalesPage {
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
-  private readonly reloadRequests = new Subject<void>();
+  private readonly reloadRequests = new Subject<boolean>();
   private readonly searchChanges = new Subject<string>();
 
   readonly items = signal<SaleRecord[]>([]);
@@ -96,8 +96,8 @@ export class SalesPage {
       });
     this.reloadRequests
       .pipe(
-        startWith(undefined),
-        switchMap(() => {
+        startWith(false),
+        switchMap((forceRefresh) => {
           if (!this.canView() || !this.canUseSales()) {
             this.loading.set(false);
             this.errorMessage.set('You do not have permission to view sales.');
@@ -112,6 +112,7 @@ export class SalesPage {
               page: this.page(),
               pageSize: this.pageSize(),
               search: effectiveSearch,
+              forceRefresh: forceRefresh === true,
               ...(effectiveStatus ? { status: effectiveStatus } : {}),
             })
             .pipe(
@@ -130,8 +131,8 @@ export class SalesPage {
       });
   }
 
-  reload(): void {
-    this.reloadRequests.next();
+  reload(forceRefresh = false): void {
+    this.reloadRequests.next(forceRefresh);
   }
 
   onSearchInput(event: Event): void {

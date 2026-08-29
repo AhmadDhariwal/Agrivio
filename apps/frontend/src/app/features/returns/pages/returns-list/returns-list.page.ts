@@ -1,7 +1,6 @@
 import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { catchError, forkJoin, of } from 'rxjs';
 import { ReturnsApi } from '../../data-access/returns.api';
 import { MoneyAmount, SalesReturnRecord, returnTypeLabel } from '../../models/returns.models';
 import {
@@ -135,6 +134,10 @@ export class ReturnsListPage {
       this.loading.set(false);
       return;
     }
+    this.locationsApi.listWarehouseOptions().subscribe({
+      next: (warehouses) => this.warehouses.set(warehouses),
+      error: () => this.warehouses.set([]),
+    });
     this.reload();
   }
 
@@ -148,6 +151,7 @@ export class ReturnsListPage {
       returnType?: string;
       status?: string;
       warehouseId?: string;
+      forceRefresh?: boolean;
     } = {
       page: this.page(),
       pageSize: this.pageSize(),
@@ -156,14 +160,10 @@ export class ReturnsListPage {
     if (this.statusFilter()) params.status = this.statusFilter();
     if (this.warehouseFilter()) params.warehouseId = this.warehouseFilter();
 
-    forkJoin({
-      returnsResult: this.api.listReturns(params),
-      warehouses: this.locationsApi.listWarehouseOptions().pipe(catchError(() => of([]))),
-    }).subscribe({
-      next: ({ returnsResult, warehouses }) => {
+    this.api.listReturns(params).subscribe({
+      next: (returnsResult) => {
         this.items.set(returnsResult.items);
         applyPaginationMeta(returnsResult.meta, { total: this.total, pageSize: this.pageSize });
-        this.warehouses.set(warehouses);
         this.loading.set(false);
       },
       error: (error: unknown) => {
@@ -231,8 +231,11 @@ export class ReturnsListPage {
     return 'type-badge';
   }
 
-  warehouseName(id: string): string {
-    return this.warehouses().find((item) => item.id === id)?.name ?? 'Warehouse';
+  warehouseName(item: SalesReturnRecord): string {
+    if (item.warehouseNameSnapshot) {
+      return item.warehouseNameSnapshot;
+    }
+    return this.warehouses().find((warehouse) => warehouse.id === item.warehouseId)?.name ?? 'Warehouse';
   }
 
   productSnapshotSummary(item: SalesReturnRecord): string {
@@ -257,8 +260,8 @@ export class ReturnsListPage {
 
     if (item.returnType === 'sales') {
       title = item.saleId ? `Sale #${item.saleId.slice(-6).toUpperCase()}` : 'Linked sales return';
-      if (item.customerIdentifyingName) {
-        subtitle = `Customer: ${item.customerIdentifyingName}`;
+      if (item.customerIdentifyingName || item.customerNameSnapshot) {
+        subtitle = `Customer: ${item.customerIdentifyingName ?? item.customerNameSnapshot}`;
       }
     } else if (item.returnType === 'purchase') {
       title = item.purchaseId
@@ -266,9 +269,9 @@ export class ReturnsListPage {
         : 'Purchase return';
     } else if (item.returnType === 'sales_without_invoice') {
       title = 'Return without invoice';
-      if (item.customerIdentifyingName) {
+      if (item.customerIdentifyingName || item.customerNameSnapshot) {
         const phone = item.customerIdentifyingPhone ? ` (${item.customerIdentifyingPhone})` : '';
-        subtitle = `Customer: ${item.customerIdentifyingName}${phone}`;
+        subtitle = `Customer: ${item.customerIdentifyingName ?? item.customerNameSnapshot}${phone}`;
       }
     }
 

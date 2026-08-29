@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import {
   FormArray,
   FormBuilder,
@@ -8,7 +8,8 @@ import {
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin, switchMap } from 'rxjs';
+import { forkJoin, Subject, debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PurchasesApi } from '../../data-access/purchases.api';
 import { ReturnsApi } from '../../data-access/returns.api';
 import {
@@ -31,7 +32,11 @@ import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api
 import { AccountRecord } from '../../../accounts-expenses/models/accounts.models';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
-import { hasRequiredValidator, setRequiredValidator } from '../../../../shared/form/form-field.util';
+import {
+  fieldValidationMessage,
+  hasRequiredValidator,
+  setRequiredValidator,
+} from '../../../../shared/form/form-field.util';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
@@ -60,6 +65,9 @@ export class PurchaseEditPage {
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly productSearchChanges = new Subject<string>();
+  private readonly supplierSearchChanges = new Subject<string>();
 
   readonly purchaseId = signal<string | null>(null);
   readonly purchase = signal<PurchaseRecord | null>(null);
@@ -73,6 +81,7 @@ export class PurchaseEditPage {
   readonly submittingReturn = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
+  readonly formSubmitAttempted = signal(false);
   readonly products = signal<ProductRecord[]>([]);
   readonly warehouses = signal<WarehouseRecord[]>([]);
   readonly suppliers = signal<SupplierRecord[]>([]);
@@ -147,9 +156,18 @@ export class PurchaseEditPage {
       (this.capabilityService?.canPerformAction('purchases.actions.post') ?? true) &&
       (this.capabilityService?.canPerformAction('purchases.actions.addPaymentAtPost') ?? true),
   );
+  readonly canSaveDraft = computed(
+    () =>
+      (this.purchaseId() === null ? this.canCreate() : this.canEditDraft()) &&
+      this.form.valid &&
+      !this.saving() &&
+      !this.posting() &&
+      this.isDraft(),
+  );
   private version = 1;
 
   readonly fieldRequired = hasRequiredValidator;
+  readonly fieldError = fieldValidationMessage;
 
   canViewPurchaseField(id: string): boolean {
     return this.capabilityService?.canViewField(`purchases.fields.${id}`) ?? true;
@@ -234,11 +252,30 @@ export class PurchaseEditPage {
     }
 
     const masters$ = forkJoin({
-      products: this.catalogApi.searchProductOptions(),
       warehouses: this.locationsApi.listWarehouseOptions(),
-      suppliers: this.suppliersApi.searchSupplierOptions(),
       accounts: this.accountsApi.listAccountOptions(),
     });
+
+    this.productSearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((query) => this.catalogApi.searchProductOptions(query, 25, 'active')),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((items) => this.products.set(items.filter((item) => item.status === 'active')));
+
+    this.supplierSearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((query) => this.suppliersApi.searchSupplierOptions(query)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((items) => this.suppliers.set(items.filter((item) => item.status === 'active')));
+
+    this.supplierSearchChanges.next('');
+    this.productSearchChanges.next('');
 
     if (isEdit && id) {
       forkJoin({
@@ -277,14 +314,26 @@ export class PurchaseEditPage {
     return this.lines.at(index) as FormGroup;
   }
 
+  lineFieldError(index: number, controlName: string, label: string): string | null {
+    return fieldValidationMessage(
+      this.lineGroup(index).get(controlName),
+      label,
+      this.formSubmitAttempted(),
+    );
+  }
+
   onSupplierSearch(event: Event): void {
     const target = event.target;
-    if (target instanceof HTMLInputElement) this.suppliersApi.searchSupplierOptions(target.value).subscribe((items) => this.suppliers.set(items));
+    if (target instanceof HTMLInputElement) {
+      this.supplierSearchChanges.next(target.value.trim());
+    }
   }
 
   onProductSearch(event: Event): void {
     const target = event.target;
-    if (target instanceof HTMLInputElement) this.catalogApi.searchProductOptions(target.value).subscribe((items) => this.products.set(items));
+    if (target instanceof HTMLInputElement) {
+      this.productSearchChanges.next(target.value.trim());
+    }
   }
 
   paymentGroup(index: number): FormGroup {
@@ -293,7 +342,12 @@ export class PurchaseEditPage {
 
   trackingModeForLine(index: number): string {
     const productId = String(this.lineGroup(index).get('productId')?.value ?? '');
-    return this.products().find((item) => item.id === productId)?.trackingMode ?? 'none';
+    const fromCatalog = this.products().find((item) => item.id === productId)?.trackingMode;
+    if (fromCatalog) {
+      return fromCatalog;
+    }
+    const line = this.purchase()?.lines[index];
+    return line?.trackingModeSnapshot ?? 'none';
   }
 
   packagingUnitsForLine(index: number): PackagingUnitRecord[] {
@@ -435,7 +489,7 @@ export class PurchaseEditPage {
           this.returnLines.clear();
           this.returnForm.patchValue({ reason: '' });
           if (id) {
-            this.api.getPurchase(id).subscribe({
+            this.api.getPurchase(id, { forceRefresh: true }).subscribe({
               next: (record) => this.applyPurchase(record),
             });
           }
@@ -466,8 +520,13 @@ export class PurchaseEditPage {
 
   save(): void {
     const id = this.purchaseId();
-    if (!(id === null ? this.canCreate() : this.canEditDraft()) || this.form.invalid) {
-      this.form.markAllAsTouched();
+    const canManage = id === null ? this.canCreate() : this.canEditDraft();
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    for (let index = 0; index < this.lines.length; index += 1) {
+      this.lineGroup(index).markAllAsTouched();
+    }
+    if (!canManage || this.form.invalid) {
       return;
     }
     this.saving.set(true);
@@ -610,21 +669,54 @@ export class PurchaseEditPage {
   }
 
   private applyMasters(masters: {
-    products: ProductRecord[];
     warehouses: WarehouseRecord[];
-    suppliers: SupplierRecord[];
     accounts: AccountRecord[];
   }): void {
-    this.products.set(masters.products.filter((item) => item.status === 'active'));
     this.warehouses.set(masters.warehouses.filter((item) => item.status === 'active'));
-    this.suppliers.set(masters.suppliers.filter((item) => item.status === 'active'));
     this.accounts.set(masters.accounts.filter((item) => item.status === 'active'));
     this.bindLineProductChanges(0);
+  }
+
+  private seedSelectorOptionsFromPurchase(purchase: PurchaseRecord): void {
+    this.suppliers.set([
+      {
+        id: purchase.supplierId,
+        organizationId: purchase.organizationId,
+        name: purchase.supplierNameSnapshot,
+        phone: '',
+        contactName: '',
+        email: '',
+        status: 'active',
+        version: purchase.version,
+      },
+    ]);
+    const seen = new Set<string>();
+    const productOptions: ProductRecord[] = [];
+    for (const line of purchase.lines) {
+      if (seen.has(line.productId)) {
+        continue;
+      }
+      seen.add(line.productId);
+      productOptions.push({
+        id: line.productId,
+        organizationId: purchase.organizationId,
+        categoryId: '',
+        name: line.productNameSnapshot,
+        sku: '',
+        trackingMode: line.trackingModeSnapshot,
+        baseUnitCode: line.unitCodeSnapshot,
+        measurementDimension: 'mass',
+        status: 'active',
+        version: 1,
+      });
+    }
+    this.products.set(productOptions);
   }
 
   private applyPurchase(purchase: PurchaseRecord): void {
     this.purchase.set(purchase);
     this.version = purchase.version;
+    this.seedSelectorOptionsFromPurchase(purchase);
     const posted = purchase.status === 'posted';
 
     this.form.patchValue({

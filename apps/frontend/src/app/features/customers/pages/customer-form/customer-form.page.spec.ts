@@ -120,6 +120,25 @@ describe('CustomerFormPage', () => {
     expect(fixture.nativeElement.querySelector('[data-testid="customer-credit-enabled"]')).toBeNull();
   });
 
+  it('disables save while required fields are missing', async () => {
+    const fixture = await createPage();
+    const saveButton = fixture.nativeElement.querySelector(
+      '[data-testid="customer-save"]',
+    ) as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(true);
+  });
+
+  it('blocks invalid submit without calling createCustomer', async () => {
+    const fixture = await createPage();
+    const page = fixture.componentInstance;
+
+    page.save();
+    fixture.detectChanges();
+
+    expect(mockApi.createCustomer).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain('Name is required.');
+  });
+
   describe('Edit Mode Capability Enforcement', () => {
     it('loads customer and updates both profile and credit policy when all capabilities allowed', async () => {
       const fixture = await createPage({ routeId: 'customer-1' });
@@ -152,6 +171,23 @@ describe('CustomerFormPage', () => {
 
       expect(mockApi.updateCustomer).toHaveBeenCalled();
       expect(mockApi.updateCreditPolicy).not.toHaveBeenCalled();
+    });
+
+    it('omits disabled phone from edit PATCH payload', async () => {
+      const fixture = await createPage({
+        routeId: 'customer-1',
+        capabilities: { 'customers.fields.phone': false },
+      });
+
+      const page = fixture.componentInstance;
+      expect(page.form.controls.phone.disabled).toBe(true);
+
+      page.save();
+
+      expect(mockApi.updateCustomer).toHaveBeenCalledWith(
+        'customer-1',
+        expect.not.objectContaining({ phone: expect.anything() }),
+      );
     });
 
     it('disables opening balance posting when customers.actions.postOpeningBalance is disabled', async () => {

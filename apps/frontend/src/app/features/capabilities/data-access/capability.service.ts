@@ -3,6 +3,10 @@ import { Observable, finalize, of, shareReplay, tap } from 'rxjs';
 import { AuthSessionStore } from '../../auth/data-access/auth-session.store';
 import { CapabilitiesApi } from './capabilities.api';
 import { EffectiveCapabilitiesSnapshot } from '../models/capability.models';
+import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
+import { invalidateDashboardReads } from '../../dashboard/data-access/dashboard-cache.invalidation';
+import { invalidateReportsReads } from '../../reports/data-access/reports-cache.invalidation';
+import { invalidateAlertReads } from '../../alerts/data-access/alerts-cache.invalidation';
 
 const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string, boolean>>>> = {
   'inventory.products': { enabled: true },
@@ -228,6 +232,20 @@ const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string,
   'customers.actions.editCreditPolicy': { allowed: true },
   'customers.actions.postOpeningBalance': { allowed: true },
   'customers.actions.refresh': { allowed: true },
+  // Warehouses module controls (13 authoritative controls)
+  warehouses: { enabled: true },
+  'warehouses.features.moduleInfo': { enabled: true },
+  'warehouses.features.search': { enabled: true },
+  'warehouses.features.statusFilter': { enabled: true },
+  'warehouses.fields.name': { visible: true, editable: true },
+  'warehouses.fields.code': { visible: true, editable: true },
+  'warehouses.fields.status': { visible: true, editable: false },
+  'warehouses.actions.create': { allowed: true },
+  'warehouses.actions.edit': { allowed: true },
+  'warehouses.actions.deactivate': { allowed: true },
+  'warehouses.actions.reactivate': { allowed: true },
+  'warehouses.actions.delete': { allowed: true },
+  'warehouses.actions.refresh': { allowed: true },
   // Suppliers module controls (21 authoritative controls)
   suppliers: { enabled: true },
   'suppliers.features.moduleInfo': { enabled: true },
@@ -358,6 +376,23 @@ const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string,
   'alerts.actions.acknowledge': { allowed: true },
   'alerts.actions.markRead': { allowed: true },
   'alerts.actions.markAllRead': { allowed: true },
+  employees: { enabled: true },
+  'employees.features.moduleInfo': { enabled: true },
+  'employees.features.search': { enabled: true },
+  'employees.features.statusFilter': { enabled: true },
+  'employees.features.roleFilter': { enabled: true },
+  'employees.features.kpiCards': { enabled: true },
+  'employees.fields.email': { visible: true, editable: true },
+  'employees.fields.displayName': { visible: true, editable: true },
+  'employees.fields.role': { visible: true, editable: true },
+  'employees.fields.branchAccess': { visible: true, editable: false },
+  'employees.fields.warehouseAccess': { visible: true, editable: false },
+  'employees.fields.status': { visible: true, editable: false },
+  'employees.actions.create': { allowed: true },
+  'employees.actions.edit': { allowed: true },
+  'employees.actions.deactivate': { allowed: true },
+  'employees.actions.assignAccess': { allowed: true },
+  'employees.actions.refresh': { allowed: true },
   // Purchases module controls (26 authoritative controls)
   purchases: { enabled: true },
   'purchases.features.moduleInfo': { enabled: true },
@@ -475,6 +510,17 @@ const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string,
   'payments.customer.actions.postInvoiceSpecific': { allowed: true },
   'payments.customer.actions.inspect': { allowed: true },
   'payments.customer.actions.correct': { allowed: true },
+  dashboard: { enabled: true },
+  'dashboard.features.datePeriodFilter': { enabled: true },
+  'dashboard.features.branchFilter': { enabled: true },
+  'dashboard.features.warehouseFilter': { enabled: true },
+  'dashboard.widgets.financialSummary': { visible: true },
+  'dashboard.widgets.accountSummary': { visible: true },
+  'dashboard.widgets.salesVsPurchasesTrend': { visible: true },
+  'dashboard.widgets.grossProfitTrend': { visible: true },
+  'dashboard.widgets.topSellingProducts': { visible: true },
+  'dashboard.widgets.inventoryHealth': { visible: true },
+  'dashboard.widgets.recentSales': { visible: true },
 };
 
 @Injectable({ providedIn: 'root' })
@@ -515,6 +561,7 @@ export class CapabilityService {
       return this.activeRequest;
     }
     this.loadAttemptedSignal.set(true);
+    const previousVersion = this.snapshotSignal()?.version ?? null;
     let api: CapabilitiesApi;
     try {
       api = this.injector.get(CapabilitiesApi);
@@ -525,7 +572,19 @@ export class CapabilityService {
     }
     const request = api.getCurrent().pipe(
       tap({
-        next: (snapshot) => this.snapshotSignal.set(snapshot),
+        next: (snapshot) => {
+          this.snapshotSignal.set(snapshot);
+          if (previousVersion !== null && snapshot.version !== previousVersion) {
+            try {
+              const queryCache = this.injector.get(QueryCacheService);
+              invalidateDashboardReads(queryCache);
+              invalidateReportsReads(queryCache);
+              invalidateAlertReads(queryCache);
+            } catch {
+              // Query cache is optional during bootstrap/tests.
+            }
+          }
+        },
         error: () => this.snapshotSignal.set(null),
       }),
       finalize(() => {
@@ -586,6 +645,7 @@ export class CapabilityService {
       'inventory.reconciliation',
       'inventory.movements',
       'customers',
+      'warehouses',
       'suppliers',
       'returns',
       'expenses',
@@ -593,11 +653,13 @@ export class CapabilityService {
       'accounts',
       'reports',
       'alerts',
+      'employees',
       'purchases',
       'payments.customer',
       'payments.supplier',
       'payments.supplierLedger',
       'sales',
+      'dashboard',
     ]);
     return {
       organizationId: this.sessionStore.activeContext()?.organizationId ?? 'test-organization',

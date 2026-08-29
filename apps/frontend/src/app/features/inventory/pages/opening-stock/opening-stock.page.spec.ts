@@ -30,14 +30,21 @@ describe('OpeningStockPage', () => {
   let fixture: ComponentFixture<OpeningStockPage>;
   let page: OpeningStockPage;
   let capabilityValues: WritableSignal<Record<string, boolean>>;
+  let postOpeningStock: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     capabilityValues = signal({});
+    postOpeningStock = vi.fn(() =>
+      of({
+        balance: { quantityBase: '10.0000' },
+        costState: { weightedAverageCost: { amount: '100.00' } },
+      }),
+    );
     await TestBed.configureTestingModule({
       imports: [OpeningStockPage],
       providers: [
         provideRouter([]),
-        { provide: InventoryApi, useValue: { postOpeningStock: () => of({}) } },
+        { provide: InventoryApi, useValue: { postOpeningStock } },
         {
           provide: CatalogApi,
           useValue: {
@@ -210,5 +217,33 @@ describe('OpeningStockPage', () => {
     expect(contextEl?.textContent).toContain('prod-batch');
     expect(contextEl?.textContent).toContain('KG');
     expect(contextEl?.textContent).toContain('Batch Tracked');
+  });
+
+  it('blocks submit without API call and shows field errors when form is invalid', () => {
+    page.submit();
+    fixture.detectChanges();
+
+    expect(postOpeningStock).not.toHaveBeenCalled();
+    expect(page.formSubmitAttempted()).toBe(true);
+    expect(page.canPost()).toBe(false);
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="opening-stock-save"]')?.disabled,
+    ).toBe(true);
+    expect(page.fieldError(page.form.controls.quantity, 'Quantity', true)).toContain('required');
+  });
+
+  it('rejects non-positive quantity before posting', () => {
+    page.form.patchValue({
+      warehouseId: 'wh-1',
+      productId: 'prod-none',
+      quantity: '0',
+      inventoryValue: '100.00',
+    });
+    fixture.detectChanges();
+
+    expect(page.form.valid).toBe(false);
+    page.submit();
+    expect(postOpeningStock).not.toHaveBeenCalled();
+    expect(page.fieldError(page.form.controls.quantity, 'Quantity', true)).toContain('greater than zero');
   });
 });

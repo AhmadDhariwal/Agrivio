@@ -1204,6 +1204,7 @@ function createPaymentsService(deps) {
       return {
         items: items.map((item) => ({
           id: String(item.id),
+          invoiceNumber: item.invoiceNumber ?? null,
           invoiceDate: String(item.invoiceDate),
           dueDate: item.dueDate ?? null,
           sequence: item.sequence ?? null,

@@ -726,7 +726,7 @@
     @if (isDraft()) {
       <form class="draft-form-container" [formGroup]="form" (ngSubmit)="save()" data-testid="sale-form">
         <!-- Section 1: Sale Information -->
-        <section class="form-card" data-testid="sale-info-card">
+        <section class="form-card sale-info-card" data-testid="sale-info-card">
           <div class="form-card__header">
             <div class="form-card__icon">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -757,13 +757,18 @@
                   class="ag-select"
                   formControlName="branchId"
                   data-testid="sale-branch"
+                  [class.ag-input--invalid]="fieldError(form.controls.branchId, 'Branch', formSubmitAttempted())"
                   [attr.aria-required]="fieldRequired(form.controls.branchId) ? 'true' : null"
+                  [attr.aria-invalid]="fieldError(form.controls.branchId, 'Branch', formSubmitAttempted()) ? 'true' : null"
                 >
                   <option value="">Select branch</option>
                   @for (branch of branches(); track branch.id) {
                     <option [value]="branch.id">{{ branch.name }}</option>
                   }
                 </select>
+                @if (fieldError(form.controls.branchId, 'Branch', formSubmitAttempted()); as branchError) {
+                  <p class="field-error" role="alert">{{ branchError }}</p>
+                }
               </div>
 
               <!-- Warehouse -->
@@ -778,48 +783,126 @@
                   class="ag-select"
                   formControlName="warehouseId"
                   data-testid="sale-warehouse"
+                  [class.ag-input--invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted())"
                   [attr.aria-required]="fieldRequired(form.controls.warehouseId) ? 'true' : null"
+                  [attr.aria-invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()) ? 'true' : null"
                 >
                   <option value="">Select warehouse</option>
                   @for (warehouse of warehouses(); track warehouse.id) {
                     <option [value]="warehouse.id">{{ warehouse.name }}</option>
                   }
                 </select>
+                @if (fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()); as warehouseError) {
+                  <p class="field-error" role="alert">{{ warehouseError }}</p>
+                }
               </div>
 
-              <!-- Customer -->
+              <!-- Customer Type -->
               @if (canViewCustomerField()) {
                 <div class="ag-field">
-                  <agrivio-ui-field-label label="Customer" for="sale-customer" />
-                  <select id="sale-customer" class="ag-select" formControlName="customerId" data-testid="sale-customer">
-                    <option value="">Walk-in (cash only)</option>
-                    @for (customer of customers(); track customer.id) {
-                      <option [value]="customer.id">{{ customer.name }} ({{ customer.priceTier }})</option>
+                  <agrivio-ui-field-label label="Customer Type" for="sale-customer-type" />
+                  <select
+                    id="sale-customer-type"
+                    class="ag-select"
+                    formControlName="customerTypeMode"
+                    data-testid="sale-customer-type"
+                    [disabled]="!canEditCustomerField() || isPosted()"
+                  >
+                    @for (option of customerTypeOptions; track option.value) {
+                      <option [value]="option.value">{{ option.label }}</option>
                     }
                   </select>
+                  <p class="field-hint text-muted">Walk-in is cash-only. Other types require selecting a customer below.</p>
                 </div>
               }
             </div>
 
             <!-- Lower Grid: Find Customer, Sale Date, Notes -->
             <div class="form-grid form-grid--3col">
-              <!-- Find Customer Search -->
               @if (canViewCustomerField()) {
-                <div class="ag-field">
-                  <agrivio-ui-field-label label="Find Customer" for="sale-customer-search" />
-                  <div class="input-with-icon">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="input-icon">
-                      <circle cx="11" cy="11" r="8"></circle>
-                      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                <div class="ag-field customer-picker" #customerPicker data-testid="sale-customer-picker">
+                  <agrivio-ui-field-label label="Find Customer" for="sale-customer-trigger" />
+                  <button
+                    id="sale-customer-trigger"
+                    type="button"
+                    class="customer-picker__trigger ag-select"
+                    data-testid="sale-customer"
+                    [disabled]="!canEditCustomerField() || isPosted()"
+                    [attr.aria-expanded]="customerDropdownOpen()"
+                    aria-haspopup="listbox"
+                    (click)="toggleCustomerDropdown($event)"
+                  >
+                    <span class="customer-picker__label">{{ selectedCustomerLabel() }}</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <polyline points="6 9 12 15 18 9"></polyline>
                     </svg>
-                    <input
-                      id="sale-customer-search"
-                      class="ag-input ag-input--with-icon"
-                      type="search"
-                      placeholder="Search by name, phone, or code…"
-                      (change)="onCustomerSearchInput($event)"
-                    />
-                  </div>
+                  </button>
+                  @if (isWalkInCustomerType()) {
+                    <p class="field-hint text-muted">Not required for walk-in sales.</p>
+                  } @else if (fieldError(form.controls.customerId, 'Customer', formSubmitAttempted()); as customerError) {
+                    <p class="field-error" role="alert">{{ customerError }}</p>
+                  }
+
+                  @if (customerDropdownOpen()) {
+                    <div
+                      class="customer-picker__panel"
+                      role="listbox"
+                      data-testid="sale-customer-panel"
+                      (click)="$event.stopPropagation()"
+                    >
+                      @if (canUseCustomerSearch()) {
+                        <div class="customer-picker__search">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                          </svg>
+                          <input
+                            id="sale-customer-search"
+                            class="customer-picker__search-input"
+                            type="search"
+                            placeholder="Search by name, phone, or ID…"
+                            data-testid="sale-customer-search"
+                            [value]="customerSearchTerm()"
+                            (input)="onCustomerSearchInput($event)"
+                          />
+                        </div>
+                      }
+
+                      <div class="customer-picker__options">
+                        @if (!canSearchCustomers()) {
+                          <p class="customer-picker__hint customer-picker__hint--muted">
+                            Select branch and warehouse before posting this sale.
+                          </p>
+                        }
+                        @if (customerSearchLoading()) {
+                          <p class="customer-picker__hint">Loading customers…</p>
+                        } @else if (customerSearchError()) {
+                          <p class="customer-picker__hint customer-picker__hint--error">Unable to load customers. Try again.</p>
+                        } @else if (filteredCustomers().length === 0) {
+                          <p class="customer-picker__hint">
+                            @if (customerSearchTerm().trim() === '') {
+                              No active customers for this customer type.
+                            } @else {
+                              No customers match &ldquo;{{ customerSearchTerm().trim() }}&rdquo;.
+                            }
+                          </p>
+                        } @else {
+                          @for (customer of filteredCustomers(); track customer.id) {
+                            <button
+                              type="button"
+                              class="customer-picker__option"
+                              [class.is-selected]="form.controls.customerId.value === customer.id"
+                              (click)="selectCustomer(customer)"
+                              [attr.data-testid]="'sale-customer-option-' + customer.id"
+                            >
+                              <span class="customer-picker__option-name">{{ customer.name }}</span>
+                              <span class="customer-picker__option-meta">{{ customer.priceTier }}</span>
+                            </button>
+                          }
+                        }
+                      </div>
+                    </div>
+                  }
                 </div>
               }
 
@@ -836,8 +919,13 @@
                   type="date"
                   formControlName="saleDate"
                   data-testid="sale-date"
+                  [class.ag-input--invalid]="fieldError(form.controls.saleDate, 'Sale date', formSubmitAttempted())"
                   [attr.aria-required]="fieldRequired(form.controls.saleDate) ? 'true' : null"
+                  [attr.aria-invalid]="fieldError(form.controls.saleDate, 'Sale date', formSubmitAttempted()) ? 'true' : null"
                 />
+                @if (fieldError(form.controls.saleDate, 'Sale date', formSubmitAttempted()); as saleDateError) {
+                  <p class="field-error" role="alert">{{ saleDateError }}</p>
+                }
               </div>
 
               <!-- Notes -->
@@ -917,7 +1005,7 @@
                         placeholder="Search products…"
                         data-testid="sale-product-search"
                         [value]="productSearchQuery()"
-                        (change)="onProductSearchInput($event)"
+                        (input)="onProductSearchInput($event)"
                       />
                     </div>
 
@@ -933,13 +1021,18 @@
                         class="ag-select"
                         formControlName="productId"
                         data-testid="sale-line-product"
+                        [class.ag-input--invalid]="lineFieldError(index, 'productId', 'Product')"
                         [attr.aria-required]="fieldRequired(lineGroup(index).controls['productId']) ? 'true' : null"
+                        [attr.aria-invalid]="lineFieldError(index, 'productId', 'Product') ? 'true' : null"
                       >
                         <option value="">Select product</option>
-                        @for (product of filteredProducts(); track product.id) {
+                        @for (product of products(); track product.id) {
                           <option [value]="product.id">{{ product.name }}</option>
                         }
                       </select>
+                      @if (lineFieldError(index, 'productId', 'Product'); as productError) {
+                        <p class="field-error" role="alert">{{ productError }}</p>
+                      }
                     </div>
 
                     <!-- Packaging -->
@@ -975,8 +1068,13 @@
                         placeholder="0"
                         formControlName="quantity"
                         data-testid="sale-line-quantity"
+                        [class.ag-input--invalid]="lineFieldError(index, 'quantity', 'Quantity')"
                         [attr.aria-required]="fieldRequired(lineGroup(index).controls['quantity']) ? 'true' : null"
+                        [attr.aria-invalid]="lineFieldError(index, 'quantity', 'Quantity') ? 'true' : null"
                       />
+                      @if (lineFieldError(index, 'quantity', 'Quantity'); as quantityError) {
+                        <p class="field-error" role="alert">{{ quantityError }}</p>
+                      }
                     </div>
 
                     <!-- Unit Price -->
@@ -994,8 +1092,13 @@
                         placeholder="0.00"
                         formControlName="unitPrice"
                         data-testid="sale-line-unit-price"
+                        [class.ag-input--invalid]="lineFieldError(index, 'unitPrice', 'Unit price')"
                         [attr.aria-required]="fieldRequired(lineGroup(index).controls['unitPrice']) ? 'true' : null"
+                        [attr.aria-invalid]="lineFieldError(index, 'unitPrice', 'Unit price') ? 'true' : null"
                       />
+                      @if (lineFieldError(index, 'unitPrice', 'Unit price'); as unitPriceError) {
+                        <p class="field-error" role="alert">{{ unitPriceError }}</p>
+                      }
                     </div>
 
                     <!-- Price Override Reason -->
@@ -1225,28 +1328,28 @@
 
         <!-- Form Action Footer -->
         <footer class="form-actions">
-          @if (saleId() ? canEditDraft() : canCreateDraft()) {
-            <button class="ag-btn ag-btn--primary" type="submit" [disabled]="saving()" data-testid="sale-save">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                <polyline points="7 3 7 8 15 8"></polyline>
-              </svg>
-              {{ saving() ? 'Saving…' : 'Save Draft' }}
-            </button>
-          }
-          @if (saleId() && canPost()) {
+          @if (canPost() && isDraft()) {
             <button
               class="ag-btn ag-btn--primary"
               type="button"
-              [disabled]="posting()"
+              [disabled]="posting() || saving()"
               (click)="post()"
               data-testid="sale-post"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
-              {{ posting() ? 'Posting…' : 'Post Sale' }}
+              {{ posting() ? 'Registering…' : (saleId() ? 'Post Sale' : 'Register Sale') }}
+            </button>
+          }
+          @if (saleId() ? canEditDraft() : canCreateDraft()) {
+            <button class="ag-btn ag-btn--secondary" type="submit" [disabled]="!canSaveDraft()" data-testid="sale-save">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+              </svg>
+              {{ saving() ? 'Saving…' : 'Save Draft' }}
             </button>
           }
           @if (saleId() && canDiscardDraft()) {

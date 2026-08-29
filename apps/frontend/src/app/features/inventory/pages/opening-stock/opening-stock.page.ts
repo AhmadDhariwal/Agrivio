@@ -1,8 +1,9 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { Subject, debounceTime, distinctUntilChanged, forkJoin, switchMap } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { InventoryApi } from '../../data-access/inventory.api';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
 import {
@@ -16,8 +17,14 @@ import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-f
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import {
   hasRequiredValidator,
+  fieldValidationMessage,
   setRequiredValidator,
 } from '../../../../shared/form/form-field.util';
+import {
+  inventoryMoneyValidators,
+  inventoryMoneyValidator,
+  inventoryQuantityValidators,
+} from '../../shared/inventory-form.validation';
 import { PackagingUnitRecord, ProductRecord } from '../../../catalog/models/catalog.models';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
@@ -42,9 +49,12 @@ export class OpeningStockPage {
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly formBuilder = inject(FormBuilder);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly productSearchChanges = new Subject<string>();
 
   readonly loading = signal(true);
   readonly saving = signal(false);
+  readonly formSubmitAttempted = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly products = signal<ProductRecord[]>([]);
@@ -76,6 +86,10 @@ export class OpeningStockPage {
       this.sessionStore.hasPermission('inventory.opening-stock.post') &&
       (this.capabilityService?.canPerformAction('inventory.openingStock.actions.post') ?? true),
   );
+  readonly canPost = computed(
+    () => this.canPostOpeningStock() && this.formValid() && !this.saving(),
+  );
+  private readonly formValid = signal(false);
   readonly showViewStockAction = computed(
     () =>
       this.sessionStore.hasPermission('inventory.view') &&
@@ -86,6 +100,7 @@ export class OpeningStockPage {
   readonly selectedProduct = signal<ProductRecord | null>(null);
 
   readonly fieldRequired = hasRequiredValidator;
+  readonly fieldError = fieldValidationMessage;
 
   readonly infoTitle = 'About Opening Stock';
   readonly infoDescription =
@@ -100,15 +115,20 @@ export class OpeningStockPage {
   readonly form = this.formBuilder.nonNullable.group({
     warehouseId: ['', Validators.required],
     productId: ['', Validators.required],
-    quantity: ['', Validators.required],
+    quantity: ['', inventoryQuantityValidators],
     packagingUnitId: [''],
     batchNumber: [''],
     manufacturingDate: [''],
     expiryDate: [''],
-    inventoryValue: ['', Validators.required],
+    inventoryValue: ['', inventoryMoneyValidators],
   });
 
   constructor() {
+    this.formValid.set(this.form.valid);
+    this.form.statusChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.formValid.set(this.form.valid);
+    });
+
     if (!this.canPostOpeningStock()) {
       this.loading.set(false);
       return;
@@ -148,6 +168,17 @@ export class OpeningStockPage {
         },
       });
     });
+
+    this.productSearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((query) => this.catalogApi.searchProductOptions(query, 500, 'active')),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((items) => {
+        this.products.set(items.filter((item) => item.status === 'active'));
+      });
   }
 
   private syncTrackingRequired(mode: string): void {
@@ -162,8 +193,9 @@ export class OpeningStockPage {
   }
 
   submit(): void {
-    if (!this.canPostOpeningStock() || this.form.invalid) {
-      this.form.markAllAsTouched();
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    if (!this.canPost()) {
       return;
     }
     this.saving.set(true);
@@ -227,9 +259,7 @@ export class OpeningStockPage {
   onProductSearch(event: Event): void {
     const target = event.target;
     if (target instanceof HTMLInputElement) {
-      this.catalogApi.searchProductOptions(target.value).subscribe((items) => {
-        this.products.set(items);
-      });
+      this.productSearchChanges.next(target.value.trim());
     }
   }
 }

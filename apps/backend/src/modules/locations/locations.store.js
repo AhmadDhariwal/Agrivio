@@ -94,6 +94,17 @@ function createMongooseLocationsStore() {
       return WarehouseModel.findOne({ _id: id, organizationId }).lean().exec();
     },
 
+    async findWarehousesByIds(organizationId, warehouseIds) {
+      if (!Array.isArray(warehouseIds) || warehouseIds.length === 0) {
+        return [];
+      }
+      const ids = warehouseIds.filter((id) => mongoose.isValidObjectId(id));
+      if (ids.length === 0) {
+        return [];
+      }
+      return WarehouseModel.find({ organizationId, _id: { $in: ids } }).lean().exec();
+    },
+
     async insertWarehouse(session, doc) {
       try {
         const [created] = await WarehouseModel.create([doc], withSession(session));
@@ -274,6 +285,20 @@ function createInMemoryLocationsStore() {
         return null;
       }
       return { ...record };
+    },
+
+    async findWarehousesByIds(organizationId, warehouseIds) {
+      if (!Array.isArray(warehouseIds) || warehouseIds.length === 0) {
+        return [];
+      }
+      const allowed = new Set(warehouseIds.map(String));
+      return [...warehouses.values()]
+        .filter(
+          (item) =>
+            String(item.organizationId) === String(organizationId) &&
+            allowed.has(String(item._id)),
+        )
+        .map((item) => ({ ...item }));
     },
 
     async insertWarehouse(_session, doc) {

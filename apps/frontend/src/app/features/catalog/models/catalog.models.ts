@@ -18,6 +18,11 @@ export interface CategoryRecord {
   version: number;
 }
 
+export interface ProductListSummary {
+  sellingPrice: MoneyAmount | null;
+  availableQuantityBase: string;
+}
+
 export interface ProductRecord {
   id: string;
   organizationId: string;
@@ -29,6 +34,7 @@ export interface ProductRecord {
   measurementDimension: MeasurementDimension | string;
   status: EntityStatus;
   version: number;
+  listSummary?: ProductListSummary;
 }
 
 export interface PackagingUnitRecord {

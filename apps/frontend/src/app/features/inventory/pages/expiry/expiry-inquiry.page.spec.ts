@@ -134,7 +134,6 @@ describe('ExpiryInquiryPage', () => {
 
   let mockInventoryApi: {
     listExpiry: ReturnType<typeof vi.fn>;
-    listBatches: ReturnType<typeof vi.fn>;
   };
   let mockCatalogApi: {
     searchProductOptions: ReturnType<typeof vi.fn>;
@@ -153,12 +152,6 @@ describe('ExpiryInquiryPage', () => {
           items: mockExpiryItems,
           businessDate: '2026-08-21',
           thresholdDays: 30,
-        }),
-      ),
-      listBatches: vi.fn().mockReturnValue(
-        of({
-          items: mockBatches,
-          meta: { page: 1, pageSize: 500, total: 3 },
         }),
       ),
     };
@@ -189,6 +182,18 @@ describe('ExpiryInquiryPage', () => {
     fixture = TestBed.createComponent(ExpiryInquiryPage);
     component = fixture.componentInstance;
     fixture.detectChanges();
+  });
+
+  it('loads reference data once on init and refresh only reloads expiry data', () => {
+    expect(mockLocationsApi.listWarehouseOptions).toHaveBeenCalledTimes(1);
+    expect(mockCatalogApi.searchProductOptions).toHaveBeenCalledTimes(1);
+    expect(mockInventoryApi.listExpiry).toHaveBeenCalledTimes(1);
+
+    mockInventoryApi.listExpiry.mockClear();
+    component.reload();
+    expect(mockInventoryApi.listExpiry).toHaveBeenCalledTimes(1);
+    expect(mockLocationsApi.listWarehouseOptions).toHaveBeenCalledTimes(1);
+    expect(mockCatalogApi.searchProductOptions).toHaveBeenCalledTimes(1);
   });
 
   it('should create and load expiry data with relation maps', () => {
@@ -318,7 +323,7 @@ describe('ExpiryInquiryPage — capability controls', () => {
       imports: [P],
       providers: [
         pr([]),
-        { provide: IApi, useValue: { listExpiry: vi.fn().mockReturnValue(rxOf({ items: [], businessDate: '2026-08-21', thresholdDays: 30 })), listBatches: vi.fn().mockReturnValue(rxOf({ items: [], meta: { page: 1, pageSize: 500, total: 0 } })) } },
+        { provide: IApi, useValue: { listExpiry: vi.fn().mockReturnValue(rxOf({ items: [], businessDate: '2026-08-21', thresholdDays: 30 })) } },
         { provide: CApi, useValue: { searchProductOptions: vi.fn().mockReturnValue(rxOf([])) } },
         { provide: BApi, useValue: { listWarehouseOptions: vi.fn().mockReturnValue(rxOf([])) } },
         { provide: SS, useValue: { hasPermission: vi.fn(() => true) } },

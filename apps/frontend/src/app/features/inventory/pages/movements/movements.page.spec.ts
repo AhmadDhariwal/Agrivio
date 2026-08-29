@@ -44,6 +44,11 @@ describe('MovementsPage', () => {
       status: 'posted',
       postedAt: '2026-08-22T10:40:00.000Z',
       postedBy: 'user-1',
+      productNameSnapshot: 'Urea 46%',
+      productSkuSnapshot: 'URE-46',
+      warehouseNameSnapshot: 'Main Warehouse',
+      warehouseCodeSnapshot: 'WH1',
+      batchNumberSnapshot: 'LOT-FFC-UREA-WH1',
     },
     {
       id: 'mov-2',
@@ -65,6 +70,11 @@ describe('MovementsPage', () => {
       status: 'posted',
       postedAt: '2026-08-22T10:40:00.000Z',
       postedBy: 'user-1',
+      productNameSnapshot: 'Urea 46%',
+      productSkuSnapshot: 'URE-46',
+      warehouseNameSnapshot: 'Main Warehouse',
+      warehouseCodeSnapshot: 'WH1',
+      batchNumberSnapshot: 'LOT-FFC-UREA-WH1',
     },
     {
       id: 'mov-3',
@@ -86,6 +96,11 @@ describe('MovementsPage', () => {
       status: 'posted',
       postedAt: '2026-08-21T04:15:00.000Z',
       postedBy: 'user-2',
+      productNameSnapshot: 'MOP Fertilizer',
+      productSkuSnapshot: 'MOP-01',
+      warehouseNameSnapshot: 'Secondary Warehouse',
+      warehouseCodeSnapshot: 'WH2',
+      batchNumberSnapshot: 'LOT-MOP-0821',
     },
   ];
 
@@ -291,37 +306,53 @@ describe('MovementsPage', () => {
   });
 
   describe('Reference Enrichment and Fallback Resolution', () => {
-    it('resolves product names and SKUs from lookup maps', () => {
-      const p1 = component.resolveProduct('prod-1');
+    it('does not perform per-id enrichment requests on initial load', () => {
+      expect(mockCatalogApi.getProduct).not.toHaveBeenCalled();
+      expect(mockLocationsApi.getWarehouse).not.toHaveBeenCalled();
+      expect(mockInventoryApi.getBatch).not.toHaveBeenCalled();
+    });
+
+    it('resolves product names and SKUs from list snapshots', () => {
+      const p1 = component.resolveProduct(mockMovements[0]!);
       expect(p1.name).toBe('Urea 46%');
       expect(p1.sku).toBe('URE-46');
     });
 
-    it('resolves warehouse name and code from lookup maps', () => {
-      const w1 = component.resolveWarehouse('wh-1');
+    it('resolves warehouse name and code from list snapshots', () => {
+      const w1 = component.resolveWarehouse(mockMovements[0]!);
       expect(w1.name).toBe('Main Warehouse');
       expect(w1.code).toBe('WH1');
     });
 
-    it('resolves batch numbers from batch lookup', () => {
-      const b1 = component.resolveBatch('batch-1');
+    it('resolves batch numbers from list snapshots', () => {
+      const b1 = component.resolveBatch(mockMovements[0]!);
       expect(b1.batchNumber).toBe('LOT-FFC-UREA-WH1');
     });
 
     it('handles missing product gracefully without throwing', () => {
-      const missingProd = component.resolveProduct('unknown-prod-123456');
+      const missingProd = component.resolveProduct({
+        ...mockMovements[0]!,
+        productId: 'unknown-prod-123456',
+        productNameSnapshot: null,
+        productSkuSnapshot: null,
+      });
       expect(missingProd.name).toContain('Product (123456)');
       expect(missingProd.sku).toBe('—');
     });
 
     it('handles missing warehouse gracefully without throwing', () => {
-      const missingWh = component.resolveWarehouse('unknown-wh-654321');
+      const missingWh = component.resolveWarehouse({
+        ...mockMovements[0]!,
+        warehouseId: 'unknown-wh-654321',
+        warehouseNameSnapshot: null,
+        warehouseCodeSnapshot: null,
+      });
       expect(missingWh.name).toContain('Warehouse (654321)');
       expect(missingWh.code).toBe('654321');
     });
 
     it('handles missing or null batch gracefully without throwing', () => {
-      const nullBatch = component.resolveBatch(null);
+      const nullBatch = component.resolveBatch({ ...mockMovements[0]!, batchId: null });
       expect(nullBatch.batchNumber).toBe('—');
       expect(nullBatch.expiryDate).toBeNull();
     });
@@ -332,7 +363,7 @@ describe('MovementsPage', () => {
       component.search.set('Urea');
       expect(component.filteredMovements().length).toBe(2);
 
-      component.search.set('MOP-60');
+      component.search.set('MOP-01');
       expect(component.filteredMovements().length).toBe(1);
 
       component.search.set('Purchase');
@@ -538,6 +569,19 @@ describe('MovementsPage', () => {
       );
     });
 
+    it('does not repeat warehouse or product option loads on pagination or refresh', () => {
+      mockInventoryApi.listMovements.mockClear();
+      mockLocationsApi.listWarehouseOptions.mockClear();
+      mockCatalogApi.searchProductOptions.mockClear();
+
+      component.onPageChange(2);
+      component.reload();
+
+      expect(mockInventoryApi.listMovements.mock.calls.length).toBeGreaterThanOrEqual(2);
+      expect(mockLocationsApi.listWarehouseOptions).not.toHaveBeenCalled();
+      expect(mockCatalogApi.searchProductOptions).not.toHaveBeenCalled();
+    });
+
     it('resets page to 1 when page size changes', () => {
       mockInventoryApi.listMovements.mockClear();
       component.page.set(3);
@@ -664,15 +708,20 @@ describe('MovementsPage', () => {
 
       expect(component.showReferenceResolution()).toBe(false);
 
-      const resolvedProd = component.resolveProduct('prod-1');
+      const resolvedProd = component.resolveProduct(mockMovements[0]!);
       expect(resolvedProd.name).toBe('Urea 46%');
       expect(resolvedProd.sku).toBe('—');
 
-      const resolvedWh = component.resolveWarehouse('wh-1');
+      const resolvedWh = component.resolveWarehouse(mockMovements[0]!);
       expect(resolvedWh.name).toBe('Main Warehouse');
       expect(resolvedWh.code).toBe('—');
 
-      const fallbackProd = component.resolveProduct('66c000000000000000000099');
+      const fallbackProd = component.resolveProduct({
+        ...mockMovements[0]!,
+        productId: '66c000000000000000000099',
+        productNameSnapshot: null,
+        productSkuSnapshot: null,
+      });
       expect(fallbackProd.name).toBe('Product (000099)');
 
       const el = fixture.nativeElement as HTMLElement;
