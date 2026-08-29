@@ -35,6 +35,7 @@ const {
   EXPENSE_CATEGORIES_MODULE_KEY,
   REPORTS_MODULE_KEY,
   ALERTS_MODULE_KEY,
+  DASHBOARD_MODULE_KEY,
   getCapabilityControl,
   listCapabilityControls,
 } = require('./capability.registry');
@@ -520,6 +521,7 @@ function createCapabilityService(deps) {
           EXPENSE_CATEGORIES_MODULE_KEY,
           REPORTS_MODULE_KEY,
           ALERTS_MODULE_KEY,
+          DASHBOARD_MODULE_KEY,
         ].includes(moduleKey)
       ) {
         throw validationFailed(`Unknown configurable module ${moduleKey}`);

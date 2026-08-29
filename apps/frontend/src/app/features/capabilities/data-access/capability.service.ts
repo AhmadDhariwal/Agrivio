@@ -475,6 +475,17 @@ const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string,
   'payments.customer.actions.postInvoiceSpecific': { allowed: true },
   'payments.customer.actions.inspect': { allowed: true },
   'payments.customer.actions.correct': { allowed: true },
+  dashboard: { enabled: true },
+  'dashboard.features.datePeriodFilter': { enabled: true },
+  'dashboard.features.branchFilter': { enabled: true },
+  'dashboard.features.warehouseFilter': { enabled: true },
+  'dashboard.widgets.financialSummary': { visible: true },
+  'dashboard.widgets.accountSummary': { visible: true },
+  'dashboard.widgets.salesVsPurchasesTrend': { visible: true },
+  'dashboard.widgets.grossProfitTrend': { visible: true },
+  'dashboard.widgets.topSellingProducts': { visible: true },
+  'dashboard.widgets.inventoryHealth': { visible: true },
+  'dashboard.widgets.recentSales': { visible: true },
 };
 
 @Injectable({ providedIn: 'root' })
@@ -598,6 +609,7 @@ export class CapabilityService {
       'payments.supplier',
       'payments.supplierLedger',
       'sales',
+      'dashboard',
     ]);
     return {
       organizationId: this.sessionStore.activeContext()?.organizationId ?? 'test-organization',

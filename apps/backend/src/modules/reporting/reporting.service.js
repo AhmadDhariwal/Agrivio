@@ -24,6 +24,19 @@ const EXPORT_ACTION_BY_FORMAT = Object.freeze({
   csv: 'reports.actions.exportCsv',
 });
 
+const DASHBOARD_CONTROL_KEYS = Object.freeze({
+  datePeriodFilter: 'dashboard.features.datePeriodFilter',
+  branchFilter: 'dashboard.features.branchFilter',
+  warehouseFilter: 'dashboard.features.warehouseFilter',
+  financialSummary: 'dashboard.widgets.financialSummary',
+  accountSummary: 'dashboard.widgets.accountSummary',
+  salesVsPurchasesTrend: 'dashboard.widgets.salesVsPurchasesTrend',
+  grossProfitTrend: 'dashboard.widgets.grossProfitTrend',
+  topSellingProducts: 'dashboard.widgets.topSellingProducts',
+  inventoryHealth: 'dashboard.widgets.inventoryHealth',
+  recentSales: 'dashboard.widgets.recentSales',
+});
+
 function omitFormat(input) {
   const next = { ...input };
   delete next.format;
@@ -80,6 +93,71 @@ function createReportingService(deps) {
     await capabilityService.assertAllowed(organizationId, key, mode, {
       permissions: authContext?.permissions ?? [],
     });
+  }
+
+  async function resolveDashboardProjection(organizationId, authContext) {
+    const enabled = Object.fromEntries(
+      Object.keys(DASHBOARD_CONTROL_KEYS).map((key) => [key, true]),
+    );
+    if (typeof capabilityService?.resolveEffective !== 'function') {
+      return enabled;
+    }
+    const effective = await capabilityService.resolveEffective(organizationId, {
+      permissions: authContext?.permissions ?? [],
+    });
+    const controls = new Map(effective.controls.map((control) => [control.key, control]));
+    for (const [name, key] of Object.entries(DASHBOARD_CONTROL_KEYS)) {
+      const value = controls.get(key)?.effectiveValue;
+      enabled[name] = value?.enabled === true || value?.visible === true;
+    }
+    return enabled;
+  }
+
+  function applyDashboardProjection(data, projection) {
+    const result = { ...data };
+    const remove = (fields) => {
+      for (const field of fields) {
+        delete result[field];
+      }
+    };
+    if (!projection.financialSummary) {
+      remove([
+        'todaysSales',
+        'todaysPurchases',
+        'todaysExpenses',
+        'grossProfit',
+        'periodSales',
+        'periodPurchases',
+        'periodGrossProfit',
+        'netSalesRevenue',
+        'netCogs',
+        'customerReceivables',
+        'supplierPayables',
+        'stockValuation',
+      ]);
+    }
+    if (!projection.accountSummary) {
+      remove([
+        'cashBalances',
+        'bankBalances',
+        'jazzCashBalance',
+        'easypaisaBalance',
+        'accountDistribution',
+      ]);
+    }
+    if (!projection.salesVsPurchasesTrend) remove(['salesVsPurchases']);
+    if (!projection.grossProfitTrend) remove(['grossProfitTrend']);
+    if (!projection.topSellingProducts) remove(['topSellingProducts']);
+    if (!projection.inventoryHealth) {
+      remove([
+        'lowStockCount',
+        'upcomingExpiryCount',
+        'expiredStockCount',
+        'deadStockSummary',
+      ]);
+    }
+    if (!projection.recentSales) remove(['recentSales']);
+    return result;
   }
 
   async function buildReportDataset(organizationId, key, rawFilters, authContext) {
@@ -308,6 +386,7 @@ function createReportingService(deps) {
       return renderExport(dataset, format);
     },
     async getDashboard(organizationId, authContext, query = {}) {
+      const projection = await resolveDashboardProjection(organizationId, authContext);
       const entitlements =
         typeof resolvePlanEntitlements === 'function'
           ? await resolvePlanEntitlements(organizationId)
@@ -319,19 +398,27 @@ function createReportingService(deps) {
 
       const businessDate = await resolveOrgBusinessDate(organizationId);
       const fromDate =
-        typeof query.fromDate === 'string' && query.fromDate.trim() !== ''
+        projection.datePeriodFilter &&
+        typeof query.fromDate === 'string' &&
+        query.fromDate.trim() !== ''
           ? query.fromDate.trim()
           : shiftIsoDate(businessDate, -6);
       const toDate =
-        typeof query.toDate === 'string' && query.toDate.trim() !== ''
+        projection.datePeriodFilter &&
+        typeof query.toDate === 'string' &&
+        query.toDate.trim() !== ''
           ? query.toDate.trim()
           : businessDate;
       const branchId =
-        typeof query.branchId === 'string' && query.branchId.trim() !== ''
+        projection.branchFilter &&
+        typeof query.branchId === 'string' &&
+        query.branchId.trim() !== ''
           ? query.branchId.trim()
           : undefined;
       const warehouseId =
-        typeof query.warehouseId === 'string' && query.warehouseId.trim() !== ''
+        projection.warehouseFilter &&
+        typeof query.warehouseId === 'string' &&
+        query.warehouseId.trim() !== ''
           ? query.warehouseId.trim()
           : undefined;
       const periodFilters = {
@@ -398,7 +485,7 @@ function createReportingService(deps) {
         };
       });
 
-      return {
+      return applyDashboardProjection({
         businessDate,
         period: { fromDate, toDate },
         entitlements: {
@@ -433,12 +520,13 @@ function createReportingService(deps) {
         deadStockSummary: alertSummaries.deadStock,
         recentSales: recent,
         topSellingProducts: topProducts,
-      };
+      }, projection);
     },
   };
 }
 
 module.exports = {
+  DASHBOARD_CONTROL_KEYS,
   EXPORT_ACTION_BY_FORMAT,
   createReportingService,
 };

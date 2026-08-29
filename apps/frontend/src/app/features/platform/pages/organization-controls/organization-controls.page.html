@@ -243,6 +243,15 @@
       >
         Customer Payments
       </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'dashboard'"
+        (click)="selectModule('dashboard')"
+        data-testid="dashboard-control-module"
+      >
+        Dashboard
+      </button>
       <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>
 

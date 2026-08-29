@@ -760,4 +760,58 @@ describe('CapabilityService', () => {
       capabilityKey: 'sales',
     });
   });
+
+  it('provides default enabled/visible values for all 11 dashboard.* controls and route guard', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        CapabilityService,
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            activeContext: () => ({ contextType: 'organization', organizationId: 'org-1' }),
+          },
+        },
+      ],
+    });
+    const service = TestBed.inject(CapabilityService);
+
+    const features = ['datePeriodFilter', 'branchFilter', 'warehouseFilter'] as const;
+    const widgets = [
+      'financialSummary',
+      'accountSummary',
+      'salesVsPurchasesTrend',
+      'grossProfitTrend',
+      'topSellingProducts',
+      'inventoryHealth',
+      'recentSales',
+    ] as const;
+
+    const allKeys = [
+      'dashboard',
+      ...features.map((id) => `dashboard.features.${id}`),
+      ...widgets.map((id) => `dashboard.widgets.${id}`),
+    ];
+
+    expect(allKeys).toHaveLength(11);
+    expect(new Set(allKeys).size).toBe(11);
+
+    expect(service.canUseModule('dashboard')).toBe(true);
+    for (const id of features) {
+      expect(service.canUseFeature(`dashboard.features.${id}`)).toBe(true);
+    }
+    for (const id of widgets) {
+      expect(service.canShowWidget(`dashboard.widgets.${id}`)).toBe(true);
+    }
+
+    const app = appRoutes.find((route) => route.path === 'app');
+    expect(app?.children?.find((route) => route.path === 'dashboard')?.canActivate).toHaveLength(1);
+
+    const navigation = CANONICAL_NAVIGATION.flatMap((entry) =>
+      entry.type === 'group' ? entry.group.children : [entry.item],
+    );
+    expect(navigation.find((item) => item.id === 'dashboard')).toMatchObject({
+      permission: 'dashboard.view',
+      capabilityKey: 'dashboard',
+    });
+  });
 });

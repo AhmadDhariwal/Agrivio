@@ -31,7 +31,8 @@ function control(
     | 'payments.customer'
     | 'payments.supplier'
     | 'payments.supplierLedger'
-    | 'sales',
+    | 'sales'
+    | 'dashboard',
   type: PlatformCapabilityControl['type'],
   label: string,
   policy: Record<string, boolean>,
@@ -1486,6 +1487,17 @@ describe('OrganizationControlsPage', () => {
       control('payments.customer.actions.postInvoiceSpecific', 'payments.customer', 'ACTION', 'Post Invoice-specific Payment', { allowed: true }, { dependencies: ['payments.customer.actions.post'] }),
       control('payments.customer.actions.inspect', 'payments.customer', 'ACTION', 'Inspect Payment', { allowed: true }),
       control('payments.customer.actions.correct', 'payments.customer', 'ACTION', 'Correct Payment', { allowed: true }, { risk: 'CRITICAL' }),
+      control('dashboard', 'dashboard', 'MODULE', 'Dashboard', { enabled: true }),
+      control('dashboard.features.datePeriodFilter', 'dashboard', 'FEATURE', 'Date Period Filter', { enabled: true }, { override: { enabled: false } }),
+      control('dashboard.features.branchFilter', 'dashboard', 'FEATURE', 'Branch Filter', { enabled: true }),
+      control('dashboard.features.warehouseFilter', 'dashboard', 'FEATURE', 'Warehouse Filter', { enabled: true }),
+      control('dashboard.widgets.financialSummary', 'dashboard', 'WIDGET', 'Financial Summary', { visible: true }),
+      control('dashboard.widgets.accountSummary', 'dashboard', 'WIDGET', 'Account Summary', { visible: true }),
+      control('dashboard.widgets.salesVsPurchasesTrend', 'dashboard', 'WIDGET', 'Sales vs Purchases Trend', { visible: true }),
+      control('dashboard.widgets.grossProfitTrend', 'dashboard', 'WIDGET', 'Gross Profit Trend', { visible: true }),
+      control('dashboard.widgets.topSellingProducts', 'dashboard', 'WIDGET', 'Top Selling Products', { visible: true }),
+      control('dashboard.widgets.inventoryHealth', 'dashboard', 'WIDGET', 'Inventory Health', { visible: true }),
+      control('dashboard.widgets.recentSales', 'dashboard', 'WIDGET', 'Recent Sales', { visible: true }),
     ];
     await TestBed.configureTestingModule({
       imports: [OrganizationControlsPage],
@@ -3087,6 +3099,56 @@ describe('OrganizationControlsPage', () => {
       component.askResetModule();
       component.confirm();
       expect(resetModule).toHaveBeenCalledWith('org-a', 'payments.customer', 4, '');
+    });
+  });
+
+  describe('Dashboard Controls', () => {
+    it('renders all 11 controls with filter features and widget metadata', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('dashboard');
+      fixture.detectChanges();
+
+      expect(component.moduleLabel('dashboard')).toBe('Dashboard');
+      expect(component.selectedControls()).toHaveLength(11);
+      expect(component.moduleControls()).toHaveLength(1);
+      expect(component.filterControls()).toHaveLength(3);
+      expect(component.widgetControls()).toHaveLength(7);
+      expect(component.fieldControls()).toHaveLength(0);
+      expect(component.actionControls()).toHaveLength(0);
+      expect(component.viewControls()).toHaveLength(0);
+
+      expect(fixture.nativeElement.textContent).toContain('Date Period Filter');
+      expect(fixture.nativeElement.textContent).toContain('Branch Filter');
+      expect(fixture.nativeElement.textContent).toContain('Warehouse Filter');
+      expect(fixture.nativeElement.textContent).toContain('Financial Summary');
+      expect(fixture.nativeElement.textContent).toContain('Account Summary');
+      expect(fixture.nativeElement.textContent).toContain('Sales vs Purchases Trend');
+      expect(fixture.nativeElement.textContent).toContain('Gross Profit Trend');
+      expect(fixture.nativeElement.textContent).toContain('Top Selling Products');
+      expect(fixture.nativeElement.textContent).toContain('Inventory Health');
+      expect(fixture.nativeElement.textContent).toContain('Recent Sales');
+    });
+
+    it('supports Dashboard disable/re-enable and organization-scoped reset', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('dashboard');
+      const moduleControl = component.controls().find((item) => item.key === 'dashboard');
+      expect(moduleControl).toBeDefined();
+      if (moduleControl) {
+        component.setValue(moduleControl, 'enabled', false);
+        expect(component.disablingDashboard()).toBe(true);
+        expect(component.confirmationTitle()).toBe(
+          'Disable Dashboard for Greenfield Agro Center?',
+        );
+        expect(component.confirmationMessage()).toContain('Dashboard');
+        expect(component.confirmationLabel()).toBe('Disable Dashboard');
+        component.setValue(moduleControl, 'enabled', true);
+        expect(component.effectiveValue(moduleControl, 'enabled')).toBe(true);
+      }
+
+      component.askResetModule();
+      component.confirm();
+      expect(resetModule).toHaveBeenCalledWith('org-a', 'dashboard', 4, '');
     });
   });
 });

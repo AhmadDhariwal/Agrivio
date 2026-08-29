@@ -73,6 +73,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
       label: 'Dashboard',
       route: '/app/dashboard',
       permission: 'dashboard.view',
+      capabilityKey: 'dashboard',
       testId: 'nav-dashboard',
     },
   },

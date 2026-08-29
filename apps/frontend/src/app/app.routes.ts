@@ -64,6 +64,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'dashboard',
+        canActivate: [requireCapabilityGuard('dashboard')],
         loadComponent: () =>
           import('./features/dashboard/pages/dashboard/dashboard.page').then(
             (m) => m.DashboardPage,

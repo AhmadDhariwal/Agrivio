@@ -36,6 +36,7 @@ const EXPENSES_MODULE_KEY = 'expenses';
 const EXPENSE_CATEGORIES_MODULE_KEY = 'expenses.categories';
 const REPORTS_MODULE_KEY = 'reports';
 const ALERTS_MODULE_KEY = 'alerts';
+const DASHBOARD_MODULE_KEY = 'dashboard';
 
 const REPORT_CAPABILITY_KEY_BY_REPORT_KEY = Object.freeze({
   sales: 'reports.reportAvailability.sales',
@@ -3162,6 +3163,108 @@ const definitions = [
         }
       : {}),
   })),
+  // Dashboard Module
+  {
+    key: DASHBOARD_MODULE_KEY,
+    parentKey: null,
+    moduleKey: DASHBOARD_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Dashboard',
+    description: 'Read-only operational overview for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'dashboard.view' },
+    reason:
+      'Disabling Dashboard blocks the overview endpoint without changing source records, balances, alerts, or calculations.',
+  },
+  ...[
+    [
+      'datePeriodFilter',
+      'Date Period Filter',
+      'Allow Dashboard users to select the reporting period used by period metrics and trends.',
+    ],
+    [
+      'branchFilter',
+      'Branch Filter',
+      'Allow Dashboard users to narrow supported period metrics and trends to an authorized branch.',
+    ],
+    [
+      'warehouseFilter',
+      'Warehouse Filter',
+      'Allow Dashboard users to narrow supported metrics to an authorized warehouse.',
+    ],
+  ].map(([id, label, description]) => ({
+    key: `dashboard.features.${id}`,
+    parentKey: DASHBOARD_MODULE_KEY,
+    moduleKey: DASHBOARD_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'dashboard.view' },
+    reason:
+      'Disabling this filter makes the Dashboard ignore its query parameter; authorization scope remains enforced by source services.',
+  })),
+  ...[
+    [
+      'financialSummary',
+      'Financial Summary',
+      'Show Sales, Purchases, Expenses, Gross Profit, Receivables, Payables, and Stock Valuation summaries.',
+      RISK_LEVELS.Recommended,
+    ],
+    [
+      'accountSummary',
+      'Account Balance Summary',
+      'Show current Cash, Bank, JazzCash, and Easypaisa balances and their distribution.',
+      RISK_LEVELS.Recommended,
+    ],
+    [
+      'salesVsPurchasesTrend',
+      'Sales vs Purchases Trend',
+      'Show the selected-period Sales and Purchases comparison.',
+      RISK_LEVELS.Normal,
+    ],
+    [
+      'grossProfitTrend',
+      'Gross Profit Trend',
+      'Show selected-period Gross Profit over time.',
+      RISK_LEVELS.Recommended,
+    ],
+    [
+      'topSellingProducts',
+      'Top Selling Products',
+      'Show the authoritative top-selling product ranking.',
+      RISK_LEVELS.Normal,
+    ],
+    [
+      'inventoryHealth',
+      'Inventory Health',
+      'Show Low Stock, Upcoming Expiry, Expired Stock, Dead Stock, and expiry-status summaries.',
+      RISK_LEVELS.Recommended,
+    ],
+    [
+      'recentSales',
+      'Recent Sales',
+      'Show the latest 10 posted Sales independently of the selected period.',
+      RISK_LEVELS.Recommended,
+    ],
+  ].map(([id, label, description, risk]) => ({
+    key: `dashboard.widgets.${id}`,
+    parentKey: DASHBOARD_MODULE_KEY,
+    moduleKey: DASHBOARD_MODULE_KEY,
+    type: CONTROL_TYPES.Widget,
+    label,
+    description,
+    defaultPolicy: { visible: true },
+    configurable: { visible: true },
+    risk,
+    requiredPermissions: { visible: 'dashboard.view' },
+    reason:
+      'This visibility policy removes the section data from the Dashboard response without changing its source-domain calculations.',
+  })),
   // Reports Module
   {
     key: REPORTS_MODULE_KEY,
@@ -3365,6 +3468,7 @@ module.exports = {
   EXPENSE_CATEGORIES_MODULE_KEY,
   REPORTS_MODULE_KEY,
   ALERTS_MODULE_KEY,
+  DASHBOARD_MODULE_KEY,
   REPORT_CAPABILITY_KEY_BY_REPORT_KEY,
   ALERT_CAPABILITY_KEY_BY_ALERT_TYPE,
   listCapabilityControls,
