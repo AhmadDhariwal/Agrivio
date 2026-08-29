@@ -10,7 +10,6 @@ import {
   UsersAccessApi,
 } from '../../data-access/users-access.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
@@ -23,7 +22,6 @@ import { mapPlanLimitError } from '../../../../core/plan-limits/plan-limit-feedb
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
     UiFieldLabelComponent,
@@ -43,8 +41,15 @@ export class EmployeeFormPage {
   readonly saving = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly activationHandoff = signal<string | null>(null);
+  readonly linkCopied = signal(false);
+
   readonly branches = signal<AssignmentTarget[]>([]);
   readonly warehouses = signal<AssignmentTarget[]>([]);
+  readonly currentEmployeeStatus = signal<string>('active');
+
+  readonly branchSearch = signal('');
+  readonly warehouseSearch = signal('');
+
   readonly canCreate = computed(() => this.sessionStore.hasPermission('users.create'));
   readonly canUpdate = computed(() => this.sessionStore.hasPermission('users.update'));
   readonly canAssign = computed(() => this.sessionStore.hasPermission('users.assign-access'));
@@ -61,6 +66,20 @@ export class EmployeeFormPage {
   });
 
   readonly roles: OrganizationRole[] = ['Owner', 'Manager', 'Cashier', 'StoreKeeper'];
+
+  readonly filteredBranches = computed(() => {
+    const list = this.branches();
+    const query = this.branchSearch().trim().toLowerCase();
+    if (!query) return list;
+    return list.filter((b) => b.name.toLowerCase().includes(query));
+  });
+
+  readonly filteredWarehouses = computed(() => {
+    const list = this.warehouses();
+    const query = this.warehouseSearch().trim().toLowerCase();
+    if (!query) return list;
+    return list.filter((w) => w.name.toLowerCase().includes(query));
+  });
 
   constructor() {
     const id = this.route.snapshot.paramMap.get('id');
@@ -130,6 +149,35 @@ export class EmployeeFormPage {
     return this.form.controls.warehouseIds.value.includes(id);
   }
 
+  selectAllBranches(): void {
+    const allIds = this.branches().map((b) => b.id);
+    this.form.controls.branchIds.setValue(allIds);
+  }
+
+  clearAllBranches(): void {
+    this.form.controls.branchIds.setValue([]);
+  }
+
+  selectAllWarehouses(): void {
+    const allIds = this.warehouses().map((w) => w.id);
+    this.form.controls.warehouseIds.setValue(allIds);
+  }
+
+  clearAllWarehouses(): void {
+    this.form.controls.warehouseIds.setValue([]);
+  }
+
+  formatRoleLabel(role: OrganizationRole): string {
+    return role === 'StoreKeeper' ? 'Store Keeper' : role;
+  }
+
+  copyActivationLink(url: string): void {
+    navigator.clipboard?.writeText(url).then(() => {
+      this.linkCopied.set(true);
+      setTimeout(() => this.linkCopied.set(false), 3000);
+    });
+  }
+
   save(): void {
     const creating = this.employeeId() === null;
     if ((creating && !this.canCreate()) || (!creating && !this.canUpdate())) {
@@ -188,8 +236,14 @@ export class EmployeeFormPage {
       return;
     }
 
+    const id = this.employeeId();
+    if (!id) {
+      this.saving.set(false);
+      return;
+    }
+
     this.api
-      .updateEmployee(this.employeeId()!, {
+      .updateEmployee(id, {
         expectedVersion: this.version,
         displayName: value.displayName,
         role: value.role,
@@ -227,6 +281,7 @@ export class EmployeeFormPage {
 
   private applyEmployee(employee: EmployeeRecord): void {
     this.version = employee.version;
+    this.currentEmployeeStatus.set(employee.status ?? 'active');
     this.form.patchValue({
       email: employee.email,
       displayName: employee.displayName,

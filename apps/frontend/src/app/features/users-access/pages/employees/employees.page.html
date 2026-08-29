@@ -1,56 +1,616 @@
-<agrivio-ui-page-header
-  title="Employees & access"
-  eyebrow="Organization"
-  lede="Owner-managed employees stay inside this organization. Roles are predefined bundles; Super Admin is platform-only."
->
-  @if (canCreate()) {
-    <a class="ag-btn" routerLink="/app/employees/new" data-testid="employee-create-link">Add employee</a>
-  }
-</agrivio-ui-page-header>
+<div class="employees-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">Organization</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">Employees &amp; access</h1>
+        <span class="page-head__count-pill" aria-label="Total employees"
+          >{{ total() }} {{ total() === 1 ? 'employee' : 'employees' }}</span
+        >
+      </div>
+      <p class="page-head__lede">
+        Manage organization employees, their roles, and Branch/Warehouse access. Super Admin is platform-only.
+      </p>
+    </div>
+    <div class="page-head__actions">
+      <button
+        type="button"
+        class="ag-btn ag-btn--secondary page-head__refresh-btn"
+        (click)="reload()"
+        [disabled]="loading()"
+        title="Refresh employees list"
+        aria-label="Refresh employees"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          [class.spin]="loading()"
+        >
+          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+        </svg>
+        <span class="btn-text-full">Refresh</span>
+      </button>
 
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading employees…" />
-} @else if (errorMessage(); as error) {
-  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-} @else if (items().length === 0) {
-  <agrivio-ui-empty-state title="No employees yet" message="Add cashiers, managers, or store keepers for this organization." />
-} @else {
-  @if (successMessage(); as success) {
+      @if (canCreate()) {
+      <a
+        class="ag-btn ag-btn--primary page-head__add-btn"
+        routerLink="/app/employees/new"
+        data-testid="employee-create-link"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span class="btn-text-full">Add Employee</span>
+        <span class="btn-text-mobile">Add</span>
+      </a>
+      }
+    </div>
+  </header>
+
+  <!-- Alerts -->
+  @if (errorMessage(); as error) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  </div>
+  } @if (successMessage(); as success) {
+  <div class="alert-container">
     <agrivio-ui-alert tone="success" [message]="success" />
+  </div>
   }
-  <div class="ag-stack" data-testid="employees-list">
-    @for (item of items(); track item.id) {
-      <article class="row">
-        <div>
-          <strong>{{ item.displayName }}</strong>
-          <p class="ag-muted">{{ item.email }} · {{ item.role }}</p>
-        </div>
-        <div class="ag-inline">
-          <agrivio-ui-status-badge
-            [label]="item.status"
-            [tone]="item.status === 'active' ? 'success' : item.status === 'pending' ? 'warning' : 'neutral'"
+
+  <!-- Module Information Section (Products Pattern) -->
+  <agrivio-ui-module-info
+    [title]="infoTitle"
+    [description]="infoDescription"
+    [items]="infoItems"
+    [defaultExpanded]="false"
+  />
+
+  <!-- KPI Summary Row -->
+  <section class="kpi-row" aria-label="Employees Summary">
+    <div class="kpi-card">
+      <div class="kpi-card__icon kpi-card__icon--neutral">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Total Employees</span>
+        <span class="kpi-card__value">{{ total() }}</span>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-card__icon kpi-card__icon--green">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+          <polyline points="22 4 12 14.01 9 11.01" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Active Members</span>
+        <span class="kpi-card__value">{{ kpis().active }}</span>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-card__icon kpi-card__icon--amber">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Pending / Inactive</span>
+        <span class="kpi-card__value">{{ kpis().pendingInactive }}</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Filter & Control Toolbar -->
+  <section class="toolbar" aria-label="Filters and search">
+    <!-- Desktop / Tablet Controls -->
+    <div class="toolbar__desktop">
+      <div class="toolbar__left">
+        <!-- Search Input -->
+        <div class="search-field">
+          <svg
+            class="search-field__icon"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            class="search-field__input"
+            type="search"
+            [value]="search()"
+            (input)="onSearchInput($event)"
+            placeholder="Search employees by name or email…"
+            aria-label="Search employees"
           />
-          @if (canUpdate()) {
-            <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/employees', item.id]">Edit</a>
-          }
-          @if (canDeactivate() && item.status !== 'deactivated') {
-            <button type="button" class="ag-btn ag-btn--secondary" (click)="askDeactivate(item)">
-              Deactivate
-            </button>
+          @if (search()) {
+          <button
+            type="button"
+            class="search-field__clear"
+            (click)="onSearchClear()"
+            aria-label="Clear search"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
           }
         </div>
-      </article>
+
+        <!-- Status Filter -->
+        <div class="select-field">
+          <select
+            class="select-field__input"
+            [value]="statusFilter()"
+            (change)="onStatusChange($any($event.target).value)"
+            aria-label="Filter by status"
+          >
+            <option value="all">All Statuses</option>
+            <option value="active">Active Members</option>
+            <option value="pending">Pending Activation</option>
+            <option value="deactivated">Deactivated</option>
+          </select>
+        </div>
+
+        <!-- Role Filter -->
+        <div class="select-field">
+          <select
+            class="select-field__input"
+            [value]="roleFilter()"
+            (change)="onRoleChange($any($event.target).value)"
+            aria-label="Filter by role"
+          >
+            <option value="all">All Roles</option>
+            <option value="Owner">Owner</option>
+            <option value="Manager">Manager</option>
+            <option value="Cashier">Cashier</option>
+            <option value="StoreKeeper">Store Keeper</option>
+          </select>
+        </div>
+
+        <!-- Clear Filters Button -->
+        @if (hasActiveFilters()) {
+        <button class="clear-filters-btn" type="button" (click)="clearFilters()">
+          Clear filters
+        </button>
+        }
+      </div>
+
+      <div class="toolbar__right">
+        <span class="results-count">
+          Showing {{ visibleItems().length }} of {{ total() }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Mobile Controls (< 768px) -->
+    <div class="toolbar__mobile">
+      <div class="search-field search-field--mobile">
+        <svg
+          class="search-field__icon"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          class="search-field__input"
+          type="search"
+          [value]="search()"
+          (input)="onSearchInput($event)"
+          placeholder="Search employees by name or email…"
+          aria-label="Search employees"
+        />
+        @if (search()) {
+        <button
+          type="button"
+          class="search-field__clear"
+          (click)="onSearchClear()"
+          aria-label="Clear search"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        }
+      </div>
+
+      <div class="toolbar__mobile-row">
+        <select
+          class="select-field__input"
+          [value]="statusFilter()"
+          (change)="onStatusChange($any($event.target).value)"
+          aria-label="Filter by status"
+        >
+          <option value="all">All Statuses</option>
+          <option value="active">Active</option>
+          <option value="pending">Pending</option>
+          <option value="deactivated">Deactivated</option>
+        </select>
+
+        <select
+          class="select-field__input"
+          [value]="roleFilter()"
+          (change)="onRoleChange($any($event.target).value)"
+          aria-label="Filter by role"
+        >
+          <option value="all">All Roles</option>
+          <option value="Owner">Owner</option>
+          <option value="Manager">Manager</option>
+          <option value="Cashier">Cashier</option>
+          <option value="StoreKeeper">Store Keeper</option>
+        </select>
+
+        @if (hasActiveFilters()) {
+        <button type="button" class="mobile-clear-btn" (click)="clearFilters()">Reset</button>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Loading State -->
+  @if (loading()) {
+  <div class="state-container">
+    <agrivio-ui-loading-state label="Loading employees…" />
+  </div>
+  } @else if (items().length === 0 && !hasActiveFilters()) {
+  <!-- Clean Empty State (No Data) -->
+  <agrivio-ui-empty-state
+    title="No employees found"
+    message="Add team members to assign roles and manage operational access."
+  />
+  } @else if (visibleItems().length === 0) {
+  <!-- Filtered No Results State -->
+  <agrivio-ui-empty-state
+    title="No matching employees"
+    message="No employees match the active search and filter criteria. Try clearing filters."
+  />
+  } @else {
+  <!-- Desktop / Tablet Dense Table -->
+  <div class="table-container" data-testid="employees-list">
+    <table class="emp-table">
+      <colgroup>
+        <col class="col-employee" />
+        <col class="col-email" />
+        <col class="col-role" />
+        <col class="col-branches" />
+        <col class="col-warehouses" />
+        <col class="col-status" />
+        <col class="col-actions" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col" class="emp-table__th emp-table__th--employee">Employee</th>
+          <th scope="col" class="emp-table__th emp-table__th--email">Email</th>
+          <th scope="col" class="emp-table__th emp-table__th--role">Role</th>
+          <th scope="col" class="emp-table__th emp-table__th--branches">Branch Access</th>
+          <th scope="col" class="emp-table__th emp-table__th--warehouses">Warehouse Access</th>
+          <th scope="col" class="emp-table__th emp-table__th--status">Status</th>
+          <th scope="col" class="emp-table__th emp-table__th--actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of visibleItems(); track item.id) {
+        <tr
+          class="emp-table__row"
+          [class.emp-table__row--deactivated]="item.status === 'deactivated'"
+        >
+          <!-- Employee Display Name + Avatar -->
+          <td class="emp-table__td emp-table__td--employee">
+            <div class="emp-cell">
+              <div class="emp-cell__avatar" aria-hidden="true">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </div>
+              <div class="emp-cell__meta">
+                <span class="emp-cell__name" [title]="item.displayName">{{ item.displayName }}</span>
+                @if (item.userStatus === 'pending_activation') {
+                <span class="emp-cell__sub">Activation pending</span>
+                }
+              </div>
+            </div>
+          </td>
+
+          <!-- Email -->
+          <td class="emp-table__td emp-table__td--email">
+            <span class="email-text" [title]="item.email">{{ item.email }}</span>
+          </td>
+
+          <!-- Role -->
+          <td class="emp-table__td emp-table__td--role">
+            <span
+              class="role-badge"
+              [class.role-badge--owner]="item.role === 'Owner'"
+              [class.role-badge--manager]="item.role === 'Manager'"
+              [class.role-badge--cashier]="item.role === 'Cashier'"
+              [class.role-badge--storekeeper]="item.role === 'StoreKeeper'"
+            >
+              {{ formatRole(item.role) }}
+            </span>
+          </td>
+
+          <!-- Branch Access -->
+          <td class="emp-table__td emp-table__td--branches">
+            <span class="access-pill">{{ formatBranchAccess(item) }}</span>
+          </td>
+
+          <!-- Warehouse Access -->
+          <td class="emp-table__td emp-table__td--warehouses">
+            <span class="access-pill">{{ formatWarehouseAccess(item) }}</span>
+          </td>
+
+          <!-- Status -->
+          <td class="emp-table__td emp-table__td--status">
+            <span
+              class="status-indicator"
+              [class.status-indicator--active]="item.status === 'active'"
+              [class.status-indicator--pending]="item.status === 'pending'"
+              [class.status-indicator--deactivated]="item.status === 'deactivated'"
+            >
+              <span class="status-indicator__dot"></span>
+              {{ formatStatus(item.status) }}
+            </span>
+          </td>
+
+          <!-- Actions -->
+          <td class="emp-table__td emp-table__td--actions">
+            <div class="row-actions">
+              @if (canUpdate()) {
+              <a
+                class="row-action-btn"
+                [routerLink]="['/app/employees', item.id]"
+                title="Edit employee"
+                aria-label="Edit employee"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                  <path d="m15 5 4 4" />
+                </svg>
+              </a>
+              }
+
+              <!-- More Actions Dropdown -->
+              @if (canDeactivate() && item.status !== 'deactivated' && item.role !== 'Owner') {
+              <div class="menu-container">
+                <button
+                  type="button"
+                  class="row-action-btn row-action-btn--more"
+                  (click)="toggleRowMenu(item.id, $event)"
+                  title="More actions"
+                  aria-label="More actions"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <circle cx="12" cy="12" r="1" />
+                    <circle cx="12" cy="5" r="1" />
+                    <circle cx="12" cy="19" r="1" />
+                  </svg>
+                </button>
+
+                @if (openMenuEmployeeId() === item.id) {
+                <div class="menu-dropdown">
+                  <button
+                    type="button"
+                    class="menu-dropdown__item menu-dropdown__item--danger"
+                    (click)="askDeactivate(item)"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                    </svg>
+                    Deactivate
+                  </button>
+                </div>
+                }
+              </div>
+              }
+            </div>
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile Card View (< 768px) -->
+  <div class="mobile-cards">
+    @for (item of visibleItems(); track item.id) {
+    <article
+      class="emp-card"
+      [class.emp-card--deactivated]="item.status === 'deactivated'"
+    >
+      <div class="emp-card__head">
+        <div class="emp-card__name-group">
+          <h2 class="emp-card__name">{{ item.displayName }}</h2>
+          <span class="emp-card__email">{{ item.email }}</span>
+        </div>
+        <span
+          class="role-badge"
+          [class.role-badge--owner]="item.role === 'Owner'"
+          [class.role-badge--manager]="item.role === 'Manager'"
+          [class.role-badge--cashier]="item.role === 'Cashier'"
+          [class.role-badge--storekeeper]="item.role === 'StoreKeeper'"
+        >
+          {{ formatRole(item.role) }}
+        </span>
+      </div>
+
+      <div class="emp-card__body">
+        <div class="emp-card__row">
+          <span class="emp-card__label">Status</span>
+          <span
+            class="status-indicator"
+            [class.status-indicator--active]="item.status === 'active'"
+            [class.status-indicator--pending]="item.status === 'pending'"
+            [class.status-indicator--deactivated]="item.status === 'deactivated'"
+          >
+            <span class="status-indicator__dot"></span>
+            {{ formatStatus(item.status) }}
+          </span>
+        </div>
+
+        <div class="emp-card__row">
+          <span class="emp-card__label">Branches</span>
+          <span class="emp-card__val">{{ formatBranchAccess(item) }}</span>
+        </div>
+
+        <div class="emp-card__row">
+          <span class="emp-card__label">Warehouses</span>
+          <span class="emp-card__val">{{ formatWarehouseAccess(item) }}</span>
+        </div>
+      </div>
+
+      <div class="emp-card__foot">
+        @if (canUpdate()) {
+        <a class="ag-btn ag-btn--secondary emp-card__btn" [routerLink]="['/app/employees', item.id]">
+          Edit
+        </a>
+        }
+        @if (canDeactivate() && item.status !== 'deactivated' && item.role !== 'Owner') {
+        <button
+          type="button"
+          class="ag-btn ag-btn--danger-outline emp-card__btn"
+          (click)="askDeactivate(item)"
+        >
+          Deactivate
+        </button>
+        }
+      </div>
+    </article>
     }
   </div>
-  <agrivio-ui-pagination [page]="page()" [pageSize]="pageSize()" [total]="total()" [disabled]="loading()"
-    (pageChange)="onPageChange($event)" (pageSizeChange)="onPageSizeChange($event)" />
-}
 
+  <!-- Pagination -->
+  <agrivio-ui-pagination
+    [page]="page()"
+    [pageSize]="pageSize()"
+    [total]="total()"
+    [disabled]="loading()"
+    (pageChange)="onPageChange($event)"
+    (pageSizeChange)="onPageSizeChange($event)"
+  />
+  }
+</div>
+
+<!-- Deactivate Confirmation Dialog -->
 <agrivio-ui-confirm-dialog
   [open]="confirmOpen()"
-  title="Deactivate employee?"
-  message="This immediately ends organization access for the employee and invalidates their sessions."
-  confirmLabel="Deactivate"
+  title="Deactivate employee access?"
+  message="This immediately ends organization access for the employee, invalidates all active sessions, and revokes branch and warehouse assignments. Historical data remains intact."
+  confirmLabel="Deactivate Employee"
   [danger]="true"
   (confirmed)="confirmDeactivate()"
   (dismiss)="confirmOpen.set(false)"
