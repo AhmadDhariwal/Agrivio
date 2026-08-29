@@ -48,8 +48,8 @@ export class CatalogApi {
     });
   }
 
-  searchCategoryOptions(search = ''): Observable<CategoryRecord[]> {
-    const params = this.paginationParams({ page: 1, pageSize: 25, search, status: 'active' });
+  searchCategoryOptions(search = '', status = 'active'): Observable<CategoryRecord[]> {
+    const params = this.paginationParams({ page: 1, pageSize: 25, search, status });
     const cacheKey = this.queryCache.buildKey('category-options', params);
     return this.queryCache.fetch({
       key: cacheKey,

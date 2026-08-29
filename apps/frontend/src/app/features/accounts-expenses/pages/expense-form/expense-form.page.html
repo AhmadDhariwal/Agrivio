@@ -108,6 +108,7 @@
         <div class="form-card__body">
           <div class="form-grid form-grid--2col">
             <!-- Category -->
+            @if (showCategory()) {
             <div class="ag-field">
               <agrivio-ui-field-label
                 label="Category"
@@ -117,18 +118,25 @@
               <select
                 id="expense-category"
                 class="ag-select"
+                [class.ag-input--invalid]="fieldError(form.controls.categoryId, 'Category', formSubmitAttempted())"
                 formControlName="categoryId"
                 data-testid="expense-category"
                 [attr.aria-required]="fieldRequired(form.controls.categoryId) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.categoryId, 'Category', formSubmitAttempted()) ? 'true' : null"
               >
                 <option value="">Select category</option>
                 @for (item of categories(); track item.id) {
                   <option [value]="item.id">{{ item.name }}</option>
                 }
               </select>
+              @if (fieldError(form.controls.categoryId, 'Category', formSubmitAttempted()); as categoryError) {
+              <p class="field-error" role="alert">{{ categoryError }}</p>
+              }
             </div>
+            }
 
             <!-- Account -->
+            @if (showAccount()) {
             <div class="ag-field">
               <agrivio-ui-field-label
                 label="Account"
@@ -138,18 +146,25 @@
               <select
                 id="expense-account"
                 class="ag-select"
+                [class.ag-input--invalid]="fieldError(form.controls.accountId, 'Account', formSubmitAttempted())"
                 formControlName="accountId"
                 data-testid="expense-account"
                 [attr.aria-required]="fieldRequired(form.controls.accountId) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.accountId, 'Account', formSubmitAttempted()) ? 'true' : null"
               >
                 <option value="">Select account</option>
                 @for (item of accounts(); track item.id) {
                   <option [value]="item.id">{{ item.name }}</option>
                 }
               </select>
+              @if (fieldError(form.controls.accountId, 'Account', formSubmitAttempted()); as accountError) {
+              <p class="field-error" role="alert">{{ accountError }}</p>
+              }
             </div>
+            }
 
             <!-- Amount -->
+            @if (showAmount()) {
             <div class="ag-field">
               <agrivio-ui-field-label
                 label="Amount (PKR)"
@@ -161,15 +176,22 @@
                 <input
                   id="expense-amount"
                   class="ag-input currency-input"
+                  [class.ag-input--invalid]="moneyFieldError(form.controls.amount, 'Amount')"
                   formControlName="amount"
                   placeholder="0.00"
                   data-testid="expense-amount"
                   [attr.aria-required]="fieldRequired(form.controls.amount) ? 'true' : null"
+                  [attr.aria-invalid]="moneyFieldError(form.controls.amount, 'Amount') ? 'true' : null"
                 />
               </div>
+              @if (moneyFieldError(form.controls.amount, 'Amount'); as amountError) {
+              <p class="field-error" role="alert">{{ amountError }}</p>
+              }
             </div>
+            }
 
             <!-- Date -->
+            @if (showExpenseDate()) {
             <div class="ag-field">
               <agrivio-ui-field-label
                 label="Date"
@@ -180,13 +202,20 @@
                 id="expense-date"
                 class="ag-input"
                 type="date"
+                [class.ag-input--invalid]="fieldError(form.controls.expenseDate, 'Date', formSubmitAttempted())"
                 formControlName="expenseDate"
                 data-testid="expense-date"
                 [attr.aria-required]="fieldRequired(form.controls.expenseDate) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.expenseDate, 'Date', formSubmitAttempted()) ? 'true' : null"
               />
+              @if (fieldError(form.controls.expenseDate, 'Date', formSubmitAttempted()); as dateError) {
+              <p class="field-error" role="alert">{{ dateError }}</p>
+              }
             </div>
+            }
 
             <!-- Purpose -->
+            @if (showPurpose()) {
             <div class="ag-field form-grid--full">
               <agrivio-ui-field-label
                 label="Purpose"
@@ -196,12 +225,18 @@
               <input
                 id="expense-purpose"
                 class="ag-input"
+                [class.ag-input--invalid]="fieldError(form.controls.purpose, 'Purpose', formSubmitAttempted())"
                 formControlName="purpose"
                 placeholder="e.g. Fuel for tractor fleet, generator maintenance, lab testing"
                 data-testid="expense-purpose"
                 [attr.aria-required]="fieldRequired(form.controls.purpose) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.purpose, 'Purpose', formSubmitAttempted()) ? 'true' : null"
               />
+              @if (fieldError(form.controls.purpose, 'Purpose', formSubmitAttempted()); as purposeError) {
+              <p class="field-error" role="alert">{{ purposeError }}</p>
+              }
             </div>
+            }
 
             <!-- Reference -->
             <div class="ag-field form-grid--full">
@@ -209,10 +244,15 @@
               <input
                 id="expense-reference"
                 class="ag-input"
+                [class.ag-input--invalid]="fieldError(form.controls.reference, 'Reference', formSubmitAttempted())"
                 formControlName="reference"
                 placeholder="e.g. Voucher #1042 or Vendor Receipt REF-88"
                 data-testid="expense-reference"
+                [attr.aria-invalid]="fieldError(form.controls.reference, 'Reference', formSubmitAttempted()) ? 'true' : null"
               />
+              @if (fieldError(form.controls.reference, 'Reference', formSubmitAttempted()); as referenceError) {
+              <p class="field-error" role="alert">{{ referenceError }}</p>
+              }
             </div>
           </div>
         </div>
@@ -221,7 +261,7 @@
       <!-- Draft Controls -->
       @if (isDraft && canPost()) {
       <div class="form-actions">
-        <button class="ag-btn ag-btn--primary" type="submit" [disabled]="saving()" data-testid="expense-save">
+        <button class="ag-btn ag-btn--primary" type="submit" [disabled]="!canSave()" data-testid="expense-save">
           {{ saving() ? 'Saving…' : 'Save draft' }}
         </button>
         @if (expense()?.status === 'draft') {

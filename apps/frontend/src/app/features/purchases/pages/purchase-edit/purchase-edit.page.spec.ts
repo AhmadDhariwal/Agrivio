@@ -111,12 +111,14 @@ const mockPostedRecord: PurchaseRecord = {
 
 describe('PurchaseEditPage', () => {
   let mockGetPurchase: () => Observable<PurchaseRecord | null>;
+  let createPurchase: ReturnType<typeof vi.fn>;
   let disabledCapabilities: Set<string>;
   let searchProductOptionsCalls = 0;
   let searchSupplierOptionsCalls = 0;
 
   beforeEach(async () => {
     mockGetPurchase = () => of(null);
+    createPurchase = vi.fn(() => of({ id: 'pur-new', version: 1 } as PurchaseRecord));
     disabledCapabilities = new Set();
     searchProductOptionsCalls = 0;
     searchSupplierOptionsCalls = 0;
@@ -129,7 +131,7 @@ describe('PurchaseEditPage', () => {
           provide: PurchasesApi,
           useValue: {
             getPurchase: () => mockGetPurchase(),
-            createPurchase: () => of({} as PurchaseRecord),
+            createPurchase,
             updatePurchase: () => of({} as PurchaseRecord),
             discardPurchase: () => of({} as PurchaseRecord),
             postPurchase: () => of({} as PurchaseRecord),
@@ -203,11 +205,14 @@ describe('PurchaseEditPage', () => {
     }).compileComponents();
   });
 
-  it('does not preload product or supplier catalogs on initial load', () => {
+  it('preloads supplier and product selector options on create', async () => {
     const fixture: ComponentFixture<PurchaseEditPage> = TestBed.createComponent(PurchaseEditPage);
     fixture.detectChanges();
-    expect(searchProductOptionsCalls).toBe(0);
-    expect(searchSupplierOptionsCalls).toBe(0);
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    fixture.detectChanges();
+
+    expect(searchProductOptionsCalls).toBe(1);
+    expect(searchSupplierOptionsCalls).toBe(1);
   });
 
   it('renders draft create form branch with empty payments at post', () => {
@@ -310,5 +315,34 @@ describe('PurchaseEditPage', () => {
     fixture.detectChanges();
     expect(component.canEditDraft()).toBe(false);
     expect(compiled.querySelector('[data-testid="purchase-save"]')).toBeFalsy();
+  });
+
+  it('disables save when the draft form is invalid', () => {
+    const fixture: ComponentFixture<PurchaseEditPage> = TestBed.createComponent(PurchaseEditPage);
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    const saveButton = fixture.nativeElement.querySelector(
+      '[data-testid="purchase-save"]',
+    ) as HTMLButtonElement;
+
+    expect(component.form.valid).toBe(false);
+    expect(component.canSaveDraft()).toBe(false);
+    expect(saveButton.disabled).toBe(true);
+  });
+
+  it('does not call createPurchase when save() is invoked on an invalid form', () => {
+    const fixture: ComponentFixture<PurchaseEditPage> = TestBed.createComponent(PurchaseEditPage);
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    component.save();
+    fixture.detectChanges();
+
+    expect(createPurchase).not.toHaveBeenCalled();
+    expect(component.formSubmitAttempted()).toBe(true);
+    expect(
+      component.fieldError(component.form.controls.warehouseId, 'Warehouse', true),
+    ).toContain('required');
   });
 });

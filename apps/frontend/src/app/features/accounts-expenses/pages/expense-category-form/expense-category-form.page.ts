@@ -10,8 +10,13 @@ import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.compon
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
-import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
+import {
+  fieldValidationMessage,
+  hasRequiredValidator,
+} from '../../../../shared/form/form-field.util';
 import { recordInUseMessage } from '../../../../shared/lifecycle/master-lifecycle';
+
+const MAX_NAME = 160;
 
 @Component({
   selector: 'agrivio-expense-category-form-page',
@@ -41,7 +46,9 @@ export class ExpenseCategoryFormPage {
   readonly deleting = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
+  readonly formSubmitAttempted = signal(false);
   readonly category = signal<ExpenseCategoryRecord | null>(null);
+  readonly loadedStatus = signal<'active' | 'inactive'>('active');
   readonly deleteConfirmOpen = signal(false);
 
   readonly canManage = computed(
@@ -62,17 +69,38 @@ export class ExpenseCategoryFormPage {
   readonly canEditName = computed(
     () => this.capabilityService?.canEditField('expenses.categories.fields.name') ?? true,
   );
+  readonly showName = computed(
+    () => this.capabilityService?.canViewField('expenses.categories.fields.name') ?? true,
+  );
+  readonly showStatus = computed(
+    () => this.capabilityService?.canViewField('expenses.categories.fields.status') ?? true,
+  );
+  readonly canChangeStatus = computed(() => {
+    if (!this.isEdit()) {
+      return false;
+    }
+    const action = this.loadedStatus() === 'active' ? 'deactivate' : 'reactivate';
+    return (
+      this.canEditCategory() &&
+      (this.capabilityService?.canPerformAction(`expenses.categories.actions.${action}`) ?? true)
+    );
+  });
   readonly canDelete = computed(
     () =>
       this.canManage() &&
       (this.capabilityService?.canPerformAction('expenses.categories.actions.delete') ?? true),
   );
+  readonly canSave = computed(() => {
+    const allowed = this.categoryId() === null ? this.canCreate() : this.canEditCategory();
+    return allowed && this.form.valid && !this.saving();
+  });
 
   private version = 1;
   readonly fieldRequired = hasRequiredValidator;
+  readonly fieldError = fieldValidationMessage;
 
   readonly form = this.formBuilder.nonNullable.group({
-    name: ['', [Validators.required, Validators.minLength(2)]],
+    name: ['', [Validators.required, Validators.maxLength(MAX_NAME)]],
     status: ['active'],
   });
 
@@ -94,6 +122,7 @@ export class ExpenseCategoryFormPage {
           }
           this.category.set(cat);
           this.version = cat.version;
+          this.loadedStatus.set(cat.status === 'inactive' ? 'inactive' : 'active');
           this.form.patchValue({ name: cat.name, status: cat.status });
           this.loading.set(false);
         },
@@ -106,9 +135,10 @@ export class ExpenseCategoryFormPage {
   }
 
   save(): void {
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
     const allowed = this.categoryId() === null ? this.canCreate() : this.canEditCategory();
     if (!allowed || this.form.invalid) {
-      this.form.markAllAsTouched();
       return;
     }
     this.saving.set(true);
@@ -117,11 +147,10 @@ export class ExpenseCategoryFormPage {
     const catId = this.categoryId();
     const request$ =
       catId === null
-        ? this.api.createCategory({ name: value.name })
+        ? this.api.createCategory({ name: value.name.trim() })
         : this.api.updateCategory(catId, {
             expectedVersion: this.version,
-            name: value.name,
-            status: value.status,
+            ...this.buildPayload(value),
           });
     request$.subscribe({
       next: () => {
@@ -154,6 +183,21 @@ export class ExpenseCategoryFormPage {
         this.errorMessage.set(recordInUseMessage(error, 'Unable to delete expense category.'));
       },
     });
+  }
+
+  private buildPayload(
+    value: ReturnType<typeof this.form.getRawValue>,
+  ): { name?: string; status?: string } {
+    const payload: { name?: string; status?: string } = {};
+
+    if (this.canEditName()) {
+      payload.name = value.name.trim();
+    }
+    if (this.canChangeStatus()) {
+      payload.status = value.status;
+    }
+
+    return payload;
   }
 
   private mapError(error: unknown, fallback: string): string {

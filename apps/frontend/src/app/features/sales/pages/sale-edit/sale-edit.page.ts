@@ -8,7 +8,7 @@ import {
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin, of, catchError, map, switchMap, Subject, debounceTime, distinctUntilChanged } from 'rxjs';
+import { forkJoin, of, catchError, map, switchMap, Subject, debounceTime, distinctUntilChanged, merge } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { SalesApi } from '../../data-access/sales.api';
 import { SalesReturnsApi } from '../../data-access/sales-returns.api';
@@ -71,6 +71,9 @@ export class SaleEditPage {
   private readonly formBuilder = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
   private readonly productSearchChanges = new Subject<string>();
+  private readonly customerSearchChanges = new Subject<string>();
+  private readonly customerSearchImmediate = new Subject<string>();
+  private static readonly SELECTOR_SEARCH_LIMIT = 25;
   @ViewChild('customerPicker') customerPickerRef?: ElementRef<HTMLElement>;
 
   readonly customerTypeOptions = [
@@ -96,8 +99,7 @@ export class SaleEditPage {
   readonly formSubmitAttempted = signal(false);
   readonly customerDropdownOpen = signal(false);
   readonly customerSearchTerm = signal('');
-  readonly allCustomers = signal<CustomerRecord[]>([]);
-  readonly customersLoaded = signal(false);
+  readonly customers = signal<CustomerRecord[]>([]);
   readonly customerSearchLoading = signal(false);
   readonly customerSearchError = signal(false);
   readonly selectedCustomer = signal<CustomerRecord | null>(null);
@@ -207,6 +209,10 @@ export class SaleEditPage {
     const record = this.sale();
     return record === null || record.status === 'draft';
   });
+  readonly canSaveDraft = computed(() => {
+    const canMutate = this.saleId() === null ? this.canCreateDraft() : this.canEditDraft();
+    return canMutate && this.isDraft() && this.form.valid && !this.saving() && !this.posting();
+  });
 
   statusLabel(status?: string | null): string {
     if (status === 'posted') return 'Posted';
@@ -229,7 +235,7 @@ export class SaleEditPage {
     if (selected?.id === customerId) {
       return `${selected.name} (${selected.priceTier})`;
     }
-    const match = this.allCustomers().find((item) => item.id === customerId);
+    const match = this.customers().find((item) => item.id === customerId);
     if (match) {
       return `${match.name} (${match.priceTier})`;
     }
@@ -304,10 +310,38 @@ export class SaleEditPage {
       .pipe(
         debounceTime(300),
         distinctUntilChanged(),
-        switchMap((query) => this.catalogApi.searchProductOptions(query, 500, 'active')),
+        switchMap((query) =>
+          this.catalogApi.searchProductOptions(
+            query,
+            SaleEditPage.SELECTOR_SEARCH_LIMIT,
+            'active',
+          ),
+        ),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((items) => this.products.set(items.filter((item) => item.status === 'active')));
+
+    merge(
+      this.customerSearchImmediate,
+      this.customerSearchChanges.pipe(debounceTime(300), distinctUntilChanged()),
+    )
+      .pipe(
+        switchMap((query) =>
+          this.customersApi.searchCustomerOptions(query).pipe(
+            catchError(() => {
+              this.customerSearchError.set(true);
+              return of([] as CustomerRecord[]);
+            }),
+          ),
+        ),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((items) => {
+        this.customers.set(
+          this.mergeCustomerOptions(items.filter((item) => item.status === 'active')),
+        );
+        this.customerSearchLoading.set(false);
+      });
 
     this.form.controls.customerTypeMode.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -322,6 +356,9 @@ export class SaleEditPage {
           if (selected && selected.customerType !== type) {
             this.form.controls.customerId.setValue('');
             this.selectedCustomer.set(null);
+          }
+          if (this.customerDropdownOpen()) {
+            this.requestCustomerSearch();
           }
         }
         this.refreshTierPricesForAllLines();
@@ -392,6 +429,7 @@ export class SaleEditPage {
       return;
     }
     this.customerSearchTerm.set(target.value);
+    this.requestCustomerSearch(target.value.trim(), false);
   }
 
   isWalkInCustomerType(): boolean {
@@ -400,20 +438,11 @@ export class SaleEditPage {
 
   filteredCustomers(): CustomerRecord[] {
     const type = this.form.controls.customerTypeMode.value;
-    const query = this.customerSearchTerm().trim().toLowerCase();
-    let items = this.allCustomers();
+    let items = this.customers();
     if (type !== 'walk_in') {
       items = items.filter((item) => item.customerType === type);
     }
-    if (query === '') {
-      return items;
-    }
-    return items.filter(
-      (item) =>
-        item.name.toLowerCase().includes(query) ||
-        item.phone.toLowerCase().includes(query) ||
-        item.id.toLowerCase().includes(query),
-    );
+    return items;
   }
 
   getCustomerTypeLabel(type: string): string {
@@ -428,30 +457,21 @@ export class SaleEditPage {
     const opening = !this.customerDropdownOpen();
     this.customerDropdownOpen.set(opening);
     if (opening) {
-      this.loadCustomersForPicker();
+      this.requestCustomerSearch();
     }
   }
 
-  private loadCustomersForPicker(): void {
-    if (!this.canUseCustomerSearch() || !this.canSearchCustomers()) {
-      return;
-    }
-    if (this.customersLoaded() || this.customerSearchLoading()) {
+  private requestCustomerSearch(query = this.customerSearchTerm().trim(), immediate = true): void {
+    if (!this.canUseCustomerSearch()) {
       return;
     }
     this.customerSearchLoading.set(true);
     this.customerSearchError.set(false);
-    this.customersApi.listCustomers({ page: 1, pageSize: 500, status: 'active' }).subscribe({
-      next: (result) => {
-        this.allCustomers.set(result.items.filter((item) => item.status === 'active'));
-        this.customersLoaded.set(true);
-        this.customerSearchLoading.set(false);
-      },
-      error: () => {
-        this.customerSearchError.set(true);
-        this.customerSearchLoading.set(false);
-      },
-    });
+    if (immediate) {
+      this.customerSearchImmediate.next(query);
+      return;
+    }
+    this.customerSearchChanges.next(query);
   }
 
   closeCustomerDropdown(): void {
@@ -965,9 +985,7 @@ export class SaleEditPage {
     if (masters.relatedReturns) {
       this.relatedReturns.set(masters.relatedReturns);
     }
-    this.catalogApi.searchProductOptions('', 500, 'active').subscribe({
-      next: (items) => this.products.set(items.filter((item) => item.status === 'active')),
-    });
+    this.productSearchChanges.next('');
     if (this.saleId() === null && this.form.controls.saleDate.value.trim() === '') {
       this.form.controls.saleDate.setValue(this.todayIsoDate());
     }
@@ -1016,6 +1034,17 @@ export class SaleEditPage {
       }
     }
     return null;
+  }
+
+  private mergeCustomerOptions(items: CustomerRecord[]): CustomerRecord[] {
+    const selected = this.selectedCustomer();
+    if (!selected) {
+      return items;
+    }
+    if (items.some((item) => item.id === selected.id)) {
+      return items;
+    }
+    return [selected, ...items];
   }
 
   private seedSelectorOptionsFromSale(sale: SaleRecord): void {
@@ -1116,6 +1145,7 @@ export class SaleEditPage {
         next: (customer) => {
           if (customer.status === 'active') {
             this.selectedCustomer.set(customer);
+            this.customers.set(this.mergeCustomerOptions([customer]));
             this.form.controls.customerTypeMode.setValue(
               customer.customerType === 'walk_in' ? 'walk_in' : String(customer.customerType),
               { emitEvent: false },
@@ -1170,7 +1200,7 @@ export class SaleEditPage {
     const customer =
       this.selectedCustomer()?.id === customerId
         ? this.selectedCustomer()
-        : this.allCustomers().find((item) => item.id === customerId);
+        : this.customers().find((item) => item.id === customerId);
     const priceTier = customer?.priceTier ?? 'retail';
     this.catalogApi.listPrices(productId).subscribe({
       next: (prices) => {

@@ -28,7 +28,7 @@ import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-p
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
-import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
+import { hasRequiredValidator, fieldValidationMessage } from '../../../../shared/form/form-field.util';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 @Component({
@@ -59,6 +59,7 @@ export class SupplierPaymentFormPage {
   readonly saving = signal(false);
   readonly loadingUnpaid = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly formSubmitAttempted = signal(false);
   readonly successMessage = signal<string | null>(null);
   readonly suppliers = signal<SupplierRecord[]>([]);
   readonly accounts = signal<AccountRecord[]>([]);
@@ -89,6 +90,19 @@ export class SupplierPaymentFormPage {
   );
 
   readonly fieldRequired = hasRequiredValidator;
+  readonly fieldError = fieldValidationMessage;
+  readonly canSave = computed(() => {
+    if (!this.canPost() || this.saving()) {
+      return false;
+    }
+    if (this.form.invalid) {
+      return false;
+    }
+    if (this.isInvoiceSpecific() && this.invoiceAllocationForm.invalid) {
+      return false;
+    }
+    return true;
+  });
 
   readonly form = this.formBuilder.nonNullable.group({
     supplierId: ['', Validators.required],
@@ -135,6 +149,8 @@ export class SupplierPaymentFormPage {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((items) => this.suppliers.set(items.filter((item) => item.status === 'active')));
+
+    this.supplierSearchChanges.next('');
 
     this.accountsApi.listAccountOptions().subscribe({
       next: (accounts) => {
@@ -215,8 +231,12 @@ export class SupplierPaymentFormPage {
   }
 
   save(): void {
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    if (this.isInvoiceSpecific()) {
+      this.invoiceAllocationForm.markAllAsTouched();
+    }
     if (!this.canPost() || this.form.invalid) {
-      this.form.markAllAsTouched();
       return;
     }
     const value = this.form.getRawValue();
@@ -225,7 +245,6 @@ export class SupplierPaymentFormPage {
       return;
     }
     if (value.allocationMode === 'invoice_specific' && this.invoiceAllocationForm.invalid) {
-      this.invoiceAllocationForm.markAllAsTouched();
       return;
     }
     this.saving.set(true);

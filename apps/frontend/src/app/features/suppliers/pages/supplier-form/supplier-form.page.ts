@@ -8,12 +8,20 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
-import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
+import {
+  fieldValidationMessage,
+  hasRequiredValidator,
+} from '../../../../shared/form/form-field.util';
 import {
   mapPlanLimitError,
   softWarningMessage,
 } from '../../../../core/plan-limits/plan-limit-feedback';
 import { SupplierRecord } from '../../models/suppliers.models';
+
+const MAX_NAME = 160;
+const MAX_PHONE = 32;
+const MAX_CONTACT = 120;
+const MAX_EMAIL = 160;
 
 @Component({
   selector: 'agrivio-supplier-form-page',
@@ -42,6 +50,7 @@ export class SupplierFormPage {
   readonly postingOpening = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly softWarning = signal<string | null>(null);
+  readonly formSubmitAttempted = signal(false);
   readonly openingPosted = signal(false);
 
   readonly canUseSuppliers = computed(
@@ -63,6 +72,8 @@ export class SupplierFormPage {
     return hasPerm && this.canUseSuppliers() && actionOk;
   });
 
+  readonly canSave = computed(() => this.canManage() && this.form.valid && !this.saving());
+
   readonly showContactName = computed(
     () => this.capabilityService?.canViewField('suppliers.fields.contactName') ?? true,
   );
@@ -76,12 +87,13 @@ export class SupplierFormPage {
   private version = 1;
 
   readonly fieldRequired = hasRequiredValidator;
+  readonly fieldError = fieldValidationMessage;
 
   readonly form = this.formBuilder.nonNullable.group({
-    name: ['', [Validators.required, Validators.minLength(2)]],
-    phone: [''],
-    contactName: [''],
-    email: [''],
+    name: ['', [Validators.required, Validators.maxLength(MAX_NAME)]],
+    phone: ['', [Validators.maxLength(MAX_PHONE)]],
+    contactName: ['', [Validators.maxLength(MAX_CONTACT)]],
+    email: ['', [Validators.maxLength(MAX_EMAIL)]],
     status: ['active'],
   });
 
@@ -110,8 +122,9 @@ export class SupplierFormPage {
   }
 
   save(): void {
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
     if (!this.canManage() || this.form.invalid) {
-      this.form.markAllAsTouched();
       return;
     }
     this.saving.set(true);
@@ -121,19 +134,15 @@ export class SupplierFormPage {
     const request$ =
       this.supplierId() === null
         ? this.api.createSupplier({
-            name: value.name,
-            phone: value.phone,
-            contactName: value.contactName,
-            email: value.email,
+            name: value.name.trim(),
+            phone: value.phone.trim(),
+            contactName: value.contactName.trim(),
+            email: value.email.trim(),
           })
-        : this.api.updateSupplier(this.supplierId()!, {
-            expectedVersion: this.version,
-            name: value.name,
-            phone: value.phone,
-            contactName: value.contactName,
-            email: value.email,
-            status: value.status,
-          });
+        : this.api.updateSupplier(
+            this.supplierId()!,
+            this.buildSupplierUpdatePayload(value),
+          );
 
     request$.subscribe({
       next: (record) => {
@@ -182,6 +191,45 @@ export class SupplierFormPage {
           this.errorMessage.set(this.mapError(error, 'Unable to post opening balance.'));
         },
       });
+  }
+
+  private buildSupplierUpdatePayload(
+    value: ReturnType<typeof this.form.getRawValue>,
+  ): {
+    expectedVersion: number;
+    name?: string;
+    phone?: string;
+    contactName?: string;
+    email?: string;
+    status?: string;
+  } {
+    const payload: {
+      expectedVersion: number;
+      name?: string;
+      phone?: string;
+      contactName?: string;
+      email?: string;
+      status?: string;
+    } = { expectedVersion: this.version };
+    const controls = this.form.controls;
+
+    if (!controls.name.disabled) {
+      payload.name = value.name.trim();
+    }
+    if (!controls.phone.disabled) {
+      payload.phone = value.phone.trim();
+    }
+    if (!controls.contactName.disabled) {
+      payload.contactName = value.contactName.trim();
+    }
+    if (!controls.email.disabled) {
+      payload.email = value.email.trim();
+    }
+    if (!controls.status.disabled) {
+      payload.status = value.status;
+    }
+
+    return payload;
   }
 
   private applySupplier(supplier: SupplierRecord): void {

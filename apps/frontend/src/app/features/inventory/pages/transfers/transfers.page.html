@@ -135,14 +135,20 @@
                 class="ag-select"
                 formControlName="sourceWarehouseId"
                 data-testid="transfer-source"
+                [class.ag-input--invalid]="fieldError(form.controls.sourceWarehouseId, 'Source warehouse', formSubmitAttempted())"
                 [attr.aria-required]="fieldRequired(form.controls.sourceWarehouseId) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.sourceWarehouseId, 'Source warehouse', formSubmitAttempted()) ? 'true' : null"
               >
                 <option value="" disabled>Select source warehouse</option>
                 @for (warehouse of warehouses(); track warehouse.id) {
                   <option [value]="warehouse.id">{{ warehouse.name }}</option>
                 }
               </select>
-              <p class="field-hint">Origin warehouse where stock is deducted.</p>
+              @if (fieldError(form.controls.sourceWarehouseId, 'Source warehouse', formSubmitAttempted()); as sourceError) {
+                <p class="field-error" role="alert">{{ sourceError }}</p>
+              } @else {
+                <p class="field-hint">Origin warehouse where stock is deducted.</p>
+              }
             </div>
 
             <!-- Destination Warehouse -->
@@ -157,15 +163,17 @@
                 class="ag-select"
                 formControlName="destinationWarehouseId"
                 data-testid="transfer-destination"
+                [class.ag-input--invalid]="fieldError(form.controls.destinationWarehouseId, 'Destination warehouse', formSubmitAttempted())"
                 [attr.aria-required]="fieldRequired(form.controls.destinationWarehouseId) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.destinationWarehouseId, 'Destination warehouse', formSubmitAttempted()) ? 'true' : null"
               >
                 <option value="" disabled>Select destination warehouse</option>
                 @for (warehouse of warehouses(); track warehouse.id) {
                   <option [value]="warehouse.id">{{ warehouse.name }}</option>
                 }
               </select>
-              @if (form.controls.destinationWarehouseId.hasError('sameWarehouse')) {
-                <p class="field-hint text-danger font-medium">Destination must differ from source warehouse.</p>
+              @if (fieldError(form.controls.destinationWarehouseId, 'Destination warehouse', formSubmitAttempted()); as destinationError) {
+                <p class="field-error" role="alert">{{ destinationError }}</p>
               } @else {
                 <p class="field-hint">Target warehouse where stock is added.</p>
               }
@@ -186,14 +194,20 @@
                 class="ag-select"
                 formControlName="productId"
                 data-testid="transfer-product"
+                [class.ag-input--invalid]="fieldError(form.controls.productId, 'Product', formSubmitAttempted())"
                 [attr.aria-required]="fieldRequired(form.controls.productId) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.productId, 'Product', formSubmitAttempted()) ? 'true' : null"
               >
                 <option value="" disabled>Select product</option>
                 @for (product of products(); track product.id) {
                   <option [value]="product.id">{{ product.name }} ({{ product.baseUnitCode }})</option>
                 }
               </select>
-              <p class="field-hint">Select the product to transfer.</p>
+              @if (fieldError(form.controls.productId, 'Product', formSubmitAttempted()); as productError) {
+                <p class="field-error" role="alert">{{ productError }}</p>
+              } @else {
+                <p class="field-hint">Select the product to transfer.</p>
+              }
             </div>
 
             <!-- Quantity -->
@@ -210,11 +224,17 @@
                   formControlName="quantity"
                   placeholder="0.00"
                   data-testid="transfer-quantity"
+                  [class.ag-input--invalid]="fieldError(form.controls.quantity, 'Quantity', formSubmitAttempted())"
                   [attr.aria-required]="fieldRequired(form.controls.quantity) ? 'true' : null"
+                  [attr.aria-invalid]="fieldError(form.controls.quantity, 'Quantity', formSubmitAttempted()) ? 'true' : null"
                 />
                 <span class="ag-input-addon">{{ selectedProduct()?.baseUnitCode || 'Units' }}</span>
               </div>
-              <p class="field-hint">Transfer quantity in base units.</p>
+              @if (fieldError(form.controls.quantity, 'Quantity', formSubmitAttempted()); as quantityError) {
+                <p class="field-error" role="alert">{{ quantityError }}</p>
+              } @else {
+                <p class="field-hint">Transfer quantity in base units.</p>
+              }
             </div>
 
             <!-- Reason -->
@@ -230,9 +250,15 @@
                 formControlName="reason"
                 placeholder="Enter reason for transfer…"
                 data-testid="transfer-reason"
+                [class.ag-input--invalid]="fieldError(form.controls.reason, 'Reason', formSubmitAttempted())"
                 [attr.aria-required]="fieldRequired(form.controls.reason) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.reason, 'Reason', formSubmitAttempted()) ? 'true' : null"
               />
-              <p class="field-hint">Operational reason for audit history.</p>
+              @if (fieldError(form.controls.reason, 'Reason', formSubmitAttempted()); as reasonError) {
+                <p class="field-error" role="alert">{{ reasonError }}</p>
+              } @else {
+                <p class="field-hint">Operational reason for audit history.</p>
+              }
             </div>
           </div>
 
@@ -356,14 +382,20 @@
                     class="ag-select font-mono"
                     formControlName="batchId"
                     data-testid="transfer-batch"
+                    [class.ag-input--invalid]="fieldError(form.controls.batchId, 'Batch / lot number', formSubmitAttempted())"
                     [attr.aria-required]="fieldRequired(form.controls.batchId) ? 'true' : null"
+                    [attr.aria-invalid]="fieldError(form.controls.batchId, 'Batch / lot number', formSubmitAttempted()) ? 'true' : null"
                   >
                     <option value="">Select batch</option>
                     @for (option of batchOptions(); track option.batchId) {
                       <option [value]="option.batchId">{{ option.label }}</option>
                     }
                   </select>
-                  <p class="field-hint">Scoped to available positive stock in the selected source warehouse.</p>
+                  @if (fieldError(form.controls.batchId, 'Batch / lot number', formSubmitAttempted()); as batchError) {
+                    <p class="field-error" role="alert">{{ batchError }}</p>
+                  } @else {
+                    <p class="field-hint">Scoped to available positive stock in the selected source warehouse.</p>
+                  }
                 </div>
 
                 @if (showStockContext() && selectedBatchStockOnHand(); as batchStock) {
@@ -406,9 +438,15 @@
                         formControlName="negativeStockOverrideReason"
                         placeholder="Enter negative stock override authorization reason…"
                         data-testid="transfer-override-reason"
+                        [class.ag-input--invalid]="fieldError(form.controls.negativeStockOverrideReason, 'Override reason', formSubmitAttempted())"
                         [attr.aria-required]="fieldRequired(form.controls.negativeStockOverrideReason) ? 'true' : null"
+                        [attr.aria-invalid]="fieldError(form.controls.negativeStockOverrideReason, 'Override reason', formSubmitAttempted()) ? 'true' : null"
                       />
-                      <p class="field-hint">Required when bypassing negative stock prevention.</p>
+                      @if (fieldError(form.controls.negativeStockOverrideReason, 'Override reason', formSubmitAttempted()); as overrideError) {
+                        <p class="field-error" role="alert">{{ overrideError }}</p>
+                      } @else {
+                        <p class="field-hint">Required when bypassing negative stock prevention.</p>
+                      }
                     </div>
                   }
                 </div>
@@ -493,7 +531,7 @@
           <button
             class="ag-btn ag-btn--primary"
             type="submit"
-            [disabled]="saving() || !canPostTransfer() || form.invalid"
+            [disabled]="!canPostTransfer()"
             data-testid="transfer-submit"
           >
             @if (saving()) {

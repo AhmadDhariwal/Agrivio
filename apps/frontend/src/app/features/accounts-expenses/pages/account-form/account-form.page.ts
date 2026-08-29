@@ -1,6 +1,12 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe, UpperCasePipe, TitleCasePipe } from '@angular/common';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormBuilder,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators,
+} from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AccountsApi } from '../../data-access/accounts.api';
@@ -13,10 +19,20 @@ import {
   UiStatusBadgeComponent,
   UiBadgeTone,
 } from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
-import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
+import {
+  fieldValidationMessage,
+  hasRequiredValidator,
+  setRequiredValidator,
+} from '../../../../shared/form/form-field.util';
 import { AccountMovementRecord, AccountRecord } from '../../models/accounts.models';
 import { forkJoin, of } from 'rxjs';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
+
+const MAX_NAME = 160;
+const MAX_BANK = 120;
+const MAX_MASKED = 64;
+const MAX_WALLET = 64;
+const ACCOUNT_TYPES = ['cash', 'bank', 'jazzcash', 'easypaisa'] as const;
 
 @Component({
   selector: 'agrivio-account-form-page',
@@ -49,6 +65,7 @@ export class AccountFormPage {
   readonly saving = signal(false);
   readonly postingOpening = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly formSubmitAttempted = signal(false);
   readonly openingPosted = signal(false);
   readonly derivedBalance = signal<string | null>(null);
   readonly movements = signal<AccountMovementRecord[]>([]);
@@ -141,6 +158,10 @@ export class AccountFormPage {
       this.canEdit() &&
       (this.capabilityService?.canEditField('accounts.fields.status') ?? true),
   );
+  readonly canSave = computed(() => {
+    const allowed = this.accountId() === null ? this.canCreate() : this.canEdit();
+    return allowed && this.form.valid && !this.saving();
+  });
   readonly showDerivedBalance = computed(
     () => this.capabilityService?.canViewField('accounts.fields.derivedBalance') ?? true,
   );
@@ -181,13 +202,14 @@ export class AccountFormPage {
   private version = 1;
 
   readonly fieldRequired = hasRequiredValidator;
+  readonly fieldError = fieldValidationMessage;
 
   readonly form = this.formBuilder.nonNullable.group({
-    accountType: ['cash' as string, [Validators.required]],
-    name: ['', [Validators.required, Validators.minLength(2)]],
-    bankName: [''],
-    accountNumberMasked: [''],
-    walletIdentifier: [''],
+    accountType: ['cash' as string, [Validators.required, this.accountTypeValidator.bind(this)]],
+    name: ['', [Validators.required, Validators.maxLength(MAX_NAME)]],
+    bankName: ['', [Validators.maxLength(MAX_BANK)]],
+    accountNumberMasked: ['', [Validators.maxLength(MAX_MASKED)]],
+    walletIdentifier: ['', [Validators.maxLength(MAX_WALLET)]],
     status: ['active'],
   });
 
@@ -216,7 +238,9 @@ export class AccountFormPage {
   constructor() {
     this.form.controls.accountType.valueChanges.subscribe((value) => {
       this.accountType.set(value);
+      this.syncAccountTypeValidators(value);
     });
+    this.syncAccountTypeValidators(this.form.controls.accountType.value);
 
     const id = this.route.snapshot.paramMap.get('id');
     if (id && id !== 'new') {
@@ -243,11 +267,10 @@ export class AccountFormPage {
   }
 
   save(): void {
-    if (this.accountId() === null ? !this.canCreate() : !this.canEdit()) {
-      return;
-    }
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    const allowed = this.accountId() === null ? this.canCreate() : this.canEdit();
+    if (!allowed || this.form.invalid) {
       return;
     }
     this.saving.set(true);
@@ -258,19 +281,9 @@ export class AccountFormPage {
     if (this.accountId() === null) {
       this.api
         .createAccount({
-          name: value.name,
+          name: value.name.trim(),
           accountType: value.accountType,
-          ...(value.accountType === 'bank'
-            ? {
-                bankName: value.bankName,
-                ...(value.accountNumberMasked.trim() === ''
-                  ? {}
-                  : { accountNumberMasked: value.accountNumberMasked }),
-              }
-            : {}),
-          ...(value.accountType === 'jazzcash' || value.accountType === 'easypaisa'
-            ? { walletIdentifier: value.walletIdentifier }
-            : {}),
+          ...this.buildTypeSpecificCreateFields(value),
         })
         .subscribe({
           next: () => {
@@ -291,17 +304,7 @@ export class AccountFormPage {
     this.api
       .updateAccount(id, {
         expectedVersion: this.version,
-        name: value.name,
-        status: value.status,
-        ...(value.accountType === 'bank'
-          ? {
-              bankName: value.bankName,
-              accountNumberMasked: value.accountNumberMasked,
-            }
-          : {}),
-        ...(value.accountType === 'jazzcash' || value.accountType === 'easypaisa'
-          ? { walletIdentifier: value.walletIdentifier }
-          : {}),
+        ...this.buildAccountPatchPayload(value),
       })
       .subscribe({
         next: () => {
@@ -550,6 +553,93 @@ export class AccountFormPage {
     });
   }
 
+  private buildTypeSpecificCreateFields(
+    value: ReturnType<typeof this.form.getRawValue>,
+  ): {
+    bankName?: string;
+    accountNumberMasked?: string;
+    walletIdentifier?: string;
+  } {
+    if (value.accountType === 'bank') {
+      return {
+        bankName: value.bankName.trim(),
+        ...(value.accountNumberMasked.trim() === ''
+          ? {}
+          : { accountNumberMasked: value.accountNumberMasked.trim() }),
+      };
+    }
+    if (value.accountType === 'jazzcash' || value.accountType === 'easypaisa') {
+      return { walletIdentifier: value.walletIdentifier.trim() };
+    }
+    return {};
+  }
+
+  private buildAccountPatchPayload(
+    value: ReturnType<typeof this.form.getRawValue>,
+  ): {
+    name?: string;
+    status?: string;
+    bankName?: string;
+    accountNumberMasked?: string;
+    walletIdentifier?: string;
+  } {
+    const payload: {
+      name?: string;
+      status?: string;
+      bankName?: string;
+      accountNumberMasked?: string;
+      walletIdentifier?: string;
+    } = {};
+
+    if (this.canEditName()) {
+      payload.name = value.name.trim();
+    }
+    if (this.canEditStatus()) {
+      payload.status = value.status;
+    }
+
+    const accountType = this.accountType();
+    if (
+      accountType === 'bank' &&
+      this.showBankName() &&
+      this.canEditBankName()
+    ) {
+      payload.bankName = value.bankName.trim();
+    }
+    if (
+      accountType === 'bank' &&
+      this.showAccountNumberMasked() &&
+      this.canEditAccountNumberMasked()
+    ) {
+      payload.accountNumberMasked = value.accountNumberMasked.trim();
+    }
+    if (
+      (accountType === 'jazzcash' || accountType === 'easypaisa') &&
+      this.showWalletIdentifier() &&
+      this.canEditWalletIdentifier()
+    ) {
+      payload.walletIdentifier = value.walletIdentifier.trim();
+    }
+
+    return payload;
+  }
+
+  private syncAccountTypeValidators(accountType: string): void {
+    setRequiredValidator(this.form.controls.bankName, accountType === 'bank');
+    setRequiredValidator(
+      this.form.controls.walletIdentifier,
+      accountType === 'jazzcash' || accountType === 'easypaisa',
+    );
+  }
+
+  private accountTypeValidator(control: AbstractControl): ValidationErrors | null {
+    const value = control.value;
+    if (typeof value === 'string' && ACCOUNT_TYPES.includes(value as (typeof ACCOUNT_TYPES)[number])) {
+      return null;
+    }
+    return { invalidAccountType: true };
+  }
+
   private applyAccount(account: AccountRecord): void {
     this.version = account.version;
     this.accountType.set(account.accountType);
@@ -561,6 +651,7 @@ export class AccountFormPage {
       walletIdentifier: account.walletIdentifier,
       status: account.status,
     });
+    this.syncAccountTypeValidators(account.accountType);
     this.form.controls.accountType.disable();
     this.openingPosted.set(Boolean(account.openingBalance));
     this.derivedBalance.set(account.derivedBalances?.balance.amount ?? null);

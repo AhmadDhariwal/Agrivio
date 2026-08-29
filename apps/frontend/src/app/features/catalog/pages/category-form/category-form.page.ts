@@ -8,7 +8,12 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
-import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
+import {
+  fieldValidationMessage,
+  hasRequiredValidator,
+} from '../../../../shared/form/form-field.util';
+
+const MAX_NAME = 160;
 
 @Component({
   selector: 'agrivio-category-form-page',
@@ -37,7 +42,9 @@ export class CategoryFormPage {
   readonly loading = signal(false);
   readonly saving = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly formSubmitAttempted = signal(false);
   readonly canManage = computed(() => this.sessionStore.hasPermission('catalog.manage'));
+  readonly canSave = computed(() => this.canManage() && this.form.valid && !this.saving());
   readonly showName = computed(
     () =>
       this.categoryId() === null ||
@@ -77,9 +84,10 @@ export class CategoryFormPage {
   private version = 1;
 
   readonly fieldRequired = hasRequiredValidator;
+  readonly fieldError = fieldValidationMessage;
 
   readonly form = this.formBuilder.nonNullable.group({
-    name: ['', [Validators.required, Validators.minLength(2)]],
+    name: ['', [Validators.required, Validators.maxLength(MAX_NAME)]],
     productClass: ['general' as string, [Validators.required]],
     status: ['active'],
   });
@@ -131,8 +139,9 @@ export class CategoryFormPage {
   }
 
   save(): void {
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
     if (!this.canManage() || this.form.invalid) {
-      this.form.markAllAsTouched();
       return;
     }
     this.saving.set(true);
@@ -142,14 +151,12 @@ export class CategoryFormPage {
     const request$ =
       categoryId === null
         ? this.api.createCategory({
-            name: value.name,
+            name: value.name.trim(),
             productClass: value.productClass,
           })
         : this.api.updateCategory(categoryId, {
             expectedVersion: this.version,
-            name: value.name,
-            productClass: value.productClass,
-            status: value.status,
+            ...this.buildPayload(value, true),
           });
 
     request$.subscribe({
@@ -162,6 +169,25 @@ export class CategoryFormPage {
         this.errorMessage.set(this.mapError(error, 'Unable to save category.'));
       },
     });
+  }
+
+  private buildPayload(
+    value: ReturnType<typeof this.form.getRawValue>,
+    isEdit: boolean,
+  ): { name?: string; productClass?: string; status?: string } {
+    const payload: { name?: string; productClass?: string; status?: string } = {};
+
+    if (!isEdit || this.canEditName()) {
+      payload['name'] = value.name.trim();
+    }
+    if (!isEdit || this.canEditProductClass()) {
+      payload['productClass'] = value.productClass;
+    }
+    if (isEdit && this.canChangeStatus()) {
+      payload['status'] = value.status;
+    }
+
+    return payload;
   }
 
   private mapError(error: unknown, fallback: string): string {

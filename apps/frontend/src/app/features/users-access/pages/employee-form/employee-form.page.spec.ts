@@ -132,9 +132,31 @@ describe('EmployeeFormPage', () => {
     });
   });
 
-  it('does not replace assignments when assignAccess capability is disabled', () => {
+  it('disables save while required fields are missing', () => {
+    const fixture: ComponentFixture<EmployeeFormPage> = TestBed.createComponent(EmployeeFormPage);
+    fixture.detectChanges();
+
+    const saveButton = fixture.nativeElement.querySelector(
+      '[data-testid="employee-save"]',
+    ) as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(true);
+  });
+
+  it('blocks invalid submit without calling createEmployee', () => {
+    const fixture: ComponentFixture<EmployeeFormPage> = TestBed.createComponent(EmployeeFormPage);
+    fixture.detectChanges();
+
+    const comp = fixture.componentInstance;
+    comp.save();
+    fixture.detectChanges();
+
+    expect(createEmployeeSpy).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain('Email is required.');
+  });
+
+  it('does not replace assignments when assignAccess capability is disabled', async () => {
     TestBed.resetTestingModule();
-    TestBed.configureTestingModule({
+    await TestBed.configureTestingModule({
       imports: [EmployeeFormPage],
       providers: [
         provideRouter([]),

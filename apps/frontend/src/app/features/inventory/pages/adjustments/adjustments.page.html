@@ -137,14 +137,20 @@
                 class="ag-select"
                 formControlName="warehouseId"
                 data-testid="adjustment-warehouse"
+                [class.ag-input--invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted())"
                 [attr.aria-required]="fieldRequired(form.controls.warehouseId) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()) ? 'true' : null"
               >
                 <option value="" disabled>Select warehouse</option>
                 @for (warehouse of warehouses(); track warehouse.id) {
                   <option [value]="warehouse.id">{{ warehouse.name }}</option>
                 }
               </select>
-              <p class="field-hint">Choose the warehouse where adjustment occurs.</p>
+              @if (fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()); as warehouseError) {
+                <p class="field-error" role="alert">{{ warehouseError }}</p>
+              } @else {
+                <p class="field-hint">Choose the warehouse where adjustment occurs.</p>
+              }
             </div>
 
             <!-- Product -->
@@ -159,14 +165,20 @@
                 class="ag-select"
                 formControlName="productId"
                 data-testid="adjustment-product"
+                [class.ag-input--invalid]="fieldError(form.controls.productId, 'Product', formSubmitAttempted())"
                 [attr.aria-required]="fieldRequired(form.controls.productId) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.productId, 'Product', formSubmitAttempted()) ? 'true' : null"
               >
                 <option value="" disabled>Select product</option>
                 @for (product of products(); track product.id) {
                   <option [value]="product.id">{{ product.name }} ({{ product.baseUnitCode }})</option>
                 }
               </select>
-              <p class="field-hint">Select the product to adjust.</p>
+              @if (fieldError(form.controls.productId, 'Product', formSubmitAttempted()); as productError) {
+                <p class="field-error" role="alert">{{ productError }}</p>
+              } @else {
+                <p class="field-hint">Select the product to adjust.</p>
+              }
             </div>
           </div>
 
@@ -241,14 +253,20 @@
                 class="ag-select"
                 formControlName="adjustmentType"
                 data-testid="adjustment-type"
+                [class.ag-input--invalid]="fieldError(form.controls.adjustmentType, 'Adjustment type', formSubmitAttempted())"
                 [attr.aria-required]="fieldRequired(form.controls.adjustmentType) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.adjustmentType, 'Adjustment type', formSubmitAttempted()) ? 'true' : null"
               >
                 <option value="damage">Damage</option>
                 <option value="expiry">Expiry</option>
                 <option value="loss">Loss</option>
                 <option value="correction">Correction</option>
               </select>
-              <p class="field-hint">Select the type of adjustment.</p>
+              @if (fieldError(form.controls.adjustmentType, 'Adjustment type', formSubmitAttempted()); as typeError) {
+                <p class="field-error" role="alert">{{ typeError }}</p>
+              } @else {
+                <p class="field-hint">Select the type of adjustment.</p>
+              }
             </div>
 
             <!-- Quantity -->
@@ -265,11 +283,17 @@
                   formControlName="quantity"
                   placeholder="0.00"
                   data-testid="adjustment-quantity"
+                  [class.ag-input--invalid]="fieldError(form.controls.quantity, 'Quantity', formSubmitAttempted())"
                   [attr.aria-required]="fieldRequired(form.controls.quantity) ? 'true' : null"
+                  [attr.aria-invalid]="fieldError(form.controls.quantity, 'Quantity', formSubmitAttempted()) ? 'true' : null"
                 />
                 <span class="ag-input-addon">{{ selectedProduct()?.baseUnitCode || 'Units' }}</span>
               </div>
-              <p class="field-hint">Enter quantity to be adjusted in base units.</p>
+              @if (fieldError(form.controls.quantity, 'Quantity', formSubmitAttempted()); as quantityError) {
+                <p class="field-error" role="alert">{{ quantityError }}</p>
+              } @else {
+                <p class="field-hint">Enter quantity to be adjusted in base units.</p>
+              }
             </div>
 
             <!-- Reason -->
@@ -285,9 +309,15 @@
                 formControlName="reason"
                 placeholder="Enter reason for adjustment…"
                 data-testid="adjustment-reason"
+                [class.ag-input--invalid]="fieldError(form.controls.reason, 'Reason', formSubmitAttempted())"
                 [attr.aria-required]="fieldRequired(form.controls.reason) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.reason, 'Reason', formSubmitAttempted()) ? 'true' : null"
               />
-              <p class="field-hint">Operational reason for stock adjustment audit.</p>
+              @if (fieldError(form.controls.reason, 'Reason', formSubmitAttempted()); as reasonError) {
+                <p class="field-error" role="alert">{{ reasonError }}</p>
+              } @else {
+                <p class="field-hint">Operational reason for stock adjustment audit.</p>
+              }
             </div>
           </div>
 
@@ -322,9 +352,15 @@
                       formControlName="inventoryValue"
                       placeholder="e.g. 50000.00"
                       data-testid="adjustment-inventory-value"
+                      [class.ag-input--invalid]="fieldError(form.controls.inventoryValue, 'Total inventory value', formSubmitAttempted())"
                       [attr.aria-required]="fieldRequired(form.controls.inventoryValue) ? 'true' : null"
+                      [attr.aria-invalid]="fieldError(form.controls.inventoryValue, 'Total inventory value', formSubmitAttempted()) ? 'true' : null"
                     />
-                    <p class="field-hint">Total cost value for this inbound quantity.</p>
+                    @if (fieldError(form.controls.inventoryValue, 'Total inventory value', formSubmitAttempted()); as valueError) {
+                      <p class="field-error" role="alert">{{ valueError }}</p>
+                    } @else {
+                      <p class="field-hint">Total cost value for this inbound quantity.</p>
+                    }
                   </div>
                 }
               </div>
@@ -393,14 +429,20 @@
                     class="ag-select font-mono"
                     formControlName="batchId"
                     data-testid="adjustment-batch"
+                    [class.ag-input--invalid]="fieldError(form.controls.batchId, 'Batch / lot number', formSubmitAttempted())"
                     [attr.aria-required]="fieldRequired(form.controls.batchId) ? 'true' : null"
+                    [attr.aria-invalid]="fieldError(form.controls.batchId, 'Batch / lot number', formSubmitAttempted()) ? 'true' : null"
                   >
                     <option value="">Select batch</option>
                     @for (option of batchOptions(); track option.batchId) {
                       <option [value]="option.batchId">{{ option.label }}</option>
                     }
                   </select>
-                  <p class="field-hint">Required for batch-tracked products. Inbound corrections may use zero-balance batches.</p>
+                  @if (fieldError(form.controls.batchId, 'Batch / lot number', formSubmitAttempted()); as batchError) {
+                    <p class="field-error" role="alert">{{ batchError }}</p>
+                  } @else {
+                    <p class="field-hint">Required for batch-tracked products. Inbound corrections may use zero-balance batches.</p>
+                  }
                 </div>
 
                 @if (showStockContext() && selectedBatchStockOnHand(); as batchStock) {
@@ -443,9 +485,15 @@
                         formControlName="negativeStockOverrideReason"
                         placeholder="Enter negative stock override authorization reason…"
                         data-testid="adjustment-override-reason"
+                        [class.ag-input--invalid]="fieldError(form.controls.negativeStockOverrideReason, 'Override reason', formSubmitAttempted())"
                         [attr.aria-required]="fieldRequired(form.controls.negativeStockOverrideReason) ? 'true' : null"
+                        [attr.aria-invalid]="fieldError(form.controls.negativeStockOverrideReason, 'Override reason', formSubmitAttempted()) ? 'true' : null"
                       />
-                      <p class="field-hint">Required when bypassing negative stock prevention.</p>
+                      @if (fieldError(form.controls.negativeStockOverrideReason, 'Override reason', formSubmitAttempted()); as overrideError) {
+                        <p class="field-error" role="alert">{{ overrideError }}</p>
+                      } @else {
+                        <p class="field-hint">Required when bypassing negative stock prevention.</p>
+                      }
                     </div>
                   }
                 </div>
@@ -530,7 +578,7 @@
           <button
             class="ag-btn ag-btn--primary"
             type="submit"
-            [disabled]="saving() || !canPostAdjustment()"
+            [disabled]="!canPostAdjustment()"
             data-testid="adjustment-submit"
           >
             @if (saving()) {

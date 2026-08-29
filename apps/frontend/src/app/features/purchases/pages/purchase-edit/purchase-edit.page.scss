@@ -677,6 +677,18 @@
   color: #dc2626;
 }
 
+.field-error {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--ag-color-danger, #b91c1c);
+  line-height: 1.4;
+}
+
+.ag-input--invalid,
+.ag-select.ag-input--invalid {
+  border-color: var(--ag-color-danger, #b91c1c);
+}
+
 /* ==========================================================================
    10. Purchase Lines (Draft Form Card)
    ========================================================================== */
@@ -712,6 +724,19 @@
   padding: 2px 8px;
   border-radius: 4px;
   border: 1px solid var(--ag-color-border, #e2e8f0);
+}
+
+.lines-search-bar {
+  padding: 12px 16px 0;
+  max-width: 320px;
+
+  .form-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ag-color-text-muted, #64748b);
+  }
 }
 
 .line-row-grid {

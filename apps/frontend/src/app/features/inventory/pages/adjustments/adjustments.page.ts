@@ -28,8 +28,13 @@ import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-m
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import {
   hasRequiredValidator,
+  fieldValidationMessage,
   setRequiredValidator,
 } from '../../../../shared/form/form-field.util';
+import {
+  inventoryMoneyValidator,
+  inventoryQuantityValidators,
+} from '../../shared/inventory-form.validation';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 import { InventoryBalanceRecord, StockAdjustmentRecord } from '../../models/inventory.models';
 
@@ -69,6 +74,7 @@ export class AdjustmentsPage {
   // Loading & Action State
   readonly loading = signal(true);
   readonly saving = signal(false);
+  readonly formSubmitAttempted = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
 
@@ -120,10 +126,17 @@ export class AdjustmentsPage {
 
   readonly canPostAdjustment = computed(
     () =>
+      this.canPostAdjustmentPermission() &&
+      this.formValid() &&
+      !this.saving(),
+  );
+  readonly canPostAdjustmentPermission = computed(
+    () =>
       this.canUseAdjustments() &&
       this.sessionStore.hasPermission('inventory.adjust') &&
       (this.capabilityService?.canPerformAction('inventory.adjustments.actions.post') ?? true),
   );
+  private readonly formValid = signal(false);
   readonly canReverseAdjustment = computed(
     () =>
       this.canUseAdjustments() &&
@@ -154,6 +167,7 @@ export class AdjustmentsPage {
   private pendingReverse: StockAdjustmentRecord | null = null;
 
   readonly fieldRequired = hasRequiredValidator;
+  readonly fieldError = fieldValidationMessage;
 
   // Module Info Content
   readonly infoTitle = 'About Stock Adjustments';
@@ -172,14 +186,19 @@ export class AdjustmentsPage {
     batchId: [''],
     adjustmentType: ['damage', Validators.required],
     direction: ['outbound'],
-    quantity: ['', Validators.required],
+    quantity: ['', inventoryQuantityValidators],
     reason: ['', Validators.required],
-    inventoryValue: [''],
+    inventoryValue: ['', [inventoryMoneyValidator]],
     negativeStockOverride: [false],
     negativeStockOverrideReason: [''],
   });
 
   constructor() {
+    this.formValid.set(this.form.valid);
+    this.form.statusChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.formValid.set(this.form.valid);
+    });
+
     if (!this.canUseAdjustments() || !this.canAdjust()) {
       this.loading.set(false);
       return;
@@ -416,8 +435,9 @@ export class AdjustmentsPage {
   }
 
   submit(): void {
-    if (this.form.invalid || this.saving() || !this.canPostAdjustment()) {
-      this.form.markAllAsTouched();
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    if (!this.canPostAdjustment()) {
       return;
     }
 

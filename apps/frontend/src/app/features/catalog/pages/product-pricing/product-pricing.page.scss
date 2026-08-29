@@ -264,6 +264,17 @@
   }
 }
 
+.field-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ag-color-danger, #b91c1c);
+  line-height: 1.4;
+}
+
+.currency-input.ag-input--invalid {
+  border-color: var(--ag-color-danger, #b91c1c);
+}
+
 .ag-field {
   display: flex;
   flex-direction: column;

@@ -329,6 +329,36 @@ describe('AdjustmentsPage', () => {
     expect(mockInventoryApi.createAdjustmentDraft).not.toHaveBeenCalled();
   });
 
+  it('blocks submit without API call and surfaces validation errors when form is invalid', () => {
+    page.submit();
+    fixture.detectChanges();
+
+    expect(mockInventoryApi.createAdjustmentDraft).not.toHaveBeenCalled();
+    expect(page.formSubmitAttempted()).toBe(true);
+    expect(page.canPostAdjustment()).toBe(false);
+    expect(
+      (fixture.nativeElement.querySelector('[data-testid="adjustment-submit"]') as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(page.fieldError(page.form.controls.quantity, 'Quantity', true)).toContain('required');
+  });
+
+  it('rejects zero quantity before posting', () => {
+    page.form.patchValue({
+      warehouseId: 'wh-1',
+      productId: 'prod-none',
+      adjustmentType: 'damage',
+      quantity: '0',
+      reason: 'Test reason',
+    });
+    fixture.detectChanges();
+
+    expect(page.form.valid).toBe(false);
+    page.submit();
+    expect(mockInventoryApi.createAdjustmentDraft).not.toHaveBeenCalled();
+    expect(page.fieldError(page.form.controls.quantity, 'Quantity', true)).toContain('greater than zero');
+  });
+
   it('opens confirm dialog and calls reverseAdjustment when confirmed', () => {
     const adjustmentToReverse = page.adjustments()[0]!;
     page.reverse(adjustmentToReverse);
@@ -455,6 +485,7 @@ describe('AdjustmentsPage', () => {
       fixture.detectChanges();
 
       expect(page.canPostAdjustment()).toBe(false);
+      expect(page.canPostAdjustmentPermission()).toBe(false);
       const submitBtn = fixture.nativeElement.querySelector(
         '[data-testid="adjustment-submit"]',
       ) as HTMLButtonElement;

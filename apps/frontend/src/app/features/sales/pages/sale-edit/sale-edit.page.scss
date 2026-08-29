@@ -360,7 +360,7 @@
     z-index: 50;
     display: flex;
     flex-direction: column;
-    max-height: 20rem;
+    max-height: 14rem;
     overflow: hidden;
     background: var(--ag-color-surface, #fff);
     border: 1px solid var(--ag-color-border, #cbd5e1);
@@ -370,7 +370,7 @@
 
   &__options {
     overflow-y: auto;
-    max-height: 14rem;
+    max-height: 10rem;
   }
 
   &__search {
@@ -449,6 +449,11 @@
 
     &--error {
       color: var(--ag-color-danger, #b91c1c);
+    }
+
+    &--muted {
+      border-bottom: 1px solid var(--ag-color-border, #e2e8f0);
+      background: var(--ag-color-surface-muted, #f8fafc);
     }
   }
 }
@@ -544,7 +549,7 @@ textarea.ag-input {
 
 .line-row-grid {
   display: grid;
-  grid-template-columns: minmax(160px, 1.2fr) minmax(200px, 1.6fr) minmax(150px, 1.1fr) minmax(90px, 0.8fr) minmax(110px, 1fr);
+  grid-template-columns: minmax(120px, 1fr) minmax(140px, 1.1fr) minmax(120px, 1fr) minmax(90px, 0.8fr) minmax(110px, 1fr);
   gap: 12px;
   align-items: start;
 

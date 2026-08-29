@@ -85,8 +85,13 @@
                 formControlName="name"
                 placeholder="e.g. Punjab Agri Corp"
                 data-testid="customer-name"
+                [class.ag-input--invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted())"
                 [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted()) ? 'true' : null"
               />
+              @if (fieldError(form.controls.name, 'Name', formSubmitAttempted()); as nameError) {
+              <p class="field-error" role="alert">{{ nameError }}</p>
+              }
             </div>
 
             <!-- Phone -->
@@ -99,7 +104,12 @@
                 formControlName="phone"
                 placeholder="e.g. 042-99200001"
                 data-testid="customer-phone"
+                [class.ag-input--invalid]="fieldError(form.controls.phone, 'Phone', formSubmitAttempted())"
+                [attr.aria-invalid]="fieldError(form.controls.phone, 'Phone', formSubmitAttempted()) ? 'true' : null"
               />
+              @if (fieldError(form.controls.phone, 'Phone', formSubmitAttempted()); as phoneError) {
+              <p class="field-error" role="alert">{{ phoneError }}</p>
+              }
             </div>
             }
 
@@ -115,7 +125,9 @@
                 class="ag-select"
                 formControlName="customerType"
                 data-testid="customer-type"
+                [class.ag-input--invalid]="fieldError(form.controls.customerType, 'Customer type', formSubmitAttempted())"
                 [attr.aria-required]="fieldRequired(form.controls.customerType) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.customerType, 'Customer type', formSubmitAttempted()) ? 'true' : null"
               >
                 <option value="walk_in">Walk-in</option>
                 <option value="farmer">Farmer</option>
@@ -123,6 +135,9 @@
                 <option value="business">Business</option>
                 <option value="corporate">Corporate</option>
               </select>
+              @if (fieldError(form.controls.customerType, 'Customer type', formSubmitAttempted()); as typeError) {
+              <p class="field-error" role="alert">{{ typeError }}</p>
+              }
             </div>
 
             <!-- Price Tier -->
@@ -138,13 +153,18 @@
                 class="ag-select"
                 formControlName="priceTier"
                 data-testid="customer-price-tier"
+                [class.ag-input--invalid]="fieldError(form.controls.priceTier, 'Price tier', formSubmitAttempted())"
                 [attr.aria-required]="fieldRequired(form.controls.priceTier) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.priceTier, 'Price tier', formSubmitAttempted()) ? 'true' : null"
               >
                 <option value="retail">Retail</option>
                 <option value="wholesale">Wholesale</option>
                 <option value="dealer">Dealer</option>
                 <option value="distributor">Distributor</option>
               </select>
+              @if (fieldError(form.controls.priceTier, 'Price tier', formSubmitAttempted()); as tierError) {
+              <p class="field-error" role="alert">{{ tierError }}</p>
+              }
             </div>
             }
           </div>
@@ -256,7 +276,7 @@
         <button
           class="ag-btn ag-btn--primary"
           type="submit"
-          [disabled]="saving()"
+          [disabled]="!canSave()"
           data-testid="customer-save"
         >
           @if (saving()) {

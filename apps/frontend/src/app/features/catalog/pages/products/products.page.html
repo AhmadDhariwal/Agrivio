@@ -191,6 +191,14 @@
 
         <!-- Category Filter -->
         <div class="select-field">
+          <input
+            class="select-field__input select-field__search"
+            type="search"
+            placeholder="Search categories…"
+            aria-label="Search categories"
+            data-testid="products-category-search"
+            (input)="onCategorySearch($event)"
+          />
           <select
             class="select-field__input"
             [value]="categoryFilter()"
@@ -413,7 +421,15 @@
     <div class="mobile-filter-sheet__body">
       <!-- Category Filter -->
       <div class="mobile-filter-group">
-        <label class="mobile-filter-group__label" for="mobile-filter-cat">Category</label>
+        <label class="mobile-filter-group__label" for="mobile-filter-cat-search">Category</label>
+        <input
+          id="mobile-filter-cat-search"
+          class="mobile-filter-group__select"
+          type="search"
+          placeholder="Search categories…"
+          data-testid="products-category-search-mobile"
+          (input)="onCategorySearch($event)"
+        />
         <select
           id="mobile-filter-cat"
           class="mobile-filter-group__select"

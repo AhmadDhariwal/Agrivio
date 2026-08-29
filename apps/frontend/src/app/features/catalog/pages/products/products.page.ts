@@ -104,6 +104,7 @@ export class ProductsPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly reloadRequests = new Subject<void>();
   private readonly searchChanges = new Subject<string>();
+  private readonly categorySearchChanges = new Subject<string>();
   private clampAfterLoad = false;
 
   readonly rawItems = signal<ProductRecord[]>([]);
@@ -289,13 +290,18 @@ export class ProductsPage {
     this.updateMobileState();
 
     // Load categories for filter dropdown & table categorization
-    this.api
-      .searchCategoryOptions()
-      .pipe(takeUntilDestroyed(this.destroyRef))
+    this.categorySearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((query) => this.api.searchCategoryOptions(query, 'all')),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: (cats) => this.categories.set(cats),
         error: () => this.categories.set([]),
       });
+    this.categorySearchChanges.next('');
 
     this.searchChanges
       .pipe(debounceTime(300), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
@@ -443,6 +449,11 @@ export class ProductsPage {
   onCategoryChange(event: Event): void {
     const target = event.target as HTMLSelectElement;
     this.categoryFilter.set(target.value);
+  }
+
+  onCategorySearch(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.categorySearchChanges.next(target.value.trim());
   }
 
   onTrackingChange(event: Event): void {

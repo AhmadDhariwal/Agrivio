@@ -180,8 +180,13 @@
               formControlName="email"
               placeholder="Enter email address"
               data-testid="employee-email"
+              [class.ag-input--invalid]="fieldError(form.controls.email, 'Email', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.email) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.email, 'Email', formSubmitAttempted()) ? 'true' : null"
             />
+            @if (fieldError(form.controls.email, 'Email', formSubmitAttempted()); as emailError) {
+            <p class="field-error" role="alert">{{ emailError }}</p>
+            }
           </div>
           }
 
@@ -199,9 +204,14 @@
                 formControlName="displayName"
                 placeholder="Enter full name"
                 data-testid="employee-display-name"
+                [class.ag-input--invalid]="fieldError(form.controls.displayName, 'Display name', formSubmitAttempted())"
                 [attr.aria-required]="fieldRequired(form.controls.displayName) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.displayName, 'Display name', formSubmitAttempted()) ? 'true' : null"
                 [readOnly]="isReadOnlyField('displayName')"
               />
+              @if (fieldError(form.controls.displayName, 'Display name', formSubmitAttempted()); as displayNameError) {
+              <p class="field-error" role="alert">{{ displayNameError }}</p>
+              }
             </div>
             }
 
@@ -217,13 +227,18 @@
                 class="ag-select"
                 formControlName="role"
                 data-testid="employee-role"
+                [class.ag-input--invalid]="fieldError(form.controls.role, 'Role', formSubmitAttempted())"
                 [attr.aria-required]="fieldRequired(form.controls.role) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.role, 'Role', formSubmitAttempted()) ? 'true' : null"
                 [disabled]="isReadOnlyField('role')"
               >
                 @for (role of roles; track role) {
                 <option [value]="role">{{ formatRoleLabel(role) }}</option>
                 }
               </select>
+              @if (fieldError(form.controls.role, 'Role', formSubmitAttempted()); as roleError) {
+              <p class="field-error" role="alert">{{ roleError }}</p>
+              }
             </div>
             }
           </div>
@@ -355,7 +370,7 @@
           <button
             class="ag-btn ag-btn--primary"
             type="submit"
-            [disabled]="saving()"
+            [disabled]="!canSave()"
             data-testid="employee-save"
           >
             <svg
@@ -553,9 +568,14 @@
               formControlName="displayName"
               placeholder="e.g. Rashid Ali"
               data-testid="employee-display-name"
+              [class.ag-input--invalid]="fieldError(form.controls.displayName, 'Display name', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.displayName) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.displayName, 'Display name', formSubmitAttempted()) ? 'true' : null"
               [readOnly]="isReadOnlyField('displayName')"
             />
+            @if (fieldError(form.controls.displayName, 'Display name', formSubmitAttempted()); as displayNameError) {
+            <p class="field-error" role="alert">{{ displayNameError }}</p>
+            }
           </div>
           }
 
@@ -571,13 +591,18 @@
               class="ag-select"
               formControlName="role"
               data-testid="employee-role"
+              [class.ag-input--invalid]="fieldError(form.controls.role, 'Role', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.role) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.role, 'Role', formSubmitAttempted()) ? 'true' : null"
               [disabled]="isReadOnlyField('role')"
             >
               @for (role of roles; track role) {
               <option [value]="role">{{ formatRoleLabel(role) }}</option>
               }
             </select>
+            @if (fieldError(form.controls.role, 'Role', formSubmitAttempted()); as roleError) {
+            <p class="field-error" role="alert">{{ roleError }}</p>
+            }
           </div>
           }
 
@@ -766,7 +791,7 @@
       <button
         class="ag-btn ag-btn--primary"
         type="submit"
-        [disabled]="saving()"
+        [disabled]="!canSave()"
         data-testid="employee-save"
       >
         <svg

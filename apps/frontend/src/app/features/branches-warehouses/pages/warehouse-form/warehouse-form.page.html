@@ -86,8 +86,13 @@
               formControlName="name"
               placeholder="e.g., Lahore Central Warehouse"
               data-testid="warehouse-name"
+              [class.ag-input--invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted()) ? 'true' : null"
             />
+            @if (fieldError(form.controls.name, 'Name', formSubmitAttempted()); as nameError) {
+            <p class="field-error" role="alert">{{ nameError }}</p>
+            }
           </div>
 
           <!-- Code (optional) -->
@@ -101,8 +106,13 @@
               formControlName="code"
               placeholder="e.g., LHR-CENTRAL"
               data-testid="warehouse-code"
+              [class.ag-input--invalid]="fieldError(form.controls.code, 'Code', formSubmitAttempted())"
+              [attr.aria-invalid]="fieldError(form.controls.code, 'Code', formSubmitAttempted()) ? 'true' : null"
               [readOnly]="!isCodeEditable()"
             />
+            @if (fieldError(form.controls.code, 'Code', formSubmitAttempted()); as codeError) {
+            <p class="field-error" role="alert">{{ codeError }}</p>
+            }
           </div>
           }
 
@@ -135,7 +145,7 @@
           <button
             class="ag-btn ag-btn--primary"
             type="submit"
-            [disabled]="saving() || !canSave()"
+            [disabled]="!canSave()"
             data-testid="warehouse-save"
           >
             <svg
@@ -255,8 +265,13 @@
               class="ag-input"
               formControlName="name"
               data-testid="warehouse-name"
+              [class.ag-input--invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted()) ? 'true' : null"
             />
+            @if (fieldError(form.controls.name, 'Name', formSubmitAttempted()); as nameError) {
+            <p class="field-error" role="alert">{{ nameError }}</p>
+            }
             <p class="field-helper">Enter a descriptive name for this warehouse.</p>
           </div>
 
@@ -269,8 +284,13 @@
               class="ag-input"
               formControlName="code"
               data-testid="warehouse-code"
+              [class.ag-input--invalid]="fieldError(form.controls.code, 'Code', formSubmitAttempted())"
+              [attr.aria-invalid]="fieldError(form.controls.code, 'Code', formSubmitAttempted()) ? 'true' : null"
               [readOnly]="!isCodeEditable()"
             />
+            @if (fieldError(form.controls.code, 'Code', formSubmitAttempted()); as codeError) {
+            <p class="field-error" role="alert">{{ codeError }}</p>
+            }
             <p class="field-helper">A short code to help identify this warehouse.</p>
           </div>
           }
@@ -299,7 +319,7 @@
           <button
             class="ag-btn ag-btn--primary"
             type="submit"
-            [disabled]="saving() || !canSave()"
+            [disabled]="!canSave()"
             data-testid="warehouse-save"
           >
             <svg

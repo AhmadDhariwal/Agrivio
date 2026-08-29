@@ -109,9 +109,14 @@
               formControlName="name"
               placeholder="e.g. Fertilizers, Crop Protection, Seed Varieties"
               data-testid="category-name"
+              [class.ag-input--invalid]="fieldError(form.controls.name, 'Category name', formSubmitAttempted())"
               [readOnly]="!canEditName()"
               [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.name, 'Category name', formSubmitAttempted()) ? 'true' : null"
             />
+            @if (fieldError(form.controls.name, 'Category name', formSubmitAttempted()); as nameError) {
+            <p class="field-error" role="alert">{{ nameError }}</p>
+            }
             <p class="field-hint">
               Primary grouping name displayed across catalog, inventory, and sales vouchers.
             </p>
@@ -134,8 +139,10 @@
               class="ag-select"
               formControlName="productClass"
               data-testid="category-product-class"
+              [class.ag-input--invalid]="fieldError(form.controls.productClass, 'Product class', formSubmitAttempted())"
               [attr.disabled]="!canEditProductClass() ? true : null"
               [attr.aria-required]="fieldRequired(form.controls.productClass) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.productClass, 'Product class', formSubmitAttempted()) ? 'true' : null"
             >
               <option value="general">General (Standard items, equipment, tools)</option>
               <option value="fertilizer">
@@ -147,6 +154,9 @@
               </option>
               <option value="chemical">Chemical (Agrochemicals — Batch mandatory)</option>
             </select>
+            @if (fieldError(form.controls.productClass, 'Product class', formSubmitAttempted()); as classError) {
+            <p class="field-error" role="alert">{{ classError }}</p>
+            }
             <p class="field-hint">
               Defines the regulatory classification and dictates mandatory inventory tracking rules.
             </p>
@@ -318,7 +328,7 @@
       <button
         class="ag-btn ag-btn--primary"
         type="submit"
-        [disabled]="saving()"
+        [disabled]="!canSave()"
         data-testid="category-save"
       >
         @if (saving()) {

@@ -11,9 +11,13 @@ describe('ProductsPage', () => {
   let component: ProductsPage;
   let fixture: ComponentFixture<ProductsPage>;
   let capabilityState: ReturnType<typeof signal<Record<string, Record<string, boolean>>>>;
+  let searchCategoryOptions: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     capabilityState = signal({});
+    searchCategoryOptions = vi.fn(() =>
+      of([{ id: 'cat-1', name: 'Fertilizers', productClass: 'fertilizer' }]),
+    );
     const capabilityValue = (key: string, mode: string) => capabilityState()[key]?.[mode] ?? true;
     await TestBed.configureTestingModule({
       imports: [ProductsPage],
@@ -43,8 +47,7 @@ describe('ProductsPage', () => {
                 ],
                 meta: { page: 1, pageSize: 25, total: 1 },
               }),
-            searchCategoryOptions: () =>
-              of([{ id: 'cat-1', name: 'Fertilizers', productClass: 'fertilizer' }]),
+            searchCategoryOptions,
             listPackagingUnits: () => of([]),
             listPrices: () => of([]),
           },
@@ -143,6 +146,19 @@ describe('ProductsPage', () => {
 
     component.isMobile.set(true);
     expect(component.effectiveViewMode()).toBe('cards');
+  });
+
+  it('uses bounded category search for the category filter', async () => {
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    searchCategoryOptions.mockClear();
+
+    const input = document.createElement('input');
+    input.value = 'seed';
+    component.onCategorySearch({ target: input } as unknown as Event);
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    expect(searchCategoryOptions).toHaveBeenCalledWith('seed', 'all');
+    expect(searchCategoryOptions).toHaveBeenCalledTimes(1);
   });
 
   it('renders the module info section', () => {

@@ -78,15 +78,20 @@
             <select
               id="account-type"
               class="form-control"
+              [class.form-control--invalid]="fieldError(form.controls.accountType, 'Account type', formSubmitAttempted())"
               formControlName="accountType"
               data-testid="account-type"
               [attr.aria-required]="fieldRequired(form.controls.accountType) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.accountType, 'Account type', formSubmitAttempted()) ? 'true' : null"
             >
               <option value="cash">Cash</option>
               <option value="bank">Bank</option>
               <option value="jazzcash">JazzCash</option>
               <option value="easypaisa">Easypaisa</option>
             </select>
+            @if (fieldError(form.controls.accountType, 'Account type', formSubmitAttempted()); as accountTypeError) {
+            <p class="field-error" role="alert">{{ accountTypeError }}</p>
+            }
           </div>
           }
 
@@ -101,12 +106,17 @@
             <input
               id="account-name"
               class="form-control"
+              [class.form-control--invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted())"
               formControlName="name"
               placeholder="e.g. Main Cash Drawer, HBL Operations"
               data-testid="account-name"
               [readonly]="!canEditName()"
               [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted()) ? 'true' : null"
             />
+            @if (fieldError(form.controls.name, 'Name', formSubmitAttempted()); as nameError) {
+            <p class="field-error" role="alert">{{ nameError }}</p>
+            }
           </div>
           }
 
@@ -114,15 +124,25 @@
           @if (accountType() === 'bank') {
           @if (showBankName()) {
           <div class="form-group">
-            <agrivio-ui-field-label label="Bank name" for="account-bank-name" />
+            <agrivio-ui-field-label
+              label="Bank name"
+              for="account-bank-name"
+              [required]="fieldRequired(form.controls.bankName)"
+            />
             <input
               id="account-bank-name"
               class="form-control"
+              [class.form-control--invalid]="fieldError(form.controls.bankName, 'Bank name', formSubmitAttempted())"
               formControlName="bankName"
               placeholder="e.g. Habib Bank Limited"
               data-testid="account-bank-name"
               [readonly]="!canEditBankName()"
+              [attr.aria-required]="fieldRequired(form.controls.bankName) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.bankName, 'Bank name', formSubmitAttempted()) ? 'true' : null"
             />
+            @if (fieldError(form.controls.bankName, 'Bank name', formSubmitAttempted()); as bankNameError) {
+            <p class="field-error" role="alert">{{ bankNameError }}</p>
+            }
           </div>
           }
           @if (showAccountNumberMasked()) {
@@ -131,11 +151,16 @@
             <input
               id="account-number-masked"
               class="form-control"
+              [class.form-control--invalid]="fieldError(form.controls.accountNumberMasked, 'Account number (masked)', formSubmitAttempted())"
               formControlName="accountNumberMasked"
               placeholder="e.g. ****1234"
               data-testid="account-number-masked"
               [readonly]="!canEditAccountNumberMasked()"
+              [attr.aria-invalid]="fieldError(form.controls.accountNumberMasked, 'Account number (masked)', formSubmitAttempted()) ? 'true' : null"
             />
+            @if (fieldError(form.controls.accountNumberMasked, 'Account number (masked)', formSubmitAttempted()); as maskedError) {
+            <p class="field-error" role="alert">{{ maskedError }}</p>
+            }
           </div>
           }
           }
@@ -144,15 +169,25 @@
           @if (accountType() === 'jazzcash' || accountType() === 'easypaisa') {
           @if (showWalletIdentifier()) {
           <div class="form-group">
-            <agrivio-ui-field-label label="Wallet identifier" for="account-wallet-identifier" />
+            <agrivio-ui-field-label
+              label="Wallet identifier"
+              for="account-wallet-identifier"
+              [required]="fieldRequired(form.controls.walletIdentifier)"
+            />
             <input
               id="account-wallet-identifier"
               class="form-control"
+              [class.form-control--invalid]="fieldError(form.controls.walletIdentifier, 'Wallet identifier', formSubmitAttempted())"
               formControlName="walletIdentifier"
               placeholder="e.g. 03001234567"
               data-testid="account-wallet-identifier"
               [readonly]="!canEditWalletIdentifier()"
+              [attr.aria-required]="fieldRequired(form.controls.walletIdentifier) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.walletIdentifier, 'Wallet identifier', formSubmitAttempted()) ? 'true' : null"
             />
+            @if (fieldError(form.controls.walletIdentifier, 'Wallet identifier', formSubmitAttempted()); as walletError) {
+            <p class="field-error" role="alert">{{ walletError }}</p>
+            }
           </div>
           }
           }
@@ -170,7 +205,7 @@
         </div>
 
         <div class="form-card__actions">
-          <button class="ag-btn ag-btn--primary" type="submit" [disabled]="saving() || (accountId() ? !canEdit() : !canCreate())" data-testid="account-save">
+          <button class="ag-btn ag-btn--primary" type="submit" [disabled]="!canSave()" data-testid="account-save">
             {{ saving() ? 'Saving…' : 'Save Account' }}
           </button>
           <a class="ag-btn ag-btn--secondary" routerLink="/app/accounts">Cancel</a>

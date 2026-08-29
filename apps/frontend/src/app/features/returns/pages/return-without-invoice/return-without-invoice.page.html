@@ -67,13 +67,18 @@
                 class="ag-select"
                 formControlName="warehouseId"
                 data-testid="without-invoice-warehouse"
+                [class.ag-input--invalid]="fieldError(form.controls.warehouseId, 'Warehouse / Facility', formSubmitAttempted())"
                 [attr.aria-required]="fieldRequired(form.controls.warehouseId) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.warehouseId, 'Warehouse / Facility', formSubmitAttempted()) ? 'true' : null"
               >
                 <option value="" disabled>Select receiving warehouse</option>
                 @for (warehouse of warehouses(); track warehouse.id) {
                   <option [value]="warehouse.id">{{ warehouse.name }}</option>
                 }
               </select>
+              @if (fieldError(form.controls.warehouseId, 'Warehouse / Facility', formSubmitAttempted()); as warehouseError) {
+                <p class="field-error" role="alert">{{ warehouseError }}</p>
+              }
             </div>
 
             <!-- Customer Lookup -->
@@ -101,7 +106,6 @@
                   type="search"
                   placeholder="Search by name, phone, or code…"
                   (input)="onCustomerSearch($event)"
-                  (change)="onCustomerSearch($event)"
                   data-testid="without-invoice-customer-search"
                 />
               </div>
@@ -191,7 +195,6 @@
                 type="search"
                 placeholder="Search by product name or SKU…"
                 (input)="onProductSearch($event)"
-                (change)="onProductSearch($event)"
                 data-testid="without-invoice-product-search"
               />
             </div>
@@ -232,13 +235,18 @@
                     formControlName="productId"
                     data-testid="without-invoice-product"
                     (change)="onProductChange(index)"
+                    [class.ag-input--invalid]="lineFieldError(index, 'productId', 'Product')"
                     [attr.aria-required]="fieldRequired(lineGroup(index).controls['productId']) ? 'true' : null"
+                    [attr.aria-invalid]="lineFieldError(index, 'productId', 'Product') ? 'true' : null"
                   >
                     <option value="" disabled>Select returned product</option>
                     @for (product of products(); track product.id) {
                       <option [value]="product.id">{{ product.name }}</option>
                     }
                   </select>
+                  @if (lineFieldError(index, 'productId', 'Product'); as productError) {
+                    <p class="field-error" role="alert">{{ productError }}</p>
+                  }
                 </div>
 
                 <!-- Quantity -->
@@ -254,8 +262,13 @@
                     formControlName="quantity"
                     placeholder="e.g. 10"
                     data-testid="without-invoice-qty"
+                    [class.ag-input--invalid]="lineFieldError(index, 'quantity', 'Quantity')"
                     [attr.aria-required]="fieldRequired(lineGroup(index).controls['quantity']) ? 'true' : null"
+                    [attr.aria-invalid]="lineFieldError(index, 'quantity', 'Quantity') ? 'true' : null"
                   />
+                  @if (lineFieldError(index, 'quantity', 'Quantity'); as quantityError) {
+                    <p class="field-error" role="alert">{{ quantityError }}</p>
+                  }
                 </div>
 
                 <!-- Stock Condition -->
@@ -292,13 +305,18 @@
                       class="ag-select"
                       formControlName="batchId"
                       data-testid="without-invoice-batch"
+                      [class.ag-input--invalid]="lineFieldError(index, 'batchId', 'Batch reference')"
                       [attr.aria-required]="fieldRequired(lineGroup(index).controls['batchId']) ? 'true' : null"
+                      [attr.aria-invalid]="lineFieldError(index, 'batchId', 'Batch reference') ? 'true' : null"
                     >
                       <option value="">Select batch</option>
                       @for (batch of batchesForLine(index); track batch.id) {
                         <option [value]="batch.id">{{ batch.batchNumber }}</option>
                       }
                     </select>
+                    @if (lineFieldError(index, 'batchId', 'Batch reference'); as batchError) {
+                      <p class="field-error" role="alert">{{ batchError }}</p>
+                    }
                   </div>
                 </div>
               }
@@ -371,8 +389,13 @@
                 formControlName="approvedReturnValue"
                 placeholder="e.g. 5000.00"
                 data-testid="without-invoice-value"
+                [class.ag-input--invalid]="fieldError(form.controls.approvedReturnValue, 'Approved refund / credit value (PKR)', formSubmitAttempted())"
                 [attr.aria-required]="fieldRequired(form.controls.approvedReturnValue) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.approvedReturnValue, 'Approved refund / credit value (PKR)', formSubmitAttempted()) ? 'true' : null"
               />
+              @if (fieldError(form.controls.approvedReturnValue, 'Approved refund / credit value (PKR)', formSubmitAttempted()); as valueError) {
+                <p class="field-error" role="alert">{{ valueError }}</p>
+              }
             </div>
 
             <!-- Financial Resolution -->
@@ -387,11 +410,16 @@
                 class="ag-select"
                 formControlName="resolution"
                 data-testid="without-invoice-resolution"
+                [class.ag-input--invalid]="fieldError(form.controls.resolution, 'Financial resolution', formSubmitAttempted())"
                 [attr.aria-required]="fieldRequired(form.controls.resolution) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.resolution, 'Financial resolution', formSubmitAttempted()) ? 'true' : null"
               >
                 <option value="ledger_adjustment">Customer ledger adjustment</option>
                 <option value="account_refund">Cash / bank / digital refund</option>
               </select>
+              @if (fieldError(form.controls.resolution, 'Financial resolution', formSubmitAttempted()); as resolutionError) {
+                <p class="field-error" role="alert">{{ resolutionError }}</p>
+              }
             </div>
 
             <!-- Refund Payment Account -->
@@ -406,13 +434,18 @@
                 class="ag-select"
                 formControlName="refundAccountId"
                 data-testid="without-invoice-refund-account"
+                [class.ag-input--invalid]="fieldError(form.controls.refundAccountId, 'Refund payment account', formSubmitAttempted())"
                 [attr.aria-required]="fieldRequired(form.controls.refundAccountId) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.refundAccountId, 'Refund payment account', formSubmitAttempted()) ? 'true' : null"
               >
                 <option value="">None</option>
                 @for (account of accounts(); track account.id) {
                   <option [value]="account.id">{{ account.name }} ({{ account.accountType }})</option>
                 }
               </select>
+              @if (fieldError(form.controls.refundAccountId, 'Refund payment account', formSubmitAttempted()); as refundAccountError) {
+                <p class="field-error" role="alert">{{ refundAccountError }}</p>
+              }
             </div>
 
             <!-- Return Reason -->
@@ -428,8 +461,13 @@
                 formControlName="reason"
                 placeholder="e.g. Customer brought unused seed bag without original receipt; supervisor approved"
                 data-testid="without-invoice-reason"
+                [class.ag-input--invalid]="fieldError(form.controls.reason, 'Return reason & approval note', formSubmitAttempted())"
                 [attr.aria-required]="fieldRequired(form.controls.reason) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.reason, 'Return reason & approval note', formSubmitAttempted()) ? 'true' : null"
               />
+              @if (fieldError(form.controls.reason, 'Return reason & approval note', formSubmitAttempted()); as reasonError) {
+                <p class="field-error" role="alert">{{ reasonError }}</p>
+              }
             </div>
           </div>
         </div>
@@ -440,7 +478,7 @@
         <button
           class="ag-btn ag-btn--primary"
           type="submit"
-          [disabled]="submitting()"
+          [disabled]="!canSubmit()"
           data-testid="without-invoice-submit"
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

@@ -35,7 +35,15 @@ import { UnsellableReason } from '../../models/returns.models';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
-import { hasRequiredValidator, setRequiredValidator } from '../../../../shared/form/form-field.util';
+import {
+  fieldValidationMessage,
+  hasRequiredValidator,
+  setRequiredValidator,
+} from '../../../../shared/form/form-field.util';
+import {
+  inventoryMoneyValidators,
+  inventoryQuantityValidators,
+} from '../../../inventory/shared/inventory-form.validation';
 
 @Component({
   selector: 'agrivio-return-without-invoice-page',
@@ -67,6 +75,7 @@ export class ReturnWithoutInvoicePage {
 
   readonly loading = signal(true);
   readonly submitting = signal(false);
+  readonly formSubmitAttempted = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly products = signal<ProductRecord[]>([]);
   readonly customers = signal<CustomerRecord[]>([]);
@@ -83,8 +92,12 @@ export class ReturnWithoutInvoicePage {
       this.sessionStore.hasPermission('returns.without-invoice.approve') &&
       (this.capabilityService?.canPerformAction('returns.actions.withoutInvoice') ?? true),
   );
+  readonly canSubmit = computed(
+    () => this.canPost() && this.canApprove() && this.form.valid && !this.submitting(),
+  );
 
   readonly fieldRequired = hasRequiredValidator;
+  readonly fieldError = fieldValidationMessage;
 
   readonly form = this.formBuilder.nonNullable.group({
     warehouseId: ['', Validators.required],
@@ -94,7 +107,7 @@ export class ReturnWithoutInvoicePage {
     reason: ['', Validators.required],
     resolution: ['ledger_adjustment' as 'ledger_adjustment' | 'account_refund', Validators.required],
     refundAccountId: [''],
-    approvedReturnValue: ['', Validators.required],
+    approvedReturnValue: ['', inventoryMoneyValidators],
     lines: this.formBuilder.array([this.createLineGroup()]),
   });
 
@@ -131,10 +144,13 @@ export class ReturnWithoutInvoicePage {
       .pipe(
         debounceTime(300),
         distinctUntilChanged(),
-        switchMap((query) => this.catalogApi.searchProductOptions(query, 500, 'active')),
+        switchMap((query) => this.catalogApi.searchProductOptions(query, 25, 'active')),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((items) => this.products.set(items.filter((item) => item.status === 'active')));
+
+    this.customerSearchChanges.next('');
+    this.productSearchChanges.next('');
 
     this.form.controls.resolution.valueChanges.subscribe((resolution) => {
       setRequiredValidator(this.form.controls.refundAccountId, resolution === 'account_refund');
@@ -144,6 +160,14 @@ export class ReturnWithoutInvoicePage {
 
   lineGroup(index: number): FormGroup {
     return this.lines.at(index) as FormGroup;
+  }
+
+  lineFieldError(index: number, controlName: string, label: string): string | null {
+    return fieldValidationMessage(
+      this.lineGroup(index).get(controlName),
+      label,
+      this.formSubmitAttempted(),
+    );
   }
 
   onCustomerSearch(event: Event): void {
@@ -205,8 +229,12 @@ export class ReturnWithoutInvoicePage {
   }
 
   submit(): void {
-    if (!this.canPost() || !this.canApprove() || this.form.invalid || this.submitting()) {
-      this.form.markAllAsTouched();
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    for (let index = 0; index < this.lines.length; index += 1) {
+      this.lineGroup(index).markAllAsTouched();
+    }
+    if (!this.canSubmit()) {
       if (!this.canApprove()) {
         this.errorMessage.set('Return without invoice requires approval permission.');
       }
@@ -295,7 +323,7 @@ export class ReturnWithoutInvoicePage {
   private createLineGroup(): FormGroup {
     return this.formBuilder.nonNullable.group({
       productId: ['', Validators.required],
-      quantity: ['', Validators.required],
+      quantity: ['', inventoryQuantityValidators],
       batchId: [''],
       stockCondition: ['sellable', Validators.required],
       unsellableReason: ['damaged'],

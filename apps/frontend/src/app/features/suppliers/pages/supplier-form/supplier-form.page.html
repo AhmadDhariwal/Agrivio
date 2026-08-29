@@ -85,8 +85,13 @@
                 formControlName="name"
                 placeholder="e.g. BioFert Organic & Chemical"
                 data-testid="supplier-name"
+                [class.ag-input--invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted())"
                 [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted()) ? 'true' : null"
               />
+              @if (fieldError(form.controls.name, 'Name', formSubmitAttempted()); as nameError) {
+              <p class="field-error" role="alert">{{ nameError }}</p>
+              }
             </div>
 
             <!-- Contact Person -->
@@ -99,7 +104,12 @@
                 formControlName="contactName"
                 placeholder="e.g. Muhammad Tariq"
                 data-testid="supplier-contact-name"
+                [class.ag-input--invalid]="fieldError(form.controls.contactName, 'Contact name', formSubmitAttempted())"
+                [attr.aria-invalid]="fieldError(form.controls.contactName, 'Contact name', formSubmitAttempted()) ? 'true' : null"
               />
+              @if (fieldError(form.controls.contactName, 'Contact name', formSubmitAttempted()); as contactError) {
+              <p class="field-error" role="alert">{{ contactError }}</p>
+              }
             </div>
             }
 
@@ -113,7 +123,12 @@
                 formControlName="phone"
                 placeholder="e.g. 042-35920001"
                 data-testid="supplier-phone"
+                [class.ag-input--invalid]="fieldError(form.controls.phone, 'Phone', formSubmitAttempted())"
+                [attr.aria-invalid]="fieldError(form.controls.phone, 'Phone', formSubmitAttempted()) ? 'true' : null"
               />
+              @if (fieldError(form.controls.phone, 'Phone', formSubmitAttempted()); as phoneError) {
+              <p class="field-error" role="alert">{{ phoneError }}</p>
+              }
             </div>
             }
 
@@ -127,7 +142,12 @@
                 formControlName="email"
                 placeholder="e.g. sales@biofert.pk"
                 data-testid="supplier-email"
+                [class.ag-input--invalid]="fieldError(form.controls.email, 'Email', formSubmitAttempted())"
+                [attr.aria-invalid]="fieldError(form.controls.email, 'Email', formSubmitAttempted()) ? 'true' : null"
               />
+              @if (fieldError(form.controls.email, 'Email', formSubmitAttempted()); as emailError) {
+              <p class="field-error" role="alert">{{ emailError }}</p>
+              }
             </div>
             }
           </div>
@@ -174,7 +194,7 @@
         <button
           class="ag-btn ag-btn--primary"
           type="submit"
-          [disabled]="saving()"
+          [disabled]="!canSave()"
           data-testid="supplier-save"
         >
           @if (saving()) {

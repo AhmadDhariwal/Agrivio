@@ -89,9 +89,11 @@ describe('WarehouseFormPage', () => {
     const comp = fixture.componentInstance;
     comp.form.patchValue({ name: '', code: '' });
     comp.save();
+    fixture.detectChanges();
 
     expect(comp.form.invalid).toBe(true);
     expect(createWarehouseSpy).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain('Name is required.');
   });
 
   it('submits valid create warehouse payload', () => {
@@ -131,5 +133,73 @@ describe('WarehouseFormPage', () => {
 
     expect(createWarehouseSpy).not.toHaveBeenCalled();
     expect(comp.errorMessage()).toContain('You do not have permission');
+  });
+
+  it('disables save while required fields are missing', () => {
+    const fixture: ComponentFixture<WarehouseFormPage> = TestBed.createComponent(WarehouseFormPage);
+    fixture.detectChanges();
+
+    const saveButton = fixture.nativeElement.querySelector(
+      '[data-testid="warehouse-save"]',
+    ) as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(true);
+  });
+
+  it('omits code from update payload when code field is not editable', async () => {
+    TestBed.resetTestingModule();
+    canEditFieldSpy.mockImplementation((field: string) => field !== 'warehouses.fields.code');
+    canViewFieldSpy.mockReturnValue(true);
+    canPerformActionSpy.mockReturnValue(true);
+
+    await TestBed.configureTestingModule({
+      imports: [WarehouseFormPage],
+      providers: [
+        provideRouter([{ path: 'app/warehouses', component: WarehouseFormPage }]),
+        {
+          provide: BranchesWarehousesApi,
+          useValue: {
+            getWarehouse: () => of(mockWarehouse),
+            createWarehouse: createWarehouseSpy,
+            updateWarehouse: updateWarehouseSpy,
+          },
+        },
+        {
+          provide: AuthSessionStore,
+          useValue: { hasPermission: () => true },
+        },
+        {
+          provide: CapabilityService,
+          useValue: {
+            canUseModule: canUseModuleSpy,
+            canViewField: canViewFieldSpy,
+            canEditField: canEditFieldSpy,
+            canPerformAction: canPerformActionSpy,
+          },
+        },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              paramMap: {
+                get: (key: string) => (key === 'id' ? 'wh-1' : null),
+              },
+            },
+          },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture: ComponentFixture<WarehouseFormPage> = TestBed.createComponent(WarehouseFormPage);
+    fixture.detectChanges();
+
+    const comp = fixture.componentInstance;
+    comp.form.patchValue({ name: 'Updated Name', code: 'WH-MLT-01', status: 'active' });
+    comp.save();
+
+    expect(updateWarehouseSpy).toHaveBeenCalledWith('wh-1', {
+      expectedVersion: 1,
+      name: 'Updated Name',
+      status: 'active',
+    });
   });
 });

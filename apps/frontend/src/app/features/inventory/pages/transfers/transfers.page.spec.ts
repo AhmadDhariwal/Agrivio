@@ -413,6 +413,36 @@ describe('TransfersPage', () => {
     expect(page.selectedProduct()).toBeNull();
   });
 
+  it('blocks submit without API call and surfaces validation errors when form is invalid', () => {
+    page.submit();
+    fixture.detectChanges();
+
+    expect(mockInventoryApi.createTransferDraft).not.toHaveBeenCalled();
+    expect(page.formSubmitAttempted()).toBe(true);
+    expect(page.canPostTransfer()).toBe(false);
+    expect(
+      (fixture.nativeElement.querySelector('[data-testid="transfer-submit"]') as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(page.fieldError(page.form.controls.quantity, 'Quantity', true)).toContain('required');
+  });
+
+  it('rejects invalid quantity format before posting', () => {
+    page.form.patchValue({
+      sourceWarehouseId: 'wh-source',
+      destinationWarehouseId: 'wh-dest',
+      productId: 'prod-none',
+      quantity: '1.23456',
+      reason: 'Invalid qty',
+    });
+    fixture.detectChanges();
+
+    expect(page.form.valid).toBe(false);
+    page.submit();
+    expect(mockInventoryApi.createTransferDraft).not.toHaveBeenCalled();
+    expect(page.fieldError(page.form.controls.quantity, 'Quantity', true)).toContain('four places');
+  });
+
   it('handles transfer reversal workflow via confirm dialog', () => {
     const transfer = page.transfers().at(0) as WarehouseTransferRecord;
     page.reverse(transfer);
@@ -808,6 +838,7 @@ describe('TransfersPage', () => {
       fixture.detectChanges();
 
       expect(page.canPostTransfer()).toBe(false);
+      expect(page.canPostTransferPermission()).toBe(false);
       const submitBtn = fixture.nativeElement.querySelector(
         '[data-testid="transfer-submit"]',
       ) as HTMLButtonElement;

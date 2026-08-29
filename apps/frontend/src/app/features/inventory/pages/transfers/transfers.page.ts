@@ -33,8 +33,10 @@ import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-m
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import {
   hasRequiredValidator,
+  fieldValidationMessage,
   setRequiredValidator,
 } from '../../../../shared/form/form-field.util';
+import { inventoryQuantityValidators } from '../../shared/inventory-form.validation';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 import {
   InventoryBalanceRecord,
@@ -90,6 +92,7 @@ export class TransfersPage {
   readonly pageSize = signal(25);
   readonly loading = signal(true);
   readonly saving = signal(false);
+  readonly formSubmitAttempted = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
 
@@ -134,11 +137,15 @@ export class TransfersPage {
   );
 
   readonly canPostTransfer = computed(
+    () => this.canPostTransferPermission() && this.formValid() && !this.saving(),
+  );
+  readonly canPostTransferPermission = computed(
     () =>
       this.canUseTransfers() &&
       this.sessionStore.hasPermission('inventory.transfer') &&
       (this.capabilityService?.canPerformAction('inventory.transfers.actions.post') ?? true),
   );
+  private readonly formValid = signal(false);
   readonly canReverseTransfer = computed(
     () =>
       this.canUseTransfers() &&
@@ -172,6 +179,7 @@ export class TransfersPage {
   readonly selectedTransfer = signal<WarehouseTransferRecord | null>(null);
 
   readonly fieldRequired = hasRequiredValidator;
+  readonly fieldError = fieldValidationMessage;
 
   // Module Info Content
   readonly infoTitle = 'About Warehouse Transfers';
@@ -190,7 +198,7 @@ export class TransfersPage {
       destinationWarehouseId: ['', Validators.required],
       productId: ['', Validators.required],
       batchId: [''],
-      quantity: ['', [Validators.required, Validators.pattern(/^\d+(\.\d{1,4})?$/)]],
+      quantity: ['', inventoryQuantityValidators],
       reason: ['', Validators.required],
       negativeStockOverride: [false],
       negativeStockOverrideReason: [''],
@@ -201,6 +209,11 @@ export class TransfersPage {
   );
 
   constructor() {
+    this.formValid.set(this.form.valid);
+    this.form.statusChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.formValid.set(this.form.valid);
+    });
+
     if (!this.canUseTransfers() || !this.canTransfer()) {
       this.loading.set(false);
       return;
@@ -384,9 +397,10 @@ export class TransfersPage {
   }
 
   submit(): void {
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
     this.validateDifferentWarehouses();
-    if (this.form.invalid || this.saving() || !this.canPostTransfer()) {
-      this.form.markAllAsTouched();
+    if (!this.canPostTransfer()) {
       return;
     }
     const value = this.form.getRawValue();

@@ -114,7 +114,7 @@
                       class="search-field__input"
                       type="search"
                       placeholder="Search customer by name, phone, or ID…"
-                      (change)="onCustomerSearch($event)"
+                      (input)="onCustomerSearch($event)"
                     />
                   </div>
                 </div>
@@ -131,13 +131,18 @@
                   class="ag-select"
                   formControlName="customerId"
                   data-testid="customer-payment-customer"
+                  [class.ag-input--invalid]="fieldError(form.controls.customerId, 'Customer', formSubmitAttempted())"
                   [attr.aria-required]="fieldRequired(form.controls.customerId) ? 'true' : null"
+                  [attr.aria-invalid]="fieldError(form.controls.customerId, 'Customer', formSubmitAttempted()) ? 'true' : null"
                 >
                   <option value="">Select customer</option>
                   @for (customer of customers(); track customer.id) {
                     <option [value]="customer.id">{{ customer.name }}</option>
                   }
                 </select>
+                @if (fieldError(form.controls.customerId, 'Customer', formSubmitAttempted()); as customerError) {
+                <p class="field-error" role="alert">{{ customerError }}</p>
+                }
               </div>
 
               <div class="ag-field">
@@ -151,13 +156,18 @@
                   class="ag-select"
                   formControlName="accountId"
                   data-testid="customer-payment-account"
+                  [class.ag-input--invalid]="fieldError(form.controls.accountId, 'Account', formSubmitAttempted())"
                   [attr.aria-required]="fieldRequired(form.controls.accountId) ? 'true' : null"
+                  [attr.aria-invalid]="fieldError(form.controls.accountId, 'Account', formSubmitAttempted()) ? 'true' : null"
                 >
                   <option value="">Select account</option>
                   @for (account of accounts(); track account.id) {
                     <option [value]="account.id">{{ account.name }} ({{ account.accountType }})</option>
                   }
                 </select>
+                @if (fieldError(form.controls.accountId, 'Account', formSubmitAttempted()); as accountError) {
+                <p class="field-error" role="alert">{{ accountError }}</p>
+                }
               </div>
             </div>
 
@@ -175,9 +185,15 @@
                   formControlName="amount"
                   placeholder="Enter amount"
                   data-testid="customer-payment-amount"
+                  [class.ag-input--invalid]="fieldError(form.controls.amount, 'Amount', formSubmitAttempted())"
                   [attr.aria-required]="fieldRequired(form.controls.amount) ? 'true' : null"
+                  [attr.aria-invalid]="fieldError(form.controls.amount, 'Amount', formSubmitAttempted()) ? 'true' : null"
                 />
+                @if (fieldError(form.controls.amount, 'Amount', formSubmitAttempted()); as amountError) {
+                <p class="field-error" role="alert">{{ amountError }}</p>
+                } @else {
                 <span class="field-hint text-muted">Enter the amount received from the customer.</span>
+                }
               </div>
 
               <div class="ag-field">
@@ -192,9 +208,15 @@
                   type="date"
                   formControlName="paymentDate"
                   data-testid="customer-payment-date"
+                  [class.ag-input--invalid]="fieldError(form.controls.paymentDate, 'Payment date', formSubmitAttempted())"
                   [attr.aria-required]="fieldRequired(form.controls.paymentDate) ? 'true' : null"
+                  [attr.aria-invalid]="fieldError(form.controls.paymentDate, 'Payment date', formSubmitAttempted()) ? 'true' : null"
                 />
+                @if (fieldError(form.controls.paymentDate, 'Payment date', formSubmitAttempted()); as dateError) {
+                <p class="field-error" role="alert">{{ dateError }}</p>
+                } @else {
                 <span class="field-hint text-muted">Date the payment was received.</span>
+                }
               </div>
             </div>
           </div>
@@ -374,7 +396,7 @@
             <button
               class="ag-btn ag-btn--primary"
               type="submit"
-              [disabled]="saving()"
+              [disabled]="!canSave()"
               data-testid="customer-payment-save"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

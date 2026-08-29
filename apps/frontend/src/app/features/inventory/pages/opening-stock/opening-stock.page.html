@@ -113,14 +113,20 @@
               class="ag-select"
               formControlName="warehouseId"
               data-testid="opening-warehouse"
+              [class.ag-input--invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.warehouseId) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()) ? 'true' : null"
             >
               <option value="" disabled>Select warehouse</option>
               @for (warehouse of warehouses(); track warehouse.id) {
               <option [value]="warehouse.id">{{ warehouse.name }}</option>
               }
             </select>
+            @if (fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()); as warehouseError) {
+            <p class="field-error" role="alert">{{ warehouseError }}</p>
+            } @else {
             <p class="field-hint">Select where this opening stock is located.</p>
+            }
           </div>
 
           <!-- Product -->
@@ -135,14 +141,20 @@
               class="ag-select"
               formControlName="productId"
               data-testid="opening-product"
+              [class.ag-input--invalid]="fieldError(form.controls.productId, 'Product', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.productId) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.productId, 'Product', formSubmitAttempted()) ? 'true' : null"
             >
               <option value="" disabled>Select product</option>
               @for (product of products(); track product.id) {
               <option [value]="product.id">{{ product.name }} ({{ product.trackingMode }})</option>
               }
             </select>
+            @if (fieldError(form.controls.productId, 'Product', formSubmitAttempted()); as productError) {
+            <p class="field-error" role="alert">{{ productError }}</p>
+            } @else {
             <p class="field-hint">Choose the product for which opening stock is recorded.</p>
+            }
           </div>
         </div>
 
@@ -189,9 +201,15 @@
               formControlName="quantity"
               placeholder="e.g. 100"
               data-testid="opening-quantity"
+              [class.ag-input--invalid]="fieldError(form.controls.quantity, 'Quantity', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.quantity) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.quantity, 'Quantity', formSubmitAttempted()) ? 'true' : null"
             />
+            @if (fieldError(form.controls.quantity, 'Quantity', formSubmitAttempted()); as quantityError) {
+            <p class="field-error" role="alert">{{ quantityError }}</p>
+            } @else {
             <p class="field-hint">Enter quantity in the selected/base unit.</p>
+            }
           </div>
 
           <!-- Packaging Unit -->
@@ -226,9 +244,15 @@
               formControlName="inventoryValue"
               placeholder="e.g. 250000.00"
               data-testid="opening-inventory-value"
+              [class.ag-input--invalid]="fieldError(form.controls.inventoryValue, 'Opening inventory value', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.inventoryValue) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.inventoryValue, 'Opening inventory value', formSubmitAttempted()) ? 'true' : null"
             />
+            @if (fieldError(form.controls.inventoryValue, 'Opening inventory value', formSubmitAttempted()); as valueError) {
+            <p class="field-error" role="alert">{{ valueError }}</p>
+            } @else {
             <p class="field-hint">Total opening cost value for this quantity.</p>
+            }
           </div>
         </div>
       </div>
@@ -297,9 +321,15 @@
               formControlName="batchNumber"
               placeholder="e.g. BT-2026-08"
               data-testid="opening-batch-number"
+              [class.ag-input--invalid]="fieldError(form.controls.batchNumber, 'Batch / lot number', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.batchNumber) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.batchNumber, 'Batch / lot number', formSubmitAttempted()) ? 'true' : null"
             />
+            @if (fieldError(form.controls.batchNumber, 'Batch / lot number', formSubmitAttempted()); as batchError) {
+            <p class="field-error" role="alert">{{ batchError }}</p>
+            } @else {
             <p class="field-hint">Unique batch or lot code.</p>
+            }
           </div>
 
           @if (showOpeningStockManufacturingDate()) {
@@ -330,9 +360,15 @@
               type="date"
               formControlName="expiryDate"
               data-testid="opening-expiry-date"
+              [class.ag-input--invalid]="fieldError(form.controls.expiryDate, 'Expiry date', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.expiryDate) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.expiryDate, 'Expiry date', formSubmitAttempted()) ? 'true' : null"
             />
+            @if (fieldError(form.controls.expiryDate, 'Expiry date', formSubmitAttempted()); as expiryError) {
+            <p class="field-error" role="alert">{{ expiryError }}</p>
+            } @else {
             <p class="field-hint">Mandatory expiration threshold.</p>
+            }
           </div>
           }
         </div>
@@ -366,7 +402,7 @@
       <button
         class="ag-btn ag-btn--primary"
         type="submit"
-        [disabled]="saving()"
+        [disabled]="!canPost()"
         data-testid="opening-stock-save"
       >
         @if (saving()) {

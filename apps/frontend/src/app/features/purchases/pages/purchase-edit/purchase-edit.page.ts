@@ -32,7 +32,11 @@ import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api
 import { AccountRecord } from '../../../accounts-expenses/models/accounts.models';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
-import { hasRequiredValidator, setRequiredValidator } from '../../../../shared/form/form-field.util';
+import {
+  fieldValidationMessage,
+  hasRequiredValidator,
+  setRequiredValidator,
+} from '../../../../shared/form/form-field.util';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
@@ -77,6 +81,7 @@ export class PurchaseEditPage {
   readonly submittingReturn = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
+  readonly formSubmitAttempted = signal(false);
   readonly products = signal<ProductRecord[]>([]);
   readonly warehouses = signal<WarehouseRecord[]>([]);
   readonly suppliers = signal<SupplierRecord[]>([]);
@@ -151,9 +156,18 @@ export class PurchaseEditPage {
       (this.capabilityService?.canPerformAction('purchases.actions.post') ?? true) &&
       (this.capabilityService?.canPerformAction('purchases.actions.addPaymentAtPost') ?? true),
   );
+  readonly canSaveDraft = computed(
+    () =>
+      (this.purchaseId() === null ? this.canCreate() : this.canEditDraft()) &&
+      this.form.valid &&
+      !this.saving() &&
+      !this.posting() &&
+      this.isDraft(),
+  );
   private version = 1;
 
   readonly fieldRequired = hasRequiredValidator;
+  readonly fieldError = fieldValidationMessage;
 
   canViewPurchaseField(id: string): boolean {
     return this.capabilityService?.canViewField(`purchases.fields.${id}`) ?? true;
@@ -260,6 +274,9 @@ export class PurchaseEditPage {
       )
       .subscribe((items) => this.suppliers.set(items.filter((item) => item.status === 'active')));
 
+    this.supplierSearchChanges.next('');
+    this.productSearchChanges.next('');
+
     if (isEdit && id) {
       forkJoin({
         masters: masters$,
@@ -295,6 +312,14 @@ export class PurchaseEditPage {
 
   lineGroup(index: number): FormGroup {
     return this.lines.at(index) as FormGroup;
+  }
+
+  lineFieldError(index: number, controlName: string, label: string): string | null {
+    return fieldValidationMessage(
+      this.lineGroup(index).get(controlName),
+      label,
+      this.formSubmitAttempted(),
+    );
   }
 
   onSupplierSearch(event: Event): void {
@@ -495,8 +520,13 @@ export class PurchaseEditPage {
 
   save(): void {
     const id = this.purchaseId();
-    if (!(id === null ? this.canCreate() : this.canEditDraft()) || this.form.invalid) {
-      this.form.markAllAsTouched();
+    const canManage = id === null ? this.canCreate() : this.canEditDraft();
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    for (let index = 0; index < this.lines.length; index += 1) {
+      this.lineGroup(index).markAllAsTouched();
+    }
+    if (!canManage || this.form.invalid) {
       return;
     }
     this.saving.set(true);

@@ -41,7 +41,14 @@
   >
     @if (canViewField('supplier')) { <div class="ag-field">
       <agrivio-ui-field-label label="Find supplier" for="supplier-payment-supplier-search" />
-      <input id="supplier-payment-supplier-search" class="ag-input" type="search" (change)="onSupplierSearch($event)" />
+      <input
+        id="supplier-payment-supplier-search"
+        class="ag-input"
+        type="search"
+        placeholder="Search suppliers…"
+        data-testid="supplier-payment-supplier-search"
+        (input)="onSupplierSearch($event)"
+      />
       <agrivio-ui-field-label
         label="Supplier"
         for="supplier-payment-supplier"
@@ -52,13 +59,18 @@
         class="ag-select"
         formControlName="supplierId"
         data-testid="supplier-payment-supplier"
+        [class.ag-input--invalid]="fieldError(form.controls.supplierId, 'Supplier', formSubmitAttempted())"
         [attr.aria-required]="fieldRequired(form.controls.supplierId) ? 'true' : null"
+        [attr.aria-invalid]="fieldError(form.controls.supplierId, 'Supplier', formSubmitAttempted()) ? 'true' : null"
       >
         <option value="">Select supplier</option>
         @for (supplier of suppliers(); track supplier.id) {
           <option [value]="supplier.id">{{ supplier.name }}</option>
         }
       </select>
+      @if (fieldError(form.controls.supplierId, 'Supplier', formSubmitAttempted()); as supplierError) {
+      <p class="field-error" role="alert">{{ supplierError }}</p>
+      }
     </div> }
 
     @if (canViewField('account')) { <div class="ag-field">
@@ -72,13 +84,18 @@
         class="ag-select"
         formControlName="accountId"
         data-testid="supplier-payment-account"
+        [class.ag-input--invalid]="fieldError(form.controls.accountId, 'Account', formSubmitAttempted())"
         [attr.aria-required]="fieldRequired(form.controls.accountId) ? 'true' : null"
+        [attr.aria-invalid]="fieldError(form.controls.accountId, 'Account', formSubmitAttempted()) ? 'true' : null"
       >
         <option value="">Select account</option>
         @for (account of accounts(); track account.id) {
           <option [value]="account.id">{{ account.name }} ({{ account.accountType }})</option>
         }
       </select>
+      @if (fieldError(form.controls.accountId, 'Account', formSubmitAttempted()); as accountError) {
+      <p class="field-error" role="alert">{{ accountError }}</p>
+      }
     </div> }
 
     @if (canViewField('allocationMode')) { <fieldset class="ag-stack">
@@ -155,8 +172,13 @@
         class="ag-input"
         formControlName="amount"
         data-testid="supplier-payment-amount"
+        [class.ag-input--invalid]="fieldError(form.controls.amount, 'Amount', formSubmitAttempted())"
         [attr.aria-required]="fieldRequired(form.controls.amount) ? 'true' : null"
+        [attr.aria-invalid]="fieldError(form.controls.amount, 'Amount', formSubmitAttempted()) ? 'true' : null"
       />
+      @if (fieldError(form.controls.amount, 'Amount', formSubmitAttempted()); as amountError) {
+      <p class="field-error" role="alert">{{ amountError }}</p>
+      }
     </div> }
 
     @if (canViewField('paymentDate')) { <div class="ag-field">
@@ -171,8 +193,13 @@
         type="date"
         formControlName="paymentDate"
         data-testid="supplier-payment-date"
+        [class.ag-input--invalid]="fieldError(form.controls.paymentDate, 'Payment date', formSubmitAttempted())"
         [attr.aria-required]="fieldRequired(form.controls.paymentDate) ? 'true' : null"
+        [attr.aria-invalid]="fieldError(form.controls.paymentDate, 'Payment date', formSubmitAttempted()) ? 'true' : null"
       />
+      @if (fieldError(form.controls.paymentDate, 'Payment date', formSubmitAttempted()); as dateError) {
+      <p class="field-error" role="alert">{{ dateError }}</p>
+      }
     </div> }
 
     @if (canViewField('notes')) { <div class="ag-field">
@@ -188,7 +215,7 @@
     </div> }
 
     <div class="ag-inline">
-      <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="supplier-payment-save">
+      <button class="ag-btn" type="submit" [disabled]="!canSave()" data-testid="supplier-payment-save">
         {{ saving() ? 'Posting…' : 'Post payment' }}
       </button>
       <a class="ag-btn ag-btn--secondary" routerLink="/app/supplier-payments">Back to list</a>

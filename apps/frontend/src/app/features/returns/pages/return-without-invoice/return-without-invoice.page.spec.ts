@@ -87,9 +87,13 @@ describe('ReturnWithoutInvoicePage', () => {
     expect(fixture.nativeElement.querySelector('[data-testid="without-invoice-form"]')).toBeTruthy();
   });
 
-  it('loads warehouse and account reference options without preloading product or customer catalogs', () => {
-    expect(mockCatalogApi.searchProductOptions).not.toHaveBeenCalled();
-    expect(mockCustomersApi.searchCustomerOptions).not.toHaveBeenCalled();
+  it('preloads product and customer selector options on init', async () => {
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    fixture.detectChanges();
+
+    expect(mockCatalogApi.searchProductOptions).toHaveBeenCalledWith('', 25, 'active');
+    expect(mockCustomersApi.searchCustomerOptions).toHaveBeenCalledWith('');
     expect(mockAccountsApi.listAccountOptions).toHaveBeenCalledTimes(1);
   });
 
@@ -102,7 +106,7 @@ describe('ReturnWithoutInvoicePage', () => {
     await new Promise((resolve) => setTimeout(resolve, 350));
     fixture.detectChanges();
 
-    expect(mockCatalogApi.searchProductOptions).toHaveBeenCalledWith('Urea', 500, 'active');
+    expect(mockCatalogApi.searchProductOptions).toHaveBeenCalledWith('Urea', 25, 'active');
   });
 
   it('searches customers through the debounced server-backed selector', async () => {
@@ -146,5 +150,22 @@ describe('ReturnWithoutInvoicePage', () => {
 
     page.removeLine(1);
     expect(page.lines.length).toBe(1);
+  });
+
+  it('blocks submit without API call and surfaces validation errors when form is invalid', () => {
+    page.submit();
+    fixture.detectChanges();
+
+    expect(mockReturnsApi.createWithoutInvoice).not.toHaveBeenCalled();
+    expect(mockReturnsApi.postReturn).not.toHaveBeenCalled();
+    expect(page.formSubmitAttempted()).toBe(true);
+    expect(page.canSubmit()).toBe(false);
+    expect(
+      (fixture.nativeElement.querySelector('[data-testid="without-invoice-submit"]') as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(
+      page.fieldError(page.form.controls.warehouseId, 'Warehouse / Facility', true),
+    ).toContain('required');
   });
 });

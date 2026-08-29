@@ -17,8 +17,14 @@ import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-f
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import {
   hasRequiredValidator,
+  fieldValidationMessage,
   setRequiredValidator,
 } from '../../../../shared/form/form-field.util';
+import {
+  inventoryMoneyValidators,
+  inventoryMoneyValidator,
+  inventoryQuantityValidators,
+} from '../../shared/inventory-form.validation';
 import { PackagingUnitRecord, ProductRecord } from '../../../catalog/models/catalog.models';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
@@ -48,6 +54,7 @@ export class OpeningStockPage {
 
   readonly loading = signal(true);
   readonly saving = signal(false);
+  readonly formSubmitAttempted = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly products = signal<ProductRecord[]>([]);
@@ -79,6 +86,10 @@ export class OpeningStockPage {
       this.sessionStore.hasPermission('inventory.opening-stock.post') &&
       (this.capabilityService?.canPerformAction('inventory.openingStock.actions.post') ?? true),
   );
+  readonly canPost = computed(
+    () => this.canPostOpeningStock() && this.formValid() && !this.saving(),
+  );
+  private readonly formValid = signal(false);
   readonly showViewStockAction = computed(
     () =>
       this.sessionStore.hasPermission('inventory.view') &&
@@ -89,6 +100,7 @@ export class OpeningStockPage {
   readonly selectedProduct = signal<ProductRecord | null>(null);
 
   readonly fieldRequired = hasRequiredValidator;
+  readonly fieldError = fieldValidationMessage;
 
   readonly infoTitle = 'About Opening Stock';
   readonly infoDescription =
@@ -103,15 +115,20 @@ export class OpeningStockPage {
   readonly form = this.formBuilder.nonNullable.group({
     warehouseId: ['', Validators.required],
     productId: ['', Validators.required],
-    quantity: ['', Validators.required],
+    quantity: ['', inventoryQuantityValidators],
     packagingUnitId: [''],
     batchNumber: [''],
     manufacturingDate: [''],
     expiryDate: [''],
-    inventoryValue: ['', Validators.required],
+    inventoryValue: ['', inventoryMoneyValidators],
   });
 
   constructor() {
+    this.formValid.set(this.form.valid);
+    this.form.statusChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.formValid.set(this.form.valid);
+    });
+
     if (!this.canPostOpeningStock()) {
       this.loading.set(false);
       return;
@@ -176,8 +193,9 @@ export class OpeningStockPage {
   }
 
   submit(): void {
-    if (!this.canPostOpeningStock() || this.form.invalid) {
-      this.form.markAllAsTouched();
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    if (!this.canPost()) {
       return;
     }
     this.saving.set(true);
