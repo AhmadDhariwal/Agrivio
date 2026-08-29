@@ -34,6 +34,24 @@ function createBridgedEmployeesStore(deps) {
       return { items: withUsers.slice(skip, skip + (pagination.pageSize ?? 25)), total };
     },
 
+    async summarizeMembershipStatus(organizationId) {
+      const all = await this.listMembershipsByOrganizationId(organizationId);
+      let active = 0;
+      let pendingInactive = 0;
+      for (const membership of all) {
+        if (String(membership.status) === 'active') {
+          active += 1;
+        } else {
+          pendingInactive += 1;
+        }
+      }
+      return {
+        total: all.length,
+        active,
+        pendingInactive,
+      };
+    },
+
     async countActiveUsers(organizationId) {
       const memberships = await this.listMembershipsByOrganizationId(organizationId);
       return memberships.filter(

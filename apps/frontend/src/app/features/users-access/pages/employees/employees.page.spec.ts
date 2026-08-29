@@ -74,6 +74,48 @@ describe('EmployeesPage', () => {
     expect(fixture.nativeElement.textContent).toContain('No employees found');
   });
 
+  it('does not render authoritative-looking zero KPI values when meta.summary is absent', () => {
+    listEmployeesSpy.mockReturnValue(
+      of({ items: mockEmployees, meta: { page: 1, pageSize: 25, total: 2 } }),
+    );
+
+    const fixture: ComponentFixture<EmployeesPage> = TestBed.createComponent(EmployeesPage);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="kpi-total-employees"]')?.textContent?.trim()).toBe('—');
+    expect(fixture.nativeElement.querySelector('[data-testid="kpi-active-employees"]')?.textContent?.trim()).toBe('—');
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="kpi-pending-inactive-employees"]')?.textContent?.trim(),
+    ).toBe('—');
+  });
+
+  it('renders authoritative KPI cards from list metadata instead of paginated page rows', () => {
+    listEmployeesSpy.mockReturnValue(
+      of({
+        items: [mockEmployees[0]],
+        meta: {
+          page: 1,
+          pageSize: 25,
+          total: 1,
+          summary: { total: 12, active: 9, pendingInactive: 3 },
+        },
+      }),
+    );
+
+    const fixture: ComponentFixture<EmployeesPage> = TestBed.createComponent(EmployeesPage);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="kpi-total-employees"]')?.textContent?.trim()).toBe(
+      '12',
+    );
+    expect(fixture.nativeElement.querySelector('[data-testid="kpi-active-employees"]')?.textContent?.trim()).toBe(
+      '9',
+    );
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="kpi-pending-inactive-employees"]')?.textContent?.trim(),
+    ).toBe('3');
+  });
+
   it('renders employee table rows with role badges and access summaries', () => {
     listEmployeesSpy.mockReturnValue(
       of({ items: mockEmployees, meta: { page: 1, pageSize: 25, total: 2 } }),

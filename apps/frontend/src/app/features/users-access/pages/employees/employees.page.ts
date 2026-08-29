@@ -43,6 +43,9 @@ export class EmployeesPage {
   readonly page = signal(1);
   readonly pageSize = signal(25);
   readonly total = signal(0);
+  readonly kpiSummary = signal<{ total: number; active: number; pendingInactive: number } | null>(
+    null,
+  );
 
   // Filters
   readonly search = signal('');
@@ -142,18 +145,6 @@ export class EmployeesPage {
     return result;
   });
 
-  // KPI Metrics (Authoritatively derived from list metadata / items if total is complete)
-  readonly kpis = computed(() => {
-    const list = this.items();
-    const activeCount = list.filter((i) => i.status === 'active').length;
-    const pendingInactiveCount = list.filter((i) => i.status !== 'active').length;
-    return {
-      total: this.total(),
-      active: activeCount,
-      pendingInactive: pendingInactiveCount,
-    };
-  });
-
   readonly hasActiveFilters = computed(() => {
     const searchActive = this.showSearch() && this.search().trim().length > 0;
     const statusActive = this.showStatusFilter() && this.statusFilter() !== 'all';
@@ -196,6 +187,7 @@ export class EmployeesPage {
       next: ({ items, meta }) => {
         this.items.set(items);
         this.total.set(meta.total);
+        this.kpiSummary.set(meta.summary ?? null);
         this.loading.set(false);
       },
       error: (error: unknown) => {

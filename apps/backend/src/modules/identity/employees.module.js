@@ -92,6 +92,27 @@ function createEmployeesService(deps) {
 
   return {
     async listEmployees(organizationId, options = {}) {
+      let summary;
+      if (typeof store.summarizeMembershipStatus === 'function') {
+        summary = await store.summarizeMembershipStatus(organizationId);
+      } else {
+        const all = await store.listMembershipsByOrganizationId(organizationId);
+        let active = 0;
+        let pendingInactive = 0;
+        for (const membership of all) {
+          if (String(membership.status) === 'active') {
+            active += 1;
+          } else {
+            pendingInactive += 1;
+          }
+        }
+        summary = {
+          total: all.length,
+          active,
+          pendingInactive,
+        };
+      }
+
       let result;
       if (typeof store.listMembershipsPage === 'function') {
         result = await store.listMembershipsPage(organizationId, options, options);
@@ -111,7 +132,7 @@ function createEmployeesService(deps) {
         );
         items.push(toEmployeeDto(membership, user, assignments));
       }
-      return { items, total: result.total };
+      return { items, total: result.total, summary };
     },
 
     async getEmployee(organizationId, userId) {

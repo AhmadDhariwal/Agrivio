@@ -86,9 +86,9 @@
   />
   }
 
-  @if (showKpiCards()) {
+  @if (showKpiCards() && !loading()) {
   <!-- KPI Summary Row -->
-  <section class="kpi-row" aria-label="Employees Summary">
+  <section class="kpi-row" aria-label="Employees Summary" data-testid="employees-kpi-row">
     <div class="kpi-card">
       <div class="kpi-card__icon kpi-card__icon--neutral">
         <svg
@@ -109,7 +109,7 @@
       </div>
       <div class="kpi-card__content">
         <span class="kpi-card__label">Total Employees</span>
-        <span class="kpi-card__value">{{ total() }}</span>
+        <span class="kpi-card__value" data-testid="kpi-total-employees">{{ kpiSummary() ? kpiSummary()!.total : '—' }}</span>
       </div>
     </div>
 
@@ -131,7 +131,7 @@
       </div>
       <div class="kpi-card__content">
         <span class="kpi-card__label">Active Members</span>
-        <span class="kpi-card__value">{{ kpis().active }}</span>
+        <span class="kpi-card__value" data-testid="kpi-active-employees">{{ kpiSummary() ? kpiSummary()!.active : '—' }}</span>
       </div>
     </div>
 
@@ -154,7 +154,7 @@
       </div>
       <div class="kpi-card__content">
         <span class="kpi-card__label">Pending / Inactive</span>
-        <span class="kpi-card__value">{{ kpis().pendingInactive }}</span>
+        <span class="kpi-card__value" data-testid="kpi-pending-inactive-employees">{{ kpiSummary() ? kpiSummary()!.pendingInactive : '—' }}</span>
       </div>
     </div>
   </section>

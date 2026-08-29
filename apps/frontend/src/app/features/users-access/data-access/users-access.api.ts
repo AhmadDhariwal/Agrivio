@@ -3,7 +3,8 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, map, switchMap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
-import { PaginatedResult, PaginationQuery } from '../../../shared/data-access/pagination';
+import { PaginationMeta } from '@agrivio/api-contracts';
+import { PaginationQuery } from '../../../shared/data-access/pagination';
 
 export type OrganizationRole = 'Owner' | 'Manager' | 'Cashier' | 'StoreKeeper';
 
@@ -29,14 +30,26 @@ export interface AssignmentTarget {
   name: string;
 }
 
+export interface EmployeeStatusSummary {
+  total: number;
+  active: number;
+  pendingInactive: number;
+}
+
+export interface EmployeeListMeta extends PaginationMeta {
+  summary?: EmployeeStatusSummary;
+}
+
 @Injectable({ providedIn: 'root' })
 export class UsersAccessApi {
   private readonly http = inject(HttpClient);
   private readonly authApi = inject(AuthApi);
 
-  listEmployees(params: PaginationQuery & { search?: string } = {}): Observable<PaginatedResult<EmployeeRecord>> {
+  listEmployees(
+    params: PaginationQuery & { search?: string } = {},
+  ): Observable<{ items: EmployeeRecord[]; meta: EmployeeListMeta }> {
     return this.http
-      .get<{ data: EmployeeRecord[]; meta: PaginatedResult<EmployeeRecord>['meta'] }>(`${environment.publicApiBaseUrl}/api/v1/users`, {
+      .get<{ data: EmployeeRecord[]; meta: EmployeeListMeta }>(`${environment.publicApiBaseUrl}/api/v1/users`, {
         withCredentials: true,
         params: { page: params.page ?? 1, pageSize: params.pageSize ?? 25, ...(params.search ? { search: params.search } : {}) },
       })

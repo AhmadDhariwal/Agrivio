@@ -12,6 +12,23 @@ function withSession(session) {
   return session ? { session: session } : {};
 }
 
+function summarizeMembershipStatuses(memberships) {
+  let active = 0;
+  let pendingInactive = 0;
+  for (const membership of memberships) {
+    if (String(membership.status) === 'active') {
+      active += 1;
+    } else {
+      pendingInactive += 1;
+    }
+  }
+  return {
+    total: memberships.length,
+    active,
+    pendingInactive,
+  };
+}
+
 function createMongooseEmployeesStore() {
   return {
     async listMembershipsByOrganizationId(organizationId) {
@@ -33,6 +50,31 @@ function createMongooseEmployeesStore() {
       );
       const [result] = await OrganizationMembershipModel.aggregate(pipeline).exec();
       return { items: result?.items ?? [], total: result?.metadata?.[0]?.total ?? 0 };
+    },
+
+    async summarizeMembershipStatus(organizationId) {
+      const rows = await OrganizationMembershipModel.aggregate([
+        {
+          $match: {
+            organizationId: new mongoose.Types.ObjectId(String(organizationId)),
+          },
+        },
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+      ]).exec();
+      let active = 0;
+      let pendingInactive = 0;
+      for (const row of rows) {
+        if (String(row._id) === 'active') {
+          active += row.count;
+        } else {
+          pendingInactive += row.count;
+        }
+      }
+      return {
+        total: active + pendingInactive,
+        active,
+        pendingInactive,
+      };
     },
 
     async countActiveUsers(organizationId) {
@@ -213,6 +255,11 @@ function createInMemoryEmployeesStore(options = {}) {
       return { items: withUsers.slice(skip, skip + (pagination.pageSize ?? 25)), total };
     },
 
+    async summarizeMembershipStatus(organizationId) {
+      const items = await this.listMembershipsByOrganizationId(organizationId);
+      return summarizeMembershipStatuses(items);
+    },
+
     async countActiveUsers(organizationId) {
       return [...memberships.values()].filter(
         (item) =>
@@ -378,4 +425,5 @@ function createInMemoryEmployeesStore(options = {}) {
 module.exports = {
   createMongooseEmployeesStore,
   createInMemoryEmployeesStore,
+  summarizeMembershipStatuses,
 };

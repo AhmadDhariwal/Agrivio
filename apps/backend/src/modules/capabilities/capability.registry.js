@@ -3471,11 +3471,14 @@ const definitions = [
     moduleKey: EMPLOYEES_MODULE_KEY,
     type: CONTROL_TYPES.Field,
     label: 'Display name',
-    description: 'Employee display name shown across the organization.',
+    description: 'Required employee display name shown across the organization.',
     defaultPolicy: { visible: true, editable: true },
-    configurable: { visible: true, editable: true },
-    risk: RISK_LEVELS.Normal,
-    requiredPermissions: { visible: 'users.view', editable: 'users.update' },
+    configurable: { visible: false, editable: true },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'users.view', editable: 'users.create' },
+    reason:
+      'Display name remains visible because employee creation and identification require it.',
   },
   {
     key: 'employees.fields.role',

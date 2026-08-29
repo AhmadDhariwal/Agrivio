@@ -119,7 +119,7 @@ describe('Employees capability controls', () => {
         changes: [
           {
             key: 'employees.fields.displayName',
-            value: { visible: true, editable: false },
+            value: { editable: false },
           },
         ],
       },

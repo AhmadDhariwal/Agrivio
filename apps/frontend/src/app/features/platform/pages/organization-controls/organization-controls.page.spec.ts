@@ -1195,7 +1195,7 @@ describe('OrganizationControlsPage', () => {
       control('employees.features.roleFilter', 'employees', 'FEATURE', 'Role Filter', { enabled: true }),
       control('employees.features.kpiCards', 'employees', 'FEATURE', 'KPI Cards', { enabled: true }),
       control('employees.fields.email', 'employees', 'FIELD', 'Email', { visible: true, editable: true }, { configurable: { visible: false, editable: true }, platformEnforced: true, risk: 'CRITICAL' }),
-      control('employees.fields.displayName', 'employees', 'FIELD', 'Display name', { visible: true, editable: true }),
+      control('employees.fields.displayName', 'employees', 'FIELD', 'Display name', { visible: true, editable: true }, { configurable: { visible: false, editable: true }, platformEnforced: true, risk: 'CRITICAL' }),
       control('employees.fields.role', 'employees', 'FIELD', 'Role', { visible: true, editable: true }, { configurable: { visible: false, editable: false }, platformEnforced: true, risk: 'CRITICAL' }),
       control('employees.fields.branchAccess', 'employees', 'FIELD', 'Branch access', { visible: true, editable: false }),
       control('employees.fields.warehouseAccess', 'employees', 'FIELD', 'Warehouse access', { visible: true, editable: false }),
@@ -2651,8 +2651,8 @@ describe('OrganizationControlsPage', () => {
       expect(component.moduleInfoControls().length).toBe(1);
       expect(component.filterControls().length).toBe(3);
       expect(component.kpiControls().length).toBe(1);
-      expect(component.requiredWorkflowControls().length).toBe(3);
-      expect(component.fieldControls().length).toBe(3);
+      expect(component.requiredWorkflowControls().length).toBe(4);
+      expect(component.fieldControls().length).toBe(2);
       expect(component.actionControls().length).toBe(5);
 
       const text = fixture.nativeElement.textContent;
