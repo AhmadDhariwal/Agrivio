@@ -1,12 +1,44 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
+import { vi } from 'vitest';
 import { WarehousesPage } from './warehouses.page';
-import { BranchesWarehousesApi } from '../../data-access/branches-warehouses.api';
+import { BranchesWarehousesApi, WarehouseRecord } from '../../data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 
 describe('WarehousesPage', () => {
+  const mockWarehouses: WarehouseRecord[] = [
+    {
+      id: 'wh-1',
+      organizationId: 'org-1',
+      name: 'Central Distribution Hub (Multan)',
+      code: 'WH-MLT-01',
+      status: 'active',
+      version: 1,
+    },
+    {
+      id: 'wh-2',
+      organizationId: 'org-1',
+      name: 'Raw Material Store (Lodhran)',
+      code: 'WH-LOD-01',
+      status: 'inactive',
+      version: 2,
+    },
+  ];
+
+  let listWarehousesSpy: ReturnType<typeof vi.fn>;
+  let updateWarehouseSpy: ReturnType<typeof vi.fn>;
+  let deleteWarehouseSpy: ReturnType<typeof vi.fn>;
+
   beforeEach(async () => {
+    listWarehousesSpy = vi.fn().mockReturnValue(
+      of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+    );
+    updateWarehouseSpy = vi.fn().mockReturnValue(
+      of({ ...mockWarehouses[0], status: 'inactive' }),
+    );
+    deleteWarehouseSpy = vi.fn().mockReturnValue(of({ id: 'wh-1', deleted: true }));
+
     await TestBed.configureTestingModule({
       imports: [WarehousesPage],
       providers: [
@@ -14,17 +46,99 @@ describe('WarehousesPage', () => {
         {
           provide: BranchesWarehousesApi,
           useValue: {
-            listWarehouses: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            listWarehouses: listWarehousesSpy,
+            updateWarehouse: updateWarehouseSpy,
+            deleteWarehouse: deleteWarehouseSpy,
           },
         },
-        { provide: AuthSessionStore, useValue: { hasPermission: () => true } },
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            hasPermission: (perm: string) =>
+              ['warehouses.view', 'warehouses.manage'].includes(perm),
+          },
+        },
       ],
     }).compileComponents();
   });
 
-  it('shows empty state', () => {
+  it('shows empty state when no warehouses exist', () => {
     const fixture: ComponentFixture<WarehousesPage> = TestBed.createComponent(WarehousesPage);
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('No warehouses yet');
+  });
+
+  it('renders warehouse table rows with code and status indicator', () => {
+    listWarehousesSpy.mockReturnValue(
+      of({ items: mockWarehouses, meta: { page: 1, pageSize: 25, total: 2 } }),
+    );
+
+    const fixture: ComponentFixture<WarehousesPage> = TestBed.createComponent(WarehousesPage);
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Central Distribution Hub (Multan)');
+    expect(text).toContain('WH-MLT-01');
+    expect(text).toContain('Active');
+    expect(text).toContain('Raw Material Store (Lodhran)');
+    expect(text).toContain('WH-LOD-01');
+    expect(text).toContain('Inactive');
+  });
+
+  it('dispatches server queries on status filter and search changes', () => {
+    listWarehousesSpy.mockReturnValue(
+      of({ items: mockWarehouses, meta: { page: 1, pageSize: 25, total: 2 } }),
+    );
+
+    const fixture: ComponentFixture<WarehousesPage> = TestBed.createComponent(WarehousesPage);
+    fixture.detectChanges();
+
+    fixture.componentInstance.onStatusChange('active');
+    expect(listWarehousesSpy).toHaveBeenCalledWith({
+      page: 1,
+      pageSize: 25,
+      status: 'active',
+    });
+  });
+
+  it('triggers deactivate and reactivate lifecycle dialogs', () => {
+    listWarehousesSpy.mockReturnValue(
+      of({ items: mockWarehouses, meta: { page: 1, pageSize: 25, total: 2 } }),
+    );
+
+    const fixture: ComponentFixture<WarehousesPage> = TestBed.createComponent(WarehousesPage);
+    fixture.detectChanges();
+
+    const activeItem = mockWarehouses[0];
+    if (activeItem) {
+      fixture.componentInstance.askDeactivate(activeItem);
+      expect(fixture.componentInstance.confirmOpen()).toBe(true);
+      expect(fixture.componentInstance.confirmLabel()).toBe('Deactivate');
+
+      fixture.componentInstance.confirmLifecycle();
+      expect(updateWarehouseSpy).toHaveBeenCalledWith('wh-1', {
+        expectedVersion: 1,
+        status: 'inactive',
+      });
+    }
+  });
+
+  it('triggers permanent delete dialog and handles submission', () => {
+    listWarehousesSpy.mockReturnValue(
+      of({ items: mockWarehouses, meta: { page: 1, pageSize: 25, total: 2 } }),
+    );
+
+    const fixture: ComponentFixture<WarehousesPage> = TestBed.createComponent(WarehousesPage);
+    fixture.detectChanges();
+
+    const target = mockWarehouses[0];
+    if (target) {
+      fixture.componentInstance.askDelete(target);
+      expect(fixture.componentInstance.confirmOpen()).toBe(true);
+      expect(fixture.componentInstance.confirmLabel()).toBe('Delete permanently');
+
+      fixture.componentInstance.confirmLifecycle();
+      expect(deleteWarehouseSpy).toHaveBeenCalledWith('wh-1');
+    }
   });
 });

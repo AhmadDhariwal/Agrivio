@@ -1,69 +1,516 @@
-<agrivio-ui-page-header
-  title="Warehouses"
-  eyebrow="Locations"
-  lede="Organizations can start with one warehouse and add more within plan limits. Stock quantities are managed later in Inventory."
->
-  @if (canManage()) {
-    <a class="ag-btn" routerLink="/app/warehouses/new" data-testid="warehouse-create-link">Create warehouse</a>
-  }
-</agrivio-ui-page-header>
+<div class="warehouses-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">Locations</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">Warehouses</h1>
+        <span class="page-head__count-pill" aria-label="Total warehouses"
+          >{{ total() }} {{ total() === 1 ? 'warehouse' : 'warehouses' }}</span
+        >
+      </div>
+      <p class="page-head__lede">
+        Manage your warehouses, view their status, and keep your inventory locations organized.
+      </p>
+    </div>
+    <div class="page-head__actions">
+      <button
+        type="button"
+        class="ag-btn ag-btn--secondary page-head__refresh-btn"
+        (click)="reload()"
+        [disabled]="loading()"
+        title="Refresh warehouses list"
+        aria-label="Refresh warehouses"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          [class.spin]="loading()"
+        >
+          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+        </svg>
+        <span class="btn-text-full">Refresh</span>
+      </button>
 
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading warehouses…" />
-} @else if (errorMessage(); as error) {
-  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-} @else {
-  @if (successMessage(); as success) {
-    <agrivio-ui-alert tone="success" [message]="success" />
-  }
-  <agrivio-ui-lifecycle-filter [value]="statusFilter()" (changed)="onStatusChange($event)" />
-  @if (visibleItems().length === 0) {
-    <agrivio-ui-empty-state
-      title="No warehouses yet"
-      message="Create a warehouse to hold stock for this organization."
-    />
-  } @else {
-    <div class="ag-stack" data-testid="warehouses-list">
-      @for (item of visibleItems(); track item.id) {
-        <article class="row">
-          <div>
-            <strong>{{ item.name }}</strong>
-            @if (item.code) {
-              <p class="ag-muted">{{ item.code }}</p>
-            }
-          </div>
-          <div class="ag-inline">
-            <agrivio-ui-status-badge [label]="item.status" [tone]="item.status === 'active' ? 'success' : 'neutral'" />
-            @if (canManage()) {
-              <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/warehouses', item.id]">Edit</a>
-              @if (item.status === 'active') {
-                <button type="button" class="ag-btn ag-btn--danger" data-testid="warehouse-deactivate" (click)="askDeactivate(item)">
-                  Deactivate
-                </button>
-              } @else {
-                <button type="button" class="ag-btn ag-btn--secondary" data-testid="warehouse-reactivate" (click)="askReactivate(item)">
-                  Reactivate
-                </button>
-              }
-              <button type="button" class="ag-btn ag-btn--danger" data-testid="warehouse-delete" (click)="askDelete(item)">
-                Delete permanently
-              </button>
-            }
-          </div>
-        </article>
+      @if (canManage()) {
+      <a
+        class="ag-btn ag-btn--primary page-head__add-btn"
+        routerLink="/app/warehouses/new"
+        data-testid="warehouse-create-link"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span class="btn-text-full">Create warehouse</span>
+        <span class="btn-text-mobile">Create</span>
+      </a>
       }
     </div>
-    <agrivio-ui-pagination [page]="page()" [pageSize]="pageSize()" [total]="total()" [disabled]="loading()"
-      (pageChange)="onPageChange($event)" (pageSizeChange)="onPageSizeChange($event)" />
-  }
-}
+  </header>
 
+  <!-- Alerts -->
+  @if (errorMessage(); as error) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  </div>
+  } @if (successMessage(); as success) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="success" [message]="success" />
+  </div>
+  }
+
+  <!-- Module Information Section (Products Pattern) -->
+  <agrivio-ui-module-info
+    [title]="infoTitle"
+    [description]="infoDescription"
+    [items]="infoItems"
+    [defaultExpanded]="false"
+  />
+
+  <!-- Filter & Control Toolbar -->
+  <section class="toolbar" aria-label="Filters and search">
+    <!-- Desktop / Tablet Controls -->
+    <div class="toolbar__desktop">
+      <div class="toolbar__left">
+        <!-- Search Input -->
+        <div class="search-field">
+          <svg
+            class="search-field__icon"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            class="search-field__input"
+            type="search"
+            [value]="search()"
+            (input)="onSearchInput($event)"
+            placeholder="Search warehouses by name…"
+            aria-label="Search warehouses"
+          />
+          @if (search()) {
+          <button
+            type="button"
+            class="search-field__clear"
+            (click)="onSearchClear()"
+            aria-label="Clear search"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          }
+        </div>
+
+        <!-- Status Filter -->
+        <div class="select-field">
+          <select
+            class="select-field__input"
+            [value]="statusFilter()"
+            (change)="onStatusChange($any($event.target).value)"
+            aria-label="Filter by status"
+          >
+            <option value="all">All statuses</option>
+            <option value="active">Active warehouses</option>
+            <option value="inactive">Inactive warehouses</option>
+          </select>
+        </div>
+
+        <!-- Clear Filters Button -->
+        @if (hasActiveFilters()) {
+        <button class="clear-filters-btn" type="button" (click)="clearFilters()">
+          Clear filters
+        </button>
+        }
+      </div>
+
+      <div class="toolbar__right">
+        <span class="results-count">
+          Showing {{ items().length }} of {{ total() }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Mobile Controls (< 768px) -->
+    <div class="toolbar__mobile">
+      <div class="search-field search-field--mobile">
+        <svg
+          class="search-field__icon"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          class="search-field__input"
+          type="search"
+          [value]="search()"
+          (input)="onSearchInput($event)"
+          placeholder="Search warehouses…"
+          aria-label="Search warehouses"
+        />
+        @if (search()) {
+        <button
+          type="button"
+          class="search-field__clear"
+          (click)="onSearchClear()"
+          aria-label="Clear search"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        }
+      </div>
+
+      <div class="toolbar__mobile-row">
+        <select
+          class="select-field__input"
+          [value]="statusFilter()"
+          (change)="onStatusChange($any($event.target).value)"
+          aria-label="Filter by status"
+        >
+          <option value="all">All statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+
+        @if (hasActiveFilters()) {
+        <button type="button" class="mobile-clear-btn" (click)="clearFilters()">Reset</button>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Loading State -->
+  @if (loading()) {
+  <div class="state-container">
+    <agrivio-ui-loading-state label="Loading warehouses…" />
+  </div>
+  } @else if (items().length === 0 && !hasActiveFilters()) {
+  <!-- Clean Empty State (No Data) -->
+  <agrivio-ui-empty-state
+    title="No warehouses yet"
+    message="Create a warehouse to establish inventory storage locations for this organization."
+  />
+  } @else if (items().length === 0) {
+  <!-- Filtered No Results State -->
+  <agrivio-ui-empty-state
+    title="No matching warehouses"
+    message="No warehouses match the active search and filter criteria. Try clearing filters."
+  />
+  } @else {
+  <!-- Desktop / Tablet Dense Table -->
+  <div class="table-container" data-testid="warehouses-list">
+    <table class="wh-table">
+      <colgroup>
+        <col class="col-warehouse" />
+        <col class="col-code" />
+        <col class="col-status" />
+        <col class="col-actions" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col" class="wh-table__th wh-table__th--warehouse">Warehouse</th>
+          <th scope="col" class="wh-table__th wh-table__th--code">Code</th>
+          <th scope="col" class="wh-table__th wh-table__th--status">Status</th>
+          <th scope="col" class="wh-table__th wh-table__th--actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of items(); track item.id) {
+        <tr
+          class="wh-table__row"
+          [class.wh-table__row--inactive]="item.status === 'inactive'"
+        >
+          <!-- Warehouse Name + Glyph Avatar -->
+          <td class="wh-table__td wh-table__td--warehouse">
+            <div class="wh-cell">
+              <div class="wh-cell__avatar" aria-hidden="true">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+                  <path d="m3.3 7 8.7 5 8.7-5" />
+                  <path d="M12 22V12" />
+                </svg>
+              </div>
+              <span class="wh-cell__name" [title]="item.name">{{ item.name }}</span>
+            </div>
+          </td>
+
+          <!-- Code -->
+          <td class="wh-table__td wh-table__td--code">
+            @if (item.code) {
+            <span class="code-text" [title]="item.code">{{ item.code }}</span>
+            } @else {
+            <span class="muted-dash">—</span>
+            }
+          </td>
+
+          <!-- Status -->
+          <td class="wh-table__td wh-table__td--status">
+            <span
+              class="status-indicator"
+              [class.status-indicator--active]="item.status === 'active'"
+              [class.status-indicator--inactive]="item.status === 'inactive'"
+            >
+              <span class="status-indicator__dot"></span>
+              {{ item.status === 'active' ? 'Active' : 'Inactive' }}
+            </span>
+          </td>
+
+          <!-- Actions -->
+          <td class="wh-table__td wh-table__td--actions">
+            <div class="row-actions">
+              @if (canManage()) {
+              <a
+                class="row-action-btn"
+                [routerLink]="['/app/warehouses', item.id]"
+                title="Edit warehouse"
+                aria-label="Edit warehouse"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                  <path d="m15 5 4 4" />
+                </svg>
+              </a>
+
+              <!-- More Actions Dropdown -->
+              <div class="menu-container">
+                <button
+                  type="button"
+                  class="row-action-btn row-action-btn--more"
+                  (click)="toggleRowMenu(item.id, $event)"
+                  title="More actions"
+                  aria-label="More actions"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <circle cx="12" cy="12" r="1" />
+                    <circle cx="12" cy="5" r="1" />
+                    <circle cx="12" cy="19" r="1" />
+                  </svg>
+                </button>
+
+                @if (openMenuWarehouseId() === item.id) {
+                <div class="menu-dropdown">
+                  @if (item.status === 'active') {
+                  <button
+                    type="button"
+                    class="menu-dropdown__item"
+                    data-testid="warehouse-deactivate"
+                    (click)="askDeactivate(item)"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    Deactivate
+                  </button>
+                  } @else {
+                  <button
+                    type="button"
+                    class="menu-dropdown__item"
+                    data-testid="warehouse-reactivate"
+                    (click)="askReactivate(item)"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    Reactivate
+                  </button>
+                  }
+
+                  <button
+                    type="button"
+                    class="menu-dropdown__item menu-dropdown__item--danger"
+                    data-testid="warehouse-delete"
+                    (click)="askDelete(item)"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    Delete permanently
+                  </button>
+                </div>
+                }
+              </div>
+              }
+            </div>
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile Card View (< 768px) -->
+  <div class="mobile-cards">
+    @for (item of items(); track item.id) {
+    <article
+      class="wh-card"
+      [class.wh-card--inactive]="item.status === 'inactive'"
+    >
+      <div class="wh-card__head">
+        <div class="wh-card__name-group">
+          <h2 class="wh-card__name">{{ item.name }}</h2>
+          @if (item.code) {
+          <span class="wh-card__code">{{ item.code }}</span>
+          }
+        </div>
+        <span
+          class="status-indicator"
+          [class.status-indicator--active]="item.status === 'active'"
+          [class.status-indicator--inactive]="item.status === 'inactive'"
+        >
+          <span class="status-indicator__dot"></span>
+          {{ item.status === 'active' ? 'Active' : 'Inactive' }}
+        </span>
+      </div>
+
+      <div class="wh-card__foot">
+        @if (canManage()) {
+        <a class="ag-btn ag-btn--secondary wh-card__btn" [routerLink]="['/app/warehouses', item.id]">
+          Edit
+        </a>
+        @if (item.status === 'active') {
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary wh-card__btn"
+          (click)="askDeactivate(item)"
+        >
+          Deactivate
+        </button>
+        } @else {
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary wh-card__btn"
+          (click)="askReactivate(item)"
+        >
+          Reactivate
+        </button>
+        }
+        <button
+          type="button"
+          class="ag-btn ag-btn--danger-outline wh-card__btn"
+          (click)="askDelete(item)"
+        >
+          Delete
+        </button>
+        }
+      </div>
+    </article>
+    }
+  </div>
+
+  <!-- Pagination -->
+  <agrivio-ui-pagination
+    [page]="page()"
+    [pageSize]="pageSize()"
+    [total]="total()"
+    [disabled]="loading()"
+    (pageChange)="onPageChange($event)"
+    (pageSizeChange)="onPageSizeChange($event)"
+  />
+  }
+</div>
+
+<!-- Lifecycle Confirmation Dialog -->
 <agrivio-ui-confirm-dialog
   [open]="confirmOpen()"
   [title]="confirmTitle()"
   [message]="confirmMessage()"
   [confirmLabel]="confirmLabel()"
-  [danger]="confirmLabel() === 'Deactivate' || confirmLabel() === 'Delete permanently'"
+  [danger]="confirmDanger()"
   (confirmed)="confirmLifecycle()"
   (dismiss)="confirmOpen.set(false)"
 />

@@ -4,7 +4,6 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { BranchesWarehousesApi } from '../../data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
@@ -17,7 +16,6 @@ import { mapPlanLimitError } from '../../../../core/plan-limits/plan-limit-feedb
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
     UiFieldLabelComponent,
@@ -57,8 +55,8 @@ export class WarehouseFormPage {
           this.version = warehouse.version;
           this.form.patchValue({
             name: warehouse.name,
-            code: warehouse.code,
-            status: warehouse.status,
+            code: warehouse.code ?? '',
+            status: warehouse.status ?? 'active',
           });
           this.loading.set(false);
         },
@@ -71,23 +69,30 @@ export class WarehouseFormPage {
   }
 
   save(): void {
-    if (!this.canManage() || this.form.invalid) {
+    if (!this.canManage()) {
+      this.errorMessage.set('You do not have permission to manage warehouses.');
+      return;
+    }
+    if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
+
     this.saving.set(true);
     this.errorMessage.set(null);
     const value = this.form.getRawValue();
+    const id = this.warehouseId();
+
     const request$ =
-      this.warehouseId() === null
+      id === null
         ? this.api.createWarehouse({
             name: value.name,
-            ...(value.code.trim() === '' ? {} : { code: value.code }),
+            ...(value.code.trim() === '' ? {} : { code: value.code.trim() }),
           })
-        : this.api.updateWarehouse(this.warehouseId()!, {
+        : this.api.updateWarehouse(id, {
             expectedVersion: this.version,
             name: value.name,
-            code: value.code,
+            code: value.code.trim(),
             status: value.status,
           });
 
