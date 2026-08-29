@@ -70,15 +70,25 @@ describe('CustomersApi cache integration', () => {
     await Promise.all([first, second]);
   });
 
-  it('uses separate cache entries for list and selector search', async () => {
+  it('reuses the canonical cached list for an identical selector search', async () => {
     const listPromise = firstValueFrom(api.listCustomers({ page: 1, pageSize: 25, status: 'active' }));
     const optionsPromise = firstValueFrom(api.searchCustomerOptions(''));
 
-    const requests = http.match((candidate) => candidate.url.endsWith('/api/v1/customers'));
-    expect(requests.length).toBe(2);
-    requests.forEach((request) => request.flush(listResponse));
+    http.expectOne((candidate) => candidate.url.endsWith('/api/v1/customers')).flush(listResponse);
 
-    await Promise.all([listPromise, optionsPromise]);
+    const [, options] = await Promise.all([listPromise, optionsPromise]);
+    expect(options).toEqual(listResponse.data);
+  });
+
+  it('reuses cached customer options across customer-related consumers', async () => {
+    const first = firstValueFrom(api.searchCustomerOptions('kisan'));
+    http.expectOne((candidate) => candidate.url.endsWith('/api/v1/customers')).flush(listResponse);
+    await first;
+
+    await expect(firstValueFrom(api.searchCustomerOptions('kisan'))).resolves.toEqual(
+      listResponse.data,
+    );
+    http.expectNone((candidate) => candidate.url.endsWith('/api/v1/customers'));
   });
 
   it('forceRefresh bypasses cached listCustomers response', async () => {

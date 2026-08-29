@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { of, throwError, delay, firstValueFrom } from 'rxjs';
+import { Subject, of, throwError, delay, firstValueFrom } from 'rxjs';
 import { QueryCacheService } from './query-cache.service';
 import { QUERY_CACHE_TAGS } from './query-cache.tags';
 import { AuthSessionStore } from '../../features/auth/data-access/auth-session.store';
@@ -8,17 +9,21 @@ import { AuthSessionStore } from '../../features/auth/data-access/auth-session.s
 describe('QueryCacheService', () => {
   let service: QueryCacheService;
   let organizationId = 'org-1';
+  let sessionState = signal<ReturnType<typeof sessionSnapshot> | null>(sessionSnapshot('org-1'));
 
   beforeEach(() => {
     vi.useFakeTimers();
     organizationId = 'org-1';
+    sessionState = signal<ReturnType<typeof sessionSnapshot> | null>(sessionSnapshot('org-1'));
     TestBed.configureTestingModule({
       providers: [
         QueryCacheService,
         {
           provide: AuthSessionStore,
           useValue: {
-            activeContext: () => (organizationId ? { organizationId } : null),
+            session: sessionState.asReadonly(),
+            activeContext: () =>
+              organizationId ? { ...sessionState()?.activeContext, organizationId } : null,
           },
         },
       ],
@@ -61,6 +66,42 @@ describe('QueryCacheService', () => {
     expect(a).toBe('shared');
     expect(b).toBe('shared');
     expect(loader).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps an in-flight request shared when one subscriber leaves early', async () => {
+    const response = new Subject<string>();
+    const loader = vi.fn(() => response.asObservable());
+    const key = service.buildKey('customer-options', { search: 'ali' });
+    const shared = service.fetch({
+      key,
+      loader,
+      policy: 'reference',
+      tags: [QUERY_CACHE_TAGS.customerOptions],
+    });
+
+    const first = shared.subscribe();
+    const second = firstValueFrom(
+      service.fetch({
+        key,
+        loader,
+        policy: 'reference',
+        tags: [QUERY_CACHE_TAGS.customerOptions],
+      }),
+    );
+    first.unsubscribe();
+    const third = firstValueFrom(
+      service.fetch({
+        key,
+        loader,
+        policy: 'reference',
+        tags: [QUERY_CACHE_TAGS.customerOptions],
+      }),
+    );
+
+    expect(loader).toHaveBeenCalledTimes(1);
+    response.next('shared');
+    response.complete();
+    await expect(Promise.all([second, third])).resolves.toEqual(['shared', 'shared']);
   });
 
   it('uses different cache entries for different params', async () => {
@@ -164,6 +205,71 @@ describe('QueryCacheService', () => {
     expect(loader).toHaveBeenCalledTimes(2);
   });
 
+  it('clears cached tenant data across logout and a fresh login to the same organization', async () => {
+    const loader = vi.fn(() => of('customers'));
+    const key = service.buildKey('customers', { page: 1, status: 'active' });
+
+    await firstValueFrom(
+      service.fetch({ key, loader, policy: 'reference', tags: [QUERY_CACHE_TAGS.customers] }),
+    );
+
+    organizationId = '';
+    sessionState.set(null);
+    TestBed.tick();
+    organizationId = 'org-1';
+    sessionState.set(sessionSnapshot('org-1'));
+    TestBed.tick();
+
+    const freshKey = service.buildKey('customers', { page: 1, status: 'active' });
+    await firstValueFrom(
+      service.fetch({
+        key: freshKey,
+        loader,
+        policy: 'reference',
+        tags: [QUERY_CACHE_TAGS.customers],
+      }),
+    );
+
+    expect(freshKey).toBe(key);
+    expect(loader).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not cache a stale response that completes after logout', async () => {
+    const staleLoader = vi.fn(() => of('stale-customers').pipe(delay(20)));
+    const freshLoader = vi.fn(() => of('fresh-customers'));
+    const key = service.buildKey('customers', { page: 1, status: 'active' });
+
+    void firstValueFrom(
+      service.fetch({
+        key,
+        loader: staleLoader,
+        policy: 'reference',
+        tags: [QUERY_CACHE_TAGS.customers],
+      }),
+    );
+    organizationId = '';
+    sessionState.set(null);
+    TestBed.tick();
+    await vi.advanceTimersByTimeAsync(20);
+
+    organizationId = 'org-1';
+    sessionState.set(sessionSnapshot('org-1'));
+    TestBed.tick();
+    const freshKey = service.buildKey('customers', { page: 1, status: 'active' });
+    const value = await firstValueFrom(
+      service.fetch({
+        key: freshKey,
+        loader: freshLoader,
+        policy: 'reference',
+        tags: [QUERY_CACHE_TAGS.customers],
+      }),
+    );
+
+    expect(value).toBe('fresh-customers');
+    expect(staleLoader).toHaveBeenCalledTimes(1);
+    expect(freshLoader).toHaveBeenCalledTimes(1);
+  });
+
   it('does not repopulate cache from stale in-flight responses after invalidation', async () => {
     const staleLoader = vi.fn(() => of('stale').pipe(delay(20)));
     const freshLoader = vi.fn(() => of('fresh'));
@@ -194,3 +300,16 @@ describe('QueryCacheService', () => {
     expect(freshLoader).toHaveBeenCalledTimes(1);
   });
 });
+
+function sessionSnapshot(organizationId: string) {
+  return {
+    user: { id: 'user-1' },
+    activeContext: {
+      contextType: 'organization' as const,
+      organizationId,
+      membershipId: `membership-${organizationId}`,
+      role: 'Owner',
+      permissions: ['customers.view'],
+    },
+  };
+}

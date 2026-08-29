@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, effect, inject } from '@angular/core';
 import { Observable, of, finalize, shareReplay, tap } from 'rxjs';
 import { AuthSessionStore } from '../../features/auth/data-access/auth-session.store';
 import type { QueryCacheTag } from './query-cache.tags';
@@ -15,11 +15,13 @@ interface CacheEntry<T> {
   value: T;
   expiresAt: number | null;
   tags: readonly QueryCacheTag[];
+  cacheGeneration: number;
   writeGeneration: number;
 }
 
 interface InFlightEntry<T> {
   observable: Observable<T>;
+  cacheGeneration: number;
   writeGeneration: number;
   tags: readonly QueryCacheTag[];
 }
@@ -31,7 +33,21 @@ export class QueryCacheService {
   private readonly inFlight = new Map<string, InFlightEntry<unknown>>();
   private readonly tagIndex = new Map<string, Set<string>>();
   private readonly keyWriteGeneration = new Map<string, number>();
-  private lastOrganizationId: string | null = null;
+  private cacheGeneration = 0;
+  private lastOrganizationId: string | null | undefined;
+  private lastSessionScope: string | undefined;
+
+  constructor() {
+    effect(() => {
+      const scope = this.sessionScope();
+      const organizationId = this.currentOrganizationId();
+      if (this.lastSessionScope !== undefined && scope !== this.lastSessionScope) {
+        this.clearStoredEntries();
+      }
+      this.lastSessionScope = scope;
+      this.lastOrganizationId = organizationId;
+    });
+  }
 
   buildKey(resource: string, params: Record<string, unknown> = {}): string {
     this.syncOrganizationScope();
@@ -65,30 +81,54 @@ export class QueryCacheService {
       }
     }
 
+    const cacheGeneration = this.cacheGeneration;
     const writeGeneration = this.keyWriteGeneration.get(options.key) ?? 0;
     const existing = this.inFlight.get(options.key);
-    if (existing && !forceRefresh && existing.writeGeneration === writeGeneration) {
+    if (
+      existing &&
+      !forceRefresh &&
+      existing.cacheGeneration === cacheGeneration &&
+      existing.writeGeneration === writeGeneration
+    ) {
       return existing.observable as Observable<T>;
     }
 
+    const flightCacheGeneration = cacheGeneration;
     const flightWriteGeneration = writeGeneration;
     const observable = options.loader().pipe(
       tap({
         next: (value) => {
-          if ((this.keyWriteGeneration.get(options.key) ?? 0) !== flightWriteGeneration) {
+          if (
+            this.cacheGeneration !== flightCacheGeneration ||
+            (this.keyWriteGeneration.get(options.key) ?? 0) !== flightWriteGeneration
+          ) {
             return;
           }
-          this.writeEntry(options.key, value, policy, tags, flightWriteGeneration);
+          this.writeEntry(
+            options.key,
+            value,
+            policy,
+            tags,
+            flightCacheGeneration,
+            flightWriteGeneration,
+          );
         },
       }),
-      shareReplay({ bufferSize: 1, refCount: true }),
       finalize(() => {
-        this.inFlight.delete(options.key);
+        const current = this.inFlight.get(options.key);
+        if (
+          current?.cacheGeneration === flightCacheGeneration &&
+          current.writeGeneration === flightWriteGeneration
+        ) {
+          this.inFlight.delete(options.key);
+        }
       }),
+      shareReplay({ bufferSize: 1, refCount: true }),
     );
 
     this.inFlight.set(options.key, {
       observable: observable as Observable<unknown>,
+      cacheGeneration,
       writeGeneration,
       tags,
     });
@@ -129,19 +169,47 @@ export class QueryCacheService {
   }
 
   clearTenantCache(): void {
+    this.clearStoredEntries();
+    this.lastOrganizationId = this.currentOrganizationId();
+    this.lastSessionScope = this.sessionScope();
+  }
+
+  private clearStoredEntries(): void {
+    this.cacheGeneration += 1;
     this.entries.clear();
     this.inFlight.clear();
     this.tagIndex.clear();
     this.keyWriteGeneration.clear();
-    this.lastOrganizationId = null;
   }
 
   private syncOrganizationScope(): void {
-    const orgId = this.sessionStore.activeContext()?.organizationId ?? null;
-    if (this.lastOrganizationId !== null && orgId !== null && this.lastOrganizationId !== orgId) {
-      this.clearTenantCache();
+    const orgId = this.currentOrganizationId();
+    if (this.lastOrganizationId !== undefined && this.lastOrganizationId !== orgId) {
+      this.clearStoredEntries();
     }
     this.lastOrganizationId = orgId;
+  }
+
+  private currentOrganizationId(): string | null {
+    return this.sessionStore.activeContext()?.organizationId ?? null;
+  }
+
+  private sessionScope(): string {
+    const session =
+      typeof this.sessionStore.session === 'function' ? this.sessionStore.session() : null;
+    if (!session) {
+      return 'anonymous';
+    }
+    const context = session.activeContext;
+    return JSON.stringify({
+      userId: session.user.id,
+      contextType: context?.contextType ?? null,
+      membershipId: context?.membershipId ?? null,
+      organizationId: context?.organizationId ?? null,
+      branchId: context?.branchId ?? null,
+      warehouseId: context?.warehouseId ?? null,
+      permissions: [...(context?.permissions ?? [])].sort(),
+    });
   }
 
   private normalizeParams(params: Record<string, unknown>): Record<string, string> {
@@ -160,7 +228,10 @@ export class QueryCacheService {
     if (!entry) {
       return undefined;
     }
-    if (entry.writeGeneration !== (this.keyWriteGeneration.get(key) ?? 0)) {
+    if (
+      entry.cacheGeneration !== this.cacheGeneration ||
+      entry.writeGeneration !== (this.keyWriteGeneration.get(key) ?? 0)
+    ) {
       this.entries.delete(key);
       return undefined;
     }
@@ -176,6 +247,7 @@ export class QueryCacheService {
     value: T,
     policy: QueryCachePolicy,
     tags: readonly QueryCacheTag[],
+    cacheGeneration: number,
     writeGeneration: number,
   ): void {
     const ttl = TTL_MS[policy];
@@ -184,6 +256,7 @@ export class QueryCacheService {
       value,
       expiresAt: ttl === null ? null : Date.now() + ttl,
       tags,
+      cacheGeneration,
       writeGeneration,
     });
     for (const tag of tags) {

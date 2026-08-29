@@ -586,6 +586,7 @@ describe('SaleEditPage', () => {
     await fixture.whenStable();
 
     expect(searchCustomerOptions).toHaveBeenCalledWith('');
+    expect(searchCustomerOptions).toHaveBeenCalledTimes(1);
     expect(page.filteredCustomers().some((customer) => customer.name === 'Kisan Ali')).toBe(true);
   });
 

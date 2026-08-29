@@ -41,8 +41,8 @@ export class CustomersApi {
     const cacheKey = this.queryCache.buildKey('customers', params);
     return this.queryCache.fetch({
       key: cacheKey,
-      policy: 'short',
-      tags: [QUERY_CACHE_TAGS.customers],
+      policy: 'reference',
+      tags: [QUERY_CACHE_TAGS.customers, QUERY_CACHE_TAGS.customerOptions],
       forceRefresh: query.forceRefresh === true,
       loader: () =>
         this.http
@@ -55,20 +55,9 @@ export class CustomersApi {
   }
 
   searchCustomerOptions(search = ''): Observable<CustomerRecord[]> {
-    const params = this.paginationParams({ page: 1, pageSize: 25, search, status: 'active' });
-    const cacheKey = this.queryCache.buildKey('customer-options', params);
-    return this.queryCache.fetch({
-      key: cacheKey,
-      policy: 'short',
-      tags: [QUERY_CACHE_TAGS.customerOptions],
-      loader: () =>
-        this.http
-          .get<ApiSuccessEnvelope<CustomerRecord[], PaginationMeta>>(
-            `${environment.publicApiBaseUrl}/api/v1/customers`,
-            { withCredentials: true, params },
-          )
-          .pipe(map((response) => response.data)),
-    });
+    return this.listCustomers({ page: 1, pageSize: 25, search, status: 'active' }).pipe(
+      map((result) => result.items),
+    );
   }
 
   private paginationParams(query: PaginationQuery): Record<string, string> {

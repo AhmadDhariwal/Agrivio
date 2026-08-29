@@ -34,6 +34,13 @@ Frozen `DATA_MODEL.md` §8.10 assigns draft and posted lifecycle to the canonica
 * **Not** called from draft APIs — allocation only via public service for future posting
 * Mongo proofs: concurrent uniqueness, branch/org isolation, transaction rollback (no committed sequence on abort)
 
+### Post-completion customer selector cache hardening
+
+* The New Sale customer selector reuses the canonical active Customer list cache when request parameters match, so navigating from Customers to New Sale does not repeat the same API request.
+* Customer reference reads remain query-sensitive, tenant/session scoped, mutation-invalidated, and manually refreshable. Search terms or pagination/filter changes still load their own correct cache entries.
+* Logout, login, organization/context changes, and permission-scope changes clear the in-memory tenant cache. A stale request completing after logout cannot repopulate it; a fresh login rebuilds Customer data.
+* Shared in-flight requests retain their deduplication marker until the shared source ends, including when one subscriber unsubscribes early.
+
 ## Model review (A/B)
 
 | Model | Class | Result |
@@ -51,6 +58,7 @@ No mutable customer balances added.
 * `f06-p1.spec.js` — HTTP: customer payments, drafts, isolation, subscription, idempotency
 * `f06-p1-mongo.integration.spec.js` — rs0: draft effectlessness, sequence concurrency/rollback, customer payment
 * Playwright `f06-p1-sales.e2e.spec.ts` + full E2E suite
+* Focused Customer cache / New Sale selector validation: 3 frontend spec files, 25 tests passed; manual force-refresh, same-query reuse, logout/login rebuild, stale-response rejection, and in-flight deduplication covered.
 
 Gates: lint, typecheck, test:unit, test:architecture, build, test:integration, e2e.
 
