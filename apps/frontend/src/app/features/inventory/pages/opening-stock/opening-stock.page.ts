@@ -1,8 +1,9 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { Subject, debounceTime, distinctUntilChanged, forkJoin, switchMap } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { InventoryApi } from '../../data-access/inventory.api';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
 import {
@@ -42,6 +43,8 @@ export class OpeningStockPage {
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly formBuilder = inject(FormBuilder);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly productSearchChanges = new Subject<string>();
 
   readonly loading = signal(true);
   readonly saving = signal(false);
@@ -148,6 +151,17 @@ export class OpeningStockPage {
         },
       });
     });
+
+    this.productSearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((query) => this.catalogApi.searchProductOptions(query, 500, 'active')),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((items) => {
+        this.products.set(items.filter((item) => item.status === 'active'));
+      });
   }
 
   private syncTrackingRequired(mode: string): void {
@@ -227,9 +241,7 @@ export class OpeningStockPage {
   onProductSearch(event: Event): void {
     const target = event.target;
     if (target instanceof HTMLInputElement) {
-      this.catalogApi.searchProductOptions(target.value).subscribe((items) => {
-        this.products.set(items);
-      });
+      this.productSearchChanges.next(target.value.trim());
     }
   }
 }

@@ -341,6 +341,17 @@ describe('ReturnsListPage', () => {
     expect(fixture.nativeElement.textContent).toContain('Unable to load returns.');
   });
 
+  it('loads warehouse filter options once and paginates with one returns request', async () => {
+    const { component } = await createComponent();
+    expect(mockLocationsApi.listWarehouseOptions).toHaveBeenCalledTimes(1);
+    expect(mockReturnsApi.listReturns).toHaveBeenCalledTimes(1);
+
+    mockReturnsApi.listReturns.mockClear();
+    component.onPageChange(2);
+    expect(mockReturnsApi.listReturns).toHaveBeenCalledTimes(1);
+    expect(mockLocationsApi.listWarehouseOptions).toHaveBeenCalledTimes(1);
+  });
+
   it('handles pagination page changes', async () => {
     const { component } = await createComponent();
     mockReturnsApi.listReturns.mockClear();

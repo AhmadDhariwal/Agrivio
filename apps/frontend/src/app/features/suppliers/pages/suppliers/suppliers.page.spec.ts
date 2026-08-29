@@ -201,4 +201,25 @@ describe('SuppliersPage', () => {
 
     expect(fixture.nativeElement.textContent).toContain('You do not have permission to view suppliers.');
   });
+
+  it('requests forceRefresh when toolbar refresh is clicked', () => {
+    mockApi.listSuppliers.mockReturnValue(
+      of({ items: makeSuppliers(1), meta: { page: 1, pageSize: 25, total: 1 } }),
+    );
+
+    const fixture = TestBed.createComponent(SuppliersPage);
+    fixture.detectChanges();
+    expect(mockApi.listSuppliers).toHaveBeenCalledTimes(1);
+    expect(mockApi.listSuppliers).toHaveBeenLastCalledWith(
+      expect.objectContaining({ forceRefresh: false }),
+    );
+
+    fixture.componentInstance.reload(false, true);
+    fixture.detectChanges();
+
+    expect(mockApi.listSuppliers).toHaveBeenCalledTimes(2);
+    expect(mockApi.listSuppliers).toHaveBeenLastCalledWith(
+      expect.objectContaining({ forceRefresh: true }),
+    );
+  });
 });

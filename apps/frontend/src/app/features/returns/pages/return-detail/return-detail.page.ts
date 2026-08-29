@@ -1,7 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { catchError, forkJoin, of } from 'rxjs';
 import { ReturnsApi } from '../../data-access/returns.api';
 import {
   MoneyAmount,
@@ -9,16 +8,6 @@ import {
   returnResolutionLabel,
   returnTypeLabel,
 } from '../../models/returns.models';
-import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
-import { AccountRecord } from '../../../accounts-expenses/models/accounts.models';
-import { CustomersApi } from '../../../customers/data-access/customers.api';
-import { CustomerRecord } from '../../../customers/models/customers.models';
-import { SuppliersApi } from '../../../suppliers/data-access/suppliers.api';
-import { SupplierRecord } from '../../../suppliers/models/suppliers.models';
-import {
-  BranchesWarehousesApi,
-  WarehouseRecord,
-} from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
@@ -41,10 +30,6 @@ import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialo
 })
 export class ReturnDetailPage {
   private readonly api = inject(ReturnsApi);
-  private readonly accountsApi = inject(AccountsApi);
-  private readonly customersApi = inject(CustomersApi);
-  private readonly suppliersApi = inject(SuppliersApi);
-  private readonly locationsApi = inject(BranchesWarehousesApi);
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly route = inject(ActivatedRoute);
@@ -55,10 +40,6 @@ export class ReturnDetailPage {
   readonly successMessage = signal<string | null>(null);
   readonly record = signal<SalesReturnRecord | null>(null);
   readonly reverseDialogOpen = signal(false);
-  readonly warehouses = signal<WarehouseRecord[]>([]);
-  readonly customers = signal<CustomerRecord[]>([]);
-  readonly suppliers = signal<SupplierRecord[]>([]);
-  readonly accounts = signal<AccountRecord[]>([]);
   readonly canView = computed(() => this.sessionStore.hasPermission('returns.view'));
   readonly canReverse = computed(
     () =>
@@ -72,19 +53,9 @@ export class ReturnDetailPage {
       this.loading.set(false);
       return;
     }
-    forkJoin({
-      record: this.api.getReturn(id),
-      warehouses: this.locationsApi.listWarehouseOptions().pipe(catchError(() => of([]))),
-      customers: this.customersApi.searchCustomerOptions().pipe(catchError(() => of([]))),
-      suppliers: this.suppliersApi.searchSupplierOptions().pipe(catchError(() => of([]))),
-      accounts: this.accountsApi.listAccountOptions().pipe(catchError(() => of([]))),
-    }).subscribe({
-      next: ({ record, warehouses, customers, suppliers, accounts }) => {
+    this.api.getReturn(id).subscribe({
+      next: (record) => {
         this.record.set(record);
-        this.warehouses.set(warehouses);
-        this.customers.set(customers);
-        this.suppliers.set(suppliers);
-        this.accounts.set(accounts);
         this.loading.set(false);
       },
       error: (error: unknown) => {
@@ -116,29 +87,38 @@ export class ReturnDetailPage {
     return returnResolutionLabel(value);
   }
 
-  warehouseName(id: string): string {
-    return this.warehouses().find((item) => item.id === id)?.name ?? 'Warehouse';
+  warehouseName(record: SalesReturnRecord): string {
+    return record.warehouseNameSnapshot ?? 'Warehouse';
   }
 
   partyLabel(record: SalesReturnRecord): string {
     if (record.customerIdentifyingName) {
       return record.customerIdentifyingName;
     }
+    if (record.customerNameSnapshot) {
+      return record.customerNameSnapshot;
+    }
+    if (record.supplierNameSnapshot) {
+      return record.supplierNameSnapshot;
+    }
     if (record.customerId) {
-      return this.customers().find((item) => item.id === record.customerId)?.name ?? 'Customer';
+      return 'Customer';
     }
     if (record.supplierId) {
-      return this.suppliers().find((item) => item.id === record.supplierId)?.name ?? 'Supplier';
+      return 'Supplier';
     }
     return '—';
   }
 
-  refundAccountName(id: string | null): string {
-    if (!id) {
+  refundAccountName(record: SalesReturnRecord): string {
+    if (!record.refundAccountId) {
       return '—';
     }
-    const account = this.accounts().find((item) => item.id === id);
-    return account ? `${account.name} (${account.accountType})` : 'Refund account';
+    if (record.refundAccountNameSnapshot) {
+      const type = record.refundAccountTypeSnapshot ? ` (${record.refundAccountTypeSnapshot})` : '';
+      return `${record.refundAccountNameSnapshot}${type}`;
+    }
+    return 'Refund account';
   }
 
   statusTone(status: string): UiBadgeTone {

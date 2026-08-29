@@ -69,7 +69,7 @@ export class StockInquiryPage {
   private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
 
-  private readonly reloadRequests = new Subject<void>();
+  private readonly reloadRequests = new Subject<boolean>();
   private readonly searchChanges = new Subject<string>();
 
   // Data Signals
@@ -253,8 +253,8 @@ export class StockInquiryPage {
     // Primary list reload stream (balances only — reference data loads once above)
     this.reloadRequests
       .pipe(
-        startWith(undefined),
-        switchMap(() => {
+        startWith(false),
+        switchMap((forceRefresh) => {
           if (!this.canView()) {
             this.loading.set(false);
             return EMPTY;
@@ -262,7 +262,9 @@ export class StockInquiryPage {
           this.loading.set(true);
           this.errorMessage.set(null);
 
-          return this.inventoryApi.listBalances(this.buildBalanceQuery()).pipe(
+          return this.inventoryApi
+            .listBalances({ ...this.buildBalanceQuery(), forceRefresh: forceRefresh === true })
+            .pipe(
             catchError(() => {
               this.loading.set(false);
               this.errorMessage.set('Unable to load stock balances. Please try again.');
@@ -319,14 +321,10 @@ export class StockInquiryPage {
     const requests: {
       products: ReturnType<CatalogApi['searchProductOptions']>;
       warehouses: ReturnType<BranchesWarehousesApi['listWarehouseOptions']>;
-      batches: ReturnType<InventoryApi['listBatches']>;
       expiry?: ReturnType<InventoryApi['listExpiry']>;
     } = {
       products: this.catalogApi.searchProductOptions('', 500),
       warehouses: this.locationsApi.listWarehouseOptions(),
-      batches: this.inventoryApi
-        .listBatches({ page: 1, pageSize: 100 })
-        .pipe(catchError(() => of({ items: [], meta: { page: 1, pageSize: 100, total: 0 } }))),
     };
 
     if (this.canViewExpiry()) {
@@ -342,7 +340,7 @@ export class StockInquiryPage {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((result) => {
-        const { products, warehouses, batches } = result;
+        const { products, warehouses } = result;
 
         const prodMap = new Map<string, ProductRecord>();
         for (const p of products) {
@@ -360,13 +358,8 @@ export class StockInquiryPage {
         this.warehouseMap.set(whMap);
         this.warehouseList.set(warehouses);
 
-        const bMap = new Map<string, ProductBatchRecord>();
-        for (const b of batches.items) {
-          const id = b.id || (b as unknown as { _id?: string })._id;
-          if (id) bMap.set(id, b);
-        }
-        this.batchMap.set(bMap);
-        this.batchList.set(batches.items);
+        this.batchMap.set(new Map());
+        this.batchList.set([]);
 
         if ('expiry' in result && result.expiry) {
           const expResult = result.expiry as {
@@ -408,8 +401,8 @@ export class StockInquiryPage {
     }
   }
 
-  reload(): void {
-    this.reloadRequests.next();
+  reload(forceRefresh = false): void {
+    this.reloadRequests.next(forceRefresh);
   }
 
   onPageChange(page: number): void {
@@ -443,8 +436,33 @@ export class StockInquiryPage {
   onProductChange(event: Event): void {
     const target = event.target as HTMLSelectElement;
     this.productFilter.set(target.value);
+    this.batchFilter.set('');
     this.page.set(1);
+    if (target.value) {
+      this.loadProductBatches(target.value);
+    } else {
+      this.batchMap.set(new Map());
+      this.batchList.set([]);
+    }
     this.reload();
+  }
+
+  private loadProductBatches(productId: string): void {
+    this.inventoryApi
+      .listBatches({ productId, page: 1, pageSize: 100 })
+      .pipe(
+        catchError(() => of({ items: [], meta: { page: 1, pageSize: 100, total: 0 } })),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((result) => {
+        const bMap = new Map<string, ProductBatchRecord>();
+        for (const b of result.items) {
+          const id = b.id || (b as unknown as { _id?: string })._id;
+          if (id) bMap.set(id, b);
+        }
+        this.batchMap.set(bMap);
+        this.batchList.set(result.items);
+      });
   }
 
   onBatchChange(event: Event): void {
@@ -514,7 +532,14 @@ export class StockInquiryPage {
 
   batchNumber(batchId: string | null): string {
     if (!batchId) return '—';
-    return this.batchMap().get(batchId)?.batchNumber ?? batchId;
+    const fromBatchMap = this.batchMap().get(batchId)?.batchNumber;
+    if (fromBatchMap) return fromBatchMap;
+    for (const item of this.expiryMap().values()) {
+      if (item.batchId === batchId && item.batchNumber) {
+        return item.batchNumber;
+      }
+    }
+    return batchId;
   }
 
   batchExpiry(batchId: string | null): string | null {

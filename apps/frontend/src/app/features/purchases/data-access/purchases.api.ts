@@ -1,10 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map, switchMap } from 'rxjs';
+import { Observable, map, switchMap, tap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
 import { ApiSuccessEnvelope, PaginationMeta } from '@agrivio/api-contracts';
 import { PaginatedResult, PaginationQuery } from '../../../shared/data-access/pagination';
+import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
+import { invalidateAccountFinancialReads } from '../../../shared/data-access/finance-cache.invalidation';
 import {
   PurchaseCancelInput,
   PurchaseDraftInput,
@@ -17,6 +19,7 @@ import {
 export class PurchasesApi {
   private readonly http = inject(HttpClient);
   private readonly authApi = inject(AuthApi);
+  private readonly queryCache = inject(QueryCacheService);
 
   listPurchases(params: PaginationQuery & {
     supplierId?: string;
@@ -102,7 +105,10 @@ export class PurchasesApi {
               },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => invalidateAccountFinancialReads(this.queryCache)),
+          ),
       ),
     );
   }
@@ -126,7 +132,10 @@ export class PurchasesApi {
               },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => invalidateAccountFinancialReads(this.queryCache)),
+          ),
       ),
     );
   }

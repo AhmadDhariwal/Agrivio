@@ -405,7 +405,7 @@ describe('StockInquiryPage', () => {
     ).toBeNull();
   });
 
-  it('keeps Stock on Hand available when Batch label enrichment is denied', async () => {
+  it('keeps Stock on Hand available without product-scoped batch preload on init', async () => {
     batchListFails = true;
     const deniedFixture = TestBed.createComponent(StockInquiryPage);
     deniedFixture.detectChanges();
@@ -414,6 +414,7 @@ describe('StockInquiryPage', () => {
     expect(deniedComponent.errorMessage()).toBeNull();
     expect(deniedComponent.balances()).toHaveLength(2);
     expect(deniedComponent.batchList()).toEqual([]);
+    expect(deniedFixture.nativeElement.textContent).toContain('BT-240819-03');
   });
 
   it('shows a feature-unavailable state if the organization disables Stock on Hand', () => {

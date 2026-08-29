@@ -84,6 +84,7 @@
                 class="ag-select"
                 formControlName="customerId"
                 data-testid="without-invoice-customer"
+                (focus)="onCustomerLookupFocus()"
               >
                 <option value="">No registered customer (Walk-in)</option>
                 @for (customer of customers(); track customer.id) {
@@ -169,6 +170,7 @@
                     class="ag-select"
                     formControlName="productId"
                     data-testid="without-invoice-product"
+                    (focus)="onProductLookupFocus()"
                     (change)="onProductChange(index)"
                     [attr.aria-required]="fieldRequired(lineGroup(index).controls['productId']) ? 'true' : null"
                   >

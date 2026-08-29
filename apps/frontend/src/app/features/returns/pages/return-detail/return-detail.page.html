@@ -253,7 +253,7 @@
             <div class="detail-item">
               <span class="detail-item__label">Warehouse / Location</span>
               <div class="detail-item__value-wrap">
-                <span class="detail-item__value">{{ warehouseName(item.warehouseId) }}</span>
+                <span class="detail-item__value">{{ warehouseName(item) }}</span>
               </div>
             </div>
 
@@ -274,7 +274,7 @@
               <div class="detail-item__value-wrap">
                 <span class="detail-item__value">{{ resolutionLabel(item.resolution) }}</span>
                 @if (item.resolution === 'account_refund' && item.refundAccountId) {
-                  <span class="detail-item__sub">{{ refundAccountName(item.refundAccountId) }}</span>
+                  <span class="detail-item__sub">{{ refundAccountName(item) }}</span>
                 }
               </div>
             </div>

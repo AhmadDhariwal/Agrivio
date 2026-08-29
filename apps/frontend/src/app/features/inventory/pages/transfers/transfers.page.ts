@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import {
   AbstractControl,
   FormBuilder,
@@ -7,7 +7,16 @@ import {
   Validators,
 } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { Observable, catchError, forkJoin, of } from 'rxjs';
+import {
+  EMPTY,
+  Observable,
+  Subject,
+  debounceTime,
+  distinctUntilChanged,
+  forkJoin,
+  switchMap,
+} from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { InventoryApi } from '../../data-access/inventory.api';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
 import {
@@ -29,7 +38,6 @@ import {
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 import {
   InventoryBalanceRecord,
-  ProductBatchRecord,
   WarehouseTransferRecord,
 } from '../../models/inventory.models';
 
@@ -71,6 +79,9 @@ export class TransfersPage {
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly formBuilder = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly stockContextRequests = new Subject<void>();
+  private readonly productSearchChanges = new Subject<string>();
 
   // Core State
   readonly transfers = signal<WarehouseTransferRecord[]>([]);
@@ -202,7 +213,7 @@ export class TransfersPage {
       warehouses: Observable<WarehouseRecord[]>;
       transfers?: Observable<{ items: WarehouseTransferRecord[]; meta: { total: number } }>;
     } = {
-      products: this.catalogApi.searchProductOptions('', 100, 'active'),
+      products: this.catalogApi.searchProductOptions('', 500, 'active'),
       warehouses: this.locationsApi.listWarehouseOptions(),
     };
 
@@ -224,7 +235,6 @@ export class TransfersPage {
         if (transfers) {
           this.transfers.set(transfers.items);
           this.total.set(transfers.meta.total);
-          this.enrichMissingReferences(transfers.items);
         }
         this.loading.set(false);
       },
@@ -239,7 +249,7 @@ export class TransfersPage {
       this.form.patchValue({ batchId: '' }, { emitEvent: false });
       this.selectedBatchStockOnHand.set(null);
       this.validateDifferentWarehouses();
-      this.reloadStockAndBatchContext();
+      this.requestStockAndBatchContext();
     });
 
     // Downstream state reset: Destination Warehouse changes
@@ -256,7 +266,7 @@ export class TransfersPage {
       this.form.patchValue({ batchId: '' }, { emitEvent: false });
       this.selectedBatchStockOnHand.set(null);
       this.syncBatchRequired(mode);
-      this.reloadStockAndBatchContext();
+      this.requestStockAndBatchContext();
     });
 
     // Downstream state reset: Batch selection changes
@@ -277,6 +287,78 @@ export class TransfersPage {
       }
       this.syncOverrideReasonRequired();
     });
+
+    this.stockContextRequests
+      .pipe(
+        switchMap(() => {
+          const warehouseId = this.form.controls.sourceWarehouseId.value;
+          const productId = this.form.controls.productId.value;
+
+          if (!warehouseId || !productId) {
+            this.batchOptions.set([]);
+            this.balancesList.set([]);
+            this.productSourceStockOnHand.set(null);
+            this.selectedBatchStockOnHand.set(null);
+            return EMPTY;
+          }
+
+          return this.inventoryApi.listBalances({
+            warehouseId,
+            productId,
+            page: 1,
+            pageSize: 100,
+          });
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (result) => {
+          const balanceItems = result.items || [];
+          this.balancesList.set(balanceItems);
+
+          const totalQty = balanceItems.reduce((acc, b) => acc + Number(b.quantityBase || 0), 0);
+          const formattedQty = totalQty % 1 === 0 ? totalQty.toString() : totalQty.toFixed(4);
+          this.productSourceStockOnHand.set(formattedQty);
+
+          const product = this.selectedProduct();
+          if (product && product.trackingMode !== 'none') {
+            const options: TransferBatchOption[] = balanceItems
+              .filter((b) => b.batchId !== null && Number(b.quantityBase) > 0)
+              .map((b) => {
+                const batchId = String(b.batchId);
+                return {
+                  batchId,
+                  label: `${batchId} (${b.quantityBase} ${product.baseUnitCode})`,
+                  quantityBase: b.quantityBase,
+                };
+              });
+            this.batchOptions.set(options);
+          } else {
+            this.batchOptions.set([]);
+          }
+        },
+        error: () => {
+          this.batchOptions.set([]);
+          this.balancesList.set([]);
+          this.productSourceStockOnHand.set(null);
+          this.selectedBatchStockOnHand.set(null);
+        },
+      });
+
+    this.productSearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((query) => this.catalogApi.searchProductOptions(query, 500, 'active')),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((items) => {
+        this.products.set(items.filter((p) => p.status === 'active'));
+      });
+  }
+
+  private requestStockAndBatchContext(): void {
+    this.stockContextRequests.next();
   }
 
   private validateDifferentWarehouses(): void {
@@ -305,69 +387,6 @@ export class TransfersPage {
       this.form.controls.negativeStockOverrideReason,
       this.form.controls.negativeStockOverride.value === true,
     );
-  }
-
-  private reloadStockAndBatchContext(): void {
-    const warehouseId = this.form.controls.sourceWarehouseId.value;
-    const productId = this.form.controls.productId.value;
-    const product = this.selectedProduct();
-
-    if (!warehouseId || !productId) {
-      this.batchOptions.set([]);
-      this.balancesList.set([]);
-      this.productSourceStockOnHand.set(null);
-      this.selectedBatchStockOnHand.set(null);
-      return;
-    }
-
-    const requests: {
-      balances: Observable<{ items: InventoryBalanceRecord[] }>;
-      batches: Observable<{ items: ProductBatchRecord[] }>;
-    } = {
-      balances: this.inventoryApi.listBalances({ warehouseId, productId, pageSize: 100 }),
-      batches:
-        product && product.trackingMode !== 'none'
-          ? this.inventoryApi.listBatches({ productId, pageSize: 100 })
-          : of({ items: [] }),
-    };
-
-    forkJoin(requests).subscribe({
-      next: ({ balances, batches }) => {
-        const balanceItems = balances.items || [];
-        this.balancesList.set(balanceItems);
-
-        // Aggregate Product Stock on Hand in source warehouse
-        const totalQty = balanceItems.reduce((acc, b) => acc + Number(b.quantityBase || 0), 0);
-        const formattedQty = totalQty % 1 === 0 ? totalQty.toString() : totalQty.toFixed(4);
-        this.productSourceStockOnHand.set(formattedQty);
-
-        // Batch options when tracking is enabled
-        if (product && product.trackingMode !== 'none') {
-          const batchMap = new Map((batches.items || []).map((b) => [b.id, b]));
-          const options: TransferBatchOption[] = balanceItems
-            .filter((b) => b.batchId !== null && Number(b.quantityBase) > 0)
-            .map((b) => {
-              const batchId = String(b.batchId);
-              const batchRecord = batchMap.get(batchId);
-              const name = batchRecord?.batchNumber ?? batchId;
-              return {
-                batchId,
-                label: `${name} (${b.quantityBase} ${product.baseUnitCode})`,
-                quantityBase: b.quantityBase,
-              };
-            });
-          this.batchOptions.set(options);
-        } else {
-          this.batchOptions.set([]);
-        }
-      },
-      error: () => {
-        this.batchOptions.set([]);
-        this.balancesList.set([]);
-        this.productSourceStockOnHand.set(null);
-        this.selectedBatchStockOnHand.set(null);
-      },
-    });
   }
 
   submit(): void {
@@ -415,7 +434,7 @@ export class TransfersPage {
             this.successMessage.set('Transfer posted successfully.');
             this.saving.set(false);
             this.resetForm();
-            this.reloadTransfers();
+            this.reloadTransfers(true);
           },
           error: (error: unknown) => {
             this.saving.set(false);
@@ -471,7 +490,7 @@ export class TransfersPage {
       .subscribe({
         next: () => {
           this.successMessage.set('Transfer reversed successfully.');
-          this.reloadTransfers();
+          this.reloadTransfers(true);
         },
         error: (error: unknown) => {
           this.errorMessage.set(this.mapError(error, 'Unable to reverse transfer.'));
@@ -490,91 +509,18 @@ export class TransfersPage {
     this.selectedTransfer.set(null);
   }
 
-  reloadTransfers(): void {
+  reloadTransfers(forceRefresh = false): void {
     if (!this.showRecentTransfers()) {
       return;
     }
     this.inventoryApi
-      .listTransfers({ page: this.page(), pageSize: this.pageSize() })
+      .listTransfers({ page: this.page(), pageSize: this.pageSize(), forceRefresh })
       .subscribe({
         next: (result) => {
           this.transfers.set(result.items);
           this.total.set(result.meta.total);
-          this.enrichMissingReferences(result.items);
         },
       });
-  }
-
-  private enrichMissingReferences(items: WarehouseTransferRecord[]): void {
-    if (!items || items.length === 0) return;
-
-    const missingProductIds = [
-      ...new Set(items.map((t) => t.productId)),
-    ].filter((id) => Boolean(id) && !this.allProductsMap().has(id));
-
-    const missingWarehouseIds = [
-      ...new Set(items.flatMap((t) => [t.sourceWarehouseId, t.destinationWarehouseId])),
-    ].filter((id) => Boolean(id) && !this.allWarehousesMap().has(id));
-
-    if (missingProductIds.length === 0 && missingWarehouseIds.length === 0) {
-      return;
-    }
-
-    const productLookups = missingProductIds.map((id) =>
-      this.catalogApi.getProduct(id).pipe(
-        catchError(() =>
-          of({
-            id,
-            organizationId: '',
-            categoryId: '',
-            name: id,
-            sku: '—',
-            trackingMode: 'none' as const,
-            baseUnitCode: 'Units',
-            measurementDimension: '',
-            status: 'inactive' as const,
-            version: 1,
-          }),
-        ),
-      ),
-    );
-
-    const warehouseLookups = missingWarehouseIds.map((id) =>
-      this.locationsApi.getWarehouse(id).pipe(
-        catchError(() =>
-          of({
-            id,
-            organizationId: '',
-            name: id,
-            code: '',
-            status: 'inactive' as const,
-            version: 1,
-          }),
-        ),
-      ),
-    );
-
-    forkJoin({
-      products: productLookups.length > 0 ? forkJoin(productLookups) : of([]),
-      warehouses: warehouseLookups.length > 0 ? forkJoin(warehouseLookups) : of([]),
-    }).subscribe({
-      next: ({ products, warehouses }) => {
-        if (products.length > 0) {
-          const next = new Map(this.allProductsMap());
-          products.forEach((p) => {
-            if (p) next.set(p.id, p);
-          });
-          this.allProductsMap.set(next);
-        }
-        if (warehouses.length > 0) {
-          const next = new Map(this.allWarehousesMap());
-          warehouses.forEach((w) => {
-            if (w) next.set(w.id, w);
-          });
-          this.allWarehousesMap.set(next);
-        }
-      },
-    });
   }
 
   onPageChange(page: number): void {
@@ -591,22 +537,22 @@ export class TransfersPage {
   onProductSearch(event: Event): void {
     const target = event.target;
     if (target instanceof HTMLInputElement) {
-      const query = target.value.trim();
-      this.catalogApi
-        .searchProductOptions(query, 500, 'active')
-        .subscribe((items) =>
-          this.products.set(items.filter((p) => p.status === 'active')),
-        );
+      this.productSearchChanges.next(target.value.trim());
     }
   }
 
-  // Reference Resolution Helpers (O(1) lookups, NO N+1)
   warehouseName(id: string): string {
-    return this.allWarehousesMap().get(id)?.name || this.warehouses().find((w) => w.id === id)?.name || id;
+    return (
+      this.allWarehousesMap().get(id)?.name ||
+      this.warehouses().find((w) => w.id === id)?.name ||
+      id
+    );
   }
 
   productName(id: string): string {
-    return this.allProductsMap().get(id)?.name || this.products().find((p) => p.id === id)?.name || id;
+    return (
+      this.allProductsMap().get(id)?.name || this.products().find((p) => p.id === id)?.name || id
+    );
   }
 
   productSku(id: string): string {

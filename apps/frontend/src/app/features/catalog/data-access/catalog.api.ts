@@ -28,19 +28,41 @@ export class CatalogApi {
   private readonly authApi = inject(AuthApi);
   private readonly queryCache = inject(QueryCacheService);
 
-  listCategories(query: PaginationQuery = {}): Observable<PaginatedResult<CategoryRecord>> {
-    return this.http
-      .get<ApiSuccessEnvelope<CategoryRecord[], PaginationMeta>>(
-        `${environment.publicApiBaseUrl}/api/v1/product-categories`,
-        { withCredentials: true, params: this.paginationParams(query) },
-      )
-      .pipe(map((response) => ({ items: response.data, meta: response.meta! })));
+  listCategories(
+    query: PaginationQuery & { forceRefresh?: boolean } = {},
+  ): Observable<PaginatedResult<CategoryRecord>> {
+    const params = this.paginationParams(query);
+    const cacheKey = this.queryCache.buildKey('categories', params);
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'short',
+      tags: [QUERY_CACHE_TAGS.categories],
+      forceRefresh: query.forceRefresh === true,
+      loader: () =>
+        this.http
+          .get<ApiSuccessEnvelope<CategoryRecord[], PaginationMeta>>(
+            `${environment.publicApiBaseUrl}/api/v1/product-categories`,
+            { withCredentials: true, params },
+          )
+          .pipe(map((response) => ({ items: response.data, meta: response.meta! }))),
+    });
   }
 
   searchCategoryOptions(search = ''): Observable<CategoryRecord[]> {
-    return this.listCategories({ page: 1, pageSize: 25, search, status: 'active' }).pipe(
-      map((result) => result.items),
-    );
+    const params = this.paginationParams({ page: 1, pageSize: 25, search, status: 'active' });
+    const cacheKey = this.queryCache.buildKey('category-options', params);
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'reference',
+      tags: [QUERY_CACHE_TAGS.categoryOptions],
+      loader: () =>
+        this.http
+          .get<ApiSuccessEnvelope<CategoryRecord[], PaginationMeta>>(
+            `${environment.publicApiBaseUrl}/api/v1/product-categories`,
+            { withCredentials: true, params },
+          )
+          .pipe(map((response) => response.data)),
+    });
   }
 
   getCategory(id: string): Observable<CategoryRecord> {
@@ -69,7 +91,14 @@ export class CatalogApi {
           )
           .pipe(
             map((response) => response.data),
-            tap(() => this.queryCache.invalidateTags(QUERY_CACHE_TAGS.products, QUERY_CACHE_TAGS.productOptions)),
+            tap(() =>
+              this.queryCache.invalidateTags(
+                QUERY_CACHE_TAGS.categories,
+                QUERY_CACHE_TAGS.categoryOptions,
+                QUERY_CACHE_TAGS.products,
+                QUERY_CACHE_TAGS.productOptions,
+              ),
+            ),
           ),
       ),
     );
@@ -97,7 +126,14 @@ export class CatalogApi {
           )
           .pipe(
             map((response) => response.data),
-            tap(() => this.queryCache.invalidateTags(QUERY_CACHE_TAGS.products, QUERY_CACHE_TAGS.productOptions)),
+            tap(() =>
+              this.queryCache.invalidateTags(
+                QUERY_CACHE_TAGS.categories,
+                QUERY_CACHE_TAGS.categoryOptions,
+                QUERY_CACHE_TAGS.products,
+                QUERY_CACHE_TAGS.productOptions,
+              ),
+            ),
           ),
       ),
     );
@@ -113,7 +149,14 @@ export class CatalogApi {
           )
           .pipe(
             map((response) => response.data),
-            tap(() => this.queryCache.invalidateTags(QUERY_CACHE_TAGS.products, QUERY_CACHE_TAGS.productOptions)),
+            tap(() =>
+              this.queryCache.invalidateTags(
+                QUERY_CACHE_TAGS.categories,
+                QUERY_CACHE_TAGS.categoryOptions,
+                QUERY_CACHE_TAGS.products,
+                QUERY_CACHE_TAGS.productOptions,
+              ),
+            ),
           ),
       ),
     );

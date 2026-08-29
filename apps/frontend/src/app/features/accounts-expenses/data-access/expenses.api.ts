@@ -1,27 +1,81 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map, switchMap } from 'rxjs';
+import { Observable, map, switchMap, tap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
 import { ExpenseCategoryRecord, ExpenseRecord } from '../models/expenses.models';
 import { PaginatedResult, PaginationQuery } from '../../../shared/data-access/pagination';
+import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
+import { QUERY_CACHE_TAGS } from '../../../shared/data-access/query-cache.tags';
+import {
+  invalidateExpenseCategoryReads,
+  invalidateExpenseFinancialReads,
+  invalidateExpenseReads,
+} from '../../../shared/data-access/finance-cache.invalidation';
+
+type ExpenseListQuery = PaginationQuery & {
+  status?: string;
+  search?: string;
+  forceRefresh?: boolean;
+};
+
+type ExpenseCategoryListQuery = PaginationQuery & {
+  status?: string;
+  search?: string;
+  forceRefresh?: boolean;
+};
 
 @Injectable({ providedIn: 'root' })
 export class ExpensesApi {
   private readonly http = inject(HttpClient);
   private readonly authApi = inject(AuthApi);
+  private readonly queryCache = inject(QueryCacheService);
 
-  listCategories(params: PaginationQuery & { status?: string; search?: string } = {}): Observable<PaginatedResult<ExpenseCategoryRecord>> {
-    return this.http
-      .get<{ data: ExpenseCategoryRecord[]; meta: PaginatedResult<ExpenseCategoryRecord>['meta'] }>(
-        `${environment.publicApiBaseUrl}/api/v1/expense-categories`,
-        { withCredentials: true, params: { page: params.page ?? 1, pageSize: params.pageSize ?? 25, ...(params.status ? { status: params.status } : {}), ...(params.search ? { search: params.search } : {}) } },
-      )
-      .pipe(map((response) => ({ items: response.data, meta: response.meta })));
+  listCategories(
+    params: ExpenseCategoryListQuery = {},
+  ): Observable<PaginatedResult<ExpenseCategoryRecord>> {
+    const queryParams = this.paginationParams(params);
+    if (params.status) {
+      queryParams['status'] = params.status;
+    }
+    if (params.search) {
+      queryParams['search'] = params.search;
+    }
+    const cacheKey = this.queryCache.buildKey('expense-categories', queryParams);
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'short',
+      tags: [QUERY_CACHE_TAGS.expenseCategories],
+      forceRefresh: params.forceRefresh === true,
+      loader: () =>
+        this.http
+          .get<{ data: ExpenseCategoryRecord[]; meta: PaginatedResult<ExpenseCategoryRecord>['meta'] }>(
+            `${environment.publicApiBaseUrl}/api/v1/expense-categories`,
+            { withCredentials: true, params: queryParams },
+          )
+          .pipe(map((response) => ({ items: response.data, meta: response.meta }))),
+    });
+  }
+
+  searchCategoryOptions(search = ''): Observable<ExpenseCategoryRecord[]> {
+    const params = this.paginationParams({ page: 1, pageSize: 25, search, status: 'active' });
+    const cacheKey = this.queryCache.buildKey('expense-category-options', params);
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'reference',
+      tags: [QUERY_CACHE_TAGS.expenseCategoryOptions],
+      loader: () =>
+        this.http
+          .get<{ data: ExpenseCategoryRecord[]; meta: PaginatedResult<ExpenseCategoryRecord>['meta'] }>(
+            `${environment.publicApiBaseUrl}/api/v1/expense-categories`,
+            { withCredentials: true, params },
+          )
+          .pipe(map((response) => response.data)),
+    });
   }
 
   listCategoryOptions(): Observable<ExpenseCategoryRecord[]> {
-    return this.listCategories({ page: 1, pageSize: 100, status: 'active' }).pipe(map((result) => result.items));
+    return this.searchCategoryOptions('');
   }
 
   createCategory(payload: { name: string }): Observable<ExpenseCategoryRecord> {
@@ -36,7 +90,10 @@ export class ExpensesApi {
               headers: { 'X-CSRF-Token': csrfToken },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => invalidateExpenseCategoryReads(this.queryCache)),
+          ),
       ),
     );
   }
@@ -56,7 +113,10 @@ export class ExpensesApi {
               headers: { 'X-CSRF-Token': csrfToken },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => invalidateExpenseCategoryReads(this.queryCache)),
+          ),
       ),
     );
   }
@@ -69,26 +129,52 @@ export class ExpensesApi {
             `${environment.publicApiBaseUrl}/api/v1/expense-categories/${id}`,
             { withCredentials: true, headers: { 'X-CSRF-Token': csrfToken } },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => invalidateExpenseCategoryReads(this.queryCache)),
+          ),
       ),
     );
   }
 
-  listExpenses(params: PaginationQuery & { status?: string; search?: string } = {}): Observable<PaginatedResult<ExpenseRecord>> {
-    return this.http
-      .get<{ data: ExpenseRecord[]; meta: PaginatedResult<ExpenseRecord>['meta'] }>(
-        `${environment.publicApiBaseUrl}/api/v1/expenses`,
-        { withCredentials: true, params: { page: params.page ?? 1, pageSize: params.pageSize ?? 25, ...(params.status ? { status: params.status } : {}), ...(params.search ? { search: params.search } : {}) } },
-      )
-      .pipe(map((response) => ({ items: response.data, meta: response.meta })));
+  listExpenses(params: ExpenseListQuery = {}): Observable<PaginatedResult<ExpenseRecord>> {
+    const queryParams = this.paginationParams(params);
+    if (params.status) {
+      queryParams['status'] = params.status;
+    }
+    if (params.search) {
+      queryParams['search'] = params.search;
+    }
+    const cacheKey = this.queryCache.buildKey('expenses', queryParams);
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'short',
+      tags: [QUERY_CACHE_TAGS.expenses],
+      forceRefresh: params.forceRefresh === true,
+      loader: () =>
+        this.http
+          .get<{ data: ExpenseRecord[]; meta: PaginatedResult<ExpenseRecord>['meta'] }>(
+            `${environment.publicApiBaseUrl}/api/v1/expenses`,
+            { withCredentials: true, params: queryParams },
+          )
+          .pipe(map((response) => ({ items: response.data, meta: response.meta }))),
+    });
   }
 
-  getExpense(id: string): Observable<ExpenseRecord> {
-    return this.http
-      .get<{ data: ExpenseRecord }>(`${environment.publicApiBaseUrl}/api/v1/expenses/${id}`, {
-        withCredentials: true,
-      })
-      .pipe(map((response) => response.data));
+  getExpense(id: string, options?: { forceRefresh?: boolean }): Observable<ExpenseRecord> {
+    const cacheKey = this.queryCache.buildKey('expense-detail', { id });
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'dedupe-only',
+      tags: [QUERY_CACHE_TAGS.expenses],
+      forceRefresh: options?.forceRefresh === true,
+      loader: () =>
+        this.http
+          .get<{ data: ExpenseRecord }>(`${environment.publicApiBaseUrl}/api/v1/expenses/${id}`, {
+            withCredentials: true,
+          })
+          .pipe(map((response) => response.data)),
+    });
   }
 
   createExpense(payload: {
@@ -106,7 +192,10 @@ export class ExpensesApi {
             withCredentials: true,
             headers: { 'X-CSRF-Token': csrfToken },
           })
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => invalidateExpenseReads(this.queryCache)),
+          ),
       ),
     );
   }
@@ -134,7 +223,10 @@ export class ExpensesApi {
               headers: { 'X-CSRF-Token': csrfToken },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => invalidateExpenseReads(this.queryCache)),
+          ),
       ),
     );
   }
@@ -150,7 +242,10 @@ export class ExpensesApi {
               headers: { 'X-CSRF-Token': csrfToken },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => invalidateExpenseReads(this.queryCache)),
+          ),
       ),
     );
   }
@@ -174,7 +269,10 @@ export class ExpensesApi {
               },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => invalidateExpenseFinancialReads(this.queryCache)),
+          ),
       ),
     );
   }
@@ -198,8 +296,25 @@ export class ExpensesApi {
               },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => invalidateExpenseFinancialReads(this.queryCache)),
+          ),
       ),
     );
+  }
+
+  private paginationParams(query: PaginationQuery): Record<string, string> {
+    const params: Record<string, string> = {
+      page: String(query.page ?? 1),
+      pageSize: String(query.pageSize ?? 25),
+    };
+    if (query.search) {
+      params['search'] = query.search;
+    }
+    if (query.status && query.status !== 'all') {
+      params['status'] = query.status;
+    }
+    return params;
   }
 }

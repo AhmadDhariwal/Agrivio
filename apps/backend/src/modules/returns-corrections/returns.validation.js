@@ -362,7 +362,7 @@ function toMoneyDto(amountMinorUnits) {
   };
 }
 
-function toReturnDto(record) {
+function toReturnDto(record, displayLookups) {
   const lines = (record.lines ?? []).map((line) => ({
     productId: String(line.productId),
     productNameSnapshot: String(line.productNameSnapshot),
@@ -397,6 +397,10 @@ function toReturnDto(record) {
   }));
 
   const approval = record['withoutInvoiceApproval'];
+  const warehouseId = String(record['warehouseId']);
+  const supplierId = record['supplierId'] ? String(record['supplierId']) : null;
+  const customerId = record['customerId'] ? String(record['customerId']) : null;
+  const refundAccountId = record['refundAccountId'] ? String(record['refundAccountId']) : null;
 
   return {
     id: String(record['_id']),
@@ -404,11 +408,20 @@ function toReturnDto(record) {
     returnType: String(record['returnType']),
     purchaseId: record['purchaseId'] ? String(record['purchaseId']) : null,
     saleId: record['saleId'] ? String(record['saleId']) : null,
-    supplierId: record['supplierId'] ? String(record['supplierId']) : null,
-    customerId: record['customerId'] ? String(record['customerId']) : null,
+    supplierId,
+    customerId,
     customerIdentifyingName: record['customerIdentifyingName'] ?? null,
     customerIdentifyingPhone: record['customerIdentifyingPhone'] ?? null,
-    warehouseId: String(record['warehouseId']),
+    warehouseId,
+    warehouseNameSnapshot: displayLookups?.warehouses?.[warehouseId] ?? null,
+    supplierNameSnapshot: supplierId ? displayLookups?.suppliers?.[supplierId] ?? null : null,
+    customerNameSnapshot: customerId ? displayLookups?.customers?.[customerId] ?? null : null,
+    refundAccountNameSnapshot: refundAccountId
+      ? displayLookups?.accounts?.[refundAccountId]?.name ?? null
+      : null,
+    refundAccountTypeSnapshot: refundAccountId
+      ? displayLookups?.accounts?.[refundAccountId]?.accountType ?? null
+      : null,
     reason: String(record['reason'] ?? ''),
     resolution: String(record['resolution']),
     refundAccountId: record['refundAccountId'] ? String(record['refundAccountId']) : null,

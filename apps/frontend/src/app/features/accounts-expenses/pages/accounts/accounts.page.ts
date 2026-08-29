@@ -171,7 +171,7 @@ export class AccountsPage {
     this.reload();
   }
 
-  reload(): void {
+  reload(forceRefresh = false): void {
     if (!this.canView()) {
       this.loading.set(false);
       this.errorMessage.set('You do not have permission to view accounts.');
@@ -181,9 +181,10 @@ export class AccountsPage {
     this.errorMessage.set(null);
     this.closeMenu();
 
-    const params: { page: number; pageSize: number; status?: string; search?: string } = {
+    const params: { page: number; pageSize: number; status?: string; search?: string; forceRefresh?: boolean } = {
       page: this.page(),
       pageSize: this.pageSize(),
+      forceRefresh,
     };
     if (this.statusFilter() !== 'active') params.status = this.statusFilter();
     else params.status = 'active';
@@ -206,7 +207,7 @@ export class AccountsPage {
     });
 
     if (this.showKpiCards()) {
-      this.api.getSummary().subscribe({
+      this.api.getSummary({ forceRefresh }).subscribe({
         next: (summary) => this.summary.set(summary),
         error: () => this.summary.set(null),
       });

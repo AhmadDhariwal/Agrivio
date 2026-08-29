@@ -32,16 +32,24 @@ export class InventoryApi {
       QUERY_CACHE_TAGS.reconciliation,
       QUERY_CACHE_TAGS.stockMovements,
       QUERY_CACHE_TAGS.stockBalances,
+      QUERY_CACHE_TAGS.stockAdjustments,
+      QUERY_CACHE_TAGS.stockTransfers,
       QUERY_CACHE_TAGS.products,
     );
   }
 
-  listBalances(query: PaginationQuery & {
-    warehouseId?: string;
-    productId?: string;
-    batchId?: string;
-  } = {}): Observable<PaginatedResult<InventoryBalanceRecord>> {
-    const params: Record<string, string> = { page: String(query.page ?? 1), pageSize: String(query.pageSize ?? 25) };
+  listBalances(
+    query: PaginationQuery & {
+      warehouseId?: string;
+      productId?: string;
+      batchId?: string;
+      forceRefresh?: boolean;
+    } = {},
+  ): Observable<PaginatedResult<InventoryBalanceRecord>> {
+    const params: Record<string, string> = {
+      page: String(query.page ?? 1),
+      pageSize: String(query.pageSize ?? 25),
+    };
     if (query?.warehouseId) {
       params['warehouseId'] = query.warehouseId;
     }
@@ -51,12 +59,20 @@ export class InventoryApi {
     if (query?.batchId) {
       params['batchId'] = query.batchId;
     }
-    return this.http
-      .get<ApiSuccessEnvelope<InventoryBalanceRecord[], PaginationMeta>>(
-        `${environment.publicApiBaseUrl}/api/v1/inventory/balances`,
-        { withCredentials: true, params },
-      )
-      .pipe(map((response) => ({ items: response.data, meta: response.meta! })));
+    const cacheKey = this.queryCache.buildKey('stock-balances', params);
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'short',
+      tags: [QUERY_CACHE_TAGS.stockBalances],
+      forceRefresh: query.forceRefresh === true,
+      loader: () =>
+        this.http
+          .get<ApiSuccessEnvelope<InventoryBalanceRecord[], PaginationMeta>>(
+            `${environment.publicApiBaseUrl}/api/v1/inventory/balances`,
+            { withCredentials: true, params },
+          )
+          .pipe(map((response) => ({ items: response.data, meta: response.meta! }))),
+    });
   }
 
   listMovements(
@@ -208,20 +224,33 @@ export class InventoryApi {
     });
   }
 
-  listAdjustments(query: PaginationQuery & { warehouseId?: string } = {}): Observable<PaginatedResult<StockAdjustmentRecord>> {
-    const params: Record<string, string> = { page: String(query.page ?? 1), pageSize: String(query.pageSize ?? 25) };
+  listAdjustments(
+    query: PaginationQuery & { warehouseId?: string; forceRefresh?: boolean } = {},
+  ): Observable<PaginatedResult<StockAdjustmentRecord>> {
+    const params: Record<string, string> = {
+      page: String(query.page ?? 1),
+      pageSize: String(query.pageSize ?? 25),
+    };
     if (query?.warehouseId) {
       params['warehouseId'] = query.warehouseId;
     }
     if (query?.status) {
       params['status'] = query.status;
     }
-    return this.http
-      .get<ApiSuccessEnvelope<StockAdjustmentRecord[], PaginationMeta>>(
-        `${environment.publicApiBaseUrl}/api/v1/stock-adjustments`,
-        { withCredentials: true, params },
-      )
-      .pipe(map((response) => ({ items: response.data, meta: response.meta! })));
+    const cacheKey = this.queryCache.buildKey('adjustments', params);
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'dedupe-only',
+      tags: [QUERY_CACHE_TAGS.stockAdjustments],
+      forceRefresh: query.forceRefresh === true,
+      loader: () =>
+        this.http
+          .get<ApiSuccessEnvelope<StockAdjustmentRecord[], PaginationMeta>>(
+            `${environment.publicApiBaseUrl}/api/v1/stock-adjustments`,
+            { withCredentials: true, params },
+          )
+          .pipe(map((response) => ({ items: response.data, meta: response.meta! }))),
+    });
   }
 
   createAdjustmentDraft(payload: {
@@ -245,10 +274,7 @@ export class InventoryApi {
               headers: { 'X-CSRF-Token': csrfToken },
             },
           )
-          .pipe(
-            map((response) => response.data),
-            tap(() => this.invalidateInventoryReads()),
-          ),
+          .pipe(map((response) => response.data)),
       ),
     );
   }
@@ -311,11 +337,17 @@ export class InventoryApi {
     );
   }
 
-  listTransfers(query: PaginationQuery & {
-    sourceWarehouseId?: string;
-    destinationWarehouseId?: string;
-  } = {}): Observable<PaginatedResult<WarehouseTransferRecord>> {
-    const params: Record<string, string> = { page: String(query.page ?? 1), pageSize: String(query.pageSize ?? 25) };
+  listTransfers(
+    query: PaginationQuery & {
+      sourceWarehouseId?: string;
+      destinationWarehouseId?: string;
+      forceRefresh?: boolean;
+    } = {},
+  ): Observable<PaginatedResult<WarehouseTransferRecord>> {
+    const params: Record<string, string> = {
+      page: String(query.page ?? 1),
+      pageSize: String(query.pageSize ?? 25),
+    };
     if (query?.status) {
       params['status'] = query.status;
     }
@@ -325,12 +357,20 @@ export class InventoryApi {
     if (query?.destinationWarehouseId) {
       params['destinationWarehouseId'] = query.destinationWarehouseId;
     }
-    return this.http
-      .get<ApiSuccessEnvelope<WarehouseTransferRecord[], PaginationMeta>>(
-        `${environment.publicApiBaseUrl}/api/v1/warehouse-transfers`,
-        { withCredentials: true, params },
-      )
-      .pipe(map((response) => ({ items: response.data, meta: response.meta! })));
+    const cacheKey = this.queryCache.buildKey('transfers', params);
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'dedupe-only',
+      tags: [QUERY_CACHE_TAGS.stockTransfers],
+      forceRefresh: query.forceRefresh === true,
+      loader: () =>
+        this.http
+          .get<ApiSuccessEnvelope<WarehouseTransferRecord[], PaginationMeta>>(
+            `${environment.publicApiBaseUrl}/api/v1/warehouse-transfers`,
+            { withCredentials: true, params },
+          )
+          .pipe(map((response) => ({ items: response.data, meta: response.meta! }))),
+    });
   }
 
   getTransfer(id: string): Observable<WarehouseTransferRecord> {
@@ -362,10 +402,7 @@ export class InventoryApi {
               headers: { 'X-CSRF-Token': csrfToken },
             },
           )
-          .pipe(
-            map((response) => response.data),
-            tap(() => this.invalidateInventoryReads()),
-          ),
+          .pipe(map((response) => response.data)),
       ),
     );
   }

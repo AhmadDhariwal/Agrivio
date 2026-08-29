@@ -1,10 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map, switchMap } from 'rxjs';
+import { Observable, map, switchMap, tap } from 'rxjs';
 import { API_CUSTOMER_PAYMENTS_PATH, API_CUSTOMERS_PATH, ApiSuccessEnvelope, PaginationMeta } from '@agrivio/api-contracts';
 import { PaginatedResult, PaginationQuery } from '../../../shared/data-access/pagination';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
+import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
+import { invalidateAccountFinancialReads } from '../../../shared/data-access/finance-cache.invalidation';
 import {
   CustomerLedgerEffectRecord,
   CustomerPaymentCreateInput,
@@ -15,6 +17,7 @@ import {
 export class CustomerPaymentsApi {
   private readonly http = inject(HttpClient);
   private readonly authApi = inject(AuthApi);
+  private readonly queryCache = inject(QueryCacheService);
   private readonly paymentsUrl = `${environment.publicApiBaseUrl}${API_CUSTOMER_PAYMENTS_PATH}`;
   private readonly customersUrl = `${environment.publicApiBaseUrl}${API_CUSTOMERS_PATH}`;
 
@@ -64,7 +67,10 @@ export class CustomerPaymentsApi {
               'Idempotency-Key': idempotencyKey,
             },
           })
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => invalidateAccountFinancialReads(this.queryCache)),
+          ),
       ),
     );
   }

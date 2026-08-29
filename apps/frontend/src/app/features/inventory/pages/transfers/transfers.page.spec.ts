@@ -455,18 +455,19 @@ describe('TransfersPage', () => {
     expect(fixture.nativeElement.querySelector('.inspector-drawer')).toBeNull();
   });
 
-  it('handles product search filtering', () => {
+  it('handles product search filtering', async () => {
     const searchInput = fixture.nativeElement.querySelector(
       '[data-testid="transfer-product-search"]',
     ) as HTMLInputElement;
     searchInput.value = 'Urea';
     searchInput.dispatchEvent(new Event('input'));
+    await new Promise((resolve) => setTimeout(resolve, 350));
     fixture.detectChanges();
 
     expect(mockCatalogApi.searchProductOptions).toHaveBeenCalledWith('Urea', 500, 'active');
   });
 
-  it('enriches missing product and warehouse references for historical records', () => {
+  it('falls back to raw IDs for historical records outside the cached product/warehouse options', () => {
     mockInventoryApi.listTransfers.mockReturnValue(
       of({
         items: [
@@ -499,16 +500,15 @@ describe('TransfersPage', () => {
     page.onPageChange(1);
     fixture.detectChanges();
 
-    expect(mockCatalogApi.getProduct).toHaveBeenCalledWith('prod-archived-99');
-    expect(mockLocationsApi.getWarehouse).toHaveBeenCalledWith('wh-archived-1');
-    expect(mockLocationsApi.getWarehouse).toHaveBeenCalledWith('wh-archived-2');
+    expect(mockCatalogApi.getProduct).not.toHaveBeenCalled();
+    expect(mockLocationsApi.getWarehouse).not.toHaveBeenCalled();
 
-    expect(page.productName('prod-archived-99')).toBe('Historical Product prod-archived-99');
-    expect(page.productSku('prod-archived-99')).toBe('SKU-HIST-prod-archived-99');
-    expect(page.warehouseName('wh-archived-1')).toBe('Archived Warehouse wh-archived-1');
+    expect(page.productName('prod-archived-99')).toBe('prod-archived-99');
+    expect(page.productSku('prod-archived-99')).toBe('—');
+    expect(page.warehouseName('wh-archived-1')).toBe('wh-archived-1');
   });
 
-  it('deduplicates missing product and warehouse lookups so identical IDs are fetched only once', () => {
+  it('does not issue per-ID product or warehouse lookups when transfer rows share missing references', () => {
     mockInventoryApi.listTransfers.mockReturnValue(
       of({
         items: [
@@ -562,17 +562,13 @@ describe('TransfersPage', () => {
     page.onPageChange(1);
     fixture.detectChanges();
 
-    // Deduplication check: 2 transfer rows referencing prod-missing-101 and wh-missing-A/B only trigger 1 call each
-    expect(mockCatalogApi.getProduct).toHaveBeenCalledTimes(1);
-    expect(mockCatalogApi.getProduct).toHaveBeenCalledWith('prod-missing-101');
-    expect(mockLocationsApi.getWarehouse).toHaveBeenCalledWith('wh-missing-A');
-    expect(mockLocationsApi.getWarehouse).toHaveBeenCalledWith('wh-missing-B');
+    expect(mockCatalogApi.getProduct).not.toHaveBeenCalled();
+    expect(mockLocationsApi.getWarehouse).not.toHaveBeenCalled();
+    expect(page.productName('prod-missing-101')).toBe('prod-missing-101');
+    expect(page.warehouseName('wh-missing-A')).toBe('wh-missing-A');
   });
 
-  it('handles lookup failure gracefully without breaking transfer history rendering', () => {
-    mockCatalogApi.getProduct.mockReturnValue(throwError(() => new Error('Product not found')));
-    mockLocationsApi.getWarehouse.mockReturnValue(throwError(() => new Error('Warehouse not found')));
-
+  it('renders transfer history when cached reference maps do not contain row IDs', () => {
     mockInventoryApi.listTransfers.mockReturnValue(
       of({
         items: [
@@ -649,11 +645,7 @@ describe('TransfersPage', () => {
     expect(mobileCards.querySelector('[data-testid="transfer-card"]')).not.toBeNull();
   });
 
-  it('does not refetch already cached product and warehouse IDs on subsequent transfers reload', () => {
-    // prod-batch and wh-source/wh-dest are already populated in allProductsMap and allWarehousesMap from init
-    mockCatalogApi.getProduct.mockClear();
-    mockLocationsApi.getWarehouse.mockClear();
-
+  it('does not refetch product or warehouse options on subsequent transfers reload', () => {
     mockInventoryApi.listTransfers.mockReturnValue(
       of({
         items: [

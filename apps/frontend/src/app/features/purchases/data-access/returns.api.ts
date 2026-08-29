@@ -1,12 +1,14 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map, switchMap } from 'rxjs';
+import { Observable, map, switchMap, tap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
 import {
   PurchaseReturnCreateInput,
   PurchaseReturnRecord,
 } from '../models/purchases.models';
+import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
+import { invalidateReturnMutationEffects } from '../../returns/data-access/returns-cache.invalidation';
 
 export interface ReturnPostInput {
   reason: string;
@@ -18,6 +20,7 @@ export interface ReturnPostInput {
 export class ReturnsApi {
   private readonly http = inject(HttpClient);
   private readonly authApi = inject(AuthApi);
+  private readonly queryCache = inject(QueryCacheService);
 
   createReturn(
     purchaseId: string,
@@ -58,7 +61,17 @@ export class ReturnsApi {
               },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap((record) =>
+              invalidateReturnMutationEffects(this.queryCache, {
+                returnType: 'purchase',
+                resolution: payload.resolution,
+                saleId: null,
+                purchaseId: record.purchaseId ?? null,
+              }),
+            ),
+          ),
       ),
     );
   }
@@ -82,7 +95,17 @@ export class ReturnsApi {
               },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap((record) =>
+              invalidateReturnMutationEffects(this.queryCache, {
+                returnType: 'purchase',
+                resolution: 'ledger_adjustment',
+                saleId: null,
+                purchaseId: record.purchaseId ?? null,
+              }),
+            ),
+          ),
       ),
     );
   }

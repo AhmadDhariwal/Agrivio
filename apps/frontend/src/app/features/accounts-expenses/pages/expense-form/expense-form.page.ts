@@ -100,8 +100,8 @@ export class ExpenseFormPage {
     const id = this.route.snapshot.paramMap.get('id');
     this.loading.set(true);
     forkJoin({
-      categories: this.api.listCategoryOptions(),
-      accounts: this.accountsApi.listAccountOptions(),
+      categories: this.api.searchCategoryOptions(),
+      accounts: this.accountsApi.searchAccountOptions(),
       expense: id && id !== 'new' ? this.api.getExpense(id) : of(null),
     }).subscribe({
       next: ({ categories, accounts, expense }) => {

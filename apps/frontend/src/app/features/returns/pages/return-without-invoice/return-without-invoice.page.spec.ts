@@ -33,20 +33,19 @@ describe('ReturnWithoutInvoicePage', () => {
         {
           provide: CatalogApi,
           useValue: {
-            searchProductOptions: () =>
+            searchProductOptions: vi.fn().mockReturnValue(
               of([
                 { id: 'p1', name: 'Engro Urea 50KG', sku: 'ENG-UREA', status: 'active', trackingMode: 'batch' },
-                { id: 'p2', name: 'NPK 20-20-20', sku: 'NPK-20', status: 'active', trackingMode: 'none' },
               ]),
-            listProducts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            ),
           },
         },
         {
           provide: CustomersApi,
           useValue: {
-            searchCustomerOptions: () =>
+            searchCustomerOptions: vi.fn().mockReturnValue(
               of([{ id: 'c1', name: 'Chaudhry Farms', phone: '03001234567' }]),
-            listCustomers: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            ),
           },
         },
         {
@@ -89,6 +88,13 @@ describe('ReturnWithoutInvoicePage', () => {
   it('renders lookup form when both return and approval permissions are present', () => {
     expect(fixture.nativeElement.textContent).toContain('Return Without Invoice');
     expect(fixture.nativeElement.querySelector('[data-testid="without-invoice-form"]')).toBeTruthy();
+  });
+
+  it('loads reference options without preloading product or customer catalogs', () => {
+    const catalogApi = TestBed.inject(CatalogApi) as { searchProductOptions: ReturnType<typeof vi.fn> };
+    const customersApi = TestBed.inject(CustomersApi) as { searchCustomerOptions: ReturnType<typeof vi.fn> };
+    expect(catalogApi.searchProductOptions).not.toHaveBeenCalled();
+    expect(customersApi.searchCustomerOptions).not.toHaveBeenCalled();
   });
 
   it('requires refund account and shows the required marker for account_refund', () => {

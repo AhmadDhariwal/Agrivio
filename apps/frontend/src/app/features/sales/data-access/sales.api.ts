@@ -1,10 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map, switchMap } from 'rxjs';
+import { Observable, map, switchMap, tap } from 'rxjs';
 import { API_SALES_PATH, ApiSuccessEnvelope, PaginationMeta } from '@agrivio/api-contracts';
 import { PaginatedResult, PaginationQuery } from '../../../shared/data-access/pagination';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
+import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
+import { invalidateAccountFinancialReads } from '../../../shared/data-access/finance-cache.invalidation';
 import {
   SaleDraftInput,
   SaleDraftUpdateInput,
@@ -19,6 +21,7 @@ import {
 export class SalesApi {
   private readonly http = inject(HttpClient);
   private readonly authApi = inject(AuthApi);
+  private readonly queryCache = inject(QueryCacheService);
   private readonly baseUrl = `${environment.publicApiBaseUrl}${API_SALES_PATH}`;
 
   listSales(params: PaginationQuery & { customerId?: string; warehouseId?: string; branchId?: string } = {}): Observable<PaginatedResult<SaleRecord>> {
@@ -99,7 +102,10 @@ export class SalesApi {
               'Idempotency-Key': idempotencyKey,
             },
           })
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => invalidateAccountFinancialReads(this.queryCache)),
+          ),
       ),
     );
   }
@@ -115,7 +121,10 @@ export class SalesApi {
               'Idempotency-Key': idempotencyKey,
             },
           })
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => invalidateAccountFinancialReads(this.queryCache)),
+          ),
       ),
     );
   }

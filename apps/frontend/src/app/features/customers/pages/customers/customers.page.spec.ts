@@ -393,4 +393,25 @@ describe('CustomersPage', () => {
       expect(fixture.nativeElement.querySelector('.credit-sub')).toBeNull();
     });
   });
+
+  it('requests forceRefresh when toolbar refresh is clicked', () => {
+    mockApi.listCustomers.mockReturnValue(
+      of({ items: makeCustomers(1), meta: { page: 1, pageSize: 25, total: 1 } }),
+    );
+
+    const fixture = TestBed.createComponent(CustomersPage);
+    fixture.detectChanges();
+    expect(mockApi.listCustomers).toHaveBeenCalledTimes(1);
+    expect(mockApi.listCustomers).toHaveBeenLastCalledWith(
+      expect.objectContaining({ forceRefresh: false }),
+    );
+
+    fixture.componentInstance.reload(false, true);
+    fixture.detectChanges();
+
+    expect(mockApi.listCustomers).toHaveBeenCalledTimes(2);
+    expect(mockApi.listCustomers).toHaveBeenLastCalledWith(
+      expect.objectContaining({ forceRefresh: true }),
+    );
+  });
 });

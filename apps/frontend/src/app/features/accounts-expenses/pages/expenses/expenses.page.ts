@@ -111,7 +111,7 @@ export class ExpensesPage {
     this.reload();
   }
 
-  reload(): void {
+  reload(forceRefresh = false): void {
     if (!this.canView()) {
       this.loading.set(false);
       this.errorMessage.set('You do not have permission to view expenses.');
@@ -120,9 +120,10 @@ export class ExpensesPage {
     this.loading.set(true);
     this.errorMessage.set(null);
 
-    const params: { page: number; pageSize: number; status?: string; search?: string } = {
+    const params: { page: number; pageSize: number; status?: string; search?: string; forceRefresh?: boolean } = {
       page: this.page(),
       pageSize: this.pageSize(),
+      forceRefresh,
     };
     if (this.statusFilter()) params.status = this.statusFilter();
     if (this.search()) params.search = this.search();

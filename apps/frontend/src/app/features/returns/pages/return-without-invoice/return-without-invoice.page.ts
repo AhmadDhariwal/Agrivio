@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import {
   FormArray,
   FormBuilder,
@@ -8,7 +8,14 @@ import {
 } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin, switchMap } from 'rxjs';
+import {
+  Subject,
+  debounceTime,
+  distinctUntilChanged,
+  forkJoin,
+  switchMap,
+} from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReturnsApi } from '../../data-access/returns.api';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
 import { CustomersApi } from '../../../customers/data-access/customers.api';
@@ -54,6 +61,9 @@ export class ReturnWithoutInvoicePage {
   private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly formBuilder = inject(FormBuilder);
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly customerSearchChanges = new Subject<string>();
+  private readonly productSearchChanges = new Subject<string>();
 
   readonly loading = signal(true);
   readonly submitting = signal(false);
@@ -94,14 +104,10 @@ export class ReturnWithoutInvoicePage {
 
   constructor() {
     forkJoin({
-      products: this.catalogApi.searchProductOptions(),
-      customers: this.customersApi.searchCustomerOptions(),
       warehouses: this.locationsApi.listWarehouseOptions(),
       accounts: this.accountsApi.listAccountOptions(),
     }).subscribe({
-      next: ({ products, customers, warehouses, accounts }) => {
-        this.products.set(products.filter((item) => item.status === 'active'));
-        this.customers.set(customers);
+      next: ({ warehouses, accounts }) => {
         this.warehouses.set(this.sessionStore.filterWarehouses(warehouses));
         this.accounts.set(accounts.filter((item) => item.status === 'active'));
         this.loading.set(false);
@@ -111,6 +117,25 @@ export class ReturnWithoutInvoicePage {
         this.loading.set(false);
       },
     });
+
+    this.customerSearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((query) => this.customersApi.searchCustomerOptions(query)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((items) => this.customers.set(items));
+
+    this.productSearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((query) => this.catalogApi.searchProductOptions(query, 25, 'active')),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((items) => this.products.set(items));
+
     this.form.controls.resolution.valueChanges.subscribe((resolution) => {
       setRequiredValidator(this.form.controls.refundAccountId, resolution === 'account_refund');
     });
@@ -121,14 +146,12 @@ export class ReturnWithoutInvoicePage {
     return this.lines.at(index) as FormGroup;
   }
 
-  onCustomerSearch(event: Event): void {
-    const target = event.target;
-    if (target instanceof HTMLInputElement) this.customersApi.searchCustomerOptions(target.value).subscribe((items) => this.customers.set(items));
+  onCustomerLookupFocus(): void {
+    this.customerSearchChanges.next('');
   }
 
-  onProductSearch(event: Event): void {
-    const target = event.target;
-    if (target instanceof HTMLInputElement) this.catalogApi.searchProductOptions(target.value).subscribe((items) => this.products.set(items));
+  onProductLookupFocus(): void {
+    this.productSearchChanges.next('');
   }
 
   addLine(): void {
@@ -154,13 +177,18 @@ export class ReturnWithoutInvoicePage {
 
   onProductChange(index: number): void {
     const productId = String(this.lineGroup(index).get('productId')?.value ?? '');
+    const warehouseId = String(this.form.controls.warehouseId.value ?? '');
     this.lineGroup(index).patchValue({ batchId: '' });
     setRequiredValidator(this.lineGroup(index).get('batchId'), this.productNeedsBatch(index));
     if (!productId || !this.productNeedsBatch(index)) {
       this.batchesByLine.update((current) => ({ ...current, [index]: [] }));
       return;
     }
-    this.inventoryApi.listBatches({ productId }).subscribe({
+    const batchQuery: { productId: string; warehouseId?: string } = { productId };
+    if (warehouseId) {
+      batchQuery.warehouseId = warehouseId;
+    }
+    this.inventoryApi.listBatches(batchQuery).subscribe({
       next: (batches) => {
         this.batchesByLine.update((current) => ({ ...current, [index]: batches.items }));
       },

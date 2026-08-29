@@ -104,7 +104,7 @@ export class SuppliersPage {
     | { kind: 'status'; item: SupplierRecord; nextStatus: 'active' | 'inactive' }
     | null = null;
 
-  private readonly reloadRequests = new Subject<void>();
+  private readonly reloadRequests = new Subject<boolean>();
   private readonly searchChanges = new Subject<string>();
   private clampAfterLoad = false;
 
@@ -201,8 +201,8 @@ export class SuppliersPage {
 
     this.reloadRequests
       .pipe(
-        startWith(undefined),
-        switchMap(() => {
+        startWith(false),
+        switchMap((forceRefresh) => {
           if (!this.canView()) {
             this.errorMessage.set('You do not have permission to view suppliers.');
             this.loading.set(false);
@@ -216,6 +216,7 @@ export class SuppliersPage {
               pageSize: this.pageSize(),
               status: this.statusFilter(),
               search: this.search(),
+              forceRefresh: forceRefresh === true,
             })
             .pipe(
               catchError((error: unknown) => {
@@ -242,9 +243,9 @@ export class SuppliersPage {
       });
   }
 
-  reload(clampAfterLoad = false): void {
+  reload(clampAfterLoad = false, forceRefresh = false): void {
     this.clampAfterLoad = clampAfterLoad;
-    this.reloadRequests.next();
+    this.reloadRequests.next(forceRefresh);
   }
 
   onSearchInput(event: Event): void {
