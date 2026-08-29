@@ -1,8 +1,17 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
+import {
+  Subject,
+  debounceTime,
+  distinctUntilChanged,
+  forkJoin,
+  of,
+  switchMap,
+} from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { SupplierPaymentsApi } from '../../data-access/supplier-payments.api';
 import {
   SupplierLedgerEffectRecord,
@@ -36,6 +45,8 @@ export class SupplierLedgerPage {
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly formBuilder = inject(FormBuilder);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly supplierSearchChanges = new Subject<string>();
 
   readonly canUseSupplierLedger = computed(
     () => this.capabilityService?.canUseModule('payments.supplierLedger') ?? true,
@@ -128,26 +139,8 @@ export class SupplierLedgerPage {
       this.loadingSuppliers.set(false);
       return;
     }
-    this.loadSuppliers();
 
-    this.form.controls.supplierId.valueChanges.subscribe((id) => {
-      this.selectedSupplierId.set(id);
-      this.ledgerItems.set([]);
-      this.reconciliation.set(null);
-      this.errorMessage.set(null);
-      this.reconErrorMessage.set(null);
-      this.searchTerm.set('');
-      this.typeFilter.set('all');
-      if (!id) {
-        return;
-      }
-      this.loadLedger(id);
-      this.loadReconciliation(id);
-    });
-  }
-
-  loadSuppliers(search = ''): void {
-    this.api.listSupplierLedgerSuppliers(search).subscribe({
+    this.api.listSupplierLedgerSuppliers('').subscribe({
       next: (items) => {
         this.suppliers.set(items.filter((s) => s.status === 'active'));
         this.loadingSuppliers.set(false);
@@ -157,17 +150,91 @@ export class SupplierLedgerPage {
         this.errorMessage.set('Unable to load suppliers.');
       },
     });
+
+    this.supplierSearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((search) => this.api.listSupplierLedgerSuppliers(search)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (items) => {
+          this.suppliers.set(items.filter((s) => s.status === 'active'));
+          this.loadingSuppliers.set(false);
+        },
+        error: () => {
+          this.loadingSuppliers.set(false);
+          this.errorMessage.set('Unable to load suppliers.');
+        },
+      });
+
+    this.form.controls.supplierId.valueChanges
+      .pipe(
+        switchMap((id) => {
+          this.selectedSupplierId.set(id);
+          this.ledgerItems.set([]);
+          this.reconciliation.set(null);
+          this.errorMessage.set(null);
+          this.reconErrorMessage.set(null);
+          this.searchTerm.set('');
+          this.typeFilter.set('all');
+          if (!id) {
+            this.loadingLedger.set(false);
+            this.loadingRecon.set(false);
+            return of(null);
+          }
+          this.loadingLedger.set(true);
+          this.loadingRecon.set(true);
+          return forkJoin({
+            ledger: this.api.listSupplierLedger(id),
+            reconciliation: this.api.reconcileSupplier(id),
+          });
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (result) => {
+          if (!result) {
+            return;
+          }
+          this.ledgerItems.set(result.ledger);
+          this.reconciliation.set(result.reconciliation);
+          this.loadingLedger.set(false);
+          this.loadingRecon.set(false);
+        },
+        error: (error: unknown) => {
+          this.loadingLedger.set(false);
+          this.loadingRecon.set(false);
+          this.errorMessage.set(
+            error instanceof HttpErrorResponse
+              ? (error.error?.error?.message ?? 'Unable to load ledger.')
+              : 'Unable to load ledger.',
+          );
+        },
+      });
   }
 
-  private loadLedger(supplierId: string): void {
+  reloadCurrentSupplier(forceRefresh = true): void {
+    const id = this.selectedSupplierId();
+    if (!id) {
+      return;
+    }
     this.loadingLedger.set(true);
-    this.api.listSupplierLedger(supplierId).subscribe({
-      next: (items) => {
-        this.ledgerItems.set(items);
+    this.loadingRecon.set(true);
+    forkJoin({
+      ledger: this.api.listSupplierLedger(id, { forceRefresh }),
+      reconciliation: this.api.reconcileSupplier(id, { forceRefresh }),
+    }).subscribe({
+      next: ({ ledger, reconciliation }) => {
+        this.ledgerItems.set(ledger);
+        this.reconciliation.set(reconciliation);
         this.loadingLedger.set(false);
+        this.loadingRecon.set(false);
       },
       error: (error: unknown) => {
         this.loadingLedger.set(false);
+        this.loadingRecon.set(false);
         this.errorMessage.set(
           error instanceof HttpErrorResponse
             ? (error.error?.error?.message ?? 'Unable to load ledger.')
@@ -175,32 +242,6 @@ export class SupplierLedgerPage {
         );
       },
     });
-  }
-
-  private loadReconciliation(supplierId: string): void {
-    this.loadingRecon.set(true);
-    this.api.reconcileSupplier(supplierId).subscribe({
-      next: (recon) => {
-        this.reconciliation.set(recon);
-        this.loadingRecon.set(false);
-      },
-      error: (error: unknown) => {
-        this.loadingRecon.set(false);
-        this.reconErrorMessage.set(
-          error instanceof HttpErrorResponse
-            ? (error.error?.error?.message ?? 'Unable to load reconciliation.')
-            : 'Unable to load reconciliation.',
-        );
-      },
-    });
-  }
-
-  reloadCurrentSupplier(): void {
-    const id = this.selectedSupplierId();
-    if (id) {
-      this.loadLedger(id);
-      this.loadReconciliation(id);
-    }
   }
 
   effectKindLabel(kind: string): string {
@@ -272,7 +313,7 @@ export class SupplierLedgerPage {
   onSupplierSearch(event: Event): void {
     const target = event.target;
     if (target instanceof HTMLInputElement) {
-      this.loadSuppliers(target.value);
+      this.supplierSearchChanges.next(target.value.trim());
     }
   }
 

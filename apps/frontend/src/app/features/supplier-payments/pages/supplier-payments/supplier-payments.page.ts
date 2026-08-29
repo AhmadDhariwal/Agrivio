@@ -32,7 +32,7 @@ export class SupplierPaymentsPage {
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly destroyRef = inject(DestroyRef);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
-  private readonly reloadRequests = new Subject<void>();
+  private readonly reloadRequests = new Subject<boolean>();
   private readonly dateChanges = new Subject<string>();
 
   readonly items = signal<SupplierPaymentRecord[]>([]);
@@ -89,8 +89,8 @@ export class SupplierPaymentsPage {
 
     this.reloadRequests
       .pipe(
-        startWith(undefined),
-        switchMap(() => {
+        startWith(false),
+        switchMap((forceRefresh) => {
           if (!this.canView()) {
             this.loading.set(false);
             this.errorMessage.set('You do not have permission to view supplier payments.');
@@ -103,9 +103,11 @@ export class SupplierPaymentsPage {
             pageSize: number;
             paymentDate?: string;
             search?: string;
+            forceRefresh?: boolean;
           } = {
             page: this.page(),
             pageSize: this.pageSize(),
+            forceRefresh: forceRefresh === true,
           };
           if (this.paymentDate()) {
             params.paymentDate = this.paymentDate();
@@ -132,8 +134,8 @@ export class SupplierPaymentsPage {
       });
   }
 
-  reload(): void {
-    this.reloadRequests.next();
+  reload(forceRefresh = false): void {
+    this.reloadRequests.next(forceRefresh);
   }
 
   onDateChange(value: string): void {

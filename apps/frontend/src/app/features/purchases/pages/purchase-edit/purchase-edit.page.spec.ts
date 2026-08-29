@@ -112,10 +112,14 @@ const mockPostedRecord: PurchaseRecord = {
 describe('PurchaseEditPage', () => {
   let mockGetPurchase: () => Observable<PurchaseRecord | null>;
   let disabledCapabilities: Set<string>;
+  let searchProductOptionsCalls = 0;
+  let searchSupplierOptionsCalls = 0;
 
   beforeEach(async () => {
     mockGetPurchase = () => of(null);
     disabledCapabilities = new Set();
+    searchProductOptionsCalls = 0;
+    searchSupplierOptionsCalls = 0;
 
     await TestBed.configureTestingModule({
       imports: [PurchaseEditPage],
@@ -143,7 +147,10 @@ describe('PurchaseEditPage', () => {
           provide: CatalogApi,
           useValue: {
             listProducts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
-            searchProductOptions: () => of([mockProductNone, mockProductBatch, mockProductExpiry]),
+            searchProductOptions: () => {
+              searchProductOptionsCalls += 1;
+              return of([mockProductNone, mockProductBatch, mockProductExpiry]);
+            },
             listPackagingUnits: () => of([]),
           },
         },
@@ -158,7 +165,10 @@ describe('PurchaseEditPage', () => {
           provide: SuppliersApi,
           useValue: {
             listSuppliers: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
-            searchSupplierOptions: () => of([{ id: 'sup-1', name: 'Engro Fertilizers', status: 'active' }]),
+            searchSupplierOptions: () => {
+              searchSupplierOptionsCalls += 1;
+              return of([{ id: 'sup-1', name: 'Engro Fertilizers', status: 'active' }]);
+            },
           },
         },
         {
@@ -191,6 +201,13 @@ describe('PurchaseEditPage', () => {
         },
       ],
     }).compileComponents();
+  });
+
+  it('does not preload product or supplier catalogs on initial load', () => {
+    const fixture: ComponentFixture<PurchaseEditPage> = TestBed.createComponent(PurchaseEditPage);
+    fixture.detectChanges();
+    expect(searchProductOptionsCalls).toBe(0);
+    expect(searchSupplierOptionsCalls).toBe(0);
   });
 
   it('renders draft create form branch with empty payments at post', () => {
@@ -241,6 +258,7 @@ describe('PurchaseEditPage', () => {
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
+    component.products.set([mockProductNone, mockProductBatch, mockProductExpiry]);
     const line = component.lineGroup(0);
 
     // 1. None tracking mode: no batch/expiry inputs
