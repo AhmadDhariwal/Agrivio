@@ -106,10 +106,20 @@ function createCatalogController(deps) {
           requireOrganizationId(req),
           { q, search, limit, status: parseMasterStatusQuery(req.query), skip, pageSize },
         );
+        const includeListSummary =
+          req.query.includeListSummary === 'true' || req.query.includeListSummary === true;
+        const resolvedItems =
+          includeListSummary && deps.inventoryReader
+            ? await deps.catalogService.attachProductListSummaries(
+                requireOrganizationId(req),
+                items,
+                deps.inventoryReader,
+              )
+            : items;
         if (page !== undefined) {
-          sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
+          sendSuccessEnvelope(res, 200, resolvedItems, { page, pageSize, total });
         } else {
-          sendSuccessEnvelope(res, 200, items);
+          sendSuccessEnvelope(res, 200, resolvedItems);
         }
       } catch (error) {
         next(error);

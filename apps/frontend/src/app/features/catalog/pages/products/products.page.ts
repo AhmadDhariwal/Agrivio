@@ -2,7 +2,6 @@ import { Component, DestroyRef, HostListener, computed, inject, signal } from '@
 import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { CatalogApi } from '../../data-access/catalog.api';
-import { InventoryApi } from '../../../inventory/data-access/inventory.api';
 import {
   CategoryRecord,
   PackagingUnitRecord,
@@ -24,7 +23,6 @@ import {
   debounceTime,
   distinctUntilChanged,
   forkJoin,
-  map,
   of,
   startWith,
   switchMap,
@@ -75,14 +73,6 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
  * ============================================================================
  */
 
-export interface ProductAuxData {
-  id: string;
-  price?: string | undefined;
-  stock?: number | undefined;
-  isLowStock?: boolean | undefined;
-  isOutOfStock?: boolean | undefined;
-}
-
 @Component({
   selector: 'agrivio-products-page',
   standalone: true,
@@ -109,7 +99,6 @@ export class ProductsPage {
     'View real-time stock-related availability across workflows',
   ];
   private readonly api = inject(CatalogApi);
-  private readonly inventoryApi = inject(InventoryApi);
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
@@ -119,7 +108,6 @@ export class ProductsPage {
 
   readonly rawItems = signal<ProductRecord[]>([]);
   readonly categories = signal<CategoryRecord[]>([]);
-  readonly productAuxMap = signal<Map<string, ProductAuxData>>(new Map());
   readonly statusFilter = signal<MasterLifecycleFilter>('active');
   readonly categoryFilter = signal<string>('');
   readonly trackingFilter = signal<string>('');
@@ -249,13 +237,12 @@ export class ProductsPage {
   // KPI Metrics computed from current dataset & pagination stats
   readonly kpis = computed(() => {
     const items = this.rawItems();
-    const aux = this.productAuxMap();
     const active = items.filter((p) => p.status === 'active').length;
     const inactive = items.filter((p) => p.status === 'inactive').length;
     const tracked = items.filter((p) => p.trackingMode !== 'none').length;
     const lowStock = items.filter((p) => {
-      const data = aux.get(p.id);
-      return data?.isLowStock || data?.isOutOfStock;
+      const stock = this.stockQuantity(p);
+      return stock > 0 && stock <= 20;
     }).length;
 
     return {
@@ -335,6 +322,7 @@ export class ProductsPage {
               pageSize: this.pageSize(),
               status: this.statusFilter(),
               search: this.search(),
+              includeListSummary: true,
             })
             .pipe(
               catchError((error: unknown) => {
@@ -362,7 +350,6 @@ export class ProductsPage {
         this.rawItems.set(items);
         applyPaginationMeta(meta, { total: this.total, pageSize: this.pageSize });
         this.loading.set(false);
-        this.loadAuxData(items);
       });
   }
 
@@ -395,47 +382,29 @@ export class ProductsPage {
     }
   }
 
-  private loadAuxData(products: ProductRecord[]): void {
-    if (products.length === 0) return;
-    const requests = products.map((p) =>
-      forkJoin({
-        prices: this.api.listPrices(p.id).pipe(catchError(() => of([]))),
-        balances: this.inventoryApi
-          .listBalances({ productId: p.id, pageSize: 50 })
-          .pipe(catchError(() => of({ items: [], meta: { page: 1, pageSize: 50, total: 0 } }))),
-      }).pipe(
-        map(({ prices, balances }) => {
-          const retailPrice =
-            prices.find((pr) => pr.status === 'active' && pr.priceTier === 'retail')?.price
-              .amount || prices.find((pr) => pr.status === 'active')?.price.amount;
-          let totalAvail = 0;
-          for (const bal of balances.items) {
-            const q = parseFloat(bal.quantityBase || '0');
-            if (!isNaN(q)) totalAvail += q;
-          }
-          return {
-            id: p.id,
-            price: retailPrice ?? undefined,
-            stock: totalAvail,
-            isLowStock: totalAvail > 0 && totalAvail <= 20,
-            isOutOfStock: totalAvail === 0,
-          };
-        }),
-      ),
-    );
+  getSellingPrice(product: ProductRecord): string {
+    const amount = product.listSummary?.sellingPrice?.amount;
+    if (!amount) return '—';
+    const num = Number(amount);
+    if (isNaN(num)) return `PKR ${amount}`;
+    return `PKR ${num.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
 
-    forkJoin(requests)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (results) => {
-          const map = new Map<string, ProductAuxData>();
-          for (const r of results) {
-            map.set(r.id, r);
-          }
-          this.productAuxMap.set(map);
-        },
-        error: () => undefined,
-      });
+  getStockData(product: ProductRecord): { amount: string; tone: 'normal' | 'low' | 'out' } {
+    const stock = this.stockQuantity(product);
+    if (stock === 0) {
+      return { amount: '0', tone: 'out' };
+    }
+    if (stock <= 20) {
+      return { amount: stock.toLocaleString(), tone: 'low' };
+    }
+    return { amount: stock.toLocaleString(), tone: 'normal' };
+  }
+
+  private stockQuantity(product: ProductRecord): number {
+    const raw = product.listSummary?.availableQuantityBase ?? '0';
+    const parsed = parseFloat(raw);
+    return isNaN(parsed) ? 0 : parsed;
   }
 
   toggleRowMenu(productId: string, event: Event): void {
@@ -445,28 +414,6 @@ export class ProductsPage {
 
   closeRowMenu(): void {
     this.openMenuProductId.set(null);
-  }
-
-  getSellingPrice(productId: string): string {
-    const aux = this.productAuxMap().get(productId);
-    if (!aux?.price) return '—';
-    const num = Number(aux.price);
-    if (isNaN(num)) return `PKR ${aux.price}`;
-    return `PKR ${num.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }
-
-  getStockData(productId: string): { amount: string; tone: 'normal' | 'low' | 'out' } {
-    const aux = this.productAuxMap().get(productId);
-    if (!aux || aux.stock === undefined) {
-      return { amount: '0', tone: 'out' };
-    }
-    if (aux.isOutOfStock) {
-      return { amount: '0', tone: 'out' };
-    }
-    if (aux.isLowStock) {
-      return { amount: aux.stock.toLocaleString(), tone: 'low' };
-    }
-    return { amount: aux.stock.toLocaleString(), tone: 'normal' };
   }
 
   reload(clampAfterLoad = false): void {

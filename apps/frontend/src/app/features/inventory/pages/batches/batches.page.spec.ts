@@ -23,6 +23,13 @@ describe('BatchesPage', () => {
       manufacturingDate: '2027-09-21',
       expiryDate: '2027-09-21',
       firstReceivedAt: '2026-08-17T11:34:00.000Z',
+      stockLocations: [
+        {
+          warehouseId: 'wh-1',
+          quantityBase: '1250.0000',
+          unsellableQuantityBase: '0.0000',
+        },
+      ],
     },
     {
       id: 'batch-2',
@@ -150,8 +157,6 @@ describe('BatchesPage', () => {
                 },
               });
             },
-            listBalances: () =>
-              of({ items: mockBalances, meta: { page: 1, pageSize: 100, total: 2 } }),
             listExpiry: () => of(mockExpiry),
           },
         },

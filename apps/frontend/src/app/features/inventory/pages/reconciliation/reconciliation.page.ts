@@ -14,13 +14,13 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
-import { ProductBatchRecord } from '../../models/inventory.models';
 
 export interface ReconciliationFindingItem {
   code: string;
   warehouseId?: string;
   productId?: string;
   batchId?: string | null;
+  batchNumberSnapshot?: string | null;
   movementQuantityBaseMinorUnits?: string;
   balanceQuantityBaseMinorUnits?: string;
   costQuantityBaseMinorUnits?: string;
@@ -136,7 +136,6 @@ export class ReconciliationPage {
   // Reference Maps (Deduplicated, O(1) Cached Lookup)
   readonly productMap = signal<Map<string, ProductRecord>>(new Map());
   readonly warehouseMap = signal<Map<string, WarehouseRecord>>(new Map());
-  readonly batchMap = signal<Map<string, ProductBatchRecord>>(new Map());
   readonly warehouseList = signal<WarehouseRecord[]>([]);
 
   // Permissions & Capability Computeds
@@ -264,7 +263,6 @@ export class ReconciliationPage {
     const code = this.findingCodeFilter();
     const prodMap = this.productMap();
     const whMap = this.warehouseMap();
-    const bMap = this.batchMap();
 
     return all.filter((item) => {
       // Category filter
@@ -293,8 +291,7 @@ export class ReconciliationPage {
         const whName = wh?.name?.toLowerCase() ?? '';
         const whCode = wh?.code?.toLowerCase() ?? '';
         const whId = (item.warehouseId ?? '').toLowerCase();
-        const batch = item.batchId ? bMap.get(item.batchId) : null;
-        const batchNum = (batch?.batchNumber || item.batchId || '').toLowerCase();
+        const batchNum = (item.batchNumberSnapshot || item.batchId || '').toLowerCase();
         const codeLabel = (FINDING_CODE_METADATA[item.code]?.label || item.code).toLowerCase();
 
         const match =
@@ -383,15 +380,10 @@ export class ReconciliationPage {
       warehouses: this.locationsApi
         .listWarehouseOptions()
         .pipe(catchError(() => of([] as WarehouseRecord[]))),
-      batches: this.inventoryApi
-        .listBatches({ page: 1, pageSize: 200 })
-        .pipe(
-          catchError(() => of({ items: [] as ProductBatchRecord[], meta: { page: 1, pageSize: 200, total: 0 } })),
-        ),
     };
 
     forkJoin(requests).subscribe({
-      next: ({ recon, products, warehouses, batches }) => {
+      next: ({ recon, products, warehouses }) => {
         this.lastCheckedAt.set(new Date());
         this.isOk.set(recon.ok === true && (!recon.findings || recon.findings.length === 0));
         this.findings.set((recon.findings as ReconciliationFindingItem[]) || []);
@@ -411,13 +403,6 @@ export class ReconciliationPage {
         }
         this.warehouseMap.set(whMap);
         this.warehouseList.set(warehouses);
-
-        const bMap = new Map<string, ProductBatchRecord>();
-        for (const b of batches.items) {
-          const id = b.id || (b as unknown as { _id?: string })._id;
-          if (id) bMap.set(id, b);
-        }
-        this.batchMap.set(bMap);
 
         this.loading.set(false);
       },
@@ -511,9 +496,10 @@ export class ReconciliationPage {
     return this.warehouseMap().get(warehouseId)?.name ?? `Warehouse (${warehouseId})`;
   }
 
-  batchNumber(batchId?: string | null): string {
+  batchNumber(batchId?: string | null, batchNumberSnapshot?: string | null): string {
     if (!batchId) return 'Standard (No Batch)';
-    return this.batchMap().get(batchId)?.batchNumber ?? batchId;
+    if (batchNumberSnapshot) return batchNumberSnapshot;
+    return batchId;
   }
 
   findingMeta(code: string): FindingCodeMeta {

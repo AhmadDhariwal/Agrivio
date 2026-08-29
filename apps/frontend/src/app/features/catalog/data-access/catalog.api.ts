@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map, switchMap } from 'rxjs';
+import { Observable, map, switchMap, tap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
 import {
@@ -13,15 +13,20 @@ import {
 } from '../models/catalog.models';
 import { ApiSuccessEnvelope, PaginationMeta } from '@agrivio/api-contracts';
 import { PaginatedResult, PaginationQuery } from '../../../shared/data-access/pagination';
+import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
+import { QUERY_CACHE_TAGS } from '../../../shared/data-access/query-cache.tags';
 
 interface ProductListQuery extends PaginationQuery {
   q?: string;
+  includeListSummary?: boolean;
+  forceRefresh?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
 export class CatalogApi {
   private readonly http = inject(HttpClient);
   private readonly authApi = inject(AuthApi);
+  private readonly queryCache = inject(QueryCacheService);
 
   listCategories(query: PaginationQuery = {}): Observable<PaginatedResult<CategoryRecord>> {
     return this.http
@@ -62,7 +67,10 @@ export class CatalogApi {
               headers: { 'X-CSRF-Token': csrfToken },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.queryCache.invalidateTags(QUERY_CACHE_TAGS.products, QUERY_CACHE_TAGS.productOptions)),
+          ),
       ),
     );
   }
@@ -87,7 +95,10 @@ export class CatalogApi {
               headers: { 'X-CSRF-Token': csrfToken },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.queryCache.invalidateTags(QUERY_CACHE_TAGS.products, QUERY_CACHE_TAGS.productOptions)),
+          ),
       ),
     );
   }
@@ -100,7 +111,10 @@ export class CatalogApi {
             `${environment.publicApiBaseUrl}/api/v1/product-categories/${id}`,
             { withCredentials: true, headers: { 'X-CSRF-Token': csrfToken } },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.queryCache.invalidateTags(QUERY_CACHE_TAGS.products, QUERY_CACHE_TAGS.productOptions)),
+          ),
       ),
     );
   }
@@ -108,20 +122,31 @@ export class CatalogApi {
   listProducts(query: ProductListQuery = {}): Observable<PaginatedResult<ProductRecord>> {
     const params = this.paginationParams(query);
     if (query.q) params['q'] = query.q;
-    return this.http
-      .get<ApiSuccessEnvelope<ProductRecord[], PaginationMeta>>(
-        `${environment.publicApiBaseUrl}/api/v1/products`,
-        { withCredentials: true, params },
-      )
-      .pipe(
-        map((response) => ({
-          items: (response.data || []).map((p: any) => ({
-            ...p,
-            id: p.id || p._id || '',
-          })),
-          meta: response.meta!,
-        })),
-      );
+    if (query.includeListSummary) {
+      params['includeListSummary'] = 'true';
+    }
+    const cacheKey = this.queryCache.buildKey('products', params);
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'short',
+      tags: [QUERY_CACHE_TAGS.products],
+      forceRefresh: query.forceRefresh === true,
+      loader: () =>
+        this.http
+          .get<ApiSuccessEnvelope<ProductRecord[], PaginationMeta>>(
+            `${environment.publicApiBaseUrl}/api/v1/products`,
+            { withCredentials: true, params },
+          )
+          .pipe(
+            map((response) => ({
+              items: (response.data || []).map((p: ProductRecord & { _id?: string }) => ({
+                ...p,
+                id: p.id || p._id || '',
+              })),
+              meta: response.meta!,
+            })),
+          ),
+    });
   }
 
   searchProductOptions(q = '', limit = 500, status = 'all'): Observable<ProductRecord[]> {
@@ -129,19 +154,26 @@ export class CatalogApi {
     if (status && status !== 'all') {
       params['status'] = status;
     }
-    return this.http
-      .get<ApiSuccessEnvelope<ProductRecord[]>>(`${environment.publicApiBaseUrl}/api/v1/products`, {
-        withCredentials: true,
-        params,
-      })
-      .pipe(
-        map((response) =>
-          (response.data || []).map((p: any) => ({
-            ...p,
-            id: p.id || p._id || '',
-          })),
-        ),
-      );
+    const cacheKey = this.queryCache.buildKey('product-options', params);
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'reference',
+      tags: [QUERY_CACHE_TAGS.productOptions],
+      loader: () =>
+        this.http
+          .get<ApiSuccessEnvelope<ProductRecord[]>>(`${environment.publicApiBaseUrl}/api/v1/products`, {
+            withCredentials: true,
+            params,
+          })
+          .pipe(
+            map((response) =>
+              (response.data || []).map((p: ProductRecord & { _id?: string }) => ({
+                ...p,
+                id: p.id || p._id || '',
+              })),
+            ),
+          ),
+    });
   }
 
   private paginationParams(query: PaginationQuery): Record<string, string> {
@@ -181,7 +213,10 @@ export class CatalogApi {
               headers: { 'X-CSRF-Token': csrfToken },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.queryCache.invalidateTags(QUERY_CACHE_TAGS.products, QUERY_CACHE_TAGS.productOptions)),
+          ),
       ),
     );
   }
@@ -210,7 +245,10 @@ export class CatalogApi {
               headers: { 'X-CSRF-Token': csrfToken },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.queryCache.invalidateTags(QUERY_CACHE_TAGS.products, QUERY_CACHE_TAGS.productOptions)),
+          ),
       ),
     );
   }
@@ -223,7 +261,10 @@ export class CatalogApi {
             `${environment.publicApiBaseUrl}/api/v1/products/${id}`,
             { withCredentials: true, headers: { 'X-CSRF-Token': csrfToken } },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.queryCache.invalidateTags(QUERY_CACHE_TAGS.products, QUERY_CACHE_TAGS.productOptions)),
+          ),
       ),
     );
   }
@@ -255,7 +296,10 @@ export class CatalogApi {
               headers: { 'X-CSRF-Token': csrfToken },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.queryCache.invalidateTags(QUERY_CACHE_TAGS.products, QUERY_CACHE_TAGS.productOptions)),
+          ),
       ),
     );
   }
@@ -291,7 +335,10 @@ export class CatalogApi {
               headers: { 'X-CSRF-Token': csrfToken },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.queryCache.invalidateTags(QUERY_CACHE_TAGS.products, QUERY_CACHE_TAGS.productOptions)),
+          ),
       ),
     );
   }

@@ -4,7 +4,6 @@ import { of } from 'rxjs';
 import { signal } from '@angular/core';
 import { ProductsPage } from './products.page';
 import { CatalogApi } from '../../data-access/catalog.api';
-import { InventoryApi } from '../../../inventory/data-access/inventory.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
@@ -36,6 +35,10 @@ describe('ProductsPage', () => {
                     trackingMode: 'batch_expiry',
                     status: 'active',
                     version: 1,
+                    listSummary: {
+                      sellingPrice: { amount: '5800.00', currency: 'PKR' },
+                      availableQuantityBase: '160.0000',
+                    },
                   },
                 ],
                 meta: { page: 1, pageSize: 25, total: 1 },
@@ -43,27 +46,7 @@ describe('ProductsPage', () => {
             searchCategoryOptions: () =>
               of([{ id: 'cat-1', name: 'Fertilizers', productClass: 'fertilizer' }]),
             listPackagingUnits: () => of([]),
-            listPrices: () =>
-              of([
-                {
-                  id: 'pr-1',
-                  productId: 'prod-1',
-                  priceTier: 'retail',
-                  price: { amount: '5800.00', currency: 'PKR' },
-                  status: 'active',
-                  version: 1,
-                },
-              ]),
-          },
-        },
-        {
-          provide: InventoryApi,
-          useValue: {
-            listBalances: () =>
-              of({
-                items: [{ productId: 'prod-1', quantityBase: '160' }],
-                meta: { page: 1, pageSize: 25, total: 1 },
-              }),
+            listPrices: () => of([]),
           },
         },
         {

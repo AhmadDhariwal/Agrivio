@@ -46,6 +46,12 @@ const {
 } = require('./inventory.validation');
 const { ADJUSTMENT_DIRECTIONS } = require('./persistence/stock-adjustment.model');
 const { reconcileInventoryState } = require('./reconciliation');
+const {
+  attachBatchStockLocations,
+  attachFindingBatchSnapshots,
+  loadMovementReferenceMaps,
+  toMovementListItemDto,
+} = require('./inventory-reference-read');
 
 function mapDuplicate(error, message) {
   if (error && error.agrivioDuplicate === true) {
@@ -399,6 +405,23 @@ function createInventoryService(deps) {
   }
 
   return {
+    async sumAvailableQuantityByProductIds(organizationId, productIds) {
+      if (!Array.isArray(productIds) || productIds.length === 0) {
+        return new Map();
+      }
+      const balances = await store.listBalances(organizationId, { productIds });
+      const totals = new Map();
+      for (const balance of balances) {
+        const productId = String(balance.productId);
+        const prior = totals.get(productId) ?? 0n;
+        totals.set(
+          productId,
+          prior + BigInt(String(balance.quantityBaseMinorUnits ?? '0')),
+        );
+      }
+      return totals;
+    },
+
     async listBatches(organizationId, query) {
       const filters = {};
       if (typeof query?.productId === 'string' && query.productId.trim() !== '') {
@@ -433,10 +456,14 @@ function createInventoryService(deps) {
       }
       if (query?.skip !== undefined || query?.pageSize !== undefined) {
         const { items, total } = await store.listBatchesPage(organizationId, filters, query);
-        return { items: items.map(toBatchDto), total };
+        const dtos = items.map(toBatchDto);
+        const enriched = await attachBatchStockLocations(store, organizationId, dtos);
+        return { items: enriched, total };
       }
       const items = await store.listBatches(organizationId, filters);
-      return { items: items.map(toBatchDto), total: items.length };
+      const dtos = items.map(toBatchDto);
+      const enriched = await attachBatchStockLocations(store, organizationId, dtos);
+      return { items: enriched, total: enriched.length };
     },
 
     async getBatch(organizationId, batchId) {
@@ -510,14 +537,20 @@ function createInventoryService(deps) {
         ? await store.listMovementsPage(organizationId, filters, query)
         : { items: await store.listMovements(organizationId, filters), total: undefined };
       const movements = result.items;
-      const items = movements
-        .filter((item) => {
-          if (typeof deps.canAccessWarehouse !== 'function') {
-            return true;
-          }
-          return deps.canAccessWarehouse(authContext, String(item.warehouseId));
-        })
-        .map(toMovementDto);
+      const accessibleMovements = movements.filter((item) => {
+        if (typeof deps.canAccessWarehouse !== 'function') {
+          return true;
+        }
+        return deps.canAccessWarehouse(authContext, String(item.warehouseId));
+      });
+      const refs = await loadMovementReferenceMaps({
+        store,
+        catalogService,
+        locationsService,
+        organizationId,
+        movements: accessibleMovements,
+      });
+      const items = accessibleMovements.map((item) => toMovementListItemDto(item, refs));
       return { items, total: result.total ?? items.length };
     },
 
@@ -1882,9 +1915,16 @@ function createInventoryService(deps) {
         store.listAllBalances(organizationId),
         store.listAllCostStates(organizationId),
       ]);
-      return toReconciliationDto(
-        reconcileInventoryState({ movements, balances, costStates }),
+      const result = reconcileInventoryState({ movements, balances, costStates });
+      const findings = await attachFindingBatchSnapshots(
+        store,
+        organizationId,
+        Array.isArray(result.findings) ? result.findings : [],
       );
+      return toReconciliationDto({
+        ...result,
+        findings,
+      });
     },
 
     /**

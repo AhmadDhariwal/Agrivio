@@ -562,6 +562,7 @@ function createApp(options) {
 
   const catalogRoutes = registerCatalogRoutes({
     catalogService: catalog.catalogService,
+    inventoryReader: inventory.inventoryService,
     capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,

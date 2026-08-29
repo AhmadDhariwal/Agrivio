@@ -174,6 +174,14 @@ function createLocationsService(deps) {
       return toWarehouseDto(record);
     },
 
+    async findWarehousesByIds(organizationId, warehouseIds) {
+      if (!Array.isArray(warehouseIds) || warehouseIds.length === 0) {
+        return [];
+      }
+      const records = await store.findWarehousesByIds(organizationId, warehouseIds);
+      return records.map(toWarehouseDto);
+    },
+
     async createWarehouse(organizationId, body, actor) {
       const input = parseWarehouseCreate(body);
       const currentUsage = await store.countWarehouses(organizationId);

@@ -646,13 +646,13 @@
           <!-- Selling Price (Level 2: Fixed & Readable) -->
           @if (showSellingPrice()) {
           <td class="prod-table__td prod-table__td--price">
-            <span class="tabular-num price-text">{{ getSellingPrice(item.id) }}</span>
+            <span class="tabular-num price-text">{{ getSellingPrice(item) }}</span>
           </td>
           }
 
           <!-- Available Stock (Level 2: Fixed & Readable) -->
           <td class="prod-table__td prod-table__td--stock">
-            @let stockData = getStockData(item.id);
+            @let stockData = getStockData(item);
             <span
               class="tabular-num stock-text"
               [class.stock-text--low]="stockData.tone === 'low'"
@@ -949,12 +949,12 @@
         @if (showSellingPrice()) {
         <div class="card-metric">
           <span class="card-metric__label">Selling Price</span>
-          <span class="card-metric__value tabular-num">{{ getSellingPrice(item.id) }}</span>
+          <span class="card-metric__value tabular-num">{{ getSellingPrice(item) }}</span>
         </div>
         }
         <div class="card-metric">
           <span class="card-metric__label">Available</span>
-          @let stockData = getStockData(item.id);
+          @let stockData = getStockData(item);
           <span
             class="card-metric__value tabular-num"
             [class.stock-text--low]="stockData.tone === 'low'"

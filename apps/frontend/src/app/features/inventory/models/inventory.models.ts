@@ -11,6 +11,13 @@ export interface ProductBatchRecord {
   manufacturingDate: string | null;
   expiryDate: string | null;
   firstReceivedAt: string;
+  stockLocations?: BatchStockLocation[];
+}
+
+export interface BatchStockLocation {
+  warehouseId: string;
+  quantityBase: string;
+  unsellableQuantityBase: string;
 }
 
 export interface InventoryBalanceRecord {
@@ -49,6 +56,12 @@ export interface StockMovementRecord {
   status: string;
   postedAt: string;
   postedBy: string;
+  productNameSnapshot?: string | null;
+  productSkuSnapshot?: string | null;
+  productBaseUnitSnapshot?: string | null;
+  warehouseNameSnapshot?: string | null;
+  warehouseCodeSnapshot?: string | null;
+  batchNumberSnapshot?: string | null;
 }
 
 export interface OpeningStockResult {

@@ -284,8 +284,30 @@ export class BatchesPage {
       .subscribe((batches) => {
         this.batches.set(batches.items);
         applyPaginationMeta(batches.meta, { total: this.total, pageSize: this.pageSize });
+        this.syncBatchLocationMap(batches.items);
         this.loading.set(false);
       });
+  }
+
+  private syncBatchLocationMap(items: ProductBatchRecord[]): void {
+    const whMap = this.warehouseMap();
+    const locationMap = new Map<string, BatchLocationStock[]>();
+    for (const batch of items) {
+      if (!batch.stockLocations?.length) {
+        continue;
+      }
+      locationMap.set(
+        batch.id,
+        batch.stockLocations.map((location) => ({
+          warehouseId: location.warehouseId,
+          warehouseName: whMap.get(location.warehouseId)?.name ?? location.warehouseId,
+          warehouseCode: whMap.get(location.warehouseId)?.code,
+          quantityBase: location.quantityBase,
+          unsellableQuantityBase: location.unsellableQuantityBase,
+        })),
+      );
+    }
+    this.batchBalancesMap.set(locationMap);
   }
 
   private buildBatchQuery(): {
@@ -328,16 +350,10 @@ export class BatchesPage {
     const requests: {
       products: ReturnType<CatalogApi['searchProductOptions']>;
       warehouses: ReturnType<BranchesWarehousesApi['listWarehouseOptions']>;
-      balances: ReturnType<InventoryApi['listBalances']>;
       expiry?: ReturnType<InventoryApi['listExpiry']>;
     } = {
       products: this.catalogApi.searchProductOptions('', 500).pipe(catchError(() => of([]))),
       warehouses: this.locationsApi.listWarehouseOptions().pipe(catchError(() => of([]))),
-      balances: this.inventoryApi
-        .listBalances({ pageSize: 100 })
-        .pipe(
-          catchError(() => of({ items: [], meta: { page: 1, pageSize: 100, total: 0 } })),
-        ),
     };
 
     if (this.canViewExpiry()) {
@@ -361,7 +377,7 @@ export class BatchesPage {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((result) => {
-        const { products, warehouses, balances } = result;
+        const { products, warehouses } = result;
 
         const prodMap = new Map<string, ProductRecord>();
         for (const p of products) {
@@ -378,23 +394,6 @@ export class BatchesPage {
         }
         this.warehouseMap.set(whMap);
         this.warehouseList.set(warehouses);
-
-        const bMap = new Map<string, BatchLocationStock[]>();
-        for (const bal of balances.items) {
-          if (bal.batchId) {
-            const list = bMap.get(bal.batchId) ?? [];
-            const wh = whMap.get(bal.warehouseId);
-            list.push({
-              warehouseId: bal.warehouseId,
-              warehouseName: wh ? wh.name : bal.warehouseId,
-              warehouseCode: wh?.code,
-              quantityBase: bal.quantityBase ?? '0',
-              unsellableQuantityBase: bal.unsellableQuantityBase ?? '0',
-            });
-            bMap.set(bal.batchId, list);
-          }
-        }
-        this.batchBalancesMap.set(bMap);
 
         if ('expiry' in result && result.expiry) {
           const expResult = result.expiry as {

@@ -91,6 +91,7 @@ describe('ReconciliationPage', () => {
       warehouseId: 'wh-main',
       productId: 'prod-1',
       batchId: 'batch-001',
+      batchNumberSnapshot: 'BATCH-2026-01',
       movementQuantityBaseMinorUnits: '500000', // 50.0000
       balanceQuantityBaseMinorUnits: '400000',  // 40.0000 (diff = -10.0000)
     },
@@ -115,7 +116,6 @@ describe('ReconciliationPage', () => {
   beforeEach(async () => {
     mockInventoryApi = {
       reconcileInventory: vi.fn(() => of({ ok: false, findings: mockFindings })),
-      listBatches: vi.fn(() => of({ items: mockBatches, meta: { page: 1, pageSize: 200, total: 1 } })),
     };
 
     mockCatalogApi = {
@@ -162,7 +162,6 @@ describe('ReconciliationPage', () => {
       expect(mockInventoryApi.reconcileInventory).toHaveBeenCalled();
       expect(mockCatalogApi.searchProductOptions).toHaveBeenCalledWith('', 500);
       expect(mockLocationsApi.listWarehouseOptions).toHaveBeenCalled();
-      expect(mockInventoryApi.listBatches).toHaveBeenCalled();
       expect(page.loading()).toBe(false);
     });
 
@@ -189,7 +188,7 @@ describe('ReconciliationPage', () => {
       expect(page.productSku('prod-1')).toBe('UREA-50');
       expect(page.productBaseUnit('prod-1')).toBe('BAG');
       expect(page.warehouseName('wh-main')).toBe('Main Distribution Hub');
-      expect(page.batchNumber('batch-001')).toBe('BATCH-2026-01');
+      expect(page.batchNumber('batch-001', 'BATCH-2026-01')).toBe('BATCH-2026-01');
     });
 
     it('provides fallback labels for missing references', () => {

@@ -34,7 +34,6 @@ import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pa
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import {
   ExpiryInventoryRecord,
-  ProductBatchRecord,
 } from '../../models/inventory.models';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 
@@ -96,7 +95,6 @@ export class ExpiryInquiryPage {
   // Authoritative Relation Maps
   readonly productMap = signal<Map<string, ProductRecord>>(new Map());
   readonly warehouseMap = signal<Map<string, WarehouseRecord>>(new Map());
-  readonly batchMap = signal<Map<string, ProductBatchRecord>>(new Map());
 
   readonly productList = signal<ProductRecord[]>([]);
   readonly warehouseList = signal<WarehouseRecord[]>([]);
@@ -447,16 +445,6 @@ export class ExpiryInquiryPage {
       warehouses: this.locationsApi
         .listWarehouseOptions()
         .pipe(catchError(() => of([]))),
-      batches: this.inventoryApi
-        .listBatches({ page: 1, pageSize: 500 })
-        .pipe(
-          catchError(() =>
-            of({
-              items: [] as ProductBatchRecord[],
-              meta: { page: 1, pageSize: 500, total: 0 },
-            }),
-          ),
-        ),
     })
       .pipe(
         catchError(() => {
@@ -465,7 +453,7 @@ export class ExpiryInquiryPage {
         }),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe(({ products, warehouses, batches }) => {
+      .subscribe(({ products, warehouses }) => {
         const prodMap = new Map<string, ProductRecord>();
         for (const p of products) {
           const id = p.id || (p as unknown as { _id?: string })._id;
@@ -481,12 +469,6 @@ export class ExpiryInquiryPage {
         }
         this.warehouseMap.set(whMap);
         this.warehouseList.set(warehouses);
-
-        const bMap = new Map<string, ProductBatchRecord>();
-        for (const b of batches.items) {
-          if (b.id) bMap.set(b.id, b);
-        }
-        this.batchMap.set(bMap);
       });
   }
 

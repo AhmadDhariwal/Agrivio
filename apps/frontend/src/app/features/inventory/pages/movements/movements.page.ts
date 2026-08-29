@@ -14,7 +14,6 @@ import {
   catchError,
   debounceTime,
   distinctUntilChanged,
-  forkJoin,
   of,
   startWith,
   switchMap,
@@ -34,7 +33,7 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import { lockBodyScroll, unlockBodyScroll } from '../../../../shared/ui/body-scroll-lock';
-import { ProductBatchRecord, StockMovementRecord } from '../../models/inventory.models';
+import { StockMovementRecord } from '../../models/inventory.models';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 
 export interface ResolvedProductInfo {
@@ -97,7 +96,6 @@ export class MovementsPage {
   // Master Data & In-Memory Reference Caches
   readonly productMap = signal<Map<string, ProductRecord>>(new Map());
   readonly warehouseMap = signal<Map<string, WarehouseRecord>>(new Map());
-  readonly batchMap = signal<Map<string, ProductBatchRecord>>(new Map());
 
   readonly productList = signal<ProductRecord[]>([]);
   readonly warehouseList = signal<WarehouseRecord[]>([]);
@@ -185,9 +183,9 @@ export class MovementsPage {
     // Search Query Filter
     if (query) {
       list = list.filter((m) => {
-        const prod = this.resolveProduct(m.productId);
-        const wh = this.resolveWarehouse(m.warehouseId);
-        const batch = this.resolveBatch(m.batchId);
+        const prod = this.resolveProduct(m);
+        const wh = this.resolveWarehouse(m);
+        const batch = this.resolveBatch(m);
         const sourceLabel = this.sourceTypeLabel(m.sourceType).toLowerCase();
 
         return (
@@ -385,7 +383,6 @@ export class MovementsPage {
         this.movements.set(items);
         this.total.set(meta.total);
         this.loading.set(false);
-        this.enrichMissingReferences(items);
       });
   }
 
@@ -493,7 +490,18 @@ export class MovementsPage {
   }
 
   // Reference Resolution Helpers
-  resolveProduct(productId: string): ResolvedProductInfo {
+  resolveProduct(movement: StockMovementRecord): ResolvedProductInfo {
+    if (movement.productNameSnapshot) {
+      const resolved: ResolvedProductInfo = {
+        name: movement.productNameSnapshot,
+        sku: this.showReferenceResolution() ? (movement.productSkuSnapshot || '—') : '—',
+      };
+      if (movement.productBaseUnitSnapshot) {
+        resolved.baseUnitCode = movement.productBaseUnitSnapshot;
+      }
+      return resolved;
+    }
+    const productId = movement.productId;
     if (!productId) return { name: '—', sku: '—' };
     const p = this.productMap().get(productId);
     if (p) {
@@ -509,7 +517,15 @@ export class MovementsPage {
     };
   }
 
-  resolveWarehouse(warehouseId: string): ResolvedWarehouseInfo {
+  resolveWarehouse(movement: StockMovementRecord): ResolvedWarehouseInfo {
+    if (movement.warehouseNameSnapshot) {
+      return {
+        name: movement.warehouseNameSnapshot,
+        code: this.showReferenceResolution() ? (movement.warehouseCodeSnapshot || '—') : '—',
+        location: movement.warehouseNameSnapshot,
+      };
+    }
+    const warehouseId = movement.warehouseId;
     if (!warehouseId) return { name: '—', code: '—' };
     const w = this.warehouseMap().get(warehouseId);
     if (w) {
@@ -525,17 +541,16 @@ export class MovementsPage {
     };
   }
 
-  resolveBatch(batchId: string | null): ResolvedBatchInfo {
-    if (!batchId) return { batchNumber: '—', expiryDate: null };
-    const b = this.batchMap().get(batchId);
-    if (b) {
+  resolveBatch(movement: StockMovementRecord): ResolvedBatchInfo {
+    if (!movement.batchId) return { batchNumber: '—', expiryDate: null };
+    if (movement.batchNumberSnapshot) {
       return {
-        batchNumber: b.batchNumber,
-        expiryDate: this.showReferenceResolution() ? b.expiryDate : null,
+        batchNumber: movement.batchNumberSnapshot,
+        expiryDate: null,
       };
     }
     return {
-      batchNumber: batchId,
+      batchNumber: movement.batchId,
       expiryDate: null,
     };
   }
@@ -632,109 +647,5 @@ export class MovementsPage {
         }
         this.warehouseMap.set(map);
       });
-  }
-
-  private enrichMissingReferences(items: StockMovementRecord[]): void {
-    if (!items || items.length === 0) return;
-
-    const missingProductIds = [...new Set(items.map((m) => m.productId))].filter(
-      (id) => Boolean(id) && !this.productMap().has(id),
-    );
-
-    const missingWarehouseIds = [...new Set(items.map((m) => m.warehouseId))].filter(
-      (id) => Boolean(id) && !this.warehouseMap().has(id),
-    );
-
-    const missingBatchIds = [
-      ...new Set(items.map((m) => m.batchId).filter((id): id is string => Boolean(id))),
-    ].filter((id) => !this.batchMap().has(id));
-
-    if (
-      missingProductIds.length === 0 &&
-      missingWarehouseIds.length === 0 &&
-      missingBatchIds.length === 0
-    ) {
-      return;
-    }
-
-    const productLookups = missingProductIds.map((id) =>
-      this.catalogApi.getProduct(id).pipe(
-        catchError(() =>
-          of({
-            id,
-            organizationId: '',
-            categoryId: '',
-            name: `Product (${id.slice(-6)})`,
-            sku: '—',
-            trackingMode: 'none' as const,
-            baseUnitCode: 'Units',
-            measurementDimension: '',
-            status: 'inactive' as const,
-            version: 1,
-          }),
-        ),
-      ),
-    );
-
-    const warehouseLookups = missingWarehouseIds.map((id) =>
-      this.locationsApi.getWarehouse(id).pipe(
-        catchError(() =>
-          of({
-            id,
-            organizationId: '',
-            name: `Warehouse (${id.slice(-6)})`,
-            code: id.slice(-6),
-            status: 'inactive' as const,
-            version: 1,
-          }),
-        ),
-      ),
-    );
-
-    const batchLookups = missingBatchIds.map((id) =>
-      this.inventoryApi.getBatch(id).pipe(
-        catchError(() =>
-          of({
-            id,
-            organizationId: '',
-            productId: '',
-            batchNumber: id,
-            manufacturingDate: null,
-            expiryDate: null,
-            firstReceivedAt: '',
-          }),
-        ),
-      ),
-    );
-
-    forkJoin({
-      products: productLookups.length > 0 ? forkJoin(productLookups) : of([]),
-      warehouses: warehouseLookups.length > 0 ? forkJoin(warehouseLookups) : of([]),
-      batches: batchLookups.length > 0 ? forkJoin(batchLookups) : of([]),
-    }).subscribe({
-      next: ({ products, warehouses, batches }) => {
-        if (products.length > 0) {
-          const nextP = new Map(this.productMap());
-          for (const p of products) {
-            nextP.set(p.id, p);
-          }
-          this.productMap.set(nextP);
-        }
-        if (warehouses.length > 0) {
-          const nextW = new Map(this.warehouseMap());
-          for (const w of warehouses) {
-            nextW.set(w.id, w);
-          }
-          this.warehouseMap.set(nextW);
-        }
-        if (batches.length > 0) {
-          const nextB = new Map(this.batchMap());
-          for (const b of batches) {
-            nextB.set(b.id, b);
-          }
-          this.batchMap.set(nextB);
-        }
-      },
-    });
   }
 }
