@@ -5,6 +5,8 @@ import { CapabilitiesApi } from './capabilities.api';
 import { EffectiveCapabilitiesSnapshot } from '../models/capability.models';
 import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
 import { invalidateDashboardReads } from '../../dashboard/data-access/dashboard-cache.invalidation';
+import { invalidateReportsReads } from '../../reports/data-access/reports-cache.invalidation';
+import { invalidateAlertReads } from '../../alerts/data-access/alerts-cache.invalidation';
 
 const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string, boolean>>>> = {
   'inventory.products': { enabled: true },
@@ -543,7 +545,10 @@ export class CapabilityService {
           this.snapshotSignal.set(snapshot);
           if (previousVersion !== null && snapshot.version !== previousVersion) {
             try {
-              invalidateDashboardReads(this.injector.get(QueryCacheService));
+              const queryCache = this.injector.get(QueryCacheService);
+              invalidateDashboardReads(queryCache);
+              invalidateReportsReads(queryCache);
+              invalidateAlertReads(queryCache);
             } catch {
               // Query cache is optional during bootstrap/tests.
             }

@@ -1,7 +1,10 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { EMPTY, Subject } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AlertsApi } from '../../data-access/alerts.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
@@ -39,6 +42,8 @@ export class NotificationCenterPage {
   private readonly alertsApi = inject(AlertsApi);
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly reloadRequests = new Subject<boolean>();
 
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
@@ -150,31 +155,39 @@ export class NotificationCenterPage {
   });
 
   constructor() {
+    this.reloadRequests
+      .pipe(
+        switchMap((forceRefresh) => {
+          if (!this.canView()) {
+            this.loading.set(false);
+            return EMPTY;
+          }
+          this.loading.set(true);
+          this.errorMessage.set(null);
+          return this.alertsApi.listNotifications({ forceRefresh: forceRefresh === true });
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (data) => {
+          this.items.set(data.items);
+          this.summaries.set(data.summaries);
+          this.loading.set(false);
+        },
+        error: (error: unknown) => {
+          this.loading.set(false);
+          this.errorMessage.set(
+            error instanceof HttpErrorResponse
+              ? (error.error?.error?.message ?? 'Unable to load notifications.')
+              : 'Unable to load notifications.',
+          );
+        },
+      });
     this.reload();
   }
 
-  reload(): void {
-    if (!this.canView()) {
-      this.loading.set(false);
-      return;
-    }
-    this.loading.set(true);
-    this.errorMessage.set(null);
-    this.alertsApi.listNotifications().subscribe({
-      next: (data) => {
-        this.items.set(data.items);
-        this.summaries.set(data.summaries);
-        this.loading.set(false);
-      },
-      error: (error: unknown) => {
-        this.loading.set(false);
-        this.errorMessage.set(
-          error instanceof HttpErrorResponse
-            ? (error.error?.error?.message ?? 'Unable to load notifications.')
-            : 'Unable to load notifications.',
-        );
-      },
-    });
+  reload(forceRefresh = false): void {
+    this.reloadRequests.next(forceRefresh);
   }
 
   acknowledge(item: NotificationItem): void {

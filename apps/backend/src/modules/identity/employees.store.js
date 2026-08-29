@@ -49,6 +49,35 @@ function createMongooseEmployeesStore() {
       return OrganizationMembershipModel.findOne({ organizationId, userId }).lean().exec();
     },
 
+    async findMembershipsWithUsersByUserIds(organizationId, userIds) {
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        return [];
+      }
+      const objectIds = userIds
+        .filter((id) => mongoose.isValidObjectId(id))
+        .map((id) => new mongoose.Types.ObjectId(String(id)));
+      if (objectIds.length === 0) {
+        return [];
+      }
+      return OrganizationMembershipModel.aggregate([
+        {
+          $match: {
+            organizationId: new mongoose.Types.ObjectId(String(organizationId)),
+            userId: { $in: objectIds },
+          },
+        },
+        {
+          $lookup: {
+            from: UserModel.collection.name,
+            localField: 'userId',
+            foreignField: '_id',
+            as: 'user',
+          },
+        },
+        { $unwind: '$user' },
+      ]).exec();
+    },
+
     async findMembershipById(organizationId, membershipId) {
       if (!mongoose.isValidObjectId(membershipId)) {
         return null;
@@ -202,6 +231,28 @@ function createInMemoryEmployeesStore(options = {}) {
         }
       }
       return null;
+    },
+
+    async findMembershipsWithUsersByUserIds(organizationId, userIds) {
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        return [];
+      }
+      const idSet = new Set(userIds.map(String));
+      const results = [];
+      for (const membership of memberships.values()) {
+        if (String(membership.organizationId) !== String(organizationId)) {
+          continue;
+        }
+        const userId = String(membership.userId);
+        if (!idSet.has(userId)) {
+          continue;
+        }
+        const user = users.get(userId);
+        if (user !== undefined) {
+          results.push({ ...membership, user: { ...user } });
+        }
+      }
+      return results;
     },
 
     async findMembershipById(organizationId, membershipId) {

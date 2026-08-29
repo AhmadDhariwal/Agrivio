@@ -35,6 +35,23 @@ function documentMatchesPaymentMethod(payments, paymentMethod) {
   );
 }
 
+function uniqueReportIds(values) {
+  return [
+    ...new Set(
+      values
+        .filter((value) => value !== null && value !== undefined && String(value).trim() !== '')
+        .map(String),
+    ),
+  ];
+}
+
+function displayNameFromMap(nameMap, id) {
+  if (id === null || id === undefined || String(id).trim() === '') {
+    return '—';
+  }
+  return nameMap.get(String(id)) ?? '—';
+}
+
 function createReportQueries(deps) {
   const salesService = deps.salesService;
   const purchasesService = deps.purchasesService;
@@ -45,6 +62,47 @@ function createReportQueries(deps) {
   const inventoryService = deps.inventoryService;
   const catalogService = deps.catalogService;
   const customersService = deps.customersService;
+  const locationsService = deps.locationsService;
+  const employeesService = deps.employeesService;
+
+  async function resolveProductNameMap(organizationId, productIds) {
+    const ids = uniqueReportIds(productIds);
+    if (ids.length === 0 || !catalogService || typeof catalogService.findProductsByIds !== 'function') {
+      return new Map();
+    }
+    const products = await catalogService.findProductsByIds(organizationId, ids);
+    return new Map(products.map((product) => [String(product.id), String(product.name ?? '—')]));
+  }
+
+  async function resolveWarehouseNameMap(organizationId, warehouseIds) {
+    const ids = uniqueReportIds(warehouseIds);
+    if (
+      ids.length === 0 ||
+      !locationsService ||
+      typeof locationsService.findWarehousesByIds !== 'function'
+    ) {
+      return new Map();
+    }
+    const warehouses = await locationsService.findWarehousesByIds(organizationId, ids);
+    return new Map(
+      warehouses.map((warehouse) => {
+        const code = warehouse.code ? ` (${warehouse.code})` : '';
+        return [String(warehouse.id), `${warehouse.name}${code}`];
+      }),
+    );
+  }
+
+  async function resolveEmployeeNameMap(organizationId, employeeIds) {
+    const ids = uniqueReportIds(employeeIds);
+    if (
+      ids.length === 0 ||
+      !employeesService ||
+      typeof employeesService.findEmployeeDisplayNamesByUserIds !== 'function'
+    ) {
+      return new Map();
+    }
+    return employeesService.findEmployeeDisplayNamesByUserIds(organizationId, ids);
+  }
 
   async function productCategoryMap(organizationId) {
     if (catalogService && typeof catalogService.listProductCategoryMap === 'function') {
@@ -460,9 +518,20 @@ function createReportQueries(deps) {
       }
       grouped.set(key, current);
     }
-    const rows = [...grouped.values()].map((item) => ({
-      warehouseId: item.warehouseId,
-      productId: item.productId,
+    const groupedRows = [...grouped.values()];
+    const [warehouseNames, productNames] = await Promise.all([
+      resolveWarehouseNameMap(
+        organizationId,
+        groupedRows.map((item) => item.warehouseId),
+      ),
+      resolveProductNameMap(
+        organizationId,
+        groupedRows.map((item) => item.productId),
+      ),
+    ]);
+    const rows = groupedRows.map((item) => ({
+      warehouseName: displayNameFromMap(warehouseNames, item.warehouseId),
+      productName: displayNameFromMap(productNames, item.productId),
       quantityBase: formatQuantityMinorUnits(item.quantityMinor),
       unsellableQuantityBase: formatQuantityMinorUnits(item.unsellableMinor),
     }));
@@ -470,8 +539,8 @@ function createReportQueries(deps) {
       reportKey: 'stock',
       title: REPORT_BY_KEY.stock.title,
       columns: [
-        { key: 'warehouseId', label: 'Warehouse' },
-        { key: 'productId', label: 'Product' },
+        { key: 'warehouseName', label: 'Warehouse' },
+        { key: 'productName', label: 'Product' },
         { key: 'quantityBase', label: 'Quantity' },
         { key: 'unsellableQuantityBase', label: 'Unsellable' },
       ],
@@ -508,20 +577,31 @@ function createReportQueries(deps) {
         inventoryValueMinor: moneyAmountToMinor(item.valuation?.inventoryValue),
       });
     }
-    const rows = [...grouped.values()].map((item) => ({
-      warehouseId: item.warehouseId,
-      productId: item.productId,
+    const groupedRows = [...grouped.values()];
+    const [warehouseNames, productNames] = await Promise.all([
+      resolveWarehouseNameMap(
+        organizationId,
+        groupedRows.map((item) => item.warehouseId),
+      ),
+      resolveProductNameMap(
+        organizationId,
+        groupedRows.map((item) => item.productId),
+      ),
+    ]);
+    const rows = groupedRows.map((item) => ({
+      warehouseName: displayNameFromMap(warehouseNames, item.warehouseId),
+      productName: displayNameFromMap(productNames, item.productId),
       quantityBase: quantityText(item.quantityBase),
       inventoryValue: item.inventoryValue,
       weightedAverageCost: item.weightedAverageCost,
     }));
-    const totalMinor = [...grouped.values()].reduce((sum, item) => sum + item.inventoryValueMinor, 0n);
+    const totalMinor = groupedRows.reduce((sum, item) => sum + item.inventoryValueMinor, 0n);
     return {
       reportKey: 'stock-valuation',
       title: REPORT_BY_KEY['stock-valuation'].title,
       columns: [
-        { key: 'warehouseId', label: 'Warehouse' },
-        { key: 'productId', label: 'Product' },
+        { key: 'warehouseName', label: 'Warehouse' },
+        { key: 'productName', label: 'Product' },
         { key: 'quantityBase', label: 'Quantity' },
         { key: 'weightedAverageCost', label: 'WAC' },
         { key: 'inventoryValue', label: 'Inventory value' },
@@ -537,11 +617,21 @@ function createReportQueries(deps) {
     const scoped = filterByProductCategory(items, filters, categories).filter((item) =>
       inDateRange(item.postedAt, filters.fromDate, filters.toDate),
     );
+    const [warehouseNames, productNames] = await Promise.all([
+      resolveWarehouseNameMap(
+        organizationId,
+        scoped.map((item) => item.warehouseId),
+      ),
+      resolveProductNameMap(
+        organizationId,
+        scoped.map((item) => item.productId),
+      ),
+    ]);
     const rows = scoped.map((item) => ({
       id: item.id,
       postedAt: item.postedAt,
-      warehouseId: item.warehouseId,
-      productId: item.productId,
+      warehouseName: displayNameFromMap(warehouseNames, item.warehouseId),
+      productName: displayNameFromMap(productNames, item.productId),
       direction: item.direction,
       quantityBase: quantityText(item.quantityBase),
       inventoryValue: moneyText(item.inventoryValue),
@@ -553,8 +643,8 @@ function createReportQueries(deps) {
       title: REPORT_BY_KEY['stock-movements'].title,
       columns: [
         { key: 'postedAt', label: 'Posted at' },
-        { key: 'warehouseId', label: 'Warehouse' },
-        { key: 'productId', label: 'Product' },
+        { key: 'warehouseName', label: 'Warehouse' },
+        { key: 'productName', label: 'Product' },
         { key: 'direction', label: 'Direction' },
         { key: 'quantityBase', label: 'Quantity' },
         { key: 'sourceType', label: 'Source' },
@@ -703,17 +793,27 @@ function createReportQueries(deps) {
     const alerts = await alertsService.listAlerts(organizationId, authContext);
     const categories = await productCategoryMap(organizationId);
     const items = filterByProductCategory(pick(alerts), filters, categories);
+    const [warehouseNames, productNames] = await Promise.all([
+      resolveWarehouseNameMap(
+        organizationId,
+        items.map((item) => item.warehouseId),
+      ),
+      resolveProductNameMap(
+        organizationId,
+        items.map((item) => item.productId),
+      ),
+    ]);
     return {
       reportKey,
       title: REPORT_BY_KEY[reportKey].title,
       columns: [
-        { key: 'productId', label: 'Product' },
-        { key: 'warehouseId', label: 'Warehouse' },
+        { key: 'productName', label: 'Product' },
+        { key: 'warehouseName', label: 'Warehouse' },
         { key: 'detail', label: 'Detail' },
       ],
       rows: items.map((item) => ({
-        productId: item.productId ?? '',
-        warehouseId: item.warehouseId ?? '',
+        productName: displayNameFromMap(productNames, item.productId),
+        warehouseName: displayNameFromMap(warehouseNames, item.warehouseId),
         detail: item.body ?? item.title ?? item.alertType,
       })),
       totals: {},
@@ -822,8 +922,13 @@ function createReportQueries(deps) {
       current.count += 1;
       buckets.set(employeeId, current);
     }
-    const rows = [...buckets.values()].map((item) => ({
-      employeeId: item.employeeId,
+    const bucketRows = [...buckets.values()];
+    const employeeNames = await resolveEmployeeNameMap(
+      organizationId,
+      bucketRows.map((item) => item.employeeId),
+    );
+    const rows = bucketRows.map((item) => ({
+      employeeName: displayNameFromMap(employeeNames, item.employeeId),
       saleCount: String(item.count),
       revenue: toMoneyDto(item.revenueMinor).amount,
     }));
@@ -831,7 +936,7 @@ function createReportQueries(deps) {
       reportKey: 'employee-sales',
       title: REPORT_BY_KEY['employee-sales'].title,
       columns: [
-        { key: 'employeeId', label: 'Employee' },
+        { key: 'employeeName', label: 'Employee' },
         { key: 'saleCount', label: 'Sales' },
         { key: 'revenue', label: 'Revenue' },
       ],

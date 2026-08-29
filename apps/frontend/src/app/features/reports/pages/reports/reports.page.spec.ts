@@ -38,9 +38,31 @@ describe('ReportsPage', () => {
   let mockBranchesApi: { listBranchOptions: ReturnType<typeof vi.fn>; listWarehouseOptions: ReturnType<typeof vi.fn> };
   let mockCustomersApi: { searchCustomerOptions: ReturnType<typeof vi.fn> };
   let mockSuppliersApi: { searchSupplierOptions: ReturnType<typeof vi.fn> };
-  let mockCatalogApi: { searchProductOptions: ReturnType<typeof vi.fn>; listCategories: ReturnType<typeof vi.fn> };
+  let mockCatalogApi: {
+    searchProductOptions: ReturnType<typeof vi.fn>;
+    searchCategoryOptions: ReturnType<typeof vi.fn>;
+  };
   let mockUsersApi: { listEmployees: ReturnType<typeof vi.fn> };
-  let mockAccountsApi: { listAccountOptions: ReturnType<typeof vi.fn> };
+  let mockAccountsApi: { searchAccountOptions: ReturnType<typeof vi.fn> };
+
+  const mockStockDataset: ReportDataset = {
+    reportKey: 'stock',
+    title: 'Stock',
+    columns: [
+      { key: 'warehouseName', label: 'Warehouse' },
+      { key: 'productName', label: 'Product' },
+      { key: 'quantityBase', label: 'Quantity' },
+    ],
+    rows: [
+      {
+        warehouseName: 'Main Warehouse (MW)',
+        productName: 'Urea 50kg',
+        quantityBase: '10.0000',
+      },
+    ],
+    totals: {},
+    filters: {},
+  };
 
   const mockCatalog: ReportCatalogItem[] = [
     {
@@ -154,7 +176,15 @@ describe('ReportsPage', () => {
     };
 
     mockCustomersApi = {
-      searchCustomerOptions: vi.fn().mockReturnValue(of([{ id: 'cust-1', name: 'Kisan Dost', phone: '03001234567' }])),
+      searchCustomerOptions: vi.fn().mockImplementation((query: string) =>
+        of([
+          {
+            id: query === 'beyond-page' ? 'cust-99' : 'cust-1',
+            name: query === 'beyond-page' ? 'Far Page Customer' : 'Kisan Dost',
+            phone: '03001234567',
+          },
+        ]),
+      ),
     };
 
     mockSuppliersApi = {
@@ -163,15 +193,33 @@ describe('ReportsPage', () => {
 
     mockCatalogApi = {
       searchProductOptions: vi.fn().mockReturnValue(of([{ id: 'prod-1', name: 'Urea 50kg', sku: 'UREA-50' }])),
-      listCategories: vi.fn().mockReturnValue(of({ items: [{ id: 'cat-1', name: 'Fertilizers' }], meta: { total: 1 } })),
+      searchCategoryOptions: vi.fn().mockImplementation((query: string) =>
+        of([
+          {
+            id: query === 'beyond-page' ? 'cat-99' : 'cat-1',
+            name: query === 'beyond-page' ? 'Far Page Category' : 'Fertilizers',
+          },
+        ]),
+      ),
     };
 
     mockUsersApi = {
-      listEmployees: vi.fn().mockReturnValue(of({ items: [{ id: 'emp-1', displayName: 'Tariq Mehmood', role: 'Owner' }], meta: { total: 1 } })),
+      listEmployees: vi.fn().mockImplementation(({ search }: { search?: string } = {}) =>
+        of({
+          items: [
+            {
+              id: search === 'beyond-page' ? 'emp-99' : 'emp-1',
+              displayName: search === 'beyond-page' ? 'Far Page Employee' : 'Tariq Mehmood',
+              role: 'Owner',
+            },
+          ],
+          meta: { total: 1 },
+        }),
+      ),
     };
 
     mockAccountsApi = {
-      listAccountOptions: vi.fn().mockReturnValue(of([{ id: 'acc-1', name: 'Main Cash', accountType: 'cash' }])),
+      searchAccountOptions: vi.fn().mockReturnValue(of([{ id: 'acc-1', name: 'Main Cash', accountType: 'cash' }])),
     };
 
     await TestBed.configureTestingModule({
@@ -298,6 +346,72 @@ describe('ReportsPage', () => {
     component.onReportChange('sales');
     expect(component.selectedKey()).toBe('stock');
     expect(fixture.nativeElement.querySelector('option[value="sales"]')).toBeNull();
+  });
+
+  it('renders authoritative backend display names without selector-map fallback', () => {
+    component.onReportChange('stock');
+    mockReportsApi.getReport.mockReturnValue(of(mockStockDataset));
+    component.run();
+    fixture.detectChanges();
+
+    expect(component.formatCellValue('productName', 'Urea 50kg')).toBe('Urea 50kg');
+    expect(component.formatCellValue('warehouseName', 'Main Warehouse (MW)')).toBe(
+      'Main Warehouse (MW)',
+    );
+    const table = fixture.nativeElement.querySelector('[data-testid="report-table"]');
+    expect(table?.textContent).toContain('Urea 50kg');
+    expect(table?.textContent).not.toContain('prod-1');
+  });
+
+  it('bootstraps customer filter with bounded initial search', async () => {
+    mockCustomersApi.searchCustomerOptions.mockClear();
+    component.onReportChange('customer-ledger');
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    expect(mockCustomersApi.searchCustomerOptions).toHaveBeenCalledWith('');
+  });
+
+  it('debounces customer filter search and reaches records beyond the initial page', async () => {
+    component.onReportChange('customer-ledger');
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    mockCustomersApi.searchCustomerOptions.mockClear();
+
+    const input = document.createElement('input');
+    input.value = 'beyond-page';
+    component.onCustomerSearch({ target: input } as unknown as Event);
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    expect(mockCustomersApi.searchCustomerOptions).toHaveBeenCalledTimes(1);
+    expect(mockCustomersApi.searchCustomerOptions).toHaveBeenCalledWith('beyond-page');
+    expect(component.customers()[0]?.name).toBe('Far Page Customer');
+  });
+
+  it('uses bounded product search for report filters', async () => {
+    component.onReportChange('stock');
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    mockCatalogApi.searchProductOptions.mockClear();
+
+    const input = document.createElement('input');
+    input.value = 'urea';
+    component.onProductSearch({ target: input } as unknown as Event);
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    expect(mockCatalogApi.searchProductOptions).toHaveBeenCalledWith('urea', 25, 'active');
+    expect(mockCatalogApi.searchProductOptions).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses bounded category search for report filters', async () => {
+    component.onReportChange('stock');
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    mockCatalogApi.searchCategoryOptions.mockClear();
+
+    const input = document.createElement('input');
+    input.value = 'beyond-page';
+    component.onCategorySearch({ target: input } as unknown as Event);
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    expect(mockCatalogApi.searchCategoryOptions).toHaveBeenCalledWith('beyond-page');
+    expect(mockCatalogApi.searchCategoryOptions).toHaveBeenCalledTimes(1);
+    expect(component.categories()[0]?.name).toBe('Far Page Category');
   });
 
   it('gates Run and each export format independently', () => {

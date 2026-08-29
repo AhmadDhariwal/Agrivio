@@ -56,6 +56,7 @@ export function invalidateSupplierPaymentPostedEffects(queryCache: QueryCacheSer
     QUERY_CACHE_TAGS.purchases,
     QUERY_CACHE_TAGS.dashboard,
     QUERY_CACHE_TAGS.reports,
+    QUERY_CACHE_TAGS.alerts,
   );
   invalidateAccountFinancialReads(queryCache);
 }

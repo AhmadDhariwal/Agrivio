@@ -305,9 +305,9 @@
                       >
                         @if (column.key === 'invoiceNumber' || column.key === 'id') {
                           <span class="invoice-badge">{{ formatCellValue(column.key, row[column.key]) }}</span>
-                        } @else if (column.key === 'customer' || column.key === 'customerId' || column.key === 'customerName' || column.key === 'supplier' || column.key === 'supplierId' || column.key === 'product' || column.key === 'productId' || column.key === 'productName' || column.key === 'employee' || column.key === 'employeeId' || column.key === 'accountName' || column.key === 'purpose') {
+                        } @else if (column.key === 'customer' || column.key === 'customerName' || column.key === 'supplier' || column.key === 'productName' || column.key === 'employeeName' || column.key === 'accountName' || column.key === 'purpose') {
                           <strong class="cell-entity">{{ formatCellValue(column.key, row[column.key]) }}</strong>
-                        } @else if (column.key === 'warehouse' || column.key === 'warehouseId') {
+                        } @else if (column.key === 'warehouseName') {
                           <span class="cell-location">{{ formatCellValue(column.key, row[column.key]) }}</span>
                         } @else if (column.key === 'metric') {
                           <span class="metric-name" [class.metric-name--highlight]="row['metric'] === 'grossProfit'">{{ formatCellValue(column.key, row[column.key]) }}</span>
@@ -421,6 +421,14 @@
           </div>
         }
         @case ('customerId') {
+          <input
+            [id]="'filter-' + field + '-search'"
+            [attr.data-testid]="'filter-' + field + '-search'"
+            type="search"
+            class="filter-input filter-search-input"
+            placeholder="Search customers…"
+            (input)="onCustomerSearch($event)"
+          />
           <div class="select-field">
             <select
               [id]="'filter-' + field"
@@ -438,6 +446,14 @@
           </div>
         }
         @case ('supplierId') {
+          <input
+            [id]="'filter-' + field + '-search'"
+            [attr.data-testid]="'filter-' + field + '-search'"
+            type="search"
+            class="filter-input filter-search-input"
+            placeholder="Search suppliers…"
+            (input)="onSupplierSearch($event)"
+          />
           <div class="select-field">
             <select
               [id]="'filter-' + field"
@@ -455,6 +471,14 @@
           </div>
         }
         @case ('productId') {
+          <input
+            [id]="'filter-' + field + '-search'"
+            [attr.data-testid]="'filter-' + field + '-search'"
+            type="search"
+            class="filter-input filter-search-input"
+            placeholder="Search products…"
+            (input)="onProductSearch($event)"
+          />
           <div class="select-field">
             <select
               [id]="'filter-' + field"
@@ -472,6 +496,14 @@
           </div>
         }
         @case ('categoryId') {
+          <input
+            [id]="'filter-' + field + '-search'"
+            [attr.data-testid]="'filter-' + field + '-search'"
+            type="search"
+            class="filter-input filter-search-input"
+            placeholder="Search categories…"
+            (input)="onCategorySearch($event)"
+          />
           <div class="select-field">
             <select
               [id]="'filter-' + field"
@@ -489,6 +521,14 @@
           </div>
         }
         @case ('employeeId') {
+          <input
+            [id]="'filter-' + field + '-search'"
+            [attr.data-testid]="'filter-' + field + '-search'"
+            type="search"
+            class="filter-input filter-search-input"
+            placeholder="Search employees…"
+            (input)="onEmployeeSearch($event)"
+          />
           <div class="select-field">
             <select
               [id]="'filter-' + field"
@@ -506,6 +546,14 @@
           </div>
         }
         @case ('accountId') {
+          <input
+            [id]="'filter-' + field + '-search'"
+            [attr.data-testid]="'filter-' + field + '-search'"
+            type="search"
+            class="filter-input filter-search-input"
+            placeholder="Search accounts…"
+            (input)="onAccountSearch($event)"
+          />
           <div class="select-field">
             <select
               [id]="'filter-' + field"

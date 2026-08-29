@@ -30,6 +30,7 @@ export class CustomersApi {
       QUERY_CACHE_TAGS.receivables,
       QUERY_CACHE_TAGS.dashboard,
       QUERY_CACHE_TAGS.reports,
+      QUERY_CACHE_TAGS.alerts,
     );
   }
 

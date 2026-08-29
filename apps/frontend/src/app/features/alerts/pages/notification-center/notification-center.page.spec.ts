@@ -255,6 +255,14 @@ describe('NotificationCenterPage', () => {
     }
   });
 
+  it('requests forceRefresh when toolbar refresh is clicked', () => {
+    mockAlertsApi.listNotifications.mockClear();
+
+    component.reload(true);
+
+    expect(mockAlertsApi.listNotifications).toHaveBeenCalledWith({ forceRefresh: true });
+  });
+
   it('hides page content when alerts module capability is disabled', async () => {
     const capabilityService = {
       canUseModule: vi.fn(() => false),

@@ -30,6 +30,7 @@ export class SuppliersApi {
       QUERY_CACHE_TAGS.payables,
       QUERY_CACHE_TAGS.dashboard,
       QUERY_CACHE_TAGS.reports,
+      QUERY_CACHE_TAGS.alerts,
     );
   }
 

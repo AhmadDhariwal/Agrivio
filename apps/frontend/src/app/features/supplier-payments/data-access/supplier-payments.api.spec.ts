@@ -92,6 +92,7 @@ describe('SupplierPaymentsApi', () => {
       QUERY_CACHE_TAGS.purchases,
       QUERY_CACHE_TAGS.dashboard,
       QUERY_CACHE_TAGS.reports,
+      QUERY_CACHE_TAGS.alerts,
     );
     expect(invalidateTags).toHaveBeenCalledWith(
       QUERY_CACHE_TAGS.accounts,
@@ -134,6 +135,7 @@ describe('invalidateSupplierPaymentPostedEffects', () => {
       QUERY_CACHE_TAGS.purchases,
       QUERY_CACHE_TAGS.dashboard,
       QUERY_CACHE_TAGS.reports,
+      QUERY_CACHE_TAGS.alerts,
     );
     expect(queryCache.invalidateTags).not.toHaveBeenCalledWith(QUERY_CACHE_TAGS.accountOptions);
   });

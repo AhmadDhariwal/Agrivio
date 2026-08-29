@@ -48,6 +48,26 @@ function createBridgedEmployeesStore(deps) {
       return null;
     },
 
+    async findMembershipsWithUsersByUserIds(organizationId, userIds) {
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        return [];
+      }
+      const idSet = new Set(userIds.map(String));
+      const all = await this.listMembershipsByOrganizationId(organizationId);
+      const results = [];
+      for (const membership of all) {
+        const userId = String(membership.userId);
+        if (!idSet.has(userId)) {
+          continue;
+        }
+        const user = await this.findUserById(userId);
+        if (user) {
+          results.push({ ...membership, user });
+        }
+      }
+      return results;
+    },
+
     async findMembershipById(organizationId, membershipId) {
       const membership = await identity.findMembershipById(membershipId);
       if (membership === null || String(membership.organizationId) !== String(organizationId)) {

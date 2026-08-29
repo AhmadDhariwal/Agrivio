@@ -122,6 +122,32 @@ function createEmployeesService(deps) {
       return toEmployeeDto(loaded.membership, loaded.user, loaded.assignments);
     },
 
+    async findEmployeeDisplayNamesByUserIds(organizationId, userIds) {
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        return new Map();
+      }
+      const uniqueIds = [
+        ...new Set(
+          userIds
+            .filter((id) => id !== null && id !== undefined && String(id).trim() !== '')
+            .map(String),
+        ),
+      ];
+      if (uniqueIds.length === 0 || typeof store.findMembershipsWithUsersByUserIds !== 'function') {
+        return new Map();
+      }
+      const rows = await store.findMembershipsWithUsersByUserIds(organizationId, uniqueIds);
+      const nameMap = new Map();
+      for (const row of rows) {
+        const userId = String(row.userId ?? row.user?.['_id'] ?? '');
+        if (userId === '') {
+          continue;
+        }
+        nameMap.set(userId, String(row.user?.displayName ?? '—'));
+      }
+      return nameMap;
+    },
+
     async createEmployee(organizationId, body, actor) {
       const input = parseEmployeeCreate(body);
       const emailNormalized = normalizeEmail(input.email);
