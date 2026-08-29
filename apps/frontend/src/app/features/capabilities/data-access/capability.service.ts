@@ -3,6 +3,8 @@ import { Observable, finalize, of, shareReplay, tap } from 'rxjs';
 import { AuthSessionStore } from '../../auth/data-access/auth-session.store';
 import { CapabilitiesApi } from './capabilities.api';
 import { EffectiveCapabilitiesSnapshot } from '../models/capability.models';
+import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
+import { invalidateDashboardReads } from '../../dashboard/data-access/dashboard-cache.invalidation';
 
 const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string, boolean>>>> = {
   'inventory.products': { enabled: true },
@@ -526,6 +528,7 @@ export class CapabilityService {
       return this.activeRequest;
     }
     this.loadAttemptedSignal.set(true);
+    const previousVersion = this.snapshotSignal()?.version ?? null;
     let api: CapabilitiesApi;
     try {
       api = this.injector.get(CapabilitiesApi);
@@ -536,7 +539,16 @@ export class CapabilityService {
     }
     const request = api.getCurrent().pipe(
       tap({
-        next: (snapshot) => this.snapshotSignal.set(snapshot),
+        next: (snapshot) => {
+          this.snapshotSignal.set(snapshot);
+          if (previousVersion !== null && snapshot.version !== previousVersion) {
+            try {
+              invalidateDashboardReads(this.injector.get(QueryCacheService));
+            } catch {
+              // Query cache is optional during bootstrap/tests.
+            }
+          }
+        },
         error: () => this.snapshotSignal.set(null),
       }),
       finalize(() => {

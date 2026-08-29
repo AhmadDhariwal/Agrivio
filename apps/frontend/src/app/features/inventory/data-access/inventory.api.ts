@@ -17,6 +17,7 @@ import {
 } from '../models/inventory.models';
 import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
 import { QUERY_CACHE_TAGS } from '../../../shared/data-access/query-cache.tags';
+import { invalidateInventoryDashboardEffects } from '../../dashboard/data-access/dashboard-cache.invalidation';
 
 @Injectable({ providedIn: 'root' })
 export class InventoryApi {
@@ -25,17 +26,7 @@ export class InventoryApi {
   private readonly queryCache = inject(QueryCacheService);
 
   private invalidateInventoryReads(): void {
-    this.queryCache.invalidateTags(
-      QUERY_CACHE_TAGS.inventory,
-      QUERY_CACHE_TAGS.batches,
-      QUERY_CACHE_TAGS.expiry,
-      QUERY_CACHE_TAGS.reconciliation,
-      QUERY_CACHE_TAGS.stockMovements,
-      QUERY_CACHE_TAGS.stockBalances,
-      QUERY_CACHE_TAGS.stockAdjustments,
-      QUERY_CACHE_TAGS.stockTransfers,
-      QUERY_CACHE_TAGS.products,
-    );
+    invalidateInventoryDashboardEffects(this.queryCache);
   }
 
   listBalances(

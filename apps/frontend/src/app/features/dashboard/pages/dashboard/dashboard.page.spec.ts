@@ -361,6 +361,17 @@ describe('DashboardPage', () => {
     expect(component.warehouseId()).toBe('');
   });
 
+  it('requests forceRefresh when toolbar refresh is clicked', async () => {
+    await createComponent();
+
+    getDashboardMock.mockClear();
+    component.reload(true);
+
+    expect(getDashboardMock).toHaveBeenCalledWith(
+      expect.objectContaining({ forceRefresh: true }),
+    );
+  });
+
   it('renders permission alert when user lacks dashboard.view permission', async () => {
     await createComponent([]);
 

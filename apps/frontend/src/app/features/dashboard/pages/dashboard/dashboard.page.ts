@@ -1,9 +1,10 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { forkJoin, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { EMPTY, forkJoin, of, Subject } from 'rxjs';
+import { catchError, startWith, switchMap } from 'rxjs/operators';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DashboardApi } from '../../data-access/dashboard.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import {
@@ -50,6 +51,8 @@ export class DashboardPage {
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly locationsApi = inject(BranchesWarehousesApi);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly reloadRequests = new Subject<boolean>();
 
   readonly loading = signal(true);
   readonly filtersLoading = signal(true);
@@ -224,7 +227,81 @@ export class DashboardPage {
 
   constructor() {
     this.loadFilters();
-    this.reload();
+    this.reloadRequests
+      .pipe(
+        startWith(false),
+        switchMap((forceRefresh) => {
+          if (!this.canView() || !this.canUseDashboard()) {
+            this.loading.set(false);
+            return EMPTY;
+          }
+          if (this.suspended()) {
+            this.loading.set(false);
+            this.dashboard.set(null);
+            this.errorMessage.set(
+              'Subscription is suspended. The operational dashboard is blocked until reactivation. Historical reports and entitled exports remain available.',
+            );
+            return EMPTY;
+          }
+          this.loading.set(true);
+          this.errorMessage.set(null);
+          const query: {
+            fromDate?: string;
+            toDate?: string;
+            branchId?: string;
+            warehouseId?: string;
+            forceRefresh?: boolean;
+          } = {};
+          if (this.canUseDateFilter()) {
+            if (this.fromDate().trim() !== '') {
+              query.fromDate = this.fromDate().trim();
+            }
+            if (this.toDate().trim() !== '') {
+              query.toDate = this.toDate().trim();
+            }
+          }
+          if (this.canUseBranchFilter()) {
+            const branchId = this.branchId().trim();
+            if (branchId !== '') {
+              query.branchId = branchId;
+            }
+          }
+          if (this.canUseWarehouseFilter()) {
+            const warehouseId = this.warehouseId().trim();
+            if (warehouseId !== '') {
+              query.warehouseId = warehouseId;
+            }
+          }
+          if (forceRefresh) {
+            query.forceRefresh = true;
+          }
+          return this.dashboardApi.getDashboard(query).pipe(
+            catchError((error: unknown) => {
+              this.loading.set(false);
+              this.dashboard.set(null);
+              this.errorMessage.set(
+                error instanceof HttpErrorResponse
+                  ? (error.error?.error?.message ?? 'Unable to load dashboard.')
+                  : 'Unable to load dashboard.',
+              );
+              return EMPTY;
+            }),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((data) => {
+        this.dashboard.set(data);
+        if (this.canUseDateFilter()) {
+          if (this.fromDate() === '' && data.period?.fromDate) {
+            this.fromDate.set(data.period.fromDate);
+          }
+          if (this.toDate() === '' && data.period?.toDate) {
+            this.toDate.set(data.period.toDate);
+          }
+        }
+        this.loading.set(false);
+      });
   }
 
   formatMoney(value: MoneyDto | null | undefined): string {
@@ -285,69 +362,7 @@ export class DashboardPage {
     this.reload();
   }
 
-  reload(): void {
-    if (!this.canView() || !this.canUseDashboard()) {
-      this.loading.set(false);
-      return;
-    }
-    if (this.suspended()) {
-      this.loading.set(false);
-      this.dashboard.set(null);
-      this.errorMessage.set(
-        'Subscription is suspended. The operational dashboard is blocked until reactivation. Historical reports and entitled exports remain available.',
-      );
-      return;
-    }
-    this.loading.set(true);
-    this.errorMessage.set(null);
-    const query: {
-      fromDate?: string;
-      toDate?: string;
-      branchId?: string;
-      warehouseId?: string;
-    } = {};
-    if (this.canUseDateFilter()) {
-      if (this.fromDate().trim() !== '') {
-        query.fromDate = this.fromDate().trim();
-      }
-      if (this.toDate().trim() !== '') {
-        query.toDate = this.toDate().trim();
-      }
-    }
-    if (this.canUseBranchFilter()) {
-      const branchId = this.branchId().trim();
-      if (branchId !== '') {
-        query.branchId = branchId;
-      }
-    }
-    if (this.canUseWarehouseFilter()) {
-      const warehouseId = this.warehouseId().trim();
-      if (warehouseId !== '') {
-        query.warehouseId = warehouseId;
-      }
-    }
-    this.dashboardApi.getDashboard(query).subscribe({
-      next: (data) => {
-        this.dashboard.set(data);
-        if (this.canUseDateFilter()) {
-          if (this.fromDate() === '' && data.period?.fromDate) {
-            this.fromDate.set(data.period.fromDate);
-          }
-          if (this.toDate() === '' && data.period?.toDate) {
-            this.toDate.set(data.period.toDate);
-          }
-        }
-        this.loading.set(false);
-      },
-      error: (error: unknown) => {
-        this.loading.set(false);
-        this.dashboard.set(null);
-        this.errorMessage.set(
-          error instanceof HttpErrorResponse
-            ? (error.error?.error?.message ?? 'Unable to load dashboard.')
-            : 'Unable to load dashboard.',
-        );
-      },
-    });
+  reload(forceRefresh = false): void {
+    this.reloadRequests.next(forceRefresh);
   }
 }

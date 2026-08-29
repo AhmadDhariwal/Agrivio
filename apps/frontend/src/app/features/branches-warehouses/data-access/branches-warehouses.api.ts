@@ -42,7 +42,14 @@ export class BranchesWarehousesApi {
   }
 
   listBranchOptions(): Observable<BranchRecord[]> {
-    return this.listBranches({ page: 1, pageSize: 100, status: 'active' }).pipe(map((result) => result.items));
+    const params = { page: 1, pageSize: 100, status: 'active' };
+    const cacheKey = this.queryCache.buildKey('branches', params);
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'reference',
+      tags: [QUERY_CACHE_TAGS.warehouses],
+      loader: () => this.listBranches(params).pipe(map((result) => result.items)),
+    });
   }
 
   getBranch(id: string): Observable<BranchRecord> {
