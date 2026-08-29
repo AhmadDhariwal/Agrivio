@@ -270,6 +270,9 @@ function createLocationsService(deps) {
     },
 
     async replaceAccessAssignments(organizationId, userId, body, actor) {
+      if (typeof deps.capabilityService?.assertEmployeeAssignAccessAllowed === 'function') {
+        await deps.capabilityService.assertEmployeeAssignAccessAllowed(organizationId);
+      }
       const { branchIds, warehouseIds } = parseAccessAssignmentsReplace(body);
       if (typeof findMembershipInOrganization !== 'function') {
         throw validationFailed('Membership lookup is unavailable');
@@ -406,6 +409,9 @@ function createLocationsModule(options) {
     ...(options.listWarehouseReferences === undefined
       ? {}
       : { listWarehouseReferences: options.listWarehouseReferences }),
+    ...(options.capabilityService === undefined
+      ? {}
+      : { capabilityService: options.capabilityService }),
   });
 
   return {

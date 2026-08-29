@@ -5,6 +5,7 @@ import { vi } from 'vitest';
 import { EmployeesPage } from './employees.page';
 import { EmployeeRecord, UsersAccessApi } from '../../data-access/users-access.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 describe('EmployeesPage', () => {
   const mockEmployees: EmployeeRecord[] = [
@@ -121,5 +122,48 @@ describe('EmployeesPage', () => {
       fixture.componentInstance.confirmDeactivate();
       expect(deactivateEmployeeSpy).toHaveBeenCalledWith('emp-1');
     }
+  });
+
+  it('hides Add Employee when create action capability is disabled', () => {
+    listEmployeesSpy.mockReturnValue(
+      of({ items: mockEmployees, meta: { page: 1, pageSize: 25, total: 2 } }),
+    );
+
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [EmployeesPage],
+      providers: [
+        provideRouter([]),
+        {
+          provide: UsersAccessApi,
+          useValue: {
+            listEmployees: listEmployeesSpy,
+            deactivateEmployee: deactivateEmployeeSpy,
+          },
+        },
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            hasPermission: (perm: string) =>
+              ['users.view', 'users.create', 'users.update', 'users.deactivate'].includes(perm),
+          },
+        },
+        {
+          provide: CapabilityService,
+          useValue: {
+            canUseModule: () => true,
+            canUseFeature: () => true,
+            canViewField: () => true,
+            canPerformAction: (key: string) => key !== 'employees.actions.create',
+          },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture: ComponentFixture<EmployeesPage> = TestBed.createComponent(EmployeesPage);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="employee-create-link"]')).toBeNull();
+    expect(fixture.componentInstance.canCreate()).toBe(false);
   });
 });

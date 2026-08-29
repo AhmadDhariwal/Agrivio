@@ -90,6 +90,11 @@ const ACCOUNT_FIELD_CONTROLS = Object.freeze({
   walletIdentifier: 'accounts.fields.walletIdentifier',
 });
 
+const EMPLOYEE_FIELD_CONTROLS = Object.freeze({
+  displayName: 'employees.fields.displayName',
+  role: 'employees.fields.role',
+});
+
 function cloneValue(value) {
   return Object.fromEntries(Object.entries(value ?? {}).map(([key, item]) => [key, item]));
 }
@@ -745,6 +750,31 @@ function createCapabilityService(deps) {
     async assertAccountTransferReversalAllowed(organizationId) {
       await assertAllowed(organizationId, 'accounts.actions.reverseTransfer', 'allowed');
     },
+
+    async assertEmployeeCreateAllowed(organizationId) {
+      await assertAllowed(organizationId, 'employees.actions.create', 'allowed');
+      await assertAllowed(organizationId, 'employees.fields.email', 'editable');
+      await assertAllowed(organizationId, 'employees.fields.displayName', 'editable');
+      await assertAllowed(organizationId, 'employees.fields.role', 'editable');
+    },
+
+    async assertEmployeePatchAllowed(organizationId, current, patch) {
+      await assertAllowed(organizationId, 'employees.actions.edit', 'allowed');
+      const changedFields = Object.keys(EMPLOYEE_FIELD_CONTROLS).filter(
+        (field) => patch[field] !== undefined && String(patch[field]) !== String(current[field]),
+      );
+      for (const field of changedFields) {
+        await assertAllowed(organizationId, EMPLOYEE_FIELD_CONTROLS[field], 'editable');
+      }
+    },
+
+    async assertEmployeeDeactivateAllowed(organizationId) {
+      await assertAllowed(organizationId, 'employees.actions.deactivate', 'allowed');
+    },
+
+    async assertEmployeeAssignAccessAllowed(organizationId) {
+      await assertAllowed(organizationId, 'employees.actions.assignAccess', 'allowed');
+    },
   };
 }
 
@@ -752,6 +782,7 @@ module.exports = {
   createCapabilityService,
   MODE_BY_TYPE,
   ACCOUNT_FIELD_CONTROLS,
+  EMPLOYEE_FIELD_CONTROLS,
   CATEGORY_FIELD_CONTROLS,
   CUSTOMER_CREDIT_FIELD_CONTROLS,
   CUSTOMER_FIELD_CONTROLS,

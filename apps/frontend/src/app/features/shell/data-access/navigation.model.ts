@@ -371,6 +371,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Employees',
           route: '/app/employees',
           permission: 'users.view',
+          capabilityKey: 'employees',
           testId: 'nav-employees',
         },
         {

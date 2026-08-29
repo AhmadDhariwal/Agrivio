@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { EmployeeRecord, UsersAccessApi } from '../../data-access/users-access.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
@@ -28,6 +29,7 @@ import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-m
 export class EmployeesPage {
   private readonly api = inject(UsersAccessApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
 
   @HostListener('document:click')
   onDocumentClick(): void {
@@ -48,11 +50,68 @@ export class EmployeesPage {
   readonly roleFilter = signal<string>('all');
   readonly openMenuEmployeeId = signal<string | null>(null);
 
-  // Permissions
-  readonly canCreate = computed(() => this.sessionStore.hasPermission('users.create'));
-  readonly canView = computed(() => this.sessionStore.hasPermission('users.view'));
-  readonly canDeactivate = computed(() => this.sessionStore.hasPermission('users.deactivate'));
-  readonly canUpdate = computed(() => this.sessionStore.hasPermission('users.update'));
+  // Permissions & capabilities
+  readonly canUseEmployees = computed(
+    () => this.capabilityService?.canUseModule('employees') ?? true,
+  );
+  readonly canView = computed(
+    () => this.sessionStore.hasPermission('users.view') && this.canUseEmployees(),
+  );
+  readonly canCreate = computed(
+    () =>
+      this.sessionStore.hasPermission('users.create') &&
+      this.canUseEmployees() &&
+      (this.capabilityService?.canPerformAction('employees.actions.create') ?? true),
+  );
+  readonly canEdit = computed(
+    () =>
+      this.sessionStore.hasPermission('users.update') &&
+      this.canUseEmployees() &&
+      (this.capabilityService?.canPerformAction('employees.actions.edit') ?? true),
+  );
+  readonly canDeactivate = computed(
+    () =>
+      this.sessionStore.hasPermission('users.deactivate') &&
+      this.canUseEmployees() &&
+      (this.capabilityService?.canPerformAction('employees.actions.deactivate') ?? true),
+  );
+  readonly canRefresh = computed(
+    () =>
+      this.canView() &&
+      (this.capabilityService?.canPerformAction('employees.actions.refresh') ?? true),
+  );
+
+  readonly showModuleInfo = computed(
+    () => this.capabilityService?.canUseFeature('employees.features.moduleInfo') ?? true,
+  );
+  readonly showSearch = computed(
+    () => this.capabilityService?.canUseFeature('employees.features.search') ?? true,
+  );
+  readonly showStatusFilter = computed(
+    () => this.capabilityService?.canUseFeature('employees.features.statusFilter') ?? true,
+  );
+  readonly showRoleFilter = computed(
+    () => this.capabilityService?.canUseFeature('employees.features.roleFilter') ?? true,
+  );
+  readonly showKpiCards = computed(
+    () => this.capabilityService?.canUseFeature('employees.features.kpiCards') ?? true,
+  );
+  readonly showEmail = computed(
+    () => this.capabilityService?.canViewField('employees.fields.email') ?? true,
+  );
+  readonly showRole = computed(
+    () => this.capabilityService?.canViewField('employees.fields.role') ?? true,
+  );
+  readonly showBranchAccess = computed(
+    () => this.capabilityService?.canViewField('employees.fields.branchAccess') ?? true,
+  );
+  readonly showWarehouseAccess = computed(
+    () => this.capabilityService?.canViewField('employees.fields.warehouseAccess') ?? true,
+  );
+  readonly showStatus = computed(
+    () => this.capabilityService?.canViewField('employees.fields.status') ?? true,
+  );
+  readonly showActions = computed(() => this.canEdit() || this.canDeactivate());
 
   // Module Info Content
   readonly infoTitle = 'About employees & access';
@@ -96,13 +155,16 @@ export class EmployeesPage {
   });
 
   readonly hasActiveFilters = computed(() => {
-    return this.search().trim().length > 0 || this.statusFilter() !== 'all' || this.roleFilter() !== 'all';
+    const searchActive = this.showSearch() && this.search().trim().length > 0;
+    const statusActive = this.showStatusFilter() && this.statusFilter() !== 'all';
+    const roleActive = this.showRoleFilter() && this.roleFilter() !== 'all';
+    return searchActive || statusActive || roleActive;
   });
 
   readonly activeFiltersCount = computed(() => {
     let count = 0;
-    if (this.statusFilter() !== 'all') count++;
-    if (this.roleFilter() !== 'all') count++;
+    if (this.showStatusFilter() && this.statusFilter() !== 'all') count++;
+    if (this.showRoleFilter() && this.roleFilter() !== 'all') count++;
     return count;
   });
 

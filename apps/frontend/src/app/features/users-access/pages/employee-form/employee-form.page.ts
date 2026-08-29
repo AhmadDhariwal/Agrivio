@@ -10,6 +10,7 @@ import {
   UsersAccessApi,
 } from '../../data-access/users-access.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
@@ -32,6 +33,7 @@ import { mapPlanLimitError } from '../../../../core/plan-limits/plan-limit-feedb
 export class EmployeeFormPage {
   private readonly api = inject(UsersAccessApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
@@ -50,10 +52,46 @@ export class EmployeeFormPage {
   readonly branchSearch = signal('');
   readonly warehouseSearch = signal('');
 
-  readonly canCreate = computed(() => this.sessionStore.hasPermission('users.create'));
-  readonly canUpdate = computed(() => this.sessionStore.hasPermission('users.update'));
-  readonly canAssign = computed(() => this.sessionStore.hasPermission('users.assign-access'));
-  private version = 1;
+  readonly canUseEmployees = computed(
+    () => this.capabilityService?.canUseModule('employees') ?? true,
+  );
+  readonly canCreate = computed(() => {
+    if (!this.sessionStore.hasPermission('users.create') || !this.canUseEmployees()) {
+      return false;
+    }
+    return this.capabilityService?.canPerformAction('employees.actions.create') ?? true;
+  });
+  readonly canUpdate = computed(() => {
+    if (!this.sessionStore.hasPermission('users.update') || !this.canUseEmployees()) {
+      return false;
+    }
+    return this.capabilityService?.canPerformAction('employees.actions.edit') ?? true;
+  });
+  readonly canAssign = computed(() => {
+    if (!this.sessionStore.hasPermission('users.assign-access') || !this.canUseEmployees()) {
+      return false;
+    }
+    return this.capabilityService?.canPerformAction('employees.actions.assignAccess') ?? true;
+  });
+
+  readonly showEmail = computed(
+    () => this.capabilityService?.canViewField('employees.fields.email') ?? true,
+  );
+  readonly showDisplayName = computed(
+    () => this.capabilityService?.canViewField('employees.fields.displayName') ?? true,
+  );
+  readonly showRole = computed(
+    () => this.capabilityService?.canViewField('employees.fields.role') ?? true,
+  );
+  readonly showBranchAccess = computed(
+    () => this.capabilityService?.canViewField('employees.fields.branchAccess') ?? true,
+  );
+  readonly showWarehouseAccess = computed(
+    () => this.capabilityService?.canViewField('employees.fields.warehouseAccess') ?? true,
+  );
+  readonly showStatus = computed(
+    () => this.capabilityService?.canViewField('employees.fields.status') ?? true,
+  );
 
   readonly fieldRequired = hasRequiredValidator;
 
@@ -66,6 +104,15 @@ export class EmployeeFormPage {
   });
 
   readonly roles: OrganizationRole[] = ['Owner', 'Manager', 'Cashier', 'StoreKeeper'];
+
+  private version = 1;
+
+  isReadOnlyField(field: 'displayName' | 'role'): boolean {
+    const key = `employees.fields.${field}`;
+    return !(this.capabilityService?.canEditField(key) ?? true);
+  }
+
+  readonly canEditAssignments = computed(() => this.canAssign());
 
   readonly filteredBranches = computed(() => {
     const list = this.branches();
@@ -122,6 +169,9 @@ export class EmployeeFormPage {
   }
 
   toggleBranch(id: string, checked: boolean): void {
+    if (!this.canEditAssignments()) {
+      return;
+    }
     const current = new Set(this.form.controls.branchIds.value);
     if (checked) {
       current.add(id);
@@ -132,6 +182,9 @@ export class EmployeeFormPage {
   }
 
   toggleWarehouse(id: string, checked: boolean): void {
+    if (!this.canEditAssignments()) {
+      return;
+    }
     const current = new Set(this.form.controls.warehouseIds.value);
     if (checked) {
       current.add(id);
@@ -150,20 +203,32 @@ export class EmployeeFormPage {
   }
 
   selectAllBranches(): void {
+    if (!this.canEditAssignments()) {
+      return;
+    }
     const allIds = this.branches().map((b) => b.id);
     this.form.controls.branchIds.setValue(allIds);
   }
 
   clearAllBranches(): void {
+    if (!this.canEditAssignments()) {
+      return;
+    }
     this.form.controls.branchIds.setValue([]);
   }
 
   selectAllWarehouses(): void {
+    if (!this.canEditAssignments()) {
+      return;
+    }
     const allIds = this.warehouses().map((w) => w.id);
     this.form.controls.warehouseIds.setValue(allIds);
   }
 
   clearAllWarehouses(): void {
+    if (!this.canEditAssignments()) {
+      return;
+    }
     this.form.controls.warehouseIds.setValue([]);
   }
 

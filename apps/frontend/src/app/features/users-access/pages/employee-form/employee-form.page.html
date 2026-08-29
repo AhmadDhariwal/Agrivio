@@ -166,7 +166,7 @@
         </div>
 
         <div class="form-card__body">
-          <!-- Email -->
+          @if (showEmail()) {
           <div class="ag-field">
             <agrivio-ui-field-label
               label="Email"
@@ -183,9 +183,10 @@
               [attr.aria-required]="fieldRequired(form.controls.email) ? 'true' : null"
             />
           </div>
+          }
 
-          <!-- Display Name & Role Grid -->
           <div class="form-grid form-grid--2col">
+            @if (showDisplayName()) {
             <div class="ag-field">
               <agrivio-ui-field-label
                 label="Display name"
@@ -199,9 +200,12 @@
                 placeholder="Enter full name"
                 data-testid="employee-display-name"
                 [attr.aria-required]="fieldRequired(form.controls.displayName) ? 'true' : null"
+                [readOnly]="isReadOnlyField('displayName')"
               />
             </div>
+            }
 
+            @if (showRole()) {
             <div class="ag-field">
               <agrivio-ui-field-label
                 label="Role"
@@ -214,16 +218,17 @@
                 formControlName="role"
                 data-testid="employee-role"
                 [attr.aria-required]="fieldRequired(form.controls.role) ? 'true' : null"
+                [disabled]="isReadOnlyField('role')"
               >
                 @for (role of roles; track role) {
                 <option [value]="role">{{ formatRoleLabel(role) }}</option>
                 }
               </select>
             </div>
+            }
           </div>
 
-          <!-- Branch Assignments Section -->
-          @if (canAssign()) {
+          @if (showBranchAccess()) {
           <div class="assignment-section">
             <div class="assignment-section__head">
               <div>
@@ -232,6 +237,7 @@
                   Assign one or more branches this employee can access.
                 </p>
               </div>
+              @if (canEditAssignments()) {
               <div class="assignment-section__actions">
                 <button
                   type="button"
@@ -249,6 +255,7 @@
                   Clear
                 </button>
               </div>
+              }
             </div>
 
             @if (branches().length > 6) {
@@ -270,6 +277,7 @@
                   type="checkbox"
                   class="checkbox-item__input"
                   [checked]="isBranchChecked(branch.id)"
+                  [disabled]="!canEditAssignments()"
                   (change)="toggleBranch(branch.id, $any($event.target).checked)"
                 />
                 <span class="checkbox-item__label">{{ branch.name }}</span>
@@ -279,8 +287,9 @@
               }
             </div>
           </div>
+          }
 
-          <!-- Warehouse Assignments Section -->
+          @if (showWarehouseAccess()) {
           <div class="assignment-section">
             <div class="assignment-section__head">
               <div>
@@ -289,6 +298,7 @@
                   Assign one or more warehouses this employee can access.
                 </p>
               </div>
+              @if (canEditAssignments()) {
               <div class="assignment-section__actions">
                 <button
                   type="button"
@@ -306,6 +316,7 @@
                   Clear
                 </button>
               </div>
+              }
             </div>
 
             @if (warehouses().length > 6) {
@@ -327,6 +338,7 @@
                   type="checkbox"
                   class="checkbox-item__input"
                   [checked]="isWarehouseChecked(warehouse.id)"
+                  [disabled]="!canEditAssignments()"
                   (change)="toggleWarehouse(warehouse.id, $any($event.target).checked)"
                 />
                 <span class="checkbox-item__label">{{ warehouse.name }}</span>
@@ -515,7 +527,7 @@
         </div>
 
         <div class="form-card__body">
-          <!-- Email (Readonly in Edit) -->
+          @if (showEmail()) {
           <div class="ag-field">
             <agrivio-ui-field-label label="Email" for="employee-email" />
             <input
@@ -526,8 +538,9 @@
               readonly
             />
           </div>
+          }
 
-          <!-- Display Name -->
+          @if (showDisplayName()) {
           <div class="ag-field">
             <agrivio-ui-field-label
               label="Display name"
@@ -541,10 +554,12 @@
               placeholder="e.g. Rashid Ali"
               data-testid="employee-display-name"
               [attr.aria-required]="fieldRequired(form.controls.displayName) ? 'true' : null"
+              [readOnly]="isReadOnlyField('displayName')"
             />
           </div>
+          }
 
-          <!-- Role -->
+          @if (showRole()) {
           <div class="ag-field">
             <agrivio-ui-field-label
               label="Role"
@@ -557,14 +572,28 @@
               formControlName="role"
               data-testid="employee-role"
               [attr.aria-required]="fieldRequired(form.controls.role) ? 'true' : null"
+              [disabled]="isReadOnlyField('role')"
             >
               @for (role of roles; track role) {
               <option [value]="role">{{ formatRoleLabel(role) }}</option>
               }
             </select>
           </div>
+          }
 
-          <!-- Blue Info Callout (About Access) -->
+          @if (showStatus()) {
+          <div class="ag-field">
+            <agrivio-ui-field-label label="Status" for="employee-status" />
+            <input
+              id="employee-status"
+              class="ag-input ag-input--disabled"
+              [value]="currentEmployeeStatus()"
+              readonly
+            />
+          </div>
+          }
+
+          @if (showBranchAccess() || showWarehouseAccess()) {
           <div class="info-callout">
             <div class="info-callout__icon">
               <svg
@@ -587,11 +616,11 @@
               </p>
             </div>
           </div>
+          }
         </div>
       </section>
 
-      <!-- Card 2: Branch Assignments -->
-      @if (canAssign()) {
+      @if (showBranchAccess()) {
       <section class="form-card">
         <div class="form-card__header">
           <div class="form-card__icon">
@@ -617,6 +646,7 @@
         </div>
 
         <div class="form-card__body">
+          @if (canEditAssignments()) {
           <div class="assignment-header-tools">
             <button type="button" class="text-action-btn" (click)="selectAllBranches()">
               Select all
@@ -626,6 +656,7 @@
               Clear
             </button>
           </div>
+          }
 
           @if (branches().length > 6) {
           <div class="assignment-search">
@@ -646,6 +677,7 @@
                 type="checkbox"
                 class="checkbox-item__input"
                 [checked]="isBranchChecked(branch.id)"
+                [disabled]="!canEditAssignments()"
                 (change)="toggleBranch(branch.id, $any($event.target).checked)"
               />
               <span class="checkbox-item__label">{{ branch.name }}</span>
@@ -656,8 +688,9 @@
           </div>
         </div>
       </section>
+      }
 
-      <!-- Card 3: Warehouse Assignments -->
+      @if (showWarehouseAccess()) {
       <section class="form-card">
         <div class="form-card__header">
           <div class="form-card__icon">
@@ -683,6 +716,7 @@
         </div>
 
         <div class="form-card__body">
+          @if (canEditAssignments()) {
           <div class="assignment-header-tools">
             <button type="button" class="text-action-btn" (click)="selectAllWarehouses()">
               Select all
@@ -692,6 +726,7 @@
               Clear
             </button>
           </div>
+          }
 
           @if (warehouses().length > 6) {
           <div class="assignment-search">
@@ -712,6 +747,7 @@
                 type="checkbox"
                 class="checkbox-item__input"
                 [checked]="isWarehouseChecked(warehouse.id)"
+                [disabled]="!canEditAssignments()"
                 (change)="toggleWarehouse(warehouse.id, $any($event.target).checked)"
               />
               <span class="checkbox-item__label">{{ warehouse.name }}</span>

@@ -25,6 +25,7 @@ function control(
     | 'expenses'
     | 'expenses.categories'
     | 'accounts'
+    | 'employees'
     | 'reports'
     | 'alerts'
     | 'purchases'
@@ -1186,6 +1187,24 @@ describe('OrganizationControlsPage', () => {
       control('accounts.actions.reverseMovement', 'accounts', 'ACTION', 'Reverse Movement', { allowed: true }),
       control('accounts.actions.reverseTransfer', 'accounts', 'ACTION', 'Reverse Transfer', { allowed: true }),
       control('accounts.actions.refresh', 'accounts', 'ACTION', 'Refresh Accounts', { allowed: true }),
+      // Employees Module (1)
+      control('employees', 'employees', 'MODULE', 'Employees & Access', { enabled: true }, { risk: 'CRITICAL' }),
+      control('employees.features.moduleInfo', 'employees', 'FEATURE', 'About Employees & Access', { enabled: true }),
+      control('employees.features.search', 'employees', 'FEATURE', 'Search', { enabled: true }),
+      control('employees.features.statusFilter', 'employees', 'FEATURE', 'Status Filter', { enabled: true }),
+      control('employees.features.roleFilter', 'employees', 'FEATURE', 'Role Filter', { enabled: true }),
+      control('employees.features.kpiCards', 'employees', 'FEATURE', 'KPI Cards', { enabled: true }),
+      control('employees.fields.email', 'employees', 'FIELD', 'Email', { visible: true, editable: true }, { configurable: { visible: false, editable: true }, platformEnforced: true, risk: 'CRITICAL' }),
+      control('employees.fields.displayName', 'employees', 'FIELD', 'Display name', { visible: true, editable: true }),
+      control('employees.fields.role', 'employees', 'FIELD', 'Role', { visible: true, editable: true }, { configurable: { visible: false, editable: false }, platformEnforced: true, risk: 'CRITICAL' }),
+      control('employees.fields.branchAccess', 'employees', 'FIELD', 'Branch access', { visible: true, editable: false }),
+      control('employees.fields.warehouseAccess', 'employees', 'FIELD', 'Warehouse access', { visible: true, editable: false }),
+      control('employees.fields.status', 'employees', 'FIELD', 'Lifecycle status', { visible: true, editable: false }, { configurable: { visible: false, editable: false }, platformEnforced: true, risk: 'CRITICAL' }),
+      control('employees.actions.create', 'employees', 'ACTION', 'Create employee', { allowed: true }, { risk: 'RECOMMENDED' }),
+      control('employees.actions.edit', 'employees', 'ACTION', 'Edit employee', { allowed: true }, { risk: 'RECOMMENDED' }),
+      control('employees.actions.deactivate', 'employees', 'ACTION', 'Deactivate employee', { allowed: true }, { risk: 'RECOMMENDED' }),
+      control('employees.actions.assignAccess', 'employees', 'ACTION', 'Assign access', { allowed: true }, { risk: 'CRITICAL' }),
+      control('employees.actions.refresh', 'employees', 'ACTION', 'Refresh', { allowed: true }),
       // Reports Module (1)
       control('reports', 'reports', 'MODULE', 'Reports', { enabled: true }, { risk: 'CRITICAL' }),
       // Reports Feature (1)
@@ -2617,6 +2636,29 @@ describe('OrganizationControlsPage', () => {
       if (createControl) {
         expect(component.effectiveValue(createControl, 'allowed')).toBe(true);
       }
+    });
+  });
+
+  describe('Employees Controls', () => {
+    it('selects Employees module and renders expected control sections', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('employees');
+      fixture.detectChanges();
+
+      expect(component.selectedModule()).toBe('employees');
+      expect(component.moduleLabel('employees')).toBe('Employees & Access');
+      expect(component.moduleControls().length).toBe(1);
+      expect(component.moduleInfoControls().length).toBe(1);
+      expect(component.filterControls().length).toBe(3);
+      expect(component.kpiControls().length).toBe(1);
+      expect(component.requiredWorkflowControls().length).toBe(3);
+      expect(component.fieldControls().length).toBe(3);
+      expect(component.actionControls().length).toBe(5);
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('Employees & Access Module');
+      expect(text).toContain('Required Fields');
+      expect(text).toContain('Assign access');
     });
   });
 

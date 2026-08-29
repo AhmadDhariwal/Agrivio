@@ -5,6 +5,7 @@ import { vi } from 'vitest';
 import { EmployeeFormPage } from './employee-form.page';
 import { EmployeeRecord, UsersAccessApi } from '../../data-access/users-access.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 describe('EmployeeFormPage', () => {
   const mockBranches = [
@@ -129,5 +130,62 @@ describe('EmployeeFormPage', () => {
       branchIds: ['b-1'],
       warehouseIds: ['w-1'],
     });
+  });
+
+  it('does not replace assignments when assignAccess capability is disabled', () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [EmployeeFormPage],
+      providers: [
+        provideRouter([]),
+        {
+          provide: UsersAccessApi,
+          useValue: {
+            getEmployee: () => of(mockEmployee),
+            createEmployee: createEmployeeSpy,
+            updateEmployee: updateEmployeeSpy,
+            replaceAccessAssignments: replaceAssignmentsSpy,
+            listAssignmentBranches: () => of(mockBranches),
+            listAssignmentWarehouses: () => of(mockWarehouses),
+          },
+        },
+        {
+          provide: AuthSessionStore,
+          useValue: { hasPermission: () => true },
+        },
+        {
+          provide: CapabilityService,
+          useValue: {
+            canUseModule: () => true,
+            canViewField: () => true,
+            canEditField: () => true,
+            canPerformAction: (key: string) => key !== 'employees.actions.assignAccess',
+          },
+        },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: { paramMap: { get: () => null } },
+          },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture: ComponentFixture<EmployeeFormPage> = TestBed.createComponent(EmployeeFormPage);
+    fixture.detectChanges();
+
+    const comp = fixture.componentInstance;
+    comp.form.patchValue({
+      email: 'newbie@agrivio.pk',
+      displayName: 'New Member',
+      role: 'Cashier',
+      branchIds: ['b-1'],
+      warehouseIds: ['w-1'],
+    });
+    comp.save();
+
+    expect(createEmployeeSpy).toHaveBeenCalled();
+    expect(replaceAssignmentsSpy).not.toHaveBeenCalled();
+    expect(comp.canAssign()).toBe(false);
   });
 });

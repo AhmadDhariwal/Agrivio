@@ -150,6 +150,9 @@ function createEmployeesService(deps) {
 
     async createEmployee(organizationId, body, actor) {
       const input = parseEmployeeCreate(body);
+      if (typeof deps.capabilityService?.assertEmployeeCreateAllowed === 'function') {
+        await deps.capabilityService.assertEmployeeCreateAllowed(organizationId);
+      }
       const emailNormalized = normalizeEmail(input.email);
       const currentUsage = await store.countActiveUsers(organizationId);
       const entitlement = await assertCreationLimit(
@@ -258,6 +261,17 @@ function createEmployeesService(deps) {
         const { membership, user } = loaded;
         assertOptimisticVersion(membership, expectedVersion);
 
+        if (typeof deps.capabilityService?.assertEmployeePatchAllowed === 'function') {
+          await deps.capabilityService.assertEmployeePatchAllowed(
+            organizationId,
+            {
+              displayName: user['displayName'],
+              role: membership['role'],
+            },
+            patch,
+          );
+        }
+
         if (patch.role !== undefined && patch.role !== membership['role']) {
           const allMemberships = await store.listMembershipsByOrganizationId(organizationId);
           assertOwnerPresenceAfterMembershipChange(allMemberships, String(membership['_id']), {
@@ -309,6 +323,9 @@ function createEmployeesService(deps) {
     },
 
     async deactivateEmployee(organizationId, userId, actor) {
+      if (typeof deps.capabilityService?.assertEmployeeDeactivateAllowed === 'function') {
+        await deps.capabilityService.assertEmployeeDeactivateAllowed(organizationId);
+      }
       return transactionRunner.run(async (session) => {
         const loaded = await loadEmployee(organizationId, userId);
         if (loaded === null) {
@@ -378,6 +395,9 @@ function createEmployeesModule(options) {
     ...(options.evaluateEntitlement === undefined
       ? {}
       : { evaluateEntitlement: options.evaluateEntitlement }),
+    ...(options.capabilityService === undefined
+      ? {}
+      : { capabilityService: options.capabilityService }),
     ...(options.now === undefined ? {} : { now: options.now }),
     ...(options.activationTtlMs === undefined ? {} : { activationTtlMs: options.activationTtlMs }),
   });

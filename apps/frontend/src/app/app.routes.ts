@@ -193,6 +193,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'employees',
+        canActivate: [requireCapabilityGuard('employees')],
         loadComponent: () =>
           import('./features/users-access/pages/employees/employees.page').then(
             (m) => m.EmployeesPage,
@@ -200,6 +201,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'employees/new',
+        canActivate: [
+          requireCapabilityGuard('employees'),
+          requireCapabilityGuard('employees.actions.create', 'action'),
+        ],
         loadComponent: () =>
           import('./features/users-access/pages/employee-form/employee-form.page').then(
             (m) => m.EmployeeFormPage,
@@ -207,6 +212,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'employees/:id',
+        canActivate: [
+          requireCapabilityGuard('employees'),
+          requireCapabilityGuard('employees.actions.edit', 'action'),
+        ],
         loadComponent: () =>
           import('./features/users-access/pages/employee-form/employee-form.page').then(
             (m) => m.EmployeeFormPage,

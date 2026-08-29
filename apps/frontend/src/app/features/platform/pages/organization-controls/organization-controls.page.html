@@ -183,6 +183,15 @@
       <button
         type="button"
         class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'employees'"
+        (click)="selectModule('employees')"
+        data-testid="employees-control-module"
+      >
+        Employees &amp; Access
+      </button>
+      <button
+        type="button"
+        class="module-nav__item"
         [class.module-nav__item--active]="selectedModule() === 'reports'"
         (click)="selectModule('reports')"
         data-testid="reports-control-module"
@@ -312,7 +321,8 @@
               selectedModule() === 'returns' ||
               selectedModule() === 'expenses' ||
               selectedModule() === 'expenses.categories' ||
-              selectedModule() === 'accounts'
+              selectedModule() === 'accounts' ||
+              selectedModule() === 'employees'
                 ? 'Required Fields'
                 : 'Required Workflow Fields',
             controls: requiredWorkflowControls()

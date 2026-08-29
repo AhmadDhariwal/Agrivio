@@ -14,6 +14,7 @@
       </p>
     </div>
     <div class="page-head__actions">
+      @if (canRefresh()) {
       <button
         type="button"
         class="ag-btn ag-btn--secondary page-head__refresh-btn"
@@ -37,6 +38,7 @@
         </svg>
         <span class="btn-text-full">Refresh</span>
       </button>
+      }
 
       @if (canCreate()) {
       <a
@@ -75,14 +77,16 @@
   </div>
   }
 
-  <!-- Module Information Section (Products Pattern) -->
+  @if (showModuleInfo()) {
   <agrivio-ui-module-info
     [title]="infoTitle"
     [description]="infoDescription"
     [items]="infoItems"
     [defaultExpanded]="false"
   />
+  }
 
+  @if (showKpiCards()) {
   <!-- KPI Summary Row -->
   <section class="kpi-row" aria-label="Employees Summary">
     <div class="kpi-card">
@@ -154,13 +158,14 @@
       </div>
     </div>
   </section>
+  }
 
   <!-- Filter & Control Toolbar -->
   <section class="toolbar" aria-label="Filters and search">
     <!-- Desktop / Tablet Controls -->
     <div class="toolbar__desktop">
       <div class="toolbar__left">
-        <!-- Search Input -->
+        @if (showSearch()) {
         <div class="search-field">
           <svg
             class="search-field__icon"
@@ -203,8 +208,9 @@
           </button>
           }
         </div>
+        }
 
-        <!-- Status Filter -->
+        @if (showStatusFilter()) {
         <div class="select-field">
           <select
             class="select-field__input"
@@ -218,8 +224,9 @@
             <option value="deactivated">Deactivated</option>
           </select>
         </div>
+        }
 
-        <!-- Role Filter -->
+        @if (showRoleFilter()) {
         <div class="select-field">
           <select
             class="select-field__input"
@@ -234,6 +241,7 @@
             <option value="StoreKeeper">Store Keeper</option>
           </select>
         </div>
+        }
 
         <!-- Clear Filters Button -->
         @if (hasActiveFilters()) {
@@ -252,6 +260,7 @@
 
     <!-- Mobile Controls (< 768px) -->
     <div class="toolbar__mobile">
+      @if (showSearch()) {
       <div class="search-field search-field--mobile">
         <svg
           class="search-field__icon"
@@ -294,8 +303,11 @@
         </button>
         }
       </div>
+      }
 
+      @if (showStatusFilter() || showRoleFilter()) {
       <div class="toolbar__mobile-row">
+        @if (showStatusFilter()) {
         <select
           class="select-field__input"
           [value]="statusFilter()"
@@ -307,7 +319,9 @@
           <option value="pending">Pending</option>
           <option value="deactivated">Deactivated</option>
         </select>
+        }
 
+        @if (showRoleFilter()) {
         <select
           class="select-field__input"
           [value]="roleFilter()"
@@ -320,11 +334,13 @@
           <option value="Cashier">Cashier</option>
           <option value="StoreKeeper">Store Keeper</option>
         </select>
+        }
 
         @if (hasActiveFilters()) {
         <button type="button" class="mobile-clear-btn" (click)="clearFilters()">Reset</button>
         }
       </div>
+      }
     </div>
   </section>
 
@@ -361,12 +377,24 @@
       <thead>
         <tr>
           <th scope="col" class="emp-table__th emp-table__th--employee">Employee</th>
+          @if (showEmail()) {
           <th scope="col" class="emp-table__th emp-table__th--email">Email</th>
+          }
+          @if (showRole()) {
           <th scope="col" class="emp-table__th emp-table__th--role">Role</th>
+          }
+          @if (showBranchAccess()) {
           <th scope="col" class="emp-table__th emp-table__th--branches">Branch Access</th>
+          }
+          @if (showWarehouseAccess()) {
           <th scope="col" class="emp-table__th emp-table__th--warehouses">Warehouse Access</th>
+          }
+          @if (showStatus()) {
           <th scope="col" class="emp-table__th emp-table__th--status">Status</th>
+          }
+          @if (showActions()) {
           <th scope="col" class="emp-table__th emp-table__th--actions">Actions</th>
+          }
         </tr>
       </thead>
       <tbody>
@@ -402,12 +430,13 @@
             </div>
           </td>
 
-          <!-- Email -->
+          @if (showEmail()) {
           <td class="emp-table__td emp-table__td--email">
             <span class="email-text" [title]="item.email">{{ item.email }}</span>
           </td>
+          }
 
-          <!-- Role -->
+          @if (showRole()) {
           <td class="emp-table__td emp-table__td--role">
             <span
               class="role-badge"
@@ -419,18 +448,21 @@
               {{ formatRole(item.role) }}
             </span>
           </td>
+          }
 
-          <!-- Branch Access -->
+          @if (showBranchAccess()) {
           <td class="emp-table__td emp-table__td--branches">
             <span class="access-pill">{{ formatBranchAccess(item) }}</span>
           </td>
+          }
 
-          <!-- Warehouse Access -->
+          @if (showWarehouseAccess()) {
           <td class="emp-table__td emp-table__td--warehouses">
             <span class="access-pill">{{ formatWarehouseAccess(item) }}</span>
           </td>
+          }
 
-          <!-- Status -->
+          @if (showStatus()) {
           <td class="emp-table__td emp-table__td--status">
             <span
               class="status-indicator"
@@ -442,11 +474,12 @@
               {{ formatStatus(item.status) }}
             </span>
           </td>
+          }
 
-          <!-- Actions -->
+          @if (showActions()) {
           <td class="emp-table__td emp-table__td--actions">
             <div class="row-actions">
-              @if (canUpdate()) {
+              @if (canEdit()) {
               <a
                 class="row-action-btn"
                 [routerLink]="['/app/employees', item.id]"
@@ -519,6 +552,7 @@
               }
             </div>
           </td>
+          }
         </tr>
         }
       </tbody>
@@ -535,8 +569,11 @@
       <div class="emp-card__head">
         <div class="emp-card__name-group">
           <h2 class="emp-card__name">{{ item.displayName }}</h2>
+          @if (showEmail()) {
           <span class="emp-card__email">{{ item.email }}</span>
+          }
         </div>
+        @if (showRole()) {
         <span
           class="role-badge"
           [class.role-badge--owner]="item.role === 'Owner'"
@@ -546,9 +583,11 @@
         >
           {{ formatRole(item.role) }}
         </span>
+        }
       </div>
 
       <div class="emp-card__body">
+        @if (showStatus()) {
         <div class="emp-card__row">
           <span class="emp-card__label">Status</span>
           <span
@@ -561,20 +600,26 @@
             {{ formatStatus(item.status) }}
           </span>
         </div>
+        }
 
+        @if (showBranchAccess()) {
         <div class="emp-card__row">
           <span class="emp-card__label">Branches</span>
           <span class="emp-card__val">{{ formatBranchAccess(item) }}</span>
         </div>
+        }
 
+        @if (showWarehouseAccess()) {
         <div class="emp-card__row">
           <span class="emp-card__label">Warehouses</span>
           <span class="emp-card__val">{{ formatWarehouseAccess(item) }}</span>
         </div>
+        }
       </div>
 
+      @if (showActions()) {
       <div class="emp-card__foot">
-        @if (canUpdate()) {
+        @if (canEdit()) {
         <a class="ag-btn ag-btn--secondary emp-card__btn" [routerLink]="['/app/employees', item.id]">
           Edit
         </a>
@@ -589,6 +634,7 @@
         </button>
         }
       </div>
+      }
     </article>
     }
   </div>
