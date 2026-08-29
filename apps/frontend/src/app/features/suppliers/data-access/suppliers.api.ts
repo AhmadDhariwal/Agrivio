@@ -28,6 +28,8 @@ export class SuppliersApi {
       QUERY_CACHE_TAGS.supplierOptions,
       QUERY_CACHE_TAGS.supplierLedger,
       QUERY_CACHE_TAGS.payables,
+      QUERY_CACHE_TAGS.dashboard,
+      QUERY_CACHE_TAGS.reports,
     );
   }
 

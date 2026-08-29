@@ -26,6 +26,7 @@ export interface InventoryBalanceRecord {
   warehouseId: string;
   productId: string;
   batchId: string | null;
+  batchNumberSnapshot?: string | null;
   quantityBase: string;
   unsellableQuantityBase?: string;
   version: number;
@@ -141,6 +142,12 @@ export interface WarehouseTransferRecord {
   reversedByTransferId: string | null;
   negativeStockOverride?: boolean;
   version: number;
+  productNameSnapshot?: string | null;
+  productSkuSnapshot?: string | null;
+  sourceWarehouseNameSnapshot?: string | null;
+  sourceWarehouseCodeSnapshot?: string | null;
+  destinationWarehouseNameSnapshot?: string | null;
+  destinationWarehouseCodeSnapshot?: string | null;
 }
 
 export interface ReconciliationResult {

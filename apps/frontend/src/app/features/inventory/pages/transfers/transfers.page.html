@@ -557,12 +557,12 @@
             <tbody>
               @for (item of transfers(); track item.id) {
                 <tr data-testid="transfer-row">
-                  <td class="font-medium">{{ warehouseName(item.sourceWarehouseId) }}</td>
-                  <td class="font-medium">{{ warehouseName(item.destinationWarehouseId) }}</td>
+                  <td class="font-medium">{{ transferSourceWarehouseName(item) }}</td>
+                  <td class="font-medium">{{ transferDestinationWarehouseName(item) }}</td>
                   <td>
                     <div class="product-cell">
-                      <span class="product-cell__name">{{ productName(item.productId) }}</span>
-                      <span class="product-cell__sku font-mono">SKU: {{ productSku(item.productId) }}</span>
+                      <span class="product-cell__name">{{ transferProductName(item) }}</span>
+                      <span class="product-cell__sku font-mono">SKU: {{ transferProductSku(item) }}</span>
                     </div>
                   </td>
                   <td>
@@ -619,8 +619,8 @@
             <article class="mobile-transfer-card" data-testid="transfer-card">
               <div class="mobile-transfer-card__header">
                 <div class="mobile-transfer-card__title-group">
-                  <h3 class="mobile-transfer-card__title">{{ productName(item.productId) }}</h3>
-                  <span class="mobile-transfer-card__sku font-mono">{{ productSku(item.productId) }}</span>
+                  <h3 class="mobile-transfer-card__title">{{ transferProductName(item) }}</h3>
+                  <span class="mobile-transfer-card__sku font-mono">{{ transferProductSku(item) }}</span>
                 </div>
                 <span class="status-badge status-badge--{{ item.status }}">
                   {{ item.status }}
@@ -628,9 +628,9 @@
               </div>
 
               <div class="mobile-transfer-card__route">
-                <span class="route-point">{{ warehouseName(item.sourceWarehouseId) }}</span>
+                <span class="route-point">{{ transferSourceWarehouseName(item) }}</span>
                 <span class="route-arrow" aria-hidden="true">→</span>
-                <span class="route-point">{{ warehouseName(item.destinationWarehouseId) }}</span>
+                <span class="route-point">{{ transferDestinationWarehouseName(item) }}</span>
               </div>
 
               <div class="mobile-transfer-card__metrics">
@@ -717,7 +717,7 @@
           <div class="inspector-drawer__titles">
             <h2 class="drawer-title">Transfer Inspector</h2>
             <p class="drawer-sub">
-              {{ warehouseName(sel.sourceWarehouseId) }} → {{ warehouseName(sel.destinationWarehouseId) }}
+              {{ transferSourceWarehouseName(sel) }} → {{ transferDestinationWarehouseName(sel) }}
             </p>
           </div>
         </div>
@@ -749,19 +749,19 @@
           <div class="drawer-grid">
             <div class="drawer-field">
               <span class="drawer-field__label">Source Warehouse</span>
-              <span class="drawer-field__val">{{ warehouseName(sel.sourceWarehouseId) }}</span>
+              <span class="drawer-field__val">{{ transferSourceWarehouseName(sel) }}</span>
             </div>
             <div class="drawer-field">
               <span class="drawer-field__label">Destination Warehouse</span>
-              <span class="drawer-field__val">{{ warehouseName(sel.destinationWarehouseId) }}</span>
+              <span class="drawer-field__val">{{ transferDestinationWarehouseName(sel) }}</span>
             </div>
             <div class="drawer-field">
               <span class="drawer-field__label">Product</span>
-              <span class="drawer-field__val">{{ productName(sel.productId) }}</span>
+              <span class="drawer-field__val">{{ transferProductName(sel) }}</span>
             </div>
             <div class="drawer-field">
               <span class="drawer-field__label">SKU</span>
-              <span class="drawer-field__val font-mono">{{ productSku(sel.productId) }}</span>
+              <span class="drawer-field__val font-mono">{{ transferProductSku(sel) }}</span>
             </div>
           </div>
         </section>

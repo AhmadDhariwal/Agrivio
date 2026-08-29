@@ -47,10 +47,13 @@ const {
 const { ADJUSTMENT_DIRECTIONS } = require('./persistence/stock-adjustment.model');
 const { reconcileInventoryState } = require('./reconciliation');
 const {
+  attachBalanceBatchSnapshots,
   attachBatchStockLocations,
   attachFindingBatchSnapshots,
   loadMovementReferenceMaps,
+  loadTransferReferenceMaps,
   toMovementListItemDto,
+  toTransferListItemDto,
 } = require('./inventory-reference-read');
 
 function mapDuplicate(error, message) {
@@ -517,7 +520,8 @@ function createInventoryService(deps) {
             };
         scoped.push(toBalanceDto(balance, valuation));
       }
-      return { items: scoped, total: result.total ?? scoped.length };
+      const items = await attachBalanceBatchSnapshots(store, organizationId, scoped);
+      return { items, total: result.total ?? items.length };
     },
 
     async listMovements(organizationId, query, authContext) {
@@ -1328,12 +1332,20 @@ function createInventoryService(deps) {
         ? await store.listTransfersPage(organizationId, filters, query)
         : { items: await store.listTransfers(organizationId, filters), total: undefined };
       const items = result.items;
-      const mapped = items
-        .filter((item) => {
-          if (typeof deps.canAccessWarehouse !== 'function') return true;
-          return deps.canAccessWarehouse(authContext, String(item.sourceWarehouseId)) && deps.canAccessWarehouse(authContext, String(item.destinationWarehouseId));
-        })
-        .map(toTransferDto);
+      const accessibleTransfers = items.filter((item) => {
+        if (typeof deps.canAccessWarehouse !== 'function') return true;
+        return (
+          deps.canAccessWarehouse(authContext, String(item.sourceWarehouseId)) &&
+          deps.canAccessWarehouse(authContext, String(item.destinationWarehouseId))
+        );
+      });
+      const refs = await loadTransferReferenceMaps({
+        catalogService,
+        locationsService,
+        organizationId,
+        transfers: accessibleTransfers,
+      });
+      const mapped = accessibleTransfers.map((item) => toTransferListItemDto(item, refs));
       return {
         items: mapped,
         total: result.total ?? mapped.length,

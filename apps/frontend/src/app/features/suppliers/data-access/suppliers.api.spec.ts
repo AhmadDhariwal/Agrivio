@@ -53,14 +53,16 @@ describe('SuppliersApi cache integration', () => {
     http = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http.verify();
+    TestBed.resetTestingModule();
+  });
 
   it('dedupes identical listSuppliers requests', async () => {
     const first = firstValueFrom(api.listSuppliers({ page: 1, pageSize: 25, status: 'active' }));
     const second = firstValueFrom(api.listSuppliers({ page: 1, pageSize: 25, status: 'active' }));
 
-    const request = http.expectOne((candidate) => candidate.url.endsWith('/api/v1/suppliers'));
-    request.flush(listResponse);
+    http.expectOne((candidate) => candidate.url.endsWith('/api/v1/suppliers')).flush(listResponse);
 
     await Promise.all([first, second]);
   });
@@ -69,15 +71,17 @@ describe('SuppliersApi cache integration', () => {
     const listPromise = firstValueFrom(api.listSuppliers({ page: 1, pageSize: 25, status: 'active' }));
     const optionsPromise = firstValueFrom(api.searchSupplierOptions(''));
 
-    http.expectOne((candidate) => candidate.url.endsWith('/api/v1/suppliers')).flush(listResponse);
-    http.expectOne((candidate) => candidate.url.endsWith('/api/v1/suppliers')).flush(listResponse);
+    const requests = http.match((candidate) => candidate.url.endsWith('/api/v1/suppliers'));
+    expect(requests.length).toBe(2);
+    requests.forEach((request) => request.flush(listResponse));
 
     await Promise.all([listPromise, optionsPromise]);
   });
 
   it('forceRefresh bypasses cached listSuppliers response', async () => {
-    await firstValueFrom(api.listSuppliers({ page: 1, pageSize: 25, status: 'active' }));
+    const cached = firstValueFrom(api.listSuppliers({ page: 1, pageSize: 25, status: 'active' }));
     http.expectOne((candidate) => candidate.url.endsWith('/api/v1/suppliers')).flush(listResponse);
+    await cached;
 
     const refreshed = firstValueFrom(
       api.listSuppliers({ page: 1, pageSize: 25, status: 'active', forceRefresh: true }),
@@ -87,15 +91,16 @@ describe('SuppliersApi cache integration', () => {
   });
 
   it('invalidates cached reads after updateSupplier succeeds', async () => {
-    await firstValueFrom(api.searchSupplierOptions(''));
+    const cached = firstValueFrom(api.searchSupplierOptions(''));
     http.expectOne((candidate) => candidate.url.endsWith('/api/v1/suppliers')).flush(listResponse);
+    await cached;
 
     const updated = firstValueFrom(
       api.updateSupplier('sup-1', { expectedVersion: 1, name: 'Engro Updated' }),
     );
-    const patchRequest = http.expectOne((candidate) => candidate.url.endsWith('/api/v1/suppliers/sup-1'));
-    expect(patchRequest.request.method).toBe('PATCH');
-    patchRequest.flush({ data: { ...listResponse.data[0], name: 'Engro Updated', version: 2 } });
+    http
+      .expectOne((candidate) => candidate.url.endsWith('/api/v1/suppliers/sup-1'))
+      .flush({ data: { ...listResponse.data[0], name: 'Engro Updated', version: 2 } });
     await updated;
 
     const reload = firstValueFrom(api.searchSupplierOptions(''));

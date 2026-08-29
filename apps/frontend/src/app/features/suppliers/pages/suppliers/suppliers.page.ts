@@ -196,7 +196,7 @@ export class SuppliersPage {
       .subscribe((val) => {
         this.search.set(val.trim());
         this.page.set(1);
-        this.reloadRequests.next();
+        this.reloadRequests.next(false);
       });
 
     this.reloadRequests

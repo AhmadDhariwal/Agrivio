@@ -78,13 +78,43 @@
 
             <!-- Customer Lookup -->
             <div class="ag-field">
+              <agrivio-ui-field-label label="Find customer" for="without-invoice-customer-search" />
+              <div class="ag-input-with-icon">
+                <svg
+                  class="input-icon"
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input
+                  id="without-invoice-customer-search"
+                  class="ag-input"
+                  type="search"
+                  placeholder="Search by name, phone, or code…"
+                  (input)="onCustomerSearch($event)"
+                  (change)="onCustomerSearch($event)"
+                  data-testid="without-invoice-customer-search"
+                />
+              </div>
+              <p class="field-hint">Search to load matching customers; walk-in details can be entered below.</p>
+            </div>
+
+            <div class="ag-field">
               <agrivio-ui-field-label label="Customer lookup" for="without-invoice-customer" />
               <select
                 id="without-invoice-customer"
                 class="ag-select"
                 formControlName="customerId"
                 data-testid="without-invoice-customer"
-                (focus)="onCustomerLookupFocus()"
               >
                 <option value="">No registered customer (Walk-in)</option>
                 @for (customer of customers(); track customer.id) {
@@ -137,6 +167,37 @@
         </div>
 
         <div class="form-card__body">
+          <div class="ag-field">
+            <agrivio-ui-field-label label="Find product" for="without-invoice-product-search" />
+            <div class="ag-input-with-icon">
+              <svg
+                class="input-icon"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                id="without-invoice-product-search"
+                class="ag-input"
+                type="search"
+                placeholder="Search by product name or SKU…"
+                (input)="onProductSearch($event)"
+                (change)="onProductSearch($event)"
+                data-testid="without-invoice-product-search"
+              />
+            </div>
+            <p class="field-hint">Search to load matching products for the line selectors below.</p>
+          </div>
+
           @for (line of lines.controls; track $index; let index = $index) {
             <div class="product-line" [formGroup]="lineGroup(index)">
               <div class="product-line__header">
@@ -170,7 +231,6 @@
                     class="ag-select"
                     formControlName="productId"
                     data-testid="without-invoice-product"
-                    (focus)="onProductLookupFocus()"
                     (change)="onProductChange(index)"
                     [attr.aria-required]="fieldRequired(lineGroup(index).controls['productId']) ? 'true' : null"
                   >

@@ -100,14 +100,26 @@ describe('CustomersPage', () => {
 
     const fixture = TestBed.createComponent(CustomersPage);
     fixture.detectChanges();
-    expect(requests[0]).toEqual({ page: 1, pageSize: 25, status: 'active', search: '' });
+    expect(requests[0]).toEqual({
+      page: 1,
+      pageSize: 25,
+      status: 'active',
+      search: '',
+      forceRefresh: false,
+    });
     expect(fixture.nativeElement.querySelectorAll('[data-testid="customer-row"]').length).toBe(25);
 
     const page = fixture.componentInstance;
     page.onPageSizeChange(10);
     fixture.detectChanges();
 
-    expect(requests.at(-1)).toEqual({ page: 1, pageSize: 10, status: 'active', search: '' });
+    expect(requests.at(-1)).toEqual({
+      page: 1,
+      pageSize: 10,
+      status: 'active',
+      search: '',
+      forceRefresh: false,
+    });
     expect(fixture.nativeElement.querySelectorAll('[data-testid="customer-row"]').length).toBe(10);
     expect(fixture.nativeElement.textContent).toContain('Showing 1–10 of 37');
   });

@@ -67,6 +67,12 @@ describe('TransfersPage', () => {
               reversedByTransferId: null,
               negativeStockOverride: false,
               version: 1,
+              productNameSnapshot: 'Product prod-batch',
+              productSkuSnapshot: 'SKU-prod-batch',
+              sourceWarehouseNameSnapshot: 'Central Warehouse',
+              sourceWarehouseCodeSnapshot: 'WH-SRC',
+              destinationWarehouseNameSnapshot: 'North Region Warehouse',
+              destinationWarehouseCodeSnapshot: 'WH-DST',
             } as WarehouseTransferRecord,
           ],
           meta: { page: 1, pageSize: 25, total: 1 },
@@ -467,7 +473,7 @@ describe('TransfersPage', () => {
     expect(mockCatalogApi.searchProductOptions).toHaveBeenCalledWith('Urea', 500, 'active');
   });
 
-  it('falls back to raw IDs for historical records outside the cached product/warehouse options', () => {
+  it('renders transfer history from authoritative list snapshots without per-ID lookups', () => {
     mockInventoryApi.listTransfers.mockReturnValue(
       of({
         items: [
@@ -491,6 +497,10 @@ describe('TransfersPage', () => {
             reversalOfId: null,
             reversedByTransferId: null,
             version: 1,
+            productNameSnapshot: 'Archived Product',
+            productSkuSnapshot: 'SKU-HIST',
+            sourceWarehouseNameSnapshot: 'Archived Source WH',
+            destinationWarehouseNameSnapshot: 'Archived Dest WH',
           } as WarehouseTransferRecord,
         ],
         meta: { page: 1, pageSize: 25, total: 1 },
@@ -503,9 +513,9 @@ describe('TransfersPage', () => {
     expect(mockCatalogApi.getProduct).not.toHaveBeenCalled();
     expect(mockLocationsApi.getWarehouse).not.toHaveBeenCalled();
 
-    expect(page.productName('prod-archived-99')).toBe('prod-archived-99');
-    expect(page.productSku('prod-archived-99')).toBe('—');
-    expect(page.warehouseName('wh-archived-1')).toBe('wh-archived-1');
+    expect(page.transferProductName(page.transfers()[0]!)).toBe('Archived Product');
+    expect(page.transferProductSku(page.transfers()[0]!)).toBe('SKU-HIST');
+    expect(page.transferSourceWarehouseName(page.transfers()[0]!)).toBe('Archived Source WH');
   });
 
   it('does not issue per-ID product or warehouse lookups when transfer rows share missing references', () => {
@@ -564,11 +574,11 @@ describe('TransfersPage', () => {
 
     expect(mockCatalogApi.getProduct).not.toHaveBeenCalled();
     expect(mockLocationsApi.getWarehouse).not.toHaveBeenCalled();
-    expect(page.productName('prod-missing-101')).toBe('prod-missing-101');
-    expect(page.warehouseName('wh-missing-A')).toBe('wh-missing-A');
+    expect(page.transferProductName(page.transfers()[0]!)).toBe('—');
+    expect(page.transferSourceWarehouseName(page.transfers()[0]!)).toBe('—');
   });
 
-  it('renders transfer history when cached reference maps do not contain row IDs', () => {
+  it('renders transfer history when list snapshots are absent', () => {
     mockInventoryApi.listTransfers.mockReturnValue(
       of({
         items: [
@@ -602,8 +612,8 @@ describe('TransfersPage', () => {
     fixture.detectChanges();
 
     expect(page.transfers().length).toBe(1);
-    expect(page.productName('prod-deleted-999')).toBe('prod-deleted-999');
-    expect(page.warehouseName('wh-deleted-1')).toBe('wh-deleted-1');
+    expect(page.transferProductName(page.transfers()[0]!)).toBe('—');
+    expect(page.transferSourceWarehouseName(page.transfers()[0]!)).toBe('—');
   });
 
   it('renders mobile-specific transfer cards and supports lifecycle actions', () => {

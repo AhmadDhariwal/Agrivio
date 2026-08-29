@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { ReturnsApi } from './returns.api';
 import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
@@ -34,7 +35,9 @@ describe('ReturnsApi', () => {
 
     api = TestBed.inject(ReturnsApi);
     const queryCache = TestBed.inject(QueryCacheService);
-    vi.spyOn(queryCache, 'invalidateTags').mockImplementation(invalidateTags);
+    vi.spyOn(queryCache, 'invalidateTags').mockImplementation(
+      invalidateTags as (...args: Parameters<QueryCacheService['invalidateTags']>) => void,
+    );
   });
 
   it('dedupes identical list requests through QueryCacheService', () => {
@@ -139,6 +142,9 @@ describe('invalidateReturnMutationEffects', () => {
       QUERY_CACHE_TAGS.payables,
       QUERY_CACHE_TAGS.accounts,
       QUERY_CACHE_TAGS.accountOptions,
+      QUERY_CACHE_TAGS.accountsSummary,
+      QUERY_CACHE_TAGS.accountMovements,
+      QUERY_CACHE_TAGS.expenses,
     );
   });
 });

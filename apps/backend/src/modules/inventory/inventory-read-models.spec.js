@@ -2,9 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { attachProductListSummaries, buildProductListSummary } from '../catalog/catalog-list-summary.js';
 import {
   toMovementListItemDto,
+  toTransferListItemDto,
   attachFindingBatchSnapshots,
   attachBatchStockLocations,
+  attachBalanceBatchSnapshots,
 } from './inventory-reference-read.js';
+import { toBalanceDto } from './inventory.validation.js';
 
 describe('catalog-list-summary', () => {
   it('composes retail selling price and available quantity per product', async () => {
@@ -122,5 +125,65 @@ describe('inventory-reference-read', () => {
     ]);
 
     expect(findings[0].batchNumberSnapshot).toBe('LOT-001');
+  });
+
+  it('adds transfer display snapshots from reference maps', () => {
+    const dto = toTransferListItemDto(
+      {
+        _id: 't1',
+        organizationId: 'org-1',
+        sourceWarehouseId: 'ws1',
+        destinationWarehouseId: 'wd1',
+        productId: 'p1',
+        batchId: 'b1',
+        quantityBaseMinorUnits: '10000',
+        enteredQuantityMinorUnits: '10000',
+        unitCode: 'kg',
+        conversionFactorSnapshot: '1',
+        packagingUnitId: null,
+        transferValueMinorUnits: null,
+        reason: 'restock',
+        status: 'posted',
+        postedAt: '2026-01-01T00:00:00.000Z',
+        postedBy: 'u1',
+        outboundMovementId: 'm1',
+        inboundMovementId: 'm2',
+        reversalOfId: null,
+        reversedByTransferId: null,
+        negativeStockOverride: false,
+        version: 1,
+      },
+      {
+        productMap: new Map([['p1', { id: 'p1', name: 'Seed Mix', sku: 'SM-1' }]]),
+        warehouseMap: new Map([
+          ['ws1', { id: 'ws1', name: 'Source WH', code: 'SRC' }],
+          ['wd1', { id: 'wd1', name: 'Dest WH', code: 'DST' }],
+        ]),
+      },
+    );
+
+    expect(dto.productNameSnapshot).toBe('Seed Mix');
+    expect(dto.sourceWarehouseNameSnapshot).toBe('Source WH');
+    expect(dto.destinationWarehouseNameSnapshot).toBe('Dest WH');
+  });
+
+  it('adds batchNumberSnapshot to balance list rows', async () => {
+    const enriched = await attachBalanceBatchSnapshots(store, 'org-1', [
+      toBalanceDto(
+        {
+          _id: 'bal-1',
+          organizationId: 'org-1',
+          warehouseId: 'w1',
+          productId: 'p1',
+          batchId: 'b1',
+          quantityBaseMinorUnits: '10000',
+          unsellableQuantityBaseMinorUnits: '0',
+          version: 1,
+        },
+        undefined,
+      ),
+    ]);
+
+    expect(enriched[0].batchNumberSnapshot).toBe('LOT-001');
   });
 });

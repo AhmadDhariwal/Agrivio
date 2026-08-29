@@ -530,16 +530,10 @@ export class StockInquiryPage {
     return code && code.trim() !== '' ? code : null;
   }
 
-  batchNumber(batchId: string | null): string {
-    if (!batchId) return '—';
-    const fromBatchMap = this.batchMap().get(batchId)?.batchNumber;
-    if (fromBatchMap) return fromBatchMap;
-    for (const item of this.expiryMap().values()) {
-      if (item.batchId === batchId && item.batchNumber) {
-        return item.batchNumber;
-      }
-    }
-    return batchId;
+  batchNumber(row: InventoryBalanceRecord): string {
+    if (!row.batchId) return '—';
+    const snapshot = row.batchNumberSnapshot?.trim();
+    return snapshot ? snapshot : '—';
   }
 
   batchExpiry(batchId: string | null): string | null {

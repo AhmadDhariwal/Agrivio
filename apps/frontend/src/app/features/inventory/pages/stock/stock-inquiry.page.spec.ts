@@ -25,6 +25,7 @@ describe('StockInquiryPage', () => {
       warehouseId: 'wh-1',
       productId: 'prod-1',
       batchId: 'batch-1',
+      batchNumberSnapshot: 'BT-240819-03',
       quantityBase: '65.0000',
       unsellableQuantityBase: '0.0000',
       version: 1,
@@ -403,6 +404,11 @@ describe('StockInquiryPage', () => {
     expect(
       fixture.nativeElement.querySelector('[data-testid="inspector-batches-link"]'),
     ).toBeNull();
+  });
+
+  it('renders em dash instead of raw batch ID when batchNumberSnapshot is absent', () => {
+    const { batchNumberSnapshot: _ignored, ...balanceWithoutSnapshot } = mockBalances[0]!;
+    expect(component.batchNumber(balanceWithoutSnapshot as typeof mockBalances[number])).toBe('—');
   });
 
   it('keeps Stock on Hand available without product-scoped batch preload on init', async () => {

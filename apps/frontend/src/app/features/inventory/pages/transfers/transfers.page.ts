@@ -96,8 +96,6 @@ export class TransfersPage {
   // Master Data
   readonly products = signal<ProductRecord[]>([]);
   readonly warehouses = signal<WarehouseRecord[]>([]);
-  readonly allProductsMap = signal<Map<string, ProductRecord>>(new Map());
-  readonly allWarehousesMap = signal<Map<string, WarehouseRecord>>(new Map());
   readonly batchOptions = signal<TransferBatchOption[]>([]);
   readonly balancesList = signal<InventoryBalanceRecord[]>([]);
 
@@ -226,10 +224,6 @@ export class TransfersPage {
 
     forkJoin(requests).subscribe({
       next: ({ products, warehouses, transfers }) => {
-        const prodMap = new Map<string, ProductRecord>(products.map((p) => [p.id, p]));
-        const whMap = new Map<string, WarehouseRecord>((warehouses || []).map((w) => [w.id, w]));
-        this.allProductsMap.set(prodMap);
-        this.allWarehousesMap.set(whMap);
         this.products.set(products.filter((item) => item.status === 'active'));
         this.warehouses.set((warehouses || []).filter((item) => item.status === 'active'));
         if (transfers) {
@@ -541,30 +535,20 @@ export class TransfersPage {
     }
   }
 
-  warehouseName(id: string): string {
-    return (
-      this.allWarehousesMap().get(id)?.name ||
-      this.warehouses().find((w) => w.id === id)?.name ||
-      id
-    );
+  transferProductName(item: WarehouseTransferRecord): string {
+    return item.productNameSnapshot ?? '—';
   }
 
-  productName(id: string): string {
-    return (
-      this.allProductsMap().get(id)?.name || this.products().find((p) => p.id === id)?.name || id
-    );
+  transferProductSku(item: WarehouseTransferRecord): string {
+    return item.productSkuSnapshot ?? '—';
   }
 
-  productSku(id: string): string {
-    return this.allProductsMap().get(id)?.sku || this.products().find((p) => p.id === id)?.sku || '—';
+  transferSourceWarehouseName(item: WarehouseTransferRecord): string {
+    return item.sourceWarehouseNameSnapshot ?? '—';
   }
 
-  productBaseUnit(productId: string): string {
-    return (
-      this.allProductsMap().get(productId)?.baseUnitCode ||
-      this.products().find((p) => p.id === productId)?.baseUnitCode ||
-      'Units'
-    );
+  transferDestinationWarehouseName(item: WarehouseTransferRecord): string {
+    return item.destinationWarehouseNameSnapshot ?? '—';
   }
 
   formatTrackingLabel(mode: string | null | undefined): string {

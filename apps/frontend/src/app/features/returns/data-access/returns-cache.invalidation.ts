@@ -53,7 +53,6 @@ export function invalidateReturnMutationEffects(
   if (context.resolution === 'account_refund') {
     tags.push(
       QUERY_CACHE_TAGS.accounts,
-      QUERY_CACHE_TAGS.accountOptions,
       QUERY_CACHE_TAGS.accountsSummary,
       QUERY_CACHE_TAGS.accountMovements,
       QUERY_CACHE_TAGS.expenses,

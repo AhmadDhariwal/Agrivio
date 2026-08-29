@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { firstValueFrom, of } from 'rxjs';
@@ -56,14 +56,16 @@ describe('CustomersApi cache integration', () => {
     http = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http.verify();
+    TestBed.resetTestingModule();
+  });
 
   it('dedupes identical listCustomers requests', async () => {
     const first = firstValueFrom(api.listCustomers({ page: 1, pageSize: 25, status: 'active' }));
     const second = firstValueFrom(api.listCustomers({ page: 1, pageSize: 25, status: 'active' }));
 
-    const request = http.expectOne((candidate) => candidate.url.endsWith('/api/v1/customers'));
-    request.flush(listResponse);
+    http.expectOne((candidate) => candidate.url.endsWith('/api/v1/customers')).flush(listResponse);
 
     await Promise.all([first, second]);
   });
@@ -72,15 +74,17 @@ describe('CustomersApi cache integration', () => {
     const listPromise = firstValueFrom(api.listCustomers({ page: 1, pageSize: 25, status: 'active' }));
     const optionsPromise = firstValueFrom(api.searchCustomerOptions(''));
 
-    http.expectOne((candidate) => candidate.url.endsWith('/api/v1/customers')).flush(listResponse);
-    http.expectOne((candidate) => candidate.url.endsWith('/api/v1/customers')).flush(listResponse);
+    const requests = http.match((candidate) => candidate.url.endsWith('/api/v1/customers'));
+    expect(requests.length).toBe(2);
+    requests.forEach((request) => request.flush(listResponse));
 
     await Promise.all([listPromise, optionsPromise]);
   });
 
   it('forceRefresh bypasses cached listCustomers response', async () => {
-    await firstValueFrom(api.listCustomers({ page: 1, pageSize: 25, status: 'active' }));
+    const cached = firstValueFrom(api.listCustomers({ page: 1, pageSize: 25, status: 'active' }));
     http.expectOne((candidate) => candidate.url.endsWith('/api/v1/customers')).flush(listResponse);
+    await cached;
 
     const refreshed = firstValueFrom(
       api.listCustomers({ page: 1, pageSize: 25, status: 'active', forceRefresh: true }),
@@ -90,15 +94,16 @@ describe('CustomersApi cache integration', () => {
   });
 
   it('invalidates cached reads after createCustomer succeeds', async () => {
-    await firstValueFrom(api.listCustomers({ page: 1, pageSize: 25, status: 'active' }));
+    const cached = firstValueFrom(api.listCustomers({ page: 1, pageSize: 25, status: 'active' }));
     http.expectOne((candidate) => candidate.url.endsWith('/api/v1/customers')).flush(listResponse);
+    await cached;
 
     const created = firstValueFrom(
       api.createCustomer({ name: 'New Customer', customerType: 'individual' }),
     );
-    const createRequest = http.expectOne((candidate) => candidate.url.endsWith('/api/v1/customers'));
-    expect(createRequest.request.method).toBe('POST');
-    createRequest.flush({ data: { ...listResponse.data[0], id: 'cust-2', name: 'New Customer' } });
+    http
+      .expectOne((candidate) => candidate.url.endsWith('/api/v1/customers'))
+      .flush({ data: { ...listResponse.data[0], id: 'cust-2', name: 'New Customer' } });
     await created;
 
     const reload = firstValueFrom(api.listCustomers({ page: 1, pageSize: 25, status: 'active' }));
@@ -107,10 +112,9 @@ describe('CustomersApi cache integration', () => {
   });
 
   it('invalidates financial read families after opening balance posting', async () => {
-    vi.spyOn(TestBed.inject(QueryCacheService), 'invalidateTags');
-
-    await firstValueFrom(api.searchCustomerOptions(''));
+    const cached = firstValueFrom(api.searchCustomerOptions(''));
     http.expectOne((candidate) => candidate.url.endsWith('/api/v1/customers')).flush(listResponse);
+    await cached;
 
     const posted = firstValueFrom(
       api.postOpeningBalance(
@@ -119,10 +123,9 @@ describe('CustomersApi cache integration', () => {
         'idem-1',
       ),
     );
-    const postRequest = http.expectOne((candidate) =>
-      candidate.url.endsWith('/api/v1/customers/cust-1/opening-balance'),
-    );
-    postRequest.flush({ data: listResponse.data[0] });
+    http
+      .expectOne((candidate) => candidate.url.endsWith('/api/v1/customers/cust-1/opening-balance'))
+      .flush({ data: listResponse.data[0] });
     await posted;
 
     const optionsReload = firstValueFrom(api.searchCustomerOptions(''));

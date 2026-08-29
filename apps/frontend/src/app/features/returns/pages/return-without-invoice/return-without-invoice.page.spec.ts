@@ -18,11 +18,31 @@ describe('ReturnWithoutInvoicePage', () => {
     createWithoutInvoice: ReturnType<typeof vi.fn>;
     postReturn: ReturnType<typeof vi.fn>;
   };
+  let mockCatalogApi: { searchProductOptions: ReturnType<typeof vi.fn> };
+  let mockCustomersApi: { searchCustomerOptions: ReturnType<typeof vi.fn> };
+  let mockAccountsApi: { listAccountOptions: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     mockReturnsApi = {
       createWithoutInvoice: vi.fn().mockReturnValue(of({ id: 'ret-draft-1', version: 1 })),
       postReturn: vi.fn().mockReturnValue(of({ id: 'ret-draft-1', status: 'posted' })),
+    };
+    mockCatalogApi = {
+      searchProductOptions: vi.fn().mockReturnValue(
+        of([
+          { id: 'p1', name: 'Engro Urea 50KG', sku: 'ENG-UREA', status: 'active', trackingMode: 'batch' },
+        ]),
+      ),
+    };
+    mockCustomersApi = {
+      searchCustomerOptions: vi.fn().mockReturnValue(
+        of([{ id: 'c1', name: 'Chaudhry Farms', phone: '03001234567', status: 'active' }]),
+      ),
+    };
+    mockAccountsApi = {
+      listAccountOptions: vi.fn().mockReturnValue(
+        of([{ id: 'acc-1', name: 'Cash Register Multan', accountType: 'cash', status: 'active' }]),
+      ),
     };
 
     await TestBed.configureTestingModule({
@@ -30,31 +50,9 @@ describe('ReturnWithoutInvoicePage', () => {
       providers: [
         provideRouter([]),
         { provide: ReturnsApi, useValue: mockReturnsApi },
-        {
-          provide: CatalogApi,
-          useValue: {
-            searchProductOptions: vi.fn().mockReturnValue(
-              of([
-                { id: 'p1', name: 'Engro Urea 50KG', sku: 'ENG-UREA', status: 'active', trackingMode: 'batch' },
-              ]),
-            ),
-          },
-        },
-        {
-          provide: CustomersApi,
-          useValue: {
-            searchCustomerOptions: vi.fn().mockReturnValue(
-              of([{ id: 'c1', name: 'Chaudhry Farms', phone: '03001234567' }]),
-            ),
-          },
-        },
-        {
-          provide: AccountsApi,
-          useValue: {
-            listAccountOptions: () => of([{ id: 'acc-1', name: 'Cash Register Multan', accountType: 'cash', status: 'active' }]),
-            listAccounts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
-          },
-        },
+        { provide: CatalogApi, useValue: mockCatalogApi },
+        { provide: CustomersApi, useValue: mockCustomersApi },
+        { provide: AccountsApi, useValue: mockAccountsApi },
         {
           provide: InventoryApi,
           useValue: {
@@ -67,7 +65,6 @@ describe('ReturnWithoutInvoicePage', () => {
           useValue: {
             listWarehouseOptions: () =>
               of([{ id: 'wh-1', name: 'Central Warehouse Multan', code: 'CWH-01' }]),
-            listWarehouses: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
           },
         },
         {
@@ -90,11 +87,34 @@ describe('ReturnWithoutInvoicePage', () => {
     expect(fixture.nativeElement.querySelector('[data-testid="without-invoice-form"]')).toBeTruthy();
   });
 
-  it('loads reference options without preloading product or customer catalogs', () => {
-    const catalogApi = TestBed.inject(CatalogApi) as { searchProductOptions: ReturnType<typeof vi.fn> };
-    const customersApi = TestBed.inject(CustomersApi) as { searchCustomerOptions: ReturnType<typeof vi.fn> };
-    expect(catalogApi.searchProductOptions).not.toHaveBeenCalled();
-    expect(customersApi.searchCustomerOptions).not.toHaveBeenCalled();
+  it('loads warehouse and account reference options without preloading product or customer catalogs', () => {
+    expect(mockCatalogApi.searchProductOptions).not.toHaveBeenCalled();
+    expect(mockCustomersApi.searchCustomerOptions).not.toHaveBeenCalled();
+    expect(mockAccountsApi.listAccountOptions).toHaveBeenCalledTimes(1);
+  });
+
+  it('searches products through the debounced server-backed selector', async () => {
+    const searchInput = fixture.nativeElement.querySelector(
+      '[data-testid="without-invoice-product-search"]',
+    ) as HTMLInputElement;
+    searchInput.value = 'Urea';
+    searchInput.dispatchEvent(new Event('input'));
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    fixture.detectChanges();
+
+    expect(mockCatalogApi.searchProductOptions).toHaveBeenCalledWith('Urea', 500, 'active');
+  });
+
+  it('searches customers through the debounced server-backed selector', async () => {
+    const searchInput = fixture.nativeElement.querySelector(
+      '[data-testid="without-invoice-customer-search"]',
+    ) as HTMLInputElement;
+    searchInput.value = 'Chaudhry';
+    searchInput.dispatchEvent(new Event('input'));
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    fixture.detectChanges();
+
+    expect(mockCustomersApi.searchCustomerOptions).toHaveBeenCalledWith('Chaudhry');
   });
 
   it('requires refund account and shows the required marker for account_refund', () => {

@@ -125,16 +125,16 @@ export class ReturnWithoutInvoicePage {
         switchMap((query) => this.customersApi.searchCustomerOptions(query)),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((items) => this.customers.set(items));
+      .subscribe((items) => this.customers.set(items.filter((item) => item.status === 'active')));
 
     this.productSearchChanges
       .pipe(
         debounceTime(300),
         distinctUntilChanged(),
-        switchMap((query) => this.catalogApi.searchProductOptions(query, 25, 'active')),
+        switchMap((query) => this.catalogApi.searchProductOptions(query, 500, 'active')),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((items) => this.products.set(items));
+      .subscribe((items) => this.products.set(items.filter((item) => item.status === 'active')));
 
     this.form.controls.resolution.valueChanges.subscribe((resolution) => {
       setRequiredValidator(this.form.controls.refundAccountId, resolution === 'account_refund');
@@ -146,12 +146,18 @@ export class ReturnWithoutInvoicePage {
     return this.lines.at(index) as FormGroup;
   }
 
-  onCustomerLookupFocus(): void {
-    this.customerSearchChanges.next('');
+  onCustomerSearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      this.customerSearchChanges.next(target.value.trim());
+    }
   }
 
-  onProductLookupFocus(): void {
-    this.productSearchChanges.next('');
+  onProductSearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      this.productSearchChanges.next(target.value.trim());
+    }
   }
 
   addLine(): void {

@@ -1,7 +1,6 @@
 import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { catchError, of } from 'rxjs';
 import { ReturnsApi } from '../../data-access/returns.api';
 import { MoneyAmount, SalesReturnRecord, returnTypeLabel } from '../../models/returns.models';
 import {

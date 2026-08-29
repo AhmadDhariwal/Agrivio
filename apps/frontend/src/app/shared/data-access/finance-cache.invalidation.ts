@@ -8,7 +8,6 @@ export function invalidateAccountMasterReads(queryCache: QueryCacheService): voi
 export function invalidateAccountFinancialReads(queryCache: QueryCacheService): void {
   queryCache.invalidateTags(
     QUERY_CACHE_TAGS.accounts,
-    QUERY_CACHE_TAGS.accountOptions,
     QUERY_CACHE_TAGS.accountsSummary,
     QUERY_CACHE_TAGS.accountMovements,
     QUERY_CACHE_TAGS.dashboard,
