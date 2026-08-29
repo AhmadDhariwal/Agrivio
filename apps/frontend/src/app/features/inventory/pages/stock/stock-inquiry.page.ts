@@ -222,6 +222,7 @@ export class StockInquiryPage {
 
   constructor() {
     this.checkViewport();
+    this.loadReferenceData();
 
     // Debounced search handling
     this.searchChanges
@@ -249,7 +250,7 @@ export class StockInquiryPage {
         this.reload();
       });
 
-    // Primary data reload stream
+    // Primary list reload stream (balances only — reference data loads once above)
     this.reloadRequests
       .pipe(
         startWith(undefined),
@@ -261,49 +262,7 @@ export class StockInquiryPage {
           this.loading.set(true);
           this.errorMessage.set(null);
 
-          const balanceQuery: {
-            page: number;
-            pageSize: number;
-            warehouseId?: string;
-            productId?: string;
-            batchId?: string;
-          } = {
-            page: this.page(),
-            pageSize: this.pageSize(),
-          };
-
-          if (this.warehouseFilter()) {
-            balanceQuery.warehouseId = this.warehouseFilter();
-          }
-          if (this.productFilter()) {
-            balanceQuery.productId = this.productFilter();
-          }
-          if (this.batchFilter()) {
-            balanceQuery.batchId = this.batchFilter();
-          }
-
-          const requests: {
-            balances: ReturnType<InventoryApi['listBalances']>;
-            products: ReturnType<CatalogApi['searchProductOptions']>;
-            warehouses: ReturnType<BranchesWarehousesApi['listWarehouseOptions']>;
-            batches: ReturnType<InventoryApi['listBatches']>;
-            expiry?: ReturnType<InventoryApi['listExpiry']>;
-          } = {
-            balances: this.inventoryApi.listBalances(balanceQuery),
-            products: this.catalogApi.searchProductOptions('', 500),
-            warehouses: this.locationsApi.listWarehouseOptions(),
-            batches: this.inventoryApi
-              .listBatches({ page: 1, pageSize: 100 })
-              .pipe(
-                catchError(() => of({ items: [], meta: { page: 1, pageSize: 100, total: 0 } })),
-              ),
-          };
-
-          if (this.canViewExpiry()) {
-            requests.expiry = this.inventoryApi.listExpiry();
-          }
-
-          return forkJoin(requests).pipe(
+          return this.inventoryApi.listBalances(this.buildBalanceQuery()).pipe(
             catchError(() => {
               this.loading.set(false);
               this.errorMessage.set('Unable to load stock balances. Please try again.');
@@ -313,10 +272,78 @@ export class StockInquiryPage {
         }),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((result) => {
-        const { balances, products, warehouses, batches } = result;
+      .subscribe((balances) => {
+        this.balances.set(balances.items);
+        applyPaginationMeta(balances.meta, { total: this.total, pageSize: this.pageSize });
+        this.loading.set(false);
+      });
+  }
 
-        // Populate Product Map
+  private buildBalanceQuery(): {
+    page: number;
+    pageSize: number;
+    warehouseId?: string;
+    productId?: string;
+    batchId?: string;
+  } {
+    const balanceQuery: {
+      page: number;
+      pageSize: number;
+      warehouseId?: string;
+      productId?: string;
+      batchId?: string;
+    } = {
+      page: this.page(),
+      pageSize: this.pageSize(),
+    };
+
+    if (this.warehouseFilter()) {
+      balanceQuery.warehouseId = this.warehouseFilter();
+    }
+    if (this.productFilter()) {
+      balanceQuery.productId = this.productFilter();
+    }
+    if (this.batchFilter()) {
+      balanceQuery.batchId = this.batchFilter();
+    }
+
+    return balanceQuery;
+  }
+
+  private loadReferenceData(): void {
+    if (!this.canView()) {
+      this.loading.set(false);
+      return;
+    }
+
+    const requests: {
+      products: ReturnType<CatalogApi['searchProductOptions']>;
+      warehouses: ReturnType<BranchesWarehousesApi['listWarehouseOptions']>;
+      batches: ReturnType<InventoryApi['listBatches']>;
+      expiry?: ReturnType<InventoryApi['listExpiry']>;
+    } = {
+      products: this.catalogApi.searchProductOptions('', 500),
+      warehouses: this.locationsApi.listWarehouseOptions(),
+      batches: this.inventoryApi
+        .listBatches({ page: 1, pageSize: 100 })
+        .pipe(catchError(() => of({ items: [], meta: { page: 1, pageSize: 100, total: 0 } }))),
+    };
+
+    if (this.canViewExpiry()) {
+      requests.expiry = this.inventoryApi.listExpiry();
+    }
+
+    forkJoin(requests)
+      .pipe(
+        catchError(() => {
+          this.errorMessage.set('Unable to load stock reference data. Please try again.');
+          return EMPTY;
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((result) => {
+        const { products, warehouses, batches } = result;
+
         const prodMap = new Map<string, ProductRecord>();
         for (const p of products) {
           const id = p.id || (p as unknown as { _id?: string })._id;
@@ -325,7 +352,6 @@ export class StockInquiryPage {
         this.productMap.set(prodMap);
         this.productList.set(products);
 
-        // Populate Warehouse Map
         const whMap = new Map<string, WarehouseRecord>();
         for (const w of warehouses) {
           const id = w.id || (w as unknown as { _id?: string })._id;
@@ -334,7 +360,6 @@ export class StockInquiryPage {
         this.warehouseMap.set(whMap);
         this.warehouseList.set(warehouses);
 
-        // Populate Batch Map
         const bMap = new Map<string, ProductBatchRecord>();
         for (const b of batches.items) {
           const id = b.id || (b as unknown as { _id?: string })._id;
@@ -343,7 +368,6 @@ export class StockInquiryPage {
         this.batchMap.set(bMap);
         this.batchList.set(batches.items);
 
-        // Populate Expiry Map & Authoritative KPI if available
         if ('expiry' in result && result.expiry) {
           const expResult = result.expiry as {
             items: ExpiryInventoryRecord[];
@@ -361,10 +385,6 @@ export class StockInquiryPage {
           this.expiryMap.set(expMap);
           this.expiringCount.set(expiringOrExpiredCount);
         }
-
-        this.balances.set(balances.items);
-        applyPaginationMeta(balances.meta, { total: this.total, pageSize: this.pageSize });
-        this.loading.set(false);
       });
   }
 

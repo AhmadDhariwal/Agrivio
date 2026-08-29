@@ -538,6 +538,19 @@ describe('MovementsPage', () => {
       );
     });
 
+    it('does not repeat warehouse or product option loads on pagination or refresh', () => {
+      mockInventoryApi.listMovements.mockClear();
+      mockLocationsApi.listWarehouseOptions.mockClear();
+      mockCatalogApi.searchProductOptions.mockClear();
+
+      component.onPageChange(2);
+      component.reload();
+
+      expect(mockInventoryApi.listMovements.mock.calls.length).toBeGreaterThanOrEqual(2);
+      expect(mockLocationsApi.listWarehouseOptions).not.toHaveBeenCalled();
+      expect(mockCatalogApi.searchProductOptions).not.toHaveBeenCalled();
+    });
+
     it('resets page to 1 when page size changes', () => {
       mockInventoryApi.listMovements.mockClear();
       component.page.set(3);

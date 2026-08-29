@@ -191,6 +191,18 @@ describe('ExpiryInquiryPage', () => {
     fixture.detectChanges();
   });
 
+  it('loads reference data once on init and refresh only reloads expiry data', () => {
+    expect(mockLocationsApi.listWarehouseOptions).toHaveBeenCalledTimes(1);
+    expect(mockCatalogApi.searchProductOptions).toHaveBeenCalledTimes(1);
+    expect(mockInventoryApi.listExpiry).toHaveBeenCalledTimes(1);
+
+    mockInventoryApi.listExpiry.mockClear();
+    component.reload();
+    expect(mockInventoryApi.listExpiry).toHaveBeenCalledTimes(1);
+    expect(mockLocationsApi.listWarehouseOptions).toHaveBeenCalledTimes(1);
+    expect(mockCatalogApi.searchProductOptions).toHaveBeenCalledTimes(1);
+  });
+
   it('should create and load expiry data with relation maps', () => {
     expect(component).toBeTruthy();
     expect(component.loading()).toBe(false);

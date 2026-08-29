@@ -285,7 +285,7 @@ function createReportingService(deps) {
     }));
   }
 
-  async function topSellingProducts(organizationId, authContext, limit = 10) {
+  async function topSellingProducts(organizationId, authContext, limit = 10, filters = {}) {
     const { items } = await salesService.listSales(
       organizationId,
       { status: 'posted' },
@@ -293,6 +293,21 @@ function createReportingService(deps) {
     );
     const qtyTotals = new Map();
     for (const sale of items) {
+      if (filters.fromDate || filters.toDate) {
+        const day = String(sale.saleDate ?? '').slice(0, 10);
+        if (filters.fromDate && day < filters.fromDate) {
+          continue;
+        }
+        if (filters.toDate && day > filters.toDate) {
+          continue;
+        }
+      }
+      if (filters.branchId && String(sale.branchId ?? '') !== filters.branchId) {
+        continue;
+      }
+      if (filters.warehouseId && String(sale.warehouseId ?? '') !== filters.warehouseId) {
+        continue;
+      }
       for (const line of sale.lines ?? []) {
         const productId = String(line.productId);
         const current = qtyTotals.get(productId) ?? {
@@ -454,7 +469,7 @@ function createReportingService(deps) {
         sumReceivablesPayables(organizationId),
         alertsService.getAlertSummaries(organizationId, authContext),
         recentSales(organizationId, authContext),
-        topSellingProducts(organizationId, authContext),
+        topSellingProducts(organizationId, authContext, 10, periodFilters),
         queries.queryStockValuation
           ? queries.queryStockValuation(
               organizationId,

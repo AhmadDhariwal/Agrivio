@@ -45,15 +45,20 @@ function createMongooseAccountsStore() {
       return AccountModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
     },
 
-    async listAccountsPage(organizationId, filter, pagination) {
+    async listAccountsPage(organizationId, filter, pagination = {}) {
       const query = { organizationId };
       if (filter.status === 'active' || filter.status === 'inactive') query.status = filter.status;
       const search = String(filter.search ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
       if (search) query.nameNormalized = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') };
+      const hasPagination = pagination.skip !== undefined || pagination.pageSize !== undefined;
+      const { skip = 0, pageSize = 25 } = pagination;
+      let find = AccountModel.find(query).sort({ createdAt: -1, _id: -1 });
+      if (hasPagination) find = find.skip(skip).limit(pageSize);
       const [total, items] = await Promise.all([
         AccountModel.countDocuments(query).exec(),
-        AccountModel.find(query).sort({ createdAt: -1, _id: -1 }).skip(pagination.skip ?? 0).limit(pagination.pageSize ?? 25).lean().exec(),
-      ]); return { items, total };
+        find.lean().exec(),
+      ]);
+      return { items, total };
     },
 
     async countAccounts(organizationId) {
@@ -330,15 +335,20 @@ function createMongooseAccountsStore() {
       return ExpenseModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
     },
 
-    async listExpensesPage(organizationId, filter, pagination) {
+    async listExpensesPage(organizationId, filter, pagination = {}) {
       const query = { organizationId };
       if (filter.status) query.status = filter.status;
       const search = String(filter.search ?? '').trim();
       if (search) query.expenseDate = search;
+      const hasPagination = pagination.skip !== undefined || pagination.pageSize !== undefined;
+      const { skip = 0, pageSize = 25 } = pagination;
+      let find = ExpenseModel.find(query).sort({ createdAt: -1, _id: -1 });
+      if (hasPagination) find = find.skip(skip).limit(pageSize);
       const [total, items] = await Promise.all([
         ExpenseModel.countDocuments(query).exec(),
-        ExpenseModel.find(query).sort({ createdAt: -1, _id: -1 }).skip(pagination.skip ?? 0).limit(pagination.pageSize ?? 25).lean().exec(),
-      ]); return { items, total };
+        find.lean().exec(),
+      ]);
+      return { items, total };
     },
 
     async findExpenseById(organizationId, id, session) {

@@ -836,7 +836,17 @@ function createReturnsService(deps) {
       };
       let result;
       if (typeof store.listReturnsPage === 'function') result = await store.listReturnsPage(organizationId, filters, query);
-      else { let all = await store.listReturns(organizationId, filters); if (warehouseIds) all = all.filter((item) => warehouseIds.includes(String(item.warehouseId))); result = { items: all.slice(query.skip ?? 0, (query.skip ?? 0) + (query.pageSize ?? 25)), total: all.length }; }
+      else {
+        let all = await store.listReturns(organizationId, filters);
+        if (warehouseIds) all = all.filter((item) => warehouseIds.includes(String(item.warehouseId)));
+        const hasPagination = query.skip !== undefined || query.pageSize !== undefined;
+        result = {
+          items: hasPagination
+            ? all.slice(query.skip ?? 0, (query.skip ?? 0) + (query.pageSize ?? 25))
+            : all,
+          total: all.length,
+        };
+      }
       const items = result.items;
       const filtered = [];
       for (const item of items) {

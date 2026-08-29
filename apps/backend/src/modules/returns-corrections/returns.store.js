@@ -45,10 +45,15 @@ function createMongooseReturnsStore() {
         if (filter[field]) query[field] = filter[field];
       }
       if (Array.isArray(filter.warehouseIds)) query.warehouseId = { $in: filter.warehouseIds };
+      const hasPagination = pagination.skip !== undefined || pagination.pageSize !== undefined;
+      const { skip = 0, pageSize = 25 } = pagination;
+      let find = ReturnModel.find(query).sort({ createdAt: -1, _id: -1 });
+      if (hasPagination) find = find.skip(skip).limit(pageSize);
       const [total, items] = await Promise.all([
         ReturnModel.countDocuments(query).exec(),
-        ReturnModel.find(query).sort({ createdAt: -1, _id: -1 }).skip(pagination.skip ?? 0).limit(pagination.pageSize ?? 25).lean().exec(),
-      ]); return { items, total };
+        find.lean().exec(),
+      ]);
+      return { items, total };
     },
 
     async findReturnById(organizationId, id, session) {
