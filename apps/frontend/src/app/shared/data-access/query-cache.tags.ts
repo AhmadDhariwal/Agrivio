@@ -22,6 +22,7 @@ export const QUERY_CACHE_TAGS = {
   payables: 'payables',
   returns: 'returns',
   sales: 'sales',
+  customerPayments: 'customer-payments',
   purchases: 'purchases',
   expenses: 'expenses',
   expenseCategories: 'expense-categories',

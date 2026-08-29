@@ -192,15 +192,15 @@ export class CatalogApi {
     });
   }
 
-  searchProductOptions(q = '', limit = 500, status = 'all'): Observable<ProductRecord[]> {
-    const params: Record<string, string> = { q, limit: String(Math.min(500, Math.max(1, limit))) };
+  searchProductOptions(q = '', limit = 25, status = 'active'): Observable<ProductRecord[]> {
+    const params: Record<string, string> = { q, limit: String(Math.min(50, Math.max(1, limit))) };
     if (status && status !== 'all') {
       params['status'] = status;
     }
     const cacheKey = this.queryCache.buildKey('product-options', params);
     return this.queryCache.fetch({
       key: cacheKey,
-      policy: 'reference',
+      policy: 'short',
       tags: [QUERY_CACHE_TAGS.productOptions],
       loader: () =>
         this.http
@@ -313,12 +313,19 @@ export class CatalogApi {
   }
 
   listPackagingUnits(productId: string): Observable<PackagingUnitRecord[]> {
-    return this.http
-      .get<{ data: { items: PackagingUnitRecord[] } }>(
-        `${environment.publicApiBaseUrl}/api/v1/products/${productId}/packaging-units`,
-        { withCredentials: true },
-      )
-      .pipe(map((response) => response.data.items));
+    const cacheKey = this.queryCache.buildKey('product-packaging-units', { productId });
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'reference',
+      tags: [QUERY_CACHE_TAGS.productOptions],
+      loader: () =>
+        this.http
+          .get<{ data: { items: PackagingUnitRecord[] } }>(
+            `${environment.publicApiBaseUrl}/api/v1/products/${productId}/packaging-units`,
+            { withCredentials: true },
+          )
+          .pipe(map((response) => response.data.items)),
+    });
   }
 
   replacePackagingUnits(
@@ -348,12 +355,19 @@ export class CatalogApi {
   }
 
   listPrices(productId: string): Observable<ProductPriceRecord[]> {
-    return this.http
-      .get<{ data: { items: ProductPriceRecord[] } }>(
-        `${environment.publicApiBaseUrl}/api/v1/products/${productId}/prices`,
-        { withCredentials: true },
-      )
-      .pipe(map((response) => response.data.items));
+    const cacheKey = this.queryCache.buildKey('product-prices', { productId });
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'short',
+      tags: [QUERY_CACHE_TAGS.productOptions],
+      loader: () =>
+        this.http
+          .get<{ data: { items: ProductPriceRecord[] } }>(
+            `${environment.publicApiBaseUrl}/api/v1/products/${productId}/prices`,
+            { withCredentials: true },
+          )
+          .pipe(map((response) => response.data.items)),
+    });
   }
 
   replacePrices(

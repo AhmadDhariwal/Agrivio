@@ -1471,6 +1471,7 @@ function createSalesService(deps) {
         }
         result.push({
           id: String(item['_id']),
+          invoiceNumber: item.invoiceNumber ? String(item.invoiceNumber) : null,
           invoiceDate: String(item.saleDate),
           dueDate: null,
           sequence: item.invoiceSequenceNumber ?? String(item['_id']),

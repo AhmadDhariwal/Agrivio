@@ -936,7 +936,7 @@
                         [attr.aria-required]="fieldRequired(lineGroup(index).controls['productId']) ? 'true' : null"
                       >
                         <option value="">Select product</option>
-                        @for (product of filteredProducts(); track product.id) {
+                        @for (product of products(); track product.id) {
                           <option [value]="product.id">{{ product.name }}</option>
                         }
                       </select>

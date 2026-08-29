@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { describe, expect, it, vi } from 'vitest';
 import { provideRouter, ActivatedRoute } from '@angular/router';
 import { of } from 'rxjs';
 import { convertToParamMap } from '@angular/router';
@@ -498,5 +499,68 @@ describe('SaleEditPage', () => {
     expect(compiled.querySelector('[data-testid="sale-add-payment"]')).toBeNull();
     expect(compiled.querySelector('[data-testid="sale-fill-cash"]')).toBeNull();
     expect(compiled.querySelector('[data-testid="sale-fill-credit"]')).toBeNull();
+  });
+
+  it('does not preload product or customer catalogs on init', async () => {
+    const searchProductOptions = vi.fn().mockReturnValue(of([]));
+    const searchCustomerOptions = vi.fn().mockReturnValue(of([]));
+
+    await TestBed.configureTestingModule({
+      imports: [SaleEditPage],
+      providers: [
+        provideRouter([]),
+        {
+          provide: SalesApi,
+          useValue: {
+            getSale: () => of(null),
+            listPosPaymentAccounts: () => of([]),
+          },
+        },
+        {
+          provide: CatalogApi,
+          useValue: {
+            searchProductOptions,
+            listPackagingUnits: () => of([]),
+            listPrices: () => of([]),
+          },
+        },
+        {
+          provide: BranchesWarehousesApi,
+          useValue: {
+            listBranchOptions: () => of([]),
+            listWarehouseOptions: () => of([]),
+          },
+        },
+        {
+          provide: CustomersApi,
+          useValue: {
+            searchCustomerOptions,
+            getCustomer: () => of(null),
+          },
+        },
+        {
+          provide: AccountsApi,
+          useValue: { listAccountOptions: () => of([]) },
+        },
+        {
+          provide: SalesReturnsApi,
+          useValue: {},
+        },
+        {
+          provide: ReturnsApi,
+          useValue: { listReturns: () => of({ items: [], meta: { page: 1, pageSize: 100, total: 0 } }) },
+        },
+        {
+          provide: AuthSessionStore,
+          useValue: sessionStoreMock(['sales.create', 'sales.view']),
+        },
+      ],
+    }).compileComponents();
+
+    const fixture: ComponentFixture<SaleEditPage> = TestBed.createComponent(SaleEditPage);
+    fixture.detectChanges();
+
+    expect(searchProductOptions).not.toHaveBeenCalled();
+    expect(searchCustomerOptions).not.toHaveBeenCalled();
   });
 });

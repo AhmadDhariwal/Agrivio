@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
@@ -19,6 +19,18 @@ describe('CustomerPaymentFormPage', () => {
           useValue: {
             postCustomerPayment: () => of({ allocations: [] }),
             listCustomerLedger: () => of([]),
+            listUnpaidSales: () =>
+              of([
+                {
+                  id: 'sale-1',
+                  invoiceNumber: 'INV-001',
+                  invoiceDate: '2026-08-01',
+                  dueDate: null,
+                  sequence: '1',
+                  outstanding: { amount: '500.00', currency: 'PKR' },
+                  outstandingMinorUnits: '50000',
+                },
+              ]),
           },
         },
         {
@@ -70,12 +82,13 @@ describe('CustomerPaymentFormPage', () => {
     // Default mode is general: invoice section not rendered
     expect(fixture.nativeElement.querySelector('[data-testid="invoice-alloc-section"]')).toBeFalsy();
 
-    // Switch to invoice-specific
+    // Switch to invoice-specific with unpaid sales available
+    fixture.componentInstance.form.controls.customerId.setValue('cust-1');
     fixture.componentInstance.setAllocationMode('invoice_specific');
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('[data-testid="invoice-alloc-section"]')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('[data-testid="alloc-sale-input"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="alloc-sale-select"]')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('[data-testid="alloc-amount-input"]')).toBeTruthy();
   });
 

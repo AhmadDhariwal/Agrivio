@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import {
   FormArray,
   FormBuilder,
@@ -8,7 +8,8 @@ import {
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin, of, catchError, map, switchMap } from 'rxjs';
+import { forkJoin, of, catchError, map, switchMap, Subject, debounceTime, distinctUntilChanged } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { SalesApi } from '../../data-access/sales.api';
 import { SalesReturnsApi } from '../../data-access/sales-returns.api';
 import { ReturnsApi } from '../../../returns/data-access/returns.api';
@@ -68,6 +69,9 @@ export class SaleEditPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly productSearchChanges = new Subject<string>();
+  private readonly customerSearchChanges = new Subject<string>();
 
   readonly saleId = signal<string | null>(null);
   readonly sale = signal<SaleRecord | null>(null);
@@ -83,20 +87,6 @@ export class SaleEditPage {
   readonly successMessage = signal<string | null>(null);
   readonly products = signal<ProductRecord[]>([]);
   readonly productSearchQuery = signal('');
-  readonly filteredProducts = computed(() => {
-    const needle = this.productSearchQuery().trim().toLowerCase();
-    const items = this.products();
-    if (needle === '') {
-      return items;
-    }
-    return items.filter(
-      (item) =>
-        item.name.toLowerCase().includes(needle) ||
-        String(item.sku ?? '')
-          .toLowerCase()
-          .includes(needle),
-    );
-  });
   readonly branches = signal<BranchRecord[]>([]);
   readonly warehouses = signal<WarehouseRecord[]>([]);
   readonly customers = signal<CustomerRecord[]>([]);
@@ -264,10 +254,8 @@ export class SaleEditPage {
     }
 
     const masters$ = forkJoin({
-      products: this.catalogApi.searchProductOptions(),
       branches: this.locationsApi.listBranchOptions(),
       warehouses: this.locationsApi.listWarehouseOptions(),
-      customers: this.customersApi.searchCustomerOptions(),
       accounts: this.api.listPosPaymentAccounts().pipe(catchError(() => of([]))),
       refundAccounts: this.accountsApi.listAccountOptions().pipe(catchError(() => of([]))),
       relatedReturns:
@@ -275,6 +263,30 @@ export class SaleEditPage {
           ? this.returnsApi.listReturns({ saleId: id, page: 1, pageSize: 100 }).pipe(map((result) => result.items), catchError(() => of([])))
           : of([]),
     });
+
+    this.productSearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((query) => this.catalogApi.searchProductOptions(query, 25, 'active')),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((items) => this.products.set(items.filter((item) => item.status === 'active')));
+
+    this.customerSearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((query) => this.customersApi.searchCustomerOptions(query)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((items) => this.customers.set(items.filter((item) => item.status === 'active')));
+
+    this.form.controls.customerId.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.refreshTierPricesForAllLines();
+      });
 
     if (isEdit && id) {
       forkJoin({
@@ -325,14 +337,14 @@ export class SaleEditPage {
     const target = event.target;
     if (target instanceof HTMLInputElement) {
       this.productSearchQuery.set(target.value);
-      this.catalogApi.searchProductOptions(target.value).subscribe((items) => this.products.set(items));
+      this.productSearchChanges.next(target.value.trim());
     }
   }
 
   onCustomerSearchInput(event: Event): void {
     const target = event.target;
     if (target instanceof HTMLInputElement) {
-      this.customersApi.searchCustomerOptions(target.value).subscribe((items) => this.customers.set(items));
+      this.customerSearchChanges.next(target.value.trim());
     }
   }
 
@@ -748,15 +760,12 @@ export class SaleEditPage {
   }
 
   private applyMasters(masters: {
-    products: ProductRecord[];
     branches: BranchRecord[];
     warehouses: WarehouseRecord[];
-    customers: CustomerRecord[];
     accounts: PosPaymentAccount[];
     refundAccounts: AccountRecord[];
     relatedReturns?: SalesReturnRecord[];
   }): void {
-    this.products.set(masters.products.filter((item) => item.status === 'active'));
     this.branches.set(
       this.sessionStore.filterBranches(masters.branches.filter((item) => item.status === 'active')),
     );
@@ -765,16 +774,12 @@ export class SaleEditPage {
         masters.warehouses.filter((item) => item.status === 'active'),
       ),
     );
-    this.customers.set(masters.customers.filter((item) => item.status === 'active'));
     this.accounts.set(masters.accounts);
     this.refundAccounts.set(masters.refundAccounts.filter((item) => item.status === 'active'));
     if (masters.relatedReturns) {
       this.relatedReturns.set(masters.relatedReturns);
     }
     this.bindLineProductChanges(0);
-    this.form.controls.customerId.valueChanges.subscribe(() => {
-      this.refreshTierPricesForAllLines();
-    });
   }
 
   private applySale(sale: SaleRecord): void {
@@ -833,6 +838,17 @@ export class SaleEditPage {
       this.form.disable({ emitEvent: false });
     } else {
       this.form.enable({ emitEvent: false });
+    }
+
+    const customerId = sale.customerId ?? '';
+    if (customerId && !this.customers().some((item) => item.id === customerId)) {
+      this.customersApi.getCustomer(customerId).subscribe({
+        next: (customer) => {
+          if (customer.status === 'active') {
+            this.customers.set([customer]);
+          }
+        },
+      });
     }
   }
 

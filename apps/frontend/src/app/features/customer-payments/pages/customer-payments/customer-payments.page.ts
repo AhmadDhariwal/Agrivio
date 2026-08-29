@@ -34,7 +34,7 @@ export class CustomerPaymentsPage {
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly destroyRef = inject(DestroyRef);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
-  private readonly reloadRequests = new Subject<void>();
+  private readonly reloadRequests = new Subject<boolean>();
   private readonly filterChanges = new Subject<void>();
 
   readonly items = signal<CustomerPaymentRecord[]>([]);
@@ -92,8 +92,8 @@ export class CustomerPaymentsPage {
 
     this.reloadRequests
       .pipe(
-        startWith(undefined),
-        switchMap(() => {
+        startWith(false),
+        switchMap((forceRefresh) => {
           if (!this.canView()) {
             this.loading.set(false);
             this.errorMessage.set('You do not have permission to view customer payments.');
@@ -107,6 +107,7 @@ export class CustomerPaymentsPage {
             .listCustomerPayments({
               page: this.page(),
               pageSize: this.pageSize(),
+              forceRefresh: forceRefresh === true,
               ...(effectiveDate ? { paymentDate: effectiveDate } : {}),
               ...(effectiveSearch ? { search: effectiveSearch } : {}),
             })
@@ -131,8 +132,8 @@ export class CustomerPaymentsPage {
       });
   }
 
-  reload(): void {
-    this.reloadRequests.next();
+  reload(forceRefresh = false): void {
+    this.reloadRequests.next(forceRefresh);
   }
 
   onSearchInput(event: Event): void {
