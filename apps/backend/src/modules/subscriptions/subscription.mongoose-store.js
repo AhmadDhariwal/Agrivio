@@ -1,7 +1,9 @@
 const mongoose = require('mongoose');
 const { SubscriptionPlanModel } = require('./persistence/subscription-plan.model');
 const { SubscriptionModel } = require('./persistence/subscription.model');
-const { SubscriptionBillingRecordModel } = require('./persistence/subscription-billing-record.model');
+const {
+  SubscriptionBillingRecordModel,
+} = require('./persistence/subscription-billing-record.model');
 const { AuditEventModel } = require('../audit/persistence/audit-event.model');
 
 function withSession(session) {
@@ -18,10 +20,7 @@ function createMongooseSubscriptionStore() {
       if (filter.planCode !== undefined) {
         query.planCode = filter.planCode;
       }
-      return SubscriptionPlanModel.find(query)
-        .sort({ planCode: 1, planVersion: -1 })
-        .lean()
-        .exec();
+      return SubscriptionPlanModel.find(query).sort({ planCode: 1, planVersion: -1 }).lean().exec();
     },
 
     async findPlanById(id) {
@@ -113,13 +112,20 @@ function createMongooseSubscriptionStore() {
       }
       if (filter.q !== undefined && String(filter.q).trim() !== '') {
         const needle = String(filter.q).trim();
+        const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         query.$or = [
-          { paymentReferenceNormalized: { $regex: needle, $options: 'i' } },
-          { requestedPlanCode: { $regex: needle, $options: 'i' } },
-          { notes: { $regex: needle, $options: 'i' } },
+          { paymentReferenceNormalized: { $regex: escaped, $options: 'i' } },
+          { requestedPlanCode: { $regex: escaped, $options: 'i' } },
+          { notes: { $regex: escaped, $options: 'i' } },
         ];
         if (mongoose.isValidObjectId(needle)) {
           query.$or.push({ organizationId: needle });
+        }
+        const organizationIdsForSearch = (filter.organizationIdsForSearch ?? []).filter((id) =>
+          mongoose.isValidObjectId(id),
+        );
+        if (organizationIdsForSearch.length > 0) {
+          query.$or.push({ organizationId: { $in: organizationIdsForSearch } });
         }
       }
       const offset = Number.isInteger(filter.offset) && filter.offset > 0 ? filter.offset : 0;
@@ -144,9 +150,13 @@ function createMongooseSubscriptionStore() {
       return created.toObject();
     },
 
-    async updateBillingRecord(session, id, patch) {
-      return SubscriptionBillingRecordModel.findByIdAndUpdate(
-        id,
+    async updateBillingRecord(session, id, patch, expectedVersion) {
+      const query = {
+        _id: id,
+        ...(expectedVersion === undefined ? {} : { version: expectedVersion }),
+      };
+      return SubscriptionBillingRecordModel.findOneAndUpdate(
+        query,
         { $set: patch },
         { new: true, ...withSession(session) },
       )

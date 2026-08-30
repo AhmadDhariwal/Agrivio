@@ -24,13 +24,24 @@
     </div>
   }
 
-  <!-- Subscription Access Status Banner -->
-  <agrivio-subscription-status-banner [accessState]="accessState()" />
+  @if (!isBillingEnabled()) {
+    <div class="alert-container" data-testid="billing-disabled-alert">
+      <agrivio-ui-alert
+        tone="warning"
+        message="Billing has been disabled for this organization by an administrator."
+        role="alert"
+      />
+    </div>
+  } @else {
+    <!-- Subscription Access Status Banner -->
+    <agrivio-subscription-status-banner [accessState]="accessState()" />
 
   <!-- Top Area: 2-Column Section (Current Subscription + How It Works) -->
-  <section class="top-grid" aria-label="Subscription overview">
-    <!-- Left: Current Subscription Card -->
-    <div class="summary-card" data-testid="current-subscription-card">
+  @if (showCurrentSubscription() || showModuleInfo()) {
+    <section class="top-grid" aria-label="Subscription overview">
+      <!-- Left: Current Subscription Card -->
+      @if (showCurrentSubscription()) {
+        <div class="summary-card" data-testid="current-subscription-card">
       <div class="summary-card__header">
         <div class="summary-card__icon summary-card__icon--primary">
           <svg
@@ -160,8 +171,10 @@
         }
       </div>
     </div>
+  }
 
-    <!-- Right: How It Works Card -->
+  <!-- Right: How It Works Card -->
+  @if (showModuleInfo()) {
     <div class="summary-card" data-testid="how-it-works-card">
       <div class="summary-card__header">
         <div class="summary-card__icon summary-card__icon--neutral">
@@ -221,32 +234,36 @@
         </p>
       </div>
     </div>
-  </section>
+  }
+</section>
+}
 
   <!-- Available Plans Section -->
   <section class="plans-section" aria-label="Available subscription plans">
-    <div class="section-head">
-      <div>
-        <h2 class="section-head__title">Available plans</h2>
-        <p class="section-head__lede">Choose a plan that fits your business needs.</p>
+      <div class="section-head">
+        <div>
+          <h2 class="section-head__title">Available plans</h2>
+          <p class="section-head__lede">Choose a plan that fits your business needs.</p>
+        </div>
       </div>
-    </div>
 
-    @if (loadingPlans()) {
-      <div class="state-container">
-        <agrivio-ui-loading-state label="Loading selectable plans…" />
-      </div>
-    } @else if (plansError(); as error) {
-      <div class="alert-container">
-        <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-        <button
-          type="button"
-          class="ag-btn ag-btn--secondary retry-btn"
-          (click)="reloadPlans(true)"
-        >
-          Retry
-        </button>
-      </div>
+      @if (loadingPlans()) {
+        <div class="state-container">
+          <agrivio-ui-loading-state label="Loading selectable plans…" />
+        </div>
+      } @else if (plansError(); as error) {
+        <div class="alert-container">
+          <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+          @if (canRefresh()) {
+            <button
+              type="button"
+              class="ag-btn ag-btn--secondary retry-btn"
+              (click)="reloadPlans(true)"
+            >
+              Retry
+            </button>
+          }
+        </div>
     } @else if (activePlans().length === 0) {
       <div class="state-container">
         <agrivio-ui-empty-state
@@ -582,52 +599,21 @@
               [required]="true"
             />
 
-            @if (uploading()) {
-              <div class="upload-progress-card">
-                <div class="spinner"></div>
-                <div class="upload-progress-info">
-                  <span class="upload-progress-title">Uploading evidence file…</span>
-                  <span class="upload-progress-sub">Checking file format and storing securely</span>
+            @if (canUploadEvidence()) {
+              @if (uploading()) {
+                <div class="upload-progress-card">
+                  <div class="spinner"></div>
+                  <div class="upload-progress-info">
+                    <span class="upload-progress-title">Uploading evidence file…</span>
+                    <span class="upload-progress-sub">Checking file format and storing securely</span>
+                  </div>
                 </div>
-              </div>
-            } @else if (uploadedEvidence(); as evidence) {
-              <div class="uploaded-file-card" data-testid="uploaded-evidence-card">
-                <div class="uploaded-file-card__icon">
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                  </svg>
-                </div>
-                <div class="uploaded-file-card__meta">
-                  <span class="uploaded-file-card__name" [title]="evidence.originalFileName">
-                    {{ evidence.originalFileName }}
-                  </span>
-                  <span class="uploaded-file-card__info">
-                    {{ evidence.contentType }} · {{ formatFileSize(evidence.size) }} · Ready for review
-                  </span>
-                </div>
-                <div class="uploaded-file-card__actions">
-                  <span class="uploaded-badge">Uploaded</span>
-                  <button
-                    type="button"
-                    class="remove-file-btn"
-                    (click)="removeEvidence($event)"
-                    title="Remove or replace file"
-                    aria-label="Remove uploaded file"
-                    data-testid="remove-evidence-btn"
-                  >
+              } @else if (uploadedEvidence(); as evidence) {
+                <div class="uploaded-file-card" data-testid="uploaded-evidence-card">
+                  <div class="uploaded-file-card__icon">
                     <svg
-                      width="16"
-                      height="16"
+                      width="20"
+                      height="20"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -635,49 +621,86 @@
                       stroke-linecap="round"
                       stroke-linejoin="round"
                     >
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
                     </svg>
-                  </button>
+                  </div>
+                  <div class="uploaded-file-card__meta">
+                    <span class="uploaded-file-card__name" [title]="evidence.originalFileName">
+                      {{ evidence.originalFileName }}
+                    </span>
+                    <span class="uploaded-file-card__info">
+                      {{ evidence.contentType }} · {{ formatFileSize(evidence.size) }} · Ready for review
+                    </span>
+                  </div>
+                  <div class="uploaded-file-card__actions">
+                    <span class="uploaded-badge">Uploaded</span>
+                    <button
+                      type="button"
+                      class="remove-file-btn"
+                      (click)="removeEvidence($event)"
+                      title="Remove or replace file"
+                      aria-label="Remove uploaded file"
+                      data-testid="remove-evidence-btn"
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-              </div>
+              } @else {
+                <div class="upload-dropzone">
+                  <input
+                    id="evidence-file-input"
+                    class="upload-dropzone__input"
+                    type="file"
+                    accept="image/png,image/jpeg,application/pdf"
+                    (change)="onFileSelected($event)"
+                    aria-required="true"
+                    data-testid="evidence-file-input"
+                  />
+                  <div class="upload-dropzone__content">
+                    <div class="upload-dropzone__icon">
+                      <svg
+                        width="22"
+                        height="22"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                      </svg>
+                    </div>
+                    <div class="upload-dropzone__text">
+                      <span class="upload-dropzone__prompt">
+                        Upload receipt / proof of payment
+                      </span>
+                      <span class="upload-dropzone__sub">
+                        PNG, JPG, JPEG, or PDF up to 5MB
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              }
             } @else {
-              <div class="upload-dropzone">
-                <input
-                  id="evidence-file-input"
-                  class="upload-dropzone__input"
-                  type="file"
-                  accept="image/png,image/jpeg,application/pdf"
-                  (change)="onFileSelected($event)"
-                  aria-required="true"
-                  data-testid="evidence-file-input"
-                />
-                <div class="upload-dropzone__content">
-                  <div class="upload-dropzone__icon">
-                    <svg
-                      width="22"
-                      height="22"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                  </div>
-                  <div class="upload-dropzone__text">
-                    <span class="upload-dropzone__prompt">
-                      Upload receipt / proof of payment
-                    </span>
-                    <span class="upload-dropzone__sub">
-                      PNG, JPG, JPEG, or PDF up to 5MB
-                    </span>
-                  </div>
-                </div>
+              <div class="upload-disabled-banner" data-testid="upload-disabled-banner">
+                <p>Payment evidence upload is currently disabled for this organization.</p>
               </div>
             }
 
@@ -690,17 +713,21 @@
           </div>
 
           <!-- Notes (Optional) -->
-          <div class="ag-field form-field--full-width">
-            <agrivio-ui-field-label label="Notes (optional)" for="billing-notes" />
-            <textarea
-              id="billing-notes"
-              class="ag-input textarea-field"
-              rows="3"
-              formControlName="notes"
-              placeholder="e.g. Payment for monthly subscription renewal."
-              data-testid="billing-notes-input"
-            ></textarea>
-          </div>
+          @if (showNotesField()) {
+            <div class="ag-field form-field--full-width">
+              <agrivio-ui-field-label label="Notes (optional)" for="billing-notes" />
+              <textarea
+                id="billing-notes"
+                class="ag-input textarea-field"
+                rows="3"
+                formControlName="notes"
+                placeholder="e.g. Payment for monthly subscription renewal."
+                data-testid="billing-notes-input"
+                [attr.disabled]="canEditNotesField() ? null : ''"
+                [attr.readonly]="canEditNotesField() ? null : ''"
+              ></textarea>
+            </div>
+          }
         </div>
 
         <!-- Form Actions Footer -->
@@ -708,7 +735,7 @@
           <button
             type="submit"
             class="ag-btn ag-btn--primary submit-btn"
-            [disabled]="submitting() || uploading() || form.invalid || uploadedEvidence() === null || activePlans().length === 0"
+            [disabled]="!canSubmitBilling() || submitting() || uploading() || form.invalid || uploadedEvidence() === null || activePlans().length === 0"
             data-testid="submit-evidence-btn"
           >
             @if (submitting()) {
@@ -724,29 +751,32 @@
   </section>
 
   <!-- Billing History Section -->
-  <section class="history-section" aria-label="Billing history">
-    <div class="section-head">
-      <div>
-        <h2 class="section-head__title">Billing history</h2>
-        <p class="section-head__lede">Track your payment submissions and review status.</p>
+  @if (showBillingHistory()) {
+    <section class="history-section" aria-label="Billing history">
+      <div class="section-head">
+        <div>
+          <h2 class="section-head__title">Billing history</h2>
+          <p class="section-head__lede">Track your payment submissions and review status.</p>
+        </div>
       </div>
-    </div>
 
-    @if (loadingHistory()) {
-      <div class="state-container">
-        <agrivio-ui-loading-state label="Loading billing history…" />
-      </div>
-    } @else if (historyError(); as error) {
-      <div class="alert-container">
-        <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-        <button
-          type="button"
-          class="ag-btn ag-btn--secondary retry-btn"
-          (click)="reloadHistory(true)"
-        >
-          Retry
-        </button>
-      </div>
+      @if (loadingHistory()) {
+        <div class="state-container">
+          <agrivio-ui-loading-state label="Loading billing history…" />
+        </div>
+      } @else if (historyError(); as error) {
+        <div class="alert-container">
+          <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+          @if (canRefresh()) {
+            <button
+              type="button"
+              class="ag-btn ag-btn--secondary retry-btn"
+              (click)="reloadHistory(true)"
+            >
+              Retry
+            </button>
+          }
+        </div>
     } @else if (records().length === 0) {
       <div class="state-container">
         <agrivio-ui-empty-state
@@ -770,7 +800,9 @@
               <th scope="col" class="prod-table__th col-evidence">Evidence</th>
               <th scope="col" class="prod-table__th col-reviewer">Reviewed By</th>
               <th scope="col" class="prod-table__th col-reviewed-at">Reviewed At</th>
-              <th scope="col" class="prod-table__th prod-table__th--actions col-actions">Actions</th>
+              @if (canInspectHistory()) {
+                <th scope="col" class="prod-table__th prod-table__th--actions col-actions">Actions</th>
+              }
             </tr>
           </thead>
           <tbody>
@@ -825,28 +857,32 @@
                 <!-- Evidence -->
                 <td class="prod-table__td">
                   @if (item.evidenceOriginalFileName) {
-                    <button
-                      type="button"
-                      class="evidence-download-link"
-                      (click)="downloadEvidence(item, $event)"
-                      [title]="'Download ' + item.evidenceOriginalFileName"
-                    >
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
+                    @if (canDownloadEvidence()) {
+                      <button
+                        type="button"
+                        class="evidence-download-link"
+                        (click)="downloadEvidence(item, $event)"
+                        [title]="'Download ' + item.evidenceOriginalFileName"
                       >
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="7 10 12 15 17 10" />
-                        <line x1="12" y1="15" x2="12" y2="3" />
-                      </svg>
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="7 10 12 15 17 10" />
+                          <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                        <span class="evidence-name text-truncate">{{ item.evidenceOriginalFileName }}</span>
+                      </button>
+                    } @else {
                       <span class="evidence-name text-truncate">{{ item.evidenceOriginalFileName }}</span>
-                    </button>
+                    }
                   } @else {
                     <span class="muted-dash">—</span>
                   }
@@ -863,30 +899,32 @@
                 </td>
 
                 <!-- Actions -->
-                <td class="prod-table__td prod-table__td--actions">
-                  <button
-                    type="button"
-                    class="row-action-btn"
-                    (click)="openInspector(item)"
-                    title="Inspect billing details"
-                    aria-label="Inspect billing details"
-                    data-testid="inspect-billing-btn"
-                  >
-                    <svg
-                      width="15"
-                      height="15"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
+                @if (canInspectHistory()) {
+                  <td class="prod-table__td prod-table__td--actions">
+                    <button
+                      type="button"
+                      class="row-action-btn"
+                      (click)="openInspector(item)"
+                      title="Inspect billing details"
+                      aria-label="Inspect billing details"
+                      data-testid="inspect-billing-btn"
                     >
-                      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                  </button>
-                </td>
+                      <svg
+                        width="15"
+                        height="15"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    </button>
+                  </td>
+                }
               </tr>
             }
           </tbody>
@@ -936,40 +974,47 @@
               @if (item.evidenceOriginalFileName) {
                 <div class="history-mobile-row">
                   <span class="history-mobile-label">Evidence:</span>
-                  <button
-                    type="button"
-                    class="evidence-download-link"
-                    (click)="downloadEvidence(item, $event)"
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
+                  @if (canDownloadEvidence()) {
+                    <button
+                      type="button"
+                      class="evidence-download-link"
+                      (click)="downloadEvidence(item, $event)"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                      <span class="evidence-name text-truncate">{{ item.evidenceOriginalFileName }}</span>
+                    </button>
+                  } @else {
                     <span class="evidence-name text-truncate">{{ item.evidenceOriginalFileName }}</span>
-                  </button>
+                  }
                 </div>
               }
             </div>
 
-            <div class="history-mobile-card__foot">
-              <button
-                type="button"
-                class="ag-btn ag-btn--secondary w-full"
-                (click)="openInspector(item)"
-              >
-                Inspect details
-              </button>
-            </div>
+            @if (canInspectHistory()) {
+              <div class="history-mobile-card__foot">
+                <button
+                  type="button"
+                  class="ag-btn ag-btn--secondary w-full"
+                  (click)="openInspector(item)"
+                >
+                  Inspect details
+                </button>
+              </div>
+            }
           </article>
         }
       </div>
     }
   </section>
+}
 
   <!-- Slide-Over Inspector Drawer (Products-Style Detail Drawer) -->
   @if (selectedRecord(); as rec) {
-    <div class="drawer-backdrop" (click)="closeInspector()"></div>
+    <div class="drawer-backdrop" (click)="closeInspector()" aria-hidden="true"></div>
     <aside
       class="billing-inspector"
       role="dialog"
@@ -1093,14 +1138,16 @@
                   {{ rec.evidenceContentType }} · {{ formatFileSize(rec.evidenceSize) }}
                 </span>
               </div>
-              <button
-                type="button"
-                class="ag-btn ag-btn--secondary ag-btn--sm"
-                (click)="downloadEvidence(rec, $event)"
-                data-testid="inspector-download-btn"
-              >
-                Download
-              </button>
+              @if (canDownloadEvidence()) {
+                <button
+                  type="button"
+                  class="ag-btn ag-btn--secondary ag-btn--sm"
+                  (click)="downloadEvidence(rec, $event)"
+                  data-testid="inspector-download-btn"
+                >
+                  Download
+                </button>
+              }
             </div>
           } @else {
             <p class="ag-muted">No evidence file associated with this record.</p>
@@ -1119,4 +1166,5 @@
       </div>
     </aside>
   }
+}
 </div>

@@ -128,6 +128,9 @@ function createInMemorySubscriptionStore() {
       }
       if (filter.q !== undefined && String(filter.q).trim() !== '') {
         const needle = String(filter.q).trim().toLowerCase();
+        const organizationIdsForSearch = new Set(
+          (filter.organizationIdsForSearch ?? []).map(String),
+        );
         rows = rows.filter((row) => {
           const haystacks = [
             String(row.organizationId),
@@ -135,7 +138,10 @@ function createInMemorySubscriptionStore() {
             String(row.requestedPlanCode ?? ''),
             String(row.notes ?? ''),
           ];
-          return haystacks.some((value) => value.toLowerCase().includes(needle));
+          return (
+            organizationIdsForSearch.has(String(row.organizationId)) ||
+            haystacks.some((value) => value.toLowerCase().includes(needle))
+          );
         });
       }
       rows.sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)));
@@ -166,9 +172,12 @@ function createInMemorySubscriptionStore() {
       return clone(record);
     },
 
-    async updateBillingRecord(_session, id, patch) {
+    async updateBillingRecord(_session, id, patch, expectedVersion) {
       const existing = billingRecords.get(String(id));
       if (existing === undefined) {
+        return null;
+      }
+      if (expectedVersion !== undefined && Number(existing.version) !== Number(expectedVersion)) {
         return null;
       }
       const next = { ...existing, ...clone(patch) };

@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { signal, WritableSignal } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
@@ -9,6 +10,7 @@ import {
 } from './billing-evidence.page';
 import { environment } from '../../../../../environments/environment';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import {
   API_AUTH_CSRF_PATH,
   API_SUBSCRIPTION_BILLING_RECORDS_PATH,
@@ -27,6 +29,9 @@ describe('BillingEvidencePage', () => {
   let fixture: ComponentFixture<BillingEvidencePage>;
   let http: HttpTestingController;
   let mockSessionState: MockSessionState;
+  let sessionSignal: WritableSignal<MockSessionState>;
+  let capabilitiesSignal: WritableSignal<Record<string, boolean>>;
+  let fieldEditableSignal: WritableSignal<Record<string, boolean>>;
 
   beforeEach(async () => {
     mockSessionState = {
@@ -35,6 +40,9 @@ describe('BillingEvidencePage', () => {
       activeContext: { organizationId: 'org-1' },
       permissions: ['subscription.view', 'subscription.billing-evidence.submit'],
     };
+    sessionSignal = signal<MockSessionState>(mockSessionState);
+    capabilitiesSignal = signal<Record<string, boolean>>({});
+    fieldEditableSignal = signal<Record<string, boolean>>({});
 
     await TestBed.configureTestingModule({
       imports: [BillingEvidencePage],
@@ -45,9 +53,19 @@ describe('BillingEvidencePage', () => {
         {
           provide: AuthSessionStore,
           useValue: {
-            session: () => mockSessionState,
+            session: () => sessionSignal(),
             activeContext: () => ({ organizationId: 'org-1' }),
-            hasPermission: (perm: string) => mockSessionState.permissions.includes(perm),
+            hasPermission: (perm: string) => sessionSignal().permissions.includes(perm),
+          },
+        },
+        {
+          provide: CapabilityService,
+          useValue: {
+            canUseModule: (key: string) => capabilitiesSignal()[key] ?? true,
+            canUseFeature: (key: string) => capabilitiesSignal()[key] ?? true,
+            canPerformAction: (key: string) => capabilitiesSignal()[key] ?? true,
+            canViewField: (key: string) => capabilitiesSignal()[key] ?? true,
+            canEditField: (key: string) => fieldEditableSignal()[key] ?? true,
           },
         },
       ],
@@ -528,6 +546,214 @@ describe('BillingEvidencePage', () => {
       expect(compiled.textContent).toContain(
         'Submitting payment evidence for approval will restore operational access',
       );
+    });
+  });
+
+  describe('Organization controls & capability gating', () => {
+    it('hides billing content and displays disabled alert when billing module is disabled', () => {
+      capabilitiesSignal.set({ billing: false });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="billing-disabled-alert"]')).not.toBeNull();
+      expect(compiled.textContent).toContain('Billing has been disabled for this organization');
+      expect(compiled.querySelector('[data-testid="current-subscription-card"]')).toBeNull();
+      expect(compiled.querySelector('[data-testid="submit-evidence-btn"]')).toBeNull();
+      expect(compiled.querySelector('.plans-section')).toBeNull();
+      expect(compiled.querySelector('.history-section')).toBeNull();
+    });
+
+    it('hides How It Works card when moduleInfo feature is disabled', () => {
+      capabilitiesSignal.set({ 'billing.features.moduleInfo': false });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="how-it-works-card"]')).toBeNull();
+      expect(compiled.querySelector('[data-testid="current-subscription-card"]')).not.toBeNull();
+    });
+
+    it('hides Current Subscription card when currentSubscription feature is disabled', () => {
+      capabilitiesSignal.set({ 'billing.features.currentSubscription': false });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="current-subscription-card"]')).toBeNull();
+      expect(compiled.querySelector('[data-testid="how-it-works-card"]')).not.toBeNull();
+    });
+
+    it('hides entire top-grid when both moduleInfo and currentSubscription are disabled', () => {
+      capabilitiesSignal.set({
+        'billing.features.moduleInfo': false,
+        'billing.features.currentSubscription': false,
+      });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('.top-grid')).toBeNull();
+    });
+
+    it('hides billing history section when billingHistory feature is disabled', () => {
+      capabilitiesSignal.set({ 'billing.features.billingHistory': false });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('.history-section')).toBeNull();
+    });
+
+    it('hides notes field and excludes notes from submitted payload when notes field is disabled', () => {
+      capabilitiesSignal.set({ 'billing.fields.notes': false });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="billing-notes-input"]')).toBeNull();
+
+      const page = fixture.componentInstance;
+      page.form.patchValue({
+        requestedPlanId: 'plan-business',
+        billingPeriod: 'monthly',
+        paymentMethod: 'bank_transfer',
+        paymentReference: 'REF-NOTES-TEST',
+        submittedAmountMinorUnits: 15000000,
+        notes: 'Secret note that should not be sent',
+      });
+      page.uploadedEvidence.set({
+        evidenceStorageRef: 'ref-test',
+        originalFileName: 'slip.png',
+        size: 1024,
+        contentType: 'image/png',
+        checksum: 'sha256-mock',
+        uploadedAt: new Date().toISOString(),
+      });
+
+      page.submit();
+
+      http.expectOne(`${environment.publicApiBaseUrl}${API_AUTH_CSRF_PATH}`).flush({
+        data: { csrfToken: 'mock-csrf' },
+        requestId: 'csrf',
+      });
+
+      const submitReq = http.expectOne(
+        `${environment.publicApiBaseUrl}${API_SUBSCRIPTION_BILLING_RECORDS_PATH}`,
+      );
+      expect(submitReq.request.body.notes).toBeUndefined();
+      submitReq.flush({ data: { id: 'new-bill' }, requestId: 'test' });
+    });
+
+    it('makes notes input readonly/disabled when canEditField is false', () => {
+      fieldEditableSignal.set({ 'billing.fields.notes': false });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const notesInput = compiled.querySelector<HTMLTextAreaElement>('#billing-notes');
+      expect(notesInput?.getAttribute('disabled')).not.toBeNull();
+      expect(notesInput?.getAttribute('readonly')).not.toBeNull();
+    });
+
+    it('prevents submission when submit action capability is disabled', () => {
+      capabilitiesSignal.set({ 'billing.actions.submit': false });
+      fixture.detectChanges();
+
+      const page = fixture.componentInstance;
+      expect(page.canSubmitBilling()).toBe(false);
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const submitBtn = compiled.querySelector<HTMLButtonElement>(
+        '[data-testid="submit-evidence-btn"]',
+      );
+      expect(submitBtn?.disabled).toBe(true);
+
+      page.submit();
+      http.expectNone(`${environment.publicApiBaseUrl}${API_SUBSCRIPTION_BILLING_RECORDS_PATH}`);
+      expect(page.errorMessage()).toContain('unavailable');
+    });
+
+    it('replaces file dropzone with disabled banner when uploadEvidence action capability is disabled', () => {
+      capabilitiesSignal.set({ 'billing.actions.uploadEvidence': false });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="upload-disabled-banner"]')).not.toBeNull();
+      expect(compiled.querySelector('.upload-dropzone')).toBeNull();
+    });
+
+    it('hides evidence download button in table and mobile card when downloadEvidence action is disabled', () => {
+      capabilitiesSignal.set({ 'billing.actions.downloadEvidence': false });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('.evidence-download-link')).toBeNull();
+      expect(compiled.querySelector('.evidence-name')?.textContent).toContain(
+        'receipt-may-28.pdf',
+      );
+    });
+
+    it('hides inspect action in table and mobile cards when inspectHistory action is disabled', () => {
+      capabilitiesSignal.set({ 'billing.actions.inspectHistory': false });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="inspect-billing-btn"]')).toBeNull();
+      expect(compiled.querySelector('.col-actions')).toBeNull();
+    });
+
+    it('hides retry button when refresh action capability is disabled', () => {
+      capabilitiesSignal.set({ 'billing.actions.refresh': false });
+      const page = fixture.componentInstance;
+      page.plansError.set('Network failure');
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('.retry-btn')).toBeNull();
+    });
+
+    it('enforces RBAC intersection: submit requires both capability AND user permission', () => {
+      const page = fixture.componentInstance;
+
+      // Case 1: Capability enabled, permission missing
+      capabilitiesSignal.set({ 'billing.actions.submit': true });
+      sessionSignal.set({
+        ...mockSessionState,
+        permissions: ['subscription.view'],
+      });
+      expect(page.canSubmitBilling()).toBe(false);
+
+      // Case 2: Capability disabled, permission granted
+      capabilitiesSignal.set({ 'billing.actions.submit': false });
+      sessionSignal.set({
+        ...mockSessionState,
+        permissions: ['subscription.view', 'subscription.billing-evidence.submit'],
+      });
+      expect(page.canSubmitBilling()).toBe(false);
+
+      // Case 3: Both capability and permission granted
+      capabilitiesSignal.set({ 'billing.actions.submit': true });
+      expect(page.canSubmitBilling()).toBe(true);
+    });
+
+    it('allows suspended organization to access billing and submit when effective billing capability is enabled', () => {
+      const page = fixture.componentInstance;
+      page.subscriptionDetail.set({
+        status: 'suspended',
+        planCode: 'Business',
+        planVersion: 1,
+      });
+      capabilitiesSignal.set({
+        billing: true,
+        'billing.actions.submit': true,
+      });
+      sessionSignal.set({
+        ...mockSessionState,
+        permissions: ['subscription.view', 'subscription.billing-evidence.submit'],
+      });
+      fixture.detectChanges();
+
+      expect(page.isSuspended()).toBe(true);
+      expect(page.isBillingEnabled()).toBe(true);
+      expect(page.canSubmitBilling()).toBe(true);
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="billing-disabled-alert"]')).toBeNull();
+      expect(compiled.querySelector('[data-testid="submit-evidence-btn"]')).not.toBeNull();
     });
   });
 });

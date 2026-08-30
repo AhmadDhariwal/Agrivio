@@ -34,7 +34,8 @@ function control(
     | 'payments.supplier'
     | 'payments.supplierLedger'
     | 'sales'
-    | 'dashboard',
+    | 'dashboard'
+    | 'billing',
   type: PlatformCapabilityControl['type'],
   label: string,
   policy: Record<string, boolean>,
@@ -1535,6 +1536,46 @@ describe('OrganizationControlsPage', () => {
       control('dashboard.widgets.topSellingProducts', 'dashboard', 'WIDGET', 'Top Selling Products', { visible: true }),
       control('dashboard.widgets.inventoryHealth', 'dashboard', 'WIDGET', 'Inventory Health', { visible: true }),
       control('dashboard.widgets.recentSales', 'dashboard', 'WIDGET', 'Recent Sales', { visible: true }),
+      // Billing (17 authoritative controls)
+      control('billing', 'billing', 'MODULE', 'Billing', { enabled: true }, { risk: 'CRITICAL' }),
+      control('billing.features.moduleInfo', 'billing', 'FEATURE', 'About Billing', { enabled: true }),
+      control('billing.features.currentSubscription', 'billing', 'FEATURE', 'Current Subscription', { enabled: true }),
+      control(
+        'billing.features.planSelection',
+        'billing',
+        'FEATURE',
+        'Plan Selection',
+        { enabled: true },
+        {
+          configurable: { enabled: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason:
+            'Plan selection remains available because requested plan and version are required for every valid billing submission.',
+        },
+      ),
+      control('billing.features.billingHistory', 'billing', 'FEATURE', 'Billing History', { enabled: true }),
+      ...(['requestedPlan', 'billingPeriod', 'paymentMethod', 'paymentReference', 'amount', 'evidence'] as const).map((id) =>
+        control(
+          `billing.fields.${id}`,
+          'billing',
+          'FIELD',
+          id,
+          { visible: true, editable: true },
+          {
+            configurable: { visible: false, editable: false },
+            platformEnforced: true,
+            risk: 'CRITICAL',
+            reason: 'Required billing field.',
+          },
+        ),
+      ),
+      control('billing.fields.notes', 'billing', 'FIELD', 'Notes', { visible: true, editable: true }, { override: { visible: false } }),
+      control('billing.actions.submit', 'billing', 'ACTION', 'Submit billing evidence', { allowed: true }, { risk: 'CRITICAL' }),
+      control('billing.actions.uploadEvidence', 'billing', 'ACTION', 'Upload payment evidence', { allowed: true }),
+      control('billing.actions.downloadEvidence', 'billing', 'ACTION', 'Download evidence file', { allowed: true }),
+      control('billing.actions.inspectHistory', 'billing', 'ACTION', 'Inspect billing history', { allowed: true }),
+      control('billing.actions.refresh', 'billing', 'ACTION', 'Refresh Billing', { allowed: true }),
     ];
     await TestBed.configureTestingModule({
       imports: [OrganizationControlsPage],
@@ -3311,6 +3352,108 @@ describe('OrganizationControlsPage', () => {
       component.askResetModule();
       component.confirm();
       expect(resetModule).toHaveBeenCalledWith('org-a', 'warehouses', 4, '');
+    });
+  });
+
+  describe('Billing Controls', () => {
+    it('renders all 17 controls with platform-enforced, field, and action metadata', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('billing');
+      fixture.detectChanges();
+
+      expect(component.moduleLabel('billing')).toBe('Billing');
+      expect(component.selectedControls()).toHaveLength(17);
+      expect(component.moduleControls()).toHaveLength(1);
+      expect(component.featureControls()).toHaveLength(4);
+      expect(component.fieldControls()).toHaveLength(1);
+      expect(component.requiredWorkflowControls()).toHaveLength(6);
+      expect(component.actionControls()).toHaveLength(5);
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('Billing Module');
+      expect(text).toContain('Features');
+      expect(text).toContain('About Billing');
+      expect(text).toContain('Current Subscription');
+      expect(text).toContain('Plan Selection');
+      expect(text).toContain('Billing History');
+      expect(text).toContain('Fields');
+      expect(text).toContain('Notes');
+      expect(text).toContain('Required Fields');
+      expect(text).toContain('Actions');
+      expect(text).toContain('Submit billing evidence');
+      expect(text).toContain('Upload payment evidence');
+      expect(text).toContain('Download evidence file');
+      expect(text).toContain('Inspect billing history');
+      expect(text).toContain('Refresh Billing');
+    });
+
+    it('supports Billing disable/re-enable and organization-scoped reset', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('billing');
+      const moduleControl = component.controls().find((item) => item.key === 'billing');
+      expect(moduleControl).toBeDefined();
+      if (moduleControl) {
+        component.setValue(moduleControl, 'enabled', false);
+        expect(component.disablingBilling()).toBe(true);
+        expect(component.confirmationTitle()).toBe(
+          'Disable Billing for Greenfield Agro Center?',
+        );
+        expect(component.confirmationMessage()).toContain('Billing');
+        expect(component.confirmationLabel()).toBe('Disable Billing');
+        component.setValue(moduleControl, 'enabled', true);
+        expect(component.effectiveValue(moduleControl, 'enabled')).toBe(true);
+      }
+
+      component.askResetModule();
+      component.confirm();
+      expect(resetModule).toHaveBeenCalledWith('org-a', 'billing', 4, '');
+    });
+
+    it('locks platform-enforced billing fields and allows notes field override', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('billing');
+
+      const evidenceControl = component.controls().find((item) => item.key === 'billing.fields.evidence');
+      expect(evidenceControl).toBeDefined();
+      if (evidenceControl) {
+        expect(component.isConfigurable(evidenceControl, 'visible')).toBe(false);
+        expect(component.isConfigurable(evidenceControl, 'editable')).toBe(false);
+        expect(component.isRequiredWorkflowControl(evidenceControl)).toBe(true);
+      }
+
+      const notesControl = component.controls().find((item) => item.key === 'billing.fields.notes');
+      expect(notesControl).toBeDefined();
+      if (notesControl) {
+        expect(component.isConfigurable(notesControl, 'visible')).toBe(true);
+        expect(component.isConfigurable(notesControl, 'editable')).toBe(true);
+        expect(component.isRequiredWorkflowControl(notesControl)).toBe(false);
+      }
+    });
+
+    it('renders plan selection as platform-enforced without a disable toggle', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('billing');
+      fixture.detectChanges();
+
+      const planSelection = component.controls().find(
+        (item) => item.key === 'billing.features.planSelection',
+      );
+      expect(planSelection).toBeDefined();
+      if (planSelection) {
+        expect(component.isConfigurable(planSelection, 'enabled')).toBe(false);
+        expect(component.isPlatformEnforcedFeature(planSelection)).toBe(true);
+        expect(component.showsRequiredEnforcedTreatment(planSelection)).toBe(true);
+        expect(component.modeReadonly(planSelection, 'enabled')).toBe(true);
+        expect(component.modeLockedReason(planSelection, 'enabled')).toBe(
+          'Platform rule: this required feature cannot be disabled.',
+        );
+        component.setValue(planSelection, 'enabled', false);
+        expect(component.value(planSelection, 'enabled')).toBe(true);
+      }
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('Plan selection remains available because requested plan and version are required');
+      expect(text).toContain('Platform enforced');
     });
   });
 });

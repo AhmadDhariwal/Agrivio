@@ -98,6 +98,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'subscription/billing',
+        canActivate: [requireCapabilityGuard('billing')],
         loadComponent: () =>
           import('./features/subscriptions/pages/billing-evidence/billing-evidence.page').then(
             (m) => m.BillingEvidencePage,

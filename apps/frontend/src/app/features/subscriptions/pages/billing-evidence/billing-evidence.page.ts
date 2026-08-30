@@ -19,6 +19,7 @@ import {
   hasRequiredValidator,
 } from '../../../../shared/form/form-field.util';
 import { UiStatusBadgeComponent, UiBadgeTone } from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 export const MAX_EVIDENCE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 export const ALLOWED_EVIDENCE_TYPES = ['image/png', 'image/jpeg', 'application/pdf'];
@@ -94,6 +95,51 @@ export class BillingEvidencePage {
   private readonly formBuilder = inject(FormBuilder);
   private readonly subscriptionApi = inject(SubscriptionApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
+
+  // Organization controls & capabilities integration
+  readonly isBillingEnabled = computed(
+    () => this.capabilityService?.canUseModule('billing') ?? true,
+  );
+  readonly showModuleInfo = computed(
+    () => this.capabilityService?.canUseFeature('billing.features.moduleInfo') ?? true,
+  );
+  readonly showCurrentSubscription = computed(
+    () => this.capabilityService?.canUseFeature('billing.features.currentSubscription') ?? true,
+  );
+  readonly showBillingHistory = computed(
+    () => this.capabilityService?.canUseFeature('billing.features.billingHistory') ?? true,
+  );
+  readonly showNotesField = computed(
+    () => this.capabilityService?.canViewField('billing.fields.notes') ?? true,
+  );
+  readonly canEditNotesField = computed(
+    () => this.capabilityService?.canEditField('billing.fields.notes') ?? true,
+  );
+  readonly canSubmitBilling = computed(
+    () =>
+      (this.capabilityService?.canPerformAction('billing.actions.submit') ?? true) &&
+      this.sessionStore.hasPermission('subscription.billing-evidence.submit'),
+  );
+  readonly canUploadEvidence = computed(
+    () =>
+      (this.capabilityService?.canPerformAction('billing.actions.uploadEvidence') ?? true) &&
+      this.sessionStore.hasPermission('subscription.billing-evidence.submit'),
+  );
+  readonly canDownloadEvidence = computed(
+    () =>
+      (this.capabilityService?.canPerformAction('billing.actions.downloadEvidence') ?? true) &&
+      (this.sessionStore.hasPermission('subscription.view') ||
+        this.sessionStore.hasPermission('subscription.billing-evidence.submit')),
+  );
+  readonly canInspectHistory = computed(
+    () =>
+      (this.capabilityService?.canPerformAction('billing.actions.inspectHistory') ?? true) &&
+      this.sessionStore.hasPermission('subscription.view'),
+  );
+  readonly canRefresh = computed(
+    () => this.capabilityService?.canPerformAction('billing.actions.refresh') ?? true,
+  );
 
   // Loading states (kept distinct per Section 9)
   readonly submitting = signal(false);
@@ -129,9 +175,7 @@ export class BillingEvidencePage {
       null,
   );
 
-  readonly canSubmit = computed(() =>
-    this.sessionStore.hasPermission('subscription.billing-evidence.submit'),
-  );
+  readonly canSubmit = computed(() => this.canSubmitBilling());
 
   readonly isSuspended = computed(() => {
     const detail = this.subscriptionDetail();
@@ -160,8 +204,16 @@ export class BillingEvidencePage {
 
   constructor() {
     this.reloadPlans();
-    this.reloadHistory();
-    this.reloadSubscription();
+    if (this.showBillingHistory()) {
+      this.reloadHistory();
+    } else {
+      this.loadingHistory.set(false);
+    }
+    if (this.showCurrentSubscription()) {
+      this.reloadSubscription();
+    } else {
+      this.loadingSubscription.set(false);
+    }
 
     // Listen to billing period changes to update default amount if agreed price exists
     this.form.controls.billingPeriod.valueChanges.subscribe((period) => {
@@ -394,6 +446,10 @@ export class BillingEvidencePage {
   }
 
   reloadHistory(forceRefresh = false): void {
+    if (!this.showBillingHistory()) {
+      this.loadingHistory.set(false);
+      return;
+    }
     this.loadingHistory.set(true);
     this.historyError.set(null);
     this.subscriptionApi.listBillingRecords(forceRefresh).subscribe({
@@ -409,6 +465,10 @@ export class BillingEvidencePage {
   }
 
   reloadSubscription(forceRefresh = false): void {
+    if (!this.showCurrentSubscription()) {
+      this.loadingSubscription.set(false);
+      return;
+    }
     this.loadingSubscription.set(true);
     this.subscriptionError.set(null);
     this.subscriptionApi.getSubscription(forceRefresh).subscribe({
@@ -487,6 +547,9 @@ export class BillingEvidencePage {
   }
 
   openInspector(record: BillingRecordSummary): void {
+    if (!this.canInspectHistory()) {
+      return;
+    }
     this.selectedRecord.set(record);
     // Lazily fetch the single record detail for inspector completeness without N+1 table reads
     this.loadingDetail.set(true);
@@ -510,6 +573,9 @@ export class BillingEvidencePage {
     if (event) {
       event.stopPropagation();
     }
+    if (!this.canDownloadEvidence()) {
+      return;
+    }
     this.subscriptionApi.downloadOrganizationEvidence(item.id).subscribe({
       next: (blob) => {
         const url = URL.createObjectURL(blob);
@@ -527,6 +593,11 @@ export class BillingEvidencePage {
     this.formSubmitAttempted.set(true);
     this.successMessage.set(null);
     this.errorMessage.set(null);
+
+    if (!this.canSubmitBilling()) {
+      this.errorMessage.set('Submitting billing evidence is currently unavailable.');
+      return;
+    }
 
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -563,7 +634,7 @@ export class BillingEvidencePage {
       requestedPlanVersion: plan.planVersion,
     };
 
-    if (raw.notes.trim() !== '') {
+    if (this.showNotesField() && raw.notes.trim() !== '') {
       payload.notes = raw.notes.trim();
     }
 

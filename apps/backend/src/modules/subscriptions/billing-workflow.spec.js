@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createServer } from 'node:http';
 import {
   API_CSRF_HEADER,
@@ -34,9 +34,13 @@ describe('billing workflow hardening', () => {
   });
 
   it('covers upload, submit, review, approval effects, RBAC, and reactivation period safety', async () => {
-    const { server, baseUrl, jar, store, subscriptions } = await boot();
+    const { server, baseUrl, jar, store, subscriptions, onboardingStore } = await boot();
     try {
-      await createPlan(baseUrl, jar, { planCode: 'Business', activate: true, monthlyPriceMinorUnits: 9000 });
+      await createPlan(baseUrl, jar, {
+        planCode: 'Business',
+        activate: true,
+        monthlyPriceMinorUnits: 9000,
+      });
       const draft = await createPlan(baseUrl, jar, { planCode: 'Enterprise', activate: false });
       expect(draft.status).toBe(201);
       expect(draft.body.data.status).toBe('draft');
@@ -46,7 +50,14 @@ describe('billing workflow hardening', () => {
         ownerEmail: 'workflow-owner@example.com',
       });
 
-      const plans = await fetchJson(baseUrl, 'GET', API_SUBSCRIPTION_PLANS_PATH, undefined, {}, jar);
+      const plans = await fetchJson(
+        baseUrl,
+        'GET',
+        API_SUBSCRIPTION_PLANS_PATH,
+        undefined,
+        {},
+        jar,
+      );
       expect(plans.status).toBe(200);
       expect(plans.body.data.items.every((plan) => plan.status === 'active')).toBe(true);
       expect(plans.body.data.items.some((plan) => plan.planCode === 'Enterprise')).toBe(false);
@@ -105,7 +116,8 @@ describe('billing workflow hardening', () => {
           billingPeriod: 'monthly',
           submittedAmountMinorUnits: 9000,
           paymentReference: 'DRAFT-PLAN',
-          evidenceStorageRef: (await uploadPdf(baseUrl, jar, 'draft.pdf')).body.data.evidenceStorageRef,
+          evidenceStorageRef: (await uploadPdf(baseUrl, jar, 'draft.pdf')).body.data
+            .evidenceStorageRef,
           requestedPlanCode: 'Enterprise',
           requestedPlanVersion: draft.body.data.planVersion,
         },
@@ -116,9 +128,9 @@ describe('billing workflow hardening', () => {
 
       const firstUpload = await uploadPdf(baseUrl, jar, 'first.pdf');
       expect(firstUpload.status).toBe(201);
-      expect(firstUpload.body.data.evidenceStorageRef.startsWith(`evidence://${owner.organizationId}/`)).toBe(
-        true,
-      );
+      expect(
+        firstUpload.body.data.evidenceStorageRef.startsWith(`evidence://${owner.organizationId}/`),
+      ).toBe(true);
       expect(firstUpload.body.data.originalFileName).toBe('first.pdf');
       expect(firstUpload.body.data.contentType).toBe('application/pdf');
 
@@ -172,6 +184,14 @@ describe('billing workflow hardening', () => {
       );
       expect(ownerEvidence.status).toBe(200);
       expect(ownerEvidence.contentType).toContain('application/pdf');
+      expect(ownerEvidence.contentDisposition).toContain('filename="first.pdf"');
+
+      const ownerPlatformEvidence = await fetchBinary(
+        baseUrl,
+        `${API_PLATFORM_BILLING_RECORDS_PATH}/${firstSubmit.body.data.id}/evidence`,
+        jar,
+      );
+      expect([401, 403]).toContain(ownerPlatformEvidence.status);
 
       const ownerReject = await fetchJson(
         baseUrl,
@@ -208,8 +228,20 @@ describe('billing workflow hardening', () => {
         },
         jar,
       );
-      expect(replayStart.status).toBe(200);
-      expect(replayStart.body.data.status).toBe('under_review');
+      expect(replayStart.status).toBe(409);
+
+      const staleReject = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_PLATFORM_BILLING_RECORDS_PATH}/${duplicateSubmit.body.data.id}/reject`,
+        { expectedVersion: duplicateSubmit.body.data.version + 1, reason: 'Stale review' },
+        {
+          [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+          [API_PLATFORM_ACTOR_HEADER]: 'super-admin',
+        },
+        jar,
+      );
+      expect(staleReject.status).toBe(409);
 
       const missingReason = await fetchJson(
         baseUrl,
@@ -224,6 +256,9 @@ describe('billing workflow hardening', () => {
       );
       expect(missingReason.status).toBe(400);
 
+      const subscriptionBeforeReject = await store.findSubscriptionByOrganizationId(
+        owner.organizationId,
+      );
       const rejected = await fetchJson(
         baseUrl,
         'POST',
@@ -238,6 +273,10 @@ describe('billing workflow hardening', () => {
       expect(rejected.status).toBe(200);
       expect(rejected.body.data.status).toBe('rejected');
       expect(rejected.body.data.rejectionReason).toBe('Unreadable slip');
+      const subscriptionAfterReject = await store.findSubscriptionByOrganizationId(
+        owner.organizationId,
+      );
+      expect(subscriptionAfterReject).toEqual(subscriptionBeforeReject);
 
       const mutateRejected = await fetchJson(
         baseUrl,
@@ -269,6 +308,15 @@ describe('billing workflow hardening', () => {
       expect(approved.body.data.coverageStart).toBeTruthy();
       expect(approved.body.data.coverageEnd).toBeTruthy();
 
+      const subscriptionBeforeReplay = await fetchJson(
+        baseUrl,
+        'GET',
+        API_SUBSCRIPTION_PATH,
+        undefined,
+        {},
+        jar,
+      );
+
       const replayApprove = await fetchJson(
         baseUrl,
         'POST',
@@ -280,15 +328,109 @@ describe('billing workflow hardening', () => {
         },
         jar,
       );
-      expect([200, 409]).toContain(replayApprove.status);
-      if (replayApprove.status === 200) {
-        expect(replayApprove.body.data.appliedAt).toBe(approved.body.data.appliedAt);
-      }
+      expect(replayApprove.status).toBe(200);
+      expect(replayApprove.body.data.appliedAt).toBe(approved.body.data.appliedAt);
 
-      const afterApprove = await fetchJson(baseUrl, 'GET', API_SUBSCRIPTION_PATH, undefined, {}, jar);
+      const reviewApproved = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_PLATFORM_BILLING_RECORDS_PATH}/${firstSubmit.body.data.id}/start-review`,
+        { expectedVersion: approved.body.data.version },
+        {
+          [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+          [API_PLATFORM_ACTOR_HEADER]: 'super-admin',
+        },
+        jar,
+      );
+      expect(reviewApproved.status).toBe(409);
+
+      const afterApprove = await fetchJson(
+        baseUrl,
+        'GET',
+        API_SUBSCRIPTION_PATH,
+        undefined,
+        {},
+        jar,
+      );
       expect(afterApprove.status).toBe(200);
       expect(afterApprove.body.data.status).toBe('active');
       expect(afterApprove.body.data.planCode).toBe('Business');
+      expect(afterApprove.body.data.version).toBe(subscriptionBeforeReplay.body.data.version);
+      expect(afterApprove.body.data.periodEndsAt).toBe(
+        subscriptionBeforeReplay.body.data.periodEndsAt,
+      );
+
+      const renewalUpload = await uploadPdf(baseUrl, jar, 'renewal.pdf');
+      const renewalSubmit = await fetchJson(
+        baseUrl,
+        'POST',
+        API_SUBSCRIPTION_BILLING_RECORDS_PATH,
+        {
+          paymentMethod: 'bank_transfer',
+          billingPeriod: 'monthly',
+          submittedAmountMinorUnits: 9000,
+          paymentReference: 'BANK-RENEW-1',
+          evidenceStorageRef: renewalUpload.body.data.evidenceStorageRef,
+          requestedPlanCode: business.planCode,
+          requestedPlanVersion: business.planVersion,
+        },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      expect(renewalSubmit.status).toBe(201);
+      const renewalApproved = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_PLATFORM_BILLING_RECORDS_PATH}/${renewalSubmit.body.data.id}/approve`,
+        { expectedVersion: renewalSubmit.body.data.version },
+        {
+          [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+          [API_PLATFORM_ACTOR_HEADER]: 'super-admin',
+        },
+        jar,
+      );
+      expect(renewalApproved.status).toBe(200);
+      expect(renewalApproved.body.data.coverageStart).toBe(approved.body.data.coverageEnd);
+      expect(new Date(renewalApproved.body.data.coverageEnd).getTime()).toBeGreaterThan(
+        new Date(approved.body.data.coverageEnd).getTime(),
+      );
+
+      const detail = await fetchJson(
+        baseUrl,
+        'GET',
+        `${API_PLATFORM_BILLING_RECORDS_PATH}/${firstSubmit.body.data.id}`,
+        undefined,
+        { [API_PLATFORM_ACTOR_HEADER]: 'super-admin' },
+        jar,
+      );
+      expect(detail.status).toBe(200);
+      expect(detail.body.data.organization).toMatchObject({
+        id: owner.organizationId,
+        name: 'Workflow Org',
+        displayLabel: 'Workflow Org',
+      });
+      expect(detail.body.data.organizationName).toBe('Workflow Org');
+      expect(detail.body.data.requestedPlanSnapshot).toMatchObject({
+        name: 'Business',
+        planVersion: business.planVersion,
+        monthlyPriceMinorUnits: 9000,
+      });
+      expect(detail.body.data.listedAmountMinorUnits).toBe(9000);
+      expect(detail.body.data.currentSubscription).toMatchObject({
+        organizationId: owner.organizationId,
+        status: 'active',
+        planCode: 'Business',
+      });
+      expect(detail.body.data.evidence).toMatchObject({
+        storageRef: firstUpload.body.data.evidenceStorageRef,
+        originalFileName: 'first.pdf',
+        contentType: 'application/pdf',
+      });
+      expect(detail.body.data.appliedSubscription).toMatchObject({
+        id: approved.body.data.appliedSubscriptionId,
+        status: 'active',
+      });
+      expect(detail.body.data.evidenceStorageRef).toBe(firstUpload.body.data.evidenceStorageRef);
 
       const history = await fetchJson(
         baseUrl,
@@ -300,10 +442,16 @@ describe('billing workflow hardening', () => {
       );
       expect(history.status).toBe(200);
       expect(history.body.data.items.some((item) => item.status === 'rejected')).toBe(true);
-      expect(history.body.data.items.some((item) => item.id === firstSubmit.body.data.id && item.status === 'approved')).toBe(
-        true,
-      );
+      expect(
+        history.body.data.items.some(
+          (item) => item.id === firstSubmit.body.data.id && item.status === 'approved',
+        ),
+      ).toBe(true);
 
+      const organizationBatchSpy = vi.spyOn(onboardingStore, 'findOrganizationsByIds');
+      const reviewerBatchSpy = vi.spyOn(onboardingStore, 'findUsersByIds');
+      const organizationSingleSpy = vi.spyOn(onboardingStore, 'findOrganizationById');
+      const planLookupSpy = vi.spyOn(store, 'findPlanByCodeVersion');
       const queue = await fetchJson(
         baseUrl,
         'GET',
@@ -315,6 +463,60 @@ describe('billing workflow hardening', () => {
       expect(queue.status).toBe(200);
       expect(queue.body.data.total).toBeGreaterThanOrEqual(1);
       expect(queue.body.data.items.every((item) => item.status === 'approved')).toBe(true);
+      expect(queue.body.data.items[0]).toMatchObject({
+        organizationName: 'Workflow Org',
+        requestedPlanName: 'Business',
+        listedAmountMinorUnits: 9000,
+      });
+      expect(queue.body.data.items[0].organization.displayLabel).toBe('Workflow Org');
+      expect(queue.body.data.items[0].requestedPlanSnapshot.planVersion).toBe(business.planVersion);
+      expect(queue.body.data.items[0].evidenceStorageRef).toBeUndefined();
+      expect(organizationBatchSpy).toHaveBeenCalledTimes(1);
+      expect(reviewerBatchSpy).toHaveBeenCalledTimes(1);
+      expect(organizationSingleSpy).not.toHaveBeenCalled();
+      expect(planLookupSpy).not.toHaveBeenCalled();
+      organizationBatchSpy.mockRestore();
+      reviewerBatchSpy.mockRestore();
+      organizationSingleSpy.mockRestore();
+      planLookupSpy.mockRestore();
+
+      const searchedQueue = await fetchJson(
+        baseUrl,
+        'GET',
+        `${API_PLATFORM_BILLING_RECORDS_PATH}?search=Workflow%20Org&limit=1&offset=0`,
+        undefined,
+        { [API_PLATFORM_ACTOR_HEADER]: 'super-admin' },
+        jar,
+      );
+      expect(searchedQueue.status).toBe(200);
+      expect(searchedQueue.body.data.total).toBeGreaterThanOrEqual(2);
+      expect(searchedQueue.body.data.items).toHaveLength(1);
+      expect(searchedQueue.body.data.items[0].organizationName).toBe('Workflow Org');
+
+      const organizationQueue = await fetchJson(
+        baseUrl,
+        'GET',
+        `${API_PLATFORM_BILLING_RECORDS_PATH}?organizationId=${owner.organizationId}&limit=25&offset=0`,
+        undefined,
+        { [API_PLATFORM_ACTOR_HEADER]: 'super-admin' },
+        jar,
+      );
+      expect(organizationQueue.status).toBe(200);
+      expect(
+        organizationQueue.body.data.items.every(
+          (item) => item.organizationId === owner.organizationId,
+        ),
+      ).toBe(true);
+
+      const literalSearch = await fetchJson(
+        baseUrl,
+        'GET',
+        `${API_PLATFORM_BILLING_RECORDS_PATH}?q=%5B&limit=25&offset=0`,
+        undefined,
+        { [API_PLATFORM_ACTOR_HEADER]: 'super-admin' },
+        jar,
+      );
+      expect(literalSearch.status).toBe(200);
 
       const platformEvidence = await fetchBinary(
         baseUrl,
@@ -332,7 +534,9 @@ describe('billing workflow hardening', () => {
         { [API_PLATFORM_ACTOR_HEADER]: 'super-admin' },
         jar,
       );
-      const subscription = listed.body.data.items.find((item) => item.organizationId === owner.organizationId);
+      const subscription = listed.body.data.items.find(
+        (item) => item.organizationId === owner.organizationId,
+      );
       const suspended = await fetchJson(
         baseUrl,
         'POST',
@@ -373,22 +577,27 @@ describe('billing workflow hardening', () => {
       );
       expect(suspendedSubmit.status).toBe(201);
 
-      const reactivated = await fetchJson(
+      const suspendedApproval = await fetchJson(
         baseUrl,
         'POST',
-        `${API_PLATFORM_SUBSCRIPTIONS_PATH}/${subscription.id}/reactivate`,
-        { expectedVersion: suspended.body.data.version, reason: 'Manual restore with valid period' },
+        `${API_PLATFORM_BILLING_RECORDS_PATH}/${suspendedSubmit.body.data.id}/approve`,
+        { expectedVersion: suspendedSubmit.body.data.version },
         {
           [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
           [API_PLATFORM_ACTOR_HEADER]: 'super-admin',
         },
         jar,
       );
-      expect(reactivated.status).toBe(200);
-      expect(reactivated.body.data.status).toBe('active');
-      expect(new Date(reactivated.body.data.periodEndsAt).getTime()).toBeGreaterThan(Date.now() - 1000);
+      expect(suspendedApproval.status).toBe(200);
+      expect(suspendedApproval.body.data.status).toBe('approved');
+      expect(new Date(suspendedApproval.body.data.coverageEnd).getTime()).toBeGreaterThan(
+        Date.now() - 1000,
+      );
 
-      const access = await subscriptions.subscriptionService.resolveAccessState(owner.organizationId);
+      const access = await subscriptions.subscriptionService.resolveAccessState(
+        owner.organizationId,
+      );
+      expect(access.status).toBe('active');
       expect(access.operationalWriteAllowed).toBe(true);
 
       const otherOwner = await createApprovedOwnerSession(baseUrl, jar, {
@@ -424,6 +633,29 @@ describe('billing workflow hardening', () => {
       );
       expect(otherHistory.status).toBe(404);
 
+      const otherEvidence = await uploadPdf(baseUrl, jar, 'other.pdf');
+      const originalBillingRecord = await store.findBillingRecordById(firstSubmit.body.data.id);
+      await store.updateBillingRecord(null, firstSubmit.body.data.id, {
+        evidenceStorageRef: otherEvidence.body.data.evidenceStorageRef,
+      });
+      const crossOrganizationPlatformEvidence = await fetchBinary(
+        baseUrl,
+        `${API_PLATFORM_BILLING_RECORDS_PATH}/${firstSubmit.body.data.id}/evidence`,
+        jar,
+        { [API_PLATFORM_ACTOR_HEADER]: 'super-admin' },
+      );
+      expect(crossOrganizationPlatformEvidence.status).toBe(404);
+      await store.updateBillingRecord(null, firstSubmit.body.data.id, {
+        evidenceStorageRef: originalBillingRecord.evidenceStorageRef,
+      });
+
+      const audits = store.listAuditEventsForTest();
+      expect(audits.some((event) => event.action === 'subscription.billing_review_started')).toBe(
+        true,
+      );
+      expect(audits.some((event) => event.action === 'subscription.billing_approved')).toBe(true);
+      expect(audits.some((event) => event.action === 'subscription.billing_rejected')).toBe(true);
+
       void otherOwner;
     } finally {
       await close(server);
@@ -446,6 +678,7 @@ async function boot() {
     jar: { cookie: null },
     store: app.agrivio.subscriptions.store,
     subscriptions: app.agrivio.subscriptions,
+    onboardingStore: app.agrivio.onboarding.store,
   };
 }
 
@@ -558,6 +791,7 @@ async function fetchBinary(baseUrl, path, jar, headers = {}) {
   return {
     status: response.status,
     contentType: response.headers.get('content-type'),
+    contentDisposition: response.headers.get('content-disposition'),
     buffer: Buffer.from(await response.arrayBuffer()),
   };
 }

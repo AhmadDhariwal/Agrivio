@@ -7,7 +7,7 @@ const {
   versionConflict,
 } = require('../../platform/errors/app-error');
 const { computeCoverageWindow, coverageIsCurrent } = require('./billing-period');
-const { parseEvidenceStorageRef } = require('./billing-evidence-storage');
+const { ALLOWED_EVIDENCE_TYPES, parseEvidenceStorageRef } = require('./billing-evidence-storage');
 const {
   DEFAULT_GRACE_DAYS,
   DEFAULT_RETENTION_DAYS,
@@ -25,6 +25,7 @@ const {
   parseBillingRejectBody,
   parseBillingSubmitBody,
   parseChangePlanBody,
+  parseExpectedVersion,
   parseLifecycleBody,
   parsePlanCreateBody,
 } = require('./subscription.validation');
@@ -56,21 +57,15 @@ function toSubscriptionSummary(subscription) {
     planVersion: subscription.planVersion,
     planId: subscription.planId ? String(subscription.planId) : null,
     billingPeriod: subscription.billingPeriod ?? null,
-    trialEndsAt: subscription.trialEndsAt
-      ? new Date(subscription.trialEndsAt).toISOString()
-      : null,
-    graceEndsAt: subscription.graceEndsAt
-      ? new Date(subscription.graceEndsAt).toISOString()
-      : null,
+    trialEndsAt: subscription.trialEndsAt ? new Date(subscription.trialEndsAt).toISOString() : null,
+    graceEndsAt: subscription.graceEndsAt ? new Date(subscription.graceEndsAt).toISOString() : null,
     periodStartsAt: subscription.periodStartsAt
       ? new Date(subscription.periodStartsAt).toISOString()
       : null,
     periodEndsAt: subscription.periodEndsAt
       ? new Date(subscription.periodEndsAt).toISOString()
       : null,
-    cancelledAt: subscription.cancelledAt
-      ? new Date(subscription.cancelledAt).toISOString()
-      : null,
+    cancelledAt: subscription.cancelledAt ? new Date(subscription.cancelledAt).toISOString() : null,
     retainedUntil: subscription.retainedUntil
       ? new Date(subscription.retainedUntil).toISOString()
       : null,
@@ -126,9 +121,51 @@ function toBillingSummary(record, { includeEvidenceMeta = false } = {}) {
   };
 }
 
+function toRequestedPlanSnapshot(record) {
+  return {
+    id: record.requestedPlanId ? String(record.requestedPlanId) : null,
+    planCode: record.requestedPlanCode,
+    name: record.requestedPlanCode,
+    planVersion: record.requestedPlanVersion,
+    currency: record.currency,
+    monthlyPriceMinorUnits: record.listedMonthlyPriceMinorUnits ?? null,
+    annualPriceMinorUnits: record.listedAnnualPriceMinorUnits ?? null,
+    annualDiscountPercent: record.listedAnnualDiscountPercent ?? null,
+  };
+}
+
+function toOrganizationSummary(organization) {
+  if (organization === null || organization === undefined) {
+    return null;
+  }
+  const name = String(organization.name ?? '').trim();
+  return {
+    id: String(organization._id),
+    name,
+    displayLabel: name,
+    status: organization.status ?? null,
+  };
+}
+
+function toReviewerSummary(reviewerId, user) {
+  if (reviewerId === null || reviewerId === undefined) {
+    return null;
+  }
+  return {
+    id: String(reviewerId),
+    displayName: user ? String(user.displayName ?? '').trim() || null : null,
+  };
+}
+
+function listedAmountForPeriod(record) {
+  return record.billingPeriod === 'annual'
+    ? (record.listedAnnualPriceMinorUnits ?? null)
+    : (record.listedMonthlyPriceMinorUnits ?? null);
+}
+
 function assertExpectedVersion(record, expectedVersion) {
   if (Number(record.version) !== Number(expectedVersion)) {
-    throw versionConflict('Subscription version conflict', {
+    throw versionConflict('Billing record version conflict', {
       expectedVersion,
       actualVersion: record.version,
     });
@@ -145,6 +182,7 @@ function createSubscriptionService(deps) {
   const auditWriter = createAuditWriter({
     append: (session, event) => store.appendAuditEvent(session, event),
   });
+  let billingReviewReadModel = deps.billingReviewReadModel ?? null;
 
   async function loadPlanForSubscription(subscription) {
     if (subscription.planId) {
@@ -191,6 +229,95 @@ function createSubscriptionService(deps) {
       throw forbidden('Billing evidence does not belong to this organization');
     }
     return stored;
+  }
+
+  function evidenceMatchesBillingRecord(record, stored) {
+    const parsed = parseEvidenceStorageRef(record.evidenceStorageRef);
+    if (parsed === null || String(parsed.organizationId) !== String(record.organizationId)) {
+      return false;
+    }
+    if (
+      String(stored.organizationId) !== String(record.organizationId) ||
+      String(stored.evidenceStorageRef) !== String(record.evidenceStorageRef) ||
+      ALLOWED_EVIDENCE_TYPES[stored.contentType] === undefined
+    ) {
+      return false;
+    }
+    const comparisons = [
+      ['evidenceOriginalFileName', 'originalFileName'],
+      ['evidenceContentType', 'contentType'],
+      ['evidenceSize', 'size'],
+      ['evidenceChecksum', 'checksum'],
+    ];
+    return comparisons.every(([recordKey, storedKey]) => {
+      const expected = record[recordKey];
+      return (
+        expected === null ||
+        expected === undefined ||
+        String(expected) === String(stored[storedKey])
+      );
+    });
+  }
+
+  async function loadBillingRecordEvidence(record) {
+    const stored = await requireEvidenceStorage().read(record.evidenceStorageRef);
+    if (stored === null || !evidenceMatchesBillingRecord(record, stored)) {
+      throw notFound('Billing evidence was not found');
+    }
+    return stored;
+  }
+
+  async function updateBillingRecordWithVersion(session, record, patch) {
+    const updated = await store.updateBillingRecord(
+      session,
+      String(record._id),
+      patch,
+      Number(record.version),
+    );
+    if (updated === null) {
+      throw versionConflict('Billing record version conflict', {
+        expectedVersion: record.version,
+      });
+    }
+    return updated;
+  }
+
+  async function composePlatformBillingRows(records) {
+    const organizationIds = [...new Set(records.map((record) => String(record.organizationId)))];
+    const reviewerIds = [
+      ...new Set(
+        records
+          .map((record) => record.reviewedBy)
+          .filter(Boolean)
+          .map(String),
+      ),
+    ];
+    const [organizations, reviewers] = await Promise.all([
+      billingReviewReadModel?.findOrganizationsByIds?.(organizationIds) ?? [],
+      billingReviewReadModel?.findUsersByIds?.(reviewerIds) ?? [],
+    ]);
+    const organizationsById = new Map(
+      organizations.map((organization) => [String(organization._id), organization]),
+    );
+    const reviewersById = new Map(reviewers.map((user) => [String(user._id), user]));
+
+    return records.map((record) => {
+      const organization = toOrganizationSummary(
+        organizationsById.get(String(record.organizationId)) ?? null,
+      );
+      return {
+        ...toBillingSummary(record),
+        organization,
+        organizationName: organization?.name ?? null,
+        requestedPlanName: record.requestedPlanCode,
+        requestedPlanSnapshot: toRequestedPlanSnapshot(record),
+        listedAmountMinorUnits: listedAmountForPeriod(record),
+        reviewer: toReviewerSummary(
+          record.reviewedBy,
+          reviewersById.get(String(record.reviewedBy)) ?? null,
+        ),
+      };
+    });
   }
 
   function resolvePaidCoverage(options) {
@@ -280,6 +407,10 @@ function createSubscriptionService(deps) {
   }
 
   return {
+    setBillingReviewReadModel(readModel) {
+      billingReviewReadModel = readModel;
+    },
+
     async listPlatformPlans() {
       const plans = await store.listPlans();
       return plans.map(toPlanSummary);
@@ -746,15 +877,20 @@ function createSubscriptionService(deps) {
 
     async listPlatformBillingRecords(query = {}) {
       const filter = parseBillingQueueQuery(query);
+      const organizationIdsForSearch =
+        filter.q === null
+          ? []
+          : ((await billingReviewReadModel?.findOrganizationIdsBySearch?.(filter.q)) ?? []);
       const page = await store.listBillingRecords({
         ...(filter.status === null ? {} : { status: filter.status }),
         ...(filter.organizationId === null ? {} : { organizationId: filter.organizationId }),
         ...(filter.q === null ? {} : { q: filter.q }),
+        ...(filter.q === null ? {} : { organizationIdsForSearch }),
         limit: filter.limit,
         offset: filter.offset,
       });
       return {
-        items: page.items.map((row) => toBillingSummary(row, { includeEvidenceMeta: true })),
+        items: await composePlatformBillingRows(page.items),
         total: page.total,
         limit: page.limit,
         offset: page.offset,
@@ -762,21 +898,18 @@ function createSubscriptionService(deps) {
     },
 
     async startBillingReview(billingId, body, actor) {
-      const expectedVersion = parseBillingApproveBody(body).expectedVersion;
+      const expectedVersion = parseExpectedVersion(body);
       return deps.transactionRunner.run(async (session) => {
         const record = await store.findBillingRecordById(billingId);
         if (record === null) {
           throw notFound('Billing record not found');
-        }
-        if (record.status === 'under_review') {
-          return toBillingSummary(record, { includeEvidenceMeta: true });
         }
         assertExpectedVersion(record, expectedVersion);
         if (record.status !== 'submitted') {
           throw conflict('Billing record cannot enter review from the current status');
         }
         const at = now();
-        const reviewed = await store.updateBillingRecord(session, String(record._id), {
+        const reviewed = await updateBillingRecordWithVersion(session, record, {
           status: 'under_review',
           reviewedAt: at,
           reviewedBy: actor.actorId,
@@ -798,7 +931,7 @@ function createSubscriptionService(deps) {
       if (record === null || String(record.organizationId) !== String(organizationId)) {
         throw notFound('Billing record not found');
       }
-      return loadOwnedEvidence(organizationId, record.evidenceStorageRef);
+      return loadBillingRecordEvidence(record);
     },
 
     async readPlatformBillingEvidence(billingId) {
@@ -806,11 +939,7 @@ function createSubscriptionService(deps) {
       if (record === null) {
         throw notFound('Billing record not found');
       }
-      const stored = await requireEvidenceStorage().read(record.evidenceStorageRef);
-      if (stored === null) {
-        throw notFound('Billing evidence was not found');
-      }
-      return stored;
+      return loadBillingRecordEvidence(record);
     },
 
     async getPlatformBillingRecord(billingId) {
@@ -818,7 +947,48 @@ function createSubscriptionService(deps) {
       if (record === null) {
         throw notFound('Billing record not found');
       }
-      return toBillingSummary(record, { includeEvidenceMeta: true });
+      const [composed] = await composePlatformBillingRows([record]);
+      const currentSubscription = await store.findSubscriptionByOrganizationId(
+        String(record.organizationId),
+      );
+      return {
+        ...toBillingSummary(record, { includeEvidenceMeta: true }),
+        ...composed,
+        currentSubscription:
+          currentSubscription === null ? null : toSubscriptionSummary(currentSubscription),
+        evidence: {
+          storageRef: record.evidenceStorageRef,
+          originalFileName: record.evidenceOriginalFileName ?? null,
+          contentType: record.evidenceContentType ?? null,
+          size: record.evidenceSize ?? null,
+          checksum: record.evidenceChecksum ?? null,
+          uploadedAt: record.evidenceUploadedAt
+            ? new Date(record.evidenceUploadedAt).toISOString()
+            : null,
+        },
+        appliedSubscription:
+          record.appliedSubscriptionId === null || record.appliedSubscriptionId === undefined
+            ? null
+            : {
+                id: String(record.appliedSubscriptionId),
+                appliedAt: record.appliedAt ? new Date(record.appliedAt).toISOString() : null,
+                coverageStart: record.coverageStart
+                  ? new Date(record.coverageStart).toISOString()
+                  : null,
+                coverageEnd: record.coverageEnd ? new Date(record.coverageEnd).toISOString() : null,
+                planCode: record.requestedPlanCode,
+                planVersion: record.requestedPlanVersion,
+                billingPeriod: record.billingPeriod,
+                planCode: record.requestedPlanCode,
+                planVersion: record.requestedPlanVersion,
+                billingPeriod: record.billingPeriod,
+                status:
+                  currentSubscription !== null &&
+                  String(currentSubscription._id) === String(record.appliedSubscriptionId)
+                    ? currentSubscription.status
+                    : null,
+              },
+      };
     },
 
     async approveBillingRecord(billingId, body, actor) {
@@ -863,48 +1033,36 @@ function createSubscriptionService(deps) {
 
         let nextSubscription;
         if (subscription.status === 'trial' || subscription.status === 'grace') {
-          nextSubscription = await transitionSubscription(
-            session,
-            subscription,
-            'active',
-            actor,
-            {
-              expectedVersion: subscription.version,
-              at,
-              auditAction: 'subscription.activated_by_billing',
-              patch: {
-                planCode: record.requestedPlanCode,
-                planVersion: record.requestedPlanVersion,
-                planId: plan._id,
-                billingPeriod: record.billingPeriod,
-                periodStartsAt: coverage.coverageStart,
-                periodEndsAt: coverage.coverageEnd,
-                graceEndsAt: null,
-                trialEndsAt: subscription.trialEndsAt ?? null,
-              },
+          nextSubscription = await transitionSubscription(session, subscription, 'active', actor, {
+            expectedVersion: subscription.version,
+            at,
+            auditAction: 'subscription.activated_by_billing',
+            patch: {
+              planCode: record.requestedPlanCode,
+              planVersion: record.requestedPlanVersion,
+              planId: plan._id,
+              billingPeriod: record.billingPeriod,
+              periodStartsAt: coverage.coverageStart,
+              periodEndsAt: coverage.coverageEnd,
+              graceEndsAt: null,
+              trialEndsAt: subscription.trialEndsAt ?? null,
             },
-          );
+          });
         } else if (subscription.status === 'suspended') {
-          nextSubscription = await transitionSubscription(
-            session,
-            subscription,
-            'active',
-            actor,
-            {
-              expectedVersion: subscription.version,
-              at,
-              auditAction: 'subscription.reactivated_by_billing',
-              patch: {
-                planCode: record.requestedPlanCode,
-                planVersion: record.requestedPlanVersion,
-                planId: plan._id,
-                billingPeriod: record.billingPeriod,
-                periodStartsAt: coverage.coverageStart,
-                periodEndsAt: coverage.coverageEnd,
-                graceEndsAt: null,
-              },
+          nextSubscription = await transitionSubscription(session, subscription, 'active', actor, {
+            expectedVersion: subscription.version,
+            at,
+            auditAction: 'subscription.reactivated_by_billing',
+            patch: {
+              planCode: record.requestedPlanCode,
+              planVersion: record.requestedPlanVersion,
+              planId: plan._id,
+              billingPeriod: record.billingPeriod,
+              periodStartsAt: coverage.coverageStart,
+              periodEndsAt: coverage.coverageEnd,
+              graceEndsAt: null,
             },
-          );
+          });
         } else if (subscription.status === 'active') {
           nextSubscription = await store.updateSubscription(session, String(subscription._id), {
             planCode: record.requestedPlanCode,
@@ -931,7 +1089,7 @@ function createSubscriptionService(deps) {
           throw conflict('Billing approval cannot activate the current subscription status');
         }
 
-        const approved = await store.updateBillingRecord(session, String(record._id), {
+        const approved = await updateBillingRecordWithVersion(session, record, {
           status: 'approved',
           reviewedAt: at,
           reviewedBy: actor.actorId,
@@ -970,7 +1128,7 @@ function createSubscriptionService(deps) {
         }
 
         const at = now();
-        const rejected = await store.updateBillingRecord(session, String(record._id), {
+        const rejected = await updateBillingRecordWithVersion(session, record, {
           status: 'rejected',
           reviewedAt: at,
           reviewedBy: actor.actorId,

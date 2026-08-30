@@ -62,6 +62,39 @@ export interface BillingRecordSummary {
   evidenceUploadedAt?: string | null;
 }
 
+export interface SubscriptionSummary {
+  id: string;
+  organizationId: string;
+  status: string;
+  planCode: string;
+  planVersion: number;
+  planId: string | null;
+  billingPeriod: string | null;
+  trialEndsAt: string | null;
+  graceEndsAt: string | null;
+  periodStartsAt: string | null;
+  periodEndsAt: string | null;
+  cancelledAt: string | null;
+  retainedUntil: string | null;
+  version: number;
+}
+
+export interface AppliedSubscriptionSnapshot {
+  id: string;
+  appliedAt: string | null;
+  coverageStart: string | null;
+  coverageEnd: string | null;
+  planCode: string;
+  planVersion: number;
+  billingPeriod: string;
+  status: string | null;
+}
+
+export interface PlatformBillingRecordDetail extends BillingRecordSummary {
+  currentSubscription?: SubscriptionSummary | null;
+  appliedSubscription?: AppliedSubscriptionSnapshot | null;
+}
+
 export interface BillingEvidenceUploadResult {
   evidenceStorageRef: string;
   originalFileName: string;
@@ -306,7 +339,7 @@ export class SubscriptionApi {
     });
   }
 
-  getPlatformBillingRecord(id: string, forceRefresh = false): Observable<BillingRecordSummary> {
+  getPlatformBillingRecord(id: string, forceRefresh = false): Observable<PlatformBillingRecordDetail> {
     return this.queryCache.fetch({
       key: this.queryCache.buildKey('platform:billing-record', { id }),
       policy: 'short',
