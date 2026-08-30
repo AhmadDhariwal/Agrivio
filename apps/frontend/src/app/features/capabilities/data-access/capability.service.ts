@@ -521,6 +521,17 @@ const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string,
   'dashboard.widgets.topSellingProducts': { visible: true },
   'dashboard.widgets.inventoryHealth': { visible: true },
   'dashboard.widgets.recentSales': { visible: true },
+  // Organization Setup controls (10 authoritative controls)
+  setup: { enabled: true },
+  'setup.features.moduleInfo': { enabled: true },
+  'setup.features.summary': { enabled: true },
+  'setup.features.subscriptionNotice': { enabled: true },
+  'setup.features.search': { enabled: true },
+  'setup.features.statusFilter': { enabled: true },
+  'setup.features.taskList': { enabled: true },
+  'setup.features.operationalReadiness': { enabled: true },
+  'setup.features.notes': { enabled: true },
+  'setup.actions.refresh': { allowed: true },
   // Billing module controls (17 authoritative controls)
   billing: { enabled: true },
   'billing.features.moduleInfo': { enabled: true },
@@ -678,6 +689,7 @@ export class CapabilityService {
       'payments.supplierLedger',
       'sales',
       'dashboard',
+      'setup',
     ]);
     return {
       organizationId: this.sessionStore.activeContext()?.organizationId ?? 'test-organization',

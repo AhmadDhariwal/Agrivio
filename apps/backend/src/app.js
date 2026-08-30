@@ -532,6 +532,7 @@ function createApp(options) {
     },
     requireBillingAccess: subscriptions.middlewares.requireBillingAccess,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+    capabilityService: capabilities.capabilityService,
     setupProgressService,
   });
 

@@ -26,6 +26,8 @@ describe('OrganizationSetupPage', () => {
   let activeContextSignal: ReturnType<typeof signal>;
   let hasPermissionMock: ReturnType<typeof vi.fn>;
   let canUseModuleMock: ReturnType<typeof vi.fn>;
+  let canUseFeatureMock: ReturnType<typeof vi.fn>;
+  let canPerformActionMock: ReturnType<typeof vi.fn>;
 
   const sampleSteps: SetupStep[] = [
     {
@@ -76,6 +78,8 @@ describe('OrganizationSetupPage', () => {
     });
     hasPermissionMock = vi.fn().mockReturnValue(true);
     canUseModuleMock = vi.fn().mockReturnValue(true);
+    canUseFeatureMock = vi.fn().mockReturnValue(true);
+    canPerformActionMock = vi.fn().mockReturnValue(true);
 
     TestBed.configureTestingModule({
       imports: [OrganizationSetupPage],
@@ -99,6 +103,8 @@ describe('OrganizationSetupPage', () => {
           provide: CapabilityService,
           useValue: {
             canUseModule: canUseModuleMock,
+            canUseFeature: canUseFeatureMock,
+            canPerformAction: canPerformActionMock,
           },
         },
       ],
@@ -266,6 +272,26 @@ describe('OrganizationSetupPage', () => {
   });
 
   describe('Toolbar & Filtering', () => {
+    it('applies Setup presentation controls without changing the loaded DTO', () => {
+      canUseFeatureMock.mockReturnValue(false);
+      canPerformActionMock.mockReturnValue(false);
+      createComponent();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(component.progress()).toEqual(sampleProgress);
+      expect(el.querySelector('.page-head__title')?.textContent).toContain('Organization setup');
+      expect(el.querySelector('.page-head__eyebrow')).toBeNull();
+      expect(el.querySelector('.page-head__count-pill')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-kpi-row"]')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-subscription-notice"]')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-ready"]')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-steps"]')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-notes"]')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-refresh"]')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-search-input"]')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-status-filter"]')).toBeNull();
+    });
+
     it('filters tasks locally by search query matching title or description', () => {
       createComponent();
 
@@ -379,6 +405,30 @@ describe('OrganizationSetupPage', () => {
 
       const restricted = el.querySelector('[data-testid="setup-restricted-catalog"]');
       expect(restricted).toBeTruthy();
+    });
+
+    it('keeps Customers destination access independent from Setup controls', () => {
+      canUseModuleMock.mockImplementation((mod: string) => mod !== 'customers');
+      getSetupProgressMock.mockReturnValue(
+        of({
+          steps: [
+            {
+              id: 'customers',
+              title: 'Customers',
+              status: 'incomplete',
+              href: '/app/customers',
+              permission: 'customers.view',
+            },
+          ],
+          readyForOperations: false,
+          notes: [],
+        }),
+      );
+      createComponent();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(el.querySelector('[data-testid="setup-link-customers"]')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-restricted-customers"]')).toBeTruthy();
     });
   });
 
