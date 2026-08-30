@@ -167,8 +167,12 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
-  min-width: 140px;
+  min-width: 0;
   flex: 1;
+
+  @media (min-width: 768px) {
+    min-width: 140px;
+  }
 
   &__label {
     font-size: 11px;
