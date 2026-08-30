@@ -1,216 +1,890 @@
-<section class="ag-stack">
-  <agrivio-ui-page-header
-    eyebrow="Subscriptions"
-    title="Billing evidence"
-    lede="Choose an active plan, upload bank transfer, JazzCash, or Easypaisa evidence, then submit for Super Admin review. No payment gateway is integrated."
-  />
-
-  <agrivio-subscription-status-banner [accessState]="accessState()" />
-
-  @if (subscriptionDetail(); as detail) {
-    <div class="ag-card ag-stack ag-stack--tight">
-      <h2>Current subscription</h2>
-      <div class="ag-inline">
-        <agrivio-ui-status-badge
-          [label]="statusLabel(detail['status'])"
-          [tone]="statusTone(detail['status'])"
-        />
-        @if (detail['planCode']) {
-          <span>{{ detail['planCode'] }}</span>
-        }
+<div class="billing-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">BILLING</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">Billing &amp; Subscription</h1>
       </div>
-      <p class="ag-muted">
-        Plan and lifecycle details are informational. Server entitlement checks remain authoritative.
+      <p class="page-head__lede">
+        Manage your subscription plan and submit payment evidence for approval.
       </p>
+    </div>
+  </header>
+
+  <!-- Global Alerts -->
+  @if (errorMessage(); as error) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+    </div>
+  }
+  @if (successMessage(); as success) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="success" [message]="success" />
     </div>
   }
 
-  <div class="ag-card">
-    <form class="ag-form ag-form--with-required-hint" [formGroup]="form" (ngSubmit)="submit()">
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Requested plan"
-          for="requested-plan"
-          [required]="fieldRequired(form.controls.requestedPlanId)"
-        />
-        @if (loadingPlans()) {
-          <agrivio-ui-loading-state label="Loading selectable plans…" />
-        } @else if (plansError(); as error) {
-          <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
-        } @else if (plans().length === 0) {
-          <agrivio-ui-empty-state
-            title="No selectable plans"
-            message="A Super Admin must activate a plan version before billing evidence can be submitted."
-          />
-        } @else {
-          <select
-            id="requested-plan"
-            class="ag-select"
-            formControlName="requestedPlanId"
-            [attr.aria-required]="fieldRequired(form.controls.requestedPlanId) ? 'true' : null"
+  <!-- Subscription Access Status Banner -->
+  <agrivio-subscription-status-banner [accessState]="accessState()" />
+
+  <!-- Top Area: 2-Column Section (Current Subscription + How It Works) -->
+  <section class="top-grid" aria-label="Subscription overview">
+    <!-- Left: Current Subscription Card -->
+    <div class="summary-card" data-testid="current-subscription-card">
+      <div class="summary-card__header">
+        <div class="summary-card__icon summary-card__icon--primary">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
           >
-            @for (plan of plans(); track plan.id) {
-              <option [value]="plan.id">{{ plan.planCode }} v{{ plan.planVersion }}</option>
-            }
-          </select>
-        }
+            <rect width="20" height="14" x="2" y="5" rx="2" />
+            <line x1="2" x2="22" y1="10" y2="10" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="summary-card__title">Current subscription</h2>
+          <p class="summary-card__subtitle">Active tenant entitlement &amp; lifecycle status</p>
+        </div>
       </div>
 
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Billing period"
-          for="billing-period"
-          [required]="fieldRequired(form.controls.billingPeriod)"
-        />
-        <select
-          id="billing-period"
-          class="ag-select"
-          formControlName="billingPeriod"
-          [attr.aria-required]="fieldRequired(form.controls.billingPeriod) ? 'true' : null"
-        >
-          <option value="monthly">Monthly</option>
-          <option value="annual">Annual</option>
-        </select>
-        <p class="ag-muted">{{ listedPriceLabel() }}</p>
-      </div>
+      <div class="summary-card__body">
+        @if (loadingSubscription()) {
+          <agrivio-ui-loading-state label="Loading subscription details…" />
+        } @else if (subscriptionDetail(); as detail) {
+          @if (isSuspended()) {
+            <div class="suspended-notice" role="alert">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <div>
+                <strong>Subscription Suspended</strong>
+                <p>
+                  Operational write access is temporarily paused. Submitting payment evidence for
+                  approval will restore operational access to your organization.
+                </p>
+              </div>
+            </div>
+          }
 
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Payment method"
-          for="payment-method"
-          [required]="fieldRequired(form.controls.paymentMethod)"
-        />
-        <select
-          id="payment-method"
-          class="ag-select"
-          formControlName="paymentMethod"
-          [attr.aria-required]="fieldRequired(form.controls.paymentMethod) ? 'true' : null"
-        >
-          <option value="bank_transfer">Bank transfer</option>
-          <option value="jazzcash">JazzCash</option>
-          <option value="easypaisa">Easypaisa</option>
-        </select>
-      </div>
+          <div class="subscription-overview">
+            <div class="sub-highlight">
+              <div class="sub-highlight__status">
+                <agrivio-ui-status-badge
+                  [label]="statusLabel(detail['status'])"
+                  [tone]="statusTone(detail['status'])"
+                />
+              </div>
+              <div class="sub-highlight__plan">
+                {{ detail['planCode'] || 'No active plan' }}
+              </div>
+              <div class="sub-highlight__period">
+                {{ formatPaymentMethod(detail['billingPeriod']) }}
+              </div>
+              <div class="sub-highlight__date">
+                <span class="sub-highlight__date-label">Period ends</span>
+                <span class="sub-highlight__date-val">
+                  {{ formatDate(detail['periodEndsAt'] || detail['trialEndsAt']) }}
+                </span>
+              </div>
+            </div>
 
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Amount (minor units, PKR paisa)"
-          for="amount"
-          [required]="fieldRequired(form.controls.submittedAmountMinorUnits)"
-        />
-        <input
-          id="amount"
-          class="ag-input"
-          type="number"
-          formControlName="submittedAmountMinorUnits"
-          [attr.aria-required]="fieldRequired(form.controls.submittedAmountMinorUnits) ? 'true' : null"
-        />
-        @if (form.controls.submittedAmountMinorUnits.touched && form.controls.submittedAmountMinorUnits.invalid) {
-          <p class="ag-field__error">Enter an amount greater than zero.</p>
-        }
-      </div>
-
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Payment reference"
-          for="payment-reference"
-          [required]="fieldRequired(form.controls.paymentReference)"
-        />
-        <input
-          id="payment-reference"
-          class="ag-input"
-          type="text"
-          formControlName="paymentReference"
-          [attr.aria-required]="fieldRequired(form.controls.paymentReference) ? 'true' : null"
-        />
-        @if (form.controls.paymentReference.touched && form.controls.paymentReference.invalid) {
-          <p class="ag-field__error">Payment reference is required.</p>
-        }
-      </div>
-
-      <div class="ag-field">
-        <agrivio-ui-field-label label="Payment evidence" for="evidence-file" [required]="true" />
-        <input
-          id="evidence-file"
-          class="ag-input"
-          type="file"
-          accept="image/png,image/jpeg,application/pdf"
-          (change)="onFileSelected($event)"
-          aria-required="true"
-        />
-        @if (uploading()) {
-          <p class="ag-muted">Uploading evidence…</p>
-        } @else if (uploadedEvidence(); as evidence) {
-          <p class="ag-muted">
-            Uploaded {{ evidence.originalFileName }} ({{ evidence.contentType }},
-            {{ evidence.size }} bytes)
+            <dl class="sub-meta-grid">
+              <div class="sub-meta-item">
+                <dt class="sub-meta-label">Status</dt>
+                <dd class="sub-meta-value">
+                  <agrivio-ui-status-badge
+                    [label]="statusLabel(detail['status'])"
+                    [tone]="statusTone(detail['status'])"
+                  />
+                </dd>
+              </div>
+              <div class="sub-meta-item">
+                <dt class="sub-meta-label">Current plan</dt>
+                <dd class="sub-meta-value font-medium">
+                  {{ detail['planCode'] || '—' }}
+                </dd>
+              </div>
+              <div class="sub-meta-item">
+                <dt class="sub-meta-label">Billing period</dt>
+                <dd class="sub-meta-value">
+                  {{ formatPaymentMethod(detail['billingPeriod']) }}
+                </dd>
+              </div>
+              <div class="sub-meta-item">
+                <dt class="sub-meta-label">Period start</dt>
+                <dd class="sub-meta-value tabular-num">
+                  {{ formatDate(detail['periodStartsAt']) }}
+                </dd>
+              </div>
+              <div class="sub-meta-item">
+                <dt class="sub-meta-label">Next billing date</dt>
+                <dd class="sub-meta-value tabular-num">
+                  {{ formatDate(detail['periodEndsAt'] || detail['trialEndsAt']) }}
+                </dd>
+              </div>
+              @if (detail['graceEndsAt']) {
+                <div class="sub-meta-item sub-meta-item--warning">
+                  <dt class="sub-meta-label">Grace period end</dt>
+                  <dd class="sub-meta-value tabular-num">
+                    {{ formatDate(detail['graceEndsAt']) }}
+                  </dd>
+                </div>
+              }
+            </dl>
+          </div>
+          <p class="summary-card__footnote">
+            Plan and lifecycle details are informational. Server entitlement checks remain authoritative.
           </p>
-        } @else if (selectedFileName()) {
-          <p class="ag-muted">Selected {{ selectedFileName() }}</p>
+        } @else {
+          <agrivio-ui-empty-state
+            title="No active subscription"
+            message="Your organization does not currently have an assigned subscription plan."
+          />
         }
       </div>
+    </div>
 
-      <div class="ag-field">
-        <agrivio-ui-field-label label="Notes" for="billing-notes" />
-        <textarea id="billing-notes" class="ag-input" rows="3" formControlName="notes"></textarea>
+    <!-- Right: How It Works Card -->
+    <div class="summary-card" data-testid="how-it-works-card">
+      <div class="summary-card__header">
+        <div class="summary-card__icon summary-card__icon--neutral">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="summary-card__title">How it works</h2>
+          <p class="summary-card__subtitle">Verification &amp; activation lifecycle</p>
+        </div>
       </div>
 
-      <button
-        type="submit"
-        class="ag-btn ag-btn--primary"
-        [disabled]="submitting() || uploading() || form.invalid || uploadedEvidence() === null || plans().length === 0"
-      >
-        {{ submitting() ? 'Submitting…' : 'Submit evidence' }}
-      </button>
-    </form>
-  </div>
+      <div class="summary-card__body">
+        <ol class="workflow-steps">
+          <li class="workflow-step">
+            <div class="workflow-step__num">1</div>
+            <div class="workflow-step__content">
+              <strong class="workflow-step__title">Submit</strong>
+              <p class="workflow-step__desc">
+                Select your preferred plan and upload proof of payment (bank transfer, JazzCash, or Easypaisa receipt).
+              </p>
+            </div>
+          </li>
+          <li class="workflow-step">
+            <div class="workflow-step__num">2</div>
+            <div class="workflow-step__content">
+              <strong class="workflow-step__title">Review</strong>
+              <p class="workflow-step__desc">
+                Super Admin reviews transaction reference and authenticates the payment evidence.
+              </p>
+            </div>
+          </li>
+          <li class="workflow-step">
+            <div class="workflow-step__num">3</div>
+            <div class="workflow-step__content">
+              <strong class="workflow-step__title">Activate</strong>
+              <p class="workflow-step__desc">
+                Subscription activates or extends automatically upon review approval.
+              </p>
+            </div>
+          </li>
+        </ol>
+        <p class="summary-card__footnote">
+          Submitting evidence queues a review record. Verification by platform administrators is required for activation.
+        </p>
+      </div>
+    </div>
+  </section>
 
-  <section class="ag-stack">
-    <h2>Billing history</h2>
-    @if (loadingHistory()) {
-      <agrivio-ui-loading-state label="Loading billing records…" />
-    } @else if (historyError(); as error) {
-      <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
-    } @else if (records().length === 0) {
-      <agrivio-ui-empty-state
-        title="No billing records yet"
-        message="Submitted evidence will appear here after the first successful submission."
-      />
+  <!-- Available Plans Section -->
+  <section class="plans-section" aria-label="Available subscription plans">
+    <div class="section-head">
+      <div>
+        <h2 class="section-head__title">Available plans</h2>
+        <p class="section-head__lede">Choose a plan that fits your business needs.</p>
+      </div>
+    </div>
+
+    @if (loadingPlans()) {
+      <div class="state-container">
+        <agrivio-ui-loading-state label="Loading selectable plans…" />
+      </div>
+    } @else if (plansError(); as error) {
+      <div class="alert-container">
+        <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary retry-btn"
+          (click)="reloadPlans(true)"
+        >
+          Retry
+        </button>
+      </div>
+    } @else if (activePlans().length === 0) {
+      <div class="state-container">
+        <agrivio-ui-empty-state
+          title="No selectable plans"
+          message="A Super Admin must activate a plan version before billing evidence can be submitted."
+        />
+      </div>
     } @else {
-      <div class="ag-table-wrap">
-        <table class="ag-table">
+      <div class="plans-grid" data-testid="plans-grid">
+        @for (plan of activePlans(); track plan.id) {
+          <article
+            class="plan-card"
+            [class.plan-card--selected]="isSelectedPlan(plan)"
+            [class.plan-card--current]="isCurrentPlan(plan)"
+          >
+            <div class="plan-card__header">
+              <div class="plan-card__title-wrap">
+                <h3 class="plan-card__name">{{ plan.planCode }}</h3>
+              </div>
+              <div class="plan-card__badges">
+                @if (isCurrentPlan(plan)) {
+                  <span class="plan-pill plan-pill--current">Current plan</span>
+                }
+                @if (isSelectedPlan(plan)) {
+                  <span class="plan-pill plan-pill--selected">Selected</span>
+                }
+                @if (plan.annualDiscountPercent) {
+                  <span class="plan-pill plan-pill--discount">
+                    {{ plan.annualDiscountPercent }}% annual discount
+                  </span>
+                }
+              </div>
+            </div>
+
+            <div class="plan-card__pricing">
+              <div class="plan-price">
+                <span class="plan-price__amount">
+                  {{ formatPrice(plan.monthlyPriceMinorUnits) }}
+                </span>
+                <span class="plan-price__unit">/ month</span>
+              </div>
+              @if (plan.annualPriceMinorUnits) {
+                <div class="plan-price-sub">
+                  or {{ formatPrice(plan.annualPriceMinorUnits) }} billed annually
+                </div>
+              }
+            </div>
+
+            <div class="plan-card__features">
+              <span class="plan-features-label">Authoritative Limits &amp; Features:</span>
+              <ul class="plan-limits-list">
+                @if (plan.limits && plan.limits['products'] !== undefined && plan.limits['products'] !== null) {
+                  <li class="plan-limit-item">
+                    <svg class="plan-limit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>Up to {{ plan.limits['products'].toLocaleString() }} products</span>
+                  </li>
+                } @else {
+                  <li class="plan-limit-item">
+                    <svg class="plan-limit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>Unlimited products</span>
+                  </li>
+                }
+
+                @if (plan.limits && plan.limits['activeUsers'] !== undefined && plan.limits['activeUsers'] !== null) {
+                  <li class="plan-limit-item">
+                    <svg class="plan-limit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>Up to {{ plan.limits['activeUsers'] }} active users</span>
+                  </li>
+                }
+
+                @if (plan.limits && plan.limits['branches'] !== undefined && plan.limits['branches'] !== null) {
+                  <li class="plan-limit-item">
+                    <svg class="plan-limit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>{{ plan.limits['branches'] }} branches</span>
+                  </li>
+                }
+
+                @if (plan.limits && plan.limits['warehouses'] !== undefined && plan.limits['warehouses'] !== null) {
+                  <li class="plan-limit-item">
+                    <svg class="plan-limit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>{{ plan.limits['warehouses'] }} warehouses</span>
+                  </li>
+                }
+
+                @if (plan.limits && plan.limits['customers'] !== undefined && plan.limits['customers'] !== null) {
+                  <li class="plan-limit-item">
+                    <svg class="plan-limit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>Up to {{ plan.limits['customers'].toLocaleString() }} customers</span>
+                  </li>
+                }
+
+                @if (plan.limits && plan.limits['suppliers'] !== undefined && plan.limits['suppliers'] !== null) {
+                  <li class="plan-limit-item">
+                    <svg class="plan-limit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>Up to {{ plan.limits['suppliers'].toLocaleString() }} suppliers</span>
+                  </li>
+                }
+
+                @if (plan.entitlements && plan.entitlements['imports']) {
+                  <li class="plan-limit-item">
+                    <svg class="plan-limit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>Master data imports included</span>
+                  </li>
+                }
+
+                @if (plan.entitlements && plan.entitlements['reportsExports']) {
+                  <li class="plan-limit-item">
+                    <svg class="plan-limit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>Reports &amp; data exports</span>
+                  </li>
+                }
+
+                @if (plan.entitlements && plan.entitlements['supportLevelRef']) {
+                  <li class="plan-limit-item">
+                    <svg class="plan-limit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>Support: {{ plan.entitlements['supportLevelRef'] }}</span>
+                  </li>
+                }
+              </ul>
+            </div>
+
+            <div class="plan-card__action">
+              <button
+                type="button"
+                class="ag-btn w-full"
+                [class.ag-btn--primary]="isSelectedPlan(plan)"
+                [class.ag-btn--secondary]="!isSelectedPlan(plan)"
+                (click)="choosePlan(plan)"
+                data-testid="choose-plan-btn"
+              >
+                {{ isSelectedPlan(plan) ? 'Selected' : 'Choose plan' }}
+              </button>
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </section>
+
+  <!-- Submit Payment Evidence Form Section -->
+  <section class="form-card" aria-label="Submit payment evidence">
+    <div class="form-card__header">
+      <div class="form-card__icon">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+          <polyline points="10 9 9 9 8 9" />
+        </svg>
+      </div>
+      <div class="form-card__title-group">
+        <h2 class="form-card__title">Submit payment evidence</h2>
+        <p class="form-card__subtitle">
+          Submit offline payment reference and uploaded receipt for Super Admin verification.
+        </p>
+      </div>
+      <span class="required-hint">* Required fields</span>
+    </div>
+
+    <div class="form-card__body">
+      <form
+        class="prod-form"
+        [formGroup]="form"
+        (ngSubmit)="submit()"
+        data-testid="billing-submit-form"
+      >
+        <div class="form-grid form-grid--2col">
+          <!-- Requested Plan -->
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Requested plan"
+              for="requested-plan"
+              [required]="fieldRequired(form.controls.requestedPlanId)"
+            />
+            <select
+              id="requested-plan"
+              class="ag-select"
+              formControlName="requestedPlanId"
+              data-testid="requested-plan-select"
+              [class.ag-input--invalid]="fieldError(form.controls.requestedPlanId, 'Requested plan', formSubmitAttempted())"
+              [attr.aria-required]="fieldRequired(form.controls.requestedPlanId) ? 'true' : null"
+            >
+              <option value="" disabled>Select active subscription plan</option>
+              @for (plan of activePlans(); track plan.id) {
+                <option [value]="plan.id">
+                  {{ plan.planCode }} ({{ formatPrice(plan.monthlyPriceMinorUnits) }}/mo)
+                </option>
+              }
+            </select>
+            @if (fieldError(form.controls.requestedPlanId, 'Requested plan', formSubmitAttempted()); as planErr) {
+              <p class="field-error" role="alert">{{ planErr }}</p>
+            }
+          </div>
+
+          <!-- Billing Period -->
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Billing period"
+              for="billing-period"
+              [required]="fieldRequired(form.controls.billingPeriod)"
+            />
+            <select
+              id="billing-period"
+              class="ag-select"
+              formControlName="billingPeriod"
+              data-testid="billing-period-select"
+              [class.ag-input--invalid]="fieldError(form.controls.billingPeriod, 'Billing period', formSubmitAttempted())"
+              [attr.aria-required]="fieldRequired(form.controls.billingPeriod) ? 'true' : null"
+            >
+              <option value="monthly">Monthly</option>
+              <option value="annual">Annual</option>
+            </select>
+            <p class="field-hint">{{ listedPriceDisplay() }}</p>
+            @if (fieldError(form.controls.billingPeriod, 'Billing period', formSubmitAttempted()); as periodErr) {
+              <p class="field-error" role="alert">{{ periodErr }}</p>
+            }
+          </div>
+
+          <!-- Payment Method -->
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Payment method"
+              for="payment-method"
+              [required]="fieldRequired(form.controls.paymentMethod)"
+            />
+            <select
+              id="payment-method"
+              class="ag-select"
+              formControlName="paymentMethod"
+              data-testid="payment-method-select"
+              [class.ag-input--invalid]="fieldError(form.controls.paymentMethod, 'Payment method', formSubmitAttempted())"
+              [attr.aria-required]="fieldRequired(form.controls.paymentMethod) ? 'true' : null"
+            >
+              <option value="bank_transfer">Bank transfer</option>
+              <option value="jazzcash">JazzCash</option>
+              <option value="easypaisa">Easypaisa</option>
+            </select>
+            @if (fieldError(form.controls.paymentMethod, 'Payment method', formSubmitAttempted()); as methodErr) {
+              <p class="field-error" role="alert">{{ methodErr }}</p>
+            }
+          </div>
+
+          <!-- Amount (Human-readable PKR UX without technical wording) -->
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Amount"
+              for="amount-input"
+              [required]="fieldRequired(form.controls.submittedAmountMinorUnits)"
+            />
+            <div class="input-with-affix">
+              <span class="input-affix">PKR</span>
+              <input
+                id="amount-input"
+                class="ag-input input-with-affix__control tabular-num"
+                type="text"
+                placeholder="150,000.00"
+                data-testid="billing-amount-input"
+                [value]="amountPkrInput()"
+                (input)="onAmountInput($event)"
+                (blur)="onAmountBlur()"
+                [class.ag-input--invalid]="fieldError(form.controls.submittedAmountMinorUnits, 'Amount', formSubmitAttempted())"
+                [attr.aria-required]="fieldRequired(form.controls.submittedAmountMinorUnits) ? 'true' : null"
+              />
+            </div>
+            <p class="field-hint tabular-num">
+              Formatted: {{ amountPreviewDisplay() }}
+            </p>
+            @if (fieldError(form.controls.submittedAmountMinorUnits, 'Amount', formSubmitAttempted()); as amtErr) {
+              <p class="field-error" role="alert">{{ amtErr }}</p>
+            }
+          </div>
+
+          <!-- Payment Reference -->
+          <div class="ag-field form-field--full-width">
+            <agrivio-ui-field-label
+              label="Payment reference"
+              for="payment-reference"
+              [required]="fieldRequired(form.controls.paymentReference)"
+            />
+            <input
+              id="payment-reference"
+              class="ag-input"
+              type="text"
+              formControlName="paymentReference"
+              placeholder="e.g. NBP-FT-2025-05-00125"
+              data-testid="billing-reference-input"
+              [class.ag-input--invalid]="fieldError(form.controls.paymentReference, 'Payment reference', formSubmitAttempted())"
+              [attr.aria-required]="fieldRequired(form.controls.paymentReference) ? 'true' : null"
+            />
+            <p class="field-hint">
+              Transaction or deposit reference number from your bank or mobile wallet slip.
+            </p>
+            @if (fieldError(form.controls.paymentReference, 'Payment reference', formSubmitAttempted()); as refErr) {
+              <p class="field-error" role="alert">{{ refErr }}</p>
+            }
+          </div>
+
+          <!-- Payment Evidence Upload Area -->
+          <div class="ag-field form-field--full-width">
+            <agrivio-ui-field-label
+              label="Payment evidence"
+              for="evidence-file-input"
+              [required]="true"
+            />
+
+            @if (uploading()) {
+              <div class="upload-progress-card">
+                <div class="spinner"></div>
+                <div class="upload-progress-info">
+                  <span class="upload-progress-title">Uploading evidence file…</span>
+                  <span class="upload-progress-sub">Checking file format and storing securely</span>
+                </div>
+              </div>
+            } @else if (uploadedEvidence(); as evidence) {
+              <div class="uploaded-file-card" data-testid="uploaded-evidence-card">
+                <div class="uploaded-file-card__icon">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                </div>
+                <div class="uploaded-file-card__meta">
+                  <span class="uploaded-file-card__name" [title]="evidence.originalFileName">
+                    {{ evidence.originalFileName }}
+                  </span>
+                  <span class="uploaded-file-card__info">
+                    {{ evidence.contentType }} · {{ formatFileSize(evidence.size) }} · Ready for review
+                  </span>
+                </div>
+                <div class="uploaded-file-card__actions">
+                  <span class="uploaded-badge">Uploaded</span>
+                  <button
+                    type="button"
+                    class="remove-file-btn"
+                    (click)="removeEvidence($event)"
+                    title="Remove or replace file"
+                    aria-label="Remove uploaded file"
+                    data-testid="remove-evidence-btn"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            } @else {
+              <div class="upload-dropzone">
+                <input
+                  id="evidence-file-input"
+                  class="upload-dropzone__input"
+                  type="file"
+                  accept="image/png,image/jpeg,application/pdf"
+                  (change)="onFileSelected($event)"
+                  aria-required="true"
+                  data-testid="evidence-file-input"
+                />
+                <div class="upload-dropzone__content">
+                  <div class="upload-dropzone__icon">
+                    <svg
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                  </div>
+                  <div class="upload-dropzone__text">
+                    <span class="upload-dropzone__prompt">
+                      Upload receipt / proof of payment
+                    </span>
+                    <span class="upload-dropzone__sub">
+                      PNG, JPG, JPEG, or PDF up to 5MB
+                    </span>
+                  </div>
+                </div>
+              </div>
+            }
+
+            @if (uploadError(); as uploadErr) {
+              <p class="field-error" role="alert" data-testid="upload-error">{{ uploadErr }}</p>
+            }
+            @if (formSubmitAttempted() && !uploadedEvidence() && !uploading()) {
+              <p class="field-error" role="alert">Payment evidence is required.</p>
+            }
+          </div>
+
+          <!-- Notes (Optional) -->
+          <div class="ag-field form-field--full-width">
+            <agrivio-ui-field-label label="Notes (optional)" for="billing-notes" />
+            <textarea
+              id="billing-notes"
+              class="ag-input textarea-field"
+              rows="3"
+              formControlName="notes"
+              placeholder="e.g. Payment for monthly subscription renewal."
+              data-testid="billing-notes-input"
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- Form Actions Footer -->
+        <div class="form-actions">
+          <button
+            type="submit"
+            class="ag-btn ag-btn--primary submit-btn"
+            [disabled]="submitting() || uploading() || form.invalid || uploadedEvidence() === null || activePlans().length === 0"
+            data-testid="submit-evidence-btn"
+          >
+            @if (submitting()) {
+              <span class="btn-spinner" aria-hidden="true"></span>
+              Submitting evidence…
+            } @else {
+              Submit evidence
+            }
+          </button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Billing History Section -->
+  <section class="history-section" aria-label="Billing history">
+    <div class="section-head">
+      <div>
+        <h2 class="section-head__title">Billing history</h2>
+        <p class="section-head__lede">Track your payment submissions and review status.</p>
+      </div>
+    </div>
+
+    @if (loadingHistory()) {
+      <div class="state-container">
+        <agrivio-ui-loading-state label="Loading billing history…" />
+      </div>
+    } @else if (historyError(); as error) {
+      <div class="alert-container">
+        <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary retry-btn"
+          (click)="reloadHistory(true)"
+        >
+          Retry
+        </button>
+      </div>
+    } @else if (records().length === 0) {
+      <div class="state-container">
+        <agrivio-ui-empty-state
+          title="No billing submissions yet"
+          message="Submitted payment evidence will appear here after your first payment submission."
+        />
+      </div>
+    } @else {
+      <!-- Desktop Dense Table View -->
+      <div class="table-container desktop-table-only" data-testid="billing-history-table">
+        <table class="prod-table">
           <thead>
             <tr>
-              <th>Submitted</th>
-              <th>Plan</th>
-              <th>Period</th>
-              <th>Amount</th>
-              <th>Method / reference</th>
-              <th>Status</th>
-              <th>Evidence</th>
+              <th scope="col" class="prod-table__th col-date">Date Submitted</th>
+              <th scope="col" class="prod-table__th col-plan">Plan</th>
+              <th scope="col" class="prod-table__th col-period">Period</th>
+              <th scope="col" class="prod-table__th col-amount">Amount</th>
+              <th scope="col" class="prod-table__th col-method">Payment Method</th>
+              <th scope="col" class="prod-table__th col-ref">Reference</th>
+              <th scope="col" class="prod-table__th col-status">Status</th>
+              <th scope="col" class="prod-table__th col-evidence">Evidence</th>
+              <th scope="col" class="prod-table__th col-reviewer">Reviewed By</th>
+              <th scope="col" class="prod-table__th col-reviewed-at">Reviewed At</th>
+              <th scope="col" class="prod-table__th prod-table__th--actions col-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
             @for (item of records(); track item.id) {
-              <tr>
-                <td>{{ displayOrDash(item.submittedAt) }}</td>
-                <td>{{ item.requestedPlanCode }} v{{ item.requestedPlanVersion }}</td>
-                <td>{{ item.billingPeriod }}</td>
-                <td>{{ item.submittedAmountMinorUnits }} {{ item.currency }}</td>
-                <td>
-                  {{ item.paymentMethod }}
-                  <div class="ag-muted">{{ item.paymentReferenceNormalized }}</div>
+              <tr
+                class="prod-table__row"
+                [class.prod-table__row--selected]="selectedRecord()?.id === item.id"
+              >
+                <!-- Date Submitted -->
+                <td class="prod-table__td tabular-num">
+                  {{ formatDateTime(item.submittedAt) }}
                 </td>
-                <td>
-                  <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+
+                <!-- Plan -->
+                <td class="prod-table__td font-medium">
+                  {{ item.requestedPlanCode }}
+                </td>
+
+                <!-- Period -->
+                <td class="prod-table__td">
+                  {{ formatPaymentMethod(item.billingPeriod) }}
+                </td>
+
+                <!-- Amount -->
+                <td class="prod-table__td tabular-num font-medium">
+                  {{ formatPrice(item.submittedAmountMinorUnits) }}
+                </td>
+
+                <!-- Method -->
+                <td class="prod-table__td">
+                  {{ formatPaymentMethod(item.paymentMethod) }}
+                </td>
+
+                <!-- Reference -->
+                <td class="prod-table__td" [title]="item.paymentReferenceNormalized">
+                  <span class="ref-text">{{ item.paymentReferenceNormalized }}</span>
+                </td>
+
+                <!-- Status -->
+                <td class="prod-table__td">
+                  <agrivio-ui-status-badge
+                    [label]="statusLabel(item.status)"
+                    [tone]="statusTone(item.status)"
+                  />
                   @if (item.status === 'rejected' && item.rejectionReason) {
-                    <p class="ag-muted">{{ item.rejectionReason }}</p>
+                    <div class="table-rejection-tip" [title]="item.rejectionReason">
+                      {{ item.rejectionReason }}
+                    </div>
                   }
                 </td>
-                <td>
-                  <div>{{ displayOrDash(item.evidenceOriginalFileName) }}</div>
-                  <button type="button" class="ag-btn ag-btn--secondary ag-btn--sm" (click)="downloadEvidence(item)">
-                    Download
+
+                <!-- Evidence -->
+                <td class="prod-table__td">
+                  @if (item.evidenceOriginalFileName) {
+                    <button
+                      type="button"
+                      class="evidence-download-link"
+                      (click)="downloadEvidence(item, $event)"
+                      [title]="'Download ' + item.evidenceOriginalFileName"
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                      <span class="evidence-name text-truncate">{{ item.evidenceOriginalFileName }}</span>
+                    </button>
+                  } @else {
+                    <span class="muted-dash">—</span>
+                  }
+                </td>
+
+                <!-- Reviewed By -->
+                <td class="prod-table__td">
+                  {{ item.reviewedBy || '—' }}
+                </td>
+
+                <!-- Reviewed At -->
+                <td class="prod-table__td tabular-num">
+                  {{ formatDate(item.reviewedAt) }}
+                </td>
+
+                <!-- Actions -->
+                <td class="prod-table__td prod-table__td--actions">
+                  <button
+                    type="button"
+                    class="row-action-btn"
+                    (click)="openInspector(item)"
+                    title="Inspect billing details"
+                    aria-label="Inspect billing details"
+                    data-testid="inspect-billing-btn"
+                  >
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
                   </button>
                 </td>
               </tr>
@@ -218,13 +892,231 @@
           </tbody>
         </table>
       </div>
+
+      <!-- Mobile Purpose-Built Cards View -->
+      <div class="mobile-cards-only" data-testid="billing-history-mobile-cards">
+        @for (item of records(); track item.id) {
+          <article class="history-mobile-card">
+            <div class="history-mobile-card__header">
+              <div>
+                <span class="history-mobile-card__plan">
+                  {{ item.requestedPlanCode }}
+                </span>
+                <span class="history-mobile-card__date tabular-num">
+                  {{ formatDateTime(item.submittedAt) }}
+                </span>
+              </div>
+              <agrivio-ui-status-badge
+                [label]="statusLabel(item.status)"
+                [tone]="statusTone(item.status)"
+              />
+            </div>
+
+            <div class="history-mobile-card__body">
+              <div class="history-mobile-row">
+                <span class="history-mobile-label">Amount:</span>
+                <span class="history-mobile-val tabular-num font-medium">
+                  {{ formatPrice(item.submittedAmountMinorUnits) }} ({{ formatPaymentMethod(item.billingPeriod) }})
+                </span>
+              </div>
+
+              <div class="history-mobile-row">
+                <span class="history-mobile-label">Method &amp; Ref:</span>
+                <span class="history-mobile-val">
+                  {{ formatPaymentMethod(item.paymentMethod) }} · {{ item.paymentReferenceNormalized }}
+                </span>
+              </div>
+
+              @if (item.status === 'rejected' && item.rejectionReason) {
+                <div class="history-mobile-card__rejection">
+                  <strong>Rejection reason:</strong> {{ item.rejectionReason }}
+                </div>
+              }
+
+              @if (item.evidenceOriginalFileName) {
+                <div class="history-mobile-row">
+                  <span class="history-mobile-label">Evidence:</span>
+                  <button
+                    type="button"
+                    class="evidence-download-link"
+                    (click)="downloadEvidence(item, $event)"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    <span class="evidence-name text-truncate">{{ item.evidenceOriginalFileName }}</span>
+                  </button>
+                </div>
+              }
+            </div>
+
+            <div class="history-mobile-card__foot">
+              <button
+                type="button"
+                class="ag-btn ag-btn--secondary w-full"
+                (click)="openInspector(item)"
+              >
+                Inspect details
+              </button>
+            </div>
+          </article>
+        }
+      </div>
     }
   </section>
 
-  @if (successMessage(); as success) {
-    <agrivio-ui-alert [message]="success" tone="success" />
+  <!-- Slide-Over Inspector Drawer (Products-Style Detail Drawer) -->
+  @if (selectedRecord(); as rec) {
+    <div class="drawer-backdrop" (click)="closeInspector()"></div>
+    <aside
+      class="billing-inspector"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="inspector-title"
+      data-testid="billing-inspector"
+    >
+      <div class="billing-inspector__head">
+        <div>
+          <span class="billing-inspector__eyebrow">SUBMISSION INSPECTOR</span>
+          <h3 id="inspector-title" class="billing-inspector__title">
+            {{ rec.requestedPlanCode }}
+          </h3>
+        </div>
+        <div class="billing-inspector__head-actions">
+          <agrivio-ui-status-badge
+            [label]="statusLabel(rec.status)"
+            [tone]="statusTone(rec.status)"
+          />
+          <button
+            type="button"
+            class="billing-inspector__close"
+            (click)="closeInspector()"
+            aria-label="Close inspector"
+            data-testid="close-inspector-btn"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="billing-inspector__body">
+        @if (rec.status === 'rejected' && rec.rejectionReason) {
+          <div class="inspector-section inspector-section--danger">
+            <h4 class="inspector-section__title">Rejection Details</h4>
+            <p class="rejection-text">{{ rec.rejectionReason }}</p>
+            <p class="rejection-subtext">
+              This record is historical. Please review the reason above and submit new payment evidence to proceed.
+            </p>
+          </div>
+        }
+
+        <div class="inspector-section">
+          <h4 class="inspector-section__title">Transaction Summary</h4>
+          <dl class="inspector-dl">
+            <div class="inspector-dl-row">
+              <dt>Amount</dt>
+              <dd class="tabular-num font-medium">{{ formatPrice(rec.submittedAmountMinorUnits) }}</dd>
+            </div>
+            <div class="inspector-dl-row">
+              <dt>Billing Period</dt>
+              <dd>{{ formatPaymentMethod(rec.billingPeriod) }}</dd>
+            </div>
+            <div class="inspector-dl-row">
+              <dt>Payment Method</dt>
+              <dd>{{ formatPaymentMethod(rec.paymentMethod) }}</dd>
+            </div>
+            <div class="inspector-dl-row">
+              <dt>Payment Reference</dt>
+              <dd class="ref-text">{{ rec.paymentReferenceNormalized }}</dd>
+            </div>
+            <div class="inspector-dl-row">
+              <dt>Date Submitted</dt>
+              <dd class="tabular-num">{{ formatDateTime(rec.submittedAt) }}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="inspector-section">
+          <h4 class="inspector-section__title">Review &amp; Entitlement</h4>
+          <dl class="inspector-dl">
+            <div class="inspector-dl-row">
+              <dt>Review Status</dt>
+              <dd>
+                <agrivio-ui-status-badge
+                  [label]="statusLabel(rec.status)"
+                  [tone]="statusTone(rec.status)"
+                />
+              </dd>
+            </div>
+            <div class="inspector-dl-row">
+              <dt>Reviewed By</dt>
+              <dd>{{ rec.reviewedBy || 'Pending Super Admin review' }}</dd>
+            </div>
+            <div class="inspector-dl-row">
+              <dt>Reviewed At</dt>
+              <dd class="tabular-num">{{ formatDate(rec.reviewedAt) }}</dd>
+            </div>
+            @if (rec.coverageStart) {
+              <div class="inspector-dl-row">
+                <dt>Coverage Start</dt>
+                <dd class="tabular-num">{{ formatDate(rec.coverageStart) }}</dd>
+              </div>
+            }
+            @if (rec.coverageEnd) {
+              <div class="inspector-dl-row">
+                <dt>Coverage End</dt>
+                <dd class="tabular-num">{{ formatDate(rec.coverageEnd) }}</dd>
+              </div>
+            }
+          </dl>
+        </div>
+
+        @if (rec.notes) {
+          <div class="inspector-section">
+            <h4 class="inspector-section__title">Submission Notes</h4>
+            <p class="inspector-notes">{{ rec.notes }}</p>
+          </div>
+        }
+
+        <div class="inspector-section">
+          <h4 class="inspector-section__title">Payment Evidence File</h4>
+          @if (rec.evidenceOriginalFileName) {
+            <div class="inspector-file-box">
+              <div class="inspector-file-info">
+                <span class="inspector-file-name">{{ rec.evidenceOriginalFileName }}</span>
+                <span class="inspector-file-meta">
+                  {{ rec.evidenceContentType }} · {{ formatFileSize(rec.evidenceSize) }}
+                </span>
+              </div>
+              <button
+                type="button"
+                class="ag-btn ag-btn--secondary ag-btn--sm"
+                (click)="downloadEvidence(rec, $event)"
+                data-testid="inspector-download-btn"
+              >
+                Download
+              </button>
+            </div>
+          } @else {
+            <p class="ag-muted">No evidence file associated with this record.</p>
+          }
+        </div>
+      </div>
+
+      <div class="billing-inspector__foot">
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary w-full"
+          (click)="closeInspector()"
+        >
+          Close
+        </button>
+      </div>
+    </aside>
   }
-  @if (errorMessage(); as error) {
-    <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
-  }
-</section>
+</div>
