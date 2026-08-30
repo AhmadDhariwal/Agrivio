@@ -10,15 +10,50 @@ const {
 } = require('./gross-profit');
 const { evaluateFeatureEntitlement } = require('../subscriptions/entitlement');
 const { forbidden, validationFailed } = require('../../platform/errors/app-error');
+const { assertOptionalLocationFilters } = require('../identity/assignment-scope');
 const { REPORT_BY_KEY, REPORT_FAMILIES } = require('./report-catalog');
 const { parseReportFilters, parseReportKey } = require('./report-filters');
 const { renderExport } = require('./report-exports');
 const { createReportQueries } = require('./report-queries');
+const {
+  REPORT_CAPABILITY_KEY_BY_REPORT_KEY,
+} = require('../capabilities/capability.registry');
+
+const EXPORT_ACTION_BY_FORMAT = Object.freeze({
+  pdf: 'reports.actions.exportPdf',
+  excel: 'reports.actions.exportExcel',
+  csv: 'reports.actions.exportCsv',
+});
+
+const DASHBOARD_CONTROL_KEYS = Object.freeze({
+  datePeriodFilter: 'dashboard.features.datePeriodFilter',
+  branchFilter: 'dashboard.features.branchFilter',
+  warehouseFilter: 'dashboard.features.warehouseFilter',
+  financialSummary: 'dashboard.widgets.financialSummary',
+  accountSummary: 'dashboard.widgets.accountSummary',
+  salesVsPurchasesTrend: 'dashboard.widgets.salesVsPurchasesTrend',
+  grossProfitTrend: 'dashboard.widgets.grossProfitTrend',
+  topSellingProducts: 'dashboard.widgets.topSellingProducts',
+  inventoryHealth: 'dashboard.widgets.inventoryHealth',
+  recentSales: 'dashboard.widgets.recentSales',
+});
 
 function omitFormat(input) {
   const next = { ...input };
   delete next.format;
   return next;
+}
+
+function shiftIsoDate(iso, days) {
+  const parts = String(iso).split('-').map((part) => Number(part));
+  if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) {
+    return iso;
+  }
+  const date = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + days));
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function createReportingService(deps) {
@@ -29,6 +64,7 @@ function createReportingService(deps) {
   const alertsService = deps.alertsService;
   const resolveOrganizationTimezone = deps.resolveOrganizationTimezone;
   const resolvePlanEntitlements = deps.resolvePlanEntitlements;
+  const capabilityService = deps.capabilityService ?? null;
   const now = deps.now ?? (() => new Date());
   const queries = createReportQueries(deps);
 
@@ -49,6 +85,87 @@ function createReportingService(deps) {
     if (reportsExports.allowed !== true) {
       throw forbidden('Report export is not entitled for this subscription');
     }
+  }
+
+  async function assertReportCapability(organizationId, key, mode, authContext) {
+    if (capabilityService === null) {
+      return;
+    }
+    await capabilityService.assertAllowed(organizationId, key, mode, {
+      permissions: authContext?.permissions ?? [],
+    });
+  }
+
+  async function resolveDashboardProjection(organizationId, authContext) {
+    const enabled = Object.fromEntries(
+      Object.keys(DASHBOARD_CONTROL_KEYS).map((key) => [key, true]),
+    );
+    if (typeof capabilityService?.resolveEffective !== 'function') {
+      return enabled;
+    }
+    const effective = await capabilityService.resolveEffective(organizationId, {
+      permissions: authContext?.permissions ?? [],
+    });
+    const controls = new Map(effective.controls.map((control) => [control.key, control]));
+    for (const [name, key] of Object.entries(DASHBOARD_CONTROL_KEYS)) {
+      const value = controls.get(key)?.effectiveValue;
+      enabled[name] = value?.enabled === true || value?.visible === true;
+    }
+    return enabled;
+  }
+
+  function applyDashboardProjection(data, projection) {
+    const result = { ...data };
+    const remove = (fields) => {
+      for (const field of fields) {
+        delete result[field];
+      }
+    };
+    if (!projection.financialSummary) {
+      remove([
+        'todaysSales',
+        'todaysPurchases',
+        'todaysExpenses',
+        'grossProfit',
+        'periodSales',
+        'periodPurchases',
+        'periodGrossProfit',
+        'netSalesRevenue',
+        'netCogs',
+        'customerReceivables',
+        'supplierPayables',
+        'stockValuation',
+      ]);
+    }
+    if (!projection.accountSummary) {
+      remove([
+        'cashBalances',
+        'bankBalances',
+        'jazzCashBalance',
+        'easypaisaBalance',
+        'accountDistribution',
+      ]);
+    }
+    if (!projection.salesVsPurchasesTrend) remove(['salesVsPurchases']);
+    if (!projection.grossProfitTrend) remove(['grossProfitTrend']);
+    if (!projection.topSellingProducts) remove(['topSellingProducts']);
+    if (!projection.inventoryHealth) {
+      remove([
+        'lowStockCount',
+        'upcomingExpiryCount',
+        'expiredStockCount',
+        'deadStockSummary',
+      ]);
+    }
+    if (!projection.recentSales) remove(['recentSales']);
+    return result;
+  }
+
+  async function buildReportDataset(organizationId, key, rawFilters, authContext) {
+    const filters = parseReportFilters(key, rawFilters);
+    assertOptionalLocationFilters(authContext, filters);
+    const dataset = await queries.queryReport(organizationId, key, filters, authContext);
+    return { ...dataset, filters };
   }
 
   async function sumTodaySales(organizationId, businessDate, authContext) {
@@ -170,7 +287,7 @@ function createReportingService(deps) {
     }));
   }
 
-  async function topSellingProducts(organizationId, authContext, limit = 10) {
+  async function topSellingProducts(organizationId, authContext, limit = 10, filters = {}) {
     const { items } = await salesService.listSales(
       organizationId,
       { status: 'posted' },
@@ -178,6 +295,21 @@ function createReportingService(deps) {
     );
     const qtyTotals = new Map();
     for (const sale of items) {
+      if (filters.fromDate || filters.toDate) {
+        const day = String(sale.saleDate ?? '').slice(0, 10);
+        if (filters.fromDate && day < filters.fromDate) {
+          continue;
+        }
+        if (filters.toDate && day > filters.toDate) {
+          continue;
+        }
+      }
+      if (filters.branchId && String(sale.branchId ?? '') !== filters.branchId) {
+        continue;
+      }
+      if (filters.warehouseId && String(sale.warehouseId ?? '') !== filters.warehouseId) {
+        continue;
+      }
       for (const line of sale.lines ?? []) {
         const productId = String(line.productId);
         const current = qtyTotals.get(productId) ?? {
@@ -226,12 +358,19 @@ function createReportingService(deps) {
     },
     async getReport(organizationId, reportKey, rawFilters, authContext) {
       const key = parseReportKey(reportKey);
-      const filters = parseReportFilters(key, rawFilters);
-      const dataset = await queries.queryReport(organizationId, key, filters, authContext);
-      return {
-        ...dataset,
-        filters,
-      };
+      await assertReportCapability(
+        organizationId,
+        REPORT_CAPABILITY_KEY_BY_REPORT_KEY[key],
+        'enabled',
+        authContext,
+      );
+      await assertReportCapability(
+        organizationId,
+        'reports.actions.run',
+        'allowed',
+        authContext,
+      );
+      return buildReportDataset(organizationId, key, rawFilters, authContext);
     },
     async exportReport(organizationId, reportKey, rawInput, authContext) {
       await assertReportsExportEntitlement(organizationId);
@@ -243,7 +382,19 @@ function createReportingService(deps) {
           { field: 'format', message: `format must be one of: ${(REPORT_BY_KEY[key].exports ?? []).join(', ')}` },
         ]);
       }
-      const dataset = await this.getReport(
+      await assertReportCapability(
+        organizationId,
+        REPORT_CAPABILITY_KEY_BY_REPORT_KEY[key],
+        'enabled',
+        authContext,
+      );
+      await assertReportCapability(
+        organizationId,
+        EXPORT_ACTION_BY_FORMAT[format],
+        'allowed',
+        authContext,
+      );
+      const dataset = await buildReportDataset(
         organizationId,
         key,
         input.filters ?? omitFormat(input),
@@ -251,7 +402,8 @@ function createReportingService(deps) {
       );
       return renderExport(dataset, format);
     },
-    async getDashboard(organizationId, authContext) {
+    async getDashboard(organizationId, authContext, query = {}) {
+      const projection = await resolveDashboardProjection(organizationId, authContext);
       const entitlements =
         typeof resolvePlanEntitlements === 'function'
           ? await resolvePlanEntitlements(organizationId)
@@ -262,30 +414,98 @@ function createReportingService(deps) {
       );
 
       const businessDate = await resolveOrgBusinessDate(organizationId);
+      const fromDate =
+        projection.datePeriodFilter &&
+        typeof query.fromDate === 'string' &&
+        query.fromDate.trim() !== ''
+          ? query.fromDate.trim()
+          : shiftIsoDate(businessDate, -6);
+      const toDate =
+        projection.datePeriodFilter &&
+        typeof query.toDate === 'string' &&
+        query.toDate.trim() !== ''
+          ? query.toDate.trim()
+          : businessDate;
+      const branchId =
+        projection.branchFilter &&
+        typeof query.branchId === 'string' &&
+        query.branchId.trim() !== ''
+          ? query.branchId.trim()
+          : undefined;
+      const warehouseId =
+        projection.warehouseFilter &&
+        typeof query.warehouseId === 'string' &&
+        query.warehouseId.trim() !== ''
+          ? query.warehouseId.trim()
+          : undefined;
+      const periodFilters = {
+        fromDate,
+        toDate,
+        ...(branchId ? { branchId } : {}),
+        ...(warehouseId ? { warehouseId } : {}),
+      };
+      assertOptionalLocationFilters(authContext, { branchId, warehouseId });
+
       const [
         todaySales,
         todayPurchases,
         todayExpenses,
         grossProfit,
+        periodSales,
+        periodPurchases,
+        periodGrossProfit,
         accountBalances,
         partyBalances,
         alertSummaries,
         recent,
         topProducts,
+        stockValuation,
       ] = await Promise.all([
         sumTodaySales(organizationId, businessDate, authContext),
         sumTodayPurchases(organizationId, businessDate, authContext),
         sumTodayExpenses(organizationId, businessDate),
         computeGrossProfit(organizationId, authContext, {}),
+        queries.querySales(organizationId, { ...periodFilters, groupBy: 'day' }, authContext),
+        queries.queryPurchases(organizationId, { ...periodFilters, groupBy: 'day' }, authContext),
+        computeGrossProfit(organizationId, authContext, periodFilters),
         sumAccountBalancesByType(organizationId),
         sumReceivablesPayables(organizationId),
         alertsService.getAlertSummaries(organizationId, authContext),
         recentSales(organizationId, authContext),
-        topSellingProducts(organizationId, authContext),
+        topSellingProducts(organizationId, authContext, 10, periodFilters),
+        queries.queryStockValuation
+          ? queries.queryStockValuation(
+              organizationId,
+              warehouseId ? { warehouseId } : {},
+              authContext,
+            )
+          : Promise.resolve({ totals: { inventoryValue: '0.00' } }),
       ]);
 
-      return {
+      const salesByDay = new Map(
+        (periodSales.rows ?? []).map((row) => [String(row.groupKey), String(row.total ?? '0.00')]),
+      );
+      const purchasesByDay = new Map(
+        (periodPurchases.rows ?? []).map((row) => [String(row.groupKey), String(row.total ?? '0.00')]),
+      );
+      const days = [...new Set([...salesByDay.keys(), ...purchasesByDay.keys()])].sort();
+      const salesVsPurchases = days.map((date) => ({
+        date,
+        sales: { amount: salesByDay.get(date) ?? '0.00', currency: 'PKR' },
+        purchases: { amount: purchasesByDay.get(date) ?? '0.00', currency: 'PKR' },
+      }));
+      const grossProfitTrend = (periodSales.rows ?? []).map((row) => {
+        const salesMinor = moneyAmountToMinor({ amount: String(row.total ?? '0'), currency: 'PKR' });
+        const cogsMinor = moneyAmountToMinor({ amount: String(row.cogs ?? '0'), currency: 'PKR' });
+        return {
+          date: String(row.groupKey),
+          grossProfit: toMoneyDto(salesMinor - cogsMinor),
+        };
+      });
+
+      return applyDashboardProjection({
         businessDate,
+        period: { fromDate, toDate },
         entitlements: {
           reportsExportsAllowed: reportsExports.allowed === true,
         },
@@ -293,21 +513,38 @@ function createReportingService(deps) {
         todaysPurchases: toMoneyDto(todayPurchases),
         todaysExpenses: toMoneyDto(todayExpenses),
         grossProfit: grossProfit.grossProfit,
+        periodSales: { amount: String(periodSales.totals?.total ?? '0.00'), currency: 'PKR' },
+        periodPurchases: { amount: String(periodPurchases.totals?.total ?? '0.00'), currency: 'PKR' },
+        periodGrossProfit: periodGrossProfit.grossProfit,
         netSalesRevenue: grossProfit.netSalesRevenue,
         netCogs: grossProfit.netCogs,
+        stockValuation: {
+          amount: String(stockValuation.totals?.inventoryValue ?? '0.00'),
+          currency: 'PKR',
+        },
         ...accountBalances,
         ...partyBalances,
+        accountDistribution: [
+          { key: 'cash', label: 'Cash', balance: accountBalances.cashBalances },
+          { key: 'bank', label: 'Bank', balance: accountBalances.bankBalances },
+          { key: 'jazzcash', label: 'JazzCash', balance: accountBalances.jazzCashBalance },
+          { key: 'easypaisa', label: 'Easypaisa', balance: accountBalances.easypaisaBalance },
+        ],
+        salesVsPurchases,
+        grossProfitTrend,
         lowStockCount: alertSummaries.lowStockCount,
         upcomingExpiryCount: alertSummaries.upcomingExpiryCount,
         expiredStockCount: alertSummaries.expiredStockCount,
         deadStockSummary: alertSummaries.deadStock,
         recentSales: recent,
         topSellingProducts: topProducts,
-      };
+      }, projection);
     },
   };
 }
 
 module.exports = {
+  DASHBOARD_CONTROL_KEYS,
+  EXPORT_ACTION_BY_FORMAT,
   createReportingService,
 };

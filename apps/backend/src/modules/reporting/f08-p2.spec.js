@@ -453,6 +453,23 @@ describe('F08 P2 inventory/ledger/account/expense/alert reports', () => {
       },
       alertsService: alerts.alertsService,
       inventoryService: inventory.inventoryService,
+      catalogService: {
+        async findProductsByIds(_organizationId, productIds) {
+          return productIds.map((productId) => ({
+            id: productId,
+            name: `Product ${productId}`,
+          }));
+        },
+      },
+      locationsService: {
+        async findWarehousesByIds(_organizationId, warehouseIds) {
+          return warehouseIds.map((warehouseId) => ({
+            id: warehouseId,
+            name: `Warehouse ${warehouseId}`,
+            code: 'WH',
+          }));
+        },
+      },
       returnsService: { async listReturns() { return { items: [] }; } },
       resolveOrganizationTimezone: async () => 'Asia/Karachi',
       resolvePlanEntitlements: async () => ({ reportsExports: true }),
@@ -461,6 +478,8 @@ describe('F08 P2 inventory/ledger/account/expense/alert reports', () => {
 
     const stock = await reporting.reportingService.getReport('org-1', 'stock', {}, auth);
     expect(stock.rows[0].quantityBase).toBe(balances.items[0].quantityBase);
+    expect(stock.rows[0].productName).toBe('Product prod-a');
+    expect(stock.rows[0].warehouseName).toBe('Warehouse wh-1 (WH)');
     const otherOrgStock = await reporting.reportingService.getReport('org-2', 'stock', {}, ownerContext({ organizationId: 'org-2' }));
     expect(otherOrgStock.rows[0].quantityBase).toBe('9.0000');
     expect(stock.rows[0].quantityBase).not.toBe(otherOrgStock.rows[0].quantityBase);
@@ -621,8 +640,72 @@ describe('F08 P2 exports and permissions', () => {
     exp(cashier, {}, (error) => {
       exportError = error;
     });
-    expect(viewError?.code).toBe('FORBIDDEN');
-    expect(exportError?.code).toBe('FORBIDDEN');
+    expect(viewError?.code).toBe('PERMISSION_DENIED');
+    expect(exportError?.code).toBe('PERMISSION_DENIED');
+  });
+});
+
+describe('F08 P2 employee-sales display composition', () => {
+  it('resolves employee names with one bulk lookup for the result set', async () => {
+    let bulkLookupCalls = 0;
+    const employeesService = {
+      async findEmployeeDisplayNamesByUserIds(organizationId, userIds) {
+        bulkLookupCalls += 1;
+        expect(organizationId).toBe('org-1');
+        expect([...userIds].sort()).toEqual(['cashier-1', 'owner-1']);
+        return new Map([
+          ['owner-1', 'Owner User'],
+          ['cashier-1', 'Cashier User'],
+        ]);
+      },
+    };
+
+    const reporting = createReportingModule({
+      salesService: {
+        async listSales() {
+          return {
+            items: [
+              postedSale({ postedBy: 'owner-1', saleTotal: money('100.00') }),
+              postedSale({ id: 'sale-2', postedBy: 'cashier-1', saleTotal: money('50.00') }),
+              postedSale({ id: 'sale-3', postedBy: 'owner-1', saleTotal: money('25.00') }),
+            ],
+          };
+        },
+      },
+      purchasesService: { async listPurchases() { return { items: [] }; } },
+      accountsService: {
+        async listAccounts() { return { items: [] }; },
+        async listExpenses() { return { items: [] }; },
+      },
+      paymentsService: {
+        async listCustomerReceivableBalances() { return { items: [] }; },
+        async listSupplierPayableBalances() { return { items: [] }; },
+      },
+      alertsService: {
+        async getAlertSummaries() {
+          return {
+            lowStockCount: 0,
+            upcomingExpiryCount: 0,
+            expiredStockCount: 0,
+            deadStock: { count: 0 },
+          };
+        },
+      },
+      returnsService: { async listReturns() { return { items: [] }; } },
+      employeesService,
+      resolveOrganizationTimezone: async () => 'Asia/Karachi',
+      resolvePlanEntitlements: async () => ({ reportsExports: true }),
+      now: () => new Date('2026-08-14T05:00:00.000Z'),
+    });
+
+    const report = await reporting.reportingService.getReport('org-1', 'employee-sales', {}, ownerContext());
+    expect(bulkLookupCalls).toBe(1);
+    expect(report.rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ employeeName: 'Owner User', saleCount: '2' }),
+        expect.objectContaining({ employeeName: 'Cashier User', saleCount: '1' }),
+      ]),
+    );
   });
 });
 

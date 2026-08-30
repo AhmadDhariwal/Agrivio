@@ -44,6 +44,28 @@ function createMongoosePaymentsStore() {
       return PaymentModel.findOne({ _id: id, organizationId }).lean().exec();
     },
 
+    async findPaymentByCorrectionOfId(organizationId, correctionOfId, session) {
+      if (!mongoose.isValidObjectId(correctionOfId)) {
+        return null;
+      }
+      const query = PaymentModel.findOne({ organizationId, correctionOfId });
+      if (session) {
+        query.session(session);
+      }
+      return query.lean().exec();
+    },
+
+    async updatePayment(session, organizationId, id, patch) {
+      const updated = await PaymentModel.findOneAndUpdate(
+        { _id: id, organizationId },
+        { $set: patch },
+        { new: true, ...withSession(session) },
+      )
+        .lean()
+        .exec();
+      return updated;
+    },
+
     async listPayments(organizationId, filter = {}) {
       const query = { organizationId, status: 'posted', partyType: filter.partyType ?? 'supplier' };
       if (filter.partyType === 'supplier' && filter.supplierId) {
@@ -52,7 +74,21 @@ function createMongoosePaymentsStore() {
       if (filter.partyType === 'customer' && filter.customerId) {
         query.customerId = filter.customerId;
       }
-      return PaymentModel.find(query).sort({ postedAt: -1 }).lean().exec();
+      return PaymentModel.find(query).sort({ postedAt: -1, _id: -1 }).lean().exec();
+    },
+
+    async listPaymentsPage(organizationId, filter = {}, pagination = {}) {
+      const query = { organizationId, status: 'posted', partyType: filter.partyType ?? 'supplier' };
+      if (filter.partyType === 'supplier' && filter.supplierId) query.supplierId = filter.supplierId;
+      if (filter.partyType === 'customer' && filter.customerId) query.customerId = filter.customerId;
+      const paymentDate = String(filter.paymentDate ?? filter.search ?? '').trim();
+      if (paymentDate !== '') query.paymentDate = paymentDate;
+      const { skip = 0, pageSize = 25 } = pagination;
+      const [total, items] = await Promise.all([
+        PaymentModel.countDocuments(query).exec(),
+        PaymentModel.find(query).sort({ postedAt: -1, _id: -1 }).skip(skip).limit(pageSize).lean().exec(),
+      ]);
+      return { items, total };
     },
 
     async listAllocationsByPayment(organizationId, paymentId) {
@@ -93,6 +129,18 @@ function createInMemoryPaymentsStore() {
 
   return {
     async insertPayment(_session, doc) {
+      if (doc.correctionOfId) {
+        for (const existing of payments.values()) {
+          if (
+            String(existing.organizationId) === String(doc.organizationId) &&
+            String(existing.correctionOfId) === String(doc.correctionOfId)
+          ) {
+            const error = new Error('duplicate');
+            error.agrivioDuplicate = true;
+            throw error;
+          }
+        }
+      }
       const id = `payment-${paymentSeq++}`;
       const record = { _id: id, ...doc };
       payments.set(id, record);
@@ -111,6 +159,24 @@ function createInMemoryPaymentsStore() {
       if (!record || String(record.organizationId) !== String(organizationId)) {
         return null;
       }
+      return { ...record };
+    },
+
+    async findPaymentByCorrectionOfId(organizationId, correctionOfId) {
+      const record = [...payments.values()].find(
+        (item) =>
+          String(item.organizationId) === String(organizationId) &&
+          String(item.correctionOfId) === String(correctionOfId),
+      );
+      return record ? { ...record } : null;
+    },
+
+    async updatePayment(_session, organizationId, id, patch) {
+      const record = payments.get(id);
+      if (!record || String(record.organizationId) !== String(organizationId)) {
+        return null;
+      }
+      Object.assign(record, patch);
       return { ...record };
     },
 
@@ -133,7 +199,16 @@ function createInMemoryPaymentsStore() {
           return true;
         })
         .map((item) => ({ ...item }))
-        .sort((a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime());
+        .sort((a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime() || String(b._id).localeCompare(String(a._id)));
+    },
+
+    async listPaymentsPage(organizationId, filter = {}, pagination = {}) {
+      const paymentDate = String(filter.paymentDate ?? filter.search ?? '').trim();
+      const all = (await this.listPayments(organizationId, filter)).filter(
+        (item) => paymentDate === '' || String(item.paymentDate) === paymentDate,
+      );
+      const { skip = 0, pageSize = 25 } = pagination;
+      return { items: all.slice(skip, skip + pageSize), total: all.length };
     },
 
     async listAllocationsByPayment(organizationId, paymentId) {

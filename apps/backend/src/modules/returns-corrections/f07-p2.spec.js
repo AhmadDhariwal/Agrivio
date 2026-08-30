@@ -257,7 +257,7 @@ describe('F07 P2 return reversal and purchase-return integration', () => {
       expect(saleAfter.body.data.saleTotal.amount).toBe('900.00');
 
       const balances = await fetchJson(baseUrl, 'GET', API_INVENTORY_BALANCES_PATH, null, {}, jar);
-      const saleBalance = balances.body.data.items.find(
+      const saleBalance = balances.body.data.find(
         (item) => item.productId === saleProduct.body.data.id && !item.batchId,
       );
       expect(saleBalance.quantityBase).toBe('90.0000');
@@ -270,11 +270,11 @@ describe('F07 P2 return reversal and purchase-return integration', () => {
         {},
         jar,
       );
-      const originalMoves = movements.body.data.items.filter(
+      const originalMoves = movements.body.data.filter(
         (item) =>
           item.sourceType === 'sales_return' && item.sourceId === postedReturn.body.data.id,
       );
-      const reversalMoves = movements.body.data.items.filter(
+      const reversalMoves = movements.body.data.filter(
         (item) =>
           item.sourceType === 'sales_return_reversal' &&
           item.sourceId === reversed.body.data.reversedByCorrectiveTransactionId,
@@ -338,7 +338,7 @@ describe('F07 P2 return reversal and purchase-return integration', () => {
         {},
         jar,
       );
-      const unsellableBalance = afterUnsellable.body.data.items.find(
+      const unsellableBalance = afterUnsellable.body.data.find(
         (item) => item.productId === saleProduct.body.data.id && !item.batchId,
       );
       expect(unsellableBalance.quantityBase).toBe('90.0000');
@@ -366,7 +366,7 @@ describe('F07 P2 return reversal and purchase-return integration', () => {
         {},
         jar,
       );
-      const clearedUnsellable = afterUnsellableReverse.body.data.items.find(
+      const clearedUnsellable = afterUnsellableReverse.body.data.find(
         (item) => item.productId === saleProduct.body.data.id && !item.batchId,
       );
       expect(clearedUnsellable.quantityBase).toBe('90.0000');
@@ -451,7 +451,7 @@ describe('F07 P2 return reversal and purchase-return integration', () => {
         {},
         jar,
       );
-      const purchaseBalance = purchaseBalances.body.data.items.find(
+      const purchaseBalance = purchaseBalances.body.data.find(
         (item) => item.productId === purchaseProduct.body.data.id && !item.batchId,
       );
       expect(purchaseBalance.quantityBase).toBe('10.0000');

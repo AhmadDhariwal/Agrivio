@@ -10,6 +10,7 @@ const {
 const { createSubscriptionService } = require('./subscription.service');
 const { registerSubscriptionRoutes } = require('./routes/subscription.routes');
 const { createRequireSubscriptionAccessMiddleware } = require('./entitlement.middleware');
+const { createBillingEvidenceStorage } = require('./billing-evidence-storage');
 
 function createSubscriptionModule(options) {
   const persistence = options.persistence ?? 'memory';
@@ -26,9 +27,16 @@ function createSubscriptionModule(options) {
       : createMockTransactionSessionPort().port);
 
   const transactionRunner = options.transactionRunner ?? createTransactionRunner(sessionPort);
+  const evidenceStorage =
+    options.evidenceStorage ??
+    createBillingEvidenceStorage({
+      adapter: persistence === 'mongoose' ? 'local' : 'memory',
+    });
+
   const subscriptionService = createSubscriptionService({
     store,
     transactionRunner,
+    evidenceStorage,
     ...(options.now === undefined ? {} : { now: options.now }),
     ...(options.trialDays === undefined ? {} : { trialDays: options.trialDays }),
     ...(options.graceDays === undefined ? {} : { graceDays: options.graceDays }),
@@ -37,6 +45,7 @@ function createSubscriptionModule(options) {
 
   return {
     store,
+    evidenceStorage,
     subscriptionService,
     middlewares: {
       requireBillingAccess: createRequireSubscriptionAccessMiddleware({

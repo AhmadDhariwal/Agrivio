@@ -1,6 +1,6 @@
+import { API, activationTokenFromUrl } from './e2e-origins';
 import { expect, test, type Page } from '@playwright/test';
 
-const API = 'http://localhost:3000';
 const OWNER_PASSWORD = 'owner-activation-passphrase';
 
 test.describe('F04 P2 inventory vertical slice', () => {
@@ -31,7 +31,7 @@ test.describe('F04 P2 inventory vertical slice', () => {
     const activationUrl = page.getByTestId('activation-url');
     const urlText = (await activationUrl.textContent())?.trim() ?? '';
     const activationToken =
-      new URL(urlText, 'http://localhost:4200').searchParams.get('token') ?? '';
+      activationTokenFromUrl(urlText);
 
     await page.getByTestId('sign-out').click();
     await page.goto(`/activate?token=${encodeURIComponent(activationToken)}`);
@@ -48,7 +48,7 @@ test.describe('F04 P2 inventory vertical slice', () => {
     await page.getByTestId('warehouse-save').click();
     await expect(page.getByTestId('warehouses-list')).toContainText('P2 Warehouse');
 
-    await page.getByRole('link', { name: 'Categories' }).click();
+    await page.getByRole('link', { name: 'Categories', exact: true }).click();
     await page.getByTestId('category-create-link').click();
     await page.getByTestId('category-name').fill('P2 Fertilizers');
     await page.getByTestId('category-product-class').selectOption('fertilizer');

@@ -255,7 +255,7 @@ describe('F07 P1 linked sales returns, without-invoice, and resolution', () => {
         {},
         jar,
       );
-      const seedBalance = balancesAfterPartial.body.data.items.find(
+      const seedBalance = balancesAfterPartial.body.data.find(
         (item) => item.productId === product.body.data.id && !item.batchId,
       );
       expect(seedBalance.quantityBase).toBe('94.0000');
@@ -268,7 +268,7 @@ describe('F07 P1 linked sales returns, without-invoice, and resolution', () => {
         {},
         jar,
       );
-      const sellableReturnMoves = movementsAfterPartial.body.data.items.filter(
+      const sellableReturnMoves = movementsAfterPartial.body.data.filter(
         (item) =>
           item.sourceType === 'sales_return' &&
           item.sourceId === partialPost.body.data.id &&
@@ -300,7 +300,7 @@ describe('F07 P1 linked sales returns, without-invoice, and resolution', () => {
         jar,
       );
       expect(
-        cashMovesAfterPartial.body.data.items.some(
+        cashMovesAfterPartial.body.data.some(
           (item) => item.sourceType === 'sales_return_refund',
         ),
       ).toBe(false);
@@ -370,7 +370,7 @@ describe('F07 P1 linked sales returns, without-invoice, and resolution', () => {
         {},
         jar,
       );
-      const seedAfterUnsellable = balancesAfterUnsellable.body.data.items.find(
+      const seedAfterUnsellable = balancesAfterUnsellable.body.data.find(
         (item) => item.productId === product.body.data.id && !item.batchId,
       );
       expect(seedAfterUnsellable.quantityBase).toBe('94.0000');
@@ -450,7 +450,7 @@ describe('F07 P1 linked sales returns, without-invoice, and resolution', () => {
         {},
         jar,
       );
-      const refundMoves = cashMoves.body.data.items.filter(
+      const refundMoves = cashMoves.body.data.filter(
         (item) =>
           item.sourceType === 'sales_return_refund' && item.sourceId === cashRefundPost.body.data.id,
       );
@@ -547,7 +547,7 @@ describe('F07 P1 linked sales returns, without-invoice, and resolution', () => {
       );
       expect(rightBatchPost.status).toBe(200);
       const batchMoves = await fetchJson(baseUrl, 'GET', API_INVENTORY_MOVEMENTS_PATH, null, {}, jar);
-      const restored = batchMoves.body.data.items.find(
+      const restored = batchMoves.body.data.find(
         (item) => item.sourceId === rightBatchPost.body.data.id,
       );
       expect(restored.batchId).toBe(soldBatchId);
@@ -641,7 +641,7 @@ describe('F07 P1 linked sales returns, without-invoice, and resolution', () => {
         {},
         jar,
       );
-      const digitalRefund = jazzMoves.body.data.items.filter(
+      const digitalRefund = jazzMoves.body.data.filter(
         (item) =>
           item.sourceType === 'sales_return_refund' && item.sourceId === withoutPost.body.data.id,
       );

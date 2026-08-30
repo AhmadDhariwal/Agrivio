@@ -482,8 +482,11 @@ Ownership note: [MODULE_BOUNDARIES.md](MODULE_BOUNDARIES.md) assigns invoice seq
 | Collection | Owning module | Scope | Notes |
 | --- | --- | --- | --- |
 | `notification_items` | Alerts | Tenant-owned | Presentation or acknowledgement state only |
+| `notification_read_states` | Alerts | Tenant-owned | Per-user read state for active notification presentation |
 
 `notification_items` must not become the source of truth for stock, expiry, receivables, or payables.
+Notification read and acknowledgement state are presentation concerns and remain independent from
+whether the authoritative source condition is active or resolved.
 
 ### 8.15 Reporting
 
@@ -534,7 +537,7 @@ Operations records must not contain normal business transactions.
 | Tenant root (`organizations`) | 1 |
 | Reporting-owned collections | 0 |
 
-Tenant-owned collections (35): `organization_memberships`, `organization_settings`, `subscriptions`, `subscription_billing_records`, `branches`, `warehouses`, `access_assignments`, `invoice_sequences`, `product_categories`, `products`, `product_packaging_units`, `product_prices`, `customers`, `suppliers`, `product_batches`, `stock_movements`, `inventory_balances`, `inventory_cost_states`, `warehouse_transfers`, `stock_adjustments`, `purchases`, `sales`, `payments`, `payment_allocations`, `ledger_effects`, `accounts`, `account_movements`, `expense_categories`, `expenses`, `returns`, `corrective_transactions`, `notification_items`, `import_jobs`, `import_row_errors`, `audit_events`.
+Tenant-owned collections (36): `organization_memberships`, `organization_settings`, `subscriptions`, `subscription_billing_records`, `branches`, `warehouses`, `access_assignments`, `invoice_sequences`, `product_categories`, `products`, `product_packaging_units`, `product_prices`, `customers`, `suppliers`, `product_batches`, `stock_movements`, `inventory_balances`, `inventory_cost_states`, `warehouse_transfers`, `stock_adjustments`, `purchases`, `sales`, `payments`, `payment_allocations`, `ledger_effects`, `accounts`, `account_movements`, `expense_categories`, `expenses`, `returns`, `corrective_transactions`, `notification_items`, `notification_read_states`, `import_jobs`, `import_row_errors`, `audit_events`.
 
 Platform-owned / user-scoped (7): `users`, `auth_sessions`, `password_reset_tokens`, `account_activation_tokens`, `subscription_plans`, `backup_operation_records`, `restore_operation_records`.
 
@@ -899,6 +902,7 @@ Do not invent values for unresolved items.
 | `accounts`, `account_movements`, `expense_categories`, `expenses` | Accounts and Expenses | FR-ACCOUNT-*, FR-EXPENSE-* | BR-ACCOUNT, BR-EXPENSE | Authoritative (balances projected from movements) |
 | `returns`, `corrective_transactions` | Returns and Corrections | FR-RETURN-* | BR-RETURN, BR-CORRECTION | Authoritative |
 | `notification_items` | Alerts | FR-ALERT-* | BR-ALERT | Presentation projection only |
+| `notification_read_states` | Alerts | FR-ALERT-007 | BR-ALERT-008 | Per-user presentation state only |
 | (none) | Reporting | FR-REPORT-* | BR-REPORT | No authoritative collections |
 | `import_jobs`, `import_row_errors` | Imports | FR-IMPORT-* | BR-IMPORT | Authoritative job/error state |
 | `audit_events` | Audit | FR-AUDIT-* | BR-AUDIT | Authoritative audit |

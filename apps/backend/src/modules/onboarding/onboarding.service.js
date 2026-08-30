@@ -1,5 +1,10 @@
-const { conflict, forbidden, notFound } = require('../../platform/errors/app-error');
+const { conflict, forbidden, notFound, validationFailed } = require('../../platform/errors/app-error');
 const { createAuditWriter } = require('../../platform/audit/audit-writer');
+const {
+  createIdempotencyService,
+  createInMemoryIdempotencyStore,
+  createMongooseIdempotencyStore,
+} = require('../../platform/idempotency/idempotency-service');
 const {
   buildApplicantFingerprint,
   generateActivationToken,
@@ -28,6 +33,110 @@ function createOnboardingService(deps) {
     append: (session, event) => store.appendAuditEvent(session, event),
   });
   let subscriptionBridge = deps.subscriptionBridge ?? null;
+  const idempotency =
+    deps.idempotency ??
+    createIdempotencyService(
+      deps.persistence === 'mongoose'
+        ? createMongooseIdempotencyStore()
+        : createInMemoryIdempotencyStore(),
+    );
+
+  function requireIdempotencyKey(idempotencyKey) {
+    if (typeof idempotencyKey !== 'string' || idempotencyKey.trim() === '') {
+      throw validationFailed('Idempotency-Key header is required', [
+        { field: 'Idempotency-Key', message: 'Idempotency-Key header is required' },
+      ]);
+    }
+    return idempotencyKey.trim();
+  }
+
+  function wrapIdempotentResult(result) {
+    return {
+      replay: result.replay,
+      data: result.response.body,
+      statusCode: result.response.statusCode,
+    };
+  }
+
+  async function createPendingOrganization(session, input, actorId, auditAction) {
+    const fingerprint = buildApplicantFingerprint(input);
+    const existingOrg = await store.findOrganizationByFingerprint(fingerprint);
+    if (existingOrg !== null) {
+      return {
+        duplicate: true,
+        organizationId: String(existingOrg['_id']),
+        status: existingOrg['status'],
+        ownerEmail: input.ownerEmail,
+      };
+    }
+
+    const existingUser = await store.findUserByEmailNormalized(input.ownerEmail);
+    if (existingUser !== null && existingUser['status'] === 'active') {
+      throw conflict('An account with this email already exists');
+    }
+
+    const user =
+      existingUser ??
+      (await store.insertUser(session, {
+        email: input.ownerEmail,
+        emailNormalized: input.ownerEmail,
+        displayName: input.ownerDisplayName,
+        status: 'pending_activation',
+        version: 1,
+      }));
+
+    const organization = await store.insertOrganization(session, {
+      name: input.organizationName,
+      nameNormalized: input.organizationName.toLowerCase(),
+      timezone: input.timezone,
+      status: 'pending_approval',
+      applicantFingerprint: fingerprint,
+      ownerUserId: user['_id'],
+      version: 1,
+    });
+
+    await store.insertMembership(session, {
+      organizationId: organization['_id'],
+      userId: user['_id'],
+      role: 'Owner',
+      status: 'pending',
+      conditionalPermissionGrants: [],
+      version: 1,
+    });
+
+    const planRef =
+      subscriptionBridge === null
+        ? { planCode: 'Starter', planVersion: 1, planId: null }
+        : await subscriptionBridge.resolveTrialPlanReference('Starter');
+
+    await subscriptionStore.insertSubscription(session, {
+      organizationId: organization['_id'],
+      status: 'pending_approval',
+      planCode: planRef.planCode,
+      planVersion: planRef.planVersion,
+      planId: planRef.planId,
+      version: 1,
+    });
+
+    await auditWriter.appendBusinessEvent(session, {
+      organizationId: String(organization['_id']),
+      actorId,
+      action: auditAction,
+      resourceType: 'organization',
+      resourceId: String(organization['_id']),
+      metadata: {
+        ownerEmail: input.ownerEmail,
+        applicantFingerprint: fingerprint,
+      },
+    });
+
+    return {
+      duplicate: false,
+      organizationId: String(organization['_id']),
+      status: 'pending_approval',
+      ownerEmail: input.ownerEmail,
+    };
+  }
 
   return {
     setSubscriptionBridge(bridge) {
@@ -43,95 +152,135 @@ function createOnboardingService(deps) {
      */
     async submitActivationRequest(body) {
       const input = parseOrganizationActivationRequest(body);
-      const fingerprint = buildApplicantFingerprint(input);
-
       return deps.transactionRunner.run(async (session) => {
-        const existingOrg = await store.findOrganizationByFingerprint(fingerprint);
-        if (existingOrg !== null) {
-          return {
-            duplicate: true,
-            organizationId: String(existingOrg['_id']),
-            status: existingOrg['status'],
-            ownerEmail: input.ownerEmail,
-          };
-        }
-
-        const existingUser = await store.findUserByEmailNormalized(input.ownerEmail);
-        if (existingUser !== null && existingUser['status'] === 'active') {
-          throw conflict('An account with this email already exists');
-        }
-
-        const user =
-          existingUser ??
-          (await store.insertUser(session, {
-            email: input.ownerEmail,
-            emailNormalized: input.ownerEmail,
-            displayName: input.ownerDisplayName,
-            status: 'pending_activation',
-            version: 1,
-          }));
-
-        const organization = await store.insertOrganization(session, {
-          name: input.organizationName,
-          nameNormalized: input.organizationName.toLowerCase(),
-          timezone: input.timezone,
-          status: 'pending_approval',
-          applicantFingerprint: fingerprint,
-          ownerUserId: user['_id'],
-          version: 1,
-        });
-
-        await store.insertMembership(session, {
-          organizationId: organization['_id'],
-          userId: user['_id'],
-          role: 'Owner',
-          status: 'pending',
-          conditionalPermissionGrants: [],
-          version: 1,
-        });
-
-        const planRef =
-          subscriptionBridge === null
-            ? { planCode: 'Starter', planVersion: 1, planId: null }
-            : await subscriptionBridge.resolveTrialPlanReference('Starter');
-
-        await subscriptionStore.insertSubscription(session, {
-          organizationId: organization['_id'],
-          status: 'pending_approval',
-          planCode: planRef.planCode,
-          planVersion: planRef.planVersion,
-          planId: planRef.planId,
-          version: 1,
-        });
-
-        await auditWriter.appendBusinessEvent(session, {
-          organizationId: String(organization['_id']),
-          actorId: 'public',
-          action: 'organization.activation_requested',
-          resourceType: 'organization',
-          resourceId: String(organization['_id']),
-          metadata: {
-            ownerEmail: input.ownerEmail,
-            applicantFingerprint: fingerprint,
-          },
-        });
-
-        return {
-          duplicate: false,
-          organizationId: String(organization['_id']),
-          status: 'pending_approval',
-          ownerEmail: input.ownerEmail,
-        };
+        return createPendingOrganization(
+          session,
+          input,
+          'public',
+          'organization.activation_requested',
+        );
       });
     },
 
+    async createOrganization(body, actor, idempotencyKey) {
+      const key = requireIdempotencyKey(idempotencyKey);
+      const input = parseOrganizationActivationRequest(body);
+      const result = await idempotency.execute(
+        {
+          scopeType: 'platform',
+          actorId: actor.actorId,
+          operation: 'platform.organizations.create',
+        },
+        key,
+        input,
+        async () => {
+          const created = await deps.transactionRunner.run(async (session) => {
+            return createPendingOrganization(
+              session,
+              input,
+              actor.actorId,
+              'organization.created_by_platform',
+            );
+          });
+          return {
+            statusCode: created.duplicate ? 200 : 201,
+            body: created,
+          };
+        },
+      );
+      return wrapIdempotentResult(result);
+    },
+
+    async suspendOrganization(organizationId, body, actor, idempotencyKey) {
+      const key = requireIdempotencyKey(idempotencyKey);
+      const { reason } = parseRejectionBody(body);
+      const result = await idempotency.execute(
+        {
+          scopeType: 'platform',
+          actorId: actor.actorId,
+          operation: 'platform.organizations.suspend',
+        },
+        key,
+        { organizationId, reason },
+        async () => {
+          const organization = await store.findOrganizationById(organizationId);
+          if (organization === null) {
+            throw notFound('Organization not found');
+          }
+          if (
+            subscriptionBridge === null ||
+            typeof subscriptionBridge.getOrganizationSubscription !== 'function' ||
+            typeof subscriptionBridge.suspendSubscription !== 'function'
+          ) {
+            throw conflict('Subscription lifecycle is not available');
+          }
+
+          const subscription = await subscriptionBridge.getOrganizationSubscription(organizationId);
+          if (subscription.status === 'suspended') {
+            await auditWriter.appendBusinessEvent(null, {
+              organizationId,
+              actorId: actor.actorId,
+              action: 'organization.suspended',
+              resourceType: 'organization',
+              resourceId: organizationId,
+              reason,
+              metadata: {
+                alreadySuspended: true,
+                subscriptionId: subscription.id,
+              },
+            });
+            return {
+              statusCode: 200,
+              body: {
+                organizationId,
+                status: organization['status'],
+                subscriptionStatus: 'suspended',
+                subscriptionId: subscription.id,
+              },
+            };
+          }
+
+          const updated = await subscriptionBridge.suspendSubscription(
+            subscription.id,
+            { expectedVersion: subscription.version, reason },
+            actor,
+          );
+
+          await auditWriter.appendBusinessEvent(null, {
+            organizationId,
+            actorId: actor.actorId,
+            action: 'organization.suspended',
+            resourceType: 'organization',
+            resourceId: organizationId,
+            reason,
+            metadata: {
+              subscriptionId: updated.id,
+              subscriptionStatus: updated.status,
+            },
+          });
+
+          return {
+            statusCode: 200,
+            body: {
+              organizationId,
+              status: organization['status'],
+              subscriptionStatus: updated.status,
+              subscriptionId: updated.id,
+            },
+          };
+        },
+      );
+      return wrapIdempotentResult(result);
+    },
+
     async listOrganizations(filter = {}) {
-      const organizations = await store.listOrganizations(filter);
+      const result = await store.listOrganizations(filter);
+      const organizations = Array.isArray(result) ? result : result.items;
       const summaries = [];
       for (const organization of organizations) {
         summaries.push(await toOrganizationListItem(store, organization));
       }
-      return summaries;
+      return { items: summaries, total: Array.isArray(result) ? summaries.length : result.total };
     },
 
     async getOrganization(organizationId) {

@@ -1,19 +1,641 @@
 :host {
   display: block;
+  width: 100%;
 }
 
-.row {
+.customer-payments-shell {
   display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  align-items: center;
-  padding: 1rem 0;
-  border-bottom: 1px solid var(--ag-border, #d7ddd4);
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  font-family: var(--ag-font-sans, 'Manrope', 'Segoe UI', sans-serif);
 }
 
-@media (max-width: 720px) {
-  .row {
+/* ==========================================================================
+   1. Page Header (Responsive with Compact Mobile Presentation)
+   ========================================================================== */
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+
+  &__title-group {
+    display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    min-width: 0;
+  }
+
+  &__eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ag-color-primary, #065f46);
+    margin: 0 0 2px 0;
+  }
+
+  &__heading-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  &__title {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--ag-color-text, #0f172a);
+    margin: 0 0 2px 0;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    font-family: var(--ag-font-sans);
+  }
+
+  &__count-pill {
+    font-size: 12px;
+    font-weight: 500;
+    color: #475569;
+    background: #f1f5f9;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    border: 1px solid #e2e8f0;
+  }
+
+  &__lede {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--ag-color-text-muted, #64748b);
+    margin: 0;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .btn-text-full {
+    display: inline;
+  }
+
+  .btn-text-mobile {
+    display: none;
+  }
+
+  @media (max-width: 767px) {
+    gap: 10px;
+    align-items: center;
+
+    &__eyebrow {
+      display: none;
+    }
+
+    &__title {
+      font-size: 20px;
+      margin: 0;
+    }
+
+    &__count-pill {
+      display: inline-block;
+    }
+
+    &__lede {
+      display: none;
+    }
+
+    &__create-btn {
+      padding: 0 10px;
+      min-height: 32px;
+      font-size: 12px;
+    }
+
+    .btn-text-full {
+      display: none;
+    }
+
+    .btn-text-mobile {
+      display: inline;
+    }
   }
 }
+
+/* ==========================================================================
+   2. Filter Toolbar (Products-Standard Compact Toolbar)
+   ========================================================================== */
+.toolbar {
+  background: var(--ag-color-surface, #ffffff);
+  border: 1px solid var(--ag-color-border, #e2e8f0);
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+
+  &__desktop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+
+    @media (max-width: 767px) {
+      display: none;
+    }
+  }
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    flex: 1;
+  }
+
+  &__right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__mobile {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+
+    @media (max-width: 767px) {
+      display: flex;
+    }
+  }
+
+  &__mobile-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__mobile-count {
+    font-size: 12px;
+    font-weight: 500;
+    color: #64748b;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+}
+
+.search-field {
+  position: relative;
+  min-width: 220px;
+  flex: 1;
+  max-width: 320px;
+
+  &__icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    pointer-events: none;
+  }
+
+  &__input {
+    width: 100%;
+    height: 34px;
+    padding: 0 28px 0 32px;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #0f172a;
+    outline: none;
+    font-family: var(--ag-font-sans);
+    transition: all 0.15s ease;
+    box-sizing: border-box;
+
+    &:focus {
+      background: #ffffff;
+      border-color: #065f46;
+      box-shadow: 0 0 0 2px rgba(6, 95, 70, 0.12);
+    }
+  }
+
+  &__clear {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 2px;
+
+    &:hover {
+      color: #0f172a;
+    }
+  }
+
+  &--mobile {
+    max-width: 100%;
+    min-width: 0;
+
+    .search-field__input {
+      height: 38px;
+      font-size: 14px;
+    }
+  }
+}
+
+.date-field {
+  position: relative;
+  width: 170px;
+
+  &__icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    pointer-events: none;
+  }
+
+  &__input {
+    width: 100%;
+    height: 34px;
+    padding: 0 8px 0 32px;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #0f172a;
+    outline: none;
+    font-family: var(--ag-font-sans);
+    transition: all 0.15s ease;
+    box-sizing: border-box;
+
+    &:focus {
+      background: #ffffff;
+      border-color: #065f46;
+      box-shadow: 0 0 0 2px rgba(6, 95, 70, 0.12);
+    }
+
+    &--mobile {
+      height: 34px;
+      font-size: 13px;
+    }
+  }
+}
+
+.clear-filters-btn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: #065f46;
+  cursor: pointer;
+  padding: 4px 8px;
+  white-space: nowrap;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.mobile-clear-btn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px 6px;
+
+  &:hover {
+    color: #dc2626;
+    text-decoration: underline;
+  }
+}
+
+.refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #94a3b8;
+  }
+}
+
+/* ==========================================================================
+   3. Desktop Table (Products-Standard High-Density Table)
+   ========================================================================== */
+.table-container {
+  background: var(--ag-color-surface, #ffffff);
+  border: 1px solid var(--ag-color-border, #e2e8f0);
+  border-radius: 6px;
+  overflow-x: auto;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+  width: 100%;
+}
+
+.prod-table {
+  width: 100%;
+  min-width: 800px;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+  table-layout: fixed;
+  font-family: var(--ag-font-sans);
+
+  .col-date {
+    width: 140px;
+  }
+
+  .col-mode {
+    width: 180px;
+  }
+
+  .col-notes {
+    width: auto;
+  }
+
+  .col-amount {
+    width: 160px;
+  }
+
+  .col-status {
+    width: 110px;
+  }
+
+  &__th {
+    padding: 10px 14px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #475569;
+    white-space: nowrap;
+
+    &.text-right {
+      text-align: right;
+    }
+  }
+
+  &__row {
+    border-bottom: 1px solid #f1f5f9;
+    transition: background-color 0.1s ease;
+    height: 56px;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &:hover {
+      background-color: #f8fafc;
+    }
+  }
+
+  &__td {
+    padding: 8px 14px;
+    color: #334155;
+    vertical-align: middle;
+
+    &--notes {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    &.text-right {
+      text-align: right;
+    }
+  }
+}
+
+.product-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  &__glyph {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    &--sm {
+      width: 24px;
+      height: 24px;
+    }
+  }
+
+  &__meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+}
+
+.notes-text {
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.text-dark {
+  color: #0f172a;
+}
+
+.text-date {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.price-text {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabular-num {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--ag-font-sans);
+}
+
+.tracking-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.2;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+  white-space: nowrap;
+
+  &--sm {
+    padding: 2px 6px;
+    font-size: 11px;
+  }
+}
+
+/* Products-Standard Status Indicator with Dot */
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+
+  &__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: #94a3b8;
+  }
+
+  &--active {
+    color: #065f46;
+
+    .status-indicator__dot {
+      background: #059669;
+    }
+  }
+
+  &--inactive {
+    color: #94a3b8;
+
+    .status-indicator__dot {
+      background: #cbd5e1;
+    }
+  }
+}
+
+/* ==========================================================================
+   4. Mobile Customer Payment Cards (< 768px)
+   ========================================================================== */
+.mobile-payments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.payment-card {
+  background: var(--ag-color-surface, #ffffff);
+  border: 1px solid var(--ag-color-border, #e2e8f0);
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  &__header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__date {
+    font-size: 13px;
+    color: #0f172a;
+  }
+
+  &__amount {
+    font-size: 14.5px;
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__notes {
+    font-size: 12px;
+    color: #475569;
+    margin: 0;
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding-top: 6px;
+    border-top: 1px solid #f1f5f9;
+  }
+}
+
+/* ==========================================================================
+   5. State Containers & Utilities
+   ========================================================================== */
+.alert-container,
+.state-container,
+.empty-container {
+  width: 100%;
+}
+
+.desktop-only {
+  display: block;
+}
+
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .desktop-only {
+    display: none;
+  }
+
+  .mobile-only {
+    display: flex;
+  }
+}
+

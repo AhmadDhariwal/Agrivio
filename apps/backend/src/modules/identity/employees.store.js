@@ -12,10 +12,69 @@ function withSession(session) {
   return session ? { session: session } : {};
 }
 
+function summarizeMembershipStatuses(memberships) {
+  let active = 0;
+  let pendingInactive = 0;
+  for (const membership of memberships) {
+    if (String(membership.status) === 'active') {
+      active += 1;
+    } else {
+      pendingInactive += 1;
+    }
+  }
+  return {
+    total: memberships.length,
+    active,
+    pendingInactive,
+  };
+}
+
 function createMongooseEmployeesStore() {
   return {
     async listMembershipsByOrganizationId(organizationId) {
       return OrganizationMembershipModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
+    },
+
+    async listMembershipsPage(organizationId, filter = {}, pagination = {}) {
+      const match = { organizationId: new mongoose.Types.ObjectId(String(organizationId)) };
+      const search = String(filter.search ?? '').trim().toLowerCase();
+      const pipeline = [
+        { $match: match },
+        { $lookup: { from: UserModel.collection.name, localField: 'userId', foreignField: '_id', as: 'user' } },
+        { $unwind: '$user' },
+      ];
+      if (search) pipeline.push({ $match: { 'user.emailNormalized': { $regex: `^${search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}` } } });
+      pipeline.push(
+        { $sort: { createdAt: -1, _id: -1 } },
+        { $facet: { metadata: [{ $count: 'total' }], items: [{ $skip: pagination.skip ?? 0 }, { $limit: pagination.pageSize ?? 25 }] } },
+      );
+      const [result] = await OrganizationMembershipModel.aggregate(pipeline).exec();
+      return { items: result?.items ?? [], total: result?.metadata?.[0]?.total ?? 0 };
+    },
+
+    async summarizeMembershipStatus(organizationId) {
+      const rows = await OrganizationMembershipModel.aggregate([
+        {
+          $match: {
+            organizationId: new mongoose.Types.ObjectId(String(organizationId)),
+          },
+        },
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+      ]).exec();
+      let active = 0;
+      let pendingInactive = 0;
+      for (const row of rows) {
+        if (String(row._id) === 'active') {
+          active += row.count;
+        } else {
+          pendingInactive += row.count;
+        }
+      }
+      return {
+        total: active + pendingInactive,
+        active,
+        pendingInactive,
+      };
     },
 
     async countActiveUsers(organizationId) {
@@ -30,6 +89,35 @@ function createMongooseEmployeesStore() {
         return null;
       }
       return OrganizationMembershipModel.findOne({ organizationId, userId }).lean().exec();
+    },
+
+    async findMembershipsWithUsersByUserIds(organizationId, userIds) {
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        return [];
+      }
+      const objectIds = userIds
+        .filter((id) => mongoose.isValidObjectId(id))
+        .map((id) => new mongoose.Types.ObjectId(String(id)));
+      if (objectIds.length === 0) {
+        return [];
+      }
+      return OrganizationMembershipModel.aggregate([
+        {
+          $match: {
+            organizationId: new mongoose.Types.ObjectId(String(organizationId)),
+            userId: { $in: objectIds },
+          },
+        },
+        {
+          $lookup: {
+            from: UserModel.collection.name,
+            localField: 'userId',
+            foreignField: '_id',
+            as: 'user',
+          },
+        },
+        { $unwind: '$user' },
+      ]).exec();
     },
 
     async findMembershipById(organizationId, membershipId) {
@@ -154,6 +242,24 @@ function createInMemoryEmployeesStore(options = {}) {
         .map((item) => ({ ...item }));
     },
 
+    async listMembershipsPage(organizationId, filter = {}, pagination = {}) {
+      const items = await this.listMembershipsByOrganizationId(organizationId);
+      const search = String(filter.search ?? '').trim().toLowerCase();
+      const withUsers = [];
+      for (const membership of items) {
+        const user = await this.findUserById(String(membership.userId));
+        if (user && (!search || String(user.emailNormalized).startsWith(search))) withUsers.push({ ...membership, user });
+      }
+      withUsers.sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')) || String(b._id).localeCompare(String(a._id)));
+      const total = withUsers.length; const skip = pagination.skip ?? 0;
+      return { items: withUsers.slice(skip, skip + (pagination.pageSize ?? 25)), total };
+    },
+
+    async summarizeMembershipStatus(organizationId) {
+      const items = await this.listMembershipsByOrganizationId(organizationId);
+      return summarizeMembershipStatuses(items);
+    },
+
     async countActiveUsers(organizationId) {
       return [...memberships.values()].filter(
         (item) =>
@@ -172,6 +278,28 @@ function createInMemoryEmployeesStore(options = {}) {
         }
       }
       return null;
+    },
+
+    async findMembershipsWithUsersByUserIds(organizationId, userIds) {
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        return [];
+      }
+      const idSet = new Set(userIds.map(String));
+      const results = [];
+      for (const membership of memberships.values()) {
+        if (String(membership.organizationId) !== String(organizationId)) {
+          continue;
+        }
+        const userId = String(membership.userId);
+        if (!idSet.has(userId)) {
+          continue;
+        }
+        const user = users.get(userId);
+        if (user !== undefined) {
+          results.push({ ...membership, user: { ...user } });
+        }
+      }
+      return results;
     },
 
     async findMembershipById(organizationId, membershipId) {
@@ -297,4 +425,5 @@ function createInMemoryEmployeesStore(options = {}) {
 module.exports = {
   createMongooseEmployeesStore,
   createInMemoryEmployeesStore,
+  summarizeMembershipStatuses,
 };

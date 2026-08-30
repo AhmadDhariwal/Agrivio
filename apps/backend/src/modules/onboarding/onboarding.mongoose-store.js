@@ -28,12 +28,52 @@ function createMongooseOnboardingStore() {
       return OrganizationModel.findById(id).lean().exec();
     },
 
+    async findOrganizationsByIds(ids) {
+      const validIds = ids.filter((id) => mongoose.isValidObjectId(id));
+      if (validIds.length === 0) {
+        return [];
+      }
+      return OrganizationModel.find({ _id: { $in: validIds } })
+        .lean()
+        .exec();
+    },
+
+    async findOrganizationIdsBySearch(search) {
+      const needle = String(search ?? '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+      if (needle === '') {
+        return [];
+      }
+      const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const organizations = await OrganizationModel.find({
+        nameNormalized: { $regex: escaped },
+      })
+        .select({ _id: 1 })
+        .lean()
+        .exec();
+      return organizations.map((organization) => String(organization._id));
+    },
+
     async listOrganizations(filter = {}) {
       const query = {};
       if (filter.status !== undefined) {
         query['status'] = filter.status;
       }
-      return OrganizationModel.find(query).sort({ createdAt: -1 }).lean().exec();
+      const search = String(filter.search ?? '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+      if (search) query.nameNormalized = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') };
+      let find = OrganizationModel.find(query).sort({ createdAt: -1, _id: -1 });
+      if (filter.skip !== undefined || filter.pageSize !== undefined)
+        find = find.skip(filter.skip ?? 0).limit(filter.pageSize ?? 25);
+      const [total, items] = await Promise.all([
+        OrganizationModel.countDocuments(query).exec(),
+        find.lean().exec(),
+      ]);
+      return { items, total };
     },
 
     async insertOrganization(session, doc) {
@@ -65,6 +105,16 @@ function createMongooseOnboardingStore() {
       return UserModel.findById(id).lean().exec();
     },
 
+    async findUsersByIds(ids) {
+      const validIds = ids.filter((id) => mongoose.isValidObjectId(id));
+      if (validIds.length === 0) {
+        return [];
+      }
+      return UserModel.find({ _id: { $in: validIds } })
+        .lean()
+        .exec();
+    },
+
     async insertUser(session, doc) {
       const [created] = await UserModel.create([doc], withSession(session));
       return created.toObject();
@@ -92,7 +142,10 @@ function createMongooseOnboardingStore() {
     },
 
     async listMembershipsByOrganizationId(organizationId) {
-      return OrganizationMembershipModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
+      return OrganizationMembershipModel.find({ organizationId })
+        .sort({ createdAt: -1 })
+        .lean()
+        .exec();
     },
 
     async findMembershipById(id) {

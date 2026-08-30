@@ -1,7 +1,9 @@
 const mongoose = require('mongoose');
 const { SubscriptionPlanModel } = require('./persistence/subscription-plan.model');
 const { SubscriptionModel } = require('./persistence/subscription.model');
-const { SubscriptionBillingRecordModel } = require('./persistence/subscription-billing-record.model');
+const {
+  SubscriptionBillingRecordModel,
+} = require('./persistence/subscription-billing-record.model');
 const { AuditEventModel } = require('../audit/persistence/audit-event.model');
 
 function withSession(session) {
@@ -18,10 +20,7 @@ function createMongooseSubscriptionStore() {
       if (filter.planCode !== undefined) {
         query.planCode = filter.planCode;
       }
-      return SubscriptionPlanModel.find(query)
-        .sort({ planCode: 1, planVersion: -1 })
-        .lean()
-        .exec();
+      return SubscriptionPlanModel.find(query).sort({ planCode: 1, planVersion: -1 }).lean().exec();
     },
 
     async findPlanById(id) {
@@ -111,10 +110,32 @@ function createMongooseSubscriptionStore() {
       if (filter.status !== undefined) {
         query.status = filter.status;
       }
-      return SubscriptionBillingRecordModel.find(query)
-        .sort({ submittedAt: -1 })
-        .lean()
-        .exec();
+      if (filter.q !== undefined && String(filter.q).trim() !== '') {
+        const needle = String(filter.q).trim();
+        const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        query.$or = [
+          { paymentReferenceNormalized: { $regex: escaped, $options: 'i' } },
+          { requestedPlanCode: { $regex: escaped, $options: 'i' } },
+          { notes: { $regex: escaped, $options: 'i' } },
+        ];
+        if (mongoose.isValidObjectId(needle)) {
+          query.$or.push({ organizationId: needle });
+        }
+        const organizationIdsForSearch = (filter.organizationIdsForSearch ?? []).filter((id) =>
+          mongoose.isValidObjectId(id),
+        );
+        if (organizationIdsForSearch.length > 0) {
+          query.$or.push({ organizationId: { $in: organizationIdsForSearch } });
+        }
+      }
+      const offset = Number.isInteger(filter.offset) && filter.offset > 0 ? filter.offset : 0;
+      const limit = Number.isInteger(filter.limit) && filter.limit > 0 ? filter.limit : null;
+      const found = SubscriptionBillingRecordModel.find(query).sort({ submittedAt: -1 });
+      const [total, items] = await Promise.all([
+        SubscriptionBillingRecordModel.countDocuments(query).exec(),
+        (limit === null ? found.skip(offset) : found.skip(offset).limit(limit)).lean().exec(),
+      ]);
+      return { items, total, offset, limit };
     },
 
     async countBillingByPaymentReference(paymentMethod, paymentReferenceNormalized) {
@@ -129,9 +150,13 @@ function createMongooseSubscriptionStore() {
       return created.toObject();
     },
 
-    async updateBillingRecord(session, id, patch) {
-      return SubscriptionBillingRecordModel.findByIdAndUpdate(
-        id,
+    async updateBillingRecord(session, id, patch, expectedVersion) {
+      const query = {
+        _id: id,
+        ...(expectedVersion === undefined ? {} : { version: expectedVersion }),
+      };
+      return SubscriptionBillingRecordModel.findOneAndUpdate(
+        query,
         { $set: patch },
         { new: true, ...withSession(session) },
       )
@@ -140,24 +165,29 @@ function createMongooseSubscriptionStore() {
     },
 
     async appendAuditEvent(session, event) {
-      await AuditEventModel.create([event], withSession(session));
+      const doc = { ...event };
+      if (
+        doc.organizationId !== undefined &&
+        doc.organizationId !== null &&
+        !mongoose.isValidObjectId(doc.organizationId)
+      ) {
+        doc.organizationId = undefined;
+      }
+      await AuditEventModel.create([doc], withSession(session));
     },
   };
 }
 
 function createMongooseTransactionSessionPort() {
   return {
-    async withTransaction(work) {
-      const session = await mongoose.startSession();
-      try {
-        let result;
-        await session.withTransaction(async () => {
-          result = await work(session);
-        });
-        return result;
-      } finally {
-        await session.endSession();
-      }
+    async startSession() {
+      return mongoose.startSession();
+    },
+    async withTransaction(session, work) {
+      return session.withTransaction(async () => work(session));
+    },
+    async endSession(session) {
+      await session.endSession();
     },
   };
 }

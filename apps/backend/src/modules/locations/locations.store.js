@@ -14,8 +14,16 @@ function isDuplicateKeyError(error) {
 
 function createMongooseLocationsStore() {
   return {
-    async listBranches(organizationId) {
-      return BranchModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
+    async listBranches(organizationId, filter = {}, pagination = {}) {
+      const query = { organizationId };
+      if (filter.status === 'active' || filter.status === 'inactive') query.status = filter.status;
+      const search = String(filter.search ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+      if (search) query.nameNormalized = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') };
+      const { skip, pageSize } = pagination;
+      let find = BranchModel.find(query).sort({ createdAt: -1, _id: -1 });
+      if (skip !== undefined || pageSize !== undefined) find = find.skip(skip ?? 0).limit(pageSize ?? 25);
+      const [total, items] = await Promise.all([BranchModel.countDocuments(query).exec(), find.lean().exec()]);
+      return { items, total };
     },
 
     async countBranches(organizationId) {
@@ -58,8 +66,21 @@ function createMongooseLocationsStore() {
       }
     },
 
-    async listWarehouses(organizationId) {
-      return WarehouseModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
+    async deleteBranch(session, organizationId, id) {
+      const result = await BranchModel.deleteOne({ _id: id, organizationId }, withSession(session));
+      return result.deletedCount === 1;
+    },
+
+    async listWarehouses(organizationId, filter = {}, pagination = {}) {
+      const query = { organizationId };
+      if (filter.status === 'active' || filter.status === 'inactive') query.status = filter.status;
+      const search = String(filter.search ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+      if (search) query.nameNormalized = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') };
+      const { skip, pageSize } = pagination;
+      let find = WarehouseModel.find(query).sort({ createdAt: -1, _id: -1 });
+      if (skip !== undefined || pageSize !== undefined) find = find.skip(skip ?? 0).limit(pageSize ?? 25);
+      const [total, items] = await Promise.all([WarehouseModel.countDocuments(query).exec(), find.lean().exec()]);
+      return { items, total };
     },
 
     async countWarehouses(organizationId) {
@@ -71,6 +92,17 @@ function createMongooseLocationsStore() {
         return null;
       }
       return WarehouseModel.findOne({ _id: id, organizationId }).lean().exec();
+    },
+
+    async findWarehousesByIds(organizationId, warehouseIds) {
+      if (!Array.isArray(warehouseIds) || warehouseIds.length === 0) {
+        return [];
+      }
+      const ids = warehouseIds.filter((id) => mongoose.isValidObjectId(id));
+      if (ids.length === 0) {
+        return [];
+      }
+      return WarehouseModel.find({ organizationId, _id: { $in: ids } }).lean().exec();
     },
 
     async insertWarehouse(session, doc) {
@@ -100,6 +132,11 @@ function createMongooseLocationsStore() {
         }
         throw error;
       }
+    },
+
+    async deleteWarehouse(session, organizationId, id) {
+      const result = await WarehouseModel.deleteOne({ _id: id, organizationId }, withSession(session));
+      return result.deletedCount === 1;
     },
 
     async listAccessAssignmentsByMembershipId(organizationId, membershipId) {
@@ -167,10 +204,15 @@ function createInMemoryLocationsStore() {
   }
 
   return {
-    async listBranches(organizationId) {
-      return [...branches.values()]
-        .filter((item) => String(item.organizationId) === String(organizationId))
-        .map((item) => ({ ...item }));
+    async listBranches(organizationId, filter = {}, pagination = {}) {
+      let items = [...branches.values()].filter((item) => String(item.organizationId) === String(organizationId));
+      if (filter.status === 'active' || filter.status === 'inactive') items = items.filter((item) => item.status === filter.status);
+      const search = String(filter.search ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+      if (search) items = items.filter((item) => String(item.nameNormalized).includes(search));
+      items.sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')) || String(b._id).localeCompare(String(a._id)));
+      const total = items.length; const { skip, pageSize } = pagination;
+      if (skip !== undefined || pageSize !== undefined) items = items.slice(skip ?? 0, (skip ?? 0) + (pageSize ?? 25));
+      return { items: items.map((item) => ({ ...item })), total };
     },
 
     async countBranches(organizationId) {
@@ -211,10 +253,24 @@ function createInMemoryLocationsStore() {
       return { ...next };
     },
 
-    async listWarehouses(organizationId) {
-      return [...warehouses.values()]
-        .filter((item) => String(item.organizationId) === String(organizationId))
-        .map((item) => ({ ...item }));
+    async deleteBranch(_session, organizationId, id) {
+      const existing = await this.findBranchById(organizationId, id);
+      if (existing === null) {
+        return false;
+      }
+      branches.delete(id);
+      return true;
+    },
+
+    async listWarehouses(organizationId, filter = {}, pagination = {}) {
+      let items = [...warehouses.values()].filter((item) => String(item.organizationId) === String(organizationId));
+      if (filter.status === 'active' || filter.status === 'inactive') items = items.filter((item) => item.status === filter.status);
+      const search = String(filter.search ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+      if (search) items = items.filter((item) => String(item.nameNormalized).includes(search));
+      items.sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')) || String(b._id).localeCompare(String(a._id)));
+      const total = items.length; const { skip, pageSize } = pagination;
+      if (skip !== undefined || pageSize !== undefined) items = items.slice(skip ?? 0, (skip ?? 0) + (pageSize ?? 25));
+      return { items: items.map((item) => ({ ...item })), total };
     },
 
     async countWarehouses(organizationId) {
@@ -229,6 +285,20 @@ function createInMemoryLocationsStore() {
         return null;
       }
       return { ...record };
+    },
+
+    async findWarehousesByIds(organizationId, warehouseIds) {
+      if (!Array.isArray(warehouseIds) || warehouseIds.length === 0) {
+        return [];
+      }
+      const allowed = new Set(warehouseIds.map(String));
+      return [...warehouses.values()]
+        .filter(
+          (item) =>
+            String(item.organizationId) === String(organizationId) &&
+            allowed.has(String(item._id)),
+        )
+        .map((item) => ({ ...item }));
     },
 
     async insertWarehouse(_session, doc) {
@@ -248,6 +318,15 @@ function createInMemoryLocationsStore() {
       assertUniqueWarehouse(organizationId, next.nameNormalized, id);
       warehouses.set(id, next);
       return { ...next };
+    },
+
+    async deleteWarehouse(_session, organizationId, id) {
+      const existing = await this.findWarehouseById(organizationId, id);
+      if (existing === null) {
+        return false;
+      }
+      warehouses.delete(id);
+      return true;
     },
 
     async listAccessAssignmentsByMembershipId(organizationId, membershipId) {

@@ -5,6 +5,7 @@ const {
 const { createAuditWriter } = require('../../platform/audit/audit-writer');
 const { assertOptimisticVersion } = require('../../platform/validation/request-validation');
 const {
+  assignmentScopeDenied,
   conflict,
   forbidden,
   notFound,
@@ -91,7 +92,7 @@ function createReturnsService(deps) {
   async function assertWarehouseAccess(authContext, warehouseId) {
     if (typeof deps.canAccessWarehouse === 'function') {
       if (!deps.canAccessWarehouse(authContext, String(warehouseId))) {
-        throw forbidden('Warehouse assignment is required');
+        throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
       }
     }
   }
@@ -165,6 +166,117 @@ function createReturnsService(deps) {
       ]);
     }
     return account;
+  }
+
+  async function resolveReturnDisplayLookups(organizationId, records) {
+    const list = Array.isArray(records) ? records : [records];
+    const warehouseIds = new Set();
+    const supplierIds = new Set();
+    const customerIds = new Set();
+    const accountIds = new Set();
+
+    for (const record of list) {
+      if (record?.warehouseId) {
+        warehouseIds.add(String(record.warehouseId));
+      }
+      if (record?.supplierId) {
+        supplierIds.add(String(record.supplierId));
+      }
+      if (record?.customerId) {
+        customerIds.add(String(record.customerId));
+      }
+      if (record?.refundAccountId) {
+        accountIds.add(String(record.refundAccountId));
+      }
+    }
+
+    const lookups = {
+      warehouses: {},
+      suppliers: {},
+      customers: {},
+      accounts: {},
+    };
+    const tasks = [];
+
+    for (const id of warehouseIds) {
+      if (locationsService && typeof locationsService.getWarehouse === 'function') {
+        tasks.push(
+          locationsService
+            .getWarehouse(organizationId, id)
+            .then((item) => {
+              if (item?.name) {
+                lookups.warehouses[id] = String(item.name);
+              }
+            })
+            .catch(() => undefined),
+        );
+      }
+    }
+
+    for (const id of supplierIds) {
+      if (deps.suppliersService && typeof deps.suppliersService.getSupplier === 'function') {
+        tasks.push(
+          deps.suppliersService
+            .getSupplier(organizationId, id)
+            .then((item) => {
+              if (item?.name) {
+                lookups.suppliers[id] = String(item.name);
+              }
+            })
+            .catch(() => undefined),
+        );
+      }
+    }
+
+    for (const id of customerIds) {
+      if (customersService && typeof customersService.getCustomer === 'function') {
+        tasks.push(
+          customersService
+            .getCustomer(organizationId, id)
+            .then((item) => {
+              if (item?.name) {
+                lookups.customers[id] = String(item.name);
+              }
+            })
+            .catch(() => undefined),
+        );
+      }
+    }
+
+    for (const id of accountIds) {
+      if (accountsService && typeof accountsService.getAccount === 'function') {
+        tasks.push(
+          accountsService
+            .getAccount(organizationId, id)
+            .then((item) => {
+              if (item?.name) {
+                lookups.accounts[id] = {
+                  name: String(item.name),
+                  accountType: String(item.accountType ?? ''),
+                };
+              }
+            })
+            .catch(() => undefined),
+        );
+      }
+    }
+
+    await Promise.all(tasks);
+    return lookups;
+  }
+
+  async function toReturnDtoWithDisplay(organizationId, record) {
+    const lookups = await resolveReturnDisplayLookups(organizationId, [record]);
+    return toReturnDto(record, lookups);
+  }
+
+  async function toReturnDtosWithDisplay(organizationId, records) {
+    const list = Array.isArray(records) ? records : [];
+    if (list.length === 0) {
+      return [];
+    }
+    const lookups = await resolveReturnDisplayLookups(organizationId, list);
+    return list.map((record) => toReturnDto(record, lookups));
   }
 
   async function postFinancialResolution(session, organizationId, actor, postedAt, input) {
@@ -822,7 +934,9 @@ function createReturnsService(deps) {
 
   return {
     async listReturns(organizationId, query = {}, authContext) {
-      const items = await store.listReturns(organizationId, {
+      const assignments = Array.isArray(authContext?.warehouseAssignments) ? authContext.warehouseAssignments : null;
+      const warehouseIds = authContext?.role === 'Owner' || assignments === null ? undefined : assignments.filter((item) => String(item.organizationId) === String(organizationId)).map((item) => String(item.targetId));
+      const filters = {
         status: query.status,
         supplierId: query.supplierId,
         warehouseId: query.warehouseId,
@@ -830,7 +944,22 @@ function createReturnsService(deps) {
         saleId: query.saleId,
         customerId: query.customerId,
         returnType: query.returnType,
-      });
+        warehouseIds: query.warehouseId ? undefined : warehouseIds,
+      };
+      let result;
+      if (typeof store.listReturnsPage === 'function') result = await store.listReturnsPage(organizationId, filters, query);
+      else {
+        let all = await store.listReturns(organizationId, filters);
+        if (warehouseIds) all = all.filter((item) => warehouseIds.includes(String(item.warehouseId)));
+        const hasPagination = query.skip !== undefined || query.pageSize !== undefined;
+        result = {
+          items: hasPagination
+            ? all.slice(query.skip ?? 0, (query.skip ?? 0) + (query.pageSize ?? 25))
+            : all,
+          total: all.length,
+        };
+      }
+      const items = result.items;
       const filtered = [];
       for (const item of items) {
         if (
@@ -839,9 +968,9 @@ function createReturnsService(deps) {
         ) {
           continue;
         }
-        filtered.push(toReturnDto(item));
+        filtered.push(item);
       }
-      return { items: filtered };
+      return { items: await toReturnDtosWithDisplay(organizationId, filtered), total: result.total };
     },
 
     async getReturn(organizationId, returnId, authContext) {
@@ -855,7 +984,7 @@ function createReturnsService(deps) {
       ) {
         throw notFound('Return not found');
       }
-      return toReturnDto(record);
+      return toReturnDtoWithDisplay(organizationId, record);
     },
 
     async createPurchaseReturnDraft(organizationId, purchaseId, body, authContext) {
@@ -967,7 +1096,7 @@ function createReturnsService(deps) {
           },
         });
 
-        return toReturnDto(created);
+        return toReturnDtoWithDisplay(organizationId, created);
       });
     },
 
@@ -1104,7 +1233,7 @@ function createReturnsService(deps) {
           },
         });
 
-        return toReturnDto(created);
+        return toReturnDtoWithDisplay(organizationId, created);
       });
     },
 
@@ -1269,7 +1398,7 @@ function createReturnsService(deps) {
           },
         });
 
-        return toReturnDto(created);
+        return toReturnDtoWithDisplay(organizationId, created);
       });
     },
 
@@ -1358,8 +1487,37 @@ function createReturnsService(deps) {
           metadata: { version: Number(existing.version) + 1 },
         });
 
-        return toReturnDto(updated);
+        return toReturnDtoWithDisplay(organizationId, updated);
       });
+    },
+
+    async discardReturnDraft(organizationId, returnId, authContext) {
+      const existing = await store.findReturnById(organizationId, returnId);
+      if (existing === null) {
+        throw notFound('Return not found');
+      }
+      if (existing.status !== 'draft') {
+        throw conflict('Only draft returns can be discarded');
+      }
+      if (
+        typeof deps.canAccessWarehouse === 'function' &&
+        !deps.canAccessWarehouse(authContext, String(existing.warehouseId))
+      ) {
+        throw notFound('Return not found');
+      }
+      const deleted = await store.deleteReturnIfDraft(null, organizationId, returnId);
+      if (!deleted) {
+        throw conflict('Only draft returns can be discarded');
+      }
+      await auditWriter.appendBusinessEvent(null, {
+        organizationId,
+        actorId: authContext.userId,
+        action: 'return.draft.discarded',
+        resourceType: 'return',
+        resourceId: returnId,
+        metadata: {},
+      });
+      return { id: returnId, discarded: true };
     },
 
     async postReturn(organizationId, returnId, body, authContext, idempotencyKey) {
@@ -1484,7 +1642,7 @@ function createReturnsService(deps) {
               },
             });
 
-            return toReturnDto(updated);
+            return toReturnDtoWithDisplay(organizationId, updated);
           });
 
           return { statusCode: 200, body: dto };
@@ -1612,7 +1770,7 @@ function createReturnsService(deps) {
               },
             });
 
-            return toReturnDto(updated);
+            return toReturnDtoWithDisplay(organizationId, updated);
           });
 
           return { statusCode: 200, body: dto };

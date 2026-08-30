@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createPlatformActorMiddleware } from '../platform/platform-actor.middleware';
+import { createPlatformActorMiddleware, requirePlatformPermission } from '../platform/platform-actor.middleware';
 import { API_PLATFORM_ACTOR_HEADER } from '@agrivio/api-contracts';
 
 describe('platform actor middleware', () => {
@@ -25,5 +25,38 @@ describe('platform actor middleware', () => {
       captured = error;
     });
     expect(captured).toMatchObject({ name: 'AppError', statusCode: 401 });
+  });
+
+  it('denies platform actors that lack the required organization permission', () => {
+    const middleware = requirePlatformPermission('platform.organizations.create');
+    let captured;
+    middleware(
+      {
+        platformActor: {
+          actorId: 'limited',
+          permissions: ['platform.organizations.view'],
+        },
+      },
+      {},
+      (error) => {
+        captured = error;
+      },
+    );
+    expect(captured).toMatchObject({ name: 'AppError', statusCode: 403 });
+
+    let passed = false;
+    requirePlatformPermission('platform.organizations.suspend')(
+      {
+        platformActor: {
+          actorId: 'ok',
+          permissions: ['platform.organizations.suspend'],
+        },
+      },
+      {},
+      (error) => {
+        passed = error === undefined;
+      },
+    );
+    expect(passed).toBe(true);
   });
 });

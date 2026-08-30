@@ -37,7 +37,7 @@ test.describe('F08 P5 imports', () => {
     await page.getByTestId('import-execute').click();
     await expect(page.getByText(/Imported 1 rows/)).toBeVisible();
 
-    await page.getByRole('link', { name: 'Categories' }).click();
+    await page.getByRole('link', { name: 'Categories', exact: true }).click();
     await expect(page.getByTestId('categories-list')).toContainText(categoryName);
   });
 });

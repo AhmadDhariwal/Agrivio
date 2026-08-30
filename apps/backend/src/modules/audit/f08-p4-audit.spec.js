@@ -66,7 +66,7 @@ describe('F08 P4 audit inquiry', () => {
         cashierError = err;
       },
     );
-    expect(cashierError?.code).toBe('FORBIDDEN');
+    expect(cashierError?.code).toBe('PERMISSION_DENIED');
   });
 
   it('filters by actor/action/date, isolates tenants, and enforces audit-history depth', async () => {
@@ -182,8 +182,8 @@ describe('F08 P4 audit inquiry', () => {
 
       const orgQuery = await fetchJson(baseUrl, 'GET', API_AUDIT_EVENTS_PATH, undefined, {}, jar);
       expect(orgQuery.status).toBe(200);
-      expect(orgQuery.body.data.items.every((item) => item.organizationId === orgA)).toBe(true);
-      expect(orgQuery.body.data.items.some((item) => item.resourceId === 'sale-b')).toBe(false);
+      expect(orgQuery.body.data.every((item) => item.organizationId === orgA)).toBe(true);
+      expect(orgQuery.body.data.some((item) => item.resourceId === 'sale-b')).toBe(false);
 
       const cross = await fetchJson(
         baseUrl,
@@ -204,7 +204,7 @@ describe('F08 P4 audit inquiry', () => {
         jar,
       );
       expect(platformQuery.status).toBe(200);
-      expect(platformQuery.body.data.items.some((item) => item.resourceId === 'sale-b')).toBe(true);
+      expect(platformQuery.body.data.some((item) => item.resourceId === 'sale-b')).toBe(true);
     } finally {
       await close(server);
     }

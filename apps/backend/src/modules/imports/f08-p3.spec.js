@@ -427,8 +427,8 @@ describe('F08 P3 Excel imports', () => {
     execute(cashier, {}, (error) => {
       executeError = error;
     });
-    expect(previewError?.code).toBe('FORBIDDEN');
-    expect(executeError?.code).toBe('FORBIDDEN');
+    expect(previewError?.code).toBe('PERMISSION_DENIED');
+    expect(executeError?.code).toBe('PERMISSION_DENIED');
   });
 });
 

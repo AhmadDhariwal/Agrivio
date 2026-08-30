@@ -5,10 +5,8 @@ const {
 const { createAuditWriter } = require('../../platform/audit/audit-writer');
 const { assertOptimisticVersion } = require('../../platform/validation/request-validation');
 const { conflict, notFound } = require('../../platform/errors/app-error');
-const {
-  assertCreationLimit,
-  attachSoftWarning,
-} = require('../subscriptions/creation-limit');
+const { assertMasterUnused } = require('../../platform/lifecycle/record-in-use');
+const { assertCreationLimit, attachSoftWarning } = require('../subscriptions/creation-limit');
 const {
   parseCategoryCreate,
   parseCategoryPatch,
@@ -24,6 +22,7 @@ const {
   toProductPriceDto,
 } = require('./catalog.validation');
 const { createInMemoryCatalogStore, createMongooseCatalogStore } = require('./catalog.store');
+const { attachProductListSummaries } = require('./catalog-list-summary');
 
 function createMongooseTransactionSessionPort() {
   const mongoose = require('mongoose');
@@ -72,12 +71,20 @@ function createCatalogService(deps) {
   }
 
   return {
-    async listCategories(organizationId) {
-      const items = await store.listCategories(organizationId);
-      return { items: items.map(toCategoryDto) };
+    async listCategories(organizationId, options = {}) {
+      const { status, search, skip, pageSize } = options;
+      const { items, total } = await store.listCategories(
+        organizationId,
+        { status, search },
+        { skip, pageSize },
+      );
+      return { items: items.map(toCategoryDto), total };
     },
 
     async getCategory(organizationId, categoryId) {
+      if (typeof deps.capabilityService?.assertCategoryInspectAllowed === 'function') {
+        await deps.capabilityService.assertCategoryInspectAllowed(organizationId);
+      }
       return toCategoryDto(await requireCategory(organizationId, categoryId));
     },
 
@@ -89,7 +96,7 @@ function createCatalogService(deps) {
       if (needle === '') {
         return null;
       }
-      const items = await store.listCategories(organizationId);
+      const { items } = await store.listCategories(organizationId);
       const found = items.find((item) => String(item.nameNormalized) === needle);
       return found ? toCategoryDto(found) : null;
     },
@@ -101,7 +108,11 @@ function createCatalogService(deps) {
       if (needle === '') {
         return null;
       }
-      const items = await store.listProducts(organizationId);
+      if (typeof store.findProductBySku === 'function') {
+        const found = await store.findProductBySku(organizationId, needle);
+        return found ? toProductDto(found) : null;
+      }
+      const { items } = await store.listProducts(organizationId, {});
       const found = items.find((item) => String(item.sku ?? '').toUpperCase() === needle);
       return found ? toProductDto(found) : null;
     },
@@ -113,6 +124,9 @@ function createCatalogService(deps) {
     },
 
     async createCategory(organizationId, body, actor, options = {}) {
+      if (typeof deps.capabilityService?.assertCategoryCreateAllowed === 'function') {
+        await deps.capabilityService.assertCategoryCreateAllowed(organizationId);
+      }
       const input = parseCategoryCreate(body);
       try {
         return await transactionRunner.runWithOptionalSession(options.session, async (session) => {
@@ -142,6 +156,9 @@ function createCatalogService(deps) {
         return await transactionRunner.run(async (session) => {
           const current = await requireCategory(organizationId, categoryId);
           assertOptimisticVersion(current, expectedVersion);
+          if (typeof deps.capabilityService?.assertCategoryPatchAllowed === 'function') {
+            await deps.capabilityService.assertCategoryPatchAllowed(organizationId, current, patch);
+          }
           const nextProductClass = patch.productClass ?? current.productClass;
           if (patch.productClass !== undefined || patch.status !== undefined) {
             // no-op guard for future product revalidation hooks
@@ -166,9 +183,73 @@ function createCatalogService(deps) {
       }
     },
 
-    async listProducts(organizationId) {
-      const items = await store.listProducts(organizationId);
-      return { items: items.map(toProductDto) };
+    async deleteCategory(organizationId, categoryId, actor) {
+      if (typeof deps.capabilityService?.assertCategoryDeleteAllowed === 'function') {
+        await deps.capabilityService.assertCategoryDeleteAllowed(organizationId);
+      }
+      const current = await requireCategory(organizationId, categoryId);
+      const { items: products } = await store.listProducts(organizationId, {});
+      const owned = products.filter((item) => String(item.categoryId) === String(categoryId));
+      const extra =
+        typeof deps.listCategoryReferences === 'function'
+          ? await deps.listCategoryReferences(organizationId, categoryId)
+          : [];
+      const reasons = extra.slice();
+      if (owned.length > 0) {
+        reasons.unshift('products');
+      }
+      assertMasterUnused(reasons);
+      return transactionRunner.run(async (session) => {
+        const deleted = await store.deleteCategory(session, organizationId, categoryId);
+        if (!deleted) {
+          throw notFound('Category not found');
+        }
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: actor.actorId,
+          action: 'product_category.deleted',
+          resourceType: 'product_category',
+          resourceId: categoryId,
+          metadata: { name: current.name },
+        });
+        return { id: categoryId, deleted: true };
+      });
+    },
+
+    async listProductCategoryMap(organizationId) {
+      if (typeof store.listProductCategoryPairs === 'function') {
+        const items = await store.listProductCategoryPairs(organizationId);
+        return new Map(items.map((item) => [String(item.id), String(item.categoryId)]));
+      }
+      const listed = await store.listProducts(organizationId, {});
+      return new Map(
+        listed.items.map((item) => [String(item._id ?? item.id), String(item.categoryId)]),
+      );
+    },
+
+    async listProducts(organizationId, options = {}) {
+      const { status, search, skip, pageSize, q, limit } = options;
+      const { items, total } = await store.listProducts(
+        organizationId,
+        { status, search, q, limit },
+        skip !== undefined || pageSize !== undefined ? { skip, pageSize } : {},
+      );
+      return { items: items.map(toProductDto), total };
+    },
+
+    async findProductsByIds(organizationId, productIds) {
+      if (!Array.isArray(productIds) || productIds.length === 0) {
+        return [];
+      }
+      const records = await store.findProductsByIds(organizationId, productIds);
+      return records.map(toProductDto);
+    },
+
+    async attachProductListSummaries(organizationId, items, inventoryReader) {
+      if (typeof inventoryReader?.sumAvailableQuantityByProductIds !== 'function') {
+        return items;
+      }
+      return attachProductListSummaries(store, inventoryReader, organizationId, items);
     },
 
     async getProduct(organizationId, productId) {
@@ -176,6 +257,9 @@ function createCatalogService(deps) {
     },
 
     async createProduct(organizationId, body, actor, options = {}) {
+      if (typeof deps.capabilityService?.assertProductCreateAllowed === 'function') {
+        await deps.capabilityService.assertProductCreateAllowed(organizationId);
+      }
       const input = parseProductCreate(body);
       const category = await requireCategory(organizationId, input.categoryId);
       assertTrackingModeAllowed(category.productClass, input.trackingMode);
@@ -219,6 +303,9 @@ function createCatalogService(deps) {
         return await transactionRunner.run(async (session) => {
           const current = await requireProduct(organizationId, productId);
           assertOptimisticVersion(current, expectedVersion);
+          if (typeof deps.capabilityService?.assertProductPatchAllowed === 'function') {
+            await deps.capabilityService.assertProductPatchAllowed(organizationId, current, patch);
+          }
           const categoryId = patch.categoryId ?? String(current.categoryId);
           const category = await requireCategory(organizationId, categoryId);
           const trackingMode = patch.trackingMode ?? current.trackingMode;
@@ -242,6 +329,33 @@ function createCatalogService(deps) {
       }
     },
 
+    async deleteProduct(organizationId, productId, actor) {
+      if (typeof deps.capabilityService?.assertProductDeleteAllowed === 'function') {
+        await deps.capabilityService.assertProductDeleteAllowed(organizationId);
+      }
+      const current = await requireProduct(organizationId, productId);
+      const extra =
+        typeof deps.listProductReferences === 'function'
+          ? await deps.listProductReferences(organizationId, productId)
+          : [];
+      assertMasterUnused(extra);
+      return transactionRunner.run(async (session) => {
+        const deleted = await store.deleteProduct(session, organizationId, productId);
+        if (!deleted) {
+          throw notFound('Product not found');
+        }
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: actor.actorId,
+          action: 'product.deleted',
+          resourceType: 'product',
+          resourceId: productId,
+          metadata: { sku: current.sku },
+        });
+        return { id: productId, deleted: true };
+      });
+    },
+
     async listPackagingUnits(organizationId, productId) {
       await requireProduct(organizationId, productId);
       const items = await store.listPackagingUnits(organizationId, productId);
@@ -253,6 +367,9 @@ function createCatalogService(deps) {
       try {
         return await transactionRunner.run(async (session) => {
           const product = await requireProduct(organizationId, productId);
+          if (typeof deps.capabilityService?.assertProductEditAllowed === 'function') {
+            await deps.capabilityService.assertProductEditAllowed(organizationId);
+          }
           assertOptimisticVersion(product, expectedVersion);
           const existing = await store.listPackagingUnits(organizationId, productId);
           const desiredKeys = new Set(items.map((item) => item.nameNormalized));
@@ -318,6 +435,9 @@ function createCatalogService(deps) {
     },
 
     async createPrice(organizationId, productId, body, actor, options = {}) {
+      if (typeof deps.capabilityService?.assertProductPricingAllowed === 'function') {
+        await deps.capabilityService.assertProductPricingAllowed(organizationId);
+      }
       const input = parsePriceCreate(body);
       try {
         return await transactionRunner.runWithOptionalSession(options.session, async (session) => {
@@ -348,6 +468,9 @@ function createCatalogService(deps) {
     },
 
     async replacePrices(organizationId, productId, body, actor) {
+      if (typeof deps.capabilityService?.assertProductPricingAllowed === 'function') {
+        await deps.capabilityService.assertProductPricingAllowed(organizationId);
+      }
       const { expectedVersion, items } = parsePricesReplace(body);
       try {
         return await transactionRunner.run(async (session) => {
@@ -430,6 +553,15 @@ function createCatalogModule(options) {
     ...(options.evaluateEntitlement === undefined
       ? {}
       : { evaluateEntitlement: options.evaluateEntitlement }),
+    ...(options.capabilityService === undefined
+      ? {}
+      : { capabilityService: options.capabilityService }),
+    ...(options.listProductReferences === undefined
+      ? {}
+      : { listProductReferences: options.listProductReferences }),
+    ...(options.listCategoryReferences === undefined
+      ? {}
+      : { listCategoryReferences: options.listCategoryReferences }),
   });
 
   return {

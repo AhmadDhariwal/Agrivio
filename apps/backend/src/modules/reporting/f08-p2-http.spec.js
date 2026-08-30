@@ -33,7 +33,7 @@ describe('F08 P2 reports HTTP surface', () => {
     view(cashier, {}, (err) => {
       error = err;
     });
-    expect(error?.code).toBe('FORBIDDEN');
+    expect(error?.code).toBe('PERMISSION_DENIED');
   });
 
   it('serves report catalog and query, and denies unentitled export', async () => {

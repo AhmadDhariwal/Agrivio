@@ -1,8 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map, switchMap } from 'rxjs';
+import { Observable, map, switchMap, tap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
+import { ApiSuccessEnvelope, PaginationMeta } from '@agrivio/api-contracts';
+import { PaginatedResult, PaginationQuery } from '../../../shared/data-access/pagination';
 import {
   ExpiryInventoryRecord,
   InventoryBalanceRecord,
@@ -13,18 +15,32 @@ import {
   StockMovementRecord,
   WarehouseTransferRecord,
 } from '../models/inventory.models';
+import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
+import { QUERY_CACHE_TAGS } from '../../../shared/data-access/query-cache.tags';
+import { invalidateInventoryDashboardEffects } from '../../dashboard/data-access/dashboard-cache.invalidation';
 
 @Injectable({ providedIn: 'root' })
 export class InventoryApi {
   private readonly http = inject(HttpClient);
   private readonly authApi = inject(AuthApi);
+  private readonly queryCache = inject(QueryCacheService);
 
-  listBalances(query?: {
-    warehouseId?: string;
-    productId?: string;
-    batchId?: string;
-  }): Observable<InventoryBalanceRecord[]> {
-    const params: Record<string, string> = {};
+  private invalidateInventoryReads(): void {
+    invalidateInventoryDashboardEffects(this.queryCache);
+  }
+
+  listBalances(
+    query: PaginationQuery & {
+      warehouseId?: string;
+      productId?: string;
+      batchId?: string;
+      forceRefresh?: boolean;
+    } = {},
+  ): Observable<PaginatedResult<InventoryBalanceRecord>> {
+    const params: Record<string, string> = {
+      page: String(query.page ?? 1),
+      pageSize: String(query.pageSize ?? 25),
+    };
     if (query?.warehouseId) {
       params['warehouseId'] = query.warehouseId;
     }
@@ -34,20 +50,31 @@ export class InventoryApi {
     if (query?.batchId) {
       params['batchId'] = query.batchId;
     }
-    return this.http
-      .get<{ data: { items: InventoryBalanceRecord[] } }>(
-        `${environment.publicApiBaseUrl}/api/v1/inventory/balances`,
-        { withCredentials: true, params },
-      )
-      .pipe(map((response) => response.data.items));
+    const cacheKey = this.queryCache.buildKey('stock-balances', params);
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'short',
+      tags: [QUERY_CACHE_TAGS.stockBalances],
+      forceRefresh: query.forceRefresh === true,
+      loader: () =>
+        this.http
+          .get<ApiSuccessEnvelope<InventoryBalanceRecord[], PaginationMeta>>(
+            `${environment.publicApiBaseUrl}/api/v1/inventory/balances`,
+            { withCredentials: true, params },
+          )
+          .pipe(map((response) => ({ items: response.data, meta: response.meta! }))),
+    });
   }
 
-  listMovements(query?: {
-    warehouseId?: string;
-    productId?: string;
-    batchId?: string;
-  }): Observable<StockMovementRecord[]> {
-    const params: Record<string, string> = {};
+  listMovements(
+    query: PaginationQuery & {
+      warehouseId?: string;
+      productId?: string;
+      batchId?: string;
+      forceRefresh?: boolean;
+    } = {},
+  ): Observable<PaginatedResult<StockMovementRecord>> {
+    const params: Record<string, string> = { page: String(query.page ?? 1), pageSize: String(query.pageSize ?? 25) };
     if (query?.warehouseId) {
       params['warehouseId'] = query.warehouseId;
     }
@@ -57,25 +84,66 @@ export class InventoryApi {
     if (query?.batchId) {
       params['batchId'] = query.batchId;
     }
-    return this.http
-      .get<{ data: { items: StockMovementRecord[] } }>(
-        `${environment.publicApiBaseUrl}/api/v1/inventory/movements`,
-        { withCredentials: true, params },
-      )
-      .pipe(map((response) => response.data.items));
+    const cacheKey = this.queryCache.buildKey('movements', params);
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'short',
+      tags: [QUERY_CACHE_TAGS.stockMovements],
+      forceRefresh: query.forceRefresh === true,
+      loader: () =>
+        this.http
+          .get<ApiSuccessEnvelope<StockMovementRecord[], PaginationMeta>>(
+            `${environment.publicApiBaseUrl}/api/v1/inventory/movements`,
+            { withCredentials: true, params },
+          )
+          .pipe(map((response) => ({ items: response.data, meta: response.meta! }))),
+    });
   }
 
-  listBatches(query?: { productId?: string }): Observable<ProductBatchRecord[]> {
-    const params: Record<string, string> = {};
+  listBatches(
+    query: PaginationQuery & {
+      productId?: string;
+      warehouseId?: string;
+      search?: string;
+      forceRefresh?: boolean;
+    } = {},
+  ): Observable<PaginatedResult<ProductBatchRecord>> {
+    const params: Record<string, string> = {
+      page: String(query.page ?? 1),
+      pageSize: String(query.pageSize ?? 25),
+    };
     if (query?.productId) {
       params['productId'] = query.productId;
     }
+    if (query?.warehouseId) {
+      params['warehouseId'] = query.warehouseId;
+    }
+    if (query?.search) {
+      params['search'] = query.search;
+    }
+    const cacheKey = this.queryCache.buildKey('batches', params);
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'short',
+      tags: [QUERY_CACHE_TAGS.batches],
+      forceRefresh: query.forceRefresh === true,
+      loader: () =>
+        this.http
+          .get<ApiSuccessEnvelope<ProductBatchRecord[], PaginationMeta>>(
+            `${environment.publicApiBaseUrl}/api/v1/inventory/batches`,
+            { withCredentials: true, params },
+          )
+          .pipe(map((response) => ({ items: response.data, meta: response.meta! }))),
+    });
+  }
+
+  getBatch(id: string): Observable<ProductBatchRecord> {
     return this.http
-      .get<{ data: { items: ProductBatchRecord[] } }>(
-        `${environment.publicApiBaseUrl}/api/v1/inventory/batches`,
-        { withCredentials: true, params },
+      .get<{ data: ProductBatchRecord }>(
+        `${environment.publicApiBaseUrl}/api/v1/inventory/batches/${id}`,
+        { withCredentials: true },
       )
-      .pipe(map((response) => response.data.items));
+      .pipe(map((response) => response.data));
   }
 
   postOpeningStock(
@@ -105,7 +173,10 @@ export class InventoryApi {
               },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.invalidateInventoryReads()),
+          ),
       ),
     );
   }
@@ -114,6 +185,7 @@ export class InventoryApi {
     warehouseId?: string;
     productId?: string;
     classification?: string;
+    forceRefresh?: boolean;
   }): Observable<{ items: ExpiryInventoryRecord[]; businessDate: string; thresholdDays: number }> {
     const params: Record<string, string> = {};
     if (query?.warehouseId) {
@@ -125,30 +197,51 @@ export class InventoryApi {
     if (query?.classification) {
       params['classification'] = query.classification;
     }
-    return this.http
-      .get<{
-        data: { items: ExpiryInventoryRecord[]; businessDate: string; thresholdDays: number };
-      }>(`${environment.publicApiBaseUrl}/api/v1/inventory/expiry`, {
-        withCredentials: true,
-        params,
-      })
-      .pipe(map((response) => response.data));
+    const cacheKey = this.queryCache.buildKey('expiry', params);
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'short',
+      tags: [QUERY_CACHE_TAGS.expiry],
+      forceRefresh: query?.forceRefresh === true,
+      loader: () =>
+        this.http
+          .get<{
+            data: { items: ExpiryInventoryRecord[]; businessDate: string; thresholdDays: number };
+          }>(`${environment.publicApiBaseUrl}/api/v1/inventory/expiry`, {
+            withCredentials: true,
+            params,
+          })
+          .pipe(map((response) => response.data)),
+    });
   }
 
-  listAdjustments(query?: { warehouseId?: string; status?: string }): Observable<StockAdjustmentRecord[]> {
-    const params: Record<string, string> = {};
+  listAdjustments(
+    query: PaginationQuery & { warehouseId?: string; forceRefresh?: boolean } = {},
+  ): Observable<PaginatedResult<StockAdjustmentRecord>> {
+    const params: Record<string, string> = {
+      page: String(query.page ?? 1),
+      pageSize: String(query.pageSize ?? 25),
+    };
     if (query?.warehouseId) {
       params['warehouseId'] = query.warehouseId;
     }
     if (query?.status) {
       params['status'] = query.status;
     }
-    return this.http
-      .get<{ data: { items: StockAdjustmentRecord[] } }>(
-        `${environment.publicApiBaseUrl}/api/v1/stock-adjustments`,
-        { withCredentials: true, params },
-      )
-      .pipe(map((response) => response.data.items));
+    const cacheKey = this.queryCache.buildKey('adjustments', params);
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'dedupe-only',
+      tags: [QUERY_CACHE_TAGS.stockAdjustments],
+      forceRefresh: query.forceRefresh === true,
+      loader: () =>
+        this.http
+          .get<ApiSuccessEnvelope<StockAdjustmentRecord[], PaginationMeta>>(
+            `${environment.publicApiBaseUrl}/api/v1/stock-adjustments`,
+            { withCredentials: true, params },
+          )
+          .pipe(map((response) => ({ items: response.data, meta: response.meta! }))),
+    });
   }
 
   createAdjustmentDraft(payload: {
@@ -200,7 +293,10 @@ export class InventoryApi {
               },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.invalidateInventoryReads()),
+          ),
       ),
     );
   }
@@ -224,17 +320,25 @@ export class InventoryApi {
               },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.invalidateInventoryReads()),
+          ),
       ),
     );
   }
 
-  listTransfers(query?: {
-    status?: string;
-    sourceWarehouseId?: string;
-    destinationWarehouseId?: string;
-  }): Observable<WarehouseTransferRecord[]> {
-    const params: Record<string, string> = {};
+  listTransfers(
+    query: PaginationQuery & {
+      sourceWarehouseId?: string;
+      destinationWarehouseId?: string;
+      forceRefresh?: boolean;
+    } = {},
+  ): Observable<PaginatedResult<WarehouseTransferRecord>> {
+    const params: Record<string, string> = {
+      page: String(query.page ?? 1),
+      pageSize: String(query.pageSize ?? 25),
+    };
     if (query?.status) {
       params['status'] = query.status;
     }
@@ -244,12 +348,29 @@ export class InventoryApi {
     if (query?.destinationWarehouseId) {
       params['destinationWarehouseId'] = query.destinationWarehouseId;
     }
+    const cacheKey = this.queryCache.buildKey('transfers', params);
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'dedupe-only',
+      tags: [QUERY_CACHE_TAGS.stockTransfers],
+      forceRefresh: query.forceRefresh === true,
+      loader: () =>
+        this.http
+          .get<ApiSuccessEnvelope<WarehouseTransferRecord[], PaginationMeta>>(
+            `${environment.publicApiBaseUrl}/api/v1/warehouse-transfers`,
+            { withCredentials: true, params },
+          )
+          .pipe(map((response) => ({ items: response.data, meta: response.meta! }))),
+    });
+  }
+
+  getTransfer(id: string): Observable<WarehouseTransferRecord> {
     return this.http
-      .get<{ data: { items: WarehouseTransferRecord[] } }>(
-        `${environment.publicApiBaseUrl}/api/v1/warehouse-transfers`,
-        { withCredentials: true, params },
+      .get<{ data: WarehouseTransferRecord }>(
+        `${environment.publicApiBaseUrl}/api/v1/warehouse-transfers/${id}`,
+        { withCredentials: true },
       )
-      .pipe(map((response) => response.data.items));
+      .pipe(map((response) => response.data));
   }
 
   createTransferDraft(payload: {
@@ -300,7 +421,10 @@ export class InventoryApi {
               },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.invalidateInventoryReads()),
+          ),
       ),
     );
   }
@@ -324,17 +448,28 @@ export class InventoryApi {
               },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.invalidateInventoryReads()),
+          ),
       ),
     );
   }
 
-  reconcileInventory(): Observable<ReconciliationResult> {
-    return this.http
-      .get<{ data: ReconciliationResult }>(
-        `${environment.publicApiBaseUrl}/api/v1/inventory/reconciliation`,
-        { withCredentials: true },
-      )
-      .pipe(map((response) => response.data));
+  reconcileInventory(options?: { forceRefresh?: boolean }): Observable<ReconciliationResult> {
+    const cacheKey = this.queryCache.buildKey('reconciliation', {});
+    return this.queryCache.fetch({
+      key: cacheKey,
+      policy: 'short',
+      tags: [QUERY_CACHE_TAGS.reconciliation],
+      forceRefresh: options?.forceRefresh === true,
+      loader: () =>
+        this.http
+          .get<{ data: ReconciliationResult }>(
+            `${environment.publicApiBaseUrl}/api/v1/inventory/reconciliation`,
+            { withCredentials: true },
+          )
+          .pipe(map((response) => response.data)),
+    });
   }
 }

@@ -78,3 +78,7 @@ Focused coverage:
 ## Next
 
 * F03 P2 (`R1-F03-005`+) after this phase is accepted
+
+## API/cache hardening follow-up (2026-08-30)
+
+Organization profile/settings, branch/warehouse list/detail/options, and employee/access reads now use organization-scoped exact-query caching. Successful scoped mutations invalidate only their read families and derived setup progress. Location selectors use complete `/branches/options` and `/warehouses/options` read models, including selected inactive-value hydration, instead of capped list preloads.

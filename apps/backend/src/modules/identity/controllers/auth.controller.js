@@ -133,6 +133,31 @@ function createAuthController(deps) {
         next(error);
       }
     },
+
+    async getNavigationPreferences(req, res, next) {
+      try {
+        const result = await deps.navigationPreferencesService.getPreferences(
+          req.auth,
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 200, result);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async updateNavigationPreferences(req, res, next) {
+      try {
+        const result = await deps.navigationPreferencesService.updatePreferences(
+          req.auth,
+          req.authContext,
+          req.body ?? {},
+        );
+        sendSuccessEnvelope(res, 200, result);
+      } catch (error) {
+        next(error);
+      }
+    },
   };
 }
 

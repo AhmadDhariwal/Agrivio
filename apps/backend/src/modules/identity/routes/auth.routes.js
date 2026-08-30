@@ -8,6 +8,7 @@ const {
   API_AUTH_PASSWORD_RESET_REQUEST_PATH,
   API_AUTH_SESSION_CONTEXT_PATH,
   API_AUTH_SESSION_PATH,
+  API_AUTH_NAVIGATION_PREFERENCES_PATH,
 } = require('@agrivio/api-contracts');
 const {
   createAuthTransportMiddleware,
@@ -40,6 +41,19 @@ function registerAuthRoutes(deps) {
   router.get(API_AUTH_SESSION_PATH, requireAuth, (req, res, next) => {
     void controller.session(req, res, next);
   });
+
+  router.get(API_AUTH_NAVIGATION_PREFERENCES_PATH, requireAuth, (req, res, next) => {
+    void controller.getNavigationPreferences(req, res, next);
+  });
+
+  router.put(
+    API_AUTH_NAVIGATION_PREFERENCES_PATH,
+    requireAuth,
+    requireCsrf,
+    (req, res, next) => {
+      void controller.updateNavigationPreferences(req, res, next);
+    },
+  );
 
   router.post(API_AUTH_SESSION_CONTEXT_PATH, requireAuth, requireCsrf, (req, res, next) => {
     void controller.switchContext(req, res, next);

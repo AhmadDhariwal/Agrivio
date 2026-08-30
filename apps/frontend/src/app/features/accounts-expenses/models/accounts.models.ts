@@ -78,3 +78,10 @@ export interface AccountRecord {
   openingBalance?: AccountOpeningBalance;
   derivedBalances?: { balance: MoneyAmount };
 }
+
+export interface AccountsSummary {
+  totalAccounts: number;
+  activeAccounts: number;
+  inactiveAccounts: number;
+  totalBalance: MoneyAmount;
+}

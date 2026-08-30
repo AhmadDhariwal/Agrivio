@@ -1,48 +1,307 @@
-<agrivio-ui-page-header
-  title="Supplier payments"
-  eyebrow="Purchasing"
-  lede="Record general supplier payments. Unallocated remainder becomes supplier advance when no unpaid purchases apply."
->
-  @if (canPost()) {
-    <a
-      class="ag-btn"
-      routerLink="/app/supplier-payments/new"
-      data-testid="supplier-payment-create-link"
-    >
-      Post payment
-    </a>
-  }
-  @if (canView()) {
-    <a class="ag-btn ag-btn--secondary" routerLink="/app/supplier-payments/ledger" data-testid="supplier-ledger-link">
-      Supplier ledger
-    </a>
-  }
-</agrivio-ui-page-header>
+<div class="supplier-payments-shell" data-testid="supplier-payments-page">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">PURCHASING</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">Supplier payments</h1>
+        <span class="page-head__count-pill" aria-label="Total payments" data-testid="supplier-payments-count-pill">
+          {{ total() }} {{ total() === 1 ? 'payment' : 'payments' }}
+        </span>
+      </div>
+      <p class="page-head__lede">
+        Record general supplier payments. Unallocated remainder becomes supplier advance when no unpaid purchases apply.
+      </p>
+    </div>
 
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading supplier payments…" />
-} @else if (errorMessage(); as error) {
-  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-} @else if (items().length === 0) {
-  <agrivio-ui-empty-state
-    title="No supplier payments yet"
-    message="Post a general supplier payment to settle payables or create an advance."
-  />
-} @else {
-  <div class="ag-stack" data-testid="supplier-payments-list">
-    @for (item of items(); track item.id) {
-      <article class="row">
-        <div>
-          <strong>{{ item.amount.amount }} {{ item.amount.currency }}</strong>
-          <p class="ag-muted">
-            {{ item.paymentDate }} · {{ item.allocationMode }}
-            @if (item.notes) {
-              · {{ item.notes }}
+    <div class="page-head__actions">
+      @if (canPost()) {
+        <a
+          class="ag-btn ag-btn--primary page-head__create-btn"
+          routerLink="/app/supplier-payments/new"
+          data-testid="supplier-payment-create-link"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span class="btn-text-full">Post payment</span>
+          <span class="btn-text-mobile">Post</span>
+        </a>
+      }
+      @if (canViewLedger()) {
+        <a
+          class="ag-btn ag-btn--secondary page-head__ledger-btn"
+          routerLink="/app/supplier-payments/ledger"
+          data-testid="supplier-ledger-link"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          </svg>
+          <span class="btn-text-full">Supplier ledger</span>
+          <span class="btn-text-mobile">Ledger</span>
+        </a>
+      }
+    </div>
+  </header>
+
+  <!-- Permission / Error / Loading States -->
+  @if (!canView()) {
+    <div class="alert-container" data-testid="supplier-payments-permission-alert">
+      <agrivio-ui-alert tone="warning" message="You do not have permission to view supplier payments." />
+    </div>
+  } @else if (loading()) {
+    <agrivio-ui-loading-state label="Loading supplier payments…" />
+  } @else {
+    @if (errorMessage(); as error) {
+      <div class="alert-container">
+        <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+      </div>
+    }
+
+    <!-- Module Information Card -->
+    @if (showModuleInfo()) {
+      <agrivio-ui-module-info
+        title="About Supplier Payments"
+        description="Record general payments made to suppliers. If no unpaid purchases apply, the unallocated remainder is recorded as supplier advance."
+        [items]="moduleInfoItems"
+        [defaultExpanded]="false"
+      />
+    }
+
+    <!-- Filter Toolbar -->
+    <div class="toolbar" data-testid="supplier-payments-toolbar">
+      @if (showPaymentDateFilter()) {
+      <div class="toolbar__search">
+        <div class="date-filter-group">
+          <span class="date-filter-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+          </span>
+          <input
+            class="ag-input date-picker-input"
+            type="date"
+            [ngModel]="paymentDate()"
+            (ngModelChange)="onDateChange($event)"
+            aria-label="Filter by payment date"
+            data-testid="supplier-payments-search-input"
+          />
+        </div>
+      </div>
+      }
+
+      <div class="toolbar__filters">
+        <!-- Clear Filters Button -->
+        @if (paymentDate()) {
+          <button
+            type="button"
+            class="ag-btn ag-btn--ghost toolbar__btn"
+            (click)="clearFilters()"
+            data-testid="supplier-payments-clear-filters"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+            Clear
+          </button>
+        }
+
+        <!-- Refresh Button -->
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary toolbar__btn"
+          (click)="reload(true)"
+          [disabled]="loading()"
+          data-testid="supplier-payments-refresh-btn"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+          </svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- Data Presentation -->
+    @if (items().length === 0) {
+      <div class="table-container empty-container" data-testid="supplier-payments-empty">
+        <div class="empty-content">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+            <line x1="2" y1="10" x2="22" y2="10"></line>
+          </svg>
+          <p class="empty-title">No supplier payments found</p>
+          <p class="empty-desc">
+            @if (paymentDate()) {
+              No payments found for date {{ paymentDate() }}. Try clearing the date filter.
+            } @else {
+              Post a general supplier payment to settle payables or create an advance.
             }
           </p>
+          @if (paymentDate()) {
+            <button type="button" class="ag-btn ag-btn--secondary ag-btn--sm" (click)="clearFilters()">
+              Clear filter
+            </button>
+          }
         </div>
-        <agrivio-ui-status-badge [label]="item.status" tone="success" />
-      </article>
+      </div>
+    } @else {
+      <!-- Desktop Table View (>=768px) -->
+      <div class="table-container desktop-only" data-testid="supplier-payments-list">
+        <table class="data-table" data-testid="supplier-payments-table">
+          <thead>
+            <tr>
+              @if (canViewField('paymentReference')) { <th>PAYMENT</th> }
+              @if (canViewField('paymentDate')) { <th>DATE <span class="sort-indicator" aria-hidden="true">⇅</span></th> }
+              @if (canViewField('allocationMode')) { <th>TYPE</th> }
+              @if (canViewField('notes')) { <th>NOTES</th> }
+              @if (canViewField('amount')) { <th class="text-right">AMOUNT</th> }
+              @if (canViewField('status')) { <th>STATUS</th> }
+              @if (canViewLedger()) { <th class="text-right">ACTIONS</th> }
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of items(); track item.id) {
+              <tr data-testid="supplier-payment-row">
+                <!-- Payment Identifier -->
+                @if (canViewField('paymentReference')) { <td>
+                  <div class="payment-ref-cell">
+                    <div class="payment-icon-box" aria-hidden="true">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                      </svg>
+                    </div>
+                    <span class="payment-ref-text font-medium">{{ formatPaymentId(item.id) }}</span>
+                  </div>
+                </td> }
+
+                <!-- Date -->
+                @if (canViewField('paymentDate')) { <td class="cell-date">
+                  {{ item.paymentDate }}
+                </td> }
+
+                <!-- Type / Allocation Mode -->
+                @if (canViewField('allocationMode')) { <td>
+                  <span class="type-pill" [class.type-pill--blue]="item.allocationMode === 'general'" [class.type-pill--purple]="item.allocationMode === 'invoice_specific'">
+                    {{ item.allocationMode }}
+                  </span>
+                </td> }
+
+                <!-- Supplier / Notes -->
+                @if (canViewField('notes')) { <td class="cell-notes">
+                  <span class="notes-text" [title]="item.notes || 'General payment'">{{ item.notes || 'General payment' }}</span>
+                </td> }
+
+                <!-- Amount -->
+                @if (canViewField('amount')) { <td class="text-right cell-amount">
+                  <span class="amount-val font-semibold">PKR {{ formatMoney(item.amount.amount) }}</span>
+                </td> }
+
+                <!-- Status -->
+                @if (canViewField('status')) { <td>
+                  <span class="status-pill status-pill--green">
+                    {{ item.status.toUpperCase() }}
+                  </span>
+                </td> }
+
+                <!-- Actions -->
+                @if (canViewLedger()) { <td class="text-right cell-actions">
+                  <a
+                    class="row-action-link"
+                    [routerLink]="['/app/supplier-payments/ledger']"
+                    [queryParams]="item.supplierId ? { supplierId: item.supplierId } : {}"
+                    data-testid="payment-action-btn"
+                  >
+                    <span>Open</span>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                      <polyline points="15 3 21 3 21 9"></polyline>
+                      <line x1="10" y1="14" x2="21" y2="3"></line>
+                    </svg>
+                  </a>
+                </td> }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Mobile Cards View (<768px) -->
+      <div class="mobile-cards-list mobile-only" data-testid="supplier-payments-mobile-list">
+        @for (item of items(); track item.id) {
+          <article class="mobile-payment-card" data-testid="supplier-payment-mobile-card">
+            <!-- Header -->
+            <div class="mobile-payment-card__header">
+              <div class="mobile-payment-card__ref-wrap">
+                @if (canViewField('paymentReference')) { <span class="mobile-payment-card__ref font-medium">{{ formatPaymentId(item.id) }}</span> }
+                @if (canViewField('paymentDate')) { <span class="mobile-payment-card__date">{{ item.paymentDate }}</span> }
+              </div>
+              @if (canViewField('status')) {
+              <span class="status-pill status-pill--green">
+                {{ item.status.toUpperCase() }}
+              </span>
+              }
+            </div>
+
+            <!-- Body -->
+            <div class="mobile-payment-card__body">
+              @if (canViewField('amount')) { <div class="mobile-payment-card__amount-row">
+                <span class="amount-label">Payment Amount</span>
+                <span class="amount-value font-semibold">PKR {{ formatMoney(item.amount.amount) }}</span>
+              </div> }
+
+              <div class="mobile-payment-card__details">
+                <div class="detail-badge-row">
+                  @if (canViewField('allocationMode')) { <span class="type-pill" [class.type-pill--blue]="item.allocationMode === 'general'" [class.type-pill--purple]="item.allocationMode === 'invoice_specific'">
+                    {{ item.allocationMode }}
+                  </span> }
+                </div>
+                @if (canViewField('notes') && item.notes) {
+                  <p class="mobile-payment-card__notes">{{ item.notes }}</p>
+                }
+              </div>
+            </div>
+
+            <!-- Footer Action -->
+            @if (canViewLedger()) { <div class="mobile-payment-card__footer">
+              <a
+                class="ag-btn ag-btn--secondary ag-btn--sm mobile-action-btn"
+                [routerLink]="['/app/supplier-payments/ledger']"
+                [queryParams]="item.supplierId ? { supplierId: item.supplierId } : {}"
+              >
+                <span>View ledger</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+              </a>
+            </div> }
+          </article>
+        }
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination-wrap">
+        <agrivio-ui-pagination
+          [page]="page()"
+          [pageSize]="pageSize()"
+          [total]="total()"
+          [disabled]="loading()"
+          (pageChange)="onPageChange($event)"
+          (pageSizeChange)="onPageSizeChange($event)"
+        />
+      </div>
     }
-  </div>
-}
+  }
+</div>

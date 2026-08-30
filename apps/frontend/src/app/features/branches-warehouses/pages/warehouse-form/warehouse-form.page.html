@@ -1,38 +1,419 @@
-<agrivio-ui-page-header
-  [title]="warehouseId() ? 'Edit warehouse' : 'Create warehouse'"
-  eyebrow="Locations"
-  lede="Warehouses belong to the organization and can grow beyond the initial single warehouse."
-/>
+<div class="warehouse-form-shell">
+  <!-- Breadcrumb Navigation -->
+  <nav class="breadcrumb-nav" aria-label="Breadcrumb">
+    <ol class="breadcrumb-list">
+      <li class="breadcrumb-item">
+        <a routerLink="/app/warehouses" class="breadcrumb-link">Organization</a>
+      </li>
+      <li class="breadcrumb-separator" aria-hidden="true">/</li>
+      <li class="breadcrumb-item">
+        <a routerLink="/app/warehouses" class="breadcrumb-link">Warehouses</a>
+      </li>
+      <li class="breadcrumb-separator" aria-hidden="true">/</li>
+      <li class="breadcrumb-item breadcrumb-item--current" aria-current="page">
+        {{ warehouseId() ? 'Edit' : 'Create' }}
+      </li>
+    </ol>
+  </nav>
 
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading warehouse…" />
-} @else if (!canManage()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to manage warehouses." />
-} @else {
-  @if (errorMessage(); as error) {
-    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-  }
-  <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="warehouse-form">
-    <label>
-      Name
-      <input formControlName="name" data-testid="warehouse-name" />
-    </label>
-    <label>
-      Code (optional)
-      <input formControlName="code" data-testid="warehouse-code" />
-    </label>
-    @if (warehouseId()) {
-      <label>
-        Status
-        <select formControlName="status" data-testid="warehouse-status">
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-      </label>
-    }
-    <div class="ag-inline">
-      <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="warehouse-save">Save</button>
-      <a class="ag-btn ag-btn--secondary" routerLink="/app/warehouses">Cancel</a>
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">Locations</p>
+      <h1 class="page-head__title">
+        {{ warehouseId() ? 'Edit warehouse' : 'Create warehouse' }}
+      </h1>
+      <p class="page-head__lede">
+        Warehouses belong to the organization and can grow beyond the initial single warehouse.
+      </p>
     </div>
+
+    <div class="page-head__actions">
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/warehouses">
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        Back to Warehouses
+      </a>
+    </div>
+  </header>
+
+  <!-- Loading & Alert States -->
+  @if (loading()) {
+  <div class="state-container">
+    <agrivio-ui-loading-state label="Loading warehouse definition…" />
+  </div>
+  } @else if (!canManage()) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="warning" message="You do not have permission to manage warehouses." />
+  </div>
+  } @else {
+  @if (errorMessage(); as error) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  </div>
+  }
+
+  <form class="wh-form" [formGroup]="form" (ngSubmit)="save()" data-testid="warehouse-form">
+    <!-- ====================================================================
+         CREATE MODE (2-Column Responsive Layout)
+         ==================================================================== -->
+    @if (!warehouseId()) {
+    <div class="form-layout">
+      <!-- Main Form Card -->
+      <section class="form-card">
+        <div class="form-card__body">
+          <!-- Name -->
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Name"
+              for="warehouse-name"
+              [required]="fieldRequired(form.controls.name)"
+            />
+            <p class="field-helper">Enter a clear, unique name to identify this warehouse.</p>
+            <input
+              id="warehouse-name"
+              class="ag-input"
+              formControlName="name"
+              placeholder="e.g., Lahore Central Warehouse"
+              data-testid="warehouse-name"
+              [class.ag-input--invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted())"
+              [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted()) ? 'true' : null"
+            />
+            @if (fieldError(form.controls.name, 'Name', formSubmitAttempted()); as nameError) {
+            <p class="field-error" role="alert">{{ nameError }}</p>
+            }
+          </div>
+
+          <!-- Code (optional) -->
+          @if (showCode()) {
+          <div class="ag-field">
+            <agrivio-ui-field-label label="Code (optional)" for="warehouse-code" />
+            <p class="field-helper">A short code to quickly reference this warehouse.</p>
+            <input
+              id="warehouse-code"
+              class="ag-input"
+              formControlName="code"
+              placeholder="e.g., LHR-CENTRAL"
+              data-testid="warehouse-code"
+              [class.ag-input--invalid]="fieldError(form.controls.code, 'Code', formSubmitAttempted())"
+              [attr.aria-invalid]="fieldError(form.controls.code, 'Code', formSubmitAttempted()) ? 'true' : null"
+              [readOnly]="!isCodeEditable()"
+            />
+            @if (fieldError(form.controls.code, 'Code', formSubmitAttempted()); as codeError) {
+            <p class="field-error" role="alert">{{ codeError }}</p>
+            }
+          </div>
+          }
+
+          <!-- Info Callout -->
+          <div class="info-callout">
+            <div class="info-callout__icon">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+            </div>
+            <div class="info-callout__content">
+              <p class="info-callout__text">
+                <strong>New warehouses are created Active by default.</strong><br />
+                You can manage inventory and settings after saving.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <footer class="form-actions">
+          <button
+            class="ag-btn ag-btn--primary"
+            type="submit"
+            [disabled]="!canSave()"
+            data-testid="warehouse-save"
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
+            </svg>
+            {{ saving() ? 'Saving…' : 'Save' }}
+          </button>
+          <a class="ag-btn ag-btn--secondary" routerLink="/app/warehouses">Cancel</a>
+        </footer>
+      </section>
+
+      <!-- Right Guidance Card -->
+      <aside class="guidance-card" aria-label="Warehouse code guidance">
+        <div class="guidance-card__header">
+          <div class="guidance-card__icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+              <path d="m3.3 7 8.7 5 8.7-5" />
+              <path d="M12 22V12" />
+            </svg>
+          </div>
+          <h2 class="guidance-card__title">Warehouse code guidance</h2>
+        </div>
+
+        <p class="guidance-card__lede">
+          Codes are optional but help you reference warehouses quickly in reports, imports, and integrations.
+        </p>
+
+        <div class="guidance-checklist">
+          <span class="guidance-checklist__title">Good codes are:</span>
+          <ul class="guidance-list">
+            <li class="guidance-item">
+              <div class="guidance-item__check">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <span class="guidance-item__label">Short and easy to remember</span>
+            </li>
+            <li class="guidance-item">
+              <div class="guidance-item__check">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <span class="guidance-item__label">Unique within your organization</span>
+            </li>
+            <li class="guidance-item">
+              <div class="guidance-item__check">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <span class="guidance-item__label">Consistent (e.g., location or region based)</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="guidance-subgroup">
+          <div class="guidance-subgroup__head">
+            <div class="guidance-subgroup__icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <ellipse cx="12" cy="5" rx="9" ry="3" />
+                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+              </svg>
+            </div>
+            <span class="guidance-subgroup__title">Stock management</span>
+          </div>
+          <p class="guidance-subgroup__desc">
+            Once created, manage stock settings, bin locations, and user access from the warehouse details page.
+          </p>
+        </div>
+      </aside>
+    </div>
+    }
+
+    <!-- ====================================================================
+         EDIT MODE (2-Column Responsive Layout)
+         ==================================================================== -->
+    @else {
+    <div class="form-layout">
+      <!-- Main Form Card -->
+      <section class="form-card">
+        <div class="form-card__body">
+          <p class="required-hint">* Required fields</p>
+
+          <!-- Name -->
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Name"
+              for="warehouse-name"
+              [required]="fieldRequired(form.controls.name)"
+            />
+            <input
+              id="warehouse-name"
+              class="ag-input"
+              formControlName="name"
+              data-testid="warehouse-name"
+              [class.ag-input--invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted())"
+              [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted()) ? 'true' : null"
+            />
+            @if (fieldError(form.controls.name, 'Name', formSubmitAttempted()); as nameError) {
+            <p class="field-error" role="alert">{{ nameError }}</p>
+            }
+            <p class="field-helper">Enter a descriptive name for this warehouse.</p>
+          </div>
+
+          <!-- Code (optional) -->
+          @if (showCode()) {
+          <div class="ag-field">
+            <agrivio-ui-field-label label="Code (optional)" for="warehouse-code" />
+            <input
+              id="warehouse-code"
+              class="ag-input"
+              formControlName="code"
+              data-testid="warehouse-code"
+              [class.ag-input--invalid]="fieldError(form.controls.code, 'Code', formSubmitAttempted())"
+              [attr.aria-invalid]="fieldError(form.controls.code, 'Code', formSubmitAttempted()) ? 'true' : null"
+              [readOnly]="!isCodeEditable()"
+            />
+            @if (fieldError(form.controls.code, 'Code', formSubmitAttempted()); as codeError) {
+            <p class="field-error" role="alert">{{ codeError }}</p>
+            }
+            <p class="field-helper">A short code to help identify this warehouse.</p>
+          </div>
+          }
+
+          <!-- Status -->
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Status"
+              for="warehouse-status"
+              [required]="fieldRequired(form.controls.status)"
+            />
+            <select
+              id="warehouse-status"
+              class="ag-select"
+              formControlName="status"
+              data-testid="warehouse-status"
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            <p class="field-helper">Active warehouses can be used for stock operations.</p>
+          </div>
+        </div>
+
+        <footer class="form-actions">
+          <button
+            class="ag-btn ag-btn--primary"
+            type="submit"
+            [disabled]="!canSave()"
+            data-testid="warehouse-save"
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
+            </svg>
+            {{ saving() ? 'Saving…' : 'Save' }}
+          </button>
+          <a class="ag-btn ag-btn--secondary" routerLink="/app/warehouses">Cancel</a>
+        </footer>
+      </section>
+
+      <!-- Right Guidance Card (Overview & Operational Guidance) -->
+      <aside class="guidance-card" aria-label="Warehouse overview and operational guidance">
+        <div class="overview-section">
+          <div class="overview-section__icon">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+              <path d="m3.3 7 8.7 5 8.7-5" />
+              <path d="M12 22V12" />
+            </svg>
+          </div>
+          <div class="overview-section__text">
+            <h2 class="overview-section__title">Warehouse overview</h2>
+            <p class="overview-section__desc">
+              {{ form.controls.status.value === 'active' ? 'This warehouse is currently active and can be used for inventory operations.' : 'This warehouse is currently inactive and restricted from new operational movements.' }}
+            </p>
+          </div>
+        </div>
+
+        <div class="guidance-checklist">
+          <span class="guidance-checklist__title">Operational guidance</span>
+          <ul class="guidance-list">
+            <li class="guidance-item">
+              <div class="guidance-item__check">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <div class="guidance-item__content">
+                <span class="guidance-item__heading">Stock operations</span>
+                <p class="guidance-item__sub">Active warehouses can be selected for receiving, transfers, and other stock movements.</p>
+              </div>
+            </li>
+
+            <li class="guidance-item">
+              <div class="guidance-item__check">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <div class="guidance-item__content">
+                <span class="guidance-item__heading">Inactivate to restrict</span>
+                <p class="guidance-item__sub">Inactivate a warehouse if it is no longer in use or should not be available for operations.</p>
+              </div>
+            </li>
+
+            <li class="guidance-item">
+              <div class="guidance-item__check guidance-item__check--info">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+              </div>
+              <div class="guidance-item__content">
+                <span class="guidance-item__heading">Code is optional</span>
+                <p class="guidance-item__sub">A code helps identify warehouses quickly in reports and transactions.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+    }
   </form>
-}
+  }
+</div>

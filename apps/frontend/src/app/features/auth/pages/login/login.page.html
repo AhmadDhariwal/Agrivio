@@ -2,9 +2,13 @@
   title="Sign in"
   subtitle="Use your organization or platform credentials. Session cookies authenticate the browser."
 >
-  <form class="ag-form" [formGroup]="form" (ngSubmit)="submit()">
+  <form class="ag-form ag-form--with-required-hint" [formGroup]="form" (ngSubmit)="submit()">
     <div class="ag-field">
-      <label class="ag-field__label" for="login-email">Email</label>
+      <agrivio-ui-field-label
+        label="Email"
+        for="login-email"
+        [required]="fieldRequired(form.controls.email)"
+      />
       <input
         id="login-email"
         class="ag-input"
@@ -12,14 +16,21 @@
         formControlName="email"
         autocomplete="username"
         data-testid="login-email"
+        [attr.aria-required]="fieldRequired(form.controls.email) ? 'true' : null"
+        [attr.aria-invalid]="form.controls.email.touched && form.controls.email.invalid ? true : null"
+        [attr.aria-describedby]="form.controls.email.touched && form.controls.email.invalid ? 'login-email-error' : null"
       />
       @if (form.controls.email.touched && form.controls.email.invalid) {
-        <p class="ag-field__error">Enter a valid email address.</p>
+        <p class="ag-field__error" id="login-email-error">Enter a valid email address.</p>
       }
     </div>
 
     <div class="ag-field">
-      <label class="ag-field__label" for="login-password">Password</label>
+      <agrivio-ui-field-label
+        label="Password"
+        for="login-password"
+        [required]="fieldRequired(form.controls.password)"
+      />
       <div class="ag-control-wrap">
         <input
           id="login-password"
@@ -28,18 +39,30 @@
           formControlName="password"
           autocomplete="current-password"
           data-testid="login-password"
+          [attr.aria-required]="fieldRequired(form.controls.password) ? 'true' : null"
+          [attr.aria-invalid]="
+            form.controls.password.touched && form.controls.password.invalid ? true : null
+          "
+          [attr.aria-describedby]="
+            form.controls.password.touched && form.controls.password.invalid
+              ? 'login-password-error'
+              : null
+          "
         />
         <button
           type="button"
           class="ag-control-wrap__action"
           (click)="showPassword.set(!showPassword())"
           [attr.aria-pressed]="showPassword()"
+          [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
         >
           {{ showPassword() ? 'Hide' : 'Show' }}
         </button>
       </div>
       @if (form.controls.password.touched && form.controls.password.invalid) {
-        <p class="ag-field__error">Password is required (minimum 12 characters).</p>
+        <p class="ag-field__error" id="login-password-error">
+          Password is required (minimum 12 characters).
+        </p>
       }
     </div>
 
@@ -47,6 +70,7 @@
       type="submit"
       class="ag-btn ag-btn--primary"
       [disabled]="submitting() || form.invalid"
+      [attr.aria-disabled]="submitting() || form.invalid"
       data-testid="login-submit"
     >
       {{ submitting() ? 'Signing in…' : 'Sign in' }}

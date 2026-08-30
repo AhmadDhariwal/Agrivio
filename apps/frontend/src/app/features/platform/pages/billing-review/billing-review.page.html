@@ -1,98 +1,725 @@
-<section class="ag-stack">
-  <agrivio-ui-page-header
-    eyebrow="Platform"
-    title="Billing evidence review"
-    lede="Super Admin review queue for manual payment evidence. Approving or rejecting changes subscription review status."
-  />
+<div class="billing-shell">
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">Billing operations</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">Billing review</h1>
+        <span class="page-head__count-pill" aria-label="Total billing submissions"
+          >{{ total() }} submissions</span
+        >
+      </div>
+      <p class="page-head__lede">Review payment evidence and approve or reject subscription requests.</p>
+    </div>
+    <div class="page-head__actions">
+      <button
+        type="button"
+        class="ag-btn ag-btn--secondary page-head__refresh"
+        [disabled]="loading()"
+        (click)="refresh()"
+        data-testid="billing-refresh"
+      >
+        Refresh
+      </button>
+    </div>
+  </header>
 
-  <div class="ag-actions">
-    <button type="button" class="ag-btn ag-btn--secondary" [disabled]="loading()" (click)="reload()">
-      Refresh
-    </button>
-  </div>
-
-  @if (loading()) {
-    <agrivio-ui-loading-state label="Loading billing review queue…" />
-  } @else if (items().length === 0) {
-    <agrivio-ui-empty-state
-      title="Queue is empty"
-      message="Submitted organization billing evidence will appear here for review."
-    />
-  } @else {
-    <div class="ag-table-wrap">
-      <table class="ag-table">
-        <thead>
-          <tr>
-            <th>Method</th>
-            <th>Status</th>
-            <th>Reference</th>
-            <th>Amount</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (item of items(); track item.id) {
-            <tr>
-              <td>
-                <strong>{{ item.paymentMethod }}</strong>
-                @if (item.paymentReferenceDuplicateWarning) {
-                  <span class="ag-badge ag-badge--warning">duplicate reference</span>
-                }
-              </td>
-              <td>
-                <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
-              </td>
-              <td>{{ item.paymentReferenceNormalized }}</td>
-              <td>{{ item.submittedAmountMinorUnits }}</td>
-              <td>
-                <div class="ag-actions">
-                  <button
-                    type="button"
-                    class="ag-btn ag-btn--primary ag-btn--sm"
-                    (click)="askApprove(item)"
-                  >
-                    Approve
-                  </button>
-                  <button
-                    type="button"
-                    class="ag-btn ag-btn--danger ag-btn--sm"
-                    (click)="askReject(item)"
-                  >
-                    Reject
-                  </button>
-                </div>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
+  @if (errorMessage(); as error) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+      <button type="button" class="ag-btn ag-btn--secondary retry-btn" (click)="retry()">Retry</button>
+    </div>
+  }
+  @if (successMessage(); as success) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="success" [message]="success" />
     </div>
   }
 
-  <div class="ag-card ag-stack ag-stack--tight">
-    <h2>Rejection reason</h2>
-    <form class="ag-form" [formGroup]="rejectForm">
-      <div class="ag-field">
-        <label class="ag-field__label" for="billing-reject-reason">Reason</label>
-        <input id="billing-reject-reason" class="ag-input" type="text" formControlName="reason" />
+  <section class="toolbar" aria-label="Filters">
+    <div class="toolbar__desktop">
+      <div class="toolbar__left">
+        <div class="search-field">
+          <svg class="search-field__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            class="search-field__input"
+            type="search"
+            [value]="search()"
+            (input)="onSearchInput($event)"
+            placeholder="Search organization or reference…"
+            aria-label="Search organization or reference"
+            data-testid="billing-search"
+          />
+        </div>
+
+        <div class="select-field">
+          <select
+            class="select-field__input"
+            [value]="statusFilter()"
+            (change)="onStatusChange($event)"
+            aria-label="Filter by status"
+            data-testid="billing-status-filter"
+          >
+            <option value="">All statuses</option>
+            <option value="submitted">Submitted</option>
+            <option value="under_review">Under review</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+
+        <div class="select-field">
+          <select
+            class="select-field__input"
+            [value]="organizationFilter()"
+            (change)="onOrganizationChange($event)"
+            aria-label="Filter by organization"
+            data-testid="billing-org-filter"
+          >
+            <option value="">All organizations</option>
+            @for (org of organizations(); track org.id) {
+              <option [value]="org.id">{{ org.name }}</option>
+            }
+          </select>
+        </div>
+
+        @if (hasActiveFilters()) {
+          <button class="clear-filters-btn" type="button" (click)="clearFilters()" data-testid="billing-clear-filters">
+            Clear filters
+          </button>
+        }
       </div>
-    </form>
-  </div>
+    </div>
 
-  @if (successMessage(); as success) {
-    <agrivio-ui-alert [message]="success" tone="success" />
-  }
-  @if (errorMessage(); as error) {
-    <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
+    <div class="toolbar__mobile">
+      <div class="search-field search-field--mobile">
+        <svg class="search-field__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          class="search-field__input"
+          type="search"
+          [value]="search()"
+          (input)="onSearchInput($event)"
+          placeholder="Search organization or reference…"
+          aria-label="Search organization or reference"
+        />
+        @if (search()) {
+          <button type="button" class="search-field__clear" (click)="onSearchClear()" aria-label="Clear search">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        }
+      </div>
+      <div class="toolbar__mobile-row">
+        <button
+          type="button"
+          class="mobile-filter-trigger"
+          [class.mobile-filter-trigger--active]="activeFiltersCount() > 0"
+          (click)="openMobileFilters()"
+          aria-label="Open filter options"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+          </svg>
+          <span>Filters</span>
+          @if (activeFiltersCount() > 0) {
+            <span class="mobile-filter-trigger__badge">{{ activeFiltersCount() }}</span>
+          }
+        </button>
+        @if (hasActiveFilters()) {
+          <button type="button" class="mobile-clear-btn" (click)="clearFilters()">Reset</button>
+        }
+        <span class="toolbar__mobile-count">
+          {{ total() }} {{ total() === 1 ? 'submission' : 'submissions' }}
+        </span>
+      </div>
+    </div>
+  </section>
+
+  @if (mobileFiltersOpen()) {
+    <div class="mobile-filter-backdrop" (click)="closeMobileFilters()" aria-hidden="true"></div>
+    <div class="mobile-filter-sheet" role="dialog" aria-modal="true" aria-label="Filter billing submissions">
+      <div class="mobile-filter-sheet__head">
+        <div class="mobile-filter-sheet__title-group">
+          <h2 class="mobile-filter-sheet__title">Filter submissions</h2>
+          @if (activeFiltersCount() > 0) {
+            <span class="mobile-filter-sheet__badge">{{ activeFiltersCount() }} active</span>
+          }
+        </div>
+        <button type="button" class="mobile-filter-sheet__close" (click)="closeMobileFilters()" aria-label="Close filters">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="mobile-filter-sheet__body">
+        <div class="mobile-filter-group">
+          <label class="mobile-filter-group__label" for="mobile-filter-status">Status</label>
+          <select
+            id="mobile-filter-status"
+            class="mobile-filter-group__select"
+            [value]="statusFilter()"
+            (change)="onStatusChange($event)"
+          >
+            <option value="">All statuses</option>
+            <option value="submitted">Submitted</option>
+            <option value="under_review">Under review</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div class="mobile-filter-group">
+          <label class="mobile-filter-group__label" for="mobile-filter-org">Organization</label>
+          <select
+            id="mobile-filter-org"
+            class="mobile-filter-group__select"
+            [value]="organizationFilter()"
+            (change)="onOrganizationChange($event)"
+          >
+            <option value="">All organizations</option>
+            @for (org of organizations(); track org.id) {
+              <option [value]="org.id">{{ org.name }}</option>
+            }
+          </select>
+        </div>
+      </div>
+      <div class="mobile-filter-sheet__foot">
+        @if (hasActiveFilters()) {
+          <button type="button" class="ag-btn ag-btn--secondary" (click)="clearFilters()">Clear All</button>
+        }
+        <button type="button" class="ag-btn ag-btn--primary mobile-filter-sheet__apply" (click)="closeMobileFilters()">
+          Show Results ({{ total() }})
+        </button>
+      </div>
+    </div>
   }
 
-  <agrivio-ui-confirm-dialog
-    [open]="confirmOpen()"
-    [title]="confirmTitle()"
-    [message]="confirmMessage()"
-    [confirmLabel]="confirmLabel()"
-    [danger]="confirmDanger()"
-    (confirmed)="runConfirmedAction()"
-    (dismiss)="confirmOpen.set(false)"
-  />
-</section>
+  @if (loading()) {
+    <div class="state-container">
+      <agrivio-ui-loading-state label="Loading billing review queue…" />
+    </div>
+  } @else if (items().length === 0) {
+    <div class="state-container">
+      @if (hasActiveFilters()) {
+        <agrivio-ui-empty-state
+          title="No billing submissions match these filters."
+          message="Try a different organization, status, or search term."
+        />
+      } @else {
+        <agrivio-ui-empty-state
+          title="No billing submissions found."
+          message="Submitted organization billing evidence will appear here for review."
+        />
+      }
+    </div>
+  } @else {
+    @if (!isMobile()) {
+      <div class="table-container" data-testid="billing-review-table">
+        <table class="review-table">
+          <colgroup>
+            <col class="col-org" />
+            <col class="col-plan" />
+            <col class="col-period" />
+            <col class="col-amount" />
+            <col class="col-payment" />
+            <col class="col-ref" />
+            <col class="col-submitted" />
+            <col class="col-status" />
+            <col class="col-actions" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th scope="col" class="review-table__th">Organization</th>
+              <th scope="col" class="review-table__th">Requested plan</th>
+              <th scope="col" class="review-table__th">Period</th>
+              <th scope="col" class="review-table__th">Amount</th>
+              <th scope="col" class="review-table__th">Payment</th>
+              <th scope="col" class="review-table__th">Reference</th>
+              <th scope="col" class="review-table__th">Submitted</th>
+              <th scope="col" class="review-table__th">Status</th>
+              <th scope="col" class="review-table__th review-table__th--actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of items(); track item.id) {
+              <tr
+                class="review-table__row"
+                [class.review-table__row--selected]="selectedId() === item.id"
+                data-testid="billing-review-row"
+              >
+                <td class="review-table__td review-table__td--org">
+                  @if (canInspect()) {
+                    <button type="button" class="org-name" (click)="openInspector(item)" [title]="organizationName(item.organizationId)">
+                      {{ organizationName(item.organizationId) }}
+                    </button>
+                  } @else {
+                    <span class="org-name org-name--static" [title]="organizationName(item.organizationId)">
+                      {{ organizationName(item.organizationId) }}
+                    </span>
+                  }
+                </td>
+                <td class="review-table__td review-table__td--plan">
+                  <span class="truncate" [title]="formatPlan(item)">{{ formatPlan(item) }}</span>
+                </td>
+                <td class="review-table__td">{{ formatPeriod(item.billingPeriod) }}</td>
+                <td class="review-table__td">
+                  <span class="tabular-num amount-text">{{ formatAmount(item) }}</span>
+                </td>
+                <td class="review-table__td">{{ formatPaymentMethod(item.paymentMethod) }}</td>
+                <td class="review-table__td review-table__td--ref">
+                  <span class="ref-cell">
+                    <span class="truncate" [title]="item.paymentReferenceNormalized">{{ item.paymentReferenceNormalized }}</span>
+                    @if (item.paymentReferenceDuplicateWarning) {
+                      <span class="dup-chip" title="Duplicate payment reference">Duplicate</span>
+                    }
+                  </span>
+                </td>
+                <td class="review-table__td">{{ formatDate(item.submittedAt) }}</td>
+                <td class="review-table__td">
+                  <span class="status-indicator {{ statusClass(item.status) }}">
+                    <span class="status-indicator__dot"></span>
+                    {{ formatStatus(item.status) }}
+                  </span>
+                </td>
+                <td class="review-table__td review-table__td--actions">
+                  @if (hasRowActions(item)) {
+                    <div class="row-actions">
+                      @if (canInspect()) {
+                        <button
+                          type="button"
+                          class="row-action-btn"
+                          (click)="openInspector(item)"
+                          title="Inspect"
+                          aria-label="Inspect"
+                          data-testid="billing-inspect"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        </button>
+                      }
+                      @if (canStartReview(item)) {
+                        <button
+                          type="button"
+                          class="row-action-btn"
+                          [disabled]="actionsDisabled()"
+                          (click)="startReview(item)"
+                          title="Start review"
+                          aria-label="Start review"
+                          data-testid="billing-start-review"
+                        >
+                          Start Review
+                        </button>
+                      }
+                      @if (canApprove(item)) {
+                        <button
+                          type="button"
+                          class="row-action-btn"
+                          [disabled]="actionsDisabled()"
+                          (click)="askApprove(item)"
+                          title="Approve"
+                          aria-label="Approve"
+                          data-testid="billing-approve"
+                        >
+                          Approve
+                        </button>
+                      }
+                      @if (canReject(item)) {
+                        <button
+                          type="button"
+                          class="row-action-btn row-action-btn--danger"
+                          [disabled]="actionsDisabled()"
+                          (click)="askReject(item)"
+                          title="Reject"
+                          aria-label="Reject"
+                          data-testid="billing-reject"
+                        >
+                          Reject
+                        </button>
+                      }
+                    </div>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="card-grid" data-testid="billing-review-cards">
+        @for (item of items(); track item.id) {
+          <article class="review-card" [class.review-card--selected]="selectedId() === item.id">
+            <div class="review-card__header">
+              <div class="review-card__title-group">
+                @if (canInspect()) {
+                  <button type="button" class="review-card__title" (click)="openInspector(item)">
+                    {{ organizationName(item.organizationId) }}
+                  </button>
+                } @else {
+                  <span class="review-card__title">{{ organizationName(item.organizationId) }}</span>
+                }
+                <span class="review-card__sub">{{ formatPlan(item) }} · {{ formatPeriod(item.billingPeriod) }}</span>
+              </div>
+              <span class="status-indicator {{ statusClass(item.status) }}">
+                <span class="status-indicator__dot"></span>
+                {{ formatStatus(item.status) }}
+              </span>
+            </div>
+            <div class="review-card__metrics">
+              <div class="card-metric">
+                <span class="card-metric__label">Amount</span>
+                <span class="card-metric__value tabular-num">{{ formatAmount(item) }}</span>
+              </div>
+              <div class="card-metric">
+                <span class="card-metric__label">Payment</span>
+                <span class="card-metric__value">{{ formatPaymentMethod(item.paymentMethod) }}</span>
+              </div>
+            </div>
+            <div class="review-card__meta-strip">
+              <span>{{ item.paymentReferenceNormalized }}</span>
+              @if (item.paymentReferenceDuplicateWarning) {
+                <span class="dup-chip">Duplicate</span>
+              }
+              <span class="review-card__dot-sep">·</span>
+              <span>{{ formatDate(item.submittedAt) }}</span>
+            </div>
+            @if (hasRowActions(item)) {
+              <div class="review-card__footer">
+                <div class="review-card__actions">
+                  @if (canInspect()) {
+                    <button type="button" class="card-action-btn" (click)="openInspector(item)">Inspect</button>
+                  }
+                  @if (canStartReview(item)) {
+                    <button
+                      type="button"
+                      class="card-action-btn"
+                      [disabled]="actionsDisabled()"
+                      (click)="startReview(item)"
+                    >
+                      Start Review
+                    </button>
+                  }
+                  @if (canApprove(item)) {
+                    <button
+                      type="button"
+                      class="card-action-btn"
+                      [disabled]="actionsDisabled()"
+                      (click)="askApprove(item)"
+                    >
+                      Approve
+                    </button>
+                  }
+                  @if (canReject(item)) {
+                    <button
+                      type="button"
+                      class="card-action-btn card-action-btn--danger"
+                      [disabled]="actionsDisabled()"
+                      (click)="askReject(item)"
+                    >
+                      Reject
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+          </article>
+        }
+      </div>
+    }
+
+    <agrivio-ui-pagination
+      [page]="page()"
+      [pageSize]="pageSize()"
+      [total]="total()"
+      [disabled]="loading() || actionInProgress()"
+      (pageChange)="onPageChange($event)"
+      (pageSizeChange)="onPageSizeChange($event)"
+    />
+  }
+
+  @if (selectedListItem(); as sel) {
+    <div class="inspector-backdrop" (click)="closeInspector()" aria-hidden="true"></div>
+    <aside class="inspector-drawer" role="dialog" aria-label="Billing record inspector" aria-modal="true">
+      <div class="inspector-drawer__head">
+        <div class="inspector-drawer__head-title">
+          <div class="inspector-glyph">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+              <line x1="3" y1="9" x2="21" y2="9" />
+              <line x1="9" y1="21" x2="9" y2="9" />
+            </svg>
+          </div>
+          <div class="inspector-drawer__titles">
+            <h2 class="drawer-title" [title]="organizationName(sel.organizationId)">
+              {{ organizationName(sel.organizationId) }}
+            </h2>
+            <p class="drawer-sub">{{ formatPlan(sel) }} · {{ formatPeriod(sel.billingPeriod) }}</p>
+          </div>
+        </div>
+        <button type="button" class="drawer-close-btn" (click)="closeInspector()" aria-label="Close inspector">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="inspector-drawer__body">
+        @if (inspectorLoading()) {
+          <div class="drawer-loading">
+            <agrivio-ui-loading-state label="Loading billing record…" />
+          </div>
+        } @else if (inspectorError(); as inspectorErr) {
+          <div class="alert-container">
+            <agrivio-ui-alert tone="danger" [message]="inspectorErr" role="alert" />
+            <button type="button" class="ag-btn ag-btn--secondary retry-btn" (click)="retryInspector()">Retry</button>
+          </div>
+        } @else if (inspectorDetail(); as detail) {
+          <section class="drawer-sec">
+            <h3 class="drawer-sec__title">Request</h3>
+            <div class="spec-grid">
+              <div class="spec-row">
+                <span class="spec-row__k">Organization</span>
+                <span class="spec-row__v">{{ organizationName(detail.organizationId) }}</span>
+              </div>
+              @if (hasCurrentSubscriptionDetail(detail)) {
+                <div class="spec-row">
+                  <span class="spec-row__k">Current subscription</span>
+                  <span class="spec-row__v">{{ currentSubscriptionLabel(detail) }}</span>
+                </div>
+              }
+              <div class="spec-row">
+                <span class="spec-row__k">Requested plan</span>
+                <span class="spec-row__v">{{ formatPlan(detail) }}</span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-row__k">Period</span>
+                <span class="spec-row__v">{{ formatPeriod(detail.billingPeriod) }}</span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-row__k">Submitted amount</span>
+                <span class="spec-row__v tabular-num">{{ formatAmount(detail) }}</span>
+              </div>
+              @if (formatListedAmount(detail); as listed) {
+                <div class="spec-row">
+                  <span class="spec-row__k">Listed amount</span>
+                  <span class="spec-row__v tabular-num">{{ listed }}</span>
+                </div>
+              }
+              <div class="spec-row">
+                <span class="spec-row__k">Payment method</span>
+                <span class="spec-row__v">{{ formatPaymentMethod(detail.paymentMethod) }}</span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-row__k">Reference</span>
+                <span class="spec-row__v">
+                  {{ detail.paymentReferenceNormalized }}
+                  @if (detail.paymentReferenceDuplicateWarning) {
+                    <span class="dup-chip">Duplicate</span>
+                  }
+                </span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-row__k">Notes</span>
+                <span class="spec-row__v">{{ displayOrDash(detail.notes) }}</span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-row__k">Submitted</span>
+                <span class="spec-row__v">{{ formatDateTime(detail.submittedAt) }}</span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-row__k">Status</span>
+                <span class="spec-row__v">
+                  <span class="status-indicator {{ statusClass(detail.status) }}">
+                    <span class="status-indicator__dot"></span>
+                    {{ formatStatus(detail.status) }}
+                  </span>
+                </span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-row__k">Reviewer</span>
+                <span class="spec-row__v">{{ reviewerLabel(detail) }}</span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-row__k">Reviewed</span>
+                <span class="spec-row__v">{{ formatDateTime(detail.reviewedAt) }}</span>
+              </div>
+              @if (detail.rejectionReason) {
+                <div class="spec-row">
+                  <span class="spec-row__k">Rejection reason</span>
+                  <span class="spec-row__v">{{ detail.rejectionReason }}</span>
+                </div>
+              }
+              <div class="spec-row">
+                <span class="spec-row__k">Applied subscription</span>
+                <span class="spec-row__v">{{ appliedSubscriptionLabel(detail) }}</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="drawer-sec">
+            <h3 class="drawer-sec__title">Evidence</h3>
+            <div class="spec-grid">
+              <div class="spec-row">
+                <span class="spec-row__k">Filename</span>
+                <span class="spec-row__v">{{ displayOrDash(detail.evidenceOriginalFileName) }}</span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-row__k">Type</span>
+                <span class="spec-row__v">{{ displayOrDash(detail.evidenceContentType) }}</span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-row__k">Size</span>
+                <span class="spec-row__v">{{ formatBytes(detail.evidenceSize) }}</span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-row__k">Uploaded</span>
+                <span class="spec-row__v">{{ formatDateTime(detail.evidenceUploadedAt) }}</span>
+              </div>
+            </div>
+          </section>
+        }
+      </div>
+
+      <div class="inspector-drawer__footer">
+        @if (inspectorDetail(); as detail) {
+          <button
+            type="button"
+            class="ag-btn ag-btn--secondary"
+            [disabled]="evidenceBusy()"
+            (click)="viewEvidence(detail)"
+            data-testid="billing-evidence-view"
+          >
+            View
+          </button>
+          <button
+            type="button"
+            class="ag-btn ag-btn--secondary"
+            [disabled]="evidenceBusy()"
+            (click)="downloadEvidence(detail)"
+            data-testid="billing-evidence-download"
+          >
+            Download
+          </button>
+          @if (canStartReview(detail)) {
+            <button
+              type="button"
+              class="ag-btn ag-btn--secondary"
+              [disabled]="actionsDisabled()"
+              (click)="startReview(detail)"
+            >
+              Start Review
+            </button>
+          }
+          @if (canApprove(detail)) {
+            <button
+              type="button"
+              class="ag-btn ag-btn--primary"
+              [disabled]="actionsDisabled()"
+              (click)="askApprove(detail)"
+            >
+              Approve
+            </button>
+          }
+          @if (canReject(detail)) {
+            <button
+              type="button"
+              class="ag-btn ag-btn--secondary ag-btn--danger-text"
+              [disabled]="actionsDisabled()"
+              (click)="askReject(detail)"
+            >
+              Reject
+            </button>
+          }
+        }
+      </div>
+    </aside>
+  }
+
+  @if (approveOpen() && pendingItem(); as item) {
+    <div class="dialog-backdrop" (click)="closeDialogs()" aria-hidden="true"></div>
+    <div class="review-dialog" role="alertdialog" aria-modal="true" aria-labelledby="approve-title">
+      <h2 id="approve-title" class="review-dialog__title">Approve billing evidence?</h2>
+      <div class="spec-grid">
+        <div class="spec-row">
+          <span class="spec-row__k">Organization</span>
+          <span class="spec-row__v">{{ organizationName(item.organizationId) }}</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-row__k">Requested plan</span>
+          <span class="spec-row__v">{{ formatPlan(item) }}</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-row__k">Billing period</span>
+          <span class="spec-row__v">{{ formatPeriod(item.billingPeriod) }}</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-row__k">Amount</span>
+          <span class="spec-row__v tabular-num">{{ formatAmount(item) }}</span>
+        </div>
+      </div>
+      <div class="review-dialog__actions">
+        <button type="button" class="ag-btn ag-btn--secondary" (click)="closeDialogs()">Cancel</button>
+        <button
+          type="button"
+          class="ag-btn ag-btn--primary"
+          [disabled]="actionInProgress()"
+          (click)="confirmApprove()"
+          data-testid="billing-approve-confirm"
+        >
+          Approve
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (rejectOpen() && pendingItem(); as item) {
+    <div class="dialog-backdrop" (click)="closeDialogs()" aria-hidden="true"></div>
+    <div class="review-dialog" role="alertdialog" aria-modal="true" aria-labelledby="reject-title">
+      <h2 id="reject-title" class="review-dialog__title">Reject billing evidence?</h2>
+      <p class="review-dialog__lede">
+        {{ organizationName(item.organizationId) }} · {{ formatPlan(item) }} ·
+        {{ item.paymentReferenceNormalized }}
+      </p>
+      <div class="ag-field">
+        <label class="review-dialog__label" [attr.for]="'reject-reason-' + item.id">
+          Rejection reason <span aria-hidden="true">*</span>
+        </label>
+        <textarea
+          class="review-dialog__textarea"
+          [id]="'reject-reason-' + item.id"
+          [value]="rejectReason()"
+          (input)="onRejectReasonInput($event)"
+          (blur)="rejectTouched.set(true)"
+          rows="3"
+          aria-required="true"
+          [attr.aria-invalid]="showRejectReasonError() ? 'true' : null"
+          data-testid="billing-reject-reason"
+        ></textarea>
+        @if (showRejectReasonError()) {
+          <p class="ag-field__error">Rejection reason is required.</p>
+        }
+      </div>
+      <div class="review-dialog__actions">
+        <button type="button" class="ag-btn ag-btn--secondary" (click)="closeDialogs()">Cancel</button>
+        <button
+          type="button"
+          class="ag-btn ag-btn--danger"
+          [disabled]="actionInProgress() || !isRejectReasonValid()"
+          (click)="confirmReject()"
+          data-testid="billing-reject-confirm"
+        >
+          Reject
+        </button>
+      </div>
+    </div>
+  }
+</div>

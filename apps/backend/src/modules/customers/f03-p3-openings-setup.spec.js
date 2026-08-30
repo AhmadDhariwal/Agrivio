@@ -226,8 +226,9 @@ describe('F03 P3 openings, limits, and setup progress', () => {
         jar,
       );
       expect(movements.status).toBe(200);
-      expect(movements.body.data.items).toHaveLength(1);
-      expect(movements.body.data.items[0].sourceType).toBe('account_opening');
+      expect(movements.body.data).toHaveLength(1);
+      expect(movements.body.data[0].sourceType).toBe('account_opening');
+      expect(movements.body.meta).toMatchObject({ page: 1, pageSize: 25, total: 1 });
 
       const setup = await fetchJson(
         baseUrl,

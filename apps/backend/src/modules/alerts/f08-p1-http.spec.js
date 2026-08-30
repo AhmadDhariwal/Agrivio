@@ -5,6 +5,7 @@ import {
   API_AUTH_LOGIN_PATH,
   API_CSRF_HEADER,
   API_DASHBOARD_PATH,
+  API_NOTIFICATIONS_PATH,
   API_ORGANIZATION_ACTIVATION_REQUESTS_PATH,
   API_PLATFORM_ACTOR_HEADER,
   API_PLATFORM_ORGANIZATIONS_PATH,
@@ -42,8 +43,8 @@ describe('F08 P1 permission middleware and HTTP surface', () => {
     dashboardMw(cashier, {}, (error) => {
       dashboardError = error;
     });
-    expect(alertsError?.code).toBe('FORBIDDEN');
-    expect(dashboardError?.code).toBe('FORBIDDEN');
+    expect(alertsError?.code).toBe('PERMISSION_DENIED');
+    expect(dashboardError?.code).toBe('PERMISSION_DENIED');
 
     const owner = {
       auth: { userId: 'o1' },
@@ -75,6 +76,29 @@ describe('F08 P1 permission middleware and HTTP surface', () => {
       const alertsOk = await fetchJson(baseUrl, 'GET', API_ALERTS_PATH, undefined, {}, jar);
       expect(alertsOk.status).toBe(200);
       expect(alertsOk.body.data.summaries).toBeTruthy();
+
+      const feedOk = await fetchJson(
+        baseUrl,
+        'GET',
+        `${API_NOTIFICATIONS_PATH}/feed?limit=3`,
+        undefined,
+        {},
+        jar,
+      );
+      expect(feedOk.status).toBe(200);
+      expect(feedOk.body.data.items).toEqual([]);
+      expect(feedOk.body.data.unreadCount).toBe(0);
+
+      const markAllRead = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_NOTIFICATIONS_PATH}/mark-all-read`,
+        {},
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      expect(markAllRead.status).toBe(200);
+      expect(markAllRead.body.data).toEqual({ success: true, unreadCount: 0 });
 
       const dashboardOk = await fetchJson(baseUrl, 'GET', API_DASHBOARD_PATH, undefined, {}, jar);
       expect(dashboardOk.status).toBe(200);

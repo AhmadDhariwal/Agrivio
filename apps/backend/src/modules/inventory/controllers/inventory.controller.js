@@ -1,5 +1,6 @@
 const { sendSuccessEnvelope } = require('../../../platform/http/response-envelope');
 const { forbidden } = require('../../../platform/errors/app-error');
+const { parsePaginationQuery } = require('../../../platform/http/parse-pagination-query');
 
 function requireOrganizationId(req) {
   const organizationId = req.authContext?.organizationId;
@@ -13,12 +14,13 @@ function createInventoryController(deps) {
   return {
     async listBalances(req, res, next) {
       try {
-        const data = await deps.inventoryService.listBalances(
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.inventoryService.listBalances(
           requireOrganizationId(req),
-          req.query,
+          { ...req.query, skip, pageSize },
           req.authContext,
         );
-        sendSuccessEnvelope(res, 200, data);
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
         next(error);
       }
@@ -26,12 +28,13 @@ function createInventoryController(deps) {
 
     async listMovements(req, res, next) {
       try {
-        const data = await deps.inventoryService.listMovements(
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.inventoryService.listMovements(
           requireOrganizationId(req),
-          req.query,
+          { ...req.query, skip, pageSize },
           req.authContext,
         );
-        sendSuccessEnvelope(res, 200, data);
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
         next(error);
       }
@@ -39,11 +42,12 @@ function createInventoryController(deps) {
 
     async listBatches(req, res, next) {
       try {
-        const data = await deps.inventoryService.listBatches(
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.inventoryService.listBatches(
           requireOrganizationId(req),
-          req.query,
+          { ...req.query, skip, pageSize },
         );
-        sendSuccessEnvelope(res, 200, data);
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
         next(error);
       }
@@ -90,12 +94,13 @@ function createInventoryController(deps) {
 
     async listAdjustments(req, res, next) {
       try {
-        const data = await deps.inventoryService.listAdjustments(
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.inventoryService.listAdjustments(
           requireOrganizationId(req),
-          req.query,
+          { ...req.query, skip, pageSize },
           req.authContext,
         );
-        sendSuccessEnvelope(res, 200, data);
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
         next(error);
       }
@@ -141,6 +146,19 @@ function createInventoryController(deps) {
       }
     },
 
+    async discardAdjustment(req, res, next) {
+      try {
+        const data = await deps.inventoryService.discardAdjustmentDraft(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async postAdjustment(req, res, next) {
       try {
         const result = await deps.inventoryService.postAdjustment(
@@ -175,12 +193,13 @@ function createInventoryController(deps) {
 
     async listTransfers(req, res, next) {
       try {
-        const data = await deps.inventoryService.listTransfers(
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.inventoryService.listTransfers(
           requireOrganizationId(req),
-          req.query,
+          { ...req.query, skip, pageSize },
           req.authContext,
         );
-        sendSuccessEnvelope(res, 200, data);
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
         next(error);
       }
@@ -218,6 +237,19 @@ function createInventoryController(deps) {
           requireOrganizationId(req),
           String(req.params.id),
           req.body,
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async discardTransfer(req, res, next) {
+      try {
+        const data = await deps.inventoryService.discardTransferDraft(
+          requireOrganizationId(req),
+          String(req.params.id),
           req.authContext,
         );
         sendSuccessEnvelope(res, 200, data);

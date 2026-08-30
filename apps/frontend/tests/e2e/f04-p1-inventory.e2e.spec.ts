@@ -1,6 +1,6 @@
+import { API, activationTokenFromUrl } from './e2e-origins';
 import { expect, test, type Page } from '@playwright/test';
 
-const API = 'http://localhost:3000';
 const OWNER_PASSWORD = 'owner-activation-passphrase';
 
 test.describe('F04 P1 inventory opening stock vertical slice', () => {
@@ -36,7 +36,7 @@ test.describe('F04 P1 inventory opening stock vertical slice', () => {
     await expect(activationUrl).toBeVisible();
     const urlText = (await activationUrl.textContent())?.trim() ?? '';
     const activationToken =
-      new URL(urlText, 'http://localhost:4200').searchParams.get('token') ?? '';
+      activationTokenFromUrl(urlText);
 
     await page.getByTestId('sign-out').click();
     await page.goto(`/activate?token=${encodeURIComponent(activationToken)}`);
@@ -53,7 +53,7 @@ test.describe('F04 P1 inventory opening stock vertical slice', () => {
     await page.getByTestId('warehouse-save').click();
     await expect(page.getByTestId('warehouses-list')).toContainText('E2E Warehouse');
 
-    await page.getByRole('link', { name: 'Categories' }).click();
+    await page.getByRole('link', { name: 'Categories', exact: true }).click();
     await page.getByTestId('category-create-link').click();
     await page.getByTestId('category-name').fill('Fertilizers');
     await page.getByTestId('category-product-class').selectOption('fertilizer');
@@ -95,7 +95,7 @@ test.describe('F04 P1 inventory opening stock vertical slice', () => {
     await expect(page.getByTestId('stock-row').first()).toContainText('100.0000');
     await expect(page.getByTestId('stock-row').first()).toContainText('50.00');
 
-    await page.getByRole('link', { name: 'Movements' }).click();
+    await page.locator('#ag-main').getByRole('link', { name: 'Movements' }).click();
     await expect(page.getByTestId('movements-list')).toBeVisible();
     await expect(page.getByTestId('movement-row').first()).toContainText('opening_stock');
     await expect(page.getByTestId('movement-row').first()).toContainText('100.0000');

@@ -194,7 +194,7 @@ describe('F03 P1 settings/branches/warehouses/employees', () => {
       expect(deactivate.body.data.branchIds).toEqual([]);
       expect(deactivate.body.data.warehouseIds).toEqual([]);
 
-      // Activate employee then confirm unauthorized role cannot manage users.
+      // Manager may create Cashier/StoreKeeper but not Owner/Manager.
       await login(baseUrl, jar, 'f03-owner-a@example.com', 'a-strong-passphrase');
       const manager = await fetchJson(
         baseUrl,
@@ -231,14 +231,45 @@ describe('F03 P1 settings/branches/warehouses/employees', () => {
         'POST',
         API_USERS_PATH,
         {
-          email: 'f03-blocked@example.com',
-          displayName: 'Blocked',
+          email: 'f03-manager-cashier@example.com',
+          displayName: 'Manager Cashier',
           role: 'Cashier',
         },
         { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
         jar,
       );
-      expect(managerCreate.status).toBe(403);
+      expect(managerCreate.status).toBe(201);
+      expect(managerCreate.body.data.role).toBe('Cashier');
+
+      const managerCreateOwner = await fetchJson(
+        baseUrl,
+        'POST',
+        API_USERS_PATH,
+        {
+          email: 'f03-manager-owner@example.com',
+          displayName: 'Blocked Owner',
+          role: 'Owner',
+        },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      expect(managerCreateOwner.status).toBe(403);
+      expect(managerCreateOwner.body.error.code).toBe('ROLE_HIERARCHY_DENIED');
+
+      const managerCreateManager = await fetchJson(
+        baseUrl,
+        'POST',
+        API_USERS_PATH,
+        {
+          email: 'f03-manager-manager@example.com',
+          displayName: 'Blocked Manager',
+          role: 'Manager',
+        },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      expect(managerCreateManager.status).toBe(403);
+      expect(managerCreateManager.body.error.code).toBe('ROLE_HIERARCHY_DENIED');
 
       // Unauthenticated / platform-actor alone cannot call organization settings.
       await fetchJson(

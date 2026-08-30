@@ -1,3 +1,5 @@
+const { validationFailed } = require('../../platform/errors/app-error');
+
 const PERMISSION_CATALOG = Object.freeze([
   'platform.organizations.view',
   'platform.organizations.create',
@@ -176,28 +178,28 @@ const ROLE_MATRIX = Object.freeze({
   'users.create': {
     SuperAdmin: 'N',
     Owner: 'A',
-    Manager: 'N',
+    Manager: 'A',
     Cashier: 'N',
     StoreKeeper: 'N',
   },
   'users.update': {
     SuperAdmin: 'N',
     Owner: 'A',
-    Manager: 'N',
+    Manager: 'A',
     Cashier: 'N',
     StoreKeeper: 'N',
   },
   'users.deactivate': {
     SuperAdmin: 'N',
     Owner: 'A',
-    Manager: 'N',
+    Manager: 'A',
     Cashier: 'N',
     StoreKeeper: 'N',
   },
   'users.assign-access': {
     SuperAdmin: 'N',
     Owner: 'A',
-    Manager: 'N',
+    Manager: 'A',
     Cashier: 'N',
     StoreKeeper: 'N',
   },
@@ -660,9 +662,49 @@ const ROLE_MATRIX = Object.freeze({
 
 const PLATFORM_ROLE = 'SuperAdmin';
 const RESTORE_PERMISSION = 'operations.restore.execute';
+const ORGANIZATION_ROLES = Object.freeze(['Owner', 'Manager', 'Cashier', 'StoreKeeper']);
+
+const PERMISSION_GROUP_LABELS = Object.freeze({
+  platform: 'Platform',
+  operations: 'Operations',
+  organization: 'Organization',
+  users: 'Employees & Access',
+  branches: 'Branches',
+  warehouses: 'Warehouses',
+  settings: 'Settings',
+  subscription: 'Billing & Subscription',
+  catalog: 'Products & Categories',
+  pricing: 'Pricing',
+  customers: 'Customers',
+  suppliers: 'Suppliers',
+  inventory: 'Inventory',
+  purchases: 'Purchases',
+  sales: 'Sales / POS',
+  'customer-payments': 'Customer Payments',
+  'supplier-payments': 'Supplier Payments',
+  payments: 'Payments',
+  accounts: 'Accounts',
+  expenses: 'Expenses',
+  returns: 'Returns',
+  alerts: 'Alerts',
+  dashboard: 'Dashboard',
+  reports: 'Reports',
+  imports: 'Imports',
+  audit: 'Audit',
+});
 
 function isKnownPermission(permission) {
   return typeof permission === 'string' && PERMISSION_SET.has(permission);
+}
+
+function permissionGroupId(permission) {
+  const dot = String(permission).indexOf('.');
+  return dot === -1 ? permission : permission.slice(0, dot);
+}
+
+function permissionGroupLabel(permission) {
+  const groupId = permissionGroupId(permission);
+  return PERMISSION_GROUP_LABELS[groupId] ?? groupId;
 }
 
 function matrixCell(permission, role) {
@@ -732,11 +774,92 @@ function hasPermission(effectivePermissions, permission) {
   return Array.isArray(effectivePermissions) && effectivePermissions.includes(permission);
 }
 
+function conditionalPermissionsForRole(role) {
+  const grants = [];
+  for (const permission of PERMISSION_CATALOG) {
+    if (matrixCell(permission, role) === 'C') {
+      grants.push(permission);
+    }
+  }
+  return Object.freeze(grants);
+}
+
+function grantablePermissionsCatalog(roles = ORGANIZATION_ROLES) {
+  const catalog = {};
+  for (const role of roles) {
+    catalog[role] = conditionalPermissionsForRole(role).map((permission) => ({
+      code: permission,
+      group: permissionGroupLabel(permission),
+    }));
+  }
+  return catalog;
+}
+
+function sanitizeConditionalPermissionGrants(role, requestedGrants) {
+  if (requestedGrants === undefined || requestedGrants === null) {
+    return [];
+  }
+  if (!Array.isArray(requestedGrants)) {
+    throw validationFailed('conditionalPermissionGrants must be an array', [
+      { field: 'conditionalPermissionGrants', message: 'conditionalPermissionGrants must be an array' },
+    ]);
+  }
+
+  const accepted = [];
+  const seen = new Set();
+  for (const grant of requestedGrants) {
+    if (typeof grant !== 'string' || grant.trim() === '') {
+      throw validationFailed('conditionalPermissionGrants must contain permission codes', [
+        { field: 'conditionalPermissionGrants', message: 'Each grant must be a permission code' },
+      ]);
+    }
+    const permission = grant.trim();
+    if (seen.has(permission)) {
+      continue;
+    }
+    seen.add(permission);
+    if (!isKnownPermission(permission)) {
+      throw validationFailed(`Unknown permission ${permission}`, [
+        { field: 'conditionalPermissionGrants', message: `Unknown permission ${permission}` },
+      ]);
+    }
+    const cell = matrixCell(permission, role);
+    if (cell === 'A') {
+      continue;
+    }
+    if (cell === 'C') {
+      accepted.push(permission);
+      continue;
+    }
+    throw validationFailed(`Permission ${permission} cannot be granted to ${role}`, [
+      {
+        field: 'conditionalPermissionGrants',
+        message: `Permission ${permission} is not grantable to ${role}`,
+      },
+    ]);
+  }
+  return accepted;
+}
+
+function dropInvalidConditionalGrants(role, grants) {
+  if (!Array.isArray(grants)) {
+    return [];
+  }
+  return grants.filter((grant) => isKnownPermission(grant) && matrixCell(grant, role) === 'C');
+}
+
 module.exports = {
   PERMISSION_CATALOG,
   ROLE_MATRIX,
+  PERMISSION_GROUP_LABELS,
   isKnownPermission,
   hasPermission,
+  matrixCell,
   permissionsForPlatformAccess,
   permissionsForMembershipRole,
+  conditionalPermissionsForRole,
+  grantablePermissionsCatalog,
+  sanitizeConditionalPermissionGrants,
+  dropInvalidConditionalGrants,
+  permissionGroupLabel,
 };

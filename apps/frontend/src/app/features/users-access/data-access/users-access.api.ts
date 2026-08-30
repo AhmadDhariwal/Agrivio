@@ -1,10 +1,35 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map, switchMap } from 'rxjs';
+import { Observable, map, switchMap, tap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
+import { PaginationMeta } from '@agrivio/api-contracts';
+import { PaginationQuery } from '../../../shared/data-access/pagination';
+import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
+import { QUERY_CACHE_TAGS } from '../../../shared/data-access/query-cache.tags';
+import { BranchesWarehousesApi } from '../../branches-warehouses/data-access/branches-warehouses.api';
 
 export type OrganizationRole = 'Owner' | 'Manager' | 'Cashier' | 'StoreKeeper';
+
+export interface EmployeeAllowedActions {
+  canUpdate: boolean;
+  canDeactivate: boolean;
+  canAssignAccess: boolean;
+  canManageConditionalGrants: boolean;
+}
+
+export interface GrantablePermission {
+  code: string;
+  group: string;
+}
+
+export interface EmployeeAccessPolicy {
+  actorRole: string;
+  assignableRoles: OrganizationRole[];
+  canManageConditionalGrants: boolean;
+  roleDescriptions: Record<string, string>;
+  grantablePermissions: Record<string, GrantablePermission[]>;
+}
 
 export interface EmployeeRecord {
   id: string;
@@ -17,6 +42,8 @@ export interface EmployeeRecord {
   version: number;
   branchIds: string[];
   warehouseIds: string[];
+  conditionalPermissionGrants?: string[];
+  allowedActions?: EmployeeAllowedActions;
   activationToken?: string;
   activationUrl?: string;
   activationPath?: string;
@@ -28,53 +55,95 @@ export interface AssignmentTarget {
   name: string;
 }
 
+export interface EmployeeStatusSummary {
+  total: number;
+  active: number;
+  pendingInactive: number;
+}
+
+export interface EmployeeListMeta extends PaginationMeta {
+  summary?: EmployeeStatusSummary;
+}
+
 @Injectable({ providedIn: 'root' })
 export class UsersAccessApi {
   private readonly http = inject(HttpClient);
   private readonly authApi = inject(AuthApi);
+  private readonly queryCache = inject(QueryCacheService);
+  private readonly locationsApi = inject(BranchesWarehousesApi);
 
-  listEmployees(): Observable<EmployeeRecord[]> {
-    return this.http
-      .get<{ data: { items: EmployeeRecord[] } }>(`${environment.publicApiBaseUrl}/api/v1/users`, {
-        withCredentials: true,
-      })
-      .pipe(map((response) => response.data.items));
+  listEmployees(
+    params: PaginationQuery & { search?: string } = {},
+    forceRefresh = false,
+  ): Observable<{ items: EmployeeRecord[]; meta: EmployeeListMeta }> {
+    const query = {
+      page: params.page ?? 1,
+      pageSize: params.pageSize ?? 25,
+      ...(params.search?.trim() ? { search: params.search.trim() } : {}),
+    };
+    return this.queryCache.fetch({
+      key: this.queryCache.buildKey('employees:list', query),
+      policy: 'short',
+      tags: [QUERY_CACHE_TAGS.employees],
+      forceRefresh,
+      loader: () =>
+        this.http
+          .get<{ data: EmployeeRecord[]; meta: EmployeeListMeta }>(
+            `${environment.publicApiBaseUrl}/api/v1/users`,
+            { withCredentials: true, params: query },
+          )
+          .pipe(map((response) => ({ items: response.data, meta: response.meta }))),
+    });
   }
 
-  getEmployee(id: string): Observable<EmployeeRecord> {
-    return this.http
-      .get<{ data: EmployeeRecord }>(`${environment.publicApiBaseUrl}/api/v1/users/${id}`, {
-        withCredentials: true,
-      })
-      .pipe(map((response) => response.data));
+  getAccessPolicy(forceRefresh = false): Observable<EmployeeAccessPolicy> {
+    return this.queryCache.fetch({
+      key: this.queryCache.buildKey('employees:access-policy', {}),
+      policy: 'short',
+      tags: [QUERY_CACHE_TAGS.employees],
+      forceRefresh,
+      loader: () =>
+        this.http
+          .get<{ data: EmployeeAccessPolicy }>(
+            `${environment.publicApiBaseUrl}/api/v1/users/access-policy`,
+            { withCredentials: true },
+          )
+          .pipe(map((response) => response.data)),
+    });
   }
 
-  listAssignmentBranches(): Observable<AssignmentTarget[]> {
-    return this.http
-      .get<{ data: { items: Array<{ id: string; name: string }> } }>(
-        `${environment.publicApiBaseUrl}/api/v1/branches`,
-        { withCredentials: true },
-      )
-      .pipe(
-        map((response) => response.data.items.map((item) => ({ id: item.id, name: item.name }))),
-      );
+  getEmployee(id: string, forceRefresh = false): Observable<EmployeeRecord> {
+    return this.queryCache.fetch({
+      key: this.queryCache.buildKey('employees:detail', { id }),
+      policy: 'short',
+      tags: [QUERY_CACHE_TAGS.employees, QUERY_CACHE_TAGS.employeeAccess],
+      forceRefresh,
+      loader: () =>
+        this.http
+          .get<{ data: EmployeeRecord }>(`${environment.publicApiBaseUrl}/api/v1/users/${id}`, {
+            withCredentials: true,
+          })
+          .pipe(map((response) => response.data)),
+    });
   }
 
-  listAssignmentWarehouses(): Observable<AssignmentTarget[]> {
-    return this.http
-      .get<{ data: { items: Array<{ id: string; name: string }> } }>(
-        `${environment.publicApiBaseUrl}/api/v1/warehouses`,
-        { withCredentials: true },
-      )
-      .pipe(
-        map((response) => response.data.items.map((item) => ({ id: item.id, name: item.name }))),
-      );
+  listAssignmentBranches(selectedIds: readonly string[] = []): Observable<AssignmentTarget[]> {
+    return this.locationsApi
+      .listBranchOptions(selectedIds)
+      .pipe(map((items) => items.map((item) => ({ id: item.id, name: item.name }))));
+  }
+
+  listAssignmentWarehouses(selectedIds: readonly string[] = []): Observable<AssignmentTarget[]> {
+    return this.locationsApi
+      .listWarehouseOptions(selectedIds)
+      .pipe(map((items) => items.map((item) => ({ id: item.id, name: item.name }))));
   }
 
   createEmployee(payload: {
     email: string;
     displayName: string;
     role: OrganizationRole;
+    conditionalPermissionGrants?: string[];
   }): Observable<EmployeeRecord> {
     return this.authApi.ensureCsrf().pipe(
       switchMap(({ csrfToken }) =>
@@ -83,7 +152,10 @@ export class UsersAccessApi {
             withCredentials: true,
             headers: { 'X-CSRF-Token': csrfToken },
           })
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.invalidateEmployees()),
+          ),
       ),
     );
   }
@@ -94,6 +166,7 @@ export class UsersAccessApi {
       expectedVersion: number;
       displayName?: string;
       role?: OrganizationRole;
+      conditionalPermissionGrants?: string[];
     },
   ): Observable<EmployeeRecord> {
     return this.authApi.ensureCsrf().pipe(
@@ -107,7 +180,10 @@ export class UsersAccessApi {
               headers: { 'X-CSRF-Token': csrfToken },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.invalidateEmployees()),
+          ),
       ),
     );
   }
@@ -124,7 +200,10 @@ export class UsersAccessApi {
               headers: { 'X-CSRF-Token': csrfToken },
             },
           )
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.invalidateEmployees()),
+          ),
       ),
     );
   }
@@ -152,8 +231,20 @@ export class UsersAccessApi {
             withCredentials: true,
             headers: { 'X-CSRF-Token': csrfToken },
           })
-          .pipe(map((response) => response.data)),
+          .pipe(
+            map((response) => response.data),
+            tap(() =>
+              this.queryCache.invalidateTags(
+                QUERY_CACHE_TAGS.employees,
+                QUERY_CACHE_TAGS.employeeAccess,
+              ),
+            ),
+          ),
       ),
     );
+  }
+
+  private invalidateEmployees(): void {
+    this.queryCache.invalidateTags(QUERY_CACHE_TAGS.employees, QUERY_CACHE_TAGS.setup);
   }
 }

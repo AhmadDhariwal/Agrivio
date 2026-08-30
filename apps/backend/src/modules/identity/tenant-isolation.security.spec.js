@@ -11,6 +11,7 @@ import {
   API_PLATFORM_ORGANIZATIONS_PATH,
   API_PLATFORM_SUBSCRIPTION_PLANS_PATH,
   API_PLATFORM_SUBSCRIPTIONS_PATH,
+  API_SUBSCRIPTION_BILLING_EVIDENCE_PATH,
   API_SUBSCRIPTION_BILLING_RECORDS_PATH,
   API_SUBSCRIPTION_PATH,
   API_PLATFORM_ACTOR_HEADER,
@@ -217,6 +218,8 @@ describe('R1-F02-014 tenant isolation and platform context attacks', () => {
 
       // Billing/subscription records cannot be accessed cross-tenant.
       await login(baseUrl, jar, 'owner-a@example.com', 'a-strong-passphrase');
+      const uploadedA = await uploadPdfEvidence(baseUrl, jar, 'org-a.pdf');
+      expect(uploadedA.status).toBe(201);
       const billingA = await fetchJson(
         baseUrl,
         'POST',
@@ -226,7 +229,7 @@ describe('R1-F02-014 tenant isolation and platform context attacks', () => {
           billingPeriod: 'monthly',
           submittedAmountMinorUnits: 1000,
           paymentReference: `ref-a-${Date.now()}`,
-          evidenceStorageRef: 'evidence://a',
+          evidenceStorageRef: uploadedA.body.data.evidenceStorageRef,
           requestedPlanCode: 'Starter',
           requestedPlanVersion: 1,
         },
@@ -246,6 +249,12 @@ describe('R1-F02-014 tenant isolation and platform context attacks', () => {
         jar,
       );
       expect(crossBilling.status).toBe(404);
+
+      const crossEvidence = await fetch(
+        `${baseUrl}${API_SUBSCRIPTION_BILLING_RECORDS_PATH}/${billingId}/evidence`,
+        { headers: { cookie: jar.header() } },
+      );
+      expect(crossEvidence.status).toBe(404);
 
       // Platform plan management remains platform-only.
       const orgCreatePlan = await fetchJson(
@@ -566,6 +575,22 @@ async function switchContext(baseUrl, jar, body) {
     { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
     jar,
   );
+}
+
+async function uploadPdfEvidence(baseUrl, jar, fileName) {
+  const csrf = await issueCsrf(baseUrl, jar);
+  const response = await fetch(`${baseUrl}${API_SUBSCRIPTION_BILLING_EVIDENCE_PATH}`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/pdf',
+      'X-Filename': fileName,
+      [API_CSRF_HEADER]: csrf,
+      cookie: jar.header(),
+    },
+    body: Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n'),
+  });
+  jar.absorb(response.headers);
+  return { status: response.status, body: await response.json() };
 }
 
 async function issueCsrf(baseUrl, jar) {

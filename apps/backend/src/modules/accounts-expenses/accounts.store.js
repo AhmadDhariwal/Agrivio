@@ -45,6 +45,22 @@ function createMongooseAccountsStore() {
       return AccountModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
     },
 
+    async listAccountsPage(organizationId, filter, pagination = {}) {
+      const query = { organizationId };
+      if (filter.status === 'active' || filter.status === 'inactive') query.status = filter.status;
+      const search = String(filter.search ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+      if (search) query.nameNormalized = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') };
+      const hasPagination = pagination.skip !== undefined || pagination.pageSize !== undefined;
+      const { skip = 0, pageSize = 25 } = pagination;
+      let find = AccountModel.find(query).sort({ createdAt: -1, _id: -1 });
+      if (hasPagination) find = find.skip(skip).limit(pageSize);
+      const [total, items] = await Promise.all([
+        AccountModel.countDocuments(query).exec(),
+        find.lean().exec(),
+      ]);
+      return { items, total };
+    },
+
     async countAccounts(organizationId) {
       return AccountModel.countDocuments({ organizationId }).exec();
     },
@@ -54,6 +70,45 @@ function createMongooseAccountsStore() {
         organizationId,
         'openingBalance.status': 'posted',
       }).exec();
+    },
+
+    async getAccountsSummary(organizationId) {
+      const [countResult, balanceResult] = await Promise.all([
+        AccountModel.aggregate([
+          { $match: { organizationId: new mongoose.Types.ObjectId(String(organizationId)) } },
+          {
+            $group: {
+              _id: '$status',
+              count: { $sum: 1 },
+            },
+          },
+        ]).exec(),
+        AccountMovementModel.aggregate([
+          {
+            $match: {
+              organizationId: new mongoose.Types.ObjectId(String(organizationId)),
+              status: 'posted',
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalSignedMinorUnits: { $sum: { $toLong: '$signedAmountMinorUnits' } },
+            },
+          },
+        ]).exec(),
+      ]);
+      let totalAccounts = 0;
+      let activeAccounts = 0;
+      let inactiveAccounts = 0;
+      for (const bucket of countResult) {
+        totalAccounts += bucket.count;
+        if (bucket._id === 'active') activeAccounts = bucket.count;
+        else if (bucket._id === 'inactive') inactiveAccounts = bucket.count;
+      }
+      const rawMinor = balanceResult.length > 0 ? balanceResult[0].totalSignedMinorUnits : 0;
+      const totalMinorBigInt = BigInt(String(rawMinor ?? 0));
+      return { totalAccounts, activeAccounts, inactiveAccounts, totalMinorBigInt };
     },
 
     async findAccountById(organizationId, id, session) {
@@ -89,6 +144,11 @@ function createMongooseAccountsStore() {
       } catch (error) {
         throw markDuplicate(error);
       }
+    },
+
+    async deleteAccount(session, organizationId, id) {
+      const result = await AccountModel.deleteOne({ _id: id, organizationId }, withSession(session));
+      return result.deletedCount === 1;
     },
 
     async insertAccountMovement(session, doc) {
@@ -140,6 +200,15 @@ function createMongooseAccountsStore() {
         .sort({ postedAt: -1 })
         .lean()
         .exec();
+    },
+
+    async listMovementsByAccountPage(organizationId, accountId, pagination) {
+      if (!mongoose.isValidObjectId(accountId)) return { items: [], total: 0 };
+      const query = { organizationId, accountId, status: 'posted' };
+      const [total, items] = await Promise.all([
+        AccountMovementModel.countDocuments(query).exec(),
+        AccountMovementModel.find(query).sort({ postedAt: -1, _id: -1 }).skip(pagination.skip ?? 0).limit(pagination.pageSize ?? 25).lean().exec(),
+      ]); return { items, total };
     },
 
     async listMovementsBySource(organizationId, sourceType, sourceId, session) {
@@ -196,6 +265,17 @@ function createMongooseAccountsStore() {
       return ExpenseCategoryModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
     },
 
+    async listExpenseCategoriesPage(organizationId, filter, pagination) {
+      const query = { organizationId };
+      if (filter.status === 'active' || filter.status === 'inactive') query.status = filter.status;
+      const search = String(filter.search ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+      if (search) query.nameNormalized = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') };
+      const [total, items] = await Promise.all([
+        ExpenseCategoryModel.countDocuments(query).exec(),
+        ExpenseCategoryModel.find(query).sort({ createdAt: -1, _id: -1 }).skip(pagination.skip ?? 0).limit(pagination.pageSize ?? 25).lean().exec(),
+      ]); return { items, total };
+    },
+
     async findExpenseCategoryById(organizationId, id, session) {
       if (!mongoose.isValidObjectId(id)) {
         return null;
@@ -206,6 +286,18 @@ function createMongooseAccountsStore() {
       )
         .lean()
         .exec();
+    },
+
+    async findExpenseCategoriesByIds(organizationId, ids) {
+      const validIds = ids.filter((id) => mongoose.isValidObjectId(id));
+      if (validIds.length === 0) return [];
+      return ExpenseCategoryModel.find({ _id: { $in: validIds }, organizationId }).lean().exec();
+    },
+
+    async findAccountsByIds(organizationId, ids) {
+      const validIds = ids.filter((id) => mongoose.isValidObjectId(id));
+      if (validIds.length === 0) return [];
+      return AccountModel.find({ _id: { $in: validIds }, organizationId }).lean().exec();
     },
 
     async insertExpenseCategory(session, doc) {
@@ -231,8 +323,32 @@ function createMongooseAccountsStore() {
       }
     },
 
+    async deleteExpenseCategory(session, organizationId, id) {
+      const result = await ExpenseCategoryModel.deleteOne(
+        { _id: id, organizationId },
+        withSession(session),
+      );
+      return result.deletedCount === 1;
+    },
+
     async listExpenses(organizationId) {
       return ExpenseModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
+    },
+
+    async listExpensesPage(organizationId, filter, pagination = {}) {
+      const query = { organizationId };
+      if (filter.status) query.status = filter.status;
+      const search = String(filter.search ?? '').trim();
+      if (search) query.expenseDate = search;
+      const hasPagination = pagination.skip !== undefined || pagination.pageSize !== undefined;
+      const { skip = 0, pageSize = 25 } = pagination;
+      let find = ExpenseModel.find(query).sort({ createdAt: -1, _id: -1 });
+      if (hasPagination) find = find.skip(skip).limit(pageSize);
+      const [total, items] = await Promise.all([
+        ExpenseModel.countDocuments(query).exec(),
+        find.lean().exec(),
+      ]);
+      return { items, total };
     },
 
     async findExpenseById(organizationId, id, session) {
@@ -291,6 +407,14 @@ function createMongooseAccountsStore() {
       } catch (error) {
         throw markDuplicate(error);
       }
+    },
+
+    async deleteExpenseDraft(session, organizationId, id) {
+      const result = await ExpenseModel.deleteOne(
+        { _id: id, organizationId, status: 'draft' },
+        withSession(session),
+      );
+      return result.deletedCount === 1;
     },
 
     async appendAuditEvent(session, event) {
@@ -401,7 +525,8 @@ function createInMemoryAccountsStore() {
     async listAccounts(organizationId) {
       return [...accounts.values()]
         .filter((item) => String(item.organizationId) === String(organizationId))
-        .map((item) => ({ ...item }));
+        .map((item) => ({ ...item }))
+        .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')) || String(b._id).localeCompare(String(a._id)));
     },
 
     async countAccounts(organizationId) {
@@ -417,6 +542,22 @@ function createInMemoryAccountsStore() {
           item.openingBalance &&
           item.openingBalance.status === 'posted',
       ).length;
+    },
+
+    async getAccountsSummary(organizationId) {
+      const orgAccounts = [...accounts.values()].filter(
+        (item) => String(item.organizationId) === String(organizationId),
+      );
+      const totalAccounts = orgAccounts.length;
+      const activeAccounts = orgAccounts.filter((item) => item.status === 'active').length;
+      const inactiveAccounts = orgAccounts.filter((item) => item.status === 'inactive').length;
+      const orgMovements = [...movements.values()].filter(
+        (item) =>
+          String(item.organizationId) === String(organizationId) &&
+          item.status === 'posted',
+      );
+      const totalMinorBigInt = BigInt(sumMinorUnits(orgMovements));
+      return { totalAccounts, activeAccounts, inactiveAccounts, totalMinorBigInt };
     },
 
     async findAccountById(organizationId, id) {
@@ -444,6 +585,15 @@ function createInMemoryAccountsStore() {
       assertUniqueAccount(organizationId, next.nameNormalized, id);
       accounts.set(id, next);
       return { ...next };
+    },
+
+    async deleteAccount(_session, organizationId, id) {
+      const existing = await this.findAccountById(organizationId, id);
+      if (existing === null) {
+        return false;
+      }
+      accounts.delete(id);
+      return true;
     },
 
     async insertAccountMovement(_session, doc) {
@@ -530,7 +680,8 @@ function createInMemoryAccountsStore() {
     async listExpenseCategories(organizationId) {
       return [...categories.values()]
         .filter((item) => String(item.organizationId) === String(organizationId))
-        .map((item) => ({ ...item }));
+        .map((item) => ({ ...item }))
+        .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')) || String(b._id).localeCompare(String(a._id)));
     },
 
     async findExpenseCategoryById(organizationId, id) {
@@ -539,6 +690,20 @@ function createInMemoryAccountsStore() {
         return null;
       }
       return { ...record };
+    },
+
+    async findExpenseCategoriesByIds(organizationId, ids) {
+      return ids
+        .map((id) => categories.get(id))
+        .filter((r) => r !== undefined && String(r.organizationId) === String(organizationId))
+        .map((r) => ({ ...r }));
+    },
+
+    async findAccountsByIds(organizationId, ids) {
+      return ids
+        .map((id) => accounts.get(id))
+        .filter((r) => r !== undefined && String(r.organizationId) === String(organizationId))
+        .map((r) => ({ ...r }));
     },
 
     async insertExpenseCategory(_session, doc) {
@@ -558,6 +723,15 @@ function createInMemoryAccountsStore() {
       assertUniqueCategory(organizationId, next.nameNormalized, id);
       categories.set(id, next);
       return { ...next };
+    },
+
+    async deleteExpenseCategory(_session, organizationId, id) {
+      const existing = await this.findExpenseCategoryById(organizationId, id);
+      if (existing === null) {
+        return false;
+      }
+      categories.delete(id);
+      return true;
     },
 
     async listExpenses(organizationId) {
@@ -616,6 +790,19 @@ function createInMemoryAccountsStore() {
       assertUniqueExpenseCorrection(next, id);
       expenses.set(id, next);
       return { ...next };
+    },
+
+    async deleteExpenseDraft(_session, organizationId, id) {
+      const existing = expenses.get(id);
+      if (
+        existing === undefined ||
+        String(existing.organizationId) !== String(organizationId) ||
+        existing.status !== 'draft'
+      ) {
+        return false;
+      }
+      expenses.delete(id);
+      return true;
     },
 
     async appendAuditEvent(_session, event) {

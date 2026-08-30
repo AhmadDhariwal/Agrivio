@@ -21,6 +21,8 @@ const MOVEMENT_SOURCE_TYPES = [
   'account_transfer_in_reversal',
   'expense',
   'expense_correction',
+  'customer_payment_correction',
+  'supplier_payment_correction',
 ];
 const MOVEMENT_STATUSES = ['posted'];
 const ACCOUNT_OWNED_SOURCE_TYPES = [
@@ -110,6 +112,9 @@ accountMovementSchema.index(
           'sale_cancellation_refund',
           'purchase_return_refund_reversal',
           'sales_return_refund_reversal',
+          'customer_payment',
+          'customer_payment_correction',
+          'supplier_payment_correction',
         ],
       },
       status: 'posted',

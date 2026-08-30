@@ -15,11 +15,87 @@ const {
   createRequireWarehouseAccessMiddleware,
 } = require('../../identity/permission.middleware');
 const { createInventoryController } = require('../controllers/inventory.controller');
+const { createRequireCapabilityMiddleware } = require('../../capabilities/capability.middleware');
 
 function registerInventoryRoutes(deps) {
   const router = Router();
   const controller = createInventoryController(deps);
   const requireOrganizationContext = createRequireOrganizationContextMiddleware();
+  const requireStockModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.stock',
+    'enabled',
+  );
+  const requireOpeningStockModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.openingStock',
+    'enabled',
+  );
+  const requirePostOpeningStock = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.openingStock.actions.post',
+    'allowed',
+  );
+  const requireBatchesModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.batches',
+    'enabled',
+  );
+  const requireInspectBatch = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.batches.actions.inspect',
+    'allowed',
+  );
+  const requireExpiryModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.expiry',
+    'enabled',
+  );
+  const requireAdjustmentsModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.adjustments',
+    'enabled',
+  );
+  const requireAdjustmentPost = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.adjustments.actions.post',
+    'allowed',
+  );
+  const requireAdjustmentReverse = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.adjustments.actions.reverse',
+    'allowed',
+  );
+  const requireTransfersModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.transfers',
+    'enabled',
+  );
+  const requireTransferPost = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.transfers.actions.post',
+    'allowed',
+  );
+  const requireTransferReverse = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.transfers.actions.reverse',
+    'allowed',
+  );
+  const requireTransferInspect = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.transfers.actions.inspect',
+    'allowed',
+  );
+  const requireReconciliationModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.reconciliation',
+    'enabled',
+  );
+  const requireMovementsModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.movements',
+    'enabled',
+  );
 
   router.get(
     API_INVENTORY_BALANCES_PATH,
@@ -27,6 +103,7 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.view'),
     deps.requireOperationalAccess,
+    requireStockModule,
     (req, res, next) => {
       void controller.listBalances(req, res, next);
     },
@@ -38,6 +115,7 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.view'),
     deps.requireOperationalAccess,
+    requireMovementsModule,
     (req, res, next) => {
       void controller.listMovements(req, res, next);
     },
@@ -49,6 +127,7 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.view'),
     deps.requireOperationalAccess,
+    requireBatchesModule,
     (req, res, next) => {
       void controller.listBatches(req, res, next);
     },
@@ -60,6 +139,8 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.view'),
     deps.requireOperationalAccess,
+    requireBatchesModule,
+    requireInspectBatch,
     (req, res, next) => {
       void controller.getBatch(req, res, next);
     },
@@ -71,6 +152,7 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.expiry.view'),
     deps.requireOperationalAccess,
+    requireExpiryModule,
     (req, res, next) => {
       void controller.queryExpiry(req, res, next);
     },
@@ -82,6 +164,7 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.view'),
     deps.requireOperationalAccess,
+    requireReconciliationModule,
     (req, res, next) => {
       void controller.reconcileInventory(req, res, next);
     },
@@ -94,6 +177,8 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.opening-stock.post'),
     deps.requireOperationalAccess,
+    requireOpeningStockModule,
+    requirePostOpeningStock,
     createRequireWarehouseAccessMiddleware(),
     (req, res, next) => {
       void controller.postOpeningStock(req, res, next);
@@ -106,6 +191,7 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.view'),
     deps.requireOperationalAccess,
+    requireAdjustmentsModule,
     (req, res, next) => {
       void controller.listAdjustments(req, res, next);
     },
@@ -118,6 +204,8 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.adjust'),
     deps.requireOperationalAccess,
+    requireAdjustmentsModule,
+    requireAdjustmentPost,
     createRequireWarehouseAccessMiddleware(),
     (req, res, next) => {
       void controller.createAdjustment(req, res, next);
@@ -130,6 +218,7 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.view'),
     deps.requireOperationalAccess,
+    requireAdjustmentsModule,
     (req, res, next) => {
       void controller.getAdjustment(req, res, next);
     },
@@ -142,9 +231,24 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.adjust'),
     deps.requireOperationalAccess,
+    requireAdjustmentsModule,
+    requireAdjustmentPost,
     createRequireWarehouseAccessMiddleware(),
     (req, res, next) => {
       void controller.updateAdjustment(req, res, next);
+    },
+  );
+
+  router.delete(
+    `${API_STOCK_ADJUSTMENTS_PATH}/:id`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('inventory.adjust'),
+    deps.requireOperationalAccess,
+    requireAdjustmentsModule,
+    (req, res, next) => {
+      void controller.discardAdjustment(req, res, next);
     },
   );
 
@@ -155,6 +259,8 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.adjust'),
     deps.requireOperationalAccess,
+    requireAdjustmentsModule,
+    requireAdjustmentPost,
     (req, res, next) => {
       void controller.postAdjustment(req, res, next);
     },
@@ -167,10 +273,14 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.adjust.reverse'),
     deps.requireOperationalAccess,
+    requireAdjustmentsModule,
+    requireAdjustmentReverse,
     (req, res, next) => {
       void controller.reverseAdjustment(req, res, next);
     },
   );
+
+  // ── Warehouse Transfers ─────────────────────────────────────────────────
 
   router.get(
     API_WAREHOUSE_TRANSFERS_PATH,
@@ -178,6 +288,7 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.view'),
     deps.requireOperationalAccess,
+    requireTransfersModule,
     (req, res, next) => {
       void controller.listTransfers(req, res, next);
     },
@@ -190,6 +301,8 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.transfer'),
     deps.requireOperationalAccess,
+    requireTransfersModule,
+    requireTransferPost,
     (req, res, next) => {
       void controller.createTransfer(req, res, next);
     },
@@ -201,6 +314,8 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.view'),
     deps.requireOperationalAccess,
+    requireTransfersModule,
+    requireTransferInspect,
     (req, res, next) => {
       void controller.getTransfer(req, res, next);
     },
@@ -213,8 +328,23 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.transfer'),
     deps.requireOperationalAccess,
+    requireTransfersModule,
+    requireTransferPost,
     (req, res, next) => {
       void controller.updateTransfer(req, res, next);
+    },
+  );
+
+  router.delete(
+    `${API_WAREHOUSE_TRANSFERS_PATH}/:id`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('inventory.transfer'),
+    deps.requireOperationalAccess,
+    requireTransfersModule,
+    (req, res, next) => {
+      void controller.discardTransfer(req, res, next);
     },
   );
 
@@ -225,6 +355,8 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.transfer'),
     deps.requireOperationalAccess,
+    requireTransfersModule,
+    requireTransferPost,
     (req, res, next) => {
       void controller.postTransfer(req, res, next);
     },
@@ -237,6 +369,8 @@ function registerInventoryRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('inventory.transfer.reverse'),
     deps.requireOperationalAccess,
+    requireTransfersModule,
+    requireTransferReverse,
     (req, res, next) => {
       void controller.reverseTransfer(req, res, next);
     },

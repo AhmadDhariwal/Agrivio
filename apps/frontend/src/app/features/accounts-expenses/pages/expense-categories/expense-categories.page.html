@@ -1,35 +1,258 @@
-<agrivio-ui-page-header
-  title="Expense categories"
-  eyebrow="Accounts"
-  lede="Categories used when recording expenses."
->
-  @if (canPost()) {
-    <a class="ag-btn" routerLink="/app/expense-categories/new" data-testid="expense-category-create-link">
-      Create category
-    </a>
-  }
-</agrivio-ui-page-header>
+<div class="categories-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">Finance & Expenses</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">Expense categories</h1>
+        <span class="page-head__count-pill" aria-label="Total categories">{{ total() }} categories</span>
+      </div>
+      <p class="page-head__lede">Classify and organize operational spending across financial ledgers.</p>
+    </div>
+    <div class="page-head__actions">
+      <button class="ag-btn ag-btn--secondary" type="button" (click)="reload(true)" aria-label="Refresh">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+        </svg>
+        <span>Refresh</span>
+      </button>
+      @if (canCreate()) {
+      <a class="ag-btn ag-btn--primary" routerLink="/app/expense-categories/new" data-testid="expense-category-create-link">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        <span>Create category</span>
+      </a>
+      }
+    </div>
+  </header>
 
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading categories…" />
-} @else if (errorMessage(); as error) {
-  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-} @else if (items().length === 0) {
-  <agrivio-ui-empty-state title="No expense categories yet" message="Create a category before recording expenses." />
-} @else {
-  <div class="ag-stack" data-testid="expense-categories-list">
+  <!-- Module Info -->
+  @if (showModuleInfo()) {
+  <agrivio-ui-module-info
+    [title]="infoTitle"
+    [description]="infoDescription"
+    [items]="infoItems"
+    [defaultExpanded]="false"
+  />
+  }
+
+  <!-- Alerts -->
+  @if (errorMessage(); as error) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  </div>
+  }
+  @if (successMessage(); as success) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="success" [message]="success" />
+  </div>
+  }
+
+  <!-- KPI Summary Row -->
+  @if (!loading() && canView()) {
+  <section class="kpi-row" aria-label="Category Summary">
+    <div class="kpi-card">
+      <div class="kpi-card__icon kpi-card__icon--neutral">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+          <path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Total Categories</span>
+        <span class="kpi-card__value">{{ total() }}</span>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-card__icon kpi-card__icon--green">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Active Categories</span>
+        <span class="kpi-card__value">{{ activeCount() }}</span>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-card__icon kpi-card__icon--amber">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Inactive Categories</span>
+        <span class="kpi-card__value">{{ inactiveCount() }}</span>
+      </div>
+    </div>
+  </section>
+  }
+
+  @if (loading()) {
+  <div class="state-container">
+    <agrivio-ui-loading-state label="Loading categories…" />
+  </div>
+  } @else if (!canView()) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="warning" message="You do not have permission to view expense categories." />
+  </div>
+  } @else {
+  <!-- Filter Toolbar -->
+  <div class="filter-toolbar">
+    <div class="filter-toolbar__filters">
+      @if (showSearch()) {
+      <div class="filter-toolbar__search">
+        <svg class="filter-toolbar__search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input
+          class="filter-toolbar__search-input"
+          type="search"
+          placeholder="Search by category name…"
+          [value]="search()"
+          (change)="onSearchChange($event)"
+          data-testid="expense-category-search"
+        />
+      </div>
+      }
+      @if (showStatusFilter()) {
+      <select
+        class="filter-toolbar__select"
+        [value]="statusFilter()"
+        (change)="onStatusChange($event)"
+        aria-label="Filter by status"
+        data-testid="expense-category-status-filter"
+      >
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+        <option value="all">All statuses</option>
+      </select>
+      }
+    </div>
+    <div class="filter-toolbar__actions">
+      @if (hasActiveFilters()) {
+      <button class="filter-toolbar__clear" type="button" (click)="clearFilters()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+        Clear filters
+      </button>
+      }
+    </div>
+  </div>
+
+  @if (items().length === 0) {
+  <agrivio-ui-empty-state
+    title="No expense categories found"
+    message="Create a category before recording expenses."
+  />
+  } @else {
+  <!-- Desktop Table -->
+  <div class="table-container" data-testid="expense-categories-list">
+    <table class="cat-table">
+      <thead>
+        <tr>
+          <th class="cat-table__th">Category</th>
+          <th class="cat-table__th">Status</th>
+          <th class="cat-table__th cat-table__th--actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of items(); track item.id) {
+        <tr class="cat-table__row">
+          <td class="cat-table__td cat-table__td--primary">
+            <div class="cat-identity">
+              <span class="cat-identity__name">{{ item.name }}</span>
+            </div>
+          </td>
+          <td class="cat-table__td">
+            <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+          </td>
+          <td class="cat-table__td cat-table__td--actions">
+            <div class="action-cell">
+              @if (canEdit()) {
+              <a class="ag-btn ag-btn--secondary ag-btn--sm" [routerLink]="['/app/expense-categories', item.id]" data-testid="expense-category-edit">Edit</a>
+              }
+              @if (canDeactivate() || canReactivate() || canDelete()) {
+              <div class="row-menu-container">
+                <button
+                  type="button"
+                  class="row-menu-trigger"
+                  (click)="toggleMenu(item.id, $event)"
+                  aria-label="More actions"
+                  [attr.aria-expanded]="openMenuCategoryId() === item.id"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" />
+                  </svg>
+                </button>
+                @if (openMenuCategoryId() === item.id) {
+                <div class="row-menu" role="menu">
+                  @if (item.status === 'active' && canDeactivate()) {
+                  <button type="button" class="row-menu__item" role="menuitem" (click)="askDeactivate(item)" data-testid="expense-category-deactivate">Deactivate</button>
+                  } @else if (item.status !== 'active' && canReactivate()) {
+                  <button type="button" class="row-menu__item" role="menuitem" (click)="askReactivate(item)" data-testid="expense-category-reactivate">Reactivate</button>
+                  }
+                  @if (canDelete()) {
+                  <button type="button" class="row-menu__item row-menu__item--danger" role="menuitem" (click)="askDelete(item)" data-testid="expense-category-delete">Delete permanently</button>
+                  }
+                </div>
+                }
+              </div>
+              }
+            </div>
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile Cards -->
+  <div class="cat-cards">
     @for (item of items(); track item.id) {
-      <article class="row">
-        <div>
-          <strong>{{ item.name }}</strong>
-        </div>
-        <div class="ag-inline">
-          <agrivio-ui-status-badge [label]="item.status" [tone]="item.status === 'active' ? 'success' : 'neutral'" />
-          @if (canPost()) {
-            <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/expense-categories', item.id]">Edit</a>
-          }
-        </div>
-      </article>
+    <article class="cat-card">
+      <div class="cat-card__header">
+        <span class="cat-card__name">{{ item.name }}</span>
+        <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+      </div>
+      @if (canEdit() || canDeactivate() || canReactivate()) {
+      <div class="cat-card__actions">
+        @if (canEdit()) {
+        <a class="ag-btn ag-btn--secondary ag-btn--sm" [routerLink]="['/app/expense-categories', item.id]">Edit</a>
+        }
+        @if (item.status === 'active' && canDeactivate()) {
+        <button type="button" class="ag-btn ag-btn--secondary ag-btn--sm" (click)="askDeactivate(item)">Deactivate</button>
+        } @else if (item.status !== 'active' && canReactivate()) {
+        <button type="button" class="ag-btn ag-btn--secondary ag-btn--sm" (click)="askReactivate(item)">Reactivate</button>
+        }
+      </div>
+      }
+    </article>
     }
   </div>
-}
+
+  <!-- Pagination -->
+  <agrivio-ui-pagination
+    [page]="page()"
+    [pageSize]="pageSize()"
+    [total]="total()"
+    [disabled]="loading()"
+    (pageChange)="onPageChange($event)"
+    (pageSizeChange)="onPageSizeChange($event)"
+  />
+  }
+  }
+</div>
+
+<agrivio-ui-confirm-dialog
+  [open]="confirmOpen()"
+  [title]="confirmTitle()"
+  [message]="confirmMessage()"
+  [confirmLabel]="confirmLabel()"
+  [danger]="confirmLabel() === 'Deactivate' || confirmLabel() === 'Delete permanently'"
+  (confirmed)="confirmLifecycle()"
+  (dismiss)="confirmOpen.set(false)"
+/>

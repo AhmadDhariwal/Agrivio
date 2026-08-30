@@ -1,128 +1,404 @@
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading invoice…" />
-} @else if (!canView) {
-  <div data-testid="print-permission-denied">
-    <agrivio-ui-alert tone="warning" message="You do not have permission to view or print invoices." />
-  </div>
-} @else if (errorMessage(); as error) {
-  <div class="print-toolbar">
-    <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/sales', saleId]">Back to sale</a>
-  </div>
-  <agrivio-ui-alert tone="danger" [message]="error" role="alert" data-testid="print-error" />
-} @else if (invoice(); as invoice) {
-  <div class="print-toolbar" data-testid="print-toolbar">
-    <div class="print-toolbar__layouts">
-      @for (option of layouts; track option) {
-        <button
-          class="ag-btn"
-          [class.ag-btn--secondary]="layout() !== option"
-          type="button"
-          (click)="selectLayout(option)"
-          [attr.data-testid]="'print-layout-' + option"
-        >
-          {{ option }}
-        </button>
-      }
+<div class="sale-print-shell">
+  @if (loading()) {
+    <div class="state-container">
+      <agrivio-ui-loading-state label="Loading invoice…" />
     </div>
-    <div class="ag-inline">
-      <button class="ag-btn" type="button" (click)="print()" data-testid="invoice-print-button">
-        Print
-      </button>
-      <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/sales', saleId]">Back to sale</a>
+  } @else if (!canView || !canUseSales || !canPrint) {
+    <div class="alert-container" data-testid="print-permission-denied">
+      <agrivio-ui-alert tone="warning" message="You do not have permission to view or print invoices." />
     </div>
-  </div>
+  } @else if (errorMessage(); as error) {
+    <header class="page-head no-print">
+      <div class="page-head__title-group">
+        <p class="page-head__eyebrow">Sales</p>
+        <h1 class="page-head__title">Print invoice</h1>
+      </div>
+      <div class="page-head__actions">
+        <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/sales', saleId]">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m15 18-6-6 6-6"/>
+          </svg>
+          Back to sale
+        </a>
+      </div>
+    </header>
+    <div class="alert-container">
+      <agrivio-ui-alert tone="danger" [message]="error" role="alert" data-testid="print-error" />
+    </div>
+  } @else if (invoice(); as invoice) {
+    <!-- Page Header & Action Bar (Screen Only) -->
+    <header class="page-head no-print" data-testid="print-toolbar">
+      <div class="page-head__title-group">
+        <p class="page-head__eyebrow">Sales</p>
+        <div class="page-head__heading-wrap">
+          <h1 class="page-head__title">Print invoice</h1>
+        </div>
+        <p class="page-head__lede">
+          Preview how the invoice will look on paper before printing.
+        </p>
+      </div>
 
-  <article
-    class="invoice-print"
-    [attr.data-layout]="layout()"
-    [attr.data-testid]="'invoice-layout-' + layout()"
-  >
-    <header class="invoice-print__header">
-      @if (invoice.status === 'cancelled') {
-        <p class="invoice-print__cancelled" data-testid="invoice-cancelled">Cancelled invoice</p>
-      }
-      <h1>Sales invoice</h1>
-      <p data-testid="invoice-number">
-        Invoice
-        <strong>{{ invoice.invoiceNumber }}</strong>
-      </p>
-      <p data-testid="invoice-date">Date {{ invoice.saleDate }}</p>
-      @if (invoice.branchNameSnapshot) {
-        <p data-testid="invoice-branch">Branch {{ invoice.branchNameSnapshot }}</p>
-      }
-      @if (invoice.warehouseNameSnapshot) {
-        <p data-testid="invoice-warehouse">Warehouse {{ invoice.warehouseNameSnapshot }}</p>
-      }
-      <p data-testid="invoice-customer">
-        Customer {{ invoice.customerNameSnapshot || 'Walk-in' }}
-      </p>
-      @if (invoice.priceTierSnapshot) {
-        <p>Price tier {{ invoice.priceTierSnapshot }}</p>
-      }
+      <div class="page-head__actions">
+        <!-- Layout Selector Buttons -->
+        <div class="layout-toggle-group" role="group" aria-label="Invoice print layout">
+          @for (option of layouts; track option) {
+            <button
+              class="layout-btn"
+              [class.layout-btn--active]="layout() === option"
+              type="button"
+              (click)="selectLayout(option)"
+              [attr.data-testid]="'print-layout-' + option"
+            >
+              {{ option === 'a4' ? 'A4' : option }}
+            </button>
+          }
+        </div>
+
+        <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/sales', saleId]">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m15 18-6-6 6-6"/>
+          </svg>
+          Back to sale
+        </a>
+
+        <button
+          class="ag-btn ag-btn--primary"
+          type="button"
+          (click)="print()"
+          data-testid="invoice-print-button"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 6 2 18 2 18 9"></polyline>
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+            <rect x="6" y="14" width="12" height="8"></rect>
+          </svg>
+          Print
+        </button>
+      </div>
     </header>
 
-    <table class="invoice-print__lines">
-      <thead>
-        <tr>
-          <th>Product</th>
-          <th>Qty</th>
-          <th>Unit</th>
-          <th>Price</th>
-          <th>Amount</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (line of invoice.lines; track $index) {
-          <tr>
-            <td data-testid="invoice-product-name">{{ line.productNameSnapshot }}</td>
-            <td data-testid="invoice-quantity">{{ line.quantity }}</td>
-            <td>{{ line.unitCodeSnapshot }}</td>
-            <td data-testid="invoice-unit-price">
-              {{ line.unitPrice.amount }} {{ line.unitPrice.currency }}
-            </td>
-            <td data-testid="invoice-line-amount">
-              {{ line.lineProductAmount.amount }} {{ line.lineProductAmount.currency }}
-            </td>
-          </tr>
+    <!-- Print Preview Centered Workspace -->
+    <div class="print-preview-workspace">
+      <article
+        class="invoice-print"
+        [attr.data-layout]="layout()"
+        [attr.data-testid]="'invoice-layout-' + layout()"
+      >
+        <!-- ========================================================================= -->
+        <!-- A4 PROFESSIONAL INVOICE LAYOUT                                           -->
+        <!-- ========================================================================= -->
+        @if (layout() === 'a4') {
+          <div class="a4-document">
+            <!-- Header: Logo & Title -->
+            <div class="a4-header">
+              <div class="a4-brand">
+                <div class="a4-brand__logo">
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#065f46" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 class="a4-brand__name">agrivio</h2>
+                  <p class="a4-brand__tagline">Growing together.</p>
+                </div>
+              </div>
+              <div class="a4-doc-info">
+                @if (invoice.status === 'cancelled') {
+                  <span class="cancelled-tag" data-testid="invoice-cancelled">CANCELLED INVOICE</span>
+                }
+                <h3 class="a4-doc-title">SALES INVOICE</h3>
+                <p class="a4-doc-meta" data-testid="invoice-number">
+                  Invoice # <strong>{{ invoice.invoiceNumber }}</strong>
+                </p>
+                <p class="a4-doc-meta" data-testid="invoice-date">
+                  Date: {{ invoice.saleDate }}
+                </p>
+              </div>
+            </div>
+
+            <!-- FROM / TO Address Block -->
+            <div class="a4-parties">
+              <div class="a4-party a4-party--from">
+                <span class="a4-party__label">FROM</span>
+                <strong class="a4-party__name" data-testid="invoice-branch">{{ invoice.branchNameSnapshot || 'Agrivio Commercial Branch' }}</strong>
+                @if (invoice.warehouseNameSnapshot) {
+                  <p class="a4-party__sub" data-testid="invoice-warehouse">{{ invoice.warehouseNameSnapshot }}</p>
+                }
+                <p class="a4-party__country">Pakistan</p>
+              </div>
+              <div class="a4-party a4-party--to">
+                <span class="a4-party__label">TO</span>
+                <strong class="a4-party__name" data-testid="invoice-customer">{{ invoice.customerNameSnapshot || 'Walk-in' }}</strong>
+                @if (invoice.priceTierSnapshot) {
+                  <p class="a4-party__sub">Price Tier: {{ invoice.priceTierSnapshot }}</p>
+                }
+              </div>
+            </div>
+
+            <!-- Metadata Cards Row -->
+            <div class="a4-meta-grid">
+              <div class="a4-meta-card">
+                <span class="a4-meta-card__label">Invoice number</span>
+                <strong class="a4-meta-card__val tabular-num">{{ invoice.invoiceNumber }}</strong>
+              </div>
+              <div class="a4-meta-card">
+                <span class="a4-meta-card__label">Invoice date</span>
+                <strong class="a4-meta-card__val tabular-num">{{ invoice.saleDate }}</strong>
+              </div>
+              <div class="a4-meta-card">
+                <span class="a4-meta-card__label">Branch</span>
+                <strong class="a4-meta-card__val">{{ invoice.branchNameSnapshot || '—' }}</strong>
+              </div>
+              <div class="a4-meta-card">
+                <span class="a4-meta-card__label">Warehouse / Location</span>
+                <strong class="a4-meta-card__val">{{ invoice.warehouseNameSnapshot || '—' }}</strong>
+              </div>
+            </div>
+
+            <!-- Line Items Table -->
+            <table class="a4-table invoice-print__lines">
+              <colgroup>
+                <col class="col-num" />
+                <col class="col-prod" />
+                <col class="col-pkg" />
+                <col class="col-qty" />
+                <col class="col-price" />
+                <col class="col-total" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th class="col-num">#</th>
+                  <th class="col-prod">Product</th>
+                  <th class="col-pkg">Packaging</th>
+                  <th class="col-qty text-right">Qty</th>
+                  <th class="col-price text-right">Unit Price</th>
+                  <th class="col-total text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of invoice.lines; track $index; let i = $index) {
+                  <tr>
+                    <td class="col-num tabular-num text-muted">{{ i + 1 }}</td>
+                    <td class="col-prod font-semibold" data-testid="invoice-product-name">{{ line.productNameSnapshot }}</td>
+                    <td class="col-pkg">
+                      <span class="tracking-chip tracking-chip--sm">{{ line.unitCodeSnapshot }}</span>
+                    </td>
+                    <td class="col-qty text-right tabular-num" data-testid="invoice-quantity">{{ formatQuantity(line.quantity) }}</td>
+                    <td class="col-price text-right tabular-num" data-testid="invoice-unit-price">
+                      {{ formatCurrency(line.unitPrice) }}
+                    </td>
+                    <td class="col-total text-right tabular-num font-semibold" data-testid="invoice-line-amount">
+                      {{ formatCurrency(line.lineProductAmount) }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+
+            <!-- Summary & Financial Totals -->
+            <div class="a4-summary-section">
+              <div class="a4-totals-box invoice-print__totals">
+                @if (invoice.saleTotal) {
+                  <div class="a4-total-row" data-testid="invoice-sale-total">
+                    <span class="a4-total-label font-bold">TOTAL</span>
+                    <strong class="a4-total-val tabular-num font-bold">{{ formatCurrency(invoice.saleTotal) }}</strong>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Settlement Cards (Paid, Receivable) -->
+            <div class="a4-settlement-grid">
+              @if (invoice.paidTotal) {
+                <div class="a4-settle-card a4-settle-card--paid">
+                  <div class="a4-settle-card__icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                  </div>
+                  <div>
+                    <span class="a4-settle-card__label">Paid</span>
+                    <strong class="a4-settle-card__val tabular-num" data-testid="invoice-paid-total">
+                      {{ formatCurrency(invoice.paidTotal) }}
+                    </strong>
+                  </div>
+                </div>
+              }
+              @if (invoice.receivableTotal) {
+                <div class="a4-settle-card a4-settle-card--receivable">
+                  <div class="a4-settle-card__icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                  </div>
+                  <div>
+                    <span class="a4-settle-card__label">Receivable</span>
+                    <strong class="a4-settle-card__val tabular-num font-semibold" data-testid="invoice-receivable-total">
+                      {{ formatCurrency(invoice.receivableTotal) }}
+                    </strong>
+                  </div>
+                </div>
+              }
+            </div>
+
+            <!-- Payments List -->
+            @if (invoice.payments && invoice.payments.length > 0) {
+              <div class="a4-payments">
+                <h4 class="a4-payments__title">Payment settlements:</h4>
+                <ul class="a4-payments__list">
+                  @for (payment of invoice.payments; track $index) {
+                    <li data-testid="invoice-payment">
+                      <span class="font-semibold">{{ payment.accountNameSnapshot }}</span> ({{ payment.accountTypeSnapshot }}) —
+                      <span class="tabular-num">{{ formatCurrency(payment.amount) }}</span>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+
+            @if (invoice.notes) {
+              <p class="a4-notes invoice-print__notes">Notes: {{ invoice.notes }}</p>
+            }
+
+            <!-- Footer -->
+            <div class="a4-footer">
+              <p>Thank you for your business!</p>
+            </div>
+          </div>
         }
-      </tbody>
-    </table>
 
-    <section class="invoice-print__totals">
-      @if (invoice.saleTotal) {
-        <p data-testid="invoice-sale-total">
-          Total
-          <strong>{{ invoice.saleTotal.amount }} {{ invoice.saleTotal.currency }}</strong>
-        </p>
-      }
-      @if (invoice.paidTotal) {
-        <p data-testid="invoice-paid-total">
-          Paid {{ invoice.paidTotal.amount }} {{ invoice.paidTotal.currency }}
-        </p>
-      }
-      @if (invoice.receivableTotal) {
-        <p data-testid="invoice-receivable-total">
-          Receivable {{ invoice.receivableTotal.amount }} {{ invoice.receivableTotal.currency }}
-        </p>
-      }
-    </section>
+        <!-- ========================================================================= -->
+        <!-- 80MM / 58MM THERMAL RECEIPT LAYOUT                                       -->
+        <!-- ========================================================================= -->
+        @if (layout() === '80mm' || layout() === '58mm') {
+          <div class="receipt-document">
+            <div class="receipt-header invoice-print__header">
+              <div class="receipt-brand-row">
+                <div class="receipt-logo">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#065f46" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+                  </svg>
+                </div>
+                <h2 class="receipt-brand">agrivio</h2>
+              </div>
+              <p class="receipt-sub">POS SALES INVOICE</p>
+              @if (invoice.status === 'cancelled') {
+                <p class="receipt-cancelled invoice-print__cancelled" data-testid="invoice-cancelled">
+                  *** CANCELLED INVOICE ***
+                </p>
+              }
+              <div class="receipt-meta">
+                <p data-testid="invoice-number">
+                  Invoice: <strong class="tabular-num">{{ invoice.invoiceNumber }}</strong>
+                </p>
+                <p data-testid="invoice-date">Date: <span class="tabular-num">{{ invoice.saleDate }}</span></p>
+                @if (invoice.branchNameSnapshot) {
+                  <p data-testid="invoice-branch">Branch: {{ invoice.branchNameSnapshot }}</p>
+                }
+                @if (invoice.warehouseNameSnapshot) {
+                  <p data-testid="invoice-warehouse">WH: {{ invoice.warehouseNameSnapshot }}</p>
+                }
+                <p data-testid="invoice-customer">
+                  Customer: {{ invoice.customerNameSnapshot || 'Walk-in' }}
+                </p>
+                @if (invoice.priceTierSnapshot) {
+                  <p>Tier: {{ invoice.priceTierSnapshot }}</p>
+                }
+              </div>
+            </div>
 
-    @if (invoice.payments.length > 0) {
-      <section>
-        <h2>Payments</h2>
-        <ul>
-          @for (payment of invoice.payments; track $index) {
-            <li data-testid="invoice-payment">
-              {{ payment.accountNameSnapshot }} ({{ payment.accountTypeSnapshot }}) —
-              {{ payment.amount.amount }} {{ payment.amount.currency }}
-            </li>
-          }
-        </ul>
-      </section>
-    }
+            <div class="receipt-divider"></div>
 
-    @if (invoice.notes) {
-      <p class="invoice-print__notes">Notes: {{ invoice.notes }}</p>
-    }
-  </article>
-}
+            <!-- Lines Table -->
+            <table class="receipt-lines invoice-print__lines">
+              <colgroup>
+                <col class="col-receipt-prod" />
+                <col class="col-receipt-qty" />
+                <col class="col-receipt-price" />
+                <col class="col-receipt-amt" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th class="text-right">Qty</th>
+                  <th class="text-right">Price</th>
+                  <th class="text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of invoice.lines; track $index) {
+                  <tr>
+                    <td class="receipt-product" data-testid="invoice-product-name">
+                      <div class="receipt-product-wrap">
+                        <span class="product-name font-semibold">{{ line.productNameSnapshot }}</span>
+                        @if (line.unitCodeSnapshot) {
+                          <span class="tracking-chip tracking-chip--sm">{{ line.unitCodeSnapshot }}</span>
+                        }
+                      </div>
+                    </td>
+                    <td class="text-right tabular-num" data-testid="invoice-quantity">{{ formatQuantity(line.quantity) }}</td>
+                    <td class="text-right tabular-num" data-testid="invoice-unit-price">
+                      {{ formatCurrency(line.unitPrice) }}
+                    </td>
+                    <td class="text-right tabular-num font-semibold" data-testid="invoice-line-amount">
+                      {{ formatCurrency(line.lineProductAmount) }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+
+            <div class="receipt-divider"></div>
+
+            <!-- Totals -->
+            <div class="receipt-totals invoice-print__totals">
+              @if (invoice.saleTotal) {
+                <div class="receipt-total-row receipt-total-row--main" data-testid="invoice-sale-total">
+                  <span>TOTAL:</span>
+                  <strong class="tabular-num">{{ formatCurrency(invoice.saleTotal) }}</strong>
+                </div>
+              }
+              @if (invoice.paidTotal) {
+                <div class="receipt-total-row" data-testid="invoice-paid-total">
+                  <span>Paid:</span>
+                  <span class="tabular-num">{{ formatCurrency(invoice.paidTotal) }}</span>
+                </div>
+              }
+              @if (invoice.receivableTotal) {
+                <div class="receipt-total-row" data-testid="invoice-receivable-total">
+                  <span>Receivable:</span>
+                  <span class="tabular-num font-semibold">{{ formatCurrency(invoice.receivableTotal) }}</span>
+                </div>
+              }
+            </div>
+
+            <!-- Payments -->
+            @if (invoice.payments && invoice.payments.length > 0) {
+              <div class="receipt-divider"></div>
+              <div class="receipt-payments">
+                <p class="receipt-payments__title">Payments:</p>
+                @for (payment of invoice.payments; track $index) {
+                  <div class="receipt-payment-item" data-testid="invoice-payment">
+                    <span>{{ payment.accountNameSnapshot }} ({{ payment.accountTypeSnapshot }})</span>
+                    <span class="tabular-num">{{ formatCurrency(payment.amount) }}</span>
+                  </div>
+                }
+              </div>
+            }
+
+            @if (invoice.notes) {
+              <p class="receipt-notes invoice-print__notes">Notes: {{ invoice.notes }}</p>
+            }
+
+            <div class="receipt-divider"></div>
+            <div class="receipt-footer">
+              <p>Thank you for your business!</p>
+            </div>
+          </div>
+        }
+      </article>
+    </div>
+  }
+</div>

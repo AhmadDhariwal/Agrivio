@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import {
   FormArray,
   FormBuilder,
@@ -8,7 +8,8 @@ import {
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin, switchMap } from 'rxjs';
+import { forkJoin, Subject, debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PurchasesApi } from '../../data-access/purchases.api';
 import { ReturnsApi } from '../../data-access/returns.api';
 import {
@@ -29,9 +30,15 @@ import { SupplierRecord } from '../../../suppliers/models/suppliers.models';
 import { PackagingUnitRecord, ProductRecord } from '../../../catalog/models/catalog.models';
 import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
 import { AccountRecord } from '../../../accounts-expenses/models/accounts.models';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import {
+  fieldValidationMessage,
+  hasRequiredValidator,
+  setRequiredValidator,
+} from '../../../../shared/form/form-field.util';
+import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 @Component({
   selector: 'agrivio-purchase-edit-page',
@@ -39,9 +46,9 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiConfirmDialogComponent,
   ],
   templateUrl: './purchase-edit.page.html',
   styleUrl: './purchase-edit.page.scss',
@@ -57,37 +64,145 @@ export class PurchaseEditPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly productSearchChanges = new Subject<string>();
+  private readonly supplierSearchChanges = new Subject<string>();
 
   readonly purchaseId = signal<string | null>(null);
   readonly purchase = signal<PurchaseRecord | null>(null);
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly discarding = signal(false);
+  readonly discardConfirmOpen = signal(false);
+  readonly cancelConfirmOpen = signal(false);
   readonly posting = signal(false);
   readonly cancelling = signal(false);
   readonly submittingReturn = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
+  readonly formSubmitAttempted = signal(false);
   readonly products = signal<ProductRecord[]>([]);
   readonly warehouses = signal<WarehouseRecord[]>([]);
   readonly suppliers = signal<SupplierRecord[]>([]);
   readonly accounts = signal<AccountRecord[]>([]);
   readonly packagingByLine = signal<Record<number, PackagingUnitRecord[]>>({});
-  readonly canCreate = computed(() => this.sessionStore.hasPermission('purchases.create'));
-  readonly canPost = computed(() => this.sessionStore.hasPermission('purchases.post'));
-  readonly canView = computed(() => this.sessionStore.hasPermission('purchases.view'));
-  readonly canCancel = computed(() => this.sessionStore.hasPermission('purchases.cancel'));
-  readonly canReturn = computed(() =>
-    this.sessionStore.hasPermission('purchases.return') &&
-    this.sessionStore.hasPermission('returns.post'),
-  );
   readonly isPosted = computed(() => this.purchase()?.status === 'posted');
   readonly isCancelled = computed(() => this.purchase()?.status === 'cancelled');
   readonly isDraft = computed(() => {
     const record = this.purchase();
     return record === null || record.status === 'draft';
   });
+  readonly canUsePurchases = computed(
+    () => this.capabilityService?.canUseModule('purchases') ?? true,
+  );
+  readonly canCreate = computed(
+    () =>
+      this.sessionStore.hasPermission('purchases.create') &&
+      this.canUsePurchases() &&
+      (this.capabilityService?.canPerformAction('purchases.actions.createDraft') ?? true),
+  );
+  readonly canInspect = computed(
+    () =>
+      this.sessionStore.hasPermission('purchases.view') &&
+      this.canUsePurchases() &&
+      (this.capabilityService?.canPerformAction('purchases.actions.inspect') ?? true),
+  );
+  readonly canView = this.canInspect;
+  readonly canEditDraft = computed(
+    () =>
+      this.sessionStore.hasPermission('purchases.create') &&
+      this.canUsePurchases() &&
+      (this.capabilityService?.canPerformAction('purchases.actions.editDraft') ?? true) &&
+      this.isDraft(),
+  );
+  readonly canDiscard = computed(
+    () =>
+      this.sessionStore.hasPermission('purchases.create') &&
+      this.canUsePurchases() &&
+      (this.capabilityService?.canPerformAction('purchases.actions.discardDraft') ?? true) &&
+      this.purchaseId() !== null &&
+      this.isDraft(),
+  );
+  readonly canPost = computed(
+    () =>
+      this.sessionStore.hasPermission('purchases.post') &&
+      this.canUsePurchases() &&
+      (this.capabilityService?.canPerformAction('purchases.actions.post') ?? true) &&
+      this.purchaseId() !== null &&
+      this.isDraft(),
+  );
+  readonly canCancel = computed(
+    () =>
+      this.sessionStore.hasPermission('purchases.cancel') &&
+      this.canUsePurchases() &&
+      (this.capabilityService?.canPerformAction('purchases.actions.cancel') ?? true) &&
+      this.isPosted(),
+  );
+  readonly canReturn = computed(() =>
+    this.sessionStore.hasPermission('purchases.return') &&
+    this.sessionStore.hasPermission('returns.post') &&
+    this.canUsePurchases() &&
+    (this.capabilityService?.canPerformAction('purchases.actions.createReturn') ?? true) &&
+    (this.capabilityService?.canUseModule('returns') ?? true) &&
+    (this.capabilityService?.canPerformAction('returns.actions.post') ?? true) &&
+    this.isPosted(),
+  );
+  readonly canAddPaymentAtPost = computed(
+    () =>
+      this.sessionStore.hasPermission('purchases.post') &&
+      this.canUsePurchases() &&
+      this.isDraft() &&
+      (this.capabilityService?.canPerformAction('purchases.actions.post') ?? true) &&
+      (this.capabilityService?.canPerformAction('purchases.actions.addPaymentAtPost') ?? true),
+  );
+  readonly canSaveDraft = computed(
+    () =>
+      (this.purchaseId() === null ? this.canCreate() : this.canEditDraft()) &&
+      this.form.valid &&
+      !this.saving() &&
+      !this.posting() &&
+      this.isDraft(),
+  );
   private version = 1;
+
+  readonly fieldRequired = hasRequiredValidator;
+  readonly fieldError = fieldValidationMessage;
+
+  canViewPurchaseField(id: string): boolean {
+    return this.capabilityService?.canViewField(`purchases.fields.${id}`) ?? true;
+  }
+
+  canEditPurchaseField(id: string): boolean {
+    const canMutate = this.purchaseId() === null ? this.canCreate() : this.canEditDraft();
+    return canMutate &&
+      (this.capabilityService?.canEditField(`purchases.fields.${id}`) ?? true);
+  }
+
+  getLineTotal(index: number): string {
+    const group = this.lineGroup(index);
+    const qty = parseFloat(group.get('quantity')?.value ?? '0');
+    const unitCost = parseFloat(group.get('unitCost')?.value ?? '0');
+    if (isNaN(qty) || isNaN(unitCost) || qty <= 0 || unitCost <= 0) return '0.00';
+    return (qty * unitCost).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
+  statusLabel(status?: string | null): string {
+    if (status === 'draft') return 'Draft (unposted)';
+    if (status === 'posted') return 'Posted';
+    if (status === 'cancelled') return 'Cancelled';
+    return status || 'Draft';
+  }
+
+  statusTone(status?: string | null): 'warning' | 'success' | 'danger' | 'neutral' {
+    if (status === 'draft') return 'warning';
+    if (status === 'posted') return 'success';
+    if (status === 'cancelled') return 'danger';
+    return 'neutral';
+  }
 
   readonly form = this.formBuilder.nonNullable.group({
     warehouseId: ['', Validators.required],
@@ -137,11 +252,30 @@ export class PurchaseEditPage {
     }
 
     const masters$ = forkJoin({
-      products: this.catalogApi.listProducts(),
-      warehouses: this.locationsApi.listWarehouses(),
-      suppliers: this.suppliersApi.listSuppliers(),
-      accounts: this.accountsApi.listAccounts(),
+      warehouses: this.locationsApi.listWarehouseOptions(),
+      accounts: this.accountsApi.listAccountOptions(),
     });
+
+    this.productSearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((query) => this.catalogApi.searchProductOptions(query, 25, 'active')),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((items) => this.products.set(items.filter((item) => item.status === 'active')));
+
+    this.supplierSearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((query) => this.suppliersApi.searchSupplierOptions(query)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((items) => this.suppliers.set(items.filter((item) => item.status === 'active')));
+
+    this.supplierSearchChanges.next('');
+    this.productSearchChanges.next('');
 
     if (isEdit && id) {
       forkJoin({
@@ -180,13 +314,40 @@ export class PurchaseEditPage {
     return this.lines.at(index) as FormGroup;
   }
 
+  lineFieldError(index: number, controlName: string, label: string): string | null {
+    return fieldValidationMessage(
+      this.lineGroup(index).get(controlName),
+      label,
+      this.formSubmitAttempted(),
+    );
+  }
+
+  onSupplierSearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      this.supplierSearchChanges.next(target.value.trim());
+    }
+  }
+
+  onProductSearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      this.productSearchChanges.next(target.value.trim());
+    }
+  }
+
   paymentGroup(index: number): FormGroup {
     return this.payments.at(index) as FormGroup;
   }
 
   trackingModeForLine(index: number): string {
     const productId = String(this.lineGroup(index).get('productId')?.value ?? '');
-    return this.products().find((item) => item.id === productId)?.trackingMode ?? 'none';
+    const fromCatalog = this.products().find((item) => item.id === productId)?.trackingMode;
+    if (fromCatalog) {
+      return fromCatalog;
+    }
+    const line = this.purchase()?.lines[index];
+    return line?.trackingModeSnapshot ?? 'none';
   }
 
   packagingUnitsForLine(index: number): PackagingUnitRecord[] {
@@ -194,7 +355,7 @@ export class PurchaseEditPage {
   }
 
   addLine(): void {
-    if (this.isPosted()) {
+    if (!this.canEditDraft()) {
       return;
     }
     const index = this.lines.length;
@@ -203,7 +364,7 @@ export class PurchaseEditPage {
   }
 
   removeLine(index: number): void {
-    if (this.isPosted()) {
+    if (!this.canEditDraft()) {
       return;
     }
     if (this.lines.length <= 1) {
@@ -217,6 +378,7 @@ export class PurchaseEditPage {
         expiryDate: '',
       });
       this.packagingByLine.update((current) => ({ ...current, [0]: [] }));
+      this.syncLineTrackingRequired(0);
       return;
     }
     this.lines.removeAt(index);
@@ -224,14 +386,14 @@ export class PurchaseEditPage {
   }
 
   addPayment(): void {
-    if (this.isPosted()) {
+    if (!this.canAddPaymentAtPost()) {
       return;
     }
     this.payments.push(this.createPaymentGroup());
   }
 
   removePayment(index: number): void {
-    if (this.isPosted()) {
+    if (!this.canAddPaymentAtPost()) {
       return;
     }
     this.payments.removeAt(index);
@@ -249,6 +411,15 @@ export class PurchaseEditPage {
     if (this.cancelForm.invalid) {
       this.cancelForm.markAllAsTouched();
       this.errorMessage.set('A cancellation reason is required.');
+      return;
+    }
+    this.cancelConfirmOpen.set(true);
+  }
+
+  confirmCancel(): void {
+    const id = this.purchaseId();
+    this.cancelConfirmOpen.set(false);
+    if (!id || !this.canCancel() || !this.isPosted() || this.cancelling()) {
       return;
     }
     this.cancelling.set(true);
@@ -318,7 +489,7 @@ export class PurchaseEditPage {
           this.returnLines.clear();
           this.returnForm.patchValue({ reason: '' });
           if (id) {
-            this.api.getPurchase(id).subscribe({
+            this.api.getPurchase(id, { forceRefresh: true }).subscribe({
               next: (record) => this.applyPurchase(record),
             });
           }
@@ -348,8 +519,14 @@ export class PurchaseEditPage {
   }
 
   save(): void {
-    if (!this.canCreate() || this.isPosted() || this.form.invalid) {
-      this.form.markAllAsTouched();
+    const id = this.purchaseId();
+    const canManage = id === null ? this.canCreate() : this.canEditDraft();
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    for (let index = 0; index < this.lines.length; index += 1) {
+      this.lineGroup(index).markAllAsTouched();
+    }
+    if (!canManage || this.form.invalid) {
       return;
     }
     this.saving.set(true);
@@ -357,7 +534,6 @@ export class PurchaseEditPage {
     this.successMessage.set(null);
 
     const payload = this.buildPayload();
-    const id = this.purchaseId();
     const request$ =
       id === null
         ? this.api.createPurchase(payload)
@@ -384,7 +560,16 @@ export class PurchaseEditPage {
 
   discard(): void {
     const id = this.purchaseId();
-    if (!id || !this.canCreate() || this.isPosted()) {
+    if (!id || !this.canDiscard()) {
+      return;
+    }
+    this.discardConfirmOpen.set(true);
+  }
+
+  confirmDiscard(): void {
+    const id = this.purchaseId();
+    this.discardConfirmOpen.set(false);
+    if (!id || !this.canDiscard()) {
       return;
     }
     this.discarding.set(true);
@@ -484,21 +669,54 @@ export class PurchaseEditPage {
   }
 
   private applyMasters(masters: {
-    products: ProductRecord[];
     warehouses: WarehouseRecord[];
-    suppliers: SupplierRecord[];
     accounts: AccountRecord[];
   }): void {
-    this.products.set(masters.products.filter((item) => item.status === 'active'));
     this.warehouses.set(masters.warehouses.filter((item) => item.status === 'active'));
-    this.suppliers.set(masters.suppliers.filter((item) => item.status === 'active'));
     this.accounts.set(masters.accounts.filter((item) => item.status === 'active'));
     this.bindLineProductChanges(0);
+  }
+
+  private seedSelectorOptionsFromPurchase(purchase: PurchaseRecord): void {
+    this.suppliers.set([
+      {
+        id: purchase.supplierId,
+        organizationId: purchase.organizationId,
+        name: purchase.supplierNameSnapshot,
+        phone: '',
+        contactName: '',
+        email: '',
+        status: 'active',
+        version: purchase.version,
+      },
+    ]);
+    const seen = new Set<string>();
+    const productOptions: ProductRecord[] = [];
+    for (const line of purchase.lines) {
+      if (seen.has(line.productId)) {
+        continue;
+      }
+      seen.add(line.productId);
+      productOptions.push({
+        id: line.productId,
+        organizationId: purchase.organizationId,
+        categoryId: '',
+        name: line.productNameSnapshot,
+        sku: '',
+        trackingMode: line.trackingModeSnapshot,
+        baseUnitCode: line.unitCodeSnapshot,
+        measurementDimension: 'mass',
+        status: 'active',
+        version: 1,
+      });
+    }
+    this.products.set(productOptions);
   }
 
   private applyPurchase(purchase: PurchaseRecord): void {
     this.purchase.set(purchase);
     this.version = purchase.version;
+    this.seedSelectorOptionsFromPurchase(purchase);
     const posted = purchase.status === 'posted';
 
     this.form.patchValue({
@@ -527,6 +745,7 @@ export class PurchaseEditPage {
           expiryDate: line.expiryDate ?? '',
         }),
       );
+      this.syncLineTrackingRequired(index);
       if (!posted) {
         this.bindLineProductChanges(index);
         this.catalogApi.listPackagingUnits(line.productId).subscribe({
@@ -540,6 +759,7 @@ export class PurchaseEditPage {
     if (this.lines.length === 0) {
       this.lines.push(this.createLineGroup());
       this.bindLineProductChanges(0);
+      this.syncLineTrackingRequired(0);
     }
 
     this.payments.clear();
@@ -566,6 +786,7 @@ export class PurchaseEditPage {
     }
     control.valueChanges.subscribe((productId: string) => {
       this.lineGroup(index).patchValue({ packagingUnitId: '' }, { emitEvent: false });
+      this.syncLineTrackingRequired(index);
       if (!productId) {
         this.packagingByLine.update((current) => ({ ...current, [index]: [] }));
         return;
@@ -582,6 +803,13 @@ export class PurchaseEditPage {
         },
       });
     });
+  }
+
+  private syncLineTrackingRequired(index: number): void {
+    const mode = this.trackingModeForLine(index);
+    const group = this.lineGroup(index);
+    setRequiredValidator(group.get('batchNumber'), mode !== 'none');
+    setRequiredValidator(group.get('expiryDate'), mode === 'batch_expiry');
   }
 
   private rebuildPackagingMap(): void {
@@ -624,13 +852,19 @@ export class PurchaseEditPage {
         quantity: line['quantity'].trim(),
         unitCost: { amount: line['unitCost'].trim(), currency: 'PKR' },
       };
-      if (line['packagingUnitId'].trim() !== '') {
+      if (
+        this.canEditPurchaseField('packagingUnit') &&
+        line['packagingUnitId'].trim() !== ''
+      ) {
         payload.packagingUnitId = line['packagingUnitId'];
       }
       if (mode !== 'none' && line['batchNumber'].trim() !== '') {
         payload.batchNumber = line['batchNumber'].trim();
       }
-      if (line['manufacturingDate'].trim() !== '') {
+      if (
+        this.canEditPurchaseField('manufacturingDate') &&
+        line['manufacturingDate'].trim() !== ''
+      ) {
         payload.manufacturingDate = line['manufacturingDate'].trim();
       }
       if (mode === 'batch_expiry' && line['expiryDate'].trim() !== '') {
@@ -639,20 +873,27 @@ export class PurchaseEditPage {
       return payload;
     });
 
-    return {
+    const payload: PurchaseDraftInput = {
       warehouseId: value.warehouseId,
       supplierId: value.supplierId,
       purchaseDate: value.purchaseDate,
-      supplierInvoiceReference: value.supplierInvoiceReference.trim(),
-      notes: value.notes.trim(),
       lines,
-      landedCosts: {
+    };
+    if (this.canEditPurchaseField('supplierInvoiceReference')) {
+      payload.supplierInvoiceReference = value.supplierInvoiceReference.trim();
+    }
+    if (this.canEditPurchaseField('notes')) {
+      payload.notes = value.notes.trim();
+    }
+    if (this.canEditPurchaseField('landedCosts')) {
+      payload.landedCosts = {
         freight: { amount: value.freight.trim() || '0.00', currency: 'PKR' },
         loading: { amount: value.loadingCost.trim() || '0.00', currency: 'PKR' },
         transport: { amount: value.transport.trim() || '0.00', currency: 'PKR' },
         other: { amount: value.other.trim() || '0.00', currency: 'PKR' },
-      },
-    };
+      };
+    }
+    return payload;
   }
 
   private mapError(error: unknown, fallback: string): string {

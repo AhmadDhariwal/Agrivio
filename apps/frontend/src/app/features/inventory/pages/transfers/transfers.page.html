@@ -1,96 +1,918 @@
-<agrivio-ui-page-header
-  title="Warehouse transfers"
-  subtitle="Move stock between warehouses with preserved batch and cost."
-/>
+<div class="transfers-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">INVENTORY / TRANSFERS</p>
+      <h1 class="page-head__title">Warehouse transfers</h1>
+      <p class="page-head__lede">
+        Move inventory between warehouses while preserving stock traceability and audit history.
+      </p>
+    </div>
+    <div class="page-head__actions">
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/inventory/stock">
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        Back to Inventory
+      </a>
+    </div>
+  </header>
 
-@if (!canTransfer()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to transfer stock." />
-} @else {
+  <!-- Module Information Section -->
+  @if (showModuleInfo()) {
+    <agrivio-ui-module-info
+      [title]="infoTitle"
+      [description]="infoDescription"
+      [items]="infoItems"
+      [defaultExpanded]="false"
+    />
+  }
+
   @if (loading()) {
-    <agrivio-ui-loading-state label="Loading transfers…" />
+    <div class="state-container">
+      <agrivio-ui-loading-state label="Loading transfers…" />
+    </div>
+  } @else if (!canUseTransfers()) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="warning" message="Warehouse Transfers is not enabled for this organization." />
+    </div>
+  } @else if (!canTransfer()) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="warning" message="You do not have permission to transfer stock." />
+    </div>
   } @else {
     @if (errorMessage(); as error) {
-      <agrivio-ui-alert tone="danger" [message]="error" />
+      <div class="alert-container">
+        <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+      </div>
     }
     @if (successMessage(); as success) {
-      <agrivio-ui-alert tone="success" [message]="success" data-testid="transfer-success" />
+      <div class="alert-container">
+        <agrivio-ui-alert tone="success" [message]="success" data-testid="transfer-success" />
+      </div>
     }
 
-    <form [formGroup]="form" (ngSubmit)="submit()" data-testid="transfer-form" class="ag-form">
-      <label>Source warehouse
-        <select formControlName="sourceWarehouseId" data-testid="transfer-source">
-          <option value="">Select source warehouse</option>
-          @for (warehouse of warehouses(); track warehouse.id) {
-            <option [value]="warehouse.id">{{ warehouse.name }}</option>
-          }
-        </select>
-      </label>
-      <label>Destination warehouse
-        <select formControlName="destinationWarehouseId" data-testid="transfer-destination">
-          <option value="">Select destination warehouse</option>
-          @for (warehouse of warehouses(); track warehouse.id) {
-            <option [value]="warehouse.id">{{ warehouse.name }}</option>
-          }
-        </select>
-      </label>
-      <label>Product
-        <select formControlName="productId" data-testid="transfer-product">
-          <option value="">Select product</option>
-          @for (product of products(); track product.id) {
-            <option [value]="product.id">{{ product.name }}</option>
-          }
-        </select>
-      </label>
-      @if (selectedTrackingMode() !== 'none') {
-        <label>Batch
-          <select formControlName="batchId" data-testid="transfer-batch">
-            <option value="">Select batch</option>
-            @for (option of batchOptions(); track option.batchId) {
-              <option [value]="option.batchId">{{ option.label }}</option>
+    <form class="xfer-form" [formGroup]="form" (ngSubmit)="submit()" data-testid="transfer-form">
+      <!-- Section 1: Transfer Details -->
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">Transfer Details</h2>
+            <p class="form-card__subtitle">
+              Select product and warehouses, then specify quantity and reason.
+            </p>
+          </div>
+        </div>
+
+        <div class="form-card__body">
+          <!-- Row 1: Find Product, Source Warehouse, Destination Warehouse -->
+          <div class="form-grid" [class.form-grid--3col]="showProductSearch()" [class.form-grid--2col]="!showProductSearch()">
+            <!-- Find Product -->
+            @if (showProductSearch()) {
+              <div class="ag-field">
+                <agrivio-ui-field-label label="Find product" for="transfer-product-search" />
+                <div class="ag-input-with-icon">
+                  <svg
+                    class="input-icon"
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <input
+                    id="transfer-product-search"
+                    class="ag-input"
+                    type="search"
+                    placeholder="Search by product name or SKU…"
+                    (input)="onProductSearch($event)"
+                    (change)="onProductSearch($event)"
+                    data-testid="transfer-product-search"
+                  />
+                </div>
+                <p class="field-hint">Filter the product dropdown options.</p>
+              </div>
             }
-          </select>
-        </label>
-      }
-      <label>Quantity
-        <input formControlName="quantity" data-testid="transfer-quantity" />
-      </label>
-      <label>Reason
-        <input formControlName="reason" data-testid="transfer-reason" />
-      </label>
-      <button type="submit" [disabled]="saving()" data-testid="transfer-submit">Post transfer</button>
+
+            <!-- Source Warehouse -->
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Source warehouse"
+                for="transfer-source"
+                [required]="fieldRequired(form.controls.sourceWarehouseId)"
+              />
+              <select
+                id="transfer-source"
+                class="ag-select"
+                formControlName="sourceWarehouseId"
+                data-testid="transfer-source"
+                [class.ag-input--invalid]="fieldError(form.controls.sourceWarehouseId, 'Source warehouse', formSubmitAttempted())"
+                [attr.aria-required]="fieldRequired(form.controls.sourceWarehouseId) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.sourceWarehouseId, 'Source warehouse', formSubmitAttempted()) ? 'true' : null"
+              >
+                <option value="" disabled>Select source warehouse</option>
+                @for (warehouse of warehouses(); track warehouse.id) {
+                  <option [value]="warehouse.id">{{ warehouse.name }}</option>
+                }
+              </select>
+              @if (fieldError(form.controls.sourceWarehouseId, 'Source warehouse', formSubmitAttempted()); as sourceError) {
+                <p class="field-error" role="alert">{{ sourceError }}</p>
+              } @else {
+                <p class="field-hint">Origin warehouse where stock is deducted.</p>
+              }
+            </div>
+
+            <!-- Destination Warehouse -->
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Destination warehouse"
+                for="transfer-destination"
+                [required]="fieldRequired(form.controls.destinationWarehouseId)"
+              />
+              <select
+                id="transfer-destination"
+                class="ag-select"
+                formControlName="destinationWarehouseId"
+                data-testid="transfer-destination"
+                [class.ag-input--invalid]="fieldError(form.controls.destinationWarehouseId, 'Destination warehouse', formSubmitAttempted())"
+                [attr.aria-required]="fieldRequired(form.controls.destinationWarehouseId) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.destinationWarehouseId, 'Destination warehouse', formSubmitAttempted()) ? 'true' : null"
+              >
+                <option value="" disabled>Select destination warehouse</option>
+                @for (warehouse of warehouses(); track warehouse.id) {
+                  <option [value]="warehouse.id">{{ warehouse.name }}</option>
+                }
+              </select>
+              @if (fieldError(form.controls.destinationWarehouseId, 'Destination warehouse', formSubmitAttempted()); as destinationError) {
+                <p class="field-error" role="alert">{{ destinationError }}</p>
+              } @else {
+                <p class="field-hint">Target warehouse where stock is added.</p>
+              }
+            </div>
+          </div>
+
+          <!-- Row 2: Product, Quantity, Reason -->
+          <div class="form-grid form-grid--3col">
+            <!-- Product -->
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Product"
+                for="transfer-product"
+                [required]="fieldRequired(form.controls.productId)"
+              />
+              <select
+                id="transfer-product"
+                class="ag-select"
+                formControlName="productId"
+                data-testid="transfer-product"
+                [class.ag-input--invalid]="fieldError(form.controls.productId, 'Product', formSubmitAttempted())"
+                [attr.aria-required]="fieldRequired(form.controls.productId) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.productId, 'Product', formSubmitAttempted()) ? 'true' : null"
+              >
+                <option value="" disabled>Select product</option>
+                @for (product of products(); track product.id) {
+                  <option [value]="product.id">{{ product.name }} ({{ product.baseUnitCode }})</option>
+                }
+              </select>
+              @if (fieldError(form.controls.productId, 'Product', formSubmitAttempted()); as productError) {
+                <p class="field-error" role="alert">{{ productError }}</p>
+              } @else {
+                <p class="field-hint">Select the product to transfer.</p>
+              }
+            </div>
+
+            <!-- Quantity -->
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Quantity"
+                for="transfer-quantity"
+                [required]="fieldRequired(form.controls.quantity)"
+              />
+              <div class="ag-input-group">
+                <input
+                  id="transfer-quantity"
+                  class="ag-input font-mono"
+                  formControlName="quantity"
+                  placeholder="0.00"
+                  data-testid="transfer-quantity"
+                  [class.ag-input--invalid]="fieldError(form.controls.quantity, 'Quantity', formSubmitAttempted())"
+                  [attr.aria-required]="fieldRequired(form.controls.quantity) ? 'true' : null"
+                  [attr.aria-invalid]="fieldError(form.controls.quantity, 'Quantity', formSubmitAttempted()) ? 'true' : null"
+                />
+                <span class="ag-input-addon">{{ selectedProduct()?.baseUnitCode || 'Units' }}</span>
+              </div>
+              @if (fieldError(form.controls.quantity, 'Quantity', formSubmitAttempted()); as quantityError) {
+                <p class="field-error" role="alert">{{ quantityError }}</p>
+              } @else {
+                <p class="field-hint">Transfer quantity in base units.</p>
+              }
+            </div>
+
+            <!-- Reason -->
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Reason"
+                for="transfer-reason"
+                [required]="fieldRequired(form.controls.reason)"
+              />
+              <input
+                id="transfer-reason"
+                class="ag-input"
+                formControlName="reason"
+                placeholder="Enter reason for transfer…"
+                data-testid="transfer-reason"
+                [class.ag-input--invalid]="fieldError(form.controls.reason, 'Reason', formSubmitAttempted())"
+                [attr.aria-required]="fieldRequired(form.controls.reason) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.reason, 'Reason', formSubmitAttempted()) ? 'true' : null"
+              />
+              @if (fieldError(form.controls.reason, 'Reason', formSubmitAttempted()); as reasonError) {
+                <p class="field-error" role="alert">{{ reasonError }}</p>
+              } @else {
+                <p class="field-hint">Operational reason for audit history.</p>
+              }
+            </div>
+          </div>
+
+          <!-- Selected Product Context Strip -->
+          @if (showProductContext() && selectedProduct(); as prod) {
+            <div class="product-context-strip" data-testid="transfer-product-context">
+              <div class="product-context-strip__title">
+                <span>{{ prod.name }}</span>
+                <svg
+                  class="verified-icon"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+              </div>
+              <div class="product-context-strip__meta">
+                <span class="meta-item">
+                  <span class="meta-item__key">SKU:</span>
+                  <span class="meta-item__val font-mono">{{ prod.sku || '—' }}</span>
+                </span>
+                <span class="meta-sep">•</span>
+                <span class="meta-item">
+                  <span class="meta-item__key">Base Unit:</span>
+                  <span class="meta-item__val">{{ prod.baseUnitCode }}</span>
+                </span>
+                <span class="meta-sep">•</span>
+                <span class="meta-item">
+                  <span class="meta-item__key">Tracking:</span>
+                  <span
+                    class="tracking-chip"
+                    [class.tracking-chip--batch]="prod.trackingMode === 'batch'"
+                    [class.tracking-chip--expiry]="prod.trackingMode === 'batch_expiry'"
+                  >
+                    {{ formatTrackingLabel(prod.trackingMode) }}
+                  </span>
+                </span>
+                @if (showStockContext()) {
+                  <span class="meta-sep">•</span>
+                  <span class="meta-item">
+                    <span class="meta-item__key">Source Stock On-hand:</span>
+                    @if (productSourceStockOnHand(); as onHand) {
+                      <span class="meta-item__val stock-highlight">{{ onHand }} {{ prod.baseUnitCode }}</span>
+                    } @else {
+                      <span class="meta-item__val text-muted">
+                        {{ form.controls.sourceWarehouseId.value ? '0 ' + prod.baseUnitCode : 'Select source warehouse' }}
+                      </span>
+                    }
+                  </span>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- Section 2: Batch & Transfer Context -->
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+              <line x1="16" y1="16" x2="16" y2="6" />
+              <line x1="8" y1="8" x2="8" y2="6" />
+              <line x1="3" x2="21" y1="10" y2="10" />
+            </svg>
+          </div>
+          <div class="form-card__heading-group">
+            <div class="form-card__title-wrap">
+              <h2 class="form-card__title">Batch &amp; Transfer Context</h2>
+              @if (selectedTrackingMode() === 'none') {
+                <span class="tracking-chip">Standard</span>
+              } @else if (selectedTrackingMode() === 'batch') {
+                <span class="tracking-chip tracking-chip--batch">Batch Required</span>
+              } @else if (selectedTrackingMode() === 'batch_expiry') {
+                <span class="tracking-chip tracking-chip--expiry">Batch + Expiry</span>
+              }
+            </div>
+            <p class="form-card__subtitle">
+              Provide tracking details and operational context for the transfer.
+            </p>
+          </div>
+        </div>
+
+        <div class="form-card__body">
+          <div class="context-layout" [class.context-layout--single-col]="!showGuidance()">
+            <!-- Left Side: Fields & Context -->
+            <div class="context-fields">
+              @if (selectedTrackingMode() === 'none') {
+                <div class="standard-tracking-note" data-testid="standard-tracking-note">
+                  <p class="standard-tracking-note__title">Standard tracking</p>
+                  <p class="standard-tracking-note__desc">
+                    No batch or expiry information is required for this product.
+                  </p>
+                </div>
+              } @else {
+                <div class="ag-field">
+                  <agrivio-ui-field-label
+                    label="Batch / Lot Number"
+                    for="transfer-batch"
+                    [required]="fieldRequired(form.controls.batchId)"
+                  />
+                  <select
+                    id="transfer-batch"
+                    class="ag-select font-mono"
+                    formControlName="batchId"
+                    data-testid="transfer-batch"
+                    [class.ag-input--invalid]="fieldError(form.controls.batchId, 'Batch / lot number', formSubmitAttempted())"
+                    [attr.aria-required]="fieldRequired(form.controls.batchId) ? 'true' : null"
+                    [attr.aria-invalid]="fieldError(form.controls.batchId, 'Batch / lot number', formSubmitAttempted()) ? 'true' : null"
+                  >
+                    <option value="">Select batch</option>
+                    @for (option of batchOptions(); track option.batchId) {
+                      <option [value]="option.batchId">{{ option.label }}</option>
+                    }
+                  </select>
+                  @if (fieldError(form.controls.batchId, 'Batch / lot number', formSubmitAttempted()); as batchError) {
+                    <p class="field-error" role="alert">{{ batchError }}</p>
+                  } @else {
+                    <p class="field-hint">Scoped to available positive stock in the selected source warehouse.</p>
+                  }
+                </div>
+
+                @if (showStockContext() && selectedBatchStockOnHand(); as batchStock) {
+                  <div class="batch-stock-indicator" data-testid="batch-stock-indicator">
+                    <span class="batch-stock-indicator__label">Selected Batch Source On-hand:</span>
+                    <span class="batch-stock-indicator__val">{{ batchStock }} {{ selectedProduct()?.baseUnitCode }}</span>
+                  </div>
+                }
+              }
+
+              <!-- Read-only Transfer Date Context -->
+              @if (showServerTransferDate()) {
+                <div class="context-date-strip">
+                  <span class="context-date-strip__label">Transfer Date:</span>
+                  <span class="context-date-strip__value">Today (Server auto-assigned upon post)</span>
+                </div>
+              }
+
+              <!-- Negative Stock Override (when authorized) -->
+              @if (canOverride()) {
+                <div class="override-box">
+                  <label class="override-checkbox-label">
+                    <input
+                      type="checkbox"
+                      formControlName="negativeStockOverride"
+                      data-testid="transfer-override"
+                    />
+                    <span>Allow negative stock override</span>
+                  </label>
+                  @if (overrideActive()) {
+                    <div class="ag-field override-reason-field">
+                      <agrivio-ui-field-label
+                        label="Override reason"
+                        for="transfer-override-reason"
+                        [required]="fieldRequired(form.controls.negativeStockOverrideReason)"
+                      />
+                      <input
+                        id="transfer-override-reason"
+                        class="ag-input"
+                        formControlName="negativeStockOverrideReason"
+                        placeholder="Enter negative stock override authorization reason…"
+                        data-testid="transfer-override-reason"
+                        [class.ag-input--invalid]="fieldError(form.controls.negativeStockOverrideReason, 'Override reason', formSubmitAttempted())"
+                        [attr.aria-required]="fieldRequired(form.controls.negativeStockOverrideReason) ? 'true' : null"
+                        [attr.aria-invalid]="fieldError(form.controls.negativeStockOverrideReason, 'Override reason', formSubmitAttempted()) ? 'true' : null"
+                      />
+                      @if (fieldError(form.controls.negativeStockOverrideReason, 'Override reason', formSubmitAttempted()); as overrideError) {
+                        <p class="field-error" role="alert">{{ overrideError }}</p>
+                      } @else {
+                        <p class="field-hint">Required when bypassing negative stock prevention.</p>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+
+            <!-- Right Side: Guidance Panel -->
+            @if (showGuidance()) {
+              <div class="guidance-panel">
+                <div class="guidance-panel__header">
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                  <h3 class="guidance-panel__title">Transfer Guidance</h3>
+                </div>
+                <p class="guidance-panel__desc">
+                  Key requirements for warehouse inventory transfers.
+                </p>
+                <ul class="guidance-panel__list">
+                  <li>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    <span>Batch selection is required for tracked products.</span>
+                  </li>
+                  <li>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    <span>Posting updates stock in both warehouses according to existing transaction rules.</span>
+                  </li>
+                  <li>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    <span>Transfer history remains auditable with stock movement records.</span>
+                  </li>
+                </ul>
+              </div>
+            }
+          </div>
+        </div>
+      </section>
+
+      <!-- Action Footer -->
+      <footer class="form-actions">
+        <a
+          class="ag-btn ag-btn--secondary"
+          routerLink="/app/inventory/stock"
+          data-testid="transfer-cancel"
+        >
+          Cancel
+        </a>
+        <div class="form-actions__right">
+          @if (canViewStock()) {
+            <a
+              class="ag-btn ag-btn--secondary"
+              routerLink="/app/inventory/stock"
+              data-testid="transfer-view-stock"
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              View stock
+            </a>
+          }
+          <button
+            class="ag-btn ag-btn--primary"
+            type="submit"
+            [disabled]="!canPostTransfer()"
+            data-testid="transfer-submit"
+          >
+            @if (saving()) {
+              <svg
+                class="spin-icon"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              </svg>
+              Posting…
+            } @else {
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Post transfer
+            }
+          </button>
+        </div>
+      </footer>
     </form>
 
-    <div class="ag-table-wrap">
-      <table class="ag-table" data-testid="transfers-list">
-        <thead>
-          <tr>
-            <th>Source</th>
-            <th>Destination</th>
-            <th>Qty</th>
-            <th>Status</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
+    <!-- Recent Transfers Section -->
+    @if (showRecentTransfers()) {
+      <section class="history-card">
+        <div class="history-card__header">
+          <div>
+            <h2 class="history-card__title">Recent transfers</h2>
+            <p class="history-card__subtitle">Latest stock transfers between warehouses.</p>
+          </div>
+          <span class="history-card__count">{{ total() }} {{ total() === 1 ? 'transfer' : 'transfers' }}</span>
+        </div>
+
+        <!-- Desktop & Tablet Table (>= 768px) -->
+        <div class="ag-table-wrap desktop-table-view">
+          <table class="ag-table" data-testid="transfers-list">
+            <thead>
+              <tr>
+                <th>Source</th>
+                <th>Destination</th>
+                <th>Product</th>
+                <th>Qty</th>
+                <th>Status</th>
+                <th>Posted</th>
+                <th class="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of transfers(); track item.id) {
+                <tr data-testid="transfer-row">
+                  <td class="font-medium">{{ transferSourceWarehouseName(item) }}</td>
+                  <td class="font-medium">{{ transferDestinationWarehouseName(item) }}</td>
+                  <td>
+                    <div class="product-cell">
+                      <span class="product-cell__name">{{ transferProductName(item) }}</span>
+                      <span class="product-cell__sku font-mono">SKU: {{ transferProductSku(item) }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="quantity-cell">
+                      <span class="quantity-cell__amount">
+                        {{ item.quantityBase }}
+                      </span>
+                      <span class="quantity-cell__unit">{{ item.unitCode }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="status-badge status-badge--{{ item.status }}">
+                      {{ item.status }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="posted-date font-mono">{{ formatDate(item.postedAt) }}</span>
+                  </td>
+                  <td class="text-right actions-cell">
+                    @if (canInspectTransfer()) {
+                      <button
+                        type="button"
+                        class="ag-btn-sm ag-btn-sm--ghost"
+                        data-testid="transfer-inspect"
+                        (click)="openInspector(item)"
+                      >
+                        Inspect
+                      </button>
+                    }
+                    @if (canReverseTransfer() && item.status === 'posted') {
+                      <button
+                        type="button"
+                        class="ag-btn-sm ag-btn-sm--danger"
+                        data-testid="transfer-reverse"
+                        (click)="reverse(item)"
+                      >
+                        Reverse
+                      </button>
+                    }
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="7" class="text-center text-muted py-4">No warehouse transfers found.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Mobile Purpose-Built Cards (< 768px) -->
+        <div class="mobile-cards-view" data-testid="transfers-cards">
           @for (item of transfers(); track item.id) {
-            <tr data-testid="transfer-row">
-              <td>{{ item.sourceWarehouseId }}</td>
-              <td>{{ item.destinationWarehouseId }}</td>
-              <td>{{ item.quantityBase }}</td>
-              <td>{{ item.status }}</td>
-              <td>
-                @if (canReverse() && item.status === 'posted') {
-                  <button type="button" data-testid="transfer-reverse" (click)="reverse(item)">
+            <article class="mobile-transfer-card" data-testid="transfer-card">
+              <div class="mobile-transfer-card__header">
+                <div class="mobile-transfer-card__title-group">
+                  <h3 class="mobile-transfer-card__title">{{ transferProductName(item) }}</h3>
+                  <span class="mobile-transfer-card__sku font-mono">{{ transferProductSku(item) }}</span>
+                </div>
+                <span class="status-badge status-badge--{{ item.status }}">
+                  {{ item.status }}
+                </span>
+              </div>
+
+              <div class="mobile-transfer-card__route">
+                <span class="route-point">{{ transferSourceWarehouseName(item) }}</span>
+                <span class="route-arrow" aria-hidden="true">→</span>
+                <span class="route-point">{{ transferDestinationWarehouseName(item) }}</span>
+              </div>
+
+              <div class="mobile-transfer-card__metrics">
+                <div class="mobile-metric">
+                  <span class="mobile-metric__label">Quantity</span>
+                  <div class="quantity-cell">
+                    <span class="quantity-cell__amount">
+                      {{ item.quantityBase }}
+                    </span>
+                    <span class="quantity-cell__unit">{{ item.unitCode }}</span>
+                  </div>
+                </div>
+                <div class="mobile-metric">
+                  <span class="mobile-metric__label">Posted</span>
+                  <span class="mobile-metric__value font-mono">{{ formatDate(item.postedAt) }}</span>
+                </div>
+              </div>
+
+              <div class="mobile-transfer-card__actions">
+                @if (canInspectTransfer()) {
+                  <button
+                    type="button"
+                    class="ag-btn-sm ag-btn-sm--ghost"
+                    data-testid="transfer-inspect-card"
+                    (click)="openInspector(item)"
+                  >
+                    Inspect
+                  </button>
+                }
+                @if (canReverseTransfer() && item.status === 'posted') {
+                  <button
+                    type="button"
+                    class="ag-btn-sm ag-btn-sm--danger"
+                    data-testid="transfer-reverse-card"
+                    (click)="reverse(item)"
+                  >
                     Reverse
                   </button>
                 }
-              </td>
-            </tr>
+              </div>
+            </article>
+          } @empty {
+            <div class="empty-cards-state text-center text-muted py-4">No warehouse transfers found.</div>
           }
-        </tbody>
-      </table>
-    </div>
-  }
-}
+        </div>
 
-<p><a routerLink="/app/inventory/stock">Back to stock</a></p>
+        <agrivio-ui-pagination
+          [page]="page()"
+          [pageSize]="pageSize()"
+          [total]="total()"
+          [disabled]="loading()"
+          (pageChange)="onPageChange($event)"
+          (pageSizeChange)="onPageSizeChange($event)"
+        />
+      </section>
+    }
+  }
+
+  <!-- Transfer Inspector Drawer -->
+  @if (selectedTransfer(); as sel) {
+    <div class="inspector-backdrop" (click)="closeInspector()" aria-hidden="true"></div>
+    <aside
+      class="inspector-drawer"
+      role="dialog"
+      aria-label="Transfer details inspector"
+      aria-modal="true"
+    >
+      <div class="inspector-drawer__head">
+        <div class="inspector-drawer__head-title">
+          <div class="inspector-glyph">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+            </svg>
+          </div>
+          <div class="inspector-drawer__titles">
+            <h2 class="drawer-title">Transfer Inspector</h2>
+            <p class="drawer-sub">
+              {{ transferSourceWarehouseName(sel) }} → {{ transferDestinationWarehouseName(sel) }}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="drawer-close-btn"
+          (click)="closeInspector()"
+          title="Close inspector (Esc)"
+          aria-label="Close inspector"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="inspector-drawer__body">
+        <!-- Section: Transfer Identity -->
+        <section class="drawer-sec">
+          <h3 class="drawer-sec__title">Transfer Identity</h3>
+          <div class="drawer-grid">
+            <div class="drawer-field">
+              <span class="drawer-field__label">Source Warehouse</span>
+              <span class="drawer-field__val">{{ transferSourceWarehouseName(sel) }}</span>
+            </div>
+            <div class="drawer-field">
+              <span class="drawer-field__label">Destination Warehouse</span>
+              <span class="drawer-field__val">{{ transferDestinationWarehouseName(sel) }}</span>
+            </div>
+            <div class="drawer-field">
+              <span class="drawer-field__label">Product</span>
+              <span class="drawer-field__val">{{ transferProductName(sel) }}</span>
+            </div>
+            <div class="drawer-field">
+              <span class="drawer-field__label">SKU</span>
+              <span class="drawer-field__val font-mono">{{ transferProductSku(sel) }}</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Section: Stock & Batch -->
+        <section class="drawer-sec">
+          <h3 class="drawer-sec__title">Stock &amp; Batch</h3>
+          <div class="drawer-grid">
+            <div class="drawer-field">
+              <span class="drawer-field__label">Quantity</span>
+              <div class="quantity-cell">
+                <span class="quantity-cell__amount font-mono font-medium">
+                  {{ sel.quantityBase }}
+                </span>
+                <span class="quantity-cell__unit">{{ sel.unitCode }}</span>
+              </div>
+            </div>
+            <div class="drawer-field">
+              <span class="drawer-field__label">Base Unit</span>
+              <span class="drawer-field__val">{{ sel.unitCode }}</span>
+            </div>
+            <div class="drawer-field">
+              <span class="drawer-field__label">Batch ID</span>
+              <span class="drawer-field__val font-mono">{{ sel.batchId || 'None (Standard tracking)' }}</span>
+            </div>
+            @if (sel.transferValue) {
+              <div class="drawer-field">
+                <span class="drawer-field__label">Transfer Value</span>
+                <span class="drawer-field__val font-mono">{{ sel.transferValue.amount }} {{ sel.transferValue.currency }}</span>
+              </div>
+            }
+          </div>
+        </section>
+
+        <!-- Section: Lifecycle & Audit -->
+        <section class="drawer-sec">
+          <h3 class="drawer-sec__title">Lifecycle &amp; Audit</h3>
+          <div class="drawer-grid">
+            <div class="drawer-field">
+              <span class="drawer-field__label">Status</span>
+              <span class="status-badge status-badge--{{ sel.status }}">{{ sel.status }}</span>
+            </div>
+            <div class="drawer-field">
+              <span class="drawer-field__label">Posted Timestamp</span>
+              <span class="drawer-field__val font-mono">{{ formatDate(sel.postedAt) }}</span>
+            </div>
+            @if (sel.postedBy) {
+              <div class="drawer-field">
+                <span class="drawer-field__label">Posted By Actor</span>
+                <span class="drawer-field__val font-mono">{{ sel.postedBy }}</span>
+              </div>
+            }
+            @if (sel.reversalOfId) {
+              <div class="drawer-field">
+                <span class="drawer-field__label">Reversal Of Transfer</span>
+                <span class="drawer-field__val font-mono">{{ sel.reversalOfId }}</span>
+              </div>
+            }
+            @if (sel.reversedByTransferId) {
+              <div class="drawer-field">
+                <span class="drawer-field__label">Reversed By Transfer</span>
+                <span class="drawer-field__val font-mono">{{ sel.reversedByTransferId }}</span>
+              </div>
+            }
+          </div>
+        </section>
+
+        <!-- Section: Reason -->
+        <section class="drawer-sec">
+          <h3 class="drawer-sec__title">Operational Reason</h3>
+          <p class="drawer-note">{{ sel.reason || '—' }}</p>
+        </section>
+
+        <!-- Section: Technical Details (collapsible) -->
+        <details class="drawer-details">
+          <summary class="drawer-details__summary">Technical Identifiers</summary>
+          <div class="drawer-details__content">
+            <div class="drawer-field">
+              <span class="drawer-field__label">Transfer ID:</span>
+              <span class="font-mono text-xs">{{ sel.id }}</span>
+            </div>
+            @if (sel.outboundMovementId) {
+              <div class="drawer-field">
+                <span class="drawer-field__label">Outbound Movement ID:</span>
+                <span class="font-mono text-xs">{{ sel.outboundMovementId }}</span>
+              </div>
+            }
+            @if (sel.inboundMovementId) {
+              <div class="drawer-field">
+                <span class="drawer-field__label">Inbound Movement ID:</span>
+                <span class="font-mono text-xs">{{ sel.inboundMovementId }}</span>
+              </div>
+            }
+            <div class="drawer-field">
+              <span class="drawer-field__label">Version:</span>
+              <span class="font-mono text-xs">{{ sel.version }}</span>
+            </div>
+          </div>
+        </details>
+      </div>
+    </aside>
+  }
+
+  <!-- Confirm Reversal Dialog -->
+  <agrivio-ui-confirm-dialog
+    [open]="reverseConfirmOpen()"
+    title="Reverse posted transfer?"
+    message="The original transfer remains in history. Corrective stock movements will be recorded in both source and destination warehouses."
+    confirmLabel="Reverse"
+    cancelLabel="Keep transfer"
+    [danger]="true"
+    [requireReason]="true"
+    (confirmed)="confirmReverse($event)"
+    (dismiss)="reverseConfirmOpen.set(false)"
+  />
+</div>

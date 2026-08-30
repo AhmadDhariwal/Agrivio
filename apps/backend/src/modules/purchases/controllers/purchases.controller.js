@@ -1,5 +1,6 @@
 const { sendSuccessEnvelope } = require('../../../platform/http/response-envelope');
 const { forbidden } = require('../../../platform/errors/app-error');
+const { parsePaginationQuery } = require('../../../platform/http/parse-pagination-query');
 
 function requireOrganizationId(req) {
   const organizationId = req.authContext?.organizationId;
@@ -13,7 +14,8 @@ function createPurchasesController(deps) {
   return {
     async listPurchases(req, res, next) {
       try {
-        const data = await deps.purchasesService.listPurchases(
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.purchasesService.listPurchases(
           requireOrganizationId(req),
           {
             status:
@@ -28,10 +30,13 @@ function createPurchasesController(deps) {
               typeof req.query.warehouseId === 'string' && req.query.warehouseId.trim() !== ''
                 ? req.query.warehouseId.trim()
                 : undefined,
+            search: typeof req.query.search === 'string' ? req.query.search : undefined,
+            skip,
+            pageSize,
           },
           req.authContext,
         );
-        sendSuccessEnvelope(res, 200, data);
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
         next(error);
       }

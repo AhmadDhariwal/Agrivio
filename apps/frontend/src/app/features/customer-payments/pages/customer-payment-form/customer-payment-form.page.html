@@ -1,127 +1,447 @@
-<agrivio-ui-page-header
-  title="Post customer payment"
-  eyebrow="Sales"
-  lede="Choose general allocation (oldest-first) or invoice-specific to target a particular sale."
-/>
+<div class="customer-payment-form-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">SALES</p>
+      <h1 class="page-head__title">Post customer payment</h1>
+      <p class="page-head__lede">
+        Choose general allocation (oldest-first) or invoice-specific to target a particular sale.
+      </p>
+    </div>
+    <div class="page-head__actions">
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/customer-payments">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m15 18-6-6 6-6"/>
+        </svg>
+        Back to list
+      </a>
+    </div>
+  </header>
 
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading payment form…" />
-} @else if (!canPost()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to post customer payments." />
-} @else {
-  @if (errorMessage(); as error) {
-    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-  }
-  @if (successMessage(); as success) {
-    <agrivio-ui-alert tone="success" [message]="success" data-testid="customer-payment-success" />
-  }
-
-  @if (lastPayment(); as payment) {
-    @if (payment.allocations && payment.allocations.length > 0) {
-      <section class="ag-stack allocations" data-testid="payment-allocations">
-        <h2>Allocations</h2>
-        @for (alloc of payment.allocations; track alloc.id) {
-          <article class="ledger-row">
-            <div>
-              <strong>{{ alloc.targetType === 'customer_advance' ? 'Customer advance' : alloc.targetType }}</strong>
-              <p class="ag-muted">{{ alloc.targetId }}</p>
-            </div>
-            <span>{{ alloc.allocatedAmount.amount }} {{ alloc.allocatedAmount.currency }}</span>
-          </article>
-        }
-      </section>
+  @if (loading()) {
+    <div class="state-container">
+      <agrivio-ui-loading-state label="Loading payment form…" />
+    </div>
+  } @else if (!canPost()) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="warning" message="You do not have permission to post customer payments." />
+    </div>
+  } @else {
+    @if (errorMessage(); as error) {
+      <div class="alert-container">
+        <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+      </div>
     }
-  }
+    @if (successMessage(); as success) {
+      <div class="alert-container">
+        <agrivio-ui-alert tone="success" [message]="success" data-testid="customer-payment-success" />
+      </div>
+    }
 
-  <form
-    class="ag-stack form"
-    [formGroup]="form"
-    (ngSubmit)="save()"
-    data-testid="customer-payment-form"
-  >
-    <label>
-      Customer
-      <select formControlName="customerId" data-testid="customer-payment-customer">
-        <option value="">Select customer</option>
-        @for (customer of customers(); track customer.id) {
-          <option [value]="customer.id">{{ customer.name }}</option>
-        }
-      </select>
-    </label>
+    <!-- Post Result Allocations Card (If present) -->
+    @if (lastPayment(); as payment) {
+      @if (payment.allocations && payment.allocations.length > 0) {
+        <section class="form-card allocations-card" data-testid="payment-allocations">
+          <div class="form-card__header">
+            <div class="form-card__icon form-card__icon--green">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+            </div>
+            <div>
+              <h2 class="form-card__title">Payment allocations</h2>
+              <p class="form-card__subtitle">Allocated outcomes for the last posted payment.</p>
+            </div>
+          </div>
+          <div class="form-card__body">
+            <div class="allocations-list">
+              @for (alloc of payment.allocations; track alloc.id) {
+                <div class="allocation-item">
+                  <div class="allocation-item__info">
+                    <span class="tracking-chip tracking-chip--sm">
+                      {{ alloc.targetType === 'customer_advance' ? 'Customer advance' : alloc.targetType }}
+                    </span>
+                    <span class="allocation-item__target text-muted">{{ alloc.targetId }}</span>
+                  </div>
+                  <strong class="allocation-item__amount tabular-num price-text">
+                    {{ formatCurrency(alloc.allocatedAmount) }}
+                  </strong>
+                </div>
+              }
+            </div>
+          </div>
+        </section>
+      }
+    }
 
-    <label>
-      Receive into account
-      <select formControlName="accountId" data-testid="customer-payment-account">
-        <option value="">Select account</option>
-        @for (account of accounts(); track account.id) {
-          <option [value]="account.id">{{ account.name }} ({{ account.accountType }})</option>
-        }
-      </select>
-    </label>
+    <!-- Full-Width Payment Form (Products Form Model) -->
+    <form
+      class="payment-form"
+      [formGroup]="form"
+      (ngSubmit)="save()"
+      data-testid="customer-payment-form"
+    >
+      <!-- Section 1: Customer & Payment Details -->
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+              <line x1="2" y1="10" x2="22" y2="10"></line>
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">Payment Details</h2>
+            <p class="form-card__subtitle">Select customer, payment destination account, amount, and date.</p>
+          </div>
+        </div>
 
-    <fieldset class="ag-stack">
-      <legend>Allocation mode</legend>
-      <label class="radio-label">
-        <input type="radio" formControlName="allocationMode" value="general" data-testid="alloc-mode-general" />
-        General — oldest unpaid sale first; remainder becomes customer advance
-      </label>
-      <label class="radio-label">
-        <input type="radio" formControlName="allocationMode" value="invoice_specific" data-testid="alloc-mode-invoice" />
-        Invoice-specific — target a specific unpaid sale by ID
-      </label>
-    </fieldset>
+        <div class="form-card__body">
+          <div class="form-grid form-grid--2col">
+            <!-- Left Column: Customer & Account -->
+            <div class="form-column">
+              @if (showCustomerSearch()) {
+                <div class="ag-field">
+                  <agrivio-ui-field-label label="Find customer" for="customer-payment-customer-search" />
+                  <div class="search-field form-search-field">
+                    <svg class="search-field__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <circle cx="11" cy="11" r="8"></circle>
+                      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input
+                      id="customer-payment-customer-search"
+                      class="search-field__input"
+                      type="search"
+                      placeholder="Search customer by name, phone, or ID…"
+                      (input)="onCustomerSearch($event)"
+                    />
+                  </div>
+                </div>
+              }
 
-    @if (isInvoiceSpecific()) {
-      <section class="ag-stack invoice-alloc" data-testid="invoice-alloc-section">
-        <h2>Invoice allocation</h2>
-        <div [formGroup]="invoiceAllocationForm" class="ag-stack">
-          <label>
-            Sale ID
-            <input formControlName="saleId" data-testid="alloc-sale-input" placeholder="Posted sale ID" />
-          </label>
-          <label>
-            Allocation amount (PKR)
-            <input formControlName="allocationAmount" data-testid="alloc-amount-input" />
-          </label>
+              <div class="ag-field">
+                <agrivio-ui-field-label
+                  label="Customer"
+                  for="customer-payment-customer"
+                  [required]="fieldRequired(form.controls.customerId)"
+                />
+                <select
+                  id="customer-payment-customer"
+                  class="ag-select"
+                  formControlName="customerId"
+                  data-testid="customer-payment-customer"
+                  [class.ag-input--invalid]="fieldError(form.controls.customerId, 'Customer', formSubmitAttempted())"
+                  [attr.aria-required]="fieldRequired(form.controls.customerId) ? 'true' : null"
+                  [attr.aria-invalid]="fieldError(form.controls.customerId, 'Customer', formSubmitAttempted()) ? 'true' : null"
+                >
+                  <option value="">Select customer</option>
+                  @for (customer of customers(); track customer.id) {
+                    <option [value]="customer.id">{{ customer.name }}</option>
+                  }
+                </select>
+                @if (fieldError(form.controls.customerId, 'Customer', formSubmitAttempted()); as customerError) {
+                <p class="field-error" role="alert">{{ customerError }}</p>
+                }
+              </div>
+
+              <div class="ag-field">
+                <agrivio-ui-field-label
+                  label="Receive into account"
+                  for="customer-payment-account"
+                  [required]="fieldRequired(form.controls.accountId)"
+                />
+                <select
+                  id="customer-payment-account"
+                  class="ag-select"
+                  formControlName="accountId"
+                  data-testid="customer-payment-account"
+                  [class.ag-input--invalid]="fieldError(form.controls.accountId, 'Account', formSubmitAttempted())"
+                  [attr.aria-required]="fieldRequired(form.controls.accountId) ? 'true' : null"
+                  [attr.aria-invalid]="fieldError(form.controls.accountId, 'Account', formSubmitAttempted()) ? 'true' : null"
+                >
+                  <option value="">Select account</option>
+                  @for (account of accounts(); track account.id) {
+                    <option [value]="account.id">{{ account.name }} ({{ account.accountType }})</option>
+                  }
+                </select>
+                @if (fieldError(form.controls.accountId, 'Account', formSubmitAttempted()); as accountError) {
+                <p class="field-error" role="alert">{{ accountError }}</p>
+                }
+              </div>
+            </div>
+
+            <!-- Right Column: Amount & Date -->
+            <div class="form-column">
+              <div class="ag-field">
+                <agrivio-ui-field-label
+                  label="Amount (PKR)"
+                  for="customer-payment-amount"
+                  [required]="fieldRequired(form.controls.amount)"
+                />
+                <input
+                  id="customer-payment-amount"
+                  class="ag-input tabular-num"
+                  formControlName="amount"
+                  placeholder="Enter amount"
+                  data-testid="customer-payment-amount"
+                  [class.ag-input--invalid]="fieldError(form.controls.amount, 'Amount', formSubmitAttempted())"
+                  [attr.aria-required]="fieldRequired(form.controls.amount) ? 'true' : null"
+                  [attr.aria-invalid]="fieldError(form.controls.amount, 'Amount', formSubmitAttempted()) ? 'true' : null"
+                />
+                @if (fieldError(form.controls.amount, 'Amount', formSubmitAttempted()); as amountError) {
+                <p class="field-error" role="alert">{{ amountError }}</p>
+                } @else {
+                <span class="field-hint text-muted">Enter the amount received from the customer.</span>
+                }
+              </div>
+
+              <div class="ag-field">
+                <agrivio-ui-field-label
+                  label="Payment date"
+                  for="customer-payment-date"
+                  [required]="fieldRequired(form.controls.paymentDate)"
+                />
+                <input
+                  id="customer-payment-date"
+                  class="ag-input"
+                  type="date"
+                  formControlName="paymentDate"
+                  data-testid="customer-payment-date"
+                  [class.ag-input--invalid]="fieldError(form.controls.paymentDate, 'Payment date', formSubmitAttempted())"
+                  [attr.aria-required]="fieldRequired(form.controls.paymentDate) ? 'true' : null"
+                  [attr.aria-invalid]="fieldError(form.controls.paymentDate, 'Payment date', formSubmitAttempted()) ? 'true' : null"
+                />
+                @if (fieldError(form.controls.paymentDate, 'Payment date', formSubmitAttempted()); as dateError) {
+                <p class="field-error" role="alert">{{ dateError }}</p>
+                } @else {
+                <span class="field-hint text-muted">Date the payment was received.</span>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 2: Allocation Mode Strategy -->
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">Allocation Mode & Targeting</h2>
+            <p class="form-card__subtitle">Choose general oldest-first allocation or target a specific sale invoice.</p>
+          </div>
+        </div>
+
+        <div class="form-card__body">
+          <div class="alloc-mode-grid" role="radiogroup" aria-label="Allocation mode">
+            <!-- General Mode Card -->
+            <label
+              class="alloc-mode-card"
+              [class.alloc-mode-card--active]="form.controls.allocationMode.value === 'general'"
+            >
+              <div class="alloc-mode-card__header">
+                <input
+                  type="radio"
+                  formControlName="allocationMode"
+                  value="general"
+                  id="alloc-mode-radio-general"
+                  data-testid="alloc-mode-general"
+                />
+                <div class="alloc-mode-card__icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                    <polyline points="2 17 12 22 22 17"></polyline>
+                    <polyline points="2 12 12 17 22 12"></polyline>
+                  </svg>
+                </div>
+              </div>
+              <div class="alloc-mode-card__content">
+                <strong class="alloc-mode-card__title">General (oldest-first)</strong>
+                <p class="alloc-mode-card__desc">
+                  Unallocated remainder becomes customer advance. Payments are automatically applied to open sales starting from the oldest invoice.
+                </p>
+              </div>
+            </label>
+
+            <!-- Invoice-Specific Mode Card -->
+            @if (canPostInvoiceSpecific()) {
+              <label
+                class="alloc-mode-card"
+                [class.alloc-mode-card--active]="form.controls.allocationMode.value === 'invoice_specific'"
+              >
+                <div class="alloc-mode-card__header">
+                  <input
+                    type="radio"
+                    formControlName="allocationMode"
+                    value="invoice_specific"
+                    id="alloc-mode-radio-invoice"
+                    data-testid="alloc-mode-invoice"
+                  />
+                  <div class="alloc-mode-card__icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <line x1="16" y1="13" x2="8" y2="13"></line>
+                      <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                  </div>
+                </div>
+                <div class="alloc-mode-card__content">
+                  <strong class="alloc-mode-card__title">Invoice-specific</strong>
+                  <p class="alloc-mode-card__desc">
+                    Target a specific unpaid sale invoice by ID. The payment is applied directly only to the selected sale.
+                  </p>
+                </div>
+              </label>
+            }
+          </div>
+
+          <!-- Conditional Invoice-Specific Flow -->
+          @if (isInvoiceSpecific()) {
+            <div class="invoice-alloc-box" data-testid="invoice-alloc-section">
+              <h3 class="invoice-alloc-box__title">Invoice Allocation Targeting</h3>
+              @if (loadingUnpaid()) {
+                <agrivio-ui-loading-state label="Loading unpaid sales…" />
+              } @else if (unpaidSales().length === 0) {
+                <p class="text-muted">No unpaid sales for this customer.</p>
+              } @else {
+                <div [formGroup]="invoiceAllocationForm" class="form-grid form-grid--2col">
+                  <div class="ag-field">
+                    <agrivio-ui-field-label
+                      label="Sale invoice"
+                      for="alloc-sale-select"
+                      [required]="fieldRequired(invoiceAllocationForm.controls.saleId)"
+                    />
+                    <select
+                      id="alloc-sale-select"
+                      class="ag-select"
+                      formControlName="saleId"
+                      data-testid="alloc-sale-select"
+                      [attr.aria-required]="fieldRequired(invoiceAllocationForm.controls.saleId) ? 'true' : null"
+                    >
+                      <option value="">Select sale</option>
+                      @for (sale of unpaidSales(); track sale.id) {
+                        <option [value]="sale.id">
+                          {{ sale.invoiceNumber || sale.sequence || sale.id }} — outstanding {{ sale.outstanding.amount }} PKR
+                        </option>
+                      }
+                    </select>
+                  </div>
+                  <div class="ag-field">
+                    <agrivio-ui-field-label
+                      label="Allocation amount (PKR)"
+                      for="alloc-amount-input"
+                      [required]="fieldRequired(invoiceAllocationForm.controls.allocationAmount)"
+                    />
+                    <input
+                      id="alloc-amount-input"
+                      class="ag-input tabular-num"
+                      formControlName="allocationAmount"
+                      data-testid="alloc-amount-input"
+                      placeholder="Amount to allocate"
+                      [attr.aria-required]="fieldRequired(invoiceAllocationForm.controls.allocationAmount) ? 'true' : null"
+                    />
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- Section 3: Notes & Remarks -->
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">Notes & Remarks</h2>
+            <p class="form-card__subtitle">Optional payment reference, transaction memo, or payment terms.</p>
+          </div>
+        </div>
+
+        <div class="form-card__body">
+          @if (canViewField('notes')) {
+            <div class="ag-field">
+              <agrivio-ui-field-label label="Notes (optional)" for="customer-payment-notes" />
+              <textarea
+                id="customer-payment-notes"
+                class="ag-input ag-textarea"
+                formControlName="notes"
+                rows="3"
+                [readOnly]="!canEditField('notes')"
+                placeholder="Add any notes about this payment…"
+              ></textarea>
+            </div>
+          }
+        </div>
+
+        <!-- Form Actions Footer -->
+        <div class="form-actions">
+          @if (canPost()) {
+            <button
+              class="ag-btn ag-btn--primary"
+              type="submit"
+              [disabled]="!canSave()"
+              data-testid="customer-payment-save"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+              {{ saving() ? 'Posting…' : 'Post payment' }}
+            </button>
+          }
+          <a class="ag-btn ag-btn--secondary" routerLink="/app/customer-payments">Back to list</a>
+        </div>
+      </section>
+    </form>
+
+    <!-- Customer Ledger Preview Section (If items exist) -->
+    @if (showLedgerPreview() && ledgerItems().length > 0) {
+      <section class="form-card ledger-card">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">Customer ledger preview</h2>
+            <p class="form-card__subtitle">Recent ledger records posted for the selected customer.</p>
+          </div>
+        </div>
+        <div class="form-card__body">
+          <div class="ledger-list">
+            @for (item of ledgerItems(); track item.id) {
+              <div class="ledger-row">
+                <div class="ledger-row__info">
+                  <strong>{{ item.effectKind }}</strong>
+                  <p class="text-muted">{{ item.sourceType }} · {{ item.postedAt }}</p>
+                </div>
+                <span class="ledger-row__amount tabular-num font-semibold">
+                  {{ formatCurrency(item.signedAmount) }}
+                </span>
+              </div>
+            }
+          </div>
         </div>
       </section>
     }
-
-    <label>
-      Amount (PKR)
-      <input formControlName="amount" data-testid="customer-payment-amount" />
-    </label>
-
-    <label>
-      Payment date
-      <input type="date" formControlName="paymentDate" data-testid="customer-payment-date" />
-    </label>
-
-    <label>
-      Notes (optional)
-      <textarea formControlName="notes" rows="3"></textarea>
-    </label>
-
-    <div class="ag-inline">
-      <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="customer-payment-save">
-        {{ saving() ? 'Posting…' : 'Post payment' }}
-      </button>
-      <a class="ag-btn ag-btn--secondary" routerLink="/app/customer-payments">Back to list</a>
-    </div>
-  </form>
-
-  @if (ledgerItems().length > 0) {
-    <section class="ag-stack ledger">
-      <h2>Customer ledger preview</h2>
-      @for (item of ledgerItems(); track item.id) {
-        <article class="ledger-row">
-          <div>
-            <strong>{{ item.effectKind }}</strong>
-            <p class="ag-muted">{{ item.sourceType }} · {{ item.postedAt }}</p>
-          </div>
-          <span>{{ item.signedAmount.amount }} {{ item.signedAmount.currency }}</span>
-        </article>
-      }
-    </section>
   }
-}
+</div>

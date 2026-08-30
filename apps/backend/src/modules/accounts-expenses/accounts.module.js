@@ -10,6 +10,7 @@ const {
   validationFailed,
   versionConflict,
 } = require('../../platform/errors/app-error');
+const { assertMasterUnused } = require('../../platform/lifecycle/record-in-use');
 const {
   createIdempotencyService,
   createInMemoryIdempotencyStore,
@@ -116,6 +117,7 @@ async function assertExpenseMasters(store, organizationId, input, session, optio
 function createAccountsService(deps) {
   const store = deps.store;
   const idempotency = deps.idempotency;
+  const capabilityService = deps.capabilityService ?? null;
   const now = deps.now ?? (() => new Date());
   const auditWriter = createAuditWriter({
     append: (session, event) => store.appendAuditEvent(session, event),
@@ -136,13 +138,41 @@ function createAccountsService(deps) {
   }
 
   return {
-    async listAccounts(organizationId) {
-      const items = await store.listAccounts(organizationId);
+    async listAccounts(organizationId, options = {}) {
+      const result = typeof store.listAccountsPage === 'function'
+        ? await store.listAccountsPage(organizationId, options, options)
+        : (() => { const all = []; return { items: all, total: 0 }; })();
+      if (typeof store.listAccountsPage !== 'function') {
+        let all = await store.listAccounts(organizationId);
+        if (options.status === 'active' || options.status === 'inactive') all = all.filter((item) => item.status === options.status);
+        const search = String(options.search ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+        if (search) all = all.filter((item) => String(item.nameNormalized ?? '').includes(search));
+        const hasPagination = options.skip !== undefined || options.pageSize !== undefined;
+        result.total = all.length;
+        result.items = hasPagination
+          ? all.slice(options.skip ?? 0, (options.skip ?? 0) + (options.pageSize ?? 25))
+          : all;
+      }
+      const items = result.items;
       const mapped = [];
       for (const item of items) {
         mapped.push(await buildAccountDto(organizationId, item));
       }
-      return { items: mapped };
+      return { items: mapped, total: result.total };
+    },
+
+    async getAccountsSummary(organizationId) {
+      const { totalAccounts, activeAccounts, inactiveAccounts, totalMinorBigInt } =
+        await store.getAccountsSummary(organizationId);
+      return {
+        totalAccounts,
+        activeAccounts,
+        inactiveAccounts,
+        totalBalance: {
+          amount: formatMoneyMinorUnits(totalMinorBigInt),
+          currency: 'PKR',
+        },
+      };
     },
 
     async getAccount(organizationId, accountId) {
@@ -167,6 +197,9 @@ function createAccountsService(deps) {
     },
 
     async createAccount(organizationId, body, actor) {
+      if (typeof capabilityService?.assertAccountCreateAllowed === 'function') {
+        await capabilityService.assertAccountCreateAllowed(organizationId);
+      }
       const input = parseAccountCreate(body);
       try {
         return await transactionRunner.run(async (session) => {
@@ -197,6 +230,9 @@ function createAccountsService(deps) {
           const current = await store.findAccountById(organizationId, accountId);
           if (current === null) {
             throw notFound('Account not found');
+          }
+          if (typeof capabilityService?.assertAccountPatchAllowed === 'function') {
+            await capabilityService.assertAccountPatchAllowed(organizationId, current, patch);
           }
           assertOptimisticVersion(current, expectedVersion);
           if (current.accountType === 'bank' && patch.bankName === '') {
@@ -229,6 +265,39 @@ function createAccountsService(deps) {
       } catch (error) {
         mapDuplicate(error, 'Account name already exists in this organization');
       }
+    },
+
+    async deleteAccount(organizationId, accountId, actor) {
+      if (typeof capabilityService?.assertAccountDeleteAllowed === 'function') {
+        await capabilityService.assertAccountDeleteAllowed(organizationId);
+      }
+      const current = await store.findAccountById(organizationId, accountId);
+      if (current === null) {
+        throw notFound('Account not found');
+      }
+      const reasons = [];
+      if (current.openingBalance && current.openingBalance.status === 'posted') {
+        reasons.push('opening balance');
+      }
+      if (typeof deps.listAccountReferences === 'function') {
+        reasons.push(...(await deps.listAccountReferences(organizationId, accountId)));
+      }
+      assertMasterUnused(reasons);
+      return transactionRunner.run(async (session) => {
+        const deleted = await store.deleteAccount(session, organizationId, accountId);
+        if (!deleted) {
+          throw notFound('Account not found');
+        }
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: actor.actorId,
+          action: 'account.deleted',
+          resourceType: 'account',
+          resourceId: accountId,
+          metadata: { name: current.name },
+        });
+        return { id: accountId, deleted: true };
+      });
     },
 
     /**
@@ -275,13 +344,15 @@ function createAccountsService(deps) {
       return sumAccountBalanceInternal(organizationId, accountId);
     },
 
-    async listAccountMovements(organizationId, accountId) {
+    async listAccountMovements(organizationId, accountId, options = {}) {
       const account = await store.findAccountById(organizationId, accountId);
       if (account === null) {
         throw notFound('Account not found');
       }
-      const items = await store.listMovementsByAccount(organizationId, accountId);
-      return { items: items.map(toAccountMovementDto) };
+      let result;
+      if (typeof store.listMovementsByAccountPage === 'function') result = await store.listMovementsByAccountPage(organizationId, accountId, options);
+      else { const all = await store.listMovementsByAccount(organizationId, accountId); result = { items: all.slice(options.skip ?? 0, (options.skip ?? 0) + (options.pageSize ?? 25)), total: all.length }; }
+      return { items: result.items.map(toAccountMovementDto), total: result.total };
     },
 
     async listAccountMovementsBySource(organizationId, sourceType, sourceId, session) {
@@ -303,6 +374,9 @@ function createAccountsService(deps) {
     },
 
     async postOpeningBalance(organizationId, accountId, body, actor, idempotencyKey, options = {}) {
+      if (typeof capabilityService?.assertAccountOpeningBalanceAllowed === 'function') {
+        await capabilityService.assertAccountOpeningBalanceAllowed(organizationId);
+      }
       const input = parseAccountOpeningBalance(body);
 
       const postWork = async (session) => {
@@ -395,6 +469,9 @@ function createAccountsService(deps) {
     },
 
     async postManualAccountTransaction(organizationId, body, actor, idempotencyKey) {
+      if (typeof capabilityService?.assertAccountManualMovementAllowed === 'function') {
+        await capabilityService.assertAccountManualMovementAllowed(organizationId);
+      }
       const key = requireIdempotencyKey(idempotencyKey);
       const input = parseManualAccountTransaction(body);
       const signedAmountMinorUnits =
@@ -482,6 +559,9 @@ function createAccountsService(deps) {
     },
 
     async reverseManualAccountTransaction(organizationId, transactionId, body, actor, idempotencyKey) {
+      if (typeof capabilityService?.assertAccountMovementReversalAllowed === 'function') {
+        await capabilityService.assertAccountMovementReversalAllowed(organizationId);
+      }
       const key = requireIdempotencyKey(idempotencyKey);
       const input = parseReversalReason(body);
 
@@ -570,6 +650,9 @@ function createAccountsService(deps) {
     },
 
     async postAccountTransfer(organizationId, body, actor, idempotencyKey) {
+      if (typeof capabilityService?.assertAccountTransferAllowed === 'function') {
+        await capabilityService.assertAccountTransferAllowed(organizationId);
+      }
       const key = requireIdempotencyKey(idempotencyKey);
       const input = parseAccountTransfer(body);
 
@@ -677,6 +760,9 @@ function createAccountsService(deps) {
     },
 
     async reverseAccountTransfer(organizationId, transferId, body, actor, idempotencyKey) {
+      if (typeof capabilityService?.assertAccountTransferReversalAllowed === 'function') {
+        await capabilityService.assertAccountTransferReversalAllowed(organizationId);
+      }
       const key = requireIdempotencyKey(idempotencyKey);
       const input = parseReversalReason(body);
 
@@ -804,12 +890,17 @@ function createAccountsService(deps) {
       return wrapIdempotentResult(result);
     },
 
-    async listExpenseCategories(organizationId) {
-      const items = await store.listExpenseCategories(organizationId);
-      return { items: items.map(toExpenseCategoryDto) };
+    async listExpenseCategories(organizationId, options = {}) {
+      let result;
+      if (typeof store.listExpenseCategoriesPage === 'function') result = await store.listExpenseCategoriesPage(organizationId, options, options);
+      else { let all = await store.listExpenseCategories(organizationId); if (options.status === 'active' || options.status === 'inactive') all = all.filter((item) => item.status === options.status); const search = String(options.search ?? '').trim().toLowerCase(); if (search) all = all.filter((item) => String(item.nameNormalized).includes(search)); result = { items: all.slice(options.skip ?? 0, (options.skip ?? 0) + (options.pageSize ?? 25)), total: all.length }; }
+      return { items: result.items.map(toExpenseCategoryDto), total: result.total };
     },
 
     async createExpenseCategory(organizationId, body, actor) {
+      if (capabilityService) {
+        await capabilityService.assertAllowed(organizationId, 'expenses.categories.actions.create', 'allowed');
+      }
       const input = parseExpenseCategoryCreate(body);
       try {
         return await transactionRunner.run(async (session) => {
@@ -835,6 +926,18 @@ function createAccountsService(deps) {
 
     async updateExpenseCategory(organizationId, categoryId, body, actor) {
       const { expectedVersion, patch } = parseExpenseCategoryPatch(body);
+      if (capabilityService) {
+        if (patch.name !== undefined) {
+          await capabilityService.assertAllowed(organizationId, 'expenses.categories.actions.edit', 'allowed');
+          await capabilityService.assertAllowed(organizationId, 'expenses.categories.fields.name', 'editable');
+        }
+        if (patch.status === 'inactive') {
+          await capabilityService.assertAllowed(organizationId, 'expenses.categories.actions.deactivate', 'allowed');
+        }
+        if (patch.status === 'active') {
+          await capabilityService.assertAllowed(organizationId, 'expenses.categories.actions.reactivate', 'allowed');
+        }
+      }
       try {
         return await transactionRunner.run(async (session) => {
           const current = await store.findExpenseCategoryById(organizationId, categoryId, session);
@@ -861,9 +964,74 @@ function createAccountsService(deps) {
       }
     },
 
-    async listExpenses(organizationId) {
-      const items = await store.listExpenses(organizationId);
-      return { items: items.map(toExpenseDto) };
+    async deleteExpenseCategory(organizationId, categoryId, actor) {
+      if (capabilityService) {
+        await capabilityService.assertAllowed(organizationId, 'expenses.categories.actions.delete', 'allowed');
+      }
+      const current = await store.findExpenseCategoryById(organizationId, categoryId);
+      if (current === null) {
+        throw notFound('Expense category not found');
+      }
+      const expenses = await store.listExpenses(organizationId);
+      const reasons = [];
+      if (expenses.some((item) => String(item.categoryId) === String(categoryId))) {
+        reasons.push('expenses');
+      }
+      if (typeof deps.listExpenseCategoryReferences === 'function') {
+        reasons.push(...(await deps.listExpenseCategoryReferences(organizationId, categoryId)));
+      }
+      assertMasterUnused([...new Set(reasons)]);
+      return transactionRunner.run(async (session) => {
+        const deleted = await store.deleteExpenseCategory(session, organizationId, categoryId);
+        if (!deleted) {
+          throw notFound('Expense category not found');
+        }
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: actor.actorId,
+          action: 'expense.category.deleted',
+          resourceType: 'expense_category',
+          resourceId: categoryId,
+          metadata: { name: current.name },
+        });
+        return { id: categoryId, deleted: true };
+      });
+    },
+
+    async listExpenses(organizationId, options = {}) {
+      let result;
+      if (typeof store.listExpensesPage === 'function') result = await store.listExpensesPage(organizationId, options, options);
+      else {
+        let all = await store.listExpenses(organizationId);
+        if (options.status) all = all.filter((item) => item.status === options.status);
+        if (options.search) all = all.filter((item) => String(item.expenseDate) === String(options.search).trim());
+        const hasPagination = options.skip !== undefined || options.pageSize !== undefined;
+        result = {
+          items: hasPagination
+            ? all.slice(options.skip ?? 0, (options.skip ?? 0) + (options.pageSize ?? 25))
+            : all,
+          total: all.length,
+        };
+      }
+      const dtos = result.items.map(toExpenseDto);
+      const categoryIds = [...new Set(dtos.map((d) => d.categoryId))];
+      const accountIds = [...new Set(dtos.map((d) => d.accountId))];
+      const [cats, accts] = await Promise.all([
+        typeof store.findExpenseCategoriesByIds === 'function'
+          ? store.findExpenseCategoriesByIds(organizationId, categoryIds)
+          : [],
+        typeof store.findAccountsByIds === 'function'
+          ? store.findAccountsByIds(organizationId, accountIds)
+          : [],
+      ]);
+      const catMap = new Map(cats.map((c) => [String(c._id), c.name]));
+      const acctMap = new Map(accts.map((a) => [String(a._id), a.name]));
+      const enriched = dtos.map((d) => ({
+        ...d,
+        categoryName: catMap.get(d.categoryId) ?? null,
+        accountName: acctMap.get(d.accountId) ?? null,
+      }));
+      return { items: enriched, total: result.total };
     },
 
     async getExpense(organizationId, expenseId) {
@@ -871,7 +1039,20 @@ function createAccountsService(deps) {
       if (record === null) {
         throw notFound('Expense not found');
       }
-      return toExpenseDto(record);
+      const dto = toExpenseDto(record);
+      const [cats, accts] = await Promise.all([
+        typeof store.findExpenseCategoriesByIds === 'function'
+          ? store.findExpenseCategoriesByIds(organizationId, [dto.categoryId])
+          : [],
+        typeof store.findAccountsByIds === 'function'
+          ? store.findAccountsByIds(organizationId, [dto.accountId])
+          : [],
+      ]);
+      return {
+        ...dto,
+        categoryName: cats.length > 0 ? cats[0].name : null,
+        accountName: accts.length > 0 ? accts[0].name : null,
+      };
     },
 
     async createExpenseDraft(organizationId, body, actor) {
@@ -913,6 +1094,31 @@ function createAccountsService(deps) {
           version: Number(current['version']) + 1,
         });
         return toExpenseDto(updated);
+      });
+    },
+
+    async discardExpenseDraft(organizationId, expenseId, actor) {
+      return transactionRunner.run(async (session) => {
+        const current = await store.findExpenseById(organizationId, expenseId, session);
+        if (current === null) {
+          throw notFound('Expense not found');
+        }
+        if (current.status !== 'draft') {
+          throw conflict('Only draft expenses can be discarded');
+        }
+        const deleted = await store.deleteExpenseDraft(session, organizationId, expenseId);
+        if (!deleted) {
+          throw conflict('Only draft expenses can be discarded');
+        }
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: actor.actorId,
+          action: 'expense.draft.discarded',
+          resourceType: 'expense',
+          resourceId: expenseId,
+          metadata: {},
+        });
+        return { id: expenseId, discarded: true };
       });
     },
 
@@ -1194,7 +1400,14 @@ function createAccountsModule(options) {
     store,
     transactionRunner,
     idempotency,
+    capabilityService: options.capabilityService ?? null,
     ...(options.now === undefined ? {} : { now: options.now }),
+    ...(options.listAccountReferences === undefined
+      ? {}
+      : { listAccountReferences: options.listAccountReferences }),
+    ...(options.listExpenseCategoryReferences === undefined
+      ? {}
+      : { listExpenseCategoryReferences: options.listExpenseCategoryReferences }),
   });
 
   return { store, accountsService };

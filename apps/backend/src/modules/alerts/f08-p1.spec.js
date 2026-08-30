@@ -323,6 +323,183 @@ describe('F08 P1 inventory alerts over Inventory read contracts', () => {
     expect(foreign.customerDues.items[0].customerId).toBe('cust-foreign');
     expect(foreign.customerDues.items[0].receivable.amount).toBe('999.00');
   });
+
+  it('maintains user-scoped read state independently from business acknowledgement', async () => {
+    const inventory = buildInventory();
+    const alerts = createAlertsModule({
+      persistence: 'memory',
+      inventoryService: inventory.inventoryService,
+      paymentsService: {
+        async listCustomerReceivableBalances() {
+          return { items: [] };
+        },
+        async listSupplierPayableBalances() {
+          return { items: [] };
+        },
+      },
+      salesService: {
+        async listPostedSaleProductActivity() {
+          return { productIds: [] };
+        },
+      },
+      resolveOrganizationTimezone: async () => 'Asia/Karachi',
+      now: () => new Date('2026-08-14T05:00:00.000Z'),
+    });
+
+    const userA = ownerContext({ userId: 'user-a', organizationId: 'org-1' });
+    const userB = ownerContext({ userId: 'user-b', organizationId: 'org-1' });
+
+    // Seed an alert via low stock
+    await alerts.alertsService.upsertLowStockThreshold('org-1', {
+      productId: 'prod-1',
+      warehouseId: 'wh-1',
+      thresholdQuantityBase: '10.0000',
+    });
+
+    const notificationsA = await alerts.alertsService.listNotifications('org-1', userA);
+    expect(notificationsA.items).toHaveLength(1);
+    expect(notificationsA.items[0].isRead).toBe(false);
+    expect(notificationsA.unreadCount).toBe(1);
+
+    const notificationId = notificationsA.items[0].id;
+
+    // User A marks single notification read
+    const readResult = await alerts.alertsService.markNotificationRead(
+      'org-1',
+      'user-a',
+      notificationId,
+      userA,
+    );
+    expect(readResult.isRead).toBe(true);
+    expect(readResult.unreadCount).toBe(0);
+
+    // User A sees it as read, User B still sees it as unread (user-scoped)
+    const refreshedA = await alerts.alertsService.listNotifications('org-1', userA);
+    expect(refreshedA.items[0].isRead).toBe(true);
+    expect(refreshedA.unreadCount).toBe(0);
+    expect(refreshedA.items[0].acknowledgedAt).toBeNull(); // not acknowledged!
+
+    const refreshedB = await alerts.alertsService.listNotifications('org-1', userB);
+    expect(refreshedB.items[0].isRead).toBe(false);
+    expect(refreshedB.unreadCount).toBe(1);
+
+    // Bounded navbar feed returns recent items and user unread count
+    const feedA = await alerts.alertsService.getNotificationFeed('org-1', userA, 5);
+    expect(feedA.items).toHaveLength(1);
+    expect(feedA.items[0].isRead).toBe(true);
+    expect(feedA.unreadCount).toBe(0);
+
+    const feedB = await alerts.alertsService.getNotificationFeed('org-1', userB, 5);
+    expect(feedB.items).toHaveLength(1);
+    expect(feedB.items[0].isRead).toBe(false);
+    expect(feedB.unreadCount).toBe(1);
+
+    // User B marks all as read
+    await alerts.alertsService.markAllNotificationsRead('org-1', 'user-b', userB);
+    const finalFeedB = await alerts.alertsService.getNotificationFeed('org-1', userB, 5);
+    expect(finalFeedB.items[0].isRead).toBe(true);
+    expect(finalFeedB.unreadCount).toBe(0);
+
+    // Business acknowledgement remains separate
+    const ack = await alerts.alertsService.acknowledgeNotification(
+      'org-1',
+      notificationId,
+      'user-a',
+      userA,
+    );
+    expect(ack.acknowledgedAt).toBeTruthy();
+    expect(ack.acknowledgedBy).toBe('user-a');
+  });
+
+  it('resolves stale projections and resets read/acknowledgement only for a recurring condition', async () => {
+    let quantityBase = '1.0000';
+    let receivableMinorUnits = '12500';
+    const alerts = createAlertsModule({
+      persistence: 'memory',
+      inventoryService: {
+        async listBalances() {
+          return {
+            items: [
+              {
+                productId: 'prod-1',
+                warehouseId: 'wh-1',
+                quantityBase,
+              },
+            ],
+          };
+        },
+        async queryExpiry() {
+          return { items: [], businessDate: '2026-08-14', thresholdDays: 30 };
+        },
+      },
+      paymentsService: {
+        async listCustomerReceivableBalances() {
+          return receivableMinorUnits === '0'
+            ? { items: [] }
+            : {
+                items: [
+                  {
+                    customerId: 'cust-1',
+                    receivable: { amount: '125.00', currency: 'PKR' },
+                    receivableMinorUnits,
+                  },
+                ],
+              };
+        },
+        async listSupplierPayableBalances() {
+          return { items: [] };
+        },
+      },
+      salesService: {
+        async listPostedSaleProductActivity() {
+          return { productIds: [] };
+        },
+      },
+      resolveOrganizationTimezone: async () => 'Asia/Karachi',
+      now: () => new Date('2026-08-14T05:00:00.000Z'),
+    });
+    const auth = ownerContext({ userId: 'user-a', organizationId: 'org-1' });
+    await alerts.alertsService.upsertLowStockThreshold('org-1', {
+      productId: 'prod-1',
+      warehouseId: 'wh-1',
+      thresholdQuantityBase: '2.0000',
+    });
+
+    const initial = await alerts.alertsService.listNotifications('org-1', auth);
+    expect(initial.summaries.customerDuesAmount).toEqual({
+      amount: '125.00',
+      currency: 'PKR',
+    });
+    const lowStock = initial.items.find((item) => item.alertType === 'low_stock');
+    expect(lowStock).toBeTruthy();
+    await alerts.alertsService.markNotificationRead('org-1', 'user-a', lowStock.id, auth);
+    await alerts.alertsService.acknowledgeNotification(
+      'org-1',
+      lowStock.id,
+      'user-a',
+      auth,
+    );
+
+    const continuous = await alerts.alertsService.listNotifications('org-1', auth);
+    const continuousLowStock = continuous.items.find((item) => item.alertType === 'low_stock');
+    expect(continuousLowStock.id).toBe(lowStock.id);
+    expect(continuousLowStock.isRead).toBe(true);
+    expect(continuousLowStock.acknowledgedAt).toBeTruthy();
+
+    quantityBase = '3.0000';
+    receivableMinorUnits = '0';
+    const resolved = await alerts.alertsService.listNotifications('org-1', auth);
+    expect(resolved.items).toEqual([]);
+    expect(resolved.summaries.customerDuesCount).toBe(0);
+    expect(resolved.summaries.customerDuesAmount.amount).toBe('0.00');
+
+    quantityBase = '1.0000';
+    const recurring = await alerts.alertsService.listNotifications('org-1', auth);
+    expect(recurring.items).toHaveLength(1);
+    expect(recurring.items[0].id).toBe(lowStock.id);
+    expect(recurring.items[0].isRead).toBe(false);
+    expect(recurring.items[0].acknowledgedAt).toBeNull();
+  });
 });
 
 describe('F08 P1 dashboard composition', () => {

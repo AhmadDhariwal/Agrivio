@@ -1,41 +1,966 @@
-<agrivio-ui-page-header
-  title="Suppliers"
-  eyebrow="Purchasing"
-  lede="Maintain supplier contacts used for purchasing and payables."
->
-  @if (canManage()) {
-    <a class="ag-btn" routerLink="/app/suppliers/new" data-testid="supplier-create-link">Create supplier</a>
-  }
-</agrivio-ui-page-header>
+<div class="suppliers-shell">
+  <!-- Page Header (Matched to Products Page Anatomy) -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">Suppliers</h1>
+        <span class="page-head__count-pill" aria-label="Total suppliers">
+          {{ total() }} {{ total() === 1 ? 'supplier' : 'suppliers' }}
+        </span>
+      </div>
+      <p class="page-head__lede">
+        Maintain supplier contacts used for purchasing and payables.
+      </p>
+    </div>
+    <div class="page-head__actions">
+      @if (canManage()) {
+      <a
+        class="ag-btn ag-btn--primary page-head__add-btn"
+        routerLink="/app/suppliers/new"
+        data-testid="supplier-create-link"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span class="btn-text-full">Create supplier</span>
+        <span class="btn-text-mobile">Create</span>
+      </a>
+      }
+    </div>
+  </header>
 
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading suppliers…" />
-} @else if (errorMessage(); as error) {
-  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-} @else if (items().length === 0) {
-  <agrivio-ui-empty-state
-    title="No suppliers yet"
-    message="Create the first supplier to track purchase partners."
+  <!-- Alerts -->
+  @if (errorMessage(); as error) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  </div>
+  }
+  @if (successMessage(); as success) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="success" [message]="success" />
+  </div>
+  }
+
+  <!-- Module Information Section -->
+  <agrivio-ui-module-info
+    [title]="infoTitle"
+    [description]="infoDescription"
+    [items]="infoItems"
+    [defaultExpanded]="false"
   />
-} @else {
-  <div class="ag-stack" data-testid="suppliers-list">
-    @for (item of items(); track item.id) {
-      <article class="row">
-        <div>
-          <strong>{{ item.name }}</strong>
-          <p class="ag-muted">
-            @if (item.contactName) { {{ item.contactName }} · }
-            @if (item.phone) { {{ item.phone }} }
-            @if (!item.contactName && !item.phone) { No contact details }
-          </p>
-        </div>
-        <div class="ag-inline">
-          <agrivio-ui-status-badge [label]="item.status" [tone]="item.status === 'active' ? 'success' : 'neutral'" />
-          @if (canManage()) {
-            <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/suppliers', item.id]">Edit</a>
+
+  <!-- Authoritative KPI Summary (Matched to Products KPI Anatomy) -->
+  <section class="kpi-row" aria-label="Supplier Summary">
+    <div class="kpi-card">
+      <div class="kpi-card__icon kpi-card__icon--neutral">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect width="16" height="20" x="4" y="2" rx="2" ry="2" />
+          <path d="M9 22v-4h6v4" />
+          <path d="M8 6h.01" />
+          <path d="M16 6h.01" />
+          <path d="M12 6h.01" />
+          <path d="M12 10h.01" />
+          <path d="M12 14h.01" />
+          <path d="M16 10h.01" />
+          <path d="M16 14h.01" />
+          <path d="M8 10h.01" />
+          <path d="M8 14h.01" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Total Suppliers</span>
+        <span class="kpi-card__value" data-testid="kpi-total-suppliers">{{ total() }}</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Filter & Control Toolbar (Matched to Products Toolbar Anatomy) -->
+  <section class="toolbar" aria-label="Filters and view controls">
+    <!-- Desktop / Tablet Inline Controls -->
+    <div class="toolbar__desktop">
+      <div class="toolbar__left">
+        <!-- Search Input -->
+        <div class="search-field">
+          <svg
+            class="search-field__icon"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            class="search-field__input"
+            type="search"
+            [value]="search()"
+            (input)="onSearchInput($event)"
+            placeholder="Search suppliers by name…"
+            aria-label="Search suppliers"
+            data-testid="suppliers-search-input"
+          />
+          @if (search()) {
+          <button
+            type="button"
+            class="search-field__clear"
+            (click)="onSearchClear()"
+            aria-label="Clear search"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
           }
         </div>
-      </article>
+
+        <!-- Status Filter -->
+        <div class="select-field">
+          <select
+            class="select-field__input"
+            [value]="statusFilter()"
+            (change)="onStatusChange($any($event.target).value)"
+            aria-label="Filter by status"
+            data-testid="suppliers-status-filter"
+          >
+            <option value="active">Active Suppliers</option>
+            <option value="all">All Statuses</option>
+            <option value="inactive">Inactive / Archived</option>
+          </select>
+        </div>
+
+        <!-- Clear Filters Button -->
+        @if (hasActiveFilters()) {
+        <button
+          class="clear-filters-btn"
+          type="button"
+          (click)="clearFilters()"
+          data-testid="suppliers-clear-filters"
+        >
+          Clear filters
+        </button>
+        }
+      </div>
+
+      <div class="toolbar__right">
+        <button
+          class="row-action-btn toolbar-refresh-btn"
+          type="button"
+          (click)="reload(false, true)"
+          title="Refresh table"
+          aria-label="Refresh table"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
+            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+            <path d="M16 21h5v-5" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile 2-Row Controls (< 768px) -->
+    <div class="toolbar__mobile">
+      <!-- Row 1: Full-Width Search Input -->
+      <div class="search-field search-field--mobile">
+        <svg
+          class="search-field__icon"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          class="search-field__input"
+          type="search"
+          [value]="search()"
+          (input)="onSearchInput($event)"
+          placeholder="Search suppliers by name…"
+          aria-label="Search suppliers"
+        />
+        @if (search()) {
+        <button
+          type="button"
+          class="search-field__clear"
+          (click)="onSearchClear()"
+          aria-label="Clear search"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        }
+      </div>
+
+      <!-- Row 2: Filter Button + Result Count -->
+      <div class="toolbar__mobile-row">
+        <button
+          type="button"
+          class="mobile-filter-trigger"
+          [class.mobile-filter-trigger--active]="statusFilter() !== 'active'"
+          (click)="openMobileFilters()"
+          aria-label="Open filter options"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+          </svg>
+          <span>Filters</span>
+          @if (statusFilter() !== 'active') {
+          <span class="mobile-filter-trigger__badge">1</span>
+          }
+        </button>
+
+        @if (hasActiveFilters()) {
+        <button type="button" class="mobile-clear-btn" (click)="clearFilters()">Reset</button>
+        }
+
+        <span class="toolbar__mobile-count">
+          {{ total() }} {{ total() === 1 ? 'supplier' : 'suppliers' }}
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Mobile Filter Slide-Over Drawer / Bottom Sheet -->
+  @if (mobileFiltersOpen()) {
+  <button
+    type="button"
+    class="mobile-filter-backdrop"
+    (click)="closeMobileFilters()"
+    aria-label="Close filters"
+  ></button>
+  <div class="mobile-filter-sheet" role="dialog" aria-modal="true" aria-label="Filter suppliers">
+    <div class="mobile-filter-sheet__head">
+      <div class="mobile-filter-sheet__title-group">
+        <h2 class="mobile-filter-sheet__title">Filter Suppliers</h2>
+        @if (statusFilter() !== 'active') {
+        <span class="mobile-filter-sheet__badge">1 active</span>
+        }
+      </div>
+      <button
+        type="button"
+        class="mobile-filter-sheet__close"
+        (click)="closeMobileFilters()"
+        aria-label="Close filters"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="mobile-filter-sheet__body">
+      <!-- Lifecycle Status Filter -->
+      <div class="mobile-filter-group">
+        <label class="mobile-filter-group__label" for="mobile-supp-status">Status</label>
+        <select
+          id="mobile-supp-status"
+          class="mobile-filter-group__select"
+          [value]="statusFilter()"
+          (change)="onStatusChange($any($event.target).value)"
+        >
+          <option value="active">Active Suppliers</option>
+          <option value="all">All Statuses</option>
+          <option value="inactive">Inactive / Archived</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="mobile-filter-sheet__foot">
+      @if (hasActiveFilters()) {
+      <button type="button" class="ag-btn ag-btn--secondary" (click)="clearFilters()">
+        Clear All
+      </button>
+      }
+      <button
+        type="button"
+        class="ag-btn ag-btn--primary mobile-filter-sheet__apply"
+        (click)="closeMobileFilters()"
+      >
+        Show Results ({{ total() }})
+      </button>
+    </div>
+  </div>
+  }
+
+  <!-- Content States (Loading / Empty / Table / Mobile Cards) -->
+  @if (loading()) {
+  <div class="state-container">
+    <agrivio-ui-loading-state label="Loading suppliers…" />
+  </div>
+  } @else if (errorMessage() && items().length === 0) {
+    <!-- Error handled in alert above -->
+  } @else if (items().length === 0) {
+  <div class="state-container">
+    @if (hasActiveFilters()) {
+    <agrivio-ui-empty-state
+      title="No suppliers match your filters"
+      message="Try adjusting your search criteria or status filter."
+    />
+    } @else {
+    <agrivio-ui-empty-state
+      title="No suppliers yet"
+      message="Create the first supplier to track purchase partners."
+    />
     }
   </div>
-}
+  } @else {
+  <!-- Desktop & Tablet Table (Matched to Products Table Anatomy) -->
+  <div class="table-container" data-testid="suppliers-list">
+    <table class="supp-table" aria-label="Suppliers list">
+      <colgroup>
+        <!-- Level 1 Flexible Columns -->
+        <col class="col-supplier" />
+        <col class="col-contact" />
+        <!-- Level 2 Operational Data Columns -->
+        <col class="col-phone" />
+        <col class="col-email" />
+        <col class="col-payable" />
+        <col class="col-status" />
+        <col class="col-actions" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col" class="supp-table__th supp-table__th--supplier">Supplier</th>
+          <th scope="col" class="supp-table__th supp-table__th--contact">Contact Person</th>
+          <th scope="col" class="supp-table__th supp-table__th--phone">Phone</th>
+          <th scope="col" class="supp-table__th supp-table__th--email">Email</th>
+          <th scope="col" class="supp-table__th supp-table__th--payable">Outstanding Payables</th>
+          <th scope="col" class="supp-table__th supp-table__th--status">Status</th>
+          <th scope="col" class="supp-table__th supp-table__th--actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of items(); track item.id) {
+        <tr
+          class="supp-table__row"
+          [class.supp-table__row--selected]="selectedSupplier()?.id === item.id"
+          [class.supp-table__row--inactive]="item.status === 'inactive'"
+          data-testid="supplier-row"
+        >
+          <!-- Supplier Identity + Avatar Glyph (Level 1: Flexible & Truncated) -->
+          <td class="supp-table__td supp-table__td--supplier">
+            <div class="supplier-cell">
+              <div class="supplier-cell__glyph" aria-hidden="true">
+                {{ getInitials(item.name) }}
+              </div>
+              <div class="supplier-cell__meta">
+                <button
+                  type="button"
+                  class="supplier-cell__name"
+                  (click)="openInspector(item)"
+                  [title]="item.name"
+                  data-testid="supplier-name-link"
+                >
+                  {{ item.name }}
+                </button>
+                @if (item.contactName) {
+                <span class="supplier-cell__dim">{{ item.contactName }}</span>
+                }
+              </div>
+            </div>
+          </td>
+
+          <!-- Contact Person (Level 1: Flexible & Truncated) -->
+          <td class="supp-table__td supp-table__td--contact">
+            @if (item.contactName) {
+            <span class="contact-name" [title]="item.contactName">{{ item.contactName }}</span>
+            } @else {
+            <span class="muted-dash">—</span>
+            }
+          </td>
+
+          <!-- Phone (Level 2: Fixed & Readable) -->
+          <td class="supp-table__td supp-table__td--phone">
+            @if (item.phone) {
+            <span class="phone-text">{{ item.phone }}</span>
+            } @else {
+            <span class="muted-dash">—</span>
+            }
+          </td>
+
+          <!-- Email (Level 2: Fixed & Readable) -->
+          <td class="supp-table__td supp-table__td--email">
+            @if (item.email) {
+            <span class="email-text" [title]="item.email">{{ item.email }}</span>
+            } @else {
+            <span class="muted-dash">—</span>
+            }
+          </td>
+
+          <!-- Outstanding Payables (Level 2: Fixed & Readable) -->
+          <td class="supp-table__td supp-table__td--payable">
+            <div class="balance-cell">
+              <span class="balance-amount tabular-num">
+                {{ formatCurrency(item.derivedBalances?.payable?.amount, item.derivedBalances?.payable?.currency) }}
+              </span>
+              @if (item.derivedBalances?.advance?.amount && item.derivedBalances.advance.amount !== '0.00') {
+              <span class="advance-sub tabular-num">
+                Adv: {{ formatCurrency(item.derivedBalances.advance.amount, item.derivedBalances.advance.currency) }}
+              </span>
+              }
+            </div>
+          </td>
+
+          <!-- Status (Level 2: Fixed & Readable) -->
+          <td class="supp-table__td supp-table__td--status">
+            <span
+              class="status-indicator"
+              [class.status-indicator--active]="item.status === 'active'"
+              [class.status-indicator--inactive]="item.status === 'inactive'"
+            >
+              <span class="status-indicator__dot"></span>
+              {{ item.status === 'active' ? 'Active' : 'Inactive' }}
+            </span>
+          </td>
+
+          <!-- Actions (Level 2/3: Fixed with More dropdown) -->
+          <td class="supp-table__td supp-table__td--actions">
+            <div class="row-actions">
+              <!-- Inspect Button -->
+              <button
+                type="button"
+                class="row-action-btn"
+                (click)="openInspector(item)"
+                title="Inspect supplier details"
+                aria-label="Inspect supplier details"
+                data-testid="supplier-inspect"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
+
+              <!-- Edit Button -->
+              @if (canManage()) {
+              <a
+                class="row-action-btn"
+                [routerLink]="['/app/suppliers', item.id]"
+                title="Edit supplier"
+                aria-label="Edit supplier"
+                data-testid="supplier-edit"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                  <path d="m15 5 4 4" />
+                </svg>
+              </a>
+
+              <!-- More Actions Menu Dropdown -->
+              <div class="menu-container">
+                <button
+                  type="button"
+                  class="row-action-btn row-action-btn--more"
+                  (click)="toggleRowMenu(item.id, $event)"
+                  title="More actions"
+                  aria-label="More actions"
+                  data-testid="supplier-more-menu"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <circle cx="12" cy="5" r="1"></circle>
+                    <circle cx="12" cy="19" r="1"></circle>
+                  </svg>
+                </button>
+
+                @if (openMenuSupplierId() === item.id) {
+                <div
+                  class="menu-dropdown"
+                  role="menu"
+                  tabindex="-1"
+                  (click)="$event.stopPropagation()"
+                  (keydown)="$event.stopPropagation()"
+                >
+                  @if (item.status === 'active') {
+                  <button
+                    type="button"
+                    class="menu-dropdown__item"
+                    role="menuitem"
+                    data-testid="supplier-deactivate"
+                    (click)="askDeactivate(item)"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                    </svg>
+                    Deactivate
+                  </button>
+                  } @else {
+                  <button
+                    type="button"
+                    class="menu-dropdown__item"
+                    role="menuitem"
+                    data-testid="supplier-reactivate"
+                    (click)="askReactivate(item)"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                      <polyline points="22 4 12 14.01 9 11.01" />
+                    </svg>
+                    Reactivate
+                  </button>
+                  }
+
+                  <div class="menu-dropdown__divider"></div>
+
+                  <button
+                    type="button"
+                    class="menu-dropdown__item menu-dropdown__item--danger"
+                    role="menuitem"
+                    data-testid="supplier-delete"
+                    (click)="askDelete(item)"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M3 6h18" />
+                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                    </svg>
+                    Delete permanently
+                  </button>
+                </div>
+                }
+              </div>
+              }
+            </div>
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile Card View (< 768px, Matched to Products) -->
+  <div class="mobile-cards-container">
+    @for (item of items(); track item.id) {
+    <article class="supplier-mobile-card" data-testid="supplier-mobile-card">
+      <div class="supplier-mobile-card__header">
+        <div class="supplier-mobile-card__glyph">
+          {{ getInitials(item.name) }}
+        </div>
+        <div class="supplier-mobile-card__title-group">
+          <button
+            type="button"
+            class="supplier-mobile-card__name-btn"
+            (click)="openInspector(item)"
+          >
+            {{ item.name }}
+          </button>
+          @if (item.contactName) {
+          <span class="supplier-mobile-card__contact">{{ item.contactName }}</span>
+          }
+        </div>
+        <span
+          class="status-dot"
+          [class.status-dot--active]="item.status === 'active'"
+          [title]="item.status === 'active' ? 'Active' : 'Inactive'"
+        ></span>
+      </div>
+
+      <div class="supplier-mobile-card__metrics">
+        <div class="card-metric">
+          <span class="card-metric__label">Payable</span>
+          <span class="card-metric__value tabular-num">
+            {{ formatCurrency(item.derivedBalances?.payable?.amount, item.derivedBalances?.payable?.currency) }}
+          </span>
+        </div>
+        <div class="card-metric">
+          <span class="card-metric__label">Phone</span>
+          <span class="card-metric__value">{{ item.phone || '—' }}</span>
+        </div>
+        @if (item.email) {
+        <div class="card-metric card-metric--full">
+          <span class="card-metric__label">Email</span>
+          <span class="card-metric__value email-text">{{ item.email }}</span>
+        </div>
+        }
+      </div>
+
+      <div class="supplier-mobile-card__footer">
+        <div class="supplier-mobile-card__status-wrap">
+          <span
+            class="status-indicator"
+            [class.status-indicator--active]="item.status === 'active'"
+            [class.status-indicator--inactive]="item.status === 'inactive'"
+          >
+            <span class="status-indicator__dot"></span>
+            {{ item.status === 'active' ? 'Active' : 'Inactive' }}
+          </span>
+        </div>
+
+        <div class="supplier-mobile-card__actions">
+          <button
+            type="button"
+            class="card-action-btn"
+            (click)="openInspector(item)"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            Details
+          </button>
+          @if (canManage()) {
+          <a
+            class="card-action-btn"
+            [routerLink]="['/app/suppliers', item.id]"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+            </svg>
+            Edit
+          </a>
+          @if (item.status === 'active') {
+          <button
+            type="button"
+            class="card-action-btn card-action-btn--danger"
+            (click)="askDeactivate(item)"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+            </svg>
+            Deactivate
+          </button>
+          } @else {
+          <button
+            type="button"
+            class="card-action-btn"
+            (click)="askReactivate(item)"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+            </svg>
+            Reactivate
+          </button>
+          }
+          }
+        </div>
+      </div>
+    </article>
+    }
+  </div>
+
+  <!-- Pagination (Shared Agrivio Standard) -->
+  <agrivio-ui-pagination
+    [page]="page()"
+    [pageSize]="pageSize()"
+    [total]="total()"
+    [disabled]="loading()"
+    (pageChange)="onPageChange($event)"
+    (pageSizeChange)="onPageSizeChange($event)"
+  />
+  }
+
+  <!-- Supplier Inspector Slide-Over Drawer (Matched to Products Inspector Anatomy) -->
+  @if (selectedSupplier(); as sel) {
+  <div
+    class="inspector-backdrop"
+    (click)="closeInspector()"
+    aria-hidden="true"
+  ></div>
+  <aside
+    class="inspector-drawer"
+    role="dialog"
+    aria-label="Supplier details inspector"
+    aria-modal="true"
+    data-testid="supplier-inspector"
+  >
+    <!-- Drawer Header -->
+    <div class="inspector-drawer__head">
+      <div class="inspector-drawer__head-title">
+        <div class="inspector-glyph">
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <rect width="16" height="20" x="4" y="2" rx="2" ry="2" />
+            <path d="M9 22v-4h6v4" />
+          </svg>
+        </div>
+        <div class="inspector-drawer__titles">
+          <h2 class="drawer-title" [title]="sel.name">{{ sel.name }}</h2>
+          <p class="drawer-sub">
+            {{ sel.contactName ? sel.contactName + ' · ' : '' }}Status: {{ sel.status === 'active' ? 'Active' : 'Inactive' }}
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        class="drawer-close-btn"
+        (click)="closeInspector()"
+        title="Close inspector (Esc)"
+        aria-label="Close inspector"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Drawer Body -->
+    <div class="inspector-drawer__body">
+      <!-- Section: Balances Overview -->
+      <section class="drawer-sec">
+        <h3 class="drawer-sec__title">Financial Balances (PKR)</h3>
+        <div class="spec-grid">
+          <div class="spec-row">
+            <span class="spec-row__k">Outstanding Payable</span>
+            <span class="spec-row__v tabular-num">
+              {{ formatCurrency(sel.derivedBalances?.payable?.amount, sel.derivedBalances?.payable?.currency) }}
+            </span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-row__k">Advance Balance</span>
+            <span class="spec-row__v tabular-num">
+              {{ formatCurrency(sel.derivedBalances?.advance?.amount, sel.derivedBalances?.advance?.currency) }}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Contact Details -->
+      <section class="drawer-sec">
+        <h3 class="drawer-sec__title">Contact Information</h3>
+        <div class="spec-grid">
+          <div class="spec-row">
+            <span class="spec-row__k">Supplier Name</span>
+            <span class="spec-row__v">{{ sel.name }}</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-row__k">Contact Person</span>
+            <span class="spec-row__v">{{ sel.contactName || '—' }}</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-row__k">Phone</span>
+            <span class="spec-row__v">{{ sel.phone || '—' }}</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-row__k">Email</span>
+            <span class="spec-row__v">{{ sel.email || '—' }}</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-row__k">Lifecycle Status</span>
+            <span class="spec-row__v">
+              <span
+                class="status-indicator"
+                [class.status-indicator--active]="sel.status === 'active'"
+                [class.status-indicator--inactive]="sel.status === 'inactive'"
+              >
+                <span class="status-indicator__dot"></span>
+                {{ sel.status === 'active' ? 'Active' : 'Inactive' }}
+              </span>
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Opening Balance State (if posted) -->
+      @if (sel.openingBalance) {
+      <section class="drawer-sec">
+        <h3 class="drawer-sec__title">Opening Balance</h3>
+        <div class="spec-grid">
+          <div class="spec-row">
+            <span class="spec-row__k">Opening Kind</span>
+            <span class="spec-row__v capitalize">{{ sel.openingBalance.kind === 'payable' ? 'Payable' : 'Advance' }}</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-row__k">Opening Amount</span>
+            <span class="spec-row__v tabular-num">
+              {{ formatCurrency(sel.openingBalance.amount.amount, sel.openingBalance.amount.currency) }}
+            </span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-row__k">Status</span>
+            <span class="spec-row__v capitalize">{{ sel.openingBalance.status }}</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-row__k">Posted At</span>
+            <span class="spec-row__v">{{ sel.openingBalance.postedAt }}</span>
+          </div>
+        </div>
+      </section>
+      }
+
+      <!-- Section: Technical Details -->
+      <section class="drawer-sec">
+        <details class="tech-details">
+          <summary class="tech-details__summary">Technical Details</summary>
+          <div class="spec-grid">
+            <div class="spec-row">
+              <span class="spec-row__k">Supplier ID</span>
+              <span class="spec-row__v font-mono">{{ sel.id }}</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-row__k">Organization ID</span>
+              <span class="spec-row__v font-mono">{{ sel.organizationId }}</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-row__k">Record Version</span>
+              <span class="spec-row__v">v{{ sel.version }}</span>
+            </div>
+          </div>
+        </details>
+      </section>
+    </div>
+
+    <!-- Drawer Footer Actions -->
+    <div class="inspector-drawer__footer">
+      @if (canManage()) {
+      <a
+        class="ag-btn ag-btn--primary"
+        [routerLink]="['/app/suppliers', sel.id]"
+        (click)="closeInspector()"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+        </svg>
+        Edit Supplier
+      </a>
+      @if (sel.status === 'active') {
+      <button
+        class="ag-btn ag-btn--secondary ag-btn--danger-text"
+        type="button"
+        (click)="askDeactivate(sel)"
+      >
+        Deactivate
+      </button>
+      } @else {
+      <button
+        class="ag-btn ag-btn--secondary"
+        type="button"
+        (click)="askReactivate(sel)"
+      >
+        Reactivate
+      </button>
+      }
+      }
+      <button
+        type="button"
+        class="ag-btn ag-btn--secondary"
+        (click)="closeInspector()"
+      >
+        Close
+      </button>
+    </div>
+  </aside>
+  }
+
+  <!-- Confirm Dialog for Deactivate / Reactivate / Delete -->
+  <agrivio-ui-confirm-dialog
+    [open]="confirmOpen()"
+    [title]="confirmTitle()"
+    [message]="confirmMessage()"
+    [confirmLabel]="confirmLabel()"
+    [danger]="confirmLabel() === 'Deactivate' || confirmLabel() === 'Delete permanently'"
+    (confirmed)="confirmLifecycle()"
+    (dismiss)="confirmOpen.set(false)"
+  />
+</div>

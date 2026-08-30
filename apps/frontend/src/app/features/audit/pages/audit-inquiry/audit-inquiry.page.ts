@@ -8,6 +8,7 @@ import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-p
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 
 @Component({
   selector: 'agrivio-audit-inquiry-page',
@@ -18,6 +19,7 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
     UiAlertComponent,
     UiEmptyStateComponent,
     UiLoadingStateComponent,
+    UiPaginationComponent,
   ],
   templateUrl: './audit-inquiry.page.html',
 })
@@ -35,6 +37,9 @@ export class AuditInquiryPage {
   readonly items = signal<AuditEventItem[]>([]);
   readonly loading = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly page = signal(1);
+  readonly pageSize = signal(25);
+  readonly total = signal(0);
 
   readonly canView = computed(() => this.sessionStore.hasPermission('audit.view'));
   readonly suspended = computed(
@@ -60,10 +65,13 @@ export class AuditInquiryPage {
         resourceType: this.resourceType(),
         resourceId: this.resourceId(),
         reason: this.reason(),
+        page: this.page(),
+        pageSize: this.pageSize(),
       })
       .subscribe({
-        next: (items) => {
+        next: ({ items, meta }) => {
           this.items.set(items);
+          this.total.set(meta.total);
           this.loading.set(false);
         },
         error: (error: unknown) => {
@@ -72,6 +80,9 @@ export class AuditInquiryPage {
         },
       });
   }
+
+  onPageChange(page: number): void { this.page.set(page); this.search(); }
+  onPageSizeChange(pageSize: number): void { this.pageSize.set(pageSize); this.page.set(1); this.search(); }
 
   private readError(error: unknown, fallback: string): string {
     if (error instanceof HttpErrorResponse) {

@@ -12,8 +12,28 @@ function isDuplicateKeyError(error) {
 
 function createMongooseCustomersStore() {
   return {
-    async listCustomers(organizationId) {
-      return CustomerModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
+    async listCustomers(organizationId, filter = {}, pagination = {}) {
+      const query = { organizationId };
+      if (filter.status === 'active' || filter.status === 'inactive') {
+        query.status = filter.status;
+      }
+      if (filter.search) {
+        const escaped = String(filter.search).trim().toLowerCase().replace(/\s+/g, ' ');
+        if (escaped) {
+          query.nameNormalized = { $regex: escaped.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') };
+        }
+      }
+      const hasPagination = pagination.skip !== undefined || pagination.pageSize !== undefined;
+      const { skip = 0, pageSize = 25 } = pagination;
+      let find = CustomerModel.find(query).sort({ createdAt: -1, _id: -1 });
+      if (hasPagination) {
+        find = find.skip(skip).limit(pageSize);
+      }
+      const [total, items] = await Promise.all([
+        CustomerModel.countDocuments(query).exec(),
+        find.lean().exec(),
+      ]);
+      return { items, total };
     },
 
     async countCustomers(organizationId) {
@@ -63,6 +83,11 @@ function createMongooseCustomersStore() {
       }
     },
 
+    async deleteCustomer(session, organizationId, id) {
+      const result = await CustomerModel.deleteOne({ _id: id, organizationId }, withSession(session));
+      return result.deletedCount === 1;
+    },
+
     async appendAuditEvent(session, event) {
       await AuditEventModel.create([event], withSession(session));
     },
@@ -75,10 +100,27 @@ function createInMemoryCustomersStore() {
   let seq = 1;
 
   return {
-    async listCustomers(organizationId) {
-      return [...customers.values()]
-        .filter((item) => String(item.organizationId) === String(organizationId))
-        .map((item) => ({ ...item }));
+    async listCustomers(organizationId, filter = {}, pagination = {}) {
+      let all = [...customers.values()].filter(
+        (item) => String(item.organizationId) === String(organizationId),
+      );
+      if (filter.status === 'active' || filter.status === 'inactive') {
+        all = all.filter((item) => String(item.status) === filter.status);
+      }
+      if (filter.search) {
+        const needle = String(filter.search).trim().toLowerCase().replace(/\s+/g, ' ');
+        if (needle) {
+          all = all.filter(
+            (item) => typeof item.nameNormalized === 'string' && item.nameNormalized.includes(needle),
+          );
+        }
+      }
+      const total = all.length;
+      const hasPagination = pagination.skip !== undefined || pagination.pageSize !== undefined;
+      const { skip = 0, pageSize = 25 } = pagination;
+      const selected = hasPagination ? all.slice(skip, skip + pageSize) : all;
+      const items = selected.map((item) => ({ ...item }));
+      return { items, total };
     },
 
     async countCustomers(organizationId) {
@@ -119,6 +161,15 @@ function createInMemoryCustomersStore() {
       const next = { ...existing, ...patch };
       customers.set(id, next);
       return { ...next };
+    },
+
+    async deleteCustomer(_session, organizationId, id) {
+      const existing = await this.findCustomerById(organizationId, id);
+      if (existing === null) {
+        return false;
+      }
+      customers.delete(id);
+      return true;
     },
 
     async appendAuditEvent(_session, event) {

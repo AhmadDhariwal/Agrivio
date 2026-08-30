@@ -27,6 +27,20 @@ function batchKey(batchId) {
   return batchId === null || batchId === undefined || batchId === '' ? null : String(batchId);
 }
 
+async function paginateModel(Model, query, sort, pagination) {
+  const { skip = 0, pageSize = 25 } = pagination;
+  const [total, items] = await Promise.all([
+    Model.countDocuments(query).exec(),
+    Model.find(query).sort(sort).skip(skip).limit(pageSize).lean().exec(),
+  ]);
+  return { items, total };
+}
+
+function paginateRows(items, pagination) {
+  const { skip = 0, pageSize = 25 } = pagination;
+  return { items: items.slice(skip, skip + pageSize), total: items.length };
+}
+
 function createMongooseInventoryStore() {
   return {
     async findBatchById(organizationId, id) {
@@ -45,7 +59,80 @@ function createMongooseInventoryStore() {
       if (filters.productId) {
         query.productId = filters.productId;
       }
+      if (filters.batchIds && Array.isArray(filters.batchIds)) {
+        query._id = { $in: filters.batchIds };
+      }
+      if (filters.productIds && Array.isArray(filters.productIds) && filters.productIds.length > 0) {
+        if (filters.search) {
+          const escaped = filters.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          query.$or = [
+            { batchNumber: { $regex: escaped, $options: 'i' } },
+            { productId: { $in: filters.productIds } },
+          ];
+        } else {
+          query.productId = { $in: filters.productIds };
+        }
+      } else if (filters.search) {
+        const escaped = filters.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        query.batchNumber = { $regex: escaped, $options: 'i' };
+      }
       return ProductBatchModel.find(query).sort({ firstReceivedAt: 1, createdAt: 1 }).lean().exec();
+    },
+
+    async listBatchesPage(organizationId, filters, pagination) {
+      const query = { organizationId };
+      if (filters.productId) query.productId = filters.productId;
+      if (filters.batchIds && Array.isArray(filters.batchIds)) {
+        query._id = { $in: filters.batchIds };
+      }
+      if (filters.productIds && Array.isArray(filters.productIds) && filters.productIds.length > 0) {
+        if (filters.search) {
+          const escaped = filters.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          query.$or = [
+            { batchNumber: { $regex: escaped, $options: 'i' } },
+            { productId: { $in: filters.productIds } },
+          ];
+        } else {
+          query.productId = { $in: filters.productIds };
+        }
+      } else if (filters.search) {
+        const escaped = filters.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        query.batchNumber = { $regex: escaped, $options: 'i' };
+      }
+      return paginateModel(ProductBatchModel, query, { firstReceivedAt: 1, createdAt: 1, _id: 1 }, pagination);
+    },
+
+    async findBatchesByIds(organizationId, batchIds) {
+      if (!Array.isArray(batchIds) || batchIds.length === 0) {
+        return [];
+      }
+      const ids = batchIds.filter((id) => mongoose.isValidObjectId(id));
+      if (ids.length === 0) {
+        return [];
+      }
+      return ProductBatchModel.find({ organizationId, _id: { $in: ids } }).lean().exec();
+    },
+
+    async listBalanceLocationsByBatchIds(organizationId, batchIds) {
+      if (!Array.isArray(batchIds) || batchIds.length === 0) {
+        return new Map();
+      }
+      const balances = await this.listBalances(organizationId, { batchIds });
+      const map = new Map();
+      for (const balance of balances) {
+        if (!balance.batchId) {
+          continue;
+        }
+        const batchId = String(balance.batchId);
+        const list = map.get(batchId) ?? [];
+        list.push({
+          warehouseId: String(balance.warehouseId),
+          quantityBaseMinorUnits: String(balance.quantityBaseMinorUnits ?? '0'),
+          unsellableQuantityBaseMinorUnits: String(balance.unsellableQuantityBaseMinorUnits ?? '0'),
+        });
+        map.set(batchId, list);
+      }
+      return map;
     },
 
     async insertBatch(session, doc) {
@@ -93,6 +180,15 @@ function createMongooseInventoryStore() {
       return find.lean().exec();
     },
 
+    async listMovementsPage(organizationId, filters, pagination) {
+      const query = { organizationId, status: 'posted' };
+      if (filters.warehouseId) query.warehouseId = filters.warehouseId;
+      if (Array.isArray(filters.warehouseIds)) query.warehouseId = { $in: filters.warehouseIds };
+      if (filters.productId) query.productId = filters.productId;
+      if (filters.batchId !== undefined) query.batchId = filters.batchId;
+      return paginateModel(StockMovementModel, query, { postedAt: -1, createdAt: -1, _id: -1 }, pagination);
+    },
+
     async sumMovementSignedQuantity(organizationId, scope) {
       const query = {
         organizationId,
@@ -136,10 +232,31 @@ function createMongooseInventoryStore() {
       if (filters.productId) {
         query.productId = filters.productId;
       }
+      if (Array.isArray(filters.productIds) && filters.productIds.length > 0) {
+        query.productId = { $in: filters.productIds.map(String) };
+      }
       if (filters.batchId !== undefined) {
         query.batchId = filters.batchId;
       }
+      if (Array.isArray(filters.batchIds) && filters.batchIds.length > 0) {
+        query.batchId = { $in: filters.batchIds.map(String) };
+      }
       return InventoryBalanceModel.find(query).sort({ updatedAt: -1 }).lean().exec();
+    },
+
+    async listBalancesPage(organizationId, filters, pagination) {
+      const query = { organizationId };
+      if (filters.warehouseId) query.warehouseId = filters.warehouseId;
+      if (Array.isArray(filters.warehouseIds)) query.warehouseId = { $in: filters.warehouseIds };
+      if (filters.productId) query.productId = filters.productId;
+      if (Array.isArray(filters.productIds) && filters.productIds.length > 0) {
+        query.productId = { $in: filters.productIds.map(String) };
+      }
+      if (filters.batchId !== undefined) query.batchId = filters.batchId;
+      if (Array.isArray(filters.batchIds) && filters.batchIds.length > 0) {
+        query.batchId = { $in: filters.batchIds.map(String) };
+      }
+      return paginateModel(InventoryBalanceModel, query, { updatedAt: -1, _id: -1 }, pagination);
     },
 
     async insertBalance(session, doc) {
@@ -236,6 +353,14 @@ function createMongooseInventoryStore() {
       return StockAdjustmentModel.find(query).sort({ createdAt: -1 }).lean().exec();
     },
 
+    async listAdjustmentsPage(organizationId, filters, pagination) {
+      const query = { organizationId };
+      if (filters.status) query.status = filters.status;
+      if (filters.warehouseId) query.warehouseId = filters.warehouseId;
+      if (Array.isArray(filters.warehouseIds)) query.warehouseId = { $in: filters.warehouseIds };
+      return paginateModel(StockAdjustmentModel, query, { createdAt: -1, _id: -1 }, pagination);
+    },
+
     async insertAdjustment(session, doc) {
       try {
         const [created] = await StockAdjustmentModel.create([doc], withSession(session));
@@ -254,6 +379,14 @@ function createMongooseInventoryStore() {
         .lean()
         .exec();
       return updated;
+    },
+
+    async deleteAdjustmentDraft(session, organizationId, id) {
+      const result = await StockAdjustmentModel.deleteOne(
+        { _id: id, organizationId, status: 'draft' },
+        withSession(session),
+      );
+      return result.deletedCount === 1;
     },
 
     async listPositiveBalancesWithBatchFacts(organizationId, filters) {
@@ -311,6 +444,18 @@ function createMongooseInventoryStore() {
       return WarehouseTransferModel.find(query).sort({ createdAt: -1 }).lean().exec();
     },
 
+    async listTransfersPage(organizationId, filters, pagination) {
+      const query = { organizationId };
+      if (filters.status) query.status = filters.status;
+      if (filters.sourceWarehouseId) query.sourceWarehouseId = filters.sourceWarehouseId;
+      if (filters.destinationWarehouseId) query.destinationWarehouseId = filters.destinationWarehouseId;
+      if (Array.isArray(filters.warehouseIds)) {
+        query.sourceWarehouseId = { $in: filters.warehouseIds };
+        query.destinationWarehouseId = { $in: filters.warehouseIds };
+      }
+      return paginateModel(WarehouseTransferModel, query, { createdAt: -1, _id: -1 }, pagination);
+    },
+
     async insertTransfer(session, doc) {
       try {
         const [created] = await WarehouseTransferModel.create([doc], withSession(session));
@@ -329,6 +474,14 @@ function createMongooseInventoryStore() {
         .lean()
         .exec();
       return updated;
+    },
+
+    async deleteTransferDraft(session, organizationId, id) {
+      const result = await WarehouseTransferModel.deleteOne(
+        { _id: id, organizationId, status: 'draft' },
+        withSession(session),
+      );
+      return result.deletedCount === 1;
     },
 
     async listAllBalances(organizationId) {
@@ -393,6 +546,9 @@ function createInMemoryInventoryStore() {
     },
 
     async listBatches(organizationId, filters) {
+      const searchNeedle = filters.search ? String(filters.search).toLowerCase() : null;
+      const matchedProductSet = filters.productIds ? new Set(filters.productIds.map(String)) : null;
+      const allowedBatchIds = filters.batchIds ? new Set(filters.batchIds.map(String)) : null;
       return [...batches.values()]
         .filter((item) => {
           if (String(item.organizationId) !== String(organizationId)) {
@@ -401,10 +557,65 @@ function createInMemoryInventoryStore() {
           if (filters.productId && String(item.productId) !== String(filters.productId)) {
             return false;
           }
+          if (allowedBatchIds && !allowedBatchIds.has(String(item._id))) {
+            return false;
+          }
+          if (searchNeedle) {
+            const matchesBatch = String(item.batchNumber).toLowerCase().includes(searchNeedle);
+            const matchesProduct = matchedProductSet ? matchedProductSet.has(String(item.productId)) : false;
+            if (!matchesBatch && !matchesProduct) {
+              return false;
+            }
+          }
           return true;
         })
-        .sort((a, b) => String(a.firstReceivedAt).localeCompare(String(b.firstReceivedAt)))
+        .sort(
+          (a, b) =>
+            String(a.firstReceivedAt).localeCompare(String(b.firstReceivedAt)) ||
+            String(a.createdAt).localeCompare(String(b.createdAt)) ||
+            String(a._id).localeCompare(String(b._id)),
+        )
         .map((item) => ({ ...item }));
+    },
+
+    async listBatchesPage(organizationId, filters, pagination) {
+      return paginateRows(await this.listBatches(organizationId, filters), pagination);
+    },
+
+    async findBatchesByIds(organizationId, batchIds) {
+      if (!Array.isArray(batchIds) || batchIds.length === 0) {
+        return [];
+      }
+      const allowed = new Set(batchIds.map(String));
+      return [...batches.values()]
+        .filter(
+          (item) =>
+            String(item.organizationId) === String(organizationId) &&
+            allowed.has(String(item._id)),
+        )
+        .map((item) => ({ ...item }));
+    },
+
+    async listBalanceLocationsByBatchIds(organizationId, batchIds) {
+      if (!Array.isArray(batchIds) || batchIds.length === 0) {
+        return new Map();
+      }
+      const balances = await this.listBalances(organizationId, { batchIds });
+      const map = new Map();
+      for (const balance of balances) {
+        if (!balance.batchId) {
+          continue;
+        }
+        const batchId = String(balance.batchId);
+        const list = map.get(batchId) ?? [];
+        list.push({
+          warehouseId: String(balance.warehouseId),
+          quantityBaseMinorUnits: String(balance.quantityBaseMinorUnits ?? '0'),
+          unsellableQuantityBaseMinorUnits: String(balance.unsellableQuantityBaseMinorUnits ?? '0'),
+        });
+        map.set(batchId, list);
+      }
+      return map;
     },
 
     async insertBatch(session, doc) {
@@ -469,8 +680,20 @@ function createInMemoryInventoryStore() {
           }
           return true;
         })
-        .sort((a, b) => String(b.postedAt).localeCompare(String(a.postedAt)))
+        .sort(
+          (a, b) =>
+            String(b.postedAt).localeCompare(String(a.postedAt)) ||
+            String(b.createdAt).localeCompare(String(a.createdAt)) ||
+            String(b._id).localeCompare(String(a._id)),
+        )
         .map((item) => ({ ...item }));
+    },
+
+    async listMovementsPage(organizationId, filters, pagination) {
+      const items = (await this.listMovements(organizationId, filters)).filter((item) =>
+        !Array.isArray(filters.warehouseIds) || filters.warehouseIds.map(String).includes(String(item.warehouseId)),
+      );
+      return paginateRows(items, pagination);
     },
 
     async sumMovementSignedQuantity(organizationId, scope) {
@@ -495,6 +718,12 @@ function createInMemoryInventoryStore() {
     },
 
     async listBalances(organizationId, filters) {
+      const allowedProductIds = Array.isArray(filters.productIds)
+        ? new Set(filters.productIds.map(String))
+        : null;
+      const allowedBatchIds = Array.isArray(filters.batchIds)
+        ? new Set(filters.batchIds.map(String))
+        : null;
       return [...balances.values()]
         .filter((item) => {
           if (String(item.organizationId) !== String(organizationId)) {
@@ -506,14 +735,27 @@ function createInMemoryInventoryStore() {
           if (filters.productId && String(item.productId) !== String(filters.productId)) {
             return false;
           }
+          if (allowedProductIds && !allowedProductIds.has(String(item.productId))) {
+            return false;
+          }
           if (filters.batchId !== undefined) {
             if (batchKey(item.batchId) !== batchKey(filters.batchId)) {
               return false;
             }
           }
+          if (allowedBatchIds && !allowedBatchIds.has(String(item.batchId))) {
+            return false;
+          }
           return true;
         })
         .map((item) => ({ ...item }));
+    },
+
+    async listBalancesPage(organizationId, filters, pagination) {
+      const items = (await this.listBalances(organizationId, filters))
+        .filter((item) => !Array.isArray(filters.warehouseIds) || filters.warehouseIds.map(String).includes(String(item.warehouseId)))
+        .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)) || String(b._id).localeCompare(String(a._id)));
+      return paginateRows(items, pagination);
     },
 
     async insertBalance(session, doc) {
@@ -668,8 +910,19 @@ function createInMemoryInventoryStore() {
           }
           return true;
         })
-        .sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)))
+        .sort(
+          (left, right) =>
+            String(right.createdAt).localeCompare(String(left.createdAt)) ||
+            String(right._id).localeCompare(String(left._id)),
+        )
         .map((item) => ({ ...item }));
+    },
+
+    async listAdjustmentsPage(organizationId, filters, pagination) {
+      const items = (await this.listAdjustments(organizationId, filters)).filter((item) =>
+        !Array.isArray(filters.warehouseIds) || filters.warehouseIds.map(String).includes(String(item.warehouseId)),
+      );
+      return paginateRows(items, pagination);
     },
 
     async insertAdjustment(session, doc) {
@@ -702,6 +955,20 @@ function createInMemoryInventoryStore() {
       };
       adjustments.set(String(id), updated);
       return { ...updated };
+    },
+
+    async deleteAdjustmentDraft(session, organizationId, id) {
+      void session;
+      const record = adjustments.get(String(id));
+      if (
+        !record ||
+        String(record.organizationId) !== String(organizationId) ||
+        record.status !== 'draft'
+      ) {
+        return false;
+      }
+      adjustments.delete(String(id));
+      return true;
     },
 
     async listPositiveBalancesWithBatchFacts(organizationId, filters) {
@@ -763,8 +1030,20 @@ function createInMemoryInventoryStore() {
           }
           return true;
         })
-        .sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)))
+        .sort(
+          (left, right) =>
+            String(right.createdAt).localeCompare(String(left.createdAt)) ||
+            String(right._id).localeCompare(String(left._id)),
+        )
         .map((item) => ({ ...item }));
+    },
+
+    async listTransfersPage(organizationId, filters, pagination) {
+      const items = (await this.listTransfers(organizationId, filters)).filter((item) =>
+        !Array.isArray(filters.warehouseIds) ||
+        (filters.warehouseIds.map(String).includes(String(item.sourceWarehouseId)) && filters.warehouseIds.map(String).includes(String(item.destinationWarehouseId))),
+      );
+      return paginateRows(items, pagination);
     },
 
     async insertTransfer(session, doc) {
@@ -797,6 +1076,20 @@ function createInMemoryInventoryStore() {
       };
       transfers.set(String(id), updated);
       return { ...updated };
+    },
+
+    async deleteTransferDraft(session, organizationId, id) {
+      void session;
+      const record = transfers.get(String(id));
+      if (
+        !record ||
+        String(record.organizationId) !== String(organizationId) ||
+        record.status !== 'draft'
+      ) {
+        return false;
+      }
+      transfers.delete(String(id));
+      return true;
     },
 
     async listAllBalances(organizationId) {

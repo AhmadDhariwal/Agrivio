@@ -1,20 +1,46 @@
 const { sendSuccessEnvelope } = require('../../../platform/http/response-envelope');
-const { forbidden } = require('../../../platform/errors/app-error');
+const { parseMasterStatusQuery } = require('../../../platform/http/master-status-query');
+const { parsePaginationQuery } = require('../../../platform/http/parse-pagination-query');
+const { filterAssignedLocationOptions } = require('../../identity/assignment-scope');
+const { actorFromRequest, requireOrganizationId } = require('../../identity/request-actor');
 
-function requireOrganizationId(req) {
-  const organizationId = req.authContext?.organizationId;
-  if (typeof organizationId !== 'string' || organizationId === '') {
-    throw forbidden('Organization context is required');
-  }
-  return organizationId;
+function parseSelectedIds(query) {
+  return new Set(
+    String(query.selectedIds ?? '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter((value) => value !== ''),
+  );
 }
 
 function createLocationsController(deps) {
   return {
     async listBranches(req, res, next) {
       try {
-        const data = await deps.locationsService.listBranches(requireOrganizationId(req));
-        sendSuccessEnvelope(res, 200, data);
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.locationsService.listBranches(requireOrganizationId(req), {
+          status: parseMasterStatusQuery(req.query),
+          search: req.query.search || undefined, skip, pageSize,
+        });
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async listBranchOptions(req, res, next) {
+      try {
+        const selectedIds = parseSelectedIds(req.query);
+        const { items } = await deps.locationsService.listBranches(requireOrganizationId(req));
+        const scoped = filterAssignedLocationOptions(
+          req.authContext,
+          items.filter((item) => item.status === 'active' || selectedIds.has(item.id)),
+          'branch',
+          selectedIds,
+        );
+        sendSuccessEnvelope(res, 200, {
+          items: scoped,
+        });
       } catch (error) {
         next(error);
       }
@@ -57,10 +83,45 @@ function createLocationsController(deps) {
       }
     },
 
+    async deleteBranch(req, res, next) {
+      try {
+        const data = await deps.locationsService.deleteBranch(
+          requireOrganizationId(req),
+          String(req.params.id),
+          { actorId: String(req.authContext.userId) },
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async listWarehouses(req, res, next) {
       try {
-        const data = await deps.locationsService.listWarehouses(requireOrganizationId(req));
-        sendSuccessEnvelope(res, 200, data);
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.locationsService.listWarehouses(requireOrganizationId(req), {
+          status: parseMasterStatusQuery(req.query),
+          search: req.query.search || undefined, skip, pageSize,
+        });
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async listWarehouseOptions(req, res, next) {
+      try {
+        const selectedIds = parseSelectedIds(req.query);
+        const { items } = await deps.locationsService.listWarehouses(requireOrganizationId(req));
+        const scoped = filterAssignedLocationOptions(
+          req.authContext,
+          items.filter((item) => item.status === 'active' || selectedIds.has(item.id)),
+          'warehouse',
+          selectedIds,
+        );
+        sendSuccessEnvelope(res, 200, {
+          items: scoped,
+        });
       } catch (error) {
         next(error);
       }
@@ -105,13 +166,26 @@ function createLocationsController(deps) {
       }
     },
 
+    async deleteWarehouse(req, res, next) {
+      try {
+        const data = await deps.locationsService.deleteWarehouse(
+          requireOrganizationId(req),
+          String(req.params.id),
+          { actorId: String(req.authContext.userId) },
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async replaceAccessAssignments(req, res, next) {
       try {
         const data = await deps.locationsService.replaceAccessAssignments(
           requireOrganizationId(req),
           String(req.params.id),
           req.body,
-          { actorId: String(req.authContext.userId) },
+          actorFromRequest(req),
         );
         sendSuccessEnvelope(res, 200, data);
       } catch (error) {

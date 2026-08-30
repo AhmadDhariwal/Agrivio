@@ -451,7 +451,7 @@ describe('F06 P3 approvals, walk-in/customer, and sale cancellation', () => {
         {},
         jar,
       );
-      const qtyBefore = balancesBefore.body.data.items.find(
+      const qtyBefore = balancesBefore.body.data.find(
         (item) => item.productId === product.body.data.id,
       )?.quantityBase;
 
@@ -485,7 +485,7 @@ describe('F06 P3 approvals, walk-in/customer, and sale cancellation', () => {
         {},
         jar,
       );
-      const qtyAfter = balancesAfter.body.data.items.find(
+      const qtyAfter = balancesAfter.body.data.find(
         (item) => item.productId === product.body.data.id,
       )?.quantityBase;
       expect(Number(qtyAfter)).toBeGreaterThan(Number(qtyBefore));
@@ -493,7 +493,7 @@ describe('F06 P3 approvals, walk-in/customer, and sale cancellation', () => {
       const movements = await fetchJson(baseUrl, 'GET', API_INVENTORY_MOVEMENTS_PATH, null, {}, jar);
       expect(movements.status).toBe(200);
       expect(
-        movements.body.data.items.some((item) => item.sourceType === 'sale_cancellation'),
+        movements.body.data.some((item) => item.sourceType === 'sale_cancellation'),
       ).toBe(true);
 
       // Partial/mixed cancellation

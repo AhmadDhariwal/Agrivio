@@ -1,95 +1,341 @@
-<agrivio-ui-page-header
-  [title]="expenseId() ? 'Expense' : 'Record expense'"
-  eyebrow="Accounts"
-  lede="Posting an expense creates a signed account outflow. Correction preserves the original."
-/>
-
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading expense…" />
-} @else if (!canView() && !canPost()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to view or record expenses." />
-} @else {
-  @if (errorMessage(); as error) {
-    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-  }
-  @if (successMessage(); as success) {
-    <agrivio-ui-alert tone="success" [message]="success" data-testid="expense-success" />
-  }
-
-  @if (expense()?.status === 'posted') {
-    <p class="ag-muted" data-testid="expense-posted">Posted — original amounts are locked. Correct with a reason if needed.</p>
-  }
-  @if (expense()?.status === 'corrected') {
-    <p class="ag-muted" data-testid="expense-corrected">This expense has been corrected. The original record is preserved.</p>
-  }
-
-  <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="expense-form">
-    <label>
-      Category
-      <select formControlName="categoryId" data-testid="expense-category">
-        <option value="">Select category</option>
-        @for (item of categories(); track item.id) {
-          <option [value]="item.id">{{ item.name }}</option>
+<div class="expense-form-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">Operating Expenses</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">
+          {{ expenseId() ? (expense()?.status === 'posted' ? 'Expense #' + (expense()?.id?.slice(-6)?.toUpperCase() || '') : 'Expense Draft') : 'Record Expense' }}
+        </h1>
+        @if (expense()?.status; as status) {
+        <agrivio-ui-status-badge [label]="status" [tone]="statusTone(status)" />
         }
-      </select>
-    </label>
-    <label>
-      Account
-      <select formControlName="accountId" data-testid="expense-account">
-        <option value="">Select account</option>
-        @for (item of accounts(); track item.id) {
-          <option [value]="item.id">{{ item.name }}</option>
-        }
-      </select>
-    </label>
-    <label>
-      Amount (PKR)
-      <input formControlName="amount" data-testid="expense-amount" />
-    </label>
-    <label>
-      Purpose
-      <input formControlName="purpose" data-testid="expense-purpose" />
-    </label>
-    <label>
-      Date
-      <input type="date" formControlName="expenseDate" data-testid="expense-date" />
-    </label>
-    <label>
-      Reference (optional)
-      <input formControlName="reference" data-testid="expense-reference" />
-    </label>
-    @if (isDraft && canPost()) {
-      <div class="ag-inline">
-        <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="expense-save">
+      </div>
+      <p class="page-head__lede">
+        Posting an expense creates a signed account outflow. Correction preserves the original.
+      </p>
+    </div>
+    <div class="page-head__actions">
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/expenses">
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        Back to Expenses
+      </a>
+    </div>
+  </header>
+
+  @if (loading()) {
+  <div class="state-container">
+    <agrivio-ui-loading-state label="Loading expense…" />
+  </div>
+  } @else if (!canView() && !canPost()) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="warning" message="You do not have permission to view or record expenses." />
+  </div>
+  } @else {
+    @if (errorMessage(); as error) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+    </div>
+    }
+    @if (successMessage(); as success) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="success" [message]="success" data-testid="expense-success" />
+    </div>
+    }
+
+    <!-- Status Banner Callouts -->
+    @if (expense()?.status === 'posted') {
+    <div class="status-banner status-banner--posted" data-testid="expense-posted">
+      <div class="status-banner__icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+      </div>
+      <div class="status-banner__text">
+        <strong>Posted Record</strong>
+        <span>Original amounts and allocations are locked. Correct with an auditable reason if needed.</span>
+      </div>
+    </div>
+    }
+    @if (expense()?.status === 'corrected') {
+    <div class="status-banner status-banner--corrected" data-testid="expense-corrected">
+      <div class="status-banner__icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+      </div>
+      <div class="status-banner__text">
+        <strong>Corrected Expense</strong>
+        <span>This expense has been corrected. The original record and reversal audit are preserved.</span>
+      </div>
+    </div>
+    }
+
+    <form
+      class="expense-form"
+      [formGroup]="form"
+      (ngSubmit)="save()"
+      data-testid="expense-form"
+    >
+      <!-- Section 1: Expense Details -->
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <line x1="6" y1="12" x2="18" y2="12" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">Expense Classification & Allocation</h2>
+            <p class="form-card__subtitle">Category classification, funding account, and payment reference.</p>
+          </div>
+        </div>
+
+        <div class="form-card__body">
+          <div class="form-grid form-grid--2col">
+            <!-- Category -->
+            @if (showCategory()) {
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Category"
+                for="expense-category"
+                [required]="fieldRequired(form.controls.categoryId)"
+              />
+              <select
+                id="expense-category"
+                class="ag-select"
+                [class.ag-input--invalid]="fieldError(form.controls.categoryId, 'Category', formSubmitAttempted())"
+                formControlName="categoryId"
+                data-testid="expense-category"
+                [attr.aria-required]="fieldRequired(form.controls.categoryId) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.categoryId, 'Category', formSubmitAttempted()) ? 'true' : null"
+              >
+                <option value="">Select category</option>
+                @for (item of categories(); track item.id) {
+                  <option [value]="item.id">{{ item.name }}</option>
+                }
+              </select>
+              @if (fieldError(form.controls.categoryId, 'Category', formSubmitAttempted()); as categoryError) {
+              <p class="field-error" role="alert">{{ categoryError }}</p>
+              }
+            </div>
+            }
+
+            <!-- Account -->
+            @if (showAccount()) {
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Account"
+                for="expense-account"
+                [required]="fieldRequired(form.controls.accountId)"
+              />
+              <select
+                id="expense-account"
+                class="ag-select"
+                [class.ag-input--invalid]="fieldError(form.controls.accountId, 'Account', formSubmitAttempted())"
+                formControlName="accountId"
+                data-testid="expense-account"
+                [attr.aria-required]="fieldRequired(form.controls.accountId) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.accountId, 'Account', formSubmitAttempted()) ? 'true' : null"
+              >
+                <option value="">Select account</option>
+                @for (item of accounts(); track item.id) {
+                  <option [value]="item.id">{{ item.name }}</option>
+                }
+              </select>
+              @if (fieldError(form.controls.accountId, 'Account', formSubmitAttempted()); as accountError) {
+              <p class="field-error" role="alert">{{ accountError }}</p>
+              }
+            </div>
+            }
+
+            <!-- Amount -->
+            @if (showAmount()) {
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Amount (PKR)"
+                for="expense-amount"
+                [required]="fieldRequired(form.controls.amount)"
+              />
+              <div class="currency-input-wrap">
+                <span class="currency-input-prefix">PKR</span>
+                <input
+                  id="expense-amount"
+                  class="ag-input currency-input"
+                  [class.ag-input--invalid]="moneyFieldError(form.controls.amount, 'Amount')"
+                  formControlName="amount"
+                  placeholder="0.00"
+                  data-testid="expense-amount"
+                  [attr.aria-required]="fieldRequired(form.controls.amount) ? 'true' : null"
+                  [attr.aria-invalid]="moneyFieldError(form.controls.amount, 'Amount') ? 'true' : null"
+                />
+              </div>
+              @if (moneyFieldError(form.controls.amount, 'Amount'); as amountError) {
+              <p class="field-error" role="alert">{{ amountError }}</p>
+              }
+            </div>
+            }
+
+            <!-- Date -->
+            @if (showExpenseDate()) {
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Date"
+                for="expense-date"
+                [required]="fieldRequired(form.controls.expenseDate)"
+              />
+              <input
+                id="expense-date"
+                class="ag-input"
+                type="date"
+                [class.ag-input--invalid]="fieldError(form.controls.expenseDate, 'Date', formSubmitAttempted())"
+                formControlName="expenseDate"
+                data-testid="expense-date"
+                [attr.aria-required]="fieldRequired(form.controls.expenseDate) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.expenseDate, 'Date', formSubmitAttempted()) ? 'true' : null"
+              />
+              @if (fieldError(form.controls.expenseDate, 'Date', formSubmitAttempted()); as dateError) {
+              <p class="field-error" role="alert">{{ dateError }}</p>
+              }
+            </div>
+            }
+
+            <!-- Purpose -->
+            @if (showPurpose()) {
+            <div class="ag-field form-grid--full">
+              <agrivio-ui-field-label
+                label="Purpose"
+                for="expense-purpose"
+                [required]="fieldRequired(form.controls.purpose)"
+              />
+              <input
+                id="expense-purpose"
+                class="ag-input"
+                [class.ag-input--invalid]="fieldError(form.controls.purpose, 'Purpose', formSubmitAttempted())"
+                formControlName="purpose"
+                placeholder="e.g. Fuel for tractor fleet, generator maintenance, lab testing"
+                data-testid="expense-purpose"
+                [attr.aria-required]="fieldRequired(form.controls.purpose) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.purpose, 'Purpose', formSubmitAttempted()) ? 'true' : null"
+              />
+              @if (fieldError(form.controls.purpose, 'Purpose', formSubmitAttempted()); as purposeError) {
+              <p class="field-error" role="alert">{{ purposeError }}</p>
+              }
+            </div>
+            }
+
+            <!-- Reference -->
+            <div class="ag-field form-grid--full">
+              <agrivio-ui-field-label label="Reference (optional)" for="expense-reference" />
+              <input
+                id="expense-reference"
+                class="ag-input"
+                [class.ag-input--invalid]="fieldError(form.controls.reference, 'Reference', formSubmitAttempted())"
+                formControlName="reference"
+                placeholder="e.g. Voucher #1042 or Vendor Receipt REF-88"
+                data-testid="expense-reference"
+                [attr.aria-invalid]="fieldError(form.controls.reference, 'Reference', formSubmitAttempted()) ? 'true' : null"
+              />
+              @if (fieldError(form.controls.reference, 'Reference', formSubmitAttempted()); as referenceError) {
+              <p class="field-error" role="alert">{{ referenceError }}</p>
+              }
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Draft Controls -->
+      @if (isDraft && canPost()) {
+      <div class="form-actions">
+        <button class="ag-btn ag-btn--primary" type="submit" [disabled]="!canSave()" data-testid="expense-save">
           {{ saving() ? 'Saving…' : 'Save draft' }}
         </button>
+        @if (expense()?.status === 'draft') {
+        <button class="ag-btn ag-btn--success" type="button" [disabled]="posting()" (click)="post()" data-testid="expense-post">
+          {{ posting() ? 'Posting…' : 'Post expense' }}
+        </button>
+        <button
+          class="ag-btn ag-btn--danger"
+          type="button"
+          [disabled]="discarding()"
+          (click)="askDiscard()"
+          data-testid="expense-discard"
+        >
+          {{ discarding() ? 'Discarding…' : 'Discard draft' }}
+        </button>
+        }
         <a class="ag-btn ag-btn--secondary" routerLink="/app/expenses">Cancel</a>
       </div>
-    } @else {
-      <a class="ag-btn ag-btn--secondary" routerLink="/app/expenses">Back</a>
+      }
+    </form>
+
+    <!-- Correction Section for Posted Expenses -->
+    @if (expense()?.status === 'posted' && canCorrect()) {
+    <section class="form-card form-card--correction" data-testid="expense-correct-section">
+      <div class="form-card__header">
+        <div class="form-card__icon form-card__icon--warning">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="form-card__title">Correct Expense</h2>
+          <p class="form-card__subtitle">Record an auditable correction note to reverse the account outflow and issue a correction.</p>
+        </div>
+      </div>
+
+      <div class="form-card__body">
+        <form class="correction-form" [formGroup]="correctForm" (ngSubmit)="correct()">
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Correction reason"
+              for="expense-correct-reason"
+              [required]="fieldRequired(correctForm.controls.reason)"
+            />
+            <input
+              id="expense-correct-reason"
+              class="ag-input"
+              formControlName="reason"
+              placeholder="e.g. Overcharged voucher amount; adjusting to invoice balance"
+              data-testid="expense-correct-reason"
+              [attr.aria-required]="fieldRequired(correctForm.controls.reason) ? 'true' : null"
+            />
+          </div>
+          <div class="form-actions">
+            <button class="ag-btn ag-btn--primary" type="submit" [disabled]="correcting()" data-testid="expense-correct-save">
+              {{ correcting() ? 'Correcting…' : 'Correct expense' }}
+            </button>
+            <a class="ag-btn ag-btn--secondary" routerLink="/app/expenses">Back to Expenses</a>
+          </div>
+        </form>
+      </div>
+    </section>
     }
-  </form>
-
-  @if (expense()?.status === 'draft' && canPost()) {
-    <section class="ag-stack form">
-      <button class="ag-btn" type="button" [disabled]="posting()" (click)="post()" data-testid="expense-post">
-        {{ posting() ? 'Posting…' : 'Post expense' }}
-      </button>
-    </section>
   }
+</div>
 
-  @if (expense()?.status === 'posted' && canCorrect()) {
-    <section class="ag-stack form" data-testid="expense-correct-section">
-      <h2>Correct expense</h2>
-      <form class="ag-stack" [formGroup]="correctForm" (ngSubmit)="correct()">
-        <label>
-          Reason
-          <input formControlName="reason" data-testid="expense-correct-reason" />
-        </label>
-        <button class="ag-btn" type="submit" [disabled]="correcting()" data-testid="expense-correct-save">
-          {{ correcting() ? 'Correcting…' : 'Correct' }}
-        </button>
-      </form>
-    </section>
-  }
-}
+<agrivio-ui-confirm-dialog
+  [open]="discardConfirmOpen()"
+  title="Discard draft?"
+  message="This expense draft has no posted account effects and will be removed."
+  confirmLabel="Discard draft"
+  cancelLabel="Keep draft"
+  [danger]="true"
+  (confirmed)="confirmDiscard()"
+  (dismiss)="discardConfirmOpen.set(false)"
+/>

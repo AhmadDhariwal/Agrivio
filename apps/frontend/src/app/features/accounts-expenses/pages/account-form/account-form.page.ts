@@ -1,14 +1,38 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { DatePipe, UpperCasePipe, TitleCasePipe } from '@angular/common';
+import {
+  AbstractControl,
+  FormBuilder,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators,
+} from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AccountsApi } from '../../data-access/accounts.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import {
+  UiStatusBadgeComponent,
+  UiBadgeTone,
+} from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
+import {
+  fieldValidationMessage,
+  hasRequiredValidator,
+  setRequiredValidator,
+} from '../../../../shared/form/form-field.util';
 import { AccountMovementRecord, AccountRecord } from '../../models/accounts.models';
 import { forkJoin, of } from 'rxjs';
+import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
+
+const MAX_NAME = 160;
+const MAX_BANK = 120;
+const MAX_MASKED = 64;
+const MAX_WALLET = 64;
+const ACCOUNT_TYPES = ['cash', 'bank', 'jazzcash', 'easypaisa'] as const;
 
 @Component({
   selector: 'agrivio-account-form-page',
@@ -16,9 +40,14 @@ import { forkJoin, of } from 'rxjs';
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    UiPageHeaderComponent,
+    DatePipe,
+    UpperCasePipe,
+    TitleCasePipe,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiFieldLabelComponent,
+    UiStatusBadgeComponent,
+    UiPaginationComponent,
   ],
   templateUrl: './account-form.page.html',
   styleUrl: './account-form.page.scss',
@@ -29,29 +58,139 @@ export class AccountFormPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
 
   readonly accountId = signal<string | null>(null);
   readonly loading = signal(false);
   readonly saving = signal(false);
   readonly postingOpening = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly formSubmitAttempted = signal(false);
   readonly openingPosted = signal(false);
   readonly derivedBalance = signal<string | null>(null);
   readonly movements = signal<AccountMovementRecord[]>([]);
-  readonly canManage = computed(() => this.sessionStore.hasPermission('accounts.manage'));
-  readonly canView = computed(() => this.sessionStore.hasPermission('accounts.view'));
-  readonly canPostOpening = computed(() =>
-    this.sessionStore.hasPermission('accounts.opening-balance.post'),
+  readonly movementsPage = signal(1);
+  readonly movementsPageSize = signal(25);
+  readonly movementsTotal = signal(0);
+
+  readonly canUseAccounts = computed(
+    () => this.capabilityService?.canUseModule('accounts') ?? true,
   );
-  readonly canPostTransaction = computed(() =>
-    this.sessionStore.hasPermission('accounts.transaction.post'),
+  readonly canManage = computed(
+    () => this.sessionStore.hasPermission('accounts.manage') && this.canUseAccounts(),
   );
-  readonly canCorrectTransaction = computed(() =>
-    this.sessionStore.hasPermission('accounts.transaction.correct'),
+  readonly canView = computed(
+    () => this.sessionStore.hasPermission('accounts.view') && this.canUseAccounts(),
   );
-  readonly canTransfer = computed(() => this.sessionStore.hasPermission('accounts.transfer'));
-  readonly canReverseTransfer = computed(() =>
-    this.sessionStore.hasPermission('accounts.transfer.reverse'),
+  readonly canCreate = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.create') ?? true),
+  );
+  readonly canInspect = computed(
+    () =>
+      this.canView() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.inspect') ?? true),
+  );
+  readonly canEdit = computed(
+    () =>
+      this.canManage() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.edit') ?? true),
+  );
+  readonly canPostOpening = computed(
+    () =>
+      this.sessionStore.hasPermission('accounts.opening-balance.post') &&
+      this.canUseAccounts() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.postOpeningBalance') ?? true),
+  );
+  readonly canPostTransaction = computed(
+    () =>
+      this.sessionStore.hasPermission('accounts.transaction.post') &&
+      this.canUseAccounts() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.postManualMovement') ?? true),
+  );
+  readonly canCorrectTransaction = computed(
+    () =>
+      this.sessionStore.hasPermission('accounts.transaction.correct') &&
+      this.canUseAccounts() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.reverseMovement') ?? true),
+  );
+  readonly canTransfer = computed(
+    () =>
+      this.sessionStore.hasPermission('accounts.transfer') &&
+      this.canUseAccounts() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.transfer') ?? true),
+  );
+  readonly canReverseTransfer = computed(
+    () =>
+      this.sessionStore.hasPermission('accounts.transfer.reverse') &&
+      this.canUseAccounts() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.reverseTransfer') ?? true),
+  );
+
+  // Features
+  readonly showMovementHistory = computed(
+    () =>
+      this.canView() &&
+      (this.capabilityService?.canUseView('accounts.features.movementHistory') ?? true),
+  );
+
+  // Fields
+  readonly showName = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.name') ?? true,
+  );
+  readonly canEditName = computed(
+    () =>
+      (this.accountId() ? this.canEdit() : this.canCreate()) &&
+      (this.capabilityService?.canEditField('accounts.fields.name') ?? true),
+  );
+  readonly showAccountType = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.accountType') ?? true,
+  );
+  readonly canEditAccountType = computed(
+    () => !this.accountId() && this.canCreate(),
+  );
+  readonly showStatus = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.status') ?? true,
+  );
+  readonly canEditStatus = computed(
+    () =>
+      this.canEdit() &&
+      (this.capabilityService?.canEditField('accounts.fields.status') ?? true),
+  );
+  readonly canSave = computed(() => {
+    const allowed = this.accountId() === null ? this.canCreate() : this.canEdit();
+    return allowed && this.form.valid && !this.saving();
+  });
+  readonly showDerivedBalance = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.derivedBalance') ?? true,
+  );
+  readonly showBankName = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.bankName') ?? true,
+  );
+  readonly canEditBankName = computed(
+    () =>
+      (this.accountId() ? this.canEdit() : this.canCreate()) &&
+      (this.capabilityService?.canEditField('accounts.fields.bankName') ?? true),
+  );
+  readonly showAccountNumberMasked = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.accountNumberMasked') ?? true,
+  );
+  readonly canEditAccountNumberMasked = computed(
+    () =>
+      (this.accountId() ? this.canEdit() : this.canCreate()) &&
+      (this.capabilityService?.canEditField('accounts.fields.accountNumberMasked') ?? true),
+  );
+  readonly showWalletIdentifier = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.walletIdentifier') ?? true,
+  );
+  readonly canEditWalletIdentifier = computed(
+    () =>
+      (this.accountId() ? this.canEdit() : this.canCreate()) &&
+      (this.capabilityService?.canEditField('accounts.fields.walletIdentifier') ?? true),
+  );
+  readonly showOpeningBalance = computed(
+    () => this.capabilityService?.canViewField('accounts.fields.openingBalance') ?? true,
   );
   readonly accountType = signal('cash');
   readonly destinationAccounts = signal<AccountRecord[]>([]);
@@ -62,12 +201,15 @@ export class AccountFormPage {
   readonly reverseTarget = signal<{ kind: 'transaction' | 'transfer'; id: string } | null>(null);
   private version = 1;
 
+  readonly fieldRequired = hasRequiredValidator;
+  readonly fieldError = fieldValidationMessage;
+
   readonly form = this.formBuilder.nonNullable.group({
-    accountType: ['cash' as string, [Validators.required]],
-    name: ['', [Validators.required, Validators.minLength(2)]],
-    bankName: [''],
-    accountNumberMasked: [''],
-    walletIdentifier: [''],
+    accountType: ['cash' as string, [Validators.required, this.accountTypeValidator.bind(this)]],
+    name: ['', [Validators.required, Validators.maxLength(MAX_NAME)]],
+    bankName: ['', [Validators.maxLength(MAX_BANK)]],
+    accountNumberMasked: ['', [Validators.maxLength(MAX_MASKED)]],
+    walletIdentifier: ['', [Validators.maxLength(MAX_WALLET)]],
     status: ['active'],
   });
 
@@ -96,7 +238,9 @@ export class AccountFormPage {
   constructor() {
     this.form.controls.accountType.valueChanges.subscribe((value) => {
       this.accountType.set(value);
+      this.syncAccountTypeValidators(value);
     });
+    this.syncAccountTypeValidators(this.form.controls.accountType.value);
 
     const id = this.route.snapshot.paramMap.get('id');
     if (id && id !== 'new') {
@@ -104,12 +248,13 @@ export class AccountFormPage {
       this.loading.set(true);
       forkJoin({
         account: this.api.getAccount(id),
-        movements: this.canView() ? this.api.listMovements(id) : of([]),
-        accounts: this.api.listAccounts(),
+        movements: this.canView() ? this.api.listMovements(id) : of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+        accounts: this.api.listAccountOptions(),
       }).subscribe({
         next: ({ account, movements, accounts }) => {
           this.applyAccount(account);
-          this.movements.set(movements);
+          this.movements.set(movements.items);
+          this.movementsTotal.set(movements.meta.total);
           this.destinationAccounts.set(accounts.filter((item) => item.id !== id && item.status === 'active'));
           this.loading.set(false);
         },
@@ -122,8 +267,10 @@ export class AccountFormPage {
   }
 
   save(): void {
-    if (!this.canManage() || this.form.invalid) {
-      this.form.markAllAsTouched();
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    const allowed = this.accountId() === null ? this.canCreate() : this.canEdit();
+    if (!allowed || this.form.invalid) {
       return;
     }
     this.saving.set(true);
@@ -134,19 +281,9 @@ export class AccountFormPage {
     if (this.accountId() === null) {
       this.api
         .createAccount({
-          name: value.name,
+          name: value.name.trim(),
           accountType: value.accountType,
-          ...(value.accountType === 'bank'
-            ? {
-                bankName: value.bankName,
-                ...(value.accountNumberMasked.trim() === ''
-                  ? {}
-                  : { accountNumberMasked: value.accountNumberMasked }),
-              }
-            : {}),
-          ...(value.accountType === 'jazzcash' || value.accountType === 'easypaisa'
-            ? { walletIdentifier: value.walletIdentifier }
-            : {}),
+          ...this.buildTypeSpecificCreateFields(value),
         })
         .subscribe({
           next: () => {
@@ -161,20 +298,13 @@ export class AccountFormPage {
       return;
     }
 
+    const id = this.accountId();
+    if (!id) return;
+
     this.api
-      .updateAccount(this.accountId()!, {
+      .updateAccount(id, {
         expectedVersion: this.version,
-        name: value.name,
-        status: value.status,
-        ...(value.accountType === 'bank'
-          ? {
-              bankName: value.bankName,
-              accountNumberMasked: value.accountNumberMasked,
-            }
-          : {}),
-        ...(value.accountType === 'jazzcash' || value.accountType === 'easypaisa'
-          ? { walletIdentifier: value.walletIdentifier }
-          : {}),
+        ...this.buildAccountPatchPayload(value),
       })
       .subscribe({
         next: () => {
@@ -208,9 +338,7 @@ export class AccountFormPage {
         next: (account) => {
           this.postingOpening.set(false);
           this.applyAccount(account);
-          this.api.listMovements(id).subscribe({
-            next: (movements) => this.movements.set(movements),
-          });
+          this.loadMovements();
         },
         error: (error: unknown) => {
           this.postingOpening.set(false);
@@ -360,19 +488,156 @@ export class AccountFormPage {
     );
   }
 
+  sourceTypeLabel(sourceType: string): string {
+    switch (sourceType) {
+      case 'opening_balance':
+        return 'Opening Balance';
+      case 'manual_inflow':
+        return 'Manual Inflow';
+      case 'manual_outflow':
+        return 'Manual Outflow';
+      case 'account_transfer_out':
+        return 'Transfer Out';
+      case 'account_transfer_in':
+        return 'Transfer In';
+      case 'expense':
+        return 'Operating Expense';
+      case 'customer_payment':
+        return 'Customer Payment';
+      case 'supplier_payment':
+        return 'Supplier Payment';
+      default:
+        return sourceType;
+    }
+  }
+
+  statusTone(status: string): UiBadgeTone {
+    return status === 'active' ? 'success' : 'neutral';
+  }
+
+  formatAmount(amount: string | null | undefined): string {
+    if (!amount) return '0.00';
+    const num = Number(amount);
+    if (isNaN(num)) return amount;
+    return num.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
+  loadMovements(): void {
+    const id = this.accountId();
+    if (!id) return;
+    this.api.listMovements(id, { page: this.movementsPage(), pageSize: this.movementsPageSize() }).subscribe({
+      next: ({ items, meta }) => { this.movements.set(items); this.movementsTotal.set(meta.total); },
+      error: (error: unknown) => this.errorMessage.set(this.mapError(error, 'Unable to load account movements.')),
+    });
+  }
+
+  onMovementsPageChange(page: number): void { this.movementsPage.set(page); this.loadMovements(); }
+  onMovementsPageSizeChange(pageSize: number): void { this.movementsPageSize.set(pageSize); this.movementsPage.set(1); this.loadMovements(); }
+
   private reloadAccountState(id: string): void {
     forkJoin({
       account: this.api.getAccount(id),
-      movements: this.api.listMovements(id),
+      movements: this.api.listMovements(id, { page: this.movementsPage(), pageSize: this.movementsPageSize() }),
     }).subscribe({
       next: ({ account, movements }) => {
         this.applyAccount(account);
-        this.movements.set(movements);
+        this.movements.set(movements.items);
+        this.movementsTotal.set(movements.meta.total);
       },
       error: (error: unknown) => {
         this.errorMessage.set(this.mapError(error, 'Unable to reload account.'));
       },
     });
+  }
+
+  private buildTypeSpecificCreateFields(
+    value: ReturnType<typeof this.form.getRawValue>,
+  ): {
+    bankName?: string;
+    accountNumberMasked?: string;
+    walletIdentifier?: string;
+  } {
+    if (value.accountType === 'bank') {
+      return {
+        bankName: value.bankName.trim(),
+        ...(value.accountNumberMasked.trim() === ''
+          ? {}
+          : { accountNumberMasked: value.accountNumberMasked.trim() }),
+      };
+    }
+    if (value.accountType === 'jazzcash' || value.accountType === 'easypaisa') {
+      return { walletIdentifier: value.walletIdentifier.trim() };
+    }
+    return {};
+  }
+
+  private buildAccountPatchPayload(
+    value: ReturnType<typeof this.form.getRawValue>,
+  ): {
+    name?: string;
+    status?: string;
+    bankName?: string;
+    accountNumberMasked?: string;
+    walletIdentifier?: string;
+  } {
+    const payload: {
+      name?: string;
+      status?: string;
+      bankName?: string;
+      accountNumberMasked?: string;
+      walletIdentifier?: string;
+    } = {};
+
+    if (this.canEditName()) {
+      payload.name = value.name.trim();
+    }
+    if (this.canEditStatus()) {
+      payload.status = value.status;
+    }
+
+    const accountType = this.accountType();
+    if (
+      accountType === 'bank' &&
+      this.showBankName() &&
+      this.canEditBankName()
+    ) {
+      payload.bankName = value.bankName.trim();
+    }
+    if (
+      accountType === 'bank' &&
+      this.showAccountNumberMasked() &&
+      this.canEditAccountNumberMasked()
+    ) {
+      payload.accountNumberMasked = value.accountNumberMasked.trim();
+    }
+    if (
+      (accountType === 'jazzcash' || accountType === 'easypaisa') &&
+      this.showWalletIdentifier() &&
+      this.canEditWalletIdentifier()
+    ) {
+      payload.walletIdentifier = value.walletIdentifier.trim();
+    }
+
+    return payload;
+  }
+
+  private syncAccountTypeValidators(accountType: string): void {
+    setRequiredValidator(this.form.controls.bankName, accountType === 'bank');
+    setRequiredValidator(
+      this.form.controls.walletIdentifier,
+      accountType === 'jazzcash' || accountType === 'easypaisa',
+    );
+  }
+
+  private accountTypeValidator(control: AbstractControl): ValidationErrors | null {
+    const value = control.value;
+    if (typeof value === 'string' && ACCOUNT_TYPES.includes(value as (typeof ACCOUNT_TYPES)[number])) {
+      return null;
+    }
+    return { invalidAccountType: true };
   }
 
   private applyAccount(account: AccountRecord): void {
@@ -386,6 +651,7 @@ export class AccountFormPage {
       walletIdentifier: account.walletIdentifier,
       status: account.status,
     });
+    this.syncAccountTypeValidators(account.accountType);
     this.form.controls.accountType.disable();
     this.openingPosted.set(Boolean(account.openingBalance));
     this.derivedBalance.set(account.derivedBalances?.balance.amount ?? null);

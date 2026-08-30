@@ -6,7 +6,6 @@ const { createAuditWriter } = require('../../platform/audit/audit-writer');
 const { assertOptimisticVersion } = require('../../platform/validation/request-validation');
 const {
   conflict,
-  forbidden,
   notFound,
   validationFailed,
 } = require('../../platform/errors/app-error');
@@ -19,6 +18,14 @@ const {
   createInMemoryIdempotencyStore,
   createMongooseIdempotencyStore,
 } = require('../../platform/idempotency/idempotency-service');
+const {
+  assertOptionalLocationFilters,
+  assertRecordAssignmentScope,
+  resolveAccessibleWarehouseIds,
+  canAccessWarehouse,
+  canAccessBranch,
+} = require('../identity/assignment-scope');
+const { assignmentScopeDenied } = require('../../platform/errors/app-error');
 const {
   parsePurchaseDraft,
   parsePurchasePost,
@@ -34,6 +41,18 @@ const {
   createInMemoryPurchasesStore,
   createMongoosePurchasesStore,
 } = require('./purchases.store');
+
+const PURCHASE_DRAFT_FIELD_CONTROLS = Object.freeze({
+  branchId: 'purchases.fields.branch',
+  supplierInvoiceReference: 'purchases.fields.supplierInvoiceReference',
+  notes: 'purchases.fields.notes',
+  landedCosts: 'purchases.fields.landedCosts',
+});
+
+const PURCHASE_LINE_FIELD_CONTROLS = Object.freeze({
+  packagingUnitId: 'purchases.fields.packagingUnit',
+  manufacturingDate: 'purchases.fields.manufacturingDate',
+});
 
 function requireIdempotencyKey(idempotencyKey) {
   if (typeof idempotencyKey !== 'string' || idempotencyKey.trim() === '') {
@@ -208,11 +227,39 @@ function createPurchasesService(deps) {
     append: (session, event) => store.appendAuditEvent(session, event),
   });
 
-  async function assertWarehouseAccess(authContext, warehouseId) {
-    if (typeof deps.canAccessWarehouse === 'function') {
-      if (!deps.canAccessWarehouse(authContext, String(warehouseId))) {
-        throw forbidden('Warehouse assignment is required');
+  async function assertDraftFieldEditability(organizationId, body) {
+    if (
+      !deps.capabilityService ||
+      body === null ||
+      typeof body !== 'object' ||
+      Array.isArray(body)
+    ) {
+      return;
+    }
+    const controls = new Set();
+    for (const [field, controlKey] of Object.entries(PURCHASE_DRAFT_FIELD_CONTROLS)) {
+      if (body[field] !== undefined) controls.add(controlKey);
+    }
+    if (Array.isArray(body.lines)) {
+      for (const line of body.lines) {
+        if (line === null || typeof line !== 'object' || Array.isArray(line)) continue;
+        for (const [field, controlKey] of Object.entries(PURCHASE_LINE_FIELD_CONTROLS)) {
+          if (line[field] !== undefined) controls.add(controlKey);
+        }
       }
+    }
+    for (const controlKey of controls) {
+      await deps.capabilityService.assertAllowed(organizationId, controlKey, 'editable');
+    }
+  }
+
+  async function assertWarehouseAccess(authContext, warehouseId) {
+    const allowed =
+      typeof deps.canAccessWarehouse === 'function'
+        ? deps.canAccessWarehouse(authContext, String(warehouseId))
+        : canAccessWarehouse(authContext, String(warehouseId));
+    if (!allowed) {
+      throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
     }
   }
 
@@ -220,10 +267,12 @@ function createPurchasesService(deps) {
     if (branchId === null || branchId === undefined) {
       return;
     }
-    if (typeof deps.canAccessBranch === 'function') {
-      if (!deps.canAccessBranch(authContext, String(branchId))) {
-        throw forbidden('Branch assignment is required');
-      }
+    const allowed =
+      typeof deps.canAccessBranch === 'function'
+        ? deps.canAccessBranch(authContext, String(branchId))
+        : canAccessBranch(authContext, String(branchId));
+    if (!allowed) {
+      throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
     }
   }
 
@@ -295,22 +344,19 @@ function createPurchasesService(deps) {
 
   return {
     async listPurchases(organizationId, query = {}, authContext) {
-      const items = await store.listPurchases(organizationId, {
+      assertOptionalLocationFilters(authContext, {
+        warehouseId: query.warehouseId,
+        branchId: query.branchId,
+      });
+      const warehouseIds = resolveAccessibleWarehouseIds(authContext);
+      const { items, total } = await store.listPurchases(organizationId, {
         status: query.status,
         supplierId: query.supplierId,
         warehouseId: query.warehouseId,
-      });
-      const filtered = [];
-      for (const item of items) {
-        if (
-          typeof deps.canAccessWarehouse === 'function' &&
-          !deps.canAccessWarehouse(authContext, String(item.warehouseId))
-        ) {
-          continue;
-        }
-        filtered.push(toPurchaseDto(item));
-      }
-      return { items: filtered };
+        warehouseIds: query.warehouseId ? undefined : warehouseIds === null ? undefined : warehouseIds,
+        search: query.search,
+      }, { skip: query.skip, pageSize: query.pageSize });
+      return { items: items.map((item) => toPurchaseDto(item)), total };
     },
 
     async getPurchase(organizationId, purchaseId, authContext) {
@@ -318,16 +364,12 @@ function createPurchasesService(deps) {
       if (record === null) {
         throw notFound('Purchase not found');
       }
-      if (
-        typeof deps.canAccessWarehouse === 'function' &&
-        !deps.canAccessWarehouse(authContext, String(record.warehouseId))
-      ) {
-        throw notFound('Purchase not found');
-      }
+      assertRecordAssignmentScope(authContext, record);
       return toPurchaseDto(record);
     },
 
     async createPurchaseDraft(organizationId, body, authContext) {
+      await assertDraftFieldEditability(organizationId, body);
       const input = parsePurchaseDraft(body);
       const { supplier } = await resolveHeaderMasters(organizationId, input, authContext);
       const lines = await buildResolvedLines({ catalogService }, organizationId, input.lines);
@@ -383,6 +425,8 @@ function createPurchasesService(deps) {
       ) {
         throw notFound('Purchase not found');
       }
+
+      await assertDraftFieldEditability(organizationId, body);
 
       const input = parsePurchaseDraft(body, { partial: true });
       assertOptimisticVersion(existing, input.expectedVersion);
@@ -485,6 +529,14 @@ function createPurchasesService(deps) {
     async postPurchase(organizationId, purchaseId, body, authContext, idempotencyKey) {
       if (!inventoryService || !paymentsService || !accountsService) {
         throw validationFailed('Purchase posting dependencies are not configured');
+      }
+
+      if (deps.capabilityService && Array.isArray(body?.payments) && body.payments.length > 0) {
+        await deps.capabilityService.assertAllowed(
+          organizationId,
+          'purchases.actions.addPaymentAtPost',
+          'allowed',
+        );
       }
 
       const key = requireIdempotencyKey(idempotencyKey);
@@ -707,7 +759,7 @@ function createPurchasesService(deps) {
     },
 
     async listUnpaidSupplierPurchases(organizationId, supplierId) {
-      const items = await store.listPurchases(organizationId, {
+      const { items } = await store.listPurchases(organizationId, {
         status: 'posted',
         supplierId,
       });
@@ -974,6 +1026,7 @@ function createPurchasesModule(options = {}) {
     inventoryService: options.inventoryService,
     paymentsService: options.paymentsService,
     accountsService: options.accountsService,
+    capabilityService: options.capabilityService,
     canAccessWarehouse: options.canAccessWarehouse,
     canAccessBranch: options.canAccessBranch,
     ...(options.listPurchaseReturnCredits === undefined

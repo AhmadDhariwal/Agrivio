@@ -72,6 +72,8 @@ describe('loadApiEnv', () => {
       SESSION_SECRET: 'abcdefghijklmnopqrstuvwxyz012345',
       MONGODB_URI: 'mongodb://127.0.0.1:27017/?replicaSet=rs0',
       AGRIVIO_PUBLIC_WEB_BASE_URL: 'https://app.example.com',
+      AGRIVIO_SMTP_HOST: 'smtp.example.com',
+      AGRIVIO_SMTP_FROM: 'noreply@example.com',
     });
     expect(config.allowedOrigins).toEqual(['https://app.example.com']);
     expect(config.allowLoopbackBrowserOrigins).toBe(false);
@@ -103,6 +105,8 @@ describe('loadApiEnv', () => {
 
     expect(config.profile).toBe('test');
     expect(config.sessionSecret).toBe('test-session-secret');
+    expect(config.mongodbDbName).toBe('agrivio_test_default');
+    expect(config.mongodbDbName).not.toBe('Agrivio');
   });
 
   it('rejects invalid PORT values', () => {

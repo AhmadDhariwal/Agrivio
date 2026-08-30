@@ -25,6 +25,7 @@ describe('PasswordResetConfirmPage', () => {
     page.form.setValue({
       token: 'reset-token',
       password: 'a-strong-passphrase',
+      passwordConfirmation: 'a-strong-passphrase',
     });
     page.submit();
 

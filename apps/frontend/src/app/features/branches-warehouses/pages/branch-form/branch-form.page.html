@@ -12,30 +12,75 @@
   @if (errorMessage(); as error) {
     <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
   }
-  <form class="ag-stack form" [formGroup]="form" (ngSubmit)="save()" data-testid="branch-form">
-    <label>
-      Name
-      <input formControlName="name" data-testid="branch-name" />
-    </label>
-    <label>
-      Invoice prefix
-      <input formControlName="invoicePrefix" data-testid="branch-invoice-prefix" />
-    </label>
-    <label>
-      Code (optional)
-      <input formControlName="code" data-testid="branch-code" />
-    </label>
+  <form
+    class="ag-stack form ag-form ag-form--with-required-hint"
+    [formGroup]="form"
+    (ngSubmit)="save()"
+    data-testid="branch-form"
+  >
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Name"
+        for="branch-name"
+        [required]="fieldRequired(form.controls.name)"
+      />
+      <input
+        id="branch-name"
+        class="ag-input"
+        formControlName="name"
+        data-testid="branch-name"
+        [class.ag-input--invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted())"
+        [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
+        [attr.aria-invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted()) ? 'true' : null"
+      />
+      @if (fieldError(form.controls.name, 'Name', formSubmitAttempted()); as nameError) {
+        <p class="field-error" role="alert">{{ nameError }}</p>
+      }
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label
+        label="Invoice prefix"
+        for="branch-invoice-prefix"
+        [required]="fieldRequired(form.controls.invoicePrefix)"
+      />
+      <input
+        id="branch-invoice-prefix"
+        class="ag-input"
+        formControlName="invoicePrefix"
+        data-testid="branch-invoice-prefix"
+        [class.ag-input--invalid]="fieldError(form.controls.invoicePrefix, 'Invoice prefix', formSubmitAttempted())"
+        [attr.aria-required]="fieldRequired(form.controls.invoicePrefix) ? 'true' : null"
+        [attr.aria-invalid]="fieldError(form.controls.invoicePrefix, 'Invoice prefix', formSubmitAttempted()) ? 'true' : null"
+      />
+      @if (fieldError(form.controls.invoicePrefix, 'Invoice prefix', formSubmitAttempted()); as prefixError) {
+        <p class="field-error" role="alert">{{ prefixError }}</p>
+      }
+    </div>
+    <div class="ag-field">
+      <agrivio-ui-field-label label="Code (optional)" for="branch-code" />
+      <input
+        id="branch-code"
+        class="ag-input"
+        formControlName="code"
+        data-testid="branch-code"
+        [class.ag-input--invalid]="fieldError(form.controls.code, 'Code', formSubmitAttempted())"
+        [attr.aria-invalid]="fieldError(form.controls.code, 'Code', formSubmitAttempted()) ? 'true' : null"
+      />
+      @if (fieldError(form.controls.code, 'Code', formSubmitAttempted()); as codeError) {
+        <p class="field-error" role="alert">{{ codeError }}</p>
+      }
+    </div>
     @if (branchId()) {
-      <label>
-        Status
-        <select formControlName="status" data-testid="branch-status">
+      <div class="ag-field">
+        <agrivio-ui-field-label label="Status" for="branch-status" />
+        <select id="branch-status" class="ag-select" formControlName="status" data-testid="branch-status">
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
-      </label>
+      </div>
     }
     <div class="ag-inline">
-      <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="branch-save">Save</button>
+      <button class="ag-btn" type="submit" [disabled]="!canSave()" data-testid="branch-save">Save</button>
       <a class="ag-btn ag-btn--secondary" routerLink="/app/branches">Cancel</a>
     </div>
   </form>

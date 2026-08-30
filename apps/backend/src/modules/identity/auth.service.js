@@ -13,9 +13,9 @@ const {
   parsePasswordResetRequestBody,
   parseSessionContextBody,
 } = require('./auth.validation');
-const { createAuthRateLimiter } = require('./auth.rate-limit');
+const { createAuthRateLimiter, resolveAuthRateLimiterOptions } = require('./auth.rate-limit');
 
-const INACTIVITY_MS = 30 * 60 * 1000;
+const INACTIVITY_MS = 4 * 60 * 60 * 1000;
 const ABSOLUTE_MS = 12 * 60 * 60 * 1000;
 const PREAUTH_MS = 60 * 60 * 1000;
 const RESET_TTL_MS = 30 * 60 * 1000;
@@ -29,8 +29,7 @@ function createAuthService(deps) {
   const now = deps.now ?? (() => new Date());
   const nodeEnv = deps.nodeEnv ?? 'development';
   const rateLimiter =
-    deps.rateLimiter ??
-    createAuthRateLimiter(nodeEnv === 'test' ? { maxAttempts: 10_000 } : {});
+    deps.rateLimiter ?? createAuthRateLimiter(resolveAuthRateLimiterOptions(nodeEnv));
   const auditWriter = createAuditWriter({
     append: (session, event) => store.appendAuditEvent(session, event),
   });
@@ -550,6 +549,16 @@ function createAuthService(deps) {
           expiresAt: new Date(at.getTime() + RESET_TTL_MS),
         });
         issuedToken = token.token;
+        if (deps.mailTransport && typeof deps.mailTransport.sendPasswordReset === 'function') {
+          try {
+            await deps.mailTransport.sendPasswordReset({
+              email: input.email,
+              token: token.token,
+            });
+          } catch {
+            // Generic response is still returned; delivery failure is not enumerated.
+          }
+        }
         await auditWriter.appendBusinessEvent(null, {
           actorId: String(user['_id']),
           action: 'auth.password_reset_requested',

@@ -11,6 +11,13 @@ export interface ProductBatchRecord {
   manufacturingDate: string | null;
   expiryDate: string | null;
   firstReceivedAt: string;
+  stockLocations?: BatchStockLocation[];
+}
+
+export interface BatchStockLocation {
+  warehouseId: string;
+  quantityBase: string;
+  unsellableQuantityBase: string;
 }
 
 export interface InventoryBalanceRecord {
@@ -19,7 +26,9 @@ export interface InventoryBalanceRecord {
   warehouseId: string;
   productId: string;
   batchId: string | null;
+  batchNumberSnapshot?: string | null;
   quantityBase: string;
+  unsellableQuantityBase?: string;
   version: number;
   valuation?: {
     inventoryValue: MoneyAmount;
@@ -44,9 +53,16 @@ export interface StockMovementRecord {
   unitCost: MoneyAmount | null;
   sourceType: string;
   sourceId: string;
+  stockCondition?: string;
   status: string;
   postedAt: string;
   postedBy: string;
+  productNameSnapshot?: string | null;
+  productSkuSnapshot?: string | null;
+  productBaseUnitSnapshot?: string | null;
+  warehouseNameSnapshot?: string | null;
+  warehouseCodeSnapshot?: string | null;
+  batchNumberSnapshot?: string | null;
 }
 
 export interface OpeningStockResult {
@@ -113,14 +129,25 @@ export interface WarehouseTransferRecord {
   quantityBase: string;
   enteredQuantity: string;
   unitCode: string;
+  conversionFactorSnapshot?: string;
+  packagingUnitId?: string | null;
   transferValue: MoneyAmount | null;
   reason: string | null;
   status: 'draft' | 'posted' | 'reversed';
+  postedAt?: string | null;
+  postedBy?: string | null;
   outboundMovementId: string | null;
   inboundMovementId: string | null;
   reversalOfId: string | null;
   reversedByTransferId: string | null;
+  negativeStockOverride?: boolean;
   version: number;
+  productNameSnapshot?: string | null;
+  productSkuSnapshot?: string | null;
+  sourceWarehouseNameSnapshot?: string | null;
+  sourceWarehouseCodeSnapshot?: string | null;
+  destinationWarehouseNameSnapshot?: string | null;
+  destinationWarehouseCodeSnapshot?: string | null;
 }
 
 export interface ReconciliationResult {

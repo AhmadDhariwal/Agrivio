@@ -70,3 +70,7 @@ npx playwright test apps/frontend/tests/e2e/f03-p3-setup.e2e.spec.ts  # pass
 
 * F03 exit gate acceptance
 * F04 Inventory Engine
+
+## API/cache hardening follow-up (2026-08-30)
+
+Guided setup progress uses a short organization-scoped cache, supports explicit force refresh, and is invalidated by successful organization/settings, branch, warehouse, and employee mutations covered by the setup read model.

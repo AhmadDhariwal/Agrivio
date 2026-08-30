@@ -4,14 +4,24 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { SuppliersApi } from '../../data-access/suppliers.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import {
+  fieldValidationMessage,
+  hasRequiredValidator,
+} from '../../../../shared/form/form-field.util';
 import {
   mapPlanLimitError,
   softWarningMessage,
 } from '../../../../core/plan-limits/plan-limit-feedback';
 import { SupplierRecord } from '../../models/suppliers.models';
+
+const MAX_NAME = 160;
+const MAX_PHONE = 32;
+const MAX_CONTACT = 120;
+const MAX_EMAIL = 160;
 
 @Component({
   selector: 'agrivio-supplier-form-page',
@@ -19,9 +29,9 @@ import { SupplierRecord } from '../../models/suppliers.models';
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiFieldLabelComponent,
   ],
   templateUrl: './supplier-form.page.html',
   styleUrl: './supplier-form.page.scss',
@@ -29,6 +39,7 @@ import { SupplierRecord } from '../../models/suppliers.models';
 export class SupplierFormPage {
   private readonly api = inject(SuppliersApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
@@ -39,18 +50,50 @@ export class SupplierFormPage {
   readonly postingOpening = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly softWarning = signal<string | null>(null);
+  readonly formSubmitAttempted = signal(false);
   readonly openingPosted = signal(false);
-  readonly canManage = computed(() => this.sessionStore.hasPermission('suppliers.manage'));
-  readonly canPostOpening = computed(() =>
-    this.sessionStore.hasPermission('suppliers.opening-balance.post'),
+
+  readonly canUseSuppliers = computed(
+    () => this.capabilityService?.canUseModule('suppliers') ?? true,
   );
+
+  readonly canManage = computed(() => {
+    const hasPerm = this.sessionStore.hasPermission('suppliers.manage');
+    if (!hasPerm || !this.canUseSuppliers()) return false;
+    const isEdit = Boolean(this.supplierId());
+    const actionKey = isEdit ? 'suppliers.actions.edit' : 'suppliers.actions.create';
+    return this.capabilityService?.canPerformAction(actionKey) ?? true;
+  });
+
+  readonly canPostOpening = computed(() => {
+    const hasPerm = this.sessionStore.hasPermission('suppliers.opening-balance.post');
+    const actionOk =
+      this.capabilityService?.canPerformAction('suppliers.actions.postOpeningBalance') ?? true;
+    return hasPerm && this.canUseSuppliers() && actionOk;
+  });
+
+  readonly canSave = computed(() => this.canManage() && this.form.valid && !this.saving());
+
+  readonly showContactName = computed(
+    () => this.capabilityService?.canViewField('suppliers.fields.contactName') ?? true,
+  );
+  readonly showPhone = computed(
+    () => this.capabilityService?.canViewField('suppliers.fields.phone') ?? true,
+  );
+  readonly showEmail = computed(
+    () => this.capabilityService?.canViewField('suppliers.fields.email') ?? true,
+  );
+
   private version = 1;
 
+  readonly fieldRequired = hasRequiredValidator;
+  readonly fieldError = fieldValidationMessage;
+
   readonly form = this.formBuilder.nonNullable.group({
-    name: ['', [Validators.required, Validators.minLength(2)]],
-    phone: [''],
-    contactName: [''],
-    email: [''],
+    name: ['', [Validators.required, Validators.maxLength(MAX_NAME)]],
+    phone: ['', [Validators.maxLength(MAX_PHONE)]],
+    contactName: ['', [Validators.maxLength(MAX_CONTACT)]],
+    email: ['', [Validators.maxLength(MAX_EMAIL)]],
     status: ['active'],
   });
 
@@ -60,6 +103,7 @@ export class SupplierFormPage {
   });
 
   constructor() {
+    this.checkFieldPermissions();
     const id = this.route.snapshot.paramMap.get('id');
     if (id && id !== 'new') {
       this.supplierId.set(id);
@@ -78,8 +122,9 @@ export class SupplierFormPage {
   }
 
   save(): void {
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
     if (!this.canManage() || this.form.invalid) {
-      this.form.markAllAsTouched();
       return;
     }
     this.saving.set(true);
@@ -89,19 +134,15 @@ export class SupplierFormPage {
     const request$ =
       this.supplierId() === null
         ? this.api.createSupplier({
-            name: value.name,
-            phone: value.phone,
-            contactName: value.contactName,
-            email: value.email,
+            name: value.name.trim(),
+            phone: value.phone.trim(),
+            contactName: value.contactName.trim(),
+            email: value.email.trim(),
           })
-        : this.api.updateSupplier(this.supplierId()!, {
-            expectedVersion: this.version,
-            name: value.name,
-            phone: value.phone,
-            contactName: value.contactName,
-            email: value.email,
-            status: value.status,
-          });
+        : this.api.updateSupplier(
+            this.supplierId()!,
+            this.buildSupplierUpdatePayload(value),
+          );
 
     request$.subscribe({
       next: (record) => {
@@ -152,6 +193,45 @@ export class SupplierFormPage {
       });
   }
 
+  private buildSupplierUpdatePayload(
+    value: ReturnType<typeof this.form.getRawValue>,
+  ): {
+    expectedVersion: number;
+    name?: string;
+    phone?: string;
+    contactName?: string;
+    email?: string;
+    status?: string;
+  } {
+    const payload: {
+      expectedVersion: number;
+      name?: string;
+      phone?: string;
+      contactName?: string;
+      email?: string;
+      status?: string;
+    } = { expectedVersion: this.version };
+    const controls = this.form.controls;
+
+    if (!controls.name.disabled) {
+      payload.name = value.name.trim();
+    }
+    if (!controls.phone.disabled) {
+      payload.phone = value.phone.trim();
+    }
+    if (!controls.contactName.disabled) {
+      payload.contactName = value.contactName.trim();
+    }
+    if (!controls.email.disabled) {
+      payload.email = value.email.trim();
+    }
+    if (!controls.status.disabled) {
+      payload.status = value.status;
+    }
+
+    return payload;
+  }
+
   private applySupplier(supplier: SupplierRecord): void {
     this.version = supplier.version;
     this.form.patchValue({
@@ -162,12 +242,28 @@ export class SupplierFormPage {
       status: supplier.status,
     });
     this.openingPosted.set(Boolean(supplier.openingBalance));
+    this.checkFieldPermissions();
     if (supplier.openingBalance) {
       this.openingForm.patchValue({
         kind: supplier.openingBalance.kind,
         amount: supplier.openingBalance.amount.amount,
       });
       this.openingForm.disable();
+    }
+  }
+
+  private checkFieldPermissions(): void {
+    if (this.capabilityService && !this.capabilityService.canEditField('suppliers.fields.name')) {
+      this.form.controls.name.disable();
+    }
+    if (this.capabilityService && !this.capabilityService.canEditField('suppliers.fields.contactName')) {
+      this.form.controls.contactName.disable();
+    }
+    if (this.capabilityService && !this.capabilityService.canEditField('suppliers.fields.phone')) {
+      this.form.controls.phone.disable();
+    }
+    if (this.capabilityService && !this.capabilityService.canEditField('suppliers.fields.email')) {
+      this.form.controls.email.disable();
     }
   }
 

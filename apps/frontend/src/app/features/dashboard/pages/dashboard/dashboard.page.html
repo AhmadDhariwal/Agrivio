@@ -1,114 +1,882 @@
-<div data-testid="dashboard-page">
-<agrivio-ui-page-header title="Dashboard" lede="Operational overview for today" />
+<div class="dashboard-shell" data-testid="dashboard-page">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">Operations &amp; Overview</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">Dashboard</h1>
+      </div>
+      <p class="page-head__lede">Operational overview for your organization.</p>
+    </div>
+    <div class="page-head__actions">
+      <button
+        type="button"
+        class="ag-btn ag-btn--secondary page-head__refresh-btn"
+        (click)="reload(true)"
+        data-testid="dashboard-refresh-btn"
+        [disabled]="loading()"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          [class.spin]="loading()"
+        >
+          <path d="M21.5 2v6h-6" />
+          <path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+        </svg>
+        <span>Refresh</span>
+      </button>
+    </div>
+  </header>
 
-@if (!canView()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to view the dashboard." />
-} @else if (loading()) {
-  <agrivio-ui-loading-state label="Loading dashboard…" />
-} @else if (errorMessage(); as error) {
-  <agrivio-ui-alert tone="danger" [message]="error" />
-} @else if (dashboard(); as data) {
-  <p class="dash-meta" data-testid="dashboard-business-date">Business date: {{ data.businessDate }}</p>
+  <!-- Alerts & Session Gating -->
+  @if (!canView() || !canUseDashboard()) {
+    <div class="alert-container" data-testid="dashboard-permission-alert">
+      <agrivio-ui-alert tone="warning" message="You do not have permission to view the dashboard." />
+    </div>
+  } @else if (loading() && !dashboard()) {
+    <div class="loading-container">
+      <agrivio-ui-loading-state label="Loading dashboard operational overview…" />
+    </div>
+  } @else if (errorMessage(); as error) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+    </div>
+  } @else if (dashboard(); as data) {
+    <!-- 0. All Widgets Disabled Fallback -->
+    @if (!hasAnyWidgetEnabled()) {
+      <div class="empty-dashboard-container" data-testid="dash-no-widgets-empty">
+        <agrivio-ui-empty-state
+          title="No dashboard widgets enabled"
+          message="No dashboard widgets are enabled for this organization."
+        />
+      </div>
+    }
 
-  <section class="dash-grid" aria-label="Today metrics">
-    <div>
-      <h2>Today's sales</h2>
-      <p data-testid="dash-todays-sales">{{ data.todaysSales.amount }} {{ data.todaysSales.currency }}</p>
-    </div>
-    <div>
-      <h2>Today's purchases</h2>
-      <p data-testid="dash-todays-purchases">
-        {{ data.todaysPurchases.amount }} {{ data.todaysPurchases.currency }}
-      </p>
-    </div>
-    <div>
-      <h2>Today's expenses</h2>
-      <p data-testid="dash-todays-expenses">
-        {{ data.todaysExpenses.amount }} {{ data.todaysExpenses.currency }}
-      </p>
-    </div>
-    <div>
-      <h2>Gross profit</h2>
-      <p data-testid="dash-gross-profit">{{ data.grossProfit.amount }} {{ data.grossProfit.currency }}</p>
-    </div>
-  </section>
+    <!-- Dashboard Filter Toolbar -->
+    @if (hasAnyFilterEnabled()) {
+      <section class="toolbar" aria-label="Dashboard filter bar" data-testid="dashboard-filter-toolbar">
+        <form class="toolbar__form" (submit)="$event.preventDefault(); reload()">
+          <div class="toolbar__fields">
+            @if (canUseDateFilter()) {
+              <div class="filter-field">
+                <label class="filter-field__label" for="dash-from">From date</label>
+                <input
+                  id="dash-from"
+                  class="filter-field__input"
+                  type="date"
+                  [ngModel]="fromDate()"
+                  (ngModelChange)="fromDate.set($event)"
+                  name="fromDate"
+                  data-testid="dashboard-from-date-input"
+                />
+              </div>
+              <div class="filter-field">
+                <label class="filter-field__label" for="dash-to">To date</label>
+                <input
+                  id="dash-to"
+                  class="filter-field__input"
+                  type="date"
+                  [ngModel]="toDate()"
+                  (ngModelChange)="toDate.set($event)"
+                  name="toDate"
+                  data-testid="dashboard-to-date-input"
+                />
+              </div>
+            }
+            @if (canUseBranchFilter()) {
+              <div class="filter-field">
+                <label class="filter-field__label" for="dash-branch">Branch</label>
+                <select
+                  id="dash-branch"
+                  class="filter-field__select"
+                  [ngModel]="branchId()"
+                  (ngModelChange)="branchId.set($event)"
+                  name="branchId"
+                  [disabled]="filtersLoading()"
+                  data-testid="dashboard-branch-select"
+                >
+                  <option value="">All permitted branches</option>
+                  @for (branch of branches(); track branch.id) {
+                    <option [value]="branch.id">{{ branch.name }}</option>
+                  }
+                </select>
+              </div>
+            }
+            @if (canUseWarehouseFilter()) {
+              <div class="filter-field">
+                <label class="filter-field__label" for="dash-warehouse">Warehouse</label>
+                <select
+                  id="dash-warehouse"
+                  class="filter-field__select"
+                  [ngModel]="warehouseId()"
+                  (ngModelChange)="warehouseId.set($event)"
+                  name="warehouseId"
+                  [disabled]="filtersLoading()"
+                  data-testid="dashboard-warehouse-select"
+                >
+                  <option value="">All permitted warehouses</option>
+                  @for (warehouse of warehouses(); track warehouse.id) {
+                    <option [value]="warehouse.id">{{ warehouse.name }}</option>
+                  }
+                </select>
+              </div>
+            }
+          </div>
 
-  <section class="dash-grid" aria-label="Balances">
-    <div>
-      <h2>Cash</h2>
-      <p>{{ data.cashBalances.amount }} {{ data.cashBalances.currency }}</p>
-    </div>
-    <div>
-      <h2>Bank</h2>
-      <p>{{ data.bankBalances.amount }} {{ data.bankBalances.currency }}</p>
-    </div>
-    <div>
-      <h2>JazzCash</h2>
-      <p>{{ data.jazzCashBalance.amount }} {{ data.jazzCashBalance.currency }}</p>
-    </div>
-    <div>
-      <h2>Easypaisa</h2>
-      <p>{{ data.easypaisaBalance.amount }} {{ data.easypaisaBalance.currency }}</p>
-    </div>
-    <div>
-      <h2>Customer receivables</h2>
-      <p data-testid="dash-receivables">
-        {{ data.customerReceivables.amount }} {{ data.customerReceivables.currency }}
-      </p>
-    </div>
-    <div>
-      <h2>Supplier payables</h2>
-      <p data-testid="dash-payables">
-        {{ data.supplierPayables.amount }} {{ data.supplierPayables.currency }}
-      </p>
-    </div>
-  </section>
+          <div class="toolbar__actions">
+            <button type="submit" class="ag-btn ag-btn--primary filter-apply-btn" data-testid="dashboard-apply-filters-btn">
+              Apply Filters
+            </button>
+            @if (hasActiveFilters()) {
+              <button
+                type="button"
+                class="filter-clear-btn"
+                (click)="clearFilters()"
+                data-testid="dashboard-clear-filters-btn"
+              >
+                Clear filters
+              </button>
+            }
+          </div>
+        </form>
+      </section>
+    }
+    <!-- 1. Primary Financial KPI Row (5 Cards) -->
+    @if (canShowFinancialSummary() && data.periodSales !== undefined) {
+      <section class="kpi-row kpi-row--primary" aria-label="Primary Financial Summary">
+        <!-- Sales (Period) -->
+        @if (canViewSales()) {
+          <a routerLink="/app/sales" class="kpi-card kpi-card--link" data-testid="dash-card-sales">
+            <div class="kpi-card__icon kpi-card__icon--green">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Sales</span>
+              <span class="kpi-card__value" data-testid="dash-todays-sales">{{ formatMoney(data.periodSales) }}</span>
+              <span class="kpi-card__subtext">Today: {{ formatMoney(data.todaysSales) }}</span>
+            </div>
+          </a>
+        } @else {
+          <div class="kpi-card" data-testid="dash-card-sales">
+            <div class="kpi-card__icon kpi-card__icon--green">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Sales</span>
+              <span class="kpi-card__value" data-testid="dash-todays-sales">{{ formatMoney(data.periodSales) }}</span>
+              <span class="kpi-card__subtext">Today: {{ formatMoney(data.todaysSales) }}</span>
+            </div>
+          </div>
+        }
 
-  <section class="dash-grid" aria-label="Inventory alerts">
-    <div>
-      <h2>Low stock</h2>
-      <p data-testid="dash-low-stock">{{ data.lowStockCount }}</p>
-    </div>
-    <div>
-      <h2>Upcoming expiry</h2>
-      <p data-testid="dash-upcoming-expiry">{{ data.upcomingExpiryCount }}</p>
-    </div>
-    <div>
-      <h2>Expired stock</h2>
-      <p data-testid="dash-expired-stock">{{ data.expiredStockCount }}</p>
-    </div>
-    <div>
-      <h2>Dead stock</h2>
-      <p data-testid="dash-dead-stock">{{ data.deadStockSummary.count }}</p>
-    </div>
-  </section>
+        <!-- Purchases (Period) -->
+        @if (canViewPurchases()) {
+          <a routerLink="/app/purchases" class="kpi-card kpi-card--link" data-testid="dash-card-purchases">
+            <div class="kpi-card__icon kpi-card__icon--blue">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="9" cy="21" r="1" />
+                <circle cx="20" cy="21" r="1" />
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Purchases</span>
+              <span class="kpi-card__value" data-testid="dash-todays-purchases">{{ formatMoney(data.periodPurchases) }}</span>
+              <span class="kpi-card__subtext">Today: {{ formatMoney(data.todaysPurchases) }}</span>
+            </div>
+          </a>
+        } @else {
+          <div class="kpi-card" data-testid="dash-card-purchases">
+            <div class="kpi-card__icon kpi-card__icon--blue">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="9" cy="21" r="1" />
+                <circle cx="20" cy="21" r="1" />
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Purchases</span>
+              <span class="kpi-card__value" data-testid="dash-todays-purchases">{{ formatMoney(data.periodPurchases) }}</span>
+              <span class="kpi-card__subtext">Today: {{ formatMoney(data.todaysPurchases) }}</span>
+            </div>
+          </div>
+        }
 
-  <section aria-label="Recent sales">
-    <h2>Recent sales</h2>
-    <ul data-testid="dash-recent-sales">
-      @for (sale of data.recentSales; track sale.id) {
-        <li>
-          {{ sale.invoiceNumber || sale.id }} — {{ sale.saleDate }} —
-          {{ sale.saleTotal?.amount }} {{ sale.saleTotal?.currency }}
-        </li>
-      }
-    </ul>
-  </section>
+        <!-- Expenses (Today's Expenses) -->
+        @if (canViewExpenses()) {
+          <a routerLink="/app/expenses" class="kpi-card kpi-card--link" data-testid="dash-card-expenses">
+            <div class="kpi-card__icon kpi-card__icon--amber">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+                <line x1="2" y1="10" x2="22" y2="10" />
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Expenses (Today)</span>
+              <span class="kpi-card__value" data-testid="dash-todays-expenses">{{ formatMoney(data.todaysExpenses) }}</span>
+              <span class="kpi-card__subtext">Today's posted expenses</span>
+            </div>
+          </a>
+        } @else {
+          <div class="kpi-card" data-testid="dash-card-expenses">
+            <div class="kpi-card__icon kpi-card__icon--amber">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+                <line x1="2" y1="10" x2="22" y2="10" />
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Expenses (Today)</span>
+              <span class="kpi-card__value" data-testid="dash-todays-expenses">{{ formatMoney(data.todaysExpenses) }}</span>
+              <span class="kpi-card__subtext">Today's posted expenses</span>
+            </div>
+          </div>
+        }
 
-  <section aria-label="Top-selling products">
-    <h2>Top-selling products</h2>
-    <ul data-testid="dash-top-products">
-      @for (product of data.topSellingProducts; track product.productId) {
-        <li>
-          {{ product.productName }} — qty {{ product.quantityBase }} — {{ product.revenue.amount }}
-          {{ product.revenue.currency }}
-        </li>
-      }
-    </ul>
-  </section>
+        <!-- Gross Profit (Period) -->
+        @if (canViewReports()) {
+          <a routerLink="/app/reports" class="kpi-card kpi-card--link" data-testid="dash-card-gross-profit">
+            <div class="kpi-card__icon kpi-card__icon--green">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                <polyline points="17 6 23 6 23 12" />
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Gross Profit</span>
+              <span class="kpi-card__value" data-testid="dash-gross-profit">{{ formatMoney(data.periodGrossProfit) }}</span>
+              <span class="kpi-card__subtext">Period revenue less COGS</span>
+            </div>
+          </a>
+        } @else {
+          <div class="kpi-card" data-testid="dash-card-gross-profit">
+            <div class="kpi-card__icon kpi-card__icon--green">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                <polyline points="17 6 23 6 23 12" />
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Gross Profit</span>
+              <span class="kpi-card__value" data-testid="dash-gross-profit">{{ formatMoney(data.periodGrossProfit) }}</span>
+              <span class="kpi-card__subtext">Period revenue less COGS</span>
+            </div>
+          </div>
+        }
 
-  <p>
-    <a routerLink="/app/alerts" href="/app/alerts" data-testid="dash-alerts-link">Open notification center</a>
-  </p>
-}
+        <!-- Customer Receivables (Current Balance) -->
+        @if (canViewCustomers()) {
+          <a routerLink="/app/customers" class="kpi-card kpi-card--link" data-testid="dash-card-receivables">
+            <div class="kpi-card__icon kpi-card__icon--purple">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Customer Receivables</span>
+              <span class="kpi-card__value" data-testid="dash-receivables">{{ formatMoney(data.customerReceivables) }}</span>
+              <span class="kpi-card__subtext">Current ledger balance</span>
+            </div>
+          </a>
+        } @else {
+          <div class="kpi-card" data-testid="dash-card-receivables">
+            <div class="kpi-card__icon kpi-card__icon--purple">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Customer Receivables</span>
+              <span class="kpi-card__value" data-testid="dash-receivables">{{ formatMoney(data.customerReceivables) }}</span>
+              <span class="kpi-card__subtext">Current ledger balance</span>
+            </div>
+          </div>
+        }
+      </section>
+    }
+
+    <!-- 2. Secondary Financial & Account KPI Row (6 Cards) -->
+    @if (hasSecondaryCards()) {
+      <section class="kpi-row kpi-row--secondary" aria-label="Account Balances and Payables">
+        <!-- Supplier Payables -->
+        @if (canShowFinancialSummary() && data.supplierPayables !== undefined) {
+          @if (canViewSuppliers()) {
+            <a routerLink="/app/suppliers" class="kpi-card kpi-card--link" data-testid="dash-card-payables">
+              <div class="kpi-card__icon kpi-card__icon--red">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <line x1="19" y1="8" x2="19" y2="14" />
+                  <line x1="22" y1="11" x2="16" y2="11" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Supplier Payables</span>
+                <span class="kpi-card__value" data-testid="dash-payables">{{ formatMoney(data.supplierPayables) }}</span>
+                <span class="kpi-card__subtext">Current payable balance</span>
+              </div>
+            </a>
+          } @else {
+            <div class="kpi-card" data-testid="dash-card-payables">
+              <div class="kpi-card__icon kpi-card__icon--red">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Supplier Payables</span>
+                <span class="kpi-card__value" data-testid="dash-payables">{{ formatMoney(data.supplierPayables) }}</span>
+                <span class="kpi-card__subtext">Current payable balance</span>
+              </div>
+            </div>
+          }
+        }
+
+        <!-- Cash -->
+        @if (canShowAccountSummary() && data.cashBalances !== undefined) {
+          @if (canViewAccounts()) {
+            <a routerLink="/app/accounts" class="kpi-card kpi-card--link" data-testid="dash-card-cash">
+              <div class="kpi-card__icon kpi-card__icon--green">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="6" width="20" height="12" rx="2" />
+                  <circle cx="12" cy="12" r="2" />
+                  <path d="M6 12h.01M18 12h.01" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Cash</span>
+                <span class="kpi-card__value" data-testid="dash-card-cash-value">{{ formatMoney(data.cashBalances) }}</span>
+                <span class="kpi-card__subtext">Current cash balance</span>
+              </div>
+            </a>
+          } @else {
+            <div class="kpi-card" data-testid="dash-card-cash">
+              <div class="kpi-card__icon kpi-card__icon--green">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="6" width="20" height="12" rx="2" />
+                  <circle cx="12" cy="12" r="2" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Cash</span>
+                <span class="kpi-card__value" data-testid="dash-card-cash-value">{{ formatMoney(data.cashBalances) }}</span>
+                <span class="kpi-card__subtext">Current cash balance</span>
+              </div>
+            </div>
+          }
+        }
+
+        <!-- Bank -->
+        @if (canShowAccountSummary() && data.bankBalances !== undefined) {
+          @if (canViewAccounts()) {
+            <a routerLink="/app/accounts" class="kpi-card kpi-card--link" data-testid="dash-card-bank">
+              <div class="kpi-card__icon kpi-card__icon--blue">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Bank</span>
+                <span class="kpi-card__value" data-testid="dash-card-bank-value">{{ formatMoney(data.bankBalances) }}</span>
+                <span class="kpi-card__subtext">Current bank balance</span>
+              </div>
+            </a>
+          } @else {
+            <div class="kpi-card" data-testid="dash-card-bank">
+              <div class="kpi-card__icon kpi-card__icon--blue">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Bank</span>
+                <span class="kpi-card__value" data-testid="dash-card-bank-value">{{ formatMoney(data.bankBalances) }}</span>
+                <span class="kpi-card__subtext">Current bank balance</span>
+              </div>
+            </div>
+          }
+        }
+
+        <!-- JazzCash -->
+        @if (canShowAccountSummary() && data.jazzCashBalance !== undefined) {
+          @if (canViewAccounts()) {
+            <a routerLink="/app/accounts" class="kpi-card kpi-card--link" data-testid="dash-card-jazzcash">
+              <div class="kpi-card__icon kpi-card__icon--amber">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                  <line x1="12" y1="18" x2="12.01" y2="18" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">JazzCash</span>
+                <span class="kpi-card__value" data-testid="dash-card-jazzcash-value">{{ formatMoney(data.jazzCashBalance) }}</span>
+                <span class="kpi-card__subtext">Current wallet balance</span>
+              </div>
+            </a>
+          } @else {
+            <div class="kpi-card" data-testid="dash-card-jazzcash">
+              <div class="kpi-card__icon kpi-card__icon--amber">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                  <line x1="12" y1="18" x2="12.01" y2="18" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">JazzCash</span>
+                <span class="kpi-card__value" data-testid="dash-card-jazzcash-value">{{ formatMoney(data.jazzCashBalance) }}</span>
+                <span class="kpi-card__subtext">Current wallet balance</span>
+              </div>
+            </div>
+          }
+        }
+
+        <!-- Easypaisa -->
+        @if (canShowAccountSummary() && data.easypaisaBalance !== undefined) {
+          @if (canViewAccounts()) {
+            <a routerLink="/app/accounts" class="kpi-card kpi-card--link" data-testid="dash-card-easypaisa">
+              <div class="kpi-card__icon kpi-card__icon--green">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                  <line x1="12" y1="18" x2="12.01" y2="18" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Easypaisa</span>
+                <span class="kpi-card__value" data-testid="dash-card-easypaisa-value">{{ formatMoney(data.easypaisaBalance) }}</span>
+                <span class="kpi-card__subtext">Current wallet balance</span>
+              </div>
+            </a>
+          } @else {
+            <div class="kpi-card" data-testid="dash-card-easypaisa">
+              <div class="kpi-card__icon kpi-card__icon--green">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                  <line x1="12" y1="18" x2="12.01" y2="18" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Easypaisa</span>
+                <span class="kpi-card__value" data-testid="dash-card-easypaisa-value">{{ formatMoney(data.easypaisaBalance) }}</span>
+                <span class="kpi-card__subtext">Current wallet balance</span>
+              </div>
+            </div>
+          }
+        }
+
+        <!-- Stock Valuation -->
+        @if (canShowFinancialSummary() && data.stockValuation !== undefined) {
+          @if (canViewInventory()) {
+            <a routerLink="/app/inventory/stock" class="kpi-card kpi-card--link" data-testid="dash-card-stock-val">
+              <div class="kpi-card__icon kpi-card__icon--purple">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                  <line x1="12" y1="22.08" x2="12" y2="12" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Stock Valuation</span>
+                <span class="kpi-card__value" data-testid="dash-stock-valuation">{{ formatMoney(data.stockValuation) }}</span>
+                <span class="kpi-card__subtext">Current WAC inventory value</span>
+              </div>
+            </a>
+          } @else {
+            <div class="kpi-card" data-testid="dash-card-stock-val">
+              <div class="kpi-card__icon kpi-card__icon--purple">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                  <line x1="12" y1="22.08" x2="12" y2="12" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Stock Valuation</span>
+                <span class="kpi-card__value" data-testid="dash-stock-valuation">{{ formatMoney(data.stockValuation) }}</span>
+                <span class="kpi-card__subtext">Current WAC inventory value</span>
+              </div>
+            </div>
+          }
+        }
+      </section>
+    }
+
+    <!-- 3. Line Charts Row (Sales vs Purchases Trend & Gross Profit Trend) -->
+    @if ((canShowSalesVsPurchasesTrend() && data.salesVsPurchases !== undefined) || (canShowGrossProfitTrend() && data.grossProfitTrend !== undefined)) {
+      <section class="trends-row" aria-label="Financial Trends">
+        <!-- Sales vs Purchases Trend -->
+        @if (canShowSalesVsPurchasesTrend() && data.salesVsPurchases !== undefined) {
+          <article class="chart-panel" data-testid="dash-panel-sales-purchases-trend">
+            <header class="chart-panel__head">
+              <div class="chart-panel__title-group">
+                <h2 class="chart-panel__title">Sales vs Purchases Trend</h2>
+                <p class="chart-panel__subtitle">Daily comparison for selected period</p>
+              </div>
+            </header>
+            <div class="chart-panel__body">
+              <agrivio-ui-line-chart
+                title="Sales vs purchases trend"
+                [points]="salesVsPurchasePoints()"
+                [seriesList]="salesPurchaseSeries"
+                emptyLabel="No posted sales or purchases in this period."
+              />
+            </div>
+          </article>
+        }
+
+        <!-- Gross Profit Trend -->
+        @if (canShowGrossProfitTrend() && data.grossProfitTrend !== undefined) {
+          <article class="chart-panel" data-testid="dash-panel-gross-profit-trend">
+            <header class="chart-panel__head">
+              <div class="chart-panel__title-group">
+                <h2 class="chart-panel__title">Gross Profit Trend</h2>
+                <p class="chart-panel__subtitle">Daily gross profit progression</p>
+              </div>
+            </header>
+            <div class="chart-panel__body">
+              <agrivio-ui-line-chart
+                title="Gross profit trend"
+                [points]="grossProfitPoints()"
+                [seriesList]="grossProfitSeries"
+                emptyLabel="No gross profit data in this period."
+              />
+            </div>
+          </article>
+        }
+      </section>
+    }
+
+    <!-- 4. Middle Analytics 3-Column Grid (Top Products, Account Donut, Expiry Status) -->
+    @if ((canShowTopSellingProducts() && data.topSellingProducts !== undefined) || (canShowAccountSummary() && data.accountDistribution !== undefined) || (canShowInventoryHealth() && data.upcomingExpiryCount !== undefined)) {
+      <section class="analytics-row" aria-label="Middle Analytics Breakdown">
+        <!-- Top Selling Products -->
+        @if (canShowTopSellingProducts() && data.topSellingProducts !== undefined) {
+          <article class="chart-panel chart-panel--products" data-testid="dash-panel-top-products">
+            <header class="chart-panel__head">
+              <div class="chart-panel__title-group">
+                <h2 class="chart-panel__title">Top Selling Products</h2>
+                <p class="chart-panel__subtitle">Ranked by unit volume sold</p>
+              </div>
+            </header>
+            <div class="chart-panel__body">
+              <agrivio-ui-horizontal-bar-chart
+                title="Top selling products"
+                [items]="topProductBars()"
+                [valueFormatter]="formatQuantity"
+                emptyLabel="No product sales recorded in this period."
+              />
+            </div>
+          </article>
+        }
+
+        <!-- Account Balance Distribution -->
+        @if (canShowAccountSummary() && data.accountDistribution !== undefined) {
+          <article class="chart-panel chart-panel--donut" data-testid="dash-panel-account-dist">
+            <header class="chart-panel__head">
+              <div class="chart-panel__title-group">
+                <h2 class="chart-panel__title">Payment / Account Distribution</h2>
+                <p class="chart-panel__subtitle">Current balances by account type</p>
+              </div>
+            </header>
+            <div class="chart-panel__body">
+              <agrivio-ui-donut-chart
+                title="Account balance distribution"
+                [slices]="accountDonutSlices()"
+                [valueFormatter]="formatPkrAmount"
+                emptyLabel="No account balances available."
+              />
+            </div>
+            <footer class="chart-panel__footer">
+              <span class="chart-panel__footer-label">Total</span>
+              <span class="chart-panel__footer-value">{{ formatPkrAmount(totalAccountBalance()) }}</span>
+            </footer>
+          </article>
+        }
+
+        <!-- Stock Expiry Status -->
+        @if (canShowInventoryHealth() && data.upcomingExpiryCount !== undefined) {
+          <article class="chart-panel chart-panel--expiry" data-testid="dash-panel-stock-expiry">
+            <header class="chart-panel__head">
+              <div class="chart-panel__title-group">
+                <h2 class="chart-panel__title">Stock Expiry Status</h2>
+                <p class="chart-panel__subtitle">Active inventory expiry alerts</p>
+              </div>
+            </header>
+            <div class="chart-panel__body expiry-overview">
+              <div class="expiry-item expiry-item--upcoming">
+                <div class="expiry-item__icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                </div>
+                <div class="expiry-item__info">
+                  <span class="expiry-item__label">Upcoming expiry</span>
+                </div>
+                <span class="expiry-item__count" data-testid="dash-expiry-upcoming-count">{{ data.upcomingExpiryCount }}</span>
+              </div>
+
+              <div class="expiry-item expiry-item--expired">
+                <div class="expiry-item__icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="15" y1="9" x2="9" y2="15" />
+                    <line x1="9" y1="9" x2="15" y2="15" />
+                  </svg>
+                </div>
+                <div class="expiry-item__info">
+                  <span class="expiry-item__label">Expired stock</span>
+                </div>
+                <span class="expiry-item__count" data-testid="dash-expiry-expired-count">{{ data.expiredStockCount }}</span>
+              </div>
+            </div>
+            <footer class="chart-panel__footer chart-panel__footer--action">
+              @if (canViewInventory()) {
+                <a routerLink="/app/inventory/expiry" class="ag-btn ag-btn--secondary ag-btn--sm expiry-report-link" data-testid="dash-expiry-report-link">
+                  View expiry report
+                </a>
+              }
+            </footer>
+          </article>
+        }
+      </section>
+    }
+
+    <!-- 5. Operational Bottom Row (Inventory Health 4-Cards + Recent Sales Dense Table) -->
+    @if ((canShowInventoryHealth() && data.lowStockCount !== undefined) || (canShowRecentSales() && data.recentSales !== undefined)) {
+      <section class="operations-row" aria-label="Operations and Recent Sales">
+        <!-- Left Column: Inventory Health 2x2 Grid -->
+        @if (canShowInventoryHealth() && data.lowStockCount !== undefined) {
+          <div class="health-container" aria-label="Inventory Health Operational Cards">
+            <!-- Low Stock -->
+            <article class="health-card" data-testid="dash-health-low-stock">
+              <div class="health-card__head">
+                <div class="health-card__icon health-card__icon--amber">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                </div>
+                <span class="health-card__title">Low Stock</span>
+              </div>
+              <div class="health-card__body">
+                <span class="health-card__count" data-testid="dash-low-stock">{{ formatCount(data.lowStockCount) }}</span>
+                <span class="health-card__desc">Products / Reorder soon</span>
+              </div>
+              <div class="health-card__foot">
+                @if (canViewAlerts()) {
+                  <a routerLink="/app/alerts" class="health-card__btn" data-testid="dash-low-stock-link">View low stock</a>
+                } @else if (canViewInventory()) {
+                  <a routerLink="/app/inventory/stock" class="health-card__btn" data-testid="dash-low-stock-link">View stock</a>
+                }
+              </div>
+            </article>
+
+            <!-- Upcoming Expiry -->
+            <article class="health-card" data-testid="dash-health-upcoming-expiry">
+              <div class="health-card__head">
+                <div class="health-card__icon health-card__icon--amber">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                </div>
+                <span class="health-card__title">Upcoming Expiry</span>
+              </div>
+              <div class="health-card__body">
+                <span class="health-card__count" data-testid="dash-upcoming-expiry">{{ formatCount(data.upcomingExpiryCount) }}</span>
+                <span class="health-card__desc">Products / Within 30 days</span>
+              </div>
+              <div class="health-card__foot">
+                @if (canViewInventory()) {
+                  <a routerLink="/app/inventory/expiry" class="health-card__btn" data-testid="dash-upcoming-expiry-link">View details</a>
+                }
+              </div>
+            </article>
+
+            <!-- Expired Stock -->
+            <article class="health-card" data-testid="dash-health-expired-stock">
+              <div class="health-card__head">
+                <div class="health-card__icon health-card__icon--red">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="15" y1="9" x2="9" y2="15" />
+                    <line x1="9" y1="9" x2="15" y2="15" />
+                  </svg>
+                </div>
+                <span class="health-card__title">Expired Stock</span>
+              </div>
+              <div class="health-card__body">
+                <span class="health-card__count" data-testid="dash-expired-stock">{{ formatCount(data.expiredStockCount) }}</span>                <span class="health-card__desc">Products / Already expired</span>
+              </div>
+              <div class="health-card__foot">
+                @if (canViewInventory()) {
+                  <a routerLink="/app/inventory/expiry" class="health-card__btn" data-testid="dash-expired-stock-link">View details</a>
+                }
+              </div>
+            </article>
+
+            <!-- Dead Stock -->
+            <article class="health-card" data-testid="dash-health-dead-stock">
+              <div class="health-card__head">
+                <div class="health-card__icon health-card__icon--neutral">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                    <line x1="12" y1="22.08" x2="12" y2="12" />
+                  </svg>
+                </div>
+                <span class="health-card__title">Dead Stock</span>
+              </div>
+              <div class="health-card__body">
+                <span class="health-card__count" data-testid="dash-dead-stock">{{ formatCount(data.deadStockSummary?.count) }}</span>
+                <span class="health-card__desc">Products / No movement</span>
+              </div>
+              <div class="health-card__foot">
+                @if (canViewAlerts()) {
+                  <a routerLink="/app/alerts" class="health-card__btn" data-testid="dash-dead-stock-link">View alert details</a>
+                }
+              </div>
+            </article>
+          </div>
+        }
+
+        <!-- Right Column: Recent Sales Dense Table -->
+        @if (canShowRecentSales() && data.recentSales !== undefined) {
+          <article class="recent-sales-panel" data-testid="dash-panel-recent-sales">
+            <header class="recent-sales-panel__head">
+              <div class="recent-sales-panel__title-group">
+                <h2 class="recent-sales-panel__title">Recent Sales</h2>
+                <p class="recent-sales-panel__subtitle">Latest 10 posted sales</p>
+              </div>
+              @if (canViewSales()) {
+                <a routerLink="/app/sales" class="recent-sales-panel__view-all" data-testid="dash-sales-link">
+                  View all sales
+                </a>
+              }
+            </header>
+
+            @if (data.recentSales.length === 0) {
+              <div class="empty-container" data-testid="dash-recent-sales-empty">
+                <agrivio-ui-empty-state title="No recent sales" message="Posted organization sales will appear here." />
+              </div>
+            } @else {
+              <!-- Desktop Dense Table -->
+              <div class="table-container desktop-only" data-testid="dash-recent-sales-table-wrap">
+                <table class="prod-table" data-testid="dash-recent-sales-table">
+                  <thead>
+                    <tr class="prod-table__header-row">
+                      <th class="prod-table__th col-invoice">Invoice #</th>
+                      <th class="prod-table__th col-date">Date</th>
+                      <th class="prod-table__th col-total">Total (Rs)</th>
+                      <th class="prod-table__th col-status">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (sale of data.recentSales; track sale.id) {
+                      <tr class="prod-table__row" data-testid="dash-recent-sale-row">
+                        <td class="prod-table__td col-invoice">
+                          <div class="invoice-cell">
+                            @if (canViewSales()) {
+                              <a [routerLink]="['/app/sales', sale.id]" class="invoice-cell__link" data-testid="dash-recent-sale-link">
+                                {{ sale.invoiceNumber || sale.id }}
+                              </a>
+                            } @else {
+                              <span class="invoice-cell__text">{{ sale.invoiceNumber || sale.id }}</span>
+                            }
+                          </div>
+                        </td>
+                        <td class="prod-table__td col-date">
+                          <span class="date-text">{{ sale.saleDate }}</span>
+                        </td>
+                        <td class="prod-table__td col-total">
+                          <span class="total-text">{{ formatMoney(sale.saleTotal) }}</span>
+                        </td>
+                        <td class="prod-table__td col-status">
+                          <agrivio-ui-status-badge label="Paid" tone="success" />
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Mobile Card List -->
+              <div class="mobile-sales-list mobile-only" data-testid="dash-recent-sales-mobile-list">
+                @for (sale of data.recentSales; track sale.id) {
+                  <article class="sale-mobile-card" data-testid="dash-recent-sale-mobile-card">
+                    <div class="sale-mobile-card__head">
+                      <div class="sale-mobile-card__invoice">
+                        @if (canViewSales()) {
+                          <a [routerLink]="['/app/sales', sale.id]" class="sale-mobile-card__link">
+                            {{ sale.invoiceNumber || sale.id }}
+                          </a>
+                        } @else {
+                          <span>{{ sale.invoiceNumber || sale.id }}</span>
+                        }
+                      </div>
+                      <agrivio-ui-status-badge label="Paid" tone="success" />
+                    </div>
+                    <div class="sale-mobile-card__body">
+                      <div class="sale-mobile-card__meta">
+                        <span class="sale-mobile-card__label">Date</span>
+                        <span class="sale-mobile-card__val">{{ sale.saleDate }}</span>
+                      </div>
+                      <div class="sale-mobile-card__meta sale-mobile-card__meta--total">
+                        <span class="sale-mobile-card__label">Total</span>
+                        <span class="sale-mobile-card__total">{{ formatMoney(sale.saleTotal) }}</span>
+                      </div>
+                    </div>
+                  </article>
+                }
+              </div>
+            }
+          </article>
+        }
+      </section>
+    }
+
+    <!-- 6. Footer / Context Summary Bar -->
+    <footer class="dashboard-footer" data-testid="dashboard-context-footer">
+      <div class="dashboard-footer__left">
+        <span data-testid="dashboard-period-summary">
+          Showing summary for {{ data.period?.fromDate || 'start' }} to {{ data.period?.toDate || 'now' }}
+        </span>
+      </div>
+      <div class="dashboard-footer__right">
+        <span>All amounts in PKR</span>
+        <span class="footer-divider">&bull;</span>
+        <span data-testid="dashboard-business-date">Business date: {{ data.businessDate }}</span>
+      </div>
+    </footer>
+  }
 </div>

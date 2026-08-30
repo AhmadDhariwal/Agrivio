@@ -10,6 +10,7 @@ const {
   insufficientStock,
   notFound,
   validationFailed,
+  assignmentScopeDenied,
 } = require('../../platform/errors/app-error');
 const {
   convertEnteredQuantityToBaseMinorUnits,
@@ -22,6 +23,11 @@ const {
   createMongooseIdempotencyStore,
 } = require('../../platform/idempotency/idempotency-service');
 const { hasPermission } = require('../identity/role-permissions');
+const {
+  assertOptionalLocationFilters,
+  assertRecordAssignmentScope,
+  resolveAccessibleWarehouseIds,
+} = require('../identity/assignment-scope');
 const { isExpiredOnBusinessDate } = require('../inventory/public');
 const {
   createInMemorySalesStore,
@@ -36,6 +42,15 @@ const {
   toSaleDto,
   toPrintInvoiceDto,
 } = require('./sales.validation');
+
+const SALES_DRAFT_FIELD_CONTROLS = Object.freeze({
+  customerId: 'sales.fields.customer',
+  notes: 'sales.fields.notes',
+});
+
+const SALES_LINE_FIELD_CONTROLS = Object.freeze({
+  packagingUnitId: 'sales.fields.packagingUnit',
+});
 
 function requireIdempotencyKey(idempotencyKey) {
   if (typeof idempotencyKey !== 'string' || idempotencyKey.trim() === '') {
@@ -219,10 +234,52 @@ function createSalesService(deps) {
     append: (session, event) => store.appendAuditEvent(session, event),
   });
 
+  async function assertActionAllowed(organizationId, action) {
+    if (!deps.capabilityService) return;
+    await deps.capabilityService.assertAllowed(
+      organizationId,
+      `sales.actions.${action}`,
+      'allowed',
+    );
+  }
+
+  async function assertDraftFieldEditability(organizationId, body) {
+    if (
+      !deps.capabilityService ||
+      body === null ||
+      typeof body !== 'object' ||
+      Array.isArray(body)
+    ) {
+      return;
+    }
+    const controls = new Set();
+    if (body.customerId !== undefined && body.customerId !== null && body.customerId !== '') {
+      controls.add(SALES_DRAFT_FIELD_CONTROLS.customerId);
+    }
+    if (typeof body.notes === 'string' && body.notes.trim() !== '') {
+      controls.add(SALES_DRAFT_FIELD_CONTROLS.notes);
+    }
+    if (Array.isArray(body.lines)) {
+      for (const line of body.lines) {
+        if (line === null || typeof line !== 'object' || Array.isArray(line)) continue;
+        if (
+          line.packagingUnitId !== undefined &&
+          line.packagingUnitId !== null &&
+          line.packagingUnitId !== ''
+        ) {
+          controls.add(SALES_LINE_FIELD_CONTROLS.packagingUnitId);
+        }
+      }
+    }
+    for (const controlKey of controls) {
+      await deps.capabilityService.assertAllowed(organizationId, controlKey, 'editable');
+    }
+  }
+
   async function assertWarehouseAccess(authContext, warehouseId) {
     if (typeof deps.canAccessWarehouse === 'function') {
       if (!deps.canAccessWarehouse(authContext, String(warehouseId))) {
-        throw forbidden('Warehouse assignment is required');
+        throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
       }
     }
   }
@@ -230,7 +287,7 @@ function createSalesService(deps) {
   async function assertBranchAccess(authContext, branchId) {
     if (typeof deps.canAccessBranch === 'function') {
       if (!deps.canAccessBranch(authContext, String(branchId))) {
-        throw forbidden('Branch assignment is required');
+        throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
       }
     }
   }
@@ -307,23 +364,20 @@ function createSalesService(deps) {
 
   return {
     async listSales(organizationId, query = {}, authContext) {
-      const items = await store.listSales(organizationId, {
+      assertOptionalLocationFilters(authContext, {
+        warehouseId: query.warehouseId,
+        branchId: query.branchId,
+      });
+      const warehouseIds = resolveAccessibleWarehouseIds(authContext);
+      const { items, total } = await store.listSales(organizationId, {
         status: query.status,
         customerId: query.customerId,
         warehouseId: query.warehouseId,
         branchId: query.branchId,
-      });
-      const filtered = [];
-      for (const item of items) {
-        if (
-          typeof deps.canAccessWarehouse === 'function' &&
-          !deps.canAccessWarehouse(authContext, String(item.warehouseId))
-        ) {
-          continue;
-        }
-        filtered.push(toSaleDto(item));
-      }
-      return { items: filtered };
+        warehouseIds: query.warehouseId ? undefined : warehouseIds === null ? undefined : warehouseIds,
+        search: query.search,
+      }, { skip: query.skip, pageSize: query.pageSize });
+      return { items: items.map((item) => toSaleDto(item)), total };
     },
 
     async getSale(organizationId, saleId, authContext) {
@@ -331,12 +385,7 @@ function createSalesService(deps) {
       if (record === null) {
         throw notFound('Sale not found');
       }
-      if (
-        typeof deps.canAccessWarehouse === 'function' &&
-        !deps.canAccessWarehouse(authContext, String(record.warehouseId))
-      ) {
-        throw notFound('Sale not found');
-      }
+      assertRecordAssignmentScope(authContext, record);
       return toSaleDto(record);
     },
 
@@ -345,12 +394,7 @@ function createSalesService(deps) {
       if (record === null) {
         throw notFound('Sale not found');
       }
-      if (
-        typeof deps.canAccessWarehouse === 'function' &&
-        !deps.canAccessWarehouse(authContext, String(record.warehouseId))
-      ) {
-        throw notFound('Sale not found');
-      }
+      assertRecordAssignmentScope(authContext, record);
       if (record.status !== 'posted' && record.status !== 'cancelled') {
         throw conflict('Only posted invoices can be printed');
       }
@@ -374,6 +418,7 @@ function createSalesService(deps) {
     },
 
     async createSaleDraft(organizationId, body, authContext) {
+      await assertDraftFieldEditability(organizationId, body);
       const input = parseSaleDraft(body);
       const { branch, warehouse, customer } = await resolveHeaderMasters(
         organizationId,
@@ -422,6 +467,7 @@ function createSalesService(deps) {
     },
 
     async updateSaleDraft(organizationId, saleId, body, authContext) {
+      await assertDraftFieldEditability(organizationId, body);
       const existing = await store.findSaleById(organizationId, saleId);
       if (existing === null) {
         throw notFound('Sale not found');
@@ -539,6 +585,18 @@ function createSalesService(deps) {
 
       const key = requireIdempotencyKey(idempotencyKey);
       const input = parseSalePost(body);
+      if (input.payments.length > 0) {
+        await assertActionAllowed(organizationId, 'addPaymentAtPost');
+      }
+      if (input.approvals.creditLimit) {
+        await assertActionAllowed(organizationId, 'approveCreditLimit');
+      }
+      if (input.approvals.expiredStock) {
+        await assertActionAllowed(organizationId, 'approveExpiredStock');
+      }
+      if (input.approvals.negativeStock) {
+        await assertActionAllowed(organizationId, 'overrideNegativeStock');
+      }
       const actor = { actorId: String(authContext.userId) };
       const overrideReasonByLine = new Map(
         input.linePriceOverrides.map((entry) => [entry.lineIndex, entry.reason]),
@@ -613,6 +671,10 @@ function createSalesService(deps) {
               ]);
             }
             const receivablePreview = saleTotalPreview - paidTotal;
+
+            if (receivablePreview > 0n) {
+              await assertActionAllowed(organizationId, 'sellOnCredit');
+            }
 
             if (!customerId && receivablePreview > 0n) {
               throw validationFailed('Anonymous walk-in credit is not allowed', [
@@ -710,6 +772,7 @@ function createSalesService(deps) {
               let priceOverrideReason = null;
 
               if (unitPrice !== catalogPrice) {
+                await assertActionAllowed(organizationId, 'overridePrice');
                 if (!hasPermission(authContext.permissions ?? [], 'pricing.override')) {
                   throw forbidden('Price override permission is required');
                 }
@@ -1371,7 +1434,7 @@ function createSalesService(deps) {
     },
 
     async listUnpaidCustomerSales(organizationId, customerId) {
-      const items = await store.listSales(organizationId, { status: 'posted', customerId });
+      const { items } = await store.listSales(organizationId, { status: 'posted', customerId });
       const result = [];
       for (const item of items) {
         if (!item.saleTotalMinorUnits) {
@@ -1392,6 +1455,7 @@ function createSalesService(deps) {
         }
         result.push({
           id: String(item['_id']),
+          invoiceNumber: item.invoiceNumber ? String(item.invoiceNumber) : null,
           invoiceDate: String(item.saleDate),
           dueDate: null,
           sequence: item.invoiceSequenceNumber ?? String(item['_id']),
@@ -1414,7 +1478,7 @@ function createSalesService(deps) {
         typeof query.toSaleDate === 'string' && query.toSaleDate.trim() !== ''
           ? query.toSaleDate.trim()
           : null;
-      const items = await store.listSales(organizationId, { status: 'posted' });
+      const { items } = await store.listSales(organizationId, { status: 'posted' });
       const productIds = new Set();
       for (const item of items) {
         if (
@@ -1462,6 +1526,7 @@ function createSalesModule(options = {}) {
     inventoryService: options.inventoryService,
     paymentsService: options.paymentsService,
     accountsService: options.accountsService,
+    capabilityService: options.capabilityService,
     canAccessWarehouse: options.canAccessWarehouse,
     canAccessBranch: options.canAccessBranch,
     transactionRunner,

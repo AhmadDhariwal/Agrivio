@@ -13,6 +13,9 @@ const notificationItemSchema = new mongoose.Schema(
     title: { type: String, required: true },
     body: { type: String, required: true },
     subjectKey: { type: String, required: true },
+    active: { type: Boolean, required: true, default: true },
+    activatedAt: { type: Date, required: true, default: Date.now },
+    resolvedAt: { type: Date, default: null },
     acknowledgedAt: { type: Date, default: null },
     acknowledgedBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -24,6 +27,7 @@ const notificationItemSchema = new mongoose.Schema(
 );
 
 notificationItemSchema.index({ organizationId: 1, fingerprint: 1 }, { unique: true });
+notificationItemSchema.index({ organizationId: 1, active: 1, activatedAt: -1 });
 notificationItemSchema.index({ organizationId: 1, acknowledgedAt: 1, createdAt: -1 });
 
 const NotificationItemModel =

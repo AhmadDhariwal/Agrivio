@@ -1,18 +1,26 @@
 const { Router } = require('express');
-const {
-  API_PRODUCT_CATEGORIES_PATH,
-  API_PRODUCTS_PATH,
-} = require('@agrivio/api-contracts');
+const { API_PRODUCT_CATEGORIES_PATH, API_PRODUCTS_PATH } = require('@agrivio/api-contracts');
 const {
   createRequireOrganizationContextMiddleware,
   createRequirePermissionMiddleware,
 } = require('../../identity/permission.middleware');
 const { createCatalogController } = require('../controllers/catalog.controller');
+const { createRequireCapabilityMiddleware } = require('../../capabilities/capability.middleware');
 
 function registerCatalogRoutes(deps) {
   const router = Router();
   const controller = createCatalogController(deps);
   const requireOrganizationContext = createRequireOrganizationContextMiddleware();
+  const requireProductsModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.products',
+    'enabled',
+  );
+  const requireCategoriesModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'inventory.categories',
+    'enabled',
+  );
 
   router.get(
     API_PRODUCT_CATEGORIES_PATH,
@@ -20,6 +28,7 @@ function registerCatalogRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('catalog.view'),
     deps.requireOperationalAccess,
+    requireCategoriesModule,
     (req, res, next) => {
       void controller.listCategories(req, res, next);
     },
@@ -32,6 +41,7 @@ function registerCatalogRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('catalog.manage'),
     deps.requireOperationalAccess,
+    requireCategoriesModule,
     (req, res, next) => {
       void controller.createCategory(req, res, next);
     },
@@ -43,6 +53,7 @@ function registerCatalogRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('catalog.view'),
     deps.requireOperationalAccess,
+    requireCategoriesModule,
     (req, res, next) => {
       void controller.getCategory(req, res, next);
     },
@@ -55,8 +66,22 @@ function registerCatalogRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('catalog.manage'),
     deps.requireOperationalAccess,
+    requireCategoriesModule,
     (req, res, next) => {
       void controller.updateCategory(req, res, next);
+    },
+  );
+
+  router.delete(
+    `${API_PRODUCT_CATEGORIES_PATH}/:id`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('catalog.manage'),
+    deps.requireOperationalAccess,
+    requireCategoriesModule,
+    (req, res, next) => {
+      void controller.deleteCategory(req, res, next);
     },
   );
 
@@ -66,6 +91,7 @@ function registerCatalogRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('catalog.view'),
     deps.requireOperationalAccess,
+    requireProductsModule,
     (req, res, next) => {
       void controller.listProducts(req, res, next);
     },
@@ -78,6 +104,7 @@ function registerCatalogRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('catalog.manage'),
     deps.requireOperationalAccess,
+    requireProductsModule,
     (req, res, next) => {
       void controller.createProduct(req, res, next);
     },
@@ -89,6 +116,7 @@ function registerCatalogRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('catalog.view'),
     deps.requireOperationalAccess,
+    requireProductsModule,
     (req, res, next) => {
       void controller.getProduct(req, res, next);
     },
@@ -101,8 +129,22 @@ function registerCatalogRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('catalog.manage'),
     deps.requireOperationalAccess,
+    requireProductsModule,
     (req, res, next) => {
       void controller.updateProduct(req, res, next);
+    },
+  );
+
+  router.delete(
+    `${API_PRODUCTS_PATH}/:id`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('catalog.manage'),
+    deps.requireOperationalAccess,
+    requireProductsModule,
+    (req, res, next) => {
+      void controller.deleteProduct(req, res, next);
     },
   );
 
@@ -112,6 +154,7 @@ function registerCatalogRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('catalog.view'),
     deps.requireOperationalAccess,
+    requireProductsModule,
     (req, res, next) => {
       void controller.listPackagingUnits(req, res, next);
     },
@@ -124,6 +167,7 @@ function registerCatalogRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('catalog.manage'),
     deps.requireOperationalAccess,
+    requireProductsModule,
     (req, res, next) => {
       void controller.replacePackagingUnits(req, res, next);
     },
@@ -135,6 +179,7 @@ function registerCatalogRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('pricing.view'),
     deps.requireOperationalAccess,
+    requireProductsModule,
     (req, res, next) => {
       void controller.listPrices(req, res, next);
     },
@@ -147,6 +192,7 @@ function registerCatalogRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('pricing.manage'),
     deps.requireOperationalAccess,
+    requireProductsModule,
     (req, res, next) => {
       void controller.replacePrices(req, res, next);
     },

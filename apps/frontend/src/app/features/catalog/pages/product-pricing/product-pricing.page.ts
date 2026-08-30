@@ -6,9 +6,14 @@ import { forkJoin } from 'rxjs';
 import { CatalogApi } from '../../data-access/catalog.api';
 import { PriceTier } from '../../models/catalog.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import {
+  fieldValidationMessage,
+  hasRequiredValidator,
+} from '../../../../shared/form/form-field.util';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 const PRICE_TIERS: PriceTier[] = ['retail', 'wholesale', 'dealer', 'distributor'];
 
@@ -18,9 +23,9 @@ const PRICE_TIERS: PriceTier[] = ['retail', 'wholesale', 'dealer', 'distributor'
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiFieldLabelComponent,
   ],
   templateUrl: './product-pricing.page.html',
   styleUrl: './product-pricing.page.scss',
@@ -28,6 +33,7 @@ const PRICE_TIERS: PriceTier[] = ['retail', 'wholesale', 'dealer', 'distributor'
 export class ProductPricingPage {
   private readonly api = inject(CatalogApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
@@ -37,8 +43,21 @@ export class ProductPricingPage {
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly errorMessage = signal<string | null>(null);
-  readonly canManage = computed(() => this.sessionStore.hasPermission('pricing.manage'));
+  readonly formSubmitAttempted = signal(false);
+  readonly canManage = computed(
+    () =>
+      this.sessionStore.hasPermission('pricing.manage') &&
+      (this.capabilityService?.canPerformAction('inventory.products.actions.managePricing') ??
+        true) &&
+      (this.capabilityService?.canEditField('inventory.products.fields.sellingPrice') ?? true),
+  );
+  readonly canSave = computed(
+    () => this.canManage() && this.productId() !== null && this.form.valid && !this.saving(),
+  );
   private version = 1;
+
+  readonly fieldRequired = hasRequiredValidator;
+  readonly fieldError = fieldValidationMessage;
 
   readonly form = this.formBuilder.nonNullable.group({
     retail: ['', [Validators.required]],
@@ -62,7 +81,9 @@ export class ProductPricingPage {
       next: ({ product, prices }) => {
         this.version = product.version;
         this.productName.set(product.name);
-        const byTier = new Map(prices.filter((p) => p.status === 'active').map((p) => [p.priceTier, p]));
+        const byTier = new Map(
+          prices.filter((p) => p.status === 'active').map((p) => [p.priceTier, p]),
+        );
         this.form.patchValue({
           retail: byTier.get('retail')?.price.amount ?? '',
           wholesale: byTier.get('wholesale')?.price.amount ?? '',
@@ -79,8 +100,9 @@ export class ProductPricingPage {
   }
 
   save(): void {
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
     if (!this.canManage() || this.productId() === null || this.form.invalid) {
-      this.form.markAllAsTouched();
       return;
     }
     this.saving.set(true);

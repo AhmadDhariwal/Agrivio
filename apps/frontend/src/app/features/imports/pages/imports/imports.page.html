@@ -10,7 +10,7 @@
   />
 } @else {
   @if (errorMessage(); as error) {
-    <agrivio-ui-alert tone="danger" [message]="error" />
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
   }
 
   <form class="import-toolbar" (submit)="$event.preventDefault(); startPreview()">
@@ -27,13 +27,21 @@
         }
       </select>
     </label>
-    <input data-testid="import-file" type="file" accept=".xls,.xlsx,application/vnd.ms-excel" (change)="onFile($event)" />
+    <label>
+      Workbook file
+      <input
+        data-testid="import-file"
+        type="file"
+        accept=".xls,.xlsx,application/vnd.ms-excel"
+        (change)="onFile($event)"
+      />
+    </label>
     <button type="submit" class="ag-btn" data-testid="import-preview-submit" [disabled]="loading() || !selectedFile()">Preview</button>
   </form>
 
   @if (selectedTemplate(); as template) {
-    <p data-testid="template-policy">Policy: {{ template.createUpdatePolicy }} · version {{ template.version }}</p>
-    <p>Columns: {{ columnSummary() }}</p>
+    <p class="import-meta" data-testid="template-policy">Policy: {{ template.createUpdatePolicy }} · version {{ template.version }}</p>
+    <p class="import-meta">Columns: {{ columnSummary() }}</p>
   }
 
   @if (loading()) {
@@ -50,26 +58,28 @@
         <p>Intended behaviour: {{ preview.createUpdatePolicy }}</p>
       }
       @if (errors().length > 0) {
-        <table class="ag-table" data-testid="import-errors">
-          <thead>
-            <tr>
-              <th>Row</th>
-              <th>Field</th>
-              <th>Code</th>
-              <th>Reason</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (error of errors(); track error.row + error.field + error.message) {
+        <div class="ag-table-wrap">
+          <table class="ag-table" data-testid="import-errors">
+            <thead>
               <tr>
-                <td>{{ error.row }}</td>
-                <td>{{ error.field }}</td>
-                <td>{{ error.code }}</td>
-                <td>{{ error.message }}</td>
+                <th>Row</th>
+                <th>Field</th>
+                <th>Code</th>
+                <th>Reason</th>
               </tr>
-            }
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              @for (error of errors(); track error.row + error.field + error.message) {
+                <tr>
+                  <td>{{ error.row }}</td>
+                  <td>{{ error.field }}</td>
+                  <td>{{ error.code }}</td>
+                  <td>{{ error.message }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
       }
       @if (canExecute() && current.preview?.invalidRows === 0 && current.status === 'previewed') {
         <button

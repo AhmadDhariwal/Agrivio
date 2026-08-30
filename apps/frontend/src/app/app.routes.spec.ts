@@ -33,6 +33,22 @@ describe('appRoutes F02 routing', () => {
     expect(app?.children?.find((route) => route.path === 'imports')).toBeTruthy();
     expect(app?.children?.find((route) => route.path === 'audit')).toBeTruthy();
     expect(app?.children?.find((route) => route.path === 'platform/operations')).toBeTruthy();
+    const purchases = app?.children?.find((route) => route.path === 'purchases');
+    expect(purchases).toBeTruthy();
+    expect(purchases?.canActivate?.length).toBeGreaterThan(0);
+    const sales = app?.children?.find((route) => route.path === 'sales');
+    expect(sales).toBeTruthy();
+    expect(sales?.canActivate?.length).toBeGreaterThan(0);
+
+    const products = app?.children?.find((route) => route.path === 'products');
+    expect(products?.canActivate?.length).toBeGreaterThan(0);
+    const openingStock = app?.children?.find((route) => route.path === 'inventory/opening-stock');
+    expect(openingStock?.canActivate?.length).toBeGreaterThan(0);
+    const batches = app?.children?.find((route) => route.path === 'inventory/batches');
+    expect(batches?.canActivate?.length).toBeGreaterThan(0);
+    expect(app?.children?.find((route) => route.path === 'feature-unavailable')).toBeTruthy();
+    expect(app?.children?.find((route) => route.path === 'access-denied')).toBeTruthy();
+
     const withoutInvoice = app?.children?.find((route) => route.path === 'returns/without-invoice');
     expect(withoutInvoice).toBeTruthy();
     const returnDetail = app?.children?.find((route) => route.path === 'returns/:id');

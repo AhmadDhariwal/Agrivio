@@ -10,8 +10,11 @@ import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-p
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 import { UiStatusBadgeComponent, UiBadgeTone } from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
+import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 
 @Component({
   selector: 'agrivio-platform-organizations-page',
@@ -25,6 +28,8 @@ import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialo
     UiLoadingStateComponent,
     UiStatusBadgeComponent,
     UiConfirmDialogComponent,
+    UiFieldLabelComponent,
+    UiPaginationComponent,
   ],
   templateUrl: './organizations-admin.page.html',
   styleUrl: './organizations-admin.page.scss',
@@ -39,6 +44,9 @@ export class PlatformOrganizationsPage {
   readonly successMessage = signal<string | null>(null);
   readonly activationHandoff = signal<PlatformOrganizationActivationHandoff | null>(null);
   readonly copyFeedback = signal<string | null>(null);
+  readonly page = signal(1);
+  readonly pageSize = signal(25);
+  readonly total = signal(0);
 
   readonly confirmOpen = signal(false);
   readonly confirmTitle = signal('Confirm action');
@@ -49,6 +57,15 @@ export class PlatformOrganizationsPage {
 
   readonly rejectForm = this.formBuilder.nonNullable.group({
     reason: ['', [Validators.required, Validators.minLength(3)]],
+  });
+
+  readonly fieldRequired = hasRequiredValidator;
+
+  readonly createForm = this.formBuilder.nonNullable.group({
+    organizationName: ['', [Validators.required, Validators.maxLength(200)]],
+    ownerEmail: ['', [Validators.required, Validators.email]],
+    ownerDisplayName: ['', [Validators.required, Validators.maxLength(200)]],
+    timezone: ['Asia/Karachi'],
   });
 
   constructor() {
@@ -71,15 +88,47 @@ export class PlatformOrganizationsPage {
 
   reload(): void {
     this.loading.set(true);
-    this.api.list().subscribe({
-      next: (items) => {
+    this.api.list({ page: this.page(), pageSize: this.pageSize() }).subscribe({
+      next: ({ items, meta }) => {
         this.items.set(items);
+        this.total.set(meta.total);
         this.loading.set(false);
       },
       error: () => {
         this.loading.set(false);
         this.errorMessage.set('Unable to load organizations.');
       },
+    });
+  }
+
+  onPageChange(page: number): void { this.page.set(page); this.reload(); }
+  onPageSizeChange(pageSize: number): void { this.pageSize.set(pageSize); this.page.set(1); this.reload(); }
+
+  createOrganization(): void {
+    if (this.createForm.invalid) {
+      this.createForm.markAllAsTouched();
+      this.errorMessage.set('Organization name, owner email, and owner display name are required.');
+      return;
+    }
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    const input = this.createForm.getRawValue();
+    this.api.create(input).subscribe({
+      next: (result) => {
+        this.successMessage.set(
+          result.duplicate
+            ? `Organization already exists (${result.status}).`
+            : `Created ${input.organizationName} in ${result.status}. Owner still needs approval and activation.`,
+        );
+        this.createForm.reset({
+          organizationName: '',
+          ownerEmail: '',
+          ownerDisplayName: '',
+          timezone: 'Asia/Karachi',
+        });
+        this.reload();
+      },
+      error: () => this.errorMessage.set('Create organization failed.'),
     });
   }
 

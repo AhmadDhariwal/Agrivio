@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import {
   FormArray,
   FormBuilder,
@@ -8,7 +8,14 @@ import {
 } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin, switchMap } from 'rxjs';
+import {
+  Subject,
+  debounceTime,
+  distinctUntilChanged,
+  forkJoin,
+  switchMap,
+} from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReturnsApi } from '../../data-access/returns.api';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
 import { CustomersApi } from '../../../customers/data-access/customers.api';
@@ -19,14 +26,24 @@ import {
   WarehouseRecord,
 } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 import { CustomerRecord } from '../../../customers/models/customers.models';
 import { AccountRecord } from '../../../accounts-expenses/models/accounts.models';
 import { ProductBatchRecord } from '../../../inventory/models/inventory.models';
 import { UnsellableReason } from '../../models/returns.models';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import {
+  fieldValidationMessage,
+  hasRequiredValidator,
+  setRequiredValidator,
+} from '../../../../shared/form/form-field.util';
+import {
+  inventoryMoneyValidators,
+  inventoryQuantityValidators,
+} from '../../../inventory/shared/inventory-form.validation';
 
 @Component({
   selector: 'agrivio-return-without-invoice-page',
@@ -34,9 +51,9 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiFieldLabelComponent,
   ],
   templateUrl: './return-without-invoice.page.html',
   styleUrl: './return-without-invoice.page.scss',
@@ -49,21 +66,38 @@ export class ReturnWithoutInvoicePage {
   private readonly inventoryApi = inject(InventoryApi);
   private readonly locationsApi = inject(BranchesWarehousesApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly formBuilder = inject(FormBuilder);
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly customerSearchChanges = new Subject<string>();
+  private readonly productSearchChanges = new Subject<string>();
 
   readonly loading = signal(true);
   readonly submitting = signal(false);
+  readonly formSubmitAttempted = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly products = signal<ProductRecord[]>([]);
   readonly customers = signal<CustomerRecord[]>([]);
   readonly warehouses = signal<WarehouseRecord[]>([]);
   readonly accounts = signal<AccountRecord[]>([]);
   readonly batchesByLine = signal<Record<number, ProductBatchRecord[]>>({});
-  readonly canPost = computed(() => this.sessionStore.hasPermission('returns.post'));
-  readonly canApprove = computed(() =>
-    this.sessionStore.hasPermission('returns.without-invoice.approve'),
+  readonly canPost = computed(
+    () =>
+      this.sessionStore.hasPermission('returns.post') &&
+      (this.capabilityService?.canPerformAction('returns.actions.post') ?? true),
   );
+  readonly canApprove = computed(
+    () =>
+      this.sessionStore.hasPermission('returns.without-invoice.approve') &&
+      (this.capabilityService?.canPerformAction('returns.actions.withoutInvoice') ?? true),
+  );
+  readonly canSubmit = computed(
+    () => this.canPost() && this.canApprove() && this.form.valid && !this.submitting(),
+  );
+
+  readonly fieldRequired = hasRequiredValidator;
+  readonly fieldError = fieldValidationMessage;
 
   readonly form = this.formBuilder.nonNullable.group({
     warehouseId: ['', Validators.required],
@@ -73,7 +107,7 @@ export class ReturnWithoutInvoicePage {
     reason: ['', Validators.required],
     resolution: ['ledger_adjustment' as 'ledger_adjustment' | 'account_refund', Validators.required],
     refundAccountId: [''],
-    approvedReturnValue: ['', Validators.required],
+    approvedReturnValue: ['', inventoryMoneyValidators],
     lines: this.formBuilder.array([this.createLineGroup()]),
   });
 
@@ -83,14 +117,10 @@ export class ReturnWithoutInvoicePage {
 
   constructor() {
     forkJoin({
-      products: this.catalogApi.listProducts(),
-      customers: this.customersApi.listCustomers(),
-      warehouses: this.locationsApi.listWarehouses(),
-      accounts: this.accountsApi.listAccounts(),
+      warehouses: this.locationsApi.listWarehouseOptions(),
+      accounts: this.accountsApi.listAccountOptions(),
     }).subscribe({
-      next: ({ products, customers, warehouses, accounts }) => {
-        this.products.set(products.filter((item) => item.status === 'active'));
-        this.customers.set(customers);
+      next: ({ warehouses, accounts }) => {
         this.warehouses.set(this.sessionStore.filterWarehouses(warehouses));
         this.accounts.set(accounts.filter((item) => item.status === 'active'));
         this.loading.set(false);
@@ -100,14 +130,63 @@ export class ReturnWithoutInvoicePage {
         this.loading.set(false);
       },
     });
+
+    this.customerSearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((query) => this.customersApi.searchCustomerOptions(query)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((items) => this.customers.set(items.filter((item) => item.status === 'active')));
+
+    this.productSearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((query) => this.catalogApi.searchProductOptions(query, 25, 'active')),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((items) => this.products.set(items.filter((item) => item.status === 'active')));
+
+    this.customerSearchChanges.next('');
+    this.productSearchChanges.next('');
+
+    this.form.controls.resolution.valueChanges.subscribe((resolution) => {
+      setRequiredValidator(this.form.controls.refundAccountId, resolution === 'account_refund');
+    });
+    this.bindLineConditionalRequired(0);
   }
 
   lineGroup(index: number): FormGroup {
     return this.lines.at(index) as FormGroup;
   }
 
+  lineFieldError(index: number, controlName: string, label: string): string | null {
+    return fieldValidationMessage(
+      this.lineGroup(index).get(controlName),
+      label,
+      this.formSubmitAttempted(),
+    );
+  }
+
+  onCustomerSearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      this.customerSearchChanges.next(target.value.trim());
+    }
+  }
+
+  onProductSearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      this.productSearchChanges.next(target.value.trim());
+    }
+  }
+
   addLine(): void {
     this.lines.push(this.createLineGroup());
+    this.bindLineConditionalRequired(this.lines.length - 1);
   }
 
   removeLine(index: number): void {
@@ -128,14 +207,20 @@ export class ReturnWithoutInvoicePage {
 
   onProductChange(index: number): void {
     const productId = String(this.lineGroup(index).get('productId')?.value ?? '');
+    const warehouseId = String(this.form.controls.warehouseId.value ?? '');
     this.lineGroup(index).patchValue({ batchId: '' });
+    setRequiredValidator(this.lineGroup(index).get('batchId'), this.productNeedsBatch(index));
     if (!productId || !this.productNeedsBatch(index)) {
       this.batchesByLine.update((current) => ({ ...current, [index]: [] }));
       return;
     }
-    this.inventoryApi.listBatches({ productId }).subscribe({
+    const batchQuery: { productId: string; warehouseId?: string } = { productId };
+    if (warehouseId) {
+      batchQuery.warehouseId = warehouseId;
+    }
+    this.inventoryApi.listBatches(batchQuery).subscribe({
       next: (batches) => {
-        this.batchesByLine.update((current) => ({ ...current, [index]: batches }));
+        this.batchesByLine.update((current) => ({ ...current, [index]: batches.items }));
       },
       error: (error: unknown) => {
         this.errorMessage.set(this.mapError(error, 'Unable to load batches.'));
@@ -144,8 +229,12 @@ export class ReturnWithoutInvoicePage {
   }
 
   submit(): void {
-    if (!this.canPost() || !this.canApprove() || this.form.invalid || this.submitting()) {
-      this.form.markAllAsTouched();
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    for (let index = 0; index < this.lines.length; index += 1) {
+      this.lineGroup(index).markAllAsTouched();
+    }
+    if (!this.canSubmit()) {
       if (!this.canApprove()) {
         this.errorMessage.set('Return without invoice requires approval permission.');
       }
@@ -154,10 +243,6 @@ export class ReturnWithoutInvoicePage {
     const value = this.form.getRawValue();
     if (!value.customerId && !value.customerIdentifyingName && !value.customerIdentifyingPhone) {
       this.errorMessage.set('Customer lookup or identifying name/phone is required.');
-      return;
-    }
-    if (value.resolution === 'account_refund' && !value.refundAccountId) {
-      this.errorMessage.set('Select a cash, bank, or digital refund account.');
       return;
     }
     const lines = (value.lines as Array<{
@@ -226,10 +311,19 @@ export class ReturnWithoutInvoicePage {
       });
   }
 
+  private bindLineConditionalRequired(index: number): void {
+    const group = this.lineGroup(index);
+    setRequiredValidator(group.get('batchId'), this.productNeedsBatch(index));
+    setRequiredValidator(group.get('unsellableReason'), group.get('stockCondition')?.value === 'unsellable');
+    group.get('stockCondition')?.valueChanges.subscribe((condition) => {
+      setRequiredValidator(group.get('unsellableReason'), condition === 'unsellable');
+    });
+  }
+
   private createLineGroup(): FormGroup {
     return this.formBuilder.nonNullable.group({
       productId: ['', Validators.required],
-      quantity: ['', Validators.required],
+      quantity: ['', inventoryQuantityValidators],
       batchId: [''],
       stockCondition: ['sellable', Validators.required],
       unsellableReason: ['damaged'],

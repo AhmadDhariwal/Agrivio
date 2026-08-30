@@ -169,6 +169,19 @@ function createLedgersService(deps) {
       return toMoneyDto(minor);
     },
 
+    async mapPartyBalances(organizationId, partyType, effectKind) {
+      const rows = await store.listPartyBalancesByEffectKind(
+        organizationId,
+        partyType,
+        effectKind,
+      );
+      const map = new Map();
+      for (const row of rows) {
+        map.set(String(row.partyId), toMoneyDto(row.signedAmountMinorUnits));
+      }
+      return map;
+    },
+
     async listCustomerReceivableBalances(organizationId) {
       const rows = await store.listPartyBalancesByEffectKind(
         organizationId,
@@ -248,6 +261,7 @@ function createLedgersModule(options = {}) {
           ledgersService,
           accountsService: options.accountsService,
           suppliersService: options.suppliersService,
+          capabilityService: options.capabilityService,
           listUnpaidSupplierPurchases: options.listUnpaidSupplierPurchases,
           transactionRunner,
           persistence,

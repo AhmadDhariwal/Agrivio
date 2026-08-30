@@ -1,16 +1,32 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { Subject, debounceTime, distinctUntilChanged, forkJoin, switchMap } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { InventoryApi } from '../../data-access/inventory.api';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
-import { BranchesWarehousesApi, WarehouseRecord } from '../../../branches-warehouses/data-access/branches-warehouses.api';
+import {
+  BranchesWarehousesApi,
+  WarehouseRecord,
+} from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
+import {
+  hasRequiredValidator,
+  fieldValidationMessage,
+  setRequiredValidator,
+} from '../../../../shared/form/form-field.util';
+import {
+  inventoryMoneyValidators,
+  inventoryMoneyValidator,
+  inventoryQuantityValidators,
+} from '../../shared/inventory-form.validation';
 import { PackagingUnitRecord, ProductRecord } from '../../../catalog/models/catalog.models';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 @Component({
   selector: 'agrivio-opening-stock-page',
@@ -18,9 +34,10 @@ import { PackagingUnitRecord, ProductRecord } from '../../../catalog/models/cata
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiFieldLabelComponent,
+    UiModuleInfoComponent,
   ],
   templateUrl: './opening-stock.page.html',
   styleUrl: './opening-stock.page.scss',
@@ -31,38 +48,94 @@ export class OpeningStockPage {
   private readonly locationsApi = inject(BranchesWarehousesApi);
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly formBuilder = inject(FormBuilder);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly productSearchChanges = new Subject<string>();
 
   readonly loading = signal(true);
   readonly saving = signal(false);
+  readonly formSubmitAttempted = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly products = signal<ProductRecord[]>([]);
   readonly warehouses = signal<WarehouseRecord[]>([]);
   readonly packagingUnits = signal<PackagingUnitRecord[]>([]);
   readonly selectedTrackingMode = signal<string>('none');
-  readonly canPost = computed(() =>
-    this.sessionStore.hasPermission('inventory.opening-stock.post'),
+  readonly canUseOpeningStock = computed(
+    () => this.capabilityService?.canUseModule('inventory.openingStock') ?? true,
   );
+  readonly showOpeningStockModuleInfo = computed(
+    () => this.capabilityService?.canUseView('inventory.openingStock.features.moduleInfo') ?? true,
+  );
+  readonly showOpeningStockProductSearch = computed(
+    () =>
+      this.capabilityService?.canUseView('inventory.openingStock.features.productSearch') ?? true,
+  );
+  readonly showOpeningStockPackaging = computed(
+    () =>
+      this.capabilityService?.canViewField('inventory.openingStock.fields.packagingUnit') ?? true,
+  );
+  readonly showOpeningStockManufacturingDate = computed(
+    () =>
+      this.capabilityService?.canViewField('inventory.openingStock.fields.manufacturingDate') ??
+      true,
+  );
+  readonly canPostOpeningStock = computed(
+    () =>
+      this.canUseOpeningStock() &&
+      this.sessionStore.hasPermission('inventory.opening-stock.post') &&
+      (this.capabilityService?.canPerformAction('inventory.openingStock.actions.post') ?? true),
+  );
+  readonly canPost = computed(
+    () => this.canPostOpeningStock() && this.formValid() && !this.saving(),
+  );
+  private readonly formValid = signal(false);
+  readonly showViewStockAction = computed(
+    () =>
+      this.sessionStore.hasPermission('inventory.view') &&
+      (this.capabilityService?.canPerformAction('inventory.openingStock.actions.viewStock') ??
+        true),
+  );
+
+  readonly selectedProduct = signal<ProductRecord | null>(null);
+
+  readonly fieldRequired = hasRequiredValidator;
+  readonly fieldError = fieldValidationMessage;
+
+  readonly infoTitle = 'About Opening Stock';
+  readonly infoDescription =
+    'Use Opening Stock when initializing a warehouse or onboarding existing inventory.';
+  readonly infoItems = [
+    'Creates the auditable starting quantity for the selected warehouse and product.',
+    'Opening value establishes the starting cost basis through Agrivio’s authoritative workflow.',
+    'Batch and expiry information follows the selected product’s tracking requirements.',
+    'Normal later changes should use purchases, sales, returns, transfers or adjustments.',
+  ];
 
   readonly form = this.formBuilder.nonNullable.group({
     warehouseId: ['', Validators.required],
     productId: ['', Validators.required],
-    quantity: ['', Validators.required],
+    quantity: ['', inventoryQuantityValidators],
     packagingUnitId: [''],
     batchNumber: [''],
     manufacturingDate: [''],
     expiryDate: [''],
-    inventoryValue: ['', Validators.required],
+    inventoryValue: ['', inventoryMoneyValidators],
   });
 
   constructor() {
-    if (!this.canPost()) {
+    this.formValid.set(this.form.valid);
+    this.form.statusChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.formValid.set(this.form.valid);
+    });
+
+    if (!this.canPostOpeningStock()) {
       this.loading.set(false);
       return;
     }
     forkJoin({
-      products: this.catalogApi.listProducts(),
-      warehouses: this.locationsApi.listWarehouses(),
+      products: this.catalogApi.searchProductOptions(),
+      warehouses: this.locationsApi.listWarehouseOptions(),
     }).subscribe({
       next: ({ products, warehouses }) => {
         this.products.set(products.filter((item) => item.status === 'active'));
@@ -76,11 +149,14 @@ export class OpeningStockPage {
     });
 
     this.form.controls.productId.valueChanges.subscribe((productId) => {
-      const product = this.products().find((item) => item.id === productId);
-      this.selectedTrackingMode.set(product?.trackingMode ?? 'none');
+      const product = this.products().find((item) => item.id === productId) ?? null;
+      this.selectedProduct.set(product);
+      const mode = product?.trackingMode ?? 'none';
+      this.selectedTrackingMode.set(mode);
+      this.syncTrackingRequired(mode);
       this.packagingUnits.set([]);
       this.form.patchValue({ packagingUnitId: '' });
-      if (!productId) {
+      if (!productId || !this.showOpeningStockPackaging()) {
         return;
       }
       this.catalogApi.listPackagingUnits(productId).subscribe({
@@ -92,11 +168,34 @@ export class OpeningStockPage {
         },
       });
     });
+
+    this.productSearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((query) => this.catalogApi.searchProductOptions(query, 500, 'active')),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((items) => {
+        this.products.set(items.filter((item) => item.status === 'active'));
+      });
+  }
+
+  private syncTrackingRequired(mode: string): void {
+    setRequiredValidator(this.form.controls.batchNumber, mode !== 'none');
+    setRequiredValidator(this.form.controls.expiryDate, mode === 'batch_expiry');
+  }
+
+  formatTrackingLabel(mode?: string | null): string {
+    if (mode === 'batch_expiry') return 'Batch + Expiry Tracked';
+    if (mode === 'batch') return 'Batch Tracked';
+    return 'Standard (None)';
   }
 
   submit(): void {
-    if (!this.canPost() || this.form.invalid) {
-      this.form.markAllAsTouched();
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    if (!this.canPost()) {
       return;
     }
     this.saving.set(true);
@@ -155,5 +254,12 @@ export class OpeningStockPage {
       }
     }
     return fallback;
+  }
+
+  onProductSearch(event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      this.productSearchChanges.next(target.value.trim());
+    }
   }
 }

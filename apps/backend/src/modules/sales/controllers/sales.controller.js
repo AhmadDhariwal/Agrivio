@@ -1,5 +1,6 @@
 const { sendSuccessEnvelope } = require('../../../platform/http/response-envelope');
 const { forbidden } = require('../../../platform/errors/app-error');
+const { parsePaginationQuery } = require('../../../platform/http/parse-pagination-query');
 
 function requireOrganizationId(req) {
   const organizationId = req.authContext?.organizationId;
@@ -13,7 +14,8 @@ function createSalesController(deps) {
   return {
     async listSales(req, res, next) {
       try {
-        const data = await deps.salesService.listSales(
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.salesService.listSales(
           requireOrganizationId(req),
           {
             status:
@@ -32,10 +34,13 @@ function createSalesController(deps) {
               typeof req.query.branchId === 'string' && req.query.branchId.trim() !== ''
                 ? req.query.branchId.trim()
                 : undefined,
+            search: typeof req.query.search === 'string' ? req.query.search : undefined,
+            skip,
+            pageSize,
           },
           req.authContext,
         );
-        sendSuccessEnvelope(res, 200, data);
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
         next(error);
       }

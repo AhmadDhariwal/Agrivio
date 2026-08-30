@@ -53,6 +53,23 @@ function createOperationsService(deps) {
     return { items: items.map(toBackupDto) };
   }
 
+  async function verifyBackupPolicy(options = {}) {
+    const maxAgeMs = options.maxAgeMs ?? 24 * 60 * 60 * 1000;
+    const items = await store.listBackups();
+    const latestSuccess = items.find((item) => item.status === 'success');
+    if (latestSuccess === undefined) {
+      throw validationFailed('No successful backup recorded for policy verification');
+    }
+    const recordedAt =
+      latestSuccess.recordedAt instanceof Date
+        ? latestSuccess.recordedAt
+        : new Date(latestSuccess.recordedAt);
+    if (now().getTime() - recordedAt.getTime() > maxAgeMs) {
+      throw validationFailed('Latest successful backup is older than the verification window');
+    }
+    return toBackupDto(latestSuccess);
+  }
+
   async function recordBackupOutcome(input) {
     const status = requireString(input.status, 'status');
     if (!BACKUP_STATUSES.includes(status)) {
@@ -108,6 +125,7 @@ function createOperationsService(deps) {
 
   return {
     listBackups,
+    verifyBackupPolicy,
     recordBackupOutcome,
     initiateRestoreCoordination,
     getRestore,

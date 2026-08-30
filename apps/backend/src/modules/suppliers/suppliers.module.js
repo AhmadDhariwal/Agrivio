@@ -5,6 +5,7 @@ const {
 const { createAuditWriter } = require('../../platform/audit/audit-writer');
 const { assertOptimisticVersion } = require('../../platform/validation/request-validation');
 const { conflict, notFound, validationFailed } = require('../../platform/errors/app-error');
+const { assertMasterUnused } = require('../../platform/lifecycle/record-in-use');
 const {
   assertCreationLimit,
   attachSoftWarning,
@@ -81,13 +82,34 @@ function createSuppliersService(deps) {
   }
 
   return {
-    async listSuppliers(organizationId) {
-      const items = await store.listSuppliers(organizationId);
-      const mapped = [];
-      for (const item of items) {
-        mapped.push(await buildSupplierDto(organizationId, item));
+    async listSuppliers(organizationId, options = {}) {
+      const { status, search, skip, pageSize } = options;
+      const { items, total } = await store.listSuppliers(
+        organizationId,
+        { status, search },
+        skip !== undefined || pageSize !== undefined ? { skip, pageSize } : {},
+      );
+      if (!ledgersService || typeof ledgersService.mapPartyBalances !== 'function') {
+        const mapped = [];
+        for (const item of items) {
+          mapped.push(await buildSupplierDto(organizationId, item));
+        }
+        return { items: mapped, total };
       }
-      return { items: mapped };
+      const [payableMap, advanceMap] = await Promise.all([
+        ledgersService.mapPartyBalances(organizationId, 'supplier', 'payable'),
+        ledgersService.mapPartyBalances(organizationId, 'supplier', 'supplier_advance'),
+      ]);
+      const zero = { amount: '0.00', currency: 'PKR' };
+      return {
+        items: items.map((item) =>
+          toSupplierDto(item, {
+            payable: payableMap.get(String(item['_id'])) ?? zero,
+            advance: advanceMap.get(String(item['_id'])) ?? zero,
+          }),
+        ),
+        total,
+      };
     },
 
     async getSupplier(organizationId, supplierId) {
@@ -106,13 +128,16 @@ function createSuppliersService(deps) {
       if (needle === '') {
         return null;
       }
-      const items = await store.listSuppliers(organizationId);
+      const { items } = await store.listSuppliers(organizationId);
       const found = items.find((item) => String(item.nameNormalized) === needle);
       return found ? toSupplierDto(found) : null;
     },
 
     async createSupplier(organizationId, body, actor, options = {}) {
       const input = parseSupplierCreate(body);
+      if (typeof deps.capabilityService?.assertSupplierCreateAllowed === 'function') {
+        await deps.capabilityService.assertSupplierCreateAllowed(organizationId);
+      }
       const currentUsage = await store.countSuppliers(organizationId);
       const entitlement = await assertCreationLimit(
         evaluateEntitlement,
@@ -151,6 +176,9 @@ function createSuppliersService(deps) {
             throw notFound('Supplier not found');
           }
           assertOptimisticVersion(current, expectedVersion);
+          if (typeof deps.capabilityService?.assertSupplierPatchAllowed === 'function') {
+            await deps.capabilityService.assertSupplierPatchAllowed(organizationId, current, patch);
+          }
           const updated = await store.updateSupplier(session, organizationId, supplierId, {
             ...patch,
             version: Number(current['version']) + 1,
@@ -170,11 +198,47 @@ function createSuppliersService(deps) {
       }
     },
 
+    async deleteSupplier(organizationId, supplierId, actor) {
+      const current = await store.findSupplierById(organizationId, supplierId);
+      if (current === null) {
+        throw notFound('Supplier not found');
+      }
+      if (typeof deps.capabilityService?.assertSupplierDeleteAllowed === 'function') {
+        await deps.capabilityService.assertSupplierDeleteAllowed(organizationId);
+      }
+      const reasons = [];
+      if (current.openingBalance && current.openingBalance.status === 'posted') {
+        reasons.push('opening balance');
+      }
+      if (typeof deps.listSupplierReferences === 'function') {
+        reasons.push(...(await deps.listSupplierReferences(organizationId, supplierId)));
+      }
+      assertMasterUnused(reasons);
+      return transactionRunner.run(async (session) => {
+        const deleted = await store.deleteSupplier(session, organizationId, supplierId);
+        if (!deleted) {
+          throw notFound('Supplier not found');
+        }
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: actor.actorId,
+          action: 'supplier.deleted',
+          resourceType: 'supplier',
+          resourceId: supplierId,
+          metadata: { name: current.name },
+        });
+        return { id: supplierId, deleted: true };
+      });
+    },
+
     async postOpeningBalance(organizationId, supplierId, body, actor, idempotencyKey, options = {}) {
       if (!ledgersService) {
         throw validationFailed('Ledger service is not configured');
       }
       const input = parseSupplierOpeningBalance(body);
+      if (typeof deps.capabilityService?.assertSupplierOpeningBalanceAllowed === 'function') {
+        await deps.capabilityService.assertSupplierOpeningBalanceAllowed(organizationId);
+      }
 
       const postWork = async (session) => {
             const current = await store.findSupplierById(organizationId, supplierId);
@@ -316,7 +380,13 @@ function createSuppliersModule(options) {
       ? {}
       : { evaluateEntitlement: options.evaluateEntitlement }),
     ...(options.ledgersService === undefined ? {} : { ledgersService: options.ledgersService }),
+    ...(options.capabilityService === undefined
+      ? {}
+      : { capabilityService: options.capabilityService }),
     ...(options.now === undefined ? {} : { now: options.now }),
+    ...(options.listSupplierReferences === undefined
+      ? {}
+      : { listSupplierReferences: options.listSupplierReferences }),
   });
 
   return { store, suppliersService };

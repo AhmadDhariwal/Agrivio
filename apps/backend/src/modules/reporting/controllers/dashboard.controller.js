@@ -16,6 +16,7 @@ function createReportingController(deps) {
         const data = await deps.reportingService.getDashboard(
           requireOrganizationId(req),
           req.authContext,
+          req.query ?? {},
         );
         sendSuccessEnvelope(res, 200, data);
       } catch (error) {

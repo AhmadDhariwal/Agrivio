@@ -311,7 +311,7 @@ describe('F06 P4 printing and cashier POS wiring', () => {
 
       const balances = await fetchJson(baseUrl, 'GET', API_INVENTORY_BALANCES_PATH, null, {}, jar);
       expect(balances.status).toBe(200);
-      const balance = balances.body.data.items.find((item) => item.productId === product.body.data.id);
+      const balance = balances.body.data.find((item) => item.productId === product.body.data.id);
       expect(balance.quantityBase).toBe('96.0000');
 
       await postJson(baseUrl, jar, 'POST', API_AUTH_LOGOUT_PATH, {});

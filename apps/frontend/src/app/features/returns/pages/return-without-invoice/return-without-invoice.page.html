@@ -1,145 +1,493 @@
-<agrivio-ui-page-header
-  title="Return without invoice"
-  eyebrow="Returns and Corrections"
-  lede="Lookup product, warehouse, and customer (or identifying details). Manager/Owner approval, reason, and explicit stock/refund resolution are required."
-/>
-
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading lookup data…" />
-} @else if (!canPost()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to post returns." />
-} @else if (!canApprove()) {
-  <agrivio-ui-alert
-    tone="warning"
-    message="Return without invoice requires the separate approval permission."
-  />
-} @else {
-  @if (errorMessage(); as error) {
-    <div data-testid="without-invoice-error">
-      <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+<div class="return-form-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <h1 class="page-head__title">Return Without Invoice</h1>
+      <p class="page-head__lede">
+        Lookup product, warehouse, and customer (or identifying details). Manager/Owner approval, reason, and explicit stock/refund resolution are required.
+      </p>
     </div>
-  }
+    <div class="page-head__actions">
+      <a class="ag-btn ag-btn--secondary back-btn" routerLink="/app/returns" data-testid="back-to-returns">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        Back to Returns
+      </a>
+    </div>
+  </header>
 
-  <form class="ag-stack" [formGroup]="form" (ngSubmit)="submit()" data-testid="without-invoice-form">
-    <label>
-      Warehouse
-      <select formControlName="warehouseId" data-testid="without-invoice-warehouse">
-        <option value="">Select warehouse</option>
-        @for (warehouse of warehouses(); track warehouse.id) {
-          <option [value]="warehouse.id">{{ warehouse.name }}</option>
-        }
-      </select>
-    </label>
-
-    <label>
-      Customer lookup
-      <select formControlName="customerId" data-testid="without-invoice-customer">
-        <option value="">No registered customer</option>
-        @for (customer of customers(); track customer.id) {
-          <option [value]="customer.id">{{ customer.name }}</option>
-        }
-      </select>
-    </label>
-    <label>
-      Identifying name
-      <input formControlName="customerIdentifyingName" data-testid="without-invoice-name" />
-    </label>
-    <label>
-      Identifying phone
-      <input formControlName="customerIdentifyingPhone" data-testid="without-invoice-phone" />
-    </label>
-
-    @for (line of lines.controls; track $index; let index = $index) {
-      <fieldset class="line" [formGroup]="lineGroup(index)">
-        <legend>Returned product {{ index + 1 }}</legend>
-        <label>
-          Product
-          <select
-            formControlName="productId"
-            data-testid="without-invoice-product"
-            (change)="onProductChange(index)"
-          >
-            <option value="">Select product</option>
-            @for (product of products(); track product.id) {
-              <option [value]="product.id">{{ product.name }}</option>
-            }
-          </select>
-        </label>
-        <label>
-          Quantity
-          <input formControlName="quantity" data-testid="without-invoice-qty" />
-        </label>
-        @if (productNeedsBatch(index)) {
-          <label>
-            Batch
-            <select formControlName="batchId" data-testid="without-invoice-batch">
-              <option value="">Select batch</option>
-              @for (batch of batchesForLine(index); track batch.id) {
-                <option [value]="batch.id">{{ batch.batchNumber }}</option>
-              }
-            </select>
-          </label>
-        }
-        <label>
-          Stock condition
-          <select formControlName="stockCondition" data-testid="without-invoice-condition">
-            <option value="sellable">Sellable</option>
-            <option value="unsellable">Unsellable</option>
-          </select>
-        </label>
-        <label>
-          Unsellable reason
-          <select formControlName="unsellableReason" data-testid="without-invoice-unsellable-reason">
-            <option value="expired">Expired</option>
-            <option value="damaged">Damaged</option>
-            <option value="opened">Opened</option>
-            <option value="contaminated">Contaminated</option>
-            <option value="other">Other</option>
-          </select>
-        </label>
-        <button class="ag-btn ag-btn--secondary" type="button" (click)="removeLine(index)">
-          Remove
-        </button>
-      </fieldset>
+  @if (loading()) {
+    <div class="state-container">
+      <agrivio-ui-loading-state label="Loading lookup data…" />
+    </div>
+  } @else if (!canPost()) {
+    <agrivio-ui-alert tone="warning" message="You do not have permission to post returns." />
+  } @else if (!canApprove()) {
+    <agrivio-ui-alert tone="warning" message="Return without invoice requires the separate approval permission." />
+  } @else {
+    @if (errorMessage(); as error) {
+      <div data-testid="without-invoice-error">
+        <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+      </div>
     }
 
-    <button class="ag-btn ag-btn--secondary" type="button" (click)="addLine()">Add product</button>
+    <form
+      class="rwi-form"
+      [formGroup]="form"
+      (ngSubmit)="submit()"
+      data-testid="without-invoice-form"
+    >
+      <!-- Section 1: Customer & Facility Context -->
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">1. Customer & Facility Context</h2>
+            <p class="form-card__subtitle">Specify the receiving warehouse and registered customer or walk-in contact details.</p>
+          </div>
+        </div>
 
-    <label>
-      Return reason
-      <input formControlName="reason" data-testid="without-invoice-reason" />
-    </label>
-    <label>
-      Approved refund / credit value (PKR)
-      <input formControlName="approvedReturnValue" data-testid="without-invoice-value" />
-    </label>
-    <label>
-      Financial resolution
-      <select formControlName="resolution" data-testid="without-invoice-resolution">
-        <option value="ledger_adjustment">Customer ledger adjustment</option>
-        <option value="account_refund">Cash / bank / digital refund</option>
-      </select>
-    </label>
-    <label>
-      Refund account
-      <select formControlName="refundAccountId" data-testid="without-invoice-refund-account">
-        <option value="">None</option>
-        @for (account of accounts(); track account.id) {
-          <option [value]="account.id">{{ account.name }} ({{ account.accountType }})</option>
-        }
-      </select>
-    </label>
+        <div class="form-card__body">
+          <div class="form-grid form-grid--2col">
+            <!-- Warehouse -->
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Warehouse / Facility"
+                for="without-invoice-warehouse"
+                [required]="fieldRequired(form.controls.warehouseId)"
+              />
+              <select
+                id="without-invoice-warehouse"
+                class="ag-select"
+                formControlName="warehouseId"
+                data-testid="without-invoice-warehouse"
+                [class.ag-input--invalid]="fieldError(form.controls.warehouseId, 'Warehouse / Facility', formSubmitAttempted())"
+                [attr.aria-required]="fieldRequired(form.controls.warehouseId) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.warehouseId, 'Warehouse / Facility', formSubmitAttempted()) ? 'true' : null"
+              >
+                <option value="" disabled>Select receiving warehouse</option>
+                @for (warehouse of warehouses(); track warehouse.id) {
+                  <option [value]="warehouse.id">{{ warehouse.name }}</option>
+                }
+              </select>
+              @if (fieldError(form.controls.warehouseId, 'Warehouse / Facility', formSubmitAttempted()); as warehouseError) {
+                <p class="field-error" role="alert">{{ warehouseError }}</p>
+              }
+            </div>
 
-    <div class="ag-inline">
-      <button
-        class="ag-btn"
-        type="submit"
-        [disabled]="submitting()"
-        data-testid="without-invoice-submit"
-      >
-        {{ submitting() ? 'Posting…' : 'Approve and post return' }}
-      </button>
-      <a class="ag-btn ag-btn--secondary" routerLink="/app/returns">Cancel</a>
-    </div>
-  </form>
-}
+            <!-- Customer Lookup -->
+            <div class="ag-field">
+              <agrivio-ui-field-label label="Find customer" for="without-invoice-customer-search" />
+              <div class="ag-input-with-icon">
+                <svg
+                  class="input-icon"
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input
+                  id="without-invoice-customer-search"
+                  class="ag-input"
+                  type="search"
+                  placeholder="Search by name, phone, or code…"
+                  (input)="onCustomerSearch($event)"
+                  data-testid="without-invoice-customer-search"
+                />
+              </div>
+              <p class="field-hint">Search to load matching customers; walk-in details can be entered below.</p>
+            </div>
+
+            <div class="ag-field">
+              <agrivio-ui-field-label label="Customer lookup" for="without-invoice-customer" />
+              <select
+                id="without-invoice-customer"
+                class="ag-select"
+                formControlName="customerId"
+                data-testid="without-invoice-customer"
+              >
+                <option value="">No registered customer (Walk-in)</option>
+                @for (customer of customers(); track customer.id) {
+                  <option [value]="customer.id">{{ customer.name }}</option>
+                }
+              </select>
+            </div>
+
+            <!-- Walk-in Identifying Name -->
+            <div class="ag-field">
+              <agrivio-ui-field-label label="Walk-in identifying name" for="without-invoice-name" />
+              <input
+                id="without-invoice-name"
+                class="ag-input"
+                formControlName="customerIdentifyingName"
+                placeholder="e.g. Rasheed Ahmed"
+                data-testid="without-invoice-name"
+              />
+            </div>
+
+            <!-- Walk-in Identifying Phone -->
+            <div class="ag-field">
+              <agrivio-ui-field-label label="Walk-in identifying phone" for="without-invoice-phone" />
+              <input
+                id="without-invoice-phone"
+                class="ag-input"
+                formControlName="customerIdentifyingPhone"
+                placeholder="e.g. 0300-1234567"
+                data-testid="without-invoice-phone"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 2: Returned Products & Batches -->
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon form-card__icon--product">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+              <line x1="12" y1="22.08" x2="12" y2="12" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">2. Returned Products & Batches</h2>
+            <p class="form-card__subtitle">Select products, quantities, batch references, and sellable/unsellable condition.</p>
+          </div>
+        </div>
+
+        <div class="form-card__body">
+          <div class="ag-field">
+            <agrivio-ui-field-label label="Find product" for="without-invoice-product-search" />
+            <div class="ag-input-with-icon">
+              <svg
+                class="input-icon"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                id="without-invoice-product-search"
+                class="ag-input"
+                type="search"
+                placeholder="Search by product name or SKU…"
+                (input)="onProductSearch($event)"
+                data-testid="without-invoice-product-search"
+              />
+            </div>
+            <p class="field-hint">Search to load matching products for the line selectors below.</p>
+          </div>
+
+          @for (line of lines.controls; track $index; let index = $index) {
+            <div class="product-line" [formGroup]="lineGroup(index)">
+              <div class="product-line__header">
+                <span class="product-line__label">PRODUCT LINE #{{ index + 1 }}</span>
+                @if (lines.length > 1) {
+                  <button
+                    type="button"
+                    class="product-line__remove"
+                    (click)="removeLine(index)"
+                    aria-label="Remove product line"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                    Remove
+                  </button>
+                }
+              </div>
+
+              <div class="form-grid form-grid--3col">
+                <!-- Product -->
+                <div class="ag-field">
+                  <agrivio-ui-field-label
+                    label="Product"
+                    [for]="'without-invoice-product-' + index"
+                    [required]="fieldRequired(lineGroup(index).controls['productId'])"
+                  />
+                  <select
+                    [id]="'without-invoice-product-' + index"
+                    class="ag-select"
+                    formControlName="productId"
+                    data-testid="without-invoice-product"
+                    (change)="onProductChange(index)"
+                    [class.ag-input--invalid]="lineFieldError(index, 'productId', 'Product')"
+                    [attr.aria-required]="fieldRequired(lineGroup(index).controls['productId']) ? 'true' : null"
+                    [attr.aria-invalid]="lineFieldError(index, 'productId', 'Product') ? 'true' : null"
+                  >
+                    <option value="" disabled>Select returned product</option>
+                    @for (product of products(); track product.id) {
+                      <option [value]="product.id">{{ product.name }}</option>
+                    }
+                  </select>
+                  @if (lineFieldError(index, 'productId', 'Product'); as productError) {
+                    <p class="field-error" role="alert">{{ productError }}</p>
+                  }
+                </div>
+
+                <!-- Quantity -->
+                <div class="ag-field">
+                  <agrivio-ui-field-label
+                    label="Quantity"
+                    [for]="'without-invoice-qty-' + index"
+                    [required]="fieldRequired(lineGroup(index).controls['quantity'])"
+                  />
+                  <input
+                    [id]="'without-invoice-qty-' + index"
+                    class="ag-input"
+                    formControlName="quantity"
+                    placeholder="e.g. 10"
+                    data-testid="without-invoice-qty"
+                    [class.ag-input--invalid]="lineFieldError(index, 'quantity', 'Quantity')"
+                    [attr.aria-required]="fieldRequired(lineGroup(index).controls['quantity']) ? 'true' : null"
+                    [attr.aria-invalid]="lineFieldError(index, 'quantity', 'Quantity') ? 'true' : null"
+                  />
+                  @if (lineFieldError(index, 'quantity', 'Quantity'); as quantityError) {
+                    <p class="field-error" role="alert">{{ quantityError }}</p>
+                  }
+                </div>
+
+                <!-- Stock Condition -->
+                <div class="ag-field">
+                  <agrivio-ui-field-label
+                    label="Stock condition"
+                    [for]="'without-invoice-condition-' + index"
+                    [required]="fieldRequired(lineGroup(index).controls['stockCondition'])"
+                  />
+                  <select
+                    [id]="'without-invoice-condition-' + index"
+                    class="ag-select"
+                    formControlName="stockCondition"
+                    data-testid="without-invoice-condition"
+                    [attr.aria-required]="fieldRequired(lineGroup(index).controls['stockCondition']) ? 'true' : null"
+                  >
+                    <option value="sellable">Sellable (Restock to inventory)</option>
+                    <option value="unsellable">Unsellable (Segregate / write off)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Conditional: Batch (if product requires it) -->
+              @if (productNeedsBatch(index)) {
+                <div class="form-grid form-grid--3col">
+                  <div class="ag-field">
+                    <agrivio-ui-field-label
+                      label="Batch reference"
+                      [for]="'without-invoice-batch-' + index"
+                      [required]="fieldRequired(lineGroup(index).controls['batchId'])"
+                    />
+                    <select
+                      [id]="'without-invoice-batch-' + index"
+                      class="ag-select"
+                      formControlName="batchId"
+                      data-testid="without-invoice-batch"
+                      [class.ag-input--invalid]="lineFieldError(index, 'batchId', 'Batch reference')"
+                      [attr.aria-required]="fieldRequired(lineGroup(index).controls['batchId']) ? 'true' : null"
+                      [attr.aria-invalid]="lineFieldError(index, 'batchId', 'Batch reference') ? 'true' : null"
+                    >
+                      <option value="">Select batch</option>
+                      @for (batch of batchesForLine(index); track batch.id) {
+                        <option [value]="batch.id">{{ batch.batchNumber }}</option>
+                      }
+                    </select>
+                    @if (lineFieldError(index, 'batchId', 'Batch reference'); as batchError) {
+                      <p class="field-error" role="alert">{{ batchError }}</p>
+                    }
+                  </div>
+                </div>
+              }
+
+              <!-- Conditional: Unsellable reason -->
+              @if (lineGroup(index).get('stockCondition')?.value === 'unsellable') {
+                <div class="form-grid form-grid--3col">
+                  <div class="ag-field">
+                    <agrivio-ui-field-label
+                      label="Unsellable reason"
+                      [for]="'without-invoice-unsellable-' + index"
+                      [required]="fieldRequired(lineGroup(index).controls['unsellableReason'])"
+                    />
+                    <select
+                      [id]="'without-invoice-unsellable-' + index"
+                      class="ag-select"
+                      formControlName="unsellableReason"
+                      data-testid="without-invoice-unsellable-reason"
+                      [attr.aria-required]="fieldRequired(lineGroup(index).controls['unsellableReason']) ? 'true' : null"
+                    >
+                      <option value="expired">Expired</option>
+                      <option value="damaged">Damaged</option>
+                      <option value="opened">Opened</option>
+                      <option value="contaminated">Contaminated</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+
+          <button class="add-line-btn" type="button" (click)="addLine()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Add Another Product
+          </button>
+        </div>
+      </section>
+
+      <!-- Section 3: Settlement & Approval Context -->
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon form-card__icon--settlement">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <line x1="2" y1="10" x2="22" y2="10" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">3. Settlement & Approval Context</h2>
+            <p class="form-card__subtitle">Define approved refund value, settlement ledger/account, and return reason.</p>
+          </div>
+        </div>
+
+        <div class="form-card__body">
+          <div class="form-grid form-grid--2col">
+            <!-- Approved Refund Value -->
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Approved refund / credit value (PKR)"
+                for="without-invoice-value"
+                [required]="fieldRequired(form.controls.approvedReturnValue)"
+              />
+              <input
+                id="without-invoice-value"
+                class="ag-input"
+                formControlName="approvedReturnValue"
+                placeholder="e.g. 5000.00"
+                data-testid="without-invoice-value"
+                [class.ag-input--invalid]="fieldError(form.controls.approvedReturnValue, 'Approved refund / credit value (PKR)', formSubmitAttempted())"
+                [attr.aria-required]="fieldRequired(form.controls.approvedReturnValue) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.approvedReturnValue, 'Approved refund / credit value (PKR)', formSubmitAttempted()) ? 'true' : null"
+              />
+              @if (fieldError(form.controls.approvedReturnValue, 'Approved refund / credit value (PKR)', formSubmitAttempted()); as valueError) {
+                <p class="field-error" role="alert">{{ valueError }}</p>
+              }
+            </div>
+
+            <!-- Financial Resolution -->
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Financial resolution"
+                for="without-invoice-resolution"
+                [required]="fieldRequired(form.controls.resolution)"
+              />
+              <select
+                id="without-invoice-resolution"
+                class="ag-select"
+                formControlName="resolution"
+                data-testid="without-invoice-resolution"
+                [class.ag-input--invalid]="fieldError(form.controls.resolution, 'Financial resolution', formSubmitAttempted())"
+                [attr.aria-required]="fieldRequired(form.controls.resolution) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.resolution, 'Financial resolution', formSubmitAttempted()) ? 'true' : null"
+              >
+                <option value="ledger_adjustment">Customer ledger adjustment</option>
+                <option value="account_refund">Cash / bank / digital refund</option>
+              </select>
+              @if (fieldError(form.controls.resolution, 'Financial resolution', formSubmitAttempted()); as resolutionError) {
+                <p class="field-error" role="alert">{{ resolutionError }}</p>
+              }
+            </div>
+
+            <!-- Refund Payment Account -->
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Refund payment account"
+                for="without-invoice-refund-account"
+                [required]="fieldRequired(form.controls.refundAccountId)"
+              />
+              <select
+                id="without-invoice-refund-account"
+                class="ag-select"
+                formControlName="refundAccountId"
+                data-testid="without-invoice-refund-account"
+                [class.ag-input--invalid]="fieldError(form.controls.refundAccountId, 'Refund payment account', formSubmitAttempted())"
+                [attr.aria-required]="fieldRequired(form.controls.refundAccountId) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.refundAccountId, 'Refund payment account', formSubmitAttempted()) ? 'true' : null"
+              >
+                <option value="">None</option>
+                @for (account of accounts(); track account.id) {
+                  <option [value]="account.id">{{ account.name }} ({{ account.accountType }})</option>
+                }
+              </select>
+              @if (fieldError(form.controls.refundAccountId, 'Refund payment account', formSubmitAttempted()); as refundAccountError) {
+                <p class="field-error" role="alert">{{ refundAccountError }}</p>
+              }
+            </div>
+
+            <!-- Return Reason -->
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Return reason & approval note"
+                for="without-invoice-reason"
+                [required]="fieldRequired(form.controls.reason)"
+              />
+              <input
+                id="without-invoice-reason"
+                class="ag-input"
+                formControlName="reason"
+                placeholder="e.g. Customer brought unused seed bag without original receipt; supervisor approved"
+                data-testid="without-invoice-reason"
+                [class.ag-input--invalid]="fieldError(form.controls.reason, 'Return reason & approval note', formSubmitAttempted())"
+                [attr.aria-required]="fieldRequired(form.controls.reason) ? 'true' : null"
+                [attr.aria-invalid]="fieldError(form.controls.reason, 'Return reason & approval note', formSubmitAttempted()) ? 'true' : null"
+              />
+              @if (fieldError(form.controls.reason, 'Return reason & approval note', formSubmitAttempted()); as reasonError) {
+                <p class="field-error" role="alert">{{ reasonError }}</p>
+              }
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Form Actions -->
+      <div class="form-actions">
+        <button
+          class="ag-btn ag-btn--primary"
+          type="submit"
+          [disabled]="!canSubmit()"
+          data-testid="without-invoice-submit"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          {{ submitting() ? 'Posting…' : 'Approve and Post Return' }}
+        </button>
+        <a class="ag-btn ag-btn--secondary" routerLink="/app/returns">Cancel</a>
+      </div>
+    </form>
+  }
+</div>

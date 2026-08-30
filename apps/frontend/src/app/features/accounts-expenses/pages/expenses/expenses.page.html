@@ -1,44 +1,292 @@
-<agrivio-ui-page-header
-  title="Expenses"
-  eyebrow="Accounts"
-  lede="Record operating expenses against a selected account. Posted expenses are corrected, not deleted."
->
-  @if (canPost()) {
-    <a class="ag-btn ag-btn--secondary" routerLink="/app/expense-categories" data-testid="expense-categories-link">
-      Categories
-    </a>
-    <a class="ag-btn" routerLink="/app/expenses/new" data-testid="expense-create-link">Record expense</a>
-  }
-</agrivio-ui-page-header>
+<div class="expenses-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">Finance & Expenses</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">Expenses</h1>
+        <span class="page-head__count-pill" aria-label="Total expenses">{{ total() }} expenses</span>
+      </div>
+      <p class="page-head__lede">
+        Record operating expenses against selected accounts. Posted expenses are corrected, not deleted.
+      </p>
+    </div>
+    <div class="page-head__actions">
+      <a
+        class="ag-btn ag-btn--secondary"
+        routerLink="/app/expense-categories"
+        data-testid="expense-categories-link"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+        </svg>
+        <span>Categories</span>
+      </a>
+      @if (canPost()) {
+      <a
+        class="ag-btn ag-btn--primary"
+        routerLink="/app/expenses/new"
+        data-testid="expense-create-link"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        <span class="btn-text-full">Record expense</span>
+        <span class="btn-text-mobile">Record</span>
+      </a>
+      }
+    </div>
+  </header>
 
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading expenses…" />
-} @else if (errorMessage(); as error) {
-  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-} @else if (items().length === 0) {
-  <agrivio-ui-empty-state
-    title="No expenses yet"
-    message="Create a category, then record an expense against an active account."
+  <!-- Module Information -->
+  @if (showModuleInfo()) {
+  <agrivio-ui-module-info
+    [title]="infoTitle"
+    [description]="infoDescription"
+    [items]="infoItems"
+    [defaultExpanded]="false"
   />
-} @else {
-  <div class="ag-stack" data-testid="expenses-list">
+  }
+
+  <!-- Alerts -->
+  @if (errorMessage(); as error) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  </div>
+  }
+
+  <!-- KPI Summary Row -->
+  @if (!loading() && canView()) {
+  <section class="kpi-row" aria-label="Expenses Summary">
+    <div class="kpi-card">
+      <div class="kpi-card__icon kpi-card__icon--neutral">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Total Expenses</span>
+        <span class="kpi-card__value">{{ total() }}</span>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-card__icon kpi-card__icon--green">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Posted</span>
+        <span class="kpi-card__value">{{ postedCount() }}</span>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-card__icon kpi-card__icon--amber">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Corrected</span>
+        <span class="kpi-card__value">{{ correctedCount() }}</span>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-card__icon kpi-card__icon--blue">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+          <path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Categories</span>
+        <span class="kpi-card__value">{{ categoriesCount() }}</span>
+      </div>
+    </div>
+  </section>
+  }
+
+  @if (loading()) {
+  <div class="state-container">
+    <agrivio-ui-loading-state label="Loading expenses…" />
+  </div>
+  } @else if (!canView()) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="warning" message="You do not have permission to view expenses." />
+  </div>
+  } @else {
+  <!-- Filter Toolbar -->
+  <div class="filter-toolbar" data-testid="expenses-filters">
+    <div class="filter-toolbar__filters">
+      @if (showDateSearch()) {
+      <div class="filter-toolbar__search">
+        <svg class="filter-toolbar__search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input
+          class="filter-toolbar__search-input"
+          type="search"
+          placeholder="Search by date (YYYY-MM-DD)…"
+          aria-label="Search expenses by date (YYYY-MM-DD)"
+          [value]="search()"
+          (change)="onSearchChange($event)"
+          data-testid="expenses-search"
+        />
+      </div>
+      }
+      @if (showStatusFilter()) {
+      <select
+        class="filter-toolbar__select"
+        [value]="statusFilter()"
+        (change)="onStatusChange($event)"
+        aria-label="Filter by status"
+        data-testid="expenses-status-filter"
+      >
+        <option value="">All status</option>
+        <option value="posted">Posted</option>
+        <option value="corrected">Corrected</option>
+        <option value="draft">Draft</option>
+      </select>
+      }
+    </div>
+    <div class="filter-toolbar__actions">
+      @if (hasActiveFilters()) {
+      <button class="filter-toolbar__clear" type="button" (click)="clearFilters()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+        Clear filters
+      </button>
+      }
+      <button class="ag-btn ag-btn--secondary ag-btn--sm" type="button" (click)="reload(true)" aria-label="Refresh list">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+        </svg>
+        <span>Refresh</span>
+      </button>
+    </div>
+  </div>
+
+  @if (items().length === 0) {
+  <agrivio-ui-empty-state
+    title="No expenses found"
+    message="Record your first operating expense or adjust your filters."
+  />
+  } @else {
+  <!-- Desktop Table -->
+  <div class="table-container" data-testid="expenses-list">
+    <table class="expenses-table">
+      <thead>
+        <tr>
+          <th class="expenses-table__th">Expense</th>
+          <th class="expenses-table__th">Category</th>
+          <th class="expenses-table__th">Account</th>
+          <th class="expenses-table__th">Date</th>
+          <th class="expenses-table__th expenses-table__th--amount">Amount (PKR)</th>
+          <th class="expenses-table__th">Status</th>
+          <th class="expenses-table__th expenses-table__th--actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of items(); track item.id) {
+        <tr class="expenses-table__row" [attr.data-testid]="'expense-row-' + item.id">
+          <td class="expenses-table__td expenses-table__td--primary">
+            <div class="expense-identity">
+              <span class="expense-identity__purpose">{{ item.purpose }}</span>
+              @if (item.reference) {
+              <span class="expense-identity__ref">{{ item.reference }}</span>
+              }
+            </div>
+          </td>
+          <td class="expenses-table__td">
+            <span class="badge-category">{{ categoryName(item) }}</span>
+          </td>
+          <td class="expenses-table__td">
+            <span class="badge-account">{{ accountName(item) }}</span>
+          </td>
+          <td class="expenses-table__td">{{ item.expenseDate | date:'mediumDate' }}</td>
+          <td class="expenses-table__td expenses-table__td--amount">
+            {{ item.amount.currency }} {{ item.amount.amount | number:'1.2-2' }}
+          </td>
+          <td class="expenses-table__td">
+            <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+          </td>
+          <td class="expenses-table__td expenses-table__td--actions">
+            @if (canInspect()) {
+            <a
+              class="ag-btn ag-btn--secondary ag-btn--sm"
+              [routerLink]="['/app/expenses', item.id]"
+              [attr.data-testid]="'expense-detail-link-' + item.id"
+            >
+              Open
+            </a>
+            }
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile Cards -->
+  <div class="expense-cards">
     @for (item of items(); track item.id) {
-      <article class="row">
-        <div>
-          <strong>{{ item.purpose }}</strong>
-          <p class="ag-muted">
-            {{ categoryName(item.categoryId) }} · {{ item.expenseDate }} ·
-            {{ item.amount.amount }} {{ item.amount.currency }}
-          </p>
+    <article class="expense-card" [attr.data-testid]="'expense-card-' + item.id">
+      <div class="expense-card__header">
+        <div class="expense-card__title-group">
+          <span class="expense-card__purpose">{{ item.purpose }}</span>
+          @if (item.reference) {
+          <span class="expense-card__ref">{{ item.reference }}</span>
+          }
         </div>
-        <div class="ag-inline">
-          <agrivio-ui-status-badge
-            [label]="item.status"
-            [tone]="item.status === 'posted' ? 'success' : item.status === 'corrected' ? 'warning' : 'neutral'"
-          />
-          <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/expenses', item.id]" data-testid="expense-open">Open</a>
+        <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+      </div>
+
+      <div class="expense-card__body">
+        <div class="expense-card__row">
+          <span class="expense-card__label">Category</span>
+          <span class="expense-card__value">{{ categoryName(item) }}</span>
         </div>
-      </article>
+        <div class="expense-card__row">
+          <span class="expense-card__label">Account</span>
+          <span class="expense-card__value">{{ accountName(item) }}</span>
+        </div>
+        <div class="expense-card__row">
+          <span class="expense-card__label">Date</span>
+          <span class="expense-card__value">{{ item.expenseDate | date:'mediumDate' }}</span>
+        </div>
+        <div class="expense-card__row">
+          <span class="expense-card__label">Amount</span>
+          <span class="expense-card__value expense-card__value--amount">
+            {{ item.amount.currency }} {{ item.amount.amount | number:'1.2-2' }}
+          </span>
+        </div>
+      </div>
+
+      @if (canInspect()) {
+      <div class="expense-card__actions">
+        <a
+          class="ag-btn ag-btn--secondary ag-btn--sm"
+          [routerLink]="['/app/expenses', item.id]"
+        >
+          Open
+        </a>
+      </div>
+      }
+    </article>
     }
   </div>
-}
+
+  <!-- Pagination -->
+  <agrivio-ui-pagination
+    [page]="page()"
+    [pageSize]="pageSize()"
+    [total]="total()"
+    [disabled]="loading()"
+    (pageChange)="onPageChange($event)"
+    (pageSizeChange)="onPageSizeChange($event)"
+  />
+  }
+  }
+</div>

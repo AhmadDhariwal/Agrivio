@@ -1,106 +1,454 @@
-<agrivio-ui-page-header
-  title="Opening stock"
-  eyebrow="Inventory"
-  lede="Post auditable opening stock with batch and expiry when product tracking requires them."
-/>
+<div class="opening-stock-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">INVENTORY</p>
+      <h1 class="page-head__title">Opening stock</h1>
+      <p class="page-head__lede">
+        Post auditable opening stock with batch and expiry where product tracking requires them.
+      </p>
+    </div>
+    <div class="page-head__actions">
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/inventory/stock">
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        Back to Inventory
+      </a>
+    </div>
+  </header>
 
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading opening stock form…" />
-} @else if (!canPost()) {
-  <agrivio-ui-alert
-    tone="warning"
-    message="You do not have permission to post opening stock."
+  <!-- Module Information Section -->
+  @if (showOpeningStockModuleInfo()) {
+  <agrivio-ui-module-info
+    [title]="infoTitle"
+    [description]="infoDescription"
+    [items]="infoItems"
+    [defaultExpanded]="false"
   />
-} @else {
-  @if (errorMessage(); as error) {
+  } @if (loading()) {
+  <div class="state-container">
+    <agrivio-ui-loading-state label="Loading opening stock form…" />
+  </div>
+  } @else if (!canPostOpeningStock()) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="warning" message="You do not have permission to post opening stock." />
+  </div>
+  } @else { @if (errorMessage(); as error) {
+  <div class="alert-container">
     <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-  }
-  @if (successMessage(); as success) {
+  </div>
+  } @if (successMessage(); as success) {
+  <div class="alert-container">
     <agrivio-ui-alert tone="success" [message]="success" data-testid="opening-stock-success" />
+  </div>
   }
 
-  <form
-    class="ag-stack form"
-    [formGroup]="form"
-    (ngSubmit)="submit()"
-    data-testid="opening-stock-form"
-  >
-    <label>
-      Warehouse
-      <select formControlName="warehouseId" data-testid="opening-warehouse">
-        <option value="">Select warehouse</option>
-        @for (warehouse of warehouses(); track warehouse.id) {
-          <option [value]="warehouse.id">{{ warehouse.name }}</option>
+  <form class="os-form" [formGroup]="form" (ngSubmit)="submit()" data-testid="opening-stock-form">
+    <!-- Section 1: Opening Stock Details -->
+    <section class="form-card">
+      <div class="form-card__header">
+        <div class="form-card__icon">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+            />
+            <path d="m3.3 7 8.7 5 8.7-5" />
+            <path d="M12 22V12" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="form-card__title">Opening Stock Details</h2>
+          <p class="form-card__subtitle">
+            Location, product selection, initial quantity, and cost valuation.
+          </p>
+        </div>
+      </div>
+
+      <div class="form-card__body">
+        <div class="form-grid form-grid--3col">
+          <!-- Find Product -->
+          @if (showOpeningStockProductSearch()) {
+          <div class="ag-field">
+            <agrivio-ui-field-label label="Find Product" for="opening-product-search" />
+            <input
+              id="opening-product-search"
+              class="ag-input"
+              type="search"
+              placeholder="Search by name or SKU…"
+              (input)="onProductSearch($event)"
+              (change)="onProductSearch($event)"
+            />
+            <p class="field-hint">Filter the product dropdown options.</p>
+          </div>
+          }
+
+          <!-- Warehouse -->
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Warehouse"
+              for="opening-warehouse"
+              [required]="fieldRequired(form.controls.warehouseId)"
+            />
+            <select
+              id="opening-warehouse"
+              class="ag-select"
+              formControlName="warehouseId"
+              data-testid="opening-warehouse"
+              [class.ag-input--invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted())"
+              [attr.aria-required]="fieldRequired(form.controls.warehouseId) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()) ? 'true' : null"
+            >
+              <option value="" disabled>Select warehouse</option>
+              @for (warehouse of warehouses(); track warehouse.id) {
+              <option [value]="warehouse.id">{{ warehouse.name }}</option>
+              }
+            </select>
+            @if (fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()); as warehouseError) {
+            <p class="field-error" role="alert">{{ warehouseError }}</p>
+            } @else {
+            <p class="field-hint">Select where this opening stock is located.</p>
+            }
+          </div>
+
+          <!-- Product -->
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Product"
+              for="opening-product"
+              [required]="fieldRequired(form.controls.productId)"
+            />
+            <select
+              id="opening-product"
+              class="ag-select"
+              formControlName="productId"
+              data-testid="opening-product"
+              [class.ag-input--invalid]="fieldError(form.controls.productId, 'Product', formSubmitAttempted())"
+              [attr.aria-required]="fieldRequired(form.controls.productId) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.productId, 'Product', formSubmitAttempted()) ? 'true' : null"
+            >
+              <option value="" disabled>Select product</option>
+              @for (product of products(); track product.id) {
+              <option [value]="product.id">{{ product.name }} ({{ product.trackingMode }})</option>
+              }
+            </select>
+            @if (fieldError(form.controls.productId, 'Product', formSubmitAttempted()); as productError) {
+            <p class="field-error" role="alert">{{ productError }}</p>
+            } @else {
+            <p class="field-hint">Choose the product for which opening stock is recorded.</p>
+            }
+          </div>
+        </div>
+
+        <!-- Selected Product Context Row -->
+        @if (selectedProduct(); as prod) {
+        <div class="product-context-strip" data-testid="opening-product-context">
+          <div class="product-context-strip__title">{{ prod.name }}</div>
+          <div class="product-context-strip__meta">
+            <span class="meta-item">
+              <span class="meta-item__key">SKU:</span>
+              <span class="meta-item__val font-mono">{{ prod.sku || '—' }}</span>
+            </span>
+            <span class="meta-sep">•</span>
+            <span class="meta-item">
+              <span class="meta-item__key">Base unit:</span>
+              <span class="meta-item__val">{{ prod.baseUnitCode }}</span>
+            </span>
+            <span class="meta-sep">•</span>
+            <span class="meta-item">
+              <span class="meta-item__key">Tracking:</span>
+              <span
+                class="tracking-chip"
+                [class.tracking-chip--batch]="prod.trackingMode === 'batch'"
+                [class.tracking-chip--expiry]="prod.trackingMode === 'batch_expiry'"
+              >
+                {{ formatTrackingLabel(prod.trackingMode) }}
+              </span>
+            </span>
+          </div>
+        </div>
         }
-      </select>
-    </label>
 
-    <label>
-      Product
-      <select formControlName="productId" data-testid="opening-product">
-        <option value="">Select product</option>
-        @for (product of products(); track product.id) {
-          <option [value]="product.id">
-            {{ product.name }} ({{ product.trackingMode }})
-          </option>
+        <div class="form-grid form-grid--3col">
+          <!-- Quantity -->
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Quantity"
+              for="opening-quantity"
+              [required]="fieldRequired(form.controls.quantity)"
+            />
+            <input
+              id="opening-quantity"
+              class="ag-input"
+              formControlName="quantity"
+              placeholder="e.g. 100"
+              data-testid="opening-quantity"
+              [class.ag-input--invalid]="fieldError(form.controls.quantity, 'Quantity', formSubmitAttempted())"
+              [attr.aria-required]="fieldRequired(form.controls.quantity) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.quantity, 'Quantity', formSubmitAttempted()) ? 'true' : null"
+            />
+            @if (fieldError(form.controls.quantity, 'Quantity', formSubmitAttempted()); as quantityError) {
+            <p class="field-error" role="alert">{{ quantityError }}</p>
+            } @else {
+            <p class="field-hint">Enter quantity in the selected/base unit.</p>
+            }
+          </div>
+
+          <!-- Packaging Unit -->
+          @if (showOpeningStockPackaging()) {
+          <div class="ag-field">
+            <agrivio-ui-field-label label="Packaging Unit (Optional)" for="opening-packaging" />
+            <select
+              id="opening-packaging"
+              class="ag-select"
+              formControlName="packagingUnitId"
+              data-testid="opening-packaging"
+            >
+              <option value="">Base unit</option>
+              @for (unit of packagingUnits(); track unit.id) {
+              <option [value]="unit.id">{{ unit.name }} (×{{ unit.conversionFactor }})</option>
+              }
+            </select>
+            <p class="field-hint">Optional packaging unit conversion.</p>
+          </div>
+          }
+
+          <!-- Opening Inventory Value -->
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Opening Inventory Value (PKR)"
+              for="opening-inventory-value"
+              [required]="fieldRequired(form.controls.inventoryValue)"
+            />
+            <input
+              id="opening-inventory-value"
+              class="ag-input font-mono"
+              formControlName="inventoryValue"
+              placeholder="e.g. 250000.00"
+              data-testid="opening-inventory-value"
+              [class.ag-input--invalid]="fieldError(form.controls.inventoryValue, 'Opening inventory value', formSubmitAttempted())"
+              [attr.aria-required]="fieldRequired(form.controls.inventoryValue) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.inventoryValue, 'Opening inventory value', formSubmitAttempted()) ? 'true' : null"
+            />
+            @if (fieldError(form.controls.inventoryValue, 'Opening inventory value', formSubmitAttempted()); as valueError) {
+            <p class="field-error" role="alert">{{ valueError }}</p>
+            } @else {
+            <p class="field-hint">Total opening cost value for this quantity.</p>
+            }
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 2: Batch & Expiry Information -->
+    <section class="form-card">
+      <div class="form-card__header">
+        <div class="form-card__icon">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+            <line x1="16" x2="16" y1="2" y2="6" />
+            <line x1="8" x2="8" y1="2" y2="6" />
+            <line x1="3" x2="21" y1="10" y2="10" />
+          </svg>
+        </div>
+        <div class="form-card__heading-group">
+          <div class="form-card__title-wrap">
+            <h2 class="form-card__title">Batch &amp; Expiry Information</h2>
+            @if (selectedTrackingMode() === 'none') {
+            <span class="tracking-chip">Standard</span>
+            } @else if (selectedTrackingMode() === 'batch') {
+            <span class="tracking-chip tracking-chip--batch">Batch Required</span>
+            } @else if (selectedTrackingMode() === 'batch_expiry') {
+            <span class="tracking-chip tracking-chip--expiry">Batch + Expiry</span>
+            }
+          </div>
+          <p class="form-card__subtitle">
+            Lot numbers and expiration dates required by the selected product tracking policy.
+          </p>
+        </div>
+      </div>
+
+      <div class="form-card__body">
+        @if (selectedTrackingMode() === 'none') {
+        <div class="standard-tracking-note" data-testid="standard-tracking-note">
+          <p class="standard-tracking-note__title">Standard tracking</p>
+          <p class="standard-tracking-note__desc">
+            No batch or expiry information is required for this product.
+          </p>
+        </div>
+        } @else {
+        <div
+          class="form-grid"
+          [class.form-grid--2col]="selectedTrackingMode() === 'batch'"
+          [class.form-grid--3col]="selectedTrackingMode() === 'batch_expiry'"
+        >
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Batch / Lot Number"
+              for="opening-batch-number"
+              [required]="fieldRequired(form.controls.batchNumber)"
+            />
+            <input
+              id="opening-batch-number"
+              class="ag-input font-mono"
+              formControlName="batchNumber"
+              placeholder="e.g. BT-2026-08"
+              data-testid="opening-batch-number"
+              [class.ag-input--invalid]="fieldError(form.controls.batchNumber, 'Batch / lot number', formSubmitAttempted())"
+              [attr.aria-required]="fieldRequired(form.controls.batchNumber) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.batchNumber, 'Batch / lot number', formSubmitAttempted()) ? 'true' : null"
+            />
+            @if (fieldError(form.controls.batchNumber, 'Batch / lot number', formSubmitAttempted()); as batchError) {
+            <p class="field-error" role="alert">{{ batchError }}</p>
+            } @else {
+            <p class="field-hint">Unique batch or lot code.</p>
+            }
+          </div>
+
+          @if (showOpeningStockManufacturingDate()) {
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Manufacturing Date (Optional)"
+              for="opening-manufacturing-date"
+            />
+            <input
+              id="opening-manufacturing-date"
+              class="ag-input"
+              type="date"
+              formControlName="manufacturingDate"
+              data-testid="opening-manufacturing-date"
+            />
+            <p class="field-hint">Production date if provided.</p>
+          </div>
+          } @if (selectedTrackingMode() === 'batch_expiry') {
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Expiry Date"
+              for="opening-expiry-date"
+              [required]="fieldRequired(form.controls.expiryDate)"
+            />
+            <input
+              id="opening-expiry-date"
+              class="ag-input"
+              type="date"
+              formControlName="expiryDate"
+              data-testid="opening-expiry-date"
+              [class.ag-input--invalid]="fieldError(form.controls.expiryDate, 'Expiry date', formSubmitAttempted())"
+              [attr.aria-required]="fieldRequired(form.controls.expiryDate) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.expiryDate, 'Expiry date', formSubmitAttempted()) ? 'true' : null"
+            />
+            @if (fieldError(form.controls.expiryDate, 'Expiry date', formSubmitAttempted()); as expiryError) {
+            <p class="field-error" role="alert">{{ expiryError }}</p>
+            } @else {
+            <p class="field-hint">Mandatory expiration threshold.</p>
+            }
+          </div>
+          }
+        </div>
+
+        <div class="tracking-help-note">
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+          <span>
+            Batch tracking is mandatory when required by the selected product. Expiry is captured
+            only when the product's tracking configuration requires it.
+          </span>
+        </div>
         }
-      </select>
-    </label>
+      </div>
+    </section>
 
-    <label>
-      Quantity
-      <input formControlName="quantity" data-testid="opening-quantity" />
-    </label>
-
-    <label>
-      Packaging unit (optional — blank uses base unit)
-      <select formControlName="packagingUnitId" data-testid="opening-packaging">
-        <option value="">Base unit</option>
-        @for (unit of packagingUnits(); track unit.id) {
-          <option [value]="unit.id">
-            {{ unit.name }} (×{{ unit.conversionFactor }})
-          </option>
-        }
-      </select>
-    </label>
-
-    @if (selectedTrackingMode() !== 'none') {
-      <label>
-        Batch number
-        <input formControlName="batchNumber" data-testid="opening-batch-number" />
-      </label>
-      <label>
-        Manufacturing date (optional)
-        <input
-          type="date"
-          formControlName="manufacturingDate"
-          data-testid="opening-manufacturing-date"
-        />
-      </label>
-    }
-
-    @if (selectedTrackingMode() === 'batch_expiry') {
-      <label>
-        Expiry date
-        <input type="date" formControlName="expiryDate" data-testid="opening-expiry-date" />
-      </label>
-    }
-
-    <label>
-      Opening inventory value (PKR)
-      <input formControlName="inventoryValue" data-testid="opening-inventory-value" />
-    </label>
-
-    <div class="ag-inline">
+    <!-- Action Footer -->
+    <footer class="form-actions">
       <button
-        class="ag-btn"
+        class="ag-btn ag-btn--primary"
         type="submit"
-        [disabled]="saving()"
+        [disabled]="!canPost()"
         data-testid="opening-stock-save"
       >
-        {{ saving() ? 'Posting…' : 'Post opening stock' }}
+        @if (saving()) {
+        <svg
+          class="spin-icon"
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+        >
+          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+        </svg>
+        Posting… } @else {
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        Post opening stock }
       </button>
-      <a class="ag-btn ag-btn--secondary" routerLink="/app/inventory/stock">View stock</a>
-    </div>
+      @if (showViewStockAction()) {
+      <a
+        class="ag-btn ag-btn--secondary"
+        routerLink="/app/inventory/stock"
+        data-testid="opening-stock-view-stock"
+      >
+        View stock
+      </a>
+      }
+      <a
+        class="ag-btn ag-btn--secondary"
+        routerLink="/app/inventory/stock"
+        data-testid="opening-stock-cancel"
+      >
+        Cancel
+      </a>
+    </footer>
   </form>
-}
+  }
+</div>

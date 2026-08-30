@@ -1,40 +1,1084 @@
-<agrivio-ui-page-header
-  title="Customers"
-  eyebrow="Sales"
-  lede="Maintain customer profiles, price tiers, and credit policy."
->
-  @if (canManage()) {
-    <a class="ag-btn" routerLink="/app/customers/new" data-testid="customer-create-link">Create customer</a>
-  }
-</agrivio-ui-page-header>
+<div class="customers-shell">
+  <!-- Page Header (Matched to Products Page Anatomy) -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">Customers</h1>
+        <span class="page-head__count-pill" aria-label="Total customers">
+          {{ total() }} {{ total() === 1 ? 'customer' : 'customers' }}
+        </span>
+      </div>
+      <p class="page-head__lede">
+        Manage customer accounts, pricing tiers, and credit policies.
+      </p>
+    </div>
+    <div class="page-head__actions">
+      @if (canCreate()) {
+      <a
+        class="ag-btn ag-btn--primary page-head__add-btn"
+        routerLink="/app/customers/new"
+        data-testid="customer-create-link"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span class="btn-text-full">Create customer</span>
+        <span class="btn-text-mobile">Create</span>
+      </a>
+      }
+    </div>
+  </header>
 
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading customers…" />
-} @else if (errorMessage(); as error) {
-  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-} @else if (items().length === 0) {
-  <agrivio-ui-empty-state
-    title="No customers yet"
-    message="Create the first customer to capture sales and credit terms."
+  <!-- Alerts -->
+  @if (errorMessage(); as error) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  </div>
+  }
+  @if (successMessage(); as success) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="success" [message]="success" />
+  </div>
+  }
+
+  <!-- Module Information Section -->
+  @if (showModuleInfo()) {
+  <agrivio-ui-module-info
+    [title]="infoTitle"
+    [description]="infoDescription"
+    [items]="infoItems"
+    [defaultExpanded]="false"
   />
-} @else {
-  <div class="ag-stack" data-testid="customers-list">
-    @for (item of items(); track item.id) {
-      <article class="row">
-        <div>
-          <strong>{{ item.name }}</strong>
-          <p class="ag-muted">
-            {{ item.customerType }} · {{ item.priceTier }}
-            @if (item.phone) { · {{ item.phone }} }
-          </p>
-        </div>
-        <div class="ag-inline">
-          <agrivio-ui-status-badge [label]="item.status" [tone]="item.status === 'active' ? 'success' : 'neutral'" />
-          @if (canManage()) {
-            <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/customers', item.id]">Edit</a>
+  }
+
+  <!-- Authoritative KPI Summary (Matched to Products KPI Anatomy) -->
+  @if (showKpiCards()) {
+  <section class="kpi-row" aria-label="Customer Summary">
+    <div class="kpi-card">
+      <div class="kpi-card__icon kpi-card__icon--neutral">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Total Customers</span>
+        <span class="kpi-card__value" data-testid="kpi-total-customers">{{ total() }}</span>
+      </div>
+    </div>
+  </section>
+  }
+
+  <!-- Filter & Control Toolbar (Matched to Products Toolbar Anatomy) -->
+  <section class="toolbar" aria-label="Filters and view controls">
+    <!-- Desktop / Tablet Inline Controls -->
+    <div class="toolbar__desktop">
+      <div class="toolbar__left">
+        <!-- Search Input -->
+        @if (showSearch()) {
+        <div class="search-field">
+          <svg
+            class="search-field__icon"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            class="search-field__input"
+            type="search"
+            [value]="search()"
+            (input)="onSearchInput($event)"
+            placeholder="Search customers by name…"
+            aria-label="Search customers"
+            data-testid="customers-search-input"
+          />
+          @if (search()) {
+          <button
+            type="button"
+            class="search-field__clear"
+            (click)="onSearchClear()"
+            aria-label="Clear search"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
           }
         </div>
-      </article>
+        }
+
+        <!-- Status Filter -->
+        @if (showStatusFilter()) {
+        <div class="select-field">
+          <select
+            class="select-field__input"
+            [value]="statusFilter()"
+            (change)="onStatusChange($any($event.target).value)"
+            aria-label="Filter by status"
+            data-testid="customers-status-filter"
+          >
+            <option value="active">Active Customers</option>
+            <option value="all">All Statuses</option>
+            <option value="inactive">Inactive / Archived</option>
+          </select>
+        </div>
+        }
+
+        <!-- Clear Filters Button -->
+        @if (hasActiveFilters() && (showSearch() || showStatusFilter())) {
+        <button
+          class="clear-filters-btn"
+          type="button"
+          (click)="clearFilters()"
+          data-testid="customers-clear-filters"
+        >
+          Clear filters
+        </button>
+        }
+      </div>
+
+      <div class="toolbar__right">
+        @if (canRefresh()) {
+        <button
+          class="row-action-btn toolbar-refresh-btn"
+          type="button"
+          (click)="reload(false, true)"
+          title="Refresh table"
+          aria-label="Refresh table"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
+            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+            <path d="M16 21h5v-5" />
+          </svg>
+        </button>
+        }
+      </div>
+    </div>
+
+    <!-- Mobile 2-Row Controls (< 768px) -->
+    <div class="toolbar__mobile">
+      <!-- Row 1: Full-Width Search Input -->
+      @if (showSearch()) {
+      <div class="search-field search-field--mobile">
+        <svg
+          class="search-field__icon"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          class="search-field__input"
+          type="search"
+          [value]="search()"
+          (input)="onSearchInput($event)"
+          placeholder="Search customers by name…"
+          aria-label="Search customers"
+        />
+        @if (search()) {
+        <button
+          type="button"
+          class="search-field__clear"
+          (click)="onSearchClear()"
+          aria-label="Clear search"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        }
+      </div>
+      }
+
+      <!-- Row 2: Filter Button + Result Count -->
+      <div class="toolbar__mobile-row">
+        @if (showStatusFilter()) {
+        <button
+          type="button"
+          class="mobile-filter-trigger"
+          [class.mobile-filter-trigger--active]="statusFilter() !== 'active'"
+          (click)="openMobileFilters()"
+          aria-label="Open filter options"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+          </svg>
+          <span>Filters</span>
+          @if (statusFilter() !== 'active') {
+          <span class="mobile-filter-trigger__badge">1</span>
+          }
+        </button>
+
+        @if (hasActiveFilters()) {
+        <button type="button" class="mobile-clear-btn" (click)="clearFilters()">Reset</button>
+        }
+        }
+
+        <span class="toolbar__mobile-count">
+          {{ total() }} {{ total() === 1 ? 'customer' : 'customers' }}
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Mobile Filter Slide-Over Drawer / Bottom Sheet -->
+  @if (mobileFiltersOpen() && showStatusFilter()) {
+  <button
+    type="button"
+    class="mobile-filter-backdrop"
+    (click)="closeMobileFilters()"
+    aria-label="Close filters"
+  ></button>
+  <div class="mobile-filter-sheet" role="dialog" aria-modal="true" aria-label="Filter customers">
+    <div class="mobile-filter-sheet__head">
+      <div class="mobile-filter-sheet__title-group">
+        <h2 class="mobile-filter-sheet__title">Filter Customers</h2>
+        @if (statusFilter() !== 'active') {
+        <span class="mobile-filter-sheet__badge">1 active</span>
+        }
+      </div>
+      <button
+        type="button"
+        class="mobile-filter-sheet__close"
+        (click)="closeMobileFilters()"
+        aria-label="Close filters"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="mobile-filter-sheet__body">
+      <!-- Lifecycle Status Filter -->
+      <div class="mobile-filter-group">
+        <label class="mobile-filter-group__label" for="mobile-cust-status">Status</label>
+        <select
+          id="mobile-cust-status"
+          class="mobile-filter-group__select"
+          [value]="statusFilter()"
+          (change)="onStatusChange($any($event.target).value)"
+        >
+          <option value="active">Active Customers</option>
+          <option value="all">All Statuses</option>
+          <option value="inactive">Inactive / Archived</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="mobile-filter-sheet__foot">
+      @if (hasActiveFilters()) {
+      <button type="button" class="ag-btn ag-btn--secondary" (click)="clearFilters()">
+        Clear All
+      </button>
+      }
+      <button
+        type="button"
+        class="ag-btn ag-btn--primary mobile-filter-sheet__apply"
+        (click)="closeMobileFilters()"
+      >
+        Show Results ({{ total() }})
+      </button>
+    </div>
+  </div>
+  }
+
+  <!-- Content States (Loading / Empty / Table / Mobile Cards) -->
+  @if (loading()) {
+  <div class="state-container">
+    <agrivio-ui-loading-state label="Loading customers…" />
+  </div>
+  } @else if (errorMessage() && items().length === 0) {
+    <!-- Error handled in alert above -->
+  } @else if (items().length === 0) {
+  <div class="state-container">
+    @if (hasActiveFilters()) {
+    <agrivio-ui-empty-state
+      title="No customers match your filters"
+      message="Try adjusting your search criteria or status filter."
+    />
+    } @else {
+    <agrivio-ui-empty-state
+      title="No customers yet"
+      message="Create the first customer to manage pricing and credit."
+    />
     }
   </div>
-}
+  } @else {
+  <!-- Desktop & Tablet Table (Matched to Products Table Anatomy) -->
+  <div class="table-container" data-testid="customers-list">
+    <table class="cust-table" aria-label="Customers list">
+      <colgroup>
+        <!-- Level 1 Flexible Columns -->
+        <col class="col-customer" />
+        <col class="col-type" />
+        @if (showPriceTier()) {
+        <col class="col-tier" />
+        }
+        <!-- Level 2 Operational Data Columns -->
+        @if (showPhone()) {
+        <col class="col-phone" />
+        }
+        <col class="col-credit" />
+        <col class="col-receivable" />
+        <col class="col-status" />
+        <col class="col-actions" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col" class="cust-table__th cust-table__th--customer">Customer</th>
+          <th scope="col" class="cust-table__th cust-table__th--type">Type</th>
+          @if (showPriceTier()) {
+          <th scope="col" class="cust-table__th cust-table__th--tier">Price Tier</th>
+          }
+          @if (showPhone()) {
+          <th scope="col" class="cust-table__th cust-table__th--phone">Phone</th>
+          }
+          <th scope="col" class="cust-table__th cust-table__th--credit">Credit Policy</th>
+          <th scope="col" class="cust-table__th cust-table__th--receivable">Outstanding Receivable</th>
+          <th scope="col" class="cust-table__th cust-table__th--status">Status</th>
+          <th scope="col" class="cust-table__th cust-table__th--actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of items(); track item.id) {
+        <tr
+          class="cust-table__row"
+          [class.cust-table__row--selected]="selectedCustomer()?.id === item.id"
+          [class.cust-table__row--inactive]="item.status === 'inactive'"
+          data-testid="customer-row"
+        >
+          <!-- Customer Identity + Avatar Glyph (Level 1: Flexible & Truncated) -->
+          <td class="cust-table__td cust-table__td--customer">
+            <div class="customer-cell">
+              <div class="customer-cell__glyph" aria-hidden="true">
+                {{ getInitials(item.name) }}
+              </div>
+              <div class="customer-cell__meta">
+                @if (canInspect()) {
+                <button
+                  type="button"
+                  class="customer-cell__name"
+                  (click)="openInspector(item)"
+                  [title]="item.name"
+                  data-testid="customer-name-link"
+                >
+                  {{ item.name }}
+                </button>
+                } @else {
+                <span
+                  class="customer-cell__name customer-cell__name--plain"
+                  [title]="item.name"
+                >
+                  {{ item.name }}
+                </span>
+                }
+                <span class="customer-cell__dim">{{ getCustomerTypeLabel(item.customerType) }}</span>
+              </div>
+            </div>
+          </td>
+
+          <!-- Customer Type (Level 1: Flexible & Truncated) -->
+          <td class="cust-table__td cust-table__td--type">
+            <span class="type-text">{{ getCustomerTypeLabel(item.customerType) }}</span>
+          </td>
+
+          <!-- Price Tier (Level 1: Flexible Badge) -->
+          @if (showPriceTier()) {
+          <td class="cust-table__td cust-table__td--tier">
+            <span
+              class="tier-chip"
+              [class.tier-chip--retail]="item.priceTier === 'retail'"
+              [class.tier-chip--wholesale]="item.priceTier === 'wholesale'"
+              [class.tier-chip--dealer]="item.priceTier === 'dealer'"
+              [class.tier-chip--distributor]="item.priceTier === 'distributor'"
+            >
+              {{ getPriceTierLabel(item.priceTier) }}
+            </span>
+          </td>
+          }
+
+          <!-- Phone (Level 2: Fixed & Readable) -->
+          @if (showPhone()) {
+          <td class="cust-table__td cust-table__td--phone">
+            @if (item.phone) {
+            <span class="phone-text">{{ item.phone }}</span>
+            } @else {
+            <span class="muted-dash">—</span>
+            }
+          </td>
+          }
+
+          <!-- Credit Policy (Level 2: Fixed & Readable) -->
+          <td class="cust-table__td cust-table__td--credit">
+            @if (item.creditEnabled) {
+            <div class="credit-cell">
+              @if (showCreditLimit()) {
+              <span class="credit-limit tabular-num">
+                Limit: {{ formatCurrency(item.creditLimit.amount, item.creditLimit.currency) }}
+              </span>
+              }
+              @if (showCreditLimitBehaviour()) {
+              <span class="credit-sub">{{ getCreditLimitBehaviourLabel(item.creditLimitBehaviour) }}</span>
+              }
+            </div>
+            } @else {
+            <span class="credit-disabled">Cash only</span>
+            }
+          </td>
+
+          <!-- Outstanding Receivable (Level 2: Fixed & Readable) -->
+          <td class="cust-table__td cust-table__td--receivable">
+            <div class="balance-cell">
+              <span class="balance-amount tabular-num">
+                {{ formatCurrency(item.derivedBalances?.receivable?.amount, item.derivedBalances?.receivable?.currency) }}
+              </span>
+              @if (item.derivedBalances?.advance?.amount && item.derivedBalances.advance.amount !== '0.00') {
+              <span class="advance-sub tabular-num">
+                Adv: {{ formatCurrency(item.derivedBalances.advance.amount, item.derivedBalances.advance.currency) }}
+              </span>
+              }
+            </div>
+          </td>
+
+          <!-- Status (Level 2: Fixed & Readable) -->
+          <td class="cust-table__td cust-table__td--status">
+            <span
+              class="status-indicator"
+              [class.status-indicator--active]="item.status === 'active'"
+              [class.status-indicator--inactive]="item.status === 'inactive'"
+            >
+              <span class="status-indicator__dot"></span>
+              {{ item.status === 'active' ? 'Active' : 'Inactive' }}
+            </span>
+          </td>
+
+          <!-- Actions (Level 2/3: Fixed with More dropdown) -->
+          <td class="cust-table__td cust-table__td--actions">
+            <div class="row-actions">
+              <!-- Inspect Button -->
+              @if (canInspect()) {
+              <button
+                type="button"
+                class="row-action-btn"
+                (click)="openInspector(item)"
+                title="Inspect customer details"
+                aria-label="Inspect customer details"
+                data-testid="customer-inspect"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
+              }
+
+              <!-- Edit Button -->
+              @if (canEdit()) {
+              <a
+                class="row-action-btn"
+                [routerLink]="['/app/customers', item.id]"
+                title="Edit customer"
+                aria-label="Edit customer"
+                data-testid="customer-edit"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                  <path d="m15 5 4 4" />
+                </svg>
+              </a>
+              }
+
+              <!-- More Actions Menu Dropdown -->
+              @if (canDeactivate() || canReactivate() || canDelete()) {
+              <div class="menu-container">
+                <button
+                  type="button"
+                  class="row-action-btn row-action-btn--more"
+                  (click)="toggleRowMenu(item.id, $event)"
+                  title="More actions"
+                  aria-label="More actions"
+                  data-testid="customer-more-menu"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <circle cx="12" cy="5" r="1"></circle>
+                    <circle cx="12" cy="19" r="1"></circle>
+                  </svg>
+                </button>
+
+                @if (openMenuCustomerId() === item.id) {
+                <div
+                  class="menu-dropdown"
+                  role="menu"
+                  tabindex="-1"
+                  (click)="$event.stopPropagation()"
+                  (keydown)="$event.stopPropagation()"
+                >
+                  @if (item.status === 'active' && canDeactivate()) {
+                  <button
+                    type="button"
+                    class="menu-dropdown__item"
+                    role="menuitem"
+                    data-testid="customer-deactivate"
+                    (click)="askDeactivate(item)"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                    </svg>
+                    Deactivate
+                  </button>
+                  } @else if (item.status !== 'active' && canReactivate()) {
+                  <button
+                    type="button"
+                    class="menu-dropdown__item"
+                    role="menuitem"
+                    data-testid="customer-reactivate"
+                    (click)="askReactivate(item)"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                      <polyline points="22 4 12 14.01 9 11.01" />
+                    </svg>
+                    Reactivate
+                  </button>
+                  }
+
+                  @if (((item.status === 'active' && canDeactivate()) || (item.status !== 'active' && canReactivate())) && canDelete()) {
+                  <div class="menu-dropdown__divider"></div>
+                  }
+
+                  @if (canDelete()) {
+                  <button
+                    type="button"
+                    class="menu-dropdown__item menu-dropdown__item--danger"
+                    role="menuitem"
+                    data-testid="customer-delete"
+                    (click)="askDelete(item)"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M3 6h18" />
+                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                    </svg>
+                    Delete permanently
+                  </button>
+                  }
+                </div>
+                }
+              </div>
+              }
+            </div>
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile Card View (< 768px, Matched to Products) -->
+  <div class="mobile-cards-container">
+    @for (item of items(); track item.id) {
+    <article class="customer-mobile-card" data-testid="customer-mobile-card">
+      <div class="customer-mobile-card__header">
+        <div class="customer-mobile-card__glyph">
+          {{ getInitials(item.name) }}
+        </div>
+        <div class="customer-mobile-card__title-group">
+          @if (canInspect()) {
+          <button
+            type="button"
+            class="customer-mobile-card__name-btn"
+            (click)="openInspector(item)"
+          >
+            {{ item.name }}
+          </button>
+          } @else {
+          <span class="customer-mobile-card__name-btn customer-mobile-card__name-btn--plain">
+            {{ item.name }}
+          </span>
+          }
+          <div class="customer-mobile-card__meta-strip">
+            <span class="customer-mobile-card__type">{{ getCustomerTypeLabel(item.customerType) }}</span>
+            @if (showPriceTier()) {
+            <span class="customer-mobile-card__dot-sep">·</span>
+            <span
+              class="tier-chip tier-chip--sm"
+              [class.tier-chip--retail]="item.priceTier === 'retail'"
+              [class.tier-chip--wholesale]="item.priceTier === 'wholesale'"
+              [class.tier-chip--dealer]="item.priceTier === 'dealer'"
+              [class.tier-chip--distributor]="item.priceTier === 'distributor'"
+            >
+              {{ getPriceTierLabel(item.priceTier) }}
+            </span>
+            }
+          </div>
+        </div>
+        <span
+          class="status-dot"
+          [class.status-dot--active]="item.status === 'active'"
+          [title]="item.status === 'active' ? 'Active' : 'Inactive'"
+        ></span>
+      </div>
+
+      <div class="customer-mobile-card__metrics">
+        <div class="card-metric">
+          <span class="card-metric__label">Receivable</span>
+          <span class="card-metric__value tabular-num">
+            {{ formatCurrency(item.derivedBalances?.receivable?.amount, item.derivedBalances?.receivable?.currency) }}
+          </span>
+        </div>
+        @if (showPhone()) {
+        <div class="card-metric">
+          <span class="card-metric__label">Phone</span>
+          <span class="card-metric__value">{{ item.phone || '—' }}</span>
+        </div>
+        }
+        <div class="card-metric card-metric--full">
+          <span class="card-metric__label">Credit Policy</span>
+          <span class="card-metric__value">
+            {{ item.creditEnabled ? ((showCreditLimit() ? ('Limit: ' + formatCurrency(item.creditLimit.amount, item.creditLimit.currency)) : '') + (showCreditLimit() && showCreditLimitBehaviour() ? ' ' : '') + (showCreditLimitBehaviour() ? ('(' + getCreditLimitBehaviourLabel(item.creditLimitBehaviour) + ')') : '')) : 'Cash only' }}
+          </span>
+        </div>
+      </div>
+
+      <div class="customer-mobile-card__footer">
+        <div class="customer-mobile-card__status-wrap">
+          <span
+            class="status-indicator"
+            [class.status-indicator--active]="item.status === 'active'"
+            [class.status-indicator--inactive]="item.status === 'inactive'"
+          >
+            <span class="status-indicator__dot"></span>
+            {{ item.status === 'active' ? 'Active' : 'Inactive' }}
+          </span>
+        </div>
+
+        <div class="customer-mobile-card__actions">
+          @if (canInspect()) {
+          <button
+            type="button"
+            class="card-action-btn"
+            (click)="openInspector(item)"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            Details
+          </button>
+          }
+          @if (canEdit()) {
+          <a
+            class="card-action-btn"
+            [routerLink]="['/app/customers', item.id]"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+            </svg>
+            Edit
+          </a>
+          }
+          @if (canDeactivate() && item.status === 'active') {
+          <button
+            type="button"
+            class="card-action-btn card-action-btn--danger"
+            (click)="askDeactivate(item)"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+            </svg>
+            Deactivate
+          </button>
+          } @else if (canReactivate() && item.status !== 'active') {
+          <button
+            type="button"
+            class="card-action-btn"
+            (click)="askReactivate(item)"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+            </svg>
+            Reactivate
+          </button>
+          }
+        </div>
+      </div>
+    </article>
+    }
+  </div>
+
+  <!-- Pagination (Shared Agrivio Standard) -->
+  <agrivio-ui-pagination
+    [page]="page()"
+    [pageSize]="pageSize()"
+    [total]="total()"
+    [disabled]="loading()"
+    (pageChange)="onPageChange($event)"
+    (pageSizeChange)="onPageSizeChange($event)"
+  />
+  }
+
+  <!-- Customer Inspector Slide-Over Drawer (Matched to Products Inspector Anatomy) -->
+  @if (showInspector() && selectedCustomer(); as sel) {
+  <div
+    class="inspector-backdrop"
+    (click)="closeInspector()"
+    aria-hidden="true"
+  ></div>
+  <aside
+    class="inspector-drawer"
+    role="dialog"
+    aria-label="Customer details inspector"
+    aria-modal="true"
+    data-testid="customer-inspector"
+  >
+    <!-- Drawer Header -->
+    <div class="inspector-drawer__head">
+      <div class="inspector-drawer__head-title">
+        <div class="inspector-glyph">
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+          </svg>
+        </div>
+        <div class="inspector-drawer__titles">
+          <h2 class="drawer-title" [title]="sel.name">{{ sel.name }}</h2>
+          <p class="drawer-sub">
+            {{ getCustomerTypeLabel(sel.customerType) }} · Status: {{ sel.status === 'active' ? 'Active' : 'Inactive' }}
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        class="drawer-close-btn"
+        (click)="closeInspector()"
+        title="Close inspector (Esc)"
+        aria-label="Close inspector"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Drawer Body -->
+    <div class="inspector-drawer__body">
+      <!-- Section: Balances Overview -->
+      <section class="drawer-sec">
+        <h3 class="drawer-sec__title">Financial Balances (PKR)</h3>
+        <div class="spec-grid">
+          <div class="spec-row">
+            <span class="spec-row__k">Outstanding Receivable</span>
+            <span class="spec-row__v tabular-num">
+              {{ formatCurrency(sel.derivedBalances?.receivable?.amount, sel.derivedBalances?.receivable?.currency) }}
+            </span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-row__k">Advance Balance</span>
+            <span class="spec-row__v tabular-num">
+              {{ formatCurrency(sel.derivedBalances?.advance?.amount, sel.derivedBalances?.advance?.currency) }}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Pricing & Credit Policy -->
+      @if (showCreditSection()) {
+      <section class="drawer-sec">
+        <h3 class="drawer-sec__title">Pricing & Credit Risk</h3>
+        <div class="spec-grid">
+          @if (showPriceTier()) {
+          <div class="spec-row">
+            <span class="spec-row__k">Price Tier</span>
+            <span class="spec-row__v">
+              <span
+                class="tier-chip tier-chip--sm"
+                [class.tier-chip--retail]="sel.priceTier === 'retail'"
+                [class.tier-chip--wholesale]="sel.priceTier === 'wholesale'"
+                [class.tier-chip--dealer]="sel.priceTier === 'dealer'"
+                [class.tier-chip--distributor]="sel.priceTier === 'distributor'"
+              >
+                {{ getPriceTierLabel(sel.priceTier) }}
+              </span>
+            </span>
+          </div>
+          }
+          <div class="spec-row">
+            <span class="spec-row__k">Credit Authorization</span>
+            <span class="spec-row__v">{{ sel.creditEnabled ? 'Credit Authorized' : 'Cash Only' }}</span>
+          </div>
+          @if (sel.creditEnabled) {
+          @if (showCreditLimit()) {
+          <div class="spec-row">
+            <span class="spec-row__k">Credit Limit</span>
+            <span class="spec-row__v tabular-num">
+              {{ formatCurrency(sel.creditLimit.amount, sel.creditLimit.currency) }}
+            </span>
+          </div>
+          }
+          @if (showCreditLimitBehaviour()) {
+          <div class="spec-row">
+            <span class="spec-row__k">Policy Behaviour</span>
+            <span class="spec-row__v">{{ getCreditLimitBehaviourLabel(sel.creditLimitBehaviour) }}</span>
+          </div>
+          }
+          }
+        </div>
+      </section>
+      }
+
+      <!-- Section: Profile & Contact -->
+      <section class="drawer-sec">
+        <h3 class="drawer-sec__title">Profile & Contact Information</h3>
+        <div class="spec-grid">
+          <div class="spec-row">
+            <span class="spec-row__k">Customer Type</span>
+            <span class="spec-row__v">{{ getCustomerTypeLabel(sel.customerType) }}</span>
+          </div>
+          @if (showPhone()) {
+          <div class="spec-row">
+            <span class="spec-row__k">Phone</span>
+            <span class="spec-row__v">{{ sel.phone || '—' }}</span>
+          </div>
+          }
+          <div class="spec-row">
+            <span class="spec-row__k">Lifecycle Status</span>
+            <span class="spec-row__v">
+              <span
+                class="status-indicator"
+                [class.status-indicator--active]="sel.status === 'active'"
+                [class.status-indicator--inactive]="sel.status === 'inactive'"
+              >
+                <span class="status-indicator__dot"></span>
+                {{ sel.status === 'active' ? 'Active' : 'Inactive' }}
+              </span>
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Opening Balance State (if posted) -->
+      @if (sel.openingBalance) {
+      <section class="drawer-sec">
+        <h3 class="drawer-sec__title">Opening Balance</h3>
+        <div class="spec-grid">
+          <div class="spec-row">
+            <span class="spec-row__k">Opening Kind</span>
+            <span class="spec-row__v capitalize">{{ sel.openingBalance.kind === 'receivable' ? 'Receivable' : 'Advance' }}</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-row__k">Opening Amount</span>
+            <span class="spec-row__v tabular-num">
+              {{ formatCurrency(sel.openingBalance.amount.amount, sel.openingBalance.amount.currency) }}
+            </span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-row__k">Status</span>
+            <span class="spec-row__v capitalize">{{ sel.openingBalance.status }}</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-row__k">Posted At</span>
+            <span class="spec-row__v">{{ sel.openingBalance.postedAt }}</span>
+          </div>
+        </div>
+      </section>
+      }
+
+      <!-- Section: Technical Details -->
+      @if (showTechnicalDetails()) {
+      <section class="drawer-sec">
+        <details class="tech-details">
+          <summary class="tech-details__summary">Technical Details</summary>
+          <div class="spec-grid">
+            <div class="spec-row">
+              <span class="spec-row__k">Customer ID</span>
+              <span class="spec-row__v font-mono">{{ sel.id }}</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-row__k">Organization ID</span>
+              <span class="spec-row__v font-mono">{{ sel.organizationId }}</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-row__k">Record Version</span>
+              <span class="spec-row__v">v{{ sel.version }}</span>
+            </div>
+          </div>
+        </details>
+      </section>
+      }
+    </div>
+
+    <!-- Drawer Footer Actions -->
+    <div class="inspector-drawer__footer">
+      @if (canEdit()) {
+      <a
+        class="ag-btn ag-btn--primary"
+        [routerLink]="['/app/customers', sel.id]"
+        (click)="closeInspector()"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+        </svg>
+        Edit Customer
+      </a>
+      @if (sel.status === 'active' && canDeactivate()) {
+      <button
+        class="ag-btn ag-btn--secondary ag-btn--danger-text"
+        type="button"
+        (click)="askDeactivate(sel)"
+      >
+        Deactivate
+      </button>
+      } @else if (sel.status !== 'active' && canReactivate()) {
+      <button
+        class="ag-btn ag-btn--secondary"
+        type="button"
+        (click)="askReactivate(sel)"
+      >
+        Reactivate
+      </button>
+      }
+      }
+      <button
+        type="button"
+        class="ag-btn ag-btn--secondary"
+        (click)="closeInspector()"
+      >
+        Close
+      </button>
+    </div>
+  </aside>
+  }
+
+  <!-- Confirm Dialog for Deactivate / Reactivate / Delete -->
+  <agrivio-ui-confirm-dialog
+    [open]="confirmOpen()"
+    [title]="confirmTitle()"
+    [message]="confirmMessage()"
+    [confirmLabel]="confirmLabel()"
+    [danger]="confirmLabel() === 'Deactivate' || confirmLabel() === 'Delete permanently'"
+    (confirmed)="confirmLifecycle()"
+    (dismiss)="confirmOpen.set(false)"
+  />
+</div>
+
