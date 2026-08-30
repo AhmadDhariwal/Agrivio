@@ -7,6 +7,7 @@ const {
   notFound,
   validationFailed,
   versionConflict,
+  assignmentScopeDenied,
 } = require('../../platform/errors/app-error');
 const {
   convertEnteredQuantityToBaseMinorUnits,
@@ -39,13 +40,13 @@ const {
   toBalanceDto,
   toCostStateDto,
   toExpiryItemDto,
-  toMovementDto,
   toOpeningStockResultDto,
   toReconciliationDto,
   toTransferDto,
 } = require('./inventory.validation');
 const { ADJUSTMENT_DIRECTIONS } = require('./persistence/stock-adjustment.model');
 const { reconcileInventoryState } = require('./reconciliation');
+const { resolveAccessibleWarehouseIds } = require('../identity/assignment-scope');
 const {
   attachBalanceBatchSnapshots,
   attachBatchStockLocations,
@@ -173,11 +174,9 @@ function createInventoryService(deps) {
   const idempotency = deps.idempotency;
   const now = deps.now ?? (() => new Date());
 
-  function accessibleWarehouseIds(organizationId, authContext) {
-    if (authContext?.role === 'Owner' || !Array.isArray(authContext?.warehouseAssignments)) return undefined;
-    return authContext.warehouseAssignments
-      .filter((item) => String(item.organizationId) === String(organizationId))
-      .map((item) => String(item.targetId));
+  function accessibleWarehouseIds(_organizationId, authContext) {
+    const warehouseIds = resolveAccessibleWarehouseIds(authContext);
+    return warehouseIds === null ? undefined : warehouseIds;
   }
   const createObjectId = deps.createObjectId ?? (() => new mongoose.Types.ObjectId());
   const resolveOrganizationTimezone =
@@ -481,6 +480,12 @@ function createInventoryService(deps) {
       const filters = {};
       if (typeof query?.warehouseId === 'string' && query.warehouseId.trim() !== '') {
         filters.warehouseId = query.warehouseId.trim();
+        if (
+          typeof deps.canAccessWarehouse === 'function' &&
+          !deps.canAccessWarehouse(authContext, filters.warehouseId)
+        ) {
+          throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
+        }
       }
       if (typeof query?.productId === 'string' && query.productId.trim() !== '') {
         filters.productId = query.productId.trim();
@@ -528,6 +533,12 @@ function createInventoryService(deps) {
       const filters = {};
       if (typeof query?.warehouseId === 'string' && query.warehouseId.trim() !== '') {
         filters.warehouseId = query.warehouseId.trim();
+        if (
+          typeof deps.canAccessWarehouse === 'function' &&
+          !deps.canAccessWarehouse(authContext, filters.warehouseId)
+        ) {
+          throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
+        }
       }
       if (typeof query?.productId === 'string' && query.productId.trim() !== '') {
         filters.productId = query.productId.trim();
@@ -590,6 +601,12 @@ function createInventoryService(deps) {
       const filters = {};
       if (typeof query?.warehouseId === 'string' && query.warehouseId.trim() !== '') {
         filters.warehouseId = query.warehouseId.trim();
+        if (
+          typeof deps.canAccessWarehouse === 'function' &&
+          !deps.canAccessWarehouse(authContext, filters.warehouseId)
+        ) {
+          throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
+        }
       }
       if (typeof query?.productId === 'string' && query.productId.trim() !== '') {
         filters.productId = query.productId.trim();
@@ -696,7 +713,7 @@ function createInventoryService(deps) {
               authContext &&
               !deps.canAccessWarehouse(authContext, String(input.warehouseId))
             ) {
-              throw forbidden('Warehouse is not assigned to this user');
+              throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
             }
 
             const unitSnapshot = await resolveUnitSnapshot(
@@ -810,6 +827,12 @@ function createInventoryService(deps) {
       const filters = {};
       if (typeof query?.warehouseId === 'string' && query.warehouseId.trim() !== '') {
         filters.warehouseId = query.warehouseId.trim();
+        if (
+          typeof deps.canAccessWarehouse === 'function' &&
+          !deps.canAccessWarehouse(authContext, filters.warehouseId)
+        ) {
+          throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
+        }
       }
       if (typeof query?.status === 'string' && query.status.trim() !== '') {
         filters.status = query.status.trim();
@@ -840,7 +863,7 @@ function createInventoryService(deps) {
         typeof deps.canAccessWarehouse === 'function' &&
         !deps.canAccessWarehouse(authContext, String(record.warehouseId))
       ) {
-        throw notFound('Stock adjustment not found');
+        throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
       }
       return toAdjustmentDto(record);
     },
@@ -856,7 +879,7 @@ function createInventoryService(deps) {
         typeof deps.canAccessWarehouse === 'function' &&
         !deps.canAccessWarehouse(authContext, String(input.warehouseId))
       ) {
-        throw forbidden('Warehouse assignment is required');
+        throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
       }
 
       const unitSnapshot = await resolveUnitSnapshot(
@@ -904,7 +927,7 @@ function createInventoryService(deps) {
         typeof deps.canAccessWarehouse === 'function' &&
         !deps.canAccessWarehouse(authContext, String(existing.warehouseId))
       ) {
-        throw notFound('Stock adjustment not found');
+        throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
       }
 
       const input = parseAdjustmentDraft(body, { partial: true });
@@ -979,7 +1002,7 @@ function createInventoryService(deps) {
         typeof deps.canAccessWarehouse === 'function' &&
         !deps.canAccessWarehouse(authContext, String(existing.warehouseId))
       ) {
-        throw notFound('Stock adjustment not found');
+        throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
       }
       const deleted = await store.deleteAdjustmentDraft(null, organizationId, adjustmentId);
       if (!deleted) {
@@ -1022,7 +1045,7 @@ function createInventoryService(deps) {
               typeof deps.canAccessWarehouse === 'function' &&
               !deps.canAccessWarehouse(authContext, String(existing.warehouseId))
             ) {
-              throw notFound('Stock adjustment not found');
+              throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
             }
 
             const reason =
@@ -1197,7 +1220,7 @@ function createInventoryService(deps) {
               typeof deps.canAccessWarehouse === 'function' &&
               !deps.canAccessWarehouse(authContext, String(original.warehouseId))
             ) {
-              throw notFound('Stock adjustment not found');
+              throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
             }
 
             const reason =
@@ -1362,7 +1385,7 @@ function createInventoryService(deps) {
         (!deps.canAccessWarehouse(authContext, String(record.sourceWarehouseId)) ||
           !deps.canAccessWarehouse(authContext, String(record.destinationWarehouseId)))
       ) {
-        throw notFound('Warehouse transfer not found');
+        throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
       }
       return toTransferDto(record);
     },
@@ -1390,10 +1413,10 @@ function createInventoryService(deps) {
 
       if (typeof deps.canAccessWarehouse === 'function') {
         if (!deps.canAccessWarehouse(authContext, String(input.sourceWarehouseId))) {
-          throw forbidden('Source warehouse assignment is required');
+          throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
         }
         if (!deps.canAccessWarehouse(authContext, String(input.destinationWarehouseId))) {
-          throw forbidden('Destination warehouse assignment is required');
+          throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
         }
       }
 
@@ -1456,7 +1479,7 @@ function createInventoryService(deps) {
         (!deps.canAccessWarehouse(authContext, String(existing.sourceWarehouseId)) ||
           !deps.canAccessWarehouse(authContext, String(existing.destinationWarehouseId)))
       ) {
-        throw notFound('Warehouse transfer not found');
+        throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
       }
 
       const input = parseTransferDraft(body, { partial: true });
@@ -1532,7 +1555,7 @@ function createInventoryService(deps) {
           !deps.canAccessWarehouse(authContext, String(existing.sourceWarehouseId)) ||
           !deps.canAccessWarehouse(authContext, String(existing.destinationWarehouseId))
         ) {
-          throw notFound('Warehouse transfer not found');
+          throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
         }
       }
       const deleted = await store.deleteTransferDraft(null, organizationId, transferId);
@@ -1582,7 +1605,7 @@ function createInventoryService(deps) {
               (!deps.canAccessWarehouse(authContext, String(existing.sourceWarehouseId)) ||
                 !deps.canAccessWarehouse(authContext, String(existing.destinationWarehouseId)))
             ) {
-              throw notFound('Warehouse transfer not found');
+              throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
             }
             if (String(existing.sourceWarehouseId) === String(existing.destinationWarehouseId)) {
               throw validationFailed('source and destination warehouses must differ', [
@@ -1786,7 +1809,7 @@ function createInventoryService(deps) {
               (!deps.canAccessWarehouse(authContext, String(original.sourceWarehouseId)) ||
                 !deps.canAccessWarehouse(authContext, String(original.destinationWarehouseId)))
             ) {
-              throw notFound('Warehouse transfer not found');
+              throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
             }
 
             const reason =

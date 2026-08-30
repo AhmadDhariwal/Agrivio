@@ -62,7 +62,7 @@ describe('assignment scope enforcement foundation', () => {
       expect.unreachable('expected branch denial');
     } catch (error) {
       expect(error).toMatchObject({
-        code: ApiTransportErrorCode.Forbidden,
+        code: ApiTransportErrorCode.AssignmentScopeDenied,
       });
     }
 
@@ -71,7 +71,7 @@ describe('assignment scope enforcement foundation', () => {
       expect.unreachable('expected warehouse denial');
     } catch (error) {
       expect(error).toMatchObject({
-        code: ApiTransportErrorCode.Forbidden,
+        code: ApiTransportErrorCode.AssignmentScopeDenied,
       });
     }
 

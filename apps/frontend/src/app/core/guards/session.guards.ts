@@ -1,5 +1,5 @@
 import { inject } from '@angular/core';
-import { CanActivateFn, Router } from '@angular/router';
+import { CanActivateFn, Router, UrlTree } from '@angular/router';
 import { catchError, map, of } from 'rxjs';
 import { AuthSessionStore } from '../../features/auth/data-access/auth-session.store';
 import { CapabilityService } from '../../features/capabilities/data-access/capability.service';
@@ -49,6 +49,26 @@ export const requirePlatformContextGuard: CanActivateFn = () => {
 
   return router.createUrlTree(['/context']);
 };
+
+export function requirePermissionGuard(permission: string): CanActivateFn {
+  return () => {
+    const sessionStore = inject(AuthSessionStore);
+    const router = inject(Router);
+    const decide = (): true | UrlTree =>
+      sessionStore.hasPermission(permission)
+        ? true
+        : router.createUrlTree(['/app/access-denied']);
+
+    if (sessionStore.session() !== null) {
+      return decide();
+    }
+
+    return sessionStore.loadSession().pipe(
+      map(() => decide()),
+      catchError(() => of(router.createUrlTree(['/login']))),
+    );
+  };
+}
 
 export function requireCapabilityGuard(
   key: string,

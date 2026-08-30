@@ -28,7 +28,7 @@ describe('owner presence invariant hooks', () => {
     } catch (error) {
       expect(error).toMatchObject({
         name: 'AppError',
-        code: ApiTransportErrorCode.Conflict,
+        code: ApiTransportErrorCode.LastOwnerProtected,
       });
     }
 
@@ -38,7 +38,7 @@ describe('owner presence invariant hooks', () => {
     } catch (error) {
       expect(error).toMatchObject({
         name: 'AppError',
-        code: ApiTransportErrorCode.Conflict,
+        code: ApiTransportErrorCode.LastOwnerProtected,
       });
     }
   });

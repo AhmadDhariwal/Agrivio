@@ -479,12 +479,13 @@
           @if (showActions()) {
           <td class="emp-table__td emp-table__td--actions">
             <div class="row-actions">
-              @if (canEdit()) {
+              @if (rowCanUpdate(item)) {
               <a
                 class="row-action-btn"
                 [routerLink]="['/app/employees', item.id]"
                 title="Edit employee"
                 aria-label="Edit employee"
+                data-testid="employee-edit-link"
               >
                 <svg
                   width="14"
@@ -502,8 +503,32 @@
               </a>
               }
 
+              @if (rowCanInspect(item)) {
+              <a
+                class="row-action-btn"
+                [routerLink]="['/app/employees', item.id]"
+                title="View employee"
+                aria-label="View employee"
+                data-testid="employee-inspect-link"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </a>
+              }
+
               <!-- More Actions Dropdown -->
-              @if (canDeactivate() && item.status !== 'deactivated' && item.role !== 'Owner') {
+              @if (rowCanDeactivate(item)) {
               <div class="menu-container">
                 <button
                   type="button"
@@ -619,12 +644,17 @@
 
       @if (showActions()) {
       <div class="emp-card__foot">
-        @if (canEdit()) {
+        @if (rowCanUpdate(item)) {
         <a class="ag-btn ag-btn--secondary emp-card__btn" [routerLink]="['/app/employees', item.id]">
           Edit
         </a>
         }
-        @if (canDeactivate() && item.status !== 'deactivated' && item.role !== 'Owner') {
+        @if (rowCanInspect(item)) {
+        <a class="ag-btn ag-btn--secondary emp-card__btn" [routerLink]="['/app/employees', item.id]">
+          View
+        </a>
+        }
+        @if (rowCanDeactivate(item)) {
         <button
           type="button"
           class="ag-btn ag-btn--danger-outline emp-card__btn"

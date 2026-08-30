@@ -63,6 +63,46 @@ function orgFieldNotEditable(message = 'This field is read-only for your organiz
   return new AppError(ApiTransportErrorCode.OrgFieldNotEditable, message, 403, details);
 }
 
+function authRequired(message = 'Authentication required') {
+  return new AppError(ApiTransportErrorCode.AuthRequired, message, 401);
+}
+
+function contextRequired(message = 'Organization context is required') {
+  return new AppError(ApiTransportErrorCode.ContextRequired, message, 403);
+}
+
+function permissionDenied(message = "You don't have permission to access this area.", details) {
+  return new AppError(ApiTransportErrorCode.PermissionDenied, message, 403, details);
+}
+
+function assignmentScopeDenied(
+  message = "You don't have access to this branch or warehouse.",
+  details,
+) {
+  return new AppError(ApiTransportErrorCode.AssignmentScopeDenied, message, 403, details);
+}
+
+function roleHierarchyDenied(
+  message = 'This action is not allowed for your organization role.',
+  details,
+) {
+  return new AppError(ApiTransportErrorCode.RoleHierarchyDenied, message, 403, details);
+}
+
+function tenantAccessDenied(message = 'Access to this resource is denied.', details) {
+  return new AppError(ApiTransportErrorCode.TenantAccessDenied, message, 403, details);
+}
+
+function lastOwnerProtected(
+  message = 'Every active organization must retain at least one active Owner',
+) {
+  return new AppError(ApiTransportErrorCode.LastOwnerProtected, message, 409);
+}
+
+function subscriptionAccessDenied(message = 'Subscription access is not available.', details) {
+  return new AppError(ApiTransportErrorCode.SubscriptionAccessDenied, message, 403, details);
+}
+
 module.exports = {
   validationFailed,
   notFound,
@@ -76,5 +116,13 @@ module.exports = {
   orgCapabilityDisabled,
   orgActionNotAllowed,
   orgFieldNotEditable,
+  authRequired,
+  contextRequired,
+  permissionDenied,
+  assignmentScopeDenied,
+  roleHierarchyDenied,
+  tenantAccessDenied,
+  lastOwnerProtected,
+  subscriptionAccessDenied,
   AppError,
 };

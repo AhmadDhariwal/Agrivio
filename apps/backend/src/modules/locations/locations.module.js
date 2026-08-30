@@ -10,6 +10,8 @@ const {
   assertCreationLimit,
   attachSoftWarning,
 } = require('../subscriptions/creation-limit');
+const { assertCanManageMembership } = require('../identity/role-hierarchy');
+const { mergeDelegatedAssignments } = require('../identity/assignment-scope');
 const {
   parseBranchCreate,
   parseBranchPatch,
@@ -276,7 +278,8 @@ function createLocationsService(deps) {
       if (typeof deps.capabilityService?.assertEmployeeAssignAccessAllowed === 'function') {
         await deps.capabilityService.assertEmployeeAssignAccessAllowed(organizationId);
       }
-      const { branchIds, warehouseIds } = parseAccessAssignmentsReplace(body);
+      const { branchIds: requestedBranchIds, warehouseIds: requestedWarehouseIds } =
+        parseAccessAssignmentsReplace(body);
       if (typeof findMembershipInOrganization !== 'function') {
         throw validationFailed('Membership lookup is unavailable');
       }
@@ -285,6 +288,35 @@ function createLocationsService(deps) {
       if (membership === null) {
         throw notFound('Organization user not found');
       }
+
+      if (actor?.role) {
+        assertCanManageMembership(actor.role, String(membership['role']));
+      }
+
+      const existing = await store.listAccessAssignmentsByMembershipId(
+        organizationId,
+        String(membership['_id']),
+      );
+      const existingActive = existing.filter((item) => item.status === 'active');
+      const existingBranchIds = existingActive
+        .filter((item) => item.assignmentType === 'branch')
+        .map((item) => String(item.targetId));
+      const existingWarehouseIds = existingActive
+        .filter((item) => item.assignmentType === 'warehouse')
+        .map((item) => String(item.targetId));
+
+      const branchIds = mergeDelegatedAssignments(
+        actor,
+        existingBranchIds,
+        requestedBranchIds,
+        'branch',
+      );
+      const warehouseIds = mergeDelegatedAssignments(
+        actor,
+        existingWarehouseIds,
+        requestedWarehouseIds,
+        'warehouse',
+      );
 
       for (const branchId of branchIds) {
         const branch = await store.findBranchById(organizationId, branchId);

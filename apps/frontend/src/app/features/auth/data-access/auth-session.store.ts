@@ -35,6 +35,18 @@ export class AuthSessionStore {
     return this.permissions().includes(permission);
   }
 
+  can(permission: string): boolean {
+    return this.hasPermission(permission);
+  }
+
+  canAny(permissions: readonly string[]): boolean {
+    return permissions.some((permission) => this.hasPermission(permission));
+  }
+
+  canAll(permissions: readonly string[]): boolean {
+    return permissions.every((permission) => this.hasPermission(permission));
+  }
+
   canSelectBranch(branchId: string): boolean {
     return isBranchSelectable(this.activeContext(), branchId);
   }

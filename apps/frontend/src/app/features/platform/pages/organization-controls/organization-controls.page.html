@@ -273,6 +273,15 @@
       <button
         type="button"
         class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'setup'"
+        (click)="selectModule('setup')"
+        data-testid="setup-control-module"
+      >
+        Organization Setup
+      </button>
+      <button
+        type="button"
+        class="module-nav__item"
         [class.module-nav__item--active]="selectedModule() === 'billing'"
         (click)="selectModule('billing')"
         data-testid="billing-control-module"

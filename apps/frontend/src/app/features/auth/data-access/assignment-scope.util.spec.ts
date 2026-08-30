@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   filterBranchOptions,
   filterWarehouseOptions,
+  hasMissingOperationalAssignments,
   isBranchSelectable,
   isWarehouseSelectable,
 } from './assignment-scope.util';
@@ -43,5 +44,16 @@ describe('assignment-scope.util', () => {
     expect(
       filterWarehouseOptions(cashierContext, [{ id: 'wh-a' }, { id: 'wh-b' }]).map((item) => item.id),
     ).toEqual(['wh-a']);
+  });
+
+  it('does not treat empty assignments as organization-wide access for non-Owner roles', () => {
+    const unassignedCashier: AuthSessionContext = {
+      ...cashierContext,
+      branchAssignments: [],
+      warehouseAssignments: [],
+    };
+    expect(hasMissingOperationalAssignments(unassignedCashier)).toBe(true);
+    expect(hasMissingOperationalAssignments(ownerContext)).toBe(false);
+    expect(hasMissingOperationalAssignments(cashierContext)).toBe(false);
   });
 });

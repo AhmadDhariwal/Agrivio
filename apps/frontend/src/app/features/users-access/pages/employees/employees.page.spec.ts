@@ -208,4 +208,64 @@ describe('EmployeesPage', () => {
     expect(fixture.nativeElement.querySelector('[data-testid="employee-create-link"]')).toBeNull();
     expect(fixture.componentInstance.canCreate()).toBe(false);
   });
+
+  it('uses backend allowedActions so a Manager cannot mutate Owner or Manager rows', () => {
+    listEmployeesSpy.mockReturnValue(
+      of({
+        items: [
+          {
+            ...mockEmployees[0],
+            allowedActions: {
+              canUpdate: true,
+              canDeactivate: true,
+              canAssignAccess: true,
+              canManageConditionalGrants: false,
+            },
+          },
+          {
+            ...mockEmployees[1],
+            allowedActions: {
+              canUpdate: false,
+              canDeactivate: false,
+              canAssignAccess: false,
+              canManageConditionalGrants: false,
+            },
+          },
+          {
+            id: 'emp-3',
+            membershipId: 'mem-3',
+            email: 'manager@agrivio.pk',
+            displayName: 'Ops Manager',
+            role: 'Manager',
+            status: 'active',
+            userStatus: 'active',
+            version: 1,
+            branchIds: ['b-1'],
+            warehouseIds: [],
+            allowedActions: {
+              canUpdate: false,
+              canDeactivate: false,
+              canAssignAccess: false,
+              canManageConditionalGrants: false,
+            },
+          },
+        ],
+        meta: { page: 1, pageSize: 25, total: 3 },
+      }),
+    );
+
+    const fixture: ComponentFixture<EmployeesPage> = TestBed.createComponent(EmployeesPage);
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    const storeKeeper = page.visibleItems()[0];
+    const owner = page.visibleItems()[1];
+    const manager = page.visibleItems()[2];
+    expect(storeKeeper && page.rowCanUpdate(storeKeeper)).toBe(true);
+    expect(storeKeeper && page.rowCanDeactivate(storeKeeper)).toBe(true);
+    expect(owner && page.rowCanUpdate(owner)).toBe(false);
+    expect(owner && page.rowCanDeactivate(owner)).toBe(false);
+    expect(owner && page.rowCanInspect(owner)).toBe(true);
+    expect(manager && page.rowCanUpdate(manager)).toBe(false);
+    expect(manager && page.rowCanDeactivate(manager)).toBe(false);
+  });
 });

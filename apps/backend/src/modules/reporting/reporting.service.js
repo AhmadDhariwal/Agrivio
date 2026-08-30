@@ -10,6 +10,7 @@ const {
 } = require('./gross-profit');
 const { evaluateFeatureEntitlement } = require('../subscriptions/entitlement');
 const { forbidden, validationFailed } = require('../../platform/errors/app-error');
+const { assertOptionalLocationFilters } = require('../identity/assignment-scope');
 const { REPORT_BY_KEY, REPORT_FAMILIES } = require('./report-catalog');
 const { parseReportFilters, parseReportKey } = require('./report-filters');
 const { renderExport } = require('./report-exports');
@@ -162,6 +163,7 @@ function createReportingService(deps) {
 
   async function buildReportDataset(organizationId, key, rawFilters, authContext) {
     const filters = parseReportFilters(key, rawFilters);
+    assertOptionalLocationFilters(authContext, filters);
     const dataset = await queries.queryReport(organizationId, key, filters, authContext);
     return { ...dataset, filters };
   }
@@ -442,6 +444,7 @@ function createReportingService(deps) {
         ...(branchId ? { branchId } : {}),
         ...(warehouseId ? { warehouseId } : {}),
       };
+      assertOptionalLocationFilters(authContext, { branchId, warehouseId });
 
       const [
         todaySales,

@@ -7,6 +7,7 @@ const {
   createRequireOrganizationContextMiddleware,
   createRequirePermissionMiddleware,
 } = require('../../identity/permission.middleware');
+const { createRequireCapabilityMiddleware } = require('../../capabilities/capability.middleware');
 const { createOrganizationController } = require('../controllers/organization.controller');
 
 function registerOrganizationRoutes(deps) {
@@ -17,6 +18,11 @@ function registerOrganizationRoutes(deps) {
   const requireOrganizationView = createRequirePermissionMiddleware('organization.view');
   const requireOrganizationUpdate = createRequirePermissionMiddleware('organization.update');
   const requireSettingsView = createRequirePermissionMiddleware('settings.view');
+  const requireSetupCapability = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'setup',
+    'enabled',
+  );
   const requireBillingAccess =
     deps.requireBillingAccess ?? ((_req, _res, next) => next());
   const requireOperationalAccess =
@@ -52,6 +58,7 @@ function registerOrganizationRoutes(deps) {
     requireOrganizationContext,
     requireSettingsView,
     requireOperationalAccess,
+    requireSetupCapability,
     (req, res, next) => {
       void controller.getSetupProgress(req, res, next);
     },

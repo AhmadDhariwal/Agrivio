@@ -17,6 +17,14 @@ function responseHarness() {
   };
 }
 
+function ownerAuthContext(organizationId) {
+  return {
+    organizationId,
+    contextType: 'organization',
+    role: 'Owner',
+  };
+}
+
 describe('location option read models', () => {
   it('returns all active branches plus selected inactive branches without pagination', async () => {
     const listBranches = vi.fn().mockResolvedValue({
@@ -31,7 +39,10 @@ describe('location option read models', () => {
     const { body, response } = responseHarness();
 
     await controller.listBranchOptions(
-      { authContext: { organizationId: 'org-1' }, query: { selectedIds: 'selected' } },
+      {
+        authContext: ownerAuthContext('org-1'),
+        query: { selectedIds: 'selected' },
+      },
       response,
       vi.fn(),
     );
@@ -49,12 +60,40 @@ describe('location option read models', () => {
     const { body, response } = responseHarness();
 
     await controller.listWarehouseOptions(
-      { authContext: { organizationId: 'org-2' }, query: {} },
+      { authContext: ownerAuthContext('org-2'), query: {} },
       response,
       vi.fn(),
     );
 
     expect(listWarehouses).toHaveBeenCalledWith('org-2');
     expect(body.value.data.items).toHaveLength(1);
+  });
+
+  it('returns only assigned active branches for non-Owner users', async () => {
+    const listBranches = vi.fn().mockResolvedValue({
+      items: [
+        { id: 'branch-a', name: 'A', status: 'active' },
+        { id: 'branch-b', name: 'B', status: 'active' },
+      ],
+      total: 2,
+    });
+    const controller = createLocationsController({ locationsService: { listBranches } });
+    const { body, response } = responseHarness();
+
+    await controller.listBranchOptions(
+      {
+        authContext: {
+          organizationId: 'org-1',
+          contextType: 'organization',
+          role: 'Cashier',
+          branchAssignments: [{ targetId: 'branch-a', organizationId: 'org-1' }],
+        },
+        query: {},
+      },
+      response,
+      vi.fn(),
+    );
+
+    expect(body.value.data.items.map((item) => item.id)).toEqual(['branch-a']);
   });
 });

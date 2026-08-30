@@ -10,6 +10,7 @@ const {
   insufficientStock,
   notFound,
   validationFailed,
+  assignmentScopeDenied,
 } = require('../../platform/errors/app-error');
 const {
   convertEnteredQuantityToBaseMinorUnits,
@@ -22,6 +23,11 @@ const {
   createMongooseIdempotencyStore,
 } = require('../../platform/idempotency/idempotency-service');
 const { hasPermission } = require('../identity/role-permissions');
+const {
+  assertOptionalLocationFilters,
+  assertRecordAssignmentScope,
+  resolveAccessibleWarehouseIds,
+} = require('../identity/assignment-scope');
 const { isExpiredOnBusinessDate } = require('../inventory/public');
 const {
   createInMemorySalesStore,
@@ -273,7 +279,7 @@ function createSalesService(deps) {
   async function assertWarehouseAccess(authContext, warehouseId) {
     if (typeof deps.canAccessWarehouse === 'function') {
       if (!deps.canAccessWarehouse(authContext, String(warehouseId))) {
-        throw forbidden('Warehouse assignment is required');
+        throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
       }
     }
   }
@@ -281,7 +287,7 @@ function createSalesService(deps) {
   async function assertBranchAccess(authContext, branchId) {
     if (typeof deps.canAccessBranch === 'function') {
       if (!deps.canAccessBranch(authContext, String(branchId))) {
-        throw forbidden('Branch assignment is required');
+        throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
       }
     }
   }
@@ -358,32 +364,20 @@ function createSalesService(deps) {
 
   return {
     async listSales(organizationId, query = {}, authContext) {
-      if (query.warehouseId && typeof deps.canAccessWarehouse === 'function' && !deps.canAccessWarehouse(authContext, query.warehouseId)) {
-        return { items: [], total: 0 };
-      }
-      const assignments = Array.isArray(authContext?.warehouseAssignments) ? authContext.warehouseAssignments : null;
-      const warehouseIds = authContext?.role === 'Owner' || assignments === null
-        ? undefined
-        : assignments.filter((item) => String(item.organizationId) === String(organizationId)).map((item) => String(item.targetId));
+      assertOptionalLocationFilters(authContext, {
+        warehouseId: query.warehouseId,
+        branchId: query.branchId,
+      });
+      const warehouseIds = resolveAccessibleWarehouseIds(authContext);
       const { items, total } = await store.listSales(organizationId, {
         status: query.status,
         customerId: query.customerId,
         warehouseId: query.warehouseId,
         branchId: query.branchId,
-        warehouseIds: query.warehouseId ? undefined : warehouseIds,
+        warehouseIds: query.warehouseId ? undefined : warehouseIds === null ? undefined : warehouseIds,
         search: query.search,
       }, { skip: query.skip, pageSize: query.pageSize });
-      const filtered = [];
-      for (const item of items) {
-        if (
-          typeof deps.canAccessWarehouse === 'function' &&
-          !deps.canAccessWarehouse(authContext, String(item.warehouseId))
-        ) {
-          continue;
-        }
-        filtered.push(toSaleDto(item));
-      }
-      return { items: filtered, total };
+      return { items: items.map((item) => toSaleDto(item)), total };
     },
 
     async getSale(organizationId, saleId, authContext) {
@@ -391,12 +385,7 @@ function createSalesService(deps) {
       if (record === null) {
         throw notFound('Sale not found');
       }
-      if (
-        typeof deps.canAccessWarehouse === 'function' &&
-        !deps.canAccessWarehouse(authContext, String(record.warehouseId))
-      ) {
-        throw notFound('Sale not found');
-      }
+      assertRecordAssignmentScope(authContext, record);
       return toSaleDto(record);
     },
 
@@ -405,12 +394,7 @@ function createSalesService(deps) {
       if (record === null) {
         throw notFound('Sale not found');
       }
-      if (
-        typeof deps.canAccessWarehouse === 'function' &&
-        !deps.canAccessWarehouse(authContext, String(record.warehouseId))
-      ) {
-        throw notFound('Sale not found');
-      }
+      assertRecordAssignmentScope(authContext, record);
       if (record.status !== 'posted' && record.status !== 'cancelled') {
         throw conflict('Only posted invoices can be printed');
       }

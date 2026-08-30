@@ -485,6 +485,10 @@
       <div class="ag-shell__content">
         <agrivio-subscription-status-banner [accessState]="subscriptionAccessState()" />
 
+        @if (missingAssignmentMessage(); as assignmentMessage) {
+          <agrivio-ui-alert [message]="assignmentMessage" tone="warning" role="status" />
+        }
+
         @if (errorMessage(); as error) {
           <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
         }

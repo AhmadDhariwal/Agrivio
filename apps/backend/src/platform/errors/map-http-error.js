@@ -41,7 +41,7 @@ function mapErrorToHttpResponse(error, nodeEnv) {
       return {
         statusCode: 403,
         body: {
-          code: ApiTransportErrorCode.Forbidden,
+            code: ApiTransportErrorCode.TenantAccessDenied,
           message: error.message,
         },
       };

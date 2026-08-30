@@ -230,18 +230,55 @@
                 [class.ag-input--invalid]="fieldError(form.controls.role, 'Role', formSubmitAttempted())"
                 [attr.aria-required]="fieldRequired(form.controls.role) ? 'true' : null"
                 [attr.aria-invalid]="fieldError(form.controls.role, 'Role', formSubmitAttempted()) ? 'true' : null"
-                [disabled]="isReadOnlyField('role')"
+                [disabled]="isReadOnlyField('role') || inspectOnly()"
+                (change)="onRoleChange($any($event.target).value)"
               >
-                @for (role of roles; track role) {
+                @for (role of roles(); track role) {
                 <option [value]="role">{{ formatRoleLabel(role) }}</option>
                 }
               </select>
+              @if (selectedRoleDescription()) {
+              <p class="role-description" data-testid="employee-role-description">
+                {{ selectedRoleDescription() }}
+              </p>
+              }
               @if (fieldError(form.controls.role, 'Role', formSubmitAttempted()); as roleError) {
               <p class="field-error" role="alert">{{ roleError }}</p>
               }
             </div>
             }
           </div>
+
+          @if (canManageConditionalGrants() && grantGroups().length > 0) {
+          <div class="assignment-section" data-testid="employee-conditional-grants">
+            <div class="assignment-section__head">
+              <div>
+                <h3 class="assignment-section__title">Additional permissions</h3>
+                <p class="assignment-section__desc">
+                  Additional permissions extend this role only within the allowed role policy.
+                </p>
+              </div>
+            </div>
+            @for (group of grantGroups(); track group.group) {
+            <div class="grant-group">
+              <h4 class="grant-group__title">{{ group.group }}</h4>
+              <div class="checkbox-list">
+                @for (permission of group.permissions; track permission.code) {
+                <label class="checkbox-item" [class.checkbox-item--checked]="isGrantChecked(permission.code)">
+                  <input
+                    type="checkbox"
+                    class="checkbox-item__input"
+                    [checked]="isGrantChecked(permission.code)"
+                    (change)="toggleGrant(permission.code, $any($event.target).checked)"
+                  />
+                  <span class="checkbox-item__label">{{ permission.label }}</span>
+                </label>
+                }
+              </div>
+            </div>
+            }
+          </div>
+          }
 
           @if (showBranchAccess()) {
           <div class="assignment-section">
@@ -367,6 +404,7 @@
         </div>
 
         <footer class="form-actions">
+          @if (!inspectOnly()) {
           <button
             class="ag-btn ag-btn--primary"
             type="submit"
@@ -389,6 +427,7 @@
             </svg>
             {{ saving() ? 'Saving…' : 'Save employee' }}
           </button>
+          }
           <a class="ag-btn ag-btn--secondary" routerLink="/app/employees">Cancel</a>
         </footer>
       </section>
@@ -594,12 +633,18 @@
               [class.ag-input--invalid]="fieldError(form.controls.role, 'Role', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.role) ? 'true' : null"
               [attr.aria-invalid]="fieldError(form.controls.role, 'Role', formSubmitAttempted()) ? 'true' : null"
-              [disabled]="isReadOnlyField('role')"
+              [disabled]="isReadOnlyField('role') || inspectOnly()"
+              (change)="onRoleChange($any($event.target).value)"
             >
-              @for (role of roles; track role) {
+              @for (role of roles(); track role) {
               <option [value]="role">{{ formatRoleLabel(role) }}</option>
               }
             </select>
+            @if (selectedRoleDescription()) {
+            <p class="role-description" data-testid="employee-role-description">
+              {{ selectedRoleDescription() }}
+            </p>
+            }
             @if (fieldError(form.controls.role, 'Role', formSubmitAttempted()); as roleError) {
             <p class="field-error" role="alert">{{ roleError }}</p>
             }
@@ -615,6 +660,37 @@
               [value]="currentEmployeeStatus()"
               readonly
             />
+          </div>
+          }
+
+          @if (canManageConditionalGrants() && grantGroups().length > 0) {
+          <div class="assignment-section" data-testid="employee-conditional-grants">
+            <div class="assignment-section__head">
+              <div>
+                <h3 class="assignment-section__title">Additional permissions</h3>
+                <p class="assignment-section__desc">
+                  Additional permissions extend this role only within the allowed role policy.
+                </p>
+              </div>
+            </div>
+            @for (group of grantGroups(); track group.group) {
+            <div class="grant-group">
+              <h4 class="grant-group__title">{{ group.group }}</h4>
+              <div class="checkbox-list">
+                @for (permission of group.permissions; track permission.code) {
+                <label class="checkbox-item" [class.checkbox-item--checked]="isGrantChecked(permission.code)">
+                  <input
+                    type="checkbox"
+                    class="checkbox-item__input"
+                    [checked]="isGrantChecked(permission.code)"
+                    (change)="toggleGrant(permission.code, $any($event.target).checked)"
+                  />
+                  <span class="checkbox-item__label">{{ permission.label }}</span>
+                </label>
+                }
+              </div>
+            </div>
+            }
           </div>
           }
 
@@ -788,6 +864,7 @@
 
     <!-- Action Footer -->
     <footer class="form-actions">
+      @if (!inspectOnly()) {
       <button
         class="ag-btn ag-btn--primary"
         type="submit"
@@ -810,6 +887,7 @@
         </svg>
         {{ saving() ? 'Saving…' : 'Save changes' }}
       </button>
+      }
       <a class="ag-btn ag-btn--secondary" routerLink="/app/employees">Cancel</a>
     </footer>
     }

@@ -40,6 +40,7 @@ const ALERTS_MODULE_KEY = 'alerts';
 const EMPLOYEES_MODULE_KEY = 'employees';
 const DASHBOARD_MODULE_KEY = 'dashboard';
 const BILLING_MODULE_KEY = 'billing';
+const SETUP_MODULE_KEY = 'setup';
 
 const REPORT_CAPABILITY_KEY_BY_REPORT_KEY = Object.freeze({
   sales: 'reports.reportAvailability.sales',
@@ -3512,6 +3513,55 @@ const definitions = [
     requiredPermissions: { allowed: 'alerts.view' },
   })),
   {
+    key: SETUP_MODULE_KEY,
+    parentKey: null,
+    moduleKey: SETUP_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Organization Setup',
+    description:
+      'Guided organization setup progress derived from existing organization and domain records.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'settings.view' },
+    reason:
+      'Disabling Setup blocks the tenant Setup progress API without changing completion facts or destination-module access.',
+  },
+  ...[
+    ['moduleInfo', 'About Organization Setup', 'Show the Setup page guidance and context.'],
+    ['summary', 'Progress Summary', 'Show completion totals derived from the loaded Setup tasks.'],
+    ['subscriptionNotice', 'Subscription Notice', 'Show informational subscription and Billing status already present in the session.'],
+    ['search', 'Search', 'Search the loaded Setup task list by title or description.'],
+    ['statusFilter', 'Status Filter', 'Filter the loaded Setup task list by progress status.'],
+    ['taskList', 'Task List', 'Show the authoritative Setup task progress list.'],
+    ['operationalReadiness', 'Operational Readiness', 'Show the readiness result returned by the Setup progress API.'],
+    ['notes', 'Setup Notes', 'Show informational notes returned by the Setup progress API.'],
+  ].map(([id, label, description]) => ({
+    key: `setup.features.${id}`,
+    parentKey: SETUP_MODULE_KEY,
+    moduleKey: SETUP_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'settings.view' },
+  })),
+  {
+    key: 'setup.actions.refresh',
+    parentKey: SETUP_MODULE_KEY,
+    moduleKey: SETUP_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label: 'Refresh Setup Progress',
+    description:
+      'Allow explicit refresh of Setup progress. Initial and refreshed reads retain the same authorization and cache contract.',
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { allowed: 'settings.view' },
+  },
+  {
     key: BILLING_MODULE_KEY,
     parentKey: null,
     moduleKey: BILLING_MODULE_KEY,
@@ -3850,6 +3900,7 @@ module.exports = {
   EMPLOYEES_MODULE_KEY,
   DASHBOARD_MODULE_KEY,
   BILLING_MODULE_KEY,
+  SETUP_MODULE_KEY,
   REPORT_CAPABILITY_KEY_BY_REPORT_KEY,
   ALERT_CAPABILITY_KEY_BY_ALERT_TYPE,
   listCapabilityControls,
