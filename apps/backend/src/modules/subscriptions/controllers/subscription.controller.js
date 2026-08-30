@@ -13,11 +13,11 @@ function readEvidenceUpload(req) {
 }
 
 function sendEvidenceFile(res, evidence) {
+  const safeFileName = String(evidence.originalFileName)
+    .replace(/[\u0000-\u001f\u007f"]/g, '')
+    .slice(0, 255);
   res.setHeader('Content-Type', evidence.contentType);
-  res.setHeader(
-    'Content-Disposition',
-    `attachment; filename="${String(evidence.originalFileName).replace(/"/g, '')}"`,
-  );
+  res.setHeader('Content-Disposition', `attachment; filename="${safeFileName || 'evidence.bin'}"`);
   res.setHeader('Cache-Control', 'private, no-store');
   res.status(200).send(evidence.buffer);
 }
@@ -71,11 +71,9 @@ function createSubscriptionController(deps) {
 
     async submitBilling(req, res, next) {
       try {
-        const data = await service.submitBillingEvidence(
-          req.authContext.organizationId,
-          req.body,
-          { actorId: String(req.auth.user._id) },
-        );
+        const data = await service.submitBillingEvidence(req.authContext.organizationId, req.body, {
+          actorId: String(req.auth.user._id),
+        });
         sendSuccessEnvelope(res, 201, data);
       } catch (error) {
         next(error);

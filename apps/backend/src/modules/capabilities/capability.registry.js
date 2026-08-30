@@ -39,6 +39,7 @@ const REPORTS_MODULE_KEY = 'reports';
 const ALERTS_MODULE_KEY = 'alerts';
 const EMPLOYEES_MODULE_KEY = 'employees';
 const DASHBOARD_MODULE_KEY = 'dashboard';
+const BILLING_MODULE_KEY = 'billing';
 
 const REPORT_CAPABILITY_KEY_BY_REPORT_KEY = Object.freeze({
   sales: 'reports.reportAvailability.sales',
@@ -3511,6 +3512,141 @@ const definitions = [
     requiredPermissions: { allowed: 'alerts.view' },
   })),
   {
+    key: BILLING_MODULE_KEY,
+    parentKey: null,
+    moduleKey: BILLING_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Billing',
+    description:
+      'Tenant subscription status, plan selection, payment-evidence submission, and billing history.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'subscription.view' },
+    subscriptionLabel: 'billing-access',
+    reason:
+      'Disabling Billing blocks tenant Billing APIs without changing subscription lifecycle or platform review workflows.',
+  },
+  ...[
+    ['moduleInfo', 'About Billing', 'Show Billing and payment-evidence guidance.'],
+    ['currentSubscription', 'Current Subscription', 'Show current subscription status and coverage.'],
+    [
+      'planSelection',
+      'Plan Selection',
+      'Provide the active-plan choices required for a valid billing submission.',
+    ],
+    ['billingHistory', 'Billing History', 'Show the organization billing submission history.'],
+  ].map(([id, label, description]) => ({
+    key: `billing.features.${id}`,
+    parentKey: BILLING_MODULE_KEY,
+    moduleKey: BILLING_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: id !== 'planSelection' },
+    risk: id === 'planSelection' ? RISK_LEVELS.Critical : RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'subscription.view' },
+    subscriptionLabel: 'billing-access',
+    ...(id === 'planSelection'
+      ? {
+          platformEnforced: true,
+          reason:
+            'Plan selection remains available because requested plan and version are required for every valid billing submission.',
+        }
+      : {}),
+  })),
+  ...[
+    [
+      'requestedPlan',
+      'Requested plan',
+      'Required active plan selection.',
+      false,
+      RISK_LEVELS.Critical,
+    ],
+    [
+      'billingPeriod',
+      'Billing period',
+      'Required monthly or annual billing period.',
+      false,
+      RISK_LEVELS.Critical,
+    ],
+    [
+      'paymentMethod',
+      'Payment method',
+      'Required supported payment method.',
+      false,
+      RISK_LEVELS.Critical,
+    ],
+    [
+      'paymentReference',
+      'Payment reference',
+      'Required normalized payment reference.',
+      false,
+      RISK_LEVELS.Critical,
+    ],
+    ['amount', 'Payment amount', 'Required positive payment amount.', false, RISK_LEVELS.Critical],
+    [
+      'evidence',
+      'Payment evidence',
+      'Required server-issued payment evidence.',
+      false,
+      RISK_LEVELS.Critical,
+    ],
+    ['notes', 'Notes', 'Optional organization billing-submission notes.', true, RISK_LEVELS.Normal],
+  ].map(([id, label, description, configurable, risk]) => ({
+    key: `billing.fields.${id}`,
+    parentKey: BILLING_MODULE_KEY,
+    moduleKey: BILLING_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description,
+    defaultPolicy: { visible: true, editable: true },
+    configurable: { visible: configurable, editable: configurable },
+    risk,
+    requiredPermissions: {
+      visible: 'subscription.view',
+      editable: 'subscription.billing-evidence.submit',
+    },
+    subscriptionLabel: 'billing-access',
+    ...(!configurable
+      ? {
+          platformEnforced: true,
+          reason:
+            'This field remains visible and editable because backend validation requires it for a valid billing submission.',
+        }
+      : {}),
+  })),
+  ...[
+    [
+      'submit',
+      'Submit billing evidence',
+      'subscription.billing-evidence.submit',
+      RISK_LEVELS.Recommended,
+    ],
+    [
+      'uploadEvidence',
+      'Upload payment evidence',
+      'subscription.billing-evidence.submit',
+      RISK_LEVELS.Recommended,
+    ],
+    ['downloadEvidence', 'Download payment evidence', 'subscription.view', RISK_LEVELS.Normal],
+    ['inspectHistory', 'Inspect billing history', 'subscription.view', RISK_LEVELS.Normal],
+    ['refresh', 'Refresh Billing', 'subscription.view', RISK_LEVELS.Normal],
+  ].map(([id, label, permission, risk]) => ({
+    key: `billing.actions.${id}`,
+    parentKey: BILLING_MODULE_KEY,
+    moduleKey: BILLING_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label,
+    description: `${label}. Existing RBAC, tenant isolation, billing access, and domain validation still apply.`,
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk,
+    requiredPermissions: { allowed: permission },
+    subscriptionLabel: 'billing-access',
+  })),
+  {
     key: EMPLOYEES_MODULE_KEY,
     parentKey: null,
     moduleKey: EMPLOYEES_MODULE_KEY,
@@ -3713,6 +3849,7 @@ module.exports = {
   ALERTS_MODULE_KEY,
   EMPLOYEES_MODULE_KEY,
   DASHBOARD_MODULE_KEY,
+  BILLING_MODULE_KEY,
   REPORT_CAPABILITY_KEY_BY_REPORT_KEY,
   ALERT_CAPABILITY_KEY_BY_ALERT_TYPE,
   listCapabilityControls,

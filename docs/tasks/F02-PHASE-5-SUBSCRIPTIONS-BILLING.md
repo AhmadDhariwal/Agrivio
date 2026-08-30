@@ -78,7 +78,9 @@ Implemented on the existing F02 Phase 5 billing path. Does **not** claim F02 sta
 * Active review workflow: `submitted` → `under_review` → `approved` / `rejected`. Approve/reject remain valid from `submitted` or `under_review`.
 * Billing records snapshot listed plan prices (nullable; no invented commercial values) plus evidence metadata.
 * Platform reactivation now shares `computeCoverageWindow` so a subscription cannot become `active` with an already-expired paid period.
-* Existing `QueryCacheService` is used for billing reads (plans REFERENCE; subscription/owner records/platform queue SHORT). Upload, start-review, approve, and reject are not cached. `QueryCacheService` itself was not modified. No second scheduler was added for retained → deleted.
+* Existing `QueryCacheService` is used for billing reads (plans REFERENCE; subscription / owner records / owner record detail / platform queue / platform record detail SHORT). Upload, download, submit, start-review, approve, and reject are not cached as mutation results. Successful submit invalidates `billingRecords` and `platformBillingRecords`. Start review and reject invalidate those two tags. Approve also invalidates `subscription`. Failed mutations do not invalidate. `QueryCacheService` itself was not modified.
+
+* No shared scheduler/job infrastructure exists on `release1/F09`. Retained → deleted 90-day cleanup is **deferred infrastructure work** and does not block Billing freeze. Domain rule `cancelled → retained` with `retainedUntil` remains implemented.
 
 ### Model review (billing record fields added)
 
@@ -90,6 +92,26 @@ Implemented on the existing F02 Phase 5 billing path. Does **not** claim F02 sta
 | `listedAnnualDiscountPercent` | B | Same |
 
 Collection ownership remains Subscriptions. No new collection. Tenant `organizationId` unchanged. Optimistic `version` unchanged. Evidence bytes stay out of Mongo.
+
+## Super Admin Billing Review backend hardening (2026-08-30)
+
+Production hardening stayed within the frozen manual-billing workflow and existing platform endpoints.
+
+* Platform queue retains status / organization / `q` or `search` / limit / offset filtering and now composes organization labels, requested-plan snapshots, period-listed amount, duplicate warning, and reviewer summaries with bounded batch lookups for the current page.
+* Platform detail now includes organization, current subscription, requested plan/version price snapshot, evidence metadata, reviewer/rejection data, and applied-subscription coverage information.
+* Evidence downloads remain private and permission-gated; the record organization, opaque reference organization, stored-object organization, MIME type, and persisted metadata must agree before bytes are returned. Download filenames strip control characters and path separators.
+* Start Review is accepted only from `submitted`. Approve/reject remain accepted from `submitted` or `under_review`; approval remains idempotent and applies/extends/reactivates once, while rejection requires a trimmed reason and leaves the subscription unchanged.
+* Billing review writes now use a version predicate in addition to service-level `expectedVersion` validation. Existing transaction and audit infrastructure remains authoritative.
+* No payment gateway, subscription lifecycle redesign, new endpoint, new persisted field, or `QueryCacheService` change was introduced.
+
+Verification: focused billing suites passed (10 tests), including queue filters/pagination, display-safe batch composition, detail, evidence authorization and cross-organization binding, review transitions, stale versions, idempotent approval, active extension, suspended reactivation by approval, rejection immutability, RBAC, and audit events. Changed production JavaScript passed `node --check`; `git diff --check` passed.
+
+* SUPER ADMIN BILLING API: ✅ FROZEN
+* BILLING REVIEW WORKFLOW: ✅ VERIFIED
+* BILLING EVIDENCE REVIEW SECURITY: ✅ VERIFIED
+* BILLING APPROVAL/REJECTION: ✅ VERIFIED
+* BILLING REVIEW RBAC/AUDIT: ✅ VERIFIED
+* SUPER ADMIN BILLING BACKEND: ✅ FULLY DONE
 
 ## Suggested commit message
 

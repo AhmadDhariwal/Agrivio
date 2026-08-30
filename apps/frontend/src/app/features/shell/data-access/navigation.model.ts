@@ -394,6 +394,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Billing',
           route: '/app/subscription/billing',
           permission: 'subscription.billing-evidence.submit',
+          capabilityKey: 'billing',
           testId: 'nav-billing',
         },
       ],

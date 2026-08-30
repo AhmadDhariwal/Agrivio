@@ -270,6 +270,15 @@
       >
         Dashboard
       </button>
+      <button
+        type="button"
+        class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'billing'"
+        (click)="selectModule('billing')"
+        data-testid="billing-control-module"
+      >
+        Billing
+      </button>
       <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>
 
@@ -306,7 +315,12 @@
           { title: moduleLabel(selectedModule()) + ' Module', controls: moduleControls() },
           { title: 'Views', controls: viewControls() },
           {
-            title: selectedModule() === 'inventory.openingStock' ? 'Optional UI' : 'Derived UI',
+            title:
+              selectedModule() === 'billing'
+                ? 'Features'
+                : selectedModule() === 'inventory.openingStock'
+                  ? 'Optional UI'
+                  : 'Derived UI',
             controls: featureControls()
           },
           { title: 'Module Information', controls: moduleInfoControls() },
@@ -332,7 +346,8 @@
               selectedModule() === 'expenses' ||
               selectedModule() === 'expenses.categories' ||
               selectedModule() === 'accounts' ||
-              selectedModule() === 'employees'
+              selectedModule() === 'employees' ||
+              selectedModule() === 'billing'
                 ? 'Required Fields'
                 : 'Required Workflow Fields',
             controls: requiredWorkflowControls()
@@ -384,7 +399,7 @@
                 />
                 <b>{{ stateLabel(mode, value(control, mode)) }}</b>
               </label>
-              } @else { @if (isRequiredWorkflowControl(control)) {
+              } @else { @if (showsRequiredEnforcedTreatment(control)) {
               <div class="enforced-mode enforced-mode--requirement">
                 <span>Requirement</span>
                 <b>Required</b>

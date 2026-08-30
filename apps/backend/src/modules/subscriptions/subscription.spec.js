@@ -36,7 +36,9 @@ describe('subscription entitlement pure rules', () => {
     expect(isAllowedTransition('grace', 'suspended')).toBe(true);
     expect(isAllowedTransition('suspended', 'active')).toBe(true);
     expect(isAllowedTransition('trial', 'suspended')).toBe(false);
-    expect(() => assertTransition('active', 'suspended')).toThrow(/Invalid subscription transition/);
+    expect(() => assertTransition('active', 'suspended')).toThrow(
+      /Invalid subscription transition/,
+    );
   });
 
   it('applies trial/grace/active expiry without inventing commercial values', () => {
@@ -79,12 +81,12 @@ describe('subscription entitlement pure rules', () => {
     expect(allowsSubscriptionLabel('active', 'mystery-label')).toBe(false);
 
     expect(evaluateFeatureEntitlement(null, 'imports').allowed).toBe(false);
-    expect(
-      evaluateFeatureEntitlement({ entitlements: { imports: null } }, 'imports').allowed,
-    ).toBe(false);
-    expect(
-      evaluateFeatureEntitlement({ entitlements: { imports: true } }, 'imports').allowed,
-    ).toBe(true);
+    expect(evaluateFeatureEntitlement({ entitlements: { imports: null } }, 'imports').allowed).toBe(
+      false,
+    );
+    expect(evaluateFeatureEntitlement({ entitlements: { imports: true } }, 'imports').allowed).toBe(
+      true,
+    );
 
     const unconfigured = evaluateNumericLimit({ limits: { branches: null } }, 'branches', 99);
     expect(unconfigured.allowed).toBe(true);
@@ -397,11 +399,20 @@ describe('F02 Phase 5 plans, lifecycle, and manual billing', () => {
         ownerEmail: 'billing-a@example.com',
       });
 
-      const selectable = await fetchJson(baseUrl, 'GET', API_SUBSCRIPTION_PLANS_PATH, undefined, {}, jar);
-      expect(selectable.status).toBe(200);
-      expect(selectable.body.data.items.some((plan) => plan.planCode === 'Business' && plan.status === 'active')).toBe(
-        true,
+      const selectable = await fetchJson(
+        baseUrl,
+        'GET',
+        API_SUBSCRIPTION_PLANS_PATH,
+        undefined,
+        {},
+        jar,
       );
+      expect(selectable.status).toBe(200);
+      expect(
+        selectable.body.data.items.some(
+          (plan) => plan.planCode === 'Business' && plan.status === 'active',
+        ),
+      ).toBe(true);
       const businessPlan = selectable.body.data.items.find((plan) => plan.planCode === 'Business');
 
       const invalid = await fetchJson(
@@ -526,8 +537,8 @@ describe('F02 Phase 5 plans, lifecycle, and manual billing', () => {
         },
         jar,
       );
-      // Idempotent when already applied with matching appliedAt path uses previous expectedVersion mismatch OR returns approved
-      expect([200, 409]).toContain(replay.status);
+      expect(replay.status).toBe(200);
+      expect(replay.body.data.appliedAt).toBe(approved.body.data.appliedAt);
 
       const rejectUpload = await uploadPdfEvidence(baseUrl, jar, 'reject.pdf');
       const rejectTarget = await fetchJson(
@@ -578,9 +589,9 @@ describe('F02 Phase 5 plans, lifecycle, and manual billing', () => {
       expect(invalidTransition.status).toBe(409);
 
       const audits = store.listAuditEventsForTest();
-      expect(audits.some((event) => event.action === 'subscription.billing_evidence_submitted')).toBe(
-        true,
-      );
+      expect(
+        audits.some((event) => event.action === 'subscription.billing_evidence_submitted'),
+      ).toBe(true);
       expect(audits.some((event) => event.action === 'subscription.billing_approved')).toBe(true);
       expect(audits.some((event) => event.action === 'subscription.billing_rejected')).toBe(true);
       expect(

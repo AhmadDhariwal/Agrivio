@@ -19,6 +19,10 @@ const {
 } = require('../../identity/permission.middleware');
 const { createRequireSubscriptionAccessMiddleware } = require('../entitlement.middleware');
 const {
+  createRequireCapabilityMiddleware,
+  createRequirePayloadFieldCapabilityMiddleware,
+} = require('../../capabilities/capability.middleware');
+const {
   createPlatformSubscriptionController,
   createSubscriptionController,
 } = require('../controllers/subscription.controller');
@@ -41,6 +45,51 @@ function registerSubscriptionRoutes(deps) {
     resolveAccessState: (organizationId) =>
       deps.subscriptionService.resolveAccessState(organizationId),
   });
+  const requireBillingModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'billing',
+    'enabled',
+  );
+  const requireCurrentSubscription = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'billing.features.currentSubscription',
+    'enabled',
+  );
+  const requirePlanSelection = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'billing.features.planSelection',
+    'enabled',
+  );
+  const requireBillingHistory = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'billing.features.billingHistory',
+    'enabled',
+  );
+  const requireBillingSubmitAllowed = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'billing.actions.submit',
+    'allowed',
+  );
+  const requireEvidenceUploadAllowed = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'billing.actions.uploadEvidence',
+    'allowed',
+  );
+  const requireEvidenceDownloadAllowed = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'billing.actions.downloadEvidence',
+    'allowed',
+  );
+  const requireHistoryInspectionAllowed = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'billing.actions.inspectHistory',
+    'allowed',
+  );
+  const requireNotesEditable = createRequirePayloadFieldCapabilityMiddleware(
+    deps.capabilityService,
+    'notes',
+    'billing.fields.notes',
+  );
 
   router.get(
     API_SUBSCRIPTION_PATH,
@@ -48,6 +97,8 @@ function registerSubscriptionRoutes(deps) {
     requireOrganizationContext,
     requireSubscriptionView,
     requireBillingAccess,
+    requireBillingModule,
+    requireCurrentSubscription,
     (req, res, next) => {
       void orgController.getCurrent(req, res, next);
     },
@@ -59,6 +110,8 @@ function registerSubscriptionRoutes(deps) {
     requireOrganizationContext,
     requireSubscriptionView,
     requireBillingAccess,
+    requireBillingModule,
+    requirePlanSelection,
     (req, res, next) => {
       void orgController.listPlans(req, res, next);
     },
@@ -82,6 +135,8 @@ function registerSubscriptionRoutes(deps) {
     requireOrganizationContext,
     requireBillingSubmit,
     requireBillingAccess,
+    requireBillingModule,
+    requireEvidenceUploadAllowed,
     evidenceUploadParser,
     (req, res, next) => {
       void orgController.uploadEvidence(req, res, next);
@@ -94,6 +149,8 @@ function registerSubscriptionRoutes(deps) {
     requireOrganizationContext,
     requireSubscriptionView,
     requireBillingAccess,
+    requireBillingModule,
+    requireEvidenceDownloadAllowed,
     (req, res, next) => {
       void orgController.downloadEvidence(req, res, next);
     },
@@ -106,6 +163,9 @@ function registerSubscriptionRoutes(deps) {
     requireOrganizationContext,
     requireBillingSubmit,
     requireBillingAccess,
+    requireBillingModule,
+    requireBillingSubmitAllowed,
+    requireNotesEditable,
     (req, res, next) => {
       void orgController.submitBilling(req, res, next);
     },
@@ -117,6 +177,8 @@ function registerSubscriptionRoutes(deps) {
     requireOrganizationContext,
     requireSubscriptionView,
     requireBillingAccess,
+    requireBillingModule,
+    requireBillingHistory,
     (req, res, next) => {
       void orgController.listBilling(req, res, next);
     },
@@ -128,6 +190,8 @@ function registerSubscriptionRoutes(deps) {
     requireOrganizationContext,
     requireSubscriptionView,
     requireBillingAccess,
+    requireBillingModule,
+    requireHistoryInspectionAllowed,
     (req, res, next) => {
       void orgController.getBilling(req, res, next);
     },

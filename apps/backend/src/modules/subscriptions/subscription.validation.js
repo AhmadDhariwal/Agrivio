@@ -1,6 +1,9 @@
 const { validationFailed } = require('../../platform/errors/app-error');
 const { PLAN_CODES } = require('./persistence/subscription-plan.model');
-const { BILLING_STATUSES, PAYMENT_METHODS } = require('./persistence/subscription-billing-record.model');
+const {
+  BILLING_STATUSES,
+  PAYMENT_METHODS,
+} = require('./persistence/subscription-billing-record.model');
 const { parseEvidenceStorageRef } = require('./billing-evidence-storage');
 
 function requireObject(body, label = 'body') {
@@ -101,7 +104,11 @@ function parsePlanCreateBody(body) {
 function parseExpectedVersion(body) {
   const input = requireObject(body);
   const expectedVersion = input.expectedVersion;
-  if (typeof expectedVersion !== 'number' || !Number.isInteger(expectedVersion) || expectedVersion < 1) {
+  if (
+    typeof expectedVersion !== 'number' ||
+    !Number.isInteger(expectedVersion) ||
+    expectedVersion < 1
+  ) {
     throw validationFailed('expectedVersion must be a positive integer');
   }
   return expectedVersion;
@@ -219,7 +226,10 @@ function parseBillingQueueQuery(query = {}) {
   return {
     status,
     organizationId: optionalString(input.organizationId, 'organizationId', 40),
-    q: optionalString(input.q, 'q', 120),
+    q:
+      input.q === undefined
+        ? optionalString(input.search, 'search', 120)
+        : optionalString(input.q, 'q', 120),
     limit: parsePositiveInt(input.limit, 'limit', 25, { min: 1, max: 100 }),
     offset: parsePositiveInt(input.offset, 'offset', 0, { min: 0, max: 100000 }),
   };

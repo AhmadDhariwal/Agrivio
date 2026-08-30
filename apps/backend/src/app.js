@@ -120,6 +120,7 @@ function createApp(options) {
     suspendSubscription: (subscriptionId, body, actor) =>
       subscriptions.subscriptionService.suspendSubscription(subscriptionId, body, actor),
   });
+  subscriptions.subscriptionService.setBillingReviewReadModel(onboardingCore.store);
 
   const audit =
     options.audit ??
@@ -537,6 +538,7 @@ function createApp(options) {
   const subscriptionRoutes = registerSubscriptionRoutes({
     config,
     subscriptionService: subscriptions.subscriptionService,
+    capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     optionalAuth: auth.middlewares.optionalAuth,

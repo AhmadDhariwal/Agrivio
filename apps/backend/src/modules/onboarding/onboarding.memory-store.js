@@ -26,20 +26,48 @@ function createInMemoryOnboardingStore() {
       return org === undefined ? null : { ...org };
     },
 
+    async findOrganizationsByIds(ids) {
+      return ids
+        .map((id) => organizations.get(String(id)))
+        .filter((organization) => organization !== undefined)
+        .map((organization) => ({ ...organization }));
+    },
+
+    async findOrganizationIdsBySearch(search) {
+      const needle = String(search ?? '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+      if (needle === '') {
+        return [];
+      }
+      return [...organizations.values()]
+        .filter((organization) => String(organization.nameNormalized).includes(needle))
+        .map((organization) => String(organization._id));
+    },
+
     async listOrganizations(filter = {}) {
       let items = [...organizations.values()]
         .filter((org) => {
           if (filter.status !== undefined && org['status'] !== filter.status) {
             return false;
           }
-          const search = String(filter.search ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+          const search = String(filter.search ?? '')
+            .trim()
+            .replace(/\s+/g, ' ')
+            .toLowerCase();
           if (search && !String(org.nameNormalized).includes(search)) return false;
           return true;
         })
         .map((org) => ({ ...org }));
-      items.sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')) || String(b._id).localeCompare(String(a._id)));
+      items.sort(
+        (a, b) =>
+          String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')) ||
+          String(b._id).localeCompare(String(a._id)),
+      );
       const total = items.length;
-      if (filter.skip !== undefined || filter.pageSize !== undefined) items = items.slice(filter.skip ?? 0, (filter.skip ?? 0) + (filter.pageSize ?? 25));
+      if (filter.skip !== undefined || filter.pageSize !== undefined)
+        items = items.slice(filter.skip ?? 0, (filter.skip ?? 0) + (filter.pageSize ?? 25));
       return { items, total };
     },
 
@@ -72,6 +100,13 @@ function createInMemoryOnboardingStore() {
     async findUserById(id) {
       const user = users.get(id);
       return user === undefined ? null : { ...user };
+    },
+
+    async findUsersByIds(ids) {
+      return ids
+        .map((id) => users.get(String(id)))
+        .filter((user) => user !== undefined)
+        .map((user) => ({ ...user }));
     },
 
     async insertUser(_session, doc) {
