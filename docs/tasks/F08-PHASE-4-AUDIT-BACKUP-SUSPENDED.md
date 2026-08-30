@@ -60,3 +60,7 @@ Deferred **C/D**: WORM vendor, backup-provider selection, F09 restore rehearsal,
 ## Next
 
 * F08 P5 — `R1-F08-010` alerts/reporting/imports/audit/ops vertical slice and E2E
+
+## API/cache hardening follow-up (2026-08-30)
+
+Organization audit inquiry now caches each exact normalized filter/page query briefly and deduplicates concurrent identical reads. Audit remains read-only and tenant scoped.

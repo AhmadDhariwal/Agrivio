@@ -11,6 +11,15 @@ function requireOrganizationId(req) {
   return organizationId;
 }
 
+function parseSelectedIds(query) {
+  return new Set(
+    String(query.selectedIds ?? '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter((value) => value !== ''),
+  );
+}
+
 function createLocationsController(deps) {
   return {
     async listBranches(req, res, next) {
@@ -21,6 +30,18 @@ function createLocationsController(deps) {
           search: req.query.search || undefined, skip, pageSize,
         });
         sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async listBranchOptions(req, res, next) {
+      try {
+        const selectedIds = parseSelectedIds(req.query);
+        const { items } = await deps.locationsService.listBranches(requireOrganizationId(req));
+        sendSuccessEnvelope(res, 200, {
+          items: items.filter((item) => item.status === 'active' || selectedIds.has(item.id)),
+        });
       } catch (error) {
         next(error);
       }
@@ -84,6 +105,18 @@ function createLocationsController(deps) {
           search: req.query.search || undefined, skip, pageSize,
         });
         sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async listWarehouseOptions(req, res, next) {
+      try {
+        const selectedIds = parseSelectedIds(req.query);
+        const { items } = await deps.locationsService.listWarehouses(requireOrganizationId(req));
+        sendSuccessEnvelope(res, 200, {
+          items: items.filter((item) => item.status === 'active' || selectedIds.has(item.id)),
+        });
       } catch (error) {
         next(error);
       }

@@ -146,7 +146,7 @@ export class WarehousesPage {
     );
   }
 
-  reload(): void {
+  reload(forceRefresh = false): void {
     if (!this.canView()) {
       this.loading.set(false);
       this.errorMessage.set('You do not have permission to view warehouses.');
@@ -175,7 +175,10 @@ export class WarehousesPage {
       queryParams.search = trimmedSearch;
     }
 
-    this.api.listWarehouses(queryParams).subscribe({
+    const request$ = forceRefresh
+      ? this.api.listWarehouses(queryParams, true)
+      : this.api.listWarehouses(queryParams);
+    request$.subscribe({
       next: ({ items, meta }) => {
         this.items.set(items);
         this.total.set(meta.total);
@@ -240,7 +243,10 @@ export class WarehousesPage {
 
   askDeactivate(item: WarehouseRecord): void {
     this.closeRowMenu();
-    const copy = deactivateCopy('warehouse', 'Existing stock history and posted movements will remain unchanged.');
+    const copy = deactivateCopy(
+      'warehouse',
+      'Existing stock history and posted movements will remain unchanged.',
+    );
     this.pending = { kind: 'status', item, nextStatus: 'inactive' };
     this.confirmTitle.set(copy.title);
     this.confirmMessage.set(copy.message);

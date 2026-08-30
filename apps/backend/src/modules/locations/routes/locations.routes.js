@@ -51,6 +51,17 @@ function registerLocationsRoutes(deps) {
   );
 
   router.get(
+    `${API_BRANCHES_PATH}/options`,
+    deps.requireAuth,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('branches.view'),
+    deps.requireOperationalAccess,
+    (req, res, next) => {
+      void controller.listBranchOptions(req, res, next);
+    },
+  );
+
+  router.get(
     `${API_BRANCHES_PATH}/:id`,
     deps.requireAuth,
     requireOrganizationContext,
@@ -108,6 +119,18 @@ function registerLocationsRoutes(deps) {
     requireWarehouseCreateAllowed,
     (req, res, next) => {
       void controller.createWarehouse(req, res, next);
+    },
+  );
+
+  router.get(
+    `${API_WAREHOUSES_PATH}/options`,
+    deps.requireAuth,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('warehouses.view'),
+    deps.requireOperationalAccess,
+    requireWarehousesModule,
+    (req, res, next) => {
+      void controller.listWarehouseOptions(req, res, next);
     },
   );
 

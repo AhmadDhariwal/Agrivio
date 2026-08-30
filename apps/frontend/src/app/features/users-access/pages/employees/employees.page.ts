@@ -163,7 +163,7 @@ export class EmployeesPage {
     this.reload();
   }
 
-  reload(): void {
+  reload(forceRefresh = false): void {
     if (!this.canView()) {
       this.loading.set(false);
       this.errorMessage.set('You do not have permission to view employees.');
@@ -183,7 +183,10 @@ export class EmployeesPage {
       queryParams.search = trimmedSearch;
     }
 
-    this.api.listEmployees(queryParams).subscribe({
+    const request$ = forceRefresh
+      ? this.api.listEmployees(queryParams, true)
+      : this.api.listEmployees(queryParams);
+    request$.subscribe({
       next: ({ items, meta }) => {
         this.items.set(items);
         this.total.set(meta.total);

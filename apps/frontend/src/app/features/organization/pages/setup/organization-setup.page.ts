@@ -37,10 +37,13 @@ export class OrganizationSetupPage {
     this.reload();
   }
 
-  reload(): void {
+  reload(forceRefresh = false): void {
     this.loading.set(true);
     this.errorMessage.set(null);
-    this.api.getSetupProgress().subscribe({
+    const request$ = forceRefresh
+      ? this.api.getSetupProgress(true)
+      : this.api.getSetupProgress();
+    request$.subscribe({
       next: (data) => {
         this.progress.set(data);
         this.loading.set(false);
