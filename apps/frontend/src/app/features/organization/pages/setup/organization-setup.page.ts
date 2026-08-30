@@ -71,10 +71,7 @@ const STEP_CAPABILITY_KEYS: Readonly<Record<string, string>> = {
 };
 
 const STEP_DESTINATION_PERMISSIONS: Readonly<Record<string, string>> = {
-<<<<<<< HEAD
   '/app/branches': 'branches.manage',
-=======
->>>>>>> be12642bab885c0e89914d5d23f0df856ee3a61b
   '/app/warehouses': 'warehouses.manage',
 };
 
@@ -283,11 +280,7 @@ export class OrganizationSetupPage {
       return false;
     }
 
-<<<<<<< HEAD
-    // 4. Destination routes may require stronger permissions than the progress read
-=======
     // 4. Destination routes may require stronger permissions than the progress read.
->>>>>>> be12642bab885c0e89914d5d23f0df856ee3a61b
     const destinationPermission = STEP_DESTINATION_PERMISSIONS[step.href];
     if (destinationPermission && !this.sessionStore.hasPermission(destinationPermission)) {
       return false;
