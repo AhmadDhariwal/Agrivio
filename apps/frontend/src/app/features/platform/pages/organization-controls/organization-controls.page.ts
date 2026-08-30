@@ -43,6 +43,7 @@ type ConfigurableModule =
   | 'payments.supplierLedger'
   | 'sales'
   | 'dashboard'
+  | 'setup'
   | 'billing';
 type PendingConfirmation =
   | { readonly kind: 'save' }
@@ -110,6 +111,9 @@ export class OrganizationControlsPage {
     this.byType('FEATURE', false).filter((control) => !this.isBatchGroupedFeature(control)),
   );
   readonly moduleInfoControls = computed(() => {
+    if (this.selectedModule() === 'setup') {
+      return this.setupFeatures('moduleInfo');
+    }
     if (this.selectedModule() === 'warehouses') {
       return this.warehousesFeatures('moduleInfo');
     }
@@ -167,6 +171,15 @@ export class OrganizationControlsPage {
     return this.batchFeatures('moduleInfo');
   });
   readonly presentationFeatureControls = computed(() => {
+    if (this.selectedModule() === 'setup') {
+      return this.setupFeatures(
+        'summary',
+        'subscriptionNotice',
+        'taskList',
+        'operationalReadiness',
+        'notes',
+      );
+    }
     if (this.selectedModule() === 'inventory.movements') {
       return this.movementsFeatures(
         'search',
@@ -223,6 +236,9 @@ export class OrganizationControlsPage {
     return [];
   });
   readonly filterControls = computed(() => {
+    if (this.selectedModule() === 'setup') {
+      return this.setupFeatures('search', 'statusFilter');
+    }
     if (this.selectedModule() === 'dashboard') {
       return this.dashboardFeatures('datePeriodFilter', 'branchFilter', 'warehouseFilter');
     }
@@ -563,6 +579,14 @@ export class OrganizationControlsPage {
       changes[0].value?.['enabled'] === false
     );
   });
+  readonly disablingSetup = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'setup' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
   readonly confirmationTitle = computed(() => {
     const pending = this.pendingConfirmation();
     const organization = this.snapshot()?.organization.name ?? 'this organization';
@@ -571,6 +595,7 @@ export class OrganizationControlsPage {
       return `Reset ${this.moduleLabel(pending.moduleKey)} controls for ${organization}?`;
     }
     if (pending?.kind === 'reset-organization') return `Reset all controls for ${organization}?`;
+    if (this.disablingSetup()) return `Disable Organization Setup for ${organization}?`;
     if (this.disablingBilling()) return `Disable Billing for ${organization}?`;
     if (this.disablingOpeningStock()) return `Disable Opening Stock for ${organization}?`;
     if (this.disablingBatches()) return `Disable Product Batches for ${organization}?`;
@@ -721,6 +746,9 @@ export class OrganizationControlsPage {
     if (this.disablingBilling()) {
       return `Users in ${organization} will no longer be able to access the Billing page or submit payment evidence. Subscription lifecycle and platform review workflows remain enforced. This affects ${organization} only.`;
     }
+    if (this.disablingSetup()) {
+      return `Users in ${organization} will no longer be able to access Organization Setup or its progress API. Existing setup completion facts and destination-module access are not changed. This affects ${organization} only.`;
+    }
     const critical = this.changeSummary()
       .filter((change) => change.risk === 'CRITICAL')
       .map((change) => `${change.label}: ${change.before} → ${change.after}`);
@@ -733,6 +761,7 @@ export class OrganizationControlsPage {
     if (pending?.kind === 'reset-control') return 'Reset control';
     if (pending?.kind === 'reset-module') return `Reset ${this.moduleLabel(pending.moduleKey)}`;
     if (pending?.kind === 'reset-organization') return 'Reset all controls';
+    if (this.disablingSetup()) return 'Disable Organization Setup';
     if (this.disablingBilling()) return 'Disable Billing';
     if (this.disablingOpeningStock()) return 'Disable Opening Stock';
     if (this.disablingBatches()) return 'Disable Product Batches';
@@ -988,6 +1017,7 @@ export class OrganizationControlsPage {
     if (moduleKey === 'payments.supplierLedger') return 'Supplier Ledger';
     if (moduleKey === 'sales') return 'Sales';
     if (moduleKey === 'dashboard') return 'Dashboard';
+    if (moduleKey === 'setup') return 'Organization Setup';
     if (moduleKey === 'billing') return 'Billing';
     return 'Product Batches';
   }
@@ -1034,6 +1064,11 @@ export class OrganizationControlsPage {
 
   private dashboardFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
     const keys = new Set(ids.map((id) => `dashboard.features.${id}`));
+    return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
+  }
+
+  private setupFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
+    const keys = new Set(ids.map((id) => `setup.features.${id}`));
     return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
   }
 

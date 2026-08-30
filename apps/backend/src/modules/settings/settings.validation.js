@@ -66,20 +66,18 @@ function parseSettingsPatch(body) {
     patch.documentFooterNote = documentFooterNote;
   }
 
-  const forbiddenKeys = [
-    'organizationId',
-    'creditPolicy',
-    'expiryThresholdDays',
-    'deadStockInactivityDays',
-    'lowStockThreshold',
-    'invoicePrefix',
-    'timezone',
-    'subscription',
-  ];
-  for (const key of forbiddenKeys) {
-    if (Object.prototype.hasOwnProperty.call(body, key) && key !== 'timezone') {
-      // timezone is owned by organizations; reject if sent to residual settings
-    }
+  if (Object.prototype.hasOwnProperty.call(body, 'organizationId')) {
+    throw validationFailed('organizationId cannot be supplied in the request body', [
+      {
+        field: 'organizationId',
+        message: 'Organization context is determined by your authenticated session',
+      },
+    ]);
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'subscription')) {
+    throw validationFailed('subscription is not a residual setting', [
+      { field: 'subscription', message: 'Subscription fields are not residual settings' },
+    ]);
   }
   if (Object.prototype.hasOwnProperty.call(body, 'timezone')) {
     throw validationFailed('timezone is managed on the organization profile, not residual settings', [

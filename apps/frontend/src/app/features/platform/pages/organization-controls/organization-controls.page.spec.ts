@@ -35,6 +35,7 @@ function control(
     | 'payments.supplierLedger'
     | 'sales'
     | 'dashboard'
+    | 'setup'
     | 'billing',
   type: PlatformCapabilityControl['type'],
   label: string,
@@ -1536,6 +1537,24 @@ describe('OrganizationControlsPage', () => {
       control('dashboard.widgets.topSellingProducts', 'dashboard', 'WIDGET', 'Top Selling Products', { visible: true }),
       control('dashboard.widgets.inventoryHealth', 'dashboard', 'WIDGET', 'Inventory Health', { visible: true }),
       control('dashboard.widgets.recentSales', 'dashboard', 'WIDGET', 'Recent Sales', { visible: true }),
+      // Organization Setup (10 authoritative controls)
+      control('setup', 'setup', 'MODULE', 'Organization Setup', { enabled: true }, { risk: 'CRITICAL' }),
+      control('setup.features.moduleInfo', 'setup', 'FEATURE', 'About Organization Setup', { enabled: true }),
+      control('setup.features.summary', 'setup', 'FEATURE', 'Progress Summary', { enabled: true }),
+      control('setup.features.subscriptionNotice', 'setup', 'FEATURE', 'Subscription Notice', { enabled: true }),
+      control('setup.features.search', 'setup', 'FEATURE', 'Search', { enabled: true }),
+      control('setup.features.statusFilter', 'setup', 'FEATURE', 'Status Filter', { enabled: true }),
+      control('setup.features.taskList', 'setup', 'FEATURE', 'Task List', { enabled: true }),
+      control('setup.features.operationalReadiness', 'setup', 'FEATURE', 'Operational Readiness', { enabled: true }),
+      control(
+        'setup.features.notes',
+        'setup',
+        'FEATURE',
+        'Setup Notes',
+        { enabled: true },
+        { override: { enabled: false } },
+      ),
+      control('setup.actions.refresh', 'setup', 'ACTION', 'Refresh Setup Progress', { allowed: true }),
       // Billing (17 authoritative controls)
       control('billing', 'billing', 'MODULE', 'Billing', { enabled: true }, { risk: 'CRITICAL' }),
       control('billing.features.moduleInfo', 'billing', 'FEATURE', 'About Billing', { enabled: true }),
@@ -3352,6 +3371,55 @@ describe('OrganizationControlsPage', () => {
       component.askResetModule();
       component.confirm();
       expect(resetModule).toHaveBeenCalledWith('org-a', 'warehouses', 4, '');
+    });
+  });
+
+  describe('Organization Setup Controls', () => {
+    it('renders the generic registry sections for all 10 Setup controls', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('setup');
+      fixture.detectChanges();
+
+      expect(component.moduleLabel('setup')).toBe('Organization Setup');
+      expect(component.selectedControls()).toHaveLength(10);
+      expect(component.moduleControls()).toHaveLength(1);
+      expect(component.moduleInfoControls()).toHaveLength(1);
+      expect(component.presentationFeatureControls()).toHaveLength(5);
+      expect(component.filterControls()).toHaveLength(2);
+      expect(component.actionControls()).toHaveLength(1);
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('Organization Setup Module');
+      expect(text).toContain('About Organization Setup');
+      expect(text).toContain('Progress Summary');
+      expect(text).toContain('Subscription Notice');
+      expect(text).toContain('Task List');
+      expect(text).toContain('Operational Readiness');
+      expect(text).toContain('Setup Notes');
+      expect(text).toContain('Search');
+      expect(text).toContain('Status Filter');
+      expect(text).toContain('Refresh Setup Progress');
+    });
+
+    it('supports Setup disable/re-enable and generic module reset', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('setup');
+      const moduleControl = component.controls().find((item) => item.key === 'setup');
+      expect(moduleControl).toBeDefined();
+      if (moduleControl) {
+        component.setValue(moduleControl, 'enabled', false);
+        expect(component.disablingSetup()).toBe(true);
+        expect(component.confirmationTitle()).toBe(
+          'Disable Organization Setup for Greenfield Agro Center?',
+        );
+        expect(component.confirmationMessage()).toContain('completion facts');
+        expect(component.confirmationLabel()).toBe('Disable Organization Setup');
+        component.setValue(moduleControl, 'enabled', true);
+      }
+
+      component.askResetModule();
+      component.confirm();
+      expect(resetModule).toHaveBeenCalledWith('org-a', 'setup', 4, '');
     });
   });
 

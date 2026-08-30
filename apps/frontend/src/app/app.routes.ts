@@ -164,7 +164,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'organization/setup',
-        canActivate: [requirePermissionGuard('settings.view')],
+        canActivate: [requirePermissionGuard('settings.view'), requireCapabilityGuard('setup')],
         loadComponent: () =>
           import('./features/organization/pages/setup/organization-setup.page').then(
             (m) => m.OrganizationSetupPage,
@@ -172,7 +172,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'branches',
-        canActivate: [requirePermissionGuard('branches.manage')],
+        canActivate: [requirePermissionGuard('branches.view')],
         loadComponent: () =>
           import('./features/branches-warehouses/pages/branches/branches.page').then(
             (m) => m.BranchesPage,
