@@ -6,6 +6,19 @@ import { CapabilitiesApi } from '../../../capabilities/data-access/capabilities.
 import { PlatformCapabilityControl } from '../../../capabilities/models/capability.models';
 import { OrganizationControlsPage } from './organization-controls.page';
 
+const SETUP_LABELS: Readonly<Record<string, string>> = {
+  setup: 'Organization Setup',
+  'setup.features.moduleInfo': 'About Organization Setup',
+  'setup.features.summary': 'Progress Summary',
+  'setup.features.subscriptionNotice': 'Subscription Notice',
+  'setup.features.search': 'Search',
+  'setup.features.statusFilter': 'Status Filter',
+  'setup.features.taskList': 'Task List',
+  'setup.features.operationalReadiness': 'Operational Readiness',
+  'setup.features.notes': 'Setup Notes',
+  'setup.actions.refresh': 'Refresh Setup Progress',
+};
+
 function control(
   key: string,
   type: PlatformCapabilityControl['type'],
@@ -17,8 +30,8 @@ function control(
     parentKey: key === 'setup' ? null : 'setup',
     moduleKey: 'setup',
     type,
-    label: key,
-    description: key,
+    label: SETUP_LABELS[key] ?? key,
+    description: SETUP_LABELS[key] ?? key,
     defaultPolicy: policy,
     configurable: Object.fromEntries(Object.keys(policy).map((mode) => [mode, true])),
     risk: key === 'setup' ? 'CRITICAL' : 'NORMAL',
