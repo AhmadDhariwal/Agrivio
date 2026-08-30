@@ -26,6 +26,8 @@ describe('OrganizationSetupPage', () => {
   let activeContextSignal: ReturnType<typeof signal>;
   let hasPermissionMock: ReturnType<typeof vi.fn>;
   let canUseModuleMock: ReturnType<typeof vi.fn>;
+  let canUseFeatureMock: ReturnType<typeof vi.fn>;
+  let canPerformActionMock: ReturnType<typeof vi.fn>;
 
   const sampleSteps: SetupStep[] = [
     {
@@ -76,6 +78,8 @@ describe('OrganizationSetupPage', () => {
     });
     hasPermissionMock = vi.fn().mockReturnValue(true);
     canUseModuleMock = vi.fn().mockReturnValue(true);
+    canUseFeatureMock = vi.fn().mockReturnValue(true);
+    canPerformActionMock = vi.fn().mockReturnValue(true);
 
     TestBed.configureTestingModule({
       imports: [OrganizationSetupPage],
@@ -99,6 +103,8 @@ describe('OrganizationSetupPage', () => {
           provide: CapabilityService,
           useValue: {
             canUseModule: canUseModuleMock,
+            canUseFeature: canUseFeatureMock,
+            canPerformAction: canPerformActionMock,
           },
         },
       ],
@@ -450,6 +456,168 @@ describe('OrganizationSetupPage', () => {
 
       const mobileCards = el.querySelectorAll('.setup-mobile-card');
       expect(mobileCards.length).toBe(sampleSteps.length);
+    });
+  });
+
+  describe('Feature Flag Gating', () => {
+    it('hides module information (eyebrow, lede, footer tip) when setup.features.moduleInfo is false', () => {
+      canUseFeatureMock.mockImplementation((key: string) => key !== 'setup.features.moduleInfo');
+      createComponent();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(el.querySelector('.page-head__eyebrow')).toBeNull();
+      expect(el.querySelector('.page-head__lede')).toBeNull();
+      expect(el.querySelector('.setup-footer-tip')).toBeNull();
+      expect(el.querySelector('.page-head__title')?.textContent).toContain('Organization setup');
+    });
+
+    it('hides completed count pill and KPI summary row when setup.features.summary is false', () => {
+      canUseFeatureMock.mockImplementation((key: string) => key !== 'setup.features.summary');
+      createComponent();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(el.querySelector('.page-head__count-pill')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-kpi-row"]')).toBeNull();
+    });
+
+    it('hides subscription notice when setup.features.subscriptionNotice is false', () => {
+      sessionSignal.set({
+        user: { id: 'usr-1', email: 'owner@test.com' },
+        subscriptionAccessState: 'grace_period',
+      });
+      canUseFeatureMock.mockImplementation(
+        (key: string) => key !== 'setup.features.subscriptionNotice',
+      );
+      createComponent();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(el.querySelector('[data-testid="setup-subscription-notice"]')).toBeNull();
+    });
+
+    it('hides task table and mobile cards when setup.features.taskList is false', () => {
+      canUseFeatureMock.mockImplementation((key: string) => key !== 'setup.features.taskList');
+      createComponent();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(el.querySelector('[data-testid="setup-steps"]')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-steps-mobile"]')).toBeNull();
+    });
+
+    it('hides operational readiness banner when setup.features.operationalReadiness is false', () => {
+      getSetupProgressMock.mockReturnValue(
+        of({
+          steps: sampleSteps,
+          readyForOperations: true,
+          notes: [],
+        }),
+      );
+      canUseFeatureMock.mockImplementation(
+        (key: string) => key !== 'setup.features.operationalReadiness',
+      );
+      createComponent();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(el.querySelector('[data-testid="setup-ready"]')).toBeNull();
+    });
+
+    it('hides setup notes when setup.features.notes is false', () => {
+      canUseFeatureMock.mockImplementation((key: string) => key !== 'setup.features.notes');
+      createComponent();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(el.querySelector('[data-testid="setup-notes"]')).toBeNull();
+    });
+  });
+
+  describe('Toolbar Composition & Refresh Action Gating', () => {
+    it('renders only status filter when search is disabled', () => {
+      canUseFeatureMock.mockImplementation((key: string) => key !== 'setup.features.search');
+      createComponent();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(el.querySelector('[data-testid="setup-search-input"]')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-status-filter"]')).toBeTruthy();
+      expect(el.querySelector('[data-testid="setup-refresh"]')).toBeTruthy();
+    });
+
+    it('renders only search when status filter is disabled', () => {
+      canUseFeatureMock.mockImplementation((key: string) => key !== 'setup.features.statusFilter');
+      createComponent();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(el.querySelector('[data-testid="setup-search-input"]')).toBeTruthy();
+      expect(el.querySelector('[data-testid="setup-status-filter"]')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-refresh"]')).toBeTruthy();
+    });
+
+    it('renders refresh button cleanly on the right when both search and filter are disabled', () => {
+      canUseFeatureMock.mockImplementation(
+        (key: string) =>
+          key !== 'setup.features.search' && key !== 'setup.features.statusFilter',
+      );
+      createComponent();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(el.querySelector('.toolbar__left')).toBeNull();
+      expect(el.querySelector('.toolbar__right')).toBeTruthy();
+      expect(el.querySelector('[data-testid="setup-refresh"]')).toBeTruthy();
+    });
+
+    it('hides the entire toolbar when search, statusFilter, and refresh are all disabled', () => {
+      canUseFeatureMock.mockImplementation(
+        (key: string) =>
+          key !== 'setup.features.search' && key !== 'setup.features.statusFilter',
+      );
+      canPerformActionMock.mockReturnValue(false);
+      createComponent();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(el.querySelector('.toolbar')).toBeNull();
+    });
+
+    it('hides refresh button when setup.actions.refresh is false without breaking initial loading', () => {
+      canPerformActionMock.mockReturnValue(false);
+      createComponent();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(getSetupProgressMock).toHaveBeenCalledWith();
+      expect(el.querySelector('[data-testid="setup-refresh"]')).toBeNull();
+      expect(el.textContent).toContain('Organization profile & settings');
+    });
+  });
+
+  describe('Destination Permission & Capability Gating', () => {
+    it('restricts Open branch step when user lacks branches.manage permission even with branches.view', () => {
+      hasPermissionMock.mockImplementation((perm: string) => perm !== 'branches.manage');
+      createComponent();
+
+      const branchStep = sampleSteps.find((s) => s.id === 'branch');
+      expect(branchStep).toBeDefined();
+      if (branchStep) {
+        expect(component.canOpenStep(branchStep)).toBe(false);
+      }
+    });
+
+    it('allows Open branch step when user has both branches.view and branches.manage', () => {
+      hasPermissionMock.mockReturnValue(true);
+      createComponent();
+
+      const branchStep = sampleSteps.find((s) => s.id === 'branch');
+      expect(branchStep).toBeDefined();
+      if (branchStep) {
+        expect(component.canOpenStep(branchStep)).toBe(true);
+      }
+    });
+
+    it('restricts Open employees step when employees destination capability is disabled', () => {
+      canUseModuleMock.mockImplementation((mod: string) => mod !== 'employees');
+      createComponent();
+
+      const employeesStep = sampleSteps.find((s) => s.id === 'employees_access');
+      expect(employeesStep).toBeDefined();
+      if (employeesStep) {
+        expect(component.canOpenStep(employeesStep)).toBe(false);
+      }
     });
   });
 });

@@ -66,6 +66,13 @@ const STEP_CAPABILITY_KEYS: Readonly<Record<string, string>> = {
   '/app/warehouses': 'warehouses',
   '/app/employees': 'employees',
   '/app/accounts': 'accounts',
+  '/app/customers': 'customers',
+  '/app/suppliers': 'suppliers',
+};
+
+const STEP_DESTINATION_PERMISSIONS: Readonly<Record<string, string>> = {
+  '/app/branches': 'branches.manage',
+  '/app/warehouses': 'warehouses.manage',
 };
 
 @Component({
@@ -100,7 +107,40 @@ export class OrganizationSetupPage {
       null,
   );
 
-  readonly subscriptionNotice = computed(() => buildSubscriptionBanner(this.accessState()));
+  readonly moduleInfoEnabled = computed(() =>
+    this.capabilityService.canUseFeature('setup.features.moduleInfo'),
+  );
+  readonly summaryEnabled = computed(() =>
+    this.capabilityService.canUseFeature('setup.features.summary'),
+  );
+  readonly subscriptionNoticeEnabled = computed(() =>
+    this.capabilityService.canUseFeature('setup.features.subscriptionNotice'),
+  );
+  readonly searchEnabled = computed(() =>
+    this.capabilityService.canUseFeature('setup.features.search'),
+  );
+  readonly statusFilterEnabled = computed(() =>
+    this.capabilityService.canUseFeature('setup.features.statusFilter'),
+  );
+  readonly taskListEnabled = computed(() =>
+    this.capabilityService.canUseFeature('setup.features.taskList'),
+  );
+  readonly operationalReadinessEnabled = computed(() =>
+    this.capabilityService.canUseFeature('setup.features.operationalReadiness'),
+  );
+  readonly notesEnabled = computed(() =>
+    this.capabilityService.canUseFeature('setup.features.notes'),
+  );
+  readonly refreshEnabled = computed(() =>
+    this.capabilityService.canPerformAction('setup.actions.refresh'),
+  );
+  readonly toolbarEnabled = computed(
+    () => this.searchEnabled() || this.statusFilterEnabled() || this.refreshEnabled(),
+  );
+
+  readonly subscriptionNotice = computed(() =>
+    this.subscriptionNoticeEnabled() ? buildSubscriptionBanner(this.accessState()) : null,
+  );
 
   readonly canManageBilling = computed(
     () =>
@@ -148,8 +188,8 @@ export class OrganizationSetupPage {
   // Filtered steps based on search term and status filter
   readonly filteredSteps = computed(() => {
     const steps = this.progress()?.steps ?? [];
-    const query = this.searchTerm().trim().toLowerCase();
-    const filter = this.statusFilter();
+    const query = this.searchEnabled() ? this.searchTerm().trim().toLowerCase() : '';
+    const filter = this.statusFilterEnabled() ? this.statusFilter() : 'all';
 
     return steps.filter((step) => {
       // Status filter
@@ -174,7 +214,9 @@ export class OrganizationSetupPage {
   });
 
   readonly hasActiveFilters = computed(
-    () => this.searchTerm().trim() !== '' || this.statusFilter() !== 'all',
+    () =>
+      (this.searchEnabled() && this.searchTerm().trim() !== '') ||
+      (this.statusFilterEnabled() && this.statusFilter() !== 'all'),
   );
 
   constructor() {
@@ -238,7 +280,13 @@ export class OrganizationSetupPage {
       return false;
     }
 
-    // 4. Effective destination capability must be enabled
+    // 4. Destination routes may require stronger permissions than the progress read
+    const destinationPermission = STEP_DESTINATION_PERMISSIONS[step.href];
+    if (destinationPermission && !this.sessionStore.hasPermission(destinationPermission)) {
+      return false;
+    }
+
+    // 5. Effective destination capability must be enabled
     const capKey = STEP_CAPABILITY_KEYS[step.href];
     if (capKey && !this.capabilityService.canUseModule(capKey)) {
       return false;
