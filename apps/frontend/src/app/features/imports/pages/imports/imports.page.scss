@@ -8,6 +8,10 @@
   border: 1px solid var(--ag-color-border);
   border-radius: var(--ag-radius-lg);
   padding: var(--ag-space-4);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .import-toolbar label {
@@ -16,5 +20,35 @@
   gap: var(--ag-space-1);
   font-size: var(--ag-text-xs);
   font-weight: 600;
+  min-width: 0;
+}
+
+.import-toolbar select,
+.import-toolbar input[type='file'] {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.import-toolbar .ag-btn {
+  justify-self: start;
+}
+
+.import-meta {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+@media (max-width: 599px) {
+  .import-toolbar {
+    grid-template-columns: 1fr;
+    padding: var(--ag-space-3);
+  }
+
+  .import-toolbar .ag-btn {
+    width: 100%;
+  }
 }
 

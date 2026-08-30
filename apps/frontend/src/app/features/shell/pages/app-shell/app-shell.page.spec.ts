@@ -43,7 +43,7 @@ const MANAGER_A = OWNER_A.filter(
     permission !== 'subscription.billing-evidence.submit' &&
     permission !== 'branches.manage' &&
     permission !== 'warehouses.manage',
-);
+).concat(['branches.view', 'warehouses.view']);
 
 const CASHIER_A = [
   'catalog.view',
@@ -83,6 +83,7 @@ describe('R1-F09-003 Angular role UX spot check', () => {
     expect(text).toContain('Purchases');
     expect(text).toContain('Sales');
     expect(text).toContain('Imports');
+    expect(text).toContain('Branches');
     expect(text).not.toContain('Audit');
     expect(text).not.toContain('Platform Administration');
     expect(text).not.toContain('Backup status');

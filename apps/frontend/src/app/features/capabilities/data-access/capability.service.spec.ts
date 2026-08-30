@@ -815,7 +815,7 @@ describe('CapabilityService', () => {
     });
   });
 
-  it('provides Setup defaults and route/navigation guards', () => {
+  it('provides current-behavior defaults and route/navigation guards for Setup', () => {
     TestBed.configureTestingModule({
       providers: [
         CapabilityService,
@@ -828,7 +828,7 @@ describe('CapabilityService', () => {
       ],
     });
     const service = TestBed.inject(CapabilityService);
-    for (const id of [
+    const features = [
       'moduleInfo',
       'summary',
       'subscriptionNotice',
@@ -837,16 +837,18 @@ describe('CapabilityService', () => {
       'taskList',
       'operationalReadiness',
       'notes',
-    ]) {
+    ] as const;
+
+    expect(service.canUseModule('setup')).toBe(true);
+    for (const id of features) {
       expect(service.canUseFeature(`setup.features.${id}`)).toBe(true);
     }
-    expect(service.canUseModule('setup')).toBe(true);
     expect(service.canPerformAction('setup.actions.refresh')).toBe(true);
 
     const app = appRoutes.find((route) => route.path === 'app');
-    expect(
-      app?.children?.find((route) => route.path === 'organization/setup')?.canActivate,
-    ).toHaveLength(2);
+    expect(app?.children?.find((route) => route.path === 'organization/setup')?.canActivate).toHaveLength(
+      2,
+    );
     const navigation = CANONICAL_NAVIGATION.flatMap((entry) =>
       entry.type === 'group' ? entry.group.children : [entry.item],
     );

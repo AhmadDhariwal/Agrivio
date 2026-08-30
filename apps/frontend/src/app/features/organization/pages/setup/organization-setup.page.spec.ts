@@ -272,6 +272,26 @@ describe('OrganizationSetupPage', () => {
   });
 
   describe('Toolbar & Filtering', () => {
+    it('applies Setup presentation controls without changing the loaded DTO', () => {
+      canUseFeatureMock.mockReturnValue(false);
+      canPerformActionMock.mockReturnValue(false);
+      createComponent();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(component.progress()).toEqual(sampleProgress);
+      expect(el.querySelector('.page-head__title')?.textContent).toContain('Organization setup');
+      expect(el.querySelector('.page-head__eyebrow')).toBeNull();
+      expect(el.querySelector('.page-head__count-pill')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-kpi-row"]')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-subscription-notice"]')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-ready"]')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-steps"]')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-notes"]')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-refresh"]')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-search-input"]')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-status-filter"]')).toBeNull();
+    });
+
     it('filters tasks locally by search query matching title or description', () => {
       createComponent();
 
@@ -360,6 +380,30 @@ describe('OrganizationSetupPage', () => {
       expect(restricted).toBeTruthy();
     });
 
+    it('does not expose a destination whose route requires a stronger permission', () => {
+      hasPermissionMock.mockImplementation((permission: string) => permission !== 'warehouses.manage');
+      getSetupProgressMock.mockReturnValue(
+        of({
+          steps: [
+            {
+              id: 'warehouse',
+              title: 'Create a warehouse',
+              status: 'incomplete',
+              href: '/app/warehouses',
+              permission: 'warehouses.view',
+            },
+          ],
+          readyForOperations: false,
+          notes: [],
+        }),
+      );
+      createComponent();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(el.querySelector('[data-testid="setup-link-warehouse"]')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-restricted-warehouse"]')).toBeTruthy();
+    });
+
     it('restricts Open action if destination capability is disabled', () => {
       canUseModuleMock.mockImplementation((mod: string) => mod !== 'inventory.products');
       getSetupProgressMock.mockReturnValue(
@@ -385,6 +429,30 @@ describe('OrganizationSetupPage', () => {
 
       const restricted = el.querySelector('[data-testid="setup-restricted-catalog"]');
       expect(restricted).toBeTruthy();
+    });
+
+    it('keeps Customers destination access independent from Setup controls', () => {
+      canUseModuleMock.mockImplementation((mod: string) => mod !== 'customers');
+      getSetupProgressMock.mockReturnValue(
+        of({
+          steps: [
+            {
+              id: 'customers',
+              title: 'Customers',
+              status: 'incomplete',
+              href: '/app/customers',
+              permission: 'customers.view',
+            },
+          ],
+          readyForOperations: false,
+          notes: [],
+        }),
+      );
+      createComponent();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(el.querySelector('[data-testid="setup-link-customers"]')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-restricted-customers"]')).toBeTruthy();
     });
   });
 

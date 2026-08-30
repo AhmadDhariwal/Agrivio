@@ -583,6 +583,14 @@ export class OrganizationControlsPage {
       changes[0].value?.['enabled'] === false
     );
   });
+  readonly disablingSetup = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'setup' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
   readonly confirmationTitle = computed(() => {
     const pending = this.pendingConfirmation();
     const organization = this.snapshot()?.organization.name ?? 'this organization';
@@ -744,6 +752,9 @@ export class OrganizationControlsPage {
     }
     if (this.disablingBilling()) {
       return `Users in ${organization} will no longer be able to access the Billing page or submit payment evidence. Subscription lifecycle and platform review workflows remain enforced. This affects ${organization} only.`;
+    }
+    if (this.disablingSetup()) {
+      return `Users in ${organization} will no longer be able to access Organization Setup or its progress API. Existing setup completion facts and destination-module access are not changed. This affects ${organization} only.`;
     }
     const critical = this.changeSummary()
       .filter((change) => change.risk === 'CRITICAL')
