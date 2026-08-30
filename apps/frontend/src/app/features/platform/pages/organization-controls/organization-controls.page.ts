@@ -111,9 +111,7 @@ export class OrganizationControlsPage {
     this.byType('FEATURE', false).filter((control) => !this.isBatchGroupedFeature(control)),
   );
   readonly moduleInfoControls = computed(() => {
-    if (this.selectedModule() === 'setup') {
-      return this.setupFeatures('moduleInfo');
-    }
+    if (this.selectedModule() === 'setup') return this.setupFeatures('moduleInfo');
     if (this.selectedModule() === 'warehouses') {
       return this.warehousesFeatures('moduleInfo');
     }
@@ -236,9 +234,7 @@ export class OrganizationControlsPage {
     return [];
   });
   readonly filterControls = computed(() => {
-    if (this.selectedModule() === 'setup') {
-      return this.setupFeatures('search', 'statusFilter');
-    }
+    if (this.selectedModule() === 'setup') return this.setupFeatures('search', 'statusFilter');
     if (this.selectedModule() === 'dashboard') {
       return this.dashboardFeatures('datePeriodFilter', 'branchFilter', 'warehouseFilter');
     }

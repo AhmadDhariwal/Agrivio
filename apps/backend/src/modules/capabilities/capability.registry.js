@@ -3530,19 +3530,11 @@ const definitions = [
   ...[
     ['moduleInfo', 'About Organization Setup', 'Show the Setup page guidance and context.'],
     ['summary', 'Progress Summary', 'Show completion totals derived from the loaded Setup tasks.'],
-    [
-      'subscriptionNotice',
-      'Subscription Notice',
-      'Show informational subscription and Billing status already present in the session.',
-    ],
+    ['subscriptionNotice', 'Subscription Notice', 'Show informational subscription and Billing status already present in the session.'],
     ['search', 'Search', 'Search the loaded Setup task list by title or description.'],
     ['statusFilter', 'Status Filter', 'Filter the loaded Setup task list by progress status.'],
     ['taskList', 'Task List', 'Show the authoritative Setup task progress list.'],
-    [
-      'operationalReadiness',
-      'Operational Readiness',
-      'Show the readiness result returned by the Setup progress API.',
-    ],
+    ['operationalReadiness', 'Operational Readiness', 'Show the readiness result returned by the Setup progress API.'],
     ['notes', 'Setup Notes', 'Show informational notes returned by the Setup progress API.'],
   ].map(([id, label, description]) => ({
     key: `setup.features.${id}`,

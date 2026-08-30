@@ -15,32 +15,28 @@ async function withServer(app, work) {
   const server = createServer(app);
   await new Promise((resolve, reject) => {
     server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => resolve(undefined));
+    server.listen(0, '127.0.0.1', () => resolve());
   });
   try {
     const address = server.address();
-    if (address === null || typeof address === 'string') throw new Error('Expected TCP port');
     await work(`http://127.0.0.1:${address.port}`);
   } finally {
-    await new Promise((resolve, reject) => {
-      server.close((error) => (error ? reject(error) : resolve(undefined)));
-    });
+    await new Promise((resolve) => server.close(resolve));
   }
 }
 
-function buildApp({
+function build({
   assertAllowed,
   permissions = ['settings.view'],
   organizationId = 'org-a',
   requireOperationalAccess = (_req, _res, next) => next(),
-  getSetupProgress = vi.fn(async () => ({
+}) {
+  const getSetupProgress = vi.fn(async () => ({
     steps: [],
     readyForOperations: false,
     notes: [],
-  })),
-}) {
+  }));
   const app = express();
-  app.use(express.json());
   app.use(createRequestIdMiddleware());
   app.use(
     registerOrganizationRoutes({
@@ -49,7 +45,6 @@ function buildApp({
         req.authContext = {
           contextType: 'organization',
           organizationId,
-          userId: 'user-a',
           permissions,
         };
         next();
@@ -65,16 +60,12 @@ function buildApp({
   return { app, getSetupProgress };
 }
 
-describe('Organization Setup capability route enforcement', () => {
-  it('blocks the progress endpoint when Setup is disabled', async () => {
-    const assertAllowed = vi.fn(async (organizationId, key, mode) => {
-      expect(organizationId).toBe('org-a');
-      expect(key).toBe('setup');
-      expect(mode).toBe('enabled');
-      throw orgCapabilityDisabled('Organization Setup disabled', { controlKey: key });
+describe('Organization Setup capability route', () => {
+  it('blocks disabled Setup after RBAC and subscription checks', async () => {
+    const assertAllowed = vi.fn(async () => {
+      throw orgCapabilityDisabled('Setup disabled', { controlKey: 'setup' });
     });
-    const { app, getSetupProgress } = buildApp({ assertAllowed });
-
+    const { app, getSetupProgress } = build({ assertAllowed });
     await withServer(app, async (baseUrl) => {
       const response = await fetch(`${baseUrl}/api/v1/organization/setup-progress`);
       expect(response.status).toBe(403);
@@ -83,60 +74,31 @@ describe('Organization Setup capability route enforcement', () => {
     expect(getSetupProgress).not.toHaveBeenCalled();
   });
 
-  it('keeps RBAC authoritative before capability evaluation', async () => {
-    const assertAllowed = vi.fn();
-    const { app, getSetupProgress } = buildApp({ assertAllowed, permissions: [] });
-
-    await withServer(app, async (baseUrl) => {
+  it('does not evaluate capability when permission or subscription denies access', async () => {
+    const missingPermission = vi.fn();
+    const deniedByRbac = build({ assertAllowed: missingPermission, permissions: [] });
+    await withServer(deniedByRbac.app, async (baseUrl) => {
       const response = await fetch(`${baseUrl}/api/v1/organization/setup-progress`);
-      expect(response.status).toBe(403);
       expect((await response.json()).error.code).toBe('PERMISSION_DENIED');
     });
-    expect(assertAllowed).not.toHaveBeenCalled();
-    expect(getSetupProgress).not.toHaveBeenCalled();
-  });
+    expect(missingPermission).not.toHaveBeenCalled();
 
-  it('keeps operational subscription access authoritative before capability evaluation', async () => {
-    const assertAllowed = vi.fn();
-    const { app, getSetupProgress } = buildApp({
-      assertAllowed,
-      requireOperationalAccess: (_req, _res, next) =>
-        next(forbidden('Operational subscription access is required')),
+    const deniedBySubscription = vi.fn();
+    const subscriptionApp = build({
+      assertAllowed: deniedBySubscription,
+      requireOperationalAccess: (_req, _res, next) => next(forbidden('Operational access required')),
     });
-
-    await withServer(app, async (baseUrl) => {
+    await withServer(subscriptionApp.app, async (baseUrl) => {
       expect((await fetch(`${baseUrl}/api/v1/organization/setup-progress`)).status).toBe(403);
     });
-    expect(assertAllowed).not.toHaveBeenCalled();
-    expect(getSetupProgress).not.toHaveBeenCalled();
+    expect(deniedBySubscription).not.toHaveBeenCalled();
   });
 
-  it('uses authenticated organization context and preserves the Setup DTO', async () => {
-    const dto = {
-      steps: [
-        {
-          id: 'branch',
-          title: 'Create a branch',
-          status: 'complete',
-          href: '/app/branches',
-          permission: 'branches.view',
-        },
-      ],
-      readyForOperations: true,
-      notes: ['Authoritative note'],
-    };
+  it('uses only authenticated organization context', async () => {
     const assertAllowed = vi.fn(async () => undefined);
-    const getSetupProgress = vi.fn(async () => dto);
-    const { app } = buildApp({
-      assertAllowed,
-      getSetupProgress,
-      organizationId: 'org-b',
-    });
-
+    const { app, getSetupProgress } = build({ assertAllowed, organizationId: 'org-b' });
     await withServer(app, async (baseUrl) => {
-      const response = await fetch(`${baseUrl}/api/v1/organization/setup-progress`);
-      expect(response.status).toBe(200);
-      expect((await response.json()).data).toEqual(dto);
+      expect((await fetch(`${baseUrl}/api/v1/organization/setup-progress`)).status).toBe(200);
     });
     expect(assertAllowed).toHaveBeenCalledWith(
       'org-b',

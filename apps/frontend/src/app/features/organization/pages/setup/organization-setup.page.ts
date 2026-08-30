@@ -70,6 +70,10 @@ const STEP_CAPABILITY_KEYS: Readonly<Record<string, string>> = {
   '/app/suppliers': 'suppliers',
 };
 
+const STEP_DESTINATION_PERMISSIONS: Readonly<Record<string, string>> = {
+  '/app/warehouses': 'warehouses.manage',
+};
+
 @Component({
   selector: 'agrivio-organization-setup-page',
   standalone: true,
@@ -275,7 +279,13 @@ export class OrganizationSetupPage {
       return false;
     }
 
-    // 4. Effective destination capability must be enabled
+    // 4. Destination routes may require stronger permissions than the progress read.
+    const destinationPermission = STEP_DESTINATION_PERMISSIONS[step.href];
+    if (destinationPermission && !this.sessionStore.hasPermission(destinationPermission)) {
+      return false;
+    }
+
+    // 5. Effective destination capability must be enabled
     const capKey = STEP_CAPABILITY_KEYS[step.href];
     if (capKey && !this.capabilityService.canUseModule(capKey)) {
       return false;
