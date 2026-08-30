@@ -1,7 +1,7 @@
 # Organization Capability & UI Policy — Phase 1
 
 Status: Implementation complete; lightweight authenticated browser review remains environment-dependent
-Scope: Generic platform foundation plus completed capability integrations through Stock Movements, Accounts, Reports, Alerts, Purchases, Supplier Payments, Supplier Ledger, Sales, Customer Payments, Dashboard, Warehouses, and Billing backend/generic Super Admin controls
+Scope: Generic platform foundation plus completed capability integrations through Stock Movements, Accounts, Reports, Alerts, Purchases, Supplier Payments, Supplier Ledger, Sales, Customer Payments, Dashboard, Warehouses, Billing, and Organization Setup
 Completed: 2026-08-29
 
 ## Implemented
@@ -39,6 +39,7 @@ Completed: 2026-08-29
 - Individual, module, and organization reset operations remove sparse overrides through the transactional backend endpoints, increment policy versions on material changes, emit per-control audit evidence, re-resolve effective policy, and refresh the Super Admin UI.
 - Warehouses owns the `warehouses` namespace with 13 authoritative backend controls: 1 module, 3 real presentation features (`moduleInfo`, `search`, `statusFilter`), 3 fields (`name`, `code`, `status`), and 6 actions (`create`, `edit`, `deactivate`, `reactivate`, `delete`, `refresh`). All direct Warehouse API operations enforce the module after existing organization context, RBAC, and operational subscription checks. Create and permanent delete enforce their distinct route actions; parsed Warehouse PATCH mutations dynamically enforce Edit, optional Code editability, and the matching lifecycle action without weakening optimistic versioning or tenant scope. Generic module reset and Organization Controls rendering reuse the existing sparse override, Default / Override / Effective, audit, and version paths.
 - Billing owns the `billing` namespace with 17 authoritative backend controls: 1 module, 4 features, 7 fields, and 5 actions. Tenant current-subscription, plan, evidence upload/download, submission, history, and detail routes enforce the module plus their source-backed feature/action after existing organization context, RBAC, and `billing-access` lifecycle checks. Requested Plan, Billing Period, Payment Method, Payment Reference, Amount, and Evidence remain required/platform-enforced; optional Notes is policy-enforced against crafted payloads. Generic module reset and Organization Controls registry rendering reuse sparse overrides, Default / Override / Effective, audit, and version paths.
+- Organization Setup owns the flat `setup` namespace with 10 controls: 1 server-enforced module, 8 presentation features, and 1 presentation refresh action. The existing Setup progress endpoint enforces authentication, organization context, `settings.view`, operational subscription access, and the Setup capability in that order. The frozen tenant UI consumes the presentation controls, while progress facts remain derived from authoritative tenant-scoped domain data and destination links retain their own RBAC and capability checks.
 - Stable policy denial codes: `ORG_CAPABILITY_DISABLED`, `ORG_ACTION_NOT_ALLOWED`, and `ORG_FIELD_NOT_EDITABLE`.
 
 ## Warehouses backend registry safety decisions
@@ -60,6 +61,16 @@ Completed: 2026-08-29
 - Tenant APIs enforce Billing, Current Subscription, Plan Selection, Billing History, Submit, Upload Evidence, Download Evidence, and Inspect History where the HTTP operation is distinguishable. Module Information and Refresh remain presentation actions; refresh cannot be distinguished from an initial GET without changing the HTTP/cache contract.
 - Billing controls do not alter plan validation, evidence ownership/type/size validation, duplicate-reference warnings, coverage calculation, subscription transitions, platform review, or payment workflow.
 - Module reset matches only definitions whose `moduleKey` is `billing`, preserves unrelated sparse overrides and organization isolation, increments policy version on material change, and emits existing per-control audit evidence.
+
+## Organization Setup control safety decisions
+
+- `setup` is the canonical capability namespace. Its critical module switch is server-enforced on `GET /api/v1/organization/setup-progress` after `settings.view` and operational subscription checks.
+- `moduleInfo`, `summary`, `subscriptionNotice`, `search`, `statusFilter`, `taskList`, `operationalReadiness`, and `notes` are presentation-only because they share one Setup progress DTO or local/session presentation state. `actions.refresh` is also presentation-only because initial load and explicit refresh use the same existing GET and cache contract.
+- Every child is parented directly to `setup`; there are no task-ID controls, `openTask` action, child-to-child dependencies, or destination-module dependencies.
+- Setup capability changes do not alter organization, settings, branch, warehouse, membership, catalog, customer, supplier, account, opening-balance, or readiness calculations. No Setup persistence or duplicate completion logic was added.
+- Subscription Notice only hides informational presentation. It does not change subscription state, Billing capability, Billing RBAC, or lifecycle enforcement.
+- Setup task destinations remain independently governed. Existing destination permissions and capabilities determine whether Open is available, and destination routes/APIs remain authoritative.
+- Module reset removes only `setup.*` sparse overrides. Existing organizations retain current behavior because all 10 controls default on and no migration or override rewrite is required.
 
 ## Products registry safety decisions
 
@@ -384,12 +395,16 @@ Completed: 2026-08-29
 - Warehouses focused backend registry/effective resolution, RBAC intersection, parsed edit and Code-field enforcement, lifecycle and permanent-delete action enforcement, delete-in-use safety, organization isolation, scoped reset, audit/version evidence, and all direct Warehouse route enforcement: passed (2 files, 12 tests).
 - Billing focused backend registry/effective resolution, RBAC and `billing-access` lifecycle intersection, required-field safety, optional Notes payload enforcement, module/action route enforcement, organization isolation, scoped reset, and audit/version evidence: passed (2 files, 10 tests; Submit, Upload, and Download action denials covered in one parameterized case).
 - Existing subscription lifecycle and billing workflow regression coverage after Billing capability integration: passed (2 files, 10 tests).
+- Organization Setup focused backend registry, default/override/effective resolution, direct parent dependency, RBAC intersection, organization isolation, scoped reset/audit/version, unchanged completion calculations, destination independence, and route enforcement: passed (2 files, 9 tests).
+- Existing Setup progress and core capability regressions passed (2 files, 33 tests). The tenant-isolation regression timed out only when run concurrently and passed when rerun alone (1 test).
+- Organization Setup page presentation controls, destination permission/capability safety, generic Organization Controls rendering/reset, frontend defaults, route guard, and navigation assertions passed. The combined frontend target also reported seven unrelated stale route-count assertions from pre-existing route changes.
+- Changed backend JavaScript syntax checks and `git diff --check`: passed.
 - Frontend and backend TypeScript project references typecheck: passed.
 - Final development and production builds for all projects passed.
 
 ## Remaining risk
 
-Authenticated cross-organization browser smoke remains outstanding; focused component, route, policy, persistence-boundary, and build validation passed. Foundation + Products + Categories + Stock on Hand + Opening Stock + Product Batches + Expiry Inquiry + Stock Adjustments + Warehouse Transfers + Stock Movements + Accounts + Reports + Alerts + Purchases + Supplier Payments + Supplier Ledger + Sales + Customer Payments + Dashboard are complete. Warehouses and Billing backend capability enforcement and generic Super Admin registry integration are complete; their tenant frontend consumption and later unintegrated modules remain separate.
+Authenticated cross-organization browser smoke remains outstanding; focused component, route, policy, persistence-boundary, and build validation passed. Foundation + Products + Categories + Stock on Hand + Opening Stock + Product Batches + Expiry Inquiry + Stock Adjustments + Warehouse Transfers + Stock Movements + Accounts + Reports + Alerts + Purchases + Supplier Payments + Supplier Ledger + Sales + Customer Payments + Dashboard + Organization Setup are complete. Warehouses and Billing backend capability enforcement and generic Super Admin registry integration are complete; their tenant frontend consumption and later unintegrated modules remain separate.
 
 WAREHOUSES SUPER ADMIN REGISTRY: ✅ FROZEN
 
@@ -408,3 +423,17 @@ BILLING BACKEND CAPABILITY ENFORCEMENT: ✅ VERIFIED
 BILLING RBAC/LIFECYCLE INTERSECTION: ✅ VERIFIED
 
 BILLING ORGANIZATION CONTROLS BACKEND: ✅ FULLY DONE
+
+SETUP CONTROL REGISTRY: ✅ FROZEN
+
+SETUP MODULE BACKEND ENFORCEMENT: ✅ VERIFIED
+
+SETUP ORGANIZATION CONTROLS BACKEND: ✅ VERIFIED
+
+SETUP RBAC INTERSECTION: ✅ VERIFIED
+
+SETUP DESTINATION ACCESS SAFETY: ✅ VERIFIED
+
+SETUP TENANT ISOLATION: ✅ VERIFIED
+
+ORGANIZATION SETUP CONTROLS BACKEND: ✅ FULLY DONE

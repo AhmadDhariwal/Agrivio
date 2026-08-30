@@ -49,6 +49,7 @@
   @if (errorMessage(); as error) {
     <div class="alert-container">
       <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+      @if (refreshEnabled()) {
       <button
         type="button"
         class="ag-btn ag-btn--secondary retry-btn"
@@ -57,6 +58,7 @@
       >
         Retry
       </button>
+      }
     </div>
   }
 

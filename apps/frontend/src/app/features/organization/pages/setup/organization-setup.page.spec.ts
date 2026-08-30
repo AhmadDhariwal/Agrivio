@@ -380,6 +380,30 @@ describe('OrganizationSetupPage', () => {
       expect(restricted).toBeTruthy();
     });
 
+    it('does not expose a destination whose route requires a stronger permission', () => {
+      hasPermissionMock.mockImplementation((permission: string) => permission !== 'warehouses.manage');
+      getSetupProgressMock.mockReturnValue(
+        of({
+          steps: [
+            {
+              id: 'warehouse',
+              title: 'Create a warehouse',
+              status: 'incomplete',
+              href: '/app/warehouses',
+              permission: 'warehouses.view',
+            },
+          ],
+          readyForOperations: false,
+          notes: [],
+        }),
+      );
+      createComponent();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(el.querySelector('[data-testid="setup-link-warehouse"]')).toBeNull();
+      expect(el.querySelector('[data-testid="setup-restricted-warehouse"]')).toBeTruthy();
+    });
+
     it('restricts Open action if destination capability is disabled', () => {
       canUseModuleMock.mockImplementation((mod: string) => mod !== 'inventory.products');
       getSetupProgressMock.mockReturnValue(
