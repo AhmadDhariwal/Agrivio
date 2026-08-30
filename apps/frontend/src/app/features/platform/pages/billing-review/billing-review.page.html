@@ -2,14 +2,32 @@
   <agrivio-ui-page-header
     eyebrow="Platform"
     title="Billing evidence review"
-    lede="Super Admin review queue for manual payment evidence. Approving or rejecting changes subscription review status."
+    lede="Inspect organization, requested plan, amount, and payment evidence, then start review and approve or reject with expectedVersion."
   />
 
-  <div class="ag-actions">
-    <button type="button" class="ag-btn ag-btn--secondary" [disabled]="loading()" (click)="reload()">
-      Refresh
-    </button>
-  </div>
+  <form class="ag-card ag-form" [formGroup]="filterForm" (ngSubmit)="reload()">
+    <div class="ag-inline">
+      <div class="ag-field">
+        <agrivio-ui-field-label label="Status" for="billing-status-filter" />
+        <select id="billing-status-filter" class="ag-select" formControlName="status">
+          <option value="">All reviewable and historical</option>
+          <option value="submitted">submitted</option>
+          <option value="under_review">under_review</option>
+          <option value="approved">approved</option>
+          <option value="rejected">rejected</option>
+        </select>
+      </div>
+      <div class="ag-field">
+        <agrivio-ui-field-label label="Organization id" for="billing-org-filter" />
+        <input id="billing-org-filter" class="ag-input" type="text" formControlName="organizationId" />
+      </div>
+      <div class="ag-field">
+        <agrivio-ui-field-label label="Search" for="billing-search" />
+        <input id="billing-search" class="ag-input" type="text" formControlName="q" />
+      </div>
+      <button type="submit" class="ag-btn ag-btn--secondary" [disabled]="loading()">Refresh</button>
+    </div>
+  </form>
 
   @if (loading()) {
     <agrivio-ui-loading-state label="Loading billing review queue…" />
@@ -19,54 +37,84 @@
       message="Submitted organization billing evidence will appear here for review."
     />
   } @else {
-    <div class="ag-table-wrap">
-      <table class="ag-table">
-        <thead>
-          <tr>
-            <th>Method</th>
-            <th>Status</th>
-            <th>Reference</th>
-            <th>Amount</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (item of items(); track item.id) {
-            <tr>
-              <td>
-                <strong>{{ item.paymentMethod }}</strong>
-                @if (item.paymentReferenceDuplicateWarning) {
-                  <span class="ag-badge ag-badge--warning">duplicate reference</span>
-                }
-              </td>
-              <td>
-                <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
-              </td>
-              <td>{{ item.paymentReferenceNormalized }}</td>
-              <td>{{ item.submittedAmountMinorUnits }}</td>
-              <td>
-                <div class="ag-actions">
-                  <button
-                    type="button"
-                    class="ag-btn ag-btn--primary ag-btn--sm"
-                    (click)="askApprove(item)"
-                  >
-                    Approve
-                  </button>
-                  <button
-                    type="button"
-                    class="ag-btn ag-btn--danger ag-btn--sm"
-                    (click)="askReject(item)"
-                  >
-                    Reject
-                  </button>
-                </div>
-              </td>
-            </tr>
+    <p class="ag-muted">{{ total() }} record(s)</p>
+    @for (item of items(); track item.id) {
+      <article class="ag-card ag-stack ag-stack--tight">
+        <div class="ag-inline">
+          <h2>{{ organizationName(item.organizationId) }}</h2>
+          <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+          @if (item.paymentReferenceDuplicateWarning) {
+            <span class="ag-badge ag-badge--warning">duplicate payment reference</span>
           }
-        </tbody>
-      </table>
-    </div>
+        </div>
+
+        <dl class="ag-stack ag-stack--tight">
+          <div>
+            <dt class="ag-muted">Requested plan</dt>
+            <dd>{{ item.requestedPlanCode }} v{{ item.requestedPlanVersion }} · {{ item.billingPeriod }}</dd>
+          </div>
+          <div>
+            <dt class="ag-muted">Amount</dt>
+            <dd>{{ item.submittedAmountMinorUnits }} {{ item.currency }} paisa</dd>
+          </div>
+          <div>
+            <dt class="ag-muted">Payment</dt>
+            <dd>{{ item.paymentMethod }} · {{ item.paymentReferenceNormalized }}</dd>
+          </div>
+          <div>
+            <dt class="ag-muted">Submitted</dt>
+            <dd>{{ displayOrDash(item.submittedAt) }}</dd>
+          </div>
+          <div>
+            <dt class="ag-muted">Evidence</dt>
+            <dd>
+              {{ displayOrDash(item.evidenceOriginalFileName) }}
+              · {{ displayOrDash(item.evidenceContentType) }}
+              · {{ displayOrDash(item.evidenceSize) }} bytes
+              · uploaded {{ displayOrDash(item.evidenceUploadedAt) }}
+              <div class="ag-muted">ref {{ displayOrDash(item.evidenceStorageRef) }}</div>
+            </dd>
+          </div>
+          <div>
+            <dt class="ag-muted">Notes</dt>
+            <dd>{{ displayOrDash(item.notes) }}</dd>
+          </div>
+          <div>
+            <dt class="ag-muted">Coverage</dt>
+            <dd>{{ displayOrDash(item.coverageStart) }} → {{ displayOrDash(item.coverageEnd) }}</dd>
+          </div>
+          @if (item.rejectionReason) {
+            <div>
+              <dt class="ag-muted">Rejection reason</dt>
+              <dd>{{ item.rejectionReason }}</dd>
+            </div>
+          }
+          <div>
+            <dt class="ag-muted">Version</dt>
+            <dd>{{ item.version }}</dd>
+          </div>
+        </dl>
+
+        @if (canReview(item)) {
+          <div class="ag-actions">
+            @if (item.status === 'submitted') {
+              <button type="button" class="ag-btn ag-btn--secondary ag-btn--sm" (click)="askStartReview(item)">
+                Start review
+              </button>
+            }
+            <button type="button" class="ag-btn ag-btn--primary ag-btn--sm" (click)="askApprove(item)">
+              Approve
+            </button>
+            <button type="button" class="ag-btn ag-btn--danger ag-btn--sm" (click)="askReject(item)">
+              Reject
+            </button>
+            <button type="button" class="ag-btn ag-btn--secondary ag-btn--sm" (click)="downloadEvidence(item)">
+              Download evidence
+            </button>
+          </div>
+        }
+      </article>
+    }
   }
 
   <div class="ag-card ag-stack ag-stack--tight">

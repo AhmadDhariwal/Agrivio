@@ -69,6 +69,28 @@ Mongo replica-set proofs for `subscription_plans`, `subscriptions`, and `subscri
 
 Subscription status and billing queues use short organization/session-scoped caching; selectable plans use reference caching. Evidence submission, plan creation, approval, and rejection invalidate only the affected billing, plan, and subscription tags after success.
 
+## Billing UX / evidence-storage follow-up (2026-08-30)
+
+Implemented on the existing F02 Phase 5 billing path. Does **not** claim F02 stage-exit.
+
+* Owner submits against `GET /subscription/plans` and a server-issued evidence ref from authenticated upload (`POST /subscription/billing-evidence`).
+* Super Admin queue supports status/organization/search + pagination, start-review, approve/reject with `expectedVersion`, and authorized evidence download.
+* Active review workflow: `submitted` → `under_review` → `approved` / `rejected`. Approve/reject remain valid from `submitted` or `under_review`.
+* Billing records snapshot listed plan prices (nullable; no invented commercial values) plus evidence metadata.
+* Platform reactivation now shares `computeCoverageWindow` so a subscription cannot become `active` with an already-expired paid period.
+* Existing `QueryCacheService` is used for billing reads (plans REFERENCE; subscription/owner records/platform queue SHORT). Upload, start-review, approve, and reject are not cached. `QueryCacheService` itself was not modified. No second scheduler was added for retained → deleted.
+
+### Model review (billing record fields added)
+
+| Field | Class | Justification |
+| --- | --- | --- |
+| `evidenceUploadedAt` | A | DATA_MODEL evidence metadata; required for Owner/review display |
+| `listedMonthlyPriceMinorUnits` | B | Historical snapshot so later plan versions do not rewrite submissions |
+| `listedAnnualPriceMinorUnits` | B | Same |
+| `listedAnnualDiscountPercent` | B | Same |
+
+Collection ownership remains Subscriptions. No new collection. Tenant `organizationId` unchanged. Optimistic `version` unchanged. Evidence bytes stay out of Mongo.
+
 ## Suggested commit message
 
 ```text

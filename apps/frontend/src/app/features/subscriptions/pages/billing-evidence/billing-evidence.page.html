@@ -2,7 +2,7 @@
   <agrivio-ui-page-header
     eyebrow="Subscriptions"
     title="Billing evidence"
-    lede="Submit manual bank transfer, JazzCash, or Easypaisa evidence. Store only an opaque evidence reference — no payment gateway is integrated."
+    lede="Choose an active plan, upload bank transfer, JazzCash, or Easypaisa evidence, then submit for Super Admin review. No payment gateway is integrated."
   />
 
   <agrivio-subscription-status-banner [accessState]="accessState()" />
@@ -29,6 +29,53 @@
     <form class="ag-form ag-form--with-required-hint" [formGroup]="form" (ngSubmit)="submit()">
       <div class="ag-field">
         <agrivio-ui-field-label
+          label="Requested plan"
+          for="requested-plan"
+          [required]="fieldRequired(form.controls.requestedPlanId)"
+        />
+        @if (loadingPlans()) {
+          <agrivio-ui-loading-state label="Loading selectable plans…" />
+        } @else if (plansError(); as error) {
+          <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
+        } @else if (plans().length === 0) {
+          <agrivio-ui-empty-state
+            title="No selectable plans"
+            message="A Super Admin must activate a plan version before billing evidence can be submitted."
+          />
+        } @else {
+          <select
+            id="requested-plan"
+            class="ag-select"
+            formControlName="requestedPlanId"
+            [attr.aria-required]="fieldRequired(form.controls.requestedPlanId) ? 'true' : null"
+          >
+            @for (plan of plans(); track plan.id) {
+              <option [value]="plan.id">{{ plan.planCode }} v{{ plan.planVersion }}</option>
+            }
+          </select>
+        }
+      </div>
+
+      <div class="ag-field">
+        <agrivio-ui-field-label
+          label="Billing period"
+          for="billing-period"
+          [required]="fieldRequired(form.controls.billingPeriod)"
+        />
+        <select
+          id="billing-period"
+          class="ag-select"
+          formControlName="billingPeriod"
+          [attr.aria-required]="fieldRequired(form.controls.billingPeriod) ? 'true' : null"
+        >
+          <option value="monthly">Monthly</option>
+          <option value="annual">Annual</option>
+        </select>
+        <p class="ag-muted">{{ listedPriceLabel() }}</p>
+      </div>
+
+      <div class="ag-field">
+        <agrivio-ui-field-label
           label="Payment method"
           for="payment-method"
           [required]="fieldRequired(form.controls.paymentMethod)"
@@ -47,24 +94,7 @@
 
       <div class="ag-field">
         <agrivio-ui-field-label
-          label="Billing period"
-          for="billing-period"
-          [required]="fieldRequired(form.controls.billingPeriod)"
-        />
-        <select
-          id="billing-period"
-          class="ag-select"
-          formControlName="billingPeriod"
-          [attr.aria-required]="fieldRequired(form.controls.billingPeriod) ? 'true' : null"
-        >
-          <option value="monthly">Monthly</option>
-          <option value="annual">Annual</option>
-        </select>
-      </div>
-
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Amount (minor units, PKR)"
+          label="Amount (minor units, PKR paisa)"
           for="amount"
           [required]="fieldRequired(form.controls.submittedAmountMinorUnits)"
         />
@@ -99,57 +129,37 @@
       </div>
 
       <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Evidence storage reference"
-          for="evidence-ref"
-          [required]="fieldRequired(form.controls.evidenceStorageRef)"
-        />
+        <agrivio-ui-field-label label="Payment evidence" for="evidence-file" [required]="true" />
         <input
-          id="evidence-ref"
+          id="evidence-file"
           class="ag-input"
-          type="text"
-          formControlName="evidenceStorageRef"
-          placeholder="evidence://..."
-          [attr.aria-required]="fieldRequired(form.controls.evidenceStorageRef) ? 'true' : null"
+          type="file"
+          accept="image/png,image/jpeg,application/pdf"
+          (change)="onFileSelected($event)"
+          aria-required="true"
         />
+        @if (uploading()) {
+          <p class="ag-muted">Uploading evidence…</p>
+        } @else if (uploadedEvidence(); as evidence) {
+          <p class="ag-muted">
+            Uploaded {{ evidence.originalFileName }} ({{ evidence.contentType }},
+            {{ evidence.size }} bytes)
+          </p>
+        } @else if (selectedFileName()) {
+          <p class="ag-muted">Selected {{ selectedFileName() }}</p>
+        }
       </div>
 
       <div class="ag-field">
-        <agrivio-ui-field-label label="Original file name" for="evidence-name" />
-        <input id="evidence-name" class="ag-input" type="text" formControlName="evidenceOriginalFileName" />
+        <agrivio-ui-field-label label="Notes" for="billing-notes" />
+        <textarea id="billing-notes" class="ag-input" rows="3" formControlName="notes"></textarea>
       </div>
 
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Requested plan"
-          for="plan-code"
-          [required]="fieldRequired(form.controls.requestedPlanCode)"
-        />
-        <input
-          id="plan-code"
-          class="ag-input"
-          type="text"
-          formControlName="requestedPlanCode"
-          [attr.aria-required]="fieldRequired(form.controls.requestedPlanCode) ? 'true' : null"
-        />
-      </div>
-
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Plan version"
-          for="plan-version"
-          [required]="fieldRequired(form.controls.requestedPlanVersion)"
-        />
-        <input
-          id="plan-version"
-          class="ag-input"
-          type="number"
-          formControlName="requestedPlanVersion"
-          [attr.aria-required]="fieldRequired(form.controls.requestedPlanVersion) ? 'true' : null"
-        />
-      </div>
-
-      <button type="submit" class="ag-btn ag-btn--primary" [disabled]="submitting() || form.invalid">
+      <button
+        type="submit"
+        class="ag-btn ag-btn--primary"
+        [disabled]="submitting() || uploading() || form.invalid || uploadedEvidence() === null || plans().length === 0"
+      >
         {{ submitting() ? 'Submitting…' : 'Submit evidence' }}
       </button>
     </form>
@@ -171,21 +181,38 @@
         <table class="ag-table">
           <thead>
             <tr>
-              <th>Method</th>
-              <th>Status</th>
-              <th>Reference</th>
+              <th>Submitted</th>
+              <th>Plan</th>
+              <th>Period</th>
               <th>Amount</th>
+              <th>Method / reference</th>
+              <th>Status</th>
+              <th>Evidence</th>
             </tr>
           </thead>
           <tbody>
             @for (item of records(); track item.id) {
               <tr>
-                <td>{{ item.paymentMethod }}</td>
+                <td>{{ displayOrDash(item.submittedAt) }}</td>
+                <td>{{ item.requestedPlanCode }} v{{ item.requestedPlanVersion }}</td>
+                <td>{{ item.billingPeriod }}</td>
+                <td>{{ item.submittedAmountMinorUnits }} {{ item.currency }}</td>
+                <td>
+                  {{ item.paymentMethod }}
+                  <div class="ag-muted">{{ item.paymentReferenceNormalized }}</div>
+                </td>
                 <td>
                   <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+                  @if (item.status === 'rejected' && item.rejectionReason) {
+                    <p class="ag-muted">{{ item.rejectionReason }}</p>
+                  }
                 </td>
-                <td>{{ item.paymentReferenceNormalized }}</td>
-                <td>{{ item.submittedAmountMinorUnits }}</td>
+                <td>
+                  <div>{{ displayOrDash(item.evidenceOriginalFileName) }}</div>
+                  <button type="button" class="ag-btn ag-btn--secondary ag-btn--sm" (click)="downloadEvidence(item)">
+                    Download
+                  </button>
+                </td>
               </tr>
             }
           </tbody>

@@ -1,6 +1,15 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, map, switchMap, tap } from 'rxjs';
+import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
+import { Observable, from, map, switchMap, tap, catchError, throwError } from 'rxjs';
+import {
+  API_CSRF_HEADER,
+  API_PLATFORM_BILLING_RECORDS_PATH,
+  API_PLATFORM_SUBSCRIPTION_PLANS_PATH,
+  API_SUBSCRIPTION_BILLING_EVIDENCE_PATH,
+  API_SUBSCRIPTION_BILLING_RECORDS_PATH,
+  API_SUBSCRIPTION_PATH,
+  API_SUBSCRIPTION_PLANS_PATH,
+} from '@agrivio/api-contracts';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
 import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
@@ -22,14 +31,44 @@ export interface SubscriptionPlanSummary {
 export interface BillingRecordSummary {
   id: string;
   organizationId: string;
-  status: string;
-  paymentMethod: string;
+  requestedPlanCode: string;
+  requestedPlanVersion: number;
+  requestedPlanId: string | null;
   billingPeriod: string;
   submittedAmountMinorUnits: number;
+  currency: string;
+  paymentMethod: string;
   paymentReferenceNormalized: string;
   paymentReferenceDuplicateWarning: boolean;
-  version: number;
+  status: string;
+  submittedAt: string;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
   rejectionReason?: string | null;
+  appliedAt: string | null;
+  appliedSubscriptionId: string | null;
+  coverageStart: string | null;
+  coverageEnd: string | null;
+  notes: string | null;
+  listedMonthlyPriceMinorUnits: number | null;
+  listedAnnualPriceMinorUnits: number | null;
+  listedAnnualDiscountPercent: number | null;
+  version: number;
+  evidenceStorageRef?: string;
+  evidenceOriginalFileName?: string | null;
+  evidenceContentType?: string | null;
+  evidenceSize?: number | null;
+  evidenceChecksum?: string | null;
+  evidenceUploadedAt?: string | null;
+}
+
+export interface BillingEvidenceUploadResult {
+  evidenceStorageRef: string;
+  originalFileName: string;
+  contentType: string;
+  size: number;
+  checksum: string;
+  uploadedAt: string;
 }
 
 export interface BillingSubmitPayload {
@@ -38,9 +77,24 @@ export interface BillingSubmitPayload {
   submittedAmountMinorUnits: number;
   paymentReference: string;
   evidenceStorageRef: string;
-  evidenceOriginalFileName?: string;
   requestedPlanCode: string;
   requestedPlanVersion: number;
+  notes?: string;
+}
+
+export interface PlatformBillingQueue {
+  items: BillingRecordSummary[];
+  total: number;
+  limit: number | null;
+  offset: number;
+}
+
+export interface PlatformBillingQuery {
+  status?: string;
+  organizationId?: string;
+  q?: string;
+  limit?: number;
+  offset?: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -57,7 +111,7 @@ export class SubscriptionApi {
       forceRefresh,
       loader: () =>
         this.http
-          .get<{ data: unknown }>(`${environment.publicApiBaseUrl}/api/v1/subscription`, {
+          .get<{ data: unknown }>(`${environment.publicApiBaseUrl}${API_SUBSCRIPTION_PATH}`, {
             withCredentials: true,
           })
           .pipe(map((response) => response.data)),
@@ -73,7 +127,7 @@ export class SubscriptionApi {
       loader: () =>
         this.http
           .get<{ data: { items: SubscriptionPlanSummary[] } }>(
-            `${environment.publicApiBaseUrl}/api/v1/subscription/plans`,
+            `${environment.publicApiBaseUrl}${API_SUBSCRIPTION_PLANS_PATH}`,
             { withCredentials: true },
           )
           .pipe(map((response) => response.data.items)),
@@ -89,11 +143,40 @@ export class SubscriptionApi {
       loader: () =>
         this.http
           .get<{ data: { items: BillingRecordSummary[] } }>(
-            `${environment.publicApiBaseUrl}/api/v1/subscription/billing-records`,
+            `${environment.publicApiBaseUrl}${API_SUBSCRIPTION_BILLING_RECORDS_PATH}`,
             { withCredentials: true },
           )
           .pipe(map((response) => response.data.items)),
     });
+  }
+
+  uploadBillingEvidence(file: File): Observable<BillingEvidenceUploadResult> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        from(
+          fetch(`${environment.publicApiBaseUrl}${API_SUBSCRIPTION_BILLING_EVIDENCE_PATH}`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              [API_CSRF_HEADER]: csrfToken,
+              'Content-Type': file.type || 'application/octet-stream',
+              'X-Filename': file.name,
+            },
+            body: file,
+          }).then(async (response) => {
+            const payload = await response.json();
+            if (!response.ok) {
+              throw new HttpErrorResponse({
+                status: response.status,
+                error: payload,
+                url: response.url,
+              });
+            }
+            return payload.data as BillingEvidenceUploadResult;
+          }),
+        ),
+      ),
+    );
   }
 
   submitBillingEvidence(payload: BillingSubmitPayload): Observable<BillingRecordSummary> {
@@ -101,11 +184,11 @@ export class SubscriptionApi {
       switchMap(({ csrfToken }) =>
         this.http
           .post<{ data: BillingRecordSummary }>(
-            `${environment.publicApiBaseUrl}/api/v1/subscription/billing-records`,
+            `${environment.publicApiBaseUrl}${API_SUBSCRIPTION_BILLING_RECORDS_PATH}`,
             payload,
             {
               withCredentials: true,
-              headers: new HttpHeaders({ 'X-CSRF-Token': csrfToken }),
+              headers: new HttpHeaders({ [API_CSRF_HEADER]: csrfToken }),
             },
           )
           .pipe(
@@ -113,6 +196,13 @@ export class SubscriptionApi {
             tap(() => this.queryCache.invalidateTags(QUERY_CACHE_TAGS.billingRecords)),
           ),
       ),
+    );
+  }
+
+  downloadOrganizationEvidence(id: string): Observable<Blob> {
+    return this.http.get(
+      `${environment.publicApiBaseUrl}${API_SUBSCRIPTION_BILLING_RECORDS_PATH}/${id}/evidence`,
+      { withCredentials: true, responseType: 'blob' },
     );
   }
 
@@ -125,7 +215,7 @@ export class SubscriptionApi {
       loader: () =>
         this.http
           .get<{ data: { items: SubscriptionPlanSummary[] } }>(
-            `${environment.publicApiBaseUrl}/api/v1/platform/subscription-plans`,
+            `${environment.publicApiBaseUrl}${API_PLATFORM_SUBSCRIPTION_PLANS_PATH}`,
             { withCredentials: true },
           )
           .pipe(map((response) => response.data.items)),
@@ -137,11 +227,11 @@ export class SubscriptionApi {
       switchMap(({ csrfToken }) =>
         this.http
           .post<{ data: SubscriptionPlanSummary }>(
-            `${environment.publicApiBaseUrl}/api/v1/platform/subscription-plans`,
+            `${environment.publicApiBaseUrl}${API_PLATFORM_SUBSCRIPTION_PLANS_PATH}`,
             body,
             {
               withCredentials: true,
-              headers: new HttpHeaders({ 'X-CSRF-Token': csrfToken }),
+              headers: new HttpHeaders({ [API_CSRF_HEADER]: csrfToken }),
             },
           )
           .pipe(
@@ -152,40 +242,62 @@ export class SubscriptionApi {
     );
   }
 
-  listPlatformBillingRecords(forceRefresh = false): Observable<BillingRecordSummary[]> {
+  listPlatformBillingRecords(
+    query: PlatformBillingQuery = {},
+    forceRefresh = false,
+  ): Observable<PlatformBillingQueue> {
+    let params = new HttpParams();
+    if (query.status) {
+      params = params.set('status', query.status);
+    }
+    if (query.organizationId) {
+      params = params.set('organizationId', query.organizationId);
+    }
+    if (query.q) {
+      params = params.set('q', query.q);
+    }
+    if (query.limit !== undefined) {
+      params = params.set('limit', String(query.limit));
+    }
+    if (query.offset !== undefined) {
+      params = params.set('offset', String(query.offset));
+    }
+
     return this.queryCache.fetch({
-      key: this.queryCache.buildKey('platform:billing-records'),
+      key: this.queryCache.buildKey('platform:billing-records', { ...query }),
       policy: 'short',
       tags: [QUERY_CACHE_TAGS.platformBillingRecords],
       forceRefresh,
       loader: () =>
         this.http
-          .get<{ data: { items: BillingRecordSummary[] } }>(
-            `${environment.publicApiBaseUrl}/api/v1/platform/billing-records`,
-            { withCredentials: true },
+          .get<{ data: PlatformBillingQueue }>(
+            `${environment.publicApiBaseUrl}${API_PLATFORM_BILLING_RECORDS_PATH}`,
+            { withCredentials: true, params },
           )
-          .pipe(map((response) => response.data.items)),
+          .pipe(
+            map((response) => ({
+              items: response.data.items ?? [],
+              total: response.data.total ?? response.data.items?.length ?? 0,
+              limit: response.data.limit ?? null,
+              offset: response.data.offset ?? 0,
+            })),
+          ),
     });
   }
 
-  approveBilling(id: string, expectedVersion: number): Observable<BillingRecordSummary> {
-    return this.authApi.ensureCsrf().pipe(
-      switchMap(({ csrfToken }) =>
-        this.http
-          .post<{ data: BillingRecordSummary }>(
-            `${environment.publicApiBaseUrl}/api/v1/platform/billing-records/${id}/approve`,
-            { expectedVersion },
-            {
-              withCredentials: true,
-              headers: new HttpHeaders({ 'X-CSRF-Token': csrfToken }),
-            },
-          )
-          .pipe(
-            map((response) => response.data),
-            tap(() => this.invalidateBillingReview()),
-          ),
-      ),
+  downloadPlatformEvidence(id: string): Observable<Blob> {
+    return this.http.get(
+      `${environment.publicApiBaseUrl}${API_PLATFORM_BILLING_RECORDS_PATH}/${id}/evidence`,
+      { withCredentials: true, responseType: 'blob' },
     );
+  }
+
+  startBillingReview(id: string, expectedVersion: number): Observable<BillingRecordSummary> {
+    return this.postPlatformBillingAction(id, 'start-review', { expectedVersion });
+  }
+
+  approveBilling(id: string, expectedVersion: number): Observable<BillingRecordSummary> {
+    return this.postPlatformBillingAction(id, 'approve', { expectedVersion });
   }
 
   rejectBilling(
@@ -193,20 +305,34 @@ export class SubscriptionApi {
     expectedVersion: number,
     reason: string,
   ): Observable<BillingRecordSummary> {
+    return this.postPlatformBillingAction(id, 'reject', { expectedVersion, reason });
+  }
+
+  private postPlatformBillingAction(
+    id: string,
+    action: 'start-review' | 'approve' | 'reject',
+    body: Record<string, unknown>,
+  ): Observable<BillingRecordSummary> {
     return this.authApi.ensureCsrf().pipe(
       switchMap(({ csrfToken }) =>
         this.http
           .post<{ data: BillingRecordSummary }>(
-            `${environment.publicApiBaseUrl}/api/v1/platform/billing-records/${id}/reject`,
-            { expectedVersion, reason },
+            `${environment.publicApiBaseUrl}${API_PLATFORM_BILLING_RECORDS_PATH}/${id}/${action}`,
+            body,
             {
               withCredentials: true,
-              headers: new HttpHeaders({ 'X-CSRF-Token': csrfToken }),
+              headers: new HttpHeaders({ [API_CSRF_HEADER]: csrfToken }),
             },
           )
           .pipe(
             map((response) => response.data),
             tap(() => this.invalidateBillingReview()),
+            catchError((error: unknown) => {
+              if (error instanceof HttpErrorResponse && error.status === 409 && action === 'approve') {
+                this.invalidateBillingReview();
+              }
+              return throwError(() => error);
+            }),
           ),
       ),
     );

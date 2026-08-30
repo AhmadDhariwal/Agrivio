@@ -1,8 +1,10 @@
 const { Router } = require('express');
+const express = require('express');
 const {
   API_PLATFORM_BILLING_RECORDS_PATH,
   API_PLATFORM_SUBSCRIPTION_PLANS_PATH,
   API_PLATFORM_SUBSCRIPTIONS_PATH,
+  API_SUBSCRIPTION_BILLING_EVIDENCE_PATH,
   API_SUBSCRIPTION_BILLING_RECORDS_PATH,
   API_SUBSCRIPTION_PATH,
   API_SUBSCRIPTION_PLANS_PATH,
@@ -59,6 +61,41 @@ function registerSubscriptionRoutes(deps) {
     requireBillingAccess,
     (req, res, next) => {
       void orgController.listPlans(req, res, next);
+    },
+  );
+
+  const evidenceUploadParser = express.raw({
+    type: (req) => {
+      const value = String(req.headers['content-type'] || '')
+        .split(';')[0]
+        .trim()
+        .toLowerCase();
+      return ['image/png', 'image/jpeg', 'application/pdf'].includes(value);
+    },
+    limit: '5mb',
+  });
+
+  router.post(
+    API_SUBSCRIPTION_BILLING_EVIDENCE_PATH,
+    requireAuth,
+    requireCsrf,
+    requireOrganizationContext,
+    requireBillingSubmit,
+    requireBillingAccess,
+    evidenceUploadParser,
+    (req, res, next) => {
+      void orgController.uploadEvidence(req, res, next);
+    },
+  );
+
+  router.get(
+    `${API_SUBSCRIPTION_BILLING_RECORDS_PATH}/:id/evidence`,
+    requireAuth,
+    requireOrganizationContext,
+    requireSubscriptionView,
+    requireBillingAccess,
+    (req, res, next) => {
+      void orgController.downloadEvidence(req, res, next);
     },
   );
 
@@ -178,6 +215,27 @@ function registerSubscriptionRoutes(deps) {
     requirePlatformPermission('platform.billing.verify'),
     (req, res, next) => {
       void platformController.listBilling(req, res, next);
+    },
+  );
+
+  router.get(
+    `${API_PLATFORM_BILLING_RECORDS_PATH}/:id/evidence`,
+    optionalAuth,
+    platformActor,
+    requirePlatformPermission('platform.billing.verify'),
+    (req, res, next) => {
+      void platformController.downloadEvidence(req, res, next);
+    },
+  );
+
+  router.post(
+    `${API_PLATFORM_BILLING_RECORDS_PATH}/:id/start-review`,
+    optionalAuth,
+    requireCsrf,
+    platformActor,
+    requirePlatformPermission('platform.billing.verify'),
+    (req, res, next) => {
+      void platformController.startReview(req, res, next);
     },
   );
 
