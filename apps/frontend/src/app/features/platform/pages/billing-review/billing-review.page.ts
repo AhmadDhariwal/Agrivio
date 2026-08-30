@@ -66,8 +66,8 @@ export class PlatformBillingReviewPage {
   });
 
   constructor() {
-    this.organizationsApi.list().subscribe({
-      next: (items) => this.organizations.set(items),
+    this.organizationsApi.list({ page: 1, pageSize: 100 }).subscribe({
+      next: (page) => this.organizations.set(page.items),
       error: () => {
         // Organization names are helpful but not required to review billing records.
       },

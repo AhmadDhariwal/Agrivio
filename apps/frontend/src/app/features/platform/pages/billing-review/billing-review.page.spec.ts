@@ -64,7 +64,11 @@ describe('PlatformBillingReviewPage', () => {
       },
     };
     const organizationsApi = {
-      list: () => of([{ id: 'org-1', name: 'Billing A', status: 'approved' }]),
+      list: () =>
+        of({
+          items: [{ id: 'org-1', name: 'Billing A', status: 'approved' }],
+          meta: { page: 1, pageSize: 25, total: 1 },
+        }),
     };
 
     await TestBed.configureTestingModule({
