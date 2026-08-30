@@ -141,7 +141,6 @@ describe('invalidateReturnMutationEffects', () => {
       QUERY_CACHE_TAGS.supplierLedger,
       QUERY_CACHE_TAGS.payables,
       QUERY_CACHE_TAGS.accounts,
-      QUERY_CACHE_TAGS.accountOptions,
       QUERY_CACHE_TAGS.accountsSummary,
       QUERY_CACHE_TAGS.accountMovements,
       QUERY_CACHE_TAGS.expenses,

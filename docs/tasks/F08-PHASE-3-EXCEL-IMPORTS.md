@@ -64,3 +64,7 @@ Deferred **C/D**: CSV entity types, scheduled imports, malware scan provider, F0
 ## Next
 
 * F08 P4 — `R1-F08-007` audit views (and later backup/restore, suspended policy, E2E)
+
+## API/cache hardening follow-up (2026-08-30)
+
+Import templates use reference caching; exact job/status and row-error reads use short organization-scoped caching with in-flight deduplication. Upload, validate, and confirm remain uncached and invalidate job/error reads only after success. Successful execute additionally invalidates the minimum import-type-specific domain tags so affected lists and selectors refresh on the next read.

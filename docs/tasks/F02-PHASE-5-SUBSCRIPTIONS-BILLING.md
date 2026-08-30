@@ -65,6 +65,10 @@ Mongo replica-set proofs for `subscription_plans`, `subscriptions`, and `subscri
 * No obsolete temp files retained
 * Repo-wide CRLF/Prettier drift intentionally not mass-fixed
 
+## API/cache hardening follow-up (2026-08-30)
+
+Subscription status and billing queues use short organization/session-scoped caching; selectable plans use reference caching. Evidence submission, plan creation, approval, and rejection invalidate only the affected billing, plan, and subscription tags after success.
+
 ## Suggested commit message
 
 ```text
