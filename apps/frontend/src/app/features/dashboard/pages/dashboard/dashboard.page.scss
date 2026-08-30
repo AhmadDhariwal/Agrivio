@@ -8,6 +8,8 @@
   flex-direction: column;
   gap: 14px;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   font-family: var(--ag-font-sans, 'Manrope', 'Segoe UI', sans-serif);
 }
 
@@ -151,7 +153,7 @@
 
     &__fields {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 8px;
     }
 
@@ -640,11 +642,17 @@
 /* Inventory Health 2x2 Grid */
 .health-container {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  min-width: 0;
+  max-width: 100%;
 
   @media (max-width: 599px) {
     gap: 8px;
+  }
+
+  @media (max-width: 359px) {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -657,6 +665,8 @@
   flex-direction: column;
   justify-content: space-between;
   min-height: 100px;
+  min-width: 0;
+  box-sizing: border-box;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
 
   &__head {
