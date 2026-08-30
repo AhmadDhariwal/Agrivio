@@ -26,11 +26,11 @@
     <div class="ag-stack" data-testid="branches-list">
       @for (item of visibleItems(); track item.id) {
         <article class="branch-row">
-          <div>
-            <strong>{{ item.name }}</strong>
-            <p class="ag-muted">Prefix {{ item.invoicePrefix }}@if (item.code) { · {{ item.code }} }</p>
+          <div class="branch-row__identity">
+            <strong class="branch-row__name">{{ item.name }}</strong>
+            <p class="ag-muted branch-row__meta">Prefix {{ item.invoicePrefix }}@if (item.code) { · {{ item.code }} }</p>
           </div>
-          <div class="ag-inline">
+          <div class="ag-inline branch-row__actions">
             <agrivio-ui-status-badge [label]="item.status" [tone]="item.status === 'active' ? 'success' : 'neutral'" />
             @if (canManage()) {
               <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/branches', item.id]">Edit</a>

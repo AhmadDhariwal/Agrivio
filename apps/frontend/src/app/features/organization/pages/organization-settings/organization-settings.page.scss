@@ -1,5 +1,8 @@
 :host {
   display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .ag-card {
@@ -9,22 +12,28 @@
   border: 1px solid color-mix(in srgb, var(--ag-border, #d7ddd4) 100%, transparent);
   border-radius: 0.75rem;
   background: color-mix(in srgb, var(--ag-surface, #fff) 92%, #eef3ea);
-  max-width: 48rem;
+  max-width: min(48rem, 100%);
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 label {
   display: grid;
   gap: 0.35rem;
   font-size: 0.9rem;
+  min-width: 0;
 }
 
 input,
 textarea {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 0.65rem 0.75rem;
   border-radius: 0.5rem;
   border: 1px solid var(--ag-border, #cfd6cb);
   font: inherit;
+  box-sizing: border-box;
 }
 
 @media (max-width: 720px) {

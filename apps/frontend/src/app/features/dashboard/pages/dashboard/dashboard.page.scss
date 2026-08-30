@@ -19,6 +19,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+  flex-wrap: wrap;
 
   &__title-group {
     display: flex;
