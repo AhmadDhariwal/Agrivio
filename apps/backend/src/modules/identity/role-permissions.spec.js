@@ -25,7 +25,10 @@ describe('role permission catalog', () => {
 
     const manager = permissionsForMembershipRole('Manager');
     expect(manager).toContain('sales.create');
-    expect(manager).not.toContain('users.create');
+    expect(manager).toContain('users.create');
+    expect(manager).toContain('users.update');
+    expect(manager).toContain('users.deactivate');
+    expect(manager).toContain('users.assign-access');
     expect(manager).not.toContain('inventory.negative-stock.override');
     expect(permissionsForMembershipRole('Manager', ['audit.view'])).toContain('audit.view');
 

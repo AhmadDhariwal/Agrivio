@@ -18,13 +18,15 @@ import { NavCustomizerDialogComponent } from '../../components/nav-customizer-di
 import { NavbarSearchComponent } from '../../components/navbar-search/navbar-search.component';
 import { NavbarNotificationsComponent } from '../../components/navbar-notifications/navbar-notifications.component';
 import { UserProfileMenuComponent } from '../../components/user-profile-menu/user-profile-menu.component';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { SubscriptionStatusBannerComponent } from '../../../subscriptions/components/subscription-status-banner/subscription-status-banner.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiSearchInputComponent } from '../../../../shared/ui/ui-search-input/ui-search-input.component';
 import { lockBodyScroll, unlockBodyScroll } from '../../../../shared/ui/body-scroll-lock';
 import { VisibleNavGroup } from '../../data-access/navigation.model';
-import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { AccessService } from '../../../../core/access/access.service';
+import { MISSING_ASSIGNMENT_MESSAGE } from '../../../../core/access/authorization-error';
 
 const SIDEBAR_COLLAPSED_KEY = 'agrivio_sidebar_collapsed';
 
@@ -60,6 +62,7 @@ export class AppShellPage {
   private readonly elementRef = inject(ElementRef);
   readonly navService = inject(NavigationService);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
+  private readonly access = inject(AccessService);
 
   readonly signingOut = signal(false);
   readonly sessionRestoring = signal(false);
@@ -143,6 +146,9 @@ export class AppShellPage {
   readonly canViewAudit = computed(() => this.sessionStore.hasPermission('audit.view'));
   readonly canViewBackups = computed(() =>
     this.sessionStore.hasPermission('operations.backups.view'),
+  );
+  readonly missingAssignmentMessage = computed(() =>
+    this.access.hasMissingAssignments() ? MISSING_ASSIGNMENT_MESSAGE : null,
   );
 
   constructor() {

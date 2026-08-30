@@ -31,6 +31,26 @@ describe('EmployeeFormPage', () => {
     warehouseIds: ['w-1'],
   };
 
+  const ownerAccessPolicy = {
+    actorRole: 'Owner',
+    assignableRoles: ['Owner', 'Manager', 'Cashier', 'StoreKeeper'] as const,
+    canManageConditionalGrants: true,
+    roleDescriptions: {
+      Owner: 'Full organization administrator with access to all tenant operations and settings.',
+      Manager:
+        'Runs day-to-day operations and can manage Cashiers and Store Keepers within assigned locations.',
+      Cashier: 'POS-focused role for sales, customer payments, and required read-only operational data.',
+      StoreKeeper:
+        'Warehouse-focused role for inventory, transfers, purchasing, expiry, and supplier operations.',
+    },
+    grantablePermissions: {
+      Cashier: [{ code: 'pricing.override', group: 'Pricing' }],
+      Manager: [{ code: 'audit.view', group: 'Audit' }],
+      StoreKeeper: [],
+      Owner: [],
+    },
+  };
+
   let createEmployeeSpy: ReturnType<typeof vi.fn>;
   let updateEmployeeSpy: ReturnType<typeof vi.fn>;
   let replaceAssignmentsSpy: ReturnType<typeof vi.fn>;
@@ -57,12 +77,14 @@ describe('EmployeeFormPage', () => {
             replaceAccessAssignments: replaceAssignmentsSpy,
             listAssignmentBranches: () => of(mockBranches),
             listAssignmentWarehouses: () => of(mockWarehouses),
+            getAccessPolicy: () => of(ownerAccessPolicy),
           },
         },
         {
           provide: AuthSessionStore,
           useValue: {
             hasPermission: () => true,
+            activeContext: () => ({ role: 'Owner', contextType: 'organization' }),
           },
         },
         {
@@ -125,6 +147,7 @@ describe('EmployeeFormPage', () => {
       email: 'newbie@agrivio.pk',
       displayName: 'New Member',
       role: 'Cashier',
+      conditionalPermissionGrants: [],
     });
     expect(replaceAssignmentsSpy).toHaveBeenCalledWith('emp-1', {
       branchIds: ['b-1'],
@@ -154,6 +177,25 @@ describe('EmployeeFormPage', () => {
     expect(fixture.nativeElement.textContent).toContain('Email is required.');
   });
 
+  it('shows Owner role options, role description, and Cashier C-grants', () => {
+    const fixture: ComponentFixture<EmployeeFormPage> = TestBed.createComponent(EmployeeFormPage);
+    fixture.detectChanges();
+
+    const options = [
+      ...fixture.nativeElement.querySelectorAll('[data-testid="employee-role"] option'),
+    ].map((option: HTMLOptionElement) => option.value);
+    expect(options).toEqual(['Owner', 'Manager', 'Cashier', 'StoreKeeper']);
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="employee-role-description"]')?.textContent,
+    ).toContain('POS-focused role');
+
+    fixture.componentInstance.form.controls.role.setValue('Cashier');
+    fixture.componentInstance.onRoleChange('Cashier');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="employee-conditional-grants"]')).toBeTruthy();
+    expect(fixture.nativeElement.textContent).toContain('Pricing');
+  });
+
   it('does not replace assignments when assignAccess capability is disabled', async () => {
     TestBed.resetTestingModule();
     await TestBed.configureTestingModule({
@@ -169,11 +211,12 @@ describe('EmployeeFormPage', () => {
             replaceAccessAssignments: replaceAssignmentsSpy,
             listAssignmentBranches: () => of(mockBranches),
             listAssignmentWarehouses: () => of(mockWarehouses),
+            getAccessPolicy: () => of(ownerAccessPolicy),
           },
         },
         {
           provide: AuthSessionStore,
-          useValue: { hasPermission: () => true },
+          useValue: { hasPermission: () => true, activeContext: () => ({ role: 'Owner' }) },
         },
         {
           provide: CapabilityService,

@@ -21,6 +21,21 @@ const {
   createInMemoryEmployeesStore,
   createMongooseEmployeesStore,
 } = require('./employees.store');
+const {
+  assertCanAssignRole,
+  assertCanManageMembership,
+  assertCanManageConditionalGrants,
+  assignableRolesForActor,
+  canManageConditionalGrants,
+  canManageOrganizationRole,
+  ROLE_DESCRIPTIONS,
+} = require('./role-hierarchy');
+const {
+  dropInvalidConditionalGrants,
+  grantablePermissionsCatalog,
+  hasPermission,
+  sanitizeConditionalPermissionGrants,
+} = require('./role-permissions');
 
 const DEFAULT_ACTIVATION_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -47,7 +62,27 @@ function buildActivationUrl(publicWebBaseUrl, token) {
   return `${publicWebBaseUrl}${buildActivationPath(token)}`;
 }
 
-function toEmployeeDto(membership, user, assignments = []) {
+function resolveAllowedActions(actor, membership) {
+  const actorRole = actor?.role;
+  const targetRole = String(membership['role']);
+  const permissions = actor?.permissions ?? [];
+  const canManage = canManageOrganizationRole(actorRole, targetRole);
+  return {
+    canUpdate: canManage && hasPermission(permissions, 'users.update'),
+    canDeactivate: canManage && hasPermission(permissions, 'users.deactivate'),
+    canAssignAccess:
+      canManage &&
+      targetRole !== 'Owner' &&
+      hasPermission(permissions, 'users.assign-access'),
+    canManageConditionalGrants:
+      canManageConditionalGrants(actorRole) &&
+      canManage &&
+      targetRole !== 'Owner' &&
+      hasPermission(permissions, 'users.update'),
+  };
+}
+
+function toEmployeeDto(membership, user, assignments = [], actor) {
   return {
     id: String(user['_id']),
     membershipId: String(membership['_id']),
@@ -57,12 +92,16 @@ function toEmployeeDto(membership, user, assignments = []) {
     status: String(membership['status']),
     userStatus: String(user['status']),
     version: Number(membership['version'] ?? 1),
+    conditionalPermissionGrants: [
+      ...(membership['conditionalPermissionGrants'] ?? []),
+    ],
     branchIds: assignments
       .filter((item) => item.assignmentType === 'branch')
       .map((item) => String(item.targetId)),
     warehouseIds: assignments
       .filter((item) => item.assignmentType === 'warehouse')
       .map((item) => String(item.targetId)),
+    allowedActions: resolveAllowedActions(actor, membership),
   };
 }
 
@@ -91,7 +130,7 @@ function createEmployeesService(deps) {
   }
 
   return {
-    async listEmployees(organizationId, options = {}) {
+    async listEmployees(organizationId, options = {}, actor) {
       let summary;
       if (typeof store.summarizeMembershipStatus === 'function') {
         summary = await store.summarizeMembershipStatus(organizationId);
@@ -130,17 +169,17 @@ function createEmployeesService(deps) {
         const assignments = await store.listAccessAssignmentsByMembershipId(
           String(membership['_id']),
         );
-        items.push(toEmployeeDto(membership, user, assignments));
+        items.push(toEmployeeDto(membership, user, assignments, actor));
       }
       return { items, total: result.total, summary };
     },
 
-    async getEmployee(organizationId, userId) {
+    async getEmployee(organizationId, userId, actor) {
       const loaded = await loadEmployee(organizationId, userId);
       if (loaded === null) {
         throw notFound('Organization user not found');
       }
-      return toEmployeeDto(loaded.membership, loaded.user, loaded.assignments);
+      return toEmployeeDto(loaded.membership, loaded.user, loaded.assignments, actor);
     },
 
     async findEmployeeDisplayNamesByUserIds(organizationId, userIds) {
@@ -169,8 +208,25 @@ function createEmployeesService(deps) {
       return nameMap;
     },
 
+    async getAccessPolicy(actor) {
+      const actorRole = actor?.role;
+      return {
+        actorRole,
+        assignableRoles: assignableRolesForActor(actorRole),
+        canManageConditionalGrants: canManageConditionalGrants(actorRole),
+        roleDescriptions: ROLE_DESCRIPTIONS,
+        grantablePermissions: canManageConditionalGrants(actorRole)
+          ? grantablePermissionsCatalog()
+          : {},
+      };
+    },
+
     async createEmployee(organizationId, body, actor) {
       const input = parseEmployeeCreate(body);
+      assertCanAssignRole(actor.role, input.role);
+      if ((input.conditionalPermissionGrants ?? []).length > 0) {
+        assertCanManageConditionalGrants(actor.role);
+      }
       if (typeof deps.capabilityService?.assertEmployeeCreateAllowed === 'function') {
         await deps.capabilityService.assertEmployeeCreateAllowed(organizationId);
       }
@@ -218,7 +274,7 @@ function createEmployeesService(deps) {
           userId: user['_id'],
           role: input.role,
           status: membershipStatus,
-          conditionalPermissionGrants: [],
+          conditionalPermissionGrants: input.conditionalPermissionGrants ?? [],
           version: 1,
         });
 
@@ -262,10 +318,18 @@ function createEmployeesService(deps) {
           action: 'user.created',
           resourceType: 'organization_membership',
           resourceId: String(membership['_id']),
-          metadata: { role: input.role, email: emailNormalized },
+          metadata: {
+            role: input.role,
+            email: emailNormalized,
+            conditionalPermissionGrants: input.conditionalPermissionGrants ?? [],
+          },
         });
 
-        const dto = toEmployeeDto(membership, user, []);
+        if (typeof store.revokeAllSessionsForUser === 'function' && hasCredentials) {
+          await store.revokeAllSessionsForUser(session, String(user['_id']), now());
+        }
+
+        const dto = toEmployeeDto(membership, user, [], actor);
         const withHandoff = activationHandoff === null ? dto : { ...dto, ...activationHandoff };
         return attachSoftWarning(withHandoff, entitlement);
       });
@@ -281,6 +345,17 @@ function createEmployeesService(deps) {
         }
         const { membership, user } = loaded;
         assertOptimisticVersion(membership, expectedVersion);
+        assertCanManageMembership(actor.role, String(membership['role']));
+
+        if (patch.role !== undefined && patch.role !== membership['role']) {
+          assertCanAssignRole(actor.role, patch.role);
+        }
+
+        let nextGrants = membership['conditionalPermissionGrants'] ?? [];
+        const grantsRequested = Object.prototype.hasOwnProperty.call(patch, 'conditionalPermissionGrants');
+        if (grantsRequested) {
+          assertCanManageConditionalGrants(actor.role);
+        }
 
         if (typeof deps.capabilityService?.assertEmployeePatchAllowed === 'function') {
           await deps.capabilityService.assertEmployeePatchAllowed(
@@ -289,7 +364,10 @@ function createEmployeesService(deps) {
               displayName: user['displayName'],
               role: membership['role'],
             },
-            patch,
+            {
+              ...(patch.displayName === undefined ? {} : { displayName: patch.displayName }),
+              ...(patch.role === undefined ? {} : { role: patch.role }),
+            },
           );
         }
 
@@ -298,11 +376,23 @@ function createEmployeesService(deps) {
           assertOwnerPresenceAfterMembershipChange(allMemberships, String(membership['_id']), {
             role: patch.role,
           });
+          nextGrants = dropInvalidConditionalGrants(patch.role, nextGrants);
+        }
+
+        if (grantsRequested) {
+          const roleForGrants = patch.role ?? membership['role'];
+          nextGrants = sanitizeConditionalPermissionGrants(roleForGrants, patch.conditionalPermissionGrants);
         }
 
         const membershipPatch = {};
         if (patch.role !== undefined) {
           membershipPatch.role = patch.role;
+        }
+        const grantsChanged =
+          JSON.stringify([...(membership['conditionalPermissionGrants'] ?? [])].sort()) !==
+          JSON.stringify([...nextGrants].sort());
+        if (grantsChanged) {
+          membershipPatch.conditionalPermissionGrants = nextGrants;
         }
         if (Object.keys(membershipPatch).length > 0) {
           membershipPatch.version = Number(membership['version']) + 1;
@@ -333,13 +423,17 @@ function createEmployeesService(deps) {
           action: 'user.updated',
           resourceType: 'organization_membership',
           resourceId: String(membership['_id']),
-          metadata: { fields: Object.keys(patch) },
+          metadata: {
+            fields: Object.keys(patch),
+            ...(patch.role === undefined ? {} : { role: patch.role }),
+            ...(grantsChanged ? { conditionalPermissionGrants: nextGrants } : {}),
+          },
         });
 
         const assignments = await store.listAccessAssignmentsByMembershipId(
           String(membership['_id']),
         );
-        return toEmployeeDto(updatedMembership, updatedUser, assignments);
+        return toEmployeeDto(updatedMembership, updatedUser, assignments, actor);
       });
     },
 
@@ -353,9 +447,10 @@ function createEmployeesService(deps) {
           throw notFound('Organization user not found');
         }
         const { membership, user } = loaded;
+        assertCanManageMembership(actor.role, String(membership['role']));
 
         if (membership['status'] === 'deactivated') {
-          return toEmployeeDto(membership, user, loaded.assignments);
+          return toEmployeeDto(membership, user, loaded.assignments, actor);
         }
 
         const allMemberships = await store.listMembershipsByOrganizationId(organizationId);
@@ -386,7 +481,7 @@ function createEmployeesService(deps) {
           resourceId: String(membership['_id']),
         });
 
-        return toEmployeeDto(updatedMembership, user, []);
+        return toEmployeeDto(updatedMembership, user, [], actor);
       });
     },
 
@@ -435,4 +530,5 @@ module.exports = {
   createInMemoryEmployeesStore,
   createMongooseEmployeesStore,
   toEmployeeDto,
+  resolveAllowedActions,
 };

@@ -95,7 +95,7 @@ describe('Employees capability enforcement', () => {
     await service.createEmployee(
       'org-1',
       { email: 'a@example.com', displayName: 'A', role: 'Cashier' },
-      { actorId: 'owner-1' },
+      { actorId: 'owner-1', role: 'Owner', permissions: ['users.create', 'users.update', 'users.deactivate'] },
     );
     expect(capabilityService.assertEmployeeCreateAllowed).toHaveBeenCalledWith('org-1');
 
@@ -103,7 +103,7 @@ describe('Employees capability enforcement', () => {
       'org-1',
       'user-1',
       { expectedVersion: 1, displayName: 'Updated' },
-      { actorId: 'owner-1' },
+      { actorId: 'owner-1', role: 'Owner', permissions: ['users.create', 'users.update', 'users.deactivate'] },
     );
     expect(capabilityService.assertEmployeePatchAllowed).toHaveBeenCalledWith(
       'org-1',
@@ -111,7 +111,11 @@ describe('Employees capability enforcement', () => {
       { displayName: 'Updated' },
     );
 
-    await service.deactivateEmployee('org-1', 'user-1', { actorId: 'owner-1' });
+    await service.deactivateEmployee('org-1', 'user-1', {
+      actorId: 'owner-1',
+      role: 'Owner',
+      permissions: ['users.create', 'users.update', 'users.deactivate'],
+    });
     expect(capabilityService.assertEmployeeDeactivateAllowed).toHaveBeenCalledWith('org-1');
 
     const locationsModule = require('../locations/locations.module');
@@ -123,7 +127,11 @@ describe('Employees capability enforcement', () => {
         appendAuditEvent: vi.fn(),
       },
       transactionRunner,
-      findMembershipInOrganization: vi.fn().mockResolvedValue({ _id: 'mem-1', userId: 'user-1' }),
+      findMembershipInOrganization: vi.fn().mockResolvedValue({
+        _id: 'mem-1',
+        userId: 'user-1',
+        role: 'Cashier',
+      }),
       capabilityService,
     });
 

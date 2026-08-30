@@ -1,4 +1,8 @@
-const { forbidden, unauthorized } = require('../../platform/errors/app-error');
+const {
+  authRequired,
+  contextRequired,
+  subscriptionAccessDenied,
+} = require('../../platform/errors/app-error');
 const { allowsSubscriptionLabel } = require('./entitlement');
 
 function createRequireSubscriptionAccessMiddleware(deps) {
@@ -9,11 +13,11 @@ function createRequireSubscriptionAccessMiddleware(deps) {
     try {
       const authContext = req.authContext;
       if (authContext === undefined) {
-        next(unauthorized('Authentication required'));
+        next(authRequired('Authentication required'));
         return;
       }
       if (authContext.contextType !== 'organization' || authContext.organizationId === undefined) {
-        next(forbidden('Organization context is required'));
+        next(contextRequired('Organization context is required'));
         return;
       }
 
@@ -22,7 +26,7 @@ function createRequireSubscriptionAccessMiddleware(deps) {
 
       if (!allowsSubscriptionLabel(access.status, label)) {
         next(
-          forbidden(
+          subscriptionAccessDenied(
             `Subscription entitlement denied for ${label} while status is ${access.status ?? 'unknown'}`,
           ),
         );

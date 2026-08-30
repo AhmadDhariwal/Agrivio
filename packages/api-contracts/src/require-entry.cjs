@@ -81,6 +81,14 @@ const ApiTransportErrorCode = {
   OrgCapabilityDisabled: 'ORG_CAPABILITY_DISABLED',
   OrgActionNotAllowed: 'ORG_ACTION_NOT_ALLOWED',
   OrgFieldNotEditable: 'ORG_FIELD_NOT_EDITABLE',
+  AuthRequired: 'AUTH_REQUIRED',
+  ContextRequired: 'CONTEXT_REQUIRED',
+  PermissionDenied: 'PERMISSION_DENIED',
+  AssignmentScopeDenied: 'ASSIGNMENT_SCOPE_DENIED',
+  RoleHierarchyDenied: 'ROLE_HIERARCHY_DENIED',
+  TenantAccessDenied: 'TENANT_ACCESS_DENIED',
+  LastOwnerProtected: 'LAST_OWNER_PROTECTED',
+  SubscriptionAccessDenied: 'SUBSCRIPTION_ACCESS_DENIED',
   InternalError: 'INTERNAL_ERROR',
 };
 

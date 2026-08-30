@@ -112,7 +112,7 @@ describe('R1-F09-003 role bundles', () => {
     expect(platform.has('operations.restore.execute')).toBe(false);
     expect(platformWithRestore.has('operations.restore.execute')).toBe(true);
     expect(manager.has('inventory.negative-stock.override')).toBe(false);
-    expect(manager.has('users.create')).toBe(false);
+    expect(manager.has('users.create')).toBe(true);
     expect(cashier.has('sales.cancel')).toBe(false);
     expect(cashier.has('purchases.view')).toBe(false);
     expect(storeKeeper.has('sales.view')).toBe(false);
@@ -285,7 +285,19 @@ describe('R1-F09-003 representative HTTP allow/deny', () => {
             baseUrl,
             'POST',
             API_USERS_PATH,
-            { email: 'blocked@example.com', displayName: 'Blocked' },
+            { email: 'blocked-owner@example.com', displayName: 'Blocked', role: 'Owner' },
+            await csrf(),
+            jar,
+          )
+        ).status,
+      ).toBe(403);
+      expect(
+        (
+          await fetchJson(
+            baseUrl,
+            'POST',
+            API_USERS_PATH,
+            { email: 'blocked-manager@example.com', displayName: 'Blocked', role: 'Manager' },
             await csrf(),
             jar,
           )

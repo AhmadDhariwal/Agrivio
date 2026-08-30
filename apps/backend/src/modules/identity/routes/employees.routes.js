@@ -42,6 +42,18 @@ function registerEmployeesRoutes(deps) {
   );
 
   router.get(
+    `${API_USERS_PATH}/access-policy`,
+    deps.requireAuth,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('users.view'),
+    deps.requireOperationalAccess,
+    requireEmployeesModule,
+    (req, res, next) => {
+      void controller.accessPolicy(req, res, next);
+    },
+  );
+
+  router.get(
     API_USERS_PATH,
     deps.requireAuth,
     requireOrganizationContext,

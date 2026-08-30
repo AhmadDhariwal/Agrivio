@@ -6,7 +6,6 @@ const { createAuditWriter } = require('../../platform/audit/audit-writer');
 const { assertOptimisticVersion } = require('../../platform/validation/request-validation');
 const {
   conflict,
-  forbidden,
   notFound,
   validationFailed,
 } = require('../../platform/errors/app-error');
@@ -19,6 +18,14 @@ const {
   createInMemoryIdempotencyStore,
   createMongooseIdempotencyStore,
 } = require('../../platform/idempotency/idempotency-service');
+const {
+  assertOptionalLocationFilters,
+  assertRecordAssignmentScope,
+  resolveAccessibleWarehouseIds,
+  canAccessWarehouse,
+  canAccessBranch,
+} = require('../identity/assignment-scope');
+const { assignmentScopeDenied } = require('../../platform/errors/app-error');
 const {
   parsePurchaseDraft,
   parsePurchasePost,
@@ -247,10 +254,12 @@ function createPurchasesService(deps) {
   }
 
   async function assertWarehouseAccess(authContext, warehouseId) {
-    if (typeof deps.canAccessWarehouse === 'function') {
-      if (!deps.canAccessWarehouse(authContext, String(warehouseId))) {
-        throw forbidden('Warehouse assignment is required');
-      }
+    const allowed =
+      typeof deps.canAccessWarehouse === 'function'
+        ? deps.canAccessWarehouse(authContext, String(warehouseId))
+        : canAccessWarehouse(authContext, String(warehouseId));
+    if (!allowed) {
+      throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
     }
   }
 
@@ -258,10 +267,12 @@ function createPurchasesService(deps) {
     if (branchId === null || branchId === undefined) {
       return;
     }
-    if (typeof deps.canAccessBranch === 'function') {
-      if (!deps.canAccessBranch(authContext, String(branchId))) {
-        throw forbidden('Branch assignment is required');
-      }
+    const allowed =
+      typeof deps.canAccessBranch === 'function'
+        ? deps.canAccessBranch(authContext, String(branchId))
+        : canAccessBranch(authContext, String(branchId));
+    if (!allowed) {
+      throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
     }
   }
 
@@ -333,31 +344,19 @@ function createPurchasesService(deps) {
 
   return {
     async listPurchases(organizationId, query = {}, authContext) {
-      if (query.warehouseId && typeof deps.canAccessWarehouse === 'function' && !deps.canAccessWarehouse(authContext, query.warehouseId)) {
-        return { items: [], total: 0 };
-      }
-      const assignments = Array.isArray(authContext?.warehouseAssignments) ? authContext.warehouseAssignments : null;
-      const warehouseIds = authContext?.role === 'Owner' || assignments === null
-        ? undefined
-        : assignments.filter((item) => String(item.organizationId) === String(organizationId)).map((item) => String(item.targetId));
+      assertOptionalLocationFilters(authContext, {
+        warehouseId: query.warehouseId,
+        branchId: query.branchId,
+      });
+      const warehouseIds = resolveAccessibleWarehouseIds(authContext);
       const { items, total } = await store.listPurchases(organizationId, {
         status: query.status,
         supplierId: query.supplierId,
         warehouseId: query.warehouseId,
-        warehouseIds: query.warehouseId ? undefined : warehouseIds,
+        warehouseIds: query.warehouseId ? undefined : warehouseIds === null ? undefined : warehouseIds,
         search: query.search,
       }, { skip: query.skip, pageSize: query.pageSize });
-      const filtered = [];
-      for (const item of items) {
-        if (
-          typeof deps.canAccessWarehouse === 'function' &&
-          !deps.canAccessWarehouse(authContext, String(item.warehouseId))
-        ) {
-          continue;
-        }
-        filtered.push(toPurchaseDto(item));
-      }
-      return { items: filtered, total };
+      return { items: items.map((item) => toPurchaseDto(item)), total };
     },
 
     async getPurchase(organizationId, purchaseId, authContext) {
@@ -365,12 +364,7 @@ function createPurchasesService(deps) {
       if (record === null) {
         throw notFound('Purchase not found');
       }
-      if (
-        typeof deps.canAccessWarehouse === 'function' &&
-        !deps.canAccessWarehouse(authContext, String(record.warehouseId))
-      ) {
-        throw notFound('Purchase not found');
-      }
+      assertRecordAssignmentScope(authContext, record);
       return toPurchaseDto(record);
     },
 

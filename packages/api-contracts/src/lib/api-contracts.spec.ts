@@ -68,6 +68,10 @@ describe('api-contracts transport surface', () => {
     expect(ApiTransportErrorCode.OrgCapabilityDisabled).toBe('ORG_CAPABILITY_DISABLED');
     expect(ApiTransportErrorCode.OrgActionNotAllowed).toBe('ORG_ACTION_NOT_ALLOWED');
     expect(ApiTransportErrorCode.OrgFieldNotEditable).toBe('ORG_FIELD_NOT_EDITABLE');
+    expect(ApiTransportErrorCode.PermissionDenied).toBe('PERMISSION_DENIED');
+    expect(ApiTransportErrorCode.AssignmentScopeDenied).toBe('ASSIGNMENT_SCOPE_DENIED');
+    expect(ApiTransportErrorCode.RoleHierarchyDenied).toBe('ROLE_HIERARCHY_DENIED');
+    expect(ApiTransportErrorCode.LastOwnerProtected).toBe('LAST_OWNER_PROTECTED');
   });
 
   it('builds frozen success and error envelopes', () => {

@@ -1,4 +1,4 @@
-const { conflict } = require('../../platform/errors/app-error');
+const { lastOwnerProtected } = require('../../platform/errors/app-error');
 
 function countActiveOwners(memberships) {
   return memberships.filter(
@@ -8,7 +8,9 @@ function countActiveOwners(memberships) {
 
 function assertOwnerPresence(memberships, message) {
   if (countActiveOwners(memberships) < 1) {
-    throw conflict(message ?? 'Every active organization must retain at least one active Owner');
+    throw lastOwnerProtected(
+      message ?? 'Every active organization must retain at least one active Owner',
+    );
   }
 }
 

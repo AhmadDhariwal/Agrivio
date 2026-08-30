@@ -640,8 +640,8 @@ describe('F08 P2 exports and permissions', () => {
     exp(cashier, {}, (error) => {
       exportError = error;
     });
-    expect(viewError?.code).toBe('FORBIDDEN');
-    expect(exportError?.code).toBe('FORBIDDEN');
+    expect(viewError?.code).toBe('PERMISSION_DENIED');
+    expect(exportError?.code).toBe('PERMISSION_DENIED');
   });
 });
 

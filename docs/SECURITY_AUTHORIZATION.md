@@ -2,7 +2,7 @@
 
 Document status: Frozen for Release 1  
 Current version: 1.0  
-Last updated: 2026-08-04  
+Last updated: 2026-08-30  
 Approval status: Approved for implementation planning
 
 ## Document Authority
@@ -439,11 +439,13 @@ Operational management permissions, including catalog, customers, suppliers, inv
 
 Manager must not:
 
-* Manage Owners
+* Manage Owners or other Managers (hierarchy is enforced in the employee service even though Manager receives `users.*` permissions)
+* Grant conditional permission overrides
 * Approve organizations
 * Manage platform subscriptions
 * Execute production restore
 * Use negative-stock override unless separately granted
+* Assign staff to branches or warehouses outside the Manager's own assignment scope
 
 ### 9.4 Cashier
 
@@ -489,10 +491,10 @@ Store Keeper must not by default:
 | `organization.view` | N | A | A | A | A |
 | `organization.update` | N | A | N | N | N |
 | `users.view` | N | A | A | N | N |
-| `users.create` | N | A | N | N | N |
-| `users.update` | N | A | N | N | N |
-| `users.deactivate` | N | A | N | N | N |
-| `users.assign-access` | N | A | N | N | N |
+| `users.create` | N | A | A | N | N |
+| `users.update` | N | A | A | N | N |
+| `users.deactivate` | N | A | A | N | N |
+| `users.assign-access` | N | A | A | N | N |
 | `branches.view` | N | A | A | A | A |
 | `branches.manage` | N | A | N | N | N |
 | `warehouses.view` | N | A | A | A | A |
@@ -560,6 +562,58 @@ Store Keeper must not by default:
 | `audit.view` | N | A | C | N | N |
 
 Role-matrix coverage: all 81 permissions × 5 roles documented.
+
+### 9.7 Organization role hierarchy
+
+Canonical organization roles: Owner, Manager, Cashier, StoreKeeper.
+
+* Owner may create, update, deactivate, and assign access for Owner, Manager, Cashier, and StoreKeeper, subject to last-active-Owner protection.
+* Manager may create, update, deactivate, and assign access only for Cashier and StoreKeeper.
+* Manager cannot create Owner or Manager, promote to Owner or Manager, edit or deactivate Owner or Manager, or manage conditional grants.
+* Cashier and StoreKeeper have no employee administration.
+* Super Admin remains platform-only and does not become a tenant employee by virtue of platform access.
+
+### 9.8 Conditional permission grants
+
+`organization_memberships.conditionalPermissionGrants` is the production grant list. Missing grants are treated as `[]`.
+
+* Only Owner may set or change grants through employee create/update APIs.
+* Owner may grant only permissions classified `C` for the employee's current role.
+* Permissions classified `A` are ignored because they are already included by the role bundle.
+* Permissions classified `N` or `P`, and unknown codes, are rejected.
+* Role changes drop grants that are no longer `C` for the new role.
+* Grant, role, assignment, and deactivation changes revoke the target user's sessions.
+
+### 9.9 Assignment scope
+
+Owner is organization-wide and does not require branch or warehouse assignments.
+
+Manager, Cashier, and StoreKeeper must have assignments for branch/warehouse-scoped operations. Empty assignments do not grant organization-wide access.
+
+* List queries without an explicit location filter are restricted to the caller's assignments.
+* Explicit unauthorized location filters return `ASSIGNMENT_SCOPE_DENIED`.
+* Same-organization records outside assignment return `ASSIGNMENT_SCOPE_DENIED`.
+* Cross-organization identifiers remain concealed with not-found / tenant isolation behaviour.
+* Manager may assign only locations within the Manager's own assignment intersection.
+* Location option endpoints return assigned active locations for non-Owner callers.
+
+### 9.10 Authorization error codes
+
+Reuse the API transport error envelope. Organization authorization uses:
+
+| Code | HTTP | Meaning |
+| --- | --- | --- |
+| `AUTH_REQUIRED` | 401 | No valid authentication |
+| `CONTEXT_REQUIRED` | 403 | Authenticated but missing organization or platform context |
+| `PERMISSION_DENIED` | 403 | Missing permission code |
+| `ORG_CAPABILITY_DISABLED` | 403 | Organization capability restricts the module or action |
+| `ASSIGNMENT_SCOPE_DENIED` | 403 | Branch/warehouse outside assignment |
+| `ROLE_HIERARCHY_DENIED` | 403 | Actor cannot manage the target role |
+| `TENANT_ACCESS_DENIED` | 403 | Tenant isolation denial |
+| `LAST_OWNER_PROTECTED` | 409 | Last active Owner cannot be demoted or deactivated |
+| `SUBSCRIPTION_ACCESS_DENIED` | 403 | Subscription entitlement denied |
+
+Frontend hiding is not enforcement.
 
 ---
 
@@ -642,6 +696,8 @@ Logs may contain, where safe:
 * Standard organization users cannot restore production data.
 * Backup status is visible only to authorized platform operators.
 * Restore execution requires `operations.restore.execute`.
+* Restore requires an explicit operational grant and is not automatically available to every Super Admin. A production break-glass / explicit-grant operator workflow is a separate platform-security task and is not solved by granting this permission to every Super Admin.
+* Restore requires controlled operational procedure.
 * Restore requires controlled operational procedure.
 * Restore requires verification before normal operations resume.
 * Emergency direct database repair is not a normal business workflow.

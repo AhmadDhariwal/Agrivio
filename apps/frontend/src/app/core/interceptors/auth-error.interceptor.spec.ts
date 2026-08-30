@@ -41,7 +41,7 @@ describe('authErrorInterceptor', () => {
 
     let errored = false;
     httpClient.get('/api/v1/customers').subscribe({
-      next: () => {},
+      next: () => undefined,
       error: (err) => {
         errored = true;
         expect(err.status).toBe(401);
@@ -61,7 +61,7 @@ describe('authErrorInterceptor', () => {
 
     let errored = false;
     httpClient.post('/api/v1/auth/login', { email: 'test@example.com' }).subscribe({
-      next: () => {},
+      next: () => undefined,
       error: (err) => {
         errored = true;
         expect(err.status).toBe(401);
@@ -74,5 +74,21 @@ describe('authErrorInterceptor', () => {
     expect(errored).toBe(true);
     expect(clearSpy).not.toHaveBeenCalled();
     expect(router.navigate).not.toHaveBeenCalled();
+  });
+
+  it('replaces raw 403 text with a user-safe authorization message', () => {
+    let message = '';
+    httpClient.get('/api/v1/purchases').subscribe({
+      next: () => undefined,
+      error: (err) => {
+        message = err.error?.error?.message ?? '';
+      },
+    });
+
+    const req = httpTestingController.expectOne('/api/v1/purchases');
+    req.flush('Request failed with status code 403', { status: 403, statusText: 'Forbidden' });
+
+    expect(message).toContain("You don't have permission to access this area");
+    expect(message).not.toMatch(/status code 403/i);
   });
 });

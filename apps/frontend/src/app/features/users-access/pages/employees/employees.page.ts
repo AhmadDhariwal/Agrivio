@@ -1,6 +1,5 @@
 import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { HttpErrorResponse } from '@angular/common/http';
 import { EmployeeRecord, UsersAccessApi } from '../../data-access/users-access.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
@@ -10,6 +9,7 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
+import { mapAuthorizationError } from '../../../../core/access/authorization-error';
 
 @Component({
   selector: 'agrivio-employees-page',
@@ -114,7 +114,7 @@ export class EmployeesPage {
   readonly showStatus = computed(
     () => this.capabilityService?.canViewField('employees.fields.status') ?? true,
   );
-  readonly showActions = computed(() => this.canEdit() || this.canDeactivate());
+  readonly showActions = computed(() => this.canView());
 
   // Module Info Content
   readonly infoTitle = 'About employees & access';
@@ -195,11 +195,7 @@ export class EmployeesPage {
       },
       error: (error: unknown) => {
         this.loading.set(false);
-        this.errorMessage.set(
-          error instanceof HttpErrorResponse
-            ? (error.error?.error?.message ?? 'Unable to load employees.')
-            : 'Unable to load employees.',
-        );
+        this.errorMessage.set(this.mapError(error, 'Unable to load employees.'));
       },
     });
   }
@@ -297,10 +293,31 @@ export class EmployeesPage {
     this.confirmOpen.set(true);
   }
 
+  rowCanUpdate(item: EmployeeRecord): boolean {
+    if (item.allowedActions) {
+      return item.allowedActions.canUpdate && this.canEdit();
+    }
+    return this.canEdit();
+  }
+
+  rowCanDeactivate(item: EmployeeRecord): boolean {
+    if (item.status === 'deactivated') {
+      return false;
+    }
+    if (item.allowedActions) {
+      return item.allowedActions.canDeactivate && this.canDeactivate();
+    }
+    return this.canDeactivate();
+  }
+
+  rowCanInspect(item: EmployeeRecord): boolean {
+    return this.canView() && !this.rowCanUpdate(item);
+  }
+
   confirmDeactivate(): void {
     const item = this.pendingDeactivateItem;
     this.confirmOpen.set(false);
-    if (!item || !this.canDeactivate()) {
+    if (!item || !this.rowCanDeactivate(item)) {
       return;
     }
     this.api.deactivateEmployee(item.id).subscribe({
@@ -309,12 +326,12 @@ export class EmployeesPage {
         this.reload();
       },
       error: (error: unknown) => {
-        this.errorMessage.set(
-          error instanceof HttpErrorResponse
-            ? (error.error?.error?.message ?? 'Unable to deactivate employee.')
-            : 'Unable to deactivate employee.',
-        );
+        this.errorMessage.set(this.mapError(error, 'Unable to deactivate employee.'));
       },
     });
+  }
+
+  private mapError(error: unknown, fallback: string): string {
+    return mapAuthorizationError(error, fallback);
   }
 }

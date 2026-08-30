@@ -11,6 +11,26 @@ import { BranchesWarehousesApi } from '../../branches-warehouses/data-access/bra
 
 export type OrganizationRole = 'Owner' | 'Manager' | 'Cashier' | 'StoreKeeper';
 
+export interface EmployeeAllowedActions {
+  canUpdate: boolean;
+  canDeactivate: boolean;
+  canAssignAccess: boolean;
+  canManageConditionalGrants: boolean;
+}
+
+export interface GrantablePermission {
+  code: string;
+  group: string;
+}
+
+export interface EmployeeAccessPolicy {
+  actorRole: string;
+  assignableRoles: OrganizationRole[];
+  canManageConditionalGrants: boolean;
+  roleDescriptions: Record<string, string>;
+  grantablePermissions: Record<string, GrantablePermission[]>;
+}
+
 export interface EmployeeRecord {
   id: string;
   membershipId: string;
@@ -22,6 +42,8 @@ export interface EmployeeRecord {
   version: number;
   branchIds: string[];
   warehouseIds: string[];
+  conditionalPermissionGrants?: string[];
+  allowedActions?: EmployeeAllowedActions;
   activationToken?: string;
   activationUrl?: string;
   activationPath?: string;
@@ -74,6 +96,22 @@ export class UsersAccessApi {
     });
   }
 
+  getAccessPolicy(forceRefresh = false): Observable<EmployeeAccessPolicy> {
+    return this.queryCache.fetch({
+      key: this.queryCache.buildKey('employees:access-policy', {}),
+      policy: 'short',
+      tags: [QUERY_CACHE_TAGS.employees],
+      forceRefresh,
+      loader: () =>
+        this.http
+          .get<{ data: EmployeeAccessPolicy }>(
+            `${environment.publicApiBaseUrl}/api/v1/users/access-policy`,
+            { withCredentials: true },
+          )
+          .pipe(map((response) => response.data)),
+    });
+  }
+
   getEmployee(id: string, forceRefresh = false): Observable<EmployeeRecord> {
     return this.queryCache.fetch({
       key: this.queryCache.buildKey('employees:detail', { id }),
@@ -105,6 +143,7 @@ export class UsersAccessApi {
     email: string;
     displayName: string;
     role: OrganizationRole;
+    conditionalPermissionGrants?: string[];
   }): Observable<EmployeeRecord> {
     return this.authApi.ensureCsrf().pipe(
       switchMap(({ csrfToken }) =>
@@ -127,6 +166,7 @@ export class UsersAccessApi {
       expectedVersion: number;
       displayName?: string;
       role?: OrganizationRole;
+      conditionalPermissionGrants?: string[];
     },
   ): Observable<EmployeeRecord> {
     return this.authApi.ensureCsrf().pipe(

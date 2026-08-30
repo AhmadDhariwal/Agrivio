@@ -1,4 +1,8 @@
-const { forbidden, unauthorized } = require('../../platform/errors/app-error');
+const {
+  permissionDenied,
+  authRequired,
+  contextRequired,
+} = require('../../platform/errors/app-error');
 const { enterRequestContext, getRequestContext } = require('../../platform/http/request-context');
 const { hasPermission, isKnownPermission } = require('./role-permissions');
 const {
@@ -28,24 +32,26 @@ function attachAuthContextToRequest(req, authContext) {
 function createRequirePermissionMiddleware(permission) {
   return (req, _res, next) => {
     if (!isKnownPermission(permission)) {
-      next(forbidden('Unknown permission is denied by default'));
+      next(permissionDenied('Unknown permission is denied by default'));
       return;
     }
 
     const auth = req.auth;
     if (auth === undefined) {
-      next(unauthorized('Authentication required'));
+      next(authRequired('Authentication required'));
       return;
     }
 
     const authContext = req.authContext;
     if (authContext === undefined) {
-      next(unauthorized('Authentication required'));
+      next(authRequired('Authentication required'));
       return;
     }
 
     if (!hasPermission(authContext.permissions, permission)) {
-      next(forbidden(`Missing permission ${permission}`));
+      next(
+        permissionDenied("You don't have permission to access this area. Contact your organization administrator if you need access."),
+      );
       return;
     }
 
@@ -57,11 +63,11 @@ function createRequireOrganizationContextMiddleware() {
   return (req, _res, next) => {
     const authContext = req.authContext;
     if (authContext === undefined) {
-      next(unauthorized('Authentication required'));
+      next(authRequired('Authentication required'));
       return;
     }
     if (authContext.contextType !== 'organization' || authContext.organizationId === undefined) {
-      next(forbidden('Organization context is required'));
+      next(contextRequired('Organization context is required'));
       return;
     }
     next();
@@ -73,7 +79,7 @@ function createRequireBranchAccessMiddleware(options = {}) {
     try {
       const authContext = req.authContext;
       if (authContext === undefined) {
-        throw unauthorized('Authentication required');
+        throw authRequired('Authentication required');
       }
       const branchId =
         typeof options.resolve === 'function'
@@ -92,7 +98,7 @@ function createRequireWarehouseAccessMiddleware(options = {}) {
     try {
       const authContext = req.authContext;
       if (authContext === undefined) {
-        throw unauthorized('Authentication required');
+        throw authRequired('Authentication required');
       }
       const warehouseId =
         typeof options.resolve === 'function'

@@ -66,7 +66,7 @@ describe('F08 P4 audit inquiry', () => {
         cashierError = err;
       },
     );
-    expect(cashierError?.code).toBe('FORBIDDEN');
+    expect(cashierError?.code).toBe('PERMISSION_DENIED');
   });
 
   it('filters by actor/action/date, isolates tenants, and enforces audit-history depth', async () => {

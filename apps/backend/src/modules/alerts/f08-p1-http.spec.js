@@ -43,8 +43,8 @@ describe('F08 P1 permission middleware and HTTP surface', () => {
     dashboardMw(cashier, {}, (error) => {
       dashboardError = error;
     });
-    expect(alertsError?.code).toBe('FORBIDDEN');
-    expect(dashboardError?.code).toBe('FORBIDDEN');
+    expect(alertsError?.code).toBe('PERMISSION_DENIED');
+    expect(dashboardError?.code).toBe('PERMISSION_DENIED');
 
     const owner = {
       auth: { userId: 'o1' },

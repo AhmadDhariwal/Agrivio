@@ -1,54 +1,572 @@
-<agrivio-ui-page-header
-  title="Organization setup"
-  eyebrow="Getting started"
-  lede="Complete these steps to prepare your organization for operations. Inventory and trading workflows come later."
->
-  <button type="button" class="ag-btn ag-btn--secondary" data-testid="setup-refresh" (click)="reload(true)">
-    Refresh
-  </button>
-</agrivio-ui-page-header>
+<div class="setup-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">GETTING STARTED</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">Organization setup</h1>
+        @if (hasAuthoritativeSteps()) {
+          <span class="page-head__count-pill" aria-label="Completed setup tasks">
+            {{ summaryCounts().completed }}/{{ summaryCounts().total }} completed
+          </span>
+        }
+      </div>
+      <p class="page-head__lede">
+        Complete these steps to prepare your organization for operations.
+      </p>
+    </div>
+  </header>
 
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading setup progress…" />
-} @else if (errorMessage(); as error) {
-  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-} @else if (progress(); as data) {
-  @if (data.readyForOperations) {
-    <agrivio-ui-alert
-      tone="success"
-      message="F03 setup steps are complete. Inventory, purchases, and sales are not in scope yet."
-      data-testid="setup-ready"
-    />
+  <!-- Subscription Access Notice (if in trial, grace, suspended, or expiring warning) -->
+  @if (subscriptionNotice(); as notice) {
+    <aside
+      class="sub-banner"
+      [class.sub-banner--warning]="notice.tone === 'warning'"
+      [class.sub-banner--danger]="notice.tone === 'danger'"
+      [class.sub-banner--info]="notice.tone === 'info'"
+      role="status"
+      data-testid="setup-subscription-notice"
+    >
+      <div class="sub-banner__content">
+        <span class="sub-banner__dot" aria-hidden="true"></span>
+        <strong class="sub-banner__title">{{ notice.title }}</strong>
+        <span class="sub-banner__sep">&middot;</span>
+        <span class="sub-banner__message">{{ notice.message }}</span>
+      </div>
+      @if (canManageBilling()) {
+        <a class="sub-banner__link" routerLink="/app/subscription/billing" data-testid="manage-billing-link">
+          Manage billing &rarr;
+        </a>
+      }
+    </aside>
   }
 
-  @if (data.steps.length === 0) {
-    <agrivio-ui-empty-state title="No setup steps" message="Setup steps could not be derived." />
-  } @else {
-    <div class="ag-stack setup-list" data-testid="setup-steps">
-      @for (step of data.steps; track step.id) {
-        <article class="setup-row" [attr.data-testid]="'setup-step-' + step.id">
-          <div>
-            <strong>{{ step.title }}</strong>
-            <p class="ag-muted">{{ step.id }}</p>
-          </div>
-          <div class="ag-inline">
-            <agrivio-ui-status-badge [label]="step.status" [tone]="toneFor(step)" />
-            @if (step.status !== 'blocked') {
-              <a class="ag-btn ag-btn--secondary" [routerLink]="step.href" [attr.data-testid]="'setup-link-' + step.id">
-                Open
-              </a>
-            }
-          </div>
-        </article>
-      }
+  <!-- Error Alert -->
+  @if (errorMessage(); as error) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+      <button
+        type="button"
+        class="ag-btn ag-btn--secondary retry-btn"
+        (click)="reload(true)"
+        data-testid="setup-retry-btn"
+      >
+        Retry
+      </button>
     </div>
   }
 
-  @if (data.notes.length > 0) {
-    <ul class="notes" data-testid="setup-notes">
-      @for (note of data.notes; track note) {
-        <li class="ag-muted">{{ note }}</li>
-      }
-    </ul>
+  @if (loading()) {
+    <div class="state-container">
+      <agrivio-ui-loading-state label="Loading setup progress…" />
+    </div>
+  } @else if (progress(); as data) {
+    <!-- Operational Ready Banner -->
+    @if (data.readyForOperations) {
+      <div class="alert-container">
+        <agrivio-ui-alert
+          tone="success"
+          message="All setup steps are complete. Your organization is ready for operational workflows."
+          data-testid="setup-ready"
+        />
+      </div>
+    }
+
+    <!-- KPI Summary Row (Authoritative counts only, displayed when steps exist) -->
+    @if (hasAuthoritativeSteps() && summaryCounts().total > 0) {
+      <section class="kpi-row" aria-label="Setup Progress Summary" data-testid="setup-kpi-row">
+        <!-- Completed Card -->
+        <div class="kpi-card" data-testid="setup-kpi-completed">
+          <div class="kpi-card__icon kpi-card__icon--green">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          </div>
+          <div class="kpi-card__content">
+            <span class="kpi-card__label">Completed</span>
+            <span class="kpi-card__value">{{ summaryCounts().completed }}</span>
+            <span class="kpi-card__sub">ready for operations</span>
+          </div>
+        </div>
+
+        <!-- In Progress Card -->
+        <div class="kpi-card" data-testid="setup-kpi-in-progress">
+          <div class="kpi-card__icon kpi-card__icon--amber">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+          <div class="kpi-card__content">
+            <span class="kpi-card__label">In Progress</span>
+            <span class="kpi-card__value">{{ summaryCounts().inProgress }}</span>
+            <span class="kpi-card__sub">active setup tasks</span>
+          </div>
+        </div>
+
+        <!-- Not Started Card -->
+        <div class="kpi-card" data-testid="setup-kpi-not-started">
+          <div class="kpi-card__icon kpi-card__icon--neutral">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <div class="kpi-card__content">
+            <span class="kpi-card__label">Not Started</span>
+            <span class="kpi-card__value">{{ summaryCounts().notStarted }}</span>
+            <span class="kpi-card__sub">remaining configuration</span>
+          </div>
+        </div>
+      </section>
+    }
+
+    <!-- Products-Style Toolbar -->
+    <section class="toolbar" aria-label="Setup task filters">
+      <div class="toolbar__desktop">
+        <div class="toolbar__left">
+          <!-- Search Field -->
+          <div class="search-field">
+            <svg
+              class="search-field__icon"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+              class="search-field__input"
+              type="search"
+              [value]="searchTerm()"
+              (input)="onSearchInput($event)"
+              placeholder="Search setup tasks..."
+              aria-label="Search setup tasks"
+              data-testid="setup-search-input"
+            />
+          </div>
+
+          <!-- Status Filter -->
+          <div class="select-field">
+            <select
+              class="select-field__input"
+              [value]="statusFilter()"
+              (change)="onStatusFilterChange($event)"
+              aria-label="Filter by status"
+              data-testid="setup-status-filter"
+            >
+              <option value="all">All statuses</option>
+              <option value="complete">Completed</option>
+              <option value="in_progress">In progress</option>
+              <option value="not_started">Not started</option>
+              <option value="blocked">Blocked</option>
+            </select>
+          </div>
+
+          <!-- Clear Filters -->
+          @if (hasActiveFilters()) {
+            <button
+              class="clear-filters-btn"
+              type="button"
+              (click)="clearFilters()"
+              data-testid="setup-clear-filters"
+            >
+              Clear filters
+            </button>
+          }
+        </div>
+
+        <!-- Right Side: Refresh Button -->
+        <div class="toolbar__right">
+          <button
+            type="button"
+            class="ag-btn ag-btn--secondary toolbar-refresh-btn"
+            data-testid="setup-refresh"
+            (click)="reload(true)"
+            title="Refresh setup progress"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+            </svg>
+            <span>Refresh</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile Toolbar Layout (<768px) -->
+      <div class="toolbar__mobile">
+        <div class="toolbar__mobile-row">
+          <div class="search-field w-full">
+            <svg
+              class="search-field__icon"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+              class="search-field__input"
+              type="search"
+              [value]="searchTerm()"
+              (input)="onSearchInput($event)"
+              placeholder="Search setup tasks..."
+              aria-label="Search setup tasks"
+            />
+          </div>
+        </div>
+        <div class="toolbar__mobile-row">
+          <div class="select-field flex-1">
+            <select
+              class="select-field__input"
+              [value]="statusFilter()"
+              (change)="onStatusFilterChange($event)"
+              aria-label="Filter by status"
+            >
+              <option value="all">All statuses</option>
+              <option value="complete">Completed</option>
+              <option value="in_progress">In progress</option>
+              <option value="not_started">Not started</option>
+              <option value="blocked">Blocked</option>
+            </select>
+          </div>
+          <button
+            type="button"
+            class="ag-btn ag-btn--secondary"
+            (click)="reload(true)"
+            aria-label="Refresh setup tasks"
+          >
+            Refresh
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Task List / Empty States -->
+    @if (data.steps.length === 0) {
+      <div class="state-container" data-testid="setup-empty-state">
+        <agrivio-ui-empty-state
+          title="No setup tasks available"
+          message="No setup steps were found for your organization."
+        />
+      </div>
+    } @else if (filteredSteps().length === 0) {
+      <div class="state-container" data-testid="setup-no-matches">
+        <agrivio-ui-empty-state
+          title="No matching setup tasks"
+          message="No tasks match your current search or status filter."
+        />
+        <div class="empty-state-actions">
+          <button
+            type="button"
+            class="ag-btn ag-btn--secondary"
+            (click)="clearFilters()"
+          >
+            Clear filters
+          </button>
+        </div>
+      </div>
+    } @else {
+      <!-- Desktop Dense Table View -->
+      <div class="table-container desktop-table-only" data-testid="setup-steps">
+        <table class="prod-table">
+          <thead>
+            <tr>
+              <th scope="col" class="prod-table__th col-task">Task</th>
+              <th scope="col" class="prod-table__th col-status">Status</th>
+              <th scope="col" class="prod-table__th prod-table__th--actions col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (step of filteredSteps(); track step.id) {
+              <tr
+                class="prod-table__row"
+                [attr.data-testid]="'setup-step-' + step.id"
+              >
+                <!-- Task Column (Icon + Title + Friendly Description) -->
+                <td class="prod-table__td">
+                  <div class="task-info">
+                    <div class="task-icon">
+                      @switch (step.id) {
+                        @case ('organization_profile') {
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 21h18"/>
+                            <path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/>
+                            <path d="M9 9h1"/>
+                            <path d="M9 13h1"/>
+                            <path d="M9 17h1"/>
+                            <path d="M14 9h1"/>
+                            <path d="M14 13h1"/>
+                            <path d="M14 17h1"/>
+                          </svg>
+                        }
+                        @case ('branch') {
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="6" y1="3" x2="6" y2="15"/>
+                            <circle cx="18" cy="6" r="3"/>
+                            <circle cx="6" cy="18" r="3"/>
+                            <path d="M18 9a9 9 0 0 1-9 9"/>
+                          </svg>
+                        }
+                        @case ('warehouse') {
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+                            <path d="m3.3 7 8.7 5 8.7-5"/>
+                            <path d="M12 22V12"/>
+                          </svg>
+                        }
+                        @case ('employees_access') {
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                          </svg>
+                        }
+                        @case ('catalog') {
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect width="7" height="7" x="3" y="3" rx="1"/>
+                            <rect width="7" height="7" x="14" y="3" rx="1"/>
+                            <rect width="7" height="7" x="14" y="14" rx="1"/>
+                            <rect width="7" height="7" x="3" y="14" rx="1"/>
+                          </svg>
+                        }
+                        @case ('packaging') {
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                            <line x1="12" y1="22.08" x2="12" y2="12"/>
+                          </svg>
+                        }
+                        @case ('pricing') {
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
+                            <path d="M12 6v2"/>
+                            <path d="M12 16v2"/>
+                          </svg>
+                        }
+                        @case ('customers') {
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                          </svg>
+                        }
+                        @case ('suppliers') {
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/>
+                            <path d="M15 18H9"/>
+                            <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/>
+                            <circle cx="17" cy="18" r="2"/>
+                            <circle cx="7" cy="18" r="2"/>
+                          </svg>
+                        }
+                        @case ('accounts') {
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="3" y1="22" x2="21" y2="22"/>
+                            <line x1="6" y1="18" x2="6" y2="11"/>
+                            <line x1="10" y1="18" x2="10" y2="11"/>
+                            <line x1="14" y1="18" x2="14" y2="11"/>
+                            <line x1="18" y1="18" x2="18" y2="11"/>
+                            <polygon points="12 2 20 7 4 7"/>
+                          </svg>
+                        }
+                        @case ('opening_balances') {
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/>
+                            <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/>
+                            <path d="M7 21h10"/>
+                            <path d="M12 3v18"/>
+                            <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>
+                          </svg>
+                        }
+                        @default {
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect width="18" height="18" x="3" y="3" rx="2"/>
+                            <path d="m9 12 2 2 4-4"/>
+                          </svg>
+                        }
+                      }
+                    </div>
+                    <div class="task-text">
+                      <span class="task-title">{{ step.title }}</span>
+                      <p class="task-desc">{{ stepDescription(step.id) }}</p>
+                    </div>
+                  </div>
+                </td>
+
+                <!-- Status Column -->
+                <td class="prod-table__td col-status">
+                  <agrivio-ui-status-badge
+                    [label]="statusBadge(step.status).label"
+                    [tone]="statusBadge(step.status).tone"
+                  />
+                </td>
+
+                <!-- Actions Column -->
+                <td class="prod-table__td prod-table__td--actions col-actions">
+                  @if (canOpenStep(step)) {
+                    <a
+                      class="ag-btn ag-btn--secondary ag-btn--sm"
+                      [routerLink]="step.href"
+                      [attr.data-testid]="'setup-link-' + step.id"
+                    >
+                      Open
+                    </a>
+                  } @else {
+                    <span
+                      class="access-restricted-label"
+                      [attr.data-testid]="'setup-restricted-' + step.id"
+                      title="Access restricted by role permissions or organization capabilities"
+                    >
+                      Restricted
+                    </span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Mobile Purpose-Built Cards View (<768px) -->
+      <div class="mobile-cards-only" data-testid="setup-steps-mobile">
+        @for (step of filteredSteps(); track step.id) {
+          <article
+            class="setup-mobile-card"
+            [attr.data-testid]="'setup-mobile-card-' + step.id"
+          >
+            <div class="setup-mobile-card__header">
+              <div class="task-info">
+                <div class="task-icon">
+                  @switch (step.id) {
+                    @case ('organization_profile') {
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 21h18"/><path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/><path d="M9 9h1"/><path d="M9 13h1"/><path d="M9 17h1"/>
+                      </svg>
+                    }
+                    @case ('branch') {
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>
+                      </svg>
+                    }
+                    @case ('warehouse') {
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+                      </svg>
+                    }
+                    @case ('employees_access') {
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                      </svg>
+                    }
+                    @default {
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 12 2 2 4-4"/>
+                      </svg>
+                    }
+                  }
+                </div>
+                <span class="task-title">{{ step.title }}</span>
+              </div>
+              <agrivio-ui-status-badge
+                [label]="statusBadge(step.status).label"
+                [tone]="statusBadge(step.status).tone"
+              />
+            </div>
+
+            <p class="setup-mobile-card__desc">
+              {{ stepDescription(step.id) }}
+            </p>
+
+            <div class="setup-mobile-card__foot">
+              @if (canOpenStep(step)) {
+                <a
+                  class="ag-btn ag-btn--secondary w-full"
+                  [routerLink]="step.href"
+                >
+                  Open
+                </a>
+              } @else {
+                <span class="access-restricted-label w-full text-center">
+                  Access restricted
+                </span>
+              }
+            </div>
+          </article>
+        }
+      </div>
+    }
+
+    <!-- Informational Notes (from backend contract) -->
+    @if (data.notes.length > 0) {
+      <div class="info-callout" data-testid="setup-notes">
+        <div class="info-callout__icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+        </div>
+        <div class="info-callout__content">
+          <p class="info-callout__text">
+            @for (note of data.notes; track note) {
+              <span>{{ note }}</span>
+            }
+          </p>
+        </div>
+      </div>
+    }
+
+    <!-- Subtle Footer Tip -->
+    <p class="setup-footer-tip">
+      Tip: You can return to Setup anytime to review or complete organization configuration.
+    </p>
   }
-}
+</div>

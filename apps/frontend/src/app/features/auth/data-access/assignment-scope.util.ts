@@ -1,4 +1,4 @@
-import { AuthSessionContext, AuthSessionSnapshot } from './auth.api';
+import { AuthSessionContext } from './auth.api';
 
 export function isOrganizationWideRole(role: string | undefined): boolean {
   return role === 'Owner';
@@ -63,12 +63,16 @@ export function filterWarehouseOptions<T extends { id: string }>(
   return options.filter((option) => isWarehouseSelectable(context, option.id));
 }
 
-export function assignmentsFromSession(session: AuthSessionSnapshot | null): {
-  branchIds: string[];
-  warehouseIds: string[];
-} {
-  return {
-    branchIds: allowedBranchIds(session?.activeContext),
-    warehouseIds: allowedWarehouseIds(session?.activeContext),
-  };
+export function hasMissingOperationalAssignments(
+  context: AuthSessionContext | null | undefined,
+): boolean {
+  if (context === null || context === undefined || context.contextType !== 'organization') {
+    return false;
+  }
+  if (isOrganizationWideRole(context.role)) {
+    return false;
+  }
+  const branches = context.branchAssignments ?? [];
+  const warehouses = context.warehouseAssignments ?? [];
+  return branches.length === 0 && warehouses.length === 0;
 }

@@ -24,6 +24,11 @@ const OWNER_A = [
   'returns.view',
   'customer-payments.view',
   'inventory.view',
+  'inventory.opening-stock.post',
+  'inventory.adjust',
+  'inventory.transfer',
+  'branches.manage',
+  'warehouses.manage',
   'dashboard.view',
   'alerts.view',
   'reports.view',
@@ -34,7 +39,10 @@ const OWNER_A = [
 
 const MANAGER_A = OWNER_A.filter(
   (permission) =>
-    permission !== 'audit.view' && permission !== 'subscription.billing-evidence.submit',
+    permission !== 'audit.view' &&
+    permission !== 'subscription.billing-evidence.submit' &&
+    permission !== 'branches.manage' &&
+    permission !== 'warehouses.manage',
 );
 
 const CASHIER_A = [

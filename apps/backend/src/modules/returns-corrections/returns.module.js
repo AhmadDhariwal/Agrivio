@@ -5,6 +5,7 @@ const {
 const { createAuditWriter } = require('../../platform/audit/audit-writer');
 const { assertOptimisticVersion } = require('../../platform/validation/request-validation');
 const {
+  assignmentScopeDenied,
   conflict,
   forbidden,
   notFound,
@@ -91,7 +92,7 @@ function createReturnsService(deps) {
   async function assertWarehouseAccess(authContext, warehouseId) {
     if (typeof deps.canAccessWarehouse === 'function') {
       if (!deps.canAccessWarehouse(authContext, String(warehouseId))) {
-        throw forbidden('Warehouse assignment is required');
+        throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
       }
     }
   }
@@ -207,7 +208,7 @@ function createReturnsService(deps) {
                 lookups.warehouses[id] = String(item.name);
               }
             })
-            .catch(() => {}),
+            .catch(() => undefined),
         );
       }
     }
@@ -222,7 +223,7 @@ function createReturnsService(deps) {
                 lookups.suppliers[id] = String(item.name);
               }
             })
-            .catch(() => {}),
+            .catch(() => undefined),
         );
       }
     }
@@ -237,7 +238,7 @@ function createReturnsService(deps) {
                 lookups.customers[id] = String(item.name);
               }
             })
-            .catch(() => {}),
+            .catch(() => undefined),
         );
       }
     }
@@ -255,7 +256,7 @@ function createReturnsService(deps) {
                 };
               }
             })
-            .catch(() => {}),
+            .catch(() => undefined),
         );
       }
     }

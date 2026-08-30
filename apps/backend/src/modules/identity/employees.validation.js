@@ -1,6 +1,8 @@
-const { validationFailed, forbidden } = require('../../platform/errors/app-error');
+const { validationFailed, roleHierarchyDenied } = require('../../platform/errors/app-error');
+const { ORGANIZATION_ROLES } = require('./role-hierarchy');
+const { sanitizeConditionalPermissionGrants } = require('./role-permissions');
 
-const ALLOWED_ROLES = new Set(['Owner', 'Manager', 'Cashier', 'StoreKeeper']);
+const ALLOWED_ROLES = new Set(ORGANIZATION_ROLES);
 const MAX_NAME = 120;
 const MAX_EMAIL = 254;
 
@@ -27,43 +29,54 @@ function requireTrimmedString(value, field, maxLength) {
   return trimmed;
 }
 
+function parseRole(role) {
+  if (typeof role !== 'string' || !ALLOWED_ROLES.has(role)) {
+    throw validationFailed('role must be Owner, Manager, Cashier, or StoreKeeper', [
+      { field: 'role', message: 'role must be Owner, Manager, Cashier, or StoreKeeper' },
+    ]);
+  }
+  return role;
+}
+
+function parseConditionalPermissionGrants(body, role) {
+  if (!Object.prototype.hasOwnProperty.call(body, 'conditionalPermissionGrants')) {
+    return undefined;
+  }
+  return sanitizeConditionalPermissionGrants(role, body.conditionalPermissionGrants);
+}
+
+function rejectPlatformAccess(body) {
+  if (Object.prototype.hasOwnProperty.call(body, 'platformAccess')) {
+    throw roleHierarchyDenied('Organization users cannot be granted platform Super Admin access');
+  }
+  if (body.role === 'Super Admin' || body.role === 'SuperAdmin') {
+    throw roleHierarchyDenied('Organization users cannot be granted platform Super Admin access');
+  }
+}
+
 function parseEmployeeCreate(body) {
   if (body === null || typeof body !== 'object' || Array.isArray(body)) {
     throw validationFailed('Request body must be an object');
   }
 
-  if (Object.prototype.hasOwnProperty.call(body, 'platformAccess')) {
-    throw forbidden('Organization users cannot be granted platform Super Admin access');
-  }
-  if (body.role === 'Super Admin' || body.role === 'SuperAdmin') {
-    throw forbidden('Organization users cannot be granted platform Super Admin access');
-  }
+  rejectPlatformAccess(body);
 
   const email = requireTrimmedString(body.email, 'email', MAX_EMAIL).toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw validationFailed('email is invalid', [{ field: 'email', message: 'email is invalid' }]);
   }
   const displayName = requireTrimmedString(body.displayName, 'displayName', MAX_NAME);
-  const role = body.role;
-  if (typeof role !== 'string' || !ALLOWED_ROLES.has(role)) {
-    throw validationFailed('role must be Owner, Manager, Cashier, or StoreKeeper', [
-      { field: 'role', message: 'role must be Owner, Manager, Cashier, or StoreKeeper' },
-    ]);
-  }
+  const role = parseRole(body.role);
+  const conditionalPermissionGrants = parseConditionalPermissionGrants(body, role) ?? [];
 
-  return { email, displayName, role };
+  return { email, displayName, role, conditionalPermissionGrants };
 }
 
 function parseEmployeePatch(body) {
   if (body === null || typeof body !== 'object' || Array.isArray(body)) {
     throw validationFailed('Request body must be an object');
   }
-  if (Object.prototype.hasOwnProperty.call(body, 'platformAccess')) {
-    throw forbidden('Organization users cannot be granted platform Super Admin access');
-  }
-  if (body.role === 'Super Admin' || body.role === 'SuperAdmin') {
-    throw forbidden('Organization users cannot be granted platform Super Admin access');
-  }
+  rejectPlatformAccess(body);
 
   const expectedVersion = parseExpectedVersion(body);
   const patch = {};
@@ -72,12 +85,10 @@ function parseEmployeePatch(body) {
     patch.displayName = requireTrimmedString(body.displayName, 'displayName', MAX_NAME);
   }
   if (body.role !== undefined) {
-    if (typeof body.role !== 'string' || !ALLOWED_ROLES.has(body.role)) {
-      throw validationFailed('role must be Owner, Manager, Cashier, or StoreKeeper', [
-        { field: 'role', message: 'role must be Owner, Manager, Cashier, or StoreKeeper' },
-      ]);
-    }
-    patch.role = body.role;
+    patch.role = parseRole(body.role);
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'conditionalPermissionGrants')) {
+    patch.conditionalPermissionGrants = body.conditionalPermissionGrants;
   }
   if (body.status !== undefined) {
     throw validationFailed('Use deactivate endpoint to change membership status', [
