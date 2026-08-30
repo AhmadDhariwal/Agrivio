@@ -5,7 +5,7 @@
     lede="Inspect organization, requested plan, amount, and payment evidence, then start review and approve or reject with expectedVersion."
   />
 
-  <form class="ag-card ag-form" [formGroup]="filterForm" (ngSubmit)="reload()">
+  <form class="ag-card ag-form" [formGroup]="filterForm" (ngSubmit)="onFilterSubmit()">
     <div class="ag-inline">
       <div class="ag-field">
         <agrivio-ui-field-label label="Status" for="billing-status-filter" />
@@ -18,8 +18,13 @@
         </select>
       </div>
       <div class="ag-field">
-        <agrivio-ui-field-label label="Organization id" for="billing-org-filter" />
-        <input id="billing-org-filter" class="ag-input" type="text" formControlName="organizationId" />
+        <agrivio-ui-field-label label="Organization" for="billing-org-filter" />
+        <select id="billing-org-filter" class="ag-select" formControlName="organizationId">
+          <option value="">All organizations</option>
+          @for (org of organizations(); track org.id) {
+            <option [value]="org.id">{{ org.name }}</option>
+          }
+        </select>
       </div>
       <div class="ag-field">
         <agrivio-ui-field-label label="Search" for="billing-search" />
@@ -96,46 +101,74 @@
         </dl>
 
         @if (canReview(item)) {
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Rejection reason"
+              [for]="'billing-reject-reason-' + item.id"
+              [required]="true"
+            />
+            <input
+              [id]="'billing-reject-reason-' + item.id"
+              class="ag-input"
+              type="text"
+              [value]="rejectReason(item.id)"
+              (input)="onRejectReasonInput(item.id, $event)"
+              (blur)="markRejectTouched(item.id)"
+              aria-required="true"
+              [attr.aria-invalid]="showRejectReasonError(item.id) ? 'true' : null"
+            />
+            @if (showRejectReasonError(item.id)) {
+              <p class="ag-field__error">Rejection reason is required.</p>
+            }
+          </div>
           <div class="ag-actions">
             @if (item.status === 'submitted') {
-              <button type="button" class="ag-btn ag-btn--secondary ag-btn--sm" (click)="askStartReview(item)">
+              <button
+                type="button"
+                class="ag-btn ag-btn--secondary ag-btn--sm"
+                [disabled]="actionsDisabled()"
+                (click)="askStartReview(item)"
+              >
                 Start review
               </button>
             }
-            <button type="button" class="ag-btn ag-btn--primary ag-btn--sm" (click)="askApprove(item)">
+            <button
+              type="button"
+              class="ag-btn ag-btn--primary ag-btn--sm"
+              [disabled]="actionsDisabled()"
+              (click)="askApprove(item)"
+            >
               Approve
             </button>
-            <button type="button" class="ag-btn ag-btn--danger ag-btn--sm" (click)="askReject(item)">
+            <button
+              type="button"
+              class="ag-btn ag-btn--danger ag-btn--sm"
+              [disabled]="actionsDisabled()"
+              (click)="askReject(item)"
+            >
               Reject
             </button>
-            <button type="button" class="ag-btn ag-btn--secondary ag-btn--sm" (click)="downloadEvidence(item)">
+            <button
+              type="button"
+              class="ag-btn ag-btn--secondary ag-btn--sm"
+              [disabled]="actionsDisabled()"
+              (click)="downloadEvidence(item)"
+            >
               Download evidence
             </button>
           </div>
         }
       </article>
     }
+    <agrivio-ui-pagination
+      [page]="page()"
+      [pageSize]="pageSize()"
+      [total]="total()"
+      [disabled]="loading() || actionInProgress()"
+      (pageChange)="onPageChange($event)"
+      (pageSizeChange)="onPageSizeChange($event)"
+    />
   }
-
-  <div class="ag-card ag-stack ag-stack--tight">
-    <h2>Rejection reason</h2>
-    <form class="ag-form ag-form--with-required-hint" [formGroup]="rejectForm">
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Reason"
-          for="billing-reject-reason"
-          [required]="fieldRequired(rejectForm.controls.reason)"
-        />
-        <input
-          id="billing-reject-reason"
-          class="ag-input"
-          type="text"
-          formControlName="reason"
-          [attr.aria-required]="fieldRequired(rejectForm.controls.reason) ? 'true' : null"
-        />
-      </div>
-    </form>
-  </div>
 
   @if (successMessage(); as success) {
     <agrivio-ui-alert [message]="success" tone="success" />

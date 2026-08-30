@@ -102,7 +102,7 @@ describe('PlatformBillingReviewPage', () => {
     page.runConfirmedAction();
     expect(approveCalls).toEqual([{ id: 'bill-1', version: 3 }]);
 
-    page.rejectForm.setValue({ reason: 'Unreadable slip' });
+    page.setRejectReason(submittedRecord.id, 'Unreadable slip');
     page.askReject(submittedRecord);
     page.runConfirmedAction();
     expect(rejectCalls).toEqual([{ id: 'bill-1', version: 3, reason: 'Unreadable slip' }]);
@@ -113,5 +113,33 @@ describe('PlatformBillingReviewPage', () => {
     page.askStartReview(submittedRecord);
     page.runConfirmedAction();
     expect(startReviewCalls).toEqual([{ id: 'bill-1', version: 3 }]);
+  });
+
+  it('requires a row-specific rejection reason and does not share one input', () => {
+    const page = fixture.componentInstance;
+    const other: BillingRecordSummary = { ...submittedRecord, id: 'bill-2' };
+    page.items.set([submittedRecord, other]);
+    fixture.detectChanges();
+    page.setRejectReason(submittedRecord.id, 'Reason A');
+    page.setRejectReason(other.id, 'Reason B');
+    expect(page.rejectReason(submittedRecord.id)).toBe('Reason A');
+    expect(page.rejectReason(other.id)).toBe('Reason B');
+
+    page.setRejectReason(submittedRecord.id, '');
+    page.askReject(submittedRecord);
+    expect(rejectCalls).toEqual([]);
+    expect(page.errorMessage()).toContain('required');
+  });
+
+  it('disables approve and reject while a request is in progress', () => {
+    const page = fixture.componentInstance;
+    page.actionInProgress.set(true);
+    fixture.detectChanges();
+    const html = fixture.nativeElement as HTMLElement;
+    const buttons = [...html.querySelectorAll('button')].filter((button) =>
+      ['Approve', 'Reject', 'Start review'].includes(button.textContent?.trim() ?? ''),
+    );
+    expect(buttons.length).toBeGreaterThan(0);
+    expect(buttons.every((button) => button.disabled)).toBe(true);
   });
 });

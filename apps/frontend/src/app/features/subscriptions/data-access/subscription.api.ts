@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
-import { Observable, from, map, switchMap, tap, catchError, throwError } from 'rxjs';
+import { Observable, from, map, switchMap, tap } from 'rxjs';
 import {
   API_CSRF_HEADER,
   API_PLATFORM_BILLING_RECORDS_PATH,
@@ -193,10 +193,31 @@ export class SubscriptionApi {
           )
           .pipe(
             map((response) => response.data),
-            tap(() => this.queryCache.invalidateTags(QUERY_CACHE_TAGS.billingRecords)),
+            tap(() =>
+              this.queryCache.invalidateTags(
+                QUERY_CACHE_TAGS.billingRecords,
+                QUERY_CACHE_TAGS.platformBillingRecords,
+              ),
+            ),
           ),
       ),
     );
+  }
+
+  getBillingRecord(id: string, forceRefresh = false): Observable<BillingRecordSummary> {
+    return this.queryCache.fetch({
+      key: this.queryCache.buildKey('subscription:billing-record', { id }),
+      policy: 'short',
+      tags: [QUERY_CACHE_TAGS.billingRecords],
+      forceRefresh,
+      loader: () =>
+        this.http
+          .get<{ data: BillingRecordSummary }>(
+            `${environment.publicApiBaseUrl}${API_SUBSCRIPTION_BILLING_RECORDS_PATH}/${id}`,
+            { withCredentials: true },
+          )
+          .pipe(map((response) => response.data)),
+    });
   }
 
   downloadOrganizationEvidence(id: string): Observable<Blob> {
@@ -285,6 +306,22 @@ export class SubscriptionApi {
     });
   }
 
+  getPlatformBillingRecord(id: string, forceRefresh = false): Observable<BillingRecordSummary> {
+    return this.queryCache.fetch({
+      key: this.queryCache.buildKey('platform:billing-record', { id }),
+      policy: 'short',
+      tags: [QUERY_CACHE_TAGS.platformBillingRecords],
+      forceRefresh,
+      loader: () =>
+        this.http
+          .get<{ data: BillingRecordSummary }>(
+            `${environment.publicApiBaseUrl}${API_PLATFORM_BILLING_RECORDS_PATH}/${id}`,
+            { withCredentials: true },
+          )
+          .pipe(map((response) => response.data)),
+    });
+  }
+
   downloadPlatformEvidence(id: string): Observable<Blob> {
     return this.http.get(
       `${environment.publicApiBaseUrl}${API_PLATFORM_BILLING_RECORDS_PATH}/${id}/evidence`,
@@ -326,23 +363,26 @@ export class SubscriptionApi {
           )
           .pipe(
             map((response) => response.data),
-            tap(() => this.invalidateBillingReview()),
-            catchError((error: unknown) => {
-              if (error instanceof HttpErrorResponse && error.status === 409 && action === 'approve') {
-                this.invalidateBillingReview();
-              }
-              return throwError(() => error);
-            }),
+            tap(() => this.invalidatePlatformBillingMutation(action)),
           ),
       ),
     );
   }
 
-  private invalidateBillingReview(): void {
+  private invalidatePlatformBillingMutation(
+    action: 'start-review' | 'approve' | 'reject',
+  ): void {
+    if (action === 'approve') {
+      this.queryCache.invalidateTags(
+        QUERY_CACHE_TAGS.platformBillingRecords,
+        QUERY_CACHE_TAGS.billingRecords,
+        QUERY_CACHE_TAGS.subscription,
+      );
+      return;
+    }
     this.queryCache.invalidateTags(
       QUERY_CACHE_TAGS.platformBillingRecords,
       QUERY_CACHE_TAGS.billingRecords,
-      QUERY_CACHE_TAGS.subscription,
     );
   }
 }

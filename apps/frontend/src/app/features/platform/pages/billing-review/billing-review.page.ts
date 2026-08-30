@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import {
   BillingRecordSummary,
   PlatformBillingQueue,
@@ -14,9 +14,9 @@ import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.compon
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
-import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 import { UiStatusBadgeComponent, UiBadgeTone } from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
+import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 
 @Component({
   selector: 'agrivio-platform-billing-review-page',
@@ -30,6 +30,7 @@ import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialo
     UiStatusBadgeComponent,
     UiConfirmDialogComponent,
     UiFieldLabelComponent,
+    UiPaginationComponent,
   ],
   templateUrl: './billing-review.page.html',
   styleUrl: './billing-review.page.scss',
@@ -43,8 +44,13 @@ export class PlatformBillingReviewPage {
   readonly organizations = signal<PlatformOrganizationSummary[]>([]);
   readonly total = signal(0);
   readonly loading = signal(true);
+  readonly actionInProgress = signal(false);
+  readonly page = signal(1);
+  readonly pageSize = signal(25);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
+  readonly rejectReasons = signal<Record<string, string>>({});
+  readonly rejectTouched = signal<Record<string, boolean>>({});
 
   readonly confirmOpen = signal(false);
   readonly confirmTitle = signal('Confirm action');
@@ -53,16 +59,10 @@ export class PlatformBillingReviewPage {
   readonly confirmDanger = signal(false);
   private pendingAction: (() => void) | null = null;
 
-  readonly fieldRequired = hasRequiredValidator;
-
   readonly filterForm = this.formBuilder.nonNullable.group({
     status: [''],
     organizationId: [''],
     q: [''],
-  });
-
-  readonly rejectForm = this.formBuilder.nonNullable.group({
-    reason: ['', [Validators.required, Validators.minLength(3)]],
   });
 
   constructor() {
@@ -84,11 +84,41 @@ export class PlatformBillingReviewPage {
     return item.status === 'submitted' || item.status === 'under_review';
   }
 
+  actionsDisabled(): boolean {
+    return this.loading() || this.actionInProgress();
+  }
+
+  rejectReason(id: string): string {
+    return this.rejectReasons()[id] ?? '';
+  }
+
+  setRejectReason(id: string, value: string): void {
+    this.rejectReasons.update((current) => ({ ...current, [id]: value }));
+  }
+
+  onRejectReasonInput(id: string, event: Event): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      this.setRejectReason(id, target.value);
+    }
+  }
+
+  markRejectTouched(id: string): void {
+    this.rejectTouched.update((current) => ({ ...current, [id]: true }));
+  }
+
+  isRejectReasonValid(id: string): boolean {
+    return this.rejectReason(id).trim().length >= 3;
+  }
+
+  showRejectReasonError(id: string): boolean {
+    return Boolean(this.rejectTouched()[id]) && !this.isRejectReasonValid(id);
+  }
+
   statusTone(status: string): UiBadgeTone {
     switch (status) {
       case 'approved':
         return 'success';
-      case 'pending_review':
       case 'submitted':
       case 'under_review':
         return 'warning';
@@ -106,6 +136,22 @@ export class PlatformBillingReviewPage {
     return String(value);
   }
 
+  onFilterSubmit(): void {
+    this.page.set(1);
+    this.reload();
+  }
+
+  onPageChange(page: number): void {
+    this.page.set(page);
+    this.reload();
+  }
+
+  onPageSizeChange(pageSize: number): void {
+    this.pageSize.set(pageSize);
+    this.page.set(1);
+    this.reload();
+  }
+
   reload(): void {
     this.loading.set(true);
     const raw = this.filterForm.getRawValue();
@@ -114,8 +160,8 @@ export class PlatformBillingReviewPage {
         ...(raw.status === '' ? {} : { status: raw.status }),
         ...(raw.organizationId === '' ? {} : { organizationId: raw.organizationId }),
         ...(raw.q.trim() === '' ? {} : { q: raw.q.trim() }),
-        limit: 25,
-        offset: 0,
+        limit: this.pageSize(),
+        offset: (this.page() - 1) * this.pageSize(),
       })
       .subscribe({
         next: (page: PlatformBillingQueue) => {
@@ -131,6 +177,9 @@ export class PlatformBillingReviewPage {
   }
 
   askStartReview(item: BillingRecordSummary): void {
+    if (this.actionsDisabled()) {
+      return;
+    }
     this.confirmTitle.set('Start billing review?');
     this.confirmMessage.set(
       `Move payment reference ${item.paymentReferenceNormalized} from submitted to under review.`,
@@ -142,6 +191,9 @@ export class PlatformBillingReviewPage {
   }
 
   askApprove(item: BillingRecordSummary): void {
+    if (this.actionsDisabled()) {
+      return;
+    }
     this.confirmTitle.set('Approve billing evidence?');
     this.confirmMessage.set(
       `Approve ${this.organizationName(item.organizationId)} for ${item.requestedPlanCode} v${item.requestedPlanVersion}. This activates or extends the subscription once.`,
@@ -153,8 +205,11 @@ export class PlatformBillingReviewPage {
   }
 
   askReject(item: BillingRecordSummary): void {
-    if (this.rejectForm.invalid) {
-      this.rejectForm.markAllAsTouched();
+    if (this.actionsDisabled()) {
+      return;
+    }
+    this.markRejectTouched(item.id);
+    if (!this.isRejectReasonValid(item.id)) {
       this.errorMessage.set('Rejection reason is required.');
       return;
     }
@@ -174,43 +229,33 @@ export class PlatformBillingReviewPage {
   }
 
   startReview(item: BillingRecordSummary): void {
-    this.errorMessage.set(null);
-    this.subscriptionApi.startBillingReview(item.id, item.version).subscribe({
-      next: () => {
-        this.successMessage.set(`Started review for ${item.id}`);
-        this.reload();
-      },
-      error: () => this.errorMessage.set('Start review failed.'),
-    });
+    this.runMutation(
+      () => this.subscriptionApi.startBillingReview(item.id, item.version),
+      `Started review for ${item.id}`,
+      'Start review failed.',
+    );
   }
 
   approve(item: BillingRecordSummary): void {
-    this.errorMessage.set(null);
-    this.subscriptionApi.approveBilling(item.id, item.version).subscribe({
-      next: () => {
-        this.successMessage.set(`Approved ${item.id}`);
-        this.reload();
-      },
-      error: () => this.errorMessage.set('Approve failed.'),
-    });
+    this.runMutation(
+      () => this.subscriptionApi.approveBilling(item.id, item.version),
+      `Approved ${item.id}`,
+      'Approve failed.',
+    );
   }
 
   reject(item: BillingRecordSummary): void {
-    this.errorMessage.set(null);
-    if (this.rejectForm.invalid) {
-      this.rejectForm.markAllAsTouched();
+    this.markRejectTouched(item.id);
+    if (!this.isRejectReasonValid(item.id)) {
       this.errorMessage.set('Rejection reason is required.');
       return;
     }
-    this.subscriptionApi
-      .rejectBilling(item.id, item.version, this.rejectForm.getRawValue().reason)
-      .subscribe({
-        next: () => {
-          this.successMessage.set(`Rejected ${item.id}`);
-          this.reload();
-        },
-        error: () => this.errorMessage.set('Reject failed.'),
-      });
+    const reason = this.rejectReason(item.id).trim();
+    this.runMutation(
+      () => this.subscriptionApi.rejectBilling(item.id, item.version, reason),
+      `Rejected ${item.id}`,
+      'Reject failed.',
+    );
   }
 
   downloadEvidence(item: BillingRecordSummary): void {
@@ -224,6 +269,29 @@ export class PlatformBillingReviewPage {
         URL.revokeObjectURL(url);
       },
       error: () => this.errorMessage.set('Unable to download billing evidence.'),
+    });
+  }
+
+  private runMutation(
+    request: () => ReturnType<SubscriptionApi['approveBilling']>,
+    success: string,
+    failure: string,
+  ): void {
+    if (this.actionInProgress()) {
+      return;
+    }
+    this.errorMessage.set(null);
+    this.actionInProgress.set(true);
+    request().subscribe({
+      next: () => {
+        this.actionInProgress.set(false);
+        this.successMessage.set(success);
+        this.reload();
+      },
+      error: () => {
+        this.actionInProgress.set(false);
+        this.errorMessage.set(failure);
+      },
     });
   }
 }

@@ -16,8 +16,23 @@ import {
 import { createApp } from '../../app';
 import { loadApiEnv } from '../../platform/config/runtime-config';
 import { createMockDatabaseLifecycle } from '../../platform/database/mongo-connection';
+import { parseEvidenceStorageRef } from './billing-evidence-storage';
 
 describe('billing workflow hardening', () => {
+  it('rejects path-traversal evidence storage refs', () => {
+    expect(parseEvidenceStorageRef('evidence://../object')).toBeNull();
+    expect(parseEvidenceStorageRef('evidence://org/..')).toBeNull();
+    expect(parseEvidenceStorageRef('evidence://./object')).toBeNull();
+    expect(parseEvidenceStorageRef('evidence://org/.')).toBeNull();
+    expect(parseEvidenceStorageRef('data:application/pdf;base64,AAAA')).toBeNull();
+    expect(parseEvidenceStorageRef('C:\\tmp\\receipt.pdf')).toBeNull();
+    expect(parseEvidenceStorageRef('evidence://org-1/abc-def')).toEqual({
+      organizationId: 'org-1',
+      objectId: 'abc-def',
+      storageRef: 'evidence://org-1/abc-def',
+    });
+  });
+
   it('covers upload, submit, review, approval effects, RBAC, and reactivation period safety', async () => {
     const { server, baseUrl, jar, store, subscriptions } = await boot();
     try {

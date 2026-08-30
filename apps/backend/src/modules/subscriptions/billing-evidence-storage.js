@@ -33,6 +33,10 @@ function normalizeContentType(value) {
     .toLowerCase();
 }
 
+function isSafeEvidencePathSegment(value) {
+  return /^[A-Za-z0-9._-]+$/.test(value) && value !== '.' && value !== '..';
+}
+
 function parseEvidenceStorageRef(storageRef) {
   if (typeof storageRef !== 'string') {
     return null;
@@ -48,7 +52,7 @@ function parseEvidenceStorageRef(storageRef) {
   }
   const organizationId = remainder.slice(0, slash);
   const objectId = remainder.slice(slash + 1);
-  if (!/^[A-Za-z0-9._-]+$/.test(organizationId) || !/^[A-Za-z0-9._-]+$/.test(objectId)) {
+  if (!isSafeEvidencePathSegment(organizationId) || !isSafeEvidencePathSegment(objectId)) {
     return null;
   }
   return { organizationId, objectId, storageRef: trimmed };

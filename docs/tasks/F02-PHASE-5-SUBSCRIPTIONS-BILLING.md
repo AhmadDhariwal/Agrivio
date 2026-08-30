@@ -78,7 +78,9 @@ Implemented on the existing F02 Phase 5 billing path. Does **not** claim F02 sta
 * Active review workflow: `submitted` → `under_review` → `approved` / `rejected`. Approve/reject remain valid from `submitted` or `under_review`.
 * Billing records snapshot listed plan prices (nullable; no invented commercial values) plus evidence metadata.
 * Platform reactivation now shares `computeCoverageWindow` so a subscription cannot become `active` with an already-expired paid period.
-* Existing `QueryCacheService` is used for billing reads (plans REFERENCE; subscription/owner records/platform queue SHORT). Upload, start-review, approve, and reject are not cached. `QueryCacheService` itself was not modified. No second scheduler was added for retained → deleted.
+* Existing `QueryCacheService` is used for billing reads (plans REFERENCE; subscription / owner records / owner record detail / platform queue / platform record detail SHORT). Upload, download, submit, start-review, approve, and reject are not cached as mutation results. Successful submit invalidates `billingRecords` and `platformBillingRecords`. Start review and reject invalidate those two tags. Approve also invalidates `subscription`. Failed mutations do not invalidate. `QueryCacheService` itself was not modified.
+
+* No shared scheduler/job infrastructure exists on `release1/F09`. Retained → deleted 90-day cleanup is **deferred infrastructure work** and does not block Billing freeze. Domain rule `cancelled → retained` with `retainedUntil` remains implemented.
 
 ### Model review (billing record fields added)
 

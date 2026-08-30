@@ -250,6 +250,12 @@ describe('R1-F02-014 tenant isolation and platform context attacks', () => {
       );
       expect(crossBilling.status).toBe(404);
 
+      const crossEvidence = await fetch(
+        `${baseUrl}${API_SUBSCRIPTION_BILLING_RECORDS_PATH}/${billingId}/evidence`,
+        { headers: { cookie: jar.header() } },
+      );
+      expect(crossEvidence.status).toBe(404);
+
       // Platform plan management remains platform-only.
       const orgCreatePlan = await fetchJson(
         baseUrl,

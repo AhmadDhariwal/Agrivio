@@ -127,4 +127,59 @@ describe('BillingEvidencePage', () => {
     expect(page.successMessage()).toContain('submitted');
     expect(page.uploadedEvidence()).toBeNull();
   });
+
+  it('does not POST when the form is invalid', () => {
+    const page = fixture.componentInstance;
+    page.form.patchValue({
+      submittedAmountMinorUnits: 0,
+      paymentReference: '',
+    });
+    page.submit();
+    http.expectNone((request) => request.method === 'POST');
+  });
+
+  it('disables submit while invalid and preserves evidence after a failed submit', () => {
+    const page = fixture.componentInstance;
+    fixture.detectChanges();
+    const button = (fixture.nativeElement as HTMLElement).querySelector(
+      'button[type="submit"]',
+    ) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+
+    const evidence = {
+      evidenceStorageRef: 'evidence://org-1/abc',
+      originalFileName: 'slip.pdf',
+      contentType: 'application/pdf',
+      size: 120,
+      checksum: 'abc',
+      uploadedAt: '2026-08-30T00:00:00.000Z',
+    };
+    page.form.patchValue({
+      requestedPlanId: 'plan-business',
+      paymentMethod: 'easypaisa',
+      billingPeriod: 'monthly',
+      submittedAmountMinorUnits: 1500,
+      paymentReference: 'EP-55',
+    });
+    page.uploadedEvidence.set(evidence);
+    fixture.detectChanges();
+    expect(button.disabled).toBe(false);
+
+    page.submit();
+    http.expectOne(`${environment.publicApiBaseUrl}${API_AUTH_CSRF_PATH}`).flush({
+      data: { csrfToken: 'csrf-billing' },
+      requestId: 'test',
+    });
+    http
+      .expectOne(
+        (request) =>
+          request.url === `${environment.publicApiBaseUrl}${API_SUBSCRIPTION_BILLING_RECORDS_PATH}` &&
+          request.method === 'POST',
+      )
+      .flush({}, { status: 400, statusText: 'Bad Request' });
+
+    expect(page.uploadedEvidence()).toEqual(evidence);
+    expect(page.form.controls.paymentReference.value).toBe('EP-55');
+    expect(page.submitting()).toBe(false);
+  });
 });
