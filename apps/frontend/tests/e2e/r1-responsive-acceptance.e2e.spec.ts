@@ -174,6 +174,43 @@ test.describe('R1 responsive acceptance', () => {
     }
   });
 
+  test('capture representative viewport evidence', async ({ page, request }) => {
+    const stamp = Date.now() + 2;
+    await bootstrapApprovedOwner(page, request, {
+      organizationName: `R1 Responsive Shots ${stamp}`,
+      ownerEmail: `r1-resp-shots-${stamp}@example.com`,
+      displayName: 'Responsive Shots Owner',
+      entitlements: { reportsExports: true, imports: true, auditHistory: '90d' },
+    });
+
+    const shots = [
+      { path: '/app/products', name: 'products' },
+      { path: '/app/branches', name: 'branches' },
+      { path: '/app/organization/settings', name: 'org-settings' },
+      { path: '/app/organization/setup', name: 'setup' },
+      { path: '/app/audit', name: 'audit' },
+      { path: '/app/imports', name: 'imports' },
+      { path: '/app/dashboard', name: 'dashboard' },
+    ];
+
+    for (const viewport of [
+      { name: '1440x900', width: 1440, height: 900 },
+      { name: '1366x768', width: 1366, height: 768 },
+      { name: '768x1024', width: 768, height: 1024 },
+      { name: '390x844', width: 390, height: 844 },
+    ]) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      for (const shot of shots) {
+        await page.goto(shot.path);
+        await expect(page.getByTestId('authenticated-shell')).toBeVisible();
+        await page.screenshot({
+          path: `/opt/cursor/artifacts/responsive/${shot.name}-${viewport.name}.png`,
+          fullPage: false,
+        });
+      }
+    }
+  });
+
   test('platform shell pages do not overflow at tablet and mobile', async ({ page, request }) => {
     const bootstrap = await request.post(`${API}/api/v1/test/e2e/bootstrap`);
     expect(bootstrap.status()).toBe(200);
