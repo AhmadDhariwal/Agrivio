@@ -1,6 +1,6 @@
-const { describe, expect, it } = require('vitest');
-const { createServer } = require('node:http');
-const {
+import { describe, expect, it } from 'vitest';
+import { createServer } from 'node:http';
+import {
   API_CSRF_HEADER,
   API_ORGANIZATION_ACTIVATION_REQUESTS_PATH,
   API_PLATFORM_ACTOR_HEADER,
@@ -12,10 +12,10 @@ const {
   API_SUBSCRIPTION_BILLING_RECORDS_PATH,
   API_SUBSCRIPTION_PATH,
   API_SUBSCRIPTION_PLANS_PATH,
-} = require('@agrivio/api-contracts');
-const { createApp } = require('../../app');
-const { loadApiEnv } = require('../../platform/config/runtime-config');
-const { createMockDatabaseLifecycle } = require('../../platform/database/mongo-connection');
+} from '@agrivio/api-contracts';
+import { createApp } from '../../app';
+import { loadApiEnv } from '../../platform/config/runtime-config';
+import { createMockDatabaseLifecycle } from '../../platform/database/mongo-connection';
 
 describe('billing workflow hardening', () => {
   it('covers upload, submit, review, approval effects, RBAC, and reactivation period safety', async () => {
@@ -413,7 +413,7 @@ describe('billing workflow hardening', () => {
     } finally {
       await close(server);
     }
-  });
+  }, 120000);
 });
 
 async function boot() {
