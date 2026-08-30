@@ -59,19 +59,38 @@ const PLATFORM_ROUTES = [
 async function measureOverflow(page: Page): Promise<{
   contentOverflow: number;
   documentOverflow: number;
+  offender: string | null;
 }> {
   return page.evaluate(() => {
     const content = document.querySelector('.ag-shell__content') as HTMLElement | null;
     const contentOverflow = content ? content.scrollWidth - content.clientWidth : 0;
     const documentOverflow = document.documentElement.scrollWidth - window.innerWidth;
-    return { contentOverflow, documentOverflow };
+    let offender: string | null = null;
+    if (content && contentOverflow > 2) {
+      const limit = content.getBoundingClientRect().right;
+      const nodes = content.querySelectorAll<HTMLElement>('*');
+      for (const node of nodes) {
+        const parent = node.parentElement;
+        if (parent) {
+          const overflowX = getComputedStyle(parent).overflowX;
+          if (overflowX === 'auto' || overflowX === 'scroll') {
+            continue;
+          }
+        }
+        if (node.getBoundingClientRect().right > limit + 2) {
+          offender = `${node.tagName.toLowerCase()}.${node.className.toString().slice(0, 80)}`;
+          break;
+        }
+      }
+    }
+    return { contentOverflow, documentOverflow, offender };
   });
 }
 
 async function assertNoBodyOverflow(page: Page, label: string): Promise<void> {
-  const { contentOverflow, documentOverflow } = await measureOverflow(page);
+  const { contentOverflow, documentOverflow, offender } = await measureOverflow(page);
   expect(documentOverflow, `${label} document overflow`).toBeLessThanOrEqual(2);
-  expect(contentOverflow, `${label} content overflow`).toBeLessThanOrEqual(2);
+  expect(contentOverflow, `${label} content overflow (${offender ?? 'unknown'})`).toBeLessThanOrEqual(2);
 }
 
 async function openMobileNavIfNeeded(page: Page): Promise<void> {
@@ -143,12 +162,15 @@ test.describe('R1 responsive acceptance', () => {
     for (const route of OWNER_ROUTES) {
       await page.goto(route.path);
       await page.waitForTimeout(120);
-      const { contentOverflow, documentOverflow } = await measureOverflow(page);
+      const { contentOverflow, documentOverflow, offender } = await measureOverflow(page);
       expect(
         documentOverflow,
         `${route.module} document overflow at 390x844`,
       ).toBeLessThanOrEqual(2);
-      expect(contentOverflow, `${route.module} content overflow at 390x844`).toBeLessThanOrEqual(2);
+      expect(
+        contentOverflow,
+        `${route.module} content overflow at 390x844 (${offender ?? 'unknown'})`,
+      ).toBeLessThanOrEqual(2);
     }
   });
 
