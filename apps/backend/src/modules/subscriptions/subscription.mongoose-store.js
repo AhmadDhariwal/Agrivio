@@ -111,10 +111,25 @@ function createMongooseSubscriptionStore() {
       if (filter.status !== undefined) {
         query.status = filter.status;
       }
-      return SubscriptionBillingRecordModel.find(query)
-        .sort({ submittedAt: -1 })
-        .lean()
-        .exec();
+      if (filter.q !== undefined && String(filter.q).trim() !== '') {
+        const needle = String(filter.q).trim();
+        query.$or = [
+          { paymentReferenceNormalized: { $regex: needle, $options: 'i' } },
+          { requestedPlanCode: { $regex: needle, $options: 'i' } },
+          { notes: { $regex: needle, $options: 'i' } },
+        ];
+        if (mongoose.isValidObjectId(needle)) {
+          query.$or.push({ organizationId: needle });
+        }
+      }
+      const offset = Number.isInteger(filter.offset) && filter.offset > 0 ? filter.offset : 0;
+      const limit = Number.isInteger(filter.limit) && filter.limit > 0 ? filter.limit : null;
+      const found = SubscriptionBillingRecordModel.find(query).sort({ submittedAt: -1 });
+      const [total, items] = await Promise.all([
+        SubscriptionBillingRecordModel.countDocuments(query).exec(),
+        (limit === null ? found.skip(offset) : found.skip(offset).limit(limit)).lean().exec(),
+      ]);
+      return { items, total, offset, limit };
     },
 
     async countBillingByPaymentReference(paymentMethod, paymentReferenceNormalized) {

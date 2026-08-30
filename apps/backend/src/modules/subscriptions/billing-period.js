@@ -77,9 +77,14 @@ function computeCoverageWindow(options) {
   return { coverageStart, coverageEnd };
 }
 
+function coverageIsCurrent(coverage, at) {
+  return coverage.coverageEnd instanceof Date && coverage.coverageEnd.getTime() > at.getTime();
+}
+
 module.exports = {
   daysInUtcMonth,
   addCalendarMonthsUtc,
   addCalendarYearsUtc,
   computeCoverageWindow,
+  coverageIsCurrent,
 };

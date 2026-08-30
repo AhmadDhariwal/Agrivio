@@ -1,6 +1,7 @@
 const { validationFailed } = require('../../platform/errors/app-error');
 const { PLAN_CODES } = require('./persistence/subscription-plan.model');
-const { PAYMENT_METHODS } = require('./persistence/subscription-billing-record.model');
+const { BILLING_STATUSES, PAYMENT_METHODS } = require('./persistence/subscription-billing-record.model');
+const { parseEvidenceStorageRef } = require('./billing-evidence-storage');
 
 function requireObject(body, label = 'body') {
   if (body === null || typeof body !== 'object' || Array.isArray(body)) {
@@ -165,8 +166,11 @@ function parseBillingSubmitBody(body) {
   if (evidenceStorageRef === null) {
     throw validationFailed('evidenceStorageRef is required');
   }
-  if (evidenceStorageRef.startsWith('data:') || evidenceStorageRef.length > 500) {
+  if (evidenceStorageRef.startsWith('data:')) {
     throw validationFailed('evidenceStorageRef must be an opaque storage reference');
+  }
+  if (parseEvidenceStorageRef(evidenceStorageRef) === null) {
+    throw validationFailed('evidenceStorageRef must be a server-issued evidence reference');
   }
 
   const requestedPlanCode = input.requestedPlanCode;
@@ -189,17 +193,35 @@ function parseBillingSubmitBody(body) {
     currency: optionalString(input.currency, 'currency', 8) ?? 'PKR',
     paymentReferenceNormalized: normalizePaymentReference(input.paymentReference),
     evidenceStorageRef,
-    evidenceOriginalFileName: optionalString(
-      input.evidenceOriginalFileName,
-      'evidenceOriginalFileName',
-      255,
-    ),
-    evidenceContentType: optionalString(input.evidenceContentType, 'evidenceContentType', 120),
-    evidenceSize: optionalNumber(input.evidenceSize, 'evidenceSize'),
-    evidenceChecksum: optionalString(input.evidenceChecksum, 'evidenceChecksum', 128),
     requestedPlanCode,
     requestedPlanVersion,
     notes: optionalString(input.notes, 'notes', 1000),
+  };
+}
+
+function parsePositiveInt(value, field, fallback, { min = 1, max = 100 } = {}) {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
+    throw validationFailed(`${field} must be an integer between ${min} and ${max}`);
+  }
+  return parsed;
+}
+
+function parseBillingQueueQuery(query = {}) {
+  const input = query === null || typeof query !== 'object' || Array.isArray(query) ? {} : query;
+  const status = optionalString(input.status, 'status', 40);
+  if (status !== null && !BILLING_STATUSES.includes(status)) {
+    throw validationFailed('status is not a recognized billing status');
+  }
+  return {
+    status,
+    organizationId: optionalString(input.organizationId, 'organizationId', 40),
+    q: optionalString(input.q, 'q', 120),
+    limit: parsePositiveInt(input.limit, 'limit', 25, { min: 1, max: 100 }),
+    offset: parsePositiveInt(input.offset, 'offset', 0, { min: 0, max: 100000 }),
   };
 }
 
@@ -230,6 +252,7 @@ module.exports = {
   parseBillingSubmitBody,
   parseBillingRejectBody,
   parseBillingApproveBody,
+  parseBillingQueueQuery,
   parseExpectedVersion,
   normalizePaymentReference,
 };

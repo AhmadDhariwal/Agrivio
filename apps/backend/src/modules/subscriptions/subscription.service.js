@@ -6,7 +6,8 @@ const {
   validationFailed,
   versionConflict,
 } = require('../../platform/errors/app-error');
-const { computeCoverageWindow } = require('./billing-period');
+const { computeCoverageWindow, coverageIsCurrent } = require('./billing-period');
+const { parseEvidenceStorageRef } = require('./billing-evidence-storage');
 const {
   DEFAULT_GRACE_DAYS,
   DEFAULT_RETENTION_DAYS,
@@ -20,6 +21,7 @@ const {
 } = require('./entitlement');
 const {
   parseBillingApproveBody,
+  parseBillingQueueQuery,
   parseBillingRejectBody,
   parseBillingSubmitBody,
   parseChangePlanBody,
@@ -100,6 +102,10 @@ function toBillingSummary(record, { includeEvidenceMeta = false } = {}) {
       : null,
     coverageStart: record.coverageStart ? new Date(record.coverageStart).toISOString() : null,
     coverageEnd: record.coverageEnd ? new Date(record.coverageEnd).toISOString() : null,
+    notes: record.notes ?? null,
+    listedMonthlyPriceMinorUnits: record.listedMonthlyPriceMinorUnits ?? null,
+    listedAnnualPriceMinorUnits: record.listedAnnualPriceMinorUnits ?? null,
+    listedAnnualDiscountPercent: record.listedAnnualDiscountPercent ?? null,
     version: record.version,
   };
 
@@ -114,6 +120,9 @@ function toBillingSummary(record, { includeEvidenceMeta = false } = {}) {
     evidenceContentType: record.evidenceContentType ?? null,
     evidenceSize: record.evidenceSize ?? null,
     evidenceChecksum: record.evidenceChecksum ?? null,
+    evidenceUploadedAt: record.evidenceUploadedAt
+      ? new Date(record.evidenceUploadedAt).toISOString()
+      : null,
   };
 }
 
@@ -128,6 +137,7 @@ function assertExpectedVersion(record, expectedVersion) {
 
 function createSubscriptionService(deps) {
   const store = deps.store;
+  const evidenceStorage = deps.evidenceStorage;
   const now = deps.now ?? (() => new Date());
   const trialDays = deps.trialDays ?? DEFAULT_TRIAL_DAYS;
   const graceDays = deps.graceDays ?? DEFAULT_GRACE_DAYS;
@@ -144,6 +154,57 @@ function createSubscriptionService(deps) {
       }
     }
     return store.findPlanByCodeVersion(subscription.planCode, subscription.planVersion);
+  }
+
+  function requireEvidenceStorage() {
+    if (evidenceStorage === null || evidenceStorage === undefined) {
+      throw conflict('Billing evidence storage is not configured');
+    }
+    return evidenceStorage;
+  }
+
+  async function assertBillingAccess(organizationId) {
+    const subscription = await store.findSubscriptionByOrganizationId(organizationId);
+    if (subscription === null) {
+      throw notFound('Subscription not found');
+    }
+    const access = buildSubscriptionAccessState(subscription, null, now(), { graceDays });
+    if (!access.billingAccessAllowed) {
+      throw forbidden('Billing evidence cannot be submitted in the current subscription state');
+    }
+    return { subscription, access };
+  }
+
+  async function loadOwnedEvidence(organizationId, storageRef) {
+    const parsed = parseEvidenceStorageRef(storageRef);
+    if (parsed === null) {
+      throw validationFailed('evidenceStorageRef must be a server-issued evidence reference');
+    }
+    if (String(parsed.organizationId) !== String(organizationId)) {
+      throw forbidden('Billing evidence does not belong to this organization');
+    }
+    const stored = await requireEvidenceStorage().read(storageRef);
+    if (stored === null) {
+      throw notFound('Billing evidence was not found');
+    }
+    if (String(stored.organizationId) !== String(organizationId)) {
+      throw forbidden('Billing evidence does not belong to this organization');
+    }
+    return stored;
+  }
+
+  function resolvePaidCoverage(options) {
+    const coverage = computeCoverageWindow({
+      billingPeriod: options.billingPeriod ?? 'monthly',
+      at: options.at,
+      existingPeriodEnd: options.existingPeriodEnd,
+      subscriptionStatus: options.subscriptionStatus,
+      explicitCoverageStart: options.explicitCoverageStart,
+    });
+    if (!coverageIsCurrent(coverage, options.at)) {
+      throw conflict('A subscription cannot become active with an expired paid period');
+    }
+    return coverage;
   }
 
   async function markPlanReferenced(session, plan, at) {
@@ -429,13 +490,20 @@ function createSubscriptionService(deps) {
           throw conflict('Only suspended subscriptions can be reactivated');
         }
         const at = now();
+        const coverage = resolvePaidCoverage({
+          billingPeriod: subscription.billingPeriod,
+          at,
+          existingPeriodEnd: subscription.periodEndsAt,
+          subscriptionStatus: subscription.status,
+        });
         const updated = await transitionSubscription(session, subscription, 'active', actor, {
           expectedVersion,
           reason,
           at,
           auditAction: 'subscription.reactivated',
           patch: {
-            periodStartsAt: at,
+            periodStartsAt: coverage.coverageStart,
+            periodEndsAt: coverage.coverageEnd,
             graceEndsAt: null,
           },
         });
@@ -566,24 +634,50 @@ function createSubscriptionService(deps) {
       });
     },
 
+    async uploadBillingEvidence(organizationId, file, actor) {
+      await assertBillingAccess(organizationId);
+      try {
+        const stored = await requireEvidenceStorage().put({
+          organizationId,
+          buffer: file.buffer,
+          originalFileName: file.originalFileName,
+          contentType: file.contentType,
+          uploadedAt: now(),
+          uploadedBy: actor.actorId,
+        });
+        const parsedRef = parseEvidenceStorageRef(stored.evidenceStorageRef);
+        await auditWriter.appendBusinessEvent(null, {
+          organizationId: String(organizationId),
+          actorId: actor.actorId,
+          action: 'subscription.billing_evidence_uploaded',
+          resourceType: 'subscription_billing_evidence',
+          resourceId: parsedRef === null ? 'evidence' : parsedRef.objectId,
+          metadata: {
+            contentType: stored.contentType,
+            size: stored.size,
+          },
+        });
+        return stored;
+      } catch (error) {
+        if (error && typeof error.code === 'string' && error.code.startsWith('EVIDENCE_')) {
+          throw validationFailed(error.message);
+        }
+        throw error;
+      }
+    },
+
     async submitBillingEvidence(organizationId, body, actor) {
       const input = parseBillingSubmitBody(body);
       return deps.transactionRunner.run(async (session) => {
-        const subscription = await store.findSubscriptionByOrganizationId(organizationId);
-        if (subscription === null) {
-          throw notFound('Subscription not found');
-        }
-        const access = buildSubscriptionAccessState(subscription, null, now(), { graceDays });
-        if (!access.billingAccessAllowed) {
-          throw forbidden('Billing evidence cannot be submitted in the current subscription state');
-        }
+        await assertBillingAccess(organizationId);
+        const evidence = await loadOwnedEvidence(organizationId, input.evidenceStorageRef);
 
         const plan = await store.findPlanByCodeVersion(
           input.requestedPlanCode,
           input.requestedPlanVersion,
         );
-        if (plan === null) {
-          throw notFound('Requested plan version not found');
+        if (plan === null || plan.status !== 'active') {
+          throw validationFailed('Requested plan version must be an active selectable plan');
         }
 
         const duplicateCount = await store.countBillingByPaymentReference(
@@ -595,19 +689,23 @@ function createSubscriptionService(deps) {
         const created = await store.insertBillingRecord(session, {
           organizationId,
           requestedPlanId: plan._id,
-          requestedPlanCode: input.requestedPlanCode,
-          requestedPlanVersion: input.requestedPlanVersion,
+          requestedPlanCode: plan.planCode,
+          requestedPlanVersion: plan.planVersion,
           billingPeriod: input.billingPeriod,
           submittedAmountMinorUnits: input.submittedAmountMinorUnits,
           currency: input.currency,
           paymentMethod: input.paymentMethod,
           paymentReferenceNormalized: input.paymentReferenceNormalized,
           paymentReferenceDuplicateWarning: duplicateCount > 0,
-          evidenceStorageRef: input.evidenceStorageRef,
-          evidenceOriginalFileName: input.evidenceOriginalFileName,
-          evidenceContentType: input.evidenceContentType,
-          evidenceSize: input.evidenceSize,
-          evidenceChecksum: input.evidenceChecksum,
+          evidenceStorageRef: evidence.evidenceStorageRef,
+          evidenceOriginalFileName: evidence.originalFileName,
+          evidenceContentType: evidence.contentType,
+          evidenceSize: evidence.size,
+          evidenceChecksum: evidence.checksum,
+          evidenceUploadedAt: evidence.uploadedAt,
+          listedMonthlyPriceMinorUnits: plan.monthlyPriceMinorUnits ?? null,
+          listedAnnualPriceMinorUnits: plan.annualPriceMinorUnits ?? null,
+          listedAnnualDiscountPercent: plan.annualDiscountPercent ?? null,
           status: 'submitted',
           submittedAt: at,
           notes: input.notes,
@@ -623,8 +721,9 @@ function createSubscriptionService(deps) {
           metadata: {
             paymentMethod: input.paymentMethod,
             billingPeriod: input.billingPeriod,
+            requestedPlanCode: plan.planCode,
+            requestedPlanVersion: plan.planVersion,
             duplicateWarning: duplicateCount > 0,
-            // Do not include evidenceStorageRef or payment reference details in audit metadata.
           },
         });
 
@@ -633,8 +732,8 @@ function createSubscriptionService(deps) {
     },
 
     async listOrganizationBillingRecords(organizationId) {
-      const rows = await store.listBillingRecords({ organizationId });
-      return rows.map((row) => toBillingSummary(row, { includeEvidenceMeta: true }));
+      const page = await store.listBillingRecords({ organizationId });
+      return page.items.map((row) => toBillingSummary(row, { includeEvidenceMeta: true }));
     },
 
     async getOrganizationBillingRecord(organizationId, billingId) {
@@ -645,9 +744,73 @@ function createSubscriptionService(deps) {
       return toBillingSummary(record, { includeEvidenceMeta: true });
     },
 
-    async listPlatformBillingRecords(filter = {}) {
-      const rows = await store.listBillingRecords(filter);
-      return rows.map((row) => toBillingSummary(row, { includeEvidenceMeta: true }));
+    async listPlatformBillingRecords(query = {}) {
+      const filter = parseBillingQueueQuery(query);
+      const page = await store.listBillingRecords({
+        ...(filter.status === null ? {} : { status: filter.status }),
+        ...(filter.organizationId === null ? {} : { organizationId: filter.organizationId }),
+        ...(filter.q === null ? {} : { q: filter.q }),
+        limit: filter.limit,
+        offset: filter.offset,
+      });
+      return {
+        items: page.items.map((row) => toBillingSummary(row, { includeEvidenceMeta: true })),
+        total: page.total,
+        limit: page.limit,
+        offset: page.offset,
+      };
+    },
+
+    async startBillingReview(billingId, body, actor) {
+      const expectedVersion = parseBillingApproveBody(body).expectedVersion;
+      return deps.transactionRunner.run(async (session) => {
+        const record = await store.findBillingRecordById(billingId);
+        if (record === null) {
+          throw notFound('Billing record not found');
+        }
+        if (record.status === 'under_review') {
+          return toBillingSummary(record, { includeEvidenceMeta: true });
+        }
+        assertExpectedVersion(record, expectedVersion);
+        if (record.status !== 'submitted') {
+          throw conflict('Billing record cannot enter review from the current status');
+        }
+        const at = now();
+        const reviewed = await store.updateBillingRecord(session, String(record._id), {
+          status: 'under_review',
+          reviewedAt: at,
+          reviewedBy: actor.actorId,
+          version: Number(record.version) + 1,
+        });
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId: String(record.organizationId),
+          actorId: actor.actorId,
+          action: 'subscription.billing_review_started',
+          resourceType: 'subscription_billing_record',
+          resourceId: String(record._id),
+        });
+        return toBillingSummary(reviewed, { includeEvidenceMeta: true });
+      });
+    },
+
+    async readOrganizationBillingEvidence(organizationId, billingId) {
+      const record = await store.findBillingRecordById(billingId);
+      if (record === null || String(record.organizationId) !== String(organizationId)) {
+        throw notFound('Billing record not found');
+      }
+      return loadOwnedEvidence(organizationId, record.evidenceStorageRef);
+    },
+
+    async readPlatformBillingEvidence(billingId) {
+      const record = await store.findBillingRecordById(billingId);
+      if (record === null) {
+        throw notFound('Billing record not found');
+      }
+      const stored = await requireEvidenceStorage().read(record.evidenceStorageRef);
+      if (stored === null) {
+        throw notFound('Billing evidence was not found');
+      }
+      return stored;
     },
 
     async getPlatformBillingRecord(billingId) {
@@ -690,7 +853,7 @@ function createSubscriptionService(deps) {
         }
         await markPlanReferenced(session, plan, at);
 
-        const coverage = computeCoverageWindow({
+        const coverage = resolvePaidCoverage({
           billingPeriod: record.billingPeriod,
           at,
           existingPeriodEnd: subscription.periodEndsAt,

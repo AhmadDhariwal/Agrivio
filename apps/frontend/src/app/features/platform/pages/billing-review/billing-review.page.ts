@@ -1,6 +1,14 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { BillingRecordSummary, SubscriptionApi } from '../../../subscriptions/data-access/subscription.api';
+import {
+  BillingRecordSummary,
+  PlatformBillingQueue,
+  SubscriptionApi,
+} from '../../../subscriptions/data-access/subscription.api';
+import {
+  PlatformOrganizationSummary,
+  PlatformOrganizationsApi,
+} from '../../data-access/platform-organizations.api';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
@@ -28,9 +36,12 @@ import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialo
 })
 export class PlatformBillingReviewPage {
   private readonly subscriptionApi = inject(SubscriptionApi);
+  private readonly organizationsApi = inject(PlatformOrganizationsApi);
   private readonly formBuilder = inject(FormBuilder);
 
   readonly items = signal<BillingRecordSummary[]>([]);
+  readonly organizations = signal<PlatformOrganizationSummary[]>([]);
+  readonly total = signal(0);
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
@@ -44,12 +55,33 @@ export class PlatformBillingReviewPage {
 
   readonly fieldRequired = hasRequiredValidator;
 
+  readonly filterForm = this.formBuilder.nonNullable.group({
+    status: [''],
+    organizationId: [''],
+    q: [''],
+  });
+
   readonly rejectForm = this.formBuilder.nonNullable.group({
     reason: ['', [Validators.required, Validators.minLength(3)]],
   });
 
   constructor() {
+    this.organizationsApi.list().subscribe({
+      next: (items) => this.organizations.set(items),
+      error: () => {
+        // Organization names are helpful but not required to review billing records.
+      },
+    });
     this.reload();
+  }
+
+  organizationName(organizationId: string): string {
+    const match = this.organizations().find((item) => item.id === organizationId);
+    return match?.name ? `${match.name} (${organizationId})` : organizationId;
+  }
+
+  canReview(item: BillingRecordSummary): boolean {
+    return item.status === 'submitted' || item.status === 'under_review';
   }
 
   statusTone(status: string): UiBadgeTone {
@@ -58,6 +90,7 @@ export class PlatformBillingReviewPage {
         return 'success';
       case 'pending_review':
       case 'submitted':
+      case 'under_review':
         return 'warning';
       case 'rejected':
         return 'danger';
@@ -66,24 +99,52 @@ export class PlatformBillingReviewPage {
     }
   }
 
+  displayOrDash(value: unknown): string {
+    if (value === null || value === undefined || value === '') {
+      return '—';
+    }
+    return String(value);
+  }
+
   reload(): void {
     this.loading.set(true);
-    this.subscriptionApi.listPlatformBillingRecords().subscribe({
-      next: (items) => {
-        this.items.set(items);
-        this.loading.set(false);
-      },
-      error: () => {
-        this.loading.set(false);
-        this.errorMessage.set('Unable to load billing review queue.');
-      },
-    });
+    const raw = this.filterForm.getRawValue();
+    this.subscriptionApi
+      .listPlatformBillingRecords({
+        ...(raw.status === '' ? {} : { status: raw.status }),
+        ...(raw.organizationId === '' ? {} : { organizationId: raw.organizationId }),
+        ...(raw.q.trim() === '' ? {} : { q: raw.q.trim() }),
+        limit: 25,
+        offset: 0,
+      })
+      .subscribe({
+        next: (page: PlatformBillingQueue) => {
+          this.items.set(page.items);
+          this.total.set(page.total);
+          this.loading.set(false);
+        },
+        error: () => {
+          this.loading.set(false);
+          this.errorMessage.set('Unable to load billing review queue.');
+        },
+      });
+  }
+
+  askStartReview(item: BillingRecordSummary): void {
+    this.confirmTitle.set('Start billing review?');
+    this.confirmMessage.set(
+      `Move payment reference ${item.paymentReferenceNormalized} from submitted to under review.`,
+    );
+    this.confirmLabel.set('Start review');
+    this.confirmDanger.set(false);
+    this.pendingAction = () => this.startReview(item);
+    this.confirmOpen.set(true);
   }
 
   askApprove(item: BillingRecordSummary): void {
     this.confirmTitle.set('Approve billing evidence?');
     this.confirmMessage.set(
-      `Approve payment reference ${item.paymentReferenceNormalized}. This is a consequential subscription action.`,
+      `Approve ${this.organizationName(item.organizationId)} for ${item.requestedPlanCode} v${item.requestedPlanVersion}. This activates or extends the subscription once.`,
     );
     this.confirmLabel.set('Approve evidence');
     this.confirmDanger.set(false);
@@ -110,6 +171,17 @@ export class PlatformBillingReviewPage {
     const action = this.pendingAction;
     this.pendingAction = null;
     action?.();
+  }
+
+  startReview(item: BillingRecordSummary): void {
+    this.errorMessage.set(null);
+    this.subscriptionApi.startBillingReview(item.id, item.version).subscribe({
+      next: () => {
+        this.successMessage.set(`Started review for ${item.id}`);
+        this.reload();
+      },
+      error: () => this.errorMessage.set('Start review failed.'),
+    });
   }
 
   approve(item: BillingRecordSummary): void {
@@ -139,5 +211,19 @@ export class PlatformBillingReviewPage {
         },
         error: () => this.errorMessage.set('Reject failed.'),
       });
+  }
+
+  downloadEvidence(item: BillingRecordSummary): void {
+    this.subscriptionApi.downloadPlatformEvidence(item.id).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = item.evidenceOriginalFileName || 'billing-evidence';
+        link.click();
+        URL.revokeObjectURL(url);
+      },
+      error: () => this.errorMessage.set('Unable to download billing evidence.'),
+    });
   }
 }

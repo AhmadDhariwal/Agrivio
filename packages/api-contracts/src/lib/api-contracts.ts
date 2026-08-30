@@ -192,6 +192,10 @@ export const API_SUBSCRIPTION_PLANS_PATH = `${API_V1_PREFIX}/subscription/plans`
 export const API_SUBSCRIPTION_BILLING_RECORDS_PATH =
   `${API_V1_PREFIX}/subscription/billing-records` as const;
 
+/** Authenticated Owner upload of private billing payment evidence. */
+export const API_SUBSCRIPTION_BILLING_EVIDENCE_PATH =
+  `${API_V1_PREFIX}/subscription/billing-evidence` as const;
+
 /** Platform subscription overview and lifecycle actions. */
 export const API_PLATFORM_SUBSCRIPTIONS_PATH = `${API_V1_PREFIX}/platform/subscriptions` as const;
 

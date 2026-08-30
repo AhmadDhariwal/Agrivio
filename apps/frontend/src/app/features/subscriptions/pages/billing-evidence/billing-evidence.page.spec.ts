@@ -5,6 +5,12 @@ import { provideHttpClientTesting, HttpTestingController } from '@angular/common
 import { BillingEvidencePage } from './billing-evidence.page';
 import { environment } from '../../../../../environments/environment';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import {
+  API_AUTH_CSRF_PATH,
+  API_SUBSCRIPTION_BILLING_RECORDS_PATH,
+  API_SUBSCRIPTION_PATH,
+  API_SUBSCRIPTION_PLANS_PATH,
+} from '@agrivio/api-contracts';
 
 describe('BillingEvidencePage', () => {
   let fixture: ComponentFixture<BillingEvidencePage>;
@@ -21,8 +27,11 @@ describe('BillingEvidencePage', () => {
           provide: AuthSessionStore,
           useValue: {
             session: () => ({
+              user: { id: 'owner-1' },
               subscriptionAccessState: { status: 'grace', graceEndsAt: '2026-08-15T00:00:00.000Z' },
+              activeContext: { organizationId: 'org-1' },
             }),
+            activeContext: () => ({ organizationId: 'org-1' }),
           },
         },
       ],
@@ -33,37 +42,67 @@ describe('BillingEvidencePage', () => {
     fixture.detectChanges();
 
     http
-      .expectOne(`${environment.publicApiBaseUrl}/api/v1/subscription/billing-records`)
+      .expectOne(`${environment.publicApiBaseUrl}${API_SUBSCRIPTION_PLANS_PATH}`)
+      .flush({
+        data: {
+          items: [
+            {
+              id: 'plan-business',
+              planCode: 'Business',
+              planVersion: 2,
+              status: 'active',
+              currency: 'PKR',
+              monthlyPriceMinorUnits: null,
+              annualPriceMinorUnits: null,
+              annualDiscountPercent: null,
+              limits: {},
+              entitlements: {},
+            },
+          ],
+        },
+        requestId: 'test',
+      });
+    http
+      .expectOne(`${environment.publicApiBaseUrl}${API_SUBSCRIPTION_BILLING_RECORDS_PATH}`)
       .flush({ data: { items: [] }, requestId: 'test' });
     http
-      .expectOne(`${environment.publicApiBaseUrl}/api/v1/subscription`)
+      .expectOne(`${environment.publicApiBaseUrl}${API_SUBSCRIPTION_PATH}`)
       .flush({ data: { status: 'grace', planCode: 'Starter' }, requestId: 'test' });
   });
 
-  it('submits CSRF-protected billing evidence with opaque storage ref', () => {
+  it('submits the selected active plan version after a server-issued evidence upload', () => {
     const page = fixture.componentInstance;
-    page.form.setValue({
+    page.form.patchValue({
+      requestedPlanId: 'plan-business',
       paymentMethod: 'easypaisa',
       billingPeriod: 'monthly',
       submittedAmountMinorUnits: 1500,
       paymentReference: 'EP-55',
-      evidenceStorageRef: 'evidence://opaque/abc',
-      evidenceOriginalFileName: 'slip.pdf',
-      requestedPlanCode: 'Starter',
-      requestedPlanVersion: 1,
+    });
+    page.uploadedEvidence.set({
+      evidenceStorageRef: 'evidence://org-1/abc',
+      originalFileName: 'slip.pdf',
+      contentType: 'application/pdf',
+      size: 120,
+      checksum: 'abc',
+      uploadedAt: '2026-08-30T00:00:00.000Z',
     });
     page.submit();
 
-    const csrf = http.expectOne(`${environment.publicApiBaseUrl}/api/v1/auth/csrf`);
+    const csrf = http.expectOne(`${environment.publicApiBaseUrl}${API_AUTH_CSRF_PATH}`);
     csrf.flush({ data: { csrfToken: 'csrf-billing' }, requestId: 'test' });
 
     const submit = http.expectOne(
       (request) =>
-        request.url === `${environment.publicApiBaseUrl}/api/v1/subscription/billing-records` &&
+        request.url === `${environment.publicApiBaseUrl}${API_SUBSCRIPTION_BILLING_RECORDS_PATH}` &&
         request.method === 'POST',
     );
     expect(submit.request.headers.get('X-CSRF-Token')).toBe('csrf-billing');
-    expect(submit.request.body.evidenceStorageRef).toBe('evidence://opaque/abc');
+    expect(submit.request.body.evidenceStorageRef).toBe('evidence://org-1/abc');
+    expect(submit.request.body.requestedPlanCode).toBe('Business');
+    expect(submit.request.body.requestedPlanVersion).toBe(2);
+    expect(submit.request.body.billingPeriod).toBe('monthly');
+    expect(submit.request.body.submittedAmountMinorUnits).toBe(1500);
     submit.flush({
       data: {
         id: 'bill-1',
@@ -74,15 +113,18 @@ describe('BillingEvidencePage', () => {
         submittedAmountMinorUnits: 1500,
         paymentReferenceNormalized: 'EP-55',
         paymentReferenceDuplicateWarning: false,
+        requestedPlanCode: 'Business',
+        requestedPlanVersion: 2,
         version: 1,
       },
       requestId: 'test',
     });
 
     http
-      .expectOne(`${environment.publicApiBaseUrl}/api/v1/subscription/billing-records`)
+      .expectOne(`${environment.publicApiBaseUrl}${API_SUBSCRIPTION_BILLING_RECORDS_PATH}`)
       .flush({ data: { items: [] }, requestId: 'test' });
 
     expect(page.successMessage()).toContain('submitted');
+    expect(page.uploadedEvidence()).toBeNull();
   });
 });

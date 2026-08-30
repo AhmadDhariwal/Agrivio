@@ -63,6 +63,7 @@ Central navigation for Agrivio documentation.
 * Project-wide server-side pagination complete — see [tasks/PROJECT-WIDE-SERVER-SIDE-PAGINATION.md](tasks/PROJECT-WIDE-SERVER-SIDE-PAGINATION.md); shared contract/parser/paginator, scoped stable queries, bounded/searchable selectors, and paginated list screens
 * Organization Capability & UI Policy implementation complete for the generic foundation plus Products, Categories, Inventory / Stock-on-Hand, Opening Stock, Product Batches, Expiry Inquiry, Stock Adjustments, Warehouse Transfers, Inventory Reconciliation, Stock Movements, Expenses, Accounts, Reports, Alerts, Purchases, Supplier Payments, and Supplier Ledger (Frontend + Backend + Super Admin), plus Warehouses (Backend + generic Super Admin registry), and Sales, Customer Payments, and Dashboard backend capability integration (their remaining frontend consumption is separate; report screenshot refinement remains separate) — see [tasks/ORGANIZATION-CAPABILITY-PHASE-1.md](tasks/ORGANIZATION-CAPABILITY-PHASE-1.md)
 * Next work item: `R1-F09-005` local technical rehearsal is complete. Do not start `R1-F09-006` until assigned. Production target/vendor backup verification remains pending.
+* Manual billing UX/storage hardening (Owner upload + plan picker, Super Admin review queue, start-review, evidence download) is implemented on the existing submitted → under_review → approved/rejected path. This does **not** claim F02 or F08 stage-exit. See [tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md](tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md).
 
 ## Existing Documents
 

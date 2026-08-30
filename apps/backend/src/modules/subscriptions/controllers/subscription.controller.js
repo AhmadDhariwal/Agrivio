@@ -1,4 +1,26 @@
 const { sendSuccessEnvelope } = require('../../../platform/http/response-envelope');
+const { validationFailed } = require('../../../platform/errors/app-error');
+
+function readEvidenceUpload(req) {
+  if (Buffer.isBuffer(req.body) && req.body.length > 0) {
+    return {
+      buffer: req.body,
+      originalFileName: req.get('X-Filename') || 'evidence.bin',
+      contentType: req.get('content-type') || 'application/octet-stream',
+    };
+  }
+  throw validationFailed('Payment evidence file is required');
+}
+
+function sendEvidenceFile(res, evidence) {
+  res.setHeader('Content-Type', evidence.contentType);
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${String(evidence.originalFileName).replace(/"/g, '')}"`,
+  );
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.status(200).send(evidence.buffer);
+}
 
 function createSubscriptionController(deps) {
   const service = deps.subscriptionService;
@@ -17,6 +39,31 @@ function createSubscriptionController(deps) {
       try {
         const data = await service.listSelectablePlans();
         sendSuccessEnvelope(res, 200, { items: data });
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async uploadEvidence(req, res, next) {
+      try {
+        const data = await service.uploadBillingEvidence(
+          req.authContext.organizationId,
+          readEvidenceUpload(req),
+          { actorId: String(req.auth.user._id) },
+        );
+        sendSuccessEnvelope(res, 201, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async downloadEvidence(req, res, next) {
+      try {
+        const evidence = await service.readOrganizationBillingEvidence(
+          req.authContext.organizationId,
+          req.params.id,
+        );
+        sendEvidenceFile(res, evidence);
       } catch (error) {
         next(error);
       }
@@ -135,10 +182,30 @@ function createPlatformSubscriptionController(deps) {
       }
     },
 
-    async listBilling(_req, res, next) {
+    async listBilling(req, res, next) {
       try {
-        const data = await service.listPlatformBillingRecords();
-        sendSuccessEnvelope(res, 200, { items: data });
+        const data = await service.listPlatformBillingRecords(req.query);
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async downloadEvidence(req, res, next) {
+      try {
+        const evidence = await service.readPlatformBillingEvidence(req.params.id);
+        sendEvidenceFile(res, evidence);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async startReview(req, res, next) {
+      try {
+        const data = await service.startBillingReview(req.params.id, req.body, {
+          actorId: req.platformActor.actorId,
+        });
+        sendSuccessEnvelope(res, 200, data);
       } catch (error) {
         next(error);
       }

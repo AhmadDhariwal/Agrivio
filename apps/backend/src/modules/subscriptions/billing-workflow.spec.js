@@ -1,0 +1,594 @@
+const { describe, expect, it } = require('vitest');
+const { createServer } = require('node:http');
+const {
+  API_CSRF_HEADER,
+  API_ORGANIZATION_ACTIVATION_REQUESTS_PATH,
+  API_PLATFORM_ACTOR_HEADER,
+  API_PLATFORM_BILLING_RECORDS_PATH,
+  API_PLATFORM_ORGANIZATIONS_PATH,
+  API_PLATFORM_SUBSCRIPTION_PLANS_PATH,
+  API_PLATFORM_SUBSCRIPTIONS_PATH,
+  API_SUBSCRIPTION_BILLING_EVIDENCE_PATH,
+  API_SUBSCRIPTION_BILLING_RECORDS_PATH,
+  API_SUBSCRIPTION_PATH,
+  API_SUBSCRIPTION_PLANS_PATH,
+} = require('@agrivio/api-contracts');
+const { createApp } = require('../../app');
+const { loadApiEnv } = require('../../platform/config/runtime-config');
+const { createMockDatabaseLifecycle } = require('../../platform/database/mongo-connection');
+
+describe('billing workflow hardening', () => {
+  it('covers upload, submit, review, approval effects, RBAC, and reactivation period safety', async () => {
+    const { server, baseUrl, jar, store, subscriptions } = await boot();
+    try {
+      await createPlan(baseUrl, jar, { planCode: 'Business', activate: true, monthlyPriceMinorUnits: 9000 });
+      const draft = await createPlan(baseUrl, jar, { planCode: 'Enterprise', activate: false });
+      expect(draft.status).toBe(201);
+      expect(draft.body.data.status).toBe('draft');
+
+      const owner = await createApprovedOwnerSession(baseUrl, jar, {
+        organizationName: 'Workflow Org',
+        ownerEmail: 'workflow-owner@example.com',
+      });
+
+      const plans = await fetchJson(baseUrl, 'GET', API_SUBSCRIPTION_PLANS_PATH, undefined, {}, jar);
+      expect(plans.status).toBe(200);
+      expect(plans.body.data.items.every((plan) => plan.status === 'active')).toBe(true);
+      expect(plans.body.data.items.some((plan) => plan.planCode === 'Enterprise')).toBe(false);
+      const business = plans.body.data.items.find((plan) => plan.planCode === 'Business');
+      expect(business).toBeTruthy();
+
+      const invalidType = await uploadEvidence(baseUrl, jar, {
+        contentType: 'application/zip',
+        fileName: 'nope.zip',
+        body: Buffer.from('PK\u0003\u0004'),
+      });
+      expect(invalidType.status).toBe(400);
+
+      const dataUrlSubmit = await fetchJson(
+        baseUrl,
+        'POST',
+        API_SUBSCRIPTION_BILLING_RECORDS_PATH,
+        {
+          paymentMethod: 'bank_transfer',
+          billingPeriod: 'monthly',
+          submittedAmountMinorUnits: 9000,
+          paymentReference: 'DATA-URL',
+          evidenceStorageRef: 'data:application/pdf;base64,AAAA',
+          requestedPlanCode: 'Business',
+          requestedPlanVersion: business.planVersion,
+        },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      expect(dataUrlSubmit.status).toBe(400);
+
+      const missingRef = await fetchJson(
+        baseUrl,
+        'POST',
+        API_SUBSCRIPTION_BILLING_RECORDS_PATH,
+        {
+          paymentMethod: 'bank_transfer',
+          billingPeriod: 'monthly',
+          submittedAmountMinorUnits: 9000,
+          paymentReference: 'MISSING-REF',
+          evidenceStorageRef: `evidence://${owner.organizationId}/does-not-exist`,
+          requestedPlanCode: 'Business',
+          requestedPlanVersion: business.planVersion,
+        },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      expect([400, 404]).toContain(missingRef.status);
+
+      const draftSubmit = await fetchJson(
+        baseUrl,
+        'POST',
+        API_SUBSCRIPTION_BILLING_RECORDS_PATH,
+        {
+          paymentMethod: 'bank_transfer',
+          billingPeriod: 'monthly',
+          submittedAmountMinorUnits: 9000,
+          paymentReference: 'DRAFT-PLAN',
+          evidenceStorageRef: (await uploadPdf(baseUrl, jar, 'draft.pdf')).body.data.evidenceStorageRef,
+          requestedPlanCode: 'Enterprise',
+          requestedPlanVersion: draft.body.data.planVersion,
+        },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      expect(draftSubmit.status).toBe(400);
+
+      const firstUpload = await uploadPdf(baseUrl, jar, 'first.pdf');
+      expect(firstUpload.status).toBe(201);
+      expect(firstUpload.body.data.evidenceStorageRef.startsWith(`evidence://${owner.organizationId}/`)).toBe(
+        true,
+      );
+      expect(firstUpload.body.data.originalFileName).toBe('first.pdf');
+      expect(firstUpload.body.data.contentType).toBe('application/pdf');
+
+      const firstSubmit = await fetchJson(
+        baseUrl,
+        'POST',
+        API_SUBSCRIPTION_BILLING_RECORDS_PATH,
+        {
+          paymentMethod: 'jazzcash',
+          billingPeriod: 'monthly',
+          submittedAmountMinorUnits: 9000,
+          paymentReference: 'JZ-WORK-1',
+          evidenceStorageRef: firstUpload.body.data.evidenceStorageRef,
+          requestedPlanCode: business.planCode,
+          requestedPlanVersion: business.planVersion,
+          notes: 'Paid at the counter',
+        },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      expect(firstSubmit.status).toBe(201);
+      expect(firstSubmit.body.data.status).toBe('submitted');
+      expect(firstSubmit.body.data.paymentReferenceDuplicateWarning).toBe(false);
+      expect(firstSubmit.body.data.notes).toBe('Paid at the counter');
+      expect(firstSubmit.body.data.listedMonthlyPriceMinorUnits).toBe(9000);
+
+      const duplicateUpload = await uploadPdf(baseUrl, jar, 'second.pdf');
+      const duplicateSubmit = await fetchJson(
+        baseUrl,
+        'POST',
+        API_SUBSCRIPTION_BILLING_RECORDS_PATH,
+        {
+          paymentMethod: 'jazzcash',
+          billingPeriod: 'monthly',
+          submittedAmountMinorUnits: 9000,
+          paymentReference: 'jz-work-1',
+          evidenceStorageRef: duplicateUpload.body.data.evidenceStorageRef,
+          requestedPlanCode: business.planCode,
+          requestedPlanVersion: business.planVersion,
+        },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      expect(duplicateSubmit.status).toBe(201);
+      expect(duplicateSubmit.body.data.paymentReferenceDuplicateWarning).toBe(true);
+
+      const ownerEvidence = await fetchBinary(
+        baseUrl,
+        `${API_SUBSCRIPTION_BILLING_RECORDS_PATH}/${firstSubmit.body.data.id}/evidence`,
+        jar,
+      );
+      expect(ownerEvidence.status).toBe(200);
+      expect(ownerEvidence.contentType).toContain('application/pdf');
+
+      const ownerReject = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_PLATFORM_BILLING_RECORDS_PATH}/${firstSubmit.body.data.id}/approve`,
+        { expectedVersion: firstSubmit.body.data.version },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      expect([401, 403]).toContain(ownerReject.status);
+
+      const started = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_PLATFORM_BILLING_RECORDS_PATH}/${firstSubmit.body.data.id}/start-review`,
+        { expectedVersion: firstSubmit.body.data.version },
+        {
+          [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+          [API_PLATFORM_ACTOR_HEADER]: 'super-admin',
+        },
+        jar,
+      );
+      expect(started.status).toBe(200);
+      expect(started.body.data.status).toBe('under_review');
+
+      const replayStart = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_PLATFORM_BILLING_RECORDS_PATH}/${firstSubmit.body.data.id}/start-review`,
+        { expectedVersion: started.body.data.version },
+        {
+          [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+          [API_PLATFORM_ACTOR_HEADER]: 'super-admin',
+        },
+        jar,
+      );
+      expect(replayStart.status).toBe(200);
+      expect(replayStart.body.data.status).toBe('under_review');
+
+      const missingReason = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_PLATFORM_BILLING_RECORDS_PATH}/${duplicateSubmit.body.data.id}/reject`,
+        { expectedVersion: duplicateSubmit.body.data.version },
+        {
+          [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+          [API_PLATFORM_ACTOR_HEADER]: 'super-admin',
+        },
+        jar,
+      );
+      expect(missingReason.status).toBe(400);
+
+      const rejected = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_PLATFORM_BILLING_RECORDS_PATH}/${duplicateSubmit.body.data.id}/reject`,
+        { expectedVersion: duplicateSubmit.body.data.version, reason: 'Unreadable slip' },
+        {
+          [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+          [API_PLATFORM_ACTOR_HEADER]: 'super-admin',
+        },
+        jar,
+      );
+      expect(rejected.status).toBe(200);
+      expect(rejected.body.data.status).toBe('rejected');
+      expect(rejected.body.data.rejectionReason).toBe('Unreadable slip');
+
+      const mutateRejected = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_PLATFORM_BILLING_RECORDS_PATH}/${duplicateSubmit.body.data.id}/start-review`,
+        { expectedVersion: rejected.body.data.version },
+        {
+          [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+          [API_PLATFORM_ACTOR_HEADER]: 'super-admin',
+        },
+        jar,
+      );
+      expect(mutateRejected.status).toBe(409);
+
+      const approved = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_PLATFORM_BILLING_RECORDS_PATH}/${firstSubmit.body.data.id}/approve`,
+        { expectedVersion: started.body.data.version },
+        {
+          [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+          [API_PLATFORM_ACTOR_HEADER]: 'super-admin',
+        },
+        jar,
+      );
+      expect(approved.status).toBe(200);
+      expect(approved.body.data.status).toBe('approved');
+      expect(approved.body.data.appliedAt).toBeTruthy();
+      expect(approved.body.data.coverageStart).toBeTruthy();
+      expect(approved.body.data.coverageEnd).toBeTruthy();
+
+      const replayApprove = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_PLATFORM_BILLING_RECORDS_PATH}/${firstSubmit.body.data.id}/approve`,
+        { expectedVersion: approved.body.data.version },
+        {
+          [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+          [API_PLATFORM_ACTOR_HEADER]: 'super-admin',
+        },
+        jar,
+      );
+      expect([200, 409]).toContain(replayApprove.status);
+      if (replayApprove.status === 200) {
+        expect(replayApprove.body.data.appliedAt).toBe(approved.body.data.appliedAt);
+      }
+
+      const afterApprove = await fetchJson(baseUrl, 'GET', API_SUBSCRIPTION_PATH, undefined, {}, jar);
+      expect(afterApprove.status).toBe(200);
+      expect(afterApprove.body.data.status).toBe('active');
+      expect(afterApprove.body.data.planCode).toBe('Business');
+
+      const history = await fetchJson(
+        baseUrl,
+        'GET',
+        API_SUBSCRIPTION_BILLING_RECORDS_PATH,
+        undefined,
+        {},
+        jar,
+      );
+      expect(history.status).toBe(200);
+      expect(history.body.data.items.some((item) => item.status === 'rejected')).toBe(true);
+      expect(history.body.data.items.some((item) => item.id === firstSubmit.body.data.id && item.status === 'approved')).toBe(
+        true,
+      );
+
+      const queue = await fetchJson(
+        baseUrl,
+        'GET',
+        `${API_PLATFORM_BILLING_RECORDS_PATH}?status=approved&limit=10&offset=0`,
+        undefined,
+        { [API_PLATFORM_ACTOR_HEADER]: 'super-admin' },
+        jar,
+      );
+      expect(queue.status).toBe(200);
+      expect(queue.body.data.total).toBeGreaterThanOrEqual(1);
+      expect(queue.body.data.items.every((item) => item.status === 'approved')).toBe(true);
+
+      const platformEvidence = await fetchBinary(
+        baseUrl,
+        `${API_PLATFORM_BILLING_RECORDS_PATH}/${firstSubmit.body.data.id}/evidence`,
+        jar,
+        { [API_PLATFORM_ACTOR_HEADER]: 'super-admin' },
+      );
+      expect(platformEvidence.status).toBe(200);
+
+      const listed = await fetchJson(
+        baseUrl,
+        'GET',
+        API_PLATFORM_SUBSCRIPTIONS_PATH,
+        undefined,
+        { [API_PLATFORM_ACTOR_HEADER]: 'super-admin' },
+        jar,
+      );
+      const subscription = listed.body.data.items.find((item) => item.organizationId === owner.organizationId);
+      const suspended = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_PLATFORM_SUBSCRIPTIONS_PATH}/${subscription.id}/suspend`,
+        { expectedVersion: subscription.version, reason: 'Test suspend' },
+        {
+          [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+          [API_PLATFORM_ACTOR_HEADER]: 'super-admin',
+        },
+        jar,
+      );
+      expect(suspended.status).toBe(200);
+      expect(suspended.body.data.status).toBe('suspended');
+
+      await store.updateSubscription(null, subscription.id, {
+        periodEndsAt: new Date('2020-01-01T00:00:00.000Z'),
+        periodStartsAt: new Date('2019-12-01T00:00:00.000Z'),
+        billingPeriod: 'monthly',
+      });
+
+      const suspendedUpload = await uploadPdf(baseUrl, jar, 'suspended.pdf');
+      expect(suspendedUpload.status).toBe(201);
+      const suspendedSubmit = await fetchJson(
+        baseUrl,
+        'POST',
+        API_SUBSCRIPTION_BILLING_RECORDS_PATH,
+        {
+          paymentMethod: 'easypaisa',
+          billingPeriod: 'monthly',
+          submittedAmountMinorUnits: 9000,
+          paymentReference: 'EP-SUSPENDED-1',
+          evidenceStorageRef: suspendedUpload.body.data.evidenceStorageRef,
+          requestedPlanCode: business.planCode,
+          requestedPlanVersion: business.planVersion,
+        },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      expect(suspendedSubmit.status).toBe(201);
+
+      const reactivated = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_PLATFORM_SUBSCRIPTIONS_PATH}/${subscription.id}/reactivate`,
+        { expectedVersion: suspended.body.data.version, reason: 'Manual restore with valid period' },
+        {
+          [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+          [API_PLATFORM_ACTOR_HEADER]: 'super-admin',
+        },
+        jar,
+      );
+      expect(reactivated.status).toBe(200);
+      expect(reactivated.body.data.status).toBe('active');
+      expect(new Date(reactivated.body.data.periodEndsAt).getTime()).toBeGreaterThan(Date.now() - 1000);
+
+      const access = await subscriptions.subscriptionService.resolveAccessState(owner.organizationId);
+      expect(access.operationalWriteAllowed).toBe(true);
+
+      const otherOwner = await createApprovedOwnerSession(baseUrl, jar, {
+        organizationName: 'Other Org',
+        ownerEmail: 'other-owner@example.com',
+        switchAfter: true,
+      });
+      const crossSubmit = await fetchJson(
+        baseUrl,
+        'POST',
+        API_SUBSCRIPTION_BILLING_RECORDS_PATH,
+        {
+          paymentMethod: 'bank_transfer',
+          billingPeriod: 'monthly',
+          submittedAmountMinorUnits: 1000,
+          paymentReference: 'CROSS-REF',
+          evidenceStorageRef: firstUpload.body.data.evidenceStorageRef,
+          requestedPlanCode: business.planCode,
+          requestedPlanVersion: business.planVersion,
+        },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      expect([403, 404]).toContain(crossSubmit.status);
+
+      const otherHistory = await fetchJson(
+        baseUrl,
+        'GET',
+        `${API_SUBSCRIPTION_BILLING_RECORDS_PATH}/${firstSubmit.body.data.id}`,
+        undefined,
+        {},
+        jar,
+      );
+      expect(otherHistory.status).toBe(404);
+
+      void otherOwner;
+    } finally {
+      await close(server);
+    }
+  });
+});
+
+async function boot() {
+  const config = loadApiEnv({ NODE_ENV: 'test' });
+  const app = createApp({
+    config,
+    database: createMockDatabaseLifecycle({ ready: true }),
+  });
+  const server = createServer(app);
+  await listen(server);
+  const address = server.address();
+  return {
+    server,
+    baseUrl: `http://127.0.0.1:${address.port}`,
+    jar: { cookie: null },
+    store: app.agrivio.subscriptions.store,
+    subscriptions: app.agrivio.subscriptions,
+  };
+}
+
+async function createPlan(baseUrl, jar, body) {
+  return fetchJson(
+    baseUrl,
+    'POST',
+    API_PLATFORM_SUBSCRIPTION_PLANS_PATH,
+    body,
+    {
+      [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+      [API_PLATFORM_ACTOR_HEADER]: 'super-admin',
+    },
+    jar,
+  );
+}
+
+async function createApprovedOwnerSession(baseUrl, jar, options) {
+  const requested = await fetchJson(
+    baseUrl,
+    'POST',
+    API_ORGANIZATION_ACTIVATION_REQUESTS_PATH,
+    {
+      organizationName: options.organizationName,
+      ownerEmail: options.ownerEmail,
+      ownerDisplayName: 'Owner',
+    },
+    { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+    jar,
+  );
+  expect(requested.status).toBe(201);
+
+  const approved = await fetchJson(
+    baseUrl,
+    'POST',
+    `${API_PLATFORM_ORGANIZATIONS_PATH}/${requested.body.data.organizationId}/approve`,
+    {},
+    {
+      [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+      [API_PLATFORM_ACTOR_HEADER]: 'super-admin',
+    },
+    jar,
+  );
+  expect(approved.status).toBe(200);
+
+  await fetchJson(
+    baseUrl,
+    'POST',
+    '/api/v1/auth/activate',
+    {
+      token: approved.body.data.activationToken,
+      password: 'a-strong-passphrase-12',
+    },
+    { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+    jar,
+  );
+
+  const login = await fetchJson(
+    baseUrl,
+    'POST',
+    '/api/v1/auth/login',
+    {
+      email: options.ownerEmail,
+      password: 'a-strong-passphrase-12',
+    },
+    { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+    jar,
+  );
+  expect(login.status).toBe(200);
+
+  return { organizationId: requested.body.data.organizationId };
+}
+
+function pdfBuffer() {
+  return Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n');
+}
+
+async function uploadPdf(baseUrl, jar, fileName) {
+  return uploadEvidence(baseUrl, jar, {
+    contentType: 'application/pdf',
+    fileName,
+    body: pdfBuffer(),
+  });
+}
+
+async function uploadEvidence(baseUrl, jar, input) {
+  const csrf = await issueCsrf(baseUrl, jar);
+  const response = await fetch(`${baseUrl}${API_SUBSCRIPTION_BILLING_EVIDENCE_PATH}`, {
+    method: 'POST',
+    headers: {
+      'content-type': input.contentType,
+      'X-Filename': input.fileName,
+      [API_CSRF_HEADER]: csrf,
+      ...(jar?.cookie ? { cookie: jar.cookie } : {}),
+    },
+    body: input.body,
+  });
+  absorbCookies(response, jar);
+  return { status: response.status, body: await response.json() };
+}
+
+async function fetchBinary(baseUrl, path, jar, headers = {}) {
+  const response = await fetch(`${baseUrl}${path}`, {
+    headers: {
+      ...(jar?.cookie ? { cookie: jar.cookie } : {}),
+      ...headers,
+    },
+  });
+  absorbCookies(response, jar);
+  return {
+    status: response.status,
+    contentType: response.headers.get('content-type'),
+    buffer: Buffer.from(await response.arrayBuffer()),
+  };
+}
+
+async function issueCsrf(baseUrl, jar) {
+  const response = await fetchJson(baseUrl, 'POST', '/api/v1/auth/csrf', {}, {}, jar);
+  expect(response.status).toBe(200);
+  return response.body.data.csrfToken;
+}
+
+async function fetchJson(baseUrl, method, path, body, headers = {}, jar) {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method,
+    headers: {
+      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+      ...(jar?.cookie ? { cookie: jar.cookie } : {}),
+      ...headers,
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  absorbCookies(response, jar);
+  const text = await response.text();
+  let parsed;
+  try {
+    parsed = text ? JSON.parse(text) : null;
+  } catch {
+    parsed = text;
+  }
+  return { status: response.status, body: parsed };
+}
+
+function absorbCookies(response, jar) {
+  const setCookie = response.headers.getSetCookie?.() ?? [];
+  if (setCookie.length > 0 && jar) {
+    jar.cookie = setCookie.map((value) => value.split(';')[0]).join('; ');
+  }
+}
+
+function listen(server) {
+  return new Promise((resolve, reject) => {
+    server.listen(0, '127.0.0.1', (error) => (error ? reject(error) : resolve(undefined)));
+  });
+}
+
+function close(server) {
+  return new Promise((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve(undefined)));
+  });
+}
