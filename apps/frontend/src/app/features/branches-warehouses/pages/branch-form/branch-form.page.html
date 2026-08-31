@@ -1,87 +1,405 @@
-<agrivio-ui-page-header
-  [title]="branchId() ? 'Edit branch' : 'Create branch'"
-  eyebrow="Locations"
-  lede="Invoice prefixes are owned by Locations and must stay unique within the organization."
-/>
+<div class="branch-form-shell">
+  <!-- Breadcrumb Navigation -->
+  <nav class="breadcrumb-nav" aria-label="Breadcrumb">
+    <ol class="breadcrumb-list">
+      <li class="breadcrumb-item">
+        <a routerLink="/app/branches" class="breadcrumb-link">Organization</a>
+      </li>
+      <li class="breadcrumb-separator" aria-hidden="true">/</li>
+      <li class="breadcrumb-item">
+        <a routerLink="/app/branches" class="breadcrumb-link">Branches</a>
+      </li>
+      <li class="breadcrumb-separator" aria-hidden="true">/</li>
+      <li class="breadcrumb-item breadcrumb-item--current" aria-current="page">
+        {{ branchId() ? 'Edit' : 'Create' }}
+      </li>
+    </ol>
+  </nav>
 
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading branch…" />
-} @else if (!canManage()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to manage branches." />
-} @else {
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">Locations</p>
+      <h1 class="page-head__title">
+        {{ branchId() ? 'Edit branch' : 'Create branch' }}
+      </h1>
+      <p class="page-head__lede">
+        Invoice prefixes are owned by Locations and must stay unique within the organization.
+      </p>
+    </div>
+
+    <div class="page-head__actions">
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/branches">
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        Back to Branches
+      </a>
+    </div>
+  </header>
+
+  <!-- Loading & Alert States -->
+  @if (loading()) {
+  <div class="state-container">
+    <agrivio-ui-loading-state label="Loading branch definition…" />
+  </div>
+  } @else if (!canManage()) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="warning" message="You do not have permission to manage branches." />
+  </div>
+  } @else {
   @if (errorMessage(); as error) {
+  <div class="alert-container">
     <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  </div>
   }
-  <form
-    class="ag-stack form ag-form ag-form--with-required-hint"
-    [formGroup]="form"
-    (ngSubmit)="save()"
-    data-testid="branch-form"
-  >
-    <div class="ag-field">
-      <agrivio-ui-field-label
-        label="Name"
-        for="branch-name"
-        [required]="fieldRequired(form.controls.name)"
-      />
-      <input
-        id="branch-name"
-        class="ag-input"
-        formControlName="name"
-        data-testid="branch-name"
-        [class.ag-input--invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted())"
-        [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
-        [attr.aria-invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted()) ? 'true' : null"
-      />
-      @if (fieldError(form.controls.name, 'Name', formSubmitAttempted()); as nameError) {
-        <p class="field-error" role="alert">{{ nameError }}</p>
-      }
-    </div>
-    <div class="ag-field">
-      <agrivio-ui-field-label
-        label="Invoice prefix"
-        for="branch-invoice-prefix"
-        [required]="fieldRequired(form.controls.invoicePrefix)"
-      />
-      <input
-        id="branch-invoice-prefix"
-        class="ag-input"
-        formControlName="invoicePrefix"
-        data-testid="branch-invoice-prefix"
-        [class.ag-input--invalid]="fieldError(form.controls.invoicePrefix, 'Invoice prefix', formSubmitAttempted())"
-        [attr.aria-required]="fieldRequired(form.controls.invoicePrefix) ? 'true' : null"
-        [attr.aria-invalid]="fieldError(form.controls.invoicePrefix, 'Invoice prefix', formSubmitAttempted()) ? 'true' : null"
-      />
-      @if (fieldError(form.controls.invoicePrefix, 'Invoice prefix', formSubmitAttempted()); as prefixError) {
-        <p class="field-error" role="alert">{{ prefixError }}</p>
-      }
-    </div>
-    <div class="ag-field">
-      <agrivio-ui-field-label label="Code (optional)" for="branch-code" />
-      <input
-        id="branch-code"
-        class="ag-input"
-        formControlName="code"
-        data-testid="branch-code"
-        [class.ag-input--invalid]="fieldError(form.controls.code, 'Code', formSubmitAttempted())"
-        [attr.aria-invalid]="fieldError(form.controls.code, 'Code', formSubmitAttempted()) ? 'true' : null"
-      />
-      @if (fieldError(form.controls.code, 'Code', formSubmitAttempted()); as codeError) {
-        <p class="field-error" role="alert">{{ codeError }}</p>
-      }
-    </div>
-    @if (branchId()) {
-      <div class="ag-field">
-        <agrivio-ui-field-label label="Status" for="branch-status" />
-        <select id="branch-status" class="ag-select" formControlName="status" data-testid="branch-status">
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-      </div>
-    }
-    <div class="ag-inline">
-      <button class="ag-btn" type="submit" [disabled]="!canSave()" data-testid="branch-save">Save</button>
-      <a class="ag-btn ag-btn--secondary" routerLink="/app/branches">Cancel</a>
+
+  <form class="branch-form" [formGroup]="form" (ngSubmit)="save()" data-testid="branch-form">
+    <div class="form-layout">
+      <!-- Main Form Card -->
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M3 21h18" />
+              <path d="M5 21V7l8-4v18" />
+              <path d="M19 21V11l-6-4" />
+              <path d="M9 9v.01" />
+              <path d="M9 12v.01" />
+              <path d="M9 15v.01" />
+              <path d="M9 18v.01" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">Branch details</h2>
+            <p class="form-card__subtitle">
+              {{ branchId() ? 'Update information for this branch.' : 'Add the basic information for this branch.' }}
+            </p>
+          </div>
+        </div>
+
+        <div class="form-card__body">
+          <!-- Name -->
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Name"
+              for="branch-name"
+              [required]="fieldRequired(form.controls.name)"
+            />
+            <p class="field-helper">
+              {{ branchId() ? 'A descriptive name for this branch.' : 'The branch name as it will appear in the system.' }}
+            </p>
+            <input
+              id="branch-name"
+              class="ag-input"
+              formControlName="name"
+              placeholder="Enter branch name"
+              data-testid="branch-name"
+              [class.ag-input--invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted())"
+              [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted()) ? 'true' : null"
+            />
+            @if (fieldError(form.controls.name, 'Name', formSubmitAttempted()); as nameError) {
+            <p class="field-error" role="alert">{{ nameError }}</p>
+            }
+          </div>
+
+          <!-- Invoice Prefix -->
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Invoice prefix"
+              for="branch-invoice-prefix"
+              [required]="fieldRequired(form.controls.invoicePrefix)"
+            />
+            <p class="field-helper">
+              {{ branchId() ? 'This prefix will appear at the beginning of invoice numbers.' : 'Used as the prefix for all invoices issued by this branch.' }}
+            </p>
+            <input
+              id="branch-invoice-prefix"
+              class="ag-input uppercase"
+              formControlName="invoicePrefix"
+              placeholder="Enter invoice prefix"
+              data-testid="branch-invoice-prefix"
+              [class.ag-input--invalid]="fieldError(form.controls.invoicePrefix, 'Invoice prefix', formSubmitAttempted())"
+              [attr.aria-required]="fieldRequired(form.controls.invoicePrefix) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.invoicePrefix, 'Invoice prefix', formSubmitAttempted()) ? 'true' : null"
+            />
+            @if (fieldError(form.controls.invoicePrefix, 'Invoice prefix', formSubmitAttempted()); as prefixError) {
+            <p class="field-error" role="alert">{{ prefixError }}</p>
+            }
+          </div>
+
+          <!-- Code (optional) -->
+          @if (showCodeField()) {
+          <div class="ag-field">
+            <agrivio-ui-field-label label="Code (optional)" for="branch-code" />
+            <p class="field-helper">
+              {{ branchId() ? 'An internal code to help identify this branch.' : 'Internal code for this branch. Use if you have a short reference.' }}
+            </p>
+            <input
+              id="branch-code"
+              class="ag-input"
+              formControlName="code"
+              placeholder="Enter code"
+              data-testid="branch-code"
+              [class.ag-input--invalid]="fieldError(form.controls.code, 'Code', formSubmitAttempted())"
+              [attr.aria-invalid]="fieldError(form.controls.code, 'Code', formSubmitAttempted()) ? 'true' : null"
+            />
+            @if (fieldError(form.controls.code, 'Code', formSubmitAttempted()); as codeError) {
+            <p class="field-error" role="alert">{{ codeError }}</p>
+            }
+          </div>
+          }
+
+          <!-- Status (Edit Mode) or Informational Callout (Create Mode) -->
+          @if (branchId()) {
+          @if (showStatusField()) {
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Status"
+              for="branch-status"
+              [required]="fieldRequired(form.controls.status)"
+            />
+            <p class="field-helper">Only active branches can be selected on transactions.</p>
+            <select
+              id="branch-status"
+              class="ag-select"
+              formControlName="status"
+              data-testid="branch-status"
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+          }
+          } @else {
+          <div class="info-callout">
+            <div class="info-callout__icon">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+            </div>
+            <div class="info-callout__content">
+              <p class="info-callout__text">
+                New branches are created as Active by default.
+              </p>
+            </div>
+          </div>
+          }
+        </div>
+
+        <footer class="form-actions">
+          <button
+            class="ag-btn ag-btn--primary"
+            type="submit"
+            [disabled]="!canPerformSave() || form.invalid || saving()"
+            data-testid="branch-save"
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
+            </svg>
+            {{ branchId() ? (saving() ? 'Saving…' : 'Save changes') : (saving() ? 'Saving…' : 'Save branch') }}
+          </button>
+          <a class="ag-btn ag-btn--secondary" routerLink="/app/branches">Cancel</a>
+        </footer>
+      </section>
+
+      <!-- Right Guidance / Summary Card -->
+      <aside class="guidance-card" aria-label="Branch invoice numbering information">
+        @if (!branchId()) {
+        <!-- CREATE: Live Numbering Preview & Rules -->
+        <div class="guidance-card__header">
+          <div class="guidance-card__icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="guidance-card__title">Invoice numbering preview</h2>
+            <p class="guidance-card__subtitle">This is how invoice numbers will look for this branch.</p>
+          </div>
+        </div>
+
+        <div class="preview-box">
+          <div class="preview-box__item">
+            <span class="preview-box__label">Prefix</span>
+            <span class="preview-box__value prefix-badge">{{ previewPrefix }}</span>
+          </div>
+          <span class="preview-box__sep" aria-hidden="true">—</span>
+          <div class="preview-box__item">
+            <span class="preview-box__label">Example invoice number</span>
+            <span class="preview-box__value preview-box__value--highlight">{{ previewInvoiceNumber }}</span>
+          </div>
+        </div>
+
+        <p class="preview-helper">The number increases automatically with each new invoice.</p>
+
+        <div class="guidance-checklist">
+          <span class="guidance-checklist__title">Prefix rules</span>
+          <ul class="guidance-list">
+            <li class="guidance-item">
+              <div class="guidance-item__check">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <span class="guidance-item__label">Prefixes must be unique within the organization.</span>
+            </li>
+            <li class="guidance-item">
+              <div class="guidance-item__check">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <span class="guidance-item__label">Use 1–20 alphanumeric characters (A–Z, 0–9, hyphens allowed).</span>
+            </li>
+            <li class="guidance-item">
+              <div class="guidance-item__check">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <span class="guidance-item__label">Used for all invoices issued by this branch.</span>
+            </li>
+          </ul>
+        </div>
+        } @else {
+        <!-- EDIT: Branch Summary & Invoice Preview -->
+        <div class="guidance-card__header">
+          <div class="guidance-card__icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M3 21h18" />
+              <path d="M5 21V7l8-4v18" />
+              <path d="M19 21V11l-6-4" />
+              <path d="M9 9v.01" />
+              <path d="M9 12v.01" />
+              <path d="M9 15v.01" />
+              <path d="M9 18v.01" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="guidance-card__title">Branch summary</h2>
+            <p class="guidance-card__subtitle">
+              Review key details about this branch and see how the invoice prefix will be used.
+            </p>
+          </div>
+        </div>
+
+        <div class="summary-list">
+          <div class="summary-row">
+            <span class="summary-row__label">Name</span>
+            <span class="summary-row__value">{{ form.controls.name.value || '—' }}</span>
+          </div>
+          @if (showCodeField()) {
+          <div class="summary-row">
+            <span class="summary-row__label">Code</span>
+            <span class="summary-row__value">{{ form.controls.code.value || '—' }}</span>
+          </div>
+          }
+          <div class="summary-row">
+            <span class="summary-row__label">Invoice prefix</span>
+            <span class="summary-row__value">
+              <span class="prefix-badge">{{ form.controls.invoicePrefix.value || '—' }}</span>
+            </span>
+          </div>
+          @if (showStatusField()) {
+          <div class="summary-row">
+            <span class="summary-row__label">Status</span>
+            <span class="summary-row__value">
+              <span
+                class="status-indicator"
+                [class.status-indicator--active]="form.controls.status.value === 'active'"
+                [class.status-indicator--inactive]="form.controls.status.value === 'inactive'"
+              >
+                <span class="status-indicator__dot"></span>
+                {{ form.controls.status.value === 'active' ? 'Active' : 'Inactive' }}
+              </span>
+            </span>
+          </div>
+          }
+        </div>
+
+        <div class="preview-card-section">
+          <h3 class="preview-card-section__title">Invoice preview</h3>
+          <p class="preview-card-section__desc">Example invoice number using this prefix.</p>
+          <div class="invoice-badge-box">
+            <div class="invoice-badge-box__icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+              </svg>
+            </div>
+            <div class="invoice-badge-box__content">
+              <span class="invoice-badge-box__number">{{ previewInvoiceNumber }}</span>
+              <span class="invoice-badge-box__caption">Prefix + 6-digit sequence</span>
+            </div>
+          </div>
+        </div>
+        }
+      </aside>
     </div>
   </form>
-}
+  }
+</div>

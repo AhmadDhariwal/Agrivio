@@ -1,4 +1,5 @@
 import { API, activationTokenFromUrl } from './e2e-origins';
+import { login, enterPlatformWorkspace } from './e2e-auth-helper';
 import { expect, test, type Page } from '@playwright/test';
 
 const OWNER_PASSWORD = 'owner-activation-passphrase';
@@ -22,7 +23,7 @@ test.describe('F04 P2 inventory vertical slice', () => {
     await page.getByTestId('request-submit').click();
     await expect(page.getByTestId('request-success')).toBeVisible();
 
-    await signIn(page, superAdmin.email, superAdmin.password);
+    await login(page, superAdmin.email, superAdmin.password);
     await enterPlatformWorkspace(page);
     await page.getByRole('link', { name: 'Organizations' }).click();
     const orgRow = page.getByTestId('org-row').filter({ hasText: organizationName });
@@ -141,17 +142,3 @@ async function seedStarterPlan(request: import('@playwright/test').APIRequestCon
   });
 }
 
-async function signIn(page: Page, email: string, password: string) {
-  await page.goto('/login');
-  await page.getByTestId('login-email').fill(email);
-  await page.getByTestId('login-password').fill(password);
-  await page.getByTestId('login-submit').click();
-  await expect(page).toHaveURL(/\/(context|app)/);
-}
-
-async function enterPlatformWorkspace(page: Page) {
-  if (page.url().includes('/context')) {
-    await page.getByTestId('continue-workspace').click();
-  }
-  await expect(page.getByTestId('authenticated-shell')).toBeVisible();
-}

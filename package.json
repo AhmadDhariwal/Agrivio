@@ -44,7 +44,9 @@
     "db:down": "node scripts/mongodb/down.mjs",
     "db:reset": "node scripts/mongodb/reset.mjs",
     "bootstrap:super-admin": "node scripts/bootstrap-super-admin.mjs",
-    "seed:demo": "node scripts/seed-demo-dataset.mjs"
+    "seed:demo": "node scripts/seed-demo-dataset.mjs",
+    "ops:backup": "node scripts/ops/backup.mjs",
+    "ops:restore": "node scripts/ops/restore.mjs"
   },
   "dependencies": {
     "@agrivio/api-contracts": "*",

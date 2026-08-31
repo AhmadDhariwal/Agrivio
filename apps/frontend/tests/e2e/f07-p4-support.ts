@@ -30,20 +30,9 @@ export async function seedStarterPlan(
   expect([200, 201]).toContain(plan.status());
 }
 
-export async function signIn(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.getByTestId('login-email').fill(email);
-  await page.getByTestId('login-password').fill(password);
-  await page.getByTestId('login-submit').click();
-  await expect(page).toHaveURL(/\/(context|app)/);
-}
+import { login, enterPlatformWorkspace } from './e2e-auth-helper';
 
-export async function enterPlatformWorkspace(page: Page): Promise<void> {
-  if (page.url().includes('/context')) {
-    await page.getByTestId('continue-workspace').click();
-  }
-  await expect(page.getByTestId('authenticated-shell')).toBeVisible();
-}
+export { API, login, enterPlatformWorkspace, login as signIn };
 
 export async function bootstrapApprovedOwner(
   page: Page,

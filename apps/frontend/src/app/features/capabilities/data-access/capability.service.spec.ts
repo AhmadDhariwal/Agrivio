@@ -421,7 +421,7 @@ describe('CapabilityService', () => {
 
     const app = appRoutes.find((route) => route.path === 'app');
     const reportsRoute = app?.children?.find((route) => route.path === 'reports');
-    expect(reportsRoute?.canActivate).toHaveLength(1);
+    expect(reportsRoute?.canActivate).toHaveLength(2);
 
     const reportsNav = CANONICAL_NAVIGATION.flatMap((entry) =>
       entry.type === 'group' ? entry.group.children : [entry.item],
@@ -485,7 +485,7 @@ describe('CapabilityService', () => {
 
     const app = appRoutes.find((route) => route.path === 'app');
     const alertsRoute = app?.children?.find((route) => route.path === 'alerts');
-    expect(alertsRoute?.canActivate).toHaveLength(1);
+    expect(alertsRoute?.canActivate).toHaveLength(2);
 
     const alertsNav = CANONICAL_NAVIGATION.flatMap((entry) =>
       entry.type === 'group' ? entry.group.children : [entry.item],
@@ -554,9 +554,9 @@ describe('CapabilityService', () => {
     for (const id of actions) expect(service.canPerformAction(`purchases.actions.${id}`)).toBe(true);
 
     const app = appRoutes.find((route) => route.path === 'app');
-    expect(app?.children?.find((route) => route.path === 'purchases')?.canActivate).toHaveLength(1);
-    expect(app?.children?.find((route) => route.path === 'purchases/new')?.canActivate).toHaveLength(2);
-    expect(app?.children?.find((route) => route.path === 'purchases/:id')?.canActivate).toHaveLength(2);
+    expect(app?.children?.find((route) => route.path === 'purchases')?.canActivate).toHaveLength(2);
+    expect(app?.children?.find((route) => route.path === 'purchases/new')?.canActivate).toHaveLength(3);
+    expect(app?.children?.find((route) => route.path === 'purchases/:id')?.canActivate).toHaveLength(3);
     const purchasesNav = CANONICAL_NAVIGATION.flatMap((entry) =>
       entry.type === 'group' ? entry.group.children : [entry.item],
     ).find((item) => item.id === 'purchases.list');
@@ -615,8 +615,8 @@ describe('CapabilityService', () => {
     }
 
     const app = appRoutes.find((route) => route.path === 'app');
-    expect(app?.children?.find((route) => route.path === 'supplier-payments')?.canActivate).toHaveLength(1);
-    expect(app?.children?.find((route) => route.path === 'supplier-payments/new')?.canActivate).toHaveLength(2);
+    expect(app?.children?.find((route) => route.path === 'supplier-payments')?.canActivate).toHaveLength(2);
+    expect(app?.children?.find((route) => route.path === 'supplier-payments/new')?.canActivate).toHaveLength(3);
 
     const navigation = CANONICAL_NAVIGATION.flatMap((entry) =>
       entry.type === 'group' ? entry.group.children : [entry.item],
@@ -666,7 +666,7 @@ describe('CapabilityService', () => {
     }
 
     const app = appRoutes.find((route) => route.path === 'app');
-    expect(app?.children?.find((route) => route.path === 'supplier-payments/ledger')?.canActivate).toHaveLength(1);
+    expect(app?.children?.find((route) => route.path === 'supplier-payments/ledger')?.canActivate).toHaveLength(2);
 
     const navigation = CANONICAL_NAVIGATION.flatMap((entry) =>
       entry.type === 'group' ? entry.group.children : [entry.item],
@@ -742,10 +742,10 @@ describe('CapabilityService', () => {
     }
 
     const app = appRoutes.find((route) => route.path === 'app');
-    expect(app?.children?.find((route) => route.path === 'sales')?.canActivate).toHaveLength(1);
-    expect(app?.children?.find((route) => route.path === 'sales/new')?.canActivate).toHaveLength(2);
-    expect(app?.children?.find((route) => route.path === 'sales/:id/print')?.canActivate).toHaveLength(2);
-    expect(app?.children?.find((route) => route.path === 'sales/:id')?.canActivate).toHaveLength(2);
+    expect(app?.children?.find((route) => route.path === 'sales')?.canActivate).toHaveLength(2);
+    expect(app?.children?.find((route) => route.path === 'sales/new')?.canActivate).toHaveLength(3);
+    expect(app?.children?.find((route) => route.path === 'sales/:id/print')?.canActivate).toHaveLength(3);
+    expect(app?.children?.find((route) => route.path === 'sales/:id')?.canActivate).toHaveLength(3);
 
     const navigation = CANONICAL_NAVIGATION.flatMap((entry) =>
       entry.type === 'group' ? entry.group.children : [entry.item],
@@ -804,7 +804,7 @@ describe('CapabilityService', () => {
     }
 
     const app = appRoutes.find((route) => route.path === 'app');
-    expect(app?.children?.find((route) => route.path === 'dashboard')?.canActivate).toHaveLength(1);
+    expect(app?.children?.find((route) => route.path === 'dashboard')?.canActivate).toHaveLength(2);
 
     const navigation = CANONICAL_NAVIGATION.flatMap((entry) =>
       entry.type === 'group' ? entry.group.children : [entry.item],
@@ -856,6 +856,65 @@ describe('CapabilityService', () => {
     expect(navigation.find((item) => item.id === 'organization.setup')).toMatchObject({
       permission: 'settings.view',
       capabilityKey: 'setup',
+    });
+  });
+
+  it('provides authoritative defaults for Branches (14 controls) and route/navigation guards', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        CapabilityService,
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            activeContext: () => ({ contextType: 'organization', organizationId: 'org-1' }),
+          },
+        },
+      ],
+    });
+    const service = TestBed.inject(CapabilityService);
+    const features = ['moduleInfo', 'search', 'statusFilter'] as const;
+    const fields = ['name', 'invoicePrefix', 'code', 'status'] as const;
+    const actions = [
+      'create',
+      'edit',
+      'deactivate',
+      'reactivate',
+      'delete',
+      'refresh',
+    ] as const;
+    const allKeys = [
+      'branches',
+      ...features.map((id) => `branches.features.${id}`),
+      ...fields.map((id) => `branches.fields.${id}`),
+      ...actions.map((id) => `branches.actions.${id}`),
+    ];
+
+    expect(allKeys).toHaveLength(14);
+    expect(new Set(allKeys).size).toBe(14);
+    expect(service.canUseModule('branches')).toBe(true);
+    for (const id of features) {
+      expect(service.canUseFeature(`branches.features.${id}`)).toBe(true);
+    }
+    for (const id of fields) {
+      expect(service.canViewField(`branches.fields.${id}`)).toBe(true);
+      expect(service.canEditField(`branches.fields.${id}`)).toBe(true);
+    }
+    for (const id of actions) {
+      expect(service.canPerformAction(`branches.actions.${id}`)).toBe(true);
+    }
+
+    const app = appRoutes.find((route) => route.path === 'app');
+    expect(app?.children?.find((route) => route.path === 'branches')?.canActivate).toHaveLength(2);
+    expect(app?.children?.find((route) => route.path === 'branches/new')?.canActivate).toHaveLength(3);
+    expect(app?.children?.find((route) => route.path === 'branches/:id')?.canActivate).toHaveLength(3);
+    expect(app?.children?.find((route) => route.path === 'branches/:id/edit')?.canActivate).toHaveLength(3);
+
+    const navigation = CANONICAL_NAVIGATION.flatMap((entry) =>
+      entry.type === 'group' ? entry.group.children : [entry.item],
+    );
+    expect(navigation.find((item) => item.id === 'organization.branches')).toMatchObject({
+      permission: 'branches.view',
+      capabilityKey: 'branches',
     });
   });
 });

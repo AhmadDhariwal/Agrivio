@@ -1,7 +1,7 @@
 # Organization Capability & UI Policy — Phase 1
 
 Status: Implementation complete; lightweight authenticated browser review remains environment-dependent
-Scope: Generic platform foundation plus completed capability integrations through Stock Movements, Accounts, Reports, Alerts, Purchases, Supplier Payments, Supplier Ledger, Sales, Customer Payments, Dashboard, Warehouses, Billing, and Organization Setup
+Scope: Generic platform foundation plus completed capability integrations through Stock Movements, Accounts, Reports, Alerts, Purchases, Supplier Payments, Supplier Ledger, Sales, Customer Payments, Dashboard, Branches, Warehouses, Billing, and Organization Setup
 Completed: 2026-08-29
 
 ## Implemented
@@ -38,6 +38,7 @@ Completed: 2026-08-29
 - Disabling Warehouse Transfers blocks all transfer list/detail/create/update/discard/post/reverse endpoints through backend capability middleware. Source warehouse, destination warehouse, product, quantity, reason, and batch remain platform-enforced; negative-stock override strictly preserves RBAC `inventory.negative-stock.override` authorization and has no capability key. Batch identity and expiry metadata preservation remain enforced by the inventory engine; WAC valuation remains 100% backend-owned.
 - Individual, module, and organization reset operations remove sparse overrides through the transactional backend endpoints, increment policy versions on material changes, emit per-control audit evidence, re-resolve effective policy, and refresh the Super Admin UI.
 - Warehouses owns the `warehouses` namespace with 13 authoritative backend controls: 1 module, 3 real presentation features (`moduleInfo`, `search`, `statusFilter`), 3 fields (`name`, `code`, `status`), and 6 actions (`create`, `edit`, `deactivate`, `reactivate`, `delete`, `refresh`). All direct Warehouse API operations enforce the module after existing organization context, RBAC, and operational subscription checks. Create and permanent delete enforce their distinct route actions; parsed Warehouse PATCH mutations dynamically enforce Edit, optional Code editability, and the matching lifecycle action without weakening optimistic versioning or tenant scope. Generic module reset and Organization Controls rendering reuse the existing sparse override, Default / Override / Effective, audit, and version paths.
+- Branches owns the `branches` namespace with 14 authoritative backend controls: 1 module, 3 presentation-only features (`moduleInfo`, `search`, `statusFilter`), 4 fields (`name`, `invoicePrefix`, `code`, `status`), and 6 actions (`create`, `edit`, `deactivate`, `reactivate`, `delete`, `refresh`). All direct Branch API operations enforce the module after existing organization context, RBAC, and operational subscription checks. Create and permanent delete enforce their distinct route actions; parsed Branch PATCH mutations dynamically enforce Edit, configurable Code and Status field editability, and the matching lifecycle action without weakening validation, optimistic versioning, tenant scope, or branch plan limits. Generic module reset uses the existing sparse override, Default / Override / Effective, audit, and version paths.
 - Billing owns the `billing` namespace with 17 authoritative backend controls: 1 module, 4 features, 7 fields, and 5 actions. Tenant current-subscription, plan, evidence upload/download, submission, history, and detail routes enforce the module plus their source-backed feature/action after existing organization context, RBAC, and `billing-access` lifecycle checks. Requested Plan, Billing Period, Payment Method, Payment Reference, Amount, and Evidence remain required/platform-enforced; optional Notes is policy-enforced against crafted payloads. Generic module reset and Organization Controls registry rendering reuse sparse overrides, Default / Override / Effective, audit, and version paths.
 - Organization Setup owns the flat `setup` namespace with 10 controls: 1 server-enforced module, 8 presentation features, and 1 presentation refresh action. The existing Setup progress endpoint enforces authentication, organization context, `settings.view`, operational subscription access, and the Setup capability in that order. The frozen tenant UI consumes the presentation controls, while progress facts remain derived from authoritative tenant-scoped domain data and destination links retain their own RBAC and capability checks.
 - Stable policy denial codes: `ORG_CAPABILITY_DISABLED`, `ORG_ACTION_NOT_ALLOWED`, and `ORG_FIELD_NOT_EDITABLE`.
@@ -51,6 +52,16 @@ Completed: 2026-08-29
 - Permanent deletion remains subject to the existing tenant-scoped record lookup and record-in-use reference checks. Enabling Delete cannot bypass stock history, posted movement, assignment, or other domain references.
 - Module reset matches only definitions whose `moduleKey` is `warehouses`, preserves unrelated sparse overrides and organization isolation, increments policy version on material change, and emits the existing per-control audit evidence.
 - KPI, pagination, table/mobile renderer, internal identifier, and optimistic version controls were not registered because they are not independent configurable Warehouse business capabilities.
+
+## Branches backend registry safety decisions
+
+- Branch Name and Invoice Prefix are required on create and remain visible/editable as platform-enforced identity fields. Ordinary edits still require the Branch Edit action.
+- Branch Code is optional and configurable for visibility and existing-record editability. Parsed PATCH payloads enforce `branches.fields.code.editable`, so crafted requests cannot bypass a read-only organization policy.
+- Lifecycle Status is configurable for visibility and editability. Status mutations additionally require the matching Deactivate or Reactivate action, preserving the existing lifecycle validation and optimistic-concurrency workflow.
+- Create, Edit, Deactivate, Reactivate, Delete, and Refresh map to the existing `branches.manage` / `branches.view` RBAC permissions. Organization policy can restrict those permissions but cannot grant them.
+- Branch controls do not modify the existing `branches` subscription limit or creation-limit enforcement. Enabling the capability does not make branch creation unlimited.
+- Module reset matches only definitions whose `moduleKey` is `branches`, preserves unrelated sparse overrides and organization isolation, increments policy version on material change, and emits the existing per-control audit evidence.
+- Count pills, pagination, mobile cards, table/layout details, invoice preview, breadcrumbs, typography, and cache behavior were not registered because they are not independent configurable Branch business capabilities.
 
 ## Billing backend registry safety decisions
 
@@ -393,6 +404,7 @@ Completed: 2026-08-29
 - Sales focused backend registry/resolver, RBAC, dependency, organization isolation, scoped reset/audit, route/action enforcement, optional field editability, price override, conditional approvals, and linked return safety: passed (3 files, 18 tests).
 - Sales focused frontend list/draft/detail/print pages, exact CapabilityService defaults plus route/navigation wiring, and generic Super Admin Organization Controls integration: passed (4 files, 90 tests).
 - Warehouses focused backend registry/effective resolution, RBAC intersection, parsed edit and Code-field enforcement, lifecycle and permanent-delete action enforcement, delete-in-use safety, organization isolation, scoped reset, audit/version evidence, and all direct Warehouse route enforcement: passed (2 files, 12 tests).
+- Branches focused backend registry/effective resolution, RBAC intersection, parsed edit/Code/Status-field enforcement, lifecycle and permanent-delete action enforcement, subscription-limit independence, organization isolation, scoped reset, audit/version evidence, and all direct Branch route enforcement: passed (2 files, 9 tests).
 - Billing focused backend registry/effective resolution, RBAC and `billing-access` lifecycle intersection, required-field safety, optional Notes payload enforcement, module/action route enforcement, organization isolation, scoped reset, and audit/version evidence: passed (2 files, 10 tests; Submit, Upload, and Download action denials covered in one parameterized case).
 - Existing subscription lifecycle and billing workflow regression coverage after Billing capability integration: passed (2 files, 10 tests).
 - Organization Setup focused backend registry, default/override/effective resolution, direct parent dependency, RBAC intersection, organization isolation, scoped reset/audit/version, unchanged completion calculations, destination independence, and route enforcement: passed (2 files, 9 tests).
@@ -404,7 +416,15 @@ Completed: 2026-08-29
 
 ## Remaining risk
 
-Authenticated cross-organization browser smoke remains outstanding; focused component, route, policy, persistence-boundary, and build validation passed. Foundation + Products + Categories + Stock on Hand + Opening Stock + Product Batches + Expiry Inquiry + Stock Adjustments + Warehouse Transfers + Stock Movements + Accounts + Reports + Alerts + Purchases + Supplier Payments + Supplier Ledger + Sales + Customer Payments + Dashboard + Organization Setup are complete. Warehouses and Billing backend capability enforcement and generic Super Admin registry integration are complete; their tenant frontend consumption and later unintegrated modules remain separate.
+Authenticated cross-organization browser smoke remains outstanding; focused component, route, policy, persistence-boundary, and build validation passed. Foundation + Products + Categories + Stock on Hand + Opening Stock + Product Batches + Expiry Inquiry + Stock Adjustments + Warehouse Transfers + Stock Movements + Accounts + Reports + Alerts + Purchases + Supplier Payments + Supplier Ledger + Sales + Customer Payments + Dashboard + Branches + Organization Setup are complete. Branches, Warehouses, and Billing backend capability enforcement and generic Super Admin registry integration are complete; their tenant frontend consumption and later unintegrated modules remain separate.
+
+BRANCHES CONTROL REGISTRY: ✅ FROZEN
+
+BRANCHES ORG CONTROLS BACKEND: ✅ VERIFIED
+
+BRANCHES RBAC ∩ CAPABILITY: ✅ VERIFIED
+
+BRANCHES FIELD/ACTION ENFORCEMENT: ✅ VERIFIED
 
 WAREHOUSES SUPER ADMIN REGISTRY: ✅ FROZEN
 

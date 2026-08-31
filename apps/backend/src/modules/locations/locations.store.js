@@ -87,6 +87,10 @@ function createMongooseLocationsStore() {
       return WarehouseModel.countDocuments({ organizationId }).exec();
     },
 
+    async countActiveWarehouses(organizationId) {
+      return WarehouseModel.countDocuments({ organizationId, status: 'active' }).exec();
+    },
+
     async findWarehouseById(organizationId, id) {
       if (!mongoose.isValidObjectId(id)) {
         return null;
@@ -276,6 +280,12 @@ function createInMemoryLocationsStore() {
     async countWarehouses(organizationId) {
       return [...warehouses.values()].filter(
         (item) => String(item.organizationId) === String(organizationId),
+      ).length;
+    },
+
+    async countActiveWarehouses(organizationId) {
+      return [...warehouses.values()].filter(
+        (item) => String(item.organizationId) === String(organizationId) && item.status === 'active',
       ).length;
     },
 

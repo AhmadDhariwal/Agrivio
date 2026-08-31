@@ -22,6 +22,7 @@ const {
   TRANSFERS_MODULE_KEY,
   RECONCILIATION_MODULE_KEY,
   MOVEMENTS_MODULE_KEY,
+  BRANCHES_MODULE_KEY,
   WAREHOUSES_MODULE_KEY,
   CUSTOMERS_MODULE_KEY,
   SUPPLIERS_MODULE_KEY,
@@ -101,6 +102,11 @@ const EMPLOYEE_FIELD_CONTROLS = Object.freeze({
 
 const WAREHOUSE_FIELD_CONTROLS = Object.freeze({
   code: 'warehouses.fields.code',
+});
+
+const BRANCH_FIELD_CONTROLS = Object.freeze({
+  code: 'branches.fields.code',
+  status: 'branches.fields.status',
 });
 
 function cloneValue(value) {
@@ -521,6 +527,7 @@ function createCapabilityService(deps) {
           TRANSFERS_MODULE_KEY,
           RECONCILIATION_MODULE_KEY,
           MOVEMENTS_MODULE_KEY,
+          BRANCHES_MODULE_KEY,
           WAREHOUSES_MODULE_KEY,
           CUSTOMERS_MODULE_KEY,
           SUPPLIERS_MODULE_KEY,
@@ -665,6 +672,26 @@ function createCapabilityService(deps) {
       if (patch.status !== undefined && patch.status !== current.status) {
         const action = patch.status === 'active' ? 'reactivate' : 'deactivate';
         await assertAllowed(organizationId, `warehouses.actions.${action}`, 'allowed');
+      }
+    },
+
+    async assertBranchPatchAllowed(organizationId, current, patch) {
+      const changedFields = ['name', 'invoicePrefix', 'code'].filter(
+        (field) => patch[field] !== undefined && String(patch[field]) !== String(current[field]),
+      );
+      if (changedFields.length > 0) {
+        await assertAllowed(organizationId, 'branches.actions.edit', 'allowed');
+      }
+      for (const field of changedFields) {
+        const controlKey = BRANCH_FIELD_CONTROLS[field];
+        if (controlKey !== undefined) {
+          await assertAllowed(organizationId, controlKey, 'editable');
+        }
+      }
+      if (patch.status !== undefined && patch.status !== current.status) {
+        await assertAllowed(organizationId, 'branches.fields.status', 'editable');
+        const action = patch.status === 'active' ? 'reactivate' : 'deactivate';
+        await assertAllowed(organizationId, `branches.actions.${action}`, 'allowed');
       }
     },
 
@@ -820,4 +847,5 @@ module.exports = {
   PRODUCT_FIELD_CONTROLS,
   SUPPLIER_FIELD_CONTROLS,
   WAREHOUSE_FIELD_CONTROLS,
+  BRANCH_FIELD_CONTROLS,
 };
