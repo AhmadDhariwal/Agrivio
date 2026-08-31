@@ -19,6 +19,7 @@ function control(
     | 'inventory.transfers'
     | 'inventory.reconciliation'
     | 'inventory.movements'
+    | 'branches'
     | 'warehouses'
     | 'customers'
     | 'suppliers'
@@ -1595,6 +1596,52 @@ describe('OrganizationControlsPage', () => {
       control('billing.actions.downloadEvidence', 'billing', 'ACTION', 'Download evidence file', { allowed: true }),
       control('billing.actions.inspectHistory', 'billing', 'ACTION', 'Inspect billing history', { allowed: true }),
       control('billing.actions.refresh', 'billing', 'ACTION', 'Refresh Billing', { allowed: true }),
+      // Branches (14 authoritative controls)
+      control('branches', 'branches', 'MODULE', 'Branches', { enabled: true }, { risk: 'CRITICAL' }),
+      control('branches.features.moduleInfo', 'branches', 'FEATURE', 'About Branches', { enabled: true }),
+      control('branches.features.search', 'branches', 'FEATURE', 'Search', { enabled: true }),
+      control('branches.features.statusFilter', 'branches', 'FEATURE', 'Status Filter', { enabled: true }),
+      control(
+        'branches.fields.name',
+        'branches',
+        'FIELD',
+        'Name',
+        { visible: true, editable: true },
+        {
+          configurable: { visible: false, editable: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Required branch name.',
+        },
+      ),
+      control(
+        'branches.fields.invoicePrefix',
+        'branches',
+        'FIELD',
+        'Invoice Prefix',
+        { visible: true, editable: true },
+        {
+          configurable: { visible: false, editable: false },
+          platformEnforced: true,
+          risk: 'CRITICAL',
+          reason: 'Required invoice prefix.',
+        },
+      ),
+      control(
+        'branches.fields.code',
+        'branches',
+        'FIELD',
+        'Code',
+        { visible: true, editable: true },
+        { override: { visible: false } },
+      ),
+      control('branches.fields.status', 'branches', 'FIELD', 'Status', { visible: true, editable: true }),
+      control('branches.actions.create', 'branches', 'ACTION', 'Create Branch', { allowed: true }),
+      control('branches.actions.edit', 'branches', 'ACTION', 'Edit Branch', { allowed: true }),
+      control('branches.actions.deactivate', 'branches', 'ACTION', 'Deactivate Branch', { allowed: true }),
+      control('branches.actions.reactivate', 'branches', 'ACTION', 'Reactivate Branch', { allowed: true }),
+      control('branches.actions.delete', 'branches', 'ACTION', 'Delete Branch', { allowed: true }),
+      control('branches.actions.refresh', 'branches', 'ACTION', 'Refresh Branches', { allowed: true }),
     ];
     await TestBed.configureTestingModule({
       imports: [OrganizationControlsPage],
@@ -3522,6 +3569,98 @@ describe('OrganizationControlsPage', () => {
       const text = fixture.nativeElement.textContent;
       expect(text).toContain('Plan selection remains available because requested plan and version are required');
       expect(text).toContain('Platform enforced');
+    });
+  });
+
+  describe('Branches Controls', () => {
+    it('renders all 14 controls with module, features, fields, required platform-enforced fields, and actions', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('branches');
+      fixture.detectChanges();
+
+      expect(component.moduleLabel('branches')).toBe('Branches');
+      expect(component.selectedControls()).toHaveLength(14);
+      expect(component.moduleControls()).toHaveLength(1);
+      expect(component.moduleInfoControls()).toHaveLength(1);
+      expect(component.filterControls()).toHaveLength(2);
+      expect(component.fieldControls()).toHaveLength(2);
+      expect(component.requiredWorkflowControls()).toHaveLength(2);
+      expect(component.actionControls()).toHaveLength(6);
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('Branches Module');
+      expect(text).toContain('Module Information');
+      expect(text).toContain('About Branches');
+      expect(text).toContain('Filters');
+      expect(text).toContain('Search');
+      expect(text).toContain('Status Filter');
+      expect(text).toContain('Fields');
+      expect(text).toContain('Code');
+      expect(text).toContain('Status');
+      expect(text).toContain('Required Fields');
+      expect(text).toContain('Name');
+      expect(text).toContain('Invoice Prefix');
+      expect(text).toContain('Actions');
+      expect(text).toContain('Create Branch');
+      expect(text).toContain('Edit Branch');
+      expect(text).toContain('Deactivate Branch');
+      expect(text).toContain('Reactivate Branch');
+      expect(text).toContain('Delete Branch');
+      expect(text).toContain('Refresh Branches');
+    });
+
+    it('supports Branches disable/re-enable and generic module reset', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('branches');
+      const moduleControl = component.controls().find((item) => item.key === 'branches');
+      expect(moduleControl).toBeDefined();
+      if (moduleControl) {
+        component.setValue(moduleControl, 'enabled', false);
+        expect(component.disablingBranches()).toBe(true);
+        expect(component.confirmationTitle()).toBe(
+          'Disable Branches for Greenfield Agro Center?',
+        );
+        expect(component.confirmationLabel()).toBe('Disable Branches');
+        component.setValue(moduleControl, 'enabled', true);
+        expect(component.effectiveValue(moduleControl, 'enabled')).toBe(true);
+      }
+
+      component.askResetModule();
+      component.confirm();
+      expect(resetModule).toHaveBeenCalledWith('org-a', 'branches', 4, '');
+    });
+
+    it('locks platform-enforced name and invoicePrefix fields and allows code/status override', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('branches');
+
+      const nameControl = component.controls().find((item) => item.key === 'branches.fields.name');
+      expect(nameControl).toBeDefined();
+      if (nameControl) {
+        expect(component.isConfigurable(nameControl, 'visible')).toBe(false);
+        expect(component.isConfigurable(nameControl, 'editable')).toBe(false);
+        expect(component.isRequiredWorkflowControl(nameControl)).toBe(true);
+        expect(component.showsRequiredEnforcedTreatment(nameControl)).toBe(true);
+      }
+
+      const prefixControl = component.controls().find(
+        (item) => item.key === 'branches.fields.invoicePrefix',
+      );
+      expect(prefixControl).toBeDefined();
+      if (prefixControl) {
+        expect(component.isConfigurable(prefixControl, 'visible')).toBe(false);
+        expect(component.isConfigurable(prefixControl, 'editable')).toBe(false);
+        expect(component.isRequiredWorkflowControl(prefixControl)).toBe(true);
+        expect(component.showsRequiredEnforcedTreatment(prefixControl)).toBe(true);
+      }
+
+      const codeControl = component.controls().find((item) => item.key === 'branches.fields.code');
+      expect(codeControl).toBeDefined();
+      if (codeControl) {
+        expect(component.isConfigurable(codeControl, 'visible')).toBe(true);
+        expect(component.isConfigurable(codeControl, 'editable')).toBe(true);
+        expect(component.isRequiredWorkflowControl(codeControl)).toBe(false);
+      }
     });
   });
 });

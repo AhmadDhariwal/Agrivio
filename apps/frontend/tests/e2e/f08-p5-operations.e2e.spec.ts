@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { API } from './f07-p4-support';
+import { login, enterPlatformWorkspace } from './e2e-auth-helper';
 
 test.describe('F08 P5 platform operations', () => {
   test('authorized platform operator opens Backup status without restore execute', async ({
@@ -13,15 +14,8 @@ test.describe('F08 P5 platform operations', () => {
       password: string;
     };
 
-    await page.goto('/login');
-    await page.getByTestId('login-email').fill(superAdmin.email);
-    await page.getByTestId('login-password').fill(superAdmin.password);
-    await page.getByTestId('login-submit').click();
-    await expect(page).toHaveURL(/\/(context|app)/);
-    if (page.url().includes('/context')) {
-      await page.getByTestId('continue-workspace').click();
-    }
-    await expect(page.getByTestId('authenticated-shell')).toBeVisible();
+    await login(page, superAdmin.email, superAdmin.password);
+    await enterPlatformWorkspace(page);
     await expect(page.getByTestId('nav-alerts')).toHaveCount(0);
     await page.getByTestId('nav-operations').click();
     await expect(page).toHaveURL(/\/app\/platform\/operations$/);

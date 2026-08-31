@@ -1,5 +1,6 @@
 import { API, activationTokenFromUrl } from './e2e-origins';
-import { expect, test, type Page } from '@playwright/test';
+import { login, enterPlatformWorkspace } from './e2e-auth-helper';
+import { expect, test } from '@playwright/test';
 
 const OWNER_PASSWORD = 'owner-activation-passphrase';
 
@@ -27,7 +28,7 @@ test.describe('F02 onboarding vertical slice', () => {
     await page.getByTestId('request-submit').click();
     await expect(page.getByTestId('request-success')).toContainText('Request submitted');
 
-    await signIn(page, superAdmin.email, superAdmin.password);
+    await login(page, superAdmin.email, superAdmin.password);
     await enterPlatformWorkspace(page);
     await page.getByRole('link', { name: 'Organizations' }).click();
     await expect(page.getByTestId('platform-organizations')).toBeVisible();
@@ -69,7 +70,7 @@ test.describe('F02 onboarding vertical slice', () => {
     await expect(page.locator('.ag-alert--danger')).toContainText(/invalid|expired|already used/i);
     await expect(page).toHaveURL(/\/activate/);
 
-    await signIn(page, ownerEmail, OWNER_PASSWORD);
+    await login(page, ownerEmail, OWNER_PASSWORD);
     await expect(page).toHaveURL(/\/context/);
     await page.getByTestId('continue-workspace').click();
     await expect(page.getByTestId('authenticated-shell')).toBeVisible();
@@ -77,34 +78,3 @@ test.describe('F02 onboarding vertical slice', () => {
   });
 });
 
-async function signIn(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password', { exact: true }).fill(password);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page).toHaveURL(/\/context/);
-}
-
-async function enterPlatformWorkspace(page: Page): Promise<void> {
-  const active = page.getByTestId('context-active');
-  if (await active.isVisible()) {
-    const label = (await active.textContent()) ?? '';
-    if (label.includes('Platform')) {
-      await page.getByTestId('continue-workspace').click();
-      await expect(page.getByTestId('authenticated-shell')).toBeVisible();
-      return;
-    }
-  }
-
-  const select = page.getByTestId('context-select');
-  await expect(select).toBeVisible();
-  const options = await select.locator('option').allTextContents();
-  const platformOption = options.find((label) => label.includes('Platform'));
-  expect(platformOption).toBeTruthy();
-  if (platformOption === undefined) {
-    throw new Error('Platform context option was not available');
-  }
-  await select.selectOption({ label: platformOption });
-  await page.getByTestId('switch-context').click();
-  await expect(page.getByTestId('authenticated-shell')).toBeVisible();
-}

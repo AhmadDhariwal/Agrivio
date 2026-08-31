@@ -357,6 +357,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Branches',
           route: '/app/branches',
           permission: 'branches.view',
+          capabilityKey: 'branches',
           testId: 'nav-branches',
         },
         {

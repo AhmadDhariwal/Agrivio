@@ -116,6 +116,9 @@ function createLocationsService(deps) {
             throw notFound('Branch not found');
           }
           assertOptimisticVersion(current, expectedVersion);
+          if (typeof deps.capabilityService?.assertBranchPatchAllowed === 'function') {
+            await deps.capabilityService.assertBranchPatchAllowed(organizationId, current, patch);
+          }
           const updated = await store.updateBranch(session, organizationId, branchId, {
             ...patch,
             version: Number(current['version']) + 1,
@@ -186,7 +189,7 @@ function createLocationsService(deps) {
 
     async createWarehouse(organizationId, body, actor) {
       const input = parseWarehouseCreate(body);
-      const currentUsage = await store.countWarehouses(organizationId);
+      const currentUsage = await store.countActiveWarehouses(organizationId);
       const entitlement = await assertCreationLimit(
         evaluateEntitlement,
         organizationId,
@@ -227,6 +230,11 @@ function createLocationsService(deps) {
           assertOptimisticVersion(current, expectedVersion);
           if (typeof deps.capabilityService?.assertWarehousePatchAllowed === 'function') {
             await deps.capabilityService.assertWarehousePatchAllowed(organizationId, current, patch);
+          }
+          // Enforce plan limit on reactivation: status: 'active' on a currently-inactive warehouse.
+          if (patch.status === 'active' && current.status === 'inactive') {
+            const currentUsage = await store.countActiveWarehouses(organizationId);
+            await assertCreationLimit(evaluateEntitlement, organizationId, 'warehouses', currentUsage);
           }
           const updated = await store.updateWarehouse(session, organizationId, warehouseId, {
             ...patch,

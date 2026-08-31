@@ -7,14 +7,30 @@ Database restore is **not** application rollback. Restore discards later valid t
 Keep these separate:
 
 1. F08 backup/restore **coordination/status** APIs (`backup_operation_records`, `restore_operation_records`)
-2. This **local technical** `mongodump` / `mongorestore` rehearsal
+2. This **local technical** `mongodump` / `mongorestore` rehearsal via native engine and CLI
 
-The in-app restore API does not dump or restore MongoDB.
+The in-app restore API does not dump or restore MongoDB. The native engine (backup-engine.js / restore-engine.js) and the operator CLI (`npm run ops:backup`, `npm run ops:restore`) do.
+
+## What mongodump captures
+
+`mongodump --archive --gzip` captures:
+
+* All MongoDB collection documents
+* Index definitions
+* Collection metadata
+
+It does **not** capture non-MongoDB filesystem assets (billing evidence files, uploaded documents). Full disaster recovery requires backing up both:
+
+1. The MongoDB archive directory (`AGRIVIO_BACKUP_DIR`)
+2. Any application-level file storage (billing evidence root, uploads directory)
+
+See [DATA_RECOVERY.md](DATA_RECOVERY.md) for the full recovery procedure.
 
 ## Prerequisites
 
 * Local MongoDB replica set `rs0` with a PRIMARY (`npm run db:status`)
 * MongoDB Database Tools: `mongodump` and `mongorestore` on `PATH`, or set `AGRIVIO_MONGODUMP_PATH` / `AGRIVIO_MONGORESTORE_PATH`
+  * Install: https://www.mongodb.com/try/download/database-tools
 * Node.js matching the workspace toolchain
 * Commands below are path-generic; run them from the repository root without assuming a specific drive letter
 
@@ -37,6 +53,8 @@ Before every dump, restore, or drop:
 
 Never restore over an existing development database. Never restore production from this runbook.
 
+**Destructive production restore of the primary database must only be performed during a controlled maintenance window with writes stopped.** Always restore into an isolated rehearsal database first to verify data integrity before any production cutover. See [DATA_RECOVERY.md](DATA_RECOVERY.md) steps 4–5.
+
 ## Allowed rehearsal DB naming
 
 ```text
@@ -47,12 +65,29 @@ agrivio_rehearsal_import_<runId>
 
 `<runId>` is alphanumeric only.
 
-## Backup command (REL-G08)
+## Backup via CLI (REL-G08)
+
+Set required environment variables and use the privileged operator CLI:
+
+```text
+AGRIVIO_BACKUP_DIR=/path/to/backups npm run ops:backup
+```
+
+This calls `backup-engine.js` which:
+1. Resolves `mongodump` from `AGRIVIO_MONGODUMP_PATH` or `PATH`
+2. Spawns `mongodump --uri=... --db=<dbName> --archive=<path>.archive.gz --gzip` (no shell=true)
+3. Computes SHA-256 checksum after completion
+4. Writes a sidecar `.manifest.json` with filename, checksum, size, timestamps
+5. Enforces `AGRIVIO_BACKUP_RETENTION_DAYS` cleanup
+
+The archive is a self-contained `.archive.gz` file in `AGRIVIO_BACKUP_DIR`.
+
+### Manual equivalent (rehearsal only)
 
 Replace placeholders. Do not point `--db` at `Agrivio`.
 
 ```text
-mongodump --uri="<replica-set-uri>" --db="<sourceDb>" --out="<dumpDir>"
+mongodump --uri="<replica-set-uri>" --db="<sourceDb>" --archive="<path>.archive.gz" --gzip
 ```
 
 Example namespace: `agrivio_rehearsal_source_<runId>`.
@@ -60,19 +95,32 @@ Example namespace: `agrivio_rehearsal_source_<runId>`.
 ## Backup verification
 
 * Process exit status is 0
-* `<dumpDir>/<sourceDb>` exists and is non-empty
+* Archive file exists, size > 0
+* Manifest JSON records filename, sha256, fileSizeBytes, startedAt, completedAt
 * Record tool version, start/end, artifact size, and expected namespace
 * Optionally record a successful coordination backup outcome for operator visibility (not a substitute for the dump)
 
-## Restore command (REL-G09)
-
-Restore into a **different** disposable database. Do not overwrite the source.
+## Restore via CLI (REL-G09)
 
 ```text
-mongorestore --uri="<replica-set-uri>" --nsFrom="<sourceDb>.*" --nsTo="<restoredDb>.*" --dir="<dumpDir>"
+AGRIVIO_BACKUP_DIR=/path/to/backups npm run ops:restore -- --backup=<archiveName>.archive.gz --confirm-database=<targetDb>
 ```
 
-`<restoredDb>` must be `agrivio_rehearsal_restored_<runId>`.
+`<targetDb>` must be `agrivio_rehearsal_restored_<runId>` for local rehearsal.
+
+The restore CLI:
+1. Resolves `mongorestore` from `AGRIVIO_MONGORESTORE_PATH` or `PATH`
+2. Reads the sidecar manifest and verifies SHA-256 checksum before restoring
+3. Rejects restore if checksum does not match (archive may be corrupted)
+4. Spawns `mongorestore --uri=... --nsFrom=<sourceDb>.* --nsTo=<targetDb>.* --archive=<path> --gzip --drop`
+5. Uses `--drop` to empty target collections before restore (target must be a disposable rehearsal DB)
+
+### Restore semantics
+
+* `--drop` is always used: existing collections in the target are dropped before data is loaded
+* The source archive is never modified
+* The source database is never overwritten
+* For production restore: stop writes to the primary database before restoring, and only restore into the primary after verifying in a rehearsal environment
 
 ## Restore verification
 
@@ -101,8 +149,10 @@ Use existing inventory and supplier reconciliation interfaces. Do not invent a r
 
 ## Restore failure / abort
 
-* Missing or incomplete dump directory: `mongorestore` must exit non-zero; do not mark the target verified
+* Missing or incomplete archive: reject before invoking mongorestore
+* SHA-256 mismatch: reject before invoking mongorestore; archive may be corrupted
 * Refused target names (`Agrivio` or any non-rehearsal name): abort before invoking restore
+* `mongorestore` exits non-zero: restore is failed; do not mark the target verified
 * On abort: leave source intact, drop only disposable rehearsal targets that matched the naming policy, keep textual evidence
 
 ## Import rehearsal (REL-G10)
@@ -128,8 +178,16 @@ Invalid workbook: preview must identify invalid row and field; confirm/execute m
 npm run test:ops:rehearsal
 ```
 
+## Privileged operator CLI
+
+```text
+npm run ops:backup       # creates backup archive + manifest
+npm run ops:restore -- --backup=<archive> --confirm-database=<target>
+```
+
 ## Production vendor caveat
 
 LOCAL TECHNICAL REHEARSAL: evidenced by this runbook and `npm run test:ops:rehearsal`
 
 PRODUCTION TARGET/VENDOR BACKUP VERIFICATION: pending until a production backup provider is selected
+

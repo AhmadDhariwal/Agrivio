@@ -11,6 +11,21 @@ function registerLocationsRoutes(deps) {
   const router = Router();
   const controller = createLocationsController(deps);
   const requireOrganizationContext = createRequireOrganizationContextMiddleware();
+  const requireBranchesModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'branches',
+    'enabled',
+  );
+  const requireBranchCreateAllowed = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'branches.actions.create',
+    'allowed',
+  );
+  const requireBranchDeleteAllowed = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'branches.actions.delete',
+    'allowed',
+  );
   const requireWarehousesModule = createRequireCapabilityMiddleware(
     deps.capabilityService,
     'warehouses',
@@ -33,6 +48,7 @@ function registerLocationsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('branches.view'),
     deps.requireOperationalAccess,
+    requireBranchesModule,
     (req, res, next) => {
       void controller.listBranches(req, res, next);
     },
@@ -45,6 +61,8 @@ function registerLocationsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('branches.manage'),
     deps.requireOperationalAccess,
+    requireBranchesModule,
+    requireBranchCreateAllowed,
     (req, res, next) => {
       void controller.createBranch(req, res, next);
     },
@@ -56,6 +74,7 @@ function registerLocationsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('branches.view'),
     deps.requireOperationalAccess,
+    requireBranchesModule,
     (req, res, next) => {
       void controller.listBranchOptions(req, res, next);
     },
@@ -67,6 +86,7 @@ function registerLocationsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('branches.view'),
     deps.requireOperationalAccess,
+    requireBranchesModule,
     (req, res, next) => {
       void controller.getBranch(req, res, next);
     },
@@ -79,6 +99,7 @@ function registerLocationsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('branches.manage'),
     deps.requireOperationalAccess,
+    requireBranchesModule,
     (req, res, next) => {
       void controller.updateBranch(req, res, next);
     },
@@ -91,6 +112,8 @@ function registerLocationsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('branches.manage'),
     deps.requireOperationalAccess,
+    requireBranchesModule,
+    requireBranchDeleteAllowed,
     (req, res, next) => {
       void controller.deleteBranch(req, res, next);
     },

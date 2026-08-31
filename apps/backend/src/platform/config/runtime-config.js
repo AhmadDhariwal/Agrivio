@@ -220,6 +220,24 @@ function loadApiEnv(env = process.env) {
     issues.push('AGRIVIO_SMTP_FROM is required in production');
   }
 
+  // Backup configuration (optional; validated when set)
+  const backupDir = env['AGRIVIO_BACKUP_DIR']?.trim() ?? '';
+  if (isNonEmptyString(backupDir)) {
+    const path = require('path');
+    if (!path.isAbsolute(backupDir)) {
+      issues.push('AGRIVIO_BACKUP_DIR must be an absolute path when set');
+    }
+  }
+
+  const rawRetentionDays = env['AGRIVIO_BACKUP_RETENTION_DAYS'];
+  let backupRetentionDays = 0;
+  if (isNonEmptyString(rawRetentionDays)) {
+    backupRetentionDays = Number(rawRetentionDays);
+    if (!Number.isInteger(backupRetentionDays) || backupRetentionDays < 0) {
+      issues.push('AGRIVIO_BACKUP_RETENTION_DAYS must be a non-negative integer when set');
+    }
+  }
+
   if (issues.length > 0) {
     throw new EnvValidationError(issues);
   }
@@ -256,6 +274,8 @@ function loadApiEnv(env = process.env) {
     smtpUsername,
     smtpPassword,
     smtpFrom,
+    backupDir: isNonEmptyString(backupDir) ? backupDir : '',
+    backupRetentionDays,
   };
 }
 

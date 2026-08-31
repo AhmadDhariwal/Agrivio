@@ -1,67 +1,574 @@
-<agrivio-ui-page-header
-  title="Branches"
-  eyebrow="Locations"
-  lede="Create and manage branches, including invoice prefixes used for branch-wise numbering."
->
-  @if (canManage()) {
-    <a class="ag-btn" routerLink="/app/branches/new" data-testid="branch-create-link">Create branch</a>
-  }
-</agrivio-ui-page-header>
+<div class="branches-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">Locations</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">Branches</h1>
+        <span class="page-head__count-pill" aria-label="Total branches"
+          >{{ total() }} {{ total() === 1 ? 'branch' : 'branches' }}</span
+        >
+      </div>
+      <p class="page-head__lede">
+        Create and manage branches, including invoice prefixes used for branch-wise numbering.
+      </p>
+    </div>
+    <div class="page-head__actions">
+      @if (canRefresh()) {
+      <button
+        type="button"
+        class="ag-btn ag-btn--secondary page-head__refresh-btn"
+        (click)="reload(true)"
+        [disabled]="loading()"
+        title="Refresh branches list"
+        aria-label="Refresh branches"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          [class.spin]="loading()"
+        >
+          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+        </svg>
+        <span class="btn-text-full">Refresh</span>
+      </button>
+      }
 
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading branches…" />
-} @else if (errorMessage(); as error) {
-  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-} @else {
-  @if (successMessage(); as success) {
+      @if (canCreate()) {
+      <a
+        class="ag-btn ag-btn--primary page-head__add-btn"
+        routerLink="/app/branches/new"
+        data-testid="branch-create-link"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span class="btn-text-full">Create branch</span>
+        <span class="btn-text-mobile">Create</span>
+      </a>
+      }
+    </div>
+  </header>
+
+  <!-- Alerts -->
+  @if (errorMessage(); as error) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  </div>
+  } @if (successMessage(); as success) {
+  <div class="alert-container">
     <agrivio-ui-alert tone="success" [message]="success" />
+  </div>
   }
-  <agrivio-ui-lifecycle-filter [value]="statusFilter()" (changed)="onStatusChange($event)" />
-  @if (visibleItems().length === 0) {
+
+  <!-- Module Information Section -->
+  @if (showModuleInfo()) {
+  <agrivio-ui-module-info
+    [title]="infoTitle"
+    [description]="infoDescription"
+    [items]="infoItems"
+    [defaultExpanded]="false"
+  />
+  }
+
+  <!-- Filter & Control Toolbar -->
+  @if (showToolbar()) {
+  <section class="toolbar" aria-label="Filters and search">
+    <!-- Desktop / Tablet Inline Controls -->
+    <div class="toolbar__desktop">
+      <div class="toolbar__left">
+        <!-- Search Input -->
+        @if (showSearch()) {
+        <div class="search-field">
+          <svg
+            class="search-field__icon"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            class="search-field__input"
+            type="search"
+            [value]="search()"
+            (input)="onSearchInput($event)"
+            placeholder="Search branches by name, prefix or code…"
+            aria-label="Search branches"
+          />
+          @if (search()) {
+          <button
+            type="button"
+            class="search-field__clear"
+            (click)="onSearchClear()"
+            aria-label="Clear search"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          }
+        </div>
+        }
+
+        <!-- Status Filter (All statuses, Active, Inactive) -->
+        @if (showStatusFilter()) {
+        <div class="select-field">
+          <select
+            class="select-field__input"
+            [value]="statusFilter()"
+            (change)="onStatusChange($any($event.target).value)"
+            aria-label="Filter by status"
+          >
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+        }
+
+        <!-- Clear Filters Button -->
+        @if (hasActiveFilters()) {
+        <button class="clear-filters-btn" type="button" (click)="clearFilters()">
+          Clear filters
+        </button>
+        }
+      </div>
+
+      <div class="toolbar__right">
+        <span class="results-count">
+          Showing {{ items().length }} of {{ total() }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Mobile Controls (< 768px) -->
+    <div class="toolbar__mobile">
+      @if (showSearch()) {
+      <div class="search-field search-field--mobile">
+        <svg
+          class="search-field__icon"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          class="search-field__input"
+          type="search"
+          [value]="search()"
+          (input)="onSearchInput($event)"
+          placeholder="Search branches by name, prefix or code…"
+          aria-label="Search branches"
+        />
+        @if (search()) {
+        <button
+          type="button"
+          class="search-field__clear"
+          (click)="onSearchClear()"
+          aria-label="Clear search"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        }
+      </div>
+      }
+
+      <div class="toolbar__mobile-row">
+        @if (showStatusFilter()) {
+        <select
+          class="select-field__input"
+          [value]="statusFilter()"
+          (change)="onStatusChange($any($event.target).value)"
+          aria-label="Filter by status"
+        >
+          <option value="all">All statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+        }
+
+        @if (hasActiveFilters()) {
+        <button type="button" class="mobile-clear-btn" (click)="clearFilters()">Reset</button>
+        }
+      </div>
+    </div>
+  </section>
+  }
+
+  <!-- Content States -->
+  @if (loading()) {
+  <div class="state-container">
+    <agrivio-ui-loading-state label="Loading branches…" />
+  </div>
+  } @else if (items().length === 0 && !hasActiveFilters()) {
+  <!-- Empty State (No Data) -->
+  <div class="state-container">
     <agrivio-ui-empty-state
       title="No branches yet"
       message="Create the first branch to configure invoice prefixes and operational locations."
     />
+  </div>
+  } @else if (items().length === 0) {
+  <!-- Filtered Empty State -->
+  <div class="state-container">
+    <agrivio-ui-empty-state
+      title="No matching branches"
+      message="No branches match the active search and filter criteria. Try clearing filters."
+    />
+  </div>
   } @else {
-    <div class="ag-stack" data-testid="branches-list">
-      @for (item of visibleItems(); track item.id) {
-        <article class="branch-row">
-          <div class="branch-row__identity">
-            <strong class="branch-row__name">{{ item.name }}</strong>
-            <p class="ag-muted branch-row__meta">Prefix {{ item.invoicePrefix }}@if (item.code) { · {{ item.code }} }</p>
-          </div>
-          <div class="ag-inline branch-row__actions">
-            <agrivio-ui-status-badge [label]="item.status" [tone]="item.status === 'active' ? 'success' : 'neutral'" />
-            @if (canManage()) {
-              <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/branches', item.id]">Edit</a>
-              @if (item.status === 'active') {
-                <button type="button" class="ag-btn ag-btn--danger" data-testid="branch-deactivate" (click)="askDeactivate(item)">
-                  Deactivate
-                </button>
-              } @else {
-                <button type="button" class="ag-btn ag-btn--secondary" data-testid="branch-reactivate" (click)="askReactivate(item)">
-                  Reactivate
-                </button>
-              }
-              <button type="button" class="ag-btn ag-btn--danger" data-testid="branch-delete" (click)="askDelete(item)">
-                Delete permanently
-              </button>
-            }
-          </div>
-        </article>
-      }
-    </div>
-    <agrivio-ui-pagination [page]="page()" [pageSize]="pageSize()" [total]="total()" [disabled]="loading()"
-      (pageChange)="onPageChange($event)" (pageSizeChange)="onPageSizeChange($event)" />
-  }
-}
+  <!-- Desktop / Tablet Dense Table -->
+  <div class="table-container" data-testid="branches-list">
+    <table class="branch-table">
+      <colgroup>
+        <col class="col-branch" />
+        <col class="col-prefix" />
+        @if (showCodeField()) {
+        <col class="col-code" />
+        }
+        @if (showStatusField()) {
+        <col class="col-status" />
+        }
+        @if (hasAnyRowAction()) {
+        <col class="col-actions" />
+        }
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col" class="branch-table__th branch-table__th--branch">Branch</th>
+          <th scope="col" class="branch-table__th branch-table__th--prefix">Invoice Prefix</th>
+          @if (showCodeField()) {
+          <th scope="col" class="branch-table__th branch-table__th--code">Code</th>
+          }
+          @if (showStatusField()) {
+          <th scope="col" class="branch-table__th branch-table__th--status">Status</th>
+          }
+          @if (hasAnyRowAction()) {
+          <th scope="col" class="branch-table__th branch-table__th--actions">Actions</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of items(); track item.id) {
+        <tr
+          class="branch-table__row"
+          [class.branch-table__row--inactive]="item.status === 'inactive'"
+        >
+          <!-- Branch Name + Icon Avatar -->
+          <td class="branch-table__td branch-table__td--branch">
+            <div class="branch-cell">
+              <div class="branch-cell__avatar" aria-hidden="true">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M3 21h18" />
+                  <path d="M5 21V7l8-4v18" />
+                  <path d="M19 21V11l-6-4" />
+                  <path d="M9 9v.01" />
+                  <path d="M9 12v.01" />
+                  <path d="M9 15v.01" />
+                  <path d="M9 18v.01" />
+                </svg>
+              </div>
+              <span class="branch-cell__name" [title]="item.name">{{ item.name }}</span>
+            </div>
+          </td>
 
+          <!-- Invoice Prefix -->
+          <td class="branch-table__td branch-table__td--prefix">
+            <span class="prefix-badge" [title]="item.invoicePrefix">{{ item.invoicePrefix }}</span>
+          </td>
+
+          <!-- Code -->
+          @if (showCodeField()) {
+          <td class="branch-table__td branch-table__td--code">
+            @if (item.code) {
+            <span class="code-text" [title]="item.code">{{ item.code }}</span>
+            } @else {
+            <span class="muted-dash">—</span>
+            }
+          </td>
+          }
+
+          <!-- Status -->
+          @if (showStatusField()) {
+          <td class="branch-table__td branch-table__td--status">
+            <span
+              class="status-indicator"
+              [class.status-indicator--active]="item.status === 'active'"
+              [class.status-indicator--inactive]="item.status === 'inactive'"
+            >
+              <span class="status-indicator__dot"></span>
+              {{ item.status === 'active' ? 'Active' : 'Inactive' }}
+            </span>
+          </td>
+          }
+
+          <!-- Actions (Only rendered when user has active row actions) -->
+          @if (hasAnyRowAction()) {
+          <td class="branch-table__td branch-table__td--actions">
+            <div class="row-actions">
+              @if (canEdit()) {
+              <a
+                class="row-action-btn"
+                [routerLink]="['/app/branches', item.id]"
+                title="Edit branch"
+                aria-label="Edit branch"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                  <path d="m15 5 4 4" />
+                </svg>
+              </a>
+              }
+
+              @if (canDeactivate() || canReactivate() || canDelete()) {
+              <div class="menu-container">
+                <button
+                  type="button"
+                  class="row-action-btn row-action-btn--more"
+                  (click)="toggleRowMenu(item.id, $event)"
+                  title="More actions"
+                  aria-label="More actions"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <circle cx="12" cy="12" r="1" />
+                    <circle cx="12" cy="5" r="1" />
+                    <circle cx="12" cy="19" r="1" />
+                  </svg>
+                </button>
+
+                @if (openMenuBranchId() === item.id) {
+                <div class="menu-dropdown">
+                  @if (item.status === 'active' && canDeactivate()) {
+                  <button
+                    type="button"
+                    class="menu-dropdown__item"
+                    data-testid="branch-deactivate"
+                    (click)="askDeactivate(item)"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    Deactivate
+                  </button>
+                  } @else if (item.status === 'inactive' && canReactivate()) {
+                  <button
+                    type="button"
+                    class="menu-dropdown__item"
+                    data-testid="branch-reactivate"
+                    (click)="askReactivate(item)"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    Reactivate
+                  </button>
+                  }
+
+                  @if (canDelete()) {
+                  <button
+                    type="button"
+                    class="menu-dropdown__item menu-dropdown__item--danger"
+                    data-testid="branch-delete"
+                    (click)="askDelete(item)"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    Delete permanently
+                  </button>
+                  }
+                </div>
+                }
+              </div>
+              }
+            </div>
+          </td>
+          }
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile Card View (< 768px) -->
+  <div class="mobile-cards">
+    @for (item of items(); track item.id) {
+    <article class="branch-card" [class.branch-card--inactive]="item.status === 'inactive'">
+      <div class="branch-card__head">
+        <div class="branch-card__name-group">
+          <h2 class="branch-card__name">{{ item.name }}</h2>
+          @if (showCodeField() && item.code) {
+          <span class="branch-card__code">{{ item.code }}</span>
+          }
+        </div>
+        @if (showStatusField()) {
+        <span
+          class="status-indicator"
+          [class.status-indicator--active]="item.status === 'active'"
+          [class.status-indicator--inactive]="item.status === 'inactive'"
+        >
+          <span class="status-indicator__dot"></span>
+          {{ item.status === 'active' ? 'Active' : 'Inactive' }}
+        </span>
+        }
+      </div>
+
+      <div class="branch-card__meta">
+        <span class="branch-card__meta-label">Prefix</span>
+        <span class="prefix-badge">{{ item.invoicePrefix }}</span>
+      </div>
+
+      @if (hasAnyRowAction()) {
+      <div class="branch-card__foot">
+        @if (canEdit()) {
+        <a class="ag-btn ag-btn--secondary branch-card__btn" [routerLink]="['/app/branches', item.id]">
+          Edit
+        </a>
+        }
+        @if (item.status === 'active' && canDeactivate()) {
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary branch-card__btn"
+          (click)="askDeactivate(item)"
+        >
+          Deactivate
+        </button>
+        } @else if (item.status === 'inactive' && canReactivate()) {
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary branch-card__btn"
+          (click)="askReactivate(item)"
+        >
+          Reactivate
+        </button>
+        }
+        @if (canDelete()) {
+        <button
+          type="button"
+          class="ag-btn ag-btn--danger-outline branch-card__btn"
+          (click)="askDelete(item)"
+        >
+          Delete
+        </button>
+        }
+      </div>
+      }
+    </article>
+    }
+  </div>
+
+  <!-- Pagination -->
+  <agrivio-ui-pagination
+    [page]="page()"
+    [pageSize]="pageSize()"
+    [total]="total()"
+    [disabled]="loading()"
+    (pageChange)="onPageChange($event)"
+    (pageSizeChange)="onPageSizeChange($event)"
+  />
+  }
+</div>
+
+<!-- Lifecycle Confirmation Dialog -->
 <agrivio-ui-confirm-dialog
   [open]="confirmOpen()"
   [title]="confirmTitle()"
   [message]="confirmMessage()"
   [confirmLabel]="confirmLabel()"
-  [danger]="confirmLabel() === 'Deactivate' || confirmLabel() === 'Delete permanently'"
+  [danger]="confirmDanger()"
   (confirmed)="confirmLifecycle()"
   (dismiss)="confirmOpen.set(false)"
 />

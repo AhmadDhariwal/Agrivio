@@ -172,7 +172,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'branches',
-        canActivate: [requirePermissionGuard('branches.view')],
+        canActivate: [requirePermissionGuard('branches.view'), requireCapabilityGuard('branches')],
         loadComponent: () =>
           import('./features/branches-warehouses/pages/branches/branches.page').then(
             (m) => m.BranchesPage,
@@ -180,7 +180,11 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'branches/new',
-        canActivate: [requirePermissionGuard('branches.manage')],
+        canActivate: [
+          requirePermissionGuard('branches.manage'),
+          requireCapabilityGuard('branches'),
+          requireCapabilityGuard('branches.actions.create', 'action'),
+        ],
         loadComponent: () =>
           import('./features/branches-warehouses/pages/branch-form/branch-form.page').then(
             (m) => m.BranchFormPage,
@@ -188,7 +192,23 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'branches/:id',
-        canActivate: [requirePermissionGuard('branches.manage')],
+        canActivate: [
+          requirePermissionGuard('branches.manage'),
+          requireCapabilityGuard('branches'),
+          requireCapabilityGuard('branches.actions.edit', 'action'),
+        ],
+        loadComponent: () =>
+          import('./features/branches-warehouses/pages/branch-form/branch-form.page').then(
+            (m) => m.BranchFormPage,
+          ),
+      },
+      {
+        path: 'branches/:id/edit',
+        canActivate: [
+          requirePermissionGuard('branches.manage'),
+          requireCapabilityGuard('branches'),
+          requireCapabilityGuard('branches.actions.edit', 'action'),
+        ],
         loadComponent: () =>
           import('./features/branches-warehouses/pages/branch-form/branch-form.page').then(
             (m) => m.BranchFormPage,

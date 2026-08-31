@@ -1,5 +1,6 @@
 import { API, activationTokenFromUrl } from './e2e-origins';
-import { expect, test, type Page } from '@playwright/test';
+import { login, enterPlatformWorkspace } from './e2e-auth-helper';
+import { expect, test } from '@playwright/test';
 
 const OWNER_PASSWORD = 'owner-activation-passphrase';
 
@@ -21,7 +22,7 @@ test.describe('F03 P1 organization setup slice', () => {
     await page.getByTestId('request-submit').click();
     await expect(page.getByTestId('request-success')).toContainText('Request submitted');
 
-    await signIn(page, superAdmin.email, superAdmin.password);
+    await login(page, superAdmin.email, superAdmin.password);
     await enterPlatformWorkspace(page);
     await page.getByRole('link', { name: 'Organizations' }).click();
     const orgRow = page.getByTestId('org-row').filter({ hasText: organizationName });
@@ -71,28 +72,3 @@ test.describe('F03 P1 organization setup slice', () => {
   });
 });
 
-async function signIn(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password', { exact: true }).fill(password);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page).toHaveURL(/\/context/);
-}
-
-async function enterPlatformWorkspace(page: Page): Promise<void> {
-  const active = page.getByTestId('context-active');
-  if (await active.isVisible()) {
-    const label = (await active.textContent()) ?? '';
-    if (label.includes('Platform')) {
-      await page.getByTestId('continue-workspace').click();
-      await expect(page.getByTestId('authenticated-shell')).toBeVisible();
-      return;
-    }
-  }
-
-  const select = page.getByTestId('context-select');
-  await expect(select).toBeVisible();
-  await select.selectOption({ label: /Platform/i });
-  await page.getByTestId('continue-workspace').click();
-  await expect(page.getByTestId('authenticated-shell')).toBeVisible();
-}

@@ -129,6 +129,15 @@
       <button
         type="button"
         class="module-nav__item"
+        [class.module-nav__item--active]="selectedModule() === 'branches'"
+        (click)="selectModule('branches')"
+        data-testid="branches-control-module"
+      >
+        Branches
+      </button>
+      <button
+        type="button"
+        class="module-nav__item"
         [class.module-nav__item--active]="selectedModule() === 'warehouses'"
         (click)="selectModule('warehouses')"
         data-testid="warehouses-control-module"
@@ -348,6 +357,7 @@
               selectedModule() === 'inventory.expiry' ||
               selectedModule() === 'inventory.reconciliation' ||
               selectedModule() === 'inventory.movements' ||
+              selectedModule() === 'branches' ||
               selectedModule() === 'warehouses' ||
               selectedModule() === 'customers' ||
               selectedModule() === 'suppliers' ||

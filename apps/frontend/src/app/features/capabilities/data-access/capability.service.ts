@@ -232,6 +232,21 @@ const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string,
   'customers.actions.editCreditPolicy': { allowed: true },
   'customers.actions.postOpeningBalance': { allowed: true },
   'customers.actions.refresh': { allowed: true },
+  // Branches module controls (14 authoritative controls)
+  branches: { enabled: true },
+  'branches.features.moduleInfo': { enabled: true },
+  'branches.features.search': { enabled: true },
+  'branches.features.statusFilter': { enabled: true },
+  'branches.fields.name': { visible: true, editable: true },
+  'branches.fields.invoicePrefix': { visible: true, editable: true },
+  'branches.fields.code': { visible: true, editable: true },
+  'branches.fields.status': { visible: true, editable: true },
+  'branches.actions.create': { allowed: true },
+  'branches.actions.edit': { allowed: true },
+  'branches.actions.deactivate': { allowed: true },
+  'branches.actions.reactivate': { allowed: true },
+  'branches.actions.delete': { allowed: true },
+  'branches.actions.refresh': { allowed: true },
   // Warehouses module controls (13 authoritative controls)
   warehouses: { enabled: true },
   'warehouses.features.moduleInfo': { enabled: true },
@@ -656,7 +671,16 @@ export class CapabilityService {
   private value(key: string, mode: string): boolean {
     const snapshot = this.snapshotSignal();
     if (snapshot !== null) {
-      return snapshot.controls.find((control) => control.key === key)?.value[mode] === true;
+      const match = snapshot.controls.find((control) => control.key === key);
+      if (match !== undefined) {
+        const val =
+          match.value ??
+          (match as unknown as { effectiveValue?: Record<string, boolean> }).effectiveValue ??
+          (match as unknown as { configuredValue?: Record<string, boolean> }).configuredValue;
+        if (val !== undefined && val[mode] !== undefined) {
+          return val[mode] === true;
+        }
+      }
     }
     return CURRENT_BEHAVIOR_DEFAULTS[key]?.[mode] === true;
   }
@@ -674,6 +698,7 @@ export class CapabilityService {
       'inventory.reconciliation',
       'inventory.movements',
       'customers',
+      'branches',
       'warehouses',
       'suppliers',
       'returns',

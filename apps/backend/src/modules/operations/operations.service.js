@@ -21,6 +21,9 @@ function toBackupDto(record) {
     failureMessage: record.failureMessage ?? null,
     providerRef: record.providerRef ?? null,
     policyRef: record.policyRef ?? null,
+    filename: record.filename ?? null,
+    fileSizeBytes: record.fileSizeBytes ?? null,
+    sha256: record.sha256 ?? null,
   };
 }
 
@@ -48,9 +51,21 @@ function createOperationsService(deps) {
     append: (session, event) => deps.appendAuditEvent(session, event),
   });
 
+  // Optional: injected backup/restore engines (allows test overrides)
+  const backupEngine = deps.backupEngine ?? null;
+  const restoreEngine = deps.restoreEngine ?? null;
+
   async function listBackups() {
     const items = await store.listBackups();
     return { items: items.map(toBackupDto) };
+  }
+
+  async function getBackupById(id) {
+    const record = await store.findBackupById(id);
+    if (record === null) {
+      throw notFound('Backup record not found');
+    }
+    return toBackupDto(record);
   }
 
   async function verifyBackupPolicy(options = {}) {
@@ -85,6 +100,76 @@ function createOperationsService(deps) {
     return toBackupDto(recorded);
   }
 
+  async function createBackup(actor) {
+    if (!backupEngine) {
+      throw validationFailed(
+        'Native backup engine is not available in this environment. Use npm run ops:backup from the operator CLI.',
+      );
+    }
+    if (!actor?.permissions?.includes('operations.backup.execute')) {
+      throw forbidden('Missing permission operations.backup.execute');
+    }
+
+    const startedAt = now();
+    const runningRecord = await store.insertBackup(null, {
+      status: 'running',
+      recordedAt: startedAt,
+      failureMessage: null,
+      providerRef: null,
+      policyRef: null,
+    });
+
+    await auditWriter.appendBusinessEvent(null, {
+      actorId: String(actor.actorId),
+      action: 'backup.started',
+      resourceType: 'backup_operation',
+      resourceId: String(runningRecord._id),
+      occurredAt: startedAt,
+    });
+
+    let manifest;
+    try {
+      manifest = await backupEngine.runBackup();
+    } catch (err) {
+      await store.updateBackup(null, String(runningRecord._id), {
+        status: 'failed',
+        failureMessage: 'Backup failed: mongodump did not complete successfully',
+      });
+      await auditWriter.appendBusinessEvent(null, {
+        actorId: String(actor.actorId),
+        action: 'backup.failed',
+        resourceType: 'backup_operation',
+        resourceId: String(runningRecord._id),
+        occurredAt: now(),
+      });
+      const safe = new Error('Backup failed: mongodump did not complete successfully');
+      safe.statusCode = 500;
+      throw safe;
+    }
+
+    await store.updateBackup(null, String(runningRecord._id), {
+      status: 'success',
+      recordedAt: manifest.completedAt ? new Date(manifest.completedAt) : now(),
+      providerRef: manifest.filename ?? null,
+      policyRef: manifest.runId ?? null,
+    });
+
+    await auditWriter.appendBusinessEvent(null, {
+      actorId: String(actor.actorId),
+      action: 'backup.completed',
+      resourceType: 'backup_operation',
+      resourceId: String(runningRecord._id),
+      occurredAt: now(),
+      metadata: {
+        filename: manifest.filename,
+        fileSizeBytes: manifest.fileSizeBytes,
+        sha256: manifest.sha256,
+      },
+    });
+
+    return toBackupDto(await store.findBackupById(String(runningRecord._id)));
+  }
+
   async function initiateRestoreCoordination(body, actor) {
     if (!actor?.permissions?.includes('operations.restore.execute')) {
       throw forbidden('Missing permission operations.restore.execute');
@@ -115,6 +200,61 @@ function createOperationsService(deps) {
     return toRestoreDto(recorded);
   }
 
+  async function executeRestore(body, actor) {
+    if (!restoreEngine) {
+      throw validationFailed(
+        'Native restore engine is not available in this environment. Use npm run ops:restore from the operator CLI.',
+      );
+    }
+    if (!actor?.permissions?.includes('operations.restore.execute')) {
+      throw forbidden('Missing permission operations.restore.execute');
+    }
+    const archiveName = requireString(body?.archiveName, 'archiveName');
+    const confirmDatabase = requireString(body?.confirmDatabase, 'confirmDatabase');
+
+    await auditWriter.appendBusinessEvent(null, {
+      actorId: String(actor.actorId),
+      action: 'restore.execute.started',
+      resourceType: 'restore_operation',
+      occurredAt: now(),
+      metadata: { archiveName, confirmDatabase },
+    });
+
+    let result;
+    try {
+      result = await restoreEngine.runRestore({
+        archiveName,
+        confirmDatabase,
+        targetDbName: confirmDatabase,
+        actor,
+      });
+    } catch (err) {
+      await auditWriter.appendBusinessEvent(null, {
+        actorId: String(actor.actorId),
+        action: 'restore.execute.failed',
+        resourceType: 'restore_operation',
+        occurredAt: now(),
+        metadata: { archiveName, confirmDatabase, error: err.message },
+      });
+      throw err;
+    }
+
+    await auditWriter.appendBusinessEvent(null, {
+      actorId: String(actor.actorId),
+      action: 'restore.execute.completed',
+      resourceType: 'restore_operation',
+      occurredAt: now(),
+      metadata: {
+        archiveName: result.archiveName,
+        sourceDbName: result.sourceDbName,
+        targetDbName: result.targetDbName,
+        sha256Verified: result.sha256Verified,
+      },
+    });
+
+    return result;
+  }
+
   async function getRestore(id) {
     const record = await store.findRestoreById(id);
     if (record === null) {
@@ -125,9 +265,12 @@ function createOperationsService(deps) {
 
   return {
     listBackups,
+    getBackupById,
     verifyBackupPolicy,
     recordBackupOutcome,
+    createBackup,
     initiateRestoreCoordination,
+    executeRestore,
     getRestore,
   };
 }
@@ -135,3 +278,4 @@ function createOperationsService(deps) {
 module.exports = {
   createOperationsService,
 };
+

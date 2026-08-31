@@ -27,6 +27,7 @@ type ConfigurableModule =
   | 'inventory.transfers'
   | 'inventory.reconciliation'
   | 'inventory.movements'
+  | 'branches'
   | 'warehouses'
   | 'customers'
   | 'suppliers'
@@ -112,6 +113,9 @@ export class OrganizationControlsPage {
   );
   readonly moduleInfoControls = computed(() => {
     if (this.selectedModule() === 'setup') return this.setupFeatures('moduleInfo');
+    if (this.selectedModule() === 'branches') {
+      return this.branchesFeatures('moduleInfo');
+    }
     if (this.selectedModule() === 'warehouses') {
       return this.warehousesFeatures('moduleInfo');
     }
@@ -258,6 +262,9 @@ export class OrganizationControlsPage {
     }
     if (this.selectedModule() === 'payments.supplierLedger') {
       return this.supplierLedgerFeatures('ledgerFilters', 'supplierSearch');
+    }
+    if (this.selectedModule() === 'branches') {
+      return this.branchesFeatures('search', 'statusFilter');
     }
     if (this.selectedModule() === 'warehouses') {
       return this.warehousesFeatures('search', 'statusFilter');
@@ -436,6 +443,14 @@ export class OrganizationControlsPage {
     return (
       changes.length === 1 &&
       changes[0]?.key === 'inventory.movements' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
+  readonly disablingBranches = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'branches' &&
       changes[0].value?.['enabled'] === false
     );
   });
@@ -766,6 +781,7 @@ export class OrganizationControlsPage {
     if (this.disablingTransfers()) return 'Disable Warehouse Transfers';
     if (this.disablingReconciliation()) return 'Disable Inventory Reconciliation';
     if (this.disablingMovements()) return 'Disable Stock Movements';
+    if (this.disablingBranches()) return 'Disable Branches';
     if (this.disablingWarehouses()) return 'Disable Warehouses';
     if (this.disablingCustomers()) return 'Disable Customers';
     if (this.disablingSuppliers()) return 'Disable Suppliers';
@@ -997,6 +1013,7 @@ export class OrganizationControlsPage {
     if (moduleKey === 'inventory.transfers') return 'Warehouse Transfers';
     if (moduleKey === 'inventory.reconciliation') return 'Inventory Reconciliation';
     if (moduleKey === 'inventory.movements') return 'Stock Movements';
+    if (moduleKey === 'branches') return 'Branches';
     if (moduleKey === 'warehouses') return 'Warehouses';
     if (moduleKey === 'customers') return 'Customers';
     if (moduleKey === 'suppliers') return 'Suppliers';
@@ -1039,6 +1056,7 @@ export class OrganizationControlsPage {
         control.moduleKey === 'inventory.transfers' ||
         control.moduleKey === 'inventory.reconciliation' ||
         control.moduleKey === 'inventory.movements' ||
+        control.moduleKey === 'branches' ||
         control.moduleKey === 'warehouses' ||
         control.moduleKey === 'customers' ||
         control.moduleKey === 'suppliers' ||
@@ -1114,6 +1132,11 @@ export class OrganizationControlsPage {
   }
   private suppliersFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
     const keys = new Set(ids.map((id) => `suppliers.features.${id}`));
+    return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
+  }
+
+  private branchesFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
+    const keys = new Set(ids.map((id) => `branches.features.${id}`));
     return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
   }
 
@@ -1221,6 +1244,10 @@ export class OrganizationControlsPage {
           control.key === 'inventory.movements.features.inspector' ||
           control.key === 'inventory.movements.features.technicalDetails' ||
           control.key === 'inventory.movements.features.mobileCards')) ||
+      (control.moduleKey === 'branches' &&
+        (control.key === 'branches.features.moduleInfo' ||
+          control.key === 'branches.features.search' ||
+          control.key === 'branches.features.statusFilter')) ||
       (control.moduleKey === 'warehouses' &&
         (control.key === 'warehouses.features.moduleInfo' ||
           control.key === 'warehouses.features.search' ||
