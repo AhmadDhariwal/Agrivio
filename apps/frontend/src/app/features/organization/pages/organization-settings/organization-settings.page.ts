@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
+import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import {
   OrganizationProfile,
@@ -8,18 +9,37 @@ import {
   OrganizationSettingsApi,
 } from '../../data-access/organization-settings.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
 import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
+
+export const COMMON_TIMEZONES: readonly string[] = [
+  'Asia/Karachi',
+  'UTC',
+  'Asia/Dubai',
+  'Asia/Riyadh',
+  'Asia/Kolkata',
+  'Asia/Dhaka',
+  'Asia/Bangkok',
+  'Asia/Singapore',
+  'Asia/Tokyo',
+  'Europe/London',
+  'Europe/Berlin',
+  'Europe/Paris',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'Australia/Sydney',
+];
 
 @Component({
   selector: 'agrivio-organization-settings-page',
   standalone: true,
   imports: [
     ReactiveFormsModule,
-    UiPageHeaderComponent,
+    RouterLink,
     UiAlertComponent,
     UiLoadingStateComponent,
     UiFieldLabelComponent,
@@ -33,14 +53,28 @@ export class OrganizationSettingsPage {
   private readonly formBuilder = inject(FormBuilder);
 
   readonly loading = signal(true);
-  readonly saving = signal(false);
+  readonly savingProfile = signal(false);
+  readonly savingSettings = signal(false);
+  readonly saving = computed(() => this.savingProfile() || this.savingSettings());
+
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly permissionDenied = signal(false);
 
-  readonly canView = computed(() => this.sessionStore.hasPermission('settings.view'));
+  readonly organization = signal<OrganizationProfile | null>(null);
+  readonly settings = signal<OrganizationSettings | null>(null);
+
+  readonly canView = computed(
+    () =>
+      this.sessionStore.hasPermission('settings.view') ||
+      this.sessionStore.hasPermission('organization.view'),
+  );
   readonly canManage = computed(() => this.sessionStore.hasPermission('settings.manage'));
-  readonly canUpdateOrg = computed(() => this.sessionStore.hasPermission('organization.update'));
+  readonly canUpdateOrg = computed(
+    () =>
+      this.sessionStore.hasPermission('organization.update') ||
+      this.sessionStore.hasPermission('settings.manage'),
+  );
 
   readonly fieldRequired = hasRequiredValidator;
 
@@ -60,12 +94,77 @@ export class OrganizationSettingsPage {
     documentFooterNote: [''],
   });
 
+  readonly availableTimezones = computed(() => {
+    const list = [...COMMON_TIMEZONES];
+    const current = this.organization()?.timezone;
+    if (current && !list.includes(current)) {
+      list.unshift(current);
+    }
+    return list;
+  });
+
+  // Authoritative values for Settings Summary & Document Preview
+  readonly statusLabel = computed(() => {
+    const status = this.organization()?.status;
+    if (!status) return 'Active';
+    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+  });
+
+  readonly isStatusActive = computed(() => {
+    const status = (this.organization()?.status ?? 'active').toLowerCase();
+    return status === 'active' || status === 'approved';
+  });
+
+  readonly displayTimezone = computed(
+    () => this.profileForm.controls.timezone.value || this.organization()?.timezone || 'Asia/Karachi',
+  );
+
+  readonly displayEmail = computed(() => {
+    const contact = this.settingsForm.controls.contactEmail.value.trim();
+    if (contact) return contact;
+    const settingsEmail = this.settings()?.contactEmail?.trim();
+    if (settingsEmail) return settingsEmail;
+    const sessionEmail = this.sessionStore.session()?.user?.email;
+    return sessionEmail ?? 'Not configured';
+  });
+
+  readonly billingAccessStatus = computed(() => {
+    const state = this.sessionStore.session()?.subscriptionAccessState;
+    if (!state) return 'Enabled';
+    if (state.billingAccessAllowed === false) return 'Restricted';
+    if (state.status === 'suspended') return 'Suspended';
+    return 'Enabled';
+  });
+
+  readonly previewOrgName = computed(() => {
+    const trading = this.settingsForm.controls.tradingName.value.trim();
+    if (trading) return trading;
+    const legal = this.profileForm.controls.name.value.trim();
+    if (legal) return legal;
+    return this.organization()?.name || 'Agrivio Demo Agrochemicals (Pvt) Ltd';
+  });
+
+  readonly previewAddress = computed(() => {
+    const addr = this.settingsForm.controls.addressLine.value.trim();
+    if (addr) return addr;
+    return this.settings()?.addressLine || 'Address not specified';
+  });
+
+  readonly previewFooterNote = computed(() => {
+    const note = this.settingsForm.controls.documentFooterNote.value.trim();
+    if (note) return note;
+    return (
+      this.settings()?.documentFooterNote ||
+      'This document is system generated and does not require a signature.'
+    );
+  });
+
   constructor() {
     this.reload();
   }
 
   reload(): void {
-    if (!this.canView() && !this.sessionStore.hasPermission('organization.view')) {
+    if (!this.canView()) {
       this.loading.set(false);
       this.permissionDenied.set(true);
       return;
@@ -77,6 +176,8 @@ export class OrganizationSettingsPage {
       settings: this.api.getSettings(),
     }).subscribe({
       next: ({ organization, settings }) => {
+        this.organization.set(organization);
+        this.settings.set(settings);
         this.applyOrganization(organization);
         this.applySettings(settings);
         this.loading.set(false);
@@ -96,26 +197,34 @@ export class OrganizationSettingsPage {
       this.profileForm.markAllAsTouched();
       return;
     }
-    this.saving.set(true);
+    this.savingProfile.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
     this.api
       .updateOrganization({
         expectedVersion: this.organizationVersion,
-        name: this.profileForm.controls.name.value,
-        timezone: this.profileForm.controls.timezone.value,
+        name: this.profileForm.controls.name.value.trim(),
+        timezone: this.profileForm.controls.timezone.value.trim(),
       })
       .subscribe({
         next: (organization) => {
+          this.organization.set(organization);
           this.applyOrganization(organization);
-          this.saving.set(false);
+          this.savingProfile.set(false);
           this.successMessage.set('Organization profile saved.');
         },
         error: (error: unknown) => {
-          this.saving.set(false);
+          this.savingProfile.set(false);
           this.errorMessage.set(this.mapError(error, 'Unable to save organization profile.'));
         },
       });
+  }
+
+  resetProfile(): void {
+    const org = this.organization();
+    if (org) {
+      this.applyOrganization(org);
+    }
   }
 
   saveSettings(): void {
@@ -123,50 +232,68 @@ export class OrganizationSettingsPage {
       this.settingsForm.markAllAsTouched();
       return;
     }
-    this.saving.set(true);
+    this.savingSettings.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
     const value = this.settingsForm.getRawValue();
     this.api
       .updateSettings({
         expectedVersion: this.settingsVersion,
-        ...value,
+        tradingName: value.tradingName.trim(),
+        contactPhone: value.contactPhone.trim(),
+        contactEmail: value.contactEmail.trim(),
+        addressLine: value.addressLine.trim(),
+        documentFooterNote: value.documentFooterNote.trim(),
       })
       .subscribe({
         next: (settings) => {
+          this.settings.set(settings);
           this.applySettings(settings);
-          this.saving.set(false);
+          this.savingSettings.set(false);
           this.successMessage.set('Organization settings saved.');
         },
         error: (error: unknown) => {
-          this.saving.set(false);
+          this.savingSettings.set(false);
           this.errorMessage.set(this.mapError(error, 'Unable to save organization settings.'));
         },
       });
+  }
+
+  resetSettings(): void {
+    const set = this.settings();
+    if (set) {
+      this.applySettings(set);
+    }
   }
 
   private applyOrganization(organization: OrganizationProfile): void {
     this.organizationVersion = organization.version;
     this.profileForm.patchValue({
       name: organization.name,
-      timezone: organization.timezone,
+      timezone: organization.timezone || 'Asia/Karachi',
     });
+    this.profileForm.markAsPristine();
     if (!this.canUpdateOrg()) {
       this.profileForm.disable();
+    } else {
+      this.profileForm.enable();
     }
   }
 
   private applySettings(settings: OrganizationSettings): void {
     this.settingsVersion = settings.version;
     this.settingsForm.patchValue({
-      tradingName: settings.tradingName,
-      contactPhone: settings.contactPhone,
-      contactEmail: settings.contactEmail,
-      addressLine: settings.addressLine,
-      documentFooterNote: settings.documentFooterNote,
+      tradingName: settings.tradingName ?? '',
+      contactPhone: settings.contactPhone ?? '',
+      contactEmail: settings.contactEmail ?? '',
+      addressLine: settings.addressLine ?? '',
+      documentFooterNote: settings.documentFooterNote ?? '',
     });
+    this.settingsForm.markAsPristine();
     if (!this.canManage()) {
       this.settingsForm.disable();
+    } else {
+      this.settingsForm.enable();
     }
   }
 

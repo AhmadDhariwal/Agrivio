@@ -1,43 +1,510 @@
 :host {
   display: block;
   width: 100%;
-  max-width: 100%;
-  min-width: 0;
-}
-
-.ag-card {
-  display: grid;
-  gap: 0.85rem;
-  padding: 1.25rem;
-  border: 1px solid color-mix(in srgb, var(--ag-border, #d7ddd4) 100%, transparent);
-  border-radius: 0.75rem;
-  background: color-mix(in srgb, var(--ag-surface, #fff) 92%, #eef3ea);
-  max-width: min(48rem, 100%);
-  min-width: 0;
   box-sizing: border-box;
 }
 
-label {
-  display: grid;
-  gap: 0.35rem;
-  font-size: 0.9rem;
-  min-width: 0;
-}
-
-input,
-textarea {
+.settings-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
   width: 100%;
   max-width: 100%;
-  min-width: 0;
-  padding: 0.65rem 0.75rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--ag-border, #cfd6cb);
-  font: inherit;
-  box-sizing: border-box;
 }
 
-@media (max-width: 720px) {
-  .ag-card {
-    padding: 1rem;
+// ---------------------------------------------------------------------------
+// 1. Page Header with Breadcrumbs
+// ---------------------------------------------------------------------------
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+
+  &__title-group {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1 1 auto;
   }
+
+  &__breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    margin-bottom: 6px;
+    color: var(--ag-color-text-muted, #64748b);
+  }
+
+  .breadcrumb-link {
+    color: var(--ag-color-text-muted, #64748b);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.15s ease;
+
+    &:hover {
+      color: var(--ag-color-primary, #065f46);
+    }
+  }
+
+  .breadcrumb-sep {
+    color: #cbd5e1;
+    font-size: 11px;
+  }
+
+  .breadcrumb-current {
+    color: var(--ag-color-text, #0f172a);
+    font-weight: 600;
+  }
+
+  &__eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ag-color-primary, #065f46);
+    margin: 0 0 4px 0;
+    font-family: var(--ag-font-sans);
+  }
+
+  &__title {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--ag-color-text, #0f172a);
+    margin: 0 0 4px 0;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    font-family: var(--ag-font-sans);
+  }
+
+  &__lede {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--ag-color-text-muted, #64748b);
+    margin: 0;
+    line-height: 1.5;
+    max-width: 54rem;
+  }
+
+  @media (max-width: 767px) {
+    gap: 8px;
+
+    &__eyebrow {
+      display: none;
+    }
+
+    &__title {
+      font-size: 22px;
+    }
+
+    &__lede {
+      font-size: 13px;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 2. Main 2-Column Grid Layout
+// ---------------------------------------------------------------------------
+.settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  width: 100%;
+
+  @media (max-width: 1023px) {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+.settings-main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.settings-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+// ---------------------------------------------------------------------------
+// 3. Form Cards (Products Visual Parity)
+// ---------------------------------------------------------------------------
+.form-card {
+  background: var(--ag-color-surface, #ffffff);
+  border: 1px solid var(--ag-color-border, #e2e8f0);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+
+  &__header {
+    padding: 16px 20px;
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  &__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ag-color-text, #0f172a);
+    margin: 0 0 2px 0;
+    line-height: 1.25;
+    font-family: var(--ag-font-sans);
+  }
+
+  &__subtitle {
+    font-size: 13px;
+    color: var(--ag-color-text-muted, #64748b);
+    margin: 0;
+  }
+
+  &__body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  @media (max-width: 767px) {
+    &__header {
+      padding: 12px 16px;
+    }
+
+    &__body {
+      padding: 16px;
+      gap: 14px;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 4. Form Controls & Inputs
+// ---------------------------------------------------------------------------
+.ag-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ag-input,
+.ag-select,
+.ag-textarea {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13.5px;
+  color: #0f172a;
+  outline: none;
+  font-family: var(--ag-font-sans);
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+
+  &:focus {
+    border-color: var(--ag-color-primary, #065f46);
+    box-shadow: 0 0 0 2px rgba(6, 95, 70, 0.12);
+  }
+
+  &:disabled,
+  &[readonly] {
+    background: #f8fafc;
+    color: #64748b;
+    cursor: not-allowed;
+    border-color: #e2e8f0;
+  }
+}
+
+.ag-input,
+.ag-select {
+  height: 40px;
+  padding: 0 12px;
+}
+
+.ag-select {
+  appearance: auto;
+  cursor: pointer;
+}
+
+.ag-textarea {
+  padding: 8px 12px;
+  min-height: 52px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.ag-input--invalid {
+  border-color: var(--ag-color-danger, #b91c1c);
+}
+
+.field-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ag-color-danger, #b91c1c);
+  line-height: 1.35;
+}
+
+// ---------------------------------------------------------------------------
+// 5. Informational Callout Banner
+// ---------------------------------------------------------------------------
+.info-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+  margin-top: 4px;
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0284c7;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  &__text {
+    font-size: 12.5px;
+    color: #0369a1;
+    margin: 0;
+    line-height: 1.45;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 6. Action Button Rows
+// ---------------------------------------------------------------------------
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 6px;
+}
+
+.read-only-banner {
+  padding-top: 4px;
+}
+
+// ---------------------------------------------------------------------------
+// 7. Right Column: Summary & Preview Cards
+// ---------------------------------------------------------------------------
+.summary-card {
+  background: var(--ag-color-surface, #ffffff);
+  border: 1px solid var(--ag-color-border, #e2e8f0);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+
+  &__header {
+    padding: 14px 18px;
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  &__title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ag-color-text, #0f172a);
+    margin: 0;
+    font-family: var(--ag-font-sans);
+  }
+
+  &__body {
+    padding: 16px 18px;
+  }
+
+  &--checklist {
+    background: #ffffff;
+  }
+}
+
+.summary-profile-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.org-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: #ecfdf5;
+  color: var(--ag-color-primary, #065f46);
+  border: 1px solid #a7f3d0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.summary-meta-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.summary-meta-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  min-width: 0;
+}
+
+.summary-meta-label {
+  color: var(--ag-color-text-muted, #64748b);
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.summary-meta-value {
+  color: var(--ag-color-text, #0f172a);
+  font-weight: 600;
+  text-align: right;
+
+  &--truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 140px;
+  }
+
+  &--highlight {
+    color: var(--ag-color-primary, #065f46);
+  }
+}
+
+// Status Pill
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+
+  &__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  &--active {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+  }
+
+  &--inactive {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 8. Document Live Preview
+// ---------------------------------------------------------------------------
+.doc-preview {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+
+  &__name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ag-color-text, #0f172a);
+    margin: 0;
+    font-family: var(--ag-font-sans);
+  }
+
+  &__address {
+    font-size: 12.5px;
+    color: var(--ag-color-text-muted, #475569);
+    margin: 0;
+    white-space: pre-line;
+    line-height: 1.45;
+  }
+
+  &__divider {
+    border-top: 1px dashed #e2e8f0;
+    margin: 4px 0;
+  }
+
+  &__footer {
+    font-size: 11.5px;
+    font-style: italic;
+    color: #64748b;
+    margin: 0;
+    line-height: 1.4;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 9. What Belongs Here Guidance Checklist
+// ---------------------------------------------------------------------------
+.checklist {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  &__item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 12.5px;
+    color: var(--ag-color-text, #334155);
+    line-height: 1.4;
+  }
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ag-color-primary, #065f46);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  &__text {
+    flex: 1 1 auto;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 10. Alert and State Containers
+// ---------------------------------------------------------------------------
+.alert-container,
+.state-container {
+  margin-bottom: 14px;
+  width: 100%;
 }

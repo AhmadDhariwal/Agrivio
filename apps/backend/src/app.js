@@ -151,6 +151,7 @@ function createApp(options) {
     createAuthModule({
       config,
       persistence: authPersistence,
+      logger,
       store:
         authPersistence === 'mongoose'
           ? createMongooseAuthStore()
