@@ -122,6 +122,11 @@ describe('OrganizationSettingsPage', () => {
     expect(component.previewFooterNote()).toContain('system generated');
   });
 
+  it('displays "Not set" when contact email is empty, and does not fall back to session user email', () => {
+    component.settingsForm.controls.contactEmail.setValue('');
+    expect(component.displayEmail()).toBe('Not set');
+  });
+
   it('saves organization profile on submit and updates success state', () => {
     component.profileForm.controls.name.setValue('Agrivio Demo Updated Ltd');
     component.saveProfile();
@@ -164,6 +169,69 @@ describe('OrganizationSettingsPage', () => {
   });
 });
 
+describe('OrganizationSettingsPage access denial for organization.view without settings.view', () => {
+  let fixture: ComponentFixture<OrganizationSettingsPage>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [OrganizationSettingsPage],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        {
+          provide: OrganizationSettingsApi,
+          useValue: {
+            getOrganization: () =>
+              of({
+                id: 'org-1',
+                name: 'Demo Org',
+                status: 'approved',
+                timezone: 'Asia/Karachi',
+                version: 1,
+              }),
+            getSettings: () =>
+              of({
+                id: 'set-1',
+                organizationId: 'org-1',
+                tradingName: 'Trading',
+                contactPhone: '',
+                contactEmail: '',
+                addressLine: '',
+                documentFooterNote: '',
+                version: 1,
+              }),
+            updateOrganization: () => of({}),
+            updateSettings: () => of({}),
+          },
+        },
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            hasPermission: (permission: string) => permission === 'organization.view',
+            session: () => ({
+              user: { email: 'org.viewer@example.com' },
+              subscriptionAccessState: { billingAccessAllowed: true, status: 'active' },
+            }),
+          },
+        },
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(OrganizationSettingsPage);
+    fixture.detectChanges();
+  });
+
+  it('denies access to users with organization.view but without settings.view', () => {
+    const el = fixture.nativeElement as HTMLElement;
+    expect(fixture.componentInstance.canView()).toBe(false);
+    expect(fixture.componentInstance.permissionDenied()).toBe(true);
+    expect(el.textContent).toContain('You do not have permission to view organization settings.');
+    expect(el.querySelector('[data-testid="organization-profile-card"]')).toBeNull();
+    expect(el.querySelector('[data-testid="residual-settings-card"]')).toBeNull();
+  });
+});
+
 describe('OrganizationSettingsPage manager read-only mode', () => {
   let fixture: ComponentFixture<OrganizationSettingsPage>;
 
@@ -203,8 +271,7 @@ describe('OrganizationSettingsPage manager read-only mode', () => {
         {
           provide: AuthSessionStore,
           useValue: {
-            hasPermission: (permission: string) =>
-              permission === 'settings.view' || permission === 'organization.view',
+            hasPermission: (permission: string) => permission === 'settings.view',
             session: () => ({
               user: { email: 'manager@example.com' },
               subscriptionAccessState: { billingAccessAllowed: true, status: 'active' },

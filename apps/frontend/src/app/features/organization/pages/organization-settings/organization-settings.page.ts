@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
@@ -14,24 +15,16 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
 import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 
-export const COMMON_TIMEZONES: readonly string[] = [
+const COMMON_TIMEZONES = [
   'Asia/Karachi',
   'UTC',
   'Asia/Dubai',
   'Asia/Riyadh',
-  'Asia/Kolkata',
-  'Asia/Dhaka',
-  'Asia/Bangkok',
-  'Asia/Singapore',
-  'Asia/Tokyo',
   'Europe/London',
-  'Europe/Berlin',
-  'Europe/Paris',
   'America/New_York',
-  'America/Chicago',
-  'America/Denver',
-  'America/Los_Angeles',
-  'Australia/Sydney',
+  'Asia/Singapore',
+  'Asia/Dhaka',
+  'Asia/Kolkata',
 ];
 
 @Component({
@@ -64,17 +57,9 @@ export class OrganizationSettingsPage {
   readonly organization = signal<OrganizationProfile | null>(null);
   readonly settings = signal<OrganizationSettings | null>(null);
 
-  readonly canView = computed(
-    () =>
-      this.sessionStore.hasPermission('settings.view') ||
-      this.sessionStore.hasPermission('organization.view'),
-  );
+  readonly canView = computed(() => this.sessionStore.hasPermission('settings.view'));
   readonly canManage = computed(() => this.sessionStore.hasPermission('settings.manage'));
-  readonly canUpdateOrg = computed(
-    () =>
-      this.sessionStore.hasPermission('organization.update') ||
-      this.sessionStore.hasPermission('settings.manage'),
-  );
+  readonly canUpdateOrg = computed(() => this.sessionStore.hasPermission('organization.update'));
 
   readonly fieldRequired = hasRequiredValidator;
 
@@ -92,6 +77,14 @@ export class OrganizationSettingsPage {
     contactEmail: [''],
     addressLine: [''],
     documentFooterNote: [''],
+  });
+
+  private readonly profileFormValues = toSignal(this.profileForm.valueChanges, {
+    initialValue: this.profileForm.getRawValue(),
+  });
+
+  private readonly settingsFormValues = toSignal(this.settingsForm.valueChanges, {
+    initialValue: this.settingsForm.getRawValue(),
   });
 
   readonly availableTimezones = computed(() => {
@@ -116,16 +109,13 @@ export class OrganizationSettingsPage {
   });
 
   readonly displayTimezone = computed(
-    () => this.profileForm.controls.timezone.value || this.organization()?.timezone || 'Asia/Karachi',
+    () => this.profileFormValues().timezone || this.organization()?.timezone || 'Asia/Karachi',
   );
 
   readonly displayEmail = computed(() => {
-    const contact = this.settingsForm.controls.contactEmail.value.trim();
+    const contact = (this.settingsFormValues().contactEmail ?? '').trim();
     if (contact) return contact;
-    const settingsEmail = this.settings()?.contactEmail?.trim();
-    if (settingsEmail) return settingsEmail;
-    const sessionEmail = this.sessionStore.session()?.user?.email;
-    return sessionEmail ?? 'Not configured';
+    return 'Not set';
   });
 
   readonly billingAccessStatus = computed(() => {
@@ -137,21 +127,21 @@ export class OrganizationSettingsPage {
   });
 
   readonly previewOrgName = computed(() => {
-    const trading = this.settingsForm.controls.tradingName.value.trim();
+    const trading = (this.settingsFormValues().tradingName ?? '').trim();
     if (trading) return trading;
-    const legal = this.profileForm.controls.name.value.trim();
+    const legal = (this.profileFormValues().name ?? '').trim();
     if (legal) return legal;
     return this.organization()?.name || 'Agrivio Demo Agrochemicals (Pvt) Ltd';
   });
 
   readonly previewAddress = computed(() => {
-    const addr = this.settingsForm.controls.addressLine.value.trim();
+    const addr = (this.settingsFormValues().addressLine ?? '').trim();
     if (addr) return addr;
     return this.settings()?.addressLine || 'Address not specified';
   });
 
   readonly previewFooterNote = computed(() => {
-    const note = this.settingsForm.controls.documentFooterNote.value.trim();
+    const note = (this.settingsFormValues().documentFooterNote ?? '').trim();
     if (note) return note;
     return (
       this.settings()?.documentFooterNote ||
