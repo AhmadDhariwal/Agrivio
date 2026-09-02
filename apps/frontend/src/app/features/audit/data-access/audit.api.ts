@@ -9,6 +9,18 @@ import { QueryCacheService } from '../../../shared/data-access/query-cache.servi
 import { QUERY_CACHE_TAGS } from '../../../shared/data-access/query-cache.tags';
 import { AuthSessionStore } from '../../auth/data-access/auth-session.store';
 
+export type AuditFilterOptionField =
+  | 'actorId'
+  | 'action'
+  | 'resourceType'
+  | 'resourceId';
+
+
+export interface AuditFilterOptions {
+  field: AuditFilterOptionField;
+  items: string[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuditApi {
   private readonly http = inject(HttpClient);
@@ -53,6 +65,34 @@ export class AuditApi {
         this.http
           .get<{ data: AuditEventItem }>(`${this.baseUrl}/${encodeURIComponent(id)}`, {
             withCredentials: true,
+          })
+          .pipe(map((response) => response.data)),
+    });
+  }
+
+  getFilterOptions(
+    field: AuditFilterOptionField,
+    search = '',
+    limit = 20,
+  ): Observable<AuditFilterOptions> {
+    const params = {
+      field,
+      ...(search.trim() === '' ? {} : { search: search.trim() }),
+      limit: String(limit),
+    };
+    const organizationId = this.sessionStore.activeContext()?.organizationId ?? 'anonymous';
+    return this.queryCache.fetch({
+      key: this.queryCache.buildKey('audit:filter-options', {
+        ...params,
+        organizationId,
+      }),
+      policy: 'short',
+      tags: [QUERY_CACHE_TAGS.audit],
+      loader: () =>
+        this.http
+          .get<{ data: AuditFilterOptions }>(`${this.baseUrl}/filter-options`, {
+            withCredentials: true,
+            params,
           })
           .pipe(map((response) => response.data)),
     });

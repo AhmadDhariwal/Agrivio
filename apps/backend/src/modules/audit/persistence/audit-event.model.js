@@ -119,6 +119,28 @@ function createMongooseAuditEventStore() {
       return { items: rows.map(toQueryDoc), total };
     },
 
+    async distinctValues(filter, field, options = {}) {
+      const organizationId = mongoose.isValidObjectId(filter.organizationId)
+        ? new mongoose.Types.ObjectId(filter.organizationId)
+        : filter.organizationId;
+      const valueMatch = { $type: 'string', $ne: '' };
+      if (options.search) {
+        valueMatch.$regex = String(options.search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        valueMatch.$options = 'i';
+      }
+      const match = { organizationId, [field]: valueMatch };
+      if (filter.from !== undefined) {
+        match.occurredAt = { $gte: filter.from };
+      }
+      const rows = await AuditEventModel.aggregate([
+        { $match: match },
+        { $group: { _id: `$${field}` } },
+        { $sort: { _id: 1 } },
+        { $limit: options.limit ?? 20 },
+      ]).exec();
+      return rows.map((row) => row._id);
+    },
+
     async findById(id) {
       if (!mongoose.isValidObjectId(id)) {
         return null;

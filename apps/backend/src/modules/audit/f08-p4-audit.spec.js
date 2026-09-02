@@ -118,6 +118,22 @@ describe('F08 P4 audit inquiry', () => {
     });
     expect(listed.items.map((item) => item.id)).toEqual(['in-window']);
 
+    const actorOptions = await audit.auditService.queryOrganizationFilterOptions('org-1', {
+      field: 'actorId',
+      search: 'actor',
+      limit: 10,
+    });
+    expect(actorOptions).toEqual({ field: 'actorId', items: ['actor-a', 'actor-b'] });
+    const resourceOptions = await audit.auditService.queryOrganizationFilterOptions('org-1', {
+      field: 'resourceId',
+      search: 'sale',
+      limit: 10,
+    });
+    expect(resourceOptions.items).toEqual(['sale-1']);
+    await expect(
+      audit.auditService.queryOrganizationFilterOptions('org-1', { field: 'reason' }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+
     await expect(audit.auditService.getOrganizationEvent('org-1', 'other-org')).rejects.toMatchObject(
       { code: 'NOT_FOUND' },
     );
@@ -191,6 +207,29 @@ describe('F08 P4 audit inquiry', () => {
       expect(orgQuery.status).toBe(200);
       expect(orgQuery.body.data.every((item) => item.organizationId === orgA)).toBe(true);
       expect(orgQuery.body.data.some((item) => item.resourceId === 'sale-b')).toBe(false);
+
+      const actorOptions = await fetchJson(
+        baseUrl,
+        'GET',
+        `${API_AUDIT_EVENTS_PATH}/filter-options?field=actorId&search=owner&limit=10`,
+        undefined,
+        {},
+        jar,
+      );
+      expect(actorOptions.status).toBe(200);
+      expect(actorOptions.body.data).toEqual({ field: 'actorId', items: ['owner-a'] });
+
+      const orgBOptions = await fetchJson(
+        baseUrl,
+        'GET',
+        `${API_AUDIT_EVENTS_PATH}/filter-options?field=resourceId&limit=10`,
+        undefined,
+        {},
+        sessionBJar,
+      );
+      expect(orgBOptions.status).toBe(200);
+      expect(orgBOptions.body.data.items).toContain('sale-b');
+      expect(orgBOptions.body.data.items).not.toContain('sale-a');
 
       const cross = await fetchJson(
         baseUrl,

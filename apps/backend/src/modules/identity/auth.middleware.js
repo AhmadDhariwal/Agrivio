@@ -29,6 +29,7 @@ function createCorsMiddleware(config) {
         'Access-Control-Allow-Headers',
         'Content-Type, X-CSRF-Token, Idempotency-Key, X-Filename',
       );
+      res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
       res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS');
       res.setHeader('Access-Control-Max-Age', '600');
     }

@@ -70,6 +70,27 @@ describe('AuditApi cache integration', () => {
     expect(secondRes.id).toBe('evt-123');
   });
 
+  it('loads bounded server-derived filter options and scopes their cache by organization', async () => {
+    const first = firstValueFrom(api.getFilterOptions('actorId', ' usr ', 20));
+    const req = http.expectOne((request) => request.url.endsWith('/audit-events/filter-options'));
+    expect(req.request.withCredentials).toBe(true);
+    expect(req.request.params.get('field')).toBe('actorId');
+    expect(req.request.params.get('search')).toBe('usr');
+    expect(req.request.params.get('limit')).toBe('20');
+    req.flush({ data: { field: 'actorId', items: ['usr-1'] } });
+    await expect(first).resolves.toEqual({ field: 'actorId', items: ['usr-1'] });
+
+    const sessionStore = TestBed.inject(AuthSessionStore) as unknown as {
+      activeContext: () => { organizationId: string };
+    };
+    sessionStore.activeContext = () => ({ organizationId: 'org-2' });
+    const second = firstValueFrom(api.getFilterOptions('actorId', 'usr', 20));
+    http
+      .expectOne((request) => request.url.endsWith('/audit-events/filter-options'))
+      .flush({ data: { field: 'actorId', items: ['usr-2'] } });
+    await expect(second).resolves.toEqual({ field: 'actorId', items: ['usr-2'] });
+  });
+
   it('separates the same audit query when the active organization changes', async () => {
     const first = firstValueFrom(api.query({ page: 1, pageSize: 25 }));
     http

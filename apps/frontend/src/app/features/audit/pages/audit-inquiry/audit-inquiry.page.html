@@ -53,113 +53,84 @@
     <!-- Filter & Control Toolbar -->
     @if (canUseFilters() || canUseSearch()) {
     <form class="toolbar" (submit)="$event.preventDefault(); onSearchSubmit()">
-      @if (dateRangeError(); as dateError) {
-      <div class="toolbar__validation" data-testid="audit-date-range-error">{{ dateError }}</div>
-      }
       <!-- Desktop Toolbar Layout -->
       <div class="toolbar__desktop">
         <div class="toolbar__filters">
           @if (canUseFilters()) {
-          <!-- From Date -->
-          <div class="filter-field filter-field--date">
-            <label class="filter-field__label" for="audit-from-input">From</label>
-            <input
-              id="audit-from-input"
-              data-testid="audit-from"
-              type="datetime-local"
-              class="filter-field__input"
-              [ngModel]="from()"
-              (ngModelChange)="from.set($event)"
-              name="from"
-              aria-label="Filter from date-time"
-            />
-          </div>
-
-          <!-- To Date -->
-          <div class="filter-field filter-field--date">
-            <label class="filter-field__label" for="audit-to-input">To</label>
-            <input
-              id="audit-to-input"
-              data-testid="audit-to"
-              type="datetime-local"
-              class="filter-field__input"
-              [ngModel]="to()"
-              (ngModelChange)="to.set($event)"
-              name="to"
-              aria-label="Filter to date-time"
-            />
-          </div>
-
-          <!-- Actor ID Filter -->
-          <div class="filter-field filter-field--text">
-            <label class="filter-field__label" for="audit-actor-input">Actor ID</label>
-            <input
-              id="audit-actor-input"
+          <!-- Actor Dropdown -->
+          <div class="filter-field">
+            <label class="filter-field__label" for="audit-actor-select">Actor</label>
+            <select
+              id="audit-actor-select"
               data-testid="audit-actor"
-              class="filter-field__input"
+              class="filter-field__select"
               [ngModel]="actorId()"
-              (ngModelChange)="actorId.set($event)"
+              (ngModelChange)="onActorChange($event)"
               name="actorId"
-              placeholder="e.g. usr-123"
-              aria-label="Filter by actor ID"
-            />
+              aria-label="Filter by actor"
+            >
+              <option value="">All actors</option>
+              @for (actor of actorOptions(); track actor) {
+              <option [value]="actor">{{ formatActor(actor) }}</option>
+              }
+            </select>
           </div>
 
-          <!-- Action Filter -->
-          <div class="filter-field filter-field--text">
-            <label class="filter-field__label" for="audit-action-input">Action</label>
-            <input
-              id="audit-action-input"
+          <!-- Action Dropdown -->
+          <div class="filter-field">
+            <label class="filter-field__label" for="audit-action-select">Action</label>
+            <select
+              id="audit-action-select"
               data-testid="audit-action"
-              class="filter-field__input"
+              class="filter-field__select"
               [ngModel]="action()"
-              (ngModelChange)="action.set($event)"
+              (ngModelChange)="onActionChange($event)"
               name="action"
-              placeholder="e.g. sale.posted"
-              aria-label="Filter by action code"
-            />
+              aria-label="Filter by action"
+            >
+              <option value="">All actions</option>
+              @for (act of actionOptions(); track act) {
+              <option [value]="act">{{ formatAction(act) }}</option>
+              }
+            </select>
           </div>
 
-          <!-- Resource Type Filter -->
-          <div class="filter-field filter-field--text">
-            <label class="filter-field__label" for="audit-resource-type-input">Resource Type</label>
-            <input
-              id="audit-resource-type-input"
-              class="filter-field__input"
+          <!-- Resource Type Dropdown -->
+          <div class="filter-field">
+            <label class="filter-field__label" for="audit-resource-type-select">Resource Type</label>
+            <select
+              id="audit-resource-type-select"
+              data-testid="audit-resource-type"
+              class="filter-field__select"
               [ngModel]="resourceType()"
-              (ngModelChange)="resourceType.set($event)"
+              (ngModelChange)="onResourceTypeChange($event)"
               name="resourceType"
-              placeholder="e.g. sale, batch"
               aria-label="Filter by resource type"
-            />
+            >
+              <option value="">All resource types</option>
+              @for (resType of resourceTypeOptions(); track resType) {
+              <option [value]="resType">{{ resType }}</option>
+              }
+            </select>
           </div>
 
-          <!-- Resource ID Filter -->
-          <div class="filter-field filter-field--text">
-            <label class="filter-field__label" for="audit-resource-id-input">Resource ID</label>
-            <input
-              id="audit-resource-id-input"
-              class="filter-field__input"
-              [ngModel]="resourceId()"
-              (ngModelChange)="resourceId.set($event)"
-              name="resourceId"
-              placeholder="e.g. res-123"
-              aria-label="Filter by resource ID"
-            />
-          </div>
-
-          <!-- Reason Search Text Filter -->
-          <div class="filter-field filter-field--search">
-            <label class="filter-field__label" for="audit-reason-input">Reason</label>
-            <input
-              id="audit-reason-input"
-              class="filter-field__input"
+          <!-- Reason Dropdown -->
+          <div class="filter-field">
+            <label class="filter-field__label" for="audit-reason-select">Reason</label>
+            <select
+              id="audit-reason-select"
+              data-testid="audit-reason"
+              class="filter-field__select"
               [ngModel]="reason()"
-              (ngModelChange)="reason.set($event)"
+              (ngModelChange)="onReasonChange($event)"
               name="reason"
-              placeholder="Search by reason text…"
-              aria-label="Search by reason"
-            />
+              aria-label="Filter by reason"
+            >
+              <option value="">All reasons</option>
+              @for (rsn of reasonOptions(); track rsn) {
+              <option [value]="rsn">{{ rsn }}</option>
+              }
+            </select>
           </div>
           }
         </div>
@@ -207,20 +178,6 @@
 
       <!-- Mobile Toolbar Layout (< 991px) -->
       <div class="toolbar__mobile">
-        @if (canUseFilters()) {
-        <div class="filter-field">
-          <input
-            type="search"
-            class="filter-field__input"
-            [ngModel]="reason()"
-            (ngModelChange)="reason.set($event)"
-            name="mobileReason"
-            placeholder="Search reason or notes…"
-            aria-label="Search audit reason"
-          />
-        </div>
-        }
-
         <div class="toolbar__mobile-row">
           @if (canUseFilters()) {
           <button
@@ -315,85 +272,63 @@
 
       <div class="mobile-filter-sheet__body">
         <div class="mobile-filter-group">
-          <label class="mobile-filter-group__label" for="mobile-audit-from">From</label>
-          <input
-            id="mobile-audit-from"
-            type="datetime-local"
-            class="mobile-filter-group__input"
-            [ngModel]="from()"
-            (ngModelChange)="from.set($event)"
-          />
-        </div>
-
-        <div class="mobile-filter-group">
-          <label class="mobile-filter-group__label" for="mobile-audit-to">To</label>
-          <input
-            id="mobile-audit-to"
-            type="datetime-local"
-            class="mobile-filter-group__input"
-            [ngModel]="to()"
-            (ngModelChange)="to.set($event)"
-          />
-        </div>
-
-        <div class="mobile-filter-group">
-          <label class="mobile-filter-group__label" for="mobile-audit-actor">Actor ID</label>
-          <input
+          <label class="mobile-filter-group__label" for="mobile-audit-actor">Actor</label>
+          <select
             id="mobile-audit-actor"
-            type="text"
-            class="mobile-filter-group__input"
+            class="mobile-filter-group__select"
             [ngModel]="actorId()"
-            (ngModelChange)="actorId.set($event)"
-            placeholder="e.g. user-123 or system"
-          />
+            (ngModelChange)="onActorChange($event)"
+          >
+            <option value="">All actors</option>
+            @for (actor of actorOptions(); track actor) {
+            <option [value]="actor">{{ formatActor(actor) }}</option>
+            }
+          </select>
         </div>
 
         <div class="mobile-filter-group">
           <label class="mobile-filter-group__label" for="mobile-audit-action">Action</label>
-          <input
+          <select
             id="mobile-audit-action"
-            type="text"
-            class="mobile-filter-group__input"
+            class="mobile-filter-group__select"
             [ngModel]="action()"
-            (ngModelChange)="action.set($event)"
-            placeholder="e.g. sale.posted"
-          />
+            (ngModelChange)="onActionChange($event)"
+          >
+            <option value="">All actions</option>
+            @for (act of actionOptions(); track act) {
+            <option [value]="act">{{ formatAction(act) }}</option>
+            }
+          </select>
         </div>
 
         <div class="mobile-filter-group">
-          <label class="mobile-filter-group__label" for="mobile-audit-res-type">Resource Type</label>
-          <input
-            id="mobile-audit-res-type"
-            type="text"
-            class="mobile-filter-group__input"
+          <label class="mobile-filter-group__label" for="mobile-audit-resource-type">Resource Type</label>
+          <select
+            id="mobile-audit-resource-type"
+            class="mobile-filter-group__select"
             [ngModel]="resourceType()"
-            (ngModelChange)="resourceType.set($event)"
-            placeholder="e.g. sale, batch"
-          />
-        </div>
-
-        <div class="mobile-filter-group">
-          <label class="mobile-filter-group__label" for="mobile-audit-res-id">Resource ID</label>
-          <input
-            id="mobile-audit-res-id"
-            type="text"
-            class="mobile-filter-group__input"
-            [ngModel]="resourceId()"
-            (ngModelChange)="resourceId.set($event)"
-            placeholder="e.g. res-123"
-          />
+            (ngModelChange)="onResourceTypeChange($event)"
+          >
+            <option value="">All resource types</option>
+            @for (resType of resourceTypeOptions(); track resType) {
+            <option [value]="resType">{{ resType }}</option>
+            }
+          </select>
         </div>
 
         <div class="mobile-filter-group">
           <label class="mobile-filter-group__label" for="mobile-audit-reason">Reason</label>
-          <input
+          <select
             id="mobile-audit-reason"
-            type="text"
-            class="mobile-filter-group__input"
+            class="mobile-filter-group__select"
             [ngModel]="reason()"
-            (ngModelChange)="reason.set($event)"
-            placeholder="Filter by reason text…"
-          />
+            (ngModelChange)="onReasonChange($event)"
+          >
+            <option value="">All reasons</option>
+            @for (rsn of reasonOptions(); track rsn) {
+            <option [value]="rsn">{{ rsn }}</option>
+            }
+          </select>
         </div>
       </div>
 

@@ -30,6 +30,11 @@ function registerAuditRoutes(deps) {
     'audit.actions.inspect',
     'allowed',
   );
+  const requireAuditFiltersFeature = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'audit.features.filters',
+    'enabled',
+  );
 
   router.get(
     API_AUDIT_EVENTS_PATH,
@@ -40,6 +45,19 @@ function registerAuditRoutes(deps) {
     requireAuditModule,
     (req, res, next) => {
       void controller.listOrganization(req, res, next);
+    },
+  );
+
+  router.get(
+    `${API_AUDIT_EVENTS_PATH}/filter-options`,
+    deps.requireAuth,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('audit.view'),
+    deps.requireSuspendedReadAccess,
+    requireAuditModule,
+    requireAuditFiltersFeature,
+    (req, res, next) => {
+      void controller.listOrganizationFilterOptions(req, res, next);
     },
   );
 

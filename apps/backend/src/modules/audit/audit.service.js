@@ -4,6 +4,11 @@ const {
   parseAuditHistoryWindow,
 } = require('../subscriptions/entitlement');
 
+const FILTER_OPTION_FIELDS = new Set(['actorId', 'action', 'resourceType', 'resourceId']);
+
+const DEFAULT_FILTER_OPTION_LIMIT = 20;
+const MAX_FILTER_OPTION_LIMIT = 50;
+
 function optionalString(value) {
   if (value === undefined || value === null || value === '') {
     return undefined;
@@ -21,6 +26,17 @@ function optionalDate(value, field) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
     throw validationFailed(`${field} must be an ISO date-time`);
+  }
+  return parsed;
+}
+
+function filterOptionLimit(value) {
+  if (value === undefined || value === null || value === '') {
+    return DEFAULT_FILTER_OPTION_LIMIT;
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > MAX_FILTER_OPTION_LIMIT) {
+    throw validationFailed(`limit must be an integer between 1 and ${MAX_FILTER_OPTION_LIMIT}`);
   }
   return parsed;
 }
@@ -96,6 +112,7 @@ function createAuditService(deps) {
       String(filters.organizationId) !== String(organizationId)
     ) {
       throw forbidden('Organization audit inquiry cannot target another organization');
+
     }
     const from = window.unlimited
       ? filters.from
@@ -129,6 +146,30 @@ function createAuditService(deps) {
     return toAuditDto(event);
   }
 
+  async function queryOrganizationFilterOptions(organizationId, query) {
+    const field = optionalString(query?.field);
+    if (field === undefined || !FILTER_OPTION_FIELDS.has(field)) {
+      throw validationFailed('field must be actorId, action, resourceType, or resourceId');
+    }
+    const search = optionalString(query?.search);
+    if (search !== undefined && search.length > 100) {
+      throw validationFailed('search must not exceed 100 characters');
+    }
+    const window = await resolveHistoryWindow(organizationId);
+    const items = await store.distinctValues(
+      {
+        organizationId,
+        ...(window.unlimited ? {} : { from: window.from }),
+      },
+      field,
+      {
+        ...(search === undefined ? {} : { search }),
+        limit: filterOptionLimit(query?.limit),
+      },
+    );
+    return { field, items };
+  }
+
   async function queryPlatformEvents(query) {
     const filters = parseFilters(query ?? {});
     const result = await store.queryPage({
@@ -146,6 +187,7 @@ function createAuditService(deps) {
 
   return {
     queryOrganizationEvents,
+    queryOrganizationFilterOptions,
     getOrganizationEvent,
     queryPlatformEvents,
     appendForTest: (event) => store.append(null, event),

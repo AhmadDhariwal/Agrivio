@@ -37,6 +37,18 @@ function createAuditController(deps) {
       }
     },
 
+    async listOrganizationFilterOptions(req, res, next) {
+      try {
+        const data = await deps.auditService.queryOrganizationFilterOptions(
+          requireOrganizationId(req),
+          req.query,
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async listPlatform(req, res, next) {
       try {
         const { page, pageSize, skip } = parsePaginationQuery(req.query);

@@ -14,6 +14,7 @@ describe('AuditInquiryPage', () => {
   let fixture: ComponentFixture<AuditInquiryPage>;
   let mockQuery: ReturnType<typeof vi.fn>;
   let mockGetById: ReturnType<typeof vi.fn>;
+  let mockGetFilterOptions: ReturnType<typeof vi.fn>;
   let capabilityState: ReturnType<typeof signal<Record<string, Record<string, boolean>>>>;
   let hasPermissionFn: ReturnType<typeof vi.fn>;
 
@@ -72,6 +73,14 @@ describe('AuditInquiryPage', () => {
       return of(found);
     });
 
+    mockGetFilterOptions = vi.fn((field: string) => {
+      if (field === 'actorId') return of({ field, items: ['system', 'usr-admin'] });
+      if (field === 'action') return of({ field, items: ['sale.posted', 'subscription.status_transition'] });
+      if (field === 'resourceType') return of({ field, items: ['sale', 'subscription'] });
+      if (field === 'reason') return of({ field, items: ['POS checkout complete', 'Upgraded to enterprise plan'] });
+      return of({ field, items: [] });
+    });
+
     const capabilityValue = (key: string, mode: string) => capabilityState()[key]?.[mode] ?? true;
 
     await TestBed.configureTestingModule({
@@ -82,6 +91,7 @@ describe('AuditInquiryPage', () => {
           useValue: {
             query: mockQuery,
             getById: mockGetById,
+            getFilterOptions: mockGetFilterOptions,
           },
         },
         {
@@ -89,6 +99,7 @@ describe('AuditInquiryPage', () => {
           useValue: {
             hasPermission: hasPermissionFn,
             session: () => ({ subscriptionAccessState: { status: 'active' } }),
+            activeContext: () => ({ organizationId: 'org-1' }),
           },
         },
         {
@@ -126,13 +137,43 @@ describe('AuditInquiryPage', () => {
     expect(moduleInfo.textContent).toContain('About Audit History');
   });
 
+  it('renders exactly 4 filter dropdowns: Actor, Action, Resource Type, Reason with authoritative server options', () => {
+    const actorSelect = fixture.nativeElement.querySelector('[data-testid="audit-actor"]');
+    const actionSelect = fixture.nativeElement.querySelector('[data-testid="audit-action"]');
+    const resTypeSelect = fixture.nativeElement.querySelector('[data-testid="audit-resource-type"]');
+    const reasonSelect = fixture.nativeElement.querySelector('[data-testid="audit-reason"]');
+
+    expect(actorSelect).toBeTruthy();
+    expect(actionSelect).toBeTruthy();
+    expect(resTypeSelect).toBeTruthy();
+    expect(reasonSelect).toBeTruthy();
+
+    expect(actorSelect.textContent).toContain('All actors');
+    expect(actorSelect.textContent).toContain('usr-admin');
+    expect(actorSelect.textContent).toContain('System');
+
+    expect(actionSelect.textContent).toContain('All actions');
+    expect(actionSelect.textContent).toContain('Sale posted');
+
+    expect(resTypeSelect.textContent).toContain('All resource types');
+    expect(resTypeSelect.textContent).toContain('sale');
+
+    expect(reasonSelect.textContent).toContain('All reasons');
+    expect(reasonSelect.textContent).toContain('POS checkout complete');
+
+    // Confirm removed controls are not present
+    expect(fixture.nativeElement.querySelector('[data-testid="audit-from"]')).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('[data-testid="audit-to"]')).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('[data-testid="audit-resource-id"]')).toBeFalsy();
+  });
+
   it('renders dense table with formatted timestamps, actors, and friendly action labels', () => {
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('usr-admin');
     expect(text).toContain('Subscription status changed');
     expect(text).toContain('System');
     expect(text).toContain('Sale posted');
-    expect(text).toContain('custom.unmapped_event'); // Safe raw code for unmapped action
+    expect(text).toContain('custom.unmapped_event');
 
     const systemPill = fixture.nativeElement.querySelector('.actor-pill--system');
     expect(systemPill).toBeTruthy();
@@ -143,9 +184,10 @@ describe('AuditInquiryPage', () => {
   });
 
   it('applies server-side filters and resets page to 1', () => {
-    component.actorId.set('usr-admin');
-    component.action.set('sale.posted');
-    component.reason.set('POS');
+    component.onActorChange('usr-admin');
+    component.onActionChange('sale.posted');
+    component.onResourceTypeChange('sale');
+    component.onReasonChange('POS checkout complete');
     mockQuery.mockClear();
 
     component.onSearchSubmit();
@@ -155,38 +197,27 @@ describe('AuditInquiryPage', () => {
       expect.objectContaining({
         actorId: 'usr-admin',
         action: 'sale.posted',
-        reason: 'POS',
+        resourceType: 'sale',
+        reason: 'POS checkout complete',
         page: 1,
       }),
       false,
     );
   });
 
-  it('rejects an inverted date range before making a server request', () => {
-    component.from.set('2026-09-03T00:00');
-    component.to.set('2026-09-02T00:00');
-    mockQuery.mockClear();
-
-    component.onSearchSubmit();
-
-    expect(mockQuery).not.toHaveBeenCalled();
-    expect(component.dateRangeError()).toContain('earlier than or equal to');
-  });
-
   it('does not submit filter searches when the search capability is disabled', () => {
     capabilityState.set({ 'audit.features.search': { enabled: false } });
     mockQuery.mockClear();
 
-    component.actorId.set('usr-1');
+    component.onActorChange('usr-1');
     component.onSearchSubmit();
 
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
   it('clears all active filters and re-queries from page 1', () => {
-    component.actorId.set('usr-admin');
-    component.action.set('sale.posted');
-    component.from.set('2026-09-01T00:00');
+    component.onActorChange('usr-admin');
+    component.onActionChange('sale.posted');
     expect(component.hasActiveFilters()).toBe(true);
 
     mockQuery.mockClear();
@@ -194,7 +225,8 @@ describe('AuditInquiryPage', () => {
 
     expect(component.actorId()).toBe('');
     expect(component.action()).toBe('');
-    expect(component.from()).toBe('');
+    expect(component.resourceType()).toBe('');
+    expect(component.reason()).toBe('');
     expect(component.page()).toBe(1);
     expect(component.hasActiveFilters()).toBe(false);
     expect(mockQuery).toHaveBeenCalled();
@@ -236,7 +268,6 @@ describe('AuditInquiryPage', () => {
     expect(fixture.nativeElement.querySelector('[data-testid="audit-inspector"]')).toBeFalsy();
   });
 
-
   it('removes the Actions column and inspect buttons completely when inspect capability is disabled', () => {
     capabilityState.set({
       'audit.actions.inspect': { allowed: false },
@@ -268,14 +299,13 @@ describe('AuditInquiryPage', () => {
     expect(fixture.nativeElement.querySelector('[data-testid="audit-search"]')).toBeFalsy();
   });
 
-  it('hides filter inputs when audit.features.filters is false', () => {
+  it('hides filter dropdowns when audit.features.filters is false', () => {
     capabilityState.set({
       'audit.features.filters': { enabled: false },
     });
     fixture.detectChanges();
 
     expect(component.canUseFilters()).toBe(false);
-    expect(fixture.nativeElement.querySelector('[data-testid="audit-from"]')).toBeFalsy();
     expect(fixture.nativeElement.querySelector('[data-testid="audit-actor"]')).toBeFalsy();
   });
 
@@ -283,8 +313,8 @@ describe('AuditInquiryPage', () => {
     expect(component.mobileFiltersOpen()).toBe(false);
     expect(component.activeFiltersCount()).toBe(0);
 
-    component.actorId.set('usr-1');
-    component.resourceType.set('sale');
+    component.onActorChange('usr-1');
+    component.onResourceTypeChange('sale');
     expect(component.activeFiltersCount()).toBe(2);
 
     component.openMobileFilters();

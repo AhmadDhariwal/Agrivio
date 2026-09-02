@@ -66,23 +66,42 @@ describe('ImportsPage', () => {
   };
 
   const mockCapabilityService = {
-    canUseFeature: vi.fn((feature: string) => feature.length >= 0),
-    canPerformAction: vi.fn((action: string) => action.length >= 0),
+    canUseFeature: vi.fn((_feature?: string) => true),
+    canPerformAction: vi.fn((_action?: string) => true),
   };
+
+
 
   async function createComponent(overrides?: {
     api?: Partial<typeof mockApi>;
     sessionStore?: Partial<typeof mockSessionStore>;
-    capabilityService?: Partial<typeof mockCapabilityService>;
+    capabilityService?: {
+      canUseFeature?: (feature: string) => boolean;
+      canPerformAction?: (action: string) => boolean;
+    };
   }) {
     await TestBed.configureTestingModule({
       imports: [ImportsPage],
       providers: [
         { provide: ImportsApi, useValue: { ...mockApi, ...overrides?.api } },
         { provide: AuthSessionStore, useValue: { ...mockSessionStore, ...overrides?.sessionStore } },
-        { provide: CapabilityService, useValue: { ...mockCapabilityService, ...overrides?.capabilityService } },
+        {
+          provide: CapabilityService,
+          useValue: {
+            canUseFeature: (feature: string) =>
+              overrides?.capabilityService?.canUseFeature
+                ? overrides.capabilityService.canUseFeature(feature)
+                : mockCapabilityService.canUseFeature(feature),
+            canPerformAction: (action: string) =>
+              overrides?.capabilityService?.canPerformAction
+                ? overrides.capabilityService.canPerformAction(action)
+                : mockCapabilityService.canPerformAction(action),
+          },
+        },
       ],
     }).compileComponents();
+
+
 
     const fixture: ComponentFixture<ImportsPage> = TestBed.createComponent(ImportsPage);
     fixture.detectChanges();
@@ -219,12 +238,27 @@ describe('ImportsPage', () => {
     expect(downloadBtn?.textContent).not.toContain('Download template');
   });
 
-  it('calls downloadTemplate on api when download button is clicked', async () => {
+  it('calls downloadTemplate on api when download button is clicked and triggers browser download', async () => {
     const { page } = await createComponent();
+    const createUrlSpy = vi.spyOn(window.URL, 'createObjectURL').mockReturnValue('blob:mock-url');
+    const revokeUrlSpy = vi.spyOn(window.URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
     const downloadSpy = vi.spyOn(mockApi, 'downloadTemplate');
     page.downloadTemplate();
+
     expect(downloadSpy).toHaveBeenCalledWith('product_categories');
+    expect(createUrlSpy).toHaveBeenCalled();
+    expect(clickSpy).toHaveBeenCalled();
+    expect(revokeUrlSpy).toHaveBeenCalledWith('blob:mock-url');
+
+    createUrlSpy.mockRestore();
+    revokeUrlSpy.mockRestore();
+    clickSpy.mockRestore();
   });
+
+
+
 
   it('ignores a stale preview response after the selected file changes', async () => {
     let resolveCreateJob:

@@ -14,6 +14,7 @@ import { getTemplate, IMPORT_TYPES } from './import-templates.js';
 import { createImportsController } from './controllers/imports.controller.js';
 import { permissionsForMembershipRole } from '../identity/role-permissions.js';
 import { createRequirePermissionMiddleware } from '../identity/permission.middleware.js';
+import { createCorsMiddleware } from '../identity/auth.middleware.js';
 import {
   collectSourceFiles,
   extractImportSpecifiers,
@@ -156,6 +157,19 @@ describe('F08 P3 Excel imports', () => {
       'attachment; filename="products-template.xls"',
     );
     expect(response.body.length).toBeGreaterThan(0);
+  });
+
+  it('exposes the server download filename to allowed browser origins', () => {
+    const headers = {};
+    const cors = createCorsMiddleware({ nodeEnv: 'test' });
+    cors(
+      { method: 'GET', headers: { origin: 'http://localhost:4200' } },
+      { setHeader: (name, value) => { headers[name] = value; } },
+      () => undefined,
+    );
+
+    expect(headers['Access-Control-Allow-Credentials']).toBe('true');
+    expect(headers['Access-Control-Expose-Headers']).toContain('Content-Disposition');
   });
 
   it('previews and executes a valid category import', async () => {

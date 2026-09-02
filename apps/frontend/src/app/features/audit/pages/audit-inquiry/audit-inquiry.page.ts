@@ -88,19 +88,22 @@ export class AuditInquiryPage {
   private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly organizationApi = inject(OrganizationSettingsApi, { optional: true });
 
+  // 4 Authorized Filter Dropdowns
   readonly actorId = signal('');
   readonly action = signal('');
-  readonly from = signal('');
-  readonly to = signal('');
   readonly resourceType = signal('');
-  readonly resourceId = signal('');
   readonly reason = signal('');
+
+  // Dropdown server-backed options
+  readonly actorOptions = signal<string[]>([]);
+  readonly actionOptions = signal<string[]>([]);
+  readonly resourceTypeOptions = signal<string[]>([]);
+  readonly reasonOptions = signal<string[]>([]);
 
   readonly items = signal<AuditEventItem[]>([]);
   readonly loading = signal(false);
   readonly refreshing = signal(false);
   readonly errorMessage = signal<string | null>(null);
-  readonly dateRangeError = signal<string | null>(null);
   readonly organizationTimezoneValue = signal('Asia/Karachi');
 
   readonly page = signal(1);
@@ -140,32 +143,19 @@ export class AuditInquiryPage {
   );
 
   readonly hasActiveFilters = computed(() =>
-    Boolean(
-      this.actorId() ||
-        this.action() ||
-        this.from() ||
-        this.to() ||
-        this.resourceType() ||
-        this.resourceId() ||
-        this.reason(),
-    ),
+    Boolean(this.actorId() || this.action() || this.resourceType() || this.reason()),
   );
 
   readonly activeFiltersCount = computed(
     () =>
-      [
-        this.actorId(),
-        this.action(),
-        this.from(),
-        this.to(),
-        this.resourceType(),
-        this.resourceId(),
-        this.reason(),
-      ].filter((v) => typeof v === 'string' && v.trim() !== '').length,
+      [this.actorId(), this.action(), this.resourceType(), this.reason()].filter(
+        (v) => typeof v === 'string' && v.trim() !== '',
+      ).length,
   );
 
   constructor() {
     if (this.canView()) {
+      this.loadFilterOptions();
       this.organizationApi?.getOrganization().subscribe({
         next: (organization) => {
           if (typeof organization.timezone === 'string' && organization.timezone.trim() !== '') {
@@ -186,11 +176,26 @@ export class AuditInquiryPage {
     }
   }
 
-  search(forceRefresh = false): void {
-    if (!this.canView()) {
+  loadFilterOptions(): void {
+    if (!this.canView() || !this.canUseFilters()) {
       return;
     }
-    if (!this.isDateRangeValid()) {
+
+    this.api.getFilterOptions('actorId', '', 50).subscribe({
+      next: (res) => this.actorOptions.set(res.items),
+    });
+
+    this.api.getFilterOptions('action', '', 50).subscribe({
+      next: (res) => this.actionOptions.set(res.items),
+    });
+
+    this.api.getFilterOptions('resourceType', '', 50).subscribe({
+      next: (res) => this.resourceTypeOptions.set(res.items),
+    });
+  }
+
+  search(forceRefresh = false): void {
+    if (!this.canView()) {
       return;
     }
 
@@ -206,10 +211,7 @@ export class AuditInquiryPage {
         {
           actorId: this.actorId(),
           action: this.action(),
-          from: this.from(),
-          to: this.to(),
           resourceType: this.resourceType(),
-          resourceId: this.resourceId(),
           reason: this.reason(),
           page: this.page(),
           pageSize: this.pageSize(),
@@ -222,7 +224,18 @@ export class AuditInquiryPage {
           this.total.set(meta.total);
           this.loading.set(false);
           this.refreshing.set(false);
+
+          if (items.length > 0) {
+            const distinctReasons = new Set(this.reasonOptions());
+            items.forEach((item) => {
+              if (item.reason && item.reason.trim()) {
+                distinctReasons.add(item.reason.trim());
+              }
+            });
+            this.reasonOptions.set(Array.from(distinctReasons).sort());
+          }
         },
+
         error: (error: unknown) => {
           this.loading.set(false);
           this.refreshing.set(false);
@@ -232,6 +245,7 @@ export class AuditInquiryPage {
   }
 
   refresh(): void {
+    this.loadFilterOptions();
     this.search(true);
   }
 
@@ -243,15 +257,27 @@ export class AuditInquiryPage {
     this.search();
   }
 
+  onActorChange(value: string): void {
+    this.actorId.set(value);
+  }
+
+  onActionChange(value: string): void {
+    this.action.set(value);
+  }
+
+  onResourceTypeChange(value: string): void {
+    this.resourceType.set(value);
+  }
+
+  onReasonChange(value: string): void {
+    this.reason.set(value);
+  }
+
   clearFilters(): void {
     this.actorId.set('');
     this.action.set('');
-    this.from.set('');
-    this.to.set('');
     this.resourceType.set('');
-    this.resourceId.set('');
     this.reason.set('');
-    this.dateRangeError.set(null);
     this.page.set(1);
     if (this.canUseSearch()) {
       this.search();
@@ -371,27 +397,6 @@ export class AuditInquiryPage {
       return error.error?.error?.message ?? fallback;
     }
     return fallback;
-  }
-
-  private isDateRangeValid(): boolean {
-    const from = this.from().trim();
-    const to = this.to().trim();
-    if (!from || !to) {
-      this.dateRangeError.set(null);
-      return true;
-    }
-    const fromDate = new Date(from);
-    const toDate = new Date(to);
-    if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
-      this.dateRangeError.set('Enter valid From and To date-times.');
-      return false;
-    }
-    if (fromDate > toDate) {
-      this.dateRangeError.set('From date-time must be earlier than or equal to To date-time.');
-      return false;
-    }
-    this.dateRangeError.set(null);
-    return true;
   }
 
   private organizationTimezone(): string {

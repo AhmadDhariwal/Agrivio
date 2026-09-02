@@ -164,23 +164,8 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-width: 110px;
+  min-width: 140px;
   flex: 1;
-
-  &--date {
-    min-width: 155px;
-    max-width: 175px;
-  }
-
-  &--text {
-    min-width: 120px;
-    max-width: 180px;
-  }
-
-  &--search {
-    min-width: 140px;
-    flex: 1.5;
-  }
 
   &__label {
     font-size: 11px;
@@ -188,6 +173,33 @@
     text-transform: uppercase;
     letter-spacing: 0.03em;
     color: #475569;
+  }
+
+  &__select {
+    width: 100%;
+    height: 34px;
+    padding: 0 28px 0 10px;
+    background-color: #f8fafc;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 12.5px;
+    color: #0f172a;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    transition: all 0.15s ease;
+    box-sizing: border-box;
+    font-family: inherit;
+
+    &:focus {
+      background-color: #ffffff;
+      border-color: #065f46;
+      box-shadow: 0 0 0 2px rgba(6, 95, 70, 0.12);
+    }
   }
 
   &__input {
@@ -215,6 +227,7 @@
     }
   }
 }
+
 
 .btn-group {
   display: flex;
@@ -430,6 +443,32 @@
     color: #475569;
   }
 
+  &__select {
+    width: 100%;
+    height: 40px;
+    padding: 0 32px 0 12px;
+    background-color: #f8fafc;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 13.5px;
+    color: #0f172a;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    box-sizing: border-box;
+    font-family: inherit;
+
+    &:focus {
+      background-color: #ffffff;
+      border-color: #065f46;
+      box-shadow: 0 0 0 2px rgba(6, 95, 70, 0.12);
+    }
+  }
+
   &__input {
     width: 100%;
     height: 40px;
@@ -449,6 +488,7 @@
     }
   }
 }
+
 
 @keyframes slideUp {
   from {

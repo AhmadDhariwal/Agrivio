@@ -91,6 +91,24 @@ function createInMemoryAuditEventStore() {
       const skip = pagination.skip ?? 0;
       return { items: items.slice(skip, skip + (pagination.pageSize ?? 25)), total: items.length };
     },
+    async distinctValues(filter, field, options = {}) {
+      const items = await this.query(filter);
+      const search = String(options.search ?? '').toLowerCase();
+      const values = new Set();
+      for (const item of items) {
+        const value = item[field];
+        if (typeof value !== 'string' || value === '') {
+          continue;
+        }
+        if (search !== '' && !value.toLowerCase().includes(search)) {
+          continue;
+        }
+        values.add(value);
+      }
+      return [...values]
+        .sort((left, right) => left.localeCompare(right))
+        .slice(0, options.limit ?? 20);
+    },
     async findById(id) {
       const event = events.find((item) => String(item._id) === String(id));
       return event === undefined ? null : { ...event };

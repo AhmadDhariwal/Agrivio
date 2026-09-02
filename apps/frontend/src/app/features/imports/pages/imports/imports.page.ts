@@ -336,8 +336,12 @@ export class ImportsPage {
         return message;
       }
     }
+    if (error instanceof Error && typeof error.message === 'string' && error.message.trim() !== '') {
+      return error.message;
+    }
     return fallback;
   }
+
 
   private formatBytes(bytes: number): string {
     if (bytes < 1024) return `${bytes} B`;
