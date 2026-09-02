@@ -11,6 +11,7 @@ const {
   createPlatformActorMiddleware,
   requirePlatformPermission,
 } = require('../../platform/platform-actor.middleware');
+const { createRequireCapabilityMiddleware } = require('../../capabilities/capability.middleware');
 const { createAuditController } = require('../controllers/audit.controller');
 
 function registerAuditRoutes(deps) {
@@ -19,6 +20,16 @@ function registerAuditRoutes(deps) {
   const requireOrganizationContext = createRequireOrganizationContextMiddleware();
   const platformActor = createPlatformActorMiddleware(deps.config);
   const optionalAuth = deps.optionalAuth ?? ((_req, _res, next) => next());
+  const requireAuditModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'audit',
+    'enabled',
+  );
+  const requireAuditInspectAction = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'audit.actions.inspect',
+    'allowed',
+  );
 
   router.get(
     API_AUDIT_EVENTS_PATH,
@@ -26,6 +37,7 @@ function registerAuditRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('audit.view'),
     deps.requireSuspendedReadAccess,
+    requireAuditModule,
     (req, res, next) => {
       void controller.listOrganization(req, res, next);
     },
@@ -37,6 +49,8 @@ function registerAuditRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('audit.view'),
     deps.requireSuspendedReadAccess,
+    requireAuditModule,
+    requireAuditInspectAction,
     (req, res, next) => {
       void controller.getOrganization(req, res, next);
     },

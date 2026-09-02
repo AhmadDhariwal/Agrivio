@@ -1,11 +1,11 @@
 <div data-testid="audit-page">
 <agrivio-ui-page-header
   title="Audit history"
-  lede="Read-only inquiry of organization audit events. Depth follows the subscription audit-history entitlement."
+  [lede]="canUseModuleInfo() ? 'Read-only inquiry of organization audit events. Depth follows the subscription audit-history entitlement.' : ''"
 />
 
 @if (!canView()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to view audit history." />
+  <agrivio-ui-alert tone="warning" message="You do not have permission or capability access to view audit history." />
 } @else {
   @if (suspended()) {
     <agrivio-ui-alert
@@ -17,37 +17,43 @@
     <agrivio-ui-alert tone="danger" [message]="error" />
   }
 
-  <form class="report-toolbar" (submit)="$event.preventDefault(); search()">
-    <label>
-      From
-      <input data-testid="audit-from" type="datetime-local" [ngModel]="from()" (ngModelChange)="from.set($event)" name="from" />
-    </label>
-    <label>
-      To
-      <input data-testid="audit-to" type="datetime-local" [ngModel]="to()" (ngModelChange)="to.set($event)" name="to" />
-    </label>
-    <label>
-      Actor
-      <input data-testid="audit-actor" [ngModel]="actorId()" (ngModelChange)="actorId.set($event)" name="actorId" />
-    </label>
-    <label>
-      Action
-      <input data-testid="audit-action" [ngModel]="action()" (ngModelChange)="action.set($event)" name="action" />
-    </label>
-    <label>
-      Resource type
-      <input [ngModel]="resourceType()" (ngModelChange)="resourceType.set($event)" name="resourceType" />
-    </label>
-    <label>
-      Resource id
-      <input [ngModel]="resourceId()" (ngModelChange)="resourceId.set($event)" name="resourceId" />
-    </label>
-    <label>
-      Reason
-      <input [ngModel]="reason()" (ngModelChange)="reason.set($event)" name="reason" />
-    </label>
-    <button type="submit" class="ag-btn" data-testid="audit-search">Search</button>
-  </form>
+  @if (canUseFilters() || canUseSearch()) {
+    <form class="report-toolbar" (submit)="$event.preventDefault(); search()">
+      @if (canUseFilters()) {
+        <label>
+          From
+          <input data-testid="audit-from" type="datetime-local" [ngModel]="from()" (ngModelChange)="from.set($event)" name="from" />
+        </label>
+        <label>
+          To
+          <input data-testid="audit-to" type="datetime-local" [ngModel]="to()" (ngModelChange)="to.set($event)" name="to" />
+        </label>
+        <label>
+          Actor
+          <input data-testid="audit-actor" [ngModel]="actorId()" (ngModelChange)="actorId.set($event)" name="actorId" />
+        </label>
+        <label>
+          Action
+          <input data-testid="audit-action" [ngModel]="action()" (ngModelChange)="action.set($event)" name="action" />
+        </label>
+        <label>
+          Resource type
+          <input [ngModel]="resourceType()" (ngModelChange)="resourceType.set($event)" name="resourceType" />
+        </label>
+        <label>
+          Resource id
+          <input [ngModel]="resourceId()" (ngModelChange)="resourceId.set($event)" name="resourceId" />
+        </label>
+        <label>
+          Reason
+          <input [ngModel]="reason()" (ngModelChange)="reason.set($event)" name="reason" />
+        </label>
+      }
+      @if (canUseSearch()) {
+        <button type="submit" class="ag-btn" data-testid="audit-search">Search</button>
+      }
+    </form>
+  }
 
   @if (loading()) {
     <agrivio-ui-loading-state label="Loading audit events…" />

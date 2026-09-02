@@ -46,7 +46,9 @@ type ConfigurableModule =
   | 'dashboard'
   | 'setup'
   | 'billing'
-  | 'settings';
+  | 'settings'
+  | 'imports'
+  | 'audit';
 
 export interface ModuleNavItem {
   readonly key: ConfigurableModule;
@@ -133,6 +135,13 @@ export const MODULE_NAV_GROUPS: readonly ModuleNavGroup[] = [
       { key: 'setup', label: 'Organization Setup', testId: 'setup-control-module' },
       { key: 'billing', label: 'Billing', testId: 'billing-control-module' },
       { key: 'settings', label: 'Organization Settings', testId: 'settings-control-module' },
+    ],
+  },
+  {
+    label: 'Data & Operations',
+    modules: [
+      { key: 'imports', label: 'Excel Imports', testId: 'imports-control-module' },
+      { key: 'audit', label: 'Audit Inquiry', testId: 'audit-control-module' },
     ],
   },
 ];
@@ -262,6 +271,8 @@ export class OrganizationControlsPage {
     if (this.selectedModule() === 'inventory.adjustments') {
       return this.adjustmentsFeatures('moduleInfo');
     }
+    if (this.selectedModule() === 'imports') return this.importsFeatures('moduleInfo');
+    if (this.selectedModule() === 'audit') return this.auditFeatures('moduleInfo');
     return this.batchFeatures('moduleInfo');
   });
   readonly presentationFeatureControls = computed(() => {
@@ -320,6 +331,9 @@ export class OrganizationControlsPage {
   readonly historyControls = computed(() => {
     if (this.selectedModule() === 'accounts') {
       return this.accountsFeatures('movementHistory');
+    }
+    if (this.selectedModule() === 'imports') {
+      return this.importsFeatures('jobHistory');
     }
     if (this.selectedModule() === 'inventory.transfers') {
       return this.transfersFeatures('recentTransfers');
@@ -384,6 +398,9 @@ export class OrganizationControlsPage {
     }
     if (this.selectedModule() === 'inventory.batches') {
       return this.batchFeatures('search', 'productFilter', 'warehouseFilter');
+    }
+    if (this.selectedModule() === 'audit') {
+      return this.auditFeatures('search', 'filters');
     }
     return [];
   });
@@ -698,6 +715,22 @@ export class OrganizationControlsPage {
       changes[0].value?.['enabled'] === false
     );
   });
+  readonly disablingImports = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'imports' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
+  readonly disablingAudit = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'audit' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
   readonly confirmationTitle = computed(() => {
     const pending = this.pendingConfirmation();
     const organization = this.snapshot()?.organization.name ?? 'this organization';
@@ -767,6 +800,12 @@ export class OrganizationControlsPage {
     }
     if (this.disablingDashboard()) {
       return `Disable Dashboard for ${organization}?`;
+    }
+    if (this.disablingImports()) {
+      return `Disable Data Imports for ${organization}?`;
+    }
+    if (this.disablingAudit()) {
+      return `Disable Audit Log for ${organization}?`;
     }
     const single = this.changeSummary().length === 1 ? this.changeSummary()[0] : null;
     if (single?.risk === 'CRITICAL' && single.after === 'Disabled') {
@@ -864,6 +903,12 @@ export class OrganizationControlsPage {
     if (this.disablingSettings()) {
       return `Users in ${organization} will no longer be able to access Organization Settings or update residual organization settings. Existing organization records and profile data are not deleted. This affects ${organization} only.`;
     }
+    if (this.disablingImports()) {
+      return `Users in ${organization} will no longer be able to run data imports or access import history. Existing imported records, mappings, and related inventory/financial data are not modified. This affects ${organization} only.`;
+    }
+    if (this.disablingAudit()) {
+      return `Users in ${organization} will no longer be able to access the Audit Log. Historical audit trails, event logs, and user activity records are not deleted. This affects ${organization} only.`;
+    }
     const critical = this.changeSummary()
       .filter((change) => change.risk === 'CRITICAL')
       .map((change) => `${change.label}: ${change.before} → ${change.after}`);
@@ -903,6 +948,8 @@ export class OrganizationControlsPage {
     if (this.disablingSupplierLedger()) return 'Disable Supplier Ledger';
     if (this.disablingSales()) return 'Disable Sales';
     if (this.disablingDashboard()) return 'Disable Dashboard';
+    if (this.disablingImports()) return 'Disable Data Imports';
+    if (this.disablingAudit()) return 'Disable Audit Log';
     return 'Apply changes';
   });
 
@@ -1138,6 +1185,8 @@ export class OrganizationControlsPage {
     if (moduleKey === 'setup') return 'Organization Setup';
     if (moduleKey === 'billing') return 'Billing';
     if (moduleKey === 'settings') return 'Organization Settings';
+    if (moduleKey === 'imports') return 'Data Imports';
+    if (moduleKey === 'audit') return 'Audit Log';
     return 'Product Batches';
   }
 
@@ -1288,6 +1337,16 @@ export class OrganizationControlsPage {
 
   private adjustmentsFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
     const keys = new Set(ids.map((id) => `inventory.adjustments.features.${id}`));
+    return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
+  }
+
+  private importsFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
+    const keys = new Set(ids.map((id) => `imports.features.${id}`));
+    return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
+  }
+
+  private auditFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
+    const keys = new Set(ids.map((id) => `audit.features.${id}`));
     return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
   }
 

@@ -576,6 +576,32 @@ const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string,
   'settings.fields.addressLine': { visible: true, editable: true },
   'settings.fields.documentFooterNote': { visible: true, editable: true },
   'settings.actions.update': { allowed: true },
+  // Imports module controls
+  imports: { enabled: true },
+  'imports.features.moduleInfo': { enabled: true },
+  'imports.features.templateDownloads': { enabled: true },
+  'imports.features.jobHistory': { enabled: true },
+  'imports.fields.importType': { visible: true },
+  'imports.fields.fileName': { visible: true },
+  'imports.fields.fileSize': { visible: true },
+  'imports.fields.status': { visible: true },
+  'imports.fields.totalRows': { visible: true },
+  'imports.fields.validRows': { visible: true },
+  'imports.fields.errorRows': { visible: true },
+  'imports.actions.preview': { allowed: true },
+  'imports.actions.execute': { allowed: true },
+  // Audit module controls
+  audit: { enabled: true },
+  'audit.features.moduleInfo': { enabled: true },
+  'audit.features.search': { enabled: true },
+  'audit.features.filters': { enabled: true },
+  'audit.fields.timestamp': { visible: true },
+  'audit.fields.actor': { visible: true },
+  'audit.fields.action': { visible: true },
+  'audit.fields.entityType': { visible: true },
+  'audit.fields.entityId': { visible: true },
+  'audit.fields.details': { visible: true },
+  'audit.actions.inspect': { allowed: true },
 };
 
 @Injectable({ providedIn: 'root' })
@@ -728,6 +754,8 @@ export class CapabilityService {
       'setup',
       'billing',
       'settings',
+      'imports',
+      'audit',
     ]);
     return {
       organizationId: this.sessionStore.activeContext()?.organizationId ?? 'test-organization',

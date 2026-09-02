@@ -4,6 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { AuditApi } from '../../data-access/audit.api';
 import { AuditEventItem } from '../../models/audit.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
@@ -26,6 +27,7 @@ import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pa
 export class AuditInquiryPage {
   private readonly api = inject(AuditApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService);
 
   readonly actorId = signal('');
   readonly action = signal('');
@@ -41,7 +43,23 @@ export class AuditInquiryPage {
   readonly pageSize = signal(25);
   readonly total = signal(0);
 
-  readonly canView = computed(() => this.sessionStore.hasPermission('audit.view'));
+  readonly canUseModuleInfo = computed(() =>
+    this.capabilityService.canUseFeature('audit.features.moduleInfo'),
+  );
+  readonly canUseSearch = computed(() =>
+    this.capabilityService.canUseFeature('audit.features.search'),
+  );
+  readonly canUseFilters = computed(() =>
+    this.capabilityService.canUseFeature('audit.features.filters'),
+  );
+  readonly canInspect = computed(() =>
+    this.capabilityService.canPerformAction('audit.actions.inspect'),
+  );
+  readonly canView = computed(
+    () =>
+      this.sessionStore.hasPermission('audit.view') &&
+      this.capabilityService.canUseModule('audit'),
+  );
   readonly suspended = computed(
     () => this.sessionStore.session()?.subscriptionAccessState?.status === 'suspended',
   );

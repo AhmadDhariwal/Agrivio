@@ -4,6 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ImportsApi } from '../../data-access/imports.api';
 import { ImportJob, ImportRowError, ImportTemplate } from '../../models/imports.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
@@ -18,6 +19,7 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
 export class ImportsPage {
   private readonly api = inject(ImportsApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService);
 
   readonly templates = signal<ImportTemplate[]>([]);
   readonly selectedType = signal('product_categories');
@@ -28,8 +30,25 @@ export class ImportsPage {
   readonly errorMessage = signal<string | null>(null);
   readonly selectedFile = signal<File | null>(null);
 
-  readonly canPreview = computed(() => this.sessionStore.hasPermission('imports.preview'));
-  readonly canExecute = computed(() => this.sessionStore.hasPermission('imports.execute'));
+  readonly canUseModuleInfo = computed(() =>
+    this.capabilityService.canUseFeature('imports.features.moduleInfo'),
+  );
+  readonly canUseTemplateDownloads = computed(() =>
+    this.capabilityService.canUseFeature('imports.features.templateDownloads'),
+  );
+  readonly canUseJobHistory = computed(() =>
+    this.capabilityService.canUseFeature('imports.features.jobHistory'),
+  );
+  readonly canPreview = computed(
+    () =>
+      this.sessionStore.hasPermission('imports.preview') &&
+      this.capabilityService.canPerformAction('imports.actions.preview'),
+  );
+  readonly canExecute = computed(
+    () =>
+      this.sessionStore.hasPermission('imports.execute') &&
+      this.capabilityService.canPerformAction('imports.actions.execute'),
+  );
   readonly suspended = computed(
     () => this.sessionStore.session()?.subscriptionAccessState?.status === 'suspended',
   );

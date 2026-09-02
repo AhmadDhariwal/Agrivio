@@ -1,8 +1,11 @@
 <div data-testid="imports-page">
-<agrivio-ui-page-header title="Imports" lede="Excel preview and all-or-nothing execution for Frozen Release 1 templates" />
+<agrivio-ui-page-header
+  title="Imports"
+  [lede]="canUseModuleInfo() ? 'Excel preview and all-or-nothing execution for Frozen Release 1 templates' : ''"
+/>
 
 @if (!canPreview()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to preview imports." />
+  <agrivio-ui-alert tone="warning" message="You do not have permission or capability access to preview imports." />
 } @else if (suspended()) {
   <agrivio-ui-alert
     tone="danger"
@@ -36,10 +39,10 @@
         (change)="onFile($event)"
       />
     </label>
-    <button type="submit" class="ag-btn" data-testid="import-preview-submit" [disabled]="loading() || !selectedFile()">Preview</button>
+    <button type="submit" class="ag-btn" data-testid="import-preview-submit" [disabled]="loading() || !selectedFile() || !canPreview()">Preview</button>
   </form>
 
-  @if (selectedTemplate(); as template) {
+  @if (canUseTemplateDownloads() && selectedTemplate(); as template) {
     <p class="import-meta" data-testid="template-policy">Policy: {{ template.createUpdatePolicy }} · version {{ template.version }}</p>
     <p class="import-meta">Columns: {{ columnSummary() }}</p>
   }

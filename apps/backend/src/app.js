@@ -685,6 +685,7 @@ function createApp(options) {
 
   const importsRoutes = registerImportsRoutes({
     importsService: imports.importsService,
+    capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
@@ -693,6 +694,7 @@ function createApp(options) {
   const auditRoutes = registerAuditRoutes({
     config,
     auditService: audit.auditService,
+    capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     optionalAuth: auth.middlewares.optionalAuth,
     requireSuspendedReadAccess: subscriptions.middlewares.requireSuspendedReadAccess,
