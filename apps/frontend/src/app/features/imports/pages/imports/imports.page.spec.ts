@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { ImportsPage } from './imports.page';
 import { ImportsApi } from '../../data-access/imports.api';
@@ -31,7 +31,13 @@ describe('ImportsPage', () => {
         },
       ]),
     ),
-    downloadTemplate: vi.fn(() => of(new Blob(['mock-xls-content'], { type: 'application/vnd.ms-excel' }))),
+    downloadTemplate: vi.fn(() =>
+      of({
+        blob: new Blob(['mock-xls-content'], { type: 'application/vnd.ms-excel' }),
+        filename: 'product_categories-template.xls',
+        contentType: 'application/vnd.ms-excel',
+      }),
+    ),
     createJob: vi.fn(() => of({ id: 'job-1', importType: 'product_categories', status: 'created' })),
     upload: vi.fn(() => of({ id: 'job-1', importType: 'product_categories', status: 'uploaded' })),
     validate: vi.fn(() =>
@@ -60,8 +66,8 @@ describe('ImportsPage', () => {
   };
 
   const mockCapabilityService = {
-    canUseFeature: vi.fn(() => true),
-    canPerformAction: vi.fn(() => true),
+    canUseFeature: vi.fn((feature: string) => feature.length >= 0),
+    canPerformAction: vi.fn((action: string) => action.length >= 0),
   };
 
   async function createComponent(overrides?: {
@@ -218,6 +224,30 @@ describe('ImportsPage', () => {
     const downloadSpy = vi.spyOn(mockApi, 'downloadTemplate');
     page.downloadTemplate();
     expect(downloadSpy).toHaveBeenCalledWith('product_categories');
+  });
+
+  it('ignores a stale preview response after the selected file changes', async () => {
+    let resolveCreateJob:
+      | ((job: { id: string; importType: string; status: string }) => void)
+      | undefined;
+    const { page } = await createComponent({
+      api: {
+        createJob: vi.fn(
+          () =>
+            new Observable<{ id: string; importType: string; status: string }>((subscriber) => {
+              resolveCreateJob = (job) => subscriber.next(job);
+            }),
+        ),
+      },
+    });
+    const file = new File(['old'], 'old.xlsx');
+    page.setFile(file);
+    page.startPreview();
+    page.setFile(new File(['new'], 'new.xlsx'));
+    resolveCreateJob?.({ id: 'stale-job', importType: 'product_categories', status: 'created' });
+
+    expect(page.job()).toBeNull();
+    expect(page.loading()).toBe(false);
   });
 
   it('handles pagination for error issues', async () => {

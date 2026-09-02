@@ -73,7 +73,7 @@
 
           <!-- Workbook File Dropzone / Picker -->
           <div class="form-group">
-            <label class="form-label">Workbook file</label>
+            <label class="form-label" for="import-file-input">Workbook file</label>
             <div
               class="upload-zone"
               [class.upload-zone--dragging]="isDragging()"
@@ -87,7 +87,7 @@
                 data-testid="import-file"
                 type="file"
                 class="upload-zone__input"
-                accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/xml,application/xml"
+                accept=".xls,.xlsx,.xml,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/xml,application/xml"
                 (change)="onFile($event)"
               />
               @if (selectedFile(); as file) {
@@ -133,7 +133,7 @@
                     <span>Drag and drop your file here, or</span>
                     <span class="upload-zone__link">click to browse</span>
                   </p>
-                  <p class="upload-zone__hint">Accepted file types: .xlsx, .xls · Max file size: 5 MB</p>
+                  <p class="upload-zone__hint">Accepted file types: .xls, .xlsx, .xml · Max file size: 5 MB</p>
                 </label>
               }
             </div>
@@ -207,7 +207,7 @@
             }
             <div class="details-item">
               <dt class="details-item__label">Format</dt>
-              <dd class="details-item__value">Excel workbook (.xls, .xlsx)</dd>
+              <dd class="details-item__value">Excel workbook or SpreadsheetML XML (.xls, .xlsx, .xml)</dd>
             </div>
             <div class="details-item">
               <dt class="details-item__label">Notes</dt>

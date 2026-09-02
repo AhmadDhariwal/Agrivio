@@ -67,6 +67,8 @@ export class ImportsPage {
   readonly page = signal(1);
   readonly pageSize = 10;
 
+  private workflowGeneration = 0;
+
   readonly canUseModuleInfo = computed(() =>
     this.capabilityService.canUseFeature('imports.features.moduleInfo'),
   );
@@ -111,6 +113,7 @@ export class ImportsPage {
   readonly canSubmitExecute = computed(
     () =>
       this.canExecute() &&
+      this.job()?.importType === this.selectedType() &&
       this.job()?.status === 'previewed' &&
       this.job()?.preview?.invalidRows === 0 &&
       !this.executing(),
@@ -153,11 +156,7 @@ export class ImportsPage {
 
   onTypeChange(value: string): void {
     this.selectedType.set(value);
-    this.job.set(null);
-    this.errors.set([]);
-    this.errorMessage.set(null);
-    this.successMessage.set(null);
-    this.page.set(1);
+    this.invalidateWorkflow(this.selectedFile());
   }
 
   onFile(event: Event): void {
@@ -189,12 +188,7 @@ export class ImportsPage {
   }
 
   setFile(file: File | null): void {
-    this.selectedFile.set(file);
-    this.job.set(null);
-    this.errors.set([]);
-    this.errorMessage.set(null);
-    this.successMessage.set(null);
-    this.page.set(1);
+    this.invalidateWorkflow(file);
   }
 
   clearFile(event?: Event): void {
@@ -202,25 +196,20 @@ export class ImportsPage {
       event.preventDefault();
       event.stopPropagation();
     }
-    this.selectedFile.set(null);
-    this.job.set(null);
-    this.errors.set([]);
-    this.errorMessage.set(null);
-    this.successMessage.set(null);
-    this.page.set(1);
+    this.invalidateWorkflow(null);
   }
 
   downloadTemplate(): void {
-    if (!this.canUseTemplateDownloads()) return;
+    if (!this.canUseTemplateDownloads() || this.downloadingTemplate()) return;
     const importType = this.selectedType();
     this.downloadingTemplate.set(true);
     this.api.downloadTemplate(importType).subscribe({
-      next: (blob) => {
+      next: ({ blob, filename }) => {
         this.downloadingTemplate.set(false);
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${importType}-template.xls`;
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -238,27 +227,32 @@ export class ImportsPage {
     if (!file || !this.canPreview() || this.loading() || this.executing()) {
       return;
     }
+    const generation = this.workflowGeneration;
+    const importType = this.selectedType();
     this.loading.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
-    this.api.createJob(this.selectedType()).subscribe({
+    this.api.createJob(importType).subscribe({
       next: (job) => {
+        if (!this.isCurrentWorkflow(generation, file, importType)) return;
         this.api.upload(job.id, file).subscribe({
           next: (uploaded) => {
+            if (!this.isCurrentWorkflow(generation, file, importType)) return;
             this.api.validate(uploaded.id).subscribe({
               next: (previewed) => {
+                if (!this.isCurrentWorkflow(generation, file, importType)) return;
                 this.job.set(previewed);
                 this.errors.set(previewed.errors ?? []);
                 this.page.set(1);
                 this.loading.set(false);
               },
-              error: (error: unknown) => this.fail(error, 'Preview failed.'),
+              error: (error: unknown) => this.fail(error, 'Preview failed.', generation),
             });
           },
-          error: (error: unknown) => this.fail(error, 'Upload failed.'),
+          error: (error: unknown) => this.fail(error, 'Upload failed.', generation),
         });
       },
-      error: (error: unknown) => this.fail(error, 'Unable to create import job.'),
+      error: (error: unknown) => this.fail(error, 'Unable to create import job.', generation),
     });
   }
 
@@ -267,24 +261,36 @@ export class ImportsPage {
     if (!job || !this.canSubmitExecute()) {
       return;
     }
+    const generation = this.workflowGeneration;
+    const importType = this.selectedType();
+    const file = this.selectedFile();
+    if (!file || !this.isCurrentWorkflow(generation, file, importType)) {
+      return;
+    }
     this.executing.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
     this.api.confirm(job.id).subscribe({
       next: (confirmed) => {
+        if (!this.isCurrentWorkflow(generation, file, importType) || this.job()?.id !== job.id) {
+          return;
+        }
         this.job.set(confirmed);
         this.api.execute(confirmed.id, crypto.randomUUID()).subscribe({
           next: (executed) => {
+            if (!this.isCurrentWorkflow(generation, file, importType) || this.job()?.id !== job.id) {
+              return;
+            }
             this.job.set(executed);
             this.executing.set(false);
             if (executed.result) {
               this.successMessage.set(`Imported ${executed.result.createdCount} rows.`);
             }
           },
-          error: (error: unknown) => this.fail(error, 'Execute failed.'),
+          error: (error: unknown) => this.fail(error, 'Execute failed.', generation),
         });
       },
-      error: (error: unknown) => this.fail(error, 'Confirm failed.'),
+      error: (error: unknown) => this.fail(error, 'Confirm failed.', generation),
     });
   }
 
@@ -294,10 +300,33 @@ export class ImportsPage {
     }
   }
 
-  private fail(error: unknown, fallback: string): void {
+  private fail(error: unknown, fallback: string, generation: number): void {
+    if (generation !== this.workflowGeneration) {
+      return;
+    }
     this.loading.set(false);
     this.executing.set(false);
     this.errorMessage.set(this.readError(error, fallback));
+  }
+
+  private invalidateWorkflow(file: File | null): void {
+    this.workflowGeneration += 1;
+    this.selectedFile.set(file);
+    this.job.set(null);
+    this.errors.set([]);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    this.loading.set(false);
+    this.executing.set(false);
+    this.page.set(1);
+  }
+
+  private isCurrentWorkflow(generation: number, file: File, importType: string): boolean {
+    return (
+      generation === this.workflowGeneration &&
+      this.selectedFile() === file &&
+      this.selectedType() === importType
+    );
   }
 
   private readError(error: unknown, fallback: string): string {

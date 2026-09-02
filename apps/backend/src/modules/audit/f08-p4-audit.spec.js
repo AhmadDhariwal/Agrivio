@@ -130,6 +130,13 @@ describe('F08 P4 audit inquiry', () => {
 
     const platform = await audit.auditService.queryPlatformEvents({ organizationId: 'org-2' });
     expect(platform.items.map((item) => item.id)).toEqual(['other-org']);
+
+    await expect(
+      audit.auditService.queryOrganizationEvents('org-1', {
+        from: '2026-08-20T00:00:00.000Z',
+        to: '2026-08-19T00:00:00.000Z',
+      }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
   });
 
   it('serves authorized org inquiry over HTTP and hides cross-org events from platform-vs-org scopes', async () => {

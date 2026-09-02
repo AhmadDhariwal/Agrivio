@@ -7,11 +7,13 @@ import { AuditEventItem } from '../models/audit.models';
 import { PaginatedResult } from '../../../shared/data-access/pagination';
 import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
 import { QUERY_CACHE_TAGS } from '../../../shared/data-access/query-cache.tags';
+import { AuthSessionStore } from '../../auth/data-access/auth-session.store';
 
 @Injectable({ providedIn: 'root' })
 export class AuditApi {
   private readonly http = inject(HttpClient);
   private readonly queryCache = inject(QueryCacheService);
+  private readonly sessionStore = inject(AuthSessionStore);
   private readonly baseUrl = `${environment.publicApiBaseUrl}${API_AUDIT_EVENTS_PATH}`;
 
   query(
@@ -24,8 +26,9 @@ export class AuditApi {
         params[key] = String(value).trim();
       }
     }
+    const organizationId = this.sessionStore.activeContext()?.organizationId ?? 'anonymous';
     return this.queryCache.fetch({
-      key: this.queryCache.buildKey('audit:list', params),
+      key: this.queryCache.buildKey('audit:list', { ...params, organizationId }),
       policy: 'short',
       tags: [QUERY_CACHE_TAGS.audit],
       forceRefresh,
@@ -40,8 +43,9 @@ export class AuditApi {
   }
 
   getById(id: string, forceRefresh = false): Observable<AuditEventItem> {
+    const organizationId = this.sessionStore.activeContext()?.organizationId ?? 'anonymous';
     return this.queryCache.fetch({
-      key: this.queryCache.buildKey('audit:detail', { id }),
+      key: this.queryCache.buildKey('audit:detail', { organizationId, id }),
       policy: 'short',
       tags: [QUERY_CACHE_TAGS.audit],
       forceRefresh,

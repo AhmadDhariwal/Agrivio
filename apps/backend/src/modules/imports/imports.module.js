@@ -232,7 +232,7 @@ function createImportsService(deps) {
         ]);
       }
       return {
-        filename: `${importType}-v${template.version}.xls`,
+        filename: `${importType}-template.xls`,
         contentType: 'application/vnd.ms-excel',
         buffer: renderImportWorkbook(importType, []),
         template,

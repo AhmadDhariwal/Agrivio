@@ -5,6 +5,7 @@ import { AuditApi } from '../../data-access/audit.api';
 import { AuditEventItem } from '../../models/audit.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { OrganizationSettingsApi } from '../../../organization/data-access/organization-settings.api';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
@@ -85,6 +86,7 @@ export class AuditInquiryPage {
   private readonly api = inject(AuditApi);
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
+  private readonly organizationApi = inject(OrganizationSettingsApi, { optional: true });
 
   readonly actorId = signal('');
   readonly action = signal('');
@@ -98,6 +100,8 @@ export class AuditInquiryPage {
   readonly loading = signal(false);
   readonly refreshing = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly dateRangeError = signal<string | null>(null);
+  readonly organizationTimezoneValue = signal('Asia/Karachi');
 
   readonly page = signal(1);
   readonly pageSize = signal(25);
@@ -161,6 +165,15 @@ export class AuditInquiryPage {
   );
 
   constructor() {
+    if (this.canView()) {
+      this.organizationApi?.getOrganization().subscribe({
+        next: (organization) => {
+          if (typeof organization.timezone === 'string' && organization.timezone.trim() !== '') {
+            this.organizationTimezoneValue.set(organization.timezone);
+          }
+        },
+      });
+    }
     this.search();
   }
 
@@ -175,6 +188,9 @@ export class AuditInquiryPage {
 
   search(forceRefresh = false): void {
     if (!this.canView()) {
+      return;
+    }
+    if (!this.isDateRangeValid()) {
       return;
     }
 
@@ -220,6 +236,9 @@ export class AuditInquiryPage {
   }
 
   onSearchSubmit(): void {
+    if (!this.canUseSearch()) {
+      return;
+    }
     this.page.set(1);
     this.search();
   }
@@ -232,8 +251,11 @@ export class AuditInquiryPage {
     this.resourceType.set('');
     this.resourceId.set('');
     this.reason.set('');
+    this.dateRangeError.set(null);
     this.page.set(1);
-    this.search();
+    if (this.canUseSearch()) {
+      this.search();
+    }
   }
 
   onPageChange(page: number): void {
@@ -276,6 +298,9 @@ export class AuditInquiryPage {
 
   // Mobile Filter Drawer Actions
   openMobileFilters(): void {
+    if (!this.canUseFilters()) {
+      return;
+    }
     this.mobileFiltersOpen.set(true);
   }
 
@@ -284,6 +309,10 @@ export class AuditInquiryPage {
   }
 
   applyMobileFilters(): void {
+    if (!this.canUseFilters() || !this.canUseSearch()) {
+      this.closeMobileFilters();
+      return;
+    }
     this.closeMobileFilters();
     this.onSearchSubmit();
   }
@@ -294,12 +323,13 @@ export class AuditInquiryPage {
     try {
       const date = new Date(String(dateVal));
       if (Number.isNaN(date.getTime())) return String(dateVal);
-      return date.toLocaleDateString('en-US', {
+      return date.toLocaleString('en-US', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
+        timeZone: this.organizationTimezone(),
       });
     } catch {
       return String(dateVal);
@@ -341,5 +371,30 @@ export class AuditInquiryPage {
       return error.error?.error?.message ?? fallback;
     }
     return fallback;
+  }
+
+  private isDateRangeValid(): boolean {
+    const from = this.from().trim();
+    const to = this.to().trim();
+    if (!from || !to) {
+      this.dateRangeError.set(null);
+      return true;
+    }
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
+      this.dateRangeError.set('Enter valid From and To date-times.');
+      return false;
+    }
+    if (fromDate > toDate) {
+      this.dateRangeError.set('From date-time must be earlier than or equal to To date-time.');
+      return false;
+    }
+    this.dateRangeError.set(null);
+    return true;
+  }
+
+  private organizationTimezone(): string {
+    return this.organizationTimezoneValue();
   }
 }

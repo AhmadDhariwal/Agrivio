@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createCatalogModule } from '../catalog/catalog.module.js';
@@ -10,8 +9,9 @@ import { createLedgersModule } from '../payments-ledgers/ledgers.module.js';
 import { createInventoryModule } from '../inventory/inventory.module.js';
 import { createLocationsModule } from '../locations/locations.module.js';
 import { createImportsModule } from './imports.module.js';
-import { renderImportWorkbook } from './import-workbook.js';
-import { IMPORT_TYPES } from './import-templates.js';
+import { parseImportWorkbook, renderImportWorkbook } from './import-workbook.js';
+import { getTemplate, IMPORT_TYPES } from './import-templates.js';
+import { createImportsController } from './controllers/imports.controller.js';
 import { permissionsForMembershipRole } from '../identity/role-permissions.js';
 import { createRequirePermissionMiddleware } from '../identity/permission.middleware.js';
 import {
@@ -93,6 +93,69 @@ async function previewExecute(importsService, importType, rows) {
 describe('F08 P3 Excel imports', () => {
   it('lists Frozen import types only', () => {
     expect(IMPORT_TYPES).toHaveLength(14);
+  });
+
+  it('generates and serves the authoritative workbook for every registered import type', async () => {
+    const { imports } = buildModules();
+    for (const importType of IMPORT_TYPES) {
+      const template = getTemplate(importType);
+      const downloaded = imports.importsService.downloadTemplate(importType);
+      const parsed = parseImportWorkbook(downloaded.buffer, importType);
+      const generatedRows = downloaded.buffer.toString('utf8').match(/<Row>[\s\S]*?<\/Row>/g) ?? [];
+      const generatedHeaders = [
+        ...(generatedRows[0] ?? '').matchAll(/<Data[^>]*>([^<]*)<\/Data>/g),
+      ].map(
+        (match) => match[1],
+      );
+
+      expect(downloaded.buffer.length).toBeGreaterThan(0);
+      expect(downloaded.filename).toBe(`${importType}-template.xls`);
+      expect(downloaded.contentType).toBe('application/vnd.ms-excel');
+      expect(parsed.headerErrors).toEqual([]);
+      expect(parsed.templateType).toBe(importType);
+      expect(parsed.templateVersion).toBe(template.version);
+      expect(parsed.records).toEqual([]);
+      expect(parsed.createUpdatePolicy).toBe(template.createUpdatePolicy);
+      expect(generatedHeaders).toEqual(['AGRIVIO_TEMPLATE', importType, String(template.version)]);
+
+      const generatedColumns = [
+        ...(generatedRows[1] ?? '').matchAll(/<Data[^>]*>([^<]*)<\/Data>/g),
+      ].map((match) => match[1]);
+      expect(generatedColumns).toEqual(template.columns.map((column) => column.key));
+    }
+
+    expect(() => imports.importsService.downloadTemplate('not-a-real-import')).toThrow();
+  });
+
+  it('sets the download response contract at the HTTP controller boundary', async () => {
+    const { imports } = buildModules();
+    const headers = {};
+    const response = {
+      setHeader: (name, value) => {
+        headers[name] = value;
+      },
+      status: (code) => {
+        response.statusCode = code;
+        return response;
+      },
+      send: (body) => {
+        response.body = body;
+        return response;
+      },
+    };
+    const next = (error) => {
+      if (error) throw error;
+    };
+    const controller = createImportsController({ importsService: imports.importsService });
+
+    await controller.downloadTemplate({ params: { importType: 'products' } }, response, next);
+
+    expect(response.statusCode).toBe(200);
+    expect(headers['Content-Type']).toBe('application/vnd.ms-excel');
+    expect(headers['Content-Disposition']).toBe(
+      'attachment; filename="products-template.xls"',
+    );
+    expect(response.body.length).toBeGreaterThan(0);
   });
 
   it('previews and executes a valid category import', async () => {

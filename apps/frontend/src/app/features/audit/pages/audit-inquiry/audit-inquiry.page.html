@@ -53,6 +53,9 @@
     <!-- Filter & Control Toolbar -->
     @if (canUseFilters() || canUseSearch()) {
     <form class="toolbar" (submit)="$event.preventDefault(); onSearchSubmit()">
+      @if (dateRangeError(); as dateError) {
+      <div class="toolbar__validation" data-testid="audit-date-range-error">{{ dateError }}</div>
+      }
       <!-- Desktop Toolbar Layout -->
       <div class="toolbar__desktop">
         <div class="toolbar__filters">
@@ -164,7 +167,7 @@
         <!-- Toolbar Actions -->
         <div class="toolbar__actions">
           <div class="btn-group">
-            @if (canUseSearch()) {
+            @if (canUseSearch() && canUseFilters()) {
             <button type="submit" class="ag-btn ag-btn--primary" data-testid="audit-search">
               Apply
             </button>
@@ -204,6 +207,7 @@
 
       <!-- Mobile Toolbar Layout (< 991px) -->
       <div class="toolbar__mobile">
+        @if (canUseFilters()) {
         <div class="filter-field">
           <input
             type="search"
@@ -215,8 +219,10 @@
             aria-label="Search audit reason"
           />
         </div>
+        }
 
         <div class="toolbar__mobile-row">
+          @if (canUseFilters()) {
           <button
             type="button"
             class="mobile-filter-trigger"
@@ -239,6 +245,7 @@
             <span class="mobile-filter-trigger__badge">{{ activeFiltersCount() }}</span>
             }
           </button>
+          }
 
           @if (hasActiveFilters()) {
           <button type="button" class="mobile-clear-btn" (click)="clearFilters()">Reset</button>
@@ -276,7 +283,7 @@
     }
 
     <!-- Mobile Filter Slide-Over Bottom Sheet -->
-    @if (mobileFiltersOpen()) {
+    @if (mobileFiltersOpen() && canUseFilters()) {
     <div class="mobile-filter-backdrop" (click)="closeMobileFilters()" aria-hidden="true"></div>
     <div class="mobile-filter-sheet" role="dialog" aria-modal="true" aria-label="Filter audit history">
       <div class="mobile-filter-sheet__head">

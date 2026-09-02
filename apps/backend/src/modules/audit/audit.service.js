@@ -69,7 +69,7 @@ function createAuditService(deps) {
   }
 
   function parseFilters(query) {
-    return {
+    const filters = {
       actorId: optionalString(query.actorId),
       action: optionalString(query.action ?? query.type),
       resourceType: optionalString(query.resourceType),
@@ -79,6 +79,13 @@ function createAuditService(deps) {
       to: optionalDate(query.to ?? query.occurredTo, 'to'),
       organizationId: optionalString(query.organizationId),
     };
+    if (filters.from !== undefined && filters.to !== undefined && filters.from > filters.to) {
+      throw validationFailed('from must be earlier than or equal to to', [
+        { field: 'from', message: 'from must be earlier than or equal to to' },
+        { field: 'to', message: 'to must be later than or equal to from' },
+      ]);
+    }
+    return filters;
   }
 
   async function queryOrganizationEvents(organizationId, query) {

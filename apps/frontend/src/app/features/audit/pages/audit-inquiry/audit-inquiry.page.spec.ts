@@ -6,6 +6,7 @@ import { AuditInquiryPage } from './audit-inquiry.page';
 import { AuditApi } from '../../data-access/audit.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { OrganizationSettingsApi } from '../../../organization/data-access/organization-settings.api';
 import { AuditEventItem } from '../../models/audit.models';
 
 describe('AuditInquiryPage', () => {
@@ -91,6 +92,12 @@ describe('AuditInquiryPage', () => {
           },
         },
         {
+          provide: OrganizationSettingsApi,
+          useValue: {
+            getOrganization: vi.fn(() => of({ timezone: 'Asia/Karachi' })),
+          },
+        },
+        {
           provide: CapabilityService,
           useValue: {
             canUseModule: (key: string) => capabilityValue(key, 'enabled'),
@@ -153,6 +160,27 @@ describe('AuditInquiryPage', () => {
       }),
       false,
     );
+  });
+
+  it('rejects an inverted date range before making a server request', () => {
+    component.from.set('2026-09-03T00:00');
+    component.to.set('2026-09-02T00:00');
+    mockQuery.mockClear();
+
+    component.onSearchSubmit();
+
+    expect(mockQuery).not.toHaveBeenCalled();
+    expect(component.dateRangeError()).toContain('earlier than or equal to');
+  });
+
+  it('does not submit filter searches when the search capability is disabled', () => {
+    capabilityState.set({ 'audit.features.search': { enabled: false } });
+    mockQuery.mockClear();
+
+    component.actorId.set('usr-1');
+    component.onSearchSubmit();
+
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 
   it('clears all active filters and re-queries from page 1', () => {

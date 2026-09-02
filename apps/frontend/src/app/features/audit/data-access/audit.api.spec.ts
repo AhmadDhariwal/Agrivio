@@ -47,7 +47,7 @@ describe('AuditApi cache integration', () => {
   it('fetches and caches single audit event detail by ID', async () => {
     const detailFirst = firstValueFrom(api.getById('evt-123'));
     const detailSecond = firstValueFrom(api.getById('evt-123'));
-    const req = http.expectOne((r) => r.url.endsWith('/events/evt-123'));
+    const req = http.expectOne((r) => r.url.endsWith('/audit-events/evt-123'));
     expect(req.request.method).toBe('GET');
     req.flush({
       data: {
@@ -68,5 +68,23 @@ describe('AuditApi cache integration', () => {
     expect(firstRes.id).toBe('evt-123');
     expect(firstRes.action).toBe('sale.posted');
     expect(secondRes.id).toBe('evt-123');
+  });
+
+  it('separates the same audit query when the active organization changes', async () => {
+    const first = firstValueFrom(api.query({ page: 1, pageSize: 25 }));
+    http
+      .expectOne((request) => request.url.endsWith('/audit-events'))
+      .flush({ data: [], meta: { page: 1, pageSize: 25, total: 0 } });
+    await first;
+
+    const sessionStore = TestBed.inject(AuthSessionStore) as unknown as {
+      activeContext: () => { organizationId: string };
+    };
+    sessionStore.activeContext = () => ({ organizationId: 'org-2' });
+    const second = firstValueFrom(api.query({ page: 1, pageSize: 25 }));
+    http
+      .expectOne((request) => request.url.endsWith('/audit-events'))
+      .flush({ data: [], meta: { page: 1, pageSize: 25, total: 0 } });
+    await second;
   });
 });
