@@ -1,54 +1,651 @@
-.import-toolbar {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
-  gap: var(--ag-space-3);
-  align-items: end;
-  margin-bottom: var(--ag-space-5);
-  background: var(--ag-color-surface);
-  border: 1px solid var(--ag-color-border);
-  border-radius: var(--ag-radius-lg);
-  padding: var(--ag-space-4);
+:host {
+  display: block;
   width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
 }
 
-.import-toolbar label {
+.imports-shell {
   display: flex;
   flex-direction: column;
-  gap: var(--ag-space-1);
-  font-size: var(--ag-text-xs);
-  font-weight: 600;
-  min-width: 0;
+  gap: 16px;
+  width: 100%;
+  font-family: var(--ag-font-sans);
 }
 
-.import-toolbar select,
-.import-toolbar input[type='file'] {
+/* ==========================================================================
+   1. Page Header (Products Parity)
+   ========================================================================== */
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+
+  &__title-group {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ag-color-primary, #065f46);
+    margin: 0 0 2px 0;
+  }
+
+  &__heading-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  &__title {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--ag-color-text, #0f172a);
+    margin: 0 0 2px 0;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    font-family: var(--ag-font-sans);
+  }
+
+  &__lede {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--ag-color-text-muted, #64748b);
+    margin: 0;
+  }
+
+  @media (max-width: 767px) {
+    &__eyebrow {
+      display: none;
+    }
+
+    &__title {
+      font-size: 20px;
+    }
+
+    &__lede {
+      display: none;
+    }
+  }
+}
+
+.alert-container,
+.state-container {
   width: 100%;
-  max-width: 100%;
+}
+
+/* ==========================================================================
+   2. Workflow Cards Grid (2-Column Desktop, Stacked Mobile/Tablet)
+   ========================================================================== */
+.workflow-grid {
+  display: grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  gap: 16px;
+  align-items: start;
+  width: 100%;
+
+  @media (max-width: 1023px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  background: var(--ag-color-surface, #ffffff);
+  border: 1px solid var(--ag-color-border, #e2e8f0);
+  border-radius: 6px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+  box-sizing: border-box;
+
+  &__title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ag-color-text, #0f172a);
+    margin: 0 0 16px 0;
+    font-family: var(--ag-font-sans);
+  }
+}
+
+.workflow-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.select-field {
+  position: relative;
+  width: 100%;
+
+  &__input {
+    width: 100%;
+    height: 38px;
+    border: 1px solid var(--ag-color-border, #cbd5e1);
+    border-radius: 6px;
+    padding: 0 12px;
+    font-size: 13px;
+    color: #0f172a;
+    background: #ffffff;
+    font-family: inherit;
+    box-sizing: border-box;
+
+    &:focus {
+      outline: none;
+      border-color: var(--ag-color-primary, #065f46);
+      box-shadow: 0 0 0 2px rgba(6, 95, 70, 0.15);
+    }
+  }
+}
+
+/* ==========================================================================
+   3. Upload Zone
+   ========================================================================== */
+.upload-zone {
+  position: relative;
+  border: 2px dashed #cbd5e1;
+  border-radius: 6px;
+  background: #f8fafc;
+  padding: 24px 16px;
+  text-align: center;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+
+  &--dragging {
+    border-color: var(--ag-color-primary, #065f46);
+    background: #ecfdf5;
+  }
+
+  &--has-file {
+    border-style: solid;
+    border-color: #e2e8f0;
+    background: #ffffff;
+    padding: 10px 14px;
+  }
+
+  &__input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    margin: 0;
+  }
+
+  &__icon {
+    color: #64748b;
+    margin-bottom: 2px;
+  }
+
+  &__text {
+    margin: 0;
+    font-size: 13px;
+    color: #475569;
+  }
+
+  &__link {
+    color: var(--ag-color-primary, #065f46);
+    font-weight: 600;
+    text-decoration: underline;
+    margin-left: 4px;
+  }
+
+  &__hint {
+    margin: 2px 0 0 0;
+    font-size: 11px;
+    color: #94a3b8;
+  }
+
+  &__selected {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+
+  &__icon {
+    color: var(--ag-color-primary, #065f46);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__details {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+    min-width: 0;
+  }
+
+  &__name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__size {
+    font-size: 11px;
+    color: #64748b;
+  }
+
+  &__clear {
+    background: none;
+    border: none;
+    padding: 6px;
+    color: #94a3b8;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+
+    &:hover {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+  }
+}
+
+/* ==========================================================================
+   4. Workflow Action Buttons
+   ========================================================================== */
+.workflow-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+
+  &__right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  @media (max-width: 599px) {
+    flex-direction: column;
+    align-items: stretch;
+
+    .ag-btn {
+      width: 100%;
+      justify-content: center;
+    }
+
+    &__right {
+      margin-left: 0;
+      width: 100%;
+      flex-direction: column;
+    }
+  }
+}
+
+/* ==========================================================================
+   5. Selected Template Details List
+   ========================================================================== */
+.details-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+}
+
+.details-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  &__label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+  }
+
+  &__value {
+    font-size: 13px;
+    color: #0f172a;
+    margin: 0;
+    line-height: 1.4;
+    word-break: break-word;
+  }
+}
+
+.details-empty {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0;
+}
+
+/* ==========================================================================
+   6. Preview Results Section & KPI Cards
+   ========================================================================== */
+.results-section {
+  background: var(--ag-color-surface, #ffffff);
+  border: 1px solid var(--ag-color-border, #e2e8f0);
+  border-radius: 6px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  &__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #0f172a;
+    margin: 0;
+    font-family: var(--ag-font-sans);
+  }
+}
+
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  background: #f1f5f9;
+  color: #475569;
+
+  &__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: #94a3b8;
+  }
+
+  &--active {
+    background: #ecfdf5;
+    color: #065f46;
+
+    .status-indicator__dot {
+      background: #10b981;
+    }
+  }
+
+  &--inactive {
+    background: #fef2f2;
+    color: #b91c1c;
+
+    .status-indicator__dot {
+      background: #ef4444;
+    }
+  }
+}
+
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
+.kpi-card {
+  height: 72px;
+  background: var(--ag-color-surface, #ffffff);
+  border: 1px solid var(--ag-color-border, #e2e8f0);
+  border-radius: 6px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   min-width: 0;
   box-sizing: border-box;
-}
 
-.import-toolbar .ag-btn {
-  justify-self: start;
-}
+  &__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 
-.import-meta {
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  max-width: 100%;
-}
+    &--neutral {
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #e2e8f0;
+    }
 
-@media (max-width: 599px) {
-  .import-toolbar {
-    grid-template-columns: 1fr;
-    padding: var(--ag-space-3);
+    &--green {
+      background: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+
+    &--amber {
+      background: #fffbeb;
+      color: #d97706;
+      border: 1px solid #fde68a;
+    }
   }
 
-  .import-toolbar .ag-btn {
-    width: 100%;
+  &__content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #64748b;
+    margin-bottom: 2px;
+  }
+
+  &__value {
+    font-size: 20px;
+    font-weight: 600;
+    color: #0f172a;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
   }
 }
 
+.valid-ready-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #065f46;
+  font-weight: 500;
+
+  svg {
+    flex-shrink: 0;
+    color: #059669;
+  }
+}
+
+/* ==========================================================================
+   7. Dense Issues Table (Products Parity)
+   ========================================================================== */
+.table-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.ag-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--ag-color-border, #e2e8f0);
+  border-radius: 6px;
+}
+
+.prod-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  font-family: var(--ag-font-sans);
+
+  &__th {
+    background: #f8fafc;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #475569;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+    white-space: nowrap;
+
+    &.col-row {
+      width: 60px;
+    }
+
+    &.col-field {
+      width: 160px;
+    }
+
+    &.col-code {
+      width: 140px;
+    }
+
+    &.col-message {
+      width: auto;
+    }
+  }
+
+  &__row {
+    &:hover {
+      background: #f8fafc;
+    }
+  }
+
+  &__td {
+    padding: 9px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #1e293b;
+    vertical-align: middle;
+
+    &.tabular-num {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      color: #64748b;
+    }
+
+    &.field-tag code {
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 12px;
+      font-family: monospace;
+      color: #0f172a;
+    }
+
+    &.code-text {
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    &.message-text {
+      font-size: 13px;
+      color: #0f172a;
+      line-height: 1.4;
+    }
+  }
+}
+
+.table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-current {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.ag-btn--sm {
+  padding: 4px 10px;
+  font-size: 12px;
+  min-height: 28px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

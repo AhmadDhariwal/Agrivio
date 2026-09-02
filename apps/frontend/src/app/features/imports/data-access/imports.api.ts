@@ -35,6 +35,13 @@ export class ImportsApi {
     });
   }
 
+  downloadTemplate(importType: string): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/templates/${encodeURIComponent(importType)}`, {
+      withCredentials: true,
+      responseType: 'blob',
+    });
+  }
+
   createJob(importType: string): Observable<ImportJob> {
     return this.authApi.ensureCsrf().pipe(
       switchMap(({ csrfToken }) =>
