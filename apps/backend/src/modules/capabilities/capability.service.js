@@ -41,6 +41,7 @@ const {
   EMPLOYEES_MODULE_KEY,
   BILLING_MODULE_KEY,
   SETUP_MODULE_KEY,
+  SETTINGS_MODULE_KEY,
   getCapabilityControl,
   listCapabilityControls,
 } = require('./capability.registry');
@@ -107,6 +108,14 @@ const WAREHOUSE_FIELD_CONTROLS = Object.freeze({
 const BRANCH_FIELD_CONTROLS = Object.freeze({
   code: 'branches.fields.code',
   status: 'branches.fields.status',
+});
+
+const SETTINGS_FIELD_CONTROLS = Object.freeze({
+  tradingName: 'settings.fields.tradingName',
+  contactPhone: 'settings.fields.contactPhone',
+  contactEmail: 'settings.fields.contactEmail',
+  addressLine: 'settings.fields.addressLine',
+  documentFooterNote: 'settings.fields.documentFooterNote',
 });
 
 function cloneValue(value) {
@@ -546,6 +555,7 @@ function createCapabilityService(deps) {
           EMPLOYEES_MODULE_KEY,
           BILLING_MODULE_KEY,
           SETUP_MODULE_KEY,
+          SETTINGS_MODULE_KEY,
         ].includes(moduleKey)
       ) {
         throw validationFailed(`Unknown configurable module ${moduleKey}`);
@@ -692,6 +702,17 @@ function createCapabilityService(deps) {
         await assertAllowed(organizationId, 'branches.fields.status', 'editable');
         const action = patch.status === 'active' ? 'reactivate' : 'deactivate';
         await assertAllowed(organizationId, `branches.actions.${action}`, 'allowed');
+      }
+    },
+
+    async assertSettingsPatchAllowed(organizationId, current, patch) {
+      const changedFields = Object.keys(SETTINGS_FIELD_CONTROLS).filter(
+        (field) =>
+          patch[field] !== undefined &&
+          String(patch[field] ?? '') !== String(current[field] ?? ''),
+      );
+      for (const field of changedFields) {
+        await assertAllowed(organizationId, SETTINGS_FIELD_CONTROLS[field], 'editable');
       }
     },
 
@@ -848,4 +869,5 @@ module.exports = {
   SUPPLIER_FIELD_CONTROLS,
   WAREHOUSE_FIELD_CONTROLS,
   BRANCH_FIELD_CONTROLS,
+  SETTINGS_FIELD_CONTROLS,
 };

@@ -565,6 +565,17 @@ const CURRENT_BEHAVIOR_DEFAULTS: Readonly<Record<string, Readonly<Record<string,
   'billing.actions.downloadEvidence': { allowed: true },
   'billing.actions.inspectHistory': { allowed: true },
   'billing.actions.refresh': { allowed: true },
+  // Settings module controls (10 authoritative controls / 9 sub-controls)
+  settings: { enabled: true },
+  'settings.features.summary': { enabled: true },
+  'settings.features.documentPreview': { enabled: true },
+  'settings.features.guidance': { enabled: true },
+  'settings.fields.tradingName': { visible: true, editable: true },
+  'settings.fields.contactPhone': { visible: true, editable: true },
+  'settings.fields.contactEmail': { visible: true, editable: true },
+  'settings.fields.addressLine': { visible: true, editable: true },
+  'settings.fields.documentFooterNote': { visible: true, editable: true },
+  'settings.actions.update': { allowed: true },
 };
 
 @Injectable({ providedIn: 'root' })
@@ -715,6 +726,8 @@ export class CapabilityService {
       'sales',
       'dashboard',
       'setup',
+      'billing',
+      'settings',
     ]);
     return {
       organizationId: this.sessionStore.activeContext()?.organizationId ?? 'test-organization',

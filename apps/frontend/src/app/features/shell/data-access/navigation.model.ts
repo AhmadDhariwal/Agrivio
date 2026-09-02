@@ -381,6 +381,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Settings',
           route: '/app/organization/settings',
           permission: 'settings.view',
+          capabilityKey: 'settings',
           testId: 'nav-settings',
         },
         {

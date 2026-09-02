@@ -37,7 +37,8 @@ function control(
     | 'sales'
     | 'dashboard'
     | 'setup'
-    | 'billing',
+    | 'billing'
+    | 'settings',
   type: PlatformCapabilityControl['type'],
   label: string,
   policy: Record<string, boolean>,
@@ -1642,6 +1643,17 @@ describe('OrganizationControlsPage', () => {
       control('branches.actions.reactivate', 'branches', 'ACTION', 'Reactivate Branch', { allowed: true }),
       control('branches.actions.delete', 'branches', 'ACTION', 'Delete Branch', { allowed: true }),
       control('branches.actions.refresh', 'branches', 'ACTION', 'Refresh Branches', { allowed: true }),
+      // Organization Settings (10 authoritative controls / 1 module, 3 features, 5 fields, 1 action)
+      control('settings', 'settings', 'MODULE', 'Organization Settings', { enabled: true }, { risk: 'CRITICAL' }),
+      control('settings.features.summary', 'settings', 'FEATURE', 'Settings Summary', { enabled: true }, { override: { enabled: false } }),
+      control('settings.features.documentPreview', 'settings', 'FEATURE', 'Document Preview', { enabled: true }),
+      control('settings.features.guidance', 'settings', 'FEATURE', 'Settings Guidance', { enabled: true }),
+      control('settings.fields.tradingName', 'settings', 'FIELD', 'Trading Name', { visible: true, editable: true }),
+      control('settings.fields.contactPhone', 'settings', 'FIELD', 'Contact Phone', { visible: true, editable: true }),
+      control('settings.fields.contactEmail', 'settings', 'FIELD', 'Contact Email', { visible: true, editable: true }, { override: { visible: false } }),
+      control('settings.fields.addressLine', 'settings', 'FIELD', 'Address', { visible: true, editable: true }),
+      control('settings.fields.documentFooterNote', 'settings', 'FIELD', 'Document Footer Note', { visible: true, editable: true }),
+      control('settings.actions.update', 'settings', 'ACTION', 'Update Settings', { allowed: true }, { risk: 'CRITICAL' }),
     ];
     await TestBed.configureTestingModule({
       imports: [OrganizationControlsPage],
@@ -3660,6 +3672,84 @@ describe('OrganizationControlsPage', () => {
         expect(component.isConfigurable(codeControl, 'visible')).toBe(true);
         expect(component.isConfigurable(codeControl, 'editable')).toBe(true);
         expect(component.isRequiredWorkflowControl(codeControl)).toBe(false);
+      }
+    });
+  });
+
+  describe('Organization Settings Controls', () => {
+    it('renders all 10 controls with module, features, fields, and action under generic sections', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('settings');
+      fixture.detectChanges();
+
+      expect(component.moduleLabel('settings')).toBe('Organization Settings');
+      expect(component.selectedControls()).toHaveLength(10);
+      expect(component.moduleControls()).toHaveLength(1);
+      expect(component.featureControls()).toHaveLength(3);
+      expect(component.fieldControls()).toHaveLength(5);
+      expect(component.actionControls()).toHaveLength(1);
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('Organization Settings Module');
+      expect(text).toContain('Features');
+      expect(text).toContain('Settings Summary');
+      expect(text).toContain('Document Preview');
+      expect(text).toContain('Settings Guidance');
+      expect(text).toContain('Fields');
+      expect(text).toContain('Trading Name');
+      expect(text).toContain('Contact Phone');
+      expect(text).toContain('Contact Email');
+      expect(text).toContain('Address');
+      expect(text).toContain('Document Footer Note');
+      expect(text).toContain('Actions');
+      expect(text).toContain('Update Settings');
+
+      // Legal name and timezone should NOT be in Settings controls
+      expect(text).not.toContain('Legal name');
+      expect(text).not.toContain('Business timezone');
+    });
+
+    it('supports Settings disable/re-enable and organization-scoped reset', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('settings');
+      const moduleControl = component.controls().find((item) => item.key === 'settings');
+      expect(moduleControl).toBeDefined();
+      if (moduleControl) {
+        component.setValue(moduleControl, 'enabled', false);
+        expect(component.disablingSettings()).toBe(true);
+        expect(component.confirmationTitle()).toBe(
+          'Disable Organization Settings for Greenfield Agro Center?',
+        );
+        expect(component.confirmationMessage()).toContain('residual organization settings');
+        expect(component.confirmationLabel()).toBe('Disable Organization Settings');
+        component.setValue(moduleControl, 'enabled', true);
+        expect(component.effectiveValue(moduleControl, 'enabled')).toBe(true);
+      }
+
+      component.askResetModule();
+      component.confirm();
+      expect(resetModule).toHaveBeenCalledWith('org-a', 'settings', 4, '');
+    });
+
+    it('supports field and feature overrides and reset', () => {
+      const component = fixture.componentInstance;
+      component.selectModule('settings');
+
+      const summaryControl = component.controls().find((item) => item.key === 'settings.features.summary');
+      expect(summaryControl).toBeDefined();
+      if (summaryControl) {
+        expect(component.overrideLabel(summaryControl, 'enabled')).toBe('Disabled');
+        component.askResetControl(summaryControl);
+        component.confirm();
+        expect(resetControl).toHaveBeenCalledWith('org-a', 'settings.features.summary', 4, '');
+      }
+
+      const emailControl = component.controls().find((item) => item.key === 'settings.fields.contactEmail');
+      expect(emailControl).toBeDefined();
+      if (emailControl) {
+        expect(component.isConfigurable(emailControl, 'visible')).toBe(true);
+        expect(component.isConfigurable(emailControl, 'editable')).toBe(true);
+        expect(component.isRequiredWorkflowControl(emailControl)).toBe(false);
       }
     });
   });

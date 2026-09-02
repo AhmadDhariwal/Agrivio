@@ -156,7 +156,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'organization/settings',
-        canActivate: [requirePermissionGuard('settings.view')],
+        canActivate: [requirePermissionGuard('settings.view'), requireCapabilityGuard('settings')],
         loadComponent: () =>
           import('./features/organization/pages/organization-settings/organization-settings.page').then(
             (m) => m.OrganizationSettingsPage,

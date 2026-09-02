@@ -1,17 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Router, provideRouter } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { UserProfileMenuComponent } from './user-profile-menu.component';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { AuthApi } from '../../../auth/data-access/auth.api';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 describe('UserProfileMenuComponent', () => {
   let fixture: ComponentFixture<UserProfileMenuComponent>;
   let component: UserProfileMenuComponent;
   let authApi: { logout: ReturnType<typeof vi.fn> };
   let sessionStore: {
-    session: () => any;
-    activeContext: () => any;
+    session: () => unknown;
+    activeContext: () => unknown;
     hasPermission: (perm: string) => boolean;
     clear: () => void;
   };
@@ -104,5 +105,33 @@ describe('UserProfileMenuComponent', () => {
     component.signOut();
     expect(authApi.logout).toHaveBeenCalled();
     expect(sessionStore.clear).toHaveBeenCalled();
+  });
+
+  it('hides Settings link when settings module capability is disabled', async () => {
+    await TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [UserProfileMenuComponent],
+      providers: [
+        provideRouter([]),
+        { provide: AuthSessionStore, useValue: sessionStore },
+        { provide: AuthApi, useValue: authApi },
+        {
+          provide: CapabilityService,
+          useValue: { canUseModule: (m: string) => m !== 'settings' },
+        },
+      ],
+    }).compileComponents();
+
+    const customFixture = TestBed.createComponent(UserProfileMenuComponent);
+    const customComp = customFixture.componentInstance;
+    customFixture.detectChanges();
+
+    customComp.toggleDropdown();
+    customFixture.detectChanges();
+
+    const menu = customFixture.nativeElement.querySelector('.ag-profile-menu');
+    expect(menu).toBeTruthy();
+    expect(customComp.canViewSettings()).toBe(false);
+    expect(menu.textContent).not.toContain('Settings');
   });
 });

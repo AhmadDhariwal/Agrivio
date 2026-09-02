@@ -27,6 +27,7 @@ function createMongooseTransactionSessionPort() {
 
 function createSettingsService(deps) {
   const store = deps.store;
+  const capabilityService = deps.capabilityService;
   const auditWriter = createAuditWriter({
     append: (session, event) => store.appendAuditEvent(session, event),
   });
@@ -60,6 +61,9 @@ function createSettingsService(deps) {
       return transactionRunner.run(async (session) => {
         const current = await ensureSettings(organizationId, session);
         assertOptimisticVersion(current, expectedVersion);
+        if (typeof capabilityService?.assertSettingsPatchAllowed === 'function') {
+          await capabilityService.assertSettingsPatchAllowed(organizationId, current, patch);
+        }
 
         const updated = await store.update(session, String(current['_id']), {
           ...patch,
@@ -94,7 +98,13 @@ function createSettingsModule(options) {
       : createMockTransactionSessionPort().port);
 
   const transactionRunner = options.transactionRunner ?? createTransactionRunner(sessionPort);
-  const settingsService = createSettingsService({ store, transactionRunner });
+  const settingsService = createSettingsService({
+    store,
+    transactionRunner,
+    ...(options.capabilityService === undefined
+      ? {}
+      : { capabilityService: options.capabilityService }),
+  });
 
   return {
     store,

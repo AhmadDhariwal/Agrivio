@@ -10,6 +10,7 @@ import {
   OrganizationSettingsApi,
 } from '../../data-access/organization-settings.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
@@ -43,6 +44,7 @@ const COMMON_TIMEZONES = [
 export class OrganizationSettingsPage {
   private readonly api = inject(OrganizationSettingsApi);
   private readonly sessionStore = inject(AuthSessionStore);
+  private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly formBuilder = inject(FormBuilder);
 
   readonly loading = signal(true);
@@ -60,6 +62,72 @@ export class OrganizationSettingsPage {
   readonly canView = computed(() => this.sessionStore.hasPermission('settings.view'));
   readonly canManage = computed(() => this.sessionStore.hasPermission('settings.manage'));
   readonly canUpdateOrg = computed(() => this.sessionStore.hasPermission('organization.update'));
+
+  // Settings Module & Capability Controls
+  readonly canUseSettingsModule = computed(
+    () => this.capabilityService?.canUseModule('settings') ?? true,
+  );
+  readonly canShowSummary = computed(
+    () => this.capabilityService?.canUseFeature('settings.features.summary') ?? true,
+  );
+  readonly canShowDocumentPreview = computed(
+    () => this.capabilityService?.canUseFeature('settings.features.documentPreview') ?? true,
+  );
+  readonly canShowGuidance = computed(
+    () => this.capabilityService?.canUseFeature('settings.features.guidance') ?? true,
+  );
+  readonly hasVisibleSidebar = computed(
+    () => this.canShowSummary() || this.canShowDocumentPreview() || this.canShowGuidance(),
+  );
+
+  readonly canViewTradingName = computed(
+    () => this.capabilityService?.canViewField('settings.fields.tradingName') ?? true,
+  );
+  readonly canViewContactPhone = computed(
+    () => this.capabilityService?.canViewField('settings.fields.contactPhone') ?? true,
+  );
+  readonly canViewContactEmail = computed(
+    () => this.capabilityService?.canViewField('settings.fields.contactEmail') ?? true,
+  );
+  readonly canViewAddressLine = computed(
+    () => this.capabilityService?.canViewField('settings.fields.addressLine') ?? true,
+  );
+  readonly canViewDocumentFooterNote = computed(
+    () => this.capabilityService?.canViewField('settings.fields.documentFooterNote') ?? true,
+  );
+
+  readonly canUpdateSettingsAction = computed(
+    () => this.capabilityService?.canPerformAction('settings.actions.update') ?? true,
+  );
+  readonly canSaveSettings = computed(
+    () => this.canManage() && this.canUpdateSettingsAction(),
+  );
+
+  readonly canEditTradingName = computed(
+    () =>
+      (this.capabilityService?.canEditField('settings.fields.tradingName') ?? true) &&
+      this.canSaveSettings(),
+  );
+  readonly canEditContactPhone = computed(
+    () =>
+      (this.capabilityService?.canEditField('settings.fields.contactPhone') ?? true) &&
+      this.canSaveSettings(),
+  );
+  readonly canEditContactEmail = computed(
+    () =>
+      (this.capabilityService?.canEditField('settings.fields.contactEmail') ?? true) &&
+      this.canSaveSettings(),
+  );
+  readonly canEditAddressLine = computed(
+    () =>
+      (this.capabilityService?.canEditField('settings.fields.addressLine') ?? true) &&
+      this.canSaveSettings(),
+  );
+  readonly canEditDocumentFooterNote = computed(
+    () =>
+      (this.capabilityService?.canEditField('settings.fields.documentFooterNote') ?? true) &&
+      this.canSaveSettings(),
+  );
 
   readonly fieldRequired = hasRequiredValidator;
 
@@ -127,7 +195,9 @@ export class OrganizationSettingsPage {
   });
 
   readonly previewOrgName = computed(() => {
-    const trading = (this.settingsFormValues().tradingName ?? '').trim();
+    const trading = this.canViewTradingName()
+      ? (this.settingsFormValues().tradingName ?? '').trim()
+      : '';
     if (trading) return trading;
     const legal = (this.profileFormValues().name ?? '').trim();
     if (legal) return legal;
@@ -135,12 +205,14 @@ export class OrganizationSettingsPage {
   });
 
   readonly previewAddress = computed(() => {
+    if (!this.canViewAddressLine()) return '';
     const addr = (this.settingsFormValues().addressLine ?? '').trim();
     if (addr) return addr;
     return this.settings()?.addressLine || 'Address not specified';
   });
 
   readonly previewFooterNote = computed(() => {
+    if (!this.canViewDocumentFooterNote()) return '';
     const note = (this.settingsFormValues().documentFooterNote ?? '').trim();
     if (note) return note;
     return (
@@ -157,6 +229,10 @@ export class OrganizationSettingsPage {
     if (!this.canView()) {
       this.loading.set(false);
       this.permissionDenied.set(true);
+      return;
+    }
+    if (!this.canUseSettingsModule()) {
+      this.loading.set(false);
       return;
     }
     this.loading.set(true);
@@ -218,7 +294,7 @@ export class OrganizationSettingsPage {
   }
 
   saveSettings(): void {
-    if (!this.canManage() || this.settingsForm.invalid) {
+    if (!this.canSaveSettings() || this.settingsForm.invalid) {
       this.settingsForm.markAllAsTouched();
       return;
     }
@@ -226,15 +302,33 @@ export class OrganizationSettingsPage {
     this.errorMessage.set(null);
     this.successMessage.set(null);
     const value = this.settingsForm.getRawValue();
+    const payload: {
+      expectedVersion: number;
+      tradingName?: string;
+      contactPhone?: string;
+      contactEmail?: string;
+      addressLine?: string;
+      documentFooterNote?: string;
+    } = {
+      expectedVersion: this.settingsVersion,
+    };
+    if (this.canViewTradingName() && this.canEditTradingName()) {
+      payload.tradingName = value.tradingName.trim();
+    }
+    if (this.canViewContactPhone() && this.canEditContactPhone()) {
+      payload.contactPhone = value.contactPhone.trim();
+    }
+    if (this.canViewContactEmail() && this.canEditContactEmail()) {
+      payload.contactEmail = value.contactEmail.trim();
+    }
+    if (this.canViewAddressLine() && this.canEditAddressLine()) {
+      payload.addressLine = value.addressLine.trim();
+    }
+    if (this.canViewDocumentFooterNote() && this.canEditDocumentFooterNote()) {
+      payload.documentFooterNote = value.documentFooterNote.trim();
+    }
     this.api
-      .updateSettings({
-        expectedVersion: this.settingsVersion,
-        tradingName: value.tradingName.trim(),
-        contactPhone: value.contactPhone.trim(),
-        contactEmail: value.contactEmail.trim(),
-        addressLine: value.addressLine.trim(),
-        documentFooterNote: value.documentFooterNote.trim(),
-      })
+      .updateSettings(payload)
       .subscribe({
         next: (settings) => {
           this.settings.set(settings);
@@ -280,10 +374,15 @@ export class OrganizationSettingsPage {
       documentFooterNote: settings.documentFooterNote ?? '',
     });
     this.settingsForm.markAsPristine();
-    if (!this.canManage()) {
+    if (!this.canSaveSettings()) {
       this.settingsForm.disable();
     } else {
       this.settingsForm.enable();
+      if (!this.canEditTradingName()) this.settingsForm.controls.tradingName.disable();
+      if (!this.canEditContactPhone()) this.settingsForm.controls.contactPhone.disable();
+      if (!this.canEditContactEmail()) this.settingsForm.controls.contactEmail.disable();
+      if (!this.canEditAddressLine()) this.settingsForm.controls.addressLine.disable();
+      if (!this.canEditDocumentFooterNote()) this.settingsForm.controls.documentFooterNote.disable();
     }
   }
 

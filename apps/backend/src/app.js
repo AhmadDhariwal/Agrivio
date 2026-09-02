@@ -168,6 +168,7 @@ function createApp(options) {
     options.settings ??
     createSettingsModule({
       persistence,
+      capabilityService: capabilities.capabilityService,
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
@@ -548,6 +549,7 @@ function createApp(options) {
 
   const settingsRoutes = registerSettingsRoutes({
     settingsService: settings.settingsService,
+    capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,

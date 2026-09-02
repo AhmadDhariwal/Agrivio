@@ -4,6 +4,7 @@ const {
   createRequireOrganizationContextMiddleware,
   createRequirePermissionMiddleware,
 } = require('../../identity/permission.middleware');
+const { createRequireCapabilityMiddleware } = require('../../capabilities/capability.middleware');
 const { createSettingsController } = require('../controllers/settings.controller');
 
 function registerSettingsRoutes(deps) {
@@ -12,6 +13,16 @@ function registerSettingsRoutes(deps) {
   const requireOrganizationContext = createRequireOrganizationContextMiddleware();
   const requireSettingsView = createRequirePermissionMiddleware('settings.view');
   const requireSettingsManage = createRequirePermissionMiddleware('settings.manage');
+  const requireSettingsModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'settings',
+    'enabled',
+  );
+  const requireSettingsUpdate = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'settings.actions.update',
+    'allowed',
+  );
 
   router.get(
     API_SETTINGS_PATH,
@@ -19,6 +30,7 @@ function registerSettingsRoutes(deps) {
     requireOrganizationContext,
     requireSettingsView,
     deps.requireOperationalAccess,
+    requireSettingsModule,
     (req, res, next) => {
       void controller.get(req, res, next);
     },
@@ -31,6 +43,8 @@ function registerSettingsRoutes(deps) {
     requireOrganizationContext,
     requireSettingsManage,
     deps.requireOperationalAccess,
+    requireSettingsModule,
+    requireSettingsUpdate,
     (req, res, next) => {
       void controller.patch(req, res, next);
     },

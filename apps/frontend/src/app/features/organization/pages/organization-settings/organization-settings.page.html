@@ -37,7 +37,7 @@
     </div>
   } @else {
     <!-- Main 2-Column Settings Grid -->
-    <div class="settings-grid">
+    <div class="settings-grid" [class.settings-grid--full]="!hasVisibleSidebar()">
       <!-- Left Column: Primary Forms -->
       <main class="settings-main">
         <!-- Card 1: Organization Profile -->
@@ -139,65 +139,75 @@
             [formGroup]="settingsForm"
             (ngSubmit)="saveSettings()"
           >
-            <div class="ag-field">
-              <agrivio-ui-field-label label="Trading name" for="settings-trading-name" />
-              <input
-                id="settings-trading-name"
-                class="ag-input"
-                type="text"
-                formControlName="tradingName"
-                data-testid="settings-trading-name"
-                placeholder="e.g. Agrivio Demo Agrochemicals"
-              />
-            </div>
+            @if (canViewTradingName()) {
+              <div class="ag-field">
+                <agrivio-ui-field-label label="Trading name" for="settings-trading-name" />
+                <input
+                  id="settings-trading-name"
+                  class="ag-input"
+                  type="text"
+                  formControlName="tradingName"
+                  data-testid="settings-trading-name"
+                  placeholder="e.g. Agrivio Demo Agrochemicals"
+                />
+              </div>
+            }
 
-            <div class="ag-field">
-              <agrivio-ui-field-label label="Contact phone" for="settings-contact-phone" />
-              <input
-                id="settings-contact-phone"
-                class="ag-input"
-                type="tel"
-                formControlName="contactPhone"
-                data-testid="settings-contact-phone"
-                placeholder="e.g. +92 21 1234 5678"
-              />
-            </div>
+            @if (canViewContactPhone()) {
+              <div class="ag-field">
+                <agrivio-ui-field-label label="Contact phone" for="settings-contact-phone" />
+                <input
+                  id="settings-contact-phone"
+                  class="ag-input"
+                  type="tel"
+                  formControlName="contactPhone"
+                  data-testid="settings-contact-phone"
+                  placeholder="e.g. +92 21 1234 5678"
+                />
+              </div>
+            }
 
-            <div class="ag-field">
-              <agrivio-ui-field-label label="Contact email" for="settings-contact-email" />
-              <input
-                id="settings-contact-email"
-                class="ag-input"
-                type="email"
-                formControlName="contactEmail"
-                data-testid="settings-contact-email"
-                placeholder="e.g. contact@agrivio.test"
-              />
-            </div>
+            @if (canViewContactEmail()) {
+              <div class="ag-field">
+                <agrivio-ui-field-label label="Contact email" for="settings-contact-email" />
+                <input
+                  id="settings-contact-email"
+                  class="ag-input"
+                  type="email"
+                  formControlName="contactEmail"
+                  data-testid="settings-contact-email"
+                  placeholder="e.g. contact@agrivio.test"
+                />
+              </div>
+            }
 
-            <div class="ag-field">
-              <agrivio-ui-field-label label="Address" for="settings-address" />
-              <textarea
-                id="settings-address"
-                class="ag-textarea"
-                formControlName="addressLine"
-                rows="2"
-                data-testid="settings-address"
-                placeholder="Suite 204, 2nd Floor, Business Park, Shahrah-e-Faisal, Karachi 75350, Pakistan"
-              ></textarea>
-            </div>
+            @if (canViewAddressLine()) {
+              <div class="ag-field">
+                <agrivio-ui-field-label label="Address" for="settings-address" />
+                <textarea
+                  id="settings-address"
+                  class="ag-textarea"
+                  formControlName="addressLine"
+                  rows="2"
+                  data-testid="settings-address"
+                  placeholder="Suite 204, 2nd Floor, Business Park, Shahrah-e-Faisal, Karachi 75350, Pakistan"
+                ></textarea>
+              </div>
+            }
 
-            <div class="ag-field">
-              <agrivio-ui-field-label label="Document footer note" for="settings-footer" />
-              <textarea
-                id="settings-footer"
-                class="ag-textarea"
-                formControlName="documentFooterNote"
-                rows="2"
-                data-testid="settings-footer"
-                placeholder="This document is system generated and does not require a signature."
-              ></textarea>
-            </div>
+            @if (canViewDocumentFooterNote()) {
+              <div class="ag-field">
+                <agrivio-ui-field-label label="Document footer note" for="settings-footer" />
+                <textarea
+                  id="settings-footer"
+                  class="ag-textarea"
+                  formControlName="documentFooterNote"
+                  rows="2"
+                  data-testid="settings-footer"
+                  placeholder="This document is system generated and does not require a signature."
+                ></textarea>
+              </div>
+            }
 
             <!-- Informational Callout -->
             <div class="info-callout" role="note">
@@ -213,7 +223,7 @@
               </p>
             </div>
 
-            @if (canManage()) {
+            @if (canSaveSettings()) {
               <div class="form-actions">
                 <button
                   type="submit"
@@ -243,120 +253,134 @@
       </main>
 
       <!-- Right Column: Settings Summary, Document Preview & What Belongs Here -->
-      <aside class="settings-sidebar" aria-label="Settings context and preview">
-        <!-- Settings Summary Card -->
-        <section class="summary-card" data-testid="settings-summary-card">
-          <div class="summary-card__header">
-            <h2 class="summary-card__title">Settings summary</h2>
-          </div>
-          <div class="summary-card__body">
-            <div class="summary-profile-wrap">
-              <div class="org-avatar" aria-hidden="true">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
-                  <line x1="9" y1="22" x2="9" y2="22.01"></line>
-                  <line x1="15" y1="22" x2="15" y2="22.01"></line>
-                  <line x1="9" y1="6" x2="9" y2="6.01"></line>
-                  <line x1="15" y1="6" x2="15" y2="6.01"></line>
-                  <line x1="9" y1="10" x2="9" y2="10.01"></line>
-                  <line x1="15" y1="10" x2="15" y2="10.01"></line>
-                  <line x1="9" y1="14" x2="9" y2="14.01"></line>
-                  <line x1="15" y1="14" x2="15" y2="14.01"></line>
-                  <line x1="9" y1="18" x2="9" y2="18.01"></line>
-                  <line x1="15" y1="18" x2="15" y2="18.01"></line>
-                </svg>
+      @if (hasVisibleSidebar()) {
+        <aside class="settings-sidebar" aria-label="Settings context and preview">
+          <!-- Settings Summary Card -->
+          @if (canShowSummary()) {
+            <section class="summary-card" data-testid="settings-summary-card">
+              <div class="summary-card__header">
+                <h2 class="summary-card__title">Settings summary</h2>
               </div>
-              <div class="summary-meta-list">
-                <div class="summary-meta-item">
-                  <span class="summary-meta-label">Organization status</span>
-                  <span
-                    class="status-pill"
-                    [class.status-pill--active]="isStatusActive()"
-                    [class.status-pill--inactive]="!isStatusActive()"
-                  >
-                    <span class="status-pill__dot"></span>
-                    {{ statusLabel() }}
-                  </span>
-                </div>
-                <div class="summary-meta-item">
-                  <span class="summary-meta-label">Timezone</span>
-                  <span class="summary-meta-value">{{ displayTimezone() }}</span>
-                </div>
-                <div class="summary-meta-item">
-                  <span class="summary-meta-label">Contact email</span>
-                  <span class="summary-meta-value summary-meta-value--truncate" [title]="displayEmail()">
-                    {{ displayEmail() }}
-                  </span>
-                </div>
-                <div class="summary-meta-item">
-                  <span class="summary-meta-label">Billing access</span>
-                  <span class="summary-meta-value summary-meta-value--highlight">
-                    {{ billingAccessStatus() }}
-                  </span>
+              <div class="summary-card__body">
+                <div class="summary-profile-wrap">
+                  <div class="org-avatar" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                      <line x1="9" y1="22" x2="9" y2="22.01"></line>
+                      <line x1="15" y1="22" x2="15" y2="22.01"></line>
+                      <line x1="9" y1="6" x2="9" y2="6.01"></line>
+                      <line x1="15" y1="6" x2="15" y2="6.01"></line>
+                      <line x1="9" y1="10" x2="9" y2="10.01"></line>
+                      <line x1="15" y1="10" x2="15" y2="10.01"></line>
+                      <line x1="9" y1="14" x2="9" y2="14.01"></line>
+                      <line x1="15" y1="14" x2="15" y2="14.01"></line>
+                      <line x1="9" y1="18" x2="9" y2="18.01"></line>
+                      <line x1="15" y1="18" x2="15" y2="18.01"></line>
+                    </svg>
+                  </div>
+                  <div class="summary-meta-list">
+                    <div class="summary-meta-item">
+                      <span class="summary-meta-label">Organization status</span>
+                      <span
+                        class="status-pill"
+                        [class.status-pill--active]="isStatusActive()"
+                        [class.status-pill--inactive]="!isStatusActive()"
+                      >
+                        <span class="status-pill__dot"></span>
+                        {{ statusLabel() }}
+                      </span>
+                    </div>
+                    <div class="summary-meta-item">
+                      <span class="summary-meta-label">Timezone</span>
+                      <span class="summary-meta-value">{{ displayTimezone() }}</span>
+                    </div>
+                    @if (canViewContactEmail()) {
+                      <div class="summary-meta-item">
+                        <span class="summary-meta-label">Contact email</span>
+                        <span class="summary-meta-value summary-meta-value--truncate" [title]="displayEmail()">
+                          {{ displayEmail() }}
+                        </span>
+                      </div>
+                    }
+                    <div class="summary-meta-item">
+                      <span class="summary-meta-label">Billing access</span>
+                      <span class="summary-meta-value summary-meta-value--highlight">
+                        {{ billingAccessStatus() }}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </section>
+            </section>
+          }
 
-        <!-- Document Preview Card -->
-        <section class="summary-card" data-testid="document-preview-card">
-          <div class="summary-card__header">
-            <h2 class="summary-card__title">Document preview</h2>
-          </div>
-          <div class="summary-card__body">
-            <div class="doc-preview">
-              <h3 class="doc-preview__name">{{ previewOrgName() }}</h3>
-              <p class="doc-preview__address">{{ previewAddress() }}</p>
-              <div class="doc-preview__divider"></div>
-              <p class="doc-preview__footer">{{ previewFooterNote() }}</p>
-            </div>
-          </div>
-        </section>
+          <!-- Document Preview Card -->
+          @if (canShowDocumentPreview()) {
+            <section class="summary-card" data-testid="document-preview-card">
+              <div class="summary-card__header">
+                <h2 class="summary-card__title">Document preview</h2>
+              </div>
+              <div class="summary-card__body">
+                <div class="doc-preview">
+                  <h3 class="doc-preview__name">{{ previewOrgName() }}</h3>
+                  @if (canViewAddressLine()) {
+                    <p class="doc-preview__address">{{ previewAddress() }}</p>
+                  }
+                  @if (canViewDocumentFooterNote()) {
+                    <div class="doc-preview__divider"></div>
+                    <p class="doc-preview__footer">{{ previewFooterNote() }}</p>
+                  }
+                </div>
+              </div>
+            </section>
+          }
 
-        <!-- What Belongs Here Guidance Card -->
-        <section class="summary-card summary-card--checklist" data-testid="what-belongs-here-card">
-          <div class="summary-card__header">
-            <h2 class="summary-card__title">What belongs here</h2>
-          </div>
-          <div class="summary-card__body">
-            <ul class="checklist" role="list">
-              <li class="checklist__item">
-                <span class="checklist__icon" aria-hidden="true">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
-                </span>
-                <span class="checklist__text">Organization profile and legal identity</span>
-              </li>
-              <li class="checklist__item">
-                <span class="checklist__icon" aria-hidden="true">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
-                </span>
-                <span class="checklist__text">Primary contact details and address</span>
-              </li>
-              <li class="checklist__item">
-                <span class="checklist__icon" aria-hidden="true">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
-                </span>
-                <span class="checklist__text">Business timezone for accurate operations</span>
-              </li>
-              <li class="checklist__item">
-                <span class="checklist__icon" aria-hidden="true">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
-                </span>
-                <span class="checklist__text">Document footer defaults for outputs</span>
-              </li>
-            </ul>
-          </div>
-        </section>
-      </aside>
+          <!-- What Belongs Here Guidance Card -->
+          @if (canShowGuidance()) {
+            <section class="summary-card summary-card--checklist" data-testid="what-belongs-here-card">
+              <div class="summary-card__header">
+                <h2 class="summary-card__title">What belongs here</h2>
+              </div>
+              <div class="summary-card__body">
+                <ul class="checklist" role="list">
+                  <li class="checklist__item">
+                    <span class="checklist__icon" aria-hidden="true">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </span>
+                    <span class="checklist__text">Organization profile and legal identity</span>
+                  </li>
+                  <li class="checklist__item">
+                    <span class="checklist__icon" aria-hidden="true">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </span>
+                    <span class="checklist__text">Primary contact details and address</span>
+                  </li>
+                  <li class="checklist__item">
+                    <span class="checklist__icon" aria-hidden="true">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </span>
+                    <span class="checklist__text">Business timezone for accurate operations</span>
+                  </li>
+                  <li class="checklist__item">
+                    <span class="checklist__icon" aria-hidden="true">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </span>
+                    <span class="checklist__text">Document footer defaults for outputs</span>
+                  </li>
+                </ul>
+              </div>
+            </section>
+          }
+        </aside>
+      }
     </div>
   }
 </div>

@@ -42,6 +42,7 @@ const EMPLOYEES_MODULE_KEY = 'employees';
 const DASHBOARD_MODULE_KEY = 'dashboard';
 const BILLING_MODULE_KEY = 'billing';
 const SETUP_MODULE_KEY = 'setup';
+const SETTINGS_MODULE_KEY = 'settings';
 
 const REPORT_CAPABILITY_KEY_BY_REPORT_KEY = Object.freeze({
   sales: 'reports.reportAvailability.sales',
@@ -72,6 +73,67 @@ const ALERT_CAPABILITY_KEY_BY_ALERT_TYPE = Object.freeze({
 });
 
 const definitions = [
+  {
+    key: SETTINGS_MODULE_KEY,
+    parentKey: null,
+    moduleKey: SETTINGS_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Organization Settings',
+    description: 'Residual organization settings owned by the Settings module.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'settings.view' },
+    reason:
+      'Disabling Settings blocks residual settings reads and updates without changing the Organization profile endpoint.',
+  },
+  ...[
+    ['summary', 'Settings Summary', 'Show the organization settings summary presentation.'],
+    ['documentPreview', 'Document Preview', 'Show the existing document preview presentation.'],
+    ['guidance', 'Settings Guidance', 'Show the existing organization settings guidance.'],
+  ].map(([id, label, description]) => ({
+    key: `${SETTINGS_MODULE_KEY}.features.${id}`,
+    parentKey: SETTINGS_MODULE_KEY,
+    moduleKey: SETTINGS_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'settings.view' },
+  })),
+  ...[
+    ['tradingName', 'Trading Name'],
+    ['contactPhone', 'Contact Phone'],
+    ['contactEmail', 'Contact Email'],
+    ['addressLine', 'Address'],
+    ['documentFooterNote', 'Document Footer Note'],
+  ].map(([id, label]) => ({
+    key: `${SETTINGS_MODULE_KEY}.fields.${id}`,
+    parentKey: SETTINGS_MODULE_KEY,
+    moduleKey: SETTINGS_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description: `Residual organization ${label.toLowerCase()} setting.`,
+    defaultPolicy: { visible: true, editable: true },
+    configurable: { visible: true, editable: true },
+    risk: RISK_LEVELS.Recommended,
+    requiredPermissions: { visible: 'settings.view', editable: 'settings.manage' },
+  })),
+  {
+    key: `${SETTINGS_MODULE_KEY}.actions.update`,
+    parentKey: SETTINGS_MODULE_KEY,
+    moduleKey: SETTINGS_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label: 'Update Settings',
+    description:
+      'Allow residual settings updates. Existing validation, optimistic versioning, audit, and tenant isolation still apply.',
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { allowed: 'settings.manage' },
+  },
   {
     key: 'inventory',
     parentKey: null,
@@ -4012,6 +4074,7 @@ module.exports = {
   DASHBOARD_MODULE_KEY,
   BILLING_MODULE_KEY,
   SETUP_MODULE_KEY,
+  SETTINGS_MODULE_KEY,
   REPORT_CAPABILITY_KEY_BY_REPORT_KEY,
   ALERT_CAPABILITY_KEY_BY_ALERT_TYPE,
   listCapabilityControls,
