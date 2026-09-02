@@ -43,4 +43,30 @@ describe('AuditApi cache integration', () => {
       .flush({ data: [], meta: { page: 2, pageSize: 25, total: 0 } });
     await pageTwo;
   });
+
+  it('fetches and caches single audit event detail by ID', async () => {
+    const detailFirst = firstValueFrom(api.getById('evt-123'));
+    const detailSecond = firstValueFrom(api.getById('evt-123'));
+    const req = http.expectOne((r) => r.url.endsWith('/events/evt-123'));
+    expect(req.request.method).toBe('GET');
+    req.flush({
+      data: {
+        id: 'evt-123',
+        organizationId: 'org-1',
+        actorId: 'usr-1',
+        action: 'sale.posted',
+        resourceType: 'sale',
+        resourceId: 'sale-99',
+        reason: 'Normal transaction',
+        requestId: 'req-abc',
+        occurredAt: '2026-09-02T10:00:00.000Z',
+        metadata: { invoiceNumber: 'INV-001' },
+      },
+    });
+
+    const [firstRes, secondRes] = await Promise.all([detailFirst, detailSecond]);
+    expect(firstRes.id).toBe('evt-123');
+    expect(firstRes.action).toBe('sale.posted');
+    expect(secondRes.id).toBe('evt-123');
+  });
 });

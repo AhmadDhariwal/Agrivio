@@ -15,12 +15,12 @@ export class AuditApi {
   private readonly baseUrl = `${environment.publicApiBaseUrl}${API_AUDIT_EVENTS_PATH}`;
 
   query(
-    filters: Record<string, string | number>,
+    filters: Record<string, string | number | undefined | null>,
     forceRefresh = false,
   ): Observable<PaginatedResult<AuditEventItem>> {
     const params: Record<string, string> = {};
     for (const [key, value] of Object.entries(filters)) {
-      if (String(value).trim() !== '') {
+      if (value !== undefined && value !== null && String(value).trim() !== '') {
         params[key] = String(value).trim();
       }
     }
@@ -36,6 +36,21 @@ export class AuditApi {
             { withCredentials: true, params },
           )
           .pipe(map((response) => ({ items: response.data, meta: response.meta }))),
+    });
+  }
+
+  getById(id: string, forceRefresh = false): Observable<AuditEventItem> {
+    return this.queryCache.fetch({
+      key: this.queryCache.buildKey('audit:detail', { id }),
+      policy: 'short',
+      tags: [QUERY_CACHE_TAGS.audit],
+      forceRefresh,
+      loader: () =>
+        this.http
+          .get<{ data: AuditEventItem }>(`${this.baseUrl}/${encodeURIComponent(id)}`, {
+            withCredentials: true,
+          })
+          .pipe(map((response) => response.data)),
     });
   }
 }
