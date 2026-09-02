@@ -148,6 +148,51 @@ function createMongooseAuditEventStore() {
       const doc = await AuditEventModel.findById(id).lean().exec();
       return toQueryDoc(doc);
     },
+
+    async getSummary(filter, { startOfToday } = {}) {
+      const organizationId = mongoose.isValidObjectId(filter.organizationId)
+        ? new mongoose.Types.ObjectId(filter.organizationId)
+        : filter.organizationId;
+      const match = { organizationId };
+      if (filter.from !== undefined) {
+        match.occurredAt = { $gte: filter.from };
+      }
+      const todayThreshold =
+        filter.from !== undefined && startOfToday !== undefined && filter.from > startOfToday
+          ? filter.from
+          : startOfToday;
+      const todayMatch = todayThreshold !== undefined ? { occurredAt: { $gte: todayThreshold } } : {};
+
+      const [stats] = await AuditEventModel.aggregate([
+        { $match: match },
+        {
+          $facet: {
+            total: [{ $count: 'count' }],
+            today: [
+              ...(Object.keys(todayMatch).length > 0 ? [{ $match: todayMatch }] : []),
+              { $count: 'count' },
+            ],
+            uniqueActors: [
+              { $match: { actorId: { $type: 'string', $ne: '' } } },
+              { $group: { _id: '$actorId' } },
+              { $count: 'count' },
+            ],
+            resourceTypes: [
+              { $match: { resourceType: { $type: 'string', $ne: '' } } },
+              { $group: { _id: '$resourceType' } },
+              { $count: 'count' },
+            ],
+          },
+        },
+      ]).exec();
+
+      return {
+        totalEvents: stats?.total?.[0]?.count ?? 0,
+        eventsToday: stats?.today?.[0]?.count ?? 0,
+        uniqueActors: stats?.uniqueActors?.[0]?.count ?? 0,
+        resourceTypes: stats?.resourceTypes?.[0]?.count ?? 0,
+      };
+    },
   };
 }
 

@@ -2,7 +2,7 @@ import { Component, HostListener, computed, inject, signal } from '@angular/core
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AuditApi } from '../../data-access/audit.api';
-import { AuditEventItem } from '../../models/audit.models';
+import { AuditEventItem, AuditSummary } from '../../models/audit.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { OrganizationSettingsApi } from '../../../organization/data-access/organization-settings.api';
@@ -110,6 +110,15 @@ export class AuditInquiryPage {
   readonly pageSize = signal(25);
   readonly total = signal(0);
 
+  // Authoritative server-backed KPI Summary
+  readonly summary = signal<AuditSummary>({
+    totalEvents: 0,
+    eventsToday: 0,
+    uniqueActors: 0,
+    resourceTypes: 0,
+  });
+  readonly kpis = computed(() => this.summary());
+
   // Inspector Drawer State
   readonly selectedEvent = signal<AuditEventItem | null>(null);
   readonly inspectorLoading = signal(false);
@@ -156,6 +165,7 @@ export class AuditInquiryPage {
   constructor() {
     if (this.canView()) {
       this.loadFilterOptions();
+      this.loadSummary();
       this.organizationApi?.getOrganization().subscribe({
         next: (organization) => {
           if (typeof organization.timezone === 'string' && organization.timezone.trim() !== '') {
@@ -244,8 +254,21 @@ export class AuditInquiryPage {
       });
   }
 
+  loadSummary(forceRefresh = false): void {
+    if (!this.canView()) {
+      return;
+    }
+    this.api.getSummary(forceRefresh).subscribe({
+      next: (summary) => this.summary.set(summary),
+      error: () => {
+        // Keep current summary on transient error
+      },
+    });
+  }
+
   refresh(): void {
     this.loadFilterOptions();
+    this.loadSummary(true);
     this.search(true);
   }
 

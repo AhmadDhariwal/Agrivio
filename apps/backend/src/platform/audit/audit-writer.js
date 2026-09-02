@@ -113,6 +113,34 @@ function createInMemoryAuditEventStore() {
       const event = events.find((item) => String(item._id) === String(id));
       return event === undefined ? null : { ...event };
     },
+    async getSummary(filter, { startOfToday } = {}) {
+      const items = await this.query(filter);
+      const totalEvents = items.length;
+      const todayThreshold =
+        filter.from !== undefined && startOfToday !== undefined && filter.from > startOfToday
+          ? filter.from
+          : startOfToday;
+      const eventsToday =
+        todayThreshold === undefined
+          ? 0
+          : items.filter((item) => {
+              const occurredAt =
+                item.occurredAt instanceof Date ? item.occurredAt : new Date(item.occurredAt);
+              return occurredAt.getTime() >= todayThreshold.getTime();
+            }).length;
+      const uniqueActors = new Set(
+        items.map((i) => i.actorId).filter((a) => typeof a === 'string' && a !== ''),
+      ).size;
+      const resourceTypes = new Set(
+        items.map((i) => i.resourceType).filter((r) => typeof r === 'string' && r !== ''),
+      ).size;
+      return {
+        totalEvents,
+        eventsToday,
+        uniqueActors,
+        resourceTypes,
+      };
+    },
   };
 }
 

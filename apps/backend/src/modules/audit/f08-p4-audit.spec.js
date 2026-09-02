@@ -231,6 +231,21 @@ describe('F08 P4 audit inquiry', () => {
       expect(orgBOptions.body.data.items).toContain('sale-b');
       expect(orgBOptions.body.data.items).not.toContain('sale-a');
 
+      const orgASummary = await fetchJson(
+        baseUrl,
+        'GET',
+        `${API_AUDIT_EVENTS_PATH}/summary`,
+        undefined,
+        {},
+        jar,
+      );
+      expect(orgASummary.status).toBe(200);
+      expect(typeof orgASummary.body.data.totalEvents).toBe('number');
+      expect(typeof orgASummary.body.data.eventsToday).toBe('number');
+      expect(typeof orgASummary.body.data.uniqueActors).toBe('number');
+      expect(typeof orgASummary.body.data.resourceTypes).toBe('number');
+      expect(orgASummary.body.data.totalEvents).toBeGreaterThanOrEqual(1);
+
       const cross = await fetchJson(
         baseUrl,
         'GET',
@@ -255,6 +270,94 @@ describe('F08 P4 audit inquiry', () => {
       await close(server);
     }
   }, 120000);
+
+  it('computes authoritative organization summary obeying history window, timezone boundary, and tenant isolation', async () => {
+    // Current test clock: 2026-08-14T10:00:00.000Z
+    // In Asia/Karachi (UTC+5), start of today is 2026-08-13T19:00:00.000Z
+    // In America/New_York (EDT, UTC-4), start of today is 2026-08-14T04:00:00.000Z
+    let orgTz = 'Asia/Karachi';
+    const audit = createAuditModule({
+      now: () => now,
+      resolvePlanEntitlements: async () => ({ auditHistory: '30d' }),
+      resolveOrganizationTimezone: async () => orgTz,
+    });
+
+    // 1. Event today in both Karachi and NY (2026-08-14T06:00:00Z)
+    await audit.store.append(null, {
+      _id: 'ev-today-both',
+      organizationId: 'org-kpi',
+      actorId: 'actor-1',
+      action: 'sale.posted',
+      resourceType: 'sale',
+      resourceId: 's-1',
+      occurredAt: new Date('2026-08-14T06:00:00.000Z'),
+    });
+
+    // 2. Event that is today in Karachi (2026-08-14 01:00 PKT) but yesterday in NY (2026-08-13 16:00 EDT)
+    await audit.store.append(null, {
+      _id: 'ev-tz-boundary',
+      organizationId: 'org-kpi',
+      actorId: 'actor-2',
+      action: 'purchase.posted',
+      resourceType: 'purchase',
+      resourceId: 'p-1',
+      occurredAt: new Date('2026-08-13T20:00:00.000Z'),
+    });
+
+    // 3. Event within 30d window but yesterday in both timezones (2026-08-10T12:00:00Z)
+    await audit.store.append(null, {
+      _id: 'ev-past-in-window',
+      organizationId: 'org-kpi',
+      actorId: 'actor-1',
+      action: 'inventory.adjustment',
+      resourceType: 'inventory',
+      resourceId: 'inv-1',
+      occurredAt: new Date('2026-08-10T12:00:00.000Z'),
+    });
+
+    // 4. Old event outside 30d window (2026-06-01) - MUST BE EXCLUDED from KPIs
+    await audit.store.append(null, {
+      _id: 'ev-outside-window',
+      organizationId: 'org-kpi',
+      actorId: 'actor-3',
+      action: 'returns.posted',
+      resourceType: 'return',
+      resourceId: 'ret-1',
+      occurredAt: new Date('2026-06-01T00:00:00.000Z'),
+    });
+
+    // 5. Cross-organization event - MUST BE EXCLUDED from org-kpi KPIs
+    await audit.store.append(null, {
+      _id: 'ev-other-org',
+      organizationId: 'other-org',
+      actorId: 'actor-99',
+      action: 'expenses.posted',
+      resourceType: 'expense',
+      resourceId: 'exp-1',
+      occurredAt: new Date('2026-08-14T08:00:00.000Z'),
+    });
+
+    // Test in Asia/Karachi timezone
+    orgTz = 'Asia/Karachi';
+    const summaryKarachi = await audit.auditService.getOrganizationSummary('org-kpi');
+    // Accessible events within 30d: ev-today-both, ev-tz-boundary, ev-past-in-window = 3 total
+    expect(summaryKarachi.totalEvents).toBe(3);
+    // Today in Karachi: ev-today-both (Aug 14 11:00) + ev-tz-boundary (Aug 14 01:00) = 2
+    expect(summaryKarachi.eventsToday).toBe(2);
+    // Unique actors in window: actor-1, actor-2 = 2
+    expect(summaryKarachi.uniqueActors).toBe(2);
+    // Resource types in window: sale, purchase, inventory = 3
+    expect(summaryKarachi.resourceTypes).toBe(3);
+
+    // Test in America/New_York timezone
+    orgTz = 'America/New_York';
+    const summaryNY = await audit.auditService.getOrganizationSummary('org-kpi');
+    expect(summaryNY.totalEvents).toBe(3);
+    // Today in NY: only ev-today-both (Aug 14 02:00 EDT); ev-tz-boundary is Aug 13 16:00 EDT (yesterday)
+    expect(summaryNY.eventsToday).toBe(1);
+    expect(summaryNY.uniqueActors).toBe(2);
+    expect(summaryNY.resourceTypes).toBe(3);
+  });
 
   it('keeps Audit free of business-module persistence imports', () => {
     const violations = [];

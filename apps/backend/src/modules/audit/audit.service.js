@@ -41,6 +41,49 @@ function filterOptionLimit(value) {
   return parsed;
 }
 
+function getStartOfDayInTimezone(timezone, at = new Date()) {
+  try {
+    const dtf = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false,
+    });
+    const p1 = dtf.formatToParts(at);
+    const y = Number(p1.find((p) => p.type === 'year')?.value);
+    const m = Number(p1.find((p) => p.type === 'month')?.value);
+    const d = Number(p1.find((p) => p.type === 'day')?.value);
+    const guess = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
+    const p2 = dtf.formatToParts(guess);
+    const gy = Number(p2.find((p) => p.type === 'year')?.value);
+    const gm = Number(p2.find((p) => p.type === 'month')?.value);
+    const gd = Number(p2.find((p) => p.type === 'day')?.value);
+    const gh = Number(p2.find((p) => p.type === 'hour')?.value % 24);
+    const gmin = Number(p2.find((p) => p.type === 'minute')?.value);
+    const diff = Date.UTC(gy, gm - 1, gd, gh, gmin) - Date.UTC(y, m - 1, d, 0, 0);
+    const result = new Date(guess.getTime() - diff);
+    const check = dtf.formatToParts(result);
+    const cy = Number(check.find((p) => p.type === 'year')?.value);
+    const cm = Number(check.find((p) => p.type === 'month')?.value);
+    const cd = Number(check.find((p) => p.type === 'day')?.value);
+    const ch = Number(check.find((p) => p.type === 'hour')?.value % 24);
+    const cmin = Number(check.find((p) => p.type === 'minute')?.value);
+    if (cy !== y || cm !== m || cd !== d || ch !== 0 || cmin !== 0) {
+      const diff2 = Date.UTC(cy, cm - 1, cd, ch, cmin) - Date.UTC(y, m - 1, d, 0, 0);
+      return new Date(result.getTime() - diff2);
+    }
+    return result;
+  } catch {
+    const fallback = new Date(at);
+    fallback.setUTCHours(0, 0, 0, 0);
+    return fallback;
+  }
+}
+
 function toAuditDto(event) {
   return {
     id: String(event._id),
@@ -185,10 +228,29 @@ function createAuditService(deps) {
     return { items: result.items.map(toAuditDto), total: result.total };
   }
 
+  async function getOrganizationSummary(organizationId) {
+    const window = await resolveHistoryWindow(organizationId);
+    const timezone =
+      typeof deps.resolveOrganizationTimezone === 'function'
+        ? await deps.resolveOrganizationTimezone(organizationId)
+        : 'Asia/Karachi';
+    const currentDate = now();
+    const startOfToday = getStartOfDayInTimezone(timezone, currentDate);
+    const from = window.unlimited ? undefined : window.from;
+    return store.getSummary(
+      {
+        organizationId,
+        ...(from === undefined ? {} : { from }),
+      },
+      { startOfToday },
+    );
+  }
+
   return {
     queryOrganizationEvents,
     queryOrganizationFilterOptions,
     getOrganizationEvent,
+    getOrganizationSummary,
     queryPlatformEvents,
     appendForTest: (event) => store.append(null, event),
   };
@@ -196,4 +258,5 @@ function createAuditService(deps) {
 
 module.exports = {
   createAuditService,
+  getStartOfDayInTimezone,
 };

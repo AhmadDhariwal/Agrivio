@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { API_AUDIT_EVENTS_PATH } from '@agrivio/api-contracts';
 import { environment } from '../../../../environments/environment';
-import { AuditEventItem } from '../models/audit.models';
+import { AuditEventItem, AuditSummary } from '../models/audit.models';
 import { PaginatedResult } from '../../../shared/data-access/pagination';
 import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
 import { QUERY_CACHE_TAGS } from '../../../shared/data-access/query-cache.tags';
@@ -93,6 +93,22 @@ export class AuditApi {
           .get<{ data: AuditFilterOptions }>(`${this.baseUrl}/filter-options`, {
             withCredentials: true,
             params,
+          })
+          .pipe(map((response) => response.data)),
+    });
+  }
+
+  getSummary(forceRefresh = false): Observable<AuditSummary> {
+    const organizationId = this.sessionStore.activeContext()?.organizationId ?? 'anonymous';
+    return this.queryCache.fetch({
+      key: this.queryCache.buildKey('audit:summary', { organizationId }),
+      policy: 'short',
+      tags: [QUERY_CACHE_TAGS.audit],
+      forceRefresh,
+      loader: () =>
+        this.http
+          .get<{ data: AuditSummary }>(`${this.baseUrl}/summary`, {
+            withCredentials: true,
           })
           .pipe(map((response) => response.data)),
     });

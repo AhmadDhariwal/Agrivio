@@ -62,6 +62,18 @@ function registerAuditRoutes(deps) {
   );
 
   router.get(
+    `${API_AUDIT_EVENTS_PATH}/summary`,
+    deps.requireAuth,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('audit.view'),
+    deps.requireSuspendedReadAccess,
+    requireAuditModule,
+    (req, res, next) => {
+      void controller.getOrganizationSummary(req, res, next);
+    },
+  );
+
+  router.get(
     `${API_AUDIT_EVENTS_PATH}/:id`,
     deps.requireAuth,
     requireOrganizationContext,

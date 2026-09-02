@@ -10,3 +10,10 @@ export interface AuditEventItem {
   occurredAt: string;
   metadata?: Record<string, unknown> | null;
 }
+
+export interface AuditSummary {
+  totalEvents: number;
+  eventsToday: number;
+  uniqueActors: number;
+  resourceTypes: number;
+}

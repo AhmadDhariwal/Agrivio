@@ -15,6 +15,7 @@ describe('AuditInquiryPage', () => {
   let mockQuery: ReturnType<typeof vi.fn>;
   let mockGetById: ReturnType<typeof vi.fn>;
   let mockGetFilterOptions: ReturnType<typeof vi.fn>;
+  let mockGetSummary: ReturnType<typeof vi.fn>;
   let capabilityState: ReturnType<typeof signal<Record<string, Record<string, boolean>>>>;
   let hasPermissionFn: ReturnType<typeof vi.fn>;
 
@@ -81,6 +82,15 @@ describe('AuditInquiryPage', () => {
       return of({ field, items: [] });
     });
 
+    mockGetSummary = vi.fn((_forceRefresh?: boolean) =>
+      of({
+        totalEvents: 100,
+        eventsToday: 15,
+        uniqueActors: 8,
+        resourceTypes: 6,
+      }),
+    );
+
     const capabilityValue = (key: string, mode: string) => capabilityState()[key]?.[mode] ?? true;
 
     await TestBed.configureTestingModule({
@@ -92,6 +102,7 @@ describe('AuditInquiryPage', () => {
             query: mockQuery,
             getById: mockGetById,
             getFilterOptions: mockGetFilterOptions,
+            getSummary: mockGetSummary,
           },
         },
         {
@@ -330,5 +341,44 @@ describe('AuditInquiryPage', () => {
     expect(html).not.toContain('edit');
     expect(html).not.toContain('restore');
     expect(html).not.toContain('cancel');
+  });
+
+  it('renders authoritative server-backed Audit KPIs and does not compute them from paginated items', () => {
+    mockGetSummary.mockReturnValue(
+      of({
+        totalEvents: 1500,
+        eventsToday: 24,
+        uniqueActors: 12,
+        resourceTypes: 9,
+      }),
+    );
+
+    // Load summary and trigger change detection
+    component.loadSummary();
+    fixture.detectChanges();
+
+    const kpiEl = fixture.nativeElement.querySelector('[data-testid="audit-kpis"]');
+    expect(kpiEl).toBeTruthy();
+
+    const totalEl = fixture.nativeElement.querySelector('[data-testid="audit-kpi-total-val"]');
+    const todayEl = fixture.nativeElement.querySelector('[data-testid="audit-kpi-today-val"]');
+    const actorsEl = fixture.nativeElement.querySelector('[data-testid="audit-kpi-actors-val"]');
+    const resourcesEl = fixture.nativeElement.querySelector('[data-testid="audit-kpi-resources-val"]');
+
+    expect(totalEl.textContent.trim()).toBe('1500');
+    expect(todayEl.textContent.trim()).toBe('24');
+    expect(actorsEl.textContent.trim()).toBe('12');
+    expect(resourcesEl.textContent.trim()).toBe('9');
+
+    // Confirm that KPIs are NOT derived from currently loaded paginated items (mockEvents.length is 3)
+    expect(totalEl.textContent.trim()).not.toBe('3');
+    expect(component.kpis().totalEvents).toBe(1500);
+    expect(component.items().length).toBe(3);
+  });
+
+  it('force-refreshes both audit list and audit summary when refresh() is invoked', () => {
+    component.refresh();
+    expect(mockGetSummary).toHaveBeenCalledWith(true);
+    expect(mockQuery).toHaveBeenCalledWith(expect.anything(), true);
   });
 });

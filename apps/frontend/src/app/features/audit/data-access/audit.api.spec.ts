@@ -108,4 +108,49 @@ describe('AuditApi cache integration', () => {
       .flush({ data: [], meta: { page: 1, pageSize: 25, total: 0 } });
     await second;
   });
+
+  it('fetches authoritative summary, scopes by organization, and force-refreshes', async () => {
+    const first = firstValueFrom(api.getSummary());
+    const req = http.expectOne((request) => request.url.endsWith('/audit-events/summary'));
+    expect(req.request.method).toBe('GET');
+    expect(req.request.withCredentials).toBe(true);
+    req.flush({
+      data: {
+        totalEvents: 42,
+        eventsToday: 5,
+        uniqueActors: 3,
+        resourceTypes: 4,
+      },
+    });
+    const summary = await first;
+    expect(summary).toEqual({
+      totalEvents: 42,
+      eventsToday: 5,
+      uniqueActors: 3,
+      resourceTypes: 4,
+    });
+
+    // Deduplicated within short cache
+    const cached = firstValueFrom(api.getSummary());
+    http.expectNone((request) => request.url.endsWith('/audit-events/summary'));
+    await expect(cached).resolves.toEqual(summary);
+
+    // Force refresh triggers a new HTTP request
+    const refreshed = firstValueFrom(api.getSummary(true));
+    const refreshReq = http.expectOne((request) => request.url.endsWith('/audit-events/summary'));
+    refreshReq.flush({
+      data: {
+        totalEvents: 43,
+        eventsToday: 6,
+        uniqueActors: 3,
+        resourceTypes: 4,
+      },
+    });
+    await expect(refreshed).resolves.toEqual({
+      totalEvents: 43,
+      eventsToday: 6,
+      uniqueActors: 3,
+      resourceTypes: 4,
+    });
+  });
 });

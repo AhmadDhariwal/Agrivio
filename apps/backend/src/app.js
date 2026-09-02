@@ -130,6 +130,10 @@ function createApp(options) {
         const access = await subscriptions.subscriptionService.resolveAccessState(organizationId);
         return access?.plan?.entitlements ?? null;
       },
+      resolveOrganizationTimezone: async (organizationId) => {
+        const organization = await onboardingCore.store.findOrganizationById(organizationId);
+        return organization?.timezone ?? 'Asia/Karachi';
+      },
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
