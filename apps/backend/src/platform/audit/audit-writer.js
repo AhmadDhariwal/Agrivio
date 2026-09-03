@@ -1,5 +1,26 @@
 const { redactLogFields } = require('../logging/redact-log-fields');
-const { getRequestId } = require('../http/request-context');
+const { getRequestContext, getRequestId } = require('../http/request-context');
+
+const AUDIT_SCOPES = Object.freeze({
+  TENANT: 'tenant',
+  PLATFORM: 'platform',
+});
+
+function resolveAuditScope(input) {
+  if (input.scope === AUDIT_SCOPES.TENANT || input.scope === AUDIT_SCOPES.PLATFORM) {
+    return input.scope;
+  }
+  const requestContext = getRequestContext();
+  if (
+    requestContext?.auditScope === AUDIT_SCOPES.PLATFORM ||
+    requestContext?.authContext?.contextType === 'platform'
+  ) {
+    return AUDIT_SCOPES.PLATFORM;
+  }
+  return input.organizationId === undefined || input.organizationId === null
+    ? AUDIT_SCOPES.PLATFORM
+    : AUDIT_SCOPES.TENANT;
+}
 
 function sanitizeAuditEvent(input) {
   const requestId =
@@ -14,6 +35,7 @@ function sanitizeAuditEvent(input) {
         : new Date();
 
   return redactLogFields({
+    scope: resolveAuditScope(input),
     organizationId: input.organizationId,
     actorId: input.actorId,
     action: input.action,
@@ -41,6 +63,21 @@ function createInMemoryAuditEventStore() {
     async query(filter) {
       return events
         .filter((event) => {
+          if (filter.scope === AUDIT_SCOPES.TENANT && event.scope === AUDIT_SCOPES.PLATFORM) {
+            return false;
+          }
+          if (
+            filter.scope === AUDIT_SCOPES.PLATFORM &&
+            event.scope !== AUDIT_SCOPES.PLATFORM &&
+            !(
+              event.scope === undefined &&
+              (event.organizationId === undefined ||
+                event.organizationId === null ||
+                event.organizationId === 'platform')
+            )
+          ) {
+            return false;
+          }
           if (
             filter.organizationId !== undefined &&
             String(event.organizationId ?? '') !== String(filter.organizationId)
@@ -51,6 +88,12 @@ function createInMemoryAuditEventStore() {
             return false;
           }
           if (filter.action !== undefined && String(event.action) !== String(filter.action)) {
+            return false;
+          }
+          if (
+            Array.isArray(filter.excludeActions) &&
+            filter.excludeActions.includes(String(event.action))
+          ) {
             return false;
           }
           if (
@@ -154,6 +197,7 @@ function createAuditWriter(store) {
 }
 
 module.exports = {
+  AUDIT_SCOPES,
   sanitizeAuditEvent,
   createInMemoryAuditEventStore,
   createAuditWriter,

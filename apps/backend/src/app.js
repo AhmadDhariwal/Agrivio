@@ -198,6 +198,12 @@ function createApp(options) {
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
+  if (typeof audit.auditService.setActorOptionResolver === 'function') {
+    audit.auditService.setActorOptionResolver((organizationId, actorOptions) =>
+      employees.employeesService.listAuditActorOptions(organizationId, actorOptions),
+    );
+  }
+
   const locations =
     options.locations ??
     createLocationsModule({

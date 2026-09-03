@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { API_AUDIT_EVENTS_PATH } from '@agrivio/api-contracts';
 import { environment } from '../../../../environments/environment';
-import { AuditEventItem, AuditSummary } from '../models/audit.models';
+import { AuditActorOption, AuditEventItem, AuditSummary } from '../models/audit.models';
 import { PaginatedResult } from '../../../shared/data-access/pagination';
 import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
 import { QUERY_CACHE_TAGS } from '../../../shared/data-access/query-cache.tags';
@@ -19,6 +19,11 @@ export type AuditFilterOptionField =
 export interface AuditFilterOptions {
   field: AuditFilterOptionField;
   items: string[];
+}
+
+export interface AuditActorFilterOptions {
+  field: 'actorId';
+  items: AuditActorOption[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -40,7 +45,7 @@ export class AuditApi {
     }
     const organizationId = this.sessionStore.activeContext()?.organizationId ?? 'anonymous';
     return this.queryCache.fetch({
-      key: this.queryCache.buildKey('audit:list', { ...params, organizationId }),
+      key: this.queryCache.buildKey('audit:tenant:list', { ...params, organizationId }),
       policy: 'short',
       tags: [QUERY_CACHE_TAGS.audit],
       forceRefresh,
@@ -57,7 +62,7 @@ export class AuditApi {
   getById(id: string, forceRefresh = false): Observable<AuditEventItem> {
     const organizationId = this.sessionStore.activeContext()?.organizationId ?? 'anonymous';
     return this.queryCache.fetch({
-      key: this.queryCache.buildKey('audit:detail', { organizationId, id }),
+      key: this.queryCache.buildKey('audit:tenant:detail', { organizationId, id }),
       policy: 'short',
       tags: [QUERY_CACHE_TAGS.audit],
       forceRefresh,
@@ -82,7 +87,7 @@ export class AuditApi {
     };
     const organizationId = this.sessionStore.activeContext()?.organizationId ?? 'anonymous';
     return this.queryCache.fetch({
-      key: this.queryCache.buildKey('audit:filter-options', {
+      key: this.queryCache.buildKey('audit:tenant:filter-options', {
         ...params,
         organizationId,
       }),
@@ -98,10 +103,35 @@ export class AuditApi {
     });
   }
 
+  getActorOptions(search = '', limit = 20): Observable<AuditActorFilterOptions> {
+    const params = {
+      field: 'actorId',
+      ...(search.trim() === '' ? {} : { search: search.trim() }),
+      limit: String(limit),
+    };
+    const organizationId = this.sessionStore.activeContext()?.organizationId ?? 'anonymous';
+    return this.queryCache.fetch({
+      key: this.queryCache.buildKey('audit:tenant:actor-options', {
+        organizationId,
+        search: search.trim(),
+        limit,
+      }),
+      policy: 'short',
+      tags: [QUERY_CACHE_TAGS.audit],
+      loader: () =>
+        this.http
+          .get<{ data: AuditActorFilterOptions }>(`${this.baseUrl}/filter-options`, {
+            withCredentials: true,
+            params,
+          })
+          .pipe(map((response) => response.data)),
+    });
+  }
+
   getSummary(forceRefresh = false): Observable<AuditSummary> {
     const organizationId = this.sessionStore.activeContext()?.organizationId ?? 'anonymous';
     return this.queryCache.fetch({
-      key: this.queryCache.buildKey('audit:summary', { organizationId }),
+      key: this.queryCache.buildKey('audit:tenant:summary', { organizationId }),
       policy: 'short',
       tags: [QUERY_CACHE_TAGS.audit],
       forceRefresh,

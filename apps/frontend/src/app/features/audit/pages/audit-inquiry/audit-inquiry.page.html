@@ -157,6 +157,18 @@
           <!-- Actor Dropdown -->
           <div class="filter-field">
             <label class="filter-field__label" for="audit-actor-select">Actor</label>
+            <div class="actor-filter-control">
+              <input
+                id="audit-actor-search"
+                data-testid="audit-actor-search"
+                class="filter-field__input"
+                type="search"
+                [ngModel]="actorOptionSearch()"
+                (ngModelChange)="onActorOptionSearch($event)"
+                name="actorSearch"
+                placeholder="Search employees"
+                aria-label="Search audit actors"
+              />
             <select
               id="audit-actor-select"
               data-testid="audit-actor"
@@ -167,10 +179,11 @@
               aria-label="Filter by actor"
             >
               <option value="">All actors</option>
-              @for (actor of actorOptions(); track actor) {
-              <option [value]="actor">{{ formatActor(actor) }}</option>
+              @for (actor of actorOptions(); track actor.value) {
+              <option [value]="actor.value">{{ actor.label }}</option>
               }
             </select>
+            </div>
           </div>
 
           <!-- Action Dropdown -->
@@ -370,6 +383,15 @@
       <div class="mobile-filter-sheet__body">
         <div class="mobile-filter-group">
           <label class="mobile-filter-group__label" for="mobile-audit-actor">Actor</label>
+          <input
+            id="mobile-audit-actor-search"
+            class="mobile-filter-group__input"
+            type="search"
+            [ngModel]="actorOptionSearch()"
+            (ngModelChange)="onActorOptionSearch($event)"
+            placeholder="Search employees"
+            aria-label="Search audit actors"
+          />
           <select
             id="mobile-audit-actor"
             class="mobile-filter-group__select"
@@ -377,8 +399,8 @@
             (ngModelChange)="onActorChange($event)"
           >
             <option value="">All actors</option>
-            @for (actor of actorOptions(); track actor) {
-            <option [value]="actor">{{ formatActor(actor) }}</option>
+            @for (actor of actorOptions(); track actor.value) {
+            <option [value]="actor.value">{{ actor.label }}</option>
             }
           </select>
         </div>

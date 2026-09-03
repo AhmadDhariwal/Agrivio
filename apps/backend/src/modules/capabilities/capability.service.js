@@ -487,6 +487,7 @@ function createCapabilityService(deps) {
           (control) => control.key === change.key,
         )?.effectiveValue;
         await auditWriter.appendBusinessEvent(session, {
+          scope: 'platform',
           organizationId,
           actorId: actor.actorId,
           action: 'organization_capability.changed',

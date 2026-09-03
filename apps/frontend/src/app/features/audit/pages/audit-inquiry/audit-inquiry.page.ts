@@ -1,8 +1,10 @@
-import { Component, HostListener, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AuditApi } from '../../data-access/audit.api';
-import { AuditEventItem, AuditSummary } from '../../models/audit.models';
+import { AuditActorOption, AuditEventItem, AuditSummary } from '../../models/audit.models';
+import { Subject, debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { OrganizationSettingsApi } from '../../../organization/data-access/organization-settings.api';
@@ -87,6 +89,8 @@ export class AuditInquiryPage {
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly organizationApi = inject(OrganizationSettingsApi, { optional: true });
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly actorSearchChanges = new Subject<string>();
 
   // 4 Authorized Filter Dropdowns
   readonly actorId = signal('');
@@ -95,7 +99,8 @@ export class AuditInquiryPage {
   readonly reason = signal('');
 
   // Dropdown server-backed options
-  readonly actorOptions = signal<string[]>([]);
+  readonly actorOptionSearch = signal('');
+  readonly actorOptions = signal<AuditActorOption[]>([]);
   readonly actionOptions = signal<string[]>([]);
   readonly resourceTypeOptions = signal<string[]>([]);
   readonly reasonOptions = signal<string[]>([]);
@@ -163,6 +168,14 @@ export class AuditInquiryPage {
   );
 
   constructor() {
+    this.actorSearchChanges
+      .pipe(
+        debounceTime(250),
+        distinctUntilChanged(),
+        switchMap((search) => this.api.getActorOptions(search, 50)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((response) => this.actorOptions.set(response.items));
     if (this.canView()) {
       this.loadFilterOptions();
       this.loadSummary();
@@ -191,9 +204,7 @@ export class AuditInquiryPage {
       return;
     }
 
-    this.api.getFilterOptions('actorId', '', 50).subscribe({
-      next: (res) => this.actorOptions.set(res.items),
-    });
+    this.loadActorOptions(this.actorOptionSearch());
 
     this.api.getFilterOptions('action', '', 50).subscribe({
       next: (res) => this.actionOptions.set(res.items),
@@ -202,6 +213,20 @@ export class AuditInquiryPage {
     this.api.getFilterOptions('resourceType', '', 50).subscribe({
       next: (res) => this.resourceTypeOptions.set(res.items),
     });
+  }
+
+  loadActorOptions(search = ''): void {
+    if (!this.canView() || !this.canUseFilters()) {
+      return;
+    }
+    this.api.getActorOptions(search, 50).subscribe({
+      next: (res) => this.actorOptions.set(res.items),
+    });
+  }
+
+  onActorOptionSearch(value: string): void {
+    this.actorOptionSearch.set(value);
+    this.actorSearchChanges.next(value.trim());
   }
 
   search(forceRefresh = false): void {
@@ -282,6 +307,10 @@ export class AuditInquiryPage {
 
   onActorChange(value: string): void {
     this.actorId.set(value);
+    this.page.set(1);
+    if (this.canUseSearch()) {
+      this.search();
+    }
   }
 
   onActionChange(value: string): void {
@@ -390,7 +419,7 @@ export class AuditInquiryPage {
     if (actorId.toLowerCase() === 'system') {
       return 'System';
     }
-    return actorId;
+    return this.actorOptions().find((option) => option.value === actorId)?.label ?? actorId;
   }
 
   isSystemActor(actorId: string | null | undefined): boolean {

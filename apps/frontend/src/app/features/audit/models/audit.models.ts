@@ -1,5 +1,6 @@
 export interface AuditEventItem {
   id: string;
+  scope?: 'tenant' | 'platform';
   organizationId: string | null;
   actorId: string;
   action: string;
@@ -9,6 +10,12 @@ export interface AuditEventItem {
   requestId?: string | null;
   occurredAt: string;
   metadata?: Record<string, unknown> | null;
+}
+
+export interface AuditActorOption {
+  value: string;
+  label: string;
+  system?: boolean;
 }
 
 export interface AuditSummary {

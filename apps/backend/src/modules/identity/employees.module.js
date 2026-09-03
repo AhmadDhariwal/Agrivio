@@ -208,6 +208,30 @@ function createEmployeesService(deps) {
       return nameMap;
     },
 
+    async listAuditActorOptions(organizationId, options = {}) {
+      const limit = Math.max(1, Math.min(Number(options.limit) || 20, 50));
+      const result = await store.listMembershipsPage(
+        organizationId,
+        { search: options.search },
+        { skip: 0, pageSize: limit },
+      );
+      return result.items
+        .map((membership) => membership.user)
+        .filter((user) => user !== undefined && user !== null)
+        .map((user) => {
+          const value = String(user['_id']);
+          const displayName = String(user['displayName'] ?? '').trim();
+          const email = String(user['email'] ?? '').trim();
+          return {
+            value,
+            label:
+              displayName !== '' && email !== ''
+                ? `${displayName} (${email})`
+                : displayName || email || value,
+          };
+        });
+    },
+
     async getAccessPolicy(actor) {
       const actorRole = actor?.role;
       return {

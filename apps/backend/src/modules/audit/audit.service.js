@@ -8,6 +8,20 @@ const FILTER_OPTION_FIELDS = new Set(['actorId', 'action', 'resourceType', 'reso
 
 const DEFAULT_FILTER_OPTION_LIMIT = 20;
 const MAX_FILTER_OPTION_LIMIT = 50;
+const LEGACY_PLATFORM_ACTIONS = Object.freeze([
+  'organization.activation_token_reissued',
+  'organization.approved',
+  'organization.rejected',
+  'organization.suspended',
+  'organization_capability.changed',
+  'subscription_plan.version_created',
+  'subscription.billing_approved',
+  'subscription.billing_rejected',
+  'subscription.billing_review_started',
+  'subscription.plan_change_scheduled',
+  'subscription.plan_changed',
+  'subscription.renewed_by_billing',
+]);
 
 function optionalString(value) {
   if (value === undefined || value === null || value === '') {
@@ -87,6 +101,9 @@ function getStartOfDayInTimezone(timezone, at = new Date()) {
 function toAuditDto(event) {
   return {
     id: String(event._id),
+    scope:
+      event.scope ??
+      (event.organizationId === undefined || event.organizationId === null ? 'platform' : 'tenant'),
     organizationId: event.organizationId === undefined || event.organizationId === null
       ? null
       : String(event.organizationId),
@@ -107,6 +124,7 @@ function toAuditDto(event) {
 function createAuditService(deps) {
   const store = deps.store;
   const now = deps.now ?? (() => new Date());
+  let resolveActorOptions = deps.resolveActorOptions;
 
   async function resolveHistoryWindow(organizationId) {
     const entitlements =
@@ -162,8 +180,13 @@ function createAuditService(deps) {
       : filters.from === undefined || filters.from < window.from
         ? window.from
         : filters.from;
+    if (filters.action !== undefined && LEGACY_PLATFORM_ACTIONS.includes(filters.action)) {
+      return { items: [], total: 0 };
+    }
     const result = await store.queryPage({
+      scope: 'tenant',
       organizationId,
+      excludeActions: LEGACY_PLATFORM_ACTIONS,
       ...(filters.actorId === undefined ? {} : { actorId: filters.actorId }),
       ...(filters.action === undefined ? {} : { action: filters.action }),
       ...(filters.resourceType === undefined ? {} : { resourceType: filters.resourceType }),
@@ -178,7 +201,12 @@ function createAuditService(deps) {
   async function getOrganizationEvent(organizationId, id) {
     const window = await resolveHistoryWindow(organizationId);
     const event = await store.findById(id);
-    if (event === null || String(event.organizationId ?? '') !== String(organizationId)) {
+    if (
+      event === null ||
+      event.scope === 'platform' ||
+      LEGACY_PLATFORM_ACTIONS.includes(String(event.action)) ||
+      String(event.organizationId ?? '') !== String(organizationId)
+    ) {
       throw notFound('Audit event not found');
     }
     const occurredAt =
@@ -199,9 +227,38 @@ function createAuditService(deps) {
       throw validationFailed('search must not exceed 100 characters');
     }
     const window = await resolveHistoryWindow(organizationId);
+    if (field === 'actorId' && typeof resolveActorOptions === 'function') {
+      const limit = filterOptionLimit(query?.limit);
+      const employeeOptions = await resolveActorOptions(organizationId, {
+        ...(search === undefined ? {} : { search }),
+        limit,
+      });
+      const systemValues = await store.distinctValues(
+        {
+          scope: 'tenant',
+          organizationId,
+          excludeActions: LEGACY_PLATFORM_ACTIONS,
+          ...(window.unlimited ? {} : { from: window.from }),
+        },
+        field,
+        { search: 'system', limit: 1 },
+      );
+      const includeSystem =
+        systemValues.some((value) => value.toLowerCase() === 'system') &&
+        (search === undefined || 'system'.includes(search.toLowerCase()));
+      return {
+        field,
+        items: [
+          ...(includeSystem ? [{ value: 'system', label: 'System', system: true }] : []),
+          ...employeeOptions,
+        ].slice(0, limit),
+      };
+    }
     const items = await store.distinctValues(
       {
+        scope: 'tenant',
         organizationId,
+        excludeActions: LEGACY_PLATFORM_ACTIONS,
         ...(window.unlimited ? {} : { from: window.from }),
       },
       field,
@@ -216,7 +273,7 @@ function createAuditService(deps) {
   async function queryPlatformEvents(query) {
     const filters = parseFilters(query ?? {});
     const result = await store.queryPage({
-      ...(filters.organizationId === undefined ? {} : { organizationId: filters.organizationId }),
+      scope: 'platform',
       ...(filters.actorId === undefined ? {} : { actorId: filters.actorId }),
       ...(filters.action === undefined ? {} : { action: filters.action }),
       ...(filters.resourceType === undefined ? {} : { resourceType: filters.resourceType }),
@@ -239,7 +296,9 @@ function createAuditService(deps) {
     const from = window.unlimited ? undefined : window.from;
     return store.getSummary(
       {
+        scope: 'tenant',
         organizationId,
+        excludeActions: LEGACY_PLATFORM_ACTIONS,
         ...(from === undefined ? {} : { from }),
       },
       { startOfToday },
@@ -252,6 +311,9 @@ function createAuditService(deps) {
     getOrganizationEvent,
     getOrganizationSummary,
     queryPlatformEvents,
+    setActorOptionResolver(resolver) {
+      resolveActorOptions = resolver;
+    },
     appendForTest: (event) => store.append(null, event),
   };
 }

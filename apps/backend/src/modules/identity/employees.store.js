@@ -43,7 +43,17 @@ function createMongooseEmployeesStore() {
         { $lookup: { from: UserModel.collection.name, localField: 'userId', foreignField: '_id', as: 'user' } },
         { $unwind: '$user' },
       ];
-      if (search) pipeline.push({ $match: { 'user.emailNormalized': { $regex: `^${search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}` } } });
+      if (search) {
+        const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        pipeline.push({
+          $match: {
+            $or: [
+              { 'user.emailNormalized': { $regex: escaped, $options: 'i' } },
+              { 'user.displayName': { $regex: escaped, $options: 'i' } },
+            ],
+          },
+        });
+      }
       pipeline.push(
         { $sort: { createdAt: -1, _id: -1 } },
         { $facet: { metadata: [{ $count: 'total' }], items: [{ $skip: pagination.skip ?? 0 }, { $limit: pagination.pageSize ?? 25 }] } },
@@ -248,7 +258,14 @@ function createInMemoryEmployeesStore(options = {}) {
       const withUsers = [];
       for (const membership of items) {
         const user = await this.findUserById(String(membership.userId));
-        if (user && (!search || String(user.emailNormalized).startsWith(search))) withUsers.push({ ...membership, user });
+        if (
+          user &&
+          (!search ||
+            String(user.emailNormalized).toLowerCase().includes(search) ||
+            String(user.displayName ?? '').toLowerCase().includes(search))
+        ) {
+          withUsers.push({ ...membership, user });
+        }
       }
       withUsers.sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')) || String(b._id).localeCompare(String(a._id)));
       const total = withUsers.length; const skip = pagination.skip ?? 0;

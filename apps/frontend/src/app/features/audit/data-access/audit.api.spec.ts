@@ -71,24 +71,40 @@ describe('AuditApi cache integration', () => {
   });
 
   it('loads bounded server-derived filter options and scopes their cache by organization', async () => {
-    const first = firstValueFrom(api.getFilterOptions('actorId', ' usr ', 20));
+    const first = firstValueFrom(api.getActorOptions(' usr ', 20));
     const req = http.expectOne((request) => request.url.endsWith('/audit-events/filter-options'));
     expect(req.request.withCredentials).toBe(true);
     expect(req.request.params.get('field')).toBe('actorId');
     expect(req.request.params.get('search')).toBe('usr');
     expect(req.request.params.get('limit')).toBe('20');
-    req.flush({ data: { field: 'actorId', items: ['usr-1'] } });
-    await expect(first).resolves.toEqual({ field: 'actorId', items: ['usr-1'] });
+    req.flush({
+      data: {
+        field: 'actorId',
+        items: [{ value: 'usr-1', label: 'User One (one@example.com)' }],
+      },
+    });
+    await expect(first).resolves.toEqual({
+      field: 'actorId',
+      items: [{ value: 'usr-1', label: 'User One (one@example.com)' }],
+    });
 
     const sessionStore = TestBed.inject(AuthSessionStore) as unknown as {
       activeContext: () => { organizationId: string };
     };
     sessionStore.activeContext = () => ({ organizationId: 'org-2' });
-    const second = firstValueFrom(api.getFilterOptions('actorId', 'usr', 20));
+    const second = firstValueFrom(api.getActorOptions('usr', 20));
     http
       .expectOne((request) => request.url.endsWith('/audit-events/filter-options'))
-      .flush({ data: { field: 'actorId', items: ['usr-2'] } });
-    await expect(second).resolves.toEqual({ field: 'actorId', items: ['usr-2'] });
+      .flush({
+        data: {
+          field: 'actorId',
+          items: [{ value: 'usr-2', label: 'User Two (two@example.com)' }],
+        },
+      });
+    await expect(second).resolves.toEqual({
+      field: 'actorId',
+      items: [{ value: 'usr-2', label: 'User Two (two@example.com)' }],
+    });
   });
 
   it('separates the same audit query when the active organization changes', async () => {

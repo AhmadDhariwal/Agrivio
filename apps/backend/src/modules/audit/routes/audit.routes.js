@@ -18,8 +18,9 @@ function registerAuditRoutes(deps) {
   const router = Router();
   const controller = createAuditController(deps);
   const requireOrganizationContext = createRequireOrganizationContextMiddleware();
-  const platformActor = createPlatformActorMiddleware(deps.config);
-  const optionalAuth = deps.optionalAuth ?? ((_req, _res, next) => next());
+  const platformActor = createPlatformActorMiddleware(deps.config, {
+    allowDevelopmentHeader: false,
+  });
   const requireAuditModule = createRequireCapabilityMiddleware(
     deps.capabilityService,
     'audit',
@@ -88,7 +89,7 @@ function registerAuditRoutes(deps) {
 
   router.get(
     API_PLATFORM_AUDIT_EVENTS_PATH,
-    optionalAuth,
+    deps.requireAuth,
     platformActor,
     requirePlatformPermission('platform.audit.view'),
     (req, res, next) => {

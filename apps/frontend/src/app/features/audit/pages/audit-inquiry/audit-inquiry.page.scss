@@ -360,6 +360,12 @@
   }
 }
 
+.actor-filter-control {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.9fr) minmax(140px, 1.1fr);
+  gap: 6px;
+}
+
 
 .btn-group {
   display: flex;

@@ -24,7 +24,12 @@ function createBridgedEmployeesStore(deps) {
       const withUsers = [];
       for (const membership of all) {
         const user = await this.findUserById(String(membership.userId));
-        if (user && (!search || String(user.emailNormalized).startsWith(search))) {
+        if (
+          user &&
+          (!search ||
+            String(user.emailNormalized).toLowerCase().includes(search) ||
+            String(user.displayName ?? '').toLowerCase().includes(search))
+        ) {
           withUsers.push({ ...membership, user });
         }
       }

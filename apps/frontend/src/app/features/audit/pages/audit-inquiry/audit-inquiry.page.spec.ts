@@ -15,6 +15,7 @@ describe('AuditInquiryPage', () => {
   let mockQuery: ReturnType<typeof vi.fn>;
   let mockGetById: ReturnType<typeof vi.fn>;
   let mockGetFilterOptions: ReturnType<typeof vi.fn>;
+  let mockGetActorOptions: ReturnType<typeof vi.fn>;
   let mockGetSummary: ReturnType<typeof vi.fn>;
   let capabilityState: ReturnType<typeof signal<Record<string, Record<string, boolean>>>>;
   let hasPermissionFn: ReturnType<typeof vi.fn>;
@@ -75,14 +76,22 @@ describe('AuditInquiryPage', () => {
     });
 
     mockGetFilterOptions = vi.fn((field: string) => {
-      if (field === 'actorId') return of({ field, items: ['system', 'usr-admin'] });
       if (field === 'action') return of({ field, items: ['sale.posted', 'subscription.status_transition'] });
       if (field === 'resourceType') return of({ field, items: ['sale', 'subscription'] });
       if (field === 'reason') return of({ field, items: ['POS checkout complete', 'Upgraded to enterprise plan'] });
       return of({ field, items: [] });
     });
+    mockGetActorOptions = vi.fn(() =>
+      of({
+        field: 'actorId',
+        items: [
+          { value: 'system', label: 'System', system: true },
+          { value: 'usr-admin', label: 'Admin User (admin@example.com)' },
+        ],
+      }),
+    );
 
-    mockGetSummary = vi.fn((_forceRefresh?: boolean) =>
+    mockGetSummary = vi.fn(() =>
       of({
         totalEvents: 100,
         eventsToday: 15,
@@ -102,6 +111,7 @@ describe('AuditInquiryPage', () => {
             query: mockQuery,
             getById: mockGetById,
             getFilterOptions: mockGetFilterOptions,
+            getActorOptions: mockGetActorOptions,
             getSummary: mockGetSummary,
           },
         },
@@ -160,7 +170,7 @@ describe('AuditInquiryPage', () => {
     expect(reasonSelect).toBeTruthy();
 
     expect(actorSelect.textContent).toContain('All actors');
-    expect(actorSelect.textContent).toContain('usr-admin');
+    expect(actorSelect.textContent).toContain('Admin User (admin@example.com)');
     expect(actorSelect.textContent).toContain('System');
 
     expect(actionSelect.textContent).toContain('All actions');
@@ -180,7 +190,7 @@ describe('AuditInquiryPage', () => {
 
   it('renders dense table with formatted timestamps, actors, and friendly action labels', () => {
     const text = fixture.nativeElement.textContent;
-    expect(text).toContain('usr-admin');
+    expect(text).toContain('Admin User (admin@example.com)');
     expect(text).toContain('Subscription status changed');
     expect(text).toContain('System');
     expect(text).toContain('Sale posted');
@@ -212,6 +222,19 @@ describe('AuditInquiryPage', () => {
         reason: 'POS checkout complete',
         page: 1,
       }),
+      false,
+    );
+  });
+
+  it('queries page one immediately when an employee actor is selected', () => {
+    component.page.set(3);
+    mockQuery.mockClear();
+
+    component.onActorChange('usr-admin');
+
+    expect(component.page()).toBe(1);
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.objectContaining({ actorId: 'usr-admin', page: 1 }),
       false,
     );
   });

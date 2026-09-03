@@ -421,6 +421,7 @@ function createAuthService(deps) {
       const created = await createAuthenticatedSession(user, context, at);
 
       await auditWriter.appendBusinessEvent(null, {
+        ...(user['platformAccess'] === 'super_admin' ? { scope: 'platform' } : {}),
         actorId: String(user['_id']),
         action: 'auth.login',
         resourceType: 'auth_session',
@@ -446,7 +447,9 @@ function createAuthService(deps) {
         const session = await store.findSessionByTokenHash(hash);
         await store.revokeSessionByTokenHash(null, hash, at);
         if (session?.userId !== undefined) {
+          const user = await store.findUserById(String(session.userId));
           await auditWriter.appendBusinessEvent(null, {
+            ...(user?.['platformAccess'] === 'super_admin' ? { scope: 'platform' } : {}),
             actorId: String(session.userId),
             action: 'auth.logout',
             resourceType: 'auth_session',
@@ -518,6 +521,7 @@ function createAuthService(deps) {
 
       const rotated = await rotateSession(session, user, nextContext, at);
       await auditWriter.appendBusinessEvent(null, {
+        ...(user['platformAccess'] === 'super_admin' ? { scope: 'platform' } : {}),
         actorId: String(user['_id']),
         action: 'auth.session_context_switched',
         resourceType: 'auth_session',
@@ -585,6 +589,7 @@ function createAuthService(deps) {
           });
         }
         await auditWriter.appendBusinessEvent(null, {
+          ...(user['platformAccess'] === 'super_admin' ? { scope: 'platform' } : {}),
           actorId: String(user['_id']),
           action: 'auth.password_reset_requested',
           resourceType: 'password_reset_token',
@@ -635,6 +640,7 @@ function createAuthService(deps) {
       const csrf = await this.issueCsrf(undefined);
 
       await auditWriter.appendBusinessEvent(null, {
+        ...(user['platformAccess'] === 'super_admin' ? { scope: 'platform' } : {}),
         actorId: String(user['_id']),
         action: 'auth.password_reset_completed',
         resourceType: 'user',

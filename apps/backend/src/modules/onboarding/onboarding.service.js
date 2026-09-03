@@ -218,6 +218,7 @@ function createOnboardingService(deps) {
           const subscription = await subscriptionBridge.getOrganizationSubscription(organizationId);
           if (subscription.status === 'suspended') {
             await auditWriter.appendBusinessEvent(null, {
+              scope: 'platform',
               organizationId,
               actorId: actor.actorId,
               action: 'organization.suspended',
@@ -247,6 +248,7 @@ function createOnboardingService(deps) {
           );
 
           await auditWriter.appendBusinessEvent(null, {
+            scope: 'platform',
             organizationId,
             actorId: actor.actorId,
             action: 'organization.suspended',
@@ -379,6 +381,7 @@ function createOnboardingService(deps) {
         });
 
         await auditWriter.appendBusinessEvent(session, {
+          scope: 'platform',
           organizationId,
           actorId: actor.actorId,
           action: 'organization.approved',
@@ -445,6 +448,7 @@ function createOnboardingService(deps) {
         });
 
         await auditWriter.appendBusinessEvent(session, {
+          scope: 'platform',
           organizationId,
           actorId: actor.actorId,
           action: 'organization.activation_token_reissued',
@@ -497,6 +501,7 @@ function createOnboardingService(deps) {
         }
 
         await auditWriter.appendBusinessEvent(session, {
+          scope: 'platform',
           organizationId,
           actorId: actor.actorId,
           action: 'organization.rejected',

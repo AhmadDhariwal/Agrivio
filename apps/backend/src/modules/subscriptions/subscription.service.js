@@ -390,6 +390,7 @@ function createSubscriptionService(deps) {
     };
     const updated = await store.updateSubscription(session, String(subscription._id), patch);
     await auditWriter.appendBusinessEvent(session, {
+      ...(actor.scope === 'platform' ? { scope: 'platform' } : {}),
       organizationId: String(subscription.organizationId),
       actorId: actor.actorId,
       action: options.auditAction ?? 'subscription.status_transition',
@@ -452,6 +453,7 @@ function createSubscriptionService(deps) {
         });
 
         await auditWriter.appendBusinessEvent(session, {
+          scope: 'platform',
           organizationId: 'platform',
           actorId: actor.actorId,
           action: 'subscription_plan.version_created',
@@ -705,6 +707,7 @@ function createSubscriptionService(deps) {
             version: Number(subscription.version) + 1,
           });
           await auditWriter.appendBusinessEvent(session, {
+            scope: 'platform',
             organizationId: String(subscription.organizationId),
             actorId: actor.actorId,
             action: 'subscription.plan_changed',
@@ -723,6 +726,7 @@ function createSubscriptionService(deps) {
         }
 
         await auditWriter.appendBusinessEvent(session, {
+          scope: 'platform',
           organizationId: String(subscription.organizationId),
           actorId: actor.actorId,
           action: 'subscription.plan_change_scheduled',
@@ -916,6 +920,7 @@ function createSubscriptionService(deps) {
           version: Number(record.version) + 1,
         });
         await auditWriter.appendBusinessEvent(session, {
+          scope: 'platform',
           organizationId: String(record.organizationId),
           actorId: actor.actorId,
           action: 'subscription.billing_review_started',
@@ -1074,6 +1079,7 @@ function createSubscriptionService(deps) {
             version: Number(subscription.version) + 1,
           });
           await auditWriter.appendBusinessEvent(session, {
+            scope: 'platform',
             organizationId: String(subscription.organizationId),
             actorId: actor.actorId,
             action: 'subscription.renewed_by_billing',
@@ -1101,6 +1107,7 @@ function createSubscriptionService(deps) {
         });
 
         await auditWriter.appendBusinessEvent(session, {
+          scope: 'platform',
           organizationId: String(record.organizationId),
           actorId: actor.actorId,
           action: 'subscription.billing_approved',
@@ -1137,6 +1144,7 @@ function createSubscriptionService(deps) {
         });
 
         await auditWriter.appendBusinessEvent(session, {
+          scope: 'platform',
           organizationId: String(record.organizationId),
           actorId: actor.actorId,
           action: 'subscription.billing_rejected',
