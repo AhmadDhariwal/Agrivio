@@ -102,4 +102,9 @@ describe('ContextSwitcherPage', () => {
     expect(page.activeContext()?.contextType).toBe('platform');
     expect(page.successMessage()).toContain('Active context updated');
   });
+
+  it('does not offer an authenticated path back to sign in', () => {
+    expect(fixture.nativeElement.textContent).not.toContain('Back to sign in');
+    expect(fixture.nativeElement.querySelector('a[href="/signin"]')).toBeNull();
+  });
 });

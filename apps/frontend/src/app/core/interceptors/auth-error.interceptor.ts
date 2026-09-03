@@ -4,11 +4,12 @@ import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 import { AuthSessionStore } from '../../features/auth/data-access/auth-session.store';
 import { mapAuthorizationError } from '../access/authorization-error';
+import { APP_PATHS } from '../navigation/app-paths';
 
 /**
  * Global HTTP interceptor that intercepts 401 Unauthorized responses.
  * When the session token expires, it clears the local session store
- * and automatically redirects the user to the sign-in page (/login).
+ * and automatically redirects the user to the sign-in page.
  * Authorization failures keep the current page and expose a user-safe message.
  */
 export const authErrorInterceptor: HttpInterceptorFn = (req, next) => {
@@ -20,12 +21,13 @@ export const authErrorInterceptor: HttpInterceptorFn = (req, next) => {
       if (error instanceof HttpErrorResponse && error.status === 401) {
         const isAuthAttempt =
           req.url.includes('/api/v1/auth/login') ||
-          req.url.includes('/api/v1/auth/csrf');
+          req.url.includes('/api/v1/auth/csrf') ||
+          (req.method === 'GET' && req.url.includes('/api/v1/auth/session'));
 
         if (!isAuthAttempt) {
           sessionStore.clear();
-          if (!router.url.startsWith('/login')) {
-            void router.navigate(['/login']);
+          if (!router.url.startsWith(APP_PATHS.signIn)) {
+            void router.navigateByUrl(APP_PATHS.signIn);
           }
         }
       }

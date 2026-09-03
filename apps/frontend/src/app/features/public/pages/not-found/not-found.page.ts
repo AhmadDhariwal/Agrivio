@@ -16,7 +16,7 @@ import { RouterLink } from '@angular/router';
         </p>
         <div class="ag-actions">
           <a routerLink="/" class="ag-btn ag-btn--primary">Go to landing</a>
-          <a routerLink="/login" class="ag-btn ag-btn--secondary">Sign in</a>
+          <a routerLink="/signin" class="ag-btn ag-btn--secondary">Sign in</a>
         </div>
       </section>
     </div>

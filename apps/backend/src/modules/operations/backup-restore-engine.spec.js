@@ -6,8 +6,9 @@ import backupEngineModule from './backup-engine.js';
 import restoreEngineModule from './restore-engine.js';
 import engineUtilsModule from './engine-utils.js';
 
-const { computeFileSha256, resolveBackupDir, enforceRetentionPolicy } = backupEngineModule;
-const { runRestore, computeFileSha256: restoreComputeSha256, findManifest } = restoreEngineModule;
+const { computeFileSha256, resolveBackupDir, verifyBackupArtifacts, enforceRetentionPolicy } =
+  backupEngineModule;
+const { runRestore } = restoreEngineModule;
 const { which } = engineUtilsModule;
 
 describe('backup-engine: computeFileSha256', () => {
@@ -43,6 +44,42 @@ describe('backup-engine: computeFileSha256', () => {
     const digestA = await computeFileSha256(fileA);
     const digestB = await computeFileSha256(fileB);
     expect(digestA).not.toBe(digestB);
+  });
+});
+
+describe('backup-engine: verifyBackupArtifacts', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agrivio-verify-spec-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('re-reads the manifest and verifies the archive checksum', async () => {
+    const archivePath = path.join(tmpDir, 'agrivio-test.archive.gz');
+    const manifestPath = archivePath + '.manifest.json';
+    fs.writeFileSync(archivePath, Buffer.from('verified archive'));
+    const manifest = {
+      schemaVersion: 1,
+      runId: 'test',
+      filename: path.basename(archivePath),
+      fileSizeBytes: fs.statSync(archivePath).size,
+      sha256: await computeFileSha256(archivePath),
+    };
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest), 'utf8');
+
+    await expect(verifyBackupArtifacts(archivePath, manifestPath, manifest)).resolves.toEqual({
+      manifestVerified: true,
+      checksumVerified: true,
+    });
+
+    fs.appendFileSync(archivePath, 'tampered');
+    await expect(verifyBackupArtifacts(archivePath, manifestPath, manifest)).rejects.toThrow(
+      'Backup artifact verification failed',
+    );
   });
 });
 
@@ -98,11 +135,14 @@ describe('backup-engine: enforceRetentionPolicy', () => {
     const archivePath = path.join(tmpDir, archiveName);
     const manifestPath = archivePath + '.manifest.json';
     fs.writeFileSync(archivePath, 'data');
-    fs.writeFileSync(manifestPath, JSON.stringify({
-      filename: archiveName,
-      recordedAt: new Date(0).toISOString(),
-      sha256: 'abc',
-    }));
+    fs.writeFileSync(
+      manifestPath,
+      JSON.stringify({
+        filename: archiveName,
+        recordedAt: new Date(0).toISOString(),
+        sha256: 'abc',
+      }),
+    );
     await enforceRetentionPolicy(tmpDir, 0);
     expect(fs.existsSync(archivePath)).toBe(true);
     expect(fs.existsSync(manifestPath)).toBe(true);
@@ -113,11 +153,14 @@ describe('backup-engine: enforceRetentionPolicy', () => {
     const archivePath = path.join(tmpDir, archiveName);
     const manifestPath = archivePath + '.manifest.json';
     fs.writeFileSync(archivePath, 'data');
-    fs.writeFileSync(manifestPath, JSON.stringify({
-      filename: archiveName,
-      recordedAt: new Date(0).toISOString(), // epoch = definitely old
-      sha256: 'abc',
-    }));
+    fs.writeFileSync(
+      manifestPath,
+      JSON.stringify({
+        filename: archiveName,
+        recordedAt: new Date(0).toISOString(), // epoch = definitely old
+        sha256: 'abc',
+      }),
+    );
     await enforceRetentionPolicy(tmpDir, 30);
     expect(fs.existsSync(archivePath)).toBe(false);
     expect(fs.existsSync(manifestPath)).toBe(false);
@@ -128,11 +171,14 @@ describe('backup-engine: enforceRetentionPolicy', () => {
     const archivePath = path.join(tmpDir, archiveName);
     const manifestPath = archivePath + '.manifest.json';
     fs.writeFileSync(archivePath, 'data');
-    fs.writeFileSync(manifestPath, JSON.stringify({
-      filename: archiveName,
-      recordedAt: new Date().toISOString(), // now = recent
-      sha256: 'abc',
-    }));
+    fs.writeFileSync(
+      manifestPath,
+      JSON.stringify({
+        filename: archiveName,
+        recordedAt: new Date().toISOString(), // now = recent
+        sha256: 'abc',
+      }),
+    );
     await enforceRetentionPolicy(tmpDir, 30);
     expect(fs.existsSync(archivePath)).toBe(true);
     expect(fs.existsSync(manifestPath)).toBe(true);
@@ -140,11 +186,14 @@ describe('backup-engine: enforceRetentionPolicy', () => {
 
   it('ignores files that do not match the agrivio archive manifest pattern', async () => {
     const nonAgrivioFile = path.join(tmpDir, 'other-file.archive.gz.manifest.json');
-    fs.writeFileSync(nonAgrivioFile, JSON.stringify({
-      filename: 'other-file.archive.gz',
-      recordedAt: new Date(0).toISOString(),
-      sha256: 'xyz',
-    }));
+    fs.writeFileSync(
+      nonAgrivioFile,
+      JSON.stringify({
+        filename: 'other-file.archive.gz',
+        recordedAt: new Date(0).toISOString(),
+        sha256: 'xyz',
+      }),
+    );
     await enforceRetentionPolicy(tmpDir, 1);
     expect(fs.existsSync(nonAgrivioFile)).toBe(true);
   });
@@ -152,19 +201,23 @@ describe('backup-engine: enforceRetentionPolicy', () => {
 
 describe('restore-engine: permission check', () => {
   it('rejects when actor lacks operations.restore.execute', async () => {
-    await expect(runRestore({
-      archiveName: 'some.archive.gz',
-      confirmDatabase: 'agrivio_rehearsal_restored_abc',
-      actor: { actorId: 'user-1', permissions: [] },
-    })).rejects.toThrow(/Missing permission operations.restore.execute/);
+    await expect(
+      runRestore({
+        archiveName: 'some.archive.gz',
+        confirmDatabase: 'agrivio_rehearsal_restored_abc',
+        actor: { actorId: 'user-1', permissions: [] },
+      }),
+    ).rejects.toThrow(/Missing permission operations.restore.execute/);
   });
 
   it('rejects when actor has no permissions property', async () => {
-    await expect(runRestore({
-      archiveName: 'some.archive.gz',
-      confirmDatabase: 'agrivio_rehearsal_restored_abc',
-      actor: { actorId: 'user-1' },
-    })).rejects.toThrow(/Missing permission operations.restore.execute/);
+    await expect(
+      runRestore({
+        archiveName: 'some.archive.gz',
+        confirmDatabase: 'agrivio_rehearsal_restored_abc',
+        actor: { actorId: 'user-1' },
+      }),
+    ).rejects.toThrow(/Missing permission operations.restore.execute/);
   });
 });
 
@@ -172,25 +225,31 @@ describe('restore-engine: argument validation', () => {
   const actor = { actorId: 'op', permissions: ['operations.restore.execute'] };
 
   it('rejects missing archiveName', async () => {
-    await expect(runRestore({
-      confirmDatabase: 'agrivio_rehearsal_restored_abc',
-      actor,
-    })).rejects.toThrow(/archiveName is required/);
+    await expect(
+      runRestore({
+        confirmDatabase: 'agrivio_rehearsal_restored_abc',
+        actor,
+      }),
+    ).rejects.toThrow(/archiveName is required/);
   });
 
   it('rejects empty archiveName', async () => {
-    await expect(runRestore({
-      archiveName: '   ',
-      confirmDatabase: 'agrivio_rehearsal_restored_abc',
-      actor,
-    })).rejects.toThrow(/archiveName is required/);
+    await expect(
+      runRestore({
+        archiveName: '   ',
+        confirmDatabase: 'agrivio_rehearsal_restored_abc',
+        actor,
+      }),
+    ).rejects.toThrow(/archiveName is required/);
   });
 
   it('rejects missing confirmDatabase', async () => {
-    await expect(runRestore({
-      archiveName: 'some.archive.gz',
-      actor,
-    })).rejects.toThrow(/confirmDatabase is required/);
+    await expect(
+      runRestore({
+        archiveName: 'some.archive.gz',
+        actor,
+      }),
+    ).rejects.toThrow(/confirmDatabase is required/);
   });
 });
 
@@ -218,11 +277,13 @@ describe('restore-engine: checksum verification', () => {
     const archiveName = 'agrivio-20250101-120000-abc.archive.gz';
     fs.writeFileSync(path.join(tmpDir, archiveName), 'fake-data');
     // No manifest file written
-    await expect(runRestore({
-      archiveName,
-      confirmDatabase: 'agrivio_rehearsal_restored_abc',
-      actor: { actorId: 'op', permissions: ['operations.restore.execute'] },
-    })).rejects.toThrow(/Manifest not found/);
+    await expect(
+      runRestore({
+        archiveName,
+        confirmDatabase: 'agrivio_rehearsal_restored_abc',
+        actor: { actorId: 'op', permissions: ['operations.restore.execute'] },
+      }),
+    ).rejects.toThrow(/Manifest not found/);
   });
 
   it('rejects restore when SHA-256 checksum mismatches', async () => {
@@ -230,17 +291,22 @@ describe('restore-engine: checksum verification', () => {
     const archivePath = path.join(tmpDir, archiveName);
     fs.writeFileSync(archivePath, 'real-archive-data');
     const manifestPath = archivePath + '.manifest.json';
-    fs.writeFileSync(manifestPath, JSON.stringify({
-      filename: archiveName,
-      mongodbDbName: 'agrivio_rehearsal_source_def',
-      sha256: 'a'.repeat(64), // intentionally wrong checksum
-      fileSizeBytes: 17,
-    }));
-    await expect(runRestore({
-      archiveName,
-      confirmDatabase: 'agrivio_rehearsal_restored_def',
-      actor: { actorId: 'op', permissions: ['operations.restore.execute'] },
-    })).rejects.toThrow(/SHA-256 checksum mismatch/);
+    fs.writeFileSync(
+      manifestPath,
+      JSON.stringify({
+        filename: archiveName,
+        mongodbDbName: 'agrivio_rehearsal_source_def',
+        sha256: 'a'.repeat(64), // intentionally wrong checksum
+        fileSizeBytes: 17,
+      }),
+    );
+    await expect(
+      runRestore({
+        archiveName,
+        confirmDatabase: 'agrivio_rehearsal_restored_def',
+        actor: { actorId: 'op', permissions: ['operations.restore.execute'] },
+      }),
+    ).rejects.toThrow(/SHA-256 checksum mismatch/);
   });
 });
 

@@ -1,6 +1,7 @@
 const { inflateRawSync } = require('node:zlib');
 const { validationFailed } = require('../../platform/errors/app-error');
 const { getTemplate, TEMPLATE_VERSION } = require('./import-templates');
+const { getTemplateDocumentation } = require('./import-template-documentation');
 
 const META_MARKER = 'AGRIVIO_TEMPLATE';
 
@@ -10,6 +11,87 @@ function xmlEscape(value) {
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;');
+}
+
+function renderDocumentationSheet(importType) {
+  const doc = getTemplateDocumentation(importType);
+  if (!doc) {
+    return '';
+  }
+  const titleRow = `<Row><Cell><Data ss:Type="String">${xmlEscape(doc.title)}</Data></Cell></Row>`;
+  const blankRow = `<Row><Cell><Data ss:Type="String"></Data></Cell></Row>`;
+
+  const guidelinesHeader = `<Row><Cell><Data ss:Type="String">GENERAL INSTRUCTIONS &amp; GUIDELINES</Data></Cell></Row>`;
+  const guidelineRows = doc.guidelines
+    .map(
+      (g, idx) =>
+        `<Row><Cell><Data ss:Type="String">${idx + 1}. ${xmlEscape(g)}</Data></Cell></Row>`,
+    )
+    .join('');
+
+  const colDefHeader = `<Row><Cell><Data ss:Type="String">FIELD / COLUMN DEFINITIONS &amp; RULES</Data></Cell></Row>`;
+  const colDefCols =
+    `<Row>` +
+    [
+      'Column Key (Sheet 1 Header)',
+      'Display Name',
+      'Required?',
+      'Allowed Values / Format',
+      'Description',
+      'Example Value',
+    ]
+      .map((h) => `<Cell><Data ss:Type="String">${xmlEscape(h)}</Data></Cell>`)
+      .join('') +
+    `</Row>`;
+  const fieldRows = doc.fields
+    .map((f) => {
+      const cells = [
+        f.key,
+        f.label,
+        f.required ? 'YES (Mandatory)' : 'NO (Optional)',
+        f.allowedValues,
+        f.description,
+        f.example,
+      ]
+        .map((val) => `<Cell><Data ss:Type="String">${xmlEscape(val)}</Data></Cell>`)
+        .join('');
+      return `<Row>${cells}</Row>`;
+    })
+    .join('');
+
+  const examplesHeader = `<Row><Cell><Data ss:Type="String">REALISTIC EXAMPLE RECORDS (DO NOT COPY DIRECTLY OVER SHEET 1 HEADERS)</Data></Cell></Row>`;
+  const exampleColKeys = doc.fields.map((f) => f.key);
+  const exampleHeaders =
+    `<Row>` +
+    exampleColKeys
+      .map((k) => `<Cell><Data ss:Type="String">${xmlEscape(k)}</Data></Cell>`)
+      .join('') +
+    `</Row>`;
+  const exampleDataRows = doc.examples
+    .map((ex) => {
+      const cells = exampleColKeys
+        .map((k) => `<Cell><Data ss:Type="String">${xmlEscape(ex[k] ?? '')}</Data></Cell>`)
+        .join('');
+      return `<Row>${cells}</Row>`;
+    })
+    .join('');
+
+  return ` <Worksheet ss:Name="Examples &amp; Instructions">
+  <Table>
+   ${titleRow}
+   ${blankRow}
+   ${guidelinesHeader}
+   ${guidelineRows}
+   ${blankRow}
+   ${colDefHeader}
+   ${colDefCols}
+   ${fieldRows}
+   ${blankRow}
+   ${examplesHeader}
+   ${exampleHeaders}
+   ${exampleDataRows}
+  </Table>
+ </Worksheet>`;
 }
 
 function renderImportWorkbook(importType, rows, version = TEMPLATE_VERSION) {
@@ -32,17 +114,19 @@ function renderImportWorkbook(importType, rows, version = TEMPLATE_VERSION) {
       return `<Row>${cells}</Row>`;
     })
     .join('');
+  const documentationSheet = renderDocumentationSheet(importType);
   return Buffer.from(
     `<?xml version="1.0"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
- <Worksheet ss:Name="Import">
+ <Worksheet ss:Name="Import Template">
   <Table>
    <Row>${metaCells}</Row>
    <Row>${headerCells}</Row>
    ${dataRows}
   </Table>
  </Worksheet>
+${documentationSheet}
 </Workbook>`,
     'utf8',
   );
@@ -58,7 +142,10 @@ function decodeXmlEntities(value) {
 
 function parseSpreadsheetMl(buffer) {
   const xml = buffer.toString('utf8');
-  const rowMatches = [...xml.matchAll(/<Row>([\s\S]*?)<\/Row>/g)];
+  // Parse ONLY the first worksheet (the importable data sheet), ignoring documentation / examples sheets
+  const firstWorksheetMatch = xml.match(/<Worksheet[^>]*>([\s\S]*?)<\/Worksheet>/);
+  const targetXml = firstWorksheetMatch ? firstWorksheetMatch[1] : xml;
+  const rowMatches = [...targetXml.matchAll(/<Row[^>]*>([\s\S]*?)<\/Row>/g)];
   return rowMatches.map((match) => {
     const cells = [...match[1].matchAll(/<Data[^>]*>([\s\S]*?)<\/Data>/g)].map((cell) =>
       decodeXmlEntities(cell[1]).trim(),
@@ -172,7 +259,11 @@ function mapRows(grid, expectedType) {
   const meta = grid[0];
   if (String(meta[0] ?? '').trim() !== META_MARKER) {
     throw validationFailed('Workbook template marker is missing', [
-      { field: 'workbook', code: 'TEMPLATE_MARKER_MISSING', message: 'Cell A1 must be AGRIVIO_TEMPLATE' },
+      {
+        field: 'workbook',
+        code: 'TEMPLATE_MARKER_MISSING',
+        message: 'Cell A1 must be AGRIVIO_TEMPLATE',
+      },
     ]);
   }
   const templateType = String(meta[1] ?? '').trim();

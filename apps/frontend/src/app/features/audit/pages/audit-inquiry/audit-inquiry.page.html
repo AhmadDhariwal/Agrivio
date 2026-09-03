@@ -10,7 +10,8 @@
         >
       </div>
       <p class="page-head__lede">
-        Read-only inquiry of organization audit events with searchable filters and traceable actions.
+        Read-only inquiry of organization audit events with searchable filters and traceable
+        actions.
       </p>
     </div>
   </header>
@@ -23,9 +24,7 @@
     [items]="infoItems"
     [defaultExpanded]="false"
   />
-  }
-
-  @if (!canView()) {
+  } @if (!canView()) {
   <div class="alert-container">
     <agrivio-ui-alert
       tone="warning"
@@ -33,237 +32,543 @@
     />
   </div>
   } @else {
-    <!-- Subscription Suspended Warning -->
-    @if (suspended()) {
-    <div class="alert-container">
-      <agrivio-ui-alert
-        tone="warning"
-        message="Subscription is suspended. Historical audit inquiry remains available within entitled depth; events cannot be edited."
-      />
+  <!-- Subscription Suspended Warning -->
+  @if (suspended()) {
+  <div class="alert-container">
+    <agrivio-ui-alert
+      tone="warning"
+      message="Subscription is suspended. Historical audit inquiry remains available within entitled depth; events cannot be edited."
+    />
+  </div>
+  }
+
+  <!-- API Error Alert -->
+  @if (errorMessage(); as error) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="danger" [message]="error" />
+  </div>
+  }
+  <!-- Authoritative Retention Notice -->
+  @if (hasRetentionNotice()) {
+  <div class="audit-retention-notice" data-testid="audit-retention-notice" role="status">
+    <svg
+      class="audit-retention-notice__icon"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="10"></circle>
+      <polyline points="12 6 12 12 16 14"></polyline>
+    </svg>
+    <div class="audit-retention-notice__content">
+      @if (isUnlimitedRetention()) {
+      <span>Audit history is retained indefinitely under your subscription plan.</span>
+      } @else {
+      <span>
+        Audit history is retained for {{ retentionDays() }} days. @if (retentionCutoffFormatted()) {
+        Records older than {{ retentionCutoffFormatted() }} are eligible for purge. }
+      </span>
+      @if (daysUntilOldestExpires() !== null) {
+      <span class="audit-retention-notice__countdown">
+        Oldest audit records expire in {{ daysUntilOldestExpires() }} day{{ daysUntilOldestExpires()
+        === 1 ? '' : 's' }}.
+      </span>
+      } }
     </div>
-    }
+  </div>
+  }
 
-    <!-- API Error Alert -->
-    @if (errorMessage(); as error) {
-    <div class="alert-container">
-      <agrivio-ui-alert tone="danger" [message]="error" />
+  <!-- KPI Summary Row -->
+  <section class="kpi-row" aria-label="Audit Summary" data-testid="audit-kpis">
+    <div class="kpi-card" data-testid="audit-kpi-total">
+      <div class="kpi-card__icon kpi-card__icon--neutral">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+          <polyline points="10 9 9 9 8 9" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Total Events</span>
+        <span class="kpi-card__value" data-testid="audit-kpi-total-val"
+          >{{ kpis().totalEvents }}</span
+        >
+      </div>
     </div>
-    }
 
-    <!-- KPI Summary Row -->
-    <section class="kpi-row" aria-label="Audit Summary" data-testid="audit-kpis">
-      <div class="kpi-card" data-testid="audit-kpi-total">
-        <div class="kpi-card__icon kpi-card__icon--neutral">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="16" y1="13" x2="8" y2="13" />
-            <line x1="16" y1="17" x2="8" y2="17" />
-            <polyline points="10 9 9 9 8 9" />
-          </svg>
+    <div class="kpi-card" data-testid="audit-kpi-today">
+      <div class="kpi-card__icon kpi-card__icon--green">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Events Today</span>
+        <span class="kpi-card__value" data-testid="audit-kpi-today-val"
+          >{{ kpis().eventsToday }}</span
+        >
+      </div>
+    </div>
+
+    <div class="kpi-card" data-testid="audit-kpi-actors">
+      <div class="kpi-card__icon kpi-card__icon--blue">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Unique Actors</span>
+        <span class="kpi-card__value" data-testid="audit-kpi-actors-val"
+          >{{ kpis().uniqueActors }}</span
+        >
+      </div>
+    </div>
+
+    <div class="kpi-card" data-testid="audit-kpi-resources">
+      <div class="kpi-card__icon kpi-card__icon--amber">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polygon points="12 2 2 7 12 12 22 7 12 2" />
+          <polyline points="2 17 12 22 22 17" />
+          <polyline points="2 12 12 17 22 12" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Resource Types</span>
+        <span class="kpi-card__value" data-testid="audit-kpi-resources-val"
+          >{{ kpis().resourceTypes }}</span
+        >
+      </div>
+    </div>
+  </section>
+
+  <!-- Filter & Control Toolbar -->
+  @if (canUseFilters() || canUseSearch()) {
+  <form class="toolbar" (submit)="$event.preventDefault(); onSearchSubmit()">
+    <!-- Desktop Toolbar Layout -->
+    <div class="toolbar__desktop">
+      <div class="toolbar__filters">
+        @if (canUseFilters()) {
+        <!-- Actor Dropdown -->
+        <div class="filter-field">
+          <span class="filter-field__label">Actor</span>
+          <agrivio-ui-searchable-dropdown
+            [value]="actorId()"
+            [options]="actorDropdownOptions()"
+            allOptionLabel="All actors"
+            searchPlaceholder="Search employees..."
+            testId="audit-actor"
+            ariaLabel="Filter by actor"
+            [serverSearch]="true"
+            (valueChange)="selectActor($event)"
+            (searchChange)="onActorOptionSearch($event)"
+            (openChange)="actorDropdownOpen.set($event)"
+          />
         </div>
-        <div class="kpi-card__content">
-          <span class="kpi-card__label">Total Events</span>
-          <span class="kpi-card__value" data-testid="audit-kpi-total-val">{{ kpis().totalEvents }}</span>
+
+        <!-- Action Dropdown -->
+        <div class="filter-field">
+          <span class="filter-field__label">Action</span>
+          <agrivio-ui-searchable-dropdown
+            [value]="action()"
+            [options]="actionDropdownOptions()"
+            allOptionLabel="All actions"
+            searchPlaceholder="Search actions..."
+            testId="audit-action"
+            ariaLabel="Filter by action"
+            (valueChange)="onActionChange($event)"
+          />
         </div>
+
+        <!-- Resource Type Dropdown -->
+        <div class="filter-field">
+          <span class="filter-field__label">Resource Type</span>
+          <agrivio-ui-searchable-dropdown
+            [value]="resourceType()"
+            [options]="resourceTypeDropdownOptions()"
+            allOptionLabel="All resource types"
+            searchPlaceholder="Search resource types..."
+            testId="audit-resource-type"
+            ariaLabel="Filter by resource type"
+            (valueChange)="onResourceTypeChange($event)"
+          />
+        </div>
+
+        <!-- Reason Dropdown -->
+        <div class="filter-field">
+          <span class="filter-field__label">Reason</span>
+          <agrivio-ui-searchable-dropdown
+            [value]="reason()"
+            [options]="reasonDropdownOptions()"
+            allOptionLabel="All reasons"
+            searchPlaceholder="Search reasons..."
+            testId="audit-reason"
+            ariaLabel="Filter by reason"
+            (valueChange)="onReasonChange($event)"
+          />
+        </div>
+        }
       </div>
 
-      <div class="kpi-card" data-testid="audit-kpi-today">
-        <div class="kpi-card__icon kpi-card__icon--green">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
-        </div>
-        <div class="kpi-card__content">
-          <span class="kpi-card__label">Events Today</span>
-          <span class="kpi-card__value" data-testid="audit-kpi-today-val">{{ kpis().eventsToday }}</span>
-        </div>
-      </div>
-
-      <div class="kpi-card" data-testid="audit-kpi-actors">
-        <div class="kpi-card__icon kpi-card__icon--blue">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-          </svg>
-        </div>
-        <div class="kpi-card__content">
-          <span class="kpi-card__label">Unique Actors</span>
-          <span class="kpi-card__value" data-testid="audit-kpi-actors-val">{{ kpis().uniqueActors }}</span>
-        </div>
-      </div>
-
-      <div class="kpi-card" data-testid="audit-kpi-resources">
-        <div class="kpi-card__icon kpi-card__icon--amber">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <polygon points="12 2 2 7 12 12 22 7 12 2" />
-            <polyline points="2 17 12 22 22 17" />
-            <polyline points="2 12 12 17 22 12" />
-          </svg>
-        </div>
-        <div class="kpi-card__content">
-          <span class="kpi-card__label">Resource Types</span>
-          <span class="kpi-card__value" data-testid="audit-kpi-resources-val">{{ kpis().resourceTypes }}</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- Filter & Control Toolbar -->
-    @if (canUseFilters() || canUseSearch()) {
-    <form class="toolbar" (submit)="$event.preventDefault(); onSearchSubmit()">
-      <!-- Desktop Toolbar Layout -->
-      <div class="toolbar__desktop">
-        <div class="toolbar__filters">
-          @if (canUseFilters()) {
-          <!-- Actor Dropdown -->
-          <div class="filter-field">
-            <label class="filter-field__label" for="audit-actor-select">Actor</label>
-            <div class="actor-filter-control">
-              <input
-                id="audit-actor-search"
-                data-testid="audit-actor-search"
-                class="filter-field__input"
-                type="search"
-                [ngModel]="actorOptionSearch()"
-                (ngModelChange)="onActorOptionSearch($event)"
-                name="actorSearch"
-                placeholder="Search employees"
-                aria-label="Search audit actors"
-              />
-            <select
-              id="audit-actor-select"
-              data-testid="audit-actor"
-              class="filter-field__select"
-              [ngModel]="actorId()"
-              (ngModelChange)="onActorChange($event)"
-              name="actorId"
-              aria-label="Filter by actor"
-            >
-              <option value="">All actors</option>
-              @for (actor of actorOptions(); track actor.value) {
-              <option [value]="actor.value">{{ actor.label }}</option>
-              }
-            </select>
-            </div>
-          </div>
-
-          <!-- Action Dropdown -->
-          <div class="filter-field">
-            <label class="filter-field__label" for="audit-action-select">Action</label>
-            <select
-              id="audit-action-select"
-              data-testid="audit-action"
-              class="filter-field__select"
-              [ngModel]="action()"
-              (ngModelChange)="onActionChange($event)"
-              name="action"
-              aria-label="Filter by action"
-            >
-              <option value="">All actions</option>
-              @for (act of actionOptions(); track act) {
-              <option [value]="act">{{ formatAction(act) }}</option>
-              }
-            </select>
-          </div>
-
-          <!-- Resource Type Dropdown -->
-          <div class="filter-field">
-            <label class="filter-field__label" for="audit-resource-type-select">Resource Type</label>
-            <select
-              id="audit-resource-type-select"
-              data-testid="audit-resource-type"
-              class="filter-field__select"
-              [ngModel]="resourceType()"
-              (ngModelChange)="onResourceTypeChange($event)"
-              name="resourceType"
-              aria-label="Filter by resource type"
-            >
-              <option value="">All resource types</option>
-              @for (resType of resourceTypeOptions(); track resType) {
-              <option [value]="resType">{{ resType }}</option>
-              }
-            </select>
-          </div>
-
-          <!-- Reason Dropdown -->
-          <div class="filter-field">
-            <label class="filter-field__label" for="audit-reason-select">Reason</label>
-            <select
-              id="audit-reason-select"
-              data-testid="audit-reason"
-              class="filter-field__select"
-              [ngModel]="reason()"
-              (ngModelChange)="onReasonChange($event)"
-              name="reason"
-              aria-label="Filter by reason"
-            >
-              <option value="">All reasons</option>
-              @for (rsn of reasonOptions(); track rsn) {
-              <option [value]="rsn">{{ rsn }}</option>
-              }
-            </select>
-          </div>
+      <!-- Toolbar Actions -->
+      <div class="toolbar__actions">
+        <div class="btn-group">
+          @if (canUseSearch() && canUseFilters()) {
+          <button type="submit" class="ag-btn ag-btn--primary" data-testid="audit-search">
+            Apply
+          </button>
+          } @if (hasActiveFilters()) {
+          <button type="button" class="clear-filters-btn" (click)="clearFilters()">Clear</button>
           }
+          <button
+            type="button"
+            class="refresh-btn"
+            [class.refresh-btn--loading]="refreshing()"
+            (click)="refresh()"
+            title="Refresh audit log"
+            aria-label="Refresh audit log"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+              <path d="M21 21v-5h-5" />
+            </svg>
+            <span>Refresh</span>
+          </button>
         </div>
+      </div>
+    </div>
 
-        <!-- Toolbar Actions -->
-        <div class="toolbar__actions">
-          <div class="btn-group">
-            @if (canUseSearch() && canUseFilters()) {
-            <button type="submit" class="ag-btn ag-btn--primary" data-testid="audit-search">
-              Apply
-            </button>
-            } @if (hasActiveFilters()) {
-            <button type="button" class="clear-filters-btn" (click)="clearFilters()">
-              Clear
-            </button>
+    <!-- Mobile Toolbar Layout (< 991px) -->
+    <div class="toolbar__mobile">
+      <div class="toolbar__mobile-row">
+        @if (canUseFilters()) {
+        <button
+          type="button"
+          class="mobile-filter-trigger"
+          [class.mobile-filter-trigger--active]="activeFiltersCount() > 0"
+          (click)="openMobileFilters()"
+          aria-label="Open filter options"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+          </svg>
+          <span>Filters</span>
+          @if (activeFiltersCount() > 0) {
+          <span class="mobile-filter-trigger__badge">{{ activeFiltersCount() }}</span>
+          }
+        </button>
+        } @if (hasActiveFilters()) {
+        <button type="button" class="mobile-clear-btn" (click)="clearFilters()">Reset</button>
+        }
+
+        <button
+          type="button"
+          class="refresh-btn"
+          [class.refresh-btn--loading]="refreshing()"
+          (click)="refresh()"
+          title="Refresh audit log"
+          aria-label="Refresh audit log"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
+            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+            <path d="M21 21v-5h-5" />
+          </svg>
+        </button>
+
+        <span class="toolbar__mobile-count">
+          {{ total() }} {{ total() === 1 ? 'event' : 'events' }}
+        </span>
+      </div>
+    </div>
+  </form>
+  }
+
+  <!-- Mobile Filter Slide-Over Bottom Sheet -->
+  @if (mobileFiltersOpen() && canUseFilters()) {
+  <div class="mobile-filter-backdrop" (click)="closeMobileFilters()" aria-hidden="true"></div>
+  <div
+    class="mobile-filter-sheet"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Filter audit history"
+  >
+    <div class="mobile-filter-sheet__head">
+      <div class="mobile-filter-sheet__title-group">
+        <h2 class="mobile-filter-sheet__title">Filter Audit History</h2>
+        @if (activeFiltersCount() > 0) {
+        <span class="mobile-filter-sheet__badge">{{ activeFiltersCount() }} active</span>
+        }
+      </div>
+      <button
+        type="button"
+        class="mobile-filter-sheet__close"
+        (click)="closeMobileFilters()"
+        aria-label="Close filters"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="mobile-filter-sheet__body">
+      <div class="mobile-filter-group">
+        <span class="mobile-filter-group__label">Actor</span>
+        <agrivio-ui-searchable-dropdown
+          [value]="actorId()"
+          [options]="actorDropdownOptions()"
+          allOptionLabel="All actors"
+          searchPlaceholder="Search employees..."
+          testId="mobile-audit-actor"
+          ariaLabel="Filter by actor"
+          [serverSearch]="true"
+          (valueChange)="onActorChange($event)"
+          (searchChange)="onActorOptionSearch($event)"
+        />
+      </div>
+
+      <div class="mobile-filter-group">
+        <span class="mobile-filter-group__label">Action</span>
+        <agrivio-ui-searchable-dropdown
+          [value]="action()"
+          [options]="actionDropdownOptions()"
+          allOptionLabel="All actions"
+          searchPlaceholder="Search actions..."
+          testId="mobile-audit-action"
+          ariaLabel="Filter by action"
+          (valueChange)="onActionChange($event)"
+        />
+      </div>
+
+      <div class="mobile-filter-group">
+        <span class="mobile-filter-group__label">Resource Type</span>
+        <agrivio-ui-searchable-dropdown
+          [value]="resourceType()"
+          [options]="resourceTypeDropdownOptions()"
+          allOptionLabel="All resource types"
+          searchPlaceholder="Search resource types..."
+          testId="mobile-audit-resource-type"
+          ariaLabel="Filter by resource type"
+          (valueChange)="onResourceTypeChange($event)"
+        />
+      </div>
+
+      <div class="mobile-filter-group">
+        <span class="mobile-filter-group__label">Reason</span>
+        <agrivio-ui-searchable-dropdown
+          [value]="reason()"
+          [options]="reasonDropdownOptions()"
+          allOptionLabel="All reasons"
+          searchPlaceholder="Search reasons..."
+          testId="mobile-audit-reason"
+          ariaLabel="Filter by reason"
+          (valueChange)="onReasonChange($event)"
+        />
+      </div>
+    </div>
+
+    <div class="mobile-filter-sheet__foot">
+      <button
+        type="button"
+        class="ag-btn ag-btn--secondary"
+        (click)="clearFilters(); closeMobileFilters()"
+      >
+        Reset
+      </button>
+      <button
+        type="button"
+        class="ag-btn ag-btn--primary mobile-filter-sheet__apply"
+        (click)="applyMobileFilters()"
+      >
+        Apply Filters
+      </button>
+    </div>
+  </div>
+  }
+
+  <!-- Table & Pagination States -->
+  @if (loading() && items().length === 0) {
+  <div class="state-container">
+    <agrivio-ui-loading-state label="Loading audit events…" />
+  </div>
+  } @else if (items().length === 0) {
+  <div class="state-container">
+    @if (hasActiveFilters()) {
+    <agrivio-ui-empty-state
+      title="No matching audit events"
+      message="No audit events match these filters within entitled history. Try adjusting your filter criteria."
+    />
+    } @else {
+    <agrivio-ui-empty-state
+      title="No events recorded"
+      message="No audit events have been logged for this organization yet."
+    />
+    }
+  </div>
+  } @else {
+  <!-- Dense Audit Table -->
+  <div class="table-container" data-testid="audit-list">
+    <table class="audit-table" data-testid="audit-table">
+      <colgroup>
+        <col class="col-occurred" />
+        <col class="col-actor" />
+        <col class="col-action" />
+        <col class="col-resource" />
+        <col class="col-reason" />
+        @if (canInspect()) {
+        <col class="col-actions" />
+        }
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col" class="audit-table__th">Occurred</th>
+          <th scope="col" class="audit-table__th">Actor</th>
+          <th scope="col" class="audit-table__th">Action</th>
+          <th scope="col" class="audit-table__th">Resource</th>
+          <th scope="col" class="audit-table__th">Reason</th>
+          @if (canInspect()) {
+          <th scope="col" class="audit-table__th audit-table__th--actions">Actions</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of items(); track item.id) {
+        <tr
+          class="audit-table__row"
+          [class.audit-table__row--selected]="selectedEvent()?.id === item.id"
+        >
+          <!-- Occurred Timestamp -->
+          <td class="audit-table__td" [title]="item.occurredAt">
+            <span class="timestamp-text">{{ formatDateTime(item.occurredAt) }}</span>
+          </td>
+
+          <!-- Actor -->
+          <td class="audit-table__td">
+            <span
+              class="actor-pill"
+              [class.actor-pill--system]="isSystemActor(item.actorId)"
+              [title]="item.actorId"
+            >
+              {{ formatActor(item.actorId) }}
+            </span>
+          </td>
+
+          <!-- Action -->
+          <td class="audit-table__td">
+            <span class="action-chip" [title]="item.action"> {{ formatAction(item.action) }} </span>
+          </td>
+
+          <!-- Resource -->
+          <td class="audit-table__td">
+            <div class="resource-cell">
+              <span class="resource-cell__type">{{ item.resourceType }}</span>
+              @if (item.resourceId) {
+              <span class="resource-cell__id" [title]="item.resourceId">{{ item.resourceId }}</span>
+              }
+            </div>
+          </td>
+
+          <!-- Reason -->
+          <td class="audit-table__td">
+            @if (item.reason) {
+            <span class="reason-text" [title]="item.reason">{{ item.reason }}</span>
+            } @else {
+            <span class="muted-dash">—</span>
             }
+          </td>
+
+          <!-- Inspect Row Action -->
+          @if (canInspect()) {
+          <td class="audit-table__td audit-table__td--actions">
             <button
               type="button"
-              class="refresh-btn"
-              [class.refresh-btn--loading]="refreshing()"
-              (click)="refresh()"
-              title="Refresh audit log"
-              aria-label="Refresh audit log"
+              class="row-action-btn"
+              (click)="openInspector(item)"
+              title="Inspect event specifications"
+              aria-label="Inspect event specifications"
+              data-testid="audit-inspect-btn"
             >
               <svg
                 width="14"
@@ -275,330 +580,28 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
               >
-                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                <path d="M3 3v5h5" />
-                <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-                <path d="M21 21v-5h-5" />
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                <circle cx="12" cy="12" r="3" />
               </svg>
-              <span>Refresh</span>
             </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Mobile Toolbar Layout (< 991px) -->
-      <div class="toolbar__mobile">
-        <div class="toolbar__mobile-row">
-          @if (canUseFilters()) {
-          <button
-            type="button"
-            class="mobile-filter-trigger"
-            [class.mobile-filter-trigger--active]="activeFiltersCount() > 0"
-            (click)="openMobileFilters()"
-            aria-label="Open filter options"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-            </svg>
-            <span>Filters</span>
-            @if (activeFiltersCount() > 0) {
-            <span class="mobile-filter-trigger__badge">{{ activeFiltersCount() }}</span>
-            }
-          </button>
+          </td>
           }
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
 
-          @if (hasActiveFilters()) {
-          <button type="button" class="mobile-clear-btn" (click)="clearFilters()">Reset</button>
-          }
-
-          <button
-            type="button"
-            class="refresh-btn"
-            [class.refresh-btn--loading]="refreshing()"
-            (click)="refresh()"
-            title="Refresh audit log"
-            aria-label="Refresh audit log"
-          >
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-              <path d="M3 3v5h5" />
-              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-              <path d="M21 21v-5h-5" />
-            </svg>
-          </button>
-
-          <span class="toolbar__mobile-count">
-            {{ total() }} {{ total() === 1 ? 'event' : 'events' }}
-          </span>
-        </div>
-      </div>
-    </form>
-    }
-
-    <!-- Mobile Filter Slide-Over Bottom Sheet -->
-    @if (mobileFiltersOpen() && canUseFilters()) {
-    <div class="mobile-filter-backdrop" (click)="closeMobileFilters()" aria-hidden="true"></div>
-    <div class="mobile-filter-sheet" role="dialog" aria-modal="true" aria-label="Filter audit history">
-      <div class="mobile-filter-sheet__head">
-        <div class="mobile-filter-sheet__title-group">
-          <h2 class="mobile-filter-sheet__title">Filter Audit History</h2>
-          @if (activeFiltersCount() > 0) {
-          <span class="mobile-filter-sheet__badge">{{ activeFiltersCount() }} active</span>
-          }
-        </div>
-        <button
-          type="button"
-          class="mobile-filter-sheet__close"
-          (click)="closeMobileFilters()"
-          aria-label="Close filters"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-      </div>
-
-      <div class="mobile-filter-sheet__body">
-        <div class="mobile-filter-group">
-          <label class="mobile-filter-group__label" for="mobile-audit-actor">Actor</label>
-          <input
-            id="mobile-audit-actor-search"
-            class="mobile-filter-group__input"
-            type="search"
-            [ngModel]="actorOptionSearch()"
-            (ngModelChange)="onActorOptionSearch($event)"
-            placeholder="Search employees"
-            aria-label="Search audit actors"
-          />
-          <select
-            id="mobile-audit-actor"
-            class="mobile-filter-group__select"
-            [ngModel]="actorId()"
-            (ngModelChange)="onActorChange($event)"
-          >
-            <option value="">All actors</option>
-            @for (actor of actorOptions(); track actor.value) {
-            <option [value]="actor.value">{{ actor.label }}</option>
-            }
-          </select>
-        </div>
-
-        <div class="mobile-filter-group">
-          <label class="mobile-filter-group__label" for="mobile-audit-action">Action</label>
-          <select
-            id="mobile-audit-action"
-            class="mobile-filter-group__select"
-            [ngModel]="action()"
-            (ngModelChange)="onActionChange($event)"
-          >
-            <option value="">All actions</option>
-            @for (act of actionOptions(); track act) {
-            <option [value]="act">{{ formatAction(act) }}</option>
-            }
-          </select>
-        </div>
-
-        <div class="mobile-filter-group">
-          <label class="mobile-filter-group__label" for="mobile-audit-resource-type">Resource Type</label>
-          <select
-            id="mobile-audit-resource-type"
-            class="mobile-filter-group__select"
-            [ngModel]="resourceType()"
-            (ngModelChange)="onResourceTypeChange($event)"
-          >
-            <option value="">All resource types</option>
-            @for (resType of resourceTypeOptions(); track resType) {
-            <option [value]="resType">{{ resType }}</option>
-            }
-          </select>
-        </div>
-
-        <div class="mobile-filter-group">
-          <label class="mobile-filter-group__label" for="mobile-audit-reason">Reason</label>
-          <select
-            id="mobile-audit-reason"
-            class="mobile-filter-group__select"
-            [ngModel]="reason()"
-            (ngModelChange)="onReasonChange($event)"
-          >
-            <option value="">All reasons</option>
-            @for (rsn of reasonOptions(); track rsn) {
-            <option [value]="rsn">{{ rsn }}</option>
-            }
-          </select>
-        </div>
-      </div>
-
-      <div class="mobile-filter-sheet__foot">
-        <button type="button" class="ag-btn ag-btn--secondary" (click)="clearFilters(); closeMobileFilters()">
-          Reset
-        </button>
-        <button type="button" class="ag-btn ag-btn--primary mobile-filter-sheet__apply" (click)="applyMobileFilters()">
-          Apply Filters
-        </button>
-      </div>
-    </div>
-    }
-
-    <!-- Table & Pagination States -->
-    @if (loading() && items().length === 0) {
-    <div class="state-container">
-      <agrivio-ui-loading-state label="Loading audit events…" />
-    </div>
-    } @else if (items().length === 0) {
-    <div class="state-container">
-      @if (hasActiveFilters()) {
-      <agrivio-ui-empty-state
-        title="No matching audit events"
-        message="No audit events match these filters within entitled history. Try adjusting your filter criteria."
-      />
-      } @else {
-      <agrivio-ui-empty-state
-        title="No events recorded"
-        message="No audit events have been logged for this organization yet."
-      />
-      }
-    </div>
-    } @else {
-    <!-- Dense Audit Table -->
-    <div class="table-container" data-testid="audit-list">
-      <table class="audit-table" data-testid="audit-table">
-        <colgroup>
-          <col class="col-occurred" />
-          <col class="col-actor" />
-          <col class="col-action" />
-          <col class="col-resource" />
-          <col class="col-reason" />
-          @if (canInspect()) {
-          <col class="col-actions" />
-          }
-        </colgroup>
-        <thead>
-          <tr>
-            <th scope="col" class="audit-table__th">Occurred</th>
-            <th scope="col" class="audit-table__th">Actor</th>
-            <th scope="col" class="audit-table__th">Action</th>
-            <th scope="col" class="audit-table__th">Resource</th>
-            <th scope="col" class="audit-table__th">Reason</th>
-            @if (canInspect()) {
-            <th scope="col" class="audit-table__th audit-table__th--actions">Actions</th>
-            }
-          </tr>
-        </thead>
-        <tbody>
-          @for (item of items(); track item.id) {
-          <tr
-            class="audit-table__row"
-            [class.audit-table__row--selected]="selectedEvent()?.id === item.id"
-          >
-            <!-- Occurred Timestamp -->
-            <td class="audit-table__td" [title]="item.occurredAt">
-              <span class="timestamp-text">{{ formatDateTime(item.occurredAt) }}</span>
-            </td>
-
-            <!-- Actor -->
-            <td class="audit-table__td">
-              <span
-                class="actor-pill"
-                [class.actor-pill--system]="isSystemActor(item.actorId)"
-                [title]="item.actorId"
-              >
-                {{ formatActor(item.actorId) }}
-              </span>
-            </td>
-
-            <!-- Action -->
-            <td class="audit-table__td">
-              <span class="action-chip" [title]="item.action">
-                {{ formatAction(item.action) }}
-              </span>
-            </td>
-
-            <!-- Resource -->
-            <td class="audit-table__td">
-              <div class="resource-cell">
-                <span class="resource-cell__type">{{ item.resourceType }}</span>
-                @if (item.resourceId) {
-                <span class="resource-cell__id" [title]="item.resourceId">{{ item.resourceId }}</span>
-                }
-              </div>
-            </td>
-
-            <!-- Reason -->
-            <td class="audit-table__td">
-              @if (item.reason) {
-              <span class="reason-text" [title]="item.reason">{{ item.reason }}</span>
-              } @else {
-              <span class="muted-dash">—</span>
-              }
-            </td>
-
-            <!-- Inspect Row Action -->
-            @if (canInspect()) {
-            <td class="audit-table__td audit-table__td--actions">
-              <button
-                type="button"
-                class="row-action-btn"
-                (click)="openInspector(item)"
-                title="Inspect event specifications"
-                aria-label="Inspect event specifications"
-                data-testid="audit-inspect-btn"
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              </button>
-            </td>
-            }
-          </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Server-Side Pagination -->
-    <agrivio-ui-pagination
-      [page]="page()"
-      [pageSize]="pageSize()"
-      [total]="total()"
-      [disabled]="loading() || refreshing()"
-      (pageChange)="onPageChange($event)"
-      (pageSizeChange)="onPageSizeChange($event)"
-    />
-    }
-  }
+  <!-- Server-Side Pagination -->
+  <agrivio-ui-pagination
+    [page]="page()"
+    [pageSize]="pageSize()"
+    [total]="total()"
+    [disabled]="loading() || refreshing()"
+    (pageChange)="onPageChange($event)"
+    (pageSizeChange)="onPageSizeChange($event)"
+  />
+  } }
 
   <!-- Slide-Over Audit Event Inspector Drawer -->
   @if (selectedEvent(); as sel) {
@@ -628,10 +631,10 @@
           </svg>
         </div>
         <div class="inspector-drawer__titles">
-          <h2 class="drawer-title" [title]="formatAction(sel.action)">{{ formatAction(sel.action) }}</h2>
-          <p class="drawer-sub">
-            Occurred on {{ formatDateTime(sel.occurredAt) }}
-          </p>
+          <h2 class="drawer-title" [title]="formatAction(sel.action)">
+            {{ formatAction(sel.action) }}
+          </h2>
+          <p class="drawer-sub">Occurred on {{ formatDateTime(sel.occurredAt) }}</p>
         </div>
       </div>
       <button
@@ -672,7 +675,9 @@
           </div>
           <div class="spec-row">
             <span class="spec-row__k">Occurred</span>
-            <span class="spec-row__v" [title]="sel.occurredAt">{{ formatDateTime(sel.occurredAt) }}</span>
+            <span class="spec-row__v" [title]="sel.occurredAt"
+              >{{ formatDateTime(sel.occurredAt) }}</span
+            >
           </div>
           <div class="spec-row">
             <span class="spec-row__k">Actor</span>
@@ -695,8 +700,7 @@
             <span class="spec-row__k">Request ID</span>
             <span class="spec-row__v spec-row__v--code">{{ sel.requestId }}</span>
           </div>
-          }
-          @if (sel.organizationId) {
+          } @if (sel.organizationId) {
           <div class="spec-row">
             <span class="spec-row__k">Organization ID</span>
             <span class="spec-row__v spec-row__v--code">{{ sel.organizationId }}</span>

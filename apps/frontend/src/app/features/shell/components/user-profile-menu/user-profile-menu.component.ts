@@ -1,14 +1,7 @@
-import {
-  Component,
-  ElementRef,
-  HostListener,
-  computed,
-  inject,
-  signal,
-} from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Component, ElementRef, HostListener, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
-import { AuthApi } from '../../../auth/data-access/auth.api';
+import { AuthSessionLifecycleService } from '../../../auth/data-access/auth-session-lifecycle.service';
 
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
@@ -21,8 +14,7 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
 })
 export class UserProfileMenuComponent {
   private readonly sessionStore = inject(AuthSessionStore);
-  private readonly authApi = inject(AuthApi);
-  private readonly router = inject(Router);
+  private readonly authLifecycle = inject(AuthSessionLifecycleService);
   private readonly elementRef = inject(ElementRef);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
 
@@ -33,9 +25,7 @@ export class UserProfileMenuComponent {
   readonly session = this.sessionStore.session;
   readonly activeContext = this.sessionStore.activeContext;
 
-  readonly userDisplayName = computed(
-    () => this.session()?.user.displayName ?? 'User',
-  );
+  readonly userDisplayName = computed(() => this.session()?.user.displayName ?? 'User');
   readonly userEmail = computed(() => this.session()?.user.email ?? '');
   readonly userRole = computed(() => this.activeContext()?.role ?? '');
 
@@ -66,9 +56,7 @@ export class UserProfileMenuComponent {
     );
   });
 
-  readonly dashboardRoute = computed(() =>
-    this.canViewDashboard() ? '/app/dashboard' : '/app',
-  );
+  readonly dashboardRoute = computed(() => (this.canViewDashboard() ? '/app/dashboard' : '/app'));
 
   toggleDropdown(): void {
     this.isOpen.set(!this.isOpen());
@@ -98,12 +86,10 @@ export class UserProfileMenuComponent {
   signOut(): void {
     this.isSigningOut.set(true);
     this.signOutError.set(null);
-    this.authApi.logout().subscribe({
+    this.authLifecycle.signOut().subscribe({
       next: () => {
-        this.sessionStore.clear();
         this.isSigningOut.set(false);
         this.closeDropdown();
-        void this.router.navigateByUrl('/');
       },
       error: () => {
         this.isSigningOut.set(false);

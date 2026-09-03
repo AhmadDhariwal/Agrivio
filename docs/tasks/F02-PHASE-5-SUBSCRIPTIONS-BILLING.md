@@ -121,3 +121,7 @@ feat(f02-p5): add plans, subscription lifecycle, and manual billing
 Implement R1-F02-010/011/012 with versioned plans, entitlement-enforced
 lifecycle states, and Super Admin manual billing review.
 ```
+
+## Final Manage Billing route hardening (2026-09-03)
+
+The shared subscription/grace banner used the nonexistent plural route `/app/subscriptions/billing`. It now consumes the same canonical `/app/subscription/billing` application-path constant as the working Billing sidebar item, preserving the existing route permission and Billing capability guards.

@@ -48,3 +48,9 @@ MongoDB replica-set transaction/TTL proofs for `auth_sessions` / `password_reset
 | Frontend typecheck / build | passed |
 | Architecture | passed |
 | Unit gate (`nx run-many -t test --all`) | passed |
+
+## Final platform-flow hardening (2026-09-03)
+
+`/signin` is now the canonical sign-in route; `/login` is a compatibility redirect. Sign-in, password reset, activation/request-access, and the public landing entry wait for the authoritative cookie-session probe and redirect authenticated users to `/app` or `/context` without rendering public auth UI. The `/app` parent guard continues to block all protected child rendering and sends missing/expired sessions to `/signin`; permission and capability denials remain `/app/access-denied` and `/app/feature-unavailable` respectively.
+
+Successful logout still posts the existing server endpoint, then clears the CSRF token, session/context, capability state, and existing scoped query cache before navigating to `/signin`. The authenticated context selector no longer offers “Back to sign in.” `QueryCacheService` was not modified.

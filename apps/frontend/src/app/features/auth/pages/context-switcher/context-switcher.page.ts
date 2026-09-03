@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { startWith } from 'rxjs';
 import { AuthSessionStore } from '../../data-access/auth-session.store';
 import { AuthSessionContext, SessionContextSelection } from '../../data-access/auth.api';
@@ -16,7 +16,6 @@ import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
   standalone: true,
   imports: [
     ReactiveFormsModule,
-    RouterLink,
     AuthLayoutComponent,
     UiAlertComponent,
     UiLoadingStateComponent,

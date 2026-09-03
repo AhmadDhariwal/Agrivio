@@ -3,98 +3,91 @@
   subtitle="Select an authorized platform or organization context. Branch and warehouse options are limited to your assignments."
 >
   @if (loading()) {
-    <agrivio-ui-loading-state label="Restoring session…" />
-  } @else {
-    @if (activeContext(); as active) {
-      <div class="ag-card" style="margin-bottom: 1.25rem" data-testid="context-active">
-        <p class="ag-page-header__eyebrow">Current selection</p>
-        <p>
-          <strong>{{ contextLabel(active) }}</strong>
-          @if (active.branchId) {
-            · Branch {{ active.branchId }}
-          }
-          @if (active.warehouseId) {
-            · Warehouse {{ active.warehouseId }}
-          }
-        </p>
-        <div class="ag-actions" style="margin-top: 0.75rem">
-          <button
-            type="button"
-            class="ag-btn ag-btn--secondary"
-            data-testid="continue-workspace"
-            (click)="continueToWorkspace()"
-          >
-            Continue to workspace
-          </button>
-        </div>
-      </div>
+  <agrivio-ui-loading-state label="Restoring session…" />
+  } @else { @if (activeContext(); as active) {
+  <div class="ag-card" style="margin-bottom: 1.25rem" data-testid="context-active">
+    <p class="ag-page-header__eyebrow">Current selection</p>
+    <p>
+      <strong>{{ contextLabel(active) }}</strong>
+      @if (active.branchId) { · Branch {{ active.branchId }} } @if (active.warehouseId) { ·
+      Warehouse {{ active.warehouseId }} }
+    </p>
+    <div class="ag-actions" style="margin-top: 0.75rem">
+      <button
+        type="button"
+        class="ag-btn ag-btn--secondary"
+        data-testid="continue-workspace"
+        (click)="continueToWorkspace()"
+      >
+        Continue to workspace
+      </button>
+    </div>
+  </div>
+  }
+
+  <form class="ag-form ag-form--with-required-hint" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="ag-field">
+      <agrivio-ui-field-label label="Context" for="context-select" />
+      <select
+        id="context-select"
+        class="ag-select"
+        formControlName="contextKey"
+        data-testid="context-select"
+      >
+        <option value="">Select context</option>
+        @for (context of availableContexts(); track contextKey(context)) {
+        <option [value]="contextKey(context)">{{ contextLabel(context) }}</option>
+        }
+      </select>
+    </div>
+
+    @if (showAssignmentFields()) {
+    <div class="ag-field">
+      <agrivio-ui-field-label label="Branch (optional)" for="branch-select" />
+      @if (branchOptions().length === 0) {
+      <p class="ag-field__hint">No assigned branches are available for this context yet.</p>
+      } @else {
+      <select id="branch-select" class="ag-select" formControlName="branchId">
+        <option value="">None</option>
+        @for (branchId of branchOptions(); track branchId) {
+        <option [value]="branchId">{{ branchId }}</option>
+        }
+      </select>
+      }
+    </div>
+
+    <div class="ag-field">
+      <agrivio-ui-field-label label="Warehouse (optional)" for="warehouse-select" />
+      @if (warehouseOptions().length === 0) {
+      <p class="ag-field__hint">No assigned warehouses are available for this context yet.</p>
+      } @else {
+      <select id="warehouse-select" class="ag-select" formControlName="warehouseId">
+        <option value="">None</option>
+        @for (warehouseId of warehouseOptions(); track warehouseId) {
+        <option [value]="warehouseId">{{ warehouseId }}</option>
+        }
+      </select>
+      }
+    </div>
     }
 
-    <form class="ag-form ag-form--with-required-hint" [formGroup]="form" (ngSubmit)="submit()">
-      <div class="ag-field">
-        <agrivio-ui-field-label label="Context" for="context-select" />
-        <select id="context-select" class="ag-select" formControlName="contextKey" data-testid="context-select">
-          <option value="">Select context</option>
-          @for (context of availableContexts(); track contextKey(context)) {
-            <option [value]="contextKey(context)">{{ contextLabel(context) }}</option>
-          }
-        </select>
-      </div>
-
-      @if (showAssignmentFields()) {
-        <div class="ag-field">
-          <agrivio-ui-field-label label="Branch (optional)" for="branch-select" />
-          @if (branchOptions().length === 0) {
-            <p class="ag-field__hint">No assigned branches are available for this context yet.</p>
-          } @else {
-            <select id="branch-select" class="ag-select" formControlName="branchId">
-              <option value="">None</option>
-              @for (branchId of branchOptions(); track branchId) {
-                <option [value]="branchId">{{ branchId }}</option>
-              }
-            </select>
-          }
-        </div>
-
-        <div class="ag-field">
-          <agrivio-ui-field-label label="Warehouse (optional)" for="warehouse-select" />
-          @if (warehouseOptions().length === 0) {
-            <p class="ag-field__hint">No assigned warehouses are available for this context yet.</p>
-          } @else {
-            <select id="warehouse-select" class="ag-select" formControlName="warehouseId">
-              <option value="">None</option>
-              @for (warehouseId of warehouseOptions(); track warehouseId) {
-                <option [value]="warehouseId">{{ warehouseId }}</option>
-              }
-            </select>
-          }
-        </div>
-      }
-
-      <button
-        type="submit"
-        class="ag-btn ag-btn--primary"
-        [disabled]="submitting() || form.controls.contextKey.value === ''"
-        data-testid="switch-context"
-      >
-        {{ submitting() ? 'Switching…' : 'Switch context' }}
-      </button>
-    </form>
+    <button
+      type="submit"
+      class="ag-btn ag-btn--primary"
+      [disabled]="submitting() || form.controls.contextKey.value === ''"
+      data-testid="switch-context"
+    >
+      {{ submitting() ? 'Switching…' : 'Switch context' }}
+    </button>
+  </form>
+  } @if (successMessage(); as message) {
+  <agrivio-ui-alert style="display: block; margin-top: 1rem" [message]="message" tone="success" />
+  } @if (errorMessage(); as message) {
+  <agrivio-ui-alert
+    style="display: block; margin-top: 1rem"
+    [message]="message"
+    tone="danger"
+    role="alert"
+  />
   }
-
-  @if (successMessage(); as message) {
-    <agrivio-ui-alert style="display: block; margin-top: 1rem" [message]="message" tone="success" />
-  }
-  @if (errorMessage(); as message) {
-    <agrivio-ui-alert
-      style="display: block; margin-top: 1rem"
-      [message]="message"
-      tone="danger"
-      role="alert"
-    />
-  }
-
-  <div class="ag-auth-links">
-    <a routerLink="/login">Back to sign in</a>
-  </div>
 </agrivio-auth-layout>

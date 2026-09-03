@@ -106,7 +106,10 @@ function createMongooseAuditEventStore() {
         query.resourceId = filter.resourceId;
       }
       if (filter.reason !== undefined) {
-        query.reason = { $regex: String(filter.reason).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+        query.reason = {
+          $regex: String(filter.reason).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+          $options: 'i',
+        };
       }
       if (filter.from !== undefined || filter.to !== undefined) {
         query.occurredAt = {};
@@ -117,16 +120,29 @@ function createMongooseAuditEventStore() {
           query.occurredAt.$lte = filter.to;
         }
       }
-      const rows = await AuditEventModel.find(query).sort({ occurredAt: -1, _id: -1 }).lean().exec();
+      const rows = await AuditEventModel.find(query)
+        .sort({ occurredAt: -1, _id: -1 })
+        .lean()
+        .exec();
       return rows.map(toQueryDoc);
     },
 
     async queryPage(filter, pagination = {}) {
       const query = {};
       applyScope(query, filter.scope);
-      for (const field of ['organizationId', 'actorId', 'action', 'resourceType', 'resourceId']) if (filter[field] !== undefined) query[field] = filter[field];
-      if (filter.action === undefined && Array.isArray(filter.excludeActions) && filter.excludeActions.length > 0) query.action = { $nin: filter.excludeActions };
-      if (filter.reason !== undefined) query.reason = { $regex: String(filter.reason).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+      for (const field of ['organizationId', 'actorId', 'action', 'resourceType', 'resourceId'])
+        if (filter[field] !== undefined) query[field] = filter[field];
+      if (
+        filter.action === undefined &&
+        Array.isArray(filter.excludeActions) &&
+        filter.excludeActions.length > 0
+      )
+        query.action = { $nin: filter.excludeActions };
+      if (filter.reason !== undefined)
+        query.reason = {
+          $regex: String(filter.reason).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+          $options: 'i',
+        };
       if (filter.from !== undefined || filter.to !== undefined) {
         query.occurredAt = {};
         if (filter.from !== undefined) query.occurredAt.$gte = filter.from;
@@ -134,7 +150,12 @@ function createMongooseAuditEventStore() {
       }
       const [total, rows] = await Promise.all([
         AuditEventModel.countDocuments(query).exec(),
-        AuditEventModel.find(query).sort({ occurredAt: -1, _id: -1 }).skip(pagination.skip ?? 0).limit(pagination.pageSize ?? 25).lean().exec(),
+        AuditEventModel.find(query)
+          .sort({ occurredAt: -1, _id: -1 })
+          .skip(pagination.skip ?? 0)
+          .limit(pagination.pageSize ?? 25)
+          .lean()
+          .exec(),
       ]);
       return { items: rows.map(toQueryDoc), total };
     },
@@ -150,7 +171,11 @@ function createMongooseAuditEventStore() {
       }
       const match = { organizationId, [field]: valueMatch };
       applyScope(match, filter.scope);
-      if (Array.isArray(filter.excludeActions) && filter.excludeActions.length > 0 && field !== 'action') {
+      if (
+        Array.isArray(filter.excludeActions) &&
+        filter.excludeActions.length > 0 &&
+        field !== 'action'
+      ) {
         match.action = { $nin: filter.excludeActions };
       }
       if (field === 'action' && Array.isArray(filter.excludeActions)) {
@@ -192,7 +217,8 @@ function createMongooseAuditEventStore() {
         filter.from !== undefined && startOfToday !== undefined && filter.from > startOfToday
           ? filter.from
           : startOfToday;
-      const todayMatch = todayThreshold !== undefined ? { occurredAt: { $gte: todayThreshold } } : {};
+      const todayMatch =
+        todayThreshold !== undefined ? { occurredAt: { $gte: todayThreshold } } : {};
 
       const [stats] = await AuditEventModel.aggregate([
         { $match: match },
@@ -223,6 +249,52 @@ function createMongooseAuditEventStore() {
         uniqueActors: stats?.uniqueActors?.[0]?.count ?? 0,
         resourceTypes: stats?.resourceTypes?.[0]?.count ?? 0,
       };
+    },
+
+    async getRetentionStats(filter, cutoff) {
+      const match = {};
+      applyScope(match, filter.scope);
+      if (filter.organizationId !== undefined) {
+        match.organizationId = mongoose.isValidObjectId(filter.organizationId)
+          ? new mongoose.Types.ObjectId(filter.organizationId)
+          : filter.organizationId;
+      }
+      if (Array.isArray(filter.excludeActions) && filter.excludeActions.length > 0) {
+        match.action = { $nin: filter.excludeActions };
+      }
+      const accessibleMatch = cutoff === null ? match : { ...match, occurredAt: { $gte: cutoff } };
+      const expiredMatch = cutoff === null ? null : { ...match, occurredAt: { $lt: cutoff } };
+      const [stats, expiredEventCount] = await Promise.all([
+        AuditEventModel.aggregate([
+          { $match: accessibleMatch },
+          {
+            $group: {
+              _id: null,
+              currentEventCount: { $sum: 1 },
+              oldestAccessibleEvent: { $min: '$occurredAt' },
+              newestEvent: { $max: '$occurredAt' },
+            },
+          },
+        ]).exec(),
+        expiredMatch === null ? 0 : AuditEventModel.countDocuments(expiredMatch).exec(),
+      ]);
+      return {
+        currentEventCount: stats[0]?.currentEventCount ?? 0,
+        expiredEventCount,
+        oldestAccessibleEvent: stats[0]?.oldestAccessibleEvent ?? null,
+        newestEvent: stats[0]?.newestEvent ?? null,
+      };
+    },
+
+    async purgeBefore(filter, cutoff) {
+      const match = { occurredAt: { $lt: cutoff } };
+      applyScope(match, filter.scope);
+      if (filter.organizationId !== undefined) match.organizationId = filter.organizationId;
+      if (Array.isArray(filter.excludeActions) && filter.excludeActions.length > 0) {
+        match.action = { $nin: filter.excludeActions };
+      }
+      const result = await AuditEventModel.deleteMany(match).exec();
+      return result.deletedCount;
     },
   };
 }

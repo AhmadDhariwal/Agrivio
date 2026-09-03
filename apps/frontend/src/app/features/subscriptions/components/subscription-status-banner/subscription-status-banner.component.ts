@@ -4,6 +4,7 @@ import {
   SubscriptionAccessState,
   buildSubscriptionBanner,
 } from '../../data-access/subscription-access.util';
+import { APP_PATHS } from '../../../../core/navigation/app-paths';
 
 @Component({
   selector: 'agrivio-subscription-status-banner',
@@ -26,7 +27,7 @@ import {
           <span class="sub-banner__message">{{ current.message }}</span>
           <span class="sub-banner__note">(Informational only)</span>
         </div>
-        <a class="sub-banner__link" routerLink="/app/subscriptions/billing">Manage billing →</a>
+        <a class="sub-banner__link" [routerLink]="billingRoute">Manage billing →</a>
       </aside>
     }
   `,
@@ -117,7 +118,7 @@ import {
   `,
 })
 export class SubscriptionStatusBannerComponent {
+  readonly billingRoute = APP_PATHS.billing;
   readonly accessState = input<SubscriptionAccessState | null>(null);
   readonly banner = computed(() => buildSubscriptionBanner(this.accessState()));
 }
-

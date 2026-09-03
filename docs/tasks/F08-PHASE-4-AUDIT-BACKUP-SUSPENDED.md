@@ -91,3 +91,15 @@ Platform operations now write an explicit `platform` audit scope. `GET /api/v1/p
 * CROSS-ORG AUDIT ACCESS: ✅ BLOCKED
 * SUPER ADMIN AUDIT PRIVACY: ✅ VERIFIED
 * AUDIT RBAC: ✅ FROZEN
+
+## Final retention and backup-status hardening (2026-09-03)
+
+Tenant Audit remains append-only: no tenant delete or purge route exists. Super Admin platform sessions can view retention status and purge only records older than the authoritative cutoff. Tenant cutoffs come from each organization plan's `auditHistory`; platform Audit uses the separately configured `AGRIVIO_PLATFORM_AUDIT_RETENTION_DAYS`. `AGRIVIO_AUDIT_RETENTION_DAYS_OVERRIDE` supports short local/demo/test rehearsal windows and is rejected in production. Purge requires explicit confirmation and a reason, stays within the selected tenant/platform scope, preserves in-window records, and records `audit.retention.purged` in platform Audit.
+
+Backup Status now exposes the actual operator backup record's running/success/failed state, start/completion time, MongoDB database, archive filename/size, SHA-256 and manifest verification, retention/expiry, failure, and restore readiness. `npm run ops:backup` calls the existing `mongodump --archive --gzip` engine and persists that engine result; concurrent running backups are rejected. No web backup-create permission or button was invented because the frozen permission catalog has view and restore-coordination permissions only. Web restore remains coordination-only; destructive `mongorestore --drop` remains in the privileged CLI.
+
+Backup coverage is explicitly MongoDB application data. Billing evidence and other filesystem/object-storage files are not covered and still require an independent production backup strategy.
+
+### Model review follow-up
+
+`backup_operation_records` retains Operations ownership. Added fields are class A/B operational evidence (`startedAt`, `completedAt`, `databaseName`, archive filename/size/SHA-256, manifest/checksum verification, retention/expiry, and restore readiness). They are optional for backward compatibility with older status records and consumed by the status API/UI. A partial unique running-status index provides cross-process concurrency enforcement. No tenant ownership or business-ledger semantics were introduced. Deployment must synchronize the new index.

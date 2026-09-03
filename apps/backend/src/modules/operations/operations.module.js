@@ -9,11 +9,15 @@ function createOperationsModule(options = {}) {
   const persistence = options.persistence ?? 'memory';
   const store =
     options.store ??
-    (persistence === 'mongoose' ? createMongooseOperationsStore() : createInMemoryOperationsStore());
+    (persistence === 'mongoose'
+      ? createMongooseOperationsStore()
+      : createInMemoryOperationsStore());
   const auditStore = options.auditStore ?? createInMemoryAuditEventStore();
   const operationsService = createOperationsService({
     store,
     appendAuditEvent: (session, event) => auditStore.append(session, event),
+    backupEngine: options.backupEngine,
+    restoreEngine: options.restoreEngine,
     ...(options.now === undefined ? {} : { now: options.now }),
   });
   return { store, auditStore, operationsService };

@@ -4,18 +4,26 @@ import {
   requireCapabilityGuard,
   requirePermissionGuard,
   requireSessionGuard,
+  publicOnlyGuard,
 } from './core/guards/session.guards';
 import { AppShellPage } from './features/shell/pages/app-shell/app-shell.page';
 
 export const appRoutes: Route[] = [
   {
     path: '',
+    canActivate: [publicOnlyGuard],
     loadComponent: () =>
       import('./features/public/pages/landing/landing.page').then((m) => m.LandingPage),
   },
   {
-    path: 'login',
+    path: 'signin',
+    canActivate: [publicOnlyGuard],
     loadComponent: () => import('./features/auth/pages/login/login.page').then((m) => m.LoginPage),
+  },
+  {
+    path: 'login',
+    redirectTo: 'signin',
+    pathMatch: 'full',
   },
   {
     path: 'context',
@@ -27,6 +35,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'password-reset',
+    canActivate: [publicOnlyGuard],
     loadComponent: () =>
       import('./features/auth/pages/password-reset-request/password-reset-request.page').then(
         (m) => m.PasswordResetRequestPage,
@@ -34,6 +43,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'password-reset/confirm',
+    canActivate: [publicOnlyGuard],
     loadComponent: () =>
       import('./features/auth/pages/password-reset-confirm/password-reset-confirm.page').then(
         (m) => m.PasswordResetConfirmPage,
@@ -41,6 +51,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'request-access',
+    canActivate: [publicOnlyGuard],
     loadComponent: () =>
       import('./features/onboarding/pages/request-access/request-access.page').then(
         (m) => m.RequestAccessPage,
@@ -48,6 +59,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'activate',
+    canActivate: [publicOnlyGuard],
     loadComponent: () =>
       import('./features/onboarding/pages/activate/activate.page').then((m) => m.ActivatePage),
   },
@@ -65,7 +77,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'dashboard',
-        canActivate: [requirePermissionGuard('dashboard.view'), requireCapabilityGuard('dashboard')],
+        canActivate: [
+          requirePermissionGuard('dashboard.view'),
+          requireCapabilityGuard('dashboard'),
+        ],
         loadComponent: () =>
           import('./features/dashboard/pages/dashboard/dashboard.page').then(
             (m) => m.DashboardPage,
@@ -216,7 +231,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'warehouses',
-        canActivate: [requirePermissionGuard('warehouses.manage'), requireCapabilityGuard('warehouses')],
+        canActivate: [
+          requirePermissionGuard('warehouses.manage'),
+          requireCapabilityGuard('warehouses'),
+        ],
         loadComponent: () =>
           import('./features/branches-warehouses/pages/warehouses/warehouses.page').then(
             (m) => m.WarehousesPage,
@@ -381,7 +399,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'customers',
-        canActivate: [requirePermissionGuard('customers.view'), requireCapabilityGuard('customers')],
+        canActivate: [
+          requirePermissionGuard('customers.view'),
+          requireCapabilityGuard('customers'),
+        ],
         loadComponent: () =>
           import('./features/customers/pages/customers/customers.page').then(
             (m) => m.CustomersPage,
@@ -413,7 +434,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'suppliers',
-        canActivate: [requirePermissionGuard('suppliers.view'), requireCapabilityGuard('suppliers')],
+        canActivate: [
+          requirePermissionGuard('suppliers.view'),
+          requireCapabilityGuard('suppliers'),
+        ],
         loadComponent: () =>
           import('./features/suppliers/pages/suppliers/suppliers.page').then(
             (m) => m.SuppliersPage,
@@ -547,7 +571,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'purchases',
-        canActivate: [requirePermissionGuard('purchases.view'), requireCapabilityGuard('purchases')],
+        canActivate: [
+          requirePermissionGuard('purchases.view'),
+          requireCapabilityGuard('purchases'),
+        ],
         loadComponent: () =>
           import('./features/purchases/pages/purchases/purchases.page').then(
             (m) => m.PurchasesPage,
@@ -704,7 +731,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'inventory/stock',
-        canActivate: [requirePermissionGuard('inventory.view'), requireCapabilityGuard('inventory.stock')],
+        canActivate: [
+          requirePermissionGuard('inventory.view'),
+          requireCapabilityGuard('inventory.stock'),
+        ],
         loadComponent: () =>
           import('./features/inventory/pages/stock/stock-inquiry.page').then(
             (m) => m.StockInquiryPage,

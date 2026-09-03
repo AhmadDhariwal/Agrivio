@@ -49,11 +49,7 @@ function resolveBackupDir() {
 
 function generateArchiveFilename(runId) {
   const now = new Date();
-  const ts = now
-    .toISOString()
-    .replace(/[-:]/g, '')
-    .replace('T', '-')
-    .slice(0, 15);
+  const ts = now.toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15);
   const safeId = sanitizeId(runId);
   return `agrivio-${ts}-${safeId}.archive.gz`;
 }
@@ -66,6 +62,24 @@ function computeFileSha256(filePath) {
     stream.on('end', () => resolve(hash.digest('hex')));
     stream.on('error', reject);
   });
+}
+
+async function verifyBackupArtifacts(archivePath, manifestPath, expectedManifest) {
+  const persistedManifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  const manifestVerified =
+    persistedManifest.schemaVersion === expectedManifest.schemaVersion &&
+    persistedManifest.runId === expectedManifest.runId &&
+    persistedManifest.filename === expectedManifest.filename &&
+    persistedManifest.fileSizeBytes === expectedManifest.fileSizeBytes &&
+    persistedManifest.sha256 === expectedManifest.sha256;
+  const checksumVerified =
+    manifestVerified && (await computeFileSha256(archivePath)) === persistedManifest.sha256;
+
+  if (!manifestVerified || !checksumVerified) {
+    throw new Error('Backup artifact verification failed');
+  }
+
+  return { manifestVerified, checksumVerified };
 }
 
 function spawnMongodump(executable, args) {
@@ -166,6 +180,15 @@ async function runBackup(options = {}) {
   const stat = fs.statSync(archivePath);
   const fileSizeBytes = stat.size;
   const sha256 = await computeFileSha256(archivePath);
+  const retentionDays =
+    options.retentionDays ??
+    (process.env['AGRIVIO_BACKUP_RETENTION_DAYS']
+      ? Number(process.env['AGRIVIO_BACKUP_RETENTION_DAYS'])
+      : DEFAULT_RETENTION_DAYS);
+  const expiresAt =
+    retentionDays > 0
+      ? new Date(completedAt.getTime() + retentionDays * 24 * 60 * 60 * 1000)
+      : null;
 
   const manifest = {
     schemaVersion: 1,
@@ -178,19 +201,19 @@ async function runBackup(options = {}) {
     fileSizeBytes,
     sha256,
     mongodumpExitCode: exitResult.exitCode,
+    retentionDays,
+    expiresAt: expiresAt?.toISOString() ?? null,
+    coverage: 'mongodb_application_data',
   };
 
   const manifestPath = archivePath + '.manifest.json';
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
 
-  const retentionDays =
-    options.retentionDays ??
-    (process.env['AGRIVIO_BACKUP_RETENTION_DAYS']
-      ? Number(process.env['AGRIVIO_BACKUP_RETENTION_DAYS'])
-      : DEFAULT_RETENTION_DAYS);
+  const verification = await verifyBackupArtifacts(archivePath, manifestPath, manifest);
+
   await enforceRetentionPolicy(backupDir, retentionDays);
 
-  return manifest;
+  return { ...manifest, ...verification };
 }
 
 module.exports = {
@@ -198,5 +221,6 @@ module.exports = {
   resolveExecutable,
   resolveBackupDir,
   computeFileSha256,
+  verifyBackupArtifacts,
   enforceRetentionPolicy,
 };

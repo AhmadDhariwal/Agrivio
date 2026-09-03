@@ -10,6 +10,21 @@ function createMongooseOperationsStore() {
     async listBackups() {
       return BackupOperationModel.find({}).sort({ recordedAt: -1 }).lean().exec();
     },
+    async findBackupById(id) {
+      const mongoose = require('mongoose');
+      if (!mongoose.isValidObjectId(id)) {
+        return null;
+      }
+      return BackupOperationModel.findById(id).lean().exec();
+    },
+    async findRunningBackup() {
+      return BackupOperationModel.findOne({ status: 'running' }).lean().exec();
+    },
+    async updateBackup(_session, id, patch) {
+      return BackupOperationModel.findByIdAndUpdate(id, { $set: patch }, { new: true })
+        .lean()
+        .exec();
+    },
     async insertRestore(_session, doc) {
       const [created] = await RestoreOperationModel.create([doc]);
       return created.toObject();
@@ -40,6 +55,20 @@ function createInMemoryOperationsStore() {
         .slice()
         .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime())
         .map((item) => ({ ...item }));
+    },
+    async findBackupById(id) {
+      const record = backups.find((item) => String(item._id) === String(id));
+      return record === undefined ? null : { ...record };
+    },
+    async findRunningBackup() {
+      const record = backups.find((item) => item.status === 'running');
+      return record === undefined ? null : { ...record };
+    },
+    async updateBackup(_session, id, patch) {
+      const index = backups.findIndex((item) => String(item._id) === String(id));
+      if (index < 0) return null;
+      backups[index] = { ...backups[index], ...patch };
+      return { ...backups[index] };
     },
     async insertRestore(_session, doc) {
       const record = { _id: `restore-${seq++}`, ...doc };

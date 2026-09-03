@@ -12,7 +12,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { filter } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
-import { AuthApi } from '../../../auth/data-access/auth.api';
+import { AuthSessionLifecycleService } from '../../../auth/data-access/auth-session-lifecycle.service';
 import { NavigationService } from '../../data-access/navigation.service';
 import { NavCustomizerDialogComponent } from '../../components/nav-customizer-dialog/nav-customizer-dialog.component';
 import { NavbarSearchComponent } from '../../components/navbar-search/navbar-search.component';
@@ -27,6 +27,7 @@ import { lockBodyScroll, unlockBodyScroll } from '../../../../shared/ui/body-scr
 import { VisibleNavGroup } from '../../data-access/navigation.model';
 import { AccessService } from '../../../../core/access/access.service';
 import { MISSING_ASSIGNMENT_MESSAGE } from '../../../../core/access/authorization-error';
+import { APP_PATHS } from '../../../../core/navigation/app-paths';
 
 const SIDEBAR_COLLAPSED_KEY = 'agrivio_sidebar_collapsed';
 
@@ -56,7 +57,7 @@ export interface TooltipState {
 })
 export class AppShellPage {
   private readonly sessionStore = inject(AuthSessionStore);
-  private readonly authApi = inject(AuthApi);
+  private readonly authLifecycle = inject(AuthSessionLifecycleService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly elementRef = inject(ElementRef);
@@ -205,7 +206,7 @@ export class AppShellPage {
         },
         error: () => {
           this.sessionRestoring.set(false);
-          void this.router.navigateByUrl('/login');
+          void this.router.navigateByUrl(APP_PATHS.signIn);
         },
       });
     } else {
@@ -488,11 +489,9 @@ export class AppShellPage {
   signOut(): void {
     this.signingOut.set(true);
     this.errorMessage.set(null);
-    this.authApi.logout().subscribe({
+    this.authLifecycle.signOut().subscribe({
       next: () => {
-        this.sessionStore.clear();
         this.signingOut.set(false);
-        void this.router.navigateByUrl('/');
       },
       error: () => {
         this.signingOut.set(false);

@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Observable, map, tap } from 'rxjs';
+import { Observable, finalize, map, shareReplay, tap } from 'rxjs';
 import { AuthApi, AuthSessionSnapshot, SessionContextSelection } from './auth.api';
 import {
   allowedBranchIds,
@@ -15,6 +15,7 @@ export class AuthSessionStore {
   private readonly authApi = inject(AuthApi);
 
   private readonly sessionSignal = signal<AuthSessionSnapshot | null>(null);
+  private sessionRequest: Observable<AuthSessionSnapshot> | null = null;
 
   readonly session = this.sessionSignal.asReadonly();
   readonly activeContext = computed(() => this.sessionSignal()?.activeContext ?? null);
@@ -64,7 +65,20 @@ export class AuthSessionStore {
   }
 
   loadSession(): Observable<AuthSessionSnapshot> {
-    return this.authApi.getSession().pipe(tap((snapshot) => this.sessionSignal.set(snapshot)));
+    if (this.sessionRequest !== null) {
+      return this.sessionRequest;
+    }
+    const request = this.authApi.getSession().pipe(
+      tap((snapshot) => this.sessionSignal.set(snapshot)),
+      finalize(() => {
+        if (this.sessionRequest === request) {
+          this.sessionRequest = null;
+        }
+      }),
+      shareReplay({ bufferSize: 1, refCount: false }),
+    );
+    this.sessionRequest = request;
+    return request;
   }
 
   switchContext(selection: SessionContextSelection): Observable<AuthSessionSnapshot> {

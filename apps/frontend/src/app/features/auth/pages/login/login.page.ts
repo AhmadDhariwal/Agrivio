@@ -7,6 +7,7 @@ import { AuthLayoutComponent } from '../../../../shared/ui/auth-layout/auth-layo
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
 import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
+import { APP_PATHS } from '../../../../core/navigation/app-paths';
 
 @Component({
   selector: 'agrivio-login-page',
@@ -56,7 +57,9 @@ export class LoginPage {
         this.submitting.set(false);
         this.successMessage.set('Signed in successfully.');
         this.form.patchValue({ password: '' });
-        void this.router.navigateByUrl('/context');
+        void this.router.navigateByUrl(
+          result.session.activeContext === null ? APP_PATHS.context : APP_PATHS.workspace,
+        );
       },
       error: () => {
         this.submitting.set(false);

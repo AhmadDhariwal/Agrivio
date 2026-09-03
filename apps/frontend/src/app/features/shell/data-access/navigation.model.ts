@@ -1,3 +1,5 @@
+import { APP_PATHS } from '../../../core/navigation/app-paths';
+
 export interface NavItem {
   readonly id: string;
   readonly label: string;
@@ -395,7 +397,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
         {
           id: 'organization.billing',
           label: 'Billing',
-          route: '/app/subscription/billing',
+          route: APP_PATHS.billing,
           permission: 'subscription.billing-evidence.submit',
           capabilityKey: 'billing',
           testId: 'nav-billing',

@@ -18,7 +18,7 @@
         [attr.aria-required]="fieldRequired(form.controls.organizationName) ? 'true' : null"
       />
       @if (form.controls.organizationName.touched && form.controls.organizationName.invalid) {
-        <p class="ag-field__error">Organization name is required.</p>
+      <p class="ag-field__error">Organization name is required.</p>
       }
     </div>
     <div class="ag-field">
@@ -37,7 +37,7 @@
         [attr.aria-required]="fieldRequired(form.controls.ownerEmail) ? 'true' : null"
       />
       @if (form.controls.ownerEmail.touched && form.controls.ownerEmail.invalid) {
-        <p class="ag-field__error">Enter a valid owner email.</p>
+      <p class="ag-field__error">Enter a valid owner email.</p>
       }
     </div>
     <div class="ag-field">
@@ -55,7 +55,7 @@
         [attr.aria-required]="fieldRequired(form.controls.ownerDisplayName) ? 'true' : null"
       />
       @if (form.controls.ownerDisplayName.touched && form.controls.ownerDisplayName.invalid) {
-        <p class="ag-field__error">Owner display name is required.</p>
+      <p class="ag-field__error">Owner display name is required.</p>
       }
     </div>
     <div class="ag-field">
@@ -64,12 +64,11 @@
     </div>
 
     @if (errorMessage(); as error) {
-      <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
-    }
-    @if (successMessage(); as success) {
-      <div data-testid="request-success">
-        <agrivio-ui-alert [message]="success" tone="success" />
-      </div>
+    <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
+    } @if (successMessage(); as success) {
+    <div data-testid="request-success">
+      <agrivio-ui-alert [message]="success" tone="success" />
+    </div>
     }
 
     <button
@@ -84,6 +83,6 @@
 
   <div class="ag-auth-links">
     <a routerLink="/">Back to landing</a>
-    <a routerLink="/login">Sign in</a>
+    <a routerLink="/signin">Sign in</a>
   </div>
 </agrivio-auth-layout>

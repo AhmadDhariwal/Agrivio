@@ -20,7 +20,7 @@ describe('authErrorInterceptor', () => {
           provide: Router,
           useValue: {
             url: '/dashboard',
-            navigate: vi.fn().mockResolvedValue(true),
+            navigateByUrl: vi.fn().mockResolvedValue(true),
           },
         },
       ],
@@ -36,7 +36,7 @@ describe('authErrorInterceptor', () => {
     httpTestingController.verify();
   });
 
-  it('redirects to /login and clears session when a 401 response occurs on protected endpoints', () => {
+  it('redirects to /signin and clears session when a 401 response occurs on protected endpoints', () => {
     const clearSpy = vi.spyOn(sessionStore, 'clear');
 
     let errored = false;
@@ -53,10 +53,10 @@ describe('authErrorInterceptor', () => {
 
     expect(errored).toBe(true);
     expect(clearSpy).toHaveBeenCalled();
-    expect(router.navigate).toHaveBeenCalledWith(['/login']);
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/signin');
   });
 
-  it('does not redirect to /login when 401 occurs on login attempt', () => {
+  it('does not redirect to /signin when 401 occurs on login attempt', () => {
     const clearSpy = vi.spyOn(sessionStore, 'clear');
 
     let errored = false;
@@ -73,7 +73,7 @@ describe('authErrorInterceptor', () => {
 
     expect(errored).toBe(true);
     expect(clearSpy).not.toHaveBeenCalled();
-    expect(router.navigate).not.toHaveBeenCalled();
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
   });
 
   it('replaces raw 403 text with a user-safe authorization message', () => {

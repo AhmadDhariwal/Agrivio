@@ -10,6 +10,10 @@ describe('appRoutes F02 routing', () => {
 
     const orgRedirect = appRoutes.find((route) => route.path === 'platform/organizations');
     expect(orgRedirect?.redirectTo).toBe('app/platform/organizations');
+
+    const loginRedirect = appRoutes.find((route) => route.path === 'login');
+    expect(loginRedirect?.redirectTo).toBe('signin');
+    expect(appRoutes.find((route) => route.path === 'signin')?.canActivate?.length).toBe(1);
   });
 
   it('guards authenticated and platform surfaces', () => {

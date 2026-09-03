@@ -51,9 +51,7 @@ function createAuditController(deps) {
 
     async getOrganizationSummary(req, res, next) {
       try {
-        const data = await deps.auditService.getOrganizationSummary(
-          requireOrganizationId(req),
-        );
+        const data = await deps.auditService.getOrganizationSummary(requireOrganizationId(req));
         sendSuccessEnvelope(res, 200, data);
       } catch (error) {
         next(error);
@@ -63,8 +61,30 @@ function createAuditController(deps) {
     async listPlatform(req, res, next) {
       try {
         const { page, pageSize, skip } = parsePaginationQuery(req.query);
-        const { items, total } = await deps.auditService.queryPlatformEvents({ ...req.query, skip, pageSize });
+        const { items, total } = await deps.auditService.queryPlatformEvents({
+          ...req.query,
+          skip,
+          pageSize,
+        });
         sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async getRetentionStatus(req, res, next) {
+      try {
+        const data = await deps.auditService.getRetentionStatus(req.query ?? {});
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async purgeExpired(req, res, next) {
+      try {
+        const data = await deps.auditService.purgeExpiredRecords(req.body ?? {}, req.platformActor);
+        sendSuccessEnvelope(res, 200, data);
       } catch (error) {
         next(error);
       }

@@ -170,6 +170,10 @@ export const API_AUDIT_EVENTS_PATH = `${API_V1_PREFIX}/audit-events` as const;
 /** Platform audit-event inquiry (R1-F08-007). */
 export const API_PLATFORM_AUDIT_EVENTS_PATH = `${API_V1_PREFIX}/platform/audit-events` as const;
 
+/** Platform-controlled audit retention status and expired-record cleanup. */
+export const API_PLATFORM_AUDIT_RETENTION_PATH =
+  `${API_V1_PREFIX}/platform/audit-retention` as const;
+
 /** Platform backup status (R1-F08-008). */
 export const API_PLATFORM_OPERATIONS_BACKUPS_PATH =
   `${API_V1_PREFIX}/platform/operations/backups` as const;
