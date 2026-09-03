@@ -95,6 +95,41 @@
   }
 }
 
+.audit-retention-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 8px 12px;
+  background-color: var(--ag-color-surface-subtle, #f8fafc);
+  border: 1px solid var(--ag-color-border-light, #e2e8f0);
+  border-radius: var(--ag-radius-sm, 6px);
+  color: var(--ag-color-text-muted, #475569);
+  font-size: 13px;
+  line-height: 1.4;
+
+  &__icon {
+    flex-shrink: 0;
+    color: #64748b;
+  }
+
+  &__content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  &__countdown {
+    font-weight: 500;
+    color: #b45309;
+    background: #fef3c7;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+}
+
 /* ==========================================================================
    2. Compact KPI Summary Row (Desktop 4 cards, Tablet 2x2, Mobile compact 2x2)
    ========================================================================== */

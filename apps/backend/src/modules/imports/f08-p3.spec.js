@@ -105,9 +105,7 @@ describe('F08 P3 Excel imports', () => {
       const generatedRows = downloaded.buffer.toString('utf8').match(/<Row>[\s\S]*?<\/Row>/g) ?? [];
       const generatedHeaders = [
         ...(generatedRows[0] ?? '').matchAll(/<Data[^>]*>([^<]*)<\/Data>/g),
-      ].map(
-        (match) => match[1],
-      );
+      ].map((match) => match[1]);
 
       expect(downloaded.buffer.length).toBeGreaterThan(0);
       expect(downloaded.filename).toBe(`${importType}-template.xls`);
@@ -126,6 +124,33 @@ describe('F08 P3 Excel imports', () => {
     }
 
     expect(() => imports.importsService.downloadTemplate('not-a-real-import')).toThrow();
+  });
+
+  it('generates professional dual-sheet workbooks with instructions and domain examples for all import types', () => {
+    const { imports } = buildModules();
+    for (const importType of IMPORT_TYPES) {
+      const template = getTemplate(importType);
+      const downloaded = imports.importsService.downloadTemplate(importType);
+      const xml = downloaded.buffer.toString('utf8');
+
+      expect(xml).toContain('<Worksheet ss:Name="Import Template">');
+      expect(xml).toContain('<Worksheet ss:Name="Examples &amp; Instructions">');
+
+      // Verify Sheet 1 has only metadata and column headers (0 data rows)
+      const parsed = parseImportWorkbook(downloaded.buffer, importType);
+      expect(parsed.headerErrors).toEqual([]);
+      expect(parsed.records).toEqual([]);
+
+      // Verify Sheet 2 has guidelines, field definitions, and realistic examples
+      expect(xml).toContain('GENERAL INSTRUCTIONS &amp; GUIDELINES');
+      expect(xml).toContain('FIELD / COLUMN DEFINITIONS &amp; RULES');
+      expect(xml).toContain('REALISTIC EXAMPLE RECORDS');
+
+      // Confirm all template columns are documented
+      for (const col of template.columns) {
+        expect(xml).toContain(col.key);
+      }
+    }
   });
 
   it('sets the download response contract at the HTTP controller boundary', async () => {
@@ -153,9 +178,7 @@ describe('F08 P3 Excel imports', () => {
 
     expect(response.statusCode).toBe(200);
     expect(headers['Content-Type']).toBe('application/vnd.ms-excel');
-    expect(headers['Content-Disposition']).toBe(
-      'attachment; filename="products-template.xls"',
-    );
+    expect(headers['Content-Disposition']).toBe('attachment; filename="products-template.xls"');
     expect(response.body.length).toBeGreaterThan(0);
   });
 
@@ -164,7 +187,11 @@ describe('F08 P3 Excel imports', () => {
     const cors = createCorsMiddleware({ nodeEnv: 'test' });
     cors(
       { method: 'GET', headers: { origin: 'http://localhost:4200' } },
-      { setHeader: (name, value) => { headers[name] = value; } },
+      {
+        setHeader: (name, value) => {
+          headers[name] = value;
+        },
+      },
       () => undefined,
     );
 
@@ -180,7 +207,12 @@ describe('F08 P3 Excel imports', () => {
     expect(preview.preview.validRows).toBe(1);
     expect(preview.preview.invalidRows).toBe(0);
     await imports.importsService.confirmJob('org-1', preview.id, actor);
-    const executed = await imports.importsService.executeJob('org-1', preview.id, actor, 'key-cat-1');
+    const executed = await imports.importsService.executeJob(
+      'org-1',
+      preview.id,
+      actor,
+      'key-cat-1',
+    );
     expect(executed.data.status).toBe('completed');
     expect(executed.data.result.createdCount).toBe(1);
     const categories = await catalog.catalogService.listCategories('org-1');
@@ -190,7 +222,11 @@ describe('F08 P3 Excel imports', () => {
 
   it('validates product category/unit/tracking facts', async () => {
     const { catalog, imports } = buildModules();
-    await catalog.catalogService.createCategory('org-1', { name: 'Chem', productClass: 'chemical' }, actor);
+    await catalog.catalogService.createCategory(
+      'org-1',
+      { name: 'Chem', productClass: 'chemical' },
+      actor,
+    );
     const { preview } = await previewExecute(imports.importsService, 'products', [
       {
         sku: 'CHEM-1',
@@ -249,14 +285,20 @@ describe('F08 P3 Excel imports', () => {
       { name: 'Good', productClass: 'general' },
       { name: '', productClass: 'general' },
     ]);
-    await expect(imports.importsService.confirmJob('org-1', preview.id, actor)).rejects.toMatchObject({
+    await expect(
+      imports.importsService.confirmJob('org-1', preview.id, actor),
+    ).rejects.toMatchObject({
       code: 'VALIDATION_FAILED',
     });
   });
 
   it('does not silently overwrite an existing category', async () => {
     const { catalog, imports } = buildModules();
-    await catalog.catalogService.createCategory('org-1', { name: 'Fert', productClass: 'fertilizer' }, actor);
+    await catalog.catalogService.createCategory(
+      'org-1',
+      { name: 'Fert', productClass: 'fertilizer' },
+      actor,
+    );
     const { preview } = await previewExecute(imports.importsService, 'product_categories', [
       { name: 'Fert', productClass: 'general' },
     ]);
@@ -354,7 +396,11 @@ describe('F08 P3 Excel imports', () => {
 
   it('requires batch and expiry according to tracking mode', async () => {
     const { catalog, locations, imports } = buildModules();
-    await catalog.catalogService.createCategory('org-1', { name: 'Seed', productClass: 'seed' }, actor);
+    await catalog.catalogService.createCategory(
+      'org-1',
+      { name: 'Seed', productClass: 'seed' },
+      actor,
+    );
     const category = await catalog.catalogService.findCategoryByName('org-1', 'Seed');
     await catalog.catalogService.createProduct(
       'org-1',
@@ -385,7 +431,11 @@ describe('F08 P3 Excel imports', () => {
 
   it('posts opening stock through inventory public posting', async () => {
     const { catalog, locations, inventory, imports } = buildModules();
-    await catalog.catalogService.createCategory('org-1', { name: 'Gen', productClass: 'general' }, actor);
+    await catalog.catalogService.createCategory(
+      'org-1',
+      { name: 'Gen', productClass: 'general' },
+      actor,
+    );
     const category = await catalog.catalogService.findCategoryByName('org-1', 'Gen');
     await catalog.catalogService.createProduct(
       'org-1',
@@ -423,7 +473,9 @@ describe('F08 P3 Excel imports', () => {
     ]);
     await imports.importsService.confirmJob('org-1', preview.id, actor);
     await expect(
-      imports.importsService.executeJob('org-1', preview.id, actor, 'fail-key', { failAfterRow: 1 }),
+      imports.importsService.executeJob('org-1', preview.id, actor, 'fail-key', {
+        failAfterRow: 1,
+      }),
     ).rejects.toThrow(/Forced import execution failure/);
     const failed = await imports.importsService.getJob('org-1', preview.id);
     expect(failed.status).toBe('failed');
@@ -458,7 +510,11 @@ describe('F08 P3 Excel imports', () => {
 
   it('rejects cross-org product references', async () => {
     const { catalog, imports } = buildModules();
-    await catalog.catalogService.createCategory('org-2', { name: 'Other', productClass: 'general' }, actor);
+    await catalog.catalogService.createCategory(
+      'org-2',
+      { name: 'Other', productClass: 'general' },
+      actor,
+    );
     await catalog.catalogService.createProduct(
       'org-2',
       {

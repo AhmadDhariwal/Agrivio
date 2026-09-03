@@ -18,9 +18,20 @@ export interface AuditActorOption {
   system?: boolean;
 }
 
+export interface AuditRetentionNotice {
+  retentionDays: number | null;
+  cutoffAt: string | null;
+  oldestVisibleEventAt: string | null;
+  automaticCleanupEnabled: boolean;
+  nextCleanupAt: string | null;
+  expiredEventCount?: number;
+  retentionSource?: string;
+}
+
 export interface AuditSummary {
   totalEvents: number;
   eventsToday: number;
   uniqueActors: number;
   resourceTypes: number;
+  retention?: AuditRetentionNotice;
 }

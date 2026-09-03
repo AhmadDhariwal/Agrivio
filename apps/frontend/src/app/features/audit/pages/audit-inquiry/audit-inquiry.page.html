@@ -48,6 +48,41 @@
     <agrivio-ui-alert tone="danger" [message]="error" />
   </div>
   }
+  <!-- Authoritative Retention Notice -->
+  @if (hasRetentionNotice()) {
+  <div class="audit-retention-notice" data-testid="audit-retention-notice" role="status">
+    <svg
+      class="audit-retention-notice__icon"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="10"></circle>
+      <polyline points="12 6 12 12 16 14"></polyline>
+    </svg>
+    <div class="audit-retention-notice__content">
+      @if (isUnlimitedRetention()) {
+      <span>Audit history is retained indefinitely under your subscription plan.</span>
+      } @else {
+      <span>
+        Audit history is retained for {{ retentionDays() }} days. @if (retentionCutoffFormatted()) {
+        Records older than {{ retentionCutoffFormatted() }} are eligible for purge. }
+      </span>
+      @if (daysUntilOldestExpires() !== null) {
+      <span class="audit-retention-notice__countdown">
+        Oldest audit records expire in {{ daysUntilOldestExpires() }} day{{ daysUntilOldestExpires()
+        === 1 ? '' : 's' }}.
+      </span>
+      } }
+    </div>
+  </div>
+  }
 
   <!-- KPI Summary Row -->
   <section class="kpi-row" aria-label="Audit Summary" data-testid="audit-kpis">
@@ -162,211 +197,62 @@
       <div class="toolbar__filters">
         @if (canUseFilters()) {
         <!-- Actor Dropdown -->
-        <div
-          id="audit-actor-dropdown"
-          class="filter-field actor-dropdown"
-          [class.actor-dropdown--open]="actorDropdownOpen()"
-          data-testid="audit-actor"
-        >
-          <label class="filter-field__label" for="audit-actor-trigger">Actor</label>
-          <button
-            id="audit-actor-trigger"
-            data-testid="audit-actor-trigger"
-            type="button"
-            class="filter-field__select actor-dropdown__trigger"
-            [attr.aria-expanded]="actorDropdownOpen()"
-            aria-haspopup="listbox"
-            (click)="toggleActorDropdown($event)"
-          >
-            <span class="actor-dropdown__trigger-label">{{ selectedActorLabel() }}</span>
-            <svg
-              class="actor-dropdown__chevron"
-              [class.actor-dropdown__chevron--open]="actorDropdownOpen()"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path d="m6 9 6 6 6-6" />
-            </svg>
-          </button>
-
-          <div
-            class="actor-dropdown__panel"
-            [class.actor-dropdown__panel--open]="actorDropdownOpen()"
-            role="listbox"
-            data-testid="audit-actor-panel"
-          >
-            <div class="actor-dropdown__search">
-              <svg
-                class="actor-dropdown__search-icon"
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <input
-                id="audit-actor-search"
-                data-testid="audit-actor-search"
-                class="actor-dropdown__search-input"
-                type="search"
-                [ngModel]="actorOptionSearch()"
-                (ngModelChange)="onActorOptionSearch($event)"
-                name="actorSearch"
-                placeholder="Search employees..."
-                aria-label="Search audit actors"
-              />
-              @if (actorOptionSearch()) {
-              <button
-                type="button"
-                class="actor-dropdown__search-clear"
-                (click)="onActorOptionSearch('')"
-                aria-label="Clear actor search"
-              >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-              </button>
-              }
-            </div>
-
-            <div class="actor-dropdown__options">
-              <button
-                type="button"
-                class="actor-dropdown__option"
-                [class.is-selected]="actorId() === ''"
-                (click)="selectActor('')"
-                data-testid="audit-actor-option-all"
-              >
-                <span class="actor-dropdown__option-label">All actors</span>
-                @if (actorId() === '') {
-                <svg
-                  class="actor-dropdown__check"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                }
-              </button>
-
-              @for (actor of actorOptions(); track actor.value) {
-              <button
-                type="button"
-                class="actor-dropdown__option"
-                [class.is-selected]="actorId() === actor.value"
-                (click)="selectActor(actor.value)"
-                [attr.data-testid]="'audit-actor-option-' + actor.value"
-              >
-                <span class="actor-dropdown__option-label">{{ actor.label }}</span>
-                @if (actorId() === actor.value) {
-                <svg
-                  class="actor-dropdown__check"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                }
-              </button>
-              } @if (actorOptions().length === 0) {
-              <div class="actor-dropdown__empty">
-                @if (actorOptionSearch().trim()) { No actors match &ldquo;{{
-                actorOptionSearch().trim() }}&rdquo; } @else { No actors available }
-              </div>
-              }
-            </div>
-          </div>
+        <div class="filter-field">
+          <span class="filter-field__label">Actor</span>
+          <agrivio-ui-searchable-dropdown
+            [value]="actorId()"
+            [options]="actorDropdownOptions()"
+            allOptionLabel="All actors"
+            searchPlaceholder="Search employees..."
+            testId="audit-actor"
+            ariaLabel="Filter by actor"
+            [serverSearch]="true"
+            (valueChange)="selectActor($event)"
+            (searchChange)="onActorOptionSearch($event)"
+            (openChange)="actorDropdownOpen.set($event)"
+          />
         </div>
 
         <!-- Action Dropdown -->
         <div class="filter-field">
-          <label class="filter-field__label" for="audit-action-select">Action</label>
-          <select
-            id="audit-action-select"
-            data-testid="audit-action"
-            class="filter-field__select"
-            [ngModel]="action()"
-            (ngModelChange)="onActionChange($event)"
-            name="action"
-            aria-label="Filter by action"
-          >
-            <option value="">All actions</option>
-            @for (act of actionOptions(); track act) {
-            <option [value]="act">{{ formatAction(act) }}</option>
-            }
-          </select>
+          <span class="filter-field__label">Action</span>
+          <agrivio-ui-searchable-dropdown
+            [value]="action()"
+            [options]="actionDropdownOptions()"
+            allOptionLabel="All actions"
+            searchPlaceholder="Search actions..."
+            testId="audit-action"
+            ariaLabel="Filter by action"
+            (valueChange)="onActionChange($event)"
+          />
         </div>
 
         <!-- Resource Type Dropdown -->
         <div class="filter-field">
-          <label class="filter-field__label" for="audit-resource-type-select">Resource Type</label>
-          <select
-            id="audit-resource-type-select"
-            data-testid="audit-resource-type"
-            class="filter-field__select"
-            [ngModel]="resourceType()"
-            (ngModelChange)="onResourceTypeChange($event)"
-            name="resourceType"
-            aria-label="Filter by resource type"
-          >
-            <option value="">All resource types</option>
-            @for (resType of resourceTypeOptions(); track resType) {
-            <option [value]="resType">{{ resType }}</option>
-            }
-          </select>
+          <span class="filter-field__label">Resource Type</span>
+          <agrivio-ui-searchable-dropdown
+            [value]="resourceType()"
+            [options]="resourceTypeDropdownOptions()"
+            allOptionLabel="All resource types"
+            searchPlaceholder="Search resource types..."
+            testId="audit-resource-type"
+            ariaLabel="Filter by resource type"
+            (valueChange)="onResourceTypeChange($event)"
+          />
         </div>
 
         <!-- Reason Dropdown -->
         <div class="filter-field">
-          <label class="filter-field__label" for="audit-reason-select">Reason</label>
-          <select
-            id="audit-reason-select"
-            data-testid="audit-reason"
-            class="filter-field__select"
-            [ngModel]="reason()"
-            (ngModelChange)="onReasonChange($event)"
-            name="reason"
-            aria-label="Filter by reason"
-          >
-            <option value="">All reasons</option>
-            @for (rsn of reasonOptions(); track rsn) {
-            <option [value]="rsn">{{ rsn }}</option>
-            }
-          </select>
+          <span class="filter-field__label">Reason</span>
+          <agrivio-ui-searchable-dropdown
+            [value]="reason()"
+            [options]="reasonDropdownOptions()"
+            allOptionLabel="All reasons"
+            searchPlaceholder="Search reasons..."
+            testId="audit-reason"
+            ariaLabel="Filter by reason"
+            (valueChange)="onReasonChange($event)"
+          />
         </div>
         }
       </div>
@@ -508,194 +394,58 @@
     </div>
 
     <div class="mobile-filter-sheet__body">
-      <div
-        id="mobile-audit-actor-dropdown"
-        class="mobile-filter-group actor-dropdown"
-        [class.actor-dropdown--open]="mobileActorDropdownOpen()"
-      >
-        <label class="mobile-filter-group__label" for="mobile-audit-actor-trigger">Actor</label>
-        <button
-          id="mobile-audit-actor-trigger"
-          type="button"
-          class="mobile-filter-group__select actor-dropdown__trigger"
-          [attr.aria-expanded]="mobileActorDropdownOpen()"
-          aria-haspopup="listbox"
-          (click)="toggleMobileActorDropdown($event)"
-        >
-          <span class="actor-dropdown__trigger-label">{{ selectedActorLabel() }}</span>
-          <svg
-            class="actor-dropdown__chevron"
-            [class.actor-dropdown__chevron--open]="mobileActorDropdownOpen()"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <path d="m6 9 6 6 6-6" />
-          </svg>
-        </button>
-
-        <div
-          class="actor-dropdown__panel"
-          [class.actor-dropdown__panel--open]="mobileActorDropdownOpen()"
-          role="listbox"
-        >
-          <div class="actor-dropdown__search">
-            <svg
-              class="actor-dropdown__search-icon"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              id="mobile-audit-actor-search"
-              class="actor-dropdown__search-input"
-              type="search"
-              [ngModel]="actorOptionSearch()"
-              (ngModelChange)="onActorOptionSearch($event)"
-              placeholder="Search employees..."
-              aria-label="Search audit actors"
-            />
-            @if (actorOptionSearch()) {
-            <button
-              type="button"
-              class="actor-dropdown__search-clear"
-              (click)="onActorOptionSearch('')"
-              aria-label="Clear actor search"
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-            }
-          </div>
-
-          <div class="actor-dropdown__options">
-            <button
-              type="button"
-              class="actor-dropdown__option"
-              [class.is-selected]="actorId() === ''"
-              (click)="selectMobileActor('')"
-            >
-              <span class="actor-dropdown__option-label">All actors</span>
-              @if (actorId() === '') {
-              <svg
-                class="actor-dropdown__check"
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              }
-            </button>
-
-            @for (actor of actorOptions(); track actor.value) {
-            <button
-              type="button"
-              class="actor-dropdown__option"
-              [class.is-selected]="actorId() === actor.value"
-              (click)="selectMobileActor(actor.value)"
-            >
-              <span class="actor-dropdown__option-label">{{ actor.label }}</span>
-              @if (actorId() === actor.value) {
-              <svg
-                class="actor-dropdown__check"
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              }
-            </button>
-            } @if (actorOptions().length === 0) {
-            <div class="actor-dropdown__empty">
-              @if (actorOptionSearch().trim()) { No actors match &ldquo;{{
-              actorOptionSearch().trim() }}&rdquo; } @else { No actors available }
-            </div>
-            }
-          </div>
-        </div>
+      <div class="mobile-filter-group">
+        <span class="mobile-filter-group__label">Actor</span>
+        <agrivio-ui-searchable-dropdown
+          [value]="actorId()"
+          [options]="actorDropdownOptions()"
+          allOptionLabel="All actors"
+          searchPlaceholder="Search employees..."
+          testId="mobile-audit-actor"
+          ariaLabel="Filter by actor"
+          [serverSearch]="true"
+          (valueChange)="onActorChange($event)"
+          (searchChange)="onActorOptionSearch($event)"
+        />
       </div>
 
       <div class="mobile-filter-group">
-        <label class="mobile-filter-group__label" for="mobile-audit-action">Action</label>
-        <select
-          id="mobile-audit-action"
-          class="mobile-filter-group__select"
-          [ngModel]="action()"
-          (ngModelChange)="onActionChange($event)"
-        >
-          <option value="">All actions</option>
-          @for (act of actionOptions(); track act) {
-          <option [value]="act">{{ formatAction(act) }}</option>
-          }
-        </select>
+        <span class="mobile-filter-group__label">Action</span>
+        <agrivio-ui-searchable-dropdown
+          [value]="action()"
+          [options]="actionDropdownOptions()"
+          allOptionLabel="All actions"
+          searchPlaceholder="Search actions..."
+          testId="mobile-audit-action"
+          ariaLabel="Filter by action"
+          (valueChange)="onActionChange($event)"
+        />
       </div>
 
       <div class="mobile-filter-group">
-        <label class="mobile-filter-group__label" for="mobile-audit-resource-type"
-          >Resource Type</label
-        >
-        <select
-          id="mobile-audit-resource-type"
-          class="mobile-filter-group__select"
-          [ngModel]="resourceType()"
-          (ngModelChange)="onResourceTypeChange($event)"
-        >
-          <option value="">All resource types</option>
-          @for (resType of resourceTypeOptions(); track resType) {
-          <option [value]="resType">{{ resType }}</option>
-          }
-        </select>
+        <span class="mobile-filter-group__label">Resource Type</span>
+        <agrivio-ui-searchable-dropdown
+          [value]="resourceType()"
+          [options]="resourceTypeDropdownOptions()"
+          allOptionLabel="All resource types"
+          searchPlaceholder="Search resource types..."
+          testId="mobile-audit-resource-type"
+          ariaLabel="Filter by resource type"
+          (valueChange)="onResourceTypeChange($event)"
+        />
       </div>
 
       <div class="mobile-filter-group">
-        <label class="mobile-filter-group__label" for="mobile-audit-reason">Reason</label>
-        <select
-          id="mobile-audit-reason"
-          class="mobile-filter-group__select"
-          [ngModel]="reason()"
-          (ngModelChange)="onReasonChange($event)"
-        >
-          <option value="">All reasons</option>
-          @for (rsn of reasonOptions(); track rsn) {
-          <option [value]="rsn">{{ rsn }}</option>
-          }
-        </select>
+        <span class="mobile-filter-group__label">Reason</span>
+        <agrivio-ui-searchable-dropdown
+          [value]="reason()"
+          [options]="reasonDropdownOptions()"
+          allOptionLabel="All reasons"
+          searchPlaceholder="Search reasons..."
+          testId="mobile-audit-reason"
+          ariaLabel="Filter by reason"
+          (valueChange)="onReasonChange($event)"
+        />
       </div>
     </div>
 

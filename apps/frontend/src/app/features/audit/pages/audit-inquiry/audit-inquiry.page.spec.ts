@@ -496,4 +496,61 @@ describe('AuditInquiryPage', () => {
 
     document.body.removeChild(outsideDiv);
   });
+
+  it('renders subtle truthful audit retention notice with cutoff date and purge eligibility', () => {
+    component.summary.set({
+      totalEvents: 100,
+      eventsToday: 10,
+      uniqueActors: 5,
+      resourceTypes: 4,
+      retention: {
+        retentionDays: 90,
+        cutoffAt: '2026-06-05T00:00:00.000Z',
+        oldestVisibleEventAt: '2026-06-05T12:00:00.000Z',
+        automaticCleanupEnabled: false,
+        nextCleanupAt: null,
+        expiredEventCount: 0,
+        retentionSource: 'subscription',
+      },
+    });
+    fixture.detectChanges();
+
+    const notice = fixture.nativeElement.querySelector('[data-testid="audit-retention-notice"]');
+    expect(notice).toBeTruthy();
+    expect(notice.textContent).toContain('Audit history is retained for 90 days');
+    expect(notice.textContent).toContain('eligible for purge');
+    expect(notice.textContent).not.toContain('automatically removed');
+  });
+
+  it('renders indefinite retention notice for unlimited plans', () => {
+    component.summary.set({
+      totalEvents: 50,
+      eventsToday: 2,
+      uniqueActors: 3,
+      resourceTypes: 2,
+      retention: {
+        retentionDays: null,
+        cutoffAt: null,
+        oldestVisibleEventAt: '2025-01-01T00:00:00.000Z',
+        automaticCleanupEnabled: false,
+        nextCleanupAt: null,
+        expiredEventCount: 0,
+        retentionSource: 'subscription',
+      },
+    });
+    fixture.detectChanges();
+
+    const notice = fixture.nativeElement.querySelector('[data-testid="audit-retention-notice"]');
+    expect(notice).toBeTruthy();
+    expect(notice.textContent).toContain('retained indefinitely under your subscription plan');
+  });
+
+  it('formats unknown and known action labels into human-friendly text in dropdown options', () => {
+    component.actionOptions.set(['customer.deleted', 'custom.unmapped_workflow']);
+    fixture.detectChanges();
+
+    const actionDropdown = fixture.nativeElement.querySelector('[data-testid="audit-action"]');
+    expect(actionDropdown.textContent).toContain('Customer deleted');
+    expect(actionDropdown.textContent).toContain('Custom unmapped workflow');
+  });
 });

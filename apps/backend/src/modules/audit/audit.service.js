@@ -435,7 +435,7 @@ function createAuditService(deps) {
     const currentDate = now();
     const startOfToday = getStartOfDayInTimezone(timezone, currentDate);
     const from = window.unlimited ? undefined : window.from;
-    return store.getSummary(
+    const baseSummary = await store.getSummary(
       {
         scope: 'tenant',
         organizationId,
@@ -444,6 +444,27 @@ function createAuditService(deps) {
       },
       { startOfToday },
     );
+
+    const policy = await resolveRetentionPolicy('tenant', organizationId);
+    const stats = await store.getRetentionStats(
+      retentionFilter('tenant', organizationId),
+      policy.cutoff,
+    );
+
+    return {
+      ...baseSummary,
+      retention: {
+        retentionDays: policy.days,
+        cutoffAt: policy.cutoff ? policy.cutoff.toISOString() : null,
+        oldestVisibleEventAt: stats.oldestAccessibleEvent
+          ? stats.oldestAccessibleEvent.toISOString()
+          : null,
+        automaticCleanupEnabled: false,
+        nextCleanupAt: null,
+        expiredEventCount: stats.expiredEventCount,
+        retentionSource: policy.source,
+      },
+    };
   }
 
   return {

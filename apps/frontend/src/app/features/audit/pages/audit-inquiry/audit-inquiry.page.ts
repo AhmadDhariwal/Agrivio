@@ -13,6 +13,10 @@ import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-e
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
+import {
+  DropdownOption,
+  UiSearchableDropdownComponent,
+} from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
 
 const KNOWN_ACTION_LABELS: Readonly<Record<string, string>> = {
   'subscription.status_transition': 'Subscription status changed',
@@ -38,23 +42,34 @@ const KNOWN_ACTION_LABELS: Readonly<Record<string, string>> = {
   'accounts.movement_reversed': 'Account movement reversed',
   'accounts.transfer': 'Account transfer posted',
   'accounts.transfer_reversed': 'Account transfer reversed',
+  'access_assignments.replaced': 'Access assignments replaced',
+  'account.created': 'Account created',
+  'account.updated': 'Account updated',
   'customer.created': 'Customer created',
   'customer.updated': 'Customer updated',
   'customer.deactivated': 'Customer deactivated',
+  'customer.deleted': 'Customer deleted',
   'supplier.created': 'Supplier created',
   'supplier.updated': 'Supplier updated',
   'supplier.deactivated': 'Supplier deactivated',
+  'supplier.deleted': 'Supplier deleted',
   'product.created': 'Product created',
   'product.updated': 'Product updated',
   'product.deactivated': 'Product deactivated',
+  'product.deleted': 'Product deleted',
   'category.created': 'Category created',
   'category.updated': 'Category updated',
+  'category.deleted': 'Category deleted',
   'warehouse.created': 'Warehouse created',
   'warehouse.updated': 'Warehouse updated',
+  'warehouse.deleted': 'Warehouse deleted',
   'branch.created': 'Branch created',
   'branch.updated': 'Branch updated',
+  'branch.deleted': 'Branch deleted',
   'employee.created': 'Employee created',
   'employee.updated': 'Employee updated',
+  'employee.deleted': 'Employee deleted',
+  'audit.retention.purged': 'Audit retention purged',
   'imports.previewed': 'Import template previewed',
   'imports.executed': 'Import batch executed',
   'organization.settings_updated': 'Organization settings updated',
@@ -70,6 +85,7 @@ const KNOWN_ACTION_LABELS: Readonly<Record<string, string>> = {
     UiLoadingStateComponent,
     UiPaginationComponent,
     UiModuleInfoComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './audit-inquiry.page.html',
   styleUrl: './audit-inquiry.page.scss',
@@ -126,6 +142,35 @@ export class AuditInquiryPage {
     return found ? found.label : currentId;
   });
 
+  readonly actorDropdownOptions = computed<DropdownOption[]>(() =>
+    this.actorOptions().map((opt) => ({
+      value: opt.value,
+      label: opt.label,
+      system: opt.system,
+    })),
+  );
+
+  readonly actionDropdownOptions = computed<DropdownOption[]>(() =>
+    this.actionOptions().map((act) => ({
+      value: act,
+      label: this.formatActionOption(act),
+    })),
+  );
+
+  readonly resourceTypeDropdownOptions = computed<DropdownOption[]>(() =>
+    this.resourceTypeOptions().map((rt) => ({
+      value: rt,
+      label: rt,
+    })),
+  );
+
+  readonly reasonDropdownOptions = computed<DropdownOption[]>(() =>
+    this.reasonOptions().map((r) => ({
+      value: r,
+      label: r,
+    })),
+  );
+
   readonly items = signal<AuditEventItem[]>([]);
   readonly loading = signal(false);
   readonly refreshing = signal(false);
@@ -144,6 +189,45 @@ export class AuditInquiryPage {
     resourceTypes: 0,
   });
   readonly kpis = computed(() => this.summary());
+
+  readonly retention = computed(() => this.summary()?.retention ?? null);
+  readonly hasRetentionNotice = computed(() => Boolean(this.retention()));
+  readonly retentionDays = computed(() => this.retention()?.retentionDays ?? null);
+  readonly isUnlimitedRetention = computed(() => this.retentionDays() === null);
+  readonly retentionCutoffFormatted = computed(() => {
+    const cutoff = this.retention()?.cutoffAt;
+    if (!cutoff) return null;
+    try {
+      const d = new Date(cutoff);
+      return d.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    } catch {
+      return null;
+    }
+  });
+  readonly daysUntilOldestExpires = computed(() => {
+    const oldest = this.retention()?.oldestVisibleEventAt;
+    const cutoff = this.retention()?.cutoffAt;
+    if (!oldest || !cutoff) return null;
+    try {
+      const oldestTime = new Date(oldest).getTime();
+      const cutoffTime = new Date(cutoff).getTime();
+      const diffMs = oldestTime - cutoffTime;
+      const diffDays = Math.max(0, Math.floor(diffMs / (24 * 60 * 60 * 1000)));
+      if (diffDays <= 2) {
+        return diffDays <= 1 ? 1 : diffDays;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  });
+  readonly automaticCleanupEnabled = computed(() =>
+    Boolean(this.retention()?.automaticCleanupEnabled),
+  );
 
   // Inspector Drawer State
   readonly selectedEvent = signal<AuditEventItem | null>(null);
@@ -529,6 +613,26 @@ export class AuditInquiryPage {
   formatAction(action: string | null | undefined): string {
     if (!action) return '—';
     return KNOWN_ACTION_LABELS[action] ?? action;
+  }
+
+  formatActionOption(action: string): string {
+    if (!action) return '—';
+    if (KNOWN_ACTION_LABELS[action]) return KNOWN_ACTION_LABELS[action];
+    const parts = action.split('.');
+    return parts
+      .map((part, index) => {
+        const words = part.replace(/[_-]+/g, ' ');
+        if (index === 0) {
+          return words.charAt(0).toUpperCase() + words.slice(1);
+        }
+        return words;
+      })
+      .join(' ');
+  }
+
+  formatResourceType(type: string | null | undefined): string {
+    if (!type) return '—';
+    return type.replace(/[_-]+/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
   hasMetadata(metadata: unknown): boolean {
