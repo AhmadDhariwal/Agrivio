@@ -105,6 +105,27 @@ export class AuditInquiryPage {
   readonly resourceTypeOptions = signal<string[]>([]);
   readonly reasonOptions = signal<string[]>([]);
 
+  // Actor Dropdown State
+  readonly actorDropdownOpen = signal(false);
+  readonly mobileActorDropdownOpen = signal(false);
+  private readonly actorLabelMap = new Map<string, string>();
+
+  readonly selectedActorLabel = computed(() => {
+    const currentId = this.actorId();
+    if (!currentId) {
+      return 'All actors';
+    }
+    if (currentId.toLowerCase() === 'system') {
+      return 'System';
+    }
+    const fromMap = this.actorLabelMap.get(currentId);
+    if (fromMap) {
+      return fromMap;
+    }
+    const found = this.actorOptions().find((opt) => opt.value === currentId);
+    return found ? found.label : currentId;
+  });
+
   readonly items = signal<AuditEventItem[]>([]);
   readonly loading = signal(false);
   readonly refreshing = signal(false);
@@ -175,7 +196,10 @@ export class AuditInquiryPage {
         switchMap((search) => this.api.getActorOptions(search, 50)),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((response) => this.actorOptions.set(response.items));
+      .subscribe((response) => {
+        this.actorOptions.set(response.items);
+        response.items.forEach((item) => this.actorLabelMap.set(item.value, item.label));
+      });
     if (this.canView()) {
       this.loadFilterOptions();
       this.loadSummary();
@@ -192,11 +216,75 @@ export class AuditInquiryPage {
 
   @HostListener('window:keydown.escape')
   handleEscape(): void {
-    if (this.selectedEvent()) {
+    if (this.actorDropdownOpen()) {
+      this.closeActorDropdown();
+    } else if (this.mobileActorDropdownOpen()) {
+      this.mobileActorDropdownOpen.set(false);
+    } else if (this.selectedEvent()) {
       this.closeInspector();
     } else if (this.mobileFiltersOpen()) {
       this.closeMobileFilters();
     }
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target;
+    if (!(target instanceof Node)) {
+      return;
+    }
+    if (this.actorDropdownOpen()) {
+      const actorDropdownEl = document.getElementById('audit-actor-dropdown');
+      if (!actorDropdownEl?.contains(target)) {
+        this.closeActorDropdown();
+      }
+    }
+    if (this.mobileActorDropdownOpen()) {
+      const mobileDropdownEl = document.getElementById('mobile-audit-actor-dropdown');
+      if (!mobileDropdownEl?.contains(target)) {
+        this.mobileActorDropdownOpen.set(false);
+      }
+    }
+  }
+
+  toggleActorDropdown(event?: Event): void {
+    event?.stopPropagation();
+    const willOpen = !this.actorDropdownOpen();
+    this.actorDropdownOpen.set(willOpen);
+    if (willOpen) {
+      if (this.actorOptionSearch()) {
+        this.actorOptionSearch.set('');
+        this.loadActorOptions('');
+      }
+      setTimeout(() => {
+        const input = document.getElementById('audit-actor-search') as HTMLInputElement | null;
+        input?.focus();
+      }, 0);
+    }
+  }
+
+  closeActorDropdown(): void {
+    this.actorDropdownOpen.set(false);
+  }
+
+  selectActor(value: string): void {
+    this.onActorChange(value);
+    this.closeActorDropdown();
+  }
+
+  toggleMobileActorDropdown(event?: Event): void {
+    event?.stopPropagation();
+    const willOpen = !this.mobileActorDropdownOpen();
+    this.mobileActorDropdownOpen.set(willOpen);
+    if (willOpen && this.actorOptionSearch()) {
+      this.actorOptionSearch.set('');
+      this.loadActorOptions('');
+    }
+  }
+
+  selectMobileActor(value: string): void {
+    this.onActorChange(value);
+    this.mobileActorDropdownOpen.set(false);
   }
 
   loadFilterOptions(): void {
@@ -220,7 +308,10 @@ export class AuditInquiryPage {
       return;
     }
     this.api.getActorOptions(search, 50).subscribe({
-      next: (res) => this.actorOptions.set(res.items),
+      next: (res) => {
+        this.actorOptions.set(res.items);
+        res.items.forEach((item) => this.actorLabelMap.set(item.value, item.label));
+      },
     });
   }
 
@@ -307,6 +398,10 @@ export class AuditInquiryPage {
 
   onActorChange(value: string): void {
     this.actorId.set(value);
+    const found = this.actorOptions().find((opt) => opt.value === value);
+    if (found) {
+      this.actorLabelMap.set(value, found.label);
+    }
     this.page.set(1);
     if (this.canUseSearch()) {
       this.search();
@@ -327,6 +422,10 @@ export class AuditInquiryPage {
 
   clearFilters(): void {
     this.actorId.set('');
+    this.actorOptionSearch.set('');
+    this.loadActorOptions('');
+    this.closeActorDropdown();
+    this.mobileActorDropdownOpen.set(false);
     this.action.set('');
     this.resourceType.set('');
     this.reason.set('');
@@ -384,6 +483,7 @@ export class AuditInquiryPage {
 
   closeMobileFilters(): void {
     this.mobileFiltersOpen.set(false);
+    this.mobileActorDropdownOpen.set(false);
   }
 
   applyMobileFilters(): void {

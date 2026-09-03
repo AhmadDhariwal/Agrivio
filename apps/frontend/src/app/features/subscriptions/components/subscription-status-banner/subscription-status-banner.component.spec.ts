@@ -20,5 +20,7 @@ describe('SubscriptionStatusBannerComponent', () => {
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('Subscription suspended');
     expect(text).toContain('Informational only');
+    const link = fixture.nativeElement.querySelector('a') as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('/app/subscription/billing');
   });
 });

@@ -66,7 +66,11 @@ describe('AuditInquiryPage', () => {
     mockQuery = vi.fn((filters: Record<string, unknown>) =>
       of({
         items: mockEvents,
-        meta: { page: (filters['page'] as number) || 1, pageSize: (filters['pageSize'] as number) || 25, total: 3 },
+        meta: {
+          page: (filters['page'] as number) || 1,
+          pageSize: (filters['pageSize'] as number) || 25,
+          total: 3,
+        },
       }),
     );
 
@@ -76,9 +80,11 @@ describe('AuditInquiryPage', () => {
     });
 
     mockGetFilterOptions = vi.fn((field: string) => {
-      if (field === 'action') return of({ field, items: ['sale.posted', 'subscription.status_transition'] });
+      if (field === 'action')
+        return of({ field, items: ['sale.posted', 'subscription.status_transition'] });
       if (field === 'resourceType') return of({ field, items: ['sale', 'subscription'] });
-      if (field === 'reason') return of({ field, items: ['POS checkout complete', 'Upgraded to enterprise plan'] });
+      if (field === 'reason')
+        return of({ field, items: ['POS checkout complete', 'Upgraded to enterprise plan'] });
       return of({ field, items: [] });
     });
     mockGetActorOptions = vi.fn(() =>
@@ -161,7 +167,9 @@ describe('AuditInquiryPage', () => {
   it('renders exactly 4 filter dropdowns: Actor, Action, Resource Type, Reason with authoritative server options', () => {
     const actorSelect = fixture.nativeElement.querySelector('[data-testid="audit-actor"]');
     const actionSelect = fixture.nativeElement.querySelector('[data-testid="audit-action"]');
-    const resTypeSelect = fixture.nativeElement.querySelector('[data-testid="audit-resource-type"]');
+    const resTypeSelect = fixture.nativeElement.querySelector(
+      '[data-testid="audit-resource-type"]',
+    );
     const reasonSelect = fixture.nativeElement.querySelector('[data-testid="audit-reason"]');
 
     expect(actorSelect).toBeTruthy();
@@ -276,7 +284,10 @@ describe('AuditInquiryPage', () => {
     component.onPageSizeChange(50);
     expect(component.pageSize()).toBe(50);
     expect(component.page()).toBe(1);
-    expect(mockQuery).toHaveBeenCalledWith(expect.objectContaining({ page: 1, pageSize: 50 }), false);
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.objectContaining({ page: 1, pageSize: 50 }),
+      false,
+    );
   });
 
   it('opens and closes the slide-over inspector drawer to inspect event details and metadata', () => {
@@ -386,7 +397,9 @@ describe('AuditInquiryPage', () => {
     const totalEl = fixture.nativeElement.querySelector('[data-testid="audit-kpi-total-val"]');
     const todayEl = fixture.nativeElement.querySelector('[data-testid="audit-kpi-today-val"]');
     const actorsEl = fixture.nativeElement.querySelector('[data-testid="audit-kpi-actors-val"]');
-    const resourcesEl = fixture.nativeElement.querySelector('[data-testid="audit-kpi-resources-val"]');
+    const resourcesEl = fixture.nativeElement.querySelector(
+      '[data-testid="audit-kpi-resources-val"]',
+    );
 
     expect(totalEl.textContent.trim()).toBe('1500');
     expect(todayEl.textContent.trim()).toBe('24');
@@ -403,5 +416,84 @@ describe('AuditInquiryPage', () => {
     component.refresh();
     expect(mockGetSummary).toHaveBeenCalledWith(true);
     expect(mockQuery).toHaveBeenCalledWith(expect.anything(), true);
+  });
+
+  it('toggles the actor dropdown open and closed on trigger click', () => {
+    const trigger = fixture.nativeElement.querySelector(
+      '[data-testid="audit-actor-trigger"]',
+    ) as HTMLButtonElement;
+    expect(trigger).toBeTruthy();
+    expect(component.actorDropdownOpen()).toBe(false);
+
+    trigger.click();
+    fixture.detectChanges();
+    expect(component.actorDropdownOpen()).toBe(true);
+
+    trigger.click();
+    fixture.detectChanges();
+    expect(component.actorDropdownOpen()).toBe(false);
+  });
+
+  it('filters actor options when user searches in the actor dropdown', () => {
+    mockGetActorOptions.mockReturnValue(
+      of({
+        field: 'actorId',
+        items: [{ value: 'usr-admin', label: 'Admin User (admin@example.com)' }],
+      }),
+    );
+
+    component.onActorOptionSearch('Admin');
+    component.loadActorOptions('Admin');
+    fixture.detectChanges();
+
+    expect(component.actorOptionSearch()).toBe('Admin');
+    expect(component.actorOptions()).toEqual([
+      { value: 'usr-admin', label: 'Admin User (admin@example.com)' },
+    ]);
+  });
+
+  it('selects an actor from the dropdown, updates label, resets page to 1, and closes the dropdown', () => {
+    component.actorDropdownOpen.set(true);
+    fixture.detectChanges();
+
+    const adminOption = fixture.nativeElement.querySelector(
+      '[data-testid="audit-actor-option-usr-admin"]',
+    ) as HTMLButtonElement;
+    expect(adminOption).toBeTruthy();
+
+    mockQuery.mockClear();
+    adminOption.click();
+    fixture.detectChanges();
+
+    expect(component.actorId()).toBe('usr-admin');
+    expect(component.selectedActorLabel()).toBe('Admin User (admin@example.com)');
+    expect(component.actorDropdownOpen()).toBe(false);
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.objectContaining({ actorId: 'usr-admin', page: 1 }),
+      false,
+    );
+  });
+
+  it('closes actor dropdown on Escape key', () => {
+    component.actorDropdownOpen.set(true);
+    expect(component.actorDropdownOpen()).toBe(true);
+
+    component.handleEscape();
+    expect(component.actorDropdownOpen()).toBe(false);
+  });
+
+  it('closes actor dropdown on outside click', () => {
+    component.actorDropdownOpen.set(true);
+    expect(component.actorDropdownOpen()).toBe(true);
+
+    const outsideDiv = document.createElement('div');
+    document.body.appendChild(outsideDiv);
+
+    const clickEvent = new MouseEvent('click', { bubbles: true });
+    Object.defineProperty(clickEvent, 'target', { value: outsideDiv });
+    component.onDocumentClick(clickEvent);
+    expect(component.actorDropdownOpen()).toBe(false);
+
+    document.body.removeChild(outsideDiv);
   });
 });

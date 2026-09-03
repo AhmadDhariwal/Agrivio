@@ -6,7 +6,7 @@ Database restore is **not** application rollback. Restore discards later valid t
 
 Keep these separate:
 
-1. F08 backup/restore **coordination/status** APIs (`backup_operation_records`, `restore_operation_records`)
+1. F08 backup/restore **status and restore-coordination** APIs (`backup_operation_records`, `restore_operation_records`)
 2. This **local technical** `mongodump` / `mongorestore` rehearsal via native engine and CLI
 
 The in-app restore API does not dump or restore MongoDB. The native engine (backup-engine.js / restore-engine.js) and the operator CLI (`npm run ops:backup`, `npm run ops:restore`) do.
@@ -77,8 +77,10 @@ This calls `backup-engine.js` which:
 1. Resolves `mongodump` from `AGRIVIO_MONGODUMP_PATH` or `PATH`
 2. Spawns `mongodump --uri=... --db=<dbName> --archive=<path>.archive.gz --gzip` (no shell=true)
 3. Computes SHA-256 checksum after completion
-4. Writes a sidecar `.manifest.json` with filename, checksum, size, timestamps
-5. Enforces `AGRIVIO_BACKUP_RETENTION_DAYS` cleanup
+4. Writes and re-reads a sidecar `.manifest.json` with filename, checksum, size, and timestamps
+5. Recomputes SHA-256 from the completed archive and fails the operation if manifest or checksum verification fails
+6. Enforces `AGRIVIO_BACKUP_RETENTION_DAYS` cleanup
+7. Persists running/success/failure plus verified manifest, checksum, retention, and restore-readiness metadata in `backup_operation_records`
 
 The archive is a self-contained `.archive.gz` file in `AGRIVIO_BACKUP_DIR`.
 
@@ -98,7 +100,7 @@ Example namespace: `agrivio_rehearsal_source_<runId>`.
 * Archive file exists, size > 0
 * Manifest JSON records filename, sha256, fileSizeBytes, startedAt, completedAt
 * Record tool version, start/end, artifact size, and expected namespace
-* Optionally record a successful coordination backup outcome for operator visibility (not a substitute for the dump)
+* Confirm the authoritative backup outcome and manifest metadata appear in Super Admin Backup Status
 
 ## Restore via CLI (REL-G09)
 

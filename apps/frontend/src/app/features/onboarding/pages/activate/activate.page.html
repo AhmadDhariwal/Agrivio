@@ -18,7 +18,7 @@
         [attr.aria-required]="fieldRequired(form.controls.token) ? 'true' : null"
       />
       @if (form.controls.token.touched && form.controls.token.invalid) {
-        <p class="ag-field__error">Activation token is required.</p>
+      <p class="ag-field__error">Activation token is required.</p>
       }
     </div>
     <div class="ag-field">
@@ -47,7 +47,7 @@
         </button>
       </div>
       @if (form.controls.password.touched && form.controls.password.invalid) {
-        <p class="ag-field__error">Password must be 12–128 characters.</p>
+      <p class="ag-field__error">Password must be 12–128 characters.</p>
       }
     </div>
     <div class="ag-field">
@@ -66,15 +66,14 @@
         [attr.aria-required]="fieldRequired(form.controls.confirmPassword) ? 'true' : null"
       />
       @if (form.touched && form.hasError('passwordMismatch')) {
-        <p class="ag-field__error">Password and confirmation must match.</p>
+      <p class="ag-field__error">Password and confirmation must match.</p>
       }
     </div>
 
     @if (errorMessage(); as error) {
-      <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
-    }
-    @if (successMessage(); as success) {
-      <agrivio-ui-alert [message]="success" tone="success" />
+    <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
+    } @if (successMessage(); as success) {
+    <agrivio-ui-alert [message]="success" tone="success" />
     }
 
     <button
@@ -88,7 +87,7 @@
   </form>
 
   <div class="ag-auth-links">
-    <a routerLink="/login">Sign in</a>
+    <a routerLink="/signin">Sign in</a>
     <a routerLink="/">Back to landing</a>
   </div>
 </agrivio-auth-layout>

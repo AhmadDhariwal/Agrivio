@@ -10,6 +10,7 @@ import {
   API_ORGANIZATION_ACTIVATION_REQUESTS_PATH,
   API_PLATFORM_ACTOR_HEADER,
   API_PLATFORM_AUDIT_EVENTS_PATH,
+  API_PLATFORM_AUDIT_RETENTION_PATH,
   API_PLATFORM_ORGANIZATIONS_PATH,
   API_PLATFORM_SUBSCRIPTION_PLANS_PATH,
 } from '@agrivio/api-contracts';
@@ -147,9 +148,9 @@ describe('F08 P4 audit inquiry', () => {
       audit.auditService.queryOrganizationFilterOptions('org-1', { field: 'reason' }),
     ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
 
-    await expect(audit.auditService.getOrganizationEvent('org-1', 'other-org')).rejects.toMatchObject(
-      { code: 'NOT_FOUND' },
-    );
+    await expect(
+      audit.auditService.getOrganizationEvent('org-1', 'other-org'),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
     await expect(
       audit.auditService.getOrganizationEvent('org-2', 'platform-event'),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
@@ -327,6 +328,38 @@ describe('F08 P4 audit inquiry', () => {
         true,
       );
       expect(platformQuery.body.data.some((item) => item.resourceId === 'sale-b')).toBe(false);
+
+      const retention = await fetchJson(
+        baseUrl,
+        'GET',
+        `${API_PLATFORM_AUDIT_RETENTION_PATH}?scope=tenant&organizationId=${orgB}`,
+        undefined,
+        {},
+        superAdminJar,
+      );
+      expect(retention.status).toBe(200);
+      expect(retention.body.data).toMatchObject({
+        scope: 'tenant',
+        organizationId: orgB,
+        configuredRetentionDays: 90,
+        retentionSource: 'subscription',
+      });
+
+      const purged = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_PLATFORM_AUDIT_RETENTION_PATH}/purge-expired`,
+        {
+          scope: 'tenant',
+          organizationId: orgB,
+          reason: 'Scheduled retention cleanup',
+          confirmed: true,
+        },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, superAdminJar) },
+        superAdminJar,
+      );
+      expect(purged.status).toBe(200);
+      expect(purged.body.data).toMatchObject({ scope: 'tenant', organizationId: orgB });
 
       const orgBAfterPlatformEvent = await fetchJson(
         baseUrl,

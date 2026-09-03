@@ -126,6 +126,7 @@ function createApp(options) {
     options.audit ??
     createAuditModule({
       persistence,
+      config,
       resolvePlanEntitlements: async (organizationId) => {
         const access = await subscriptions.subscriptionService.resolveAccessState(organizationId);
         return access?.plan?.entitlements ?? null;
@@ -707,6 +708,7 @@ function createApp(options) {
     capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     optionalAuth: auth.middlewares.optionalAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
     requireSuspendedReadAccess: subscriptions.middlewares.requireSuspendedReadAccess,
   });
 

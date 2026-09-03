@@ -6,12 +6,15 @@ function createAuditModule(options = {}) {
   const persistence = options.persistence ?? 'memory';
   const store =
     options.store ??
-    (persistence === 'mongoose' ? createMongooseAuditEventStore() : createInMemoryAuditEventStore());
+    (persistence === 'mongoose'
+      ? createMongooseAuditEventStore()
+      : createInMemoryAuditEventStore());
   const auditService = createAuditService({
     store,
     resolvePlanEntitlements: options.resolvePlanEntitlements,
     resolveOrganizationTimezone: options.resolveOrganizationTimezone,
     resolveActorOptions: options.resolveActorOptions,
+    config: options.config,
     ...(options.now === undefined ? {} : { now: options.now }),
   });
   return { store, auditService };

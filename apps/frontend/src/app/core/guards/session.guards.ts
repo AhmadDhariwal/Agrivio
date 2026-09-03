@@ -3,6 +3,31 @@ import { CanActivateFn, Router, UrlTree } from '@angular/router';
 import { catchError, map, of } from 'rxjs';
 import { AuthSessionStore } from '../../features/auth/data-access/auth-session.store';
 import { CapabilityService } from '../../features/capabilities/data-access/capability.service';
+import { APP_PATHS } from '../navigation/app-paths';
+
+function authenticatedDestination(sessionStore: AuthSessionStore, router: Router): UrlTree {
+  return router.parseUrl(
+    sessionStore.activeContext() === null ? APP_PATHS.context : APP_PATHS.workspace,
+  );
+}
+
+/**
+ * Prevents authenticated sessions from rendering public authentication entry pages.
+ * The decision waits for the authoritative cookie-backed session probe to finish.
+ */
+export const publicOnlyGuard: CanActivateFn = () => {
+  const sessionStore = inject(AuthSessionStore);
+  const router = inject(Router);
+
+  if (sessionStore.session() !== null) {
+    return authenticatedDestination(sessionStore, router);
+  }
+
+  return sessionStore.loadSession().pipe(
+    map(() => authenticatedDestination(sessionStore, router)),
+    catchError(() => of(true)),
+  );
+};
 
 /**
  * Non-authoritative session presence check for UX routing only.
@@ -18,7 +43,7 @@ export const requireSessionGuard: CanActivateFn = () => {
 
   return sessionStore.loadSession().pipe(
     map(() => true),
-    catchError(() => of(router.createUrlTree(['/login']))),
+    catchError(() => of(router.parseUrl(APP_PATHS.signIn))),
   );
 };
 
@@ -43,7 +68,7 @@ export const requirePlatformContextGuard: CanActivateFn = () => {
         }
         return router.createUrlTree(['/context']);
       }),
-      catchError(() => of(router.createUrlTree(['/login']))),
+      catchError(() => of(router.parseUrl(APP_PATHS.signIn))),
     );
   }
 
@@ -55,9 +80,7 @@ export function requirePermissionGuard(permission: string): CanActivateFn {
     const sessionStore = inject(AuthSessionStore);
     const router = inject(Router);
     const decide = (): true | UrlTree =>
-      sessionStore.hasPermission(permission)
-        ? true
-        : router.createUrlTree(['/app/access-denied']);
+      sessionStore.hasPermission(permission) ? true : router.createUrlTree(['/app/access-denied']);
 
     if (sessionStore.session() !== null) {
       return decide();
@@ -65,7 +88,7 @@ export function requirePermissionGuard(permission: string): CanActivateFn {
 
     return sessionStore.loadSession().pipe(
       map(() => decide()),
-      catchError(() => of(router.createUrlTree(['/login']))),
+      catchError(() => of(router.parseUrl(APP_PATHS.signIn))),
     );
   };
 }

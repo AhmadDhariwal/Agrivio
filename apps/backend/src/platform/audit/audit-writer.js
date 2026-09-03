@@ -184,6 +184,39 @@ function createInMemoryAuditEventStore() {
         resourceTypes,
       };
     },
+    async getRetentionStats(filter, cutoff) {
+      const items = await this.query(filter);
+      const accessible =
+        cutoff === null
+          ? items
+          : items.filter((item) => new Date(item.occurredAt).getTime() >= cutoff.getTime());
+      const expired =
+        cutoff === null
+          ? []
+          : items.filter((item) => new Date(item.occurredAt).getTime() < cutoff.getTime());
+      return {
+        currentEventCount: accessible.length,
+        expiredEventCount: expired.length,
+        oldestAccessibleEvent:
+          accessible.length === 0 ? null : new Date(accessible[accessible.length - 1].occurredAt),
+        newestEvent: accessible.length === 0 ? null : new Date(accessible[0].occurredAt),
+      };
+    },
+    async purgeBefore(filter, cutoff) {
+      const expiredIds = new Set(
+        (await this.query({ ...filter, to: new Date(cutoff.getTime() - 1) })).map(
+          (item) => item._id,
+        ),
+      );
+      let deletedCount = 0;
+      for (let index = events.length - 1; index >= 0; index -= 1) {
+        if (expiredIds.has(events[index]._id)) {
+          events.splice(index, 1);
+          deletedCount += 1;
+        }
+      }
+      return deletedCount;
+    },
   };
 }
 

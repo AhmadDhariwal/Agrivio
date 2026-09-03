@@ -165,6 +165,10 @@ export class AuthApi {
     );
   }
 
+  clearSecurityState(): void {
+    this.csrfToken = null;
+  }
+
   postWithCsrf(url: string, body: unknown): Observable<unknown> {
     return this.ensureCsrf().pipe(
       switchMap(({ csrfToken }) =>

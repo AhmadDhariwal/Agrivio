@@ -1,9 +1,29 @@
 import { TestBed } from '@angular/core/testing';
 import { AuthSessionStore } from './auth-session.store';
 import { AuthApi, AuthSessionSnapshot } from './auth.api';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 
 describe('AuthSessionStore', () => {
+  it('shares a single authoritative session bootstrap request', () => {
+    const response = new Subject<AuthSessionSnapshot>();
+    const getSession = vi.fn(() => response.asObservable());
+    TestBed.configureTestingModule({
+      providers: [AuthSessionStore, { provide: AuthApi, useValue: { getSession } }],
+    });
+    const store = TestBed.inject(AuthSessionStore);
+
+    const first = store.loadSession();
+    const second = store.loadSession();
+    first.subscribe();
+    second.subscribe();
+
+    expect(first).toBe(second);
+    expect(getSession).toHaveBeenCalledOnce();
+    response.next(snapshot('org-1'));
+    response.complete();
+    expect(store.activeContext()?.organizationId).toBe('org-1');
+  });
+
   it('exposes active context and reacts when the context changes', () => {
     const api = {
       getSession: () => of(snapshot('org-1')),

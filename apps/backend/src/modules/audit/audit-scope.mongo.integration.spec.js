@@ -1,9 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import mongoose from 'mongoose';
-import {
-  AuditEventModel,
-  createMongooseAuditEventStore,
-} from './persistence/audit-event.model.js';
+import { AuditEventModel, createMongooseAuditEventStore } from './persistence/audit-event.model.js';
 
 describe('Audit scope Mongo isolation', () => {
   const uri = process.env['MONGODB_URI'] ?? 'mongodb://127.0.0.1:27017/Agrivio?replicaSet=rs0';
@@ -92,10 +89,51 @@ describe('Audit scope Mongo isolation', () => {
       'legacy-platform',
       'super-admin',
     ]);
-    expect(
-      indexes.some(
-        (index) => index.key.scope === 1 && index.key.occurredAt === -1,
-      ),
-    ).toBe(true);
+    expect(indexes.some((index) => index.key.scope === 1 && index.key.occurredAt === -1)).toBe(
+      true,
+    );
+  });
+
+  it('purges only expired tenant records in the selected organization', async ({ skip }) => {
+    if (!mongoReady) {
+      skip('Mongo replica set rs0 PRIMARY is required for real-Mongo retention proof');
+    }
+    const store = createMongooseAuditEventStore();
+    const orgA = new mongoose.Types.ObjectId();
+    const orgB = new mongoose.Types.ObjectId();
+    await AuditEventModel.create([
+      {
+        scope: 'tenant',
+        organizationId: orgA,
+        actorId: 'a',
+        action: 'sale.posted',
+        resourceType: 'sale',
+        occurredAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+      {
+        scope: 'tenant',
+        organizationId: orgA,
+        actorId: 'a',
+        action: 'sale.posted',
+        resourceType: 'sale',
+        occurredAt: new Date('2026-09-01T00:00:00.000Z'),
+      },
+      {
+        scope: 'tenant',
+        organizationId: orgB,
+        actorId: 'b',
+        action: 'sale.posted',
+        resourceType: 'sale',
+        occurredAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    ]);
+
+    const deleted = await store.purgeBefore(
+      { scope: 'tenant', organizationId: String(orgA) },
+      new Date('2026-08-01T00:00:00.000Z'),
+    );
+    expect(deleted).toBe(1);
+    expect(await AuditEventModel.countDocuments({ organizationId: orgA })).toBe(1);
+    expect(await AuditEventModel.countDocuments({ organizationId: orgB })).toBe(1);
   });
 });

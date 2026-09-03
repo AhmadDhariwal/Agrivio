@@ -3,13 +3,13 @@ import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { UserProfileMenuComponent } from './user-profile-menu.component';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
-import { AuthApi } from '../../../auth/data-access/auth.api';
+import { AuthSessionLifecycleService } from '../../../auth/data-access/auth-session-lifecycle.service';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 describe('UserProfileMenuComponent', () => {
   let fixture: ComponentFixture<UserProfileMenuComponent>;
   let component: UserProfileMenuComponent;
-  let authApi: { logout: ReturnType<typeof vi.fn> };
+  let authLifecycle: { signOut: ReturnType<typeof vi.fn> };
   let sessionStore: {
     session: () => unknown;
     activeContext: () => unknown;
@@ -18,8 +18,8 @@ describe('UserProfileMenuComponent', () => {
   };
 
   beforeEach(async () => {
-    authApi = {
-      logout: vi.fn().mockReturnValue(of({})),
+    authLifecycle = {
+      signOut: vi.fn().mockReturnValue(of(undefined)),
     };
 
     sessionStore = {
@@ -45,8 +45,7 @@ describe('UserProfileMenuComponent', () => {
         role: 'Owner',
         permissions: ['dashboard.view', 'settings.view'],
       }),
-      hasPermission: (perm: string) =>
-        ['dashboard.view', 'settings.view'].includes(perm),
+      hasPermission: (perm: string) => ['dashboard.view', 'settings.view'].includes(perm),
       clear: vi.fn(),
     };
 
@@ -55,7 +54,7 @@ describe('UserProfileMenuComponent', () => {
       providers: [
         provideRouter([]),
         { provide: AuthSessionStore, useValue: sessionStore },
-        { provide: AuthApi, useValue: authApi },
+        { provide: AuthSessionLifecycleService, useValue: authLifecycle },
       ],
     }).compileComponents();
 
@@ -98,13 +97,12 @@ describe('UserProfileMenuComponent', () => {
     expect(component.isOpen()).toBe(false);
   });
 
-  it('calls authApi.logout and clears session on signOut', () => {
+  it('delegates sign-out to the shared authentication lifecycle', () => {
     component.toggleDropdown();
     fixture.detectChanges();
 
     component.signOut();
-    expect(authApi.logout).toHaveBeenCalled();
-    expect(sessionStore.clear).toHaveBeenCalled();
+    expect(authLifecycle.signOut).toHaveBeenCalledOnce();
   });
 
   it('hides Settings link when settings module capability is disabled', async () => {
@@ -114,7 +112,7 @@ describe('UserProfileMenuComponent', () => {
       providers: [
         provideRouter([]),
         { provide: AuthSessionStore, useValue: sessionStore },
-        { provide: AuthApi, useValue: authApi },
+        { provide: AuthSessionLifecycleService, useValue: authLifecycle },
         {
           provide: CapabilityService,
           useValue: { canUseModule: (m: string) => m !== 'settings' },

@@ -1,72 +1,199 @@
 <div data-testid="operations-page">
-<agrivio-ui-page-header
-  eyebrow="Platform"
-  title="Backup and restore status"
-  lede="Provider-neutral operational status. Restore coordination does not execute a production restore rehearsal."
-/>
+  <agrivio-ui-page-header
+    eyebrow="Platform"
+    title="Backup and restore status"
+    lede="Provider-neutral operational status. Restore coordination does not execute a production restore rehearsal."
+  />
 
-@if (!canViewBackups()) {
-  <agrivio-ui-alert tone="warning" message="Backup status is visible only to authorized platform operators." />
-} @else {
-  @if (errorMessage(); as error) {
-    <agrivio-ui-alert tone="danger" [message]="error" />
+  @if (!canViewBackups()) {
+  <agrivio-ui-alert
+    tone="warning"
+    message="Backup status is visible only to authorized platform operators."
+  />
+  } @else { @if (errorMessage(); as error) {
+  <agrivio-ui-alert tone="danger" [message]="error" />
   }
 
   <div class="ag-actions">
-    <button type="button" class="ag-btn ag-btn--secondary" [disabled]="loading()" (click)="reload()">
+    <button
+      type="button"
+      class="ag-btn ag-btn--secondary"
+      [disabled]="loading()"
+      (click)="reload()"
+    >
       Refresh
     </button>
   </div>
 
+  <agrivio-ui-alert
+    tone="info"
+    message="Backup coverage is MongoDB application data only. Billing evidence and other filesystem or object-storage uploads require an independent backup strategy."
+  />
+
   @if (loading()) {
-    <agrivio-ui-loading-state label="Loading backup status…" />
+  <agrivio-ui-loading-state label="Loading backup status…" />
   } @else if (backups().length === 0) {
-    <agrivio-ui-empty-state title="No backup records" message="No backup operation records have been recorded yet." />
-  } @else {
-    <div class="ag-table-wrap">
-      <table class="ag-table" data-testid="backup-table">
-        <thead>
-          <tr>
-            <th>Recorded</th>
-            <th>Status</th>
-            <th>Failure</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (item of backups(); track item.id) {
-            <tr [attr.data-failed]="item.failureVisible">
-              <td>{{ item.recordedAt }}</td>
-              <td>{{ item.status }}</td>
-              <td>{{ item.failureMessage }}</td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
+  <agrivio-ui-empty-state
+    title="No backup records"
+    message="No backup operation records have been recorded yet."
+  />
+  } @else { @if (latestSuccessfulBackup(); as latest) {
+  <p data-testid="latest-successful-backup">
+    Last successful backup: {{ latest.completedAt || latest.recordedAt }} · {{ latest.databaseName
+    || 'database not recorded' }} · {{ formatBytes(latest.fileSizeBytes) }}
+  </p>
   }
-
-  @if (canRestore()) {
-    <form class="report-toolbar" (submit)="$event.preventDefault(); coordinateRestore()">
-      <label>
-        Restore reason
-        <input data-testid="restore-reason" [ngModel]="reason()" (ngModelChange)="reason.set($event)" name="reason" />
-      </label>
-      <button type="submit" class="ag-btn" [disabled]="submitting()" data-testid="restore-coordinate">
-        Initiate restore coordination
-      </button>
-    </form>
+  <div class="ag-table-wrap">
+    <table class="ag-table" data-testid="backup-table">
+      <thead>
+        <tr>
+          <th>Recorded</th>
+          <th>Started / completed</th>
+          <th>Status</th>
+          <th>Database</th>
+          <th>Archive</th>
+          <th>Verification</th>
+          <th>Retention / expiry</th>
+          <th>Failure</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of backups(); track item.id) {
+        <tr [attr.data-failed]="item.failureVisible">
+          <td>{{ item.recordedAt }}</td>
+          <td>{{ item.startedAt || '—' }} / {{ item.completedAt || '—' }}</td>
+          <td>{{ item.status }}</td>
+          <td>{{ item.databaseName || '—' }}</td>
+          <td>{{ item.filename || '—' }} · {{ formatBytes(item.fileSizeBytes) }}</td>
+          <td>
+            Manifest: {{ item.manifestVerified ? 'verified' : 'not verified' }} · Checksum: {{
+            item.checksumVerified ? 'verified' : 'not verified' }} @if (item.sha256) { · SHA-256 {{
+            item.sha256 }} } · Restore ready: {{ item.restoreReady ? 'yes' : 'no' }}
+          </td>
+          <td>
+            {{ item.retentionDays === null ? 'Not configured' : item.retentionDays + ' days' }} @if
+            (item.expiresAt) { · {{ item.expiresAt }} }
+          </td>
+          <td>{{ item.failureMessage }}</td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  } @if (canRestore()) {
+  <form class="report-toolbar" (submit)="$event.preventDefault(); coordinateRestore()">
+    <label>
+      Restore reason
+      <input
+        data-testid="restore-reason"
+        [ngModel]="reason()"
+        (ngModelChange)="reason.set($event)"
+        name="reason"
+      />
+    </label>
+    <button type="submit" class="ag-btn" [disabled]="submitting()" data-testid="restore-coordinate">
+      Initiate restore coordination
+    </button>
+  </form>
   } @else {
-    <agrivio-ui-alert
-      tone="info"
-      message="Production restore coordination requires an explicit operations.restore.execute grant."
-    />
-  }
-
-  @if (restore(); as current) {
-    <p data-testid="restore-status">
-      Coordination {{ current.status }}. Production restore executed: {{ current.productionRestoreExecuted }}.
-      Verification: {{ current.verificationStatus }}.
+  <agrivio-ui-alert
+    tone="info"
+    message="Production restore coordination requires an explicit operations.restore.execute grant."
+  />
+  } @if (restore(); as current) {
+  <p data-testid="restore-status">
+    Coordination {{ current.status }}. Production restore executed: {{
+    current.productionRestoreExecuted }}. Verification: {{ current.verificationStatus }}.
+  </p>
+  } @if (canManageAuditRetention()) {
+  <section class="ag-card" data-testid="audit-retention">
+    <h2>Audit retention</h2>
+    <p>
+      Tenant audit remains append-only. This control can purge only records already outside the
+      authorized retention window.
     </p>
-  }
-}
+    <div class="report-toolbar">
+      <label>
+        Scope
+        <select
+          [ngModel]="retentionScope()"
+          (ngModelChange)="retentionScope.set($event); retention.set(null)"
+          name="retentionScope"
+        >
+          <option value="platform">Platform audit</option>
+          <option value="tenant">Organization audit</option>
+        </select>
+      </label>
+      @if (retentionScope() === 'tenant') {
+      <label>
+        Organization ID
+        <input
+          [ngModel]="retentionOrganizationId()"
+          (ngModelChange)="retentionOrganizationId.set($event)"
+          name="retentionOrganizationId"
+        />
+      </label>
+      }
+      <button
+        type="button"
+        class="ag-btn ag-btn--secondary"
+        [disabled]="retentionLoading()"
+        (click)="loadRetention()"
+      >
+        View retention
+      </button>
+    </div>
+
+    @if (retention(); as status) {
+    <dl data-testid="audit-retention-status">
+      <dt>Configured retention</dt>
+      <dd>
+        {{ status.configuredRetentionDays === null ? 'Unlimited / not configured' :
+        status.configuredRetentionDays + ' days' }}
+      </dd>
+      <dt>Policy source</dt>
+      <dd>{{ status.retentionSource }}</dd>
+      <dt>Oldest accessible event</dt>
+      <dd>{{ status.oldestAccessibleEvent || '—' }}</dd>
+      <dt>Newest event</dt>
+      <dd>{{ status.newestEvent || '—' }}</dd>
+      <dt>Current event count</dt>
+      <dd>{{ status.currentEventCount }}</dd>
+      <dt>Expired event count</dt>
+      <dd>{{ status.expiredEventCount }}</dd>
+      <dt>Retention cutoff</dt>
+      <dd>{{ status.cutoffAt || 'No finite cutoff' }}</dd>
+    </dl>
+
+    <label>
+      Cleanup reason
+      <input
+        [ngModel]="retentionReason()"
+        (ngModelChange)="retentionReason.set($event)"
+        name="retentionReason"
+      />
+    </label>
+    <label>
+      <input
+        type="checkbox"
+        [ngModel]="retentionConfirmed()"
+        (ngModelChange)="retentionConfirmed.set($event)"
+        name="retentionConfirmed"
+      />
+      I confirm that only records older than the displayed authorized cutoff will be removed.
+    </label>
+    <button
+      type="button"
+      class="ag-btn"
+      [disabled]="retentionPurging() || !retentionConfirmed() || !retentionReason().trim() || status.cutoffAt === null"
+      (click)="purgeExpiredAuditRecords()"
+      data-testid="purge-expired-audit"
+    >
+      {{ retentionPurging() ? 'Purging…' : 'Purge expired records' }}
+    </button>
+    } @if (retentionMessage(); as message) {
+    <agrivio-ui-alert tone="info" [message]="message" />
+    }
+  </section>
+  } }
 </div>

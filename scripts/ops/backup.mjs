@@ -33,7 +33,14 @@ try {
   // Built-in loadEnvFile only available in Node >=20.12 / 21.7; ignore on older.
 }
 
+const mongoose = require('mongoose');
 const { runBackup } = require('../../apps/backend/src/modules/operations/backup-engine.js');
+const {
+  createOperationsModule,
+} = require('../../apps/backend/src/modules/operations/operations.module.js');
+const {
+  createMongooseAuditEventStore,
+} = require('../../apps/backend/src/modules/audit/persistence/audit-event.model.js');
 
 (async () => {
   console.log('[ops:backup] Starting MongoDB backup...');
@@ -42,11 +49,30 @@ const { runBackup } = require('../../apps/backend/src/modules/operations/backup-
 
   let manifest;
   try {
-    manifest = await runBackup();
+    if (!process.env['MONGODB_URI']) {
+      throw new Error('MONGODB_URI is required');
+    }
+    await mongoose.connect(process.env['MONGODB_URI'], {
+      dbName: process.env['MONGODB_DB_NAME'] ?? 'Agrivio',
+    });
+    const operations = createOperationsModule({
+      persistence: 'mongoose',
+      auditStore: createMongooseAuditEventStore(),
+      backupEngine: { runBackup },
+    });
+    manifest = await operations.operationsService.createBackup({
+      actorId: process.env['AGRIVIO_OPS_ACTOR_ID'] ?? 'cli-operator',
+      privilegedCli: true,
+    });
   } catch (err) {
     console.error('[ops:backup] FAILED:', err.message);
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+    }
     process.exit(1);
   }
+
+  await mongoose.disconnect();
 
   console.log('[ops:backup] SUCCESS');
   console.log(`[ops:backup] Archive: ${manifest.filename}`);

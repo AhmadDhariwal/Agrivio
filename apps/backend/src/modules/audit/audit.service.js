@@ -3,6 +3,7 @@ const {
   evaluateFeatureEntitlement,
   parseAuditHistoryWindow,
 } = require('../subscriptions/entitlement');
+const { createAuditWriter } = require('../../platform/audit/audit-writer');
 
 const FILTER_OPTION_FIELDS = new Set(['actorId', 'action', 'resourceType', 'resourceId']);
 
@@ -104,9 +105,10 @@ function toAuditDto(event) {
     scope:
       event.scope ??
       (event.organizationId === undefined || event.organizationId === null ? 'platform' : 'tenant'),
-    organizationId: event.organizationId === undefined || event.organizationId === null
-      ? null
-      : String(event.organizationId),
+    organizationId:
+      event.organizationId === undefined || event.organizationId === null
+        ? null
+        : String(event.organizationId),
     actorId: event.actorId,
     action: event.action,
     resourceType: event.resourceType,
@@ -125,6 +127,140 @@ function createAuditService(deps) {
   const store = deps.store;
   const now = deps.now ?? (() => new Date());
   let resolveActorOptions = deps.resolveActorOptions;
+  const auditWriter = createAuditWriter({
+    append: (session, event) => store.append(session, event),
+  });
+
+  function retentionFilter(scope, organizationId) {
+    if (scope === 'platform') {
+      return { scope: 'platform' };
+    }
+    return {
+      scope: 'tenant',
+      organizationId,
+      excludeActions: LEGACY_PLATFORM_ACTIONS,
+    };
+  }
+
+  async function resolveRetentionPolicy(scope, organizationId) {
+    if (scope !== 'tenant' && scope !== 'platform') {
+      throw validationFailed('scope must be tenant or platform');
+    }
+    if (
+      scope === 'tenant' &&
+      (typeof organizationId !== 'string' || organizationId.trim() === '')
+    ) {
+      throw validationFailed('organizationId is required for tenant audit retention');
+    }
+    if (scope === 'platform') {
+      if (organizationId !== undefined && organizationId !== null && organizationId !== '') {
+        throw validationFailed('organizationId is not allowed for platform audit retention');
+      }
+      const days = deps.config?.platformAuditRetentionDays ?? null;
+      return days === null
+        ? { days: null, source: 'unconfigured', cutoff: null }
+        : {
+            days,
+            source: 'platform_config',
+            cutoff: new Date(now().getTime() - days * 24 * 60 * 60 * 1000),
+          };
+    }
+
+    const overrideDays = deps.config?.auditRetentionOverrideDays ?? null;
+    if (overrideDays !== null) {
+      return {
+        days: overrideDays,
+        source: 'non_production_override',
+        cutoff: new Date(now().getTime() - overrideDays * 24 * 60 * 60 * 1000),
+      };
+    }
+
+    const entitlements =
+      typeof deps.resolvePlanEntitlements === 'function'
+        ? await deps.resolvePlanEntitlements(organizationId)
+        : null;
+    const feature = evaluateFeatureEntitlement(
+      entitlements ? { entitlements } : null,
+      'auditHistory',
+    );
+    const window = parseAuditHistoryWindow(feature.value, now());
+    if (window.allowed !== true) {
+      return { days: null, source: 'unconfigured', cutoff: null };
+    }
+    if (window.unlimited) {
+      return { days: null, source: 'subscription_unlimited', cutoff: null };
+    }
+    const days = Math.round((now().getTime() - window.from.getTime()) / (24 * 60 * 60 * 1000));
+    return { days, source: 'subscription', cutoff: window.from };
+  }
+
+  async function getRetentionStatus(input) {
+    const scope = optionalString(input?.scope) ?? 'platform';
+    const organizationId = optionalString(input?.organizationId);
+    const policy = await resolveRetentionPolicy(scope, organizationId);
+    const stats = await store.getRetentionStats(
+      retentionFilter(scope, organizationId),
+      policy.cutoff,
+    );
+    return {
+      scope,
+      organizationId: scope === 'tenant' ? organizationId : null,
+      configuredRetentionDays: policy.days,
+      retentionSource: policy.source,
+      cutoffAt: policy.cutoff?.toISOString() ?? null,
+      oldestAccessibleEvent: stats.oldestAccessibleEvent?.toISOString() ?? null,
+      newestEvent: stats.newestEvent?.toISOString() ?? null,
+      currentEventCount: stats.currentEventCount,
+      expiredEventCount: stats.expiredEventCount,
+      lastCleanupAt: null,
+      nextCleanupAt: null,
+    };
+  }
+
+  async function purgeExpiredRecords(input, actor) {
+    if (input?.confirmed !== true) {
+      throw validationFailed('confirmed must be true');
+    }
+    const reason = optionalString(input?.reason);
+    if (reason === undefined) {
+      throw validationFailed('reason is required');
+    }
+    const scope = optionalString(input?.scope) ?? 'platform';
+    const organizationId = optionalString(input?.organizationId);
+    const policy = await resolveRetentionPolicy(scope, organizationId);
+    if (policy.cutoff === null) {
+      throw validationFailed('No finite authorized retention window is configured for this scope');
+    }
+    const deletedCount = await store.purgeBefore(
+      retentionFilter(scope, organizationId),
+      policy.cutoff,
+    );
+    const completedAt = now();
+    await auditWriter.appendBusinessEvent(null, {
+      scope: 'platform',
+      actorId: String(actor.actorId),
+      action: 'audit.retention.purged',
+      resourceType: 'audit_retention',
+      resourceId: scope === 'tenant' ? String(organizationId) : 'platform',
+      reason,
+      occurredAt: completedAt,
+      metadata: {
+        targetScope: scope,
+        organizationId: scope === 'tenant' ? organizationId : null,
+        retentionDays: policy.days,
+        retentionSource: policy.source,
+        cutoffAt: policy.cutoff.toISOString(),
+        deletedCount,
+      },
+    });
+    return {
+      scope,
+      organizationId: scope === 'tenant' ? organizationId : null,
+      cutoffAt: policy.cutoff.toISOString(),
+      deletedCount,
+      completedAt: completedAt.toISOString(),
+    };
+  }
 
   async function resolveHistoryWindow(organizationId) {
     const entitlements =
@@ -173,7 +309,6 @@ function createAuditService(deps) {
       String(filters.organizationId) !== String(organizationId)
     ) {
       throw forbidden('Organization audit inquiry cannot target another organization');
-
     }
     const from = window.unlimited
       ? filters.from
@@ -183,18 +318,21 @@ function createAuditService(deps) {
     if (filters.action !== undefined && LEGACY_PLATFORM_ACTIONS.includes(filters.action)) {
       return { items: [], total: 0 };
     }
-    const result = await store.queryPage({
-      scope: 'tenant',
-      organizationId,
-      excludeActions: LEGACY_PLATFORM_ACTIONS,
-      ...(filters.actorId === undefined ? {} : { actorId: filters.actorId }),
-      ...(filters.action === undefined ? {} : { action: filters.action }),
-      ...(filters.resourceType === undefined ? {} : { resourceType: filters.resourceType }),
-      ...(filters.resourceId === undefined ? {} : { resourceId: filters.resourceId }),
-      ...(filters.reason === undefined ? {} : { reason: filters.reason }),
-      ...(from === undefined ? {} : { from }),
-      ...(filters.to === undefined ? {} : { to: filters.to }),
-    }, { skip: query.skip, pageSize: query.pageSize });
+    const result = await store.queryPage(
+      {
+        scope: 'tenant',
+        organizationId,
+        excludeActions: LEGACY_PLATFORM_ACTIONS,
+        ...(filters.actorId === undefined ? {} : { actorId: filters.actorId }),
+        ...(filters.action === undefined ? {} : { action: filters.action }),
+        ...(filters.resourceType === undefined ? {} : { resourceType: filters.resourceType }),
+        ...(filters.resourceId === undefined ? {} : { resourceId: filters.resourceId }),
+        ...(filters.reason === undefined ? {} : { reason: filters.reason }),
+        ...(from === undefined ? {} : { from }),
+        ...(filters.to === undefined ? {} : { to: filters.to }),
+      },
+      { skip: query.skip, pageSize: query.pageSize },
+    );
     return { items: result.items.map(toAuditDto), total: result.total };
   }
 
@@ -272,16 +410,19 @@ function createAuditService(deps) {
 
   async function queryPlatformEvents(query) {
     const filters = parseFilters(query ?? {});
-    const result = await store.queryPage({
-      scope: 'platform',
-      ...(filters.actorId === undefined ? {} : { actorId: filters.actorId }),
-      ...(filters.action === undefined ? {} : { action: filters.action }),
-      ...(filters.resourceType === undefined ? {} : { resourceType: filters.resourceType }),
-      ...(filters.resourceId === undefined ? {} : { resourceId: filters.resourceId }),
-      ...(filters.reason === undefined ? {} : { reason: filters.reason }),
-      ...(filters.from === undefined ? {} : { from: filters.from }),
-      ...(filters.to === undefined ? {} : { to: filters.to }),
-    }, { skip: query.skip, pageSize: query.pageSize });
+    const result = await store.queryPage(
+      {
+        scope: 'platform',
+        ...(filters.actorId === undefined ? {} : { actorId: filters.actorId }),
+        ...(filters.action === undefined ? {} : { action: filters.action }),
+        ...(filters.resourceType === undefined ? {} : { resourceType: filters.resourceType }),
+        ...(filters.resourceId === undefined ? {} : { resourceId: filters.resourceId }),
+        ...(filters.reason === undefined ? {} : { reason: filters.reason }),
+        ...(filters.from === undefined ? {} : { from: filters.from }),
+        ...(filters.to === undefined ? {} : { to: filters.to }),
+      },
+      { skip: query.skip, pageSize: query.pageSize },
+    );
     return { items: result.items.map(toAuditDto), total: result.total };
   }
 
@@ -311,6 +452,8 @@ function createAuditService(deps) {
     getOrganizationEvent,
     getOrganizationSummary,
     queryPlatformEvents,
+    getRetentionStatus,
+    purgeExpiredRecords,
     setActorOptionResolver(resolver) {
       resolveActorOptions = resolver;
     },

@@ -2,6 +2,7 @@ const { Router } = require('express');
 const {
   API_AUDIT_EVENTS_PATH,
   API_PLATFORM_AUDIT_EVENTS_PATH,
+  API_PLATFORM_AUDIT_RETENTION_PATH,
 } = require('@agrivio/api-contracts');
 const {
   createRequireOrganizationContextMiddleware,
@@ -94,6 +95,27 @@ function registerAuditRoutes(deps) {
     requirePlatformPermission('platform.audit.view'),
     (req, res, next) => {
       void controller.listPlatform(req, res, next);
+    },
+  );
+
+  router.get(
+    API_PLATFORM_AUDIT_RETENTION_PATH,
+    deps.requireAuth,
+    platformActor,
+    requirePlatformPermission('platform.audit.view'),
+    (req, res, next) => {
+      void controller.getRetentionStatus(req, res, next);
+    },
+  );
+
+  router.post(
+    `${API_PLATFORM_AUDIT_RETENTION_PATH}/purge-expired`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    platformActor,
+    requirePlatformPermission('platform.audit.view'),
+    (req, res, next) => {
+      void controller.purgeExpired(req, res, next);
     },
   );
 

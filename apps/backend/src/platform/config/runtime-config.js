@@ -158,7 +158,9 @@ function loadApiEnv(env = process.env) {
 
   const allowE2eBootstrapRaw = env['AGRIVIO_ALLOW_E2E_BOOTSTRAP'];
   const allowE2eBootstrap =
-    allowE2eBootstrapRaw === '1' || allowE2eBootstrapRaw === 'true' || allowE2eBootstrapRaw === 'yes';
+    allowE2eBootstrapRaw === '1' ||
+    allowE2eBootstrapRaw === 'true' ||
+    allowE2eBootstrapRaw === 'yes';
   if (allowE2eBootstrap && nodeEnv === 'production') {
     issues.push('AGRIVIO_ALLOW_E2E_BOOTSTRAP is impossible in production');
   }
@@ -210,7 +212,10 @@ function loadApiEnv(env = process.env) {
     env['AGRIVIO_SMTP_SECURE'] === 'yes';
   const rawSmtpPort = env['AGRIVIO_SMTP_PORT'] ?? (smtpSecure ? '465' : '587');
   const smtpPort = Number(rawSmtpPort);
-  if (isNonEmptyString(smtpHost) && (!Number.isInteger(smtpPort) || smtpPort < 1 || smtpPort > 65535)) {
+  if (
+    isNonEmptyString(smtpHost) &&
+    (!Number.isInteger(smtpPort) || smtpPort < 1 || smtpPort > 65535)
+  ) {
     issues.push('AGRIVIO_SMTP_PORT must be an integer between 1 and 65535');
   }
   const smtpUsername = env['AGRIVIO_SMTP_USERNAME'] ?? '';
@@ -235,6 +240,27 @@ function loadApiEnv(env = process.env) {
     backupRetentionDays = Number(rawRetentionDays);
     if (!Number.isInteger(backupRetentionDays) || backupRetentionDays < 0) {
       issues.push('AGRIVIO_BACKUP_RETENTION_DAYS must be a non-negative integer when set');
+    }
+  }
+
+  const rawPlatformAuditRetentionDays = env['AGRIVIO_PLATFORM_AUDIT_RETENTION_DAYS'];
+  let platformAuditRetentionDays = null;
+  if (isNonEmptyString(rawPlatformAuditRetentionDays)) {
+    platformAuditRetentionDays = Number(rawPlatformAuditRetentionDays);
+    if (!Number.isInteger(platformAuditRetentionDays) || platformAuditRetentionDays < 1) {
+      issues.push('AGRIVIO_PLATFORM_AUDIT_RETENTION_DAYS must be a positive integer when set');
+    }
+  }
+
+  const rawAuditRetentionOverrideDays = env['AGRIVIO_AUDIT_RETENTION_DAYS_OVERRIDE'];
+  let auditRetentionOverrideDays = null;
+  if (isNonEmptyString(rawAuditRetentionOverrideDays)) {
+    auditRetentionOverrideDays = Number(rawAuditRetentionOverrideDays);
+    if (!Number.isInteger(auditRetentionOverrideDays) || auditRetentionOverrideDays < 1) {
+      issues.push('AGRIVIO_AUDIT_RETENTION_DAYS_OVERRIDE must be a positive integer when set');
+    }
+    if (nodeEnv === 'production') {
+      issues.push('AGRIVIO_AUDIT_RETENTION_DAYS_OVERRIDE is not permitted in production');
     }
   }
 
@@ -276,6 +302,8 @@ function loadApiEnv(env = process.env) {
     smtpFrom,
     backupDir: isNonEmptyString(backupDir) ? backupDir : '',
     backupRetentionDays,
+    platformAuditRetentionDays,
+    auditRetentionOverrideDays,
   };
 }
 

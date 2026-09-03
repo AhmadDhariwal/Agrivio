@@ -41,3 +41,7 @@ Runtime variables for Agrivio. Copy `.env.example` to an ignored `.env.local`. N
 ## Ops / E2E (optional)
 
 `AGRIVIO_E2E_API_ORIGIN`, `AGRIVIO_E2E_WEB_ORIGIN`, `AGRIVIO_MONGODUMP_PATH`, `AGRIVIO_MONGORESTORE_PATH`, `AGRIVIO_MONGOD_CFG`, `AGRIVIO_BOOTSTRAP_SUPER_ADMIN_PASSWORD`, `CI`
+# Audit retention
+
+* `AGRIVIO_PLATFORM_AUDIT_RETENTION_DAYS` — optional positive integer defining the separately scoped platform-audit retention window. When absent, platform audit purge is disabled.
+* `AGRIVIO_AUDIT_RETENTION_DAYS_OVERRIDE` — optional positive integer for local, demo, or test tenant-audit cleanup rehearsals only. It is rejected in production; production tenant retention comes from the subscription plan's `auditHistory` entitlement.
