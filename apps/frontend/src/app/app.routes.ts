@@ -87,13 +87,13 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'imports',
-        canActivate: [requirePermissionGuard('imports.preview')],
+        canActivate: [requirePermissionGuard('imports.preview'), requireCapabilityGuard('imports')],
         loadComponent: () =>
           import('./features/imports/pages/imports/imports.page').then((m) => m.ImportsPage),
       },
       {
         path: 'audit',
-        canActivate: [requirePermissionGuard('audit.view')],
+        canActivate: [requirePermissionGuard('audit.view'), requireCapabilityGuard('audit')],
         loadComponent: () =>
           import('./features/audit/pages/audit-inquiry/audit-inquiry.page').then(
             (m) => m.AuditInquiryPage,
@@ -156,7 +156,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'organization/settings',
-        canActivate: [requirePermissionGuard('settings.view')],
+        canActivate: [requirePermissionGuard('settings.view'), requireCapabilityGuard('settings')],
         loadComponent: () =>
           import('./features/organization/pages/organization-settings/organization-settings.page').then(
             (m) => m.OrganizationSettingsPage,

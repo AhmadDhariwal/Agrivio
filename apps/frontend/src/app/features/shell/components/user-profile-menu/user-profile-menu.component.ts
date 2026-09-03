@@ -61,7 +61,8 @@ export class UserProfileMenuComponent {
     const active = this.activeContext();
     return (
       active?.contextType === 'organization' &&
-      this.sessionStore.hasPermission('settings.view')
+      this.sessionStore.hasPermission('settings.view') &&
+      (this.capabilityService?.canUseModule('settings') ?? true)
     );
   });
 

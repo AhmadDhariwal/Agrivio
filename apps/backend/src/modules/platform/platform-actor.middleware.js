@@ -1,5 +1,6 @@
 const { API_PLATFORM_ACTOR_HEADER } = require('@agrivio/api-contracts');
 const { forbidden, unauthorized } = require('../../platform/errors/app-error');
+const { getRequestContext } = require('../../platform/http/request-context');
 const { hasPermission, permissionsForPlatformAccess } = require('../identity/role-permissions');
 
 /**
@@ -7,7 +8,7 @@ const { hasPermission, permissionsForPlatformAccess } = require('../identity/rol
  * Prefer authenticated platform session context. X-Platform-Actor remains a
  * development/test-only bypass and is impossible in production.
  */
-function createPlatformActorMiddleware(config) {
+function createPlatformActorMiddleware(config, options = {}) {
   return (req, _res, next) => {
     const headerValue = req.header(API_PLATFORM_ACTOR_HEADER);
 
@@ -16,11 +17,20 @@ function createPlatformActorMiddleware(config) {
         next(forbidden('X-Platform-Actor is not permitted in production'));
         return;
       }
-    } else if (typeof headerValue === 'string' && headerValue.trim() !== '') {
+    } else if (
+      options.allowDevelopmentHeader !== false &&
+      typeof headerValue === 'string' &&
+      headerValue.trim() !== ''
+    ) {
       req.platformActor = {
         actorId: headerValue.trim(),
+        scope: 'platform',
         permissions: [...permissionsForPlatformAccess('super_admin')],
       };
+      const requestContext = getRequestContext();
+      if (requestContext !== undefined) {
+        requestContext.auditScope = 'platform';
+      }
       next();
       return;
     }
@@ -45,8 +55,13 @@ function createPlatformActorMiddleware(config) {
 
     req.platformActor = {
       actorId: String(auth.user['_id']),
+      scope: 'platform',
       permissions: [...(authContext?.permissions ?? permissionsForPlatformAccess('super_admin'))],
     };
+    const requestContext = getRequestContext();
+    if (requestContext !== undefined) {
+      requestContext.auditScope = 'platform';
+    }
     next();
   };
 }

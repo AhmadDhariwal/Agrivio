@@ -24,10 +24,22 @@ function asDate(value) {
   return value instanceof Date ? value : new Date(String(value));
 }
 
+function logEvent(logger, level, message, fields) {
+  if (typeof logger === 'function') {
+    logger(level, message, fields);
+  } else if (logger && typeof logger[level] === 'function') {
+    logger[level]({ msg: message, ...fields });
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-empty-function
+const NO_OP_LOGGER = () => {};
+
 function createAuthService(deps) {
   const store = deps.store;
   const now = deps.now ?? (() => new Date());
   const nodeEnv = deps.nodeEnv ?? 'development';
+  const logger = deps.logger ?? NO_OP_LOGGER;
   const rateLimiter =
     deps.rateLimiter ?? createAuthRateLimiter(resolveAuthRateLimiterOptions(nodeEnv));
   const auditWriter = createAuditWriter({
@@ -409,6 +421,7 @@ function createAuthService(deps) {
       const created = await createAuthenticatedSession(user, context, at);
 
       await auditWriter.appendBusinessEvent(null, {
+        ...(user['platformAccess'] === 'super_admin' ? { scope: 'platform' } : {}),
         actorId: String(user['_id']),
         action: 'auth.login',
         resourceType: 'auth_session',
@@ -434,7 +447,9 @@ function createAuthService(deps) {
         const session = await store.findSessionByTokenHash(hash);
         await store.revokeSessionByTokenHash(null, hash, at);
         if (session?.userId !== undefined) {
+          const user = await store.findUserById(String(session.userId));
           await auditWriter.appendBusinessEvent(null, {
+            ...(user?.['platformAccess'] === 'super_admin' ? { scope: 'platform' } : {}),
             actorId: String(session.userId),
             action: 'auth.logout',
             resourceType: 'auth_session',
@@ -506,6 +521,7 @@ function createAuthService(deps) {
 
       const rotated = await rotateSession(session, user, nextContext, at);
       await auditWriter.appendBusinessEvent(null, {
+        ...(user['platformAccess'] === 'super_admin' ? { scope: 'platform' } : {}),
         actorId: String(user['_id']),
         action: 'auth.session_context_switched',
         resourceType: 'auth_session',
@@ -551,15 +567,29 @@ function createAuthService(deps) {
         issuedToken = token.token;
         if (deps.mailTransport && typeof deps.mailTransport.sendPasswordReset === 'function') {
           try {
-            await deps.mailTransport.sendPasswordReset({
+            const mailResult = await deps.mailTransport.sendPasswordReset({
               email: input.email,
               token: token.token,
             });
-          } catch {
-            // Generic response is still returned; delivery failure is not enumerated.
+            if (mailResult && mailResult.skipped) {
+              logEvent(logger, 'debug', 'Password reset email skipped: AGRIVIO_SMTP_HOST is not set', {
+                event: 'smtp_not_configured',
+              });
+            }
+          } catch (mailErr) {
+            // Generic response is still returned; delivery failure is not exposed to callers.
+            logEvent(logger, 'warn', 'Password reset email delivery failed', {
+              event: 'smtp_delivery_failed',
+              error: String(mailErr && mailErr.message ? mailErr.message : mailErr),
+            });
           }
+        } else {
+          logEvent(logger, 'debug', 'Password reset email skipped: no mail transport configured', {
+            event: 'smtp_not_configured',
+          });
         }
         await auditWriter.appendBusinessEvent(null, {
+          ...(user['platformAccess'] === 'super_admin' ? { scope: 'platform' } : {}),
           actorId: String(user['_id']),
           action: 'auth.password_reset_requested',
           resourceType: 'password_reset_token',
@@ -610,6 +640,7 @@ function createAuthService(deps) {
       const csrf = await this.issueCsrf(undefined);
 
       await auditWriter.appendBusinessEvent(null, {
+        ...(user['platformAccess'] === 'super_admin' ? { scope: 'platform' } : {}),
         actorId: String(user['_id']),
         action: 'auth.password_reset_completed',
         resourceType: 'user',

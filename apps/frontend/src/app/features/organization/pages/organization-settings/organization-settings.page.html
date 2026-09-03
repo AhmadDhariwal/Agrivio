@@ -1,120 +1,386 @@
-<agrivio-ui-page-header
-  title="Organization settings"
-  eyebrow="Setup"
-  lede="Manage residual operational settings for this organization. Specialized policies stay with their owning modules."
-/>
+<div class="settings-shell" data-testid="organization-settings">
+  <!-- Page Header with Breadcrumb Navigation -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <nav class="page-head__breadcrumbs" aria-label="Breadcrumb">
+        <a class="breadcrumb-link" routerLink="/app/organization/settings">Organization</a>
+        <span class="breadcrumb-sep">/</span>
+        <span class="breadcrumb-current" aria-current="page">Settings</span>
+      </nav>
+      <p class="page-head__eyebrow">SETUP</p>
+      <h1 class="page-head__title">Organization settings</h1>
+      <p class="page-head__lede">
+        Manage residual operational settings for this organization. Specialized policies stay with their owning modules.
+      </p>
+    </div>
+  </header>
 
-@if (loading()) {
-  <agrivio-ui-loading-state label="Loading settings…" />
-} @else if (permissionDenied()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to view organization settings." />
-} @else {
+  <!-- Global Alerts -->
   @if (errorMessage(); as error) {
-    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+    <div class="alert-container">
+      <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+    </div>
   }
   @if (successMessage(); as success) {
-    <agrivio-ui-alert tone="success" [message]="success" />
+    <div class="alert-container">
+      <agrivio-ui-alert tone="success" [message]="success" />
+    </div>
   }
 
-  <section class="ag-stack" data-testid="organization-settings">
-    <form
-      class="ag-card ag-stack ag-form ag-form--with-required-hint"
-      [formGroup]="profileForm"
-      (ngSubmit)="saveProfile()"
-    >
-      <h2>Organization profile</h2>
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Legal name"
-          for="org-profile-name"
-          [required]="fieldRequired(profileForm.controls.name)"
-        />
-        <input
-          id="org-profile-name"
-          class="ag-input"
-          formControlName="name"
-          data-testid="org-profile-name"
-          [attr.aria-required]="fieldRequired(profileForm.controls.name) ? 'true' : null"
-        />
-      </div>
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Business timezone (IANA)"
-          for="org-profile-timezone"
-          [required]="fieldRequired(profileForm.controls.timezone)"
-        />
-        <input
-          id="org-profile-timezone"
-          class="ag-input"
-          formControlName="timezone"
-          data-testid="org-profile-timezone"
-          [attr.aria-required]="fieldRequired(profileForm.controls.timezone) ? 'true' : null"
-        />
-      </div>
-      @if (canUpdateOrg()) {
-        <button class="ag-btn" type="submit" [disabled]="saving()">Save profile</button>
-      }
-    </form>
+  @if (loading()) {
+    <div class="state-container">
+      <agrivio-ui-loading-state label="Loading organization settings…" />
+    </div>
+  } @else if (permissionDenied()) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="warning" message="You do not have permission to view organization settings." />
+    </div>
+  } @else {
+    <!-- Main 2-Column Settings Grid -->
+    <div class="settings-grid" [class.settings-grid--full]="!hasVisibleSidebar()">
+      <!-- Left Column: Primary Forms -->
+      <main class="settings-main">
+        <!-- Card 1: Organization Profile -->
+        <section class="form-card" data-testid="organization-profile-card">
+          <div class="form-card__header">
+            <div>
+              <h2 class="form-card__title">Organization profile</h2>
+              <p class="form-card__subtitle">Core identity used across the organization.</p>
+            </div>
+          </div>
 
-    <form
-      class="ag-card ag-stack ag-form ag-form--with-required-hint"
-      [formGroup]="settingsForm"
-      (ngSubmit)="saveSettings()"
-    >
-      <h2>Residual settings</h2>
-      <div class="ag-field">
-        <agrivio-ui-field-label label="Trading name" for="settings-trading-name" />
-        <input
-          id="settings-trading-name"
-          class="ag-input"
-          formControlName="tradingName"
-          data-testid="settings-trading-name"
-        />
-      </div>
-      <div class="ag-field">
-        <agrivio-ui-field-label label="Contact phone" for="settings-contact-phone" />
-        <input
-          id="settings-contact-phone"
-          class="ag-input"
-          formControlName="contactPhone"
-          data-testid="settings-contact-phone"
-        />
-      </div>
-      <div class="ag-field">
-        <agrivio-ui-field-label label="Contact email" for="settings-contact-email" />
-        <input
-          id="settings-contact-email"
-          class="ag-input"
-          formControlName="contactEmail"
-          data-testid="settings-contact-email"
-        />
-      </div>
-      <div class="ag-field">
-        <agrivio-ui-field-label label="Address" for="settings-address" />
-        <input
-          id="settings-address"
-          class="ag-input"
-          formControlName="addressLine"
-          data-testid="settings-address"
-        />
-      </div>
-      <div class="ag-field">
-        <agrivio-ui-field-label label="Document footer note" for="settings-footer" />
-        <textarea
-          id="settings-footer"
-          class="ag-input"
-          formControlName="documentFooterNote"
-          rows="3"
-          data-testid="settings-footer"
-        ></textarea>
-      </div>
-      @if (canManage()) {
-        <button class="ag-btn" type="submit" [disabled]="saving()" data-testid="settings-save">
-          Save settings
-        </button>
-      } @else {
-        <agrivio-ui-alert tone="info" message="You can view settings but cannot change them." />
+          <form
+            class="form-card__body ag-form ag-form--with-required-hint"
+            [formGroup]="profileForm"
+            (ngSubmit)="saveProfile()"
+          >
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Legal name"
+                for="org-profile-name"
+                [required]="fieldRequired(profileForm.controls.name)"
+              />
+              <input
+                id="org-profile-name"
+                class="ag-input"
+                type="text"
+                formControlName="name"
+                data-testid="org-profile-name"
+                placeholder="e.g. Agrivio Demo Agrochemicals (Pvt) Ltd"
+                [attr.aria-required]="fieldRequired(profileForm.controls.name) ? 'true' : null"
+                [class.ag-input--invalid]="profileForm.controls.name.touched && profileForm.controls.name.invalid"
+              />
+              @if (profileForm.controls.name.touched && profileForm.controls.name.invalid) {
+                <p class="field-error">Legal name is required (minimum 2 characters).</p>
+              }
+            </div>
+
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Business timezone (IANA)"
+                for="org-profile-timezone"
+                [required]="fieldRequired(profileForm.controls.timezone)"
+              />
+              <select
+                id="org-profile-timezone"
+                class="ag-select"
+                formControlName="timezone"
+                data-testid="org-profile-timezone"
+                [attr.aria-required]="fieldRequired(profileForm.controls.timezone) ? 'true' : null"
+              >
+                @for (tz of availableTimezones(); track tz) {
+                  <option [value]="tz">{{ tz }}</option>
+                }
+              </select>
+              @if (profileForm.controls.timezone.touched && profileForm.controls.timezone.invalid) {
+                <p class="field-error">Timezone is required.</p>
+              }
+            </div>
+
+            @if (canUpdateOrg()) {
+              <div class="form-actions">
+                <button
+                  type="submit"
+                  class="ag-btn ag-btn--primary"
+                  [disabled]="savingProfile() || profileForm.invalid"
+                  data-testid="profile-save"
+                >
+                  {{ savingProfile() ? 'Saving…' : 'Save profile' }}
+                </button>
+                <button
+                  type="button"
+                  class="ag-btn ag-btn--secondary"
+                  [disabled]="savingProfile() || profileForm.pristine"
+                  (click)="resetProfile()"
+                  data-testid="profile-reset"
+                >
+                  Reset
+                </button>
+              </div>
+            } @else {
+              <div class="read-only-banner">
+                <agrivio-ui-alert tone="info" message="Organization profile is in read-only mode for your role." />
+              </div>
+            }
+          </form>
+        </section>
+
+        <!-- Card 2: Residual Settings -->
+        <section class="form-card" data-testid="residual-settings-card">
+          <div class="form-card__header">
+            <div>
+              <h2 class="form-card__title">Residual settings</h2>
+              <p class="form-card__subtitle">General contact and document information.</p>
+            </div>
+          </div>
+
+          <form
+            class="form-card__body ag-form ag-form--with-required-hint"
+            [formGroup]="settingsForm"
+            (ngSubmit)="saveSettings()"
+          >
+            @if (canViewTradingName()) {
+              <div class="ag-field">
+                <agrivio-ui-field-label label="Trading name" for="settings-trading-name" />
+                <input
+                  id="settings-trading-name"
+                  class="ag-input"
+                  type="text"
+                  formControlName="tradingName"
+                  data-testid="settings-trading-name"
+                  placeholder="e.g. Agrivio Demo Agrochemicals"
+                />
+              </div>
+            }
+
+            @if (canViewContactPhone()) {
+              <div class="ag-field">
+                <agrivio-ui-field-label label="Contact phone" for="settings-contact-phone" />
+                <input
+                  id="settings-contact-phone"
+                  class="ag-input"
+                  type="tel"
+                  formControlName="contactPhone"
+                  data-testid="settings-contact-phone"
+                  placeholder="e.g. +92 21 1234 5678"
+                />
+              </div>
+            }
+
+            @if (canViewContactEmail()) {
+              <div class="ag-field">
+                <agrivio-ui-field-label label="Contact email" for="settings-contact-email" />
+                <input
+                  id="settings-contact-email"
+                  class="ag-input"
+                  type="email"
+                  formControlName="contactEmail"
+                  data-testid="settings-contact-email"
+                  placeholder="e.g. contact@agrivio.test"
+                />
+              </div>
+            }
+
+            @if (canViewAddressLine()) {
+              <div class="ag-field">
+                <agrivio-ui-field-label label="Address" for="settings-address" />
+                <textarea
+                  id="settings-address"
+                  class="ag-textarea"
+                  formControlName="addressLine"
+                  rows="2"
+                  data-testid="settings-address"
+                  placeholder="Suite 204, 2nd Floor, Business Park, Shahrah-e-Faisal, Karachi 75350, Pakistan"
+                ></textarea>
+              </div>
+            }
+
+            @if (canViewDocumentFooterNote()) {
+              <div class="ag-field">
+                <agrivio-ui-field-label label="Document footer note" for="settings-footer" />
+                <textarea
+                  id="settings-footer"
+                  class="ag-textarea"
+                  formControlName="documentFooterNote"
+                  rows="2"
+                  data-testid="settings-footer"
+                  placeholder="This document is system generated and does not require a signature."
+                ></textarea>
+              </div>
+            }
+
+            <!-- Informational Callout -->
+            <div class="info-callout" role="note">
+              <div class="info-callout__icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="16" x2="12" y2="12"></line>
+                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+              </div>
+              <p class="info-callout__text">
+                These settings affect organization-wide defaults only. Module-specific rules are configured in their own sections.
+              </p>
+            </div>
+
+            @if (canSaveSettings()) {
+              <div class="form-actions">
+                <button
+                  type="submit"
+                  class="ag-btn ag-btn--primary"
+                  [disabled]="savingSettings() || settingsForm.invalid"
+                  data-testid="settings-save"
+                >
+                  {{ savingSettings() ? 'Saving…' : 'Save settings' }}
+                </button>
+                <button
+                  type="button"
+                  class="ag-btn ag-btn--secondary"
+                  [disabled]="savingSettings() || settingsForm.pristine"
+                  (click)="resetSettings()"
+                  data-testid="settings-reset"
+                >
+                  Cancel
+                </button>
+              </div>
+            } @else {
+              <div class="read-only-banner">
+                <agrivio-ui-alert tone="info" message="You can view settings but cannot change them." />
+              </div>
+            }
+          </form>
+        </section>
+      </main>
+
+      <!-- Right Column: Settings Summary, Document Preview & What Belongs Here -->
+      @if (hasVisibleSidebar()) {
+        <aside class="settings-sidebar" aria-label="Settings context and preview">
+          <!-- Settings Summary Card -->
+          @if (canShowSummary()) {
+            <section class="summary-card" data-testid="settings-summary-card">
+              <div class="summary-card__header">
+                <h2 class="summary-card__title">Settings summary</h2>
+              </div>
+              <div class="summary-card__body">
+                <div class="summary-profile-wrap">
+                  <div class="org-avatar" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                      <line x1="9" y1="22" x2="9" y2="22.01"></line>
+                      <line x1="15" y1="22" x2="15" y2="22.01"></line>
+                      <line x1="9" y1="6" x2="9" y2="6.01"></line>
+                      <line x1="15" y1="6" x2="15" y2="6.01"></line>
+                      <line x1="9" y1="10" x2="9" y2="10.01"></line>
+                      <line x1="15" y1="10" x2="15" y2="10.01"></line>
+                      <line x1="9" y1="14" x2="9" y2="14.01"></line>
+                      <line x1="15" y1="14" x2="15" y2="14.01"></line>
+                      <line x1="9" y1="18" x2="9" y2="18.01"></line>
+                      <line x1="15" y1="18" x2="15" y2="18.01"></line>
+                    </svg>
+                  </div>
+                  <div class="summary-meta-list">
+                    <div class="summary-meta-item">
+                      <span class="summary-meta-label">Organization status</span>
+                      <span
+                        class="status-pill"
+                        [class.status-pill--active]="isStatusActive()"
+                        [class.status-pill--inactive]="!isStatusActive()"
+                      >
+                        <span class="status-pill__dot"></span>
+                        {{ statusLabel() }}
+                      </span>
+                    </div>
+                    <div class="summary-meta-item">
+                      <span class="summary-meta-label">Timezone</span>
+                      <span class="summary-meta-value">{{ displayTimezone() }}</span>
+                    </div>
+                    @if (canViewContactEmail()) {
+                      <div class="summary-meta-item">
+                        <span class="summary-meta-label">Contact email</span>
+                        <span class="summary-meta-value summary-meta-value--truncate" [title]="displayEmail()">
+                          {{ displayEmail() }}
+                        </span>
+                      </div>
+                    }
+                    <div class="summary-meta-item">
+                      <span class="summary-meta-label">Billing access</span>
+                      <span class="summary-meta-value summary-meta-value--highlight">
+                        {{ billingAccessStatus() }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          }
+
+          <!-- Document Preview Card -->
+          @if (canShowDocumentPreview()) {
+            <section class="summary-card" data-testid="document-preview-card">
+              <div class="summary-card__header">
+                <h2 class="summary-card__title">Document preview</h2>
+              </div>
+              <div class="summary-card__body">
+                <div class="doc-preview">
+                  <h3 class="doc-preview__name">{{ previewOrgName() }}</h3>
+                  @if (canViewAddressLine()) {
+                    <p class="doc-preview__address">{{ previewAddress() }}</p>
+                  }
+                  @if (canViewDocumentFooterNote()) {
+                    <div class="doc-preview__divider"></div>
+                    <p class="doc-preview__footer">{{ previewFooterNote() }}</p>
+                  }
+                </div>
+              </div>
+            </section>
+          }
+
+          <!-- What Belongs Here Guidance Card -->
+          @if (canShowGuidance()) {
+            <section class="summary-card summary-card--checklist" data-testid="what-belongs-here-card">
+              <div class="summary-card__header">
+                <h2 class="summary-card__title">What belongs here</h2>
+              </div>
+              <div class="summary-card__body">
+                <ul class="checklist" role="list">
+                  <li class="checklist__item">
+                    <span class="checklist__icon" aria-hidden="true">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </span>
+                    <span class="checklist__text">Organization profile and legal identity</span>
+                  </li>
+                  <li class="checklist__item">
+                    <span class="checklist__icon" aria-hidden="true">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </span>
+                    <span class="checklist__text">Primary contact details and address</span>
+                  </li>
+                  <li class="checklist__item">
+                    <span class="checklist__icon" aria-hidden="true">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </span>
+                    <span class="checklist__text">Business timezone for accurate operations</span>
+                  </li>
+                  <li class="checklist__item">
+                    <span class="checklist__icon" aria-hidden="true">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </span>
+                    <span class="checklist__text">Document footer defaults for outputs</span>
+                  </li>
+                </ul>
+              </div>
+            </section>
+          }
+        </aside>
       }
-    </form>
-  </section>
-}
+    </div>
+  }
+</div>

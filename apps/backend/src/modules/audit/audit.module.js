@@ -10,6 +10,8 @@ function createAuditModule(options = {}) {
   const auditService = createAuditService({
     store,
     resolvePlanEntitlements: options.resolvePlanEntitlements,
+    resolveOrganizationTimezone: options.resolveOrganizationTimezone,
+    resolveActorOptions: options.resolveActorOptions,
     ...(options.now === undefined ? {} : { now: options.now }),
   });
   return { store, auditService };

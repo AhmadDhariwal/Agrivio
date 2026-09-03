@@ -37,266 +37,24 @@
   <div class="controls-layout">
     <aside class="module-nav" aria-label="Configurable modules">
       <p class="module-nav__label">Configured modules</p>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'inventory.products'"
-        (click)="selectModule('inventory.products')"
-      >
-        Products
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'inventory.categories'"
-        (click)="selectModule('inventory.categories')"
-        data-testid="categories-control-module"
-      >
-        Categories
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'inventory.stock'"
-        (click)="selectModule('inventory.stock')"
-        data-testid="inventory-control-module"
-      >
-        Inventory / Stock on Hand
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'inventory.openingStock'"
-        (click)="selectModule('inventory.openingStock')"
-        data-testid="opening-stock-control-module"
-      >
-        Opening Stock
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'inventory.batches'"
-        (click)="selectModule('inventory.batches')"
-        data-testid="batches-control-module"
-      >
-        Product Batches
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'inventory.expiry'"
-        (click)="selectModule('inventory.expiry')"
-        data-testid="expiry-control-module"
-      >
-        Expiry Inquiry
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'inventory.adjustments'"
-        (click)="selectModule('inventory.adjustments')"
-        data-testid="adjustments-control-module"
-      >
-        Stock Adjustments
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'inventory.transfers'"
-        (click)="selectModule('inventory.transfers')"
-        data-testid="transfers-control-module"
-      >
-        Warehouse Transfers
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'inventory.reconciliation'"
-        (click)="selectModule('inventory.reconciliation')"
-        data-testid="reconciliation-control-module"
-      >
-        Inventory Reconciliation
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'inventory.movements'"
-        (click)="selectModule('inventory.movements')"
-        data-testid="movements-control-module"
-      >
-        Stock Movements
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'branches'"
-        (click)="selectModule('branches')"
-        data-testid="branches-control-module"
-      >
-        Branches
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'warehouses'"
-        (click)="selectModule('warehouses')"
-        data-testid="warehouses-control-module"
-      >
-        Warehouses
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'customers'"
-        (click)="selectModule('customers')"
-        data-testid="customers-control-module"
-      >
-        Customers
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'suppliers'"
-        (click)="selectModule('suppliers')"
-        data-testid="suppliers-control-module"
-      >
-        Suppliers
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'returns'"
-        (click)="selectModule('returns')"
-        data-testid="returns-control-module"
-      >
-        Returns
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'expenses'"
-        (click)="selectModule('expenses')"
-        data-testid="expenses-control-module"
-      >
-        Expenses
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'expenses.categories'"
-        (click)="selectModule('expenses.categories')"
-        data-testid="expense-categories-control-module"
-      >
-        Expense Categories
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'accounts'"
-        (click)="selectModule('accounts')"
-        data-testid="accounts-control-module"
-      >
-        Accounts
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'employees'"
-        (click)="selectModule('employees')"
-        data-testid="employees-control-module"
-      >
-        Employees &amp; Access
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'reports'"
-        (click)="selectModule('reports')"
-        data-testid="reports-control-module"
-      >
-        Reports
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'alerts'"
-        (click)="selectModule('alerts')"
-        data-testid="alerts-control-module"
-      >
-        Alerts
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'purchases'"
-        (click)="selectModule('purchases')"
-        data-testid="purchases-control-module"
-      >
-        Purchases
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'payments.supplier'"
-        (click)="selectModule('payments.supplier')"
-        data-testid="supplier-payments-control-module"
-      >
-        Supplier Payments
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'payments.supplierLedger'"
-        (click)="selectModule('payments.supplierLedger')"
-        data-testid="supplier-ledger-control-module"
-      >
-        Supplier Ledger
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'sales'"
-        (click)="selectModule('sales')"
-        data-testid="sales-control-module"
-      >
-        Sales
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'payments.customer'"
-        (click)="selectModule('payments.customer')"
-        data-testid="customer-payments-control-module"
-      >
-        Customer Payments
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'dashboard'"
-        (click)="selectModule('dashboard')"
-        data-testid="dashboard-control-module"
-      >
-        Dashboard
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'setup'"
-        (click)="selectModule('setup')"
-        data-testid="setup-control-module"
-      >
-        Organization Setup
-      </button>
-      <button
-        type="button"
-        class="module-nav__item"
-        [class.module-nav__item--active]="selectedModule() === 'billing'"
-        (click)="selectModule('billing')"
-        data-testid="billing-control-module"
-      >
-        Billing
-      </button>
+      @for (group of moduleGroups; track group.label) {
+      <div class="module-nav__group">
+        <span class="module-nav__group-heading">{{ group.label }}</span>
+        <div class="module-nav__group-items">
+          @for (mod of group.modules; track mod.key) {
+          <button
+            type="button"
+            class="module-nav__item"
+            [class.module-nav__item--active]="selectedModule() === mod.key"
+            (click)="selectModule(mod.key)"
+            [attr.data-testid]="mod.testId || null"
+          >
+            {{ mod.label }}
+          </button>
+          }
+        </div>
+      </div>
+      }
       <p class="module-nav__note">Future modules will be added incrementally.</p>
     </aside>
 
@@ -334,7 +92,7 @@
           { title: 'Views', controls: viewControls() },
           {
             title:
-              selectedModule() === 'billing'
+              selectedModule() === 'billing' || selectedModule() === 'settings'
                 ? 'Features'
                 : selectedModule() === 'inventory.openingStock'
                   ? 'Optional UI'

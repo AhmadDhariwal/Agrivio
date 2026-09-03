@@ -381,6 +381,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Settings',
           route: '/app/organization/settings',
           permission: 'settings.view',
+          capabilityKey: 'settings',
           testId: 'nav-settings',
         },
         {
@@ -413,6 +414,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Imports',
           route: '/app/imports',
           permission: 'imports.preview',
+          capabilityKey: 'imports',
           testId: 'nav-imports',
         },
         {
@@ -420,6 +422,7 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           label: 'Audit',
           route: '/app/audit',
           permission: 'audit.view',
+          capabilityKey: 'audit',
           testId: 'nav-audit',
         },
       ],

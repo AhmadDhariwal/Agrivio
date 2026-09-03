@@ -130,6 +130,10 @@ function createApp(options) {
         const access = await subscriptions.subscriptionService.resolveAccessState(organizationId);
         return access?.plan?.entitlements ?? null;
       },
+      resolveOrganizationTimezone: async (organizationId) => {
+        const organization = await onboardingCore.store.findOrganizationById(organizationId);
+        return organization?.timezone ?? 'Asia/Karachi';
+      },
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
@@ -151,6 +155,7 @@ function createApp(options) {
     createAuthModule({
       config,
       persistence: authPersistence,
+      logger,
       store:
         authPersistence === 'mongoose'
           ? createMongooseAuthStore()
@@ -167,6 +172,7 @@ function createApp(options) {
     options.settings ??
     createSettingsModule({
       persistence,
+      capabilityService: capabilities.capabilityService,
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
@@ -191,6 +197,12 @@ function createApp(options) {
       capabilityService: capabilities.capabilityService,
       ...(options.now === undefined ? {} : { now: options.now }),
     });
+
+  if (typeof audit.auditService.setActorOptionResolver === 'function') {
+    audit.auditService.setActorOptionResolver((organizationId, actorOptions) =>
+      employees.employeesService.listAuditActorOptions(organizationId, actorOptions),
+    );
+  }
 
   const locations =
     options.locations ??
@@ -547,6 +559,7 @@ function createApp(options) {
 
   const settingsRoutes = registerSettingsRoutes({
     settingsService: settings.settingsService,
+    capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
@@ -682,6 +695,7 @@ function createApp(options) {
 
   const importsRoutes = registerImportsRoutes({
     importsService: imports.importsService,
+    capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     requireCsrf: auth.middlewares.requireCsrf,
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
@@ -690,6 +704,7 @@ function createApp(options) {
   const auditRoutes = registerAuditRoutes({
     config,
     auditService: audit.auditService,
+    capabilityService: capabilities.capabilityService,
     requireAuth: auth.middlewares.requireAuth,
     optionalAuth: auth.middlewares.optionalAuth,
     requireSuspendedReadAccess: subscriptions.middlewares.requireSuspendedReadAccess,

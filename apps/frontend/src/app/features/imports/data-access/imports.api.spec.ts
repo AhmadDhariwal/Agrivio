@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { HttpHeaders, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { firstValueFrom, of } from 'rxjs';
@@ -67,6 +67,23 @@ describe('ImportsApi cache integration', () => {
       .expectOne((request) => request.url.endsWith('/imports/job-2'))
       .flush({ data: { id: 'job-2' } });
     await second;
+  });
+
+  it('returns the server download filename and content type', async () => {
+    const download = firstValueFrom(api.downloadTemplate('products'));
+    const request = http.expectOne((r) => r.url.endsWith('/imports/templates/products'));
+    expect(request.request.responseType).toBe('blob');
+    request.flush(new Blob(['workbook'], { type: 'application/vnd.ms-excel' }), {
+      headers: new HttpHeaders({
+        'Content-Type': 'application/vnd.ms-excel',
+        'Content-Disposition': 'attachment; filename="products-template.xls"',
+      }),
+    });
+
+    await expect(download).resolves.toMatchObject({
+      filename: 'products-template.xls',
+      contentType: 'application/vnd.ms-excel',
+    });
   });
 
   it('invalidates cached job and error reads after successful validation without domain tags', async () => {

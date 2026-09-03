@@ -1,7 +1,7 @@
 # Organization Capability & UI Policy — Phase 1
 
 Status: Implementation complete; lightweight authenticated browser review remains environment-dependent
-Scope: Generic platform foundation plus completed capability integrations through Stock Movements, Accounts, Reports, Alerts, Purchases, Supplier Payments, Supplier Ledger, Sales, Customer Payments, Dashboard, Branches, Warehouses, Billing, and Organization Setup
+Scope: Generic platform foundation plus completed capability integrations through Stock Movements, Accounts, Reports, Alerts, Purchases, Supplier Payments, Supplier Ledger, Sales, Customer Payments, Dashboard, Branches, Warehouses, Billing, Organization Setup, and Organization Settings
 Completed: 2026-08-29
 
 ## Implemented
@@ -414,9 +414,16 @@ Completed: 2026-08-29
 - Frontend and backend TypeScript project references typecheck: passed.
 - Final development and production builds for all projects passed.
 
+## Settings backend controls (2026-09-02)
+
+- Settings owns the exact ten-control `settings` registry: one module, three presentation-only features (`summary`, `documentPreview`, `guidance`), five configurable residual settings fields, and the `actions.update` action. Organization profile name/timezone remains owned by the Organization domain.
+- Settings GET enforces existing `settings.view` RBAC intersected with the effective `settings` module. Settings PATCH enforces existing `settings.manage` RBAC intersected with the effective `settings` module and `settings.actions.update`.
+- Settings field editability is enforced against changed parsed PATCH values in the service, so crafted mutations of disabled fields fail with `ORG_FIELD_NOT_EDITABLE` and disabled fields are never implicitly cleared. Existing optimistic versioning, audit, sparse updates, tenant isolation, and settings/setup cache invalidation remain unchanged.
+- Focused backend Settings capability registry, effective-policy/reset/isolation, route enforcement, field mutation preservation, Settings RBAC intersection, and Organization profile ownership coverage passed (2 new files plus directly affected Settings/Organization specs; 20 tests).
+
 ## Remaining risk
 
-Authenticated cross-organization browser smoke remains outstanding; focused component, route, policy, persistence-boundary, and build validation passed. Foundation + Products + Categories + Stock on Hand + Opening Stock + Product Batches + Expiry Inquiry + Stock Adjustments + Warehouse Transfers + Stock Movements + Accounts + Reports + Alerts + Purchases + Supplier Payments + Supplier Ledger + Sales + Customer Payments + Dashboard + Branches + Organization Setup are complete. Branches, Warehouses, and Billing backend capability enforcement and generic Super Admin registry integration are complete; their tenant frontend consumption and later unintegrated modules remain separate.
+Authenticated cross-organization browser smoke remains outstanding; focused component, route, policy, persistence-boundary, and build validation passed. Foundation + Products + Categories + Stock on Hand + Opening Stock + Product Batches + Expiry Inquiry + Stock Adjustments + Warehouse Transfers + Stock Movements + Accounts + Reports + Alerts + Purchases + Supplier Payments + Supplier Ledger + Sales + Customer Payments + Dashboard + Branches + Organization Setup + Settings are complete. Branches, Warehouses, and Billing backend capability enforcement and generic Super Admin registry integration are complete; their tenant frontend consumption and later unintegrated modules remain separate.
 
 BRANCHES CONTROL REGISTRY: ✅ FROZEN
 
@@ -457,3 +464,14 @@ SETUP DESTINATION ACCESS SAFETY: ✅ VERIFIED
 SETUP TENANT ISOLATION: ✅ VERIFIED
 
 ORGANIZATION SETUP CONTROLS BACKEND: ✅ FULLY DONE
+
+SETTINGS CONTROL REGISTRY: ✅ FROZEN
+
+SETTINGS ORG CONTROLS BACKEND: ✅ VERIFIED
+
+SETTINGS RBAC ∩ CAPABILITY: ✅ VERIFIED
+
+SETTINGS FIELD/ACTION ENFORCEMENT: ✅ VERIFIED
+
+SETTINGS FRONTEND CONTROLS INTEGRATION: ✅ FULLY DONE
+

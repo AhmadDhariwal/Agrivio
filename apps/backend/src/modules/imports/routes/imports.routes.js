@@ -5,12 +5,28 @@ const {
   createRequireOrganizationContextMiddleware,
   createRequirePermissionMiddleware,
 } = require('../../identity/permission.middleware');
+const { createRequireCapabilityMiddleware } = require('../../capabilities/capability.middleware');
 const { createImportsController } = require('../controllers/imports.controller');
 
 function registerImportsRoutes(deps) {
   const router = Router();
   const controller = createImportsController(deps);
   const requireOrganizationContext = createRequireOrganizationContextMiddleware();
+  const requireImportsModule = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'imports',
+    'enabled',
+  );
+  const requireImportsPreviewAction = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'imports.actions.preview',
+    'allowed',
+  );
+  const requireImportsExecuteAction = createRequireCapabilityMiddleware(
+    deps.capabilityService,
+    'imports.actions.execute',
+    'allowed',
+  );
 
   router.get(
     `${API_IMPORTS_PATH}/templates`,
@@ -18,6 +34,8 @@ function registerImportsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('imports.preview'),
     deps.requireOperationalAccess,
+    requireImportsModule,
+    requireImportsPreviewAction,
     (req, res, next) => {
       void controller.listTemplates(req, res, next);
     },
@@ -29,6 +47,8 @@ function registerImportsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('imports.preview'),
     deps.requireOperationalAccess,
+    requireImportsModule,
+    requireImportsPreviewAction,
     (req, res, next) => {
       void controller.downloadTemplate(req, res, next);
     },
@@ -41,6 +61,8 @@ function registerImportsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('imports.preview'),
     deps.requireOperationalAccess,
+    requireImportsModule,
+    requireImportsPreviewAction,
     (req, res, next) => {
       void controller.createJob(req, res, next);
     },
@@ -53,6 +75,8 @@ function registerImportsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('imports.preview'),
     deps.requireOperationalAccess,
+    requireImportsModule,
+    requireImportsPreviewAction,
     express.raw({
       type: (req) => {
         const value = String(req.headers['content-type'] || '')
@@ -81,6 +105,8 @@ function registerImportsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('imports.preview'),
     deps.requireOperationalAccess,
+    requireImportsModule,
+    requireImportsPreviewAction,
     (req, res, next) => {
       void controller.validateJob(req, res, next);
     },
@@ -92,6 +118,8 @@ function registerImportsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('imports.preview'),
     deps.requireOperationalAccess,
+    requireImportsModule,
+    requireImportsPreviewAction,
     (req, res, next) => {
       void controller.listErrors(req, res, next);
     },
@@ -103,6 +131,8 @@ function registerImportsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('imports.preview'),
     deps.requireOperationalAccess,
+    requireImportsModule,
+    requireImportsPreviewAction,
     (req, res, next) => {
       void controller.getJob(req, res, next);
     },
@@ -115,6 +145,8 @@ function registerImportsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('imports.execute'),
     deps.requireOperationalAccess,
+    requireImportsModule,
+    requireImportsExecuteAction,
     (req, res, next) => {
       void controller.confirmJob(req, res, next);
     },
@@ -127,6 +159,8 @@ function registerImportsRoutes(deps) {
     requireOrganizationContext,
     createRequirePermissionMiddleware('imports.execute'),
     deps.requireOperationalAccess,
+    requireImportsModule,
+    requireImportsExecuteAction,
     (req, res, next) => {
       void controller.executeJob(req, res, next);
     },

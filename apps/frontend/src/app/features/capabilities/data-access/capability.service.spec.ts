@@ -917,4 +917,62 @@ describe('CapabilityService', () => {
       capabilityKey: 'branches',
     });
   });
+
+  it('provides default enabled/visible/allowed values for all 10 settings.* controls', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        CapabilityService,
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            activeContext: () => ({ contextType: 'organization', organizationId: 'org-1' }),
+          },
+        },
+      ],
+    });
+    const service = TestBed.inject(CapabilityService);
+
+    const features = ['summary', 'documentPreview', 'guidance'] as const;
+    const fields = [
+      'tradingName',
+      'contactPhone',
+      'contactEmail',
+      'addressLine',
+      'documentFooterNote',
+    ] as const;
+    const actions = ['update'] as const;
+    const allKeys = [
+      'settings',
+      ...features.map((id) => `settings.features.${id}`),
+      ...fields.map((id) => `settings.fields.${id}`),
+      ...actions.map((id) => `settings.actions.${id}`),
+    ];
+
+    expect(allKeys).toHaveLength(10);
+    expect(new Set(allKeys).size).toBe(10);
+    expect(service.canUseModule('settings')).toBe(true);
+    for (const id of features) {
+      expect(service.canUseFeature(`settings.features.${id}`)).toBe(true);
+    }
+    for (const id of fields) {
+      expect(service.canViewField(`settings.fields.${id}`)).toBe(true);
+      expect(service.canEditField(`settings.fields.${id}`)).toBe(true);
+    }
+    for (const id of actions) {
+      expect(service.canPerformAction(`settings.actions.${id}`)).toBe(true);
+    }
+
+    const app = appRoutes.find((route) => route.path === 'app');
+    expect(
+      app?.children?.find((route) => route.path === 'organization/settings')?.canActivate,
+    ).toHaveLength(2);
+
+    const navigation = CANONICAL_NAVIGATION.flatMap((entry) =>
+      entry.type === 'group' ? entry.group.children : [entry.item],
+    );
+    expect(navigation.find((item) => item.id === 'organization.settings')).toMatchObject({
+      permission: 'settings.view',
+      capabilityKey: 'settings',
+    });
+  });
 });

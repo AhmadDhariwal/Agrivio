@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpResponse } from '@angular/common/http';
 import { Observable, from, map, switchMap, tap } from 'rxjs';
 import {
   API_CSRF_HEADER,
@@ -12,6 +12,12 @@ import { ImportJob, ImportRowError, ImportTemplate } from '../models/imports.mod
 import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
 import { QUERY_CACHE_TAGS } from '../../../shared/data-access/query-cache.tags';
 import { invalidateImportExecuteEffects } from './imports-cache.invalidation';
+
+export interface ImportTemplateDownload {
+  blob: Blob;
+  filename: string;
+  contentType: string;
+}
 
 @Injectable({ providedIn: 'root' })
 export class ImportsApi {
@@ -33,6 +39,16 @@ export class ImportsApi {
           })
           .pipe(map((response) => response.data.items)),
     });
+  }
+
+  downloadTemplate(importType: string): Observable<ImportTemplateDownload> {
+    return this.http
+      .get(`${this.baseUrl}/templates/${encodeURIComponent(importType)}`, {
+        withCredentials: true,
+        observe: 'response',
+        responseType: 'blob',
+      })
+      .pipe(map((response) => this.mapTemplateDownload(response)));
   }
 
   createJob(importType: string): Observable<ImportJob> {
@@ -157,5 +173,48 @@ export class ImportsApi {
 
   private invalidateJobReads(): void {
     this.queryCache.invalidateTags(QUERY_CACHE_TAGS.importJobs, QUERY_CACHE_TAGS.importErrors);
+  }
+
+  private mapTemplateDownload(response: HttpResponse<Blob>): ImportTemplateDownload {
+    const blob = response.body;
+    if (!blob || blob.size === 0) {
+      throw new Error('Downloaded template was empty. Please try again.');
+    }
+
+    const filename = this.readFilename(response.headers.get('Content-Disposition'));
+    const contentType = response.headers.get('Content-Type')?.split(';', 1)[0]?.trim() ?? blob.type;
+    const supportedContentTypes = new Set([
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/xml',
+      'text/xml',
+    ]);
+    if (!filename || !/\.(xls|xlsx|xml)$/i.test(filename) || !supportedContentTypes.has(contentType)) {
+      throw new Error('Downloaded template had an unsupported format or missing filename.');
+    }
+
+    return {
+      blob,
+      filename,
+      contentType,
+    };
+  }
+
+  private readFilename(contentDisposition: string | null): string | null {
+    if (!contentDisposition) {
+      return null;
+    }
+    const encoded = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+    const plain = contentDisposition.match(/filename\s*=\s*"?([^";]+)"?/i)?.[1];
+    const value = encoded ?? plain;
+    if (!value) {
+      return null;
+    }
+    try {
+      const filename = decodeURIComponent(value.trim());
+      return filename !== '' ? filename : null;
+    } catch {
+      return value.trim() !== '' ? value.trim() : null;
+    }
   }
 }

@@ -42,6 +42,9 @@ const EMPLOYEES_MODULE_KEY = 'employees';
 const DASHBOARD_MODULE_KEY = 'dashboard';
 const BILLING_MODULE_KEY = 'billing';
 const SETUP_MODULE_KEY = 'setup';
+const SETTINGS_MODULE_KEY = 'settings';
+const IMPORTS_MODULE_KEY = 'imports';
+const AUDIT_MODULE_KEY = 'audit';
 
 const REPORT_CAPABILITY_KEY_BY_REPORT_KEY = Object.freeze({
   sales: 'reports.reportAvailability.sales',
@@ -72,6 +75,67 @@ const ALERT_CAPABILITY_KEY_BY_ALERT_TYPE = Object.freeze({
 });
 
 const definitions = [
+  {
+    key: SETTINGS_MODULE_KEY,
+    parentKey: null,
+    moduleKey: SETTINGS_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Organization Settings',
+    description: 'Residual organization settings owned by the Settings module.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'settings.view' },
+    reason:
+      'Disabling Settings blocks residual settings reads and updates without changing the Organization profile endpoint.',
+  },
+  ...[
+    ['summary', 'Settings Summary', 'Show the organization settings summary presentation.'],
+    ['documentPreview', 'Document Preview', 'Show the existing document preview presentation.'],
+    ['guidance', 'Settings Guidance', 'Show the existing organization settings guidance.'],
+  ].map(([id, label, description]) => ({
+    key: `${SETTINGS_MODULE_KEY}.features.${id}`,
+    parentKey: SETTINGS_MODULE_KEY,
+    moduleKey: SETTINGS_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'settings.view' },
+  })),
+  ...[
+    ['tradingName', 'Trading Name'],
+    ['contactPhone', 'Contact Phone'],
+    ['contactEmail', 'Contact Email'],
+    ['addressLine', 'Address'],
+    ['documentFooterNote', 'Document Footer Note'],
+  ].map(([id, label]) => ({
+    key: `${SETTINGS_MODULE_KEY}.fields.${id}`,
+    parentKey: SETTINGS_MODULE_KEY,
+    moduleKey: SETTINGS_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description: `Residual organization ${label.toLowerCase()} setting.`,
+    defaultPolicy: { visible: true, editable: true },
+    configurable: { visible: true, editable: true },
+    risk: RISK_LEVELS.Recommended,
+    requiredPermissions: { visible: 'settings.view', editable: 'settings.manage' },
+  })),
+  {
+    key: `${SETTINGS_MODULE_KEY}.actions.update`,
+    parentKey: SETTINGS_MODULE_KEY,
+    moduleKey: SETTINGS_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label: 'Update Settings',
+    description:
+      'Allow residual settings updates. Existing validation, optimistic versioning, audit, and tenant isolation still apply.',
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { allowed: 'settings.manage' },
+  },
   {
     key: 'inventory',
     parentKey: null,
@@ -3951,6 +4015,155 @@ const definitions = [
         }
       : {}),
   })),
+  // ─── Imports ───────────────────────────────────────────────────────────────
+  {
+    key: IMPORTS_MODULE_KEY,
+    parentKey: null,
+    moduleKey: IMPORTS_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Excel Imports',
+    description: 'Excel import screens and import job API operations for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'imports.preview' },
+    reason:
+      'Disabling Imports hides the Imports page and blocks all import API operations without deleting existing job history.',
+  },
+  ...[
+    ['moduleInfo', 'About Imports', 'Show the Imports module guidance panel.'],
+    ['templateDownloads', 'Template Downloads', 'Show the available import template links for download.'],
+    ['jobHistory', 'Import Job History', 'Show the historical list of past import jobs.'],
+  ].map(([id, label, description]) => ({
+    key: `${IMPORTS_MODULE_KEY}.features.${id}`,
+    parentKey: IMPORTS_MODULE_KEY,
+    moduleKey: IMPORTS_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'imports.preview' },
+  })),
+  // Imports platform-enforced workflow fields — SERVER ENFORCED
+  ...[
+    ['importType', 'Import Type', 'The import data domain (e.g. products, opening stock).'],
+    ['fileName', 'File Name', 'Original uploaded file name.'],
+    ['fileSize', 'File Size', 'Uploaded file size in bytes.'],
+    ['status', 'Job Status', 'Import job lifecycle status (pending, validated, executed, failed).'],
+    ['totalRows', 'Total Rows', 'Total data rows found in the uploaded workbook.'],
+    ['validRows', 'Valid Rows', 'Rows that passed validation and are eligible for execution.'],
+    ['errorRows', 'Error Rows', 'Rows that failed validation and require correction.'],
+  ].map(([id, label, description]) => ({
+    key: `${IMPORTS_MODULE_KEY}.fields.${id}`,
+    parentKey: IMPORTS_MODULE_KEY,
+    moduleKey: IMPORTS_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description,
+    defaultPolicy: { visible: true, editable: false },
+    configurable: { visible: false, editable: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'imports.preview' },
+    reason: 'Import workflow fields are platform-controlled audit and progress data.',
+  })),
+  // Imports actions — semantically distinct: preview/upload vs execute
+  {
+    key: `${IMPORTS_MODULE_KEY}.actions.preview`,
+    parentKey: IMPORTS_MODULE_KEY,
+    moduleKey: IMPORTS_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label: 'Preview & Validate Import',
+    description:
+      'Allow template downloads, job creation, workbook upload, validation, error inspection, and job status reads. Disabling this action blocks the preview stage entirely. Execute access is controlled separately.',
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk: RISK_LEVELS.Recommended,
+    requiredPermissions: { allowed: 'imports.preview' },
+  },
+  {
+    key: `${IMPORTS_MODULE_KEY}.actions.execute`,
+    parentKey: IMPORTS_MODULE_KEY,
+    moduleKey: IMPORTS_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label: 'Execute Import',
+    description:
+      'Allow confirmed job execution (confirm + execute endpoints). Disabling blocks data commitment while leaving preview and validation available. Existing RBAC, tenant isolation, and import domain validation still apply.',
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { allowed: 'imports.execute' },
+    reason:
+      'Execute can be independently disabled to restrict bulk data mutation while allowing operators to inspect and validate workbooks.',
+  },
+  // ─── Audit ─────────────────────────────────────────────────────────────────
+  {
+    key: AUDIT_MODULE_KEY,
+    parentKey: null,
+    moduleKey: AUDIT_MODULE_KEY,
+    type: CONTROL_TYPES.Module,
+    label: 'Audit Inquiry',
+    description: 'Organization audit event log screens and audit API operations for this organization.',
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Critical,
+    requiredPermissions: { enabled: 'audit.view' },
+    reason:
+      'Disabling Audit hides the Audit Inquiry page and blocks audit API reads without purging any audit event records.',
+  },
+  ...[
+    ['moduleInfo', 'About Audit Inquiry', 'Show the Audit Inquiry module guidance panel.'],
+    ['search', 'Search', 'Search audit events by actor, action, or entity identifier.'],
+    ['filters', 'Filters', 'Filter audit events by action type, entity type, date range, and actor.'],
+  ].map(([id, label, description]) => ({
+    key: `${AUDIT_MODULE_KEY}.features.${id}`,
+    parentKey: AUDIT_MODULE_KEY,
+    moduleKey: AUDIT_MODULE_KEY,
+    type: CONTROL_TYPES.Feature,
+    label,
+    description,
+    defaultPolicy: { enabled: true },
+    configurable: { enabled: true },
+    risk: RISK_LEVELS.Normal,
+    requiredPermissions: { enabled: 'audit.view' },
+  })),
+  // Audit platform-enforced fields — SERVER ENFORCED (immutable audit trail)
+  ...[
+    ['timestamp', 'Timestamp', 'ISO-8601 UTC timestamp of when the event was recorded.'],
+    ['actor', 'Actor', 'Authenticated user who performed the action.'],
+    ['action', 'Action', 'Business action code that identifies the audit event type.'],
+    ['entityType', 'Entity Type', 'Domain resource type affected by this event.'],
+    ['entityId', 'Entity ID', 'Identifier of the specific resource affected.'],
+    ['details', 'Details', 'Structured event metadata including before/after state.'],
+  ].map(([id, label, description]) => ({
+    key: `${AUDIT_MODULE_KEY}.fields.${id}`,
+    parentKey: AUDIT_MODULE_KEY,
+    moduleKey: AUDIT_MODULE_KEY,
+    type: CONTROL_TYPES.Field,
+    label,
+    description,
+    defaultPolicy: { visible: true, editable: false },
+    configurable: { visible: false, editable: false },
+    risk: RISK_LEVELS.Critical,
+    platformEnforced: true,
+    requiredPermissions: { visible: 'audit.view' },
+    reason: 'Audit fields form an immutable compliance record and cannot be hidden or edited.',
+  })),
+  {
+    key: `${AUDIT_MODULE_KEY}.actions.inspect`,
+    parentKey: AUDIT_MODULE_KEY,
+    moduleKey: AUDIT_MODULE_KEY,
+    type: CONTROL_TYPES.Action,
+    label: 'Inspect Audit Event',
+    description:
+      'Allow viewing the full detail record of a single audit event. Existing RBAC and tenant isolation still apply.',
+    defaultPolicy: { allowed: true },
+    configurable: { allowed: true },
+    risk: RISK_LEVELS.Recommended,
+    requiredPermissions: { allowed: 'audit.view' },
+  },
 ];
 
 const registry = new Map(
@@ -4012,6 +4225,9 @@ module.exports = {
   DASHBOARD_MODULE_KEY,
   BILLING_MODULE_KEY,
   SETUP_MODULE_KEY,
+  SETTINGS_MODULE_KEY,
+  IMPORTS_MODULE_KEY,
+  AUDIT_MODULE_KEY,
   REPORT_CAPABILITY_KEY_BY_REPORT_KEY,
   ALERT_CAPABILITY_KEY_BY_ALERT_TYPE,
   listCapabilityControls,

@@ -22,6 +22,9 @@ function createSettingsController(deps) {
         if (typeof organizationId !== 'string' || organizationId === '') {
           throw forbidden('Organization context is required');
         }
+        if (req.body?.organizationId !== undefined && req.body.organizationId !== organizationId) {
+          throw forbidden('Cross-organization modification rejected');
+        }
         const data = await deps.settingsService.updateSettings(organizationId, req.body, {
           actorId: String(req.authContext.userId),
         });

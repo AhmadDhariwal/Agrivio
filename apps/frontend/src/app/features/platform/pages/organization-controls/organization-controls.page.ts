@@ -45,7 +45,107 @@ type ConfigurableModule =
   | 'sales'
   | 'dashboard'
   | 'setup'
-  | 'billing';
+  | 'billing'
+  | 'settings'
+  | 'imports'
+  | 'audit';
+
+export interface ModuleNavItem {
+  readonly key: ConfigurableModule;
+  readonly label: string;
+  readonly testId?: string;
+}
+
+export interface ModuleNavGroup {
+  readonly label: string;
+  readonly modules: readonly ModuleNavItem[];
+}
+
+export const MODULE_NAV_GROUPS: readonly ModuleNavGroup[] = [
+  {
+    label: 'Dashboard',
+    modules: [
+      { key: 'dashboard', label: 'Dashboard', testId: 'dashboard-control-module' },
+    ],
+  },
+  {
+    label: 'Sales',
+    modules: [
+      { key: 'sales', label: 'Sales', testId: 'sales-control-module' },
+      { key: 'payments.customer', label: 'Customer Payments', testId: 'customer-payments-control-module' },
+    ],
+  },
+  {
+    label: 'Purchases',
+    modules: [
+      { key: 'purchases', label: 'Purchases', testId: 'purchases-control-module' },
+      { key: 'payments.supplier', label: 'Supplier Payments', testId: 'supplier-payments-control-module' },
+      { key: 'payments.supplierLedger', label: 'Supplier Ledger', testId: 'supplier-ledger-control-module' },
+    ],
+  },
+  {
+    label: 'Inventory',
+    modules: [
+      { key: 'inventory.products', label: 'Products', testId: 'products-control-module' },
+      { key: 'inventory.categories', label: 'Categories', testId: 'categories-control-module' },
+      { key: 'inventory.stock', label: 'Inventory / Stock on Hand', testId: 'inventory-control-module' },
+      { key: 'inventory.openingStock', label: 'Opening Stock', testId: 'opening-stock-control-module' },
+      { key: 'inventory.batches', label: 'Product Batches', testId: 'batches-control-module' },
+      { key: 'inventory.expiry', label: 'Expiry Inquiry', testId: 'expiry-control-module' },
+      { key: 'inventory.adjustments', label: 'Stock Adjustments', testId: 'adjustments-control-module' },
+      { key: 'inventory.transfers', label: 'Warehouse Transfers', testId: 'transfers-control-module' },
+      { key: 'inventory.reconciliation', label: 'Inventory Reconciliation', testId: 'reconciliation-control-module' },
+      { key: 'inventory.movements', label: 'Stock Movements', testId: 'movements-control-module' },
+    ],
+  },
+  {
+    label: 'Customers & Suppliers',
+    modules: [
+      { key: 'customers', label: 'Customers', testId: 'customers-control-module' },
+      { key: 'suppliers', label: 'Suppliers', testId: 'suppliers-control-module' },
+    ],
+  },
+  {
+    label: 'Returns & Corrections',
+    modules: [
+      { key: 'returns', label: 'Returns and Corrections', testId: 'returns-control-module' },
+    ],
+  },
+  {
+    label: 'Finance',
+    modules: [
+      { key: 'expenses', label: 'Expenses', testId: 'expenses-control-module' },
+      { key: 'expenses.categories', label: 'Expense Categories', testId: 'expense-categories-control-module' },
+      { key: 'accounts', label: 'Accounts', testId: 'accounts-control-module' },
+    ],
+  },
+  {
+    label: 'Reports & Insights',
+    modules: [
+      { key: 'reports', label: 'Reports', testId: 'reports-control-module' },
+      { key: 'alerts', label: 'Alerts', testId: 'alerts-control-module' },
+    ],
+  },
+  {
+    label: 'Organization',
+    modules: [
+      { key: 'branches', label: 'Branches', testId: 'branches-control-module' },
+      { key: 'warehouses', label: 'Warehouses', testId: 'warehouses-control-module' },
+      { key: 'employees', label: 'Employees & Access', testId: 'employees-control-module' },
+      { key: 'setup', label: 'Organization Setup', testId: 'setup-control-module' },
+      { key: 'billing', label: 'Billing', testId: 'billing-control-module' },
+      { key: 'settings', label: 'Organization Settings', testId: 'settings-control-module' },
+    ],
+  },
+  {
+    label: 'Data & Operations',
+    modules: [
+      { key: 'imports', label: 'Excel Imports', testId: 'imports-control-module' },
+      { key: 'audit', label: 'Audit Inquiry', testId: 'audit-control-module' },
+    ],
+  },
+];
+
 type PendingConfirmation =
   | { readonly kind: 'save' }
   | { readonly kind: 'reset-control'; readonly control: PlatformCapabilityControl }
@@ -74,6 +174,7 @@ export class OrganizationControlsPage {
   readonly snapshot = signal<PlatformOrganizationCapabilitySnapshot | null>(null);
   readonly draftValues = signal<DraftValues>({});
   readonly selectedModule = signal<ConfigurableModule>('inventory.products');
+  readonly moduleGroups = MODULE_NAV_GROUPS;
   readonly search = signal('');
   readonly reason = signal('');
   readonly loading = signal(true);
@@ -170,6 +271,8 @@ export class OrganizationControlsPage {
     if (this.selectedModule() === 'inventory.adjustments') {
       return this.adjustmentsFeatures('moduleInfo');
     }
+    if (this.selectedModule() === 'imports') return this.importsFeatures('moduleInfo');
+    if (this.selectedModule() === 'audit') return this.auditFeatures('moduleInfo');
     return this.batchFeatures('moduleInfo');
   });
   readonly presentationFeatureControls = computed(() => {
@@ -228,6 +331,9 @@ export class OrganizationControlsPage {
   readonly historyControls = computed(() => {
     if (this.selectedModule() === 'accounts') {
       return this.accountsFeatures('movementHistory');
+    }
+    if (this.selectedModule() === 'imports') {
+      return this.importsFeatures('jobHistory');
     }
     if (this.selectedModule() === 'inventory.transfers') {
       return this.transfersFeatures('recentTransfers');
@@ -292,6 +398,9 @@ export class OrganizationControlsPage {
     }
     if (this.selectedModule() === 'inventory.batches') {
       return this.batchFeatures('search', 'productFilter', 'warehouseFilter');
+    }
+    if (this.selectedModule() === 'audit') {
+      return this.auditFeatures('search', 'filters');
     }
     return [];
   });
@@ -598,6 +707,30 @@ export class OrganizationControlsPage {
       changes[0].value?.['enabled'] === false
     );
   });
+  readonly disablingSettings = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'settings' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
+  readonly disablingImports = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'imports' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
+  readonly disablingAudit = computed(() => {
+    const changes = this.changes();
+    return (
+      changes.length === 1 &&
+      changes[0]?.key === 'audit' &&
+      changes[0].value?.['enabled'] === false
+    );
+  });
   readonly confirmationTitle = computed(() => {
     const pending = this.pendingConfirmation();
     const organization = this.snapshot()?.organization.name ?? 'this organization';
@@ -607,6 +740,7 @@ export class OrganizationControlsPage {
     }
     if (pending?.kind === 'reset-organization') return `Reset all controls for ${organization}?`;
     if (this.disablingSetup()) return `Disable Organization Setup for ${organization}?`;
+    if (this.disablingSettings()) return `Disable Organization Settings for ${organization}?`;
     if (this.disablingBilling()) return `Disable Billing for ${organization}?`;
     if (this.disablingOpeningStock()) return `Disable Opening Stock for ${organization}?`;
     if (this.disablingBatches()) return `Disable Product Batches for ${organization}?`;
@@ -666,6 +800,12 @@ export class OrganizationControlsPage {
     }
     if (this.disablingDashboard()) {
       return `Disable Dashboard for ${organization}?`;
+    }
+    if (this.disablingImports()) {
+      return `Disable Data Imports for ${organization}?`;
+    }
+    if (this.disablingAudit()) {
+      return `Disable Audit Log for ${organization}?`;
     }
     const single = this.changeSummary().length === 1 ? this.changeSummary()[0] : null;
     if (single?.risk === 'CRITICAL' && single.after === 'Disabled') {
@@ -760,6 +900,15 @@ export class OrganizationControlsPage {
     if (this.disablingSetup()) {
       return `Users in ${organization} will no longer be able to access Organization Setup or its progress API. Existing setup completion facts and destination-module access are not changed. This affects ${organization} only.`;
     }
+    if (this.disablingSettings()) {
+      return `Users in ${organization} will no longer be able to access Organization Settings or update residual organization settings. Existing organization records and profile data are not deleted. This affects ${organization} only.`;
+    }
+    if (this.disablingImports()) {
+      return `Users in ${organization} will no longer be able to run data imports or access import history. Existing imported records, mappings, and related inventory/financial data are not modified. This affects ${organization} only.`;
+    }
+    if (this.disablingAudit()) {
+      return `Users in ${organization} will no longer be able to access the Audit Log. Historical audit trails, event logs, and user activity records are not deleted. This affects ${organization} only.`;
+    }
     const critical = this.changeSummary()
       .filter((change) => change.risk === 'CRITICAL')
       .map((change) => `${change.label}: ${change.before} → ${change.after}`);
@@ -773,6 +922,7 @@ export class OrganizationControlsPage {
     if (pending?.kind === 'reset-module') return `Reset ${this.moduleLabel(pending.moduleKey)}`;
     if (pending?.kind === 'reset-organization') return 'Reset all controls';
     if (this.disablingSetup()) return 'Disable Organization Setup';
+    if (this.disablingSettings()) return 'Disable Organization Settings';
     if (this.disablingBilling()) return 'Disable Billing';
     if (this.disablingOpeningStock()) return 'Disable Opening Stock';
     if (this.disablingBatches()) return 'Disable Product Batches';
@@ -798,6 +948,8 @@ export class OrganizationControlsPage {
     if (this.disablingSupplierLedger()) return 'Disable Supplier Ledger';
     if (this.disablingSales()) return 'Disable Sales';
     if (this.disablingDashboard()) return 'Disable Dashboard';
+    if (this.disablingImports()) return 'Disable Data Imports';
+    if (this.disablingAudit()) return 'Disable Audit Log';
     return 'Apply changes';
   });
 
@@ -1032,6 +1184,9 @@ export class OrganizationControlsPage {
     if (moduleKey === 'dashboard') return 'Dashboard';
     if (moduleKey === 'setup') return 'Organization Setup';
     if (moduleKey === 'billing') return 'Billing';
+    if (moduleKey === 'settings') return 'Organization Settings';
+    if (moduleKey === 'imports') return 'Data Imports';
+    if (moduleKey === 'audit') return 'Audit Log';
     return 'Product Batches';
   }
 
@@ -1182,6 +1337,16 @@ export class OrganizationControlsPage {
 
   private adjustmentsFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
     const keys = new Set(ids.map((id) => `inventory.adjustments.features.${id}`));
+    return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
+  }
+
+  private importsFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
+    const keys = new Set(ids.map((id) => `imports.features.${id}`));
+    return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
+  }
+
+  private auditFeatures(...ids: readonly string[]): readonly PlatformCapabilityControl[] {
+    const keys = new Set(ids.map((id) => `audit.features.${id}`));
     return this.byType('FEATURE', false).filter((control) => keys.has(control.key));
   }
 

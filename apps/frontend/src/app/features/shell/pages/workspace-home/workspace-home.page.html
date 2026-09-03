@@ -32,12 +32,7 @@
           [tone]="subscriptionTone(access.status)"
         />
         @if (access.planCode) {
-          <span>
-            {{ access.planCode }}
-            @if (access.planVersion) {
-              <span>v{{ access.planVersion }}</span>
-            }
-          </span>
+          <span>{{ access.planCode }}</span>
         }
       </div>
     }

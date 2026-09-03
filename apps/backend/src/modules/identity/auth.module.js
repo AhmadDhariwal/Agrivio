@@ -32,6 +32,7 @@ function createAuthModule(options) {
     mailTransport:
       options.mailTransport ??
       require('./smtp-mailer').createSmtpMailTransport(options.config),
+    ...(options.logger === undefined ? {} : { logger: options.logger }),
     ...(options.now === undefined ? {} : { now: options.now }),
     ...(options.resolveSubscriptionAccessState === undefined
       ? {}

@@ -64,3 +64,30 @@ Deferred **C/D**: WORM vendor, backup-provider selection, F09 restore rehearsal,
 ## API/cache hardening follow-up (2026-08-30)
 
 Organization audit inquiry now caches each exact normalized filter/page query briefly and deduplicates concurrent identical reads. Audit remains read-only and tenant scoped.
+
+## Audit RBAC and privacy hardening follow-up (2026-09-03)
+
+Tenant Audit list, detail, filter-options, and KPI summary now share the authenticated organization scope and exclude platform-scoped events. `organizationId` query input cannot widen tenant access, cross-organization detail IDs keep safe not-found semantics, and `audit.view` remains mandatory before Audit capabilities are evaluated. No tenant Admin role was introduced.
+
+Actor options are server-backed through existing organization memberships, searchable by authoritative employee display name/email, retain `actorId` as the filter value, and include System only when an in-window system event exists for that organization. Tenant Audit cache namespaces explicitly include tenant scope, organization ID, normalized filters/search, and pagination; existing session cache clearing remains unchanged and `QueryCacheService` was not modified.
+
+Platform operations now write an explicit `platform` audit scope. `GET /api/v1/platform/audit-events` returns only platform events and requires an authenticated `super_admin` platform session; the development actor-header bypass is disabled for this route. Tenant queries also deny known legacy platform-administration actions that predate explicit scope persistence.
+
+### Model review
+
+`audit_events.scope` is a class B security field (`tenant` / `platform`) owned by Audit infrastructure. It is optional only for backward compatibility with existing immutable records; all canonical writer paths assign it. The change is additive and non-destructive, adds the platform-scope chronological query index, preserves immutable append-only lifecycle, carries no secrets, and is consumed by API isolation queries. Existing organization-leading indexes remain in place.
+
+### Focused validation
+
+* Backend Audit/RBAC + isolated real-Mongo scope/index proof: 9 passed
+* Frontend Audit data/page: 22 passed
+* Frontend typecheck: passed
+* Changed-file ESLint, changed-JS `node --check`, and `git diff --check`: passed
+
+### Freeze state
+
+* TENANT AUDIT ISOLATION: ✅ VERIFIED
+* AUDIT EMPLOYEE FILTERING: ✅ VERIFIED
+* CROSS-ORG AUDIT ACCESS: ✅ BLOCKED
+* SUPER ADMIN AUDIT PRIVACY: ✅ VERIFIED
+* AUDIT RBAC: ✅ FROZEN
