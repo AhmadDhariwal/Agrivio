@@ -1,35 +1,48 @@
 /**
- * Authoritative field instructions, column guidelines, and realistic
- * Agrivio domain examples for each supported import type.
+ * Documentation-only metadata (descriptions, field labels, guidelines, and realistic
+ * domain examples). All authoritative fields, column lists, required/optional flags,
+ * and canonical enums are derived directly from the canonical import registry and domain models.
  */
 
-const TEMPLATE_DOCUMENTATION = {
+const { getTemplate } = require('./import-templates');
+const {
+  PRODUCT_CLASSES,
+  TRACKING_MODES,
+  MEASUREMENT_DIMENSIONS,
+  PRICE_TIERS,
+} = require('../catalog/catalog.validation');
+const { CUSTOMER_TYPES } = require('../customers/customers.validation');
+
+const CANONICAL_FIELD_RULES = {
+  productClass: `One of: ${PRODUCT_CLASSES.join(', ')}`,
+  trackingMode: `One of: ${TRACKING_MODES.join(', ')}`,
+  measurementDimension: `One of: ${MEASUREMENT_DIMENSIONS.join(', ')}`,
+  priceTier: `One of: ${PRICE_TIERS.join(', ')}`,
+  customerType: `One of: ${CUSTOMER_TYPES.join(', ')}`,
+};
+
+const DOCUMENTATION_METADATA = {
   product_categories: {
     title: 'Product Categories Import Guide',
     guidelines: [
       'Fill in your data on the "Import Template" sheet starting from Row 3.',
       'Do NOT modify or remove the first two header rows on the "Import Template" sheet.',
       'Category names must be unique within your organization.',
-      'Allowed product classes: fertilizer, seed, pesticide, chemical, general.',
+      `Allowed product classes: ${PRODUCT_CLASSES.join(', ')}.`,
     ],
-    fields: [
-      {
-        key: 'name',
+    fieldDescriptions: {
+      name: {
         label: 'Category Name',
-        required: true,
         allowedValues: 'Text up to 160 characters (unique)',
         description: 'Primary display name for the product category',
         example: 'Nitrogen Fertilizers',
       },
-      {
-        key: 'productClass',
+      productClass: {
         label: 'Product Class',
-        required: true,
-        allowedValues: 'fertilizer, seed, pesticide, chemical, general',
         description: 'Determines batch tracking and compliance rules for items in this category',
         example: 'fertilizer',
       },
-    ],
+    },
     examples: [
       { name: 'Nitrogen Fertilizers', productClass: 'fertilizer' },
       { name: 'Phosphatic Fertilizers', productClass: 'fertilizer' },
@@ -44,61 +57,48 @@ const TEMPLATE_DOCUMENTATION = {
     guidelines: [
       'Enter new products on the "Import Template" sheet starting from Row 3.',
       'SKU must be unique across all active and inactive products in your organization.',
-      'Referenced categoryName must exactly match an existing category name.',
+      'Referenced categoryName must exactly match an existing category name in your organization.',
       'Mandatory batch tracking applies to seed, fertilizer, pesticide, and chemical categories.',
-      'Allowed tracking modes: none, batch, batch_expiry.',
-      'Allowed dimensions: weight, volume, count, area, length.',
+      `Allowed tracking modes: ${TRACKING_MODES.join(', ')}.`,
+      `Allowed measurement dimensions: ${MEASUREMENT_DIMENSIONS.join(', ')}.`,
     ],
-    fields: [
-      {
-        key: 'sku',
+    fieldDescriptions: {
+      sku: {
         label: 'SKU / Product Code',
-        required: true,
         allowedValues: 'Unique alphanumeric string (up to 64 chars)',
         description: 'Unique internal stock-keeping unit identifier',
         example: 'FERT-UREA-50KG',
       },
-      {
-        key: 'name',
+      name: {
         label: 'Product Name',
-        required: true,
         allowedValues: 'Text up to 160 characters',
         description: 'Full commercial product description',
         example: 'Sona Urea 50kg Bag',
       },
-      {
-        key: 'categoryName',
+      categoryName: {
         label: 'Category Name',
-        required: true,
         allowedValues: 'Exact name of an existing product category',
         description: 'Category under which this product will be classified',
         example: 'Nitrogen Fertilizers',
       },
-      {
-        key: 'trackingMode',
+      trackingMode: {
         label: 'Tracking Mode',
-        required: true,
-        allowedValues: 'none, batch, batch_expiry',
         description: 'Inventory tracking method (must comply with category class)',
         example: 'batch',
       },
-      {
-        key: 'baseUnitCode',
+      baseUnitCode: {
         label: 'Base Unit Code',
-        required: true,
         allowedValues: 'BAG, KG, LTR, BTL, PCS, CAN, DRUM, PKT',
         description: 'Primary unit of measure for inventory and pricing',
         example: 'BAG',
       },
-      {
-        key: 'measurementDimension',
+      measurementDimension: {
         label: 'Measurement Dimension',
-        required: true,
-        allowedValues: 'weight, volume, count, area, length',
-        description: 'Physical dimension used for unit conversions',
-        example: 'weight',
+        description:
+          'Physical dimension used for unit conversions (e.g. mass for kg/bags, volume for liters)',
+        example: 'mass',
       },
-    ],
+    },
     examples: [
       {
         sku: 'FERT-UREA-50KG',
@@ -106,7 +106,7 @@ const TEMPLATE_DOCUMENTATION = {
         categoryName: 'Nitrogen Fertilizers',
         trackingMode: 'batch',
         baseUnitCode: 'BAG',
-        measurementDimension: 'weight',
+        measurementDimension: 'mass',
       },
       {
         sku: 'FERT-DAP-50KG',
@@ -114,7 +114,7 @@ const TEMPLATE_DOCUMENTATION = {
         categoryName: 'Phosphatic Fertilizers',
         trackingMode: 'batch',
         baseUnitCode: 'BAG',
-        measurementDimension: 'weight',
+        measurementDimension: 'mass',
       },
       {
         sku: 'SEED-WHT-AKBAR-50KG',
@@ -122,7 +122,7 @@ const TEMPLATE_DOCUMENTATION = {
         categoryName: 'Certified Wheat Seeds',
         trackingMode: 'batch',
         baseUnitCode: 'BAG',
-        measurementDimension: 'weight',
+        measurementDimension: 'mass',
       },
       {
         sku: 'PEST-CHLOR-1L',
@@ -148,35 +148,28 @@ const TEMPLATE_DOCUMENTATION = {
     guidelines: [
       'Define price tiers for existing products starting from Row 3 of "Import Template".',
       'productSku must exist in your catalog.',
-      'Allowed priceTier values: retail, wholesale, distributor.',
+      `Allowed priceTier values: ${PRICE_TIERS.join(', ')}.`,
       'Amount must be a non-negative decimal value in PKR.',
     ],
-    fields: [
-      {
-        key: 'productSku',
+    fieldDescriptions: {
+      productSku: {
         label: 'Product SKU',
-        required: true,
         allowedValues: 'Valid existing product SKU',
         description: 'SKU of the product to set pricing for',
         example: 'FERT-UREA-50KG',
       },
-      {
-        key: 'priceTier',
+      priceTier: {
         label: 'Price Tier',
-        required: true,
-        allowedValues: 'retail, wholesale, distributor',
         description: 'Customer pricing group tier',
         example: 'retail',
       },
-      {
-        key: 'amount',
+      amount: {
         label: 'Selling Price (PKR)',
-        required: true,
         allowedValues: 'Decimal number (e.g. 4650.00)',
         description: 'Unit selling price for this tier in Pakistani Rupees',
         example: '4650.00',
       },
-    ],
+    },
     examples: [
       { productSku: 'FERT-UREA-50KG', priceTier: 'retail', amount: '4650.00' },
       { productSku: 'FERT-UREA-50KG', priceTier: 'wholesale', amount: '4500.00' },
@@ -191,43 +184,33 @@ const TEMPLATE_DOCUMENTATION = {
     guidelines: [
       'Enter customer profiles starting from Row 3 of "Import Template".',
       'Customer name must be unique within your organization.',
-      'Allowed customer types: farmer, walk_in, business, corporate, individual.',
-      'Allowed price tiers: retail, wholesale, distributor (optional, defaults to retail).',
+      `Allowed customer types: ${CUSTOMER_TYPES.join(', ')}.`,
+      `Allowed price tiers: ${PRICE_TIERS.join(', ')} (optional, defaults to retail).`,
     ],
-    fields: [
-      {
-        key: 'name',
+    fieldDescriptions: {
+      name: {
         label: 'Customer Name',
-        required: true,
         allowedValues: 'Text up to 160 characters (unique)',
         description: 'Full name of farmer, business, or retail customer',
         example: 'Haji Muhammad Rafiq Farm',
       },
-      {
-        key: 'phone',
+      phone: {
         label: 'Phone Number',
-        required: false,
         allowedValues: 'Valid phone string (e.g. 03001234567)',
         description: 'Primary contact mobile number',
         example: '03001234567',
       },
-      {
-        key: 'customerType',
+      customerType: {
         label: 'Customer Type',
-        required: true,
-        allowedValues: 'farmer, walk_in, business, corporate, individual',
         description: 'Business classification of the customer',
         example: 'farmer',
       },
-      {
-        key: 'priceTier',
+      priceTier: {
         label: 'Default Price Tier',
-        required: false,
-        allowedValues: 'retail, wholesale, distributor (optional)',
         description: 'Assigned default price tier for sales billing',
         example: 'retail',
       },
-    ],
+    },
     examples: [
       {
         name: 'Haji Muhammad Rafiq Farm',
@@ -248,13 +231,13 @@ const TEMPLATE_DOCUMENTATION = {
         priceTier: 'distributor',
       },
       {
-        name: 'Rashid Mahmood Farooqi',
+        name: 'Bashir Ahmed Khan',
         phone: '03451122334',
         customerType: 'individual',
         priceTier: 'retail',
       },
       {
-        name: 'Counter Cash Walk-in',
+        name: 'Daily Walk-in Customer Counter',
         phone: '',
         customerType: 'walk_in',
         priceTier: 'retail',
@@ -265,375 +248,327 @@ const TEMPLATE_DOCUMENTATION = {
   suppliers: {
     title: 'Suppliers Directory Import Guide',
     guidelines: [
-      'Enter manufacturer and supplier accounts starting from Row 3 of "Import Template".',
+      'Enter suppliers starting from Row 3 of "Import Template".',
       'Supplier name must be unique within your organization.',
-      'Phone number is optional but recommended for purchase order tracking.',
+      'Phone is optional but strongly recommended for purchase order dispatch.',
     ],
-    fields: [
-      {
-        key: 'name',
-        label: 'Supplier Name',
-        required: true,
+    fieldDescriptions: {
+      name: {
+        label: 'Supplier / Company Name',
         allowedValues: 'Text up to 160 characters (unique)',
-        description: 'Official corporate or trading name of the supplier',
+        description: 'Official registered trading name of vendor or distributor',
         example: 'Engro Fertilizers Limited',
       },
-      {
-        key: 'phone',
-        label: 'Phone Number',
-        required: false,
-        allowedValues: 'Valid phone string (e.g. 04235876543)',
-        description: 'Primary contact or corporate office phone',
-        example: '04235876543',
+      phone: {
+        label: 'Contact Phone',
+        allowedValues: 'Valid phone or landline string (e.g. 04235789000)',
+        description: 'Official representative or sales desk telephone number',
+        example: '04235789000',
       },
-    ],
+    },
     examples: [
-      { name: 'Engro Fertilizers Limited', phone: '04235876543' },
-      { name: 'Fauji Fertilizer Company Ltd', phone: '0518452000' },
-      { name: 'FMC United Agri Pakistan', phone: '04235771234' },
-      { name: 'Ali Akbar Group Seeds', phone: '04211122422' },
-      { name: 'Syngenta Pakistan Ltd', phone: '02135689000' },
+      { name: 'Engro Fertilizers Limited', phone: '04235789000' },
+      { name: 'Fauji Fertilizer Company (FFC)', phone: '0518450001' },
+      { name: 'Fatima Fertilizer Company', phone: '042111328462' },
+      { name: 'Syngenta Pakistan Limited', phone: '021111796436' },
+      { name: 'Ali Akbar Group Seeds', phone: '04235299400' },
     ],
   },
 
   customer_opening_receivables: {
     title: 'Customer Opening Receivables Import Guide',
     guidelines: [
-      'Enter opening balance amounts owed by existing customers.',
-      'customerName must exactly match an active customer in your system.',
-      'Amount must be greater than zero.',
-      'Cannot overwrite an already posted opening balance.',
+      'Record outstanding receivables from existing customers on Row 3 onwards.',
+      'customerName must exactly match an active customer in your directory.',
+      'Amount must be greater than zero and in Pakistani Rupees.',
     ],
-    fields: [
-      {
-        key: 'customerName',
+    fieldDescriptions: {
+      customerName: {
         label: 'Customer Name',
-        required: true,
-        allowedValues: 'Exact name of existing customer',
-        description: 'Customer who owes this opening receivable balance',
+        allowedValues: 'Exact name of an existing customer',
+        description: 'Customer who owes this outstanding balance',
         example: 'Haji Muhammad Rafiq Farm',
       },
-      {
-        key: 'amount',
-        label: 'Opening Receivable (PKR)',
-        required: true,
-        allowedValues: 'Decimal number > 0 (e.g. 125000.00)',
-        description: 'Outstanding balance amount owed to you at system cutover',
-        example: '125000.00',
+      amount: {
+        label: 'Receivable Amount (PKR)',
+        allowedValues: 'Positive decimal number (e.g. 150000.00)',
+        description: 'Opening ledger receivable debit balance',
+        example: '150000.00',
       },
-    ],
+    },
     examples: [
-      { customerName: 'Haji Muhammad Rafiq Farm', amount: '125000.00' },
-      { customerName: 'Chaudhry Agro Traders', amount: '340000.00' },
-      { customerName: 'Malik Cotton Corporation', amount: '85000.00' },
+      { customerName: 'Haji Muhammad Rafiq Farm', amount: '150000.00' },
+      { customerName: 'Chaudhry Agro Traders', amount: '485000.00' },
+      { customerName: 'Malik Cotton Corporation', amount: '1200000.00' },
+      { customerName: 'Bashir Ahmed Khan', amount: '35000.00' },
     ],
   },
 
   customer_opening_advances: {
     title: 'Customer Opening Advances Import Guide',
     guidelines: [
-      'Enter credit balances / advance deposits held on behalf of customers at cutover.',
-      'customerName must exist in your system.',
-      'Amount must be greater than zero.',
+      'Record customer prepaid/advance deposits on Row 3 onwards.',
+      'customerName must exist in your directory.',
+      'Amount must be greater than zero in PKR.',
     ],
-    fields: [
-      {
-        key: 'customerName',
+    fieldDescriptions: {
+      customerName: {
         label: 'Customer Name',
-        required: true,
-        allowedValues: 'Exact name of existing customer',
-        description: 'Customer who holds an advance credit with your business',
-        example: 'Rashid Mahmood Farooqi',
+        allowedValues: 'Exact name of an existing customer',
+        description: 'Customer who holds this unadjusted advance deposit',
+        example: 'Chaudhry Agro Traders',
       },
-      {
-        key: 'amount',
-        label: 'Advance Balance (PKR)',
-        required: true,
-        allowedValues: 'Decimal number > 0 (e.g. 50000.00)',
-        description: 'Advance credit amount held at cutover date',
+      amount: {
+        label: 'Advance Amount (PKR)',
+        allowedValues: 'Positive decimal number (e.g. 50000.00)',
+        description: 'Opening credit balance payable as future goods/services',
         example: '50000.00',
       },
-    ],
+    },
     examples: [
-      { customerName: 'Rashid Mahmood Farooqi', amount: '50000.00' },
+      { customerName: 'Chaudhry Agro Traders', amount: '50000.00' },
       { customerName: 'Haji Muhammad Rafiq Farm', amount: '25000.00' },
-      { customerName: 'Chaudhry Agro Traders', amount: '15000.00' },
+      { customerName: 'Bashir Ahmed Khan', amount: '10000.00' },
     ],
   },
 
   supplier_opening_payables: {
     title: 'Supplier Opening Payables Import Guide',
     guidelines: [
-      'Enter opening balances owed to suppliers at system migration cutover.',
-      'supplierName must exist in your system.',
-      'Amount must be greater than zero.',
+      'Record opening unpaid credit balances owed to vendors on Row 3 onwards.',
+      'supplierName must exactly match an active supplier in your directory.',
+      'Amount must be greater than zero in PKR.',
     ],
-    fields: [
-      {
-        key: 'supplierName',
+    fieldDescriptions: {
+      supplierName: {
         label: 'Supplier Name',
-        required: true,
-        allowedValues: 'Exact name of existing supplier',
-        description: 'Supplier to whom balance is owed',
+        allowedValues: 'Exact name of an existing supplier',
+        description: 'Vendor to whom this balance is owed',
         example: 'Engro Fertilizers Limited',
       },
-      {
-        key: 'amount',
-        label: 'Opening Payable (PKR)',
-        required: true,
-        allowedValues: 'Decimal number > 0 (e.g. 750000.00)',
-        description: 'Outstanding payable liability at cutover',
-        example: '750000.00',
+      amount: {
+        label: 'Payable Amount (PKR)',
+        allowedValues: 'Positive decimal number (e.g. 850000.00)',
+        description: 'Opening ledger payable credit balance',
+        example: '850000.00',
       },
-    ],
+    },
     examples: [
-      { supplierName: 'Engro Fertilizers Limited', amount: '750000.00' },
-      { supplierName: 'Fauji Fertilizer Company Ltd', amount: '1200000.00' },
-      { supplierName: 'FMC United Agri Pakistan', amount: '420000.00' },
+      { supplierName: 'Engro Fertilizers Limited', amount: '850000.00' },
+      { supplierName: 'Fauji Fertilizer Company (FFC)', amount: '1420000.00' },
+      { supplierName: 'Syngenta Pakistan Limited', amount: '360000.00' },
     ],
   },
 
   supplier_opening_advances: {
     title: 'Supplier Opening Advances Import Guide',
     guidelines: [
-      'Enter advance payments previously made to suppliers for future delivery.',
-      'supplierName must exist in your system.',
-      'Amount must be greater than zero.',
+      'Record advance payments already dispatched to suppliers on Row 3 onwards.',
+      'supplierName must exist in your directory.',
+      'Amount must be greater than zero in PKR.',
     ],
-    fields: [
-      {
-        key: 'supplierName',
+    fieldDescriptions: {
+      supplierName: {
         label: 'Supplier Name',
-        required: true,
-        allowedValues: 'Exact name of existing supplier',
-        description: 'Supplier with whom advance deposit is held',
-        example: 'Ali Akbar Group Seeds',
+        allowedValues: 'Exact name of an existing supplier',
+        description: 'Supplier holding this unadjusted security or preorder advance',
+        example: 'Fatima Fertilizer Company',
       },
-      {
-        key: 'amount',
-        label: 'Advance Balance (PKR)',
-        required: true,
-        allowedValues: 'Decimal number > 0 (e.g. 100000.00)',
-        description: 'Advance payment balance with supplier',
-        example: '100000.00',
+      amount: {
+        label: 'Advance Amount (PKR)',
+        allowedValues: 'Positive decimal number (e.g. 300000.00)',
+        description: 'Opening advance payment debit balance',
+        example: '300000.00',
       },
-    ],
+    },
     examples: [
-      { supplierName: 'Ali Akbar Group Seeds', amount: '100000.00' },
-      { supplierName: 'Syngenta Pakistan Ltd', amount: '250000.00' },
+      { supplierName: 'Fatima Fertilizer Company', amount: '300000.00' },
+      { supplierName: 'Ali Akbar Group Seeds', amount: '125000.00' },
     ],
   },
 
   cash_opening_balances: {
-    title: 'Cash Accounts Opening Balances Guide',
+    title: 'Cash In Hand Opening Balance Import Guide',
     guidelines: [
-      'Enter physical cash-in-hand balances for established cash registers/tills.',
-      'accountName must match an existing cash account of type "cash".',
-      'Amount represents physical cash balance at cutover.',
+      'Record cash register and office safe opening balances starting from Row 3.',
+      'accountName represents the physical cash till, register, or branch vault.',
+      'Amount must be greater than zero in PKR.',
     ],
-    fields: [
-      {
-        key: 'accountName',
-        label: 'Cash Account Name',
-        required: true,
-        allowedValues: 'Exact name of existing cash account',
-        description: 'Name of the physical till or petty cash ledger',
-        example: 'Main Cash Register',
+    fieldDescriptions: {
+      accountName: {
+        label: 'Cash Account / Till Name',
+        allowedValues: 'Text description of physical cash location',
+        description: 'Identifier for physical cash register or safe',
+        example: 'Main Counter Cash Till',
       },
-      {
-        key: 'amount',
-        label: 'Cash Balance (PKR)',
-        required: true,
-        allowedValues: 'Decimal number > 0 (e.g. 150000.00)',
-        description: 'Verified physical cash amount',
-        example: '150000.00',
+      amount: {
+        label: 'Opening Cash (PKR)',
+        allowedValues: 'Positive decimal number (e.g. 175000.00)',
+        description: 'Verified physical cash count on opening date',
+        example: '175000.00',
       },
-    ],
+    },
     examples: [
-      { accountName: 'Main Cash Register', amount: '150000.00' },
-      { accountName: 'Shop Cash Till 2', amount: '45000.00' },
-      { accountName: 'Petty Cash Safe', amount: '25000.00' },
+      { accountName: 'Main Counter Cash Till', amount: '175000.00' },
+      { accountName: 'Head Office Petty Cash Safe', amount: '50000.00' },
+      { accountName: 'Branch 2 Cash Drawer', amount: '65000.00' },
     ],
   },
 
   bank_opening_balances: {
-    title: 'Bank Accounts Opening Balances Guide',
+    title: 'Bank Accounts Opening Balance Import Guide',
     guidelines: [
-      'Enter reconciled bank opening balances for corporate/business accounts.',
-      'accountName must match an existing bank account of type "bank".',
-      'Amount must match bank statement balance at cutover date.',
+      'Record commercial bank account opening balances starting from Row 3.',
+      'accountName should include bank name and account or branch identifier.',
+      'Amount must be greater than zero in PKR.',
     ],
-    fields: [
-      {
-        key: 'accountName',
+    fieldDescriptions: {
+      accountName: {
         label: 'Bank Account Name',
-        required: true,
-        allowedValues: 'Exact name of existing bank account',
-        description: 'Name of commercial bank ledger',
-        example: 'HBL Agri Business Account',
+        allowedValues: 'Bank name with branch or account reference',
+        description: 'Commercial bank account title',
+        example: 'Habib Bank Limited (HBL) - Main Branch',
       },
-      {
-        key: 'amount',
-        label: 'Bank Balance (PKR)',
-        required: true,
-        allowedValues: 'Decimal number > 0 (e.g. 3500000.00)',
-        description: 'Reconciled opening bank balance',
-        example: '3500000.00',
+      amount: {
+        label: 'Opening Balance (PKR)',
+        allowedValues: 'Positive decimal number (e.g. 1850000.00)',
+        description: 'Bank statement closing balance on opening date',
+        example: '1850000.00',
       },
-    ],
+    },
     examples: [
-      { accountName: 'HBL Agri Business Account', amount: '3500000.00' },
-      { accountName: 'Meezan Bank Operations', amount: '2100000.00' },
-      { accountName: 'MCB Seed Division Account', amount: '1450000.00' },
+      { accountName: 'Habib Bank Limited (HBL) - Main Branch', amount: '1850000.00' },
+      { accountName: 'Meezan Bank Limited - Islamic Current', amount: '2450000.00' },
+      { accountName: 'MCB Bank Limited - Agri Finance A/C', amount: '920000.00' },
     ],
   },
 
   jazzcash_opening_balances: {
-    title: 'JazzCash Wallet Opening Balances Guide',
+    title: 'JazzCash Business Wallets Opening Balance Import Guide',
     guidelines: [
-      'Enter reconciled balance for registered JazzCash merchant/till accounts.',
-      'accountName must match an account of type "jazzcash".',
+      'Record JazzCash merchant and till wallet balances starting from Row 3.',
+      'accountName should include till number or registered merchant SIM title.',
+      'Amount must be greater than zero in PKR.',
     ],
-    fields: [
-      {
-        key: 'accountName',
-        label: 'JazzCash Account Name',
-        required: true,
-        allowedValues: 'Exact name of existing JazzCash account',
-        description: 'Designated JazzCash wallet account title',
-        example: 'Shop JazzCash Merchant Till',
+    fieldDescriptions: {
+      accountName: {
+        label: 'JazzCash Wallet Name / Till ID',
+        allowedValues: 'Merchant till or wallet account title',
+        description: 'JazzCash registered till number or merchant account',
+        example: 'JazzCash Merchant Till 03001234567',
       },
-      {
-        key: 'amount',
+      amount: {
         label: 'Wallet Balance (PKR)',
-        required: true,
-        allowedValues: 'Decimal number > 0 (e.g. 65000.00)',
-        description: 'Opening wallet balance',
-        example: '65000.00',
+        allowedValues: 'Positive decimal number (e.g. 85000.00)',
+        description: 'Current verified balance in mobile wallet',
+        example: '85000.00',
       },
-    ],
+    },
     examples: [
-      { accountName: 'Shop JazzCash Merchant Till', amount: '65000.00' },
-      { accountName: 'Branch JazzCash Wallet', amount: '32000.00' },
+      { accountName: 'JazzCash Merchant Till 03001234567', amount: '85000.00' },
+      { accountName: 'JazzCash Field Collection Wallet', amount: '42000.00' },
     ],
   },
 
   easypaisa_opening_balances: {
-    title: 'EasyPaisa Wallet Opening Balances Guide',
+    title: 'Easypaisa Business Wallets Opening Balance Import Guide',
     guidelines: [
-      'Enter reconciled balance for registered EasyPaisa merchant/till accounts.',
-      'accountName must match an account of type "easypaisa".',
+      'Record Easypaisa merchant and till wallet balances starting from Row 3.',
+      'accountName should include till number or registered merchant phone.',
+      'Amount must be greater than zero in PKR.',
     ],
-    fields: [
-      {
-        key: 'accountName',
-        label: 'EasyPaisa Account Name',
-        required: true,
-        allowedValues: 'Exact name of existing EasyPaisa account',
-        description: 'Designated EasyPaisa wallet account title',
-        example: 'Shop EasyPaisa Merchant Till',
+    fieldDescriptions: {
+      accountName: {
+        label: 'Easypaisa Wallet Name / Till ID',
+        allowedValues: 'Merchant till or wallet account title',
+        description: 'Easypaisa registered till number or merchant account',
+        example: 'Easypaisa Till 03457654321',
       },
-      {
-        key: 'amount',
+      amount: {
         label: 'Wallet Balance (PKR)',
-        required: true,
-        allowedValues: 'Decimal number > 0 (e.g. 55000.00)',
-        description: 'Opening wallet balance',
-        example: '55000.00',
+        allowedValues: 'Positive decimal number (e.g. 62000.00)',
+        description: 'Current verified balance in mobile wallet',
+        example: '62000.00',
       },
-    ],
+    },
     examples: [
-      { accountName: 'Shop EasyPaisa Merchant Till', amount: '55000.00' },
-      { accountName: 'Depot EasyPaisa Wallet', amount: '28000.00' },
+      { accountName: 'Easypaisa Till 03457654321', amount: '62000.00' },
+      { accountName: 'Easypaisa Counter Payment Wallet', amount: '31500.00' },
     ],
   },
 
   opening_stock: {
-    title: 'Opening Stock Inventory Import Guide',
+    title: 'Opening Inventory Stock Import Guide',
     guidelines: [
-      'Enter physical inventory counts and valuation at cutover date.',
+      'Record initial warehouse stock levels starting from Row 3 of "Import Template".',
       'productSku must exist in your catalog.',
-      'warehouseCode must match an existing warehouse you have access to.',
-      'batchNumber is REQUIRED if product trackingMode is "batch" or "batch_expiry". Must be empty if "none".',
-      'expiryDate is REQUIRED (YYYY-MM-DD) if trackingMode is "batch_expiry". Must be empty if "none".',
-      'inventoryValue is total cost valuation for the line (quantity * unit cost).',
+      'warehouseCode must match an existing warehouse code in your organization.',
+      'Quantity and inventoryValue must be non-negative numeric values.',
+      'batchNumber and dates are optional for non-tracked items, but required for batch-tracked categories.',
+      'Date formats: YYYY-MM-DD (e.g. 2026-12-31).',
     ],
-    fields: [
-      {
-        key: 'productSku',
+    fieldDescriptions: {
+      productSku: {
         label: 'Product SKU',
-        required: true,
-        allowedValues: 'Existing product SKU',
-        description: 'Catalog code of the inventoried item',
+        allowedValues: 'Valid existing product SKU',
+        description: 'Stock-keeping unit being introduced into inventory',
         example: 'FERT-UREA-50KG',
       },
-      {
-        key: 'warehouseCode',
+      warehouseCode: {
         label: 'Warehouse Code',
-        required: true,
-        allowedValues: 'Code of authorized warehouse (e.g. WH-MAIN)',
-        description: 'Warehouse facility where physical stock is located',
+        allowedValues: 'Valid existing warehouse identifier',
+        description: 'Destination warehouse facility code',
         example: 'WH-MAIN',
       },
-      {
-        key: 'quantity',
-        label: 'Opening Quantity',
-        required: true,
-        allowedValues: 'Positive integer or decimal count',
-        description: 'Physical counted stock units in base unit',
-        example: '300',
+      quantity: {
+        label: 'Physical Quantity',
+        allowedValues: 'Positive decimal number',
+        description: 'Count or volume in product base units',
+        example: '500',
       },
-      {
-        key: 'inventoryValue',
-        label: 'Total Valuation (PKR)',
-        required: true,
-        allowedValues: 'Total cost value (quantity * unit cost)',
-        description: 'Total monetary asset valuation for this stock lot',
-        example: '1350000.00',
+      inventoryValue: {
+        label: 'Total Inventory Valuation (PKR)',
+        allowedValues: 'Positive decimal number',
+        description: 'Total monetary purchase cost value for this quantity',
+        example: '2325000.00',
       },
-      {
-        key: 'batchNumber',
-        label: 'Batch Number',
-        required: false,
-        allowedValues: 'Text (mandatory for batch tracked items)',
-        description: 'Manufacturer or lot batch identifier',
-        example: 'BATCH-UR-2026',
+      batchNumber: {
+        label: 'Batch / Lot Number',
+        allowedValues: 'Alphanumeric batch string (required for tracked items)',
+        description: 'Manufacturer batch or lot number',
+        example: 'BATCH-2026-04A',
       },
-      {
-        key: 'expiryDate',
+      expiryDate: {
         label: 'Expiry Date',
-        required: false,
-        allowedValues: 'YYYY-MM-DD (mandatory for batch_expiry)',
+        allowedValues: 'YYYY-MM-DD format (required for expiry-tracked items)',
         description: 'Product chemical expiry date',
-        example: '2028-06-30',
+        example: '2027-12-31',
       },
-      {
-        key: 'manufacturingDate',
+      manufacturingDate: {
         label: 'Manufacturing Date',
-        required: false,
-        allowedValues: 'YYYY-MM-DD (optional)',
-        description: 'Batch production date',
-        example: '2025-06-01',
+        allowedValues: 'YYYY-MM-DD format',
+        description: 'Date goods were packaged or produced',
+        example: '2026-01-15',
       },
-    ],
+    },
     examples: [
       {
         productSku: 'FERT-UREA-50KG',
         warehouseCode: 'WH-MAIN',
-        quantity: '300',
-        inventoryValue: '1350000.00',
-        batchNumber: 'BATCH-UR-2026',
+        quantity: '500',
+        inventoryValue: '2325000.00',
+        batchNumber: 'BATCH-2026-04A',
         expiryDate: '',
-        manufacturingDate: '',
+        manufacturingDate: '2026-01-15',
       },
       {
         productSku: 'FERT-DAP-50KG',
         warehouseCode: 'WH-MAIN',
-        quantity: '150',
-        inventoryValue: '1650000.00',
-        batchNumber: 'BATCH-DAP-2026',
+        quantity: '200',
+        inventoryValue: '2300000.00',
+        batchNumber: 'BATCH-DAP-99',
         expiryDate: '',
-        manufacturingDate: '',
+        manufacturingDate: '2025-11-20',
       },
       {
         productSku: 'SEED-WHT-AKBAR-50KG',
@@ -666,11 +601,49 @@ const TEMPLATE_DOCUMENTATION = {
   },
 };
 
+/**
+ * Returns template documentation for an import type with fields and required/optional
+ * flags dynamically derived from the authoritative template registry (import-templates.js)
+ * and canonical domain enums.
+ */
 function getTemplateDocumentation(importType) {
-  return TEMPLATE_DOCUMENTATION[importType] ?? null;
+  const template = getTemplate(importType);
+  if (!template) {
+    return null;
+  }
+  const docMeta = DOCUMENTATION_METADATA[importType];
+  if (!docMeta) {
+    return null;
+  }
+
+  // Derive field metadata strictly according to canonical registry column order and required flags
+  const fields = template.columns.map((col) => {
+    const desc = docMeta.fieldDescriptions?.[col.key] || {};
+    const allowedValues =
+      CANONICAL_FIELD_RULES[col.key] ||
+      desc.allowedValues ||
+      (col.required ? 'Mandatory text' : 'Optional text');
+
+    return {
+      key: col.key,
+      label: desc.label || col.key,
+      required: col.required, // Derived strictly from canonical registry!
+      allowedValues,
+      description: desc.description || '',
+      example: desc.example || '',
+    };
+  });
+
+  return {
+    title: docMeta.title,
+    guidelines: docMeta.guidelines,
+    fields,
+    examples: docMeta.examples,
+  };
 }
 
 module.exports = {
-  TEMPLATE_DOCUMENTATION,
+  CANONICAL_FIELD_RULES,
+  DOCUMENTATION_METADATA,
   getTemplateDocumentation,
 };

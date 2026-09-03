@@ -128,4 +128,21 @@ describe('UiSearchableDropdownComponent', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.open()).toBe(false);
   });
+
+  it('closes when another dropdown instance opens', () => {
+    const fixture1 = TestBed.createComponent(UiSearchableDropdownComponent);
+    const fixture2 = TestBed.createComponent(UiSearchableDropdownComponent);
+    fixture1.detectChanges();
+    fixture2.detectChanges();
+
+    // Open first dropdown
+    fixture1.componentInstance.openDropdown();
+    expect(fixture1.componentInstance.open()).toBe(true);
+
+    // Open second dropdown
+    fixture2.componentInstance.openDropdown();
+    expect(fixture2.componentInstance.open()).toBe(true);
+    // First dropdown must now be closed!
+    expect(fixture1.componentInstance.open()).toBe(false);
+  });
 });

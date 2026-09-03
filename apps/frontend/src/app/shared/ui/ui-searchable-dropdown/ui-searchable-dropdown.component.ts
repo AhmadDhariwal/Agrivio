@@ -267,6 +267,14 @@ export class UiSearchableDropdownComponent {
     }
   }
 
+  @HostListener('document:agrivio-dropdown-opened', ['$event'])
+  onOtherDropdownOpened(event: Event): void {
+    const custom = event as CustomEvent<UiSearchableDropdownComponent>;
+    if (custom.detail !== this && this.open()) {
+      this.close();
+    }
+  }
+
   @HostListener('keydown.escape', ['$event'])
   onEscape(event?: Event): void {
     if (this.open()) {
@@ -288,6 +296,9 @@ export class UiSearchableDropdownComponent {
   }
 
   openDropdown(): void {
+    if (typeof document !== 'undefined') {
+      document.dispatchEvent(new CustomEvent('agrivio-dropdown-opened', { detail: this }));
+    }
     this.open.set(true);
     this.searchTerm.set('');
     this.focusedIndex.set(-1);
