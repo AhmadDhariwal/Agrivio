@@ -1,4 +1,4 @@
-import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
@@ -69,6 +69,10 @@ export class PlatformOrganizationsPage {
   readonly statusFilter = signal('');
   readonly planFilter = signal('');
   readonly subStatusFilter = signal('');
+
+  readonly hasActiveFilters = computed(() =>
+    Boolean(this.search() || this.statusFilter() || this.planFilter() || this.subStatusFilter()),
+  );
 
   // Dialog & Modal States
   readonly createOpen = signal(false);

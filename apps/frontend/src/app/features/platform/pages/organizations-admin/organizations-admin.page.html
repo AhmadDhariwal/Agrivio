@@ -116,88 +116,164 @@
   </div>
   }
 
-  <!-- Toolbar & Filters -->
-  <section class="toolbar-card" aria-label="Organization Filters">
-    <div class="toolbar-grid">
-      <div class="toolbar-field toolbar-field--search">
-        <label for="org-search" class="toolbar-label">Search</label>
-        <div class="search-wrap">
-          <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+  <!-- Filter & Control Toolbar (Matching Products Module) -->
+  <section class="toolbar" aria-label="Organization Filters">
+    <!-- Desktop / Tablet Inline Controls -->
+    <div class="toolbar__desktop">
+      <div class="toolbar__left">
+        <!-- Search Input -->
+        <div class="search-field">
+          <svg
+            class="search-field__icon"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
           <input
             id="org-search"
-            class="ag-input search-input"
+            class="search-field__input"
             type="search"
-            placeholder="Search by name…"
+            placeholder="Search organizations by name or slug…"
             [value]="search()"
             (input)="onSearchChange($event)"
             data-testid="org-search-input"
+            aria-label="Search organizations"
           />
         </div>
-      </div>
 
-      <div class="toolbar-field">
-        <label for="status-filter" class="toolbar-label">Status</label>
-        <select
-          id="status-filter"
-          class="ag-input ag-select"
-          [value]="statusFilter()"
-          (change)="onStatusFilterChange($any($event.target).value)"
-          data-testid="status-filter-select"
-        >
-          <option value="">All Statuses</option>
-          <option value="approved">Active / Approved</option>
-          <option value="suspended">Suspended</option>
-          <option value="pending_approval">Pending Approval</option>
-          <option value="rejected">Rejected</option>
-        </select>
-      </div>
+        <!-- Status Filter -->
+        <div class="select-field">
+          <select
+            id="status-filter"
+            class="select-field__input"
+            [value]="statusFilter()"
+            (change)="onStatusFilterChange($any($event.target).value)"
+            data-testid="status-filter-select"
+            aria-label="Filter by status"
+          >
+            <option value="">All Statuses</option>
+            <option value="approved">Active / Approved</option>
+            <option value="suspended">Suspended</option>
+            <option value="pending_approval">Pending Approval</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
 
-      <div class="toolbar-field">
-        <label for="plan-filter" class="toolbar-label">Plan</label>
-        <select
-          id="plan-filter"
-          class="ag-input ag-select"
-          [value]="planFilter()"
-          (change)="onPlanFilterChange($any($event.target).value)"
-          data-testid="plan-filter-select"
-        >
-          <option value="">All Plans</option>
-          <option value="Starter">Starter</option>
-          <option value="Business">Business</option>
-          <option value="Enterprise">Enterprise</option>
-        </select>
-      </div>
+        <!-- Plan Filter -->
+        <div class="select-field">
+          <select
+            id="plan-filter"
+            class="select-field__input"
+            [value]="planFilter()"
+            (change)="onPlanFilterChange($any($event.target).value)"
+            data-testid="plan-filter-select"
+            aria-label="Filter by plan"
+          >
+            <option value="">All Plans</option>
+            <option value="Starter">Starter</option>
+            <option value="Business">Business</option>
+            <option value="Enterprise">Enterprise</option>
+          </select>
+        </div>
 
-      <div class="toolbar-field">
-        <label for="sub-status-filter" class="toolbar-label">Subscription</label>
-        <select
-          id="sub-status-filter"
-          class="ag-input ag-select"
-          [value]="subStatusFilter()"
-          (change)="onSubStatusFilterChange($any($event.target).value)"
-          data-testid="sub-status-filter-select"
-        >
-          <option value="">All States</option>
-          <option value="active">Active</option>
-          <option value="trial">Trial</option>
-          <option value="grace">Grace</option>
-          <option value="suspended">Suspended</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
-      </div>
+        <!-- Subscription Filter -->
+        <div class="select-field">
+          <select
+            id="sub-status-filter"
+            class="select-field__input"
+            [value]="subStatusFilter()"
+            (change)="onSubStatusFilterChange($any($event.target).value)"
+            data-testid="sub-status-filter-select"
+            aria-label="Filter by subscription state"
+          >
+            <option value="">All States</option>
+            <option value="active">Active</option>
+            <option value="trial">Trial</option>
+            <option value="grace">Grace</option>
+            <option value="suspended">Suspended</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
 
-      <div class="toolbar-actions">
+        <!-- Clear Filters Button -->
+        @if (hasActiveFilters()) {
         <button
           type="button"
-          class="ag-btn ag-btn--secondary toolbar-btn"
+          class="clear-filters-btn"
           (click)="clearFilters()"
           data-testid="clear-filters-btn"
         >
+          Clear filters
+        </button>
+        }
+      </div>
+    </div>
+
+    <!-- Mobile Toolbar -->
+    <div class="toolbar__mobile">
+      <div class="search-field">
+        <svg
+          class="search-field__icon"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          class="search-field__input"
+          type="search"
+          placeholder="Search organizations…"
+          [value]="search()"
+          (input)="onSearchChange($event)"
+          aria-label="Search organizations"
+        />
+      </div>
+      <div class="toolbar__mobile-row">
+        <div class="select-field" style="flex: 1;">
+          <select
+            class="select-field__input"
+            style="width: 100%;"
+            [value]="statusFilter()"
+            (change)="onStatusFilterChange($any($event.target).value)"
+            aria-label="Filter by status"
+          >
+            <option value="">All Statuses</option>
+            <option value="approved">Active</option>
+            <option value="suspended">Suspended</option>
+            <option value="pending_approval">Pending</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div class="select-field" style="flex: 1;">
+          <select
+            class="select-field__input"
+            style="width: 100%;"
+            [value]="planFilter()"
+            (change)="onPlanFilterChange($any($event.target).value)"
+            aria-label="Filter by plan"
+          >
+            <option value="">All Plans</option>
+            <option value="Starter">Starter</option>
+            <option value="Business">Business</option>
+            <option value="Enterprise">Enterprise</option>
+          </select>
+        </div>
+        @if (hasActiveFilters()) {
+        <button type="button" class="clear-filters-btn" (click)="clearFilters()">
           Clear
         </button>
+        }
       </div>
     </div>
   </section>
@@ -230,12 +306,17 @@
         <tr data-testid="org-row">
           <td class="td-org">
             <div class="org-cell">
-              <a [routerLink]="['/app/platform/organizations', item.id]" class="org-link">
-                <strong>{{ item.name }}</strong>
-              </a>
-              @if (item.timezone) {
-              <span class="org-timezone">{{ item.timezone }}</span>
-              }
+              <div class="org-cell__glyph">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 21h18M3 7v14M21 7v14M6 11h4M6 15h4M14 11h4M14 15h4M9 3h6v4H9z" />
+                </svg>
+              </div>
+              <div class="org-cell__meta">
+                <a [routerLink]="['/app/platform/organizations', item.id]" class="org-cell__name">
+                  {{ item.name }}
+                </a>
+                <span class="org-cell__slug">{{ item.timezone || 'Asia/Karachi' }}</span>
+              </div>
             </div>
           </td>
 
@@ -246,7 +327,7 @@
           <td class="td-plan">
             @if (item.subscription; as sub) {
             <div class="plan-cell">
-              <span class="plan-code">{{ sub.planCode }}</span>
+              <span class="plan-chip">{{ sub.planCode }}</span>
               <span class="plan-meta">v{{ sub.planVersion }} • {{ sub.status }}</span>
             </div>
             } @else {

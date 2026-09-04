@@ -32,7 +32,6 @@ import { UiStatusBadgeComponent, UiBadgeTone } from '../../../../shared/ui/ui-st
     UiAlertComponent,
     UiLoadingStateComponent,
     UiStatusBadgeComponent,
-    UiFieldLabelComponent,
   ],
   templateUrl: './organization-detail.page.html',
   styleUrl: './organization-detail.page.scss',
@@ -146,14 +145,19 @@ export class PlatformOrganizationDetailPage {
     return 'normal';
   }
 
-  getUsageTone(state: ResourcePresentationState): 'danger' | 'warning' | 'neutral' {
+  getUsagePercentage(threshold?: PlatformResourceUsageThreshold): number {
+    if (!threshold || threshold.limit === null || threshold.limit <= 0) return 0;
+    return Math.min(100, Math.round((threshold.current / threshold.limit) * 100));
+  }
+
+  getUsageTone(state: ResourcePresentationState): 'danger' | 'warning' | 'neutral' | 'success' {
     switch (state) {
       case 'limit-reached':
         return 'danger';
       case 'near-limit':
         return 'warning';
       default:
-        return 'neutral';
+        return 'success';
     }
   }
 
