@@ -1,0 +1,653 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.detail-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+/* ==========================================================================
+   1. Back Navigation & Header
+   ========================================================================== */
+.back-nav {
+  display: flex;
+  align-items: center;
+}
+
+.back-link {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ag-color-primary, #065f46);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+
+  &__title-group {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ag-color-primary, #065f46);
+    margin: 0 0 2px 0;
+  }
+
+  &__heading-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  &__title {
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--ag-color-text, #0f172a);
+    margin: 0;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    font-family: var(--ag-font-sans, system-ui, sans-serif);
+  }
+
+  &__lede {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--ag-color-text-muted, #64748b);
+    margin: 4px 0 0 0;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 767px) {
+    gap: 10px;
+    align-items: flex-start;
+
+    &__eyebrow {
+      display: none;
+    }
+
+    &__title {
+      font-size: 20px;
+    }
+
+    &__lede {
+      display: none;
+    }
+  }
+}
+
+/* ==========================================================================
+   2. Cards & Structure
+   ========================================================================== */
+.detail-card {
+  background: var(--ag-color-surface, #ffffff);
+  border: 1px solid var(--ag-color-border, #e2e8f0);
+  border-radius: 6px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 10px;
+
+  h2 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #0f172a;
+    margin: 0;
+  }
+}
+
+/* ==========================================================================
+   3. Grid Fields (Overview & Identity)
+   ========================================================================== */
+.grid-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px 18px;
+}
+
+.field-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.field-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.field-value {
+  font-size: 13px;
+  color: #0f172a;
+  word-break: break-word;
+
+  &.font-mono {
+    font-family: var(--ag-font-mono, monospace);
+  }
+}
+
+.text-amber {
+  color: #d97706;
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   4. Lifecycle Control Box
+   ========================================================================== */
+.lifecycle-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.lifecycle-text {
+  margin: 0;
+  font-size: 13px;
+  color: #334155;
+  line-height: 1.4;
+  flex: 1 1 300px;
+}
+
+.lifecycle-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ==========================================================================
+   5. Usage & Limits Grid
+   ========================================================================== */
+.usage-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+
+  @media (max-width: 860px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.usage-metric-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  &--near {
+    border-color: #f59e0b;
+    background: #fffbeb;
+  }
+
+  &--reached {
+    border-color: #ef4444;
+    background: #fef2f2;
+  }
+}
+
+.usage-metric-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.usage-metric-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.usage-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 4px;
+
+  &--neutral {
+    background: #e2e8f0;
+    color: #475569;
+  }
+
+  &--warning {
+    background: #fde68a;
+    color: #92400e;
+  }
+
+  &--danger {
+    background: #fecaca;
+    color: #991b1b;
+  }
+}
+
+.usage-metric-numbers {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.current-val {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+  font-family: var(--ag-font-mono, monospace);
+  line-height: 1;
+}
+
+.divider {
+  font-size: 16px;
+  color: #94a3b8;
+}
+
+.limit-val {
+  font-size: 16px;
+  font-weight: 600;
+  color: #64748b;
+  font-family: var(--ag-font-mono, monospace);
+}
+
+/* ==========================================================================
+   6. Owners & Members
+   ========================================================================== */
+.owner-banner {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  &__icon {
+    color: #16a34a;
+    flex-shrink: 0;
+  }
+
+  &__details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1 1 auto;
+  }
+}
+
+.owner-role-tag {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #15803d;
+}
+
+.owner-email-text {
+  font-family: var(--ag-font-mono, monospace);
+  font-size: 12px;
+  color: #166534;
+}
+
+.member-count {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+
+  th {
+    padding: 8px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #64748b;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+  }
+}
+
+.assignments-text {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* ==========================================================================
+   7. Facilities & Controls Summary
+   ========================================================================== */
+.facilities-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.facilities-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    margin: 0;
+  }
+}
+
+.facility-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  li {
+    font-size: 13px;
+    padding: 6px 10px;
+    background: #f8fafc;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.default-pill {
+  font-size: 10px;
+  font-weight: 600;
+  background: #e2e8f0;
+  color: #334155;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.controls-summary-box {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.controls-summary-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cs-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.cs-val {
+  font-size: 13px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.action-tag {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.text-xs {
+  font-size: 11px;
+}
+
+.whitespace-nowrap {
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   8. Warnings & Errors
+   ========================================================================== */
+.warnings-card {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  padding: 12px 16px;
+
+  h3 {
+    margin: 0 0 6px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #b45309;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 16px;
+    font-size: 12px;
+    color: #92400e;
+  }
+}
+
+.conflict-banner {
+  background: #fffbeb;
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  &__text {
+    strong {
+      color: #b45309;
+      display: block;
+      margin-bottom: 2px;
+    }
+    p {
+      margin: 0;
+      color: #92400e;
+      font-size: 13px;
+    }
+  }
+}
+
+.error-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 32px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+
+  h2 {
+    margin: 0;
+    font-size: 20px;
+    color: #0f172a;
+  }
+
+  p {
+    margin: 0;
+    color: #64748b;
+  }
+}
+
+/* ==========================================================================
+   9. Modals
+   ========================================================================== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  max-width: 520px;
+  width: 100%;
+  padding: 20px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  &--danger {
+    border-top: 4px solid #ef4444;
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #0f172a;
+    margin: 0;
+  }
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+
+  &:hover {
+    color: #0f172a;
+  }
+}
+
+.modal-desc {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+}
+
+.consequence-notice {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 10px 12px;
+
+  strong {
+    color: #b91c1c;
+    font-size: 12px;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  p {
+    margin: 0;
+    font-size: 12px;
+    color: #991b1b;
+  }
+}
+
+.checkbox-field {
+  padding: 8px 0;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  color: #334155;
+  cursor: pointer;
+
+  input[type="checkbox"] {
+    margin-top: 2px;
+  }
+}
+
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}

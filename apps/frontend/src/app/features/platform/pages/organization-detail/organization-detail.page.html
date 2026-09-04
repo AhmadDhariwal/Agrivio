@@ -1,0 +1,657 @@
+<div class="detail-shell" data-testid="platform-org-detail">
+  <!-- Back Navigation Link -->
+  <nav class="back-nav" aria-label="Breadcrumb">
+    <a routerLink="/app/platform/organizations" class="back-link" data-testid="back-to-orgs-link">
+      ← Back to Organizations
+    </a>
+  </nav>
+
+  @if (loading()) {
+  <agrivio-ui-loading-state label="Loading organization details…" />
+  } @else if (accessDenied()) {
+  <div class="error-card error-card--denied" data-testid="access-denied-state">
+    <h2>Access Denied</h2>
+    <p>You do not have administrative permission to view this organization.</p>
+    <a routerLink="/app/platform/organizations" class="ag-btn ag-btn--secondary">Back to Organizations</a>
+  </div>
+  } @else if (notFound()) {
+  <div class="error-card error-card--not-found" data-testid="not-found-state">
+    <h2>Organization Not Found</h2>
+    <p>The requested organization does not exist or may have been removed.</p>
+    <a routerLink="/app/platform/organizations" class="ag-btn ag-btn--secondary">Back to Organizations</a>
+  </div>
+  } @else if (detail(); as org) {
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">PLATFORM ADMINISTRATION</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">{{ org.name }}</h1>
+        <agrivio-ui-status-badge [label]="statusLabel(org.status)" [tone]="statusTone(org.status)" />
+      </div>
+      <p class="page-head__lede">
+        Governed organization administration, subscription limits, lifecycle controls, and policy audit.
+      </p>
+    </div>
+
+    <div class="page-head__actions">
+      <button
+        type="button"
+        class="ag-btn ag-btn--secondary"
+        [disabled]="refreshing()"
+        (click)="loadDetail(true)"
+        data-testid="refresh-detail-btn"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19"/>
+        </svg>
+        <span>Refresh</span>
+      </button>
+
+      <button type="button" class="ag-btn ag-btn--secondary" (click)="openEdit()" data-testid="edit-detail-btn">
+        Edit Profile
+      </button>
+
+      <a
+        class="ag-btn ag-btn--secondary"
+        [routerLink]="['/app/platform/organizations', org.id, 'controls']"
+        data-testid="detail-controls-btn"
+      >
+        Organization Controls
+      </a>
+
+      @if (org.status === 'approved') {
+      <button type="button" class="ag-btn ag-btn--danger" (click)="openSuspend()" data-testid="detail-suspend-btn">
+        Suspend
+      </button>
+      }
+
+      @if (org.status === 'suspended') {
+      <button type="button" class="ag-btn ag-btn--primary" (click)="openReactivate()" data-testid="detail-reactivate-btn">
+        Reactivate
+      </button>
+      }
+    </div>
+  </header>
+
+  <!-- Alerts & Conflicts -->
+  @if (errorMessage(); as error) {
+  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+  @if (successMessage(); as success) {
+  <agrivio-ui-alert tone="success" [message]="success" />
+  }
+  @if (conflictError(); as conflict) {
+  <div class="conflict-banner" role="alert" data-testid="detail-conflict-banner">
+    <div class="conflict-banner__text">
+      <strong>Stale Update Detected</strong>
+      <p>{{ conflict }}</p>
+    </div>
+    <button type="button" class="ag-btn ag-btn--secondary ag-btn--sm" (click)="loadDetail(true)">
+      Reload Latest
+    </button>
+  </div>
+  }
+
+  <!-- Operational Warnings Banner -->
+  @if (org.operationalWarnings && org.operationalWarnings.length > 0) {
+  <div class="warnings-card" data-testid="operational-warnings-banner">
+    <h3>Operational Warnings</h3>
+    <ul>
+      @for (w of org.operationalWarnings; track w.code) {
+      <li><strong>{{ w.code }}:</strong> {{ w.message }}</li>
+      }
+    </ul>
+  </div>
+  }
+
+  <!-- Section 1: Overview & Identity -->
+  <section class="detail-card" aria-labelledby="overview-title">
+    <div class="card-head">
+      <h2 id="overview-title">Overview &amp; Identity</h2>
+    </div>
+    <div class="grid-fields">
+      <div class="field-item">
+        <span class="field-label">Organization Name</span>
+        <span class="field-value">{{ org.name }}</span>
+      </div>
+      <div class="field-item">
+        <span class="field-label">Timezone</span>
+        <span class="field-value">{{ org.timezone || 'Asia/Karachi' }}</span>
+      </div>
+      <div class="field-item">
+        <span class="field-label">Version</span>
+        <span class="field-value font-mono">v{{ org.version }}</span>
+      </div>
+      <div class="field-item">
+        <span class="field-label">Created At</span>
+        <span class="field-value">{{ org.createdAt ? (org.createdAt | slice:0:10) : '—' }}</span>
+      </div>
+      <div class="field-item">
+        <span class="field-label">Last Updated</span>
+        <span class="field-value">{{ org.updatedAt ? (org.updatedAt | slice:0:10) : '—' }}</span>
+      </div>
+      @if (org.identity?.settings; as st) {
+      <div class="field-item">
+        <span class="field-label">Trading Name</span>
+        <span class="field-value">{{ st.tradingName || '—' }}</span>
+      </div>
+      <div class="field-item">
+        <span class="field-label">Contact Email</span>
+        <span class="field-value">{{ st.contactEmail || '—' }}</span>
+      </div>
+      <div class="field-item">
+        <span class="field-label">Contact Phone</span>
+        <span class="field-value">{{ st.contactPhone || '—' }}</span>
+      </div>
+      <div class="field-item">
+        <span class="field-label">Address</span>
+        <span class="field-value">{{ st.addressLine || '—' }}</span>
+      </div>
+      }
+    </div>
+  </section>
+
+  <!-- Section 2: Lifecycle Control -->
+  <section class="detail-card" aria-labelledby="lifecycle-title">
+    <div class="card-head">
+      <h2 id="lifecycle-title">Lifecycle Governance</h2>
+      <agrivio-ui-status-badge [label]="statusLabel(org.status)" [tone]="statusTone(org.status)" />
+    </div>
+    <div class="lifecycle-box">
+      <p class="lifecycle-text">
+        @if (org.status === 'approved') {
+        This organization is currently <strong>Active</strong>. All tenant operations and users have operational access according to RBAC and capabilities.
+        } @else if (org.status === 'suspended') {
+        This organization is currently <strong>Suspended</strong>. Operational writes and normal tenant access are restricted according to platform policy. Organization data is preserved.
+        } @else if (org.status === 'pending_approval') {
+        This organization is <strong>Pending Approval</strong>. It has no operational tenant access until reviewed and activated.
+        } @else {
+        Current status: <strong>{{ org.status }}</strong>.
+        }
+      </p>
+      <div class="lifecycle-actions">
+        @if (org.status === 'approved') {
+        <button type="button" class="ag-btn ag-btn--danger" (click)="openSuspend()" data-testid="lifecycle-suspend-btn">
+          Suspend Organization
+        </button>
+        }
+        @if (org.status === 'suspended') {
+        <button type="button" class="ag-btn ag-btn--primary" (click)="openReactivate()" data-testid="lifecycle-reactivate-btn">
+          Reactivate Organization
+        </button>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 3: Subscription -->
+  <section class="detail-card" aria-labelledby="subscription-title">
+    <div class="card-head">
+      <h2 id="subscription-title">Subscription &amp; Entitlements</h2>
+      @if (org.subscription) {
+      <button type="button" class="ag-btn ag-btn--secondary ag-btn--sm" (click)="openChangePlan()" data-testid="open-change-plan-btn">
+        Change Plan
+      </button>
+      }
+    </div>
+    @if (org.subscription; as sub) {
+    <div class="grid-fields">
+      <div class="field-item">
+        <span class="field-label">Current Plan</span>
+        <span class="field-value"><strong>{{ sub.planCode }}</strong> (v{{ sub.planVersion }})</span>
+      </div>
+      <div class="field-item">
+        <span class="field-label">Subscription Status</span>
+        <agrivio-ui-status-badge [label]="sub.status" [tone]="statusTone(sub.status)" />
+      </div>
+      <div class="field-item">
+        <span class="field-label">Billing Period</span>
+        <span class="field-value">
+          {{ sub.periodStartsAt ? (sub.periodStartsAt | slice:0:10) : '—' }} to {{ sub.periodEndsAt ? (sub.periodEndsAt | slice:0:10) : '—' }}
+        </span>
+      </div>
+      @if (sub.trialEndsAt) {
+      <div class="field-item">
+        <span class="field-label">Trial Ends</span>
+        <span class="field-value">{{ sub.trialEndsAt | slice:0:10 }}</span>
+      </div>
+      }
+      @if (sub.graceEndsAt) {
+      <div class="field-item">
+        <span class="field-label">Grace Period Ends</span>
+        <span class="field-value text-amber">{{ sub.graceEndsAt | slice:0:10 }}</span>
+      </div>
+      }
+    </div>
+    } @else {
+    <p class="ag-muted">No subscription record associated with this organization.</p>
+    }
+  </section>
+
+  <!-- Section 4: Usage & Limits -->
+  <section class="detail-card" aria-labelledby="usage-title">
+    <div class="card-head">
+      <h2 id="usage-title">Usage &amp; Limits</h2>
+    </div>
+    @if (org.usage; as u) {
+    <div class="usage-grid">
+      <!-- Branches -->
+      @let bState = getUsageState(u.resources.branches);
+      <div class="usage-metric-card" [class.usage-metric-card--near]="bState === 'near-limit'" [class.usage-metric-card--reached]="bState === 'limit-reached'">
+        <div class="usage-metric-head">
+          <span class="usage-metric-title">Branches</span>
+          <span class="usage-badge usage-badge--{{ getUsageTone(bState) }}">
+            {{ bState === 'limit-reached' ? 'Limit Reached' : (bState === 'near-limit' ? 'Near Limit' : 'Normal') }}
+          </span>
+        </div>
+        <div class="usage-metric-numbers">
+          <span class="current-val">{{ u.resources.branches.current }}</span>
+          <span class="divider">/</span>
+          <span class="limit-val">{{ u.resources.branches.limit !== null ? u.resources.branches.limit : '∞' }}</span>
+        </div>
+      </div>
+
+      <!-- Warehouses -->
+      @let wState = getUsageState(u.resources.warehouses);
+      <div class="usage-metric-card" [class.usage-metric-card--near]="wState === 'near-limit'" [class.usage-metric-card--reached]="wState === 'limit-reached'">
+        <div class="usage-metric-head">
+          <span class="usage-metric-title">Warehouses</span>
+          <span class="usage-badge usage-badge--{{ getUsageTone(wState) }}">
+            {{ wState === 'limit-reached' ? 'Limit Reached' : (wState === 'near-limit' ? 'Near Limit' : 'Normal') }}
+          </span>
+        </div>
+        <div class="usage-metric-numbers">
+          <span class="current-val">{{ u.resources.warehouses.current }}</span>
+          <span class="divider">/</span>
+          <span class="limit-val">{{ u.resources.warehouses.limit !== null ? u.resources.warehouses.limit : '∞' }}</span>
+        </div>
+      </div>
+
+      <!-- Active Users / Employees -->
+      @let uState = getUsageState(u.resources.activeUsers);
+      <div class="usage-metric-card" [class.usage-metric-card--near]="uState === 'near-limit'" [class.usage-metric-card--reached]="uState === 'limit-reached'">
+        <div class="usage-metric-head">
+          <span class="usage-metric-title">Employees &amp; Users</span>
+          <span class="usage-badge usage-badge--{{ getUsageTone(uState) }}">
+            {{ uState === 'limit-reached' ? 'Limit Reached' : (uState === 'near-limit' ? 'Near Limit' : 'Normal') }}
+          </span>
+        </div>
+        <div class="usage-metric-numbers">
+          <span class="current-val">{{ u.resources.activeUsers.current }}</span>
+          <span class="divider">/</span>
+          <span class="limit-val">{{ u.resources.activeUsers.limit !== null ? u.resources.activeUsers.limit : '∞' }}</span>
+        </div>
+      </div>
+    </div>
+    } @else {
+    <p class="ag-muted">Usage telemetry not available for this organization.</p>
+    }
+  </section>
+
+  <!-- Section 5: Owners & Members Summary -->
+  <section class="detail-card" aria-labelledby="members-title">
+    <div class="card-head">
+      <h2 id="members-title">Owners &amp; Members Summary</h2>
+      @if (org.members) {
+      <span class="member-count">{{ org.members.total }} total</span>
+      }
+    </div>
+
+    <!-- Owner Banner -->
+    @if (org.owner; as owner) {
+    <div class="owner-banner">
+      <div class="owner-banner__icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+      </div>
+      <div class="owner-banner__details">
+        <span class="owner-role-tag">Primary Owner</span>
+        <strong>{{ owner.displayName || 'Owner' }}</strong>
+        <span class="owner-email-text">{{ owner.email }}</span>
+      </div>
+      <div class="owner-banner__status">
+        <agrivio-ui-status-badge [label]="owner.status" [tone]="statusTone(owner.status)" />
+      </div>
+    </div>
+    }
+
+    <!-- Members Table -->
+    @if (org.members && org.members.items.length > 0) {
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Assignments</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (m of org.members.items; track m.id) {
+          <tr>
+            <td><strong>{{ m.displayName || '—' }}</strong></td>
+            <td><code>{{ m.email }}</code></td>
+            <td>{{ m.role }}</td>
+            <td>
+              <agrivio-ui-status-badge [label]="m.status" [tone]="statusTone(m.status)" />
+            </td>
+            <td>
+              <span class="assignments-text">
+                {{ (m.branchAssignments?.length ?? 0) }} branches, {{ (m.warehouseAssignments?.length ?? 0) }} warehouses
+              </span>
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    }
+  </section>
+
+  <!-- Section 6: Branches & Warehouses Summary -->
+  <section class="detail-card" aria-labelledby="facilities-title">
+    <div class="card-head">
+      <h2 id="facilities-title">Branches &amp; Warehouses</h2>
+    </div>
+    <div class="facilities-grid">
+      <div class="facilities-col">
+        <h3>Branches ({{ org.branches?.total ?? 0 }})</h3>
+        @if (org.branches && org.branches.items.length > 0) {
+        <ul class="facility-list">
+          @for (b of org.branches.items; track b.id) {
+          <li>
+            <span>{{ b.name }}</span>
+            @if (b.isDefault) {
+            <span class="default-pill">Default</span>
+            }
+          </li>
+          }
+        </ul>
+        } @else {
+        <p class="ag-muted">No branches registered.</p>
+        }
+      </div>
+
+      <div class="facilities-col">
+        <h3>Warehouses ({{ org.warehouses?.total ?? 0 }})</h3>
+        @if (org.warehouses && org.warehouses.items.length > 0) {
+        <ul class="facility-list">
+          @for (w of org.warehouses.items; track w.id) {
+          <li>
+            <span>{{ w.name }}</span>
+            @if (w.isDefault) {
+            <span class="default-pill">Default</span>
+            }
+          </li>
+          }
+        </ul>
+        } @else {
+        <p class="ag-muted">No warehouses registered.</p>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 7: Organization Controls Summary -->
+  <section class="detail-card" aria-labelledby="controls-summary-title">
+    <div class="card-head">
+      <h2 id="controls-summary-title">Organization Controls</h2>
+      <a
+        [routerLink]="['/app/platform/organizations', org.id, 'controls']"
+        class="ag-btn ag-btn--primary ag-btn--sm"
+        data-testid="open-full-controls-btn"
+      >
+        Open Controls Editor
+      </a>
+    </div>
+    <p class="ag-muted">
+      Agrivio enforces granular module, view, field, and action visibility controls per organization with Default, Override, and Effective states.
+    </p>
+    <div class="controls-summary-box">
+      <div class="controls-summary-item">
+        <span class="cs-label">Canonical Hierarchy</span>
+        <span class="cs-val">All Modules Configurable</span>
+      </div>
+      <div class="controls-summary-item">
+        <span class="cs-label">Platform Enforcement</span>
+        <span class="cs-val">Platform-enforced controls locked</span>
+      </div>
+      <div class="controls-summary-item">
+        <span class="cs-label">Reset Behavior</span>
+        <span class="cs-val">Scoped override reset supported</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 8: Platform Audit Trail -->
+  <section class="detail-card" aria-labelledby="audit-title">
+    <div class="card-head">
+      <h2 id="audit-title">Platform Audit Activity</h2>
+      @if (org.audit) {
+      <span class="audit-count">{{ org.audit.total }} platform events</span>
+      }
+    </div>
+    @if (org.audit && org.audit.recent.length > 0) {
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Actor</th>
+            <th>Action</th>
+            <th>Reason</th>
+            <th>Resource</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (ev of org.audit.recent; track ev.id) {
+          <tr>
+            <td class="whitespace-nowrap">{{ ev.timestamp | slice:0:19 }}</td>
+            <td><code>{{ ev.actorId }}</code></td>
+            <td>
+              <span class="action-tag">{{ formatCanonicalAction(ev.action) }}</span>
+            </td>
+            <td>{{ ev.reason || '—' }}</td>
+            <td><code class="text-xs">{{ ev.resourceType }}:{{ ev.resourceId }}</code></td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    } @else {
+    <p class="ag-muted">No recent platform audit records for this organization.</p>
+    }
+  </section>
+  }
+
+  <!-- Modals & Dialogs -->
+
+  <!-- Edit Modal -->
+  @if (editOpen()) {
+  <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="edit-detail-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="edit-detail-title">Edit Organization: {{ detail()?.name }}</h2>
+        <button type="button" class="close-btn" (click)="closeEdit()" aria-label="Close dialog">✕</button>
+      </div>
+      <p class="ag-muted modal-desc">
+        Update organization profile attributes. Version concurrency is enforced automatically.
+      </p>
+      <form [formGroup]="editForm" (ngSubmit)="submitEdit()" class="ag-form">
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Organization Name" for="ed-name" [required]="true" />
+          <input id="ed-name" class="ag-input" type="text" formControlName="name" />
+        </div>
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Timezone" for="ed-tz" [required]="true" />
+          <input id="ed-tz" class="ag-input" type="text" formControlName="timezone" placeholder="e.g. Asia/Karachi" />
+        </div>
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Reason for Modification" for="ed-reason" [required]="true" />
+          <input id="ed-reason" class="ag-input" type="text" formControlName="reason" placeholder="Audited reason for change" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="ag-btn ag-btn--secondary" (click)="closeEdit()">Cancel</button>
+          <button type="submit" class="ag-btn ag-btn--primary" [disabled]="editForm.invalid">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  }
+
+  <!-- Suspend Dialog -->
+  @if (suspendOpen()) {
+  <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="suspend-detail-title">
+    <div class="modal-card modal-card--danger">
+      <div class="modal-header">
+        <h2 id="suspend-detail-title">Suspend {{ detail()?.name }}?</h2>
+        <button type="button" class="close-btn" (click)="closeSuspend()" aria-label="Close dialog">✕</button>
+      </div>
+      <div class="consequence-notice">
+        <strong>Consequence Notice:</strong>
+        <p>
+          Suspending this organization restricts tenant operations according to platform policy. Organization data is preserved.
+        </p>
+      </div>
+      <form [formGroup]="suspendForm" (ngSubmit)="submitSuspend()" class="ag-form">
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Reason for Suspension" for="sd-reason" [required]="true" />
+          <input
+            id="sd-reason"
+            class="ag-input"
+            type="text"
+            formControlName="reason"
+            placeholder="Audited reason required by platform policy"
+            data-testid="suspend-reason-input"
+          />
+        </div>
+        <div class="checkbox-field">
+          <label class="checkbox-label">
+            <input type="checkbox" formControlName="confirmed" data-testid="suspend-confirm-checkbox" />
+            <span>I confirm that I want to suspend this organization. Operational tenant access will be restricted. Data is preserved.</span>
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="ag-btn ag-btn--secondary" (click)="closeSuspend()">Cancel</button>
+          <button
+            type="submit"
+            class="ag-btn ag-btn--danger"
+            [disabled]="suspendForm.invalid"
+            data-testid="confirm-suspend-btn"
+          >
+            Suspend Organization
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  }
+
+  <!-- Reactivate Dialog -->
+  @if (reactivateOpen()) {
+  <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="reactivate-detail-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="reactivate-detail-title">Reactivate {{ detail()?.name }}?</h2>
+        <button type="button" class="close-btn" (click)="closeReactivate()" aria-label="Close dialog">✕</button>
+      </div>
+      <p class="ag-muted modal-desc">
+        Reactivating returns normal tenant operations according to subscription status, RBAC assignments, and capabilities. Permissions and records remain preserved.
+      </p>
+      <form [formGroup]="reactivateForm" (ngSubmit)="submitReactivate()" class="ag-form">
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Reason for Reactivation" for="rd-reason" [required]="true" />
+          <input
+            id="rd-reason"
+            class="ag-input"
+            type="text"
+            formControlName="reason"
+            placeholder="Audited reason for reactivating access"
+            data-testid="reactivate-reason-input"
+          />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="ag-btn ag-btn--secondary" (click)="closeReactivate()">Cancel</button>
+          <button
+            type="submit"
+            class="ag-btn ag-btn--primary"
+            [disabled]="reactivateForm.invalid"
+            data-testid="confirm-reactivate-btn"
+          >
+            Reactivate Organization
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  }
+
+  <!-- Change Plan Dialog -->
+  @if (changePlanOpen()) {
+  <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="change-plan-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="change-plan-title">Change Subscription Plan</h2>
+        <button type="button" class="close-btn" (click)="closeChangePlan()" aria-label="Close dialog">✕</button>
+      </div>
+      <p class="ag-muted modal-desc">
+        Select from active and available subscription plans. Downgrades are scheduled for the next period boundary automatically.
+      </p>
+      @if (loadingPlans()) {
+      <agrivio-ui-loading-state label="Loading available plans…" />
+      } @else {
+      <form [formGroup]="changePlanForm" (ngSubmit)="submitChangePlan()" class="ag-form">
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Select Target Plan Version" for="cp-plan" [required]="true" />
+          <select id="cp-plan" class="ag-input ag-select" formControlName="planSelection" data-testid="select-plan-input">
+            <option value="">-- Choose Plan --</option>
+            @for (p of availablePlans(); track p.id) {
+            <option [value]="p.planCode + ':' + p.planVersion">
+              {{ p.planCode }} (v{{ p.planVersion }}) - {{ p.status }}
+            </option>
+            }
+          </select>
+        </div>
+
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Effective Timing" for="cp-effective" [required]="true" />
+          <select id="cp-effective" class="ag-input ag-select" formControlName="effective">
+            <option value="immediate">Immediate</option>
+            <option value="next_period">Next Period Boundary (Required for downgrades)</option>
+          </select>
+        </div>
+
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Reason for Plan Change" for="cp-reason" [required]="true" />
+          <input
+            id="cp-reason"
+            class="ag-input"
+            type="text"
+            formControlName="reason"
+            placeholder="Audited administrative reason"
+            data-testid="plan-change-reason-input"
+          />
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="ag-btn ag-btn--secondary" (click)="closeChangePlan()">Cancel</button>
+          <button
+            type="submit"
+            class="ag-btn ag-btn--primary"
+            [disabled]="changePlanForm.invalid"
+            data-testid="confirm-plan-change-btn"
+          >
+            Update Subscription Plan
+          </button>
+        </div>
+      </form>
+      }
+    </div>
+  </div>
+  }
+</div>
