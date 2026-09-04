@@ -17,6 +17,9 @@ function registerCapabilityRoutes(deps) {
   const router = Router();
   const controller = createCapabilityController(deps);
   const platformActor = createPlatformActorMiddleware(deps.config);
+  const strictPlatformActor = createPlatformActorMiddleware(deps.config, {
+    allowDevelopmentHeader: deps.config.nodeEnv === 'test',
+  });
   const requireCsrf = deps.requireCsrf ?? ((_req, _res, next) => next());
   const optionalAuth = deps.optionalAuth ?? ((_req, _res, next) => next());
   const requireOrganizationContext = createRequireOrganizationContextMiddleware();
@@ -40,7 +43,7 @@ function registerCapabilityRoutes(deps) {
   router.get(
     organizationBase,
     optionalAuth,
-    platformActor,
+    strictPlatformActor,
     requirePlatformPermission('platform.organizations.view'),
     (req, res, next) => void controller.getOrganizationPolicy(req, res, next),
   );
@@ -49,7 +52,7 @@ function registerCapabilityRoutes(deps) {
     organizationBase,
     optionalAuth,
     requireCsrf,
-    platformActor,
+    strictPlatformActor,
     requirePlatformPermission('platform.organizations.suspend'),
     (req, res, next) => void controller.updateOrganizationPolicy(req, res, next),
   );
@@ -58,7 +61,7 @@ function registerCapabilityRoutes(deps) {
     `${organizationBase}/overrides/:key`,
     optionalAuth,
     requireCsrf,
-    platformActor,
+    strictPlatformActor,
     requirePlatformPermission('platform.organizations.suspend'),
     (req, res, next) => void controller.resetOverride(req, res, next),
   );
@@ -67,7 +70,7 @@ function registerCapabilityRoutes(deps) {
     `${organizationBase}/modules/:moduleKey`,
     optionalAuth,
     requireCsrf,
-    platformActor,
+    strictPlatformActor,
     requirePlatformPermission('platform.organizations.suspend'),
     (req, res, next) => void controller.resetModule(req, res, next),
   );
@@ -76,7 +79,7 @@ function registerCapabilityRoutes(deps) {
     organizationBase,
     optionalAuth,
     requireCsrf,
-    platformActor,
+    strictPlatformActor,
     requirePlatformPermission('platform.organizations.suspend'),
     (req, res, next) => void controller.resetAll(req, res, next),
   );
@@ -84,7 +87,7 @@ function registerCapabilityRoutes(deps) {
   router.get(
     `${organizationBase}/history`,
     optionalAuth,
-    platformActor,
+    strictPlatformActor,
     requirePlatformPermission('platform.audit.view'),
     (req, res, next) => void controller.getHistory(req, res, next),
   );

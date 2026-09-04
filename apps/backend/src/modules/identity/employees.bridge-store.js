@@ -20,20 +20,30 @@ function createBridgedEmployeesStore(deps) {
 
     async listMembershipsPage(organizationId, filter = {}, pagination = {}) {
       const all = await this.listMembershipsByOrganizationId(organizationId);
-      const search = String(filter.search ?? '').trim().toLowerCase();
+      const search = String(filter.search ?? '')
+        .trim()
+        .toLowerCase();
       const withUsers = [];
       for (const membership of all) {
+        if (filter.status && membership.status !== filter.status) continue;
+        if (filter.role && membership.role !== filter.role) continue;
         const user = await this.findUserById(String(membership.userId));
         if (
           user &&
           (!search ||
             String(user.emailNormalized).toLowerCase().includes(search) ||
-            String(user.displayName ?? '').toLowerCase().includes(search))
+            String(user.displayName ?? '')
+              .toLowerCase()
+              .includes(search))
         ) {
           withUsers.push({ ...membership, user });
         }
       }
-      withUsers.sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')) || String(b._id).localeCompare(String(a._id)));
+      withUsers.sort(
+        (a, b) =>
+          String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')) ||
+          String(b._id).localeCompare(String(a._id)),
+      );
       const total = withUsers.length;
       const skip = pagination.skip ?? 0;
       return { items: withUsers.slice(skip, skip + (pagination.pageSize ?? 25)), total };
@@ -59,9 +69,8 @@ function createBridgedEmployeesStore(deps) {
 
     async countActiveUsers(organizationId) {
       const memberships = await this.listMembershipsByOrganizationId(organizationId);
-      return memberships.filter(
-        (item) => item.status === 'active' || item.status === 'pending',
-      ).length;
+      return memberships.filter((item) => item.status === 'active' || item.status === 'pending')
+        .length;
     },
 
     async findMembershipByOrganizationAndUserId(organizationId, userId) {
@@ -142,10 +151,7 @@ function createBridgedEmployeesStore(deps) {
         return;
       }
       const active = await this.listAccessAssignmentsByMembershipId(membershipId);
-      if (
-        locationsStore &&
-        typeof locationsStore.updateAccessAssignment === 'function'
-      ) {
+      if (locationsStore && typeof locationsStore.updateAccessAssignment === 'function') {
         for (const assignment of active) {
           await locationsStore.updateAccessAssignment(session, String(assignment['_id']), {
             status: 'revoked',

@@ -137,6 +137,17 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'platform/organizations/:id',
+        canActivate: [
+          requirePlatformContextGuard,
+          requirePermissionGuard('platform.organizations.view'),
+        ],
+        loadComponent: () =>
+          import('./features/platform/pages/organization-detail/organization-detail.page').then(
+            (m) => m.PlatformOrganizationDetailPage,
+          ),
+      },
+      {
         path: 'platform/plans',
         canActivate: [
           requirePlatformContextGuard,

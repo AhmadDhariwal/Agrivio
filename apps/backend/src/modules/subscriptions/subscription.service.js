@@ -571,9 +571,9 @@ function createSubscriptionService(deps) {
       return { allowed: true, reason: 'entitled', access };
     },
 
-    async suspendSubscription(subscriptionId, body, actor) {
+    async suspendSubscription(subscriptionId, body, actor, options = {}) {
       const { expectedVersion, reason } = parseLifecycleBody(body, { requireReason: true });
-      return deps.transactionRunner.run(async (session) => {
+      const work = async (session) => {
         const subscription = await store.findSubscriptionById(subscriptionId);
         if (subscription === null) {
           throw notFound('Subscription not found');
@@ -609,12 +609,13 @@ function createSubscriptionService(deps) {
           auditAction: 'subscription.suspended',
         });
         return toSubscriptionSummary(updated);
-      });
+      };
+      return options.session ? work(options.session) : deps.transactionRunner.run(work);
     },
 
-    async reactivateSubscription(subscriptionId, body, actor) {
+    async reactivateSubscription(subscriptionId, body, actor, options = {}) {
       const { expectedVersion, reason } = parseLifecycleBody(body, { requireReason: true });
-      return deps.transactionRunner.run(async (session) => {
+      const work = async (session) => {
         const subscription = await store.findSubscriptionById(subscriptionId);
         if (subscription === null) {
           throw notFound('Subscription not found');
@@ -641,7 +642,8 @@ function createSubscriptionService(deps) {
           },
         });
         return toSubscriptionSummary(updated);
-      });
+      };
+      return options.session ? work(options.session) : deps.transactionRunner.run(work);
     },
 
     async cancelSubscription(subscriptionId, body, actor) {
@@ -871,6 +873,17 @@ function createSubscriptionService(deps) {
       return page.items.map((row) => toBillingSummary(row, { includeEvidenceMeta: true }));
     },
 
+    async getOrganizationBillingSummary(organizationId) {
+      const page = await store.listBillingRecords({ organizationId, limit: 1, offset: 0 });
+      return {
+        total: page.total,
+        latest:
+          page.items.length === 0
+            ? null
+            : toBillingSummary(page.items[0], { includeEvidenceMeta: true }),
+      };
+    },
+
     async getOrganizationBillingRecord(organizationId, billingId) {
       const record = await store.findBillingRecordById(billingId);
       if (record === null || String(record.organizationId) !== String(organizationId)) {
@@ -981,9 +994,6 @@ function createSubscriptionService(deps) {
                   ? new Date(record.coverageStart).toISOString()
                   : null,
                 coverageEnd: record.coverageEnd ? new Date(record.coverageEnd).toISOString() : null,
-                planCode: record.requestedPlanCode,
-                planVersion: record.requestedPlanVersion,
-                billingPeriod: record.billingPeriod,
                 planCode: record.requestedPlanCode,
                 planVersion: record.requestedPlanVersion,
                 billingPeriod: record.billingPeriod,

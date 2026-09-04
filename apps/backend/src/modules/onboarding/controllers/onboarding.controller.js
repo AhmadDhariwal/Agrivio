@@ -32,7 +32,18 @@ function createPlatformOrganizationController(deps) {
         const result = await deps.onboardingService.listOrganizations({
           ...(status === undefined ? {} : { status }),
           search: typeof req.query.search === 'string' ? req.query.search : undefined,
-          skip, pageSize,
+          plan: typeof req.query.plan === 'string' ? req.query.plan : undefined,
+          subscriptionStatus:
+            typeof req.query.subscriptionStatus === 'string'
+              ? req.query.subscriptionStatus
+              : undefined,
+          createdFrom:
+            typeof req.query.createdFrom === 'string' ? req.query.createdFrom : undefined,
+          createdTo: typeof req.query.createdTo === 'string' ? req.query.createdTo : undefined,
+          sort: typeof req.query.sort === 'string' ? req.query.sort : undefined,
+          direction: typeof req.query.direction === 'string' ? req.query.direction : undefined,
+          skip,
+          pageSize,
         });
         sendSuccessEnvelope(res, 200, result.items, { page, pageSize, total: result.total });
       } catch (error) {
@@ -59,6 +70,49 @@ function createPlatformOrganizationController(deps) {
         const id = String(req.params['id'] ?? '');
         const result = await deps.onboardingService.getOrganization(id);
         sendSuccessEnvelope(res, 200, result);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async update(req, res, next) {
+      try {
+        const result = await deps.onboardingService.updateOrganizationProfile(
+          String(req.params.id ?? ''),
+          req.body ?? {},
+          { actorId: req.platformActor?.actorId ?? 'unknown' },
+        );
+        sendSuccessEnvelope(res, 200, result);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async getUsage(req, res, next) {
+      try {
+        const result = await deps.onboardingService.getOrganizationUsage(
+          String(req.params.id ?? ''),
+        );
+        sendSuccessEnvelope(res, 200, result);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async listMembers(req, res, next) {
+      try {
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const result = await deps.onboardingService.listOrganizationMembers(
+          String(req.params.id ?? ''),
+          {
+            search: typeof req.query.search === 'string' ? req.query.search : undefined,
+            status: typeof req.query.status === 'string' ? req.query.status : undefined,
+            role: typeof req.query.role === 'string' ? req.query.role : undefined,
+            skip,
+            pageSize,
+          },
+        );
+        sendSuccessEnvelope(res, 200, result.items, { page, pageSize, total: result.total });
       } catch (error) {
         next(error);
       }
@@ -114,6 +168,20 @@ function createPlatformOrganizationController(deps) {
           id,
           req.body ?? {},
           { actorId: actor?.actorId ?? 'unknown' },
+          req.get('Idempotency-Key'),
+        );
+        sendSuccessEnvelope(res, result.statusCode ?? 200, result.data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async reactivate(req, res, next) {
+      try {
+        const result = await deps.onboardingService.reactivateOrganization(
+          String(req.params.id ?? ''),
+          req.body ?? {},
+          { actorId: req.platformActor?.actorId ?? 'unknown' },
           req.get('Idempotency-Key'),
         );
         sendSuccessEnvelope(res, result.statusCode ?? 200, result.data);

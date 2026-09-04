@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { createPlatformActorMiddleware, requirePlatformPermission } from '../platform/platform-actor.middleware';
+import {
+  createPlatformActorMiddleware,
+  requirePlatformPermission,
+} from '../platform/platform-actor.middleware';
 import { API_PLATFORM_ACTOR_HEADER } from '@agrivio/api-contracts';
 
 describe('platform actor middleware', () => {
@@ -26,6 +29,44 @@ describe('platform actor middleware', () => {
     });
     expect(captured).toMatchObject({ name: 'AppError', statusCode: 401 });
   });
+
+  it('can disable the actor header for security-sensitive development routes', () => {
+    const middleware = createPlatformActorMiddleware(
+      { nodeEnv: 'development' },
+      { allowDevelopmentHeader: false },
+    );
+    let captured;
+    middleware({ header: () => 'spoofed-platform-actor' }, {}, (error) => {
+      captured = error;
+    });
+    expect(captured).toMatchObject({ name: 'AppError', statusCode: 401 });
+  });
+
+  it.each(['Owner', 'Manager', 'Cashier', 'StoreKeeper'])(
+    'denies tenant %s sessions on platform routes',
+    (role) => {
+      const middleware = createPlatformActorMiddleware(
+        { nodeEnv: 'development' },
+        { allowDevelopmentHeader: false },
+      );
+      let captured;
+      middleware(
+        {
+          header: () => undefined,
+          auth: {
+            user: { _id: 'tenant-user', platformAccess: null },
+            session: { activeContextType: 'organization' },
+          },
+          authContext: { contextType: 'organization', role },
+        },
+        {},
+        (error) => {
+          captured = error;
+        },
+      );
+      expect(captured).toMatchObject({ name: 'AppError', statusCode: 403 });
+    },
+  );
 
   it('denies platform actors that lack the required organization permission', () => {
     const middleware = requirePlatformPermission('platform.organizations.create');

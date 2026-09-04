@@ -31,6 +31,10 @@ function createSubscriptionModule(options) {
     options.evidenceStorage ??
     createBillingEvidenceStorage({
       adapter: persistence === 'mongoose' ? 'local' : 'memory',
+      rootDir:
+        options.config?.billingEvidenceStorageDir ||
+        process.env['AGRIVIO_BILLING_EVIDENCE_STORAGE_DIR'] ||
+        undefined,
     });
 
   const subscriptionService = createSubscriptionService({

@@ -32,15 +32,31 @@ function summarizeMembershipStatuses(memberships) {
 function createMongooseEmployeesStore() {
   return {
     async listMembershipsByOrganizationId(organizationId) {
-      return OrganizationMembershipModel.find({ organizationId }).sort({ createdAt: -1 }).lean().exec();
+      return OrganizationMembershipModel.find({ organizationId })
+        .sort({ createdAt: -1 })
+        .lean()
+        .exec();
     },
 
     async listMembershipsPage(organizationId, filter = {}, pagination = {}) {
-      const match = { organizationId: new mongoose.Types.ObjectId(String(organizationId)) };
-      const search = String(filter.search ?? '').trim().toLowerCase();
+      const match = {
+        organizationId: new mongoose.Types.ObjectId(String(organizationId)),
+        ...(filter.status ? { status: filter.status } : {}),
+        ...(filter.role ? { role: filter.role } : {}),
+      };
+      const search = String(filter.search ?? '')
+        .trim()
+        .toLowerCase();
       const pipeline = [
         { $match: match },
-        { $lookup: { from: UserModel.collection.name, localField: 'userId', foreignField: '_id', as: 'user' } },
+        {
+          $lookup: {
+            from: UserModel.collection.name,
+            localField: 'userId',
+            foreignField: '_id',
+            as: 'user',
+          },
+        },
         { $unwind: '$user' },
       ];
       if (search) {
@@ -56,7 +72,12 @@ function createMongooseEmployeesStore() {
       }
       pipeline.push(
         { $sort: { createdAt: -1, _id: -1 } },
-        { $facet: { metadata: [{ $count: 'total' }], items: [{ $skip: pagination.skip ?? 0 }, { $limit: pagination.pageSize ?? 25 }] } },
+        {
+          $facet: {
+            metadata: [{ $count: 'total' }],
+            items: [{ $skip: pagination.skip ?? 0 }, { $limit: pagination.pageSize ?? 25 }],
+          },
+        },
       );
       const [result] = await OrganizationMembershipModel.aggregate(pipeline).exec();
       return { items: result?.items ?? [], total: result?.metadata?.[0]?.total ?? 0 };
@@ -163,7 +184,11 @@ function createMongooseEmployeesStore() {
     },
 
     async updateUser(session, id, patch) {
-      return UserModel.findByIdAndUpdate(id, { $set: patch }, { new: true, ...withSession(session) })
+      return UserModel.findByIdAndUpdate(
+        id,
+        { $set: patch },
+        { new: true, ...withSession(session) },
+      )
         .lean()
         .exec();
     },
@@ -254,21 +279,32 @@ function createInMemoryEmployeesStore(options = {}) {
 
     async listMembershipsPage(organizationId, filter = {}, pagination = {}) {
       const items = await this.listMembershipsByOrganizationId(organizationId);
-      const search = String(filter.search ?? '').trim().toLowerCase();
+      const search = String(filter.search ?? '')
+        .trim()
+        .toLowerCase();
       const withUsers = [];
       for (const membership of items) {
+        if (filter.status && membership.status !== filter.status) continue;
+        if (filter.role && membership.role !== filter.role) continue;
         const user = await this.findUserById(String(membership.userId));
         if (
           user &&
           (!search ||
             String(user.emailNormalized).toLowerCase().includes(search) ||
-            String(user.displayName ?? '').toLowerCase().includes(search))
+            String(user.displayName ?? '')
+              .toLowerCase()
+              .includes(search))
         ) {
           withUsers.push({ ...membership, user });
         }
       }
-      withUsers.sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')) || String(b._id).localeCompare(String(a._id)));
-      const total = withUsers.length; const skip = pagination.skip ?? 0;
+      withUsers.sort(
+        (a, b) =>
+          String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')) ||
+          String(b._id).localeCompare(String(a._id)),
+      );
+      const total = withUsers.length;
+      const skip = pagination.skip ?? 0;
       return { items: withUsers.slice(skip, skip + (pagination.pageSize ?? 25)), total };
     },
 

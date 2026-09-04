@@ -23,6 +23,9 @@ describe('appRoutes F02 routing', () => {
     const platformOrgs = app?.children?.find((route) => route.path === 'platform/organizations');
     expect(platformOrgs?.canActivate?.length).toBeGreaterThan(0);
 
+    const platformOrgDetail = app?.children?.find((route) => route.path === 'platform/organizations/:id');
+    expect(platformOrgDetail?.canActivate?.length).toBeGreaterThan(0);
+
     const context = appRoutes.find((route) => route.path === 'context');
     expect(context?.canActivate?.length).toBeGreaterThan(0);
 
@@ -69,5 +72,16 @@ describe('appRoutes F02 routing', () => {
       const component = await route?.loadComponent?.();
       expect(component).toBeTruthy();
     }
-  });
+  }, 15000);
+
+  it('resolves platform organizations lazy page components', async () => {
+    const app = appRoutes.find((route) => route.path === 'app');
+    const paths = ['platform/organizations', 'platform/organizations/:id'];
+    for (const path of paths) {
+      const route = app?.children?.find((child) => child.path === path);
+      expect(route?.loadComponent).toBeTruthy();
+      const component = await route?.loadComponent?.();
+      expect(component).toBeTruthy();
+    }
+  }, 15000);
 });
