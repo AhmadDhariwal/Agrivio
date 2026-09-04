@@ -9,23 +9,68 @@ import { PurchaseRecord } from '../../models/purchases.models';
 
 const money = { amount: '100.00', currency: 'PKR' };
 const purchase: PurchaseRecord = {
-  id: 'purchase-1', organizationId: 'org-1', branchId: null, warehouseId: 'warehouse-old', warehouseNameSnapshot: 'Historic Store',
-  supplierId: 'supplier-1', supplierNameSnapshot: 'Farm Supply', supplierInvoiceReference: 'INV-1', purchaseDate: '2026-09-04',
-  notes: '', status: 'posted', lines: [{ productId: 'p1', productNameSnapshot: 'Seed', trackingModeSnapshot: 'none',
-    packagingUnitId: null, unitCodeSnapshot: 'bag', conversionFactorSnapshot: '1', quantity: '1', quantityBase: '1', unitCost: money,
-    lineProductAmount: money, batchNumber: null, manufacturingDate: null, expiryDate: null }],
-  landedCosts: { freight: money, loading: money, transport: money, other: money }, purchaseTotal: money, paidTotal: money,
-  payableTotal: money, version: 1, createdBy: 'user-1', createdAt: '2026-09-04T00:00:00Z', updatedAt: null, postedAt: '2026-09-04T00:00:00Z',
+  id: 'purchase-1',
+  organizationId: 'org-1',
+  branchId: null,
+  warehouseId: 'warehouse-old',
+  warehouseNameSnapshot: 'Historic Store',
+  supplierId: 'supplier-1',
+  supplierNameSnapshot: 'Farm Supply',
+  supplierInvoiceReference: 'INV-1',
+  purchaseDate: '2026-09-04',
+  notes: '',
+  status: 'posted',
+  lines: [
+    {
+      productId: 'p1',
+      productNameSnapshot: 'Seed',
+      trackingModeSnapshot: 'none',
+      packagingUnitId: null,
+      unitCodeSnapshot: 'bag',
+      conversionFactorSnapshot: '1',
+      quantity: '1',
+      quantityBase: '1',
+      unitCost: money,
+      lineProductAmount: money,
+      batchNumber: null,
+      manufacturingDate: null,
+      expiryDate: null,
+    },
+  ],
+  landedCosts: { freight: money, loading: money, transport: money, other: money },
+  purchaseTotal: money,
+  paidTotal: money,
+  payableTotal: money,
+  version: 1,
+  createdBy: 'user-1',
+  createdAt: '2026-09-04T00:00:00Z',
+  updatedAt: null,
+  postedAt: '2026-09-04T00:00:00Z',
 };
 
 describe('PurchaseDetailPage', () => {
   it('uses only the authoritative purchase inquiry and has no editable controls', async () => {
     const api = { getPurchase: vi.fn().mockReturnValue(of(purchase)) };
-    await TestBed.configureTestingModule({ imports: [PurchaseDetailPage], providers: [provideRouter([]),
-      { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ id: 'purchase-1' }) } } },
-      { provide: PurchasesApi, useValue: api }, { provide: AuthSessionStore, useValue: { hasPermission: () => true } },
-      { provide: CapabilityService, useValue: { canUseModule: () => true, canPerformAction: () => true, canViewField: () => true } },
-    ] }).compileComponents();
+    await TestBed.configureTestingModule({
+      imports: [PurchaseDetailPage],
+      providers: [
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: convertToParamMap({ id: 'purchase-1' }) } },
+        },
+        { provide: PurchasesApi, useValue: api },
+        { provide: AuthSessionStore, useValue: { hasPermission: () => true } },
+        {
+          provide: CapabilityService,
+          useValue: {
+            canUseModule: () => true,
+            canPerformAction: () => true,
+            canViewField: () => true,
+          },
+        },
+      ],
+    }).compileComponents();
     const fixture = TestBed.createComponent(PurchaseDetailPage);
     fixture.detectChanges();
     expect(api.getPurchase).toHaveBeenCalledWith('purchase-1');

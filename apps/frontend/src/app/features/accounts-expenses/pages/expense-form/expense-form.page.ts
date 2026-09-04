@@ -296,9 +296,9 @@ export class ExpenseFormPage {
     this.errorMessage.set(null);
     this.successMessage.set(null);
     this.api.postExpense(id, { expectedVersion: this.version }, crypto.randomUUID()).subscribe({
-        next: (expense) => {
-          this.posting.set(false);
-          void this.router.navigateByUrl(`/app/expenses/${expense.id}`);
+      next: (expense) => {
+        this.posting.set(false);
+        void this.router.navigateByUrl(`/app/expenses/${expense.id}`);
       },
       error: (error: unknown) => {
         this.posting.set(false);
@@ -310,7 +310,13 @@ export class ExpenseFormPage {
   correct(): void {
     const id = this.expenseId();
     const current = this.expense();
-    if (!id || !current || !this.canCorrect() || current.status !== 'posted' || this.correctForm.invalid) {
+    if (
+      !id ||
+      !current ||
+      !this.canCorrect() ||
+      current.status !== 'posted' ||
+      this.correctForm.invalid
+    ) {
       this.correctForm.markAllAsTouched();
       return;
     }

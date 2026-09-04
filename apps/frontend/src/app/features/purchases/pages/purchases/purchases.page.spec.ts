@@ -98,7 +98,12 @@ const mockCancelledPurchase: PurchaseRecord = {
 };
 
 describe('PurchasesPage', () => {
-  let mockListPurchases: (query?: unknown) => Observable<{ items: PurchaseRecord[]; meta: { page: number; pageSize: number; total: number } }>;
+  let mockListPurchases: (
+    query?: unknown,
+  ) => Observable<{
+    items: PurchaseRecord[];
+    meta: { page: number; pageSize: number; total: number };
+  }>;
   let mockHasPermission: (perm: string) => boolean;
   let disabledCapabilities: Set<string>;
 
@@ -145,7 +150,9 @@ describe('PurchasesPage', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('[data-testid="purchases-page"]')).toBeTruthy();
-    expect(compiled.querySelector('[data-testid="purchases-count-pill"]')?.textContent).toContain('3');
+    expect(compiled.querySelector('[data-testid="purchases-count-pill"]')?.textContent).toContain(
+      '3',
+    );
     expect(compiled.querySelector('[data-testid="purchases-table"]')).toBeTruthy();
 
     const rows = compiled.querySelectorAll('[data-testid="purchase-row"]');
@@ -219,7 +226,8 @@ describe('PurchasesPage', () => {
   });
 
   it('renders empty state when no purchases exist', () => {
-    mockListPurchases = () => of({ items: [] as PurchaseRecord[], meta: { page: 1, pageSize: 25, total: 0 } });
+    mockListPurchases = () =>
+      of({ items: [] as PurchaseRecord[], meta: { page: 1, pageSize: 25, total: 0 } });
     const fixture: ComponentFixture<PurchasesPage> = TestBed.createComponent(PurchasesPage);
     fixture.detectChanges();
 
@@ -231,7 +239,9 @@ describe('PurchasesPage', () => {
     const fixture: ComponentFixture<PurchasesPage> = TestBed.createComponent(PurchasesPage);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('[data-testid="purchases-permission-alert"]')).toBeTruthy();
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="purchases-permission-alert"]'),
+    ).toBeTruthy();
   });
 
   it('intersects module, feature, and lifecycle action capabilities', () => {
@@ -246,11 +256,15 @@ describe('PurchasesPage', () => {
     expect(compiled.querySelector('agrivio-ui-module-info')).toBeFalsy();
     expect(compiled.querySelector('[data-testid="purchases-search-input"]')).toBeFalsy();
     expect(compiled.querySelector('[data-testid="purchase-create-link"]')).toBeFalsy();
-    expect(compiled.querySelectorAll('[data-testid="purchase-action-btn"]')[0]?.textContent).toContain('View');
+    expect(
+      compiled.querySelectorAll('[data-testid="purchase-action-btn"]')[0]?.textContent,
+    ).toContain('View');
 
     disabledCapabilities.add('purchases');
     const disabledFixture = TestBed.createComponent(PurchasesPage);
     disabledFixture.detectChanges();
-    expect(disabledFixture.nativeElement.querySelector('[data-testid="purchases-permission-alert"]')).toBeTruthy();
+    expect(
+      disabledFixture.nativeElement.querySelector('[data-testid="purchases-permission-alert"]'),
+    ).toBeTruthy();
   });
 });

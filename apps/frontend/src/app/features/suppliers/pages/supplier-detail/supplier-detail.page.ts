@@ -32,7 +32,8 @@ export class SupplierDetailPage {
   readonly canView = computed(
     () =>
       this.sessionStore.hasPermission('suppliers.view') &&
-      (this.capabilityService?.canUseModule('suppliers') ?? true),
+      (this.capabilityService?.canUseModule('suppliers') ?? true) &&
+      (this.capabilityService?.canPerformAction('suppliers.actions.inspect') ?? true),
   );
 
   readonly canEdit = computed(
@@ -70,6 +71,10 @@ export class SupplierDetailPage {
     return Number.isFinite(n)
       ? `${currency} ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
       : `${currency} ${amount}`;
+  }
+
+  canViewField(field: string): boolean {
+    return this.capabilityService?.canViewField(`suppliers.fields.${field}`) ?? true;
   }
 
   private mapError(error: unknown): string {

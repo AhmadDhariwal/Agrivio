@@ -59,4 +59,8 @@ export class EmployeeDetailPage {
   roleLabel(role: string): string {
     return role === 'StoreKeeper' ? 'Store Keeper' : role;
   }
+
+  canViewField(field: string): boolean {
+    return this.capabilityService?.canViewField(`employees.fields.${field}`) ?? true;
+  }
 }

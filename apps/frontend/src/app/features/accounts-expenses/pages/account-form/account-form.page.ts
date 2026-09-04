@@ -148,16 +148,13 @@ export class AccountFormPage {
   readonly showAccountType = computed(
     () => this.capabilityService?.canViewField('accounts.fields.accountType') ?? true,
   );
-  readonly canEditAccountType = computed(
-    () => !this.accountId() && this.canCreate(),
-  );
+  readonly canEditAccountType = computed(() => !this.accountId() && this.canCreate());
   readonly showStatus = computed(
     () => this.capabilityService?.canViewField('accounts.fields.status') ?? true,
   );
   readonly canEditStatus = computed(
     () =>
-      this.canEdit() &&
-      (this.capabilityService?.canEditField('accounts.fields.status') ?? true),
+      this.canEdit() && (this.capabilityService?.canEditField('accounts.fields.status') ?? true),
   );
   readonly canSave = computed(() => {
     const allowed = this.accountId() === null ? this.canCreate() : this.canEdit();
@@ -249,14 +246,18 @@ export class AccountFormPage {
       this.loading.set(true);
       forkJoin({
         account: this.api.getAccount(id),
-        movements: this.canView() ? this.api.listMovements(id) : of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+        movements: this.canView()
+          ? this.api.listMovements(id)
+          : of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
         accounts: this.api.listAccountOptions(),
       }).subscribe({
         next: ({ account, movements, accounts }) => {
           this.applyAccount(account);
           this.movements.set(movements.items);
           this.movementsTotal.set(movements.meta.total);
-          this.destinationAccounts.set(accounts.filter((item) => item.id !== id && item.status === 'active'));
+          this.destinationAccounts.set(
+            accounts.filter((item) => item.id !== id && item.status === 'active'),
+          );
           this.loading.set(false);
         },
         error: (error: unknown) => {
@@ -375,7 +376,12 @@ export class AccountFormPage {
           this.successMessage.set(
             value.direction === 'inflow' ? 'Manual inflow posted.' : 'Manual outflow posted.',
           );
-          this.transactionForm.reset({ direction: 'inflow', amount: '', purpose: '', reference: '' });
+          this.transactionForm.reset({
+            direction: 'inflow',
+            amount: '',
+            purpose: '',
+            reference: '',
+          });
           this.reloadAccountState(id);
         },
         error: (error: unknown) => {
@@ -529,19 +535,35 @@ export class AccountFormPage {
   loadMovements(): void {
     const id = this.accountId();
     if (!id) return;
-    this.api.listMovements(id, { page: this.movementsPage(), pageSize: this.movementsPageSize() }).subscribe({
-      next: ({ items, meta }) => { this.movements.set(items); this.movementsTotal.set(meta.total); },
-      error: (error: unknown) => this.errorMessage.set(this.mapError(error, 'Unable to load account movements.')),
-    });
+    this.api
+      .listMovements(id, { page: this.movementsPage(), pageSize: this.movementsPageSize() })
+      .subscribe({
+        next: ({ items, meta }) => {
+          this.movements.set(items);
+          this.movementsTotal.set(meta.total);
+        },
+        error: (error: unknown) =>
+          this.errorMessage.set(this.mapError(error, 'Unable to load account movements.')),
+      });
   }
 
-  onMovementsPageChange(page: number): void { this.movementsPage.set(page); this.loadMovements(); }
-  onMovementsPageSizeChange(pageSize: number): void { this.movementsPageSize.set(pageSize); this.movementsPage.set(1); this.loadMovements(); }
+  onMovementsPageChange(page: number): void {
+    this.movementsPage.set(page);
+    this.loadMovements();
+  }
+  onMovementsPageSizeChange(pageSize: number): void {
+    this.movementsPageSize.set(pageSize);
+    this.movementsPage.set(1);
+    this.loadMovements();
+  }
 
   private reloadAccountState(id: string): void {
     forkJoin({
       account: this.api.getAccount(id),
-      movements: this.api.listMovements(id, { page: this.movementsPage(), pageSize: this.movementsPageSize() }),
+      movements: this.api.listMovements(id, {
+        page: this.movementsPage(),
+        pageSize: this.movementsPageSize(),
+      }),
     }).subscribe({
       next: ({ account, movements }) => {
         this.applyAccount(account);
@@ -554,9 +576,7 @@ export class AccountFormPage {
     });
   }
 
-  private buildTypeSpecificCreateFields(
-    value: ReturnType<typeof this.form.getRawValue>,
-  ): {
+  private buildTypeSpecificCreateFields(value: ReturnType<typeof this.form.getRawValue>): {
     bankName?: string;
     accountNumberMasked?: string;
     walletIdentifier?: string;
@@ -575,9 +595,7 @@ export class AccountFormPage {
     return {};
   }
 
-  private buildAccountPatchPayload(
-    value: ReturnType<typeof this.form.getRawValue>,
-  ): {
+  private buildAccountPatchPayload(value: ReturnType<typeof this.form.getRawValue>): {
     name?: string;
     status?: string;
     bankName?: string;
@@ -600,11 +618,7 @@ export class AccountFormPage {
     }
 
     const accountType = this.accountType();
-    if (
-      accountType === 'bank' &&
-      this.showBankName() &&
-      this.canEditBankName()
-    ) {
+    if (accountType === 'bank' && this.showBankName() && this.canEditBankName()) {
       payload.bankName = value.bankName.trim();
     }
     if (
@@ -635,7 +649,10 @@ export class AccountFormPage {
 
   private accountTypeValidator(control: AbstractControl): ValidationErrors | null {
     const value = control.value;
-    if (typeof value === 'string' && ACCOUNT_TYPES.includes(value as (typeof ACCOUNT_TYPES)[number])) {
+    if (
+      typeof value === 'string' &&
+      ACCOUNT_TYPES.includes(value as (typeof ACCOUNT_TYPES)[number])
+    ) {
       return null;
     }
     return { invalidAccountType: true };

@@ -1,11 +1,5 @@
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
-import {
-  FormArray,
-  FormBuilder,
-  FormGroup,
-  ReactiveFormsModule,
-  Validators,
-} from '@angular/forms';
+import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { EMPTY, forkJoin, Subject, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
@@ -139,14 +133,15 @@ export class PurchaseEditPage {
       (this.capabilityService?.canPerformAction('purchases.actions.cancel') ?? true) &&
       this.isPosted(),
   );
-  readonly canReturn = computed(() =>
-    this.sessionStore.hasPermission('purchases.return') &&
-    this.sessionStore.hasPermission('returns.post') &&
-    this.canUsePurchases() &&
-    (this.capabilityService?.canPerformAction('purchases.actions.createReturn') ?? true) &&
-    (this.capabilityService?.canUseModule('returns') ?? true) &&
-    (this.capabilityService?.canPerformAction('returns.actions.post') ?? true) &&
-    this.isPosted(),
+  readonly canReturn = computed(
+    () =>
+      this.sessionStore.hasPermission('purchases.return') &&
+      this.sessionStore.hasPermission('returns.post') &&
+      this.canUsePurchases() &&
+      (this.capabilityService?.canPerformAction('purchases.actions.createReturn') ?? true) &&
+      (this.capabilityService?.canUseModule('returns') ?? true) &&
+      (this.capabilityService?.canPerformAction('returns.actions.post') ?? true) &&
+      this.isPosted(),
   );
   readonly canAddPaymentAtPost = computed(
     () =>
@@ -175,8 +170,7 @@ export class PurchaseEditPage {
 
   canEditPurchaseField(id: string): boolean {
     const canMutate = this.purchaseId() === null ? this.canCreate() : this.canEditDraft();
-    return canMutate &&
-      (this.capabilityService?.canEditField(`purchases.fields.${id}`) ?? true);
+    return canMutate && (this.capabilityService?.canEditField(`purchases.fields.${id}`) ?? true);
   }
 
   getLineTotal(index: number): string {
@@ -290,16 +284,16 @@ export class PurchaseEditPage {
           }),
         )
         .subscribe({
-        next: ({ masters, purchase }) => {
-          this.applyMasters(masters);
-          this.applyPurchase(purchase);
-          this.loading.set(false);
-        },
-        error: (error: unknown) => {
-          this.loading.set(false);
-          this.errorMessage.set(this.mapError(error, 'Unable to load purchase.'));
-        },
-      });
+          next: ({ masters, purchase }) => {
+            this.applyMasters(masters);
+            this.applyPurchase(purchase);
+            this.loading.set(false);
+          },
+          error: (error: unknown) => {
+            this.loading.set(false);
+            this.errorMessage.set(this.mapError(error, 'Unable to load purchase.'));
+          },
+        });
     } else {
       if (!this.canCreate()) {
         this.loading.set(false);
@@ -485,7 +479,11 @@ export class PurchaseEditPage {
         switchMap((ret) =>
           this.returnsApi.postReturn(
             ret.id,
-            { reason: reason.trim() || 'purchase return', expectedVersion: ret.version, resolution: 'ledger_adjustment' },
+            {
+              reason: reason.trim() || 'purchase return',
+              expectedVersion: ret.version,
+              resolution: 'ledger_adjustment',
+            },
             crypto.randomUUID(),
           ),
         ),
@@ -860,10 +858,7 @@ export class PurchaseEditPage {
         quantity: line['quantity'].trim(),
         unitCost: { amount: line['unitCost'].trim(), currency: 'PKR' },
       };
-      if (
-        this.canEditPurchaseField('packagingUnit') &&
-        line['packagingUnitId'].trim() !== ''
-      ) {
+      if (this.canEditPurchaseField('packagingUnit') && line['packagingUnitId'].trim() !== '') {
         payload.packagingUnitId = line['packagingUnitId'];
       }
       if (mode !== 'none' && line['batchNumber'].trim() !== '') {

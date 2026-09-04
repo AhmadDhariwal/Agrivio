@@ -39,12 +39,12 @@ describe('EmployeesPage', () => {
   let deactivateEmployeeSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
-    listEmployeesSpy = vi.fn().mockReturnValue(
-      of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
-    );
-    deactivateEmployeeSpy = vi.fn().mockReturnValue(
-      of({ ...mockEmployees[0], status: 'deactivated' }),
-    );
+    listEmployeesSpy = vi
+      .fn()
+      .mockReturnValue(of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }));
+    deactivateEmployeeSpy = vi
+      .fn()
+      .mockReturnValue(of({ ...mockEmployees[0], status: 'deactivated' }));
 
     await TestBed.configureTestingModule({
       imports: [EmployeesPage],
@@ -82,10 +82,20 @@ describe('EmployeesPage', () => {
     const fixture: ComponentFixture<EmployeesPage> = TestBed.createComponent(EmployeesPage);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('[data-testid="kpi-total-employees"]')?.textContent?.trim()).toBe('—');
-    expect(fixture.nativeElement.querySelector('[data-testid="kpi-active-employees"]')?.textContent?.trim()).toBe('—');
     expect(
-      fixture.nativeElement.querySelector('[data-testid="kpi-pending-inactive-employees"]')?.textContent?.trim(),
+      fixture.nativeElement
+        .querySelector('[data-testid="kpi-total-employees"]')
+        ?.textContent?.trim(),
+    ).toBe('—');
+    expect(
+      fixture.nativeElement
+        .querySelector('[data-testid="kpi-active-employees"]')
+        ?.textContent?.trim(),
+    ).toBe('—');
+    expect(
+      fixture.nativeElement
+        .querySelector('[data-testid="kpi-pending-inactive-employees"]')
+        ?.textContent?.trim(),
     ).toBe('—');
   });
 
@@ -105,14 +115,20 @@ describe('EmployeesPage', () => {
     const fixture: ComponentFixture<EmployeesPage> = TestBed.createComponent(EmployeesPage);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('[data-testid="kpi-total-employees"]')?.textContent?.trim()).toBe(
-      '12',
-    );
-    expect(fixture.nativeElement.querySelector('[data-testid="kpi-active-employees"]')?.textContent?.trim()).toBe(
-      '9',
-    );
     expect(
-      fixture.nativeElement.querySelector('[data-testid="kpi-pending-inactive-employees"]')?.textContent?.trim(),
+      fixture.nativeElement
+        .querySelector('[data-testid="kpi-total-employees"]')
+        ?.textContent?.trim(),
+    ).toBe('12');
+    expect(
+      fixture.nativeElement
+        .querySelector('[data-testid="kpi-active-employees"]')
+        ?.textContent?.trim(),
+    ).toBe('9');
+    expect(
+      fixture.nativeElement
+        .querySelector('[data-testid="kpi-pending-inactive-employees"]')
+        ?.textContent?.trim(),
     ).toBe('3');
   });
 
@@ -132,10 +148,14 @@ describe('EmployeesPage', () => {
     expect(text).toContain('1 warehouse');
     expect(text).toContain('Chaudhry Tariq');
     expect(
-      fixture.nativeElement.querySelector('[data-testid="employee-inspect-link"]')?.getAttribute('href'),
+      fixture.nativeElement
+        .querySelector('[data-testid="employee-inspect-link"]')
+        ?.getAttribute('href'),
     ).toBe('/app/employees/emp-1');
     expect(
-      fixture.nativeElement.querySelector('[data-testid="employee-edit-link"]')?.getAttribute('href'),
+      fixture.nativeElement
+        .querySelector('[data-testid="employee-edit-link"]')
+        ?.getAttribute('href'),
     ).toBe('/app/employees/emp-1/edit');
   });
 

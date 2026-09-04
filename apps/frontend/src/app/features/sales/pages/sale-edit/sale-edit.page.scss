@@ -566,7 +566,10 @@ textarea.ag-input {
 
 .line-row-grid {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(140px, 1.1fr) minmax(120px, 1fr) minmax(90px, 0.8fr) minmax(110px, 1fr);
+  grid-template-columns: minmax(120px, 1fr) minmax(140px, 1.1fr) minmax(120px, 1fr) minmax(
+      90px,
+      0.8fr
+    ) minmax(110px, 1fr);
   gap: 12px;
   align-items: start;
 

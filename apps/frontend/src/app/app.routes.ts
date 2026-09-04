@@ -425,6 +425,7 @@ export const appRoutes: Route[] = [
         canActivate: [
           requirePermissionGuard('customers.view'),
           requireCapabilityGuard('customers'),
+          requireCapabilityGuard('customers.actions.inspect', 'action'),
         ],
         loadComponent: () =>
           import('./features/customers/pages/customers/customers.page').then(
@@ -471,6 +472,7 @@ export const appRoutes: Route[] = [
         canActivate: [
           requirePermissionGuard('suppliers.view'),
           requireCapabilityGuard('suppliers'),
+          requireCapabilityGuard('suppliers.actions.inspect', 'action'),
         ],
         loadComponent: () =>
           import('./features/suppliers/pages/suppliers/suppliers.page').then(

@@ -9,14 +9,39 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
 import { SaleRecord } from '../../models/sales.models';
 
 const sale: SaleRecord = {
-  id: 'sale-1', organizationId: 'org-1', branchId: 'branch-archived', warehouseId: 'warehouse-archived',
-  branchNameSnapshot: 'Historic Branch', warehouseNameSnapshot: 'Historic Warehouse', customerId: null,
-  customerNameSnapshot: null, priceTierSnapshot: 'retail', saleDate: '2026-09-04', notes: '', status: 'draft',
-  invoiceNumber: null, saleTotal: { amount: '1200.00', currency: 'PKR' }, paidTotal: { amount: '0', currency: 'PKR' },
-  receivableTotal: { amount: '1200', currency: 'PKR' }, lines: [{ productId: 'p1', productNameSnapshot: 'Seed',
-    packagingUnitId: null, unitCodeSnapshot: 'bag', conversionFactorSnapshot: '1', quantity: '2', quantityBase: '2',
-    unitPrice: { amount: '600', currency: 'PKR' }, lineProductAmount: { amount: '1200', currency: 'PKR' } }],
-  version: 1, postedAt: null, createdAt: '2026-09-04T10:00:00.000Z', updatedAt: '2026-09-04T10:00:00.000Z',
+  id: 'sale-1',
+  organizationId: 'org-1',
+  branchId: 'branch-archived',
+  warehouseId: 'warehouse-archived',
+  branchNameSnapshot: 'Historic Branch',
+  warehouseNameSnapshot: 'Historic Warehouse',
+  customerId: null,
+  customerNameSnapshot: null,
+  priceTierSnapshot: 'retail',
+  saleDate: '2026-09-04',
+  notes: '',
+  status: 'draft',
+  invoiceNumber: null,
+  saleTotal: { amount: '1200.00', currency: 'PKR' },
+  paidTotal: { amount: '0', currency: 'PKR' },
+  receivableTotal: { amount: '1200', currency: 'PKR' },
+  lines: [
+    {
+      productId: 'p1',
+      productNameSnapshot: 'Seed',
+      packagingUnitId: null,
+      unitCodeSnapshot: 'bag',
+      conversionFactorSnapshot: '1',
+      quantity: '2',
+      quantityBase: '2',
+      unitPrice: { amount: '600', currency: 'PKR' },
+      lineProductAmount: { amount: '1200', currency: 'PKR' },
+    },
+  ],
+  version: 1,
+  postedAt: null,
+  createdAt: '2026-09-04T10:00:00.000Z',
+  updatedAt: '2026-09-04T10:00:00.000Z',
 };
 
 describe('SaleDetailPage', () => {
@@ -25,10 +50,28 @@ describe('SaleDetailPage', () => {
     await TestBed.configureTestingModule({
       imports: [SaleDetailPage],
       providers: [
-        provideRouter([]), { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ id: 'sale-1' }) } } },
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: convertToParamMap({ id: 'sale-1' }) } },
+        },
         { provide: SalesApi, useValue: api },
-        { provide: AuthSessionStore, useValue: { hasPermission: (permission: string) => permission === 'sales.view' || (permission === 'sales.create' && options.edit === true) } },
-        { provide: CapabilityService, useValue: { canUseModule: () => true, canPerformAction: () => true } },
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            hasPermission: (permission: string) =>
+              permission === 'sales.view' ||
+              (permission === 'sales.create' && options.edit === true),
+          },
+        },
+        {
+          provide: CapabilityService,
+          useValue: {
+            canUseModule: () => true,
+            canPerformAction: () => true,
+            canViewField: () => true,
+          },
+        },
       ],
     }).compileComponents();
     const fixture: ComponentFixture<SaleDetailPage> = TestBed.createComponent(SaleDetailPage);
@@ -56,7 +99,9 @@ describe('SaleDetailPage', () => {
 
   it('shows Edit only for an editable draft with edit authority', async () => {
     const { fixture } = await setup({ edit: true });
-    expect(fixture.nativeElement.querySelector('[data-testid="sale-edit-link"]')?.getAttribute('href')).toBe('/app/sales/sale-1/edit');
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="sale-edit-link"]')?.getAttribute('href'),
+    ).toBe('/app/sales/sale-1/edit');
   });
 
   it('renders the safe inquiry error from denied or cross-organization access', async () => {

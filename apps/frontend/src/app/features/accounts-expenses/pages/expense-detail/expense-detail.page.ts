@@ -29,7 +29,12 @@ export class ExpenseDetailPage {
   readonly errorMessage = signal<string | null>(null);
   readonly expense = signal<ExpenseRecord | null>(null);
 
-  readonly canView = computed(() => this.sessionStore.hasPermission('expenses.view'));
+  readonly canView = computed(
+    () =>
+      this.sessionStore.hasPermission('expenses.view') &&
+      (this.capabilityService?.canUseModule('expenses') ?? true) &&
+      (this.capabilityService?.canPerformAction('expenses.actions.inspect') ?? true),
+  );
   readonly canEditDraft = computed(
     () =>
       this.sessionStore.hasPermission('expenses.post') &&
@@ -79,6 +84,10 @@ export class ExpenseDetailPage {
     if (!value) return '—';
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? value : date.toLocaleString('en-GB');
+  }
+
+  canViewField(field: string): boolean {
+    return this.capabilityService?.canViewField(`expenses.fields.${field}`) ?? true;
   }
 
   private mapError(error: unknown): string {

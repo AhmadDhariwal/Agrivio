@@ -23,7 +23,9 @@ describe('appRoutes F02 routing', () => {
     const platformOrgs = app?.children?.find((route) => route.path === 'platform/organizations');
     expect(platformOrgs?.canActivate?.length).toBeGreaterThan(0);
 
-    const platformOrgDetail = app?.children?.find((route) => route.path === 'platform/organizations/:id');
+    const platformOrgDetail = app?.children?.find(
+      (route) => route.path === 'platform/organizations/:id',
+    );
     expect(platformOrgDetail?.canActivate?.length).toBeGreaterThan(0);
 
     const context = appRoutes.find((route) => route.path === 'context');
@@ -85,12 +87,16 @@ describe('appRoutes F02 routing', () => {
     }
   }, 15000);
 
-  it('keeps transaction view and edit routes explicit and component-distinct', async () => {
+  it('keeps view and edit routes explicit and component-distinct', async () => {
     const app = appRoutes.find((route) => route.path === 'app');
     const pairs = [
       ['sales/:id', 'sales/:id/edit'],
       ['purchases/:id', 'purchases/:id/edit'],
       ['employees/:id', 'employees/:id/edit'],
+      ['customers/:id', 'customers/:id/edit'],
+      ['suppliers/:id', 'suppliers/:id/edit'],
+      ['accounts/:id', 'accounts/:id/edit'],
+      ['expenses/:id', 'expenses/:id/edit'],
     ] as const;
 
     for (const [viewPath, editPath] of pairs) {
@@ -111,11 +117,11 @@ describe('appRoutes F02 routing', () => {
       ['purchases', 'purchases/:id', 'purchases/:id/edit', 'purchases/new'],
       ['products', null, 'products/:id', 'products/new'],
       ['categories', null, 'categories/:id', 'categories/new'],
-      ['customers', null, 'customers/:id', 'customers/new'],
-      ['suppliers', null, 'suppliers/:id', 'suppliers/new'],
+      ['customers', 'customers/:id', 'customers/:id/edit', 'customers/new'],
+      ['suppliers', 'suppliers/:id', 'suppliers/:id/edit', 'suppliers/new'],
       ['returns', 'returns/:id', null, 'returns/without-invoice'],
-      ['expenses', 'expenses/:id', null, 'expenses/new'],
-      ['accounts', 'accounts/:id', null, 'accounts/new'],
+      ['expenses', 'expenses/:id', 'expenses/:id/edit', 'expenses/new'],
+      ['accounts', 'accounts/:id', 'accounts/:id/edit', 'accounts/new'],
       ['branches', null, 'branches/:id/edit', 'branches/new'],
       ['warehouses', null, 'warehouses/:id', 'warehouses/new'],
       ['employees', 'employees/:id', 'employees/:id/edit', 'employees/new'],

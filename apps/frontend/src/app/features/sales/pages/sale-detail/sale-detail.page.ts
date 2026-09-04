@@ -47,6 +47,10 @@ export class SaleDetailPage {
   );
   readonly canViewCogs = computed(() => this.sessionStore.hasPermission('reports.view'));
 
+  canViewField(field: string): boolean {
+    return this.capabilityService?.canViewField(`sales.fields.${field}`) ?? true;
+  }
+
   constructor() {
     const id = this.route.snapshot.paramMap.get('id');
     if (!id || !this.canView()) {

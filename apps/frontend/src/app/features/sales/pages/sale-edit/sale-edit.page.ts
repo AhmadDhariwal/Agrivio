@@ -1,14 +1,28 @@
-import { Component, computed, DestroyRef, ElementRef, HostListener, inject, signal, ViewChild } from '@angular/core';
 import {
-  FormArray,
-  FormBuilder,
-  FormGroup,
-  ReactiveFormsModule,
-  Validators,
-} from '@angular/forms';
+  Component,
+  computed,
+  DestroyRef,
+  ElementRef,
+  HostListener,
+  inject,
+  signal,
+  ViewChild,
+} from '@angular/core';
+import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { EMPTY, forkJoin, of, catchError, map, switchMap, Subject, debounceTime, distinctUntilChanged, merge } from 'rxjs';
+import {
+  EMPTY,
+  forkJoin,
+  of,
+  catchError,
+  map,
+  switchMap,
+  Subject,
+  debounceTime,
+  distinctUntilChanged,
+  merge,
+} from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { SalesApi } from '../../data-access/sales.api';
 import { SalesReturnsApi } from '../../data-access/sales-returns.api';
@@ -38,7 +52,11 @@ import { PackagingUnitRecord, ProductRecord } from '../../../catalog/models/cata
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
-import { hasRequiredValidator, fieldValidationMessage, setRequiredValidator } from '../../../../shared/form/form-field.util';
+import {
+  hasRequiredValidator,
+  fieldValidationMessage,
+  setRequiredValidator,
+} from '../../../../shared/form/form-field.util';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
@@ -153,10 +171,14 @@ export class SaleEditPage {
       (this.capabilityService?.canPerformAction('sales.actions.print') ?? true),
   );
   readonly canAddPaymentAtPost = computed(
-    () => (this.capabilityService?.canPerformAction('sales.actions.addPaymentAtPost') ?? true) && this.canPost(),
+    () =>
+      (this.capabilityService?.canPerformAction('sales.actions.addPaymentAtPost') ?? true) &&
+      this.canPost(),
   );
   readonly canSellOnCredit = computed(
-    () => (this.capabilityService?.canPerformAction('sales.actions.sellOnCredit') ?? true) && this.canPost(),
+    () =>
+      (this.capabilityService?.canPerformAction('sales.actions.sellOnCredit') ?? true) &&
+      this.canPost(),
   );
   readonly canOverridePrice = computed(
     () =>
@@ -262,7 +284,10 @@ export class SaleEditPage {
 
   readonly returnForm = this.formBuilder.nonNullable.group({
     reason: ['', Validators.required],
-    resolution: ['ledger_adjustment' as 'ledger_adjustment' | 'account_refund', Validators.required],
+    resolution: [
+      'ledger_adjustment' as 'ledger_adjustment' | 'account_refund',
+      Validators.required,
+    ],
     refundAccountId: [''],
     returnLines: this.formBuilder.array([]),
   });
@@ -281,7 +306,10 @@ export class SaleEditPage {
 
   constructor() {
     this.returnForm.controls.resolution.valueChanges.subscribe((resolution) => {
-      setRequiredValidator(this.returnForm.controls.refundAccountId, resolution === 'account_refund');
+      setRequiredValidator(
+        this.returnForm.controls.refundAccountId,
+        resolution === 'account_refund',
+      );
     });
 
     const id = this.route.snapshot.paramMap.get('id');
@@ -302,7 +330,10 @@ export class SaleEditPage {
       refundAccounts: this.accountsApi.listAccountOptions().pipe(catchError(() => of([]))),
       relatedReturns:
         isEdit && id && this.canViewReturns()
-          ? this.returnsApi.listReturns({ saleId: id, page: 1, pageSize: 100 }).pipe(map((result) => result.items), catchError(() => of([])))
+          ? this.returnsApi.listReturns({ saleId: id, page: 1, pageSize: 100 }).pipe(
+              map((result) => result.items),
+              catchError(() => of([])),
+            )
           : of([]),
     });
 
@@ -311,11 +342,7 @@ export class SaleEditPage {
         debounceTime(300),
         distinctUntilChanged(),
         switchMap((query) =>
-          this.catalogApi.searchProductOptions(
-            query,
-            SaleEditPage.SELECTOR_SEARCH_LIMIT,
-            'active',
-          ),
+          this.catalogApi.searchProductOptions(query, SaleEditPage.SELECTOR_SEARCH_LIMIT, 'active'),
         ),
         takeUntilDestroyed(this.destroyRef),
       )
@@ -383,16 +410,16 @@ export class SaleEditPage {
           }),
         )
         .subscribe({
-        next: ({ masters, sale }) => {
-          this.applyMasters(masters);
-          this.applySale(sale);
-          this.loading.set(false);
-        },
-        error: (error: unknown) => {
-          this.loading.set(false);
-          this.errorMessage.set(this.mapError(error, 'Unable to load sale.'));
-        },
-      });
+          next: ({ masters, sale }) => {
+            this.applyMasters(masters);
+            this.applySale(sale);
+            this.loading.set(false);
+          },
+          error: (error: unknown) => {
+            this.loading.set(false);
+            this.errorMessage.set(this.mapError(error, 'Unable to load sale.'));
+          },
+        });
     } else {
       if (!this.canCreate()) {
         this.loading.set(false);
@@ -490,7 +517,9 @@ export class SaleEditPage {
     this.form.controls.customerId.setValue(customer.id);
     this.selectedCustomer.set(customer);
     if (customer.customerType && customer.customerType !== 'walk_in') {
-      this.form.controls.customerTypeMode.setValue(String(customer.customerType), { emitEvent: false });
+      this.form.controls.customerTypeMode.setValue(String(customer.customerType), {
+        emitEvent: false,
+      });
       setRequiredValidator(this.form.controls.customerId, true);
     }
     this.customerSearchTerm.set('');
@@ -595,7 +624,9 @@ export class SaleEditPage {
     request$.subscribe({
       next: (record) => {
         this.saving.set(false);
-        this.successMessage.set('Sale draft saved. Post when ready to apply stock and receivable effects.');
+        this.successMessage.set(
+          'Sale draft saved. Post when ready to apply stock and receivable effects.',
+        );
         if (id === null) {
           this.saleId.set(record.id);
           this.version = record.version;
@@ -688,9 +719,10 @@ export class SaleEditPage {
     this.errorMessage.set(null);
     this.successMessage.set(null);
 
-    const idempotencyKey = this.postIdempotencySaleId === id && this.postIdempotencyKey
-      ? this.postIdempotencyKey
-      : crypto.randomUUID();
+    const idempotencyKey =
+      this.postIdempotencySaleId === id && this.postIdempotencyKey
+        ? this.postIdempotencyKey
+        : crypto.randomUUID();
     this.postIdempotencyKey = idempotencyKey;
     this.postIdempotencySaleId = id;
 
@@ -791,9 +823,9 @@ export class SaleEditPage {
         },
         error: (error: unknown) => {
           this.cancelling.set(false);
-        this.errorMessage.set(this.mapError(error, 'Unable to cancel sale.'));
-      },
-    });
+          this.errorMessage.set(this.mapError(error, 'Unable to cancel sale.'));
+        },
+      });
   }
 
   returnLineGroup(index: number): FormGroup {
@@ -836,8 +868,7 @@ export class SaleEditPage {
         originalLineIndex: Number(line.originalLineIndex),
         quantity: String(line.quantity ?? '').trim(),
         stockCondition: line.stockCondition,
-        unsellableReason:
-          line.stockCondition === 'unsellable' ? line.unsellableReason : null,
+        unsellableReason: line.stockCondition === 'unsellable' ? line.unsellableReason : null,
       }))
       .filter(
         (line) =>
@@ -852,7 +883,10 @@ export class SaleEditPage {
     }
     this.returnForm.controls.reason.markAsTouched();
     this.returnForm.controls.refundAccountId.markAsTouched();
-    if (this.returnForm.controls.reason.invalid || this.returnForm.controls.refundAccountId.invalid) {
+    if (
+      this.returnForm.controls.reason.invalid ||
+      this.returnForm.controls.refundAccountId.invalid
+    ) {
       return;
     }
     const { reason, resolution, refundAccountId } = this.returnForm.getRawValue();
@@ -1218,7 +1252,10 @@ export class SaleEditPage {
         const retail = active.find((item) => item.priceTier === 'retail');
         const selected = tier ?? retail;
         if (selected) {
-          this.lineGroup(index).patchValue({ unitPrice: selected.price.amount }, { emitEvent: false });
+          this.lineGroup(index).patchValue(
+            { unitPrice: selected.price.amount },
+            { emitEvent: false },
+          );
         }
       },
     });
@@ -1285,7 +1322,9 @@ export class SaleEditPage {
     });
   }
 
-  formatCurrency(val: { amount?: string; currency?: string } | string | number | undefined | null): string {
+  formatCurrency(
+    val: { amount?: string; currency?: string } | string | number | undefined | null,
+  ): string {
     if (val === undefined || val === null) return 'PKR 0.00';
     if (typeof val === 'object') {
       if (!val.amount) return `${val.currency || 'PKR'} 0.00`;

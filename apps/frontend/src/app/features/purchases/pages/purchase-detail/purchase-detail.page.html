@@ -1,33 +1,164 @@
 <div class="detail-shell">
   <header class="page-head">
-    <div><p class="eyebrow">Purchases</p><h1 data-testid="purchase-detail-title">Purchase Details</h1><p class="lede">Authoritative purchase, inventory, and payment snapshots.</p></div>
-    <div class="actions"><a class="ag-btn ag-btn--secondary" routerLink="/app/purchases">Back to Purchases</a>@if (purchase(); as item) {@if (canEdit()) {<a class="ag-btn ag-btn--primary" [routerLink]="['/app/purchases', item.id, 'edit']" data-testid="purchase-edit-link">Edit draft</a>}}</div>
+    <div>
+      <p class="eyebrow">Purchases</p>
+      <h1 data-testid="purchase-detail-title">Purchase Details</h1>
+      <p class="lede">Authoritative purchase, inventory, and payment snapshots.</p>
+    </div>
+    <div class="actions">
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/purchases">Back to Purchases</a>@if
+      (purchase(); as item) {@if (canEdit()) {<a
+        class="ag-btn ag-btn--primary"
+        [routerLink]="['/app/purchases', item.id, 'edit']"
+        data-testid="purchase-edit-link"
+        >Edit draft</a
+      >}}
+    </div>
   </header>
-  @if (loading()) {<agrivio-ui-loading-state label="Loading purchase details…" />}
-  @else if (!canView()) {<agrivio-ui-alert tone="warning" message="You do not have permission to view this purchase." />}
-  @else if (errorMessage(); as error) {<agrivio-ui-alert tone="danger" [message]="error" role="alert" />}
-  @else if (purchase(); as item) {
-    <section class="summary" data-testid="purchase-detail">
-      <article><span>Reference</span><strong>{{ item.supplierInvoiceReference || ('Purchase #' + item.id.slice(-6).toUpperCase()) }}</strong></article>
-      <article><span>Status</span><agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" /></article>
-      <article><span>Total</span><strong>{{ formatMoney(item.purchaseTotal) }}</strong></article>
-      <article><span>Outstanding</span><strong>{{ formatMoney(item.payableTotal) }}</strong></article>
-    </section>
-    <section class="card"><h2>Purchase information</h2><dl class="facts">
-      @if (canViewField('supplier')) {<div><dt>Supplier</dt><dd>{{ item.supplierNameSnapshot }}</dd></div>}
-      @if (canViewField('warehouse')) {<div data-testid="purchase-detail-warehouse"><dt>Warehouse</dt><dd>{{ item.warehouseNameSnapshot || '—' }}</dd></div>}
-      @if (canViewField('purchaseDate')) {<div><dt>Purchase date</dt><dd>{{ formatDate(item.purchaseDate) }}</dd></div>}
-      @if (canViewField('notes')) {<div><dt>Notes</dt><dd>{{ item.notes || '—' }}</dd></div>}
-      <div><dt>Created</dt><dd>{{ formatDate(item.createdAt) }}</dd></div><div><dt>Updated</dt><dd>{{ formatDate(item.updatedAt) }}</dd></div>
-      @if (item.postedAt) {<div><dt>Posted</dt><dd>{{ formatDate(item.postedAt) }}</dd></div>} @if (item.cancelledAt) {<div><dt>Cancelled</dt><dd>{{ formatDate(item.cancelledAt) }}</dd></div>}
-      @if (item.cancellationReason) {<div class="wide"><dt>Cancellation reason</dt><dd>{{ item.cancellationReason }}</dd></div>}
-    </dl></section>
-    <section class="card"><h2>Purchase lines</h2><div class="table-wrap"><table><thead><tr><th>Product</th><th>Tracking</th><th class="num">Quantity</th><th class="num">Unit cost</th><th class="num">Line total</th></tr></thead><tbody>
-      @for (line of item.lines; track $index) {<tr><td><strong>{{ line.productNameSnapshot }}</strong><small>{{ line.unitCodeSnapshot }} × {{ line.conversionFactorSnapshot }}</small></td><td>{{ line.batchNumber || '—' }}@if (line.expiryDate) {<small>Expires {{ line.expiryDate }}</small>}</td><td class="num">{{ line.quantity }}</td><td class="num">{{ formatMoney(line.unitCost) }}</td><td class="num">{{ formatMoney(line.lineProductAmount) }}</td></tr>}
-    </tbody></table></div></section>
-    <section class="grid">
-      @if (canViewField('landedCosts')) {<article class="card"><h2>Landed costs</h2><div class="row"><span>Freight</span><strong>{{ formatMoney(item.landedCosts.freight) }}</strong></div><div class="row"><span>Loading</span><strong>{{ formatMoney(item.landedCosts.loading) }}</strong></div><div class="row"><span>Transport</span><strong>{{ formatMoney(item.landedCosts.transport) }}</strong></div><div class="row"><span>Other</span><strong>{{ formatMoney(item.landedCosts.other) }}</strong></div><div class="row total"><span>Total landed</span><strong>{{ formatMoney(item.landedCostTotal) }}</strong></div></article>}
-      <article class="card"><h2>Payments</h2>@for (payment of item.payments ?? []; track payment.paymentId ?? payment.accountId) {<div class="row"><span>{{ payment.accountNameSnapshot }} <small>{{ payment.accountTypeSnapshot }}</small></span><strong>{{ formatMoney(payment.amount) }}</strong></div>} @if (!item.payments?.length) {<p>None recorded.</p>}<div class="row total"><span>Paid</span><strong>{{ formatMoney(item.paidTotal) }}</strong></div></article>
-    </section>
+  @if (loading()) {<agrivio-ui-loading-state label="Loading purchase details…" />} @else if
+  (!canView()) {<agrivio-ui-alert
+    tone="warning"
+    message="You do not have permission to view this purchase."
+  />} @else if (errorMessage(); as error) {<agrivio-ui-alert
+    tone="danger"
+    [message]="error"
+    role="alert"
+  />} @else if (purchase(); as item) {
+  <section class="summary" data-testid="purchase-detail">
+    <article>
+      <span>Reference</span
+      ><strong
+        >{{ item.supplierInvoiceReference || ('Purchase #' + item.id.slice(-6).toUpperCase())
+        }}</strong
+      >
+    </article>
+    <article>
+      <span>Status</span
+      ><agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+    </article>
+    <article><span>Total</span><strong>{{ formatMoney(item.purchaseTotal) }}</strong></article>
+    <article><span>Outstanding</span><strong>{{ formatMoney(item.payableTotal) }}</strong></article>
+  </section>
+  <section class="card">
+    <h2>Purchase information</h2>
+    <dl class="facts">
+      @if (canViewField('supplier')) {
+      <div>
+        <dt>Supplier</dt>
+        <dd>{{ item.supplierNameSnapshot }}</dd>
+      </div>
+      } @if (canViewField('warehouse')) {
+      <div data-testid="purchase-detail-warehouse">
+        <dt>Warehouse</dt>
+        <dd>{{ item.warehouseNameSnapshot || '—' }}</dd>
+      </div>
+      } @if (canViewField('purchaseDate')) {
+      <div>
+        <dt>Purchase date</dt>
+        <dd>{{ formatDate(item.purchaseDate) }}</dd>
+      </div>
+      } @if (canViewField('notes')) {
+      <div>
+        <dt>Notes</dt>
+        <dd>{{ item.notes || '—' }}</dd>
+      </div>
+      }
+      <div>
+        <dt>Created</dt>
+        <dd>{{ formatDate(item.createdAt) }}</dd>
+      </div>
+      <div>
+        <dt>Updated</dt>
+        <dd>{{ formatDate(item.updatedAt) }}</dd>
+      </div>
+      @if (item.postedAt) {
+      <div>
+        <dt>Posted</dt>
+        <dd>{{ formatDate(item.postedAt) }}</dd>
+      </div>
+      } @if (item.cancelledAt) {
+      <div>
+        <dt>Cancelled</dt>
+        <dd>{{ formatDate(item.cancelledAt) }}</dd>
+      </div>
+      } @if (item.cancellationReason) {
+      <div class="wide">
+        <dt>Cancellation reason</dt>
+        <dd>{{ item.cancellationReason }}</dd>
+      </div>
+      }
+    </dl>
+  </section>
+  <section class="card">
+    <h2>Purchase lines</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Tracking</th>
+            <th class="num">Quantity</th>
+            <th class="num">Unit cost</th>
+            <th class="num">Line total</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (line of item.lines; track $index) {
+          <tr>
+            <td>
+              <strong>{{ line.productNameSnapshot }}</strong
+              ><small>{{ line.unitCodeSnapshot }} × {{ line.conversionFactorSnapshot }}</small>
+            </td>
+            <td>
+              {{ line.batchNumber || '—' }}@if (line.expiryDate) {<small
+                >Expires {{ line.expiryDate }}</small
+              >}
+            </td>
+            <td class="num">{{ line.quantity }}</td>
+            <td class="num">{{ formatMoney(line.unitCost) }}</td>
+            <td class="num">{{ formatMoney(line.lineProductAmount) }}</td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <section class="grid">
+    @if (canViewField('landedCosts')) {
+    <article class="card">
+      <h2>Landed costs</h2>
+      <div class="row">
+        <span>Freight</span><strong>{{ formatMoney(item.landedCosts.freight) }}</strong>
+      </div>
+      <div class="row">
+        <span>Loading</span><strong>{{ formatMoney(item.landedCosts.loading) }}</strong>
+      </div>
+      <div class="row">
+        <span>Transport</span><strong>{{ formatMoney(item.landedCosts.transport) }}</strong>
+      </div>
+      <div class="row">
+        <span>Other</span><strong>{{ formatMoney(item.landedCosts.other) }}</strong>
+      </div>
+      <div class="row total">
+        <span>Total landed</span><strong>{{ formatMoney(item.landedCostTotal) }}</strong>
+      </div>
+    </article>
+    }
+    <article class="card">
+      <h2>Payments</h2>
+      @for (payment of item.payments ?? []; track payment.paymentId ?? payment.accountId) {
+      <div class="row">
+        <span
+          >{{ payment.accountNameSnapshot }} <small>{{ payment.accountTypeSnapshot }}</small></span
+        ><strong>{{ formatMoney(payment.amount) }}</strong>
+      </div>
+      } @if (!item.payments?.length) {
+      <p>None recorded.</p>
+      }
+      <div class="row total">
+        <span>Paid</span><strong>{{ formatMoney(item.paidTotal) }}</strong>
+      </div>
+    </article>
+  </section>
   }
 </div>

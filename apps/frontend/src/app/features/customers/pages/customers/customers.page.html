@@ -8,9 +8,7 @@
           {{ total() }} {{ total() === 1 ? 'customer' : 'customers' }}
         </span>
       </div>
-      <p class="page-head__lede">
-        Manage customer accounts, pricing tiers, and credit policies.
-      </p>
+      <p class="page-head__lede">Manage customer accounts, pricing tiers, and credit policies.</p>
     </div>
     <div class="page-head__actions">
       @if (canCreate()) {
@@ -44,8 +42,7 @@
   <div class="alert-container">
     <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
   </div>
-  }
-  @if (successMessage(); as success) {
+  } @if (successMessage(); as success) {
   <div class="alert-container">
     <agrivio-ui-alert tone="success" [message]="success" />
   </div>
@@ -277,8 +274,7 @@
 
         @if (hasActiveFilters()) {
         <button type="button" class="mobile-clear-btn" (click)="clearFilters()">Reset</button>
-        }
-        }
+        } }
 
         <span class="toolbar__mobile-count">
           {{ total() }} {{ total() === 1 ? 'customer' : 'customers' }}
@@ -363,7 +359,7 @@
     <agrivio-ui-loading-state label="Loading customers…" />
   </div>
   } @else if (errorMessage() && items().length === 0) {
-    <!-- Error handled in alert above -->
+  <!-- Error handled in alert above -->
   } @else if (items().length === 0) {
   <div class="state-container">
     @if (hasActiveFilters()) {
@@ -404,12 +400,13 @@
           <th scope="col" class="cust-table__th cust-table__th--type">Type</th>
           @if (showPriceTier()) {
           <th scope="col" class="cust-table__th cust-table__th--tier">Price Tier</th>
-          }
-          @if (showPhone()) {
+          } @if (showPhone()) {
           <th scope="col" class="cust-table__th cust-table__th--phone">Phone</th>
           }
           <th scope="col" class="cust-table__th cust-table__th--credit">Credit Policy</th>
-          <th scope="col" class="cust-table__th cust-table__th--receivable">Outstanding Receivable</th>
+          <th scope="col" class="cust-table__th cust-table__th--receivable">
+            Outstanding Receivable
+          </th>
           <th scope="col" class="cust-table__th cust-table__th--status">Status</th>
           <th scope="col" class="cust-table__th cust-table__th--actions">Actions</th>
         </tr>
@@ -440,14 +437,13 @@
                   {{ item.name }}
                 </button>
                 } @else {
-                <span
-                  class="customer-cell__name customer-cell__name--plain"
-                  [title]="item.name"
-                >
+                <span class="customer-cell__name customer-cell__name--plain" [title]="item.name">
                   {{ item.name }}
                 </span>
                 }
-                <span class="customer-cell__dim">{{ getCustomerTypeLabel(item.customerType) }}</span>
+                <span class="customer-cell__dim"
+                  >{{ getCustomerTypeLabel(item.customerType) }}</span
+                >
               </div>
             </div>
           </td>
@@ -491,9 +487,10 @@
               <span class="credit-limit tabular-num">
                 Limit: {{ formatCurrency(item.creditLimit.amount, item.creditLimit.currency) }}
               </span>
-              }
-              @if (showCreditLimitBehaviour()) {
-              <span class="credit-sub">{{ getCreditLimitBehaviourLabel(item.creditLimitBehaviour) }}</span>
+              } @if (showCreditLimitBehaviour()) {
+              <span class="credit-sub"
+                >{{ getCreditLimitBehaviourLabel(item.creditLimitBehaviour) }}</span
+              >
               }
             </div>
             } @else {
@@ -505,11 +502,14 @@
           <td class="cust-table__td cust-table__td--receivable">
             <div class="balance-cell">
               <span class="balance-amount tabular-num">
-                {{ formatCurrency(item.derivedBalances?.receivable?.amount, item.derivedBalances?.receivable?.currency) }}
+                {{ formatCurrency(item.derivedBalances?.receivable?.amount,
+                item.derivedBalances?.receivable?.currency) }}
               </span>
-              @if (item.derivedBalances?.advance?.amount && item.derivedBalances.advance.amount !== '0.00') {
+              @if (item.derivedBalances?.advance?.amount && item.derivedBalances.advance.amount !==
+              '0.00') {
               <span class="advance-sub tabular-num">
-                Adv: {{ formatCurrency(item.derivedBalances.advance.amount, item.derivedBalances.advance.currency) }}
+                Adv: {{ formatCurrency(item.derivedBalances.advance.amount,
+                item.derivedBalances.advance.currency) }}
               </span>
               }
             </div>
@@ -624,7 +624,14 @@
                     data-testid="customer-deactivate"
                     (click)="askDeactivate(item)"
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
                       <circle cx="12" cy="12" r="10" />
                       <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
                     </svg>
@@ -638,19 +645,23 @@
                     data-testid="customer-reactivate"
                     (click)="askReactivate(item)"
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
                       <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                       <polyline points="22 4 12 14.01 9 11.01" />
                     </svg>
                     Reactivate
                   </button>
-                  }
-
-                  @if (((item.status === 'active' && canDeactivate()) || (item.status !== 'active' && canReactivate())) && canDelete()) {
+                  } @if (((item.status === 'active' && canDeactivate()) || (item.status !== 'active'
+                  && canReactivate())) && canDelete()) {
                   <div class="menu-dropdown__divider"></div>
-                  }
-
-                  @if (canDelete()) {
+                  } @if (canDelete()) {
                   <button
                     type="button"
                     class="menu-dropdown__item menu-dropdown__item--danger"
@@ -658,7 +669,14 @@
                     data-testid="customer-delete"
                     (click)="askDelete(item)"
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
                       <path d="M3 6h18" />
                       <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
                       <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
@@ -683,9 +701,7 @@
     @for (item of items(); track item.id) {
     <article class="customer-mobile-card" data-testid="customer-mobile-card">
       <div class="customer-mobile-card__header">
-        <div class="customer-mobile-card__glyph">
-          {{ getInitials(item.name) }}
-        </div>
+        <div class="customer-mobile-card__glyph">{{ getInitials(item.name) }}</div>
         <div class="customer-mobile-card__title-group">
           @if (canInspect()) {
           <button
@@ -701,7 +717,9 @@
           </span>
           }
           <div class="customer-mobile-card__meta-strip">
-            <span class="customer-mobile-card__type">{{ getCustomerTypeLabel(item.customerType) }}</span>
+            <span class="customer-mobile-card__type"
+              >{{ getCustomerTypeLabel(item.customerType) }}</span
+            >
             @if (showPriceTier()) {
             <span class="customer-mobile-card__dot-sep">·</span>
             <span
@@ -727,7 +745,8 @@
         <div class="card-metric">
           <span class="card-metric__label">Receivable</span>
           <span class="card-metric__value tabular-num">
-            {{ formatCurrency(item.derivedBalances?.receivable?.amount, item.derivedBalances?.receivable?.currency) }}
+            {{ formatCurrency(item.derivedBalances?.receivable?.amount,
+            item.derivedBalances?.receivable?.currency) }}
           </span>
         </div>
         @if (showPhone()) {
@@ -739,7 +758,11 @@
         <div class="card-metric card-metric--full">
           <span class="card-metric__label">Credit Policy</span>
           <span class="card-metric__value">
-            {{ item.creditEnabled ? ((showCreditLimit() ? ('Limit: ' + formatCurrency(item.creditLimit.amount, item.creditLimit.currency)) : '') + (showCreditLimit() && showCreditLimitBehaviour() ? ' ' : '') + (showCreditLimitBehaviour() ? ('(' + getCreditLimitBehaviourLabel(item.creditLimitBehaviour) + ')') : '')) : 'Cash only' }}
+            {{ item.creditEnabled ? ((showCreditLimit() ? ('Limit: ' +
+            formatCurrency(item.creditLimit.amount, item.creditLimit.currency)) : '') +
+            (showCreditLimit() && showCreditLimitBehaviour() ? ' ' : '') +
+            (showCreditLimitBehaviour() ? ('(' +
+            getCreditLimitBehaviourLabel(item.creditLimitBehaviour) + ')') : '')) : 'Cash only' }}
           </span>
         </div>
       </div>
@@ -758,48 +781,63 @@
 
         <div class="customer-mobile-card__actions">
           @if (canInspect()) {
-          <button
-            type="button"
-            class="card-action-btn"
-            (click)="openInspector(item)"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <button type="button" class="card-action-btn" (click)="openInspector(item)">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
               <circle cx="12" cy="12" r="3" />
             </svg>
             Details
           </button>
-          }
-          @if (canEdit()) {
-          <a
-            class="card-action-btn"
-            [routerLink]="['/app/customers', item.id, 'edit']"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          } @if (canEdit()) {
+          <a class="card-action-btn" [routerLink]="['/app/customers', item.id, 'edit']">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
             </svg>
             Edit
           </a>
-          }
-          @if (canDeactivate() && item.status === 'active') {
+          } @if (canDeactivate() && item.status === 'active') {
           <button
             type="button"
             class="card-action-btn card-action-btn--danger"
             (click)="askDeactivate(item)"
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <circle cx="12" cy="12" r="10" />
               <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
             </svg>
             Deactivate
           </button>
           } @else if (canReactivate() && item.status !== 'active') {
-          <button
-            type="button"
-            class="card-action-btn"
-            (click)="askReactivate(item)"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <button type="button" class="card-action-btn" (click)="askReactivate(item)">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
               <path d="M21 3v5h-5" />
             </svg>
@@ -825,11 +863,7 @@
 
   <!-- Customer Inspector Slide-Over Drawer (Matched to Products Inspector Anatomy) -->
   @if (showInspector() && selectedCustomer(); as sel) {
-  <div
-    class="inspector-backdrop"
-    (click)="closeInspector()"
-    aria-hidden="true"
-  ></div>
+  <div class="inspector-backdrop" (click)="closeInspector()" aria-hidden="true"></div>
   <aside
     class="inspector-drawer"
     role="dialog"
@@ -856,7 +890,8 @@
         <div class="inspector-drawer__titles">
           <h2 class="drawer-title" [title]="sel.name">{{ sel.name }}</h2>
           <p class="drawer-sub">
-            {{ getCustomerTypeLabel(sel.customerType) }} · Status: {{ sel.status === 'active' ? 'Active' : 'Inactive' }}
+            {{ getCustomerTypeLabel(sel.customerType) }} · Status: {{ sel.status === 'active' ?
+            'Active' : 'Inactive' }}
           </p>
         </div>
       </div>
@@ -867,7 +902,14 @@
         title="Close inspector (Esc)"
         aria-label="Close inspector"
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
@@ -883,13 +925,15 @@
           <div class="spec-row">
             <span class="spec-row__k">Outstanding Receivable</span>
             <span class="spec-row__v tabular-num">
-              {{ formatCurrency(sel.derivedBalances?.receivable?.amount, sel.derivedBalances?.receivable?.currency) }}
+              {{ formatCurrency(sel.derivedBalances?.receivable?.amount,
+              sel.derivedBalances?.receivable?.currency) }}
             </span>
           </div>
           <div class="spec-row">
             <span class="spec-row__k">Advance Balance</span>
             <span class="spec-row__v tabular-num">
-              {{ formatCurrency(sel.derivedBalances?.advance?.amount, sel.derivedBalances?.advance?.currency) }}
+              {{ formatCurrency(sel.derivedBalances?.advance?.amount,
+              sel.derivedBalances?.advance?.currency) }}
             </span>
           </div>
         </div>
@@ -918,24 +962,25 @@
           }
           <div class="spec-row">
             <span class="spec-row__k">Credit Authorization</span>
-            <span class="spec-row__v">{{ sel.creditEnabled ? 'Credit Authorized' : 'Cash Only' }}</span>
+            <span class="spec-row__v"
+              >{{ sel.creditEnabled ? 'Credit Authorized' : 'Cash Only' }}</span
+            >
           </div>
-          @if (sel.creditEnabled) {
-          @if (showCreditLimit()) {
+          @if (sel.creditEnabled) { @if (showCreditLimit()) {
           <div class="spec-row">
             <span class="spec-row__k">Credit Limit</span>
             <span class="spec-row__v tabular-num">
               {{ formatCurrency(sel.creditLimit.amount, sel.creditLimit.currency) }}
             </span>
           </div>
-          }
-          @if (showCreditLimitBehaviour()) {
+          } @if (showCreditLimitBehaviour()) {
           <div class="spec-row">
             <span class="spec-row__k">Policy Behaviour</span>
-            <span class="spec-row__v">{{ getCreditLimitBehaviourLabel(sel.creditLimitBehaviour) }}</span>
+            <span class="spec-row__v"
+              >{{ getCreditLimitBehaviourLabel(sel.creditLimitBehaviour) }}</span
+            >
           </div>
-          }
-          }
+          } }
         </div>
       </section>
       }
@@ -977,12 +1022,15 @@
         <div class="spec-grid">
           <div class="spec-row">
             <span class="spec-row__k">Opening Kind</span>
-            <span class="spec-row__v capitalize">{{ sel.openingBalance.kind === 'receivable' ? 'Receivable' : 'Advance' }}</span>
+            <span class="spec-row__v capitalize"
+              >{{ sel.openingBalance.kind === 'receivable' ? 'Receivable' : 'Advance' }}</span
+            >
           </div>
           <div class="spec-row">
             <span class="spec-row__k">Opening Amount</span>
             <span class="spec-row__v tabular-num">
-              {{ formatCurrency(sel.openingBalance.amount.amount, sel.openingBalance.amount.currency) }}
+              {{ formatCurrency(sel.openingBalance.amount.amount,
+              sel.openingBalance.amount.currency) }}
             </span>
           </div>
           <div class="spec-row">
@@ -1050,20 +1098,11 @@
         Deactivate
       </button>
       } @else if (sel.status !== 'active' && canReactivate()) {
-      <button
-        class="ag-btn ag-btn--secondary"
-        type="button"
-        (click)="askReactivate(sel)"
-      >
+      <button class="ag-btn ag-btn--secondary" type="button" (click)="askReactivate(sel)">
         Reactivate
       </button>
-      }
-      }
-      <button
-        type="button"
-        class="ag-btn ag-btn--secondary"
-        (click)="closeInspector()"
-      >
+      } }
+      <button type="button" class="ag-btn ag-btn--secondary" (click)="closeInspector()">
         Close
       </button>
     </div>
@@ -1081,4 +1120,3 @@
     (dismiss)="confirmOpen.set(false)"
   />
 </div>
-

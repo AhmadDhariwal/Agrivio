@@ -8,9 +8,7 @@
           {{ total() }} {{ total() === 1 ? 'supplier' : 'suppliers' }}
         </span>
       </div>
-      <p class="page-head__lede">
-        Maintain supplier contacts used for purchasing and payables.
-      </p>
+      <p class="page-head__lede">Maintain supplier contacts used for purchasing and payables.</p>
     </div>
     <div class="page-head__actions">
       @if (canManage()) {
@@ -44,8 +42,7 @@
   <div class="alert-container">
     <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
   </div>
-  }
-  @if (successMessage(); as success) {
+  } @if (successMessage(); as success) {
   <div class="alert-container">
     <agrivio-ui-alert tone="success" [message]="success" />
   </div>
@@ -356,7 +353,7 @@
     <agrivio-ui-loading-state label="Loading suppliers…" />
   </div>
   } @else if (errorMessage() && items().length === 0) {
-    <!-- Error handled in alert above -->
+  <!-- Error handled in alert above -->
   } @else if (items().length === 0) {
   <div class="state-container">
     @if (hasActiveFilters()) {
@@ -459,11 +456,14 @@
           <td class="supp-table__td supp-table__td--payable">
             <div class="balance-cell">
               <span class="balance-amount tabular-num">
-                {{ formatCurrency(item.derivedBalances?.payable?.amount, item.derivedBalances?.payable?.currency) }}
+                {{ formatCurrency(item.derivedBalances?.payable?.amount,
+                item.derivedBalances?.payable?.currency) }}
               </span>
-              @if (item.derivedBalances?.advance?.amount && item.derivedBalances.advance.amount !== '0.00') {
+              @if (item.derivedBalances?.advance?.amount && item.derivedBalances.advance.amount !==
+              '0.00') {
               <span class="advance-sub tabular-num">
-                Adv: {{ formatCurrency(item.derivedBalances.advance.amount, item.derivedBalances.advance.currency) }}
+                Adv: {{ formatCurrency(item.derivedBalances.advance.amount,
+                item.derivedBalances.advance.currency) }}
               </span>
               }
             </div>
@@ -574,7 +574,14 @@
                     data-testid="supplier-deactivate"
                     (click)="askDeactivate(item)"
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
                       <circle cx="12" cy="12" r="10" />
                       <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
                     </svg>
@@ -588,7 +595,14 @@
                     data-testid="supplier-reactivate"
                     (click)="askReactivate(item)"
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
                       <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                       <polyline points="22 4 12 14.01 9 11.01" />
                     </svg>
@@ -605,7 +619,14 @@
                     data-testid="supplier-delete"
                     (click)="askDelete(item)"
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
                       <path d="M3 6h18" />
                       <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
                       <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
@@ -629,9 +650,7 @@
     @for (item of items(); track item.id) {
     <article class="supplier-mobile-card" data-testid="supplier-mobile-card">
       <div class="supplier-mobile-card__header">
-        <div class="supplier-mobile-card__glyph">
-          {{ getInitials(item.name) }}
-        </div>
+        <div class="supplier-mobile-card__glyph">{{ getInitials(item.name) }}</div>
         <div class="supplier-mobile-card__title-group">
           <button
             type="button"
@@ -655,7 +674,8 @@
         <div class="card-metric">
           <span class="card-metric__label">Payable</span>
           <span class="card-metric__value tabular-num">
-            {{ formatCurrency(item.derivedBalances?.payable?.amount, item.derivedBalances?.payable?.currency) }}
+            {{ formatCurrency(item.derivedBalances?.payable?.amount,
+            item.derivedBalances?.payable?.currency) }}
           </span>
         </div>
         <div class="card-metric">
@@ -683,23 +703,30 @@
         </div>
 
         <div class="supplier-mobile-card__actions">
-          <button
-            type="button"
-            class="card-action-btn"
-            (click)="openInspector(item)"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <button type="button" class="card-action-btn" (click)="openInspector(item)">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
               <circle cx="12" cy="12" r="3" />
             </svg>
             Details
           </button>
           @if (canManage()) {
-          <a
-            class="card-action-btn"
-            [routerLink]="['/app/suppliers', item.id, 'edit']"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <a class="card-action-btn" [routerLink]="['/app/suppliers', item.id, 'edit']">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
             </svg>
             Edit
@@ -710,26 +737,35 @@
             class="card-action-btn card-action-btn--danger"
             (click)="askDeactivate(item)"
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <circle cx="12" cy="12" r="10" />
               <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
             </svg>
             Deactivate
           </button>
           } @else {
-          <button
-            type="button"
-            class="card-action-btn"
-            (click)="askReactivate(item)"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <button type="button" class="card-action-btn" (click)="askReactivate(item)">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
               <path d="M21 3v5h-5" />
             </svg>
             Reactivate
           </button>
-          }
-          }
+          } }
         </div>
       </div>
     </article>
@@ -749,11 +785,7 @@
 
   <!-- Supplier Inspector Slide-Over Drawer (Matched to Products Inspector Anatomy) -->
   @if (selectedSupplier(); as sel) {
-  <div
-    class="inspector-backdrop"
-    (click)="closeInspector()"
-    aria-hidden="true"
-  ></div>
+  <div class="inspector-backdrop" (click)="closeInspector()" aria-hidden="true"></div>
   <aside
     class="inspector-drawer"
     role="dialog"
@@ -780,7 +812,8 @@
         <div class="inspector-drawer__titles">
           <h2 class="drawer-title" [title]="sel.name">{{ sel.name }}</h2>
           <p class="drawer-sub">
-            {{ sel.contactName ? sel.contactName + ' · ' : '' }}Status: {{ sel.status === 'active' ? 'Active' : 'Inactive' }}
+            {{ sel.contactName ? sel.contactName + ' · ' : '' }}Status: {{ sel.status === 'active' ?
+            'Active' : 'Inactive' }}
           </p>
         </div>
       </div>
@@ -791,7 +824,14 @@
         title="Close inspector (Esc)"
         aria-label="Close inspector"
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
@@ -807,13 +847,15 @@
           <div class="spec-row">
             <span class="spec-row__k">Outstanding Payable</span>
             <span class="spec-row__v tabular-num">
-              {{ formatCurrency(sel.derivedBalances?.payable?.amount, sel.derivedBalances?.payable?.currency) }}
+              {{ formatCurrency(sel.derivedBalances?.payable?.amount,
+              sel.derivedBalances?.payable?.currency) }}
             </span>
           </div>
           <div class="spec-row">
             <span class="spec-row__k">Advance Balance</span>
             <span class="spec-row__v tabular-num">
-              {{ formatCurrency(sel.derivedBalances?.advance?.amount, sel.derivedBalances?.advance?.currency) }}
+              {{ formatCurrency(sel.derivedBalances?.advance?.amount,
+              sel.derivedBalances?.advance?.currency) }}
             </span>
           </div>
         </div>
@@ -862,12 +904,15 @@
         <div class="spec-grid">
           <div class="spec-row">
             <span class="spec-row__k">Opening Kind</span>
-            <span class="spec-row__v capitalize">{{ sel.openingBalance.kind === 'payable' ? 'Payable' : 'Advance' }}</span>
+            <span class="spec-row__v capitalize"
+              >{{ sel.openingBalance.kind === 'payable' ? 'Payable' : 'Advance' }}</span
+            >
           </div>
           <div class="spec-row">
             <span class="spec-row__k">Opening Amount</span>
             <span class="spec-row__v tabular-num">
-              {{ formatCurrency(sel.openingBalance.amount.amount, sel.openingBalance.amount.currency) }}
+              {{ formatCurrency(sel.openingBalance.amount.amount,
+              sel.openingBalance.amount.currency) }}
             </span>
           </div>
           <div class="spec-row">
@@ -933,20 +978,11 @@
         Deactivate
       </button>
       } @else {
-      <button
-        class="ag-btn ag-btn--secondary"
-        type="button"
-        (click)="askReactivate(sel)"
-      >
+      <button class="ag-btn ag-btn--secondary" type="button" (click)="askReactivate(sel)">
         Reactivate
       </button>
-      }
-      }
-      <button
-        type="button"
-        class="ag-btn ag-btn--secondary"
-        (click)="closeInspector()"
-      >
+      } }
+      <button type="button" class="ag-btn ag-btn--secondary" (click)="closeInspector()">
         Close
       </button>
     </div>

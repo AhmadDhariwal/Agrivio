@@ -74,7 +74,8 @@ describe('SaleEditPage', () => {
             discardSale: () => of({}),
             postSale: () => of({}),
             cancelSale: () => of({}),
-            listPosPaymentAccounts: () => of([{ id: 'acc-1', name: 'Cash Register 1', accountType: 'cash' }]),
+            listPosPaymentAccounts: () =>
+              of([{ id: 'acc-1', name: 'Cash Register 1', accountType: 'cash' }]),
           },
         },
         {
@@ -111,7 +112,10 @@ describe('SaleEditPage', () => {
         },
         {
           provide: SalesReturnsApi,
-          useValue: { createLinkedReturn: () => of({ id: 'r1', version: 1 }), postReturn: () => of({}) },
+          useValue: {
+            createLinkedReturn: () => of({ id: 'r1', version: 1 }),
+            postReturn: () => of({}),
+          },
         },
         {
           provide: ReturnsApi,
@@ -121,7 +125,12 @@ describe('SaleEditPage', () => {
         },
         {
           provide: AuthSessionStore,
-          useValue: sessionStoreMock(['sales.create', 'sales.view', 'sales.post', 'pricing.override']),
+          useValue: sessionStoreMock([
+            'sales.create',
+            'sales.view',
+            'sales.post',
+            'pricing.override',
+          ]),
         },
       ],
     }).compileComponents();
@@ -133,11 +142,15 @@ describe('SaleEditPage', () => {
     // Header assertions
     expect(compiled.querySelector('.page-head__eyebrow')?.textContent).toContain('SALES');
     expect(compiled.querySelector('.page-head__title')?.textContent).toContain('Create sale draft');
-    expect(compiled.querySelector('[data-testid="sale-status-badge"]')?.textContent).toContain('Draft');
+    expect(compiled.querySelector('[data-testid="sale-status-badge"]')?.textContent).toContain(
+      'Draft',
+    );
     expect(compiled.querySelector('[data-testid="back-to-sales"]')).toBeTruthy();
 
     // Draft banner
-    expect(compiled.querySelector('[data-testid="sale-draft-banner"]')?.textContent).toContain('Draft (unposted)');
+    expect(compiled.querySelector('[data-testid="sale-draft-banner"]')?.textContent).toContain(
+      'Draft (unposted)',
+    );
 
     // Structured Cards
     expect(compiled.querySelector('[data-testid="sale-info-card"]')).toBeTruthy();
@@ -162,7 +175,9 @@ describe('SaleEditPage', () => {
     // Footer actions
     expect(compiled.querySelector('[data-testid="sale-save"]')).toBeTruthy();
     expect(compiled.querySelector('[data-testid="sale-post"]')).toBeTruthy();
-    expect(compiled.querySelector('[data-testid="sale-post"]')?.textContent).toContain('Register Sale');
+    expect(compiled.querySelector('[data-testid="sale-post"]')?.textContent).toContain(
+      'Register Sale',
+    );
     expect(compiled.querySelector('[data-testid="sale-print-link"]')).toBeFalsy();
   });
 
@@ -180,7 +195,8 @@ describe('SaleEditPage', () => {
             discardSale: () => of({}),
             postSale: () => of({}),
             cancelSale: () => of({}),
-            listPosPaymentAccounts: () => of([{ id: 'acc-1', name: 'Cash Register 1', accountType: 'cash' }]),
+            listPosPaymentAccounts: () =>
+              of([{ id: 'acc-1', name: 'Cash Register 1', accountType: 'cash' }]),
           },
         },
         {
@@ -217,7 +233,10 @@ describe('SaleEditPage', () => {
         },
         {
           provide: SalesReturnsApi,
-          useValue: { createLinkedReturn: () => of({ id: 'r1', version: 1 }), postReturn: () => of({}) },
+          useValue: {
+            createLinkedReturn: () => of({ id: 'r1', version: 1 }),
+            postReturn: () => of({}),
+          },
         },
         {
           provide: ReturnsApi,
@@ -307,7 +326,10 @@ describe('SaleEditPage', () => {
         },
         {
           provide: SalesReturnsApi,
-          useValue: { createLinkedReturn: () => of({ id: 'r1', version: 1 }), postReturn: () => of({}) },
+          useValue: {
+            createLinkedReturn: () => of({ id: 'r1', version: 1 }),
+            postReturn: () => of({}),
+          },
         },
         {
           provide: ReturnsApi,
@@ -381,7 +403,10 @@ describe('SaleEditPage', () => {
         },
         {
           provide: SalesReturnsApi,
-          useValue: { createLinkedReturn: () => of({ id: 'r1', version: 1 }), postReturn: () => of({}) },
+          useValue: {
+            createLinkedReturn: () => of({ id: 'r1', version: 1 }),
+            postReturn: () => of({}),
+          },
         },
         {
           provide: ReturnsApi,
@@ -413,7 +438,8 @@ describe('SaleEditPage', () => {
           provide: SalesApi,
           useValue: {
             getSale: () => of(null),
-            listPosPaymentAccounts: () => of([{ id: 'acc-1', name: 'Cash Register 1', accountType: 'cash' }]),
+            listPosPaymentAccounts: () =>
+              of([{ id: 'acc-1', name: 'Cash Register 1', accountType: 'cash' }]),
           },
         },
         {
@@ -450,7 +476,10 @@ describe('SaleEditPage', () => {
         },
         {
           provide: SalesReturnsApi,
-          useValue: { createLinkedReturn: () => of({ id: 'r1', version: 1 }), postReturn: () => of({}) },
+          useValue: {
+            createLinkedReturn: () => of({ id: 'r1', version: 1 }),
+            postReturn: () => of({}),
+          },
         },
         {
           provide: ReturnsApi,
@@ -558,7 +587,9 @@ describe('SaleEditPage', () => {
         { provide: SalesReturnsApi, useValue: {} },
         {
           provide: ReturnsApi,
-          useValue: { listReturns: () => of({ items: [], meta: { page: 1, pageSize: 100, total: 0 } }) },
+          useValue: {
+            listReturns: () => of({ items: [], meta: { page: 1, pageSize: 100, total: 0 } }),
+          },
         },
         {
           provide: AuthSessionStore,
@@ -583,10 +614,12 @@ describe('SaleEditPage', () => {
   });
 
   it('does not preload customers on init', async () => {
-    const searchProductOptions = vi.fn().mockReturnValue(
-      of([{ id: 'p1', name: 'Wheat Seed 50kg', sku: 'WS-50', status: 'active' }]),
-    );
-    const listCustomers = vi.fn().mockReturnValue(of({ items: [], meta: { page: 1, pageSize: 500, total: 0 } }));
+    const searchProductOptions = vi
+      .fn()
+      .mockReturnValue(of([{ id: 'p1', name: 'Wheat Seed 50kg', sku: 'WS-50', status: 'active' }]));
+    const listCustomers = vi
+      .fn()
+      .mockReturnValue(of({ items: [], meta: { page: 1, pageSize: 500, total: 0 } }));
     const searchCustomerOptions = vi.fn().mockReturnValue(of([]));
 
     await TestBed.configureTestingModule({
@@ -633,7 +666,9 @@ describe('SaleEditPage', () => {
         },
         {
           provide: ReturnsApi,
-          useValue: { listReturns: () => of({ items: [], meta: { page: 1, pageSize: 100, total: 0 } }) },
+          useValue: {
+            listReturns: () => of({ items: [], meta: { page: 1, pageSize: 100, total: 0 } }),
+          },
         },
         {
           provide: AuthSessionStore,

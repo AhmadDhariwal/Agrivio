@@ -20,15 +20,11 @@
   <header class="page-head">
     <div class="page-head__title-group">
       <p class="page-head__eyebrow">Organization</p>
-      <h1 class="page-head__title">
-        {{ employeeId() ? 'Edit employee' : 'Add employee' }}
-      </h1>
+      <h1 class="page-head__title">{{ employeeId() ? 'Edit employee' : 'Add employee' }}</h1>
       <p class="page-head__lede">
-        @if (employeeId()) {
-        Manage user identity, role, and branch/warehouse assignments for this organization.
-        } @else {
-        Owner-managed employees stay inside this organization. Roles are predefined bundles; Super Admin is platform-only.
-        }
+        @if (employeeId()) { Manage user identity, role, and branch/warehouse assignments for this
+        organization. } @else { Owner-managed employees stay inside this organization. Roles are
+        predefined bundles; Super Admin is platform-only. }
       </p>
     </div>
 
@@ -42,12 +38,16 @@
           [class.status-indicator--deactivated]="currentEmployeeStatus() === 'deactivated'"
         >
           <span class="status-indicator__dot"></span>
-          {{ currentEmployeeStatus() === 'active' ? 'Active' : currentEmployeeStatus() === 'pending' ? 'Pending Activation' : 'Deactivated' }}
+          {{ currentEmployeeStatus() === 'active' ? 'Active' : currentEmployeeStatus() === 'pending'
+          ? 'Pending Activation' : 'Deactivated' }}
         </span>
       </div>
       }
 
-      <a class="ag-btn ag-btn--secondary" [routerLink]="employeeId() ? ['/app/employees', employeeId()] : ['/app/employees']">
+      <a
+        class="ag-btn ag-btn--secondary"
+        [routerLink]="employeeId() ? ['/app/employees', employeeId()] : ['/app/employees']"
+      >
         <svg
           width="15"
           height="15"
@@ -70,8 +70,7 @@
   <div class="state-container">
     <agrivio-ui-loading-state label="Loading employee definition…" />
   </div>
-  } @else {
-  @if (errorMessage(); as error) {
+  } @else { @if (errorMessage(); as error) {
   <div class="alert-container">
     <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
   </div>
@@ -99,7 +98,8 @@
       <div>
         <h2 class="activation-card__title">Employee created successfully</h2>
         <p class="activation-card__subtitle">
-          Copy this one-time activation link and provide it to the employee to set their initial password.
+          Copy this one-time activation link and provide it to the employee to set their initial
+          password.
         </p>
       </div>
     </div>
@@ -129,9 +129,7 @@
     </div>
 
     <div class="activation-card__footer">
-      <a class="ag-btn ag-btn--secondary" routerLink="/app/employees">
-        Return to Employees list
-      </a>
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/employees"> Return to Employees list </a>
     </div>
   </div>
   } @else {
@@ -209,13 +207,12 @@
                 [attr.aria-invalid]="fieldError(form.controls.displayName, 'Display name', formSubmitAttempted()) ? 'true' : null"
                 [readOnly]="isReadOnlyField('displayName')"
               />
-              @if (fieldError(form.controls.displayName, 'Display name', formSubmitAttempted()); as displayNameError) {
+              @if (fieldError(form.controls.displayName, 'Display name', formSubmitAttempted()); as
+              displayNameError) {
               <p class="field-error" role="alert">{{ displayNameError }}</p>
               }
             </div>
-            }
-
-            @if (showRole()) {
+            } @if (showRole()) {
             <div class="ag-field">
               <agrivio-ui-field-label
                 label="Role"
@@ -241,8 +238,7 @@
               <p class="role-description" data-testid="employee-role-description">
                 {{ selectedRoleDescription() }}
               </p>
-              }
-              @if (fieldError(form.controls.role, 'Role', formSubmitAttempted()); as roleError) {
+              } @if (fieldError(form.controls.role, 'Role', formSubmitAttempted()); as roleError) {
               <p class="field-error" role="alert">{{ roleError }}</p>
               }
             </div>
@@ -264,7 +260,10 @@
               <h4 class="grant-group__title">{{ group.group }}</h4>
               <div class="checkbox-list">
                 @for (permission of group.permissions; track permission.code) {
-                <label class="checkbox-item" [class.checkbox-item--checked]="isGrantChecked(permission.code)">
+                <label
+                  class="checkbox-item"
+                  [class.checkbox-item--checked]="isGrantChecked(permission.code)"
+                >
                   <input
                     type="checkbox"
                     class="checkbox-item__input"
@@ -278,9 +277,7 @@
             </div>
             }
           </div>
-          }
-
-          @if (showBranchAccess()) {
+          } @if (showBranchAccess()) {
           <div class="assignment-section">
             <div class="assignment-section__head">
               <div>
@@ -291,19 +288,11 @@
               </div>
               @if (canEditAssignments()) {
               <div class="assignment-section__actions">
-                <button
-                  type="button"
-                  class="text-action-btn"
-                  (click)="selectAllBranches()"
-                >
+                <button type="button" class="text-action-btn" (click)="selectAllBranches()">
                   Select all
                 </button>
                 <span class="text-action-sep">·</span>
-                <button
-                  type="button"
-                  class="text-action-btn"
-                  (click)="clearAllBranches()"
-                >
+                <button type="button" class="text-action-btn" (click)="clearAllBranches()">
                   Clear
                 </button>
               </div>
@@ -324,7 +313,10 @@
 
             <div class="checkbox-list">
               @for (branch of filteredBranches(); track branch.id) {
-              <label class="checkbox-item" [class.checkbox-item--checked]="isBranchChecked(branch.id)">
+              <label
+                class="checkbox-item"
+                [class.checkbox-item--checked]="isBranchChecked(branch.id)"
+              >
                 <input
                   type="checkbox"
                   class="checkbox-item__input"
@@ -339,9 +331,7 @@
               }
             </div>
           </div>
-          }
-
-          @if (showWarehouseAccess()) {
+          } @if (showWarehouseAccess()) {
           <div class="assignment-section">
             <div class="assignment-section__head">
               <div>
@@ -352,19 +342,11 @@
               </div>
               @if (canEditAssignments()) {
               <div class="assignment-section__actions">
-                <button
-                  type="button"
-                  class="text-action-btn"
-                  (click)="selectAllWarehouses()"
-                >
+                <button type="button" class="text-action-btn" (click)="selectAllWarehouses()">
                   Select all
                 </button>
                 <span class="text-action-sep">·</span>
-                <button
-                  type="button"
-                  class="text-action-btn"
-                  (click)="clearAllWarehouses()"
-                >
+                <button type="button" class="text-action-btn" (click)="clearAllWarehouses()">
                   Clear
                 </button>
               </div>
@@ -385,7 +367,10 @@
 
             <div class="checkbox-list">
               @for (warehouse of filteredWarehouses(); track warehouse.id) {
-              <label class="checkbox-item" [class.checkbox-item--checked]="isWarehouseChecked(warehouse.id)">
+              <label
+                class="checkbox-item"
+                [class.checkbox-item--checked]="isWarehouseChecked(warehouse.id)"
+              >
                 <input
                   type="checkbox"
                   class="checkbox-item__input"
@@ -453,7 +438,8 @@
         </div>
 
         <p class="guidance-card__lede">
-          Roles are predefined bundles that determine what employees can see and do. Super Admin is reserved for platform administrators.
+          Roles are predefined bundles that determine what employees can see and do. Super Admin is
+          reserved for platform administrators.
         </p>
 
         <ul class="guidance-list">
@@ -592,9 +578,7 @@
               readonly
             />
           </div>
-          }
-
-          @if (showDisplayName()) {
+          } @if (showDisplayName()) {
           <div class="ag-field">
             <agrivio-ui-field-label
               label="Display name"
@@ -612,13 +596,12 @@
               [attr.aria-invalid]="fieldError(form.controls.displayName, 'Display name', formSubmitAttempted()) ? 'true' : null"
               [readOnly]="isReadOnlyField('displayName')"
             />
-            @if (fieldError(form.controls.displayName, 'Display name', formSubmitAttempted()); as displayNameError) {
+            @if (fieldError(form.controls.displayName, 'Display name', formSubmitAttempted()); as
+            displayNameError) {
             <p class="field-error" role="alert">{{ displayNameError }}</p>
             }
           </div>
-          }
-
-          @if (showRole()) {
+          } @if (showRole()) {
           <div class="ag-field">
             <agrivio-ui-field-label
               label="Role"
@@ -644,14 +627,11 @@
             <p class="role-description" data-testid="employee-role-description">
               {{ selectedRoleDescription() }}
             </p>
-            }
-            @if (fieldError(form.controls.role, 'Role', formSubmitAttempted()); as roleError) {
+            } @if (fieldError(form.controls.role, 'Role', formSubmitAttempted()); as roleError) {
             <p class="field-error" role="alert">{{ roleError }}</p>
             }
           </div>
-          }
-
-          @if (showStatus()) {
+          } @if (showStatus()) {
           <div class="ag-field">
             <agrivio-ui-field-label label="Status" for="employee-status" />
             <input
@@ -661,9 +641,7 @@
               readonly
             />
           </div>
-          }
-
-          @if (canManageConditionalGrants() && grantGroups().length > 0) {
+          } @if (canManageConditionalGrants() && grantGroups().length > 0) {
           <div class="assignment-section" data-testid="employee-conditional-grants">
             <div class="assignment-section__head">
               <div>
@@ -678,7 +656,10 @@
               <h4 class="grant-group__title">{{ group.group }}</h4>
               <div class="checkbox-list">
                 @for (permission of group.permissions; track permission.code) {
-                <label class="checkbox-item" [class.checkbox-item--checked]="isGrantChecked(permission.code)">
+                <label
+                  class="checkbox-item"
+                  [class.checkbox-item--checked]="isGrantChecked(permission.code)"
+                >
                   <input
                     type="checkbox"
                     class="checkbox-item__input"
@@ -692,9 +673,7 @@
             </div>
             }
           </div>
-          }
-
-          @if (showBranchAccess() || showWarehouseAccess()) {
+          } @if (showBranchAccess() || showWarehouseAccess()) {
           <div class="info-callout">
             <div class="info-callout__icon">
               <svg
@@ -713,7 +692,8 @@
             <div class="info-callout__content">
               <span class="info-callout__title">About access</span>
               <p class="info-callout__text">
-                Branch and warehouse assignments control where this employee can view and manage data. Changes take effect immediately.
+                Branch and warehouse assignments control where this employee can view and manage
+                data. Changes take effect immediately.
               </p>
             </div>
           </div>
@@ -757,9 +737,7 @@
               Clear
             </button>
           </div>
-          }
-
-          @if (branches().length > 6) {
+          } @if (branches().length > 6) {
           <div class="assignment-search">
             <input
               class="ag-input assignment-search__input"
@@ -773,7 +751,10 @@
 
           <div class="checkbox-list">
             @for (branch of filteredBranches(); track branch.id) {
-            <label class="checkbox-item" [class.checkbox-item--checked]="isBranchChecked(branch.id)">
+            <label
+              class="checkbox-item"
+              [class.checkbox-item--checked]="isBranchChecked(branch.id)"
+            >
               <input
                 type="checkbox"
                 class="checkbox-item__input"
@@ -789,9 +770,7 @@
           </div>
         </div>
       </section>
-      }
-
-      @if (showWarehouseAccess()) {
+      } @if (showWarehouseAccess()) {
       <section class="form-card">
         <div class="form-card__header">
           <div class="form-card__icon">
@@ -805,7 +784,9 @@
               stroke-linecap="round"
               stroke-linejoin="round"
             >
-              <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+              <path
+                d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+              />
               <path d="m3.3 7 8.7 5 8.7-5" />
               <path d="M12 22V12" />
             </svg>
@@ -827,9 +808,7 @@
               Clear
             </button>
           </div>
-          }
-
-          @if (warehouses().length > 6) {
+          } @if (warehouses().length > 6) {
           <div class="assignment-search">
             <input
               class="ag-input assignment-search__input"
@@ -843,7 +822,10 @@
 
           <div class="checkbox-list">
             @for (warehouse of filteredWarehouses(); track warehouse.id) {
-            <label class="checkbox-item" [class.checkbox-item--checked]="isWarehouseChecked(warehouse.id)">
+            <label
+              class="checkbox-item"
+              [class.checkbox-item--checked]="isWarehouseChecked(warehouse.id)"
+            >
               <input
                 type="checkbox"
                 class="checkbox-item__input"
@@ -892,6 +874,5 @@
     </footer>
     }
   </form>
-  }
-  }
+  } }
 </div>

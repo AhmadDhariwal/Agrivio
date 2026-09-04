@@ -26,18 +26,20 @@
         </span>
       </div>
       <p class="page-head__lede">
-        @if (isCancelled()) {
-          Original invoice is preserved. Compensating stock, receivable, and payment effects were posted.
-        } @else if (isPosted()) {
-          Posted sales are immutable except via cancellation. Totals and snapshots below are authoritative.
-        } @else {
-          POS sale: select branch, warehouse, customer or walk-in, products, and payment. Drafts do not affect stock until you post.
-        }
+        @if (isCancelled()) { Original invoice is preserved. Compensating stock, receivable, and
+        payment effects were posted. } @else if (isPosted()) { Posted sales are immutable except via
+        cancellation. Totals and snapshots below are authoritative. } @else { POS sale: select
+        branch, warehouse, customer or walk-in, products, and payment. Drafts do not affect stock
+        until you post. }
       </p>
     </div>
 
     <div class="page-head__actions">
-      <a class="ag-btn ag-btn--secondary" [routerLink]="saleId() ? ['/app/sales', saleId()] : ['/app/sales']" data-testid="back-to-sales">
+      <a
+        class="ag-btn ag-btn--secondary"
+        [routerLink]="saleId() ? ['/app/sales', saleId()] : ['/app/sales']"
+        data-testid="back-to-sales"
+      >
         <svg
           width="15"
           height="15"
@@ -58,678 +60,195 @@
 
   <!-- Loading / Permission / Alert States -->
   @if (loading()) {
-    <div class="state-container">
-      <agrivio-ui-loading-state label="Loading sale…" />
-    </div>
+  <div class="state-container">
+    <agrivio-ui-loading-state label="Loading sale…" />
+  </div>
   } @else if (!canView() && !canCreate()) {
-    <div class="alert-container" data-testid="sales-permission-alert">
-      <agrivio-ui-alert tone="warning" message="You do not have permission to view or edit sales." />
-    </div>
+  <div class="alert-container" data-testid="sales-permission-alert">
+    <agrivio-ui-alert tone="warning" message="You do not have permission to view or edit sales." />
+  </div>
   } @else {
-    <!-- Status Banners -->
-    @if (isCancelled()) {
-      <div class="ag-alert ag-alert--danger cancelled-banner" data-testid="sale-cancelled-banner">
-        <div class="banner-content">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="15" y1="9" x2="9" y2="15"></line>
-            <line x1="9" y1="9" x2="15" y2="15"></line>
+  <!-- Status Banners -->
+  @if (isCancelled()) {
+  <div class="ag-alert ag-alert--danger cancelled-banner" data-testid="sale-cancelled-banner">
+    <div class="banner-content">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="15" y1="9" x2="9" y2="15"></line>
+        <line x1="9" y1="9" x2="15" y2="15"></line>
+      </svg>
+      <div>
+        <strong>Cancelled</strong> — original invoice preserved. @if (sale()?.cancellationReason) {
+        <span class="banner-sub">Reason: {{ sale()!.cancellationReason }}</span>
+        } @if (sale()?.cancelledAt) {
+        <span class="banner-sub">· {{ sale()!.cancelledAt }}</span>
+        }
+      </div>
+    </div>
+  </div>
+  } @else if (isPosted()) {
+  <div class="ag-alert ag-alert--success posted-banner" data-testid="sale-posted-banner">
+    <div class="banner-content">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+      </svg>
+      <div><strong>Posted</strong> — inventory, receivable, and payment effects are locked.</div>
+    </div>
+  </div>
+  } @else {
+  <div class="ag-alert ag-alert--warning draft-banner" data-testid="sale-draft-banner">
+    <div class="banner-content">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+        <line x1="12" y1="9" x2="12" y2="13"></line>
+        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+      </svg>
+      <div>
+        <strong>Draft (unposted)</strong> — no stock or receivable effects until this sale is
+        posted.
+      </div>
+    </div>
+  </div>
+  } @if (errorMessage(); as error) {
+  <div class="alert-container" data-testid="sale-error">
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  </div>
+  } @if (successMessage(); as success) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="success" [message]="success" data-testid="sale-success" />
+  </div>
+  } @if (lastPostedReturnId(); as returnId) {
+  <div class="alert-container">
+    <p>
+      <a class="ag-link" [routerLink]="['/app/returns', returnId]" data-testid="posted-return-link"
+        >Open posted return</a
+      >
+    </p>
+  </div>
+  }
+
+  <!-- ========================================================================= -->
+  <!-- 1. POSTED / CANCELLED READ-ONLY DETAIL VIEW                              -->
+  <!-- ========================================================================= -->
+  @if ((isPosted() || isCancelled()) && sale(); as posted) {
+  <div class="posted-view-container" data-testid="sale-posted-details">
+    <!-- 3 Authoritative Financial KPI Summary Cards -->
+    <section class="kpi-row" aria-label="Sale summary KPI cards" data-testid="sale-posted-totals">
+      <!-- Sale Total -->
+      <div class="kpi-card" data-testid="kpi-sale-total">
+        <div class="kpi-card__icon kpi-card__icon--purple">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+            <line x1="2" y1="10" x2="22" y2="10"></line>
           </svg>
-          <div>
-            <strong>Cancelled</strong> — original invoice preserved.
-            @if (sale()?.cancellationReason) {
-              <span class="banner-sub">Reason: {{ sale()!.cancellationReason }}</span>
-            }
-            @if (sale()?.cancelledAt) {
-              <span class="banner-sub">· {{ sale()!.cancelledAt }}</span>
-            }
-          </div>
+        </div>
+        <div class="kpi-card__content">
+          <span class="kpi-card__label">Sale total</span>
+          <span class="kpi-card__value">{{ formatCurrency(posted.saleTotal) }}</span>
         </div>
       </div>
-    } @else if (isPosted()) {
-      <div class="ag-alert ag-alert--success posted-banner" data-testid="sale-posted-banner">
-        <div class="banner-content">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+
+      <!-- Paid -->
+      <div class="kpi-card" data-testid="kpi-paid">
+        <div class="kpi-card__icon kpi-card__icon--green">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
             <polyline points="22 4 12 14.01 9 11.01"></polyline>
           </svg>
-          <div>
-            <strong>Posted</strong> — inventory, receivable, and payment effects are locked.
-          </div>
+        </div>
+        <div class="kpi-card__content">
+          <span class="kpi-card__label">Paid</span>
+          <span class="kpi-card__value">{{ formatCurrency(posted.paidTotal) }}</span>
         </div>
       </div>
-    } @else {
-      <div class="ag-alert ag-alert--warning draft-banner" data-testid="sale-draft-banner">
-        <div class="banner-content">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
-            <line x1="12" y1="9" x2="12" y2="13"></line>
-            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+
+      <!-- Receivable -->
+      <div class="kpi-card" data-testid="kpi-receivable">
+        <div class="kpi-card__icon kpi-card__icon--amber">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
           </svg>
-          <div>
-            <strong>Draft (unposted)</strong> — no stock or receivable effects until this sale is posted.
-          </div>
+        </div>
+        <div class="kpi-card__content">
+          <span class="kpi-card__label">Receivable</span>
+          <span class="kpi-card__value">{{ formatCurrency(posted.receivableTotal) }}</span>
         </div>
       </div>
-    }
+    </section>
 
-    @if (errorMessage(); as error) {
-      <div class="alert-container" data-testid="sale-error">
-        <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-      </div>
-    }
-    @if (successMessage(); as success) {
-      <div class="alert-container">
-        <agrivio-ui-alert tone="success" [message]="success" data-testid="sale-success" />
-      </div>
-    }
-    @if (lastPostedReturnId(); as returnId) {
-      <div class="alert-container">
-        <p>
-          <a class="ag-link" [routerLink]="['/app/returns', returnId]" data-testid="posted-return-link">Open posted return</a>
-        </p>
-      </div>
-    }
-
-    <!-- ========================================================================= -->
-    <!-- 1. POSTED / CANCELLED READ-ONLY DETAIL VIEW                              -->
-    <!-- ========================================================================= -->
-    @if ((isPosted() || isCancelled()) && sale(); as posted) {
-      <div class="posted-view-container" data-testid="sale-posted-details">
-        <!-- 3 Authoritative Financial KPI Summary Cards -->
-        <section class="kpi-row" aria-label="Sale summary KPI cards" data-testid="sale-posted-totals">
-          <!-- Sale Total -->
-          <div class="kpi-card" data-testid="kpi-sale-total">
-            <div class="kpi-card__icon kpi-card__icon--purple">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="2" y="4" width="20" height="16" rx="2"></rect>
-                <line x1="2" y1="10" x2="22" y2="10"></line>
-              </svg>
-            </div>
-            <div class="kpi-card__content">
-              <span class="kpi-card__label">Sale total</span>
-              <span class="kpi-card__value">{{ formatCurrency(posted.saleTotal) }}</span>
-            </div>
-          </div>
-
-          <!-- Paid -->
-          <div class="kpi-card" data-testid="kpi-paid">
-            <div class="kpi-card__icon kpi-card__icon--green">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                <polyline points="22 4 12 14.01 9 11.01"></polyline>
-              </svg>
-            </div>
-            <div class="kpi-card__content">
-              <span class="kpi-card__label">Paid</span>
-              <span class="kpi-card__value">{{ formatCurrency(posted.paidTotal) }}</span>
-            </div>
-          </div>
-
-          <!-- Receivable -->
-          <div class="kpi-card" data-testid="kpi-receivable">
-            <div class="kpi-card__icon kpi-card__icon--amber">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 6 12 12 16 14"></polyline>
-              </svg>
-            </div>
-            <div class="kpi-card__content">
-              <span class="kpi-card__label">Receivable</span>
-              <span class="kpi-card__value">{{ formatCurrency(posted.receivableTotal) }}</span>
-            </div>
-          </div>
-        </section>
-
-        <!-- Top Grid: Metadata & Payments Snapshot -->
-        <div class="form-grid form-grid--2col">
-          <!-- Sale Details Metadata Card -->
-          <section class="form-card" data-testid="sale-metadata-card">
-            <div class="form-card__header flex-between">
-              <div class="form-card__icon-group">
-                <div class="form-card__icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                    <polyline points="10 9 9 9 8 9"></polyline>
-                  </svg>
-                </div>
-                <div>
-                  <h2 class="form-card__title">Sale details</h2>
-                  <p class="form-card__subtitle">Invoice number, customer, location, and posting metadata.</p>
-                </div>
-              </div>
-              @if (canPrint() && posted.invoiceNumber) {
-                <a
-                  class="ag-btn ag-btn--secondary ag-btn--sm"
-                  [routerLink]="['/app/sales', posted.id, 'print']"
-                  data-testid="sale-print-link"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 6 2 18 2 18 9"></polyline>
-                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-                    <rect x="6" y="14" width="12" height="8"></rect>
-                  </svg>
-                  Print invoice
-                </a>
-              }
-            </div>
-            <div class="form-card__body">
-              <div class="detail-list">
-                @if (posted.invoiceNumber) {
-                  <div class="detail-row" data-testid="sale-invoice-number">
-                    <span class="detail-label">Invoice number</span>
-                    <span class="detail-value font-semibold">{{ posted.invoiceNumber }}</span>
-                  </div>
-                }
-                @if (posted.customerNameSnapshot) {
-                  <div class="detail-row">
-                    <span class="detail-label">Customer</span>
-                    <span class="detail-value">{{ posted.customerNameSnapshot }}</span>
-                  </div>
-                }
-                @if (posted.branchNameSnapshot) {
-                  <div class="detail-row">
-                    <span class="detail-label">Branch</span>
-                    <span class="detail-value">{{ posted.branchNameSnapshot }}</span>
-                  </div>
-                }
-                @if (posted.warehouseNameSnapshot) {
-                  <div class="detail-row">
-                    <span class="detail-label">Warehouse</span>
-                    <span class="detail-value">{{ posted.warehouseNameSnapshot }}</span>
-                  </div>
-                }
-                @if (posted.postedAt) {
-                  <div class="detail-row">
-                    <span class="detail-label">Posted at</span>
-                    <span class="detail-value text-muted tabular-num">{{ posted.postedAt }}</span>
-                  </div>
-                }
-              </div>
-            </div>
-          </section>
-
-          <!-- Payments Snapshots Card -->
-          <section class="form-card" data-testid="sale-payments-snapshot-card">
-            <div class="form-card__header">
-              <div class="form-card__icon-group">
-                <div class="form-card__icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-                    <line x1="1" y1="10" x2="23" y2="10"></line>
-                  </svg>
-                </div>
-                <div>
-                  <h2 class="form-card__title">Payments at post</h2>
-                  <p class="form-card__subtitle">Tender settlements recorded at post execution.</p>
-                </div>
-              </div>
-            </div>
-            <div class="form-card__body">
-              @if (posted.payments && posted.payments.length > 0) {
-                <div class="detail-list">
-                  @for (payment of posted.payments; track payment.paymentId ?? payment.accountId) {
-                    <div class="detail-row">
-                      <div class="payment-account-info">
-                        <strong>{{ payment.accountNameSnapshot }}</strong>
-                        @if (payment.accountTypeSnapshot) {
-                          <span class="text-muted" style="margin-left: 6px; font-size: 12px;">({{ payment.accountTypeSnapshot }})</span>
-                        }
-                      </div>
-                      <span class="detail-value tabular-num font-semibold">{{ formatCurrency(payment.amount) }}</span>
-                    </div>
-                  }
-                </div>
-              } @else {
-                <p class="empty-note text-muted">No payments at post recorded (full credit).</p>
-              }
-
-              <div class="payment-summary-block">
-                <div class="detail-row">
-                  <span class="detail-label">Total paid</span>
-                  <span class="detail-value tabular-num font-semibold text-primary">{{ formatCurrency(posted.paidTotal) }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Balance receivable</span>
-                  <span class="detail-value tabular-num font-semibold" [class.text-amber]="posted.receivableTotal?.amount && posted.receivableTotal!.amount !== '0.00'">
-                    {{ formatCurrency(posted.receivableTotal) }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
-
-        <!-- Posted Lines Section -->
-        <section class="form-card" data-testid="sale-posted-lines-card">
-          <div class="form-card__header">
-            <div class="form-card__icon-group">
-              <div class="form-card__icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="8" y1="6" x2="21" y2="6"></line>
-                  <line x1="8" y1="12" x2="21" y2="12"></line>
-                  <line x1="8" y1="18" x2="21" y2="18"></line>
-                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
-                </svg>
-              </div>
-              <div>
-                <h2 class="form-card__title">Sale lines ({{ posted.lines.length }})</h2>
-                <p class="form-card__subtitle">Products, quantities, packaging units, and line totals.</p>
-              </div>
-            </div>
-          </div>
-          <div class="form-card__body no-padding">
-            <!-- Desktop Table -->
-            <div class="table-container desktop-only">
-              <table class="dense-table" aria-label="Posted sale lines">
-                <colgroup>
-                  <col class="col-num" />
-                  <col class="col-prod" />
-                  <col class="col-pkg" />
-                  <col class="col-qty" />
-                  <col class="col-price" />
-                  <col class="col-total" />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Product</th>
-                    <th>Packaging</th>
-                    <th class="text-right">Quantity</th>
-                    <th class="text-right">Unit Price</th>
-                    <th class="text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (line of posted.lines; track $index; let i = $index) {
-                    <tr>
-                      <td class="tabular-num text-muted">{{ i + 1 }}</td>
-                      <td>
-                        <div class="product-cell-stack">
-                          <strong class="product-name">{{ line.productNameSnapshot }}</strong>
-                          @if (line.stockAllocations && line.stockAllocations.length > 0) {
-                            <div class="batch-chips-wrap">
-                              @for (alloc of line.stockAllocations; track alloc.batchId ?? $index) {
-                                @if (alloc.batchNumber) {
-                                  <span class="tracking-chip tracking-chip--batch tracking-chip--sm">Batch: {{ alloc.batchNumber }}</span>
-                                }
-                                @if (alloc.expiryDate) {
-                                  <span class="tracking-chip tracking-chip--expiry tracking-chip--sm">Exp: {{ alloc.expiryDate }}</span>
-                                }
-                              }
-                            </div>
-                          }
-                        </div>
-                      </td>
-                      <td>
-                        @if (line.packagingUnitId) {
-                          <span class="tracking-chip tracking-chip--sm">
-                            {{ line.unitCodeSnapshot }} (×{{ line.conversionFactorSnapshot }})
-                          </span>
-                        } @else {
-                          <span class="text-muted">{{ line.unitCodeSnapshot || 'Base unit' }}</span>
-                        }
-                      </td>
-                      <td class="text-right tabular-num">{{ formatQuantity(line.quantity) }}</td>
-                      <td class="text-right tabular-num">{{ formatCurrency(line.unitPrice) }}</td>
-                      <td class="text-right tabular-num font-semibold">{{ formatCurrency(line.lineProductAmount) }}</td>
-                    </tr>
-                  }
-                </tbody>
-                <tfoot>
-                  <tr class="table-total-row">
-                    <td colspan="5" class="text-right font-semibold">Sale total:</td>
-                    <td class="text-right tabular-num font-bold text-primary">{{ formatCurrency(posted.saleTotal) }}</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-
-            <!-- Mobile Cards -->
-            <div class="posted-lines-mobile mobile-only">
-              @for (line of posted.lines; track $index; let i = $index) {
-                <div class="posted-line-card">
-                  <div class="posted-line-card__header">
-                    <span class="line-badge">Line {{ i + 1 }}</span>
-                    <strong class="line-total tabular-num">{{ formatCurrency(line.lineProductAmount) }}</strong>
-                  </div>
-                  <h3 class="posted-line-card__product">{{ line.productNameSnapshot }}</h3>
-                  @if (line.stockAllocations && line.stockAllocations.length > 0) {
-                    <div class="batch-chips-wrap" style="margin-bottom: 8px;">
-                      @for (alloc of line.stockAllocations; track alloc.batchId ?? $index) {
-                        @if (alloc.batchNumber) {
-                          <span class="tracking-chip tracking-chip--batch tracking-chip--sm">Batch: {{ alloc.batchNumber }}</span>
-                        }
-                        @if (alloc.expiryDate) {
-                          <span class="tracking-chip tracking-chip--expiry tracking-chip--sm">Exp: {{ alloc.expiryDate }}</span>
-                        }
-                      }
-                    </div>
-                  }
-                  <div class="posted-line-card__grid">
-                    <div class="posted-line-metric">
-                      <span class="metric-label">Packaging</span>
-                      <span class="metric-value">{{ line.packagingUnitId ? (line.unitCodeSnapshot + ' (×' + line.conversionFactorSnapshot + ')') : 'Base unit' }}</span>
-                    </div>
-                    <div class="posted-line-metric">
-                      <span class="metric-label">Quantity</span>
-                      <span class="metric-value tabular-num">{{ formatQuantity(line.quantity) }}</span>
-                    </div>
-                    <div class="posted-line-metric">
-                      <span class="metric-label">Unit Price</span>
-                      <span class="metric-value tabular-num">{{ formatCurrency(line.unitPrice) }}</span>
-                    </div>
-                  </div>
-                </div>
-              }
-              <div class="posted-lines-mobile__footer">
-                <span class="text-muted">{{ posted.lines.length }} {{ posted.lines.length === 1 ? 'line' : 'lines' }}</span>
-                <span class="font-semibold text-primary tabular-num">Total: {{ formatCurrency(posted.saleTotal) }}</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Lifecycle Actions (Cancel / Returns) -->
-        <div class="form-grid form-grid--2col">
-          <!-- Cancel Sale Action Card -->
-          @if (isPosted() && canCancel()) {
-            <section class="form-card action-card action-card--danger" data-testid="sale-cancel-section">
-              <div class="form-card__header">
-                <div class="form-card__icon-group">
-                  <div class="form-card__icon form-card__icon--danger">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
-                      <line x1="12" y1="9" x2="12" y2="13"></line>
-                      <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 class="form-card__title">Cancel sale</h3>
-                    <p class="form-card__subtitle">Cancelling reverses all inventory, receivable, and payment effects.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div class="form-card__body">
-                <form class="action-card__form" [formGroup]="cancelForm" (ngSubmit)="cancel()">
-                  <div class="ag-field">
-                    <agrivio-ui-field-label
-                      label="Cancellation reason"
-                      for="cancel-reason-input"
-                      [required]="fieldRequired(cancelForm.controls.reason)"
-                    />
-                    <input
-                      id="cancel-reason-input"
-                      class="ag-input"
-                      formControlName="reason"
-                      data-testid="cancel-reason-input"
-                      placeholder="Cancellation reason (required)"
-                      [attr.aria-required]="fieldRequired(cancelForm.controls.reason) ? 'true' : null"
-                    />
-                  </div>
-                  <button
-                    class="ag-btn ag-btn--secondary ag-btn--danger-hover action-card__btn"
-                    type="submit"
-                    [disabled]="cancelling()"
-                    data-testid="sale-cancel-btn"
-                  >
-                    {{ cancelling() ? 'Cancelling…' : 'Cancel sale' }}
-                  </button>
-                </form>
-              </div>
-            </section>
-          }
-
-          <!-- Related Returns -->
-          @if (isPosted() && relatedReturns().length > 0) {
-            <section class="form-card" data-testid="sale-related-returns">
-              <div class="form-card__header">
-                <div class="form-card__icon-group">
-                  <div class="form-card__icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="1 4 1 10 7 10"></polyline>
-                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
-                    </svg>
-                  </div>
-                  <div>
-                    <h2 class="form-card__title">Returns for this invoice</h2>
-                    <p class="form-card__subtitle">Linked returns recorded against this sale.</p>
-                  </div>
-                </div>
-              </div>
-              <div class="form-card__body">
-                <div class="detail-list">
-                  @for (item of relatedReturns(); track item.id) {
-                    <div class="detail-row">
-                      <span class="badge-pill badge-pill--info">{{ item.status }} · {{ item.returnType }}</span>
-                      <a class="ag-btn ag-btn--secondary ag-btn--sm" [routerLink]="['/app/returns', item.id]">Open return</a>
-                    </div>
-                  }
-                </div>
-              </div>
-            </section>
-          }
-
-          <!-- Linked Sales Return Form -->
-          @if (isPosted() && canReturn()) {
-            <section class="form-card action-card" data-testid="sales-return-section">
-              <div class="form-card__header">
-                <div class="form-card__icon-group">
-                  <div class="form-card__icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="1 4 1 10 7 10"></polyline>
-                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 class="form-card__title">Linked sales return</h3>
-                    <p class="form-card__subtitle">
-                      Return against this posted invoice. Original sale snapshots stay immutable.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div class="form-card__body">
-                <form class="action-card__form" [formGroup]="returnForm" (ngSubmit)="submitReturn()">
-                  <div class="form-grid form-grid--3col">
-                    <div class="ag-field">
-                      <agrivio-ui-field-label
-                        label="Return reason"
-                        for="sales-return-reason"
-                        [required]="fieldRequired(returnForm.controls.reason)"
-                      />
-                      <input
-                        id="sales-return-reason"
-                        class="ag-input"
-                        formControlName="reason"
-                        placeholder="Required"
-                        data-testid="sales-return-reason"
-                        [attr.aria-required]="fieldRequired(returnForm.controls.reason) ? 'true' : null"
-                      />
-                    </div>
-                    <div class="ag-field">
-                      <agrivio-ui-field-label
-                        label="Resolution"
-                        for="sales-return-resolution"
-                        [required]="fieldRequired(returnForm.controls.resolution)"
-                      />
-                      <select
-                        id="sales-return-resolution"
-                        class="ag-select"
-                        formControlName="resolution"
-                        data-testid="sales-return-resolution"
-                        [attr.aria-required]="fieldRequired(returnForm.controls.resolution) ? 'true' : null"
-                      >
-                        <option value="ledger_adjustment">Customer ledger adjustment</option>
-                        <option value="account_refund">Cash / bank / digital refund</option>
-                      </select>
-                    </div>
-                    <div class="ag-field">
-                      <agrivio-ui-field-label
-                        label="Refund account"
-                        for="sales-return-refund-account"
-                        [required]="fieldRequired(returnForm.controls.refundAccountId)"
-                      />
-                      <select
-                        id="sales-return-refund-account"
-                        class="ag-select"
-                        formControlName="refundAccountId"
-                        data-testid="sales-return-refund-account"
-                        [attr.aria-required]="fieldRequired(returnForm.controls.refundAccountId) ? 'true' : null"
-                      >
-                        <option value="">None</option>
-                        @for (account of refundAccounts(); track account.id) {
-                          <option [value]="account.id">{{ account.name }} ({{ account.accountType }})</option>
-                        }
-                      </select>
-                    </div>
-                  </div>
-
-                  <div class="return-lines-container">
-                    @for (line of returnLines.controls; track $index; let index = $index) {
-                      <div class="return-line-card" [formGroup]="returnLineGroup(index)">
-                        <div class="return-line-card__header">
-                          <span class="line-badge">Return line {{ index + 1 }}</span>
-                          <button
-                            class="ag-btn ag-btn--secondary ag-btn--danger-hover ag-btn--sm"
-                            type="button"
-                            (click)="removeReturnLine(index)"
-                            aria-label="Remove return line"
-                          >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                              <polyline points="3 6 5 6 21 6"></polyline>
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            </svg>
-                            Remove
-                          </button>
-                        </div>
-                        <div class="form-grid form-grid--4col">
-                          <div class="ag-field">
-                            <agrivio-ui-field-label
-                              label="Sale line"
-                              [for]="'sales-return-line-' + index"
-                              [required]="fieldRequired(returnLineGroup(index).controls['originalLineIndex'])"
-                            />
-                            <select
-                              [id]="'sales-return-line-' + index"
-                              class="ag-select"
-                              formControlName="originalLineIndex"
-                              data-testid="sales-return-line"
-                              [attr.aria-required]="fieldRequired(returnLineGroup(index).controls['originalLineIndex']) ? 'true' : null"
-                            >
-                              @for (saleLine of sale()?.lines ?? []; track $index; let lineIndex = $index) {
-                                <option [value]="lineIndex">
-                                  {{ saleLine.productNameSnapshot }} (sold {{ saleLine.quantity }})
-                                </option>
-                              }
-                            </select>
-                          </div>
-                          <div class="ag-field">
-                            <agrivio-ui-field-label
-                              label="Return quantity"
-                              [for]="'sales-return-qty-' + index"
-                              [required]="fieldRequired(returnLineGroup(index).controls['quantity'])"
-                            />
-                            <input
-                              [id]="'sales-return-qty-' + index"
-                              class="ag-input"
-                              formControlName="quantity"
-                              data-testid="sales-return-qty"
-                              placeholder="Qty"
-                              [attr.aria-required]="fieldRequired(returnLineGroup(index).controls['quantity']) ? 'true' : null"
-                            />
-                          </div>
-                          <div class="ag-field">
-                            <agrivio-ui-field-label
-                              label="Stock condition"
-                              [for]="'sales-return-condition-' + index"
-                              [required]="fieldRequired(returnLineGroup(index).controls['stockCondition'])"
-                            />
-                            <select
-                              [id]="'sales-return-condition-' + index"
-                              class="ag-select"
-                              formControlName="stockCondition"
-                              data-testid="sales-return-condition"
-                              [attr.aria-required]="fieldRequired(returnLineGroup(index).controls['stockCondition']) ? 'true' : null"
-                            >
-                              <option value="sellable">Sellable</option>
-                              <option value="unsellable">Unsellable</option>
-                            </select>
-                          </div>
-                          <div class="ag-field">
-                            <agrivio-ui-field-label
-                              label="Unsellable reason"
-                              [for]="'sales-return-unsellable-' + index"
-                              [required]="fieldRequired(returnLineGroup(index).controls['unsellableReason'])"
-                            />
-                            <select
-                              [id]="'sales-return-unsellable-' + index"
-                              class="ag-select"
-                              formControlName="unsellableReason"
-                              data-testid="sales-return-unsellable-reason"
-                              [attr.aria-required]="fieldRequired(returnLineGroup(index).controls['unsellableReason']) ? 'true' : null"
-                            >
-                              <option value="expired">Expired</option>
-                              <option value="damaged">Damaged</option>
-                              <option value="opened">Opened</option>
-                              <option value="contaminated">Contaminated</option>
-                              <option value="other">Other</option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                    }
-                  </div>
-
-                  <div class="action-card__btn-group">
-                    <button
-                      class="ag-btn ag-btn--secondary ag-btn--sm"
-                      type="button"
-                      (click)="addReturnLine()"
-                      data-testid="add-sales-return-line"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                      </svg>
-                      Add return line
-                    </button>
-                    @if (returnLines.length > 0) {
-                      <button
-                        class="ag-btn ag-btn--primary ag-btn--sm"
-                        type="submit"
-                        [disabled]="submittingReturn()"
-                        data-testid="sales-return-submit"
-                      >
-                        {{ submittingReturn() ? 'Posting…' : 'Post return' }}
-                      </button>
-                    }
-                  </div>
-                </form>
-              </div>
-            </section>
-          }
-        </div>
-      </div>
-    }
-
-    <!-- ========================================================================= -->
-    <!-- 2. DRAFT CREATION & EDITING FORM VIEW                                    -->
-    <!-- ========================================================================= -->
-    @if (isDraft()) {
-      <form class="draft-form-container" [formGroup]="form" (ngSubmit)="save()" data-testid="sale-form">
-        <!-- Section 1: Sale Information -->
-        <section class="form-card sale-info-card" data-testid="sale-info-card">
-          <div class="form-card__header">
+    <!-- Top Grid: Metadata & Payments Snapshot -->
+    <div class="form-grid form-grid--2col">
+      <!-- Sale Details Metadata Card -->
+      <section class="form-card" data-testid="sale-metadata-card">
+        <div class="form-card__header flex-between">
+          <div class="form-card__icon-group">
             <div class="form-card__icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
                 <line x1="16" y1="13" x2="8" y2="13"></line>
@@ -738,640 +257,1460 @@
               </svg>
             </div>
             <div>
-              <h2 class="form-card__title">Sale Information</h2>
-              <p class="form-card__subtitle">Select branch, warehouse, customer, and transaction date.</p>
+              <h2 class="form-card__title">Sale details</h2>
+              <p class="form-card__subtitle">
+                Invoice number, customer, location, and posting metadata.
+              </p>
             </div>
           </div>
-          <div class="form-card__body">
-            <!-- 3-Column Top Grid -->
-            <div class="form-grid form-grid--3col">
-              <!-- Branch -->
-              <div class="ag-field">
-                <agrivio-ui-field-label
-                  label="Branch"
-                  for="sale-branch"
-                  [required]="fieldRequired(form.controls.branchId)"
-                />
-                <select
-                  id="sale-branch"
-                  class="ag-select"
-                  formControlName="branchId"
-                  data-testid="sale-branch"
-                  [class.ag-input--invalid]="fieldError(form.controls.branchId, 'Branch', formSubmitAttempted())"
-                  [attr.aria-required]="fieldRequired(form.controls.branchId) ? 'true' : null"
-                  [attr.aria-invalid]="fieldError(form.controls.branchId, 'Branch', formSubmitAttempted()) ? 'true' : null"
-                >
-                  <option value="">Select branch</option>
-                  @for (branch of branches(); track branch.id) {
-                    <option [value]="branch.id">{{ branch.name }}</option>
-                  }
-                </select>
-                @if (fieldError(form.controls.branchId, 'Branch', formSubmitAttempted()); as branchError) {
-                  <p class="field-error" role="alert">{{ branchError }}</p>
-                }
-              </div>
-
-              <!-- Warehouse -->
-              <div class="ag-field">
-                <agrivio-ui-field-label
-                  label="Warehouse"
-                  for="sale-warehouse"
-                  [required]="fieldRequired(form.controls.warehouseId)"
-                />
-                <select
-                  id="sale-warehouse"
-                  class="ag-select"
-                  formControlName="warehouseId"
-                  data-testid="sale-warehouse"
-                  [class.ag-input--invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted())"
-                  [attr.aria-required]="fieldRequired(form.controls.warehouseId) ? 'true' : null"
-                  [attr.aria-invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()) ? 'true' : null"
-                >
-                  <option value="">Select warehouse</option>
-                  @for (warehouse of warehouses(); track warehouse.id) {
-                    <option [value]="warehouse.id">{{ warehouse.name }}</option>
-                  }
-                </select>
-                @if (fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()); as warehouseError) {
-                  <p class="field-error" role="alert">{{ warehouseError }}</p>
-                }
-              </div>
-
-              <!-- Customer Type -->
-              @if (canViewCustomerField()) {
-                <div class="ag-field">
-                  <agrivio-ui-field-label label="Customer Type" for="sale-customer-type" />
-                  <select
-                    id="sale-customer-type"
-                    class="ag-select"
-                    formControlName="customerTypeMode"
-                    data-testid="sale-customer-type"
-                    [disabled]="!canEditCustomerField() || isPosted()"
-                  >
-                    @for (option of customerTypeOptions; track option.value) {
-                      <option [value]="option.value">{{ option.label }}</option>
-                    }
-                  </select>
-                  <p class="field-hint text-muted">Walk-in is cash-only. Other types require selecting a customer below.</p>
-                </div>
-              }
+          @if (canPrint() && posted.invoiceNumber) {
+          <a
+            class="ag-btn ag-btn--secondary ag-btn--sm"
+            [routerLink]="['/app/sales', posted.id, 'print']"
+            data-testid="sale-print-link"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="6 9 6 2 18 2 18 9"></polyline>
+              <path
+                d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"
+              ></path>
+              <rect x="6" y="14" width="12" height="8"></rect>
+            </svg>
+            Print invoice
+          </a>
+          }
+        </div>
+        <div class="form-card__body">
+          <div class="detail-list">
+            @if (posted.invoiceNumber) {
+            <div class="detail-row" data-testid="sale-invoice-number">
+              <span class="detail-label">Invoice number</span>
+              <span class="detail-value font-semibold">{{ posted.invoiceNumber }}</span>
             </div>
+            } @if (posted.customerNameSnapshot) {
+            <div class="detail-row">
+              <span class="detail-label">Customer</span>
+              <span class="detail-value">{{ posted.customerNameSnapshot }}</span>
+            </div>
+            } @if (posted.branchNameSnapshot) {
+            <div class="detail-row">
+              <span class="detail-label">Branch</span>
+              <span class="detail-value">{{ posted.branchNameSnapshot }}</span>
+            </div>
+            } @if (posted.warehouseNameSnapshot) {
+            <div class="detail-row">
+              <span class="detail-label">Warehouse</span>
+              <span class="detail-value">{{ posted.warehouseNameSnapshot }}</span>
+            </div>
+            } @if (posted.postedAt) {
+            <div class="detail-row">
+              <span class="detail-label">Posted at</span>
+              <span class="detail-value text-muted tabular-num">{{ posted.postedAt }}</span>
+            </div>
+            }
+          </div>
+        </div>
+      </section>
 
-            <!-- Lower Grid: Find Customer, Sale Date, Notes -->
-            <div class="form-grid form-grid--3col">
-              @if (canViewCustomerField()) {
-                <div class="ag-field customer-picker" #customerPicker data-testid="sale-customer-picker">
-                  <agrivio-ui-field-label label="Find Customer" for="sale-customer-trigger" />
-                  <button
-                    id="sale-customer-trigger"
-                    type="button"
-                    class="customer-picker__trigger ag-select"
-                    data-testid="sale-customer"
-                    [disabled]="!canEditCustomerField() || isPosted()"
-                    [attr.aria-expanded]="customerDropdownOpen()"
-                    aria-haspopup="listbox"
-                    (click)="toggleCustomerDropdown($event)"
-                  >
-                    <span class="customer-picker__label">{{ selectedCustomerLabel() }}</span>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                      <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                  </button>
-                  @if (isWalkInCustomerType()) {
-                    <p class="field-hint text-muted">Not required for walk-in sales.</p>
-                  } @else if (fieldError(form.controls.customerId, 'Customer', formSubmitAttempted()); as customerError) {
-                    <p class="field-error" role="alert">{{ customerError }}</p>
-                  }
+      <!-- Payments Snapshots Card -->
+      <section class="form-card" data-testid="sale-payments-snapshot-card">
+        <div class="form-card__header">
+          <div class="form-card__icon-group">
+            <div class="form-card__icon">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                <line x1="1" y1="10" x2="23" y2="10"></line>
+              </svg>
+            </div>
+            <div>
+              <h2 class="form-card__title">Payments at post</h2>
+              <p class="form-card__subtitle">Tender settlements recorded at post execution.</p>
+            </div>
+          </div>
+        </div>
+        <div class="form-card__body">
+          @if (posted.payments && posted.payments.length > 0) {
+          <div class="detail-list">
+            @for (payment of posted.payments; track payment.paymentId ?? payment.accountId) {
+            <div class="detail-row">
+              <div class="payment-account-info">
+                <strong>{{ payment.accountNameSnapshot }}</strong>
+                @if (payment.accountTypeSnapshot) {
+                <span class="text-muted" style="margin-left: 6px; font-size: 12px"
+                  >({{ payment.accountTypeSnapshot }})</span
+                >
+                }
+              </div>
+              <span class="detail-value tabular-num font-semibold"
+                >{{ formatCurrency(payment.amount) }}</span
+              >
+            </div>
+            }
+          </div>
+          } @else {
+          <p class="empty-note text-muted">No payments at post recorded (full credit).</p>
+          }
 
-                  @if (customerDropdownOpen()) {
-                    <div
-                      class="customer-picker__panel"
-                      role="listbox"
-                      data-testid="sale-customer-panel"
-                      (click)="$event.stopPropagation()"
-                    >
-                      @if (canUseCustomerSearch()) {
-                        <div class="customer-picker__search">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                          </svg>
-                          <input
-                            id="sale-customer-search"
-                            class="customer-picker__search-input"
-                            type="search"
-                            placeholder="Search by name, phone, or ID…"
-                            data-testid="sale-customer-search"
-                            [value]="customerSearchTerm()"
-                            (input)="onCustomerSearchInput($event)"
-                          />
-                        </div>
-                      }
+          <div class="payment-summary-block">
+            <div class="detail-row">
+              <span class="detail-label">Total paid</span>
+              <span class="detail-value tabular-num font-semibold text-primary"
+                >{{ formatCurrency(posted.paidTotal) }}</span
+              >
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Balance receivable</span>
+              <span
+                class="detail-value tabular-num font-semibold"
+                [class.text-amber]="posted.receivableTotal?.amount && posted.receivableTotal!.amount !== '0.00'"
+              >
+                {{ formatCurrency(posted.receivableTotal) }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
 
-                      <div class="customer-picker__options">
-                        @if (!canSearchCustomers()) {
-                          <p class="customer-picker__hint customer-picker__hint--muted">
-                            Select branch and warehouse before posting this sale.
-                          </p>
-                        }
-                        @if (customerSearchLoading()) {
-                          <p class="customer-picker__hint">Loading customers…</p>
-                        } @else if (customerSearchError()) {
-                          <p class="customer-picker__hint customer-picker__hint--error">Unable to load customers. Try again.</p>
-                        } @else if (filteredCustomers().length === 0) {
-                          <p class="customer-picker__hint">
-                            @if (customerSearchTerm().trim() === '') {
-                              No active customers for this customer type.
-                            } @else {
-                              No customers match &ldquo;{{ customerSearchTerm().trim() }}&rdquo;.
-                            }
-                          </p>
-                        } @else {
-                          @for (customer of filteredCustomers(); track customer.id) {
-                            <button
-                              type="button"
-                              class="customer-picker__option"
-                              [class.is-selected]="form.controls.customerId.value === customer.id"
-                              (click)="selectCustomer(customer)"
-                              [attr.data-testid]="'sale-customer-option-' + customer.id"
-                            >
-                              <span class="customer-picker__option-name">{{ customer.name }}</span>
-                              <span class="customer-picker__option-meta">{{ customer.priceTier }}</span>
-                            </button>
-                          }
-                        }
-                      </div>
+    <!-- Posted Lines Section -->
+    <section class="form-card" data-testid="sale-posted-lines-card">
+      <div class="form-card__header">
+        <div class="form-card__icon-group">
+          <div class="form-card__icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">Sale lines ({{ posted.lines.length }})</h2>
+            <p class="form-card__subtitle">
+              Products, quantities, packaging units, and line totals.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="form-card__body no-padding">
+        <!-- Desktop Table -->
+        <div class="table-container desktop-only">
+          <table class="dense-table" aria-label="Posted sale lines">
+            <colgroup>
+              <col class="col-num" />
+              <col class="col-prod" />
+              <col class="col-pkg" />
+              <col class="col-qty" />
+              <col class="col-price" />
+              <col class="col-total" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Product</th>
+                <th>Packaging</th>
+                <th class="text-right">Quantity</th>
+                <th class="text-right">Unit Price</th>
+                <th class="text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (line of posted.lines; track $index; let i = $index) {
+              <tr>
+                <td class="tabular-num text-muted">{{ i + 1 }}</td>
+                <td>
+                  <div class="product-cell-stack">
+                    <strong class="product-name">{{ line.productNameSnapshot }}</strong>
+                    @if (line.stockAllocations && line.stockAllocations.length > 0) {
+                    <div class="batch-chips-wrap">
+                      @for (alloc of line.stockAllocations; track alloc.batchId ?? $index) { @if
+                      (alloc.batchNumber) {
+                      <span class="tracking-chip tracking-chip--batch tracking-chip--sm"
+                        >Batch: {{ alloc.batchNumber }}</span
+                      >
+                      } @if (alloc.expiryDate) {
+                      <span class="tracking-chip tracking-chip--expiry tracking-chip--sm"
+                        >Exp: {{ alloc.expiryDate }}</span
+                      >
+                      } }
                     </div>
+                    }
+                  </div>
+                </td>
+                <td>
+                  @if (line.packagingUnitId) {
+                  <span class="tracking-chip tracking-chip--sm">
+                    {{ line.unitCodeSnapshot }} (×{{ line.conversionFactorSnapshot }})
+                  </span>
+                  } @else {
+                  <span class="text-muted">{{ line.unitCodeSnapshot || 'Base unit' }}</span>
                   }
-                </div>
+                </td>
+                <td class="text-right tabular-num">{{ formatQuantity(line.quantity) }}</td>
+                <td class="text-right tabular-num">{{ formatCurrency(line.unitPrice) }}</td>
+                <td class="text-right tabular-num font-semibold">
+                  {{ formatCurrency(line.lineProductAmount) }}
+                </td>
+              </tr>
               }
+            </tbody>
+            <tfoot>
+              <tr class="table-total-row">
+                <td colspan="5" class="text-right font-semibold">Sale total:</td>
+                <td class="text-right tabular-num font-bold text-primary">
+                  {{ formatCurrency(posted.saleTotal) }}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
 
-              <!-- Sale Date -->
+        <!-- Mobile Cards -->
+        <div class="posted-lines-mobile mobile-only">
+          @for (line of posted.lines; track $index; let i = $index) {
+          <div class="posted-line-card">
+            <div class="posted-line-card__header">
+              <span class="line-badge">Line {{ i + 1 }}</span>
+              <strong class="line-total tabular-num"
+                >{{ formatCurrency(line.lineProductAmount) }}</strong
+              >
+            </div>
+            <h3 class="posted-line-card__product">{{ line.productNameSnapshot }}</h3>
+            @if (line.stockAllocations && line.stockAllocations.length > 0) {
+            <div class="batch-chips-wrap" style="margin-bottom: 8px">
+              @for (alloc of line.stockAllocations; track alloc.batchId ?? $index) { @if
+              (alloc.batchNumber) {
+              <span class="tracking-chip tracking-chip--batch tracking-chip--sm"
+                >Batch: {{ alloc.batchNumber }}</span
+              >
+              } @if (alloc.expiryDate) {
+              <span class="tracking-chip tracking-chip--expiry tracking-chip--sm"
+                >Exp: {{ alloc.expiryDate }}</span
+              >
+              } }
+            </div>
+            }
+            <div class="posted-line-card__grid">
+              <div class="posted-line-metric">
+                <span class="metric-label">Packaging</span>
+                <span class="metric-value"
+                  >{{ line.packagingUnitId ? (line.unitCodeSnapshot + ' (×' +
+                  line.conversionFactorSnapshot + ')') : 'Base unit' }}</span
+                >
+              </div>
+              <div class="posted-line-metric">
+                <span class="metric-label">Quantity</span>
+                <span class="metric-value tabular-num">{{ formatQuantity(line.quantity) }}</span>
+              </div>
+              <div class="posted-line-metric">
+                <span class="metric-label">Unit Price</span>
+                <span class="metric-value tabular-num">{{ formatCurrency(line.unitPrice) }}</span>
+              </div>
+            </div>
+          </div>
+          }
+          <div class="posted-lines-mobile__footer">
+            <span class="text-muted"
+              >{{ posted.lines.length }} {{ posted.lines.length === 1 ? 'line' : 'lines' }}</span
+            >
+            <span class="font-semibold text-primary tabular-num"
+              >Total: {{ formatCurrency(posted.saleTotal) }}</span
+            >
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Lifecycle Actions (Cancel / Returns) -->
+    <div class="form-grid form-grid--2col">
+      <!-- Cancel Sale Action Card -->
+      @if (isPosted() && canCancel()) {
+      <section class="form-card action-card action-card--danger" data-testid="sale-cancel-section">
+        <div class="form-card__header">
+          <div class="form-card__icon-group">
+            <div class="form-card__icon form-card__icon--danger">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"
+                ></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+            </div>
+            <div>
+              <h3 class="form-card__title">Cancel sale</h3>
+              <p class="form-card__subtitle">
+                Cancelling reverses all inventory, receivable, and payment effects.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-card__body">
+          <form class="action-card__form" [formGroup]="cancelForm" (ngSubmit)="cancel()">
+            <div class="ag-field">
+              <agrivio-ui-field-label
+                label="Cancellation reason"
+                for="cancel-reason-input"
+                [required]="fieldRequired(cancelForm.controls.reason)"
+              />
+              <input
+                id="cancel-reason-input"
+                class="ag-input"
+                formControlName="reason"
+                data-testid="cancel-reason-input"
+                placeholder="Cancellation reason (required)"
+                [attr.aria-required]="fieldRequired(cancelForm.controls.reason) ? 'true' : null"
+              />
+            </div>
+            <button
+              class="ag-btn ag-btn--secondary ag-btn--danger-hover action-card__btn"
+              type="submit"
+              [disabled]="cancelling()"
+              data-testid="sale-cancel-btn"
+            >
+              {{ cancelling() ? 'Cancelling…' : 'Cancel sale' }}
+            </button>
+          </form>
+        </div>
+      </section>
+      }
+
+      <!-- Related Returns -->
+      @if (isPosted() && relatedReturns().length > 0) {
+      <section class="form-card" data-testid="sale-related-returns">
+        <div class="form-card__header">
+          <div class="form-card__icon-group">
+            <div class="form-card__icon">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="1 4 1 10 7 10"></polyline>
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+              </svg>
+            </div>
+            <div>
+              <h2 class="form-card__title">Returns for this invoice</h2>
+              <p class="form-card__subtitle">Linked returns recorded against this sale.</p>
+            </div>
+          </div>
+        </div>
+        <div class="form-card__body">
+          <div class="detail-list">
+            @for (item of relatedReturns(); track item.id) {
+            <div class="detail-row">
+              <span class="badge-pill badge-pill--info"
+                >{{ item.status }} · {{ item.returnType }}</span
+              >
+              <a
+                class="ag-btn ag-btn--secondary ag-btn--sm"
+                [routerLink]="['/app/returns', item.id]"
+                >Open return</a
+              >
+            </div>
+            }
+          </div>
+        </div>
+      </section>
+      }
+
+      <!-- Linked Sales Return Form -->
+      @if (isPosted() && canReturn()) {
+      <section class="form-card action-card" data-testid="sales-return-section">
+        <div class="form-card__header">
+          <div class="form-card__icon-group">
+            <div class="form-card__icon">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="1 4 1 10 7 10"></polyline>
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+              </svg>
+            </div>
+            <div>
+              <h3 class="form-card__title">Linked sales return</h3>
+              <p class="form-card__subtitle">
+                Return against this posted invoice. Original sale snapshots stay immutable.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-card__body">
+          <form class="action-card__form" [formGroup]="returnForm" (ngSubmit)="submitReturn()">
+            <div class="form-grid form-grid--3col">
               <div class="ag-field">
                 <agrivio-ui-field-label
-                  label="Sale Date"
-                  for="sale-date"
-                  [required]="fieldRequired(form.controls.saleDate)"
+                  label="Return reason"
+                  for="sales-return-reason"
+                  [required]="fieldRequired(returnForm.controls.reason)"
                 />
                 <input
-                  id="sale-date"
+                  id="sales-return-reason"
                   class="ag-input"
-                  type="date"
-                  formControlName="saleDate"
-                  data-testid="sale-date"
-                  [class.ag-input--invalid]="fieldError(form.controls.saleDate, 'Sale date', formSubmitAttempted())"
-                  [attr.aria-required]="fieldRequired(form.controls.saleDate) ? 'true' : null"
-                  [attr.aria-invalid]="fieldError(form.controls.saleDate, 'Sale date', formSubmitAttempted()) ? 'true' : null"
+                  formControlName="reason"
+                  placeholder="Required"
+                  data-testid="sales-return-reason"
+                  [attr.aria-required]="fieldRequired(returnForm.controls.reason) ? 'true' : null"
                 />
-                @if (fieldError(form.controls.saleDate, 'Sale date', formSubmitAttempted()); as saleDateError) {
-                  <p class="field-error" role="alert">{{ saleDateError }}</p>
-                }
               </div>
-
-              <!-- Notes -->
-              @if (canViewNotesField()) {
-                <div class="ag-field">
-                  <agrivio-ui-field-label label="Notes (Optional)" for="sale-notes" />
-                  <textarea
-                    id="sale-notes"
-                    class="ag-input"
-                    formControlName="notes"
-                    rows="1"
-                    placeholder="Add note…"
-                    data-testid="sale-notes"
-                  ></textarea>
-                </div>
-              }
-            </div>
-          </div>
-        </section>
-
-        <!-- Section 2: Sale Lines -->
-        <section class="form-card" data-testid="sale-lines-form-card">
-          <div class="form-card__header flex-between">
-            <div class="form-card__icon-group">
-              <div class="form-card__icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="8" y1="6" x2="21" y2="6"></line>
-                  <line x1="8" y1="12" x2="21" y2="12"></line>
-                  <line x1="8" y1="18" x2="21" y2="18"></line>
-                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
-                </svg>
+              <div class="ag-field">
+                <agrivio-ui-field-label
+                  label="Resolution"
+                  for="sales-return-resolution"
+                  [required]="fieldRequired(returnForm.controls.resolution)"
+                />
+                <select
+                  id="sales-return-resolution"
+                  class="ag-select"
+                  formControlName="resolution"
+                  data-testid="sales-return-resolution"
+                  [attr.aria-required]="fieldRequired(returnForm.controls.resolution) ? 'true' : null"
+                >
+                  <option value="ledger_adjustment">Customer ledger adjustment</option>
+                  <option value="account_refund">Cash / bank / digital refund</option>
+                </select>
               </div>
-              <div>
-                <h2 class="form-card__title">Sale Lines</h2>
-                <p class="form-card__subtitle">Add products, specify packaging units, quantities, and pricing.</p>
+              <div class="ag-field">
+                <agrivio-ui-field-label
+                  label="Refund account"
+                  for="sales-return-refund-account"
+                  [required]="fieldRequired(returnForm.controls.refundAccountId)"
+                />
+                <select
+                  id="sales-return-refund-account"
+                  class="ag-select"
+                  formControlName="refundAccountId"
+                  data-testid="sales-return-refund-account"
+                  [attr.aria-required]="fieldRequired(returnForm.controls.refundAccountId) ? 'true' : null"
+                >
+                  <option value="">None</option>
+                  @for (account of refundAccounts(); track account.id) {
+                  <option [value]="account.id">
+                    {{ account.name }} ({{ account.accountType }})
+                  </option>
+                  }
+                </select>
               </div>
             </div>
-            <button class="ag-btn ag-btn--secondary ag-btn--sm" type="button" (click)="addLine()" data-testid="sale-add-line">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-              Add line
-            </button>
-          </div>
 
-          <div class="form-card__body">
-            <div class="sale-lines-list">
-              @for (line of lines.controls; track $index; let index = $index) {
-                <div class="sale-line-row" [formGroup]="lineGroup(index)">
-                  <div class="sale-line-row__header">
-                    <span class="line-badge">Line {{ index + 1 }}</span>
-                    <button
-                      class="ag-btn ag-btn--secondary ag-btn--danger-hover ag-btn--sm"
-                      type="button"
-                      (click)="removeLine(index)"
-                      aria-label="Remove line"
+            <div class="return-lines-container">
+              @for (line of returnLines.controls; track $index; let index = $index) {
+              <div class="return-line-card" [formGroup]="returnLineGroup(index)">
+                <div class="return-line-card__header">
+                  <span class="line-badge">Return line {{ index + 1 }}</span>
+                  <button
+                    class="ag-btn ag-btn--secondary ag-btn--danger-hover ag-btn--sm"
+                    type="button"
+                    (click)="removeReturnLine(index)"
+                    aria-label="Remove return line"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                      </svg>
-                      Remove
-                    </button>
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path
+                        d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                      ></path>
+                    </svg>
+                    Remove
+                  </button>
+                </div>
+                <div class="form-grid form-grid--4col">
+                  <div class="ag-field">
+                    <agrivio-ui-field-label
+                      label="Sale line"
+                      [for]="'sales-return-line-' + index"
+                      [required]="fieldRequired(returnLineGroup(index).controls['originalLineIndex'])"
+                    />
+                    <select
+                      [id]="'sales-return-line-' + index"
+                      class="ag-select"
+                      formControlName="originalLineIndex"
+                      data-testid="sales-return-line"
+                      [attr.aria-required]="fieldRequired(returnLineGroup(index).controls['originalLineIndex']) ? 'true' : null"
+                    >
+                      @for (saleLine of sale()?.lines ?? []; track $index; let lineIndex = $index) {
+                      <option [value]="lineIndex">
+                        {{ saleLine.productNameSnapshot }} (sold {{ saleLine.quantity }})
+                      </option>
+                      }
+                    </select>
                   </div>
-
-                  <div class="line-row-grid">
-                    <!-- Filter Products -->
-                    <div class="ag-field form-field--filter">
-                      <agrivio-ui-field-label label="Filter Products" [for]="'sale-product-search-' + index" />
-                      <input
-                        [id]="'sale-product-search-' + index"
-                        class="ag-input"
-                        type="search"
-                        placeholder="Search products…"
-                        data-testid="sale-product-search"
-                        [value]="productSearchQuery()"
-                        (input)="onProductSearchInput($event)"
-                      />
-                    </div>
-
-                    <!-- Product -->
-                    <div class="ag-field form-field--product">
-                      <agrivio-ui-field-label
-                        label="Product"
-                        [for]="'sale-line-product-' + index"
-                        [required]="fieldRequired(lineGroup(index).controls['productId'])"
-                      />
-                      <select
-                        [id]="'sale-line-product-' + index"
-                        class="ag-select"
-                        formControlName="productId"
-                        data-testid="sale-line-product"
-                        [class.ag-input--invalid]="lineFieldError(index, 'productId', 'Product')"
-                        [attr.aria-required]="fieldRequired(lineGroup(index).controls['productId']) ? 'true' : null"
-                        [attr.aria-invalid]="lineFieldError(index, 'productId', 'Product') ? 'true' : null"
-                      >
-                        <option value="">Select product</option>
-                        @for (product of products(); track product.id) {
-                          <option [value]="product.id">{{ product.name }}</option>
-                        }
-                      </select>
-                      @if (lineFieldError(index, 'productId', 'Product'); as productError) {
-                        <p class="field-error" role="alert">{{ productError }}</p>
-                      }
-                    </div>
-
-                    <!-- Packaging -->
-                    @if (canViewPackagingUnitField()) {
-                      <div class="ag-field form-field--packaging">
-                        <agrivio-ui-field-label label="Packaging (Optional)" [for]="'sale-line-packaging-' + index" />
-                        <select
-                          [id]="'sale-line-packaging-' + index"
-                          class="ag-select"
-                          formControlName="packagingUnitId"
-                          data-testid="sale-line-packaging"
-                        >
-                          <option value="">Base unit</option>
-                          @for (unit of packagingUnitsForLine(index); track unit.id) {
-                            <option [value]="unit.id">{{ unit.name }} (×{{ unit.conversionFactor }})</option>
-                          }
-                        </select>
-                      </div>
-                    }
-
-                    <!-- Quantity -->
-                    <div class="ag-field form-field--qty">
-                      <agrivio-ui-field-label
-                        label="Quantity"
-                        [for]="'sale-line-quantity-' + index"
-                        [required]="fieldRequired(lineGroup(index).controls['quantity'])"
-                      />
-                      <input
-                        [id]="'sale-line-quantity-' + index"
-                        class="ag-input font-mono"
-                        type="number"
-                        step="any"
-                        placeholder="0"
-                        formControlName="quantity"
-                        data-testid="sale-line-quantity"
-                        [class.ag-input--invalid]="lineFieldError(index, 'quantity', 'Quantity')"
-                        [attr.aria-required]="fieldRequired(lineGroup(index).controls['quantity']) ? 'true' : null"
-                        [attr.aria-invalid]="lineFieldError(index, 'quantity', 'Quantity') ? 'true' : null"
-                      />
-                      @if (lineFieldError(index, 'quantity', 'Quantity'); as quantityError) {
-                        <p class="field-error" role="alert">{{ quantityError }}</p>
-                      }
-                    </div>
-
-                    <!-- Unit Price -->
-                    <div class="ag-field form-field--price">
-                      <agrivio-ui-field-label
-                        label="Unit Price (PKR)"
-                        [for]="'sale-line-unit-price-' + index"
-                        [required]="fieldRequired(lineGroup(index).controls['unitPrice'])"
-                      />
-                      <input
-                        [id]="'sale-line-unit-price-' + index"
-                        class="ag-input font-mono"
-                        type="number"
-                        step="any"
-                        placeholder="0.00"
-                        formControlName="unitPrice"
-                        data-testid="sale-line-unit-price"
-                        [class.ag-input--invalid]="lineFieldError(index, 'unitPrice', 'Unit price')"
-                        [attr.aria-required]="fieldRequired(lineGroup(index).controls['unitPrice']) ? 'true' : null"
-                        [attr.aria-invalid]="lineFieldError(index, 'unitPrice', 'Unit price') ? 'true' : null"
-                      />
-                      @if (lineFieldError(index, 'unitPrice', 'Unit price'); as unitPriceError) {
-                        <p class="field-error" role="alert">{{ unitPriceError }}</p>
-                      }
-                    </div>
-
-                    <!-- Price Override Reason -->
-                    @if (isDraft() && canOverridePrice()) {
-                      <div class="ag-field form-field--override">
-                        <agrivio-ui-field-label
-                          label="Price Override Reason (Required if price differs from tier)"
-                          [for]="'sale-line-override-reason-' + index"
-                        />
-                        <input
-                          [id]="'sale-line-override-reason-' + index"
-                          class="ag-input"
-                          placeholder="Enter reason (optional)"
-                          formControlName="priceOverrideReason"
-                          data-testid="sale-line-override-reason"
-                        />
-                      </div>
-                    }
+                  <div class="ag-field">
+                    <agrivio-ui-field-label
+                      label="Return quantity"
+                      [for]="'sales-return-qty-' + index"
+                      [required]="fieldRequired(returnLineGroup(index).controls['quantity'])"
+                    />
+                    <input
+                      [id]="'sales-return-qty-' + index"
+                      class="ag-input"
+                      formControlName="quantity"
+                      data-testid="sales-return-qty"
+                      placeholder="Qty"
+                      [attr.aria-required]="fieldRequired(returnLineGroup(index).controls['quantity']) ? 'true' : null"
+                    />
+                  </div>
+                  <div class="ag-field">
+                    <agrivio-ui-field-label
+                      label="Stock condition"
+                      [for]="'sales-return-condition-' + index"
+                      [required]="fieldRequired(returnLineGroup(index).controls['stockCondition'])"
+                    />
+                    <select
+                      [id]="'sales-return-condition-' + index"
+                      class="ag-select"
+                      formControlName="stockCondition"
+                      data-testid="sales-return-condition"
+                      [attr.aria-required]="fieldRequired(returnLineGroup(index).controls['stockCondition']) ? 'true' : null"
+                    >
+                      <option value="sellable">Sellable</option>
+                      <option value="unsellable">Unsellable</option>
+                    </select>
+                  </div>
+                  <div class="ag-field">
+                    <agrivio-ui-field-label
+                      label="Unsellable reason"
+                      [for]="'sales-return-unsellable-' + index"
+                      [required]="fieldRequired(returnLineGroup(index).controls['unsellableReason'])"
+                    />
+                    <select
+                      [id]="'sales-return-unsellable-' + index"
+                      class="ag-select"
+                      formControlName="unsellableReason"
+                      data-testid="sales-return-unsellable-reason"
+                      [attr.aria-required]="fieldRequired(returnLineGroup(index).controls['unsellableReason']) ? 'true' : null"
+                    >
+                      <option value="expired">Expired</option>
+                      <option value="damaged">Damaged</option>
+                      <option value="opened">Opened</option>
+                      <option value="contaminated">Contaminated</option>
+                      <option value="other">Other</option>
+                    </select>
                   </div>
                 </div>
+              </div>
               }
             </div>
 
-            <button class="ag-btn ag-btn--secondary add-line-btn" type="button" (click)="addLine()">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-              Add another line
-            </button>
-          </div>
-        </section>
-
-        <!-- Section 3: Payments at Post -->
-        <section class="form-card" data-testid="sale-payments">
-          <div class="form-card__header flex-between">
-            <div class="form-card__icon-group">
-              <div class="form-card__icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-                  <line x1="1" y1="10" x2="23" y2="10"></line>
-                </svg>
-              </div>
-              <div>
-                <h2 class="form-card__title">Payments at Post</h2>
-                <p class="form-card__subtitle">Tender settlements, full cash fill, or credit sales.</p>
-              </div>
-            </div>
-            @if (canAddPaymentAtPost()) {
-              <button class="ag-btn ag-btn--secondary ag-btn--sm" type="button" (click)="addPayment()" data-testid="sale-add-payment">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <div class="action-card__btn-group">
+              <button
+                class="ag-btn ag-btn--secondary ag-btn--sm"
+                type="button"
+                (click)="addReturnLine()"
+                data-testid="add-sales-return-line"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
                   <line x1="12" y1="5" x2="12" y2="19"></line>
                   <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
-                Add payment
+                Add return line
               </button>
+              @if (returnLines.length > 0) {
+              <button
+                class="ag-btn ag-btn--primary ag-btn--sm"
+                type="submit"
+                [disabled]="submittingReturn()"
+                data-testid="sales-return-submit"
+              >
+                {{ submittingReturn() ? 'Posting…' : 'Post return' }}
+              </button>
+              }
+            </div>
+          </form>
+        </div>
+      </section>
+      }
+    </div>
+  </div>
+  }
+
+  <!-- ========================================================================= -->
+  <!-- 2. DRAFT CREATION & EDITING FORM VIEW                                    -->
+  <!-- ========================================================================= -->
+  @if (isDraft()) {
+  <form class="draft-form-container" [formGroup]="form" (ngSubmit)="save()" data-testid="sale-form">
+    <!-- Section 1: Sale Information -->
+    <section class="form-card sale-info-card" data-testid="sale-info-card">
+      <div class="form-card__header">
+        <div class="form-card__icon">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+        </div>
+        <div>
+          <h2 class="form-card__title">Sale Information</h2>
+          <p class="form-card__subtitle">
+            Select branch, warehouse, customer, and transaction date.
+          </p>
+        </div>
+      </div>
+      <div class="form-card__body">
+        <!-- 3-Column Top Grid -->
+        <div class="form-grid form-grid--3col">
+          <!-- Branch -->
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Branch"
+              for="sale-branch"
+              [required]="fieldRequired(form.controls.branchId)"
+            />
+            <select
+              id="sale-branch"
+              class="ag-select"
+              formControlName="branchId"
+              data-testid="sale-branch"
+              [class.ag-input--invalid]="fieldError(form.controls.branchId, 'Branch', formSubmitAttempted())"
+              [attr.aria-required]="fieldRequired(form.controls.branchId) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.branchId, 'Branch', formSubmitAttempted()) ? 'true' : null"
+            >
+              <option value="">Select branch</option>
+              @for (branch of branches(); track branch.id) {
+              <option [value]="branch.id">{{ branch.name }}</option>
+              }
+            </select>
+            @if (fieldError(form.controls.branchId, 'Branch', formSubmitAttempted()); as
+            branchError) {
+            <p class="field-error" role="alert">{{ branchError }}</p>
             }
           </div>
 
-          <div class="form-card__body">
-            <!-- Draft Estimate & Quick Tenders -->
-            <div class="payment-control-bar">
-              <p class="cart-estimate-text" data-testid="sale-cart-estimate">
-                Cart total (draft estimate): <strong>{{ cartEstimate() }} PKR</strong>. Posted totals come from the server.
-              </p>
-              <div class="quick-tender-actions">
-                @if (canAddPaymentAtPost()) {
-                  <button class="ag-btn ag-btn--secondary ag-btn--sm" type="button" (click)="fillFullCash()" data-testid="sale-fill-cash">
-                    Full cash
-                  </button>
-                }
-                @if (canSellOnCredit()) {
-                  <button
-                    class="ag-btn ag-btn--secondary ag-btn--sm"
-                    type="button"
-                    (click)="clearPaymentsForCredit()"
-                    data-testid="sale-fill-credit"
-                  >
-                    Credit (no payment)
-                  </button>
-                }
-              </div>
-            </div>
+          <!-- Warehouse -->
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Warehouse"
+              for="sale-warehouse"
+              [required]="fieldRequired(form.controls.warehouseId)"
+            />
+            <select
+              id="sale-warehouse"
+              class="ag-select"
+              formControlName="warehouseId"
+              data-testid="sale-warehouse"
+              [class.ag-input--invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted())"
+              [attr.aria-required]="fieldRequired(form.controls.warehouseId) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()) ? 'true' : null"
+            >
+              <option value="">Select warehouse</option>
+              @for (warehouse of warehouses(); track warehouse.id) {
+              <option [value]="warehouse.id">{{ warehouse.name }}</option>
+              }
+            </select>
+            @if (fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()); as
+            warehouseError) {
+            <p class="field-error" role="alert">{{ warehouseError }}</p>
+            }
+          </div>
 
-            <p class="payment-help-note text-muted">
-              Leave empty for full credit when a credit-enabled customer is selected. Walk-in sales require full payment.
-              Use Add payment for partial or mixed tenders. The server is authoritative.
+          <!-- Customer Type -->
+          @if (canViewCustomerField()) {
+          <div class="ag-field">
+            <agrivio-ui-field-label label="Customer Type" for="sale-customer-type" />
+            <select
+              id="sale-customer-type"
+              class="ag-select"
+              formControlName="customerTypeMode"
+              data-testid="sale-customer-type"
+              [disabled]="!canEditCustomerField() || isPosted()"
+            >
+              @for (option of customerTypeOptions; track option.value) {
+              <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
+            <p class="field-hint text-muted">
+              Walk-in is cash-only. Other types require selecting a customer below.
             </p>
+          </div>
+          }
+        </div>
 
-            @if (accounts().length === 0) {
-              <div class="alert-inline">
-                <agrivio-ui-alert tone="warning" message="No payment accounts are available for this POS context." />
+        <!-- Lower Grid: Find Customer, Sale Date, Notes -->
+        <div class="form-grid form-grid--3col">
+          @if (canViewCustomerField()) {
+          <div class="ag-field customer-picker" #customerPicker data-testid="sale-customer-picker">
+            <agrivio-ui-field-label label="Find Customer" for="sale-customer-trigger" />
+            <button
+              id="sale-customer-trigger"
+              type="button"
+              class="customer-picker__trigger ag-select"
+              data-testid="sale-customer"
+              [disabled]="!canEditCustomerField() || isPosted()"
+              [attr.aria-expanded]="customerDropdownOpen()"
+              aria-haspopup="listbox"
+              (click)="toggleCustomerDropdown($event)"
+            >
+              <span class="customer-picker__label">{{ selectedCustomerLabel() }}</span>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+            @if (isWalkInCustomerType()) {
+            <p class="field-hint text-muted">Not required for walk-in sales.</p>
+            } @else if (fieldError(form.controls.customerId, 'Customer', formSubmitAttempted()); as
+            customerError) {
+            <p class="field-error" role="alert">{{ customerError }}</p>
+            } @if (customerDropdownOpen()) {
+            <div
+              class="customer-picker__panel"
+              role="listbox"
+              tabindex="0"
+              data-testid="sale-customer-panel"
+              (click)="$event.stopPropagation()"
+              (keydown)="$event.stopPropagation()"
+            >
+              @if (canUseCustomerSearch()) {
+              <div class="customer-picker__search">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input
+                  id="sale-customer-search"
+                  class="customer-picker__search-input"
+                  type="search"
+                  placeholder="Search by name, phone, or ID…"
+                  data-testid="sale-customer-search"
+                  [value]="customerSearchTerm()"
+                  (input)="onCustomerSearchInput($event)"
+                />
               </div>
-            }
+              }
 
-            <!-- Payment Rows Container -->
-            @if (canAddPaymentAtPost() && payments.controls.length > 0) {
-              <div class="payment-rows-container">
-                @for (payment of payments.controls; track $index; let index = $index) {
-                  <div class="payment-row-card" [formGroup]="paymentGroup(index)">
-                    <div class="payment-row-card__header">
-                      <span class="payment-badge">Payment {{ index + 1 }}</span>
-                      <button
-                        class="ag-btn ag-btn--secondary ag-btn--danger-hover ag-btn--sm"
-                        type="button"
-                        (click)="removePayment(index)"
-                        aria-label="Remove payment"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <polyline points="3 6 5 6 21 6"></polyline>
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                        Remove
-                      </button>
-                    </div>
-
-                    <div class="form-grid form-grid--2col">
-                      <!-- Account -->
-                      <div class="ag-field">
-                        <agrivio-ui-field-label
-                          label="Payment Account"
-                          [for]="'sale-payment-account-' + index"
-                          [required]="fieldRequired(paymentGroup(index).controls['accountId'])"
-                        />
-                        <select
-                          [id]="'sale-payment-account-' + index"
-                          class="ag-select"
-                          formControlName="accountId"
-                          data-testid="sale-payment-account"
-                          [attr.aria-required]="fieldRequired(paymentGroup(index).controls['accountId']) ? 'true' : null"
-                        >
-                          <option value="">Select account</option>
-                          @for (account of accounts(); track account.id) {
-                            <option [value]="account.id">{{ account.name }} ({{ account.accountType }})</option>
-                          }
-                        </select>
-                      </div>
-
-                      <!-- Amount -->
-                      <div class="ag-field">
-                        <agrivio-ui-field-label
-                          label="Amount (PKR)"
-                          [for]="'sale-payment-amount-' + index"
-                          [required]="fieldRequired(paymentGroup(index).controls['amount'])"
-                        />
-                        <input
-                          [id]="'sale-payment-amount-' + index"
-                          class="ag-input font-mono"
-                          type="number"
-                          step="any"
-                          placeholder="0.00"
-                          formControlName="amount"
-                          data-testid="sale-payment-amount"
-                          [attr.aria-required]="fieldRequired(paymentGroup(index).controls['amount']) ? 'true' : null"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                }
+              <div class="customer-picker__options">
+                @if (!canSearchCustomers()) {
+                <p class="customer-picker__hint customer-picker__hint--muted">
+                  Select branch and warehouse before posting this sale.
+                </p>
+                } @if (customerSearchLoading()) {
+                <p class="customer-picker__hint">Loading customers…</p>
+                } @else if (customerSearchError()) {
+                <p class="customer-picker__hint customer-picker__hint--error">
+                  Unable to load customers. Try again.
+                </p>
+                } @else if (filteredCustomers().length === 0) {
+                <p class="customer-picker__hint">
+                  @if (customerSearchTerm().trim() === '') { No active customers for this customer
+                  type. } @else { No customers match &ldquo;{{ customerSearchTerm().trim()
+                  }}&rdquo;. }
+                </p>
+                } @else { @for (customer of filteredCustomers(); track customer.id) {
+                <button
+                  type="button"
+                  class="customer-picker__option"
+                  [class.is-selected]="form.controls.customerId.value === customer.id"
+                  (click)="selectCustomer(customer)"
+                  [attr.data-testid]="'sale-customer-option-' + customer.id"
+                >
+                  <span class="customer-picker__option-name">{{ customer.name }}</span>
+                  <span class="customer-picker__option-meta">{{ customer.priceTier }}</span>
+                </button>
+                } }
               </div>
+            </div>
             }
           </div>
-        </section>
+          }
 
-        <!-- Section 4: Approvals (when required) -->
-        @if (canPost() && (canApproveCreditLimit() || canApproveExpiredStock() || canOverrideNegativeStock())) {
-          <section class="form-card" data-testid="sale-approvals">
-            <div class="form-card__header">
-              <div class="form-card__icon-group">
-                <div class="form-card__icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                  </svg>
-                </div>
-                <div>
-                  <h2 class="form-card__title">Approvals (when required)</h2>
-                  <p class="form-card__subtitle">Override permissions for credit limits, expired stock, or negative stock.</p>
-                </div>
-              </div>
-            </div>
-            <div class="form-card__body">
-              <p class="approvals-help-note text-muted">
-                Provide a reason only when credit-limit, expired-stock, or negative-stock override applies.
-              </p>
+          <!-- Sale Date -->
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Sale Date"
+              for="sale-date"
+              [required]="fieldRequired(form.controls.saleDate)"
+            />
+            <input
+              id="sale-date"
+              class="ag-input"
+              type="date"
+              formControlName="saleDate"
+              data-testid="sale-date"
+              [class.ag-input--invalid]="fieldError(form.controls.saleDate, 'Sale date', formSubmitAttempted())"
+              [attr.aria-required]="fieldRequired(form.controls.saleDate) ? 'true' : null"
+              [attr.aria-invalid]="fieldError(form.controls.saleDate, 'Sale date', formSubmitAttempted()) ? 'true' : null"
+            />
+            @if (fieldError(form.controls.saleDate, 'Sale date', formSubmitAttempted()); as
+            saleDateError) {
+            <p class="field-error" role="alert">{{ saleDateError }}</p>
+            }
+          </div>
 
-              <div class="form-grid-stacked">
-                @if (canApproveCreditLimit()) {
-                  <div class="ag-field">
-                    <agrivio-ui-field-label label="Credit-limit approval reason" for="sale-credit-limit-reason" />
-                    <input
-                      id="sale-credit-limit-reason"
-                      class="ag-input"
-                      placeholder="Enter reason (required when overriding credit limit)"
-                      formControlName="creditLimitApprovalReason"
-                      data-testid="sale-credit-limit-reason"
-                    />
-                  </div>
-                }
-                @if (canApproveExpiredStock()) {
-                  <div class="ag-field">
-                    <agrivio-ui-field-label label="Expired-stock approval reason" for="sale-expired-stock-reason" />
-                    <input
-                      id="sale-expired-stock-reason"
-                      class="ag-input"
-                      placeholder="Enter reason (required when including expired stock)"
-                      formControlName="expiredStockApprovalReason"
-                      data-testid="sale-expired-stock-reason"
-                    />
-                  </div>
-                }
-                @if (canOverrideNegativeStock()) {
-                  <div class="ag-field">
-                    <agrivio-ui-field-label label="Negative-stock override reason" for="sale-negative-stock-reason" />
-                    <input
-                      id="sale-negative-stock-reason"
-                      class="ag-input"
-                      placeholder="Enter reason (required when allowing negative stock)"
-                      formControlName="negativeStockOverrideReason"
-                      data-testid="sale-negative-stock-reason"
-                    />
-                  </div>
+          <!-- Notes -->
+          @if (canViewNotesField()) {
+          <div class="ag-field">
+            <agrivio-ui-field-label label="Notes (Optional)" for="sale-notes" />
+            <textarea
+              id="sale-notes"
+              class="ag-input"
+              formControlName="notes"
+              rows="1"
+              placeholder="Add note…"
+              data-testid="sale-notes"
+            ></textarea>
+          </div>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 2: Sale Lines -->
+    <section class="form-card" data-testid="sale-lines-form-card">
+      <div class="form-card__header flex-between">
+        <div class="form-card__icon-group">
+          <div class="form-card__icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">Sale Lines</h2>
+            <p class="form-card__subtitle">
+              Add products, specify packaging units, quantities, and pricing.
+            </p>
+          </div>
+        </div>
+        <button
+          class="ag-btn ag-btn--secondary ag-btn--sm"
+          type="button"
+          (click)="addLine()"
+          data-testid="sale-add-line"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Add line
+        </button>
+      </div>
+
+      <div class="form-card__body">
+        <div class="sale-lines-list">
+          @for (line of lines.controls; track $index; let index = $index) {
+          <div class="sale-line-row" [formGroup]="lineGroup(index)">
+            <div class="sale-line-row__header">
+              <span class="line-badge">Line {{ index + 1 }}</span>
+              <button
+                class="ag-btn ag-btn--secondary ag-btn--danger-hover ag-btn--sm"
+                type="button"
+                (click)="removeLine(index)"
+                aria-label="Remove line"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path
+                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                  ></path>
+                </svg>
+                Remove
+              </button>
+            </div>
+
+            <div class="line-row-grid">
+              <!-- Filter Products -->
+              <div class="ag-field form-field--filter">
+                <agrivio-ui-field-label
+                  label="Filter Products"
+                  [for]="'sale-product-search-' + index"
+                />
+                <input
+                  [id]="'sale-product-search-' + index"
+                  class="ag-input"
+                  type="search"
+                  placeholder="Search products…"
+                  data-testid="sale-product-search"
+                  [value]="productSearchQuery()"
+                  (input)="onProductSearchInput($event)"
+                />
+              </div>
+
+              <!-- Product -->
+              <div class="ag-field form-field--product">
+                <agrivio-ui-field-label
+                  label="Product"
+                  [for]="'sale-line-product-' + index"
+                  [required]="fieldRequired(lineGroup(index).controls['productId'])"
+                />
+                <select
+                  [id]="'sale-line-product-' + index"
+                  class="ag-select"
+                  formControlName="productId"
+                  data-testid="sale-line-product"
+                  [class.ag-input--invalid]="lineFieldError(index, 'productId', 'Product')"
+                  [attr.aria-required]="fieldRequired(lineGroup(index).controls['productId']) ? 'true' : null"
+                  [attr.aria-invalid]="lineFieldError(index, 'productId', 'Product') ? 'true' : null"
+                >
+                  <option value="">Select product</option>
+                  @for (product of products(); track product.id) {
+                  <option [value]="product.id">{{ product.name }}</option>
+                  }
+                </select>
+                @if (lineFieldError(index, 'productId', 'Product'); as productError) {
+                <p class="field-error" role="alert">{{ productError }}</p>
                 }
               </div>
+
+              <!-- Packaging -->
+              @if (canViewPackagingUnitField()) {
+              <div class="ag-field form-field--packaging">
+                <agrivio-ui-field-label
+                  label="Packaging (Optional)"
+                  [for]="'sale-line-packaging-' + index"
+                />
+                <select
+                  [id]="'sale-line-packaging-' + index"
+                  class="ag-select"
+                  formControlName="packagingUnitId"
+                  data-testid="sale-line-packaging"
+                >
+                  <option value="">Base unit</option>
+                  @for (unit of packagingUnitsForLine(index); track unit.id) {
+                  <option [value]="unit.id">{{ unit.name }} (×{{ unit.conversionFactor }})</option>
+                  }
+                </select>
+              </div>
+              }
+
+              <!-- Quantity -->
+              <div class="ag-field form-field--qty">
+                <agrivio-ui-field-label
+                  label="Quantity"
+                  [for]="'sale-line-quantity-' + index"
+                  [required]="fieldRequired(lineGroup(index).controls['quantity'])"
+                />
+                <input
+                  [id]="'sale-line-quantity-' + index"
+                  class="ag-input font-mono"
+                  type="number"
+                  step="any"
+                  placeholder="0"
+                  formControlName="quantity"
+                  data-testid="sale-line-quantity"
+                  [class.ag-input--invalid]="lineFieldError(index, 'quantity', 'Quantity')"
+                  [attr.aria-required]="fieldRequired(lineGroup(index).controls['quantity']) ? 'true' : null"
+                  [attr.aria-invalid]="lineFieldError(index, 'quantity', 'Quantity') ? 'true' : null"
+                />
+                @if (lineFieldError(index, 'quantity', 'Quantity'); as quantityError) {
+                <p class="field-error" role="alert">{{ quantityError }}</p>
+                }
+              </div>
+
+              <!-- Unit Price -->
+              <div class="ag-field form-field--price">
+                <agrivio-ui-field-label
+                  label="Unit Price (PKR)"
+                  [for]="'sale-line-unit-price-' + index"
+                  [required]="fieldRequired(lineGroup(index).controls['unitPrice'])"
+                />
+                <input
+                  [id]="'sale-line-unit-price-' + index"
+                  class="ag-input font-mono"
+                  type="number"
+                  step="any"
+                  placeholder="0.00"
+                  formControlName="unitPrice"
+                  data-testid="sale-line-unit-price"
+                  [class.ag-input--invalid]="lineFieldError(index, 'unitPrice', 'Unit price')"
+                  [attr.aria-required]="fieldRequired(lineGroup(index).controls['unitPrice']) ? 'true' : null"
+                  [attr.aria-invalid]="lineFieldError(index, 'unitPrice', 'Unit price') ? 'true' : null"
+                />
+                @if (lineFieldError(index, 'unitPrice', 'Unit price'); as unitPriceError) {
+                <p class="field-error" role="alert">{{ unitPriceError }}</p>
+                }
+              </div>
+
+              <!-- Price Override Reason -->
+              @if (isDraft() && canOverridePrice()) {
+              <div class="ag-field form-field--override">
+                <agrivio-ui-field-label
+                  label="Price Override Reason (Required if price differs from tier)"
+                  [for]="'sale-line-override-reason-' + index"
+                />
+                <input
+                  [id]="'sale-line-override-reason-' + index"
+                  class="ag-input"
+                  placeholder="Enter reason (optional)"
+                  formControlName="priceOverrideReason"
+                  data-testid="sale-line-override-reason"
+                />
+              </div>
+              }
             </div>
-          </section>
+          </div>
+          }
+        </div>
+
+        <button class="ag-btn ag-btn--secondary add-line-btn" type="button" (click)="addLine()">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Add another line
+        </button>
+      </div>
+    </section>
+
+    <!-- Section 3: Payments at Post -->
+    <section class="form-card" data-testid="sale-payments">
+      <div class="form-card__header flex-between">
+        <div class="form-card__icon-group">
+          <div class="form-card__icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+              <line x1="1" y1="10" x2="23" y2="10"></line>
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">Payments at Post</h2>
+            <p class="form-card__subtitle">Tender settlements, full cash fill, or credit sales.</p>
+          </div>
+        </div>
+        @if (canAddPaymentAtPost()) {
+        <button
+          class="ag-btn ag-btn--secondary ag-btn--sm"
+          type="button"
+          (click)="addPayment()"
+          data-testid="sale-add-payment"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Add payment
+        </button>
+        }
+      </div>
+
+      <div class="form-card__body">
+        <!-- Draft Estimate & Quick Tenders -->
+        <div class="payment-control-bar">
+          <p class="cart-estimate-text" data-testid="sale-cart-estimate">
+            Cart total (draft estimate): <strong>{{ cartEstimate() }} PKR</strong>. Posted totals
+            come from the server.
+          </p>
+          <div class="quick-tender-actions">
+            @if (canAddPaymentAtPost()) {
+            <button
+              class="ag-btn ag-btn--secondary ag-btn--sm"
+              type="button"
+              (click)="fillFullCash()"
+              data-testid="sale-fill-cash"
+            >
+              Full cash
+            </button>
+            } @if (canSellOnCredit()) {
+            <button
+              class="ag-btn ag-btn--secondary ag-btn--sm"
+              type="button"
+              (click)="clearPaymentsForCredit()"
+              data-testid="sale-fill-credit"
+            >
+              Credit (no payment)
+            </button>
+            }
+          </div>
+        </div>
+
+        <p class="payment-help-note text-muted">
+          Leave empty for full credit when a credit-enabled customer is selected. Walk-in sales
+          require full payment. Use Add payment for partial or mixed tenders. The server is
+          authoritative.
+        </p>
+
+        @if (accounts().length === 0) {
+        <div class="alert-inline">
+          <agrivio-ui-alert
+            tone="warning"
+            message="No payment accounts are available for this POS context."
+          />
+        </div>
         }
 
-        <!-- Form Action Footer -->
-        <footer class="form-actions">
-          @if (canPost() && isDraft()) {
-            <button
-              class="ag-btn ag-btn--primary"
-              type="button"
-              [disabled]="posting() || saving()"
-              (click)="post()"
-              data-testid="sale-post"
+        <!-- Payment Rows Container -->
+        @if (canAddPaymentAtPost() && payments.controls.length > 0) {
+        <div class="payment-rows-container">
+          @for (payment of payments.controls; track $index; let index = $index) {
+          <div class="payment-row-card" [formGroup]="paymentGroup(index)">
+            <div class="payment-row-card__header">
+              <span class="payment-badge">Payment {{ index + 1 }}</span>
+              <button
+                class="ag-btn ag-btn--secondary ag-btn--danger-hover ag-btn--sm"
+                type="button"
+                (click)="removePayment(index)"
+                aria-label="Remove payment"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path
+                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                  ></path>
+                </svg>
+                Remove
+              </button>
+            </div>
+
+            <div class="form-grid form-grid--2col">
+              <!-- Account -->
+              <div class="ag-field">
+                <agrivio-ui-field-label
+                  label="Payment Account"
+                  [for]="'sale-payment-account-' + index"
+                  [required]="fieldRequired(paymentGroup(index).controls['accountId'])"
+                />
+                <select
+                  [id]="'sale-payment-account-' + index"
+                  class="ag-select"
+                  formControlName="accountId"
+                  data-testid="sale-payment-account"
+                  [attr.aria-required]="fieldRequired(paymentGroup(index).controls['accountId']) ? 'true' : null"
+                >
+                  <option value="">Select account</option>
+                  @for (account of accounts(); track account.id) {
+                  <option [value]="account.id">
+                    {{ account.name }} ({{ account.accountType }})
+                  </option>
+                  }
+                </select>
+              </div>
+
+              <!-- Amount -->
+              <div class="ag-field">
+                <agrivio-ui-field-label
+                  label="Amount (PKR)"
+                  [for]="'sale-payment-amount-' + index"
+                  [required]="fieldRequired(paymentGroup(index).controls['amount'])"
+                />
+                <input
+                  [id]="'sale-payment-amount-' + index"
+                  class="ag-input font-mono"
+                  type="number"
+                  step="any"
+                  placeholder="0.00"
+                  formControlName="amount"
+                  data-testid="sale-payment-amount"
+                  [attr.aria-required]="fieldRequired(paymentGroup(index).controls['amount']) ? 'true' : null"
+                />
+              </div>
+            </div>
+          </div>
+          }
+        </div>
+        }
+      </div>
+    </section>
+
+    <!-- Section 4: Approvals (when required) -->
+    @if (canPost() && (canApproveCreditLimit() || canApproveExpiredStock() ||
+    canOverrideNegativeStock())) {
+    <section class="form-card" data-testid="sale-approvals">
+      <div class="form-card__header">
+        <div class="form-card__icon-group">
+          <div class="form-card__icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
-              {{ posting() ? 'Registering…' : (saleId() ? 'Post Sale' : 'Register Sale') }}
-            </button>
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">Approvals (when required)</h2>
+            <p class="form-card__subtitle">
+              Override permissions for credit limits, expired stock, or negative stock.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="form-card__body">
+        <p class="approvals-help-note text-muted">
+          Provide a reason only when credit-limit, expired-stock, or negative-stock override
+          applies.
+        </p>
+
+        <div class="form-grid-stacked">
+          @if (canApproveCreditLimit()) {
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Credit-limit approval reason"
+              for="sale-credit-limit-reason"
+            />
+            <input
+              id="sale-credit-limit-reason"
+              class="ag-input"
+              placeholder="Enter reason (required when overriding credit limit)"
+              formControlName="creditLimitApprovalReason"
+              data-testid="sale-credit-limit-reason"
+            />
+          </div>
+          } @if (canApproveExpiredStock()) {
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Expired-stock approval reason"
+              for="sale-expired-stock-reason"
+            />
+            <input
+              id="sale-expired-stock-reason"
+              class="ag-input"
+              placeholder="Enter reason (required when including expired stock)"
+              formControlName="expiredStockApprovalReason"
+              data-testid="sale-expired-stock-reason"
+            />
+          </div>
+          } @if (canOverrideNegativeStock()) {
+          <div class="ag-field">
+            <agrivio-ui-field-label
+              label="Negative-stock override reason"
+              for="sale-negative-stock-reason"
+            />
+            <input
+              id="sale-negative-stock-reason"
+              class="ag-input"
+              placeholder="Enter reason (required when allowing negative stock)"
+              formControlName="negativeStockOverrideReason"
+              data-testid="sale-negative-stock-reason"
+            />
+          </div>
           }
-          @if (saleId() ? canEditDraft() : canCreateDraft()) {
-            <button class="ag-btn ag-btn--secondary" type="submit" [disabled]="!canSaveDraft()" data-testid="sale-save">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                <polyline points="7 3 7 8 15 8"></polyline>
-              </svg>
-              {{ saving() ? 'Saving…' : 'Save Draft' }}
-            </button>
-          }
-          @if (saleId() && canDiscardDraft()) {
-            <button
-              class="ag-btn ag-btn--secondary ag-btn--danger-hover"
-              type="button"
-              [disabled]="discarding()"
-              (click)="discard()"
-              data-testid="sale-discard"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-              </svg>
-              {{ discarding() ? 'Discarding…' : 'Discard Draft' }}
-            </button>
-          }
-          <a class="ag-btn ag-btn--secondary" [routerLink]="saleId() ? ['/app/sales', saleId()] : ['/app/sales']">Cancel</a>
-        </footer>
-      </form>
+        </div>
+      </div>
+    </section>
     }
-  }
+
+    <!-- Form Action Footer -->
+    <footer class="form-actions">
+      @if (canPost() && isDraft()) {
+      <button
+        class="ag-btn ag-btn--primary"
+        type="button"
+        [disabled]="posting() || saving()"
+        (click)="post()"
+        data-testid="sale-post"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        {{ posting() ? 'Registering…' : (saleId() ? 'Post Sale' : 'Register Sale') }}
+      </button>
+      } @if (saleId() ? canEditDraft() : canCreateDraft()) {
+      <button
+        class="ag-btn ag-btn--secondary"
+        type="submit"
+        [disabled]="!canSaveDraft()"
+        data-testid="sale-save"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+          <polyline points="17 21 17 13 7 13 7 21"></polyline>
+          <polyline points="7 3 7 8 15 8"></polyline>
+        </svg>
+        {{ saving() ? 'Saving…' : 'Save Draft' }}
+      </button>
+      } @if (saleId() && canDiscardDraft()) {
+      <button
+        class="ag-btn ag-btn--secondary ag-btn--danger-hover"
+        type="button"
+        [disabled]="discarding()"
+        (click)="discard()"
+        data-testid="sale-discard"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path
+            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+          ></path>
+        </svg>
+        {{ discarding() ? 'Discarding…' : 'Discard Draft' }}
+      </button>
+      }
+      <a
+        class="ag-btn ag-btn--secondary"
+        [routerLink]="saleId() ? ['/app/sales', saleId()] : ['/app/sales']"
+        >Cancel</a
+      >
+    </footer>
+  </form>
+  } }
 
   <!-- Confirm Dialogs -->
   <agrivio-ui-confirm-dialog

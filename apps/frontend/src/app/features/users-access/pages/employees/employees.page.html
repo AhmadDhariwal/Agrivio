@@ -10,7 +10,8 @@
         >
       </div>
       <p class="page-head__lede">
-        Manage organization employees, their roles, and Branch/Warehouse access. Super Admin is platform-only.
+        Manage organization employees, their roles, and Branch/Warehouse access. Super Admin is
+        platform-only.
       </p>
     </div>
     <div class="page-head__actions">
@@ -38,9 +39,7 @@
         </svg>
         <span class="btn-text-full">Refresh</span>
       </button>
-      }
-
-      @if (canCreate()) {
+      } @if (canCreate()) {
       <a
         class="ag-btn ag-btn--primary page-head__add-btn"
         routerLink="/app/employees/new"
@@ -75,18 +74,14 @@
   <div class="alert-container">
     <agrivio-ui-alert tone="success" [message]="success" />
   </div>
-  }
-
-  @if (showModuleInfo()) {
+  } @if (showModuleInfo()) {
   <agrivio-ui-module-info
     [title]="infoTitle"
     [description]="infoDescription"
     [items]="infoItems"
     [defaultExpanded]="false"
   />
-  }
-
-  @if (showKpiCards() && !loading()) {
+  } @if (showKpiCards() && !loading()) {
   <!-- KPI Summary Row -->
   <section class="kpi-row" aria-label="Employees Summary" data-testid="employees-kpi-row">
     <div class="kpi-card">
@@ -109,7 +104,9 @@
       </div>
       <div class="kpi-card__content">
         <span class="kpi-card__label">Total Employees</span>
-        <span class="kpi-card__value" data-testid="kpi-total-employees">{{ kpiSummary() ? kpiSummary()!.total : '—' }}</span>
+        <span class="kpi-card__value" data-testid="kpi-total-employees"
+          >{{ kpiSummary() ? kpiSummary()!.total : '—' }}</span
+        >
       </div>
     </div>
 
@@ -131,7 +128,9 @@
       </div>
       <div class="kpi-card__content">
         <span class="kpi-card__label">Active Members</span>
-        <span class="kpi-card__value" data-testid="kpi-active-employees">{{ kpiSummary() ? kpiSummary()!.active : '—' }}</span>
+        <span class="kpi-card__value" data-testid="kpi-active-employees"
+          >{{ kpiSummary() ? kpiSummary()!.active : '—' }}</span
+        >
       </div>
     </div>
 
@@ -154,7 +153,9 @@
       </div>
       <div class="kpi-card__content">
         <span class="kpi-card__label">Pending / Inactive</span>
-        <span class="kpi-card__value" data-testid="kpi-pending-inactive-employees">{{ kpiSummary() ? kpiSummary()!.pendingInactive : '—' }}</span>
+        <span class="kpi-card__value" data-testid="kpi-pending-inactive-employees"
+          >{{ kpiSummary() ? kpiSummary()!.pendingInactive : '—' }}</span
+        >
       </div>
     </div>
   </section>
@@ -208,9 +209,7 @@
           </button>
           }
         </div>
-        }
-
-        @if (showStatusFilter()) {
+        } @if (showStatusFilter()) {
         <div class="select-field">
           <select
             class="select-field__input"
@@ -224,9 +223,7 @@
             <option value="deactivated">Deactivated</option>
           </select>
         </div>
-        }
-
-        @if (showRoleFilter()) {
+        } @if (showRoleFilter()) {
         <div class="select-field">
           <select
             class="select-field__input"
@@ -252,9 +249,7 @@
       </div>
 
       <div class="toolbar__right">
-        <span class="results-count">
-          Showing {{ visibleItems().length }} of {{ total() }}
-        </span>
+        <span class="results-count"> Showing {{ visibleItems().length }} of {{ total() }} </span>
       </div>
     </div>
 
@@ -303,9 +298,7 @@
         </button>
         }
       </div>
-      }
-
-      @if (showStatusFilter() || showRoleFilter()) {
+      } @if (showStatusFilter() || showRoleFilter()) {
       <div class="toolbar__mobile-row">
         @if (showStatusFilter()) {
         <select
@@ -319,9 +312,7 @@
           <option value="pending">Pending</option>
           <option value="deactivated">Deactivated</option>
         </select>
-        }
-
-        @if (showRoleFilter()) {
+        } @if (showRoleFilter()) {
         <select
           class="select-field__input"
           [value]="roleFilter()"
@@ -334,9 +325,7 @@
           <option value="Cashier">Cashier</option>
           <option value="StoreKeeper">Store Keeper</option>
         </select>
-        }
-
-        @if (hasActiveFilters()) {
+        } @if (hasActiveFilters()) {
         <button type="button" class="mobile-clear-btn" (click)="clearFilters()">Reset</button>
         }
       </div>
@@ -379,20 +368,15 @@
           <th scope="col" class="emp-table__th emp-table__th--employee">Employee</th>
           @if (showEmail()) {
           <th scope="col" class="emp-table__th emp-table__th--email">Email</th>
-          }
-          @if (showRole()) {
+          } @if (showRole()) {
           <th scope="col" class="emp-table__th emp-table__th--role">Role</th>
-          }
-          @if (showBranchAccess()) {
+          } @if (showBranchAccess()) {
           <th scope="col" class="emp-table__th emp-table__th--branches">Branch Access</th>
-          }
-          @if (showWarehouseAccess()) {
+          } @if (showWarehouseAccess()) {
           <th scope="col" class="emp-table__th emp-table__th--warehouses">Warehouse Access</th>
-          }
-          @if (showStatus()) {
+          } @if (showStatus()) {
           <th scope="col" class="emp-table__th emp-table__th--status">Status</th>
-          }
-          @if (showActions()) {
+          } @if (showActions()) {
           <th scope="col" class="emp-table__th emp-table__th--actions">Actions</th>
           }
         </tr>
@@ -422,7 +406,9 @@
                 </svg>
               </div>
               <div class="emp-cell__meta">
-                <span class="emp-cell__name" [title]="item.displayName">{{ item.displayName }}</span>
+                <span class="emp-cell__name" [title]="item.displayName"
+                  >{{ item.displayName }}</span
+                >
                 @if (item.userStatus === 'pending_activation') {
                 <span class="emp-cell__sub">Activation pending</span>
                 }
@@ -434,9 +420,7 @@
           <td class="emp-table__td emp-table__td--email">
             <span class="email-text" [title]="item.email">{{ item.email }}</span>
           </td>
-          }
-
-          @if (showRole()) {
+          } @if (showRole()) {
           <td class="emp-table__td emp-table__td--role">
             <span
               class="role-badge"
@@ -448,21 +432,15 @@
               {{ formatRole(item.role) }}
             </span>
           </td>
-          }
-
-          @if (showBranchAccess()) {
+          } @if (showBranchAccess()) {
           <td class="emp-table__td emp-table__td--branches">
             <span class="access-pill">{{ formatBranchAccess(item) }}</span>
           </td>
-          }
-
-          @if (showWarehouseAccess()) {
+          } @if (showWarehouseAccess()) {
           <td class="emp-table__td emp-table__td--warehouses">
             <span class="access-pill">{{ formatWarehouseAccess(item) }}</span>
           </td>
-          }
-
-          @if (showStatus()) {
+          } @if (showStatus()) {
           <td class="emp-table__td emp-table__td--status">
             <span
               class="status-indicator"
@@ -474,9 +452,7 @@
               {{ formatStatus(item.status) }}
             </span>
           </td>
-          }
-
-          @if (showActions()) {
+          } @if (showActions()) {
           <td class="emp-table__td emp-table__td--actions">
             <div class="row-actions">
               @if (rowCanUpdate(item)) {
@@ -501,9 +477,7 @@
                   <path d="m15 5 4 4" />
                 </svg>
               </a>
-              }
-
-              @if (rowCanInspect(item)) {
+              } @if (rowCanInspect(item)) {
               <a
                 class="row-action-btn"
                 [routerLink]="['/app/employees', item.id]"
@@ -587,10 +561,7 @@
   <!-- Mobile Card View (< 768px) -->
   <div class="mobile-cards">
     @for (item of visibleItems(); track item.id) {
-    <article
-      class="emp-card"
-      [class.emp-card--deactivated]="item.status === 'deactivated'"
-    >
+    <article class="emp-card" [class.emp-card--deactivated]="item.status === 'deactivated'">
       <div class="emp-card__head">
         <div class="emp-card__name-group">
           <h2 class="emp-card__name">{{ item.displayName }}</h2>
@@ -625,16 +596,12 @@
             {{ formatStatus(item.status) }}
           </span>
         </div>
-        }
-
-        @if (showBranchAccess()) {
+        } @if (showBranchAccess()) {
         <div class="emp-card__row">
           <span class="emp-card__label">Branches</span>
           <span class="emp-card__val">{{ formatBranchAccess(item) }}</span>
         </div>
-        }
-
-        @if (showWarehouseAccess()) {
+        } @if (showWarehouseAccess()) {
         <div class="emp-card__row">
           <span class="emp-card__label">Warehouses</span>
           <span class="emp-card__val">{{ formatWarehouseAccess(item) }}</span>
@@ -645,16 +612,20 @@
       @if (showActions()) {
       <div class="emp-card__foot">
         @if (rowCanUpdate(item)) {
-        <a class="ag-btn ag-btn--secondary emp-card__btn" [routerLink]="['/app/employees', item.id, 'edit']">
+        <a
+          class="ag-btn ag-btn--secondary emp-card__btn"
+          [routerLink]="['/app/employees', item.id, 'edit']"
+        >
           Edit
         </a>
-        }
-        @if (rowCanInspect(item)) {
-        <a class="ag-btn ag-btn--secondary emp-card__btn" [routerLink]="['/app/employees', item.id]">
+        } @if (rowCanInspect(item)) {
+        <a
+          class="ag-btn ag-btn--secondary emp-card__btn"
+          [routerLink]="['/app/employees', item.id]"
+        >
           View
         </a>
-        }
-        @if (rowCanDeactivate(item)) {
+        } @if (rowCanDeactivate(item)) {
         <button
           type="button"
           class="ag-btn ag-btn--danger-outline emp-card__btn"

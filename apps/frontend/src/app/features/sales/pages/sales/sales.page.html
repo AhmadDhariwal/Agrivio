@@ -6,45 +6,46 @@
       <div class="page-head__heading-wrap">
         <h1 class="page-head__title">Sales / POS</h1>
         @if (total() > 0) {
-          <span class="page-head__count-pill" aria-label="Total sales">{{ total() }} sales</span>
+        <span class="page-head__count-pill" aria-label="Total sales">{{ total() }} sales</span>
         }
       </div>
       <p class="page-head__lede">
-        Create drafts, post cashier sales, and print posted invoices. Posted values come from sale snapshots.
+        Create drafts, post cashier sales, and print posted invoices. Posted values come from sale
+        snapshots.
       </p>
     </div>
     <div class="page-head__actions">
       @if (canCreate()) {
-        <a
-          class="ag-btn ag-btn--primary page-head__add-btn"
-          routerLink="/app/sales/new"
-          data-testid="sale-create-link"
+      <a
+        class="ag-btn ag-btn--primary page-head__add-btn"
+        routerLink="/app/sales/new"
+        data-testid="sale-create-link"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
         >
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-          <span class="btn-text-full">New POS sale</span>
-          <span class="btn-text-mobile">New</span>
-        </a>
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span class="btn-text-full">New POS sale</span>
+        <span class="btn-text-mobile">New</span>
+      </a>
       }
     </div>
   </header>
 
   <!-- Alerts -->
   @if (errorMessage(); as error) {
-    <div class="alert-container">
-      <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-    </div>
+  <div class="alert-container">
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  </div>
   }
 
   <!-- Module Information Section -->
@@ -57,236 +58,178 @@
 
   <!-- Filter & Search Toolbar -->
   @if (canSearch() || canFilterStatus()) {
-    <section class="toolbar" aria-label="Filters and view controls">
-      <div class="toolbar__left">
-        <!-- Search Input -->
-        @if (canSearch()) {
-          <div class="search-field">
-            <agrivio-ui-search-input
-              [value]="search()"
-              (searchChange)="onSearchChange($event)"
-              placeholder="Search invoice number…"
-              ariaLabel="Search invoice number"
-            />
-          </div>
-        }
-
-        <!-- Status Filter -->
-        @if (canFilterStatus()) {
-          <div class="select-field">
-            <select
-              class="select-field__input"
-              [value]="status()"
-              (change)="onStatusChange($event)"
-              aria-label="Filter by status"
-            >
-              <option value="">All Statuses</option>
-              <option value="draft">Draft</option>
-              <option value="posted">Posted</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
-        }
-
-        <!-- Clear Filters Button -->
-        @if (hasActiveFilters()) {
-          <button class="clear-filters-btn" type="button" (click)="clearFilters()">
-            Clear filters
-          </button>
-        }
+  <section class="toolbar" aria-label="Filters and view controls">
+    <div class="toolbar__left">
+      <!-- Search Input -->
+      @if (canSearch()) {
+      <div class="search-field">
+        <agrivio-ui-search-input
+          [value]="search()"
+          (searchChange)="onSearchChange($event)"
+          placeholder="Search invoice number…"
+          ariaLabel="Search invoice number"
+        />
       </div>
+      }
 
-      <div class="toolbar__right">
-        <button
-          type="button"
-          class="refresh-btn"
-          (click)="reload(true)"
-          title="Refresh sales list"
-          aria-label="Refresh sales list"
+      <!-- Status Filter -->
+      @if (canFilterStatus()) {
+      <div class="select-field">
+        <select
+          class="select-field__input"
+          [value]="status()"
+          (change)="onStatusChange($event)"
+          aria-label="Filter by status"
         >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-          </svg>
-          <span class="btn-text-full">Refresh</span>
-        </button>
+          <option value="">All Statuses</option>
+          <option value="draft">Draft</option>
+          <option value="posted">Posted</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
       </div>
-    </section>
+      }
+
+      <!-- Clear Filters Button -->
+      @if (hasActiveFilters()) {
+      <button class="clear-filters-btn" type="button" (click)="clearFilters()">
+        Clear filters
+      </button>
+      }
+    </div>
+
+    <div class="toolbar__right">
+      <button
+        type="button"
+        class="refresh-btn"
+        (click)="reload(true)"
+        title="Refresh sales list"
+        aria-label="Refresh sales list"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+        </svg>
+        <span class="btn-text-full">Refresh</span>
+      </button>
+    </div>
+  </section>
   }
 
   <!-- Content States -->
   @if (loading()) {
-    <div class="state-container">
-      <agrivio-ui-loading-state label="Loading sales…" />
-    </div>
+  <div class="state-container">
+    <agrivio-ui-loading-state label="Loading sales…" />
+  </div>
   } @else if (items().length === 0) {
-    <!-- Empty State -->
-    <div class="state-container" data-testid="sales-empty">
-      <agrivio-ui-empty-state
-        [title]="hasActiveFilters() ? 'No sales match your filters' : 'No sales yet'"
-        [message]="hasActiveFilters() ? 'Try adjusting your search criteria or status filter.' : 'Create a draft to prepare a sale before posting.'"
-      />
-    </div>
+  <!-- Empty State -->
+  <div class="state-container" data-testid="sales-empty">
+    <agrivio-ui-empty-state
+      [title]="hasActiveFilters() ? 'No sales match your filters' : 'No sales yet'"
+      [message]="hasActiveFilters() ? 'Try adjusting your search criteria or status filter.' : 'Create a draft to prepare a sale before posting.'"
+    />
+  </div>
   } @else {
-    <!-- VIEW MODE: TABLE (Desktop / Tablet) -->
-    <div class="table-container desktop-table" data-testid="sales-list">
-      <table class="sales-table" aria-label="Sales list">
-        <colgroup>
-          <col class="col-invoice" />
-          <col class="col-customer" />
-          <col class="col-branch" />
-          <col class="col-date" />
-          <col class="col-total" />
-          <col class="col-status" />
-          <col class="col-actions" />
-        </colgroup>
-        <thead>
-          <tr>
-            <th scope="col" class="sales-table__th sales-table__th--invoice">Invoice / ID</th>
-            <th scope="col" class="sales-table__th sales-table__th--customer">Customer</th>
-            <th scope="col" class="sales-table__th sales-table__th--branch">Branch</th>
-            <th scope="col" class="sales-table__th sales-table__th--date">Date</th>
-            <th scope="col" class="sales-table__th sales-table__th--total text-right">Total</th>
-            <th scope="col" class="sales-table__th sales-table__th--status">Status</th>
-            <th scope="col" class="sales-table__th sales-table__th--actions">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (item of items(); track item.id) {
-            <tr class="sales-table__row" data-testid="sale-row">
-              <!-- Invoice Number / Draft Identifier -->
-              <td class="sales-table__td sales-table__td--invoice">
-                <div class="invoice-cell">
-                  @if (item.invoiceNumber) {
-                    <span class="invoice-number font-semibold text-primary">{{ item.invoiceNumber }}</span>
-                  } @else {
-                    <span class="draft-badge">Draft #{{ item.id.slice(0, 8) }}</span>
-                  }
-                </div>
-              </td>
-
-              <!-- Customer -->
-              <td class="sales-table__td sales-table__td--customer">
-                <div class="customer-cell">
-                  <strong class="customer-name">{{ displayTitle(item) }}</strong>
-                  @if (item.priceTierSnapshot) {
-                    <span class="customer-tier text-muted">Tier: {{ item.priceTierSnapshot }}</span>
-                  }
-                </div>
-              </td>
-
-              <!-- Branch / Location -->
-              <td class="sales-table__td sales-table__td--branch">
-                <div class="location-cell">
-                  <span>{{ item.branchNameSnapshot || '—' }}</span>
-                  @if (item.warehouseNameSnapshot) {
-                    <span class="location-sub text-muted">{{ item.warehouseNameSnapshot }}</span>
-                  }
-                </div>
-              </td>
-
-              <!-- Date -->
-              <td class="sales-table__td sales-table__td--date">
-                <span class="date-text tabular-num text-muted">{{ item.saleDate }}</span>
-              </td>
-
-              <!-- Total -->
-              <td class="sales-table__td sales-table__td--total text-right tabular-num font-semibold">
-                {{ formatCurrency(item.saleTotal) }}
-              </td>
-
-              <!-- Status -->
-              <td class="sales-table__td sales-table__td--status">
-                <agrivio-ui-status-badge
-                  [label]="statusLabel(item.status)"
-                  [tone]="statusTone(item.status)"
-                />
-              </td>
-
-              <!-- Actions -->
-              <td class="sales-table__td sales-table__td--actions">
-                <div class="action-btn-group">
-                  @if (canInspect()) {
-                    <a class="ag-btn ag-btn--secondary ag-btn--sm" [routerLink]="['/app/sales', item.id]">
-                      View
-                    </a>
-                  }
-                  @if (item.status === 'draft' && canEditDraft()) {
-                    <a class="ag-btn ag-btn--secondary ag-btn--sm" [routerLink]="['/app/sales', item.id, 'edit']">
-                      Edit draft
-                    </a>
-                  }
-                  @if (canPrint() && (item.status === 'posted' || item.status === 'cancelled') && item.invoiceNumber) {
-                    <a
-                      class="ag-btn ag-btn--secondary ag-btn--sm"
-                      [routerLink]="['/app/sales', item.id, 'print']"
-                      data-testid="sale-list-print"
-                    >
-                      Print
-                    </a>
-                  }
-                </div>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-
-    <!-- VIEW MODE: MOBILE CARDS (< 768px) -->
-    <div class="mobile-cards mobile-only" data-testid="sales-mobile-list">
-      @for (item of items(); track item.id) {
-        <article class="sale-card" data-testid="sale-row">
-          <div class="sale-card__header">
-            <div>
+  <!-- VIEW MODE: TABLE (Desktop / Tablet) -->
+  <div class="table-container desktop-table" data-testid="sales-list">
+    <table class="sales-table" aria-label="Sales list">
+      <colgroup>
+        <col class="col-invoice" />
+        <col class="col-customer" />
+        <col class="col-branch" />
+        <col class="col-date" />
+        <col class="col-total" />
+        <col class="col-status" />
+        <col class="col-actions" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col" class="sales-table__th sales-table__th--invoice">Invoice / ID</th>
+          <th scope="col" class="sales-table__th sales-table__th--customer">Customer</th>
+          <th scope="col" class="sales-table__th sales-table__th--branch">Branch</th>
+          <th scope="col" class="sales-table__th sales-table__th--date">Date</th>
+          <th scope="col" class="sales-table__th sales-table__th--total text-right">Total</th>
+          <th scope="col" class="sales-table__th sales-table__th--status">Status</th>
+          <th scope="col" class="sales-table__th sales-table__th--actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of items(); track item.id) {
+        <tr class="sales-table__row" data-testid="sale-row">
+          <!-- Invoice Number / Draft Identifier -->
+          <td class="sales-table__td sales-table__td--invoice">
+            <div class="invoice-cell">
               @if (item.invoiceNumber) {
-                <span class="sale-card__invoice font-semibold text-primary tabular-num">{{ item.invoiceNumber }}</span>
+              <span class="invoice-number font-semibold text-primary"
+                >{{ item.invoiceNumber }}</span
+              >
               } @else {
-                <span class="draft-badge">Draft #{{ item.id.slice(0, 8) }}</span>
+              <span class="draft-badge">Draft #{{ item.id.slice(0, 8) }}</span>
               }
-              <h2 class="sale-card__customer">{{ displayTitle(item) }}</h2>
             </div>
+          </td>
+
+          <!-- Customer -->
+          <td class="sales-table__td sales-table__td--customer">
+            <div class="customer-cell">
+              <strong class="customer-name">{{ displayTitle(item) }}</strong>
+              @if (item.priceTierSnapshot) {
+              <span class="customer-tier text-muted">Tier: {{ item.priceTierSnapshot }}</span>
+              }
+            </div>
+          </td>
+
+          <!-- Branch / Location -->
+          <td class="sales-table__td sales-table__td--branch">
+            <div class="location-cell">
+              <span>{{ item.branchNameSnapshot || '—' }}</span>
+              @if (item.warehouseNameSnapshot) {
+              <span class="location-sub text-muted">{{ item.warehouseNameSnapshot }}</span>
+              }
+            </div>
+          </td>
+
+          <!-- Date -->
+          <td class="sales-table__td sales-table__td--date">
+            <span class="date-text tabular-num text-muted">{{ item.saleDate }}</span>
+          </td>
+
+          <!-- Total -->
+          <td class="sales-table__td sales-table__td--total text-right tabular-num font-semibold">
+            {{ formatCurrency(item.saleTotal) }}
+          </td>
+
+          <!-- Status -->
+          <td class="sales-table__td sales-table__td--status">
             <agrivio-ui-status-badge
               [label]="statusLabel(item.status)"
               [tone]="statusTone(item.status)"
             />
-          </div>
+          </td>
 
-          <div class="sale-card__body">
-            <div class="sale-card__row">
-              <span class="sale-card__label">Branch</span>
-              <span class="sale-card__value">{{ item.branchNameSnapshot || '—' }}</span>
-            </div>
-            <div class="sale-card__row">
-              <span class="sale-card__label">Date</span>
-              <span class="sale-card__value tabular-num">{{ item.saleDate }}</span>
-            </div>
-            <div class="sale-card__row sale-card__row--highlight">
-              <span class="sale-card__label">Total</span>
-              <span class="sale-card__value tabular-num font-bold">{{ formatCurrency(item.saleTotal) }}</span>
-            </div>
-          </div>
-
-          <div class="sale-card__actions">
-            @if (canInspect()) {
+          <!-- Actions -->
+          <td class="sales-table__td sales-table__td--actions">
+            <div class="action-btn-group">
+              @if (canInspect()) {
               <a class="ag-btn ag-btn--secondary ag-btn--sm" [routerLink]="['/app/sales', item.id]">
                 View
               </a>
-            }
-            @if (item.status === 'draft' && canEditDraft()) {
-              <a class="ag-btn ag-btn--secondary ag-btn--sm" [routerLink]="['/app/sales', item.id, 'edit']">
+              } @if (item.status === 'draft' && canEditDraft()) {
+              <a
+                class="ag-btn ag-btn--secondary ag-btn--sm"
+                [routerLink]="['/app/sales', item.id, 'edit']"
+              >
                 Edit draft
               </a>
-            }
-            @if (canPrint() && (item.status === 'posted' || item.status === 'cancelled') && item.invoiceNumber) {
+              } @if (canPrint() && (item.status === 'posted' || item.status === 'cancelled') &&
+              item.invoiceNumber) {
               <a
                 class="ag-btn ag-btn--secondary ag-btn--sm"
                 [routerLink]="['/app/sales', item.id, 'print']"
@@ -294,20 +237,88 @@
               >
                 Print
               </a>
-            }
-          </div>
-        </article>
-      }
-    </div>
+              }
+            </div>
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
 
-    <!-- Server Pagination -->
-    <agrivio-ui-pagination
-      [page]="page()"
-      [pageSize]="pageSize()"
-      [total]="total()"
-      [disabled]="loading()"
-      (pageChange)="onPageChange($event)"
-      (pageSizeChange)="onPageSizeChange($event)"
-    />
+  <!-- VIEW MODE: MOBILE CARDS (< 768px) -->
+  <div class="mobile-cards mobile-only" data-testid="sales-mobile-list">
+    @for (item of items(); track item.id) {
+    <article class="sale-card" data-testid="sale-row">
+      <div class="sale-card__header">
+        <div>
+          @if (item.invoiceNumber) {
+          <span class="sale-card__invoice font-semibold text-primary tabular-num"
+            >{{ item.invoiceNumber }}</span
+          >
+          } @else {
+          <span class="draft-badge">Draft #{{ item.id.slice(0, 8) }}</span>
+          }
+          <h2 class="sale-card__customer">{{ displayTitle(item) }}</h2>
+        </div>
+        <agrivio-ui-status-badge
+          [label]="statusLabel(item.status)"
+          [tone]="statusTone(item.status)"
+        />
+      </div>
+
+      <div class="sale-card__body">
+        <div class="sale-card__row">
+          <span class="sale-card__label">Branch</span>
+          <span class="sale-card__value">{{ item.branchNameSnapshot || '—' }}</span>
+        </div>
+        <div class="sale-card__row">
+          <span class="sale-card__label">Date</span>
+          <span class="sale-card__value tabular-num">{{ item.saleDate }}</span>
+        </div>
+        <div class="sale-card__row sale-card__row--highlight">
+          <span class="sale-card__label">Total</span>
+          <span class="sale-card__value tabular-num font-bold"
+            >{{ formatCurrency(item.saleTotal) }}</span
+          >
+        </div>
+      </div>
+
+      <div class="sale-card__actions">
+        @if (canInspect()) {
+        <a class="ag-btn ag-btn--secondary ag-btn--sm" [routerLink]="['/app/sales', item.id]">
+          View
+        </a>
+        } @if (item.status === 'draft' && canEditDraft()) {
+        <a
+          class="ag-btn ag-btn--secondary ag-btn--sm"
+          [routerLink]="['/app/sales', item.id, 'edit']"
+        >
+          Edit draft
+        </a>
+        } @if (canPrint() && (item.status === 'posted' || item.status === 'cancelled') &&
+        item.invoiceNumber) {
+        <a
+          class="ag-btn ag-btn--secondary ag-btn--sm"
+          [routerLink]="['/app/sales', item.id, 'print']"
+          data-testid="sale-list-print"
+        >
+          Print
+        </a>
+        }
+      </div>
+    </article>
+    }
+  </div>
+
+  <!-- Server Pagination -->
+  <agrivio-ui-pagination
+    [page]="page()"
+    [pageSize]="pageSize()"
+    [total]="total()"
+    [disabled]="loading()"
+    (pageChange)="onPageChange($event)"
+    (pageSizeChange)="onPageSizeChange($event)"
+  />
   }
 </div>

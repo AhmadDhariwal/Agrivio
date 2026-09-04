@@ -8,10 +8,11 @@ function normalizeTargetId(value) {
   if (value === undefined || value === null) {
     return null;
   }
-  if (typeof value !== 'string' || value.trim() === '') {
+  const text = typeof value === 'string' ? value.trim() : String(value).trim();
+  if (text === '' || text === '[object Object]') {
     return null;
   }
-  return value.trim();
+  return text;
 }
 
 function assignmentList(authContext, assignmentType) {
@@ -95,13 +96,15 @@ function assertOptionalLocationFilters(authContext, filters = {}) {
 }
 
 function assertRecordAssignmentScope(authContext, record = {}) {
-  if (record.warehouseId !== undefined && record.warehouseId !== null && record.warehouseId !== '') {
-    if (!canAccessWarehouse(authContext, record.warehouseId)) {
+  const warehouseId = normalizeTargetId(record.warehouseId);
+  if (warehouseId !== null) {
+    if (!canAccessWarehouse(authContext, warehouseId)) {
       throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
     }
   }
-  if (record.branchId !== undefined && record.branchId !== null && record.branchId !== '') {
-    if (!canAccessBranch(authContext, record.branchId)) {
+  const branchId = normalizeTargetId(record.branchId);
+  if (branchId !== null) {
+    if (!canAccessBranch(authContext, branchId)) {
       throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
     }
   }

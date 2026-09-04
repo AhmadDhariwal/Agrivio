@@ -32,7 +32,8 @@ export class CustomerDetailPage {
   readonly canView = computed(
     () =>
       this.sessionStore.hasPermission('customers.view') &&
-      (this.capabilityService?.canUseModule('customers') ?? true),
+      (this.capabilityService?.canUseModule('customers') ?? true) &&
+      (this.capabilityService?.canPerformAction('customers.actions.inspect') ?? true),
   );
 
   readonly canEdit = computed(
@@ -75,6 +76,14 @@ export class CustomerDetailPage {
   formatLabel(value: string | undefined | null): string {
     if (!value) return '—';
     return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  canViewField(field: string): boolean {
+    return this.capabilityService?.canViewField(`customers.fields.${field}`) ?? true;
+  }
+
+  canViewCreditSection(): boolean {
+    return this.capabilityService?.canUseView('customers.features.creditSection') ?? true;
   }
 
   private mapError(error: unknown): string {

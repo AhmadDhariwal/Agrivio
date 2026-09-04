@@ -32,7 +32,8 @@ export class AccountDetailPage {
   readonly canView = computed(
     () =>
       this.sessionStore.hasPermission('accounts.view') &&
-      (this.capabilityService?.canUseModule('accounts') ?? true),
+      (this.capabilityService?.canUseModule('accounts') ?? true) &&
+      (this.capabilityService?.canPerformAction('accounts.actions.inspect') ?? true),
   );
 
   readonly canEdit = computed(
@@ -43,8 +44,7 @@ export class AccountDetailPage {
   );
   readonly canOpenActivity = computed(
     () =>
-      this.canView() &&
-      (this.capabilityService?.canPerformAction('accounts.actions.inspect') ?? true),
+      this.canView(),
   );
 
   constructor() {
@@ -85,6 +85,10 @@ export class AccountDetailPage {
     return Number.isFinite(n)
       ? `${currency} ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
       : `${currency} ${amount}`;
+  }
+
+  canViewField(field: string): boolean {
+    return this.capabilityService?.canViewField(`accounts.fields.${field}`) ?? true;
   }
 
   private mapError(error: unknown): string {

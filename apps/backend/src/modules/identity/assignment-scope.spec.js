@@ -16,6 +16,7 @@ import { createBridgedAuthStore } from './auth.bridge-store';
 import { hashPassword } from './password.service';
 import {
   assertBranchAccess,
+  assertRecordAssignmentScope,
   assertWarehouseAccess,
   canAccessBranch,
   canAccessWarehouse,
@@ -281,6 +282,60 @@ describe('assignment scope enforcement foundation', () => {
       await close(loginServer);
       await close(probeServer);
     }
+  });
+
+  it('validates record assignment scope for Owner and assigned roles with string or ObjectId targets', () => {
+    const fakeObjectId = (hex) => ({
+      toHexString: () => hex,
+      toString: () => hex,
+    });
+
+    const ownerContext = {
+      contextType: 'organization',
+      organizationId: 'org-1',
+      role: 'Owner',
+      branchAssignments: [],
+      warehouseAssignments: [],
+      permissions: permissionsForMembershipRole('Owner'),
+    };
+
+    const cashierContext = {
+      contextType: 'organization',
+      organizationId: 'org-1',
+      role: 'Cashier',
+      branchAssignments: [{ targetId: '6a945dd98d2e5b8a0e4b81dd', organizationId: 'org-1' }],
+      warehouseAssignments: [{ targetId: '6a945ddc8d2e5b8a0e4b8231', organizationId: 'org-1' }],
+      permissions: permissionsForMembershipRole('Cashier'),
+    };
+
+    const recordWithObjectIds = {
+      branchId: fakeObjectId('6a945dd98d2e5b8a0e4b81dd'),
+      warehouseId: fakeObjectId('6a945ddc8d2e5b8a0e4b8231'),
+    };
+
+    // Owner has organization-wide access
+    expect(() => assertRecordAssignmentScope(ownerContext, recordWithObjectIds)).not.toThrow();
+
+    // Cashier has matching assignments
+    expect(() => assertRecordAssignmentScope(cashierContext, recordWithObjectIds)).not.toThrow();
+
+    // Cashier denied on unassigned branch
+    const unassignedBranchRecord = {
+      branchId: fakeObjectId('6a945dd98d2e5b8a0e4b81ee'),
+      warehouseId: fakeObjectId('6a945ddc8d2e5b8a0e4b8231'),
+    };
+    expect(() => assertRecordAssignmentScope(cashierContext, unassignedBranchRecord)).toThrow(
+      "You don't have access to this branch or warehouse.",
+    );
+
+    // Cashier denied on unassigned warehouse
+    const unassignedWhRecord = {
+      branchId: fakeObjectId('6a945dd98d2e5b8a0e4b81dd'),
+      warehouseId: fakeObjectId('6a945ddc8d2e5b8a0e4b8299'),
+    };
+    expect(() => assertRecordAssignmentScope(cashierContext, unassignedWhRecord)).toThrow(
+      "You don't have access to this branch or warehouse.",
+    );
   });
 });
 
