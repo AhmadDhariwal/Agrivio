@@ -292,4 +292,183 @@ describe('F06 P1 real-Mongo sales drafts, customer payments, invoice sequences',
     expect(receivableTotal).toBe(10000n);
     expect(await PaymentModel.countDocuments({ organizationId, partyType: 'customer' })).toBe(1);
   });
+
+  it('lists sales default sorted newest first: sequence, pagination boundary, deterministic tie breaker', async ({ skip }) => {
+    if (!mongoReady) {
+      skip('Mongo replica set rs0 PRIMARY is required for real-Mongo F06 P1 proof');
+    }
+
+    await SaleModel.deleteMany({ organizationId });
+
+    // 1. Create Sale A, Sale B, Sale C in sequence
+    const saleA = await sales.salesService.createSaleDraft(
+      String(organizationId),
+      {
+        branchId: String(branchId),
+        warehouseId: String(warehouseId),
+        saleDate: '2026-08-10',
+        notes: 'Sale A',
+        lines: [
+          {
+            productId: String(productId),
+            packagingUnitId: String(packagingUnitId),
+            quantity: '1',
+            unitPrice: { amount: '10.00', currency: 'PKR' },
+          },
+        ],
+      },
+      authContext(),
+    );
+
+    const saleB = await sales.salesService.createSaleDraft(
+      String(organizationId),
+      {
+        branchId: String(branchId),
+        warehouseId: String(warehouseId),
+        saleDate: '2026-08-11',
+        notes: 'Sale B',
+        lines: [
+          {
+            productId: String(productId),
+            packagingUnitId: String(packagingUnitId),
+            quantity: '1',
+            unitPrice: { amount: '10.00', currency: 'PKR' },
+          },
+        ],
+      },
+      authContext(),
+    );
+
+    const saleC = await sales.salesService.createSaleDraft(
+      String(organizationId),
+      {
+        branchId: String(branchId),
+        warehouseId: String(warehouseId),
+        saleDate: '2026-08-12',
+        notes: 'Sale C',
+        lines: [
+          {
+            productId: String(productId),
+            packagingUnitId: String(packagingUnitId),
+            quantity: '1',
+            unitPrice: { amount: '10.00', currency: 'PKR' },
+          },
+        ],
+      },
+      authContext(),
+    );
+
+    const listABC = await sales.salesService.listSales(
+      String(organizationId),
+      {},
+      authContext(),
+    );
+    expect(listABC.items.map((i) => i.id)).toEqual([saleC.id, saleB.id, saleA.id]);
+
+    // 2. Test pagination boundary: create 26 more sales (total 29)
+    for (let i = 1; i <= 26; i++) {
+      const day = String(13 + Math.floor(i / 2)).padStart(2, '0');
+      await sales.salesService.createSaleDraft(
+        String(organizationId),
+        {
+          branchId: String(branchId),
+          warehouseId: String(warehouseId),
+          saleDate: `2026-08-${day}`,
+          notes: `Extra ${i}`,
+          lines: [
+            {
+              productId: String(productId),
+              packagingUnitId: String(packagingUnitId),
+              quantity: '1',
+              unitPrice: { amount: '10.00', currency: 'PKR' },
+            },
+          ],
+        },
+        authContext(),
+      );
+    }
+
+    const page1 = await sales.salesService.listSales(
+      String(organizationId),
+      { skip: 0, pageSize: 25 },
+      authContext(),
+    );
+    const page2 = await sales.salesService.listSales(
+      String(organizationId),
+      { skip: 25, pageSize: 25 },
+      authContext(),
+    );
+
+    expect(page1.total).toBe(29);
+    expect(page1.items).toHaveLength(25);
+    expect(page2.items).toHaveLength(4);
+
+    // Verify all 29 items are distinct across pages (pagination-safe, no duplicates/jumping)
+    const allIds = [...page1.items.map((i) => i.id), ...page2.items.map((i) => i.id)];
+    expect(new Set(allIds).size).toBe(29);
+
+    // Verify page 1 items have saleDate >= page 2 items
+    const minPage1Date = page1.items[page1.items.length - 1].saleDate;
+    const maxPage2Date = page2.items[0].saleDate;
+    expect(minPage1Date >= maxPage2Date).toBe(true);
+
+    // 3. Test deterministic ordering when timestamps are equal
+    const sameDate = '2026-10-01';
+    const sameCreatedAt = new Date('2026-10-01T12:00:00.000Z');
+    const id1 = new mongoose.Types.ObjectId();
+    const id2 = new mongoose.Types.ObjectId();
+    const [lowerId, higherId] = [id1, id2].sort((a, b) => a.toString().localeCompare(b.toString()));
+
+    await SaleModel.create([
+      {
+        _id: lowerId,
+        organizationId,
+        branchId,
+        warehouseId,
+        saleDate: sameDate,
+        createdAt: sameCreatedAt,
+        lines: [
+          {
+            productId,
+            productNameSnapshot: 'P',
+            unitCodeSnapshot: 'U',
+            conversionFactorSnapshot: '1',
+            enteredQuantityMinorUnits: '100',
+            quantityBaseMinorUnits: '100',
+            unitPriceMinorUnits: '1000',
+            lineProductAmountMinorUnits: '1000',
+          },
+        ],
+        createdBy: actorId,
+      },
+      {
+        _id: higherId,
+        organizationId,
+        branchId,
+        warehouseId,
+        saleDate: sameDate,
+        createdAt: sameCreatedAt,
+        lines: [
+          {
+            productId,
+            productNameSnapshot: 'P',
+            unitCodeSnapshot: 'U',
+            conversionFactorSnapshot: '1',
+            enteredQuantityMinorUnits: '100',
+            quantityBaseMinorUnits: '100',
+            unitPriceMinorUnits: '1000',
+            lineProductAmountMinorUnits: '1000',
+          },
+        ],
+        createdBy: actorId,
+      },
+    ]);
+
+    const tieCheck = await sales.salesService.listSales(
+      String(organizationId),
+      { saleDate: sameDate },
+      authContext(),
+    );
+    expect(tieCheck.items.map((i) => i.id)).toEqual([higherId.toString(), lowerId.toString()]);
+  });
 });
