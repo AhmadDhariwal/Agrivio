@@ -473,7 +473,9 @@
         </div>
 
         <div class="ag-shell__topbar-center">
-          <agrivio-navbar-search />
+          @if (!isPlatformContext()) {
+            <agrivio-navbar-search />
+          }
         </div>
 
         <div class="ag-shell__topbar-right">

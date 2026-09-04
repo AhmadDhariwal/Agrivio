@@ -58,6 +58,7 @@ export class AccountFormPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
+  readonly isActivityMode = this.route.snapshot.routeConfig?.path === 'accounts/:id/activity';
   private readonly capabilityService = inject(CapabilityService, { optional: true });
 
   readonly accountId = signal<string | null>(null);

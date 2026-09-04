@@ -226,7 +226,16 @@
                 [routerLink]="['/app/accounts', item.id]"
                 data-testid="account-open"
               >
-                {{ canEdit() ? 'Edit' : 'Open' }}
+                Open
+              </a>
+              }
+              @if (canEdit()) {
+              <a
+                class="ag-btn ag-btn--secondary ag-btn--sm"
+                [routerLink]="['/app/accounts', item.id, 'edit']"
+                data-testid="account-edit"
+              >
+                Edit
               </a>
               }
               @if (canDeactivate() || canReactivate() || canDelete()) {
@@ -295,7 +304,12 @@
       <div class="account-card__actions">
         @if (canInspect() || canEdit()) {
         <a class="ag-btn ag-btn--secondary ag-btn--sm" [routerLink]="['/app/accounts', item.id]">
-          {{ canEdit() ? 'Edit' : 'Open' }}
+          Open
+        </a>
+        }
+        @if (canEdit()) {
+        <a class="ag-btn ag-btn--secondary ag-btn--sm" [routerLink]="['/app/accounts', item.id, 'edit']">
+          Edit
         </a>
         }
         @if (canDeactivate() && item.status === 'active') {

@@ -200,13 +200,6 @@ export class SalesPage {
     return status;
   }
 
-  actionLabel(status: string): string {
-    if (status === 'posted' || status === 'cancelled') {
-      return 'View';
-    }
-    return 'Edit draft';
-  }
-
   statusTone(status: string): 'warning' | 'success' | 'neutral' | 'danger' {
     if (status === 'draft') {
       return 'warning';

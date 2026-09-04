@@ -181,14 +181,6 @@ export class PurchasesPage {
     return status;
   }
 
-  canOpen(item: PurchaseRecord): boolean {
-    return item.status === 'draft' ? this.canEditDraft() || this.canInspect() : this.canInspect();
-  }
-
-  actionLabel(status: string): string {
-    return status === 'draft' && this.canEditDraft() ? 'Edit draft' : 'View';
-  }
-
   statusTone(status: string): 'warning' | 'success' | 'neutral' {
     if (status === 'draft') {
       return 'warning';

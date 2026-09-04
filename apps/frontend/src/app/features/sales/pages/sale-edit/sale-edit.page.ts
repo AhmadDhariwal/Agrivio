@@ -8,7 +8,7 @@ import {
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin, of, catchError, map, switchMap, Subject, debounceTime, distinctUntilChanged, merge } from 'rxjs';
+import { EMPTY, forkJoin, of, catchError, map, switchMap, Subject, debounceTime, distinctUntilChanged, merge } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { SalesApi } from '../../data-access/sales.api';
 import { SalesReturnsApi } from '../../data-access/sales-returns.api';
@@ -371,10 +371,18 @@ export class SaleEditPage {
       });
 
     if (isEdit && id) {
-      forkJoin({
-        masters: masters$,
-        sale: this.api.getSale(id),
-      }).subscribe({
+      this.api
+        .getSale(id)
+        .pipe(
+          switchMap((sale) => {
+            if (sale.status !== 'draft') {
+              void this.router.navigateByUrl(`/app/sales/${sale.id}`, { replaceUrl: true });
+              return EMPTY;
+            }
+            return masters$.pipe(map((masters) => ({ masters, sale })));
+          }),
+        )
+        .subscribe({
         next: ({ masters, sale }) => {
           this.applyMasters(masters);
           this.applySale(sale);
@@ -564,7 +572,9 @@ export class SaleEditPage {
   }
 
   save(): void {
-    if (!this.canCreate() || this.isPosted()) {
+    const id = this.saleId();
+    const canManage = id === null ? this.canCreateDraft() : this.canEditDraft();
+    if (!canManage || !this.isDraft()) {
       return;
     }
     const validationError = this.validateFormForSubmit();
@@ -577,7 +587,6 @@ export class SaleEditPage {
     this.successMessage.set(null);
 
     const payload = this.buildPayload();
-    const id = this.saleId();
     const request$ =
       id === null
         ? this.api.createSale(payload)
@@ -590,7 +599,7 @@ export class SaleEditPage {
         if (id === null) {
           this.saleId.set(record.id);
           this.version = record.version;
-          void this.router.navigateByUrl(`/app/sales/${record.id}`, { replaceUrl: true });
+          void this.router.navigateByUrl(`/app/sales/${record.id}/edit`, { replaceUrl: true });
         } else {
           this.applySale(record);
         }

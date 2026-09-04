@@ -214,9 +214,14 @@
               <!-- Actions -->
               <td class="sales-table__td sales-table__td--actions">
                 <div class="action-btn-group">
-                  @if (item.status === 'draft' ? (canEditDraft() || canInspect()) : canInspect()) {
+                  @if (canInspect()) {
                     <a class="ag-btn ag-btn--secondary ag-btn--sm" [routerLink]="['/app/sales', item.id]">
-                      {{ item.status === 'draft' && canEditDraft() ? 'Edit draft' : 'View' }}
+                      View
+                    </a>
+                  }
+                  @if (item.status === 'draft' && canEditDraft()) {
+                    <a class="ag-btn ag-btn--secondary ag-btn--sm" [routerLink]="['/app/sales', item.id, 'edit']">
+                      Edit draft
                     </a>
                   }
                   @if (canPrint() && (item.status === 'posted' || item.status === 'cancelled') && item.invoiceNumber) {
@@ -271,9 +276,14 @@
           </div>
 
           <div class="sale-card__actions">
-            @if (item.status === 'draft' ? (canEditDraft() || canInspect()) : canInspect()) {
+            @if (canInspect()) {
               <a class="ag-btn ag-btn--secondary ag-btn--sm" [routerLink]="['/app/sales', item.id]">
-                {{ item.status === 'draft' && canEditDraft() ? 'Edit draft' : 'View' }}
+                View
+              </a>
+            }
+            @if (item.status === 'draft' && canEditDraft()) {
+              <a class="ag-btn ag-btn--secondary ag-btn--sm" [routerLink]="['/app/sales', item.id, 'edit']">
+                Edit draft
               </a>
             }
             @if (canPrint() && (item.status === 'posted' || item.status === 'cancelled') && item.invoiceNumber) {

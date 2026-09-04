@@ -1,0 +1,82 @@
+<div class="detail-shell">
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Sales</p>
+      <h1 data-testid="sale-detail-title">Sale Details</h1>
+      <p class="lede">Authoritative sale, payment, and inventory snapshots.</p>
+    </div>
+    <div class="actions">
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/sales">Back to Sales</a>
+      @if (sale(); as item) {
+        @if (canEdit()) {
+          <a class="ag-btn ag-btn--primary" [routerLink]="['/app/sales', item.id, 'edit']" data-testid="sale-edit-link">Edit draft</a>
+        }
+        @if (canPrint() && item.invoiceNumber) {
+          <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/sales', item.id, 'print']">Print invoice</a>
+        }
+      }
+    </div>
+  </header>
+
+  @if (loading()) {
+    <agrivio-ui-loading-state label="Loading sale details…" />
+  } @else if (!canView()) {
+    <agrivio-ui-alert tone="warning" message="You do not have permission to view this sale." />
+  } @else if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  } @else if (sale(); as item) {
+    <section class="summary" data-testid="sale-detail">
+      <article><span>Invoice / reference</span><strong>{{ item.invoiceNumber || ('Draft #' + item.id.slice(-6).toUpperCase()) }}</strong></article>
+      <article><span>Status</span><agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" /></article>
+      <article><span>Sale total</span><strong>{{ formatMoney(item.saleTotal) }}</strong></article>
+      <article><span>Outstanding</span><strong>{{ formatMoney(item.receivableTotal) }}</strong></article>
+    </section>
+
+    <section class="card">
+      <h2>Sale information</h2>
+      <dl class="facts">
+        <div><dt>Sale date</dt><dd>{{ formatDate(item.saleDate) }}</dd></div>
+        <div><dt>Customer</dt><dd>{{ item.customerNameSnapshot || 'Walk-in customer' }}</dd></div>
+        <div><dt>Pricing tier</dt><dd>{{ item.priceTierSnapshot || '—' }}</dd></div>
+        <div data-testid="sale-detail-branch"><dt>Branch</dt><dd>{{ item.branchNameSnapshot || '—' }}</dd></div>
+        <div data-testid="sale-detail-warehouse"><dt>Warehouse</dt><dd>{{ item.warehouseNameSnapshot || '—' }}</dd></div>
+        <div><dt>Notes</dt><dd>{{ item.notes || '—' }}</dd></div>
+        <div><dt>Created</dt><dd>{{ formatDate(item.createdAt) }}</dd></div>
+        <div><dt>Updated</dt><dd>{{ formatDate(item.updatedAt) }}</dd></div>
+        @if (item.postedAt) { <div><dt>Posted</dt><dd>{{ formatDate(item.postedAt) }}</dd></div> }
+        @if (item.cancelledAt) { <div><dt>Cancelled</dt><dd>{{ formatDate(item.cancelledAt) }}</dd></div> }
+        @if (item.cancellationReason) { <div class="wide"><dt>Cancellation reason</dt><dd>{{ item.cancellationReason }}</dd></div> }
+      </dl>
+    </section>
+
+    <section class="card">
+      <h2>Sale lines</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Product</th><th>Batch allocation</th><th class="num">Quantity</th><th class="num">Unit price</th><th class="num">Line total</th>@if (canViewCogs()) {<th class="num">COGS</th>}</tr></thead>
+          <tbody>
+            @for (line of item.lines; track $index) {
+              <tr>
+                <td><strong>{{ line.productNameSnapshot }}</strong><small>{{ line.unitCodeSnapshot }} × {{ line.conversionFactorSnapshot }}</small></td>
+                <td>
+                  @if (line.stockAllocations?.length) {
+                    @for (allocation of line.stockAllocations; track allocation.batchId ?? $index) {
+                      <span class="chip">{{ allocation.batchNumber || 'Unbatched' }} · {{ allocation.quantityBase }}</span>
+                    }
+                  } @else { — }
+                </td>
+                <td class="num">{{ line.quantity }}</td><td class="num">{{ formatMoney(line.unitPrice) }}</td><td class="num">{{ formatMoney(line.lineProductAmount) }}</td>
+                @if (canViewCogs()) { <td class="num">{{ formatMoney(line.cogsTotal) }}</td> }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card"><h2>Payments</h2>@for (payment of item.payments ?? []; track payment.paymentId ?? payment.accountId) {<div class="row"><span>{{ payment.accountNameSnapshot }} <small>{{ payment.accountTypeSnapshot }}</small></span><strong>{{ formatMoney(payment.amount) }}</strong></div>} @if (!item.payments?.length) {<p>None recorded.</p>}<div class="row total"><span>Paid</span><strong>{{ formatMoney(item.paidTotal) }}</strong></div></article>
+      <article class="card"><h2>Lifecycle</h2><div class="row"><span>Version</span><strong>{{ item.version }}</strong></div><div class="row"><span>Record state</span><strong>{{ item.status === 'draft' ? 'Editable draft' : 'Immutable transaction' }}</strong></div>@if (canViewCogs()) {<div class="row"><span>Total COGS</span><strong>{{ formatMoney(item.cogsTotal) }}</strong></div>}</article>
+    </section>
+  }
+</div>

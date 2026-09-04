@@ -1,0 +1,67 @@
+<div class="detail-shell">
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Purchases</p>
+      <h1 data-testid="supplier-detail-title">Supplier Details</h1>
+      <p class="lede">Supplier profile, contact information, and balance overview.</p>
+    </div>
+    <div class="actions">
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/suppliers">Back to Suppliers</a>
+      @if (supplier(); as item) {
+        @if (canEdit()) {
+          <a class="ag-btn ag-btn--primary" [routerLink]="['/app/suppliers', item.id, 'edit']" data-testid="supplier-edit-link">Edit</a>
+        }
+      }
+    </div>
+  </header>
+
+  @if (loading()) {
+    <agrivio-ui-loading-state label="Loading supplier details…" />
+  } @else if (!canView()) {
+    <agrivio-ui-alert tone="warning" message="You do not have permission to view this supplier." />
+  } @else if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  } @else if (supplier(); as item) {
+
+    <section class="summary" data-testid="supplier-detail">
+      <article><span>Name</span><strong>{{ item.name }}</strong></article>
+      <article><span>Status</span><agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" /></article>
+      <article><span>Contact</span><strong>{{ item.contactName || '—' }}</strong></article>
+      <article><span>Phone</span><strong>{{ item.phone || '—' }}</strong></article>
+    </section>
+
+    <section class="card">
+      <h2>Basic information</h2>
+      <dl class="facts">
+        <div><dt>Name</dt><dd>{{ item.name }}</dd></div>
+        <div><dt>Phone</dt><dd>{{ item.phone || '—' }}</dd></div>
+        <div><dt>Contact name</dt><dd>{{ item.contactName || '—' }}</dd></div>
+        <div><dt>Email</dt><dd>{{ item.email || '—' }}</dd></div>
+        <div><dt>Status</dt><dd><agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" /></dd></div>
+        <div><dt>Record version</dt><dd>{{ item.version }}</dd></div>
+      </dl>
+    </section>
+
+    @if (item.derivedBalances) {
+      <section class="card">
+        <h2>Derived balances</h2>
+        <dl class="facts">
+          <div><dt>Payable</dt><dd>{{ formatMoney(item.derivedBalances.payable.amount, item.derivedBalances.payable.currency) }}</dd></div>
+          <div><dt>Advance</dt><dd>{{ formatMoney(item.derivedBalances.advance.amount, item.derivedBalances.advance.currency) }}</dd></div>
+        </dl>
+      </section>
+    }
+
+    @if (item.openingBalance) {
+      <section class="card">
+        <h2>Opening balance</h2>
+        <dl class="facts">
+          <div><dt>Kind</dt><dd>{{ item.openingBalance.kind }}</dd></div>
+          <div><dt>Amount</dt><dd>{{ formatMoney(item.openingBalance.amount.amount, item.openingBalance.amount.currency) }}</dd></div>
+          <div><dt>Status</dt><dd>{{ item.openingBalance.status }}</dd></div>
+        </dl>
+      </section>
+    }
+
+  }
+</div>

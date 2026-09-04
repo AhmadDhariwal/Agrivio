@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
-import { provideRouter, ActivatedRoute } from '@angular/router';
+import { provideRouter, ActivatedRoute, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { convertToParamMap } from '@angular/router';
 import { SaleEditPage } from './sale-edit.page';
@@ -255,7 +255,7 @@ describe('SaleEditPage', () => {
     expect(component.paymentGroup(0).get('accountId')?.value).toBe('acc-1');
   });
 
-  it('shows invoice number, KPI summary cards, and print entry on a posted sale', async () => {
+  it('redirects an immutable sale away from the edit route', async () => {
     await TestBed.configureTestingModule({
       imports: [SaleEditPage],
       providers: [
@@ -322,26 +322,16 @@ describe('SaleEditPage', () => {
       ],
     }).compileComponents();
 
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
     const fixture: ComponentFixture<SaleEditPage> = TestBed.createComponent(SaleEditPage);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-
-    // Header & Badge
-    expect(compiled.querySelector('.page-head__title')?.textContent).toContain('Posted sale');
-    expect(compiled.querySelector('[data-testid="sale-status-badge"]')?.textContent).toContain('Posted');
-
-    // 3 KPI Summary Cards
-    expect(compiled.querySelector('[data-testid="kpi-sale-total"]')?.textContent).toContain('100.00');
-    expect(compiled.querySelector('[data-testid="kpi-paid"]')?.textContent).toContain('100.00');
-    expect(compiled.querySelector('[data-testid="kpi-receivable"]')?.textContent).toContain('0.00');
-
-    // Metadata & Actions
-    expect(compiled.querySelector('[data-testid="sale-invoice-number"]')?.textContent).toContain('P4A-000001');
-    expect(compiled.querySelector('[data-testid="sale-print-link"]')).toBeTruthy();
-    expect(compiled.querySelector('[data-testid="sale-cancel-section"]')).toBeTruthy();
+    expect(navigate).toHaveBeenCalledWith('/app/sales/sale-posted', { replaceUrl: true });
+    expect(compiled.querySelector('[data-testid="sale-posted-view"]')).toBeNull();
+    expect(compiled.querySelector('[data-testid="sale-form"]')).toBeNull();
   });
 
-  it('hides cancellation for cashiers without sales.cancel', async () => {
+  it('does not expose immutable lifecycle controls from the edit route', async () => {
     await TestBed.configureTestingModule({
       imports: [SaleEditPage],
       providers: [
@@ -406,10 +396,12 @@ describe('SaleEditPage', () => {
       ],
     }).compileComponents();
 
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
     const fixture: ComponentFixture<SaleEditPage> = TestBed.createComponent(SaleEditPage);
     fixture.detectChanges();
+    expect(navigate).toHaveBeenCalledWith('/app/sales/sale-posted', { replaceUrl: true });
     expect(fixture.nativeElement.querySelector('[data-testid="sale-cancel-section"]')).toBeFalsy();
-    expect(fixture.nativeElement.querySelector('[data-testid="sale-print-link"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="sale-print-link"]')).toBeFalsy();
   });
 
   it('respects capability gating for customer, notes, packagingUnit, and payment actions', async () => {

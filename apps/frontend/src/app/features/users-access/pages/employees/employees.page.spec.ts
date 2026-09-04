@@ -131,6 +131,12 @@ describe('EmployeesPage', () => {
     expect(text).toContain('2 branches');
     expect(text).toContain('1 warehouse');
     expect(text).toContain('Chaudhry Tariq');
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="employee-inspect-link"]')?.getAttribute('href'),
+    ).toBe('/app/employees/emp-1');
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="employee-edit-link"]')?.getAttribute('href'),
+    ).toBe('/app/employees/emp-1/edit');
   });
 
   it('filters employees by status and role', () => {

@@ -482,7 +482,7 @@
               @if (rowCanUpdate(item)) {
               <a
                 class="row-action-btn"
-                [routerLink]="['/app/employees', item.id]"
+                [routerLink]="['/app/employees', item.id, 'edit']"
                 title="Edit employee"
                 aria-label="Edit employee"
                 data-testid="employee-edit-link"
@@ -645,7 +645,7 @@
       @if (showActions()) {
       <div class="emp-card__foot">
         @if (rowCanUpdate(item)) {
-        <a class="ag-btn ag-btn--secondary emp-card__btn" [routerLink]="['/app/employees', item.id]">
+        <a class="ag-btn ag-btn--secondary emp-card__btn" [routerLink]="['/app/employees', item.id, 'edit']">
           Edit
         </a>
         }

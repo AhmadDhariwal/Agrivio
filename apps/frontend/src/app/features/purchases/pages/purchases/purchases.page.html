@@ -209,13 +209,18 @@
 
               <!-- Action -->
               <td class="col-actions">
-                @if (canOpen(item)) {
+                @if (canInspect()) {
                   <a
                     class="ag-btn ag-btn--sm ag-btn--secondary"
                     [routerLink]="['/app/purchases', item.id]"
                     data-testid="purchase-action-btn"
                   >
-                    {{ actionLabel(item.status) }}
+                    View
+                  </a>
+                }
+                @if (item.status === 'draft' && canEditDraft()) {
+                  <a class="ag-btn ag-btn--sm ag-btn--secondary" [routerLink]="['/app/purchases', item.id, 'edit']">
+                    Edit draft
                   </a>
                 }
               </td>
@@ -288,12 +293,17 @@
           </div>
 
           <div class="mobile-purchase-card__actions">
-            @if (canOpen(item)) {
+            @if (canInspect()) {
               <a
                 class="ag-btn ag-btn--sm ag-btn--secondary mobile-purchase-card__btn"
                 [routerLink]="['/app/purchases', item.id]"
               >
-                {{ actionLabel(item.status) }}
+                View
+              </a>
+            }
+            @if (item.status === 'draft' && canEditDraft()) {
+              <a class="ag-btn ag-btn--sm ag-btn--secondary mobile-purchase-card__btn" [routerLink]="['/app/purchases', item.id, 'edit']">
+                Edit draft
               </a>
             }
           </div>

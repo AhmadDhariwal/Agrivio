@@ -299,6 +299,18 @@ export const appRoutes: Route[] = [
         path: 'employees/:id',
         canActivate: [requirePermissionGuard('users.view'), requireCapabilityGuard('employees')],
         loadComponent: () =>
+          import('./features/users-access/pages/employee-detail/employee-detail.page').then(
+            (m) => m.EmployeeDetailPage,
+          ),
+      },
+      {
+        path: 'employees/:id/edit',
+        canActivate: [
+          requirePermissionGuard('users.update'),
+          requireCapabilityGuard('employees'),
+          requireCapabilityGuard('employees.actions.edit', 'action'),
+        ],
+        loadComponent: () =>
           import('./features/users-access/pages/employee-form/employee-form.page').then(
             (m) => m.EmployeeFormPage,
           ),
@@ -329,7 +341,7 @@ export const appRoutes: Route[] = [
       {
         path: 'categories/:id',
         canActivate: [
-          requirePermissionGuard('catalog.view'),
+          requirePermissionGuard('catalog.manage'),
           requireCapabilityGuard('inventory.categories'),
           requireCapabilityGuard('inventory.categories.actions.edit', 'action'),
         ],
@@ -387,7 +399,7 @@ export const appRoutes: Route[] = [
       {
         path: 'products/:id/pricing',
         canActivate: [
-          requirePermissionGuard('pricing.view'),
+          requirePermissionGuard('pricing.manage'),
           requireCapabilityGuard('inventory.products'),
           requireCapabilityGuard('inventory.products.actions.managePricing', 'action'),
         ],
@@ -399,7 +411,7 @@ export const appRoutes: Route[] = [
       {
         path: 'products/:id',
         canActivate: [
-          requirePermissionGuard('catalog.view'),
+          requirePermissionGuard('catalog.manage'),
           requireCapabilityGuard('inventory.products'),
           requireCapabilityGuard('inventory.products.actions.edit', 'action'),
         ],
@@ -436,6 +448,17 @@ export const appRoutes: Route[] = [
         canActivate: [
           requirePermissionGuard('customers.view'),
           requireCapabilityGuard('customers'),
+        ],
+        loadComponent: () =>
+          import('./features/customers/pages/customer-detail/customer-detail.page').then(
+            (m) => m.CustomerDetailPage,
+          ),
+      },
+      {
+        path: 'customers/:id/edit',
+        canActivate: [
+          requirePermissionGuard('customers.manage'),
+          requireCapabilityGuard('customers'),
           requireCapabilityGuard('customers.actions.edit', 'action'),
         ],
         loadComponent: () =>
@@ -470,6 +493,17 @@ export const appRoutes: Route[] = [
         path: 'suppliers/:id',
         canActivate: [
           requirePermissionGuard('suppliers.view'),
+          requireCapabilityGuard('suppliers'),
+        ],
+        loadComponent: () =>
+          import('./features/suppliers/pages/supplier-detail/supplier-detail.page').then(
+            (m) => m.SupplierDetailPage,
+          ),
+      },
+      {
+        path: 'suppliers/:id/edit',
+        canActivate: [
+          requirePermissionGuard('suppliers.manage'),
           requireCapabilityGuard('suppliers'),
           requireCapabilityGuard('suppliers.actions.edit', 'action'),
         ],
@@ -506,6 +540,30 @@ export const appRoutes: Route[] = [
           requireCapabilityGuard('accounts.actions.inspect', 'action'),
         ],
         loadComponent: () =>
+          import('./features/accounts-expenses/pages/account-detail/account-detail.page').then(
+            (m) => m.AccountDetailPage,
+          ),
+      },
+      {
+        path: 'accounts/:id/edit',
+        canActivate: [
+          requirePermissionGuard('accounts.manage'),
+          requireCapabilityGuard('accounts'),
+          requireCapabilityGuard('accounts.actions.edit', 'action'),
+        ],
+        loadComponent: () =>
+          import('./features/accounts-expenses/pages/account-form/account-form.page').then(
+            (m) => m.AccountFormPage,
+          ),
+      },
+      {
+        path: 'accounts/:id/activity',
+        canActivate: [
+          requirePermissionGuard('accounts.view'),
+          requireCapabilityGuard('accounts'),
+          requireCapabilityGuard('accounts.actions.inspect', 'action'),
+        ],
+        loadComponent: () =>
           import('./features/accounts-expenses/pages/account-form/account-form.page').then(
             (m) => m.AccountFormPage,
           ),
@@ -536,6 +594,30 @@ export const appRoutes: Route[] = [
           requirePermissionGuard('expenses.view'),
           requireCapabilityGuard('expenses'),
           requireCapabilityGuard('expenses.actions.inspect', 'action'),
+        ],
+        loadComponent: () =>
+          import('./features/accounts-expenses/pages/expense-detail/expense-detail.page').then(
+            (m) => m.ExpenseDetailPage,
+          ),
+      },
+      {
+        path: 'expenses/:id/edit',
+        canActivate: [
+          requirePermissionGuard('expenses.post'),
+          requireCapabilityGuard('expenses'),
+          requireCapabilityGuard('expenses.actions.post', 'action'),
+        ],
+        loadComponent: () =>
+          import('./features/accounts-expenses/pages/expense-form/expense-form.page').then(
+            (m) => m.ExpenseFormPage,
+          ),
+      },
+      {
+        path: 'expenses/:id/correct',
+        canActivate: [
+          requirePermissionGuard('expenses.correct'),
+          requireCapabilityGuard('expenses'),
+          requireCapabilityGuard('expenses.actions.correct', 'action'),
         ],
         loadComponent: () =>
           import('./features/accounts-expenses/pages/expense-form/expense-form.page').then(
@@ -611,6 +693,18 @@ export const appRoutes: Route[] = [
           requireCapabilityGuard('purchases.actions.inspect', 'action'),
         ],
         loadComponent: () =>
+          import('./features/purchases/pages/purchase-detail/purchase-detail.page').then(
+            (m) => m.PurchaseDetailPage,
+          ),
+      },
+      {
+        path: 'purchases/:id/edit',
+        canActivate: [
+          requirePermissionGuard('purchases.create'),
+          requireCapabilityGuard('purchases'),
+          requireCapabilityGuard('purchases.actions.editDraft', 'action'),
+        ],
+        loadComponent: () =>
           import('./features/purchases/pages/purchase-edit/purchase-edit.page').then(
             (m) => m.PurchaseEditPage,
           ),
@@ -670,6 +764,18 @@ export const appRoutes: Route[] = [
           requirePermissionGuard('sales.view'),
           requireCapabilityGuard('sales'),
           requireCapabilityGuard('sales.actions.inspect', 'action'),
+        ],
+        loadComponent: () =>
+          import('./features/sales/pages/sale-detail/sale-detail.page').then(
+            (m) => m.SaleDetailPage,
+          ),
+      },
+      {
+        path: 'sales/:id/edit',
+        canActivate: [
+          requirePermissionGuard('sales.create'),
+          requireCapabilityGuard('sales'),
+          requireCapabilityGuard('sales.actions.editDraft', 'action'),
         ],
         loadComponent: () =>
           import('./features/sales/pages/sale-edit/sale-edit.page').then((m) => m.SaleEditPage),

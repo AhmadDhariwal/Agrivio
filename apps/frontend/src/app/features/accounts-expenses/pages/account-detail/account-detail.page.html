@@ -1,0 +1,70 @@
+<div class="detail-shell">
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Accounts</p>
+      <h1 data-testid="account-detail-title">Account Details</h1>
+      <p class="lede">Account information, type, and balance overview.</p>
+    </div>
+    <div class="actions">
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/accounts">Back to Accounts</a>
+      @if (account(); as item) {
+        @if (canOpenActivity()) {
+          <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/accounts', item.id, 'activity']" data-testid="account-activity-link">Account activity</a>
+        }
+        @if (canEdit()) {
+          <a class="ag-btn ag-btn--primary" [routerLink]="['/app/accounts', item.id, 'edit']" data-testid="account-edit-link">Edit</a>
+        }
+      }
+    </div>
+  </header>
+
+  @if (loading()) {
+    <agrivio-ui-loading-state label="Loading account details…" />
+  } @else if (!canView()) {
+    <agrivio-ui-alert tone="warning" message="You do not have permission to view this account." />
+  } @else if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  } @else if (account(); as item) {
+
+    <section class="summary" data-testid="account-detail">
+      <article><span>Name</span><strong>{{ item.name }}</strong></article>
+      <article><span>Type</span><strong>{{ accountTypeLabel(item.accountType) }}</strong></article>
+      <article><span>Status</span><agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" /></article>
+      <article><span>Balance</span><strong>{{ formatMoney(item.derivedBalances?.balance?.amount, item.derivedBalances?.balance?.currency) }}</strong></article>
+    </section>
+
+    <section class="card">
+      <h2>Account information</h2>
+      <dl class="facts">
+        <div><dt>Name</dt><dd>{{ item.name }}</dd></div>
+        <div><dt>Account type</dt><dd>{{ accountTypeLabel(item.accountType) }}</dd></div>
+        <div><dt>Status</dt><dd><agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" /></dd></div>
+        <div><dt>Bank name</dt><dd>{{ item.bankName || '—' }}</dd></div>
+        <div><dt>Account number</dt><dd>{{ item.accountNumberMasked || '—' }}</dd></div>
+        <div><dt>Wallet identifier</dt><dd>{{ item.walletIdentifier || '—' }}</dd></div>
+        <div><dt>Record version</dt><dd>{{ item.version }}</dd></div>
+      </dl>
+    </section>
+
+    @if (item.derivedBalances) {
+      <section class="card">
+        <h2>Current balance</h2>
+        <dl class="facts">
+          <div><dt>Balance</dt><dd>{{ formatMoney(item.derivedBalances.balance.amount, item.derivedBalances.balance.currency) }}</dd></div>
+        </dl>
+      </section>
+    }
+
+    @if (item.openingBalance) {
+      <section class="card">
+        <h2>Opening balance</h2>
+        <dl class="facts">
+          <div><dt>Kind</dt><dd>{{ item.openingBalance.kind }}</dd></div>
+          <div><dt>Amount</dt><dd>{{ formatMoney(item.openingBalance.amount.amount, item.openingBalance.amount.currency) }}</dd></div>
+          <div><dt>Status</dt><dd>{{ item.openingBalance.status }}</dd></div>
+        </dl>
+      </section>
+    }
+
+  }
+</div>

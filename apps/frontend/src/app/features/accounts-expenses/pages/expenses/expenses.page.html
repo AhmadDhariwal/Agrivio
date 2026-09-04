@@ -221,6 +221,9 @@
             >
               Open
             </a>
+            @if (item.status === 'draft' && canPost()) {
+              <a class="ag-btn ag-btn--secondary ag-btn--sm" [routerLink]="['/app/expenses', item.id, 'edit']">Edit</a>
+            }
             }
           </td>
         </tr>
@@ -272,6 +275,9 @@
         >
           Open
         </a>
+        @if (item.status === 'draft' && canPost()) {
+          <a class="ag-btn ag-btn--secondary ag-btn--sm" [routerLink]="['/app/expenses', item.id, 'edit']">Edit</a>
+        }
       </div>
       }
     </article>

@@ -84,6 +84,7 @@
     </div>
     }
 
+    @if (!isCorrectionMode) {
     <form
       class="expense-form"
       [formGroup]="form"
@@ -282,9 +283,10 @@
       </div>
       }
     </form>
+    }
 
     <!-- Correction Section for Posted Expenses -->
-    @if (expense()?.status === 'posted' && canCorrect()) {
+    @if (isCorrectionMode && expense()?.status === 'posted' && canCorrect()) {
     <section class="form-card form-card--correction" data-testid="expense-correct-section">
       <div class="form-card__header">
         <div class="form-card__icon form-card__icon--warning">

@@ -47,7 +47,7 @@
       </div>
       }
 
-      <a class="ag-btn ag-btn--secondary" routerLink="/app/employees">
+      <a class="ag-btn ag-btn--secondary" [routerLink]="employeeId() ? ['/app/employees', employeeId()] : ['/app/employees']">
         <svg
           width="15"
           height="15"
@@ -60,7 +60,7 @@
         >
           <polyline points="15 18 9 12 15 6" />
         </svg>
-        Back to Employees
+        {{ employeeId() ? 'Back to Employee Details' : 'Back to Employees' }}
       </a>
     </div>
   </header>

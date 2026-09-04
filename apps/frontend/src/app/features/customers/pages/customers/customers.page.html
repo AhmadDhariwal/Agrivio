@@ -560,7 +560,7 @@
               @if (canEdit()) {
               <a
                 class="row-action-btn"
-                [routerLink]="['/app/customers', item.id]"
+                [routerLink]="['/app/customers', item.id, 'edit']"
                 title="Edit customer"
                 aria-label="Edit customer"
                 data-testid="customer-edit"
@@ -773,7 +773,7 @@
           @if (canEdit()) {
           <a
             class="card-action-btn"
-            [routerLink]="['/app/customers', item.id]"
+            [routerLink]="['/app/customers', item.id, 'edit']"
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
@@ -1026,7 +1026,7 @@
       @if (canEdit()) {
       <a
         class="ag-btn ag-btn--primary"
-        [routerLink]="['/app/customers', sel.id]"
+        [routerLink]="['/app/customers', sel.id, 'edit']"
         (click)="closeInspector()"
       >
         <svg

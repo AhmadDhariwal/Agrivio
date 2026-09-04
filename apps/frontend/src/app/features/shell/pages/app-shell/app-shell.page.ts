@@ -148,6 +148,9 @@ export class AppShellPage {
   readonly canViewBackups = computed(() =>
     this.sessionStore.hasPermission('operations.backups.view'),
   );
+  readonly isPlatformContext = computed(
+    () => this.sessionStore.activeContext()?.contextType === 'platform',
+  );
   readonly missingAssignmentMessage = computed(() =>
     this.access.hasMissingAssignments() ? MISSING_ASSIGNMENT_MESSAGE : null,
   );

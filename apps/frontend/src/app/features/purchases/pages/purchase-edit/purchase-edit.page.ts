@@ -8,7 +8,7 @@ import {
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin, Subject, debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
+import { EMPTY, forkJoin, Subject, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PurchasesApi } from '../../data-access/purchases.api';
 import { ReturnsApi } from '../../data-access/returns.api';
@@ -278,10 +278,18 @@ export class PurchaseEditPage {
     this.productSearchChanges.next('');
 
     if (isEdit && id) {
-      forkJoin({
-        masters: masters$,
-        purchase: this.api.getPurchase(id),
-      }).subscribe({
+      this.api
+        .getPurchase(id)
+        .pipe(
+          switchMap((purchase) => {
+            if (purchase.status !== 'draft') {
+              void this.router.navigateByUrl(`/app/purchases/${purchase.id}`, { replaceUrl: true });
+              return EMPTY;
+            }
+            return masters$.pipe(map((masters) => ({ masters, purchase })));
+          }),
+        )
+        .subscribe({
         next: ({ masters, purchase }) => {
           this.applyMasters(masters);
           this.applyPurchase(purchase);
@@ -546,7 +554,7 @@ export class PurchaseEditPage {
         if (id === null) {
           this.purchaseId.set(record.id);
           this.version = record.version;
-          void this.router.navigateByUrl(`/app/purchases/${record.id}`, { replaceUrl: true });
+          void this.router.navigateByUrl(`/app/purchases/${record.id}/edit`, { replaceUrl: true });
         } else {
           this.applyPurchase(record);
         }

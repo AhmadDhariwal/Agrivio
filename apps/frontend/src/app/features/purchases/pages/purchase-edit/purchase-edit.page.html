@@ -37,11 +37,11 @@
     </div>
 
     <div class="page-head__actions">
-      <a class="ag-btn ag-btn--secondary back-btn" routerLink="/app/purchases" data-testid="back-to-purchases">
+      <a class="ag-btn ag-btn--secondary back-btn" [routerLink]="purchaseId() ? ['/app/purchases', purchaseId()] : ['/app/purchases']" data-testid="back-to-purchases">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <polyline points="15 18 9 12 15 6" />
         </svg>
-        Back to Purchases
+        {{ purchaseId() ? 'Back to Purchase Details' : 'Back to Purchases' }}
       </a>
     </div>
   </header>
@@ -1020,7 +1020,7 @@
         <!-- Form Action Bar / Footer -->
         <div class="form-footer-bar">
           <div class="form-footer-left">
-            <a class="ag-btn ag-btn--secondary" routerLink="/app/purchases">Cancel</a>
+            <a class="ag-btn ag-btn--secondary" [routerLink]="purchaseId() ? ['/app/purchases', purchaseId()] : ['/app/purchases']">Cancel</a>
           </div>
           <div class="form-footer-right">
             @if (canDiscard()) {

@@ -84,4 +84,55 @@ describe('appRoutes F02 routing', () => {
       expect(component).toBeTruthy();
     }
   }, 15000);
+
+  it('keeps transaction view and edit routes explicit and component-distinct', async () => {
+    const app = appRoutes.find((route) => route.path === 'app');
+    const pairs = [
+      ['sales/:id', 'sales/:id/edit'],
+      ['purchases/:id', 'purchases/:id/edit'],
+      ['employees/:id', 'employees/:id/edit'],
+    ] as const;
+
+    for (const [viewPath, editPath] of pairs) {
+      const view = app?.children?.find((route) => route.path === viewPath);
+      const edit = app?.children?.find((route) => route.path === editPath);
+      expect(view?.loadComponent).toBeTruthy();
+      expect(edit?.loadComponent).toBeTruthy();
+      expect(view?.canActivate?.length).toBeGreaterThan(0);
+      expect(edit?.canActivate?.length).toBeGreaterThan(0);
+      expect(await view?.loadComponent?.()).not.toBe(await edit?.loadComponent?.());
+    }
+  }, 15000);
+
+  it('covers the application-wide view/edit route inventory without inventing detail routes', () => {
+    const app = appRoutes.find((route) => route.path === 'app');
+    const routeInventory = [
+      ['sales', 'sales/:id', 'sales/:id/edit', 'sales/new'],
+      ['purchases', 'purchases/:id', 'purchases/:id/edit', 'purchases/new'],
+      ['products', null, 'products/:id', 'products/new'],
+      ['categories', null, 'categories/:id', 'categories/new'],
+      ['customers', null, 'customers/:id', 'customers/new'],
+      ['suppliers', null, 'suppliers/:id', 'suppliers/new'],
+      ['returns', 'returns/:id', null, 'returns/without-invoice'],
+      ['expenses', 'expenses/:id', null, 'expenses/new'],
+      ['accounts', 'accounts/:id', null, 'accounts/new'],
+      ['branches', null, 'branches/:id/edit', 'branches/new'],
+      ['warehouses', null, 'warehouses/:id', 'warehouses/new'],
+      ['employees', 'employees/:id', 'employees/:id/edit', 'employees/new'],
+      ['stock adjustments', 'inventory/adjustments', null, null],
+      ['warehouse transfers', 'inventory/transfers', null, null],
+      ['product batches', 'inventory/batches', null, null],
+      ['customer payments', 'customer-payments', null, 'customer-payments/new'],
+      ['supplier payments', 'supplier-payments', null, 'supplier-payments/new'],
+      ['billing records', 'platform/billing-review', null, null],
+      ['imports', 'imports', null, null],
+      ['super admin organizations', 'platform/organizations/:id', null, null],
+    ] as const;
+
+    for (const [, view, edit, create] of routeInventory) {
+      for (const path of [view, edit, create]) {
+        if (path) expect(app?.children?.some((route) => route.path === path)).toBe(true);
+      }
+    }
+  });
 });

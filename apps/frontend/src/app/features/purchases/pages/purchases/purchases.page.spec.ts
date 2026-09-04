@@ -186,7 +186,7 @@ describe('PurchasesPage', () => {
     expect(createBtn?.getAttribute('href')).toBe('/app/purchases/new');
   });
 
-  it('differentiates action presentation between draft (Edit draft) and posted/cancelled (View)', () => {
+  it('routes View to detail and Edit draft to the explicit edit route', () => {
     const fixture: ComponentFixture<PurchasesPage> = TestBed.createComponent(PurchasesPage);
     fixture.detectChanges();
 
@@ -195,9 +195,14 @@ describe('PurchasesPage', () => {
     const action1 = rows[1]?.querySelector('[data-testid="purchase-action-btn"]');
     const action2 = rows[2]?.querySelector('[data-testid="purchase-action-btn"]');
 
-    expect(action0?.textContent?.trim()).toBe('Edit draft');
+    expect(action0?.textContent?.trim()).toBe('View');
+    expect(action0?.getAttribute('href')).toBe('/app/purchases/pur-1');
+    expect(rows[0]?.textContent).toContain('Edit draft');
+    expect(rows[0]?.querySelector('a[href="/app/purchases/pur-1/edit"]')).toBeTruthy();
     expect(action1?.textContent?.trim()).toBe('View');
     expect(action2?.textContent?.trim()).toBe('View');
+    expect(rows[1]?.textContent).not.toContain('Edit draft');
+    expect(rows[2]?.textContent).not.toContain('Edit draft');
   });
 
   it('handles search and status query filtering and clear action', () => {

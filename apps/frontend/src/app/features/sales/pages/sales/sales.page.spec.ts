@@ -6,6 +6,13 @@ import { SalesPage } from './sales.page';
 import { SalesApi } from '../../data-access/sales.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { SaleRecord } from '../../models/sales.models';
+
+const draftSale: SaleRecord = {
+  id: 'sale-1', organizationId: 'org-1', branchId: 'b1', warehouseId: 'w1', customerId: null,
+  saleDate: '2026-09-04', notes: '', status: 'draft', invoiceNumber: null, lines: [], version: 1,
+  postedAt: null, createdAt: '2026-09-04T00:00:00Z', updatedAt: '2026-09-04T00:00:00Z',
+};
 
 describe('SalesPage', () => {
   function createPage(options: {
@@ -13,6 +20,8 @@ describe('SalesPage', () => {
     canCreateDraft?: boolean;
     canSearch?: boolean;
     canFilterStatus?: boolean;
+    items?: SaleRecord[];
+    permissions?: string[];
   } = {}) {
     TestBed.configureTestingModule({
       imports: [SalesPage],
@@ -21,12 +30,12 @@ describe('SalesPage', () => {
         {
           provide: SalesApi,
           useValue: {
-            listSales: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            listSales: () => of({ items: options.items ?? [], meta: { page: 1, pageSize: 25, total: options.items?.length ?? 0 } }),
           },
         },
         {
           provide: AuthSessionStore,
-          useValue: { hasPermission: () => true },
+          useValue: { hasPermission: (permission: string) => options.permissions?.includes(permission) ?? true },
         },
         {
           provide: CapabilityService,
@@ -76,5 +85,19 @@ describe('SalesPage', () => {
   it('shows blocked alert when sales module is disabled', () => {
     const fixture = createPage({ canUseModule: false });
     expect(fixture.nativeElement.textContent).toContain('You do not have permission to view sales.');
+  });
+
+  it('routes View to detail and Edit draft to the explicit edit route', () => {
+    const fixture = createPage({ items: [draftSale] });
+    const row = fixture.nativeElement.querySelector('[data-testid="sale-row"]') as HTMLElement;
+    expect(row.querySelector('a[href="/app/sales/sale-1"]')?.textContent).toContain('View');
+    expect(row.querySelector('a[href="/app/sales/sale-1/edit"]')?.textContent).toContain('Edit draft');
+  });
+
+  it('keeps View visible and Edit hidden for a view-only user', () => {
+    const fixture = createPage({ items: [draftSale], permissions: ['sales.view'] });
+    const row = fixture.nativeElement.querySelector('[data-testid="sale-row"]') as HTMLElement;
+    expect(row.querySelector('a[href="/app/sales/sale-1"]')).toBeTruthy();
+    expect(row.querySelector('a[href="/app/sales/sale-1/edit"]')).toBeNull();
   });
 });

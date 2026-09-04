@@ -1,0 +1,73 @@
+<div class="detail-shell">
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Accounts &amp; Expenses</p>
+      <h1 data-testid="expense-detail-title">Expense Details</h1>
+      <p class="lede">Expense record, posting status, and correction history.</p>
+    </div>
+    <div class="actions">
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/expenses">Back to Expenses</a>
+      @if (expense(); as item) {
+        @if (item.status === 'draft' && canEditDraft()) {
+          <a class="ag-btn ag-btn--primary" [routerLink]="['/app/expenses', item.id, 'edit']" data-testid="expense-edit-link">Edit draft</a>
+        }
+        @if (item.status === 'posted' && canCorrect()) {
+          <a class="ag-btn ag-btn--primary" [routerLink]="['/app/expenses', item.id, 'correct']" data-testid="expense-correct-link">Correct expense</a>
+        }
+      }
+    </div>
+  </header>
+
+  @if (loading()) {
+    <agrivio-ui-loading-state label="Loading expense details…" />
+  } @else if (!canView()) {
+    <agrivio-ui-alert tone="warning" message="You do not have permission to view this expense." />
+  } @else if (errorMessage(); as error) {
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  } @else if (expense(); as item) {
+
+    <section class="summary" data-testid="expense-detail">
+      <article><span>Amount</span><strong>{{ formatMoney(item.amount.amount, item.amount.currency) }}</strong></article>
+      <article><span>Status</span><agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" /></article>
+      <article><span>Date</span><strong>{{ item.expenseDate }}</strong></article>
+      <article><span>Category</span><strong>{{ item.categoryName || '—' }}</strong></article>
+    </section>
+
+    <section class="card">
+      <h2>Expense information</h2>
+      <dl class="facts">
+        <div><dt>Category</dt><dd>{{ item.categoryName || '—' }}</dd></div>
+        <div><dt>Account</dt><dd>{{ item.accountName || '—' }}</dd></div>
+        <div><dt>Amount</dt><dd>{{ formatMoney(item.amount.amount, item.amount.currency) }}</dd></div>
+        <div><dt>Expense date</dt><dd>{{ item.expenseDate }}</dd></div>
+        <div><dt>Reference</dt><dd>{{ item.reference || '—' }}</dd></div>
+        <div><dt>Status</dt><dd><agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" /></dd></div>
+        <div class="wide"><dt>Purpose</dt><dd>{{ item.purpose || '—' }}</dd></div>
+      </dl>
+    </section>
+
+    @if (item.status === 'posted' || item.postedAt) {
+      <section class="card">
+        <h2>Posting details</h2>
+        <dl class="facts">
+          <div><dt>Posted at</dt><dd>{{ formatDate(item.postedAt) }}</dd></div>
+          <div><dt>Posted by</dt><dd>{{ item.postedBy || '—' }}</dd></div>
+          <div><dt>Account movement</dt><dd>{{ item.accountMovementId || '—' }}</dd></div>
+        </dl>
+      </section>
+    }
+
+    @if (item.status === 'corrected' || item.correctedAt) {
+      <section class="card">
+        <h2>Correction details</h2>
+        <dl class="facts">
+          <div><dt>Corrected at</dt><dd>{{ formatDate(item.correctedAt) }}</dd></div>
+          <div><dt>Corrected by</dt><dd>{{ item.correctedBy || '—' }}</dd></div>
+          <div><dt>Corrected by expense</dt><dd>{{ item.correctedByExpenseId || '—' }}</dd></div>
+          @if (item.reason) { <div class="wide"><dt>Reason</dt><dd>{{ item.reason }}</dd></div> }
+        </dl>
+      </section>
+    }
+
+  }
+</div>

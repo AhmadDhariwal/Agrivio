@@ -5,7 +5,7 @@
       <p class="page-head__eyebrow">Cash & Bank</p>
       <div class="page-head__heading-wrap">
         <h1 class="page-head__title">
-          {{ accountId() ? (form.controls.name.value || 'Edit Account') : 'Create Account' }}
+          {{ isActivityMode ? (form.controls.name.value || 'Account Activity') : (accountId() ? (form.controls.name.value || 'Edit Account') : 'Create Account') }}
         </h1>
         @if (accountId() && form.controls.status.value; as status) {
         <agrivio-ui-status-badge [label]="status" [tone]="statusTone(status)" />
@@ -46,6 +46,7 @@
     </div>
     }
 
+    @if (!isActivityMode) {
     <!-- Section 1: Account Details Form -->
     @if (!accountId() && !canCreate()) {
     <div class="alert-container">
@@ -227,7 +228,9 @@
       </div>
     </div>
     }
+    }
 
+    @if (isActivityMode) {
     <!-- Section 2: Opening Balance -->
     @if (accountId() && showOpeningBalance() && (openingPosted() || canPostOpening())) {
     <section class="form-card" data-testid="account-opening-section">
@@ -689,6 +692,7 @@
         }
       </div>
     </section>
+    }
     }
   }
 </div>

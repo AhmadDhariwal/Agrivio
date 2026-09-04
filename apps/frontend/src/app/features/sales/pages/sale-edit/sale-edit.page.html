@@ -37,7 +37,7 @@
     </div>
 
     <div class="page-head__actions">
-      <a class="ag-btn ag-btn--secondary" routerLink="/app/sales" data-testid="back-to-sales">
+      <a class="ag-btn ag-btn--secondary" [routerLink]="saleId() ? ['/app/sales', saleId()] : ['/app/sales']" data-testid="back-to-sales">
         <svg
           width="15"
           height="15"
@@ -51,7 +51,7 @@
         >
           <polyline points="15 18 9 12 15 6" />
         </svg>
-        Back to Sales
+        {{ saleId() ? 'Back to Sale Details' : 'Back to Sales' }}
       </a>
     </div>
   </header>
@@ -1367,7 +1367,7 @@
               {{ discarding() ? 'Discarding…' : 'Discard Draft' }}
             </button>
           }
-          <a class="ag-btn ag-btn--secondary" routerLink="/app/sales">Cancel</a>
+          <a class="ag-btn ag-btn--secondary" [routerLink]="saleId() ? ['/app/sales', saleId()] : ['/app/sales']">Cancel</a>
         </footer>
       </form>
     }
