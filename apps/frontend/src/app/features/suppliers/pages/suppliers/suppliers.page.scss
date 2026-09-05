@@ -642,8 +642,29 @@
     }
 
     &--inactive {
-      opacity: 0.7;
       background: #fafaf9;
+
+      .supplier-cell__glyph {
+        opacity: 0.75;
+      }
+
+      .supplier-cell__name,
+      .contact-name,
+      .phone-text,
+      .email-text,
+      .balance-amount {
+        color: #64748b;
+      }
+    }
+
+    &--menu-open {
+      position: relative;
+      z-index: 50;
+
+      .supp-table__td--actions {
+        position: relative;
+        z-index: 60;
+      }
     }
   }
 
@@ -872,6 +893,7 @@
 .menu-container {
   position: relative;
   display: inline-block;
+  z-index: 60;
 }
 
 .menu-dropdown {
@@ -879,16 +901,17 @@
   right: 0;
   top: 100%;
   margin-top: 4px;
-  z-index: 60;
+  z-index: 100;
   min-width: 160px;
-  background: #ffffff;
+  background: #ffffff !important;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.15), 0 8px 10px -6px rgba(15, 23, 42, 0.1);
   padding: 4px;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  opacity: 1 !important;
 
   &--up {
     top: auto;

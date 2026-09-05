@@ -72,7 +72,9 @@ export class SupplierFormPage {
     return hasPerm && this.canUseSuppliers() && actionOk;
   });
 
-  readonly canSave = computed(() => this.canManage() && this.form.valid && !this.saving());
+  readonly formValid = signal(false);
+
+  readonly canSave = computed(() => this.canManage() && this.formValid() && !this.saving());
 
   readonly showContactName = computed(
     () => this.capabilityService?.canViewField('suppliers.fields.contactName') ?? true,
@@ -104,6 +106,10 @@ export class SupplierFormPage {
 
   constructor() {
     this.checkFieldPermissions();
+    this.form.statusChanges.subscribe(() => {
+      this.formValid.set(this.form.valid);
+    });
+    this.formValid.set(this.form.valid);
     const id = this.route.snapshot.paramMap.get('id');
     if (id && id !== 'new') {
       this.supplierId.set(id);
@@ -242,6 +248,7 @@ export class SupplierFormPage {
       status: supplier.status,
     });
     this.openingPosted.set(Boolean(supplier.openingBalance));
+    this.formValid.set(this.form.valid);
     this.checkFieldPermissions();
     if (supplier.openingBalance) {
       this.openingForm.patchValue({

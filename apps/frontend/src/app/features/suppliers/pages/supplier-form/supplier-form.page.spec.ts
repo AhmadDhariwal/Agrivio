@@ -121,6 +121,17 @@ describe('SupplierFormPage', () => {
     expect(saveButton.disabled).toBe(true);
   });
 
+  it('enables save when valid required name is entered', async () => {
+    const fixture = await createPage();
+    const page = fixture.componentInstance;
+    page.form.controls.name.setValue('Ahmad Supplier');
+    fixture.detectChanges();
+    const saveButton = fixture.nativeElement.querySelector(
+      '[data-testid="supplier-save"]',
+    ) as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(false);
+  });
+
   it('blocks invalid submit without calling createSupplier', async () => {
     const fixture = await createPage();
     const page = fixture.componentInstance;
