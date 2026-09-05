@@ -68,3 +68,30 @@ export interface ProductPricesReplaceResult {
   productVersion: number;
   items: ProductPriceRecord[];
 }
+
+export interface StandardUnitOption {
+  code: string;
+  label: string;
+  dimension: 'mass' | 'volume' | 'discrete';
+}
+
+export const STANDARD_BASE_UNITS: readonly StandardUnitOption[] = [
+  // Volume (Liquid)
+  { code: 'LITRE', label: 'Litre (L)', dimension: 'volume' },
+  { code: 'ML', label: 'Millilitre (mL)', dimension: 'volume' },
+  { code: 'BOTTLE', label: 'Bottle', dimension: 'volume' },
+  { code: 'CAN', label: 'Can', dimension: 'volume' },
+  { code: 'DRUM', label: 'Drum', dimension: 'volume' },
+
+  // Mass (Weight)
+  { code: 'KG', label: 'Kilogram (kg)', dimension: 'mass' },
+  { code: 'GRAM', label: 'Gram (g)', dimension: 'mass' },
+  { code: 'BAG', label: 'Bag / Sack', dimension: 'mass' },
+  { code: 'TONNE', label: 'Metric Tonne (MT)', dimension: 'mass' },
+
+  // Discrete / Count
+  { code: 'COUNT', label: 'Count / Pieces', dimension: 'discrete' },
+  { code: 'PACK', label: 'Pack / Packet', dimension: 'discrete' },
+  { code: 'EA', label: 'Each (ea)', dimension: 'discrete' },
+  { code: 'UNIT', label: 'Unit', dimension: 'discrete' },
+];

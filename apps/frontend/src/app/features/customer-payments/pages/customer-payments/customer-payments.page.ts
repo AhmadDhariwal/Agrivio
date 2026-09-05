@@ -2,9 +2,9 @@ import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
-import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, startWith, switchMap } from 'rxjs';
+import { EMPTY, Subject, catchError, startWith, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { CustomerPaymentsApi } from '../../data-access/customer-payments.api';
+import { CustomerPaymentsApi, CustomerPaymentsListQuery } from '../../data-access/customer-payments.api';
 import { CustomerPaymentRecord, MoneyAmount } from '../../models/customer-payments.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
@@ -35,7 +35,6 @@ export class CustomerPaymentsPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly reloadRequests = new Subject<boolean>();
-  private readonly filterChanges = new Subject<void>();
 
   readonly items = signal<CustomerPaymentRecord[]>([]);
   readonly loading = signal(true);
@@ -69,9 +68,36 @@ export class CustomerPaymentsPage {
   readonly page = signal(1);
   readonly pageSize = signal(25);
   readonly total = signal(0);
+
+  // Active (applied) filters
   readonly search = signal('');
+  readonly dateMode = signal<'single' | 'range'>('single');
   readonly paymentDate = signal('');
-  readonly hasActiveFilters = computed(() => Boolean(this.paymentDate() || this.search()));
+  readonly fromDate = signal('');
+  readonly toDate = signal('');
+
+  // Staged (pending) filters
+  readonly pendingSearch = signal('');
+  readonly pendingDateMode = signal<'single' | 'range'>('single');
+  readonly pendingPaymentDate = signal('');
+  readonly pendingFromDate = signal('');
+  readonly pendingToDate = signal('');
+
+  readonly hasActiveFilters = computed(() => {
+    if (this.search().trim() !== '') return true;
+    if (this.dateMode() === 'single') {
+      return this.paymentDate().trim() !== '';
+    }
+    return this.fromDate().trim() !== '' || this.toDate().trim() !== '';
+  });
+
+  readonly hasPendingFilters = computed(() => {
+    if (this.pendingSearch().trim() !== '') return true;
+    if (this.pendingDateMode() === 'single') {
+      return this.pendingPaymentDate().trim() !== '';
+    }
+    return this.pendingFromDate().trim() !== '' || this.pendingToDate().trim() !== '';
+  });
 
   readonly infoTitle = 'About Customer Payments';
   readonly infoDescription =
@@ -83,13 +109,6 @@ export class CustomerPaymentsPage {
   ];
 
   constructor() {
-    this.filterChanges
-      .pipe(debounceTime(200), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => {
-        this.page.set(1);
-        this.reload();
-      });
-
     this.reloadRequests
       .pipe(
         startWith(false),
@@ -101,27 +120,45 @@ export class CustomerPaymentsPage {
           }
           this.loading.set(true);
           this.errorMessage.set(null);
-          const effectiveDate = this.paymentDate().trim();
+
+          const params: CustomerPaymentsListQuery = {
+            page: this.page(),
+            pageSize: this.pageSize(),
+            forceRefresh: forceRefresh === true,
+          };
+
           const effectiveSearch = this.search().trim();
-          return this.api
-            .listCustomerPayments({
-              page: this.page(),
-              pageSize: this.pageSize(),
-              forceRefresh: forceRefresh === true,
-              ...(effectiveDate ? { paymentDate: effectiveDate } : {}),
-              ...(effectiveSearch ? { search: effectiveSearch } : {}),
-            })
-            .pipe(
-              catchError((error: unknown) => {
-                this.loading.set(false);
-                this.errorMessage.set(
-                  error instanceof HttpErrorResponse
-                    ? (error.error?.error?.message ?? 'Unable to load customer payments.')
-                    : 'Unable to load customer payments.',
-                );
-                return EMPTY;
-              }),
-            );
+          if (effectiveSearch) {
+            params.search = effectiveSearch;
+          }
+
+          if (this.dateMode() === 'single') {
+            const effectiveDate = this.paymentDate().trim();
+            if (effectiveDate) {
+              params.paymentDate = effectiveDate;
+            }
+          } else {
+            const effectiveFrom = this.fromDate().trim();
+            const effectiveTo = this.toDate().trim();
+            if (effectiveFrom) {
+              params.fromDate = effectiveFrom;
+            }
+            if (effectiveTo) {
+              params.toDate = effectiveTo;
+            }
+          }
+
+          return this.api.listCustomerPayments(params).pipe(
+            catchError((error: unknown) => {
+              this.loading.set(false);
+              this.errorMessage.set(
+                error instanceof HttpErrorResponse
+                  ? (error.error?.error?.message ?? 'Unable to load customer payments.')
+                  : 'Unable to load customer payments.',
+              );
+              return EMPTY;
+            }),
+          );
         }),
         takeUntilDestroyed(this.destroyRef),
       )
@@ -138,24 +175,59 @@ export class CustomerPaymentsPage {
 
   onSearchInput(event: Event): void {
     const value = (event.target as HTMLInputElement).value;
-    this.search.set(value);
-    this.filterChanges.next();
+    this.pendingSearch.set(value);
   }
 
   onSearchClear(): void {
-    this.search.set('');
-    this.filterChanges.next();
+    this.pendingSearch.set('');
+    if (this.search()) {
+      this.search.set('');
+      this.page.set(1);
+      this.reload();
+    }
   }
 
-  onDateChange(value: string): void {
-    this.paymentDate.set(value.trim());
-    this.filterChanges.next();
+  setDateMode(mode: 'single' | 'range'): void {
+    this.pendingDateMode.set(mode);
+  }
+
+  toggleDateMode(): void {
+    this.pendingDateMode.update((mode) => (mode === 'single' ? 'range' : 'single'));
+  }
+
+  onPaymentDateInput(value: string): void {
+    this.pendingPaymentDate.set(value.trim());
+  }
+
+  onFromDateInput(value: string): void {
+    this.pendingFromDate.set(value.trim());
+  }
+
+  onToDateInput(value: string): void {
+    this.pendingToDate.set(value.trim());
+  }
+
+  applyFilters(): void {
+    this.search.set(this.pendingSearch().trim());
+    this.dateMode.set(this.pendingDateMode());
+    this.paymentDate.set(this.pendingPaymentDate().trim());
+    this.fromDate.set(this.pendingFromDate().trim());
+    this.toDate.set(this.pendingToDate().trim());
+    this.page.set(1);
+    this.reload();
   }
 
   clearFilters(): void {
+    this.pendingSearch.set('');
+    this.pendingPaymentDate.set('');
+    this.pendingFromDate.set('');
+    this.pendingToDate.set('');
     this.search.set('');
     this.paymentDate.set('');
-    this.filterChanges.next();
+    this.fromDate.set('');
+    this.toDate.set('');
+    this.page.set(1);
+    this.reload();
   }
 
   onPageChange(page: number): void {

@@ -91,13 +91,17 @@ describe('CategoryFormPage', () => {
     });
   });
 
-  it('disables save while required fields are missing', () => {
+  it('disables save while required fields are missing and enables when filled', () => {
     component.form.controls.name.setValue('');
     fixture.detectChanges();
     const saveButton = fixture.nativeElement.querySelector(
       '[data-testid="category-save"]',
     ) as HTMLButtonElement;
     expect(saveButton.disabled).toBe(true);
+
+    component.form.controls.name.setValue('Organic Compost');
+    fixture.detectChanges();
+    expect(saveButton.disabled).toBe(false);
   });
 
   it('blocks invalid submit without calling createCategory', () => {

@@ -8,7 +8,11 @@ const {
   PRODUCT_CLASSES,
   MANDATORY_BATCH_PRODUCT_CLASSES,
 } = require('./persistence/product-category.model');
-const { TRACKING_MODES, MEASUREMENT_DIMENSIONS } = require('./persistence/product.model');
+const {
+  TRACKING_MODES,
+  MEASUREMENT_DIMENSIONS,
+  STANDARD_BASE_UNITS,
+} = require('./persistence/product.model');
 const { PRICE_TIERS } = require('./persistence/product-price.model');
 
 const MAX_NAME = 160;
@@ -114,6 +118,24 @@ function parseMeasurementDimension(value) {
   return value;
 }
 
+function parseBaseUnitCode(value) {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw validationFailed('baseUnitCode is required', [
+      { field: 'baseUnitCode', message: 'baseUnitCode is required' },
+    ]);
+  }
+  const normalized = value.trim().toUpperCase();
+  if (!STANDARD_BASE_UNITS.includes(normalized)) {
+    throw validationFailed('baseUnitCode is invalid', [
+      {
+        field: 'baseUnitCode',
+        message: `baseUnitCode must be one of the standard units: ${STANDARD_BASE_UNITS.join(', ')}`,
+      },
+    ]);
+  }
+  return normalized;
+}
+
 function parsePriceTier(value) {
   if (typeof value !== 'string' || !PRICE_TIERS.includes(value)) {
     throw validationFailed('priceTier is invalid', [
@@ -211,7 +233,7 @@ function parseProductCreate(body) {
   const name = requireTrimmedString(body.name, 'name', MAX_NAME);
   const categoryId = requireTrimmedString(body.categoryId, 'categoryId', 64);
   const trackingMode = parseTrackingMode(body.trackingMode);
-  const baseUnitCode = requireTrimmedString(body.baseUnitCode, 'baseUnitCode', MAX_UNIT_CODE);
+  const baseUnitCode = parseBaseUnitCode(body.baseUnitCode);
   const measurementDimension = parseMeasurementDimension(body.measurementDimension);
   const skuRaw = optionalTrimmedString(body.sku, 'sku', MAX_SKU);
   const sku = skuRaw === '' ? '' : normalizeSku(skuRaw);
@@ -243,7 +265,7 @@ function parseProductPatch(body) {
     patch.trackingMode = parseTrackingMode(body.trackingMode);
   }
   if (body.baseUnitCode !== undefined) {
-    patch.baseUnitCode = requireTrimmedString(body.baseUnitCode, 'baseUnitCode', MAX_UNIT_CODE);
+    patch.baseUnitCode = parseBaseUnitCode(body.baseUnitCode);
   }
   if (body.measurementDimension !== undefined) {
     patch.measurementDimension = parseMeasurementDimension(body.measurementDimension);

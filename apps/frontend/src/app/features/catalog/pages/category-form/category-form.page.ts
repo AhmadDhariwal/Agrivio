@@ -1,7 +1,8 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CatalogApi } from '../../data-access/catalog.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
@@ -35,6 +36,7 @@ export class CategoryFormPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly categoryId = signal<string | null>(null);
   readonly loadedCategoryName = signal<string>('');
@@ -43,8 +45,17 @@ export class CategoryFormPage {
   readonly saving = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly formSubmitAttempted = signal(false);
-  readonly canManage = computed(() => this.sessionStore.hasPermission('catalog.manage'));
-  readonly canSave = computed(() => this.canManage() && this.form.valid && !this.saving());
+  readonly formValid = signal(false);
+  readonly canManage = computed(() => {
+    if (!this.sessionStore.hasPermission('catalog.manage')) {
+      return false;
+    }
+    const action = this.categoryId() === null ? 'create' : 'edit';
+    return (
+      this.capabilityService?.canPerformAction(`inventory.categories.actions.${action}`) ?? true
+    );
+  });
+  readonly canSave = computed(() => this.canManage() && this.formValid() && !this.saving());
   readonly showName = computed(
     () =>
       this.categoryId() === null ||
@@ -93,6 +104,13 @@ export class CategoryFormPage {
   });
 
   constructor() {
+    this.formValid.set(this.form.valid);
+    this.form.statusChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.formValid.set(this.form.valid);
+      });
+
     const id = this.route.snapshot.paramMap.get('id');
     if (id && id !== 'new') {
       this.categoryId.set(id);

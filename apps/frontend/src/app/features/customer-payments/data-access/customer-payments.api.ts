@@ -15,9 +15,11 @@ import {
   UnpaidSaleRecord,
 } from '../models/customer-payments.models';
 
-type CustomerPaymentsListQuery = PaginationQuery & {
+export type CustomerPaymentsListQuery = PaginationQuery & {
   customerId?: string | undefined;
   paymentDate?: string | undefined;
+  fromDate?: string | undefined;
+  toDate?: string | undefined;
   search?: string | undefined;
   forceRefresh?: boolean;
 };
@@ -39,6 +41,8 @@ export class CustomerPaymentsApi {
     };
     if (params.search) queryParams['search'] = params.search;
     if (params.paymentDate) queryParams['paymentDate'] = params.paymentDate;
+    if (params.fromDate) queryParams['fromDate'] = params.fromDate;
+    if (params.toDate) queryParams['toDate'] = params.toDate;
     if (params.customerId) queryParams['customerId'] = params.customerId;
 
     const cacheKey = this.queryCache.buildKey('customer-payments', queryParams);

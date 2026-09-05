@@ -214,17 +214,40 @@
               for="product-base-unit"
               [required]="fieldRequired(form.controls.baseUnitCode)"
             />
-            <input
+            <select
               id="product-base-unit"
-              class="ag-input uppercase font-mono"
+              class="ag-select font-mono"
               formControlName="baseUnitCode"
-              placeholder="e.g. KG, LITRE, COUNT"
               data-testid="product-base-unit"
               [class.ag-input--invalid]="fieldError(form.controls.baseUnitCode, 'Base unit code', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.baseUnitCode) ? 'true' : null"
               [attr.aria-invalid]="fieldError(form.controls.baseUnitCode, 'Base unit code', formSubmitAttempted()) ? 'true' : null"
-              [readOnly]="isReadOnlyField('baseUnit')"
-            />
+              [attr.disabled]="isReadOnlyField('baseUnit') ? '' : null"
+            >
+              <option value="">Select standard unit…</option>
+              <optgroup label="Volume (Liquid)">
+                @for (unit of volumeUnits(); track unit.code) {
+                <option [value]="unit.code">{{ unit.code }} — {{ unit.label }}</option>
+                }
+              </optgroup>
+              <optgroup label="Mass (Weight)">
+                @for (unit of massUnits(); track unit.code) {
+                <option [value]="unit.code">{{ unit.code }} — {{ unit.label }}</option>
+                }
+              </optgroup>
+              <optgroup label="Discrete / Count">
+                @for (unit of discreteUnits(); track unit.code) {
+                <option [value]="unit.code">{{ unit.code }} — {{ unit.label }}</option>
+                }
+              </optgroup>
+              @if (isCustomUnit()) {
+              <optgroup label="Existing Unit">
+                <option [value]="form.controls.baseUnitCode.value">
+                  {{ form.controls.baseUnitCode.value }} (Non-standard)
+                </option>
+              </optgroup>
+              }
+            </select>
             @if (fieldError(form.controls.baseUnitCode, 'Base unit code', formSubmitAttempted()); as baseUnitError) {
             <p class="field-error" role="alert">{{ baseUnitError }}</p>
             }

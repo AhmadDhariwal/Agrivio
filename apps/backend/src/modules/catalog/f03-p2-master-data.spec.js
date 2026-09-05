@@ -71,6 +71,22 @@ describe('F03 P2 catalog/customers/suppliers/accounts', () => {
       );
       expect(badTracking.status).toBe(400);
 
+      const badUnit = await fetchJson(
+        baseUrl,
+        'POST',
+        API_PRODUCTS_PATH,
+        {
+          name: 'Invalid Unit Product',
+          categoryId: category.body.data.id,
+          trackingMode: 'batch_expiry',
+          baseUnitCode: '45',
+          measurementDimension: 'mass',
+        },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      expect(badUnit.status).toBe(400);
+
       const product = await fetchJson(
         baseUrl,
         'POST',

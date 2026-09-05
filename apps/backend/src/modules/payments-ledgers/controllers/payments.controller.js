@@ -27,6 +27,21 @@ function createPaymentsController(deps) {
     async listSupplierPayments(req, res, next) {
       try {
         const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const rawPaymentDate =
+          typeof req.query.paymentDate === 'string' ? req.query.paymentDate.trim() : '';
+        const rawFromDate =
+          typeof req.query.fromDate === 'string' ? req.query.fromDate.trim() : '';
+        const rawToDate =
+          typeof req.query.toDate === 'string' ? req.query.toDate.trim() : '';
+        const rawSearch =
+          typeof req.query.search === 'string' ? req.query.search.trim() : '';
+        const paymentDate =
+          rawPaymentDate !== ''
+            ? rawPaymentDate
+            : rawFromDate === '' && rawToDate === '' && /^\d{4}-\d{2}-\d{2}$/.test(rawSearch)
+              ? rawSearch
+              : undefined;
+
         const { items, total } = await deps.paymentsService.listSupplierPayments(
           requireOrganizationId(req),
           {
@@ -34,12 +49,10 @@ function createPaymentsController(deps) {
               typeof req.query.supplierId === 'string' && req.query.supplierId.trim() !== ''
                 ? req.query.supplierId.trim()
                 : undefined,
-            paymentDate:
-              typeof req.query.paymentDate === 'string' && req.query.paymentDate.trim() !== ''
-                ? req.query.paymentDate.trim()
-                : typeof req.query.search === 'string' && req.query.search.trim() !== ''
-                  ? req.query.search.trim()
-                  : undefined,
+            paymentDate,
+            fromDate: rawFromDate !== '' ? rawFromDate : undefined,
+            toDate: rawToDate !== '' ? rawToDate : undefined,
+            search: rawSearch !== '' ? rawSearch : undefined,
             skip,
             pageSize,
           },
@@ -127,6 +140,21 @@ function createPaymentsController(deps) {
     async listCustomerPayments(req, res, next) {
       try {
         const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const rawPaymentDate =
+          typeof req.query.paymentDate === 'string' ? req.query.paymentDate.trim() : '';
+        const rawFromDate =
+          typeof req.query.fromDate === 'string' ? req.query.fromDate.trim() : '';
+        const rawToDate =
+          typeof req.query.toDate === 'string' ? req.query.toDate.trim() : '';
+        const rawSearch =
+          typeof req.query.search === 'string' ? req.query.search.trim() : '';
+        const paymentDate =
+          rawPaymentDate !== ''
+            ? rawPaymentDate
+            : rawFromDate === '' && rawToDate === '' && /^\d{4}-\d{2}-\d{2}$/.test(rawSearch)
+              ? rawSearch
+              : undefined;
+
         const { items, total } = await deps.paymentsService.listCustomerPayments(
           requireOrganizationId(req),
           {
@@ -134,12 +162,10 @@ function createPaymentsController(deps) {
               typeof req.query.customerId === 'string' && req.query.customerId.trim() !== ''
                 ? req.query.customerId.trim()
                 : undefined,
-            paymentDate:
-              typeof req.query.paymentDate === 'string' && req.query.paymentDate.trim() !== ''
-                ? req.query.paymentDate.trim()
-                : typeof req.query.search === 'string' && req.query.search.trim() !== ''
-                  ? req.query.search.trim()
-                  : undefined,
+            paymentDate,
+            fromDate: rawFromDate !== '' ? rawFromDate : undefined,
+            toDate: rawToDate !== '' ? rawToDate : undefined,
+            search: rawSearch !== '' ? rawSearch : undefined,
             skip,
             pageSize,
           },

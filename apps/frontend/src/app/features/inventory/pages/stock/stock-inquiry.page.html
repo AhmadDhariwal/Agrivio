@@ -701,9 +701,20 @@
                 </svg>
               </div>
               <div class="product-cell__meta">
+                @if (canViewProducts()) {
+                <a
+                  class="product-cell__name product-cell__name--link"
+                  [routerLink]="['/app/products', row.productId]"
+                  (click)="$event.stopPropagation()"
+                  [title]="productName(row.productId)"
+                >
+                  {{ productName(row.productId) }}
+                </a>
+                } @else {
                 <span class="product-cell__name" [title]="productName(row.productId)">
                   {{ productName(row.productId) }}
                 </span>
+                }
                 <div class="product-cell__sub">
                   @if (productSku(row.productId); as sku) {
                   <span class="sku-text">{{ sku }}</span>
@@ -835,9 +846,20 @@
           </svg>
         </div>
         <div class="product-card__title-group">
+          @if (canViewProducts()) {
+          <a
+            class="product-card__title product-card__title--link"
+            [routerLink]="['/app/products', row.productId]"
+            (click)="$event.stopPropagation()"
+            [title]="productName(row.productId)"
+          >
+            {{ productName(row.productId) }}
+          </a>
+          } @else {
           <h3 class="product-card__title" [title]="productName(row.productId)">
             {{ productName(row.productId) }}
           </h3>
+          }
           <div class="product-card__meta-strip">
             @if (productSku(row.productId); as sku) {
             <span class="product-card__sku font-mono">{{ sku }}</span>
@@ -1103,7 +1125,11 @@
     <!-- Drawer Footer Actions -->
     <div class="inspector-drawer__footer">
       @if (canViewProducts()) {
-      <a class="ag-btn ag-btn--primary" [routerLink]="['/app/products', sel.productId]">
+      <a
+        class="ag-btn ag-btn--primary"
+        [routerLink]="['/app/products', sel.productId]"
+        data-testid="inspector-product-detail-link"
+      >
         <svg
           width="14"
           height="14"
@@ -1116,7 +1142,7 @@
           <path d="M10 14 21 3" />
           <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
         </svg>
-        View Product
+        Product Details
       </a>
       } @if (canViewMovements()) {
       <a

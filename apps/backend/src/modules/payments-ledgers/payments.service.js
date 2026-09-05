@@ -598,7 +598,10 @@ function createPaymentsService(deps) {
         {
           partyType: 'supplier',
           supplierId: query.supplierId,
-          paymentDate: query.paymentDate ?? query.search,
+          paymentDate: query.paymentDate,
+          fromDate: query.fromDate,
+          toDate: query.toDate,
+          search: query.search,
         },
         { skip: query.skip, pageSize: query.pageSize },
       );
@@ -1165,7 +1168,10 @@ function createPaymentsService(deps) {
         {
           partyType: 'customer',
           customerId: query.customerId,
-          paymentDate: query.paymentDate ?? query.search,
+          paymentDate: query.paymentDate,
+          fromDate: query.fromDate,
+          toDate: query.toDate,
+          search: query.search,
         },
         { skip: query.skip, pageSize: query.pageSize },
       );

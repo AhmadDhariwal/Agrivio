@@ -411,6 +411,18 @@ export const appRoutes: Route[] = [
       {
         path: 'products/:id',
         canActivate: [
+          requirePermissionGuard('catalog.view'),
+          requireCapabilityGuard('inventory.products'),
+          requireCapabilityGuard('inventory.products.actions.inspect', 'action'),
+        ],
+        loadComponent: () =>
+          import('./features/catalog/pages/product-detail/product-detail.page').then(
+            (m) => m.ProductDetailPage,
+          ),
+      },
+      {
+        path: 'products/:id/edit',
+        canActivate: [
           requirePermissionGuard('catalog.manage'),
           requireCapabilityGuard('inventory.products'),
           requireCapabilityGuard('inventory.products.actions.edit', 'action'),

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal, WritableSignal } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { OpeningStockPage } from './opening-stock.page';
 import { InventoryApi } from '../../data-access/inventory.api';
@@ -245,5 +245,75 @@ describe('OpeningStockPage', () => {
     page.submit();
     expect(postOpeningStock).not.toHaveBeenCalled();
     expect(page.fieldError(page.form.controls.quantity, 'Quantity', true)).toContain('greater than zero');
+  });
+
+  it('pre-selects product and warehouse when productId query parameter is provided', async () => {
+    const routeSnapshot = {
+      queryParamMap: convertToParamMap({ productId: 'prod-batch' }),
+    };
+
+    await TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [OpeningStockPage],
+      providers: [
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: routeSnapshot,
+            queryParamMap: of(routeSnapshot.queryParamMap),
+          },
+        },
+        { provide: InventoryApi, useValue: { postOpeningStock } },
+        {
+          provide: CatalogApi,
+          useValue: {
+            listProducts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+            searchProductOptions: () =>
+              of([
+                product('prod-none', 'none'),
+                product('prod-batch', 'batch'),
+                product('prod-expiry', 'batch_expiry'),
+              ]),
+            listPackagingUnits: () => of([]),
+          },
+        },
+        {
+          provide: BranchesWarehousesApi,
+          useValue: {
+            listWarehouseOptions: () =>
+              of([
+                {
+                  id: 'wh-main',
+                  organizationId: 'org-1',
+                  name: 'Central Warehouse',
+                  status: 'active',
+                  version: 1,
+                },
+              ]),
+          },
+        },
+        { provide: AuthSessionStore, useValue: { hasPermission: () => true } },
+        {
+          provide: CapabilityService,
+          useValue: {
+            canUseModule: () => true,
+            canUseView: () => true,
+            canViewField: () => true,
+            canPerformAction: () => true,
+          },
+        },
+      ],
+    }).compileComponents();
+
+    const paramFixture = TestBed.createComponent(OpeningStockPage);
+    paramFixture.detectChanges();
+    await paramFixture.whenStable();
+
+    const paramPage = paramFixture.componentInstance;
+    expect(paramPage.form.controls.productId.value).toBe('prod-batch');
+    expect(paramPage.selectedProduct()?.id).toBe('prod-batch');
+    expect(paramPage.selectedTrackingMode()).toBe('batch');
+    expect(paramPage.form.controls.warehouseId.value).toBe('wh-main');
   });
 });

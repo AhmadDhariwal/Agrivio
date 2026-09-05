@@ -97,6 +97,7 @@ describe('appRoutes F02 routing', () => {
       ['suppliers/:id', 'suppliers/:id/edit'],
       ['accounts/:id', 'accounts/:id/edit'],
       ['expenses/:id', 'expenses/:id/edit'],
+      ['products/:id', 'products/:id/edit'],
     ] as const;
 
     for (const [viewPath, editPath] of pairs) {
@@ -115,7 +116,7 @@ describe('appRoutes F02 routing', () => {
     const routeInventory = [
       ['sales', 'sales/:id', 'sales/:id/edit', 'sales/new'],
       ['purchases', 'purchases/:id', 'purchases/:id/edit', 'purchases/new'],
-      ['products', null, 'products/:id', 'products/new'],
+      ['products', 'products/:id', 'products/:id/edit', 'products/new'],
       ['categories', null, 'categories/:id', 'categories/new'],
       ['customers', 'customers/:id', 'customers/:id/edit', 'customers/new'],
       ['suppliers', 'suppliers/:id', 'suppliers/:id/edit', 'suppliers/new'],

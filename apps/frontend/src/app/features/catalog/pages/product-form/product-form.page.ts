@@ -12,7 +12,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Subject, catchError, debounceTime, distinctUntilChanged, forkJoin, map, of, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CatalogApi } from '../../data-access/catalog.api';
-import { CategoryRecord, ProductRecord } from '../../models/catalog.models';
+import { CategoryRecord, ProductRecord, STANDARD_BASE_UNITS } from '../../models/catalog.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
@@ -93,6 +93,22 @@ export class ProductFormPage {
     packagingUnits: this.formBuilder.array([this.createPackagingUnitGroup()]),
   });
 
+  readonly standardUnits = STANDARD_BASE_UNITS;
+  readonly volumeUnits = computed(() =>
+    this.standardUnits.filter((u) => u.dimension === 'volume'),
+  );
+  readonly massUnits = computed(() =>
+    this.standardUnits.filter((u) => u.dimension === 'mass'),
+  );
+  readonly discreteUnits = computed(() =>
+    this.standardUnits.filter((u) => u.dimension === 'discrete'),
+  );
+  readonly isCustomUnit = computed(() => {
+    const current = this.form.controls.baseUnitCode.value.trim().toUpperCase();
+    if (!current) return false;
+    return !this.standardUnits.some((u) => u.code === current);
+  });
+
   get packagingUnits(): FormArray {
     return this.form.controls.packagingUnits;
   }
@@ -134,6 +150,17 @@ export class ProductFormPage {
           this.selectedCategory.set(category);
         }
         this.form.controls.trackingMode.updateValueAndValidity({ emitEvent: false });
+      });
+
+    this.form.controls.measurementDimension.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((dim) => {
+        if (this.productId() === null) {
+          const currentUnit = this.form.controls.baseUnitCode.value.trim().toUpperCase();
+          if (!currentUnit || currentUnit === 'KG' || currentUnit === 'LITRE') {
+            this.form.controls.baseUnitCode.setValue(dim === 'volume' ? 'LITRE' : 'KG');
+          }
+        }
       });
 
     this.categorySearchChanges
@@ -252,7 +279,7 @@ export class ProductFormPage {
             name: value.name.trim(),
             categoryId: value.categoryId,
             trackingMode: value.trackingMode,
-            baseUnitCode: value.baseUnitCode.trim(),
+            baseUnitCode: value.baseUnitCode.trim().toUpperCase(),
             measurementDimension: value.measurementDimension,
             ...(value.sku.trim() === '' ? {} : { sku: value.sku.trim() }),
           })
@@ -277,8 +304,21 @@ export class ProductFormPage {
         }),
       )
       .subscribe({
-        next: () => {
+        next: (product: ProductRecord) => {
           this.saving.set(false);
+          if (this.productId() === null && product?.id) {
+            const canUseOpeningStock =
+              (this.capabilityService?.canUseModule('inventory.openingStock') ?? true) &&
+              this.sessionStore.hasPermission('inventory.opening-stock.post') &&
+              (this.capabilityService?.canPerformAction('inventory.openingStock.actions.post') ?? true);
+
+            if (canUseOpeningStock) {
+              void this.router.navigate(['/app/inventory/opening-stock'], {
+                queryParams: { productId: product.id },
+              });
+              return;
+            }
+          }
           void this.router.navigateByUrl('/app/products');
         },
         error: (error: unknown) => {
@@ -325,7 +365,7 @@ export class ProductFormPage {
       payload['trackingMode'] = value.trackingMode;
     }
     if (!isEdit || !this.isReadOnlyField('baseUnit')) {
-      payload['baseUnitCode'] = value.baseUnitCode.trim();
+      payload['baseUnitCode'] = value.baseUnitCode.trim().toUpperCase();
     }
     if (!isEdit || !this.isReadOnlyField('measurementDimension')) {
       payload['measurementDimension'] = value.measurementDimension;

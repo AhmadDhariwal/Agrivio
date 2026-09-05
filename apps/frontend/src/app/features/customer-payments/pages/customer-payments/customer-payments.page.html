@@ -73,13 +73,14 @@
               <input
                 class="search-field__input"
                 type="search"
-                [value]="search()"
+                [value]="pendingSearch()"
                 (input)="onSearchInput($event)"
+                (keydown.enter)="applyFilters()"
                 placeholder="Search payments by note or ID…"
                 aria-label="Search payments"
                 data-testid="customer-payments-search-input"
               />
-              @if (search()) {
+              @if (pendingSearch()) {
                 <button
                   type="button"
                   class="search-field__clear"
@@ -95,28 +96,108 @@
             </div>
           }
 
-          <!-- Date Filter Picker -->
+          <!-- Date Filter Picker with Mode Toggle -->
           @if (showPaymentDateFilter()) {
-            <div class="date-field">
-              <svg class="date-field__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-              </svg>
-              <input
-                class="date-field__input"
-                type="date"
-                [value]="paymentDate()"
-                (input)="onDateChange($any($event.target).value)"
-                aria-label="Filter by payment date"
-                data-testid="customer-payments-date-input"
-              />
+            <div class="date-filter-group">
+              <div class="date-mode-toggle" role="group" aria-label="Date filter mode">
+                <button
+                  type="button"
+                  class="date-mode-btn"
+                  [class.date-mode-btn--active]="pendingDateMode() === 'single'"
+                  (click)="setDateMode('single')"
+                  data-testid="customer-payments-mode-single"
+                >
+                  Single
+                </button>
+                <button
+                  type="button"
+                  class="date-mode-btn"
+                  [class.date-mode-btn--active]="pendingDateMode() === 'range'"
+                  (click)="setDateMode('range')"
+                  data-testid="customer-payments-mode-range"
+                >
+                  Range
+                </button>
+              </div>
+
+              @if (pendingDateMode() === 'single') {
+                <div class="date-field">
+                  <svg class="date-field__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                  <input
+                    class="date-field__input"
+                    type="date"
+                    [value]="pendingPaymentDate()"
+                    (input)="onPaymentDateInput($any($event.target).value)"
+                    (keydown.enter)="applyFilters()"
+                    aria-label="Filter by payment date"
+                    data-testid="customer-payments-date-input"
+                  />
+                </div>
+              } @else {
+                <div class="date-range-fields">
+                  <div class="date-field date-field--range">
+                    <svg class="date-field__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                      <line x1="16" y1="2" x2="16" y2="6"></line>
+                      <line x1="8" y1="2" x2="8" y2="6"></line>
+                      <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <input
+                      class="date-field__input"
+                      type="date"
+                      [value]="pendingFromDate()"
+                      (input)="onFromDateInput($any($event.target).value)"
+                      (keydown.enter)="applyFilters()"
+                      aria-label="From date"
+                      title="From date"
+                      data-testid="customer-payments-from-date-input"
+                    />
+                  </div>
+                  <span class="date-range-separator">to</span>
+                  <div class="date-field date-field--range">
+                    <svg class="date-field__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                      <line x1="16" y1="2" x2="16" y2="6"></line>
+                      <line x1="8" y1="2" x2="8" y2="6"></line>
+                      <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <input
+                      class="date-field__input"
+                      type="date"
+                      [value]="pendingToDate()"
+                      (input)="onToDateInput($any($event.target).value)"
+                      (keydown.enter)="applyFilters()"
+                      aria-label="To date"
+                      title="To date"
+                      data-testid="customer-payments-to-date-input"
+                    />
+                  </div>
+                </div>
+              }
             </div>
           }
 
+          <!-- Apply Filters Button -->
+          <button
+            class="apply-filters-btn"
+            type="button"
+            (click)="applyFilters()"
+            data-testid="customer-payments-apply-btn"
+            title="Apply search and date filters"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>Apply</span>
+          </button>
+
           <!-- Clear Filters Action -->
-          @if (hasActiveFilters()) {
+          @if (hasActiveFilters() || hasPendingFilters()) {
             <button class="clear-filters-btn" type="button" (click)="clearFilters()">
               Clear filters
             </button>
@@ -151,12 +232,13 @@
             <input
               class="search-field__input"
               type="search"
-              [value]="search()"
+              [value]="pendingSearch()"
               (input)="onSearchInput($event)"
+              (keydown.enter)="applyFilters()"
               placeholder="Search payments…"
               aria-label="Search payments"
             />
-            @if (search()) {
+            @if (pendingSearch()) {
               <button type="button" class="search-field__clear" (click)="onSearchClear()" aria-label="Clear search">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -167,17 +249,69 @@
           </div>
         }
 
-        <div class="toolbar__mobile-row">
-          @if (showPaymentDateFilter()) {
-            <input
-              class="date-field__input date-field__input--mobile"
-              type="date"
-              [value]="paymentDate()"
-              (input)="onDateChange($any($event.target).value)"
-              aria-label="Filter by payment date"
-            />
-          }
-          @if (hasActiveFilters()) {
+        @if (showPaymentDateFilter()) {
+          <div class="toolbar__mobile-row">
+            <div class="date-mode-toggle date-mode-toggle--mobile" role="group" aria-label="Date filter mode">
+              <button
+                type="button"
+                class="date-mode-btn date-mode-btn--sm"
+                [class.date-mode-btn--active]="pendingDateMode() === 'single'"
+                (click)="setDateMode('single')"
+              >
+                Single
+              </button>
+              <button
+                type="button"
+                class="date-mode-btn date-mode-btn--sm"
+                [class.date-mode-btn--active]="pendingDateMode() === 'range'"
+                (click)="setDateMode('range')"
+              >
+                Range
+              </button>
+            </div>
+
+            @if (pendingDateMode() === 'single') {
+              <input
+                class="date-field__input date-field__input--mobile"
+                type="date"
+                [value]="pendingPaymentDate()"
+                (input)="onPaymentDateInput($any($event.target).value)"
+                (keydown.enter)="applyFilters()"
+                aria-label="Filter by payment date"
+              />
+            } @else {
+              <div class="mobile-range-inputs">
+                <input
+                  class="date-field__input date-field__input--mobile"
+                  type="date"
+                  [value]="pendingFromDate()"
+                  (input)="onFromDateInput($any($event.target).value)"
+                  (keydown.enter)="applyFilters()"
+                  aria-label="From date"
+                />
+                <span class="date-range-separator">to</span>
+                <input
+                  class="date-field__input date-field__input--mobile"
+                  type="date"
+                  [value]="pendingToDate()"
+                  (input)="onToDateInput($any($event.target).value)"
+                  (keydown.enter)="applyFilters()"
+                  aria-label="To date"
+                />
+              </div>
+            }
+          </div>
+        }
+
+        <div class="toolbar__mobile-actions">
+          <button
+            class="apply-filters-btn apply-filters-btn--mobile"
+            type="button"
+            (click)="applyFilters()"
+          >
+            Apply
+          </button>
+          @if (hasActiveFilters() || hasPendingFilters()) {
             <button type="button" class="mobile-clear-btn" (click)="clearFilters()">Reset</button>
           }
           <span class="toolbar__mobile-count">
