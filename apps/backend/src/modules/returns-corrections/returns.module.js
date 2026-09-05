@@ -76,6 +76,7 @@ function createReturnsService(deps) {
   const catalogService = deps.catalogService;
   const customersService = deps.customersService;
   const locationsService = deps.locationsService;
+  const employeesService = deps.employeesService;
   const transactionRunner = deps.transactionRunner;
   const now = deps.now ?? (() => new Date());
   const idempotency =
@@ -174,6 +175,7 @@ function createReturnsService(deps) {
     const supplierIds = new Set();
     const customerIds = new Set();
     const accountIds = new Set();
+    const userIds = new Set();
 
     for (const record of list) {
       if (record?.warehouseId) {
@@ -188,6 +190,18 @@ function createReturnsService(deps) {
       if (record?.refundAccountId) {
         accountIds.add(String(record.refundAccountId));
       }
+      if (record?.postedBy) {
+        userIds.add(String(record.postedBy));
+      }
+      if (record?.reversedBy) {
+        userIds.add(String(record.reversedBy));
+      }
+      if (record?.createdBy) {
+        userIds.add(String(record.createdBy));
+      }
+      if (record?.withoutInvoiceApproval?.approvedBy) {
+        userIds.add(String(record.withoutInvoiceApproval.approvedBy));
+      }
     }
 
     const lookups = {
@@ -195,6 +209,7 @@ function createReturnsService(deps) {
       suppliers: {},
       customers: {},
       accounts: {},
+      users: {},
     };
     const tasks = [];
 
@@ -259,6 +274,38 @@ function createReturnsService(deps) {
             .catch(() => undefined),
         );
       }
+    }
+
+    if (userIds.size > 0) {
+      tasks.push(
+        (async () => {
+          const ids = [...userIds].filter(Boolean);
+          let nameMap = null;
+          if (
+            employeesService &&
+            typeof employeesService.findEmployeeDisplayNamesByUserIds === 'function'
+          ) {
+            try {
+              nameMap = await employeesService.findEmployeeDisplayNamesByUserIds(organizationId, ids);
+            } catch {
+              nameMap = null;
+            }
+          }
+          for (const uid of ids) {
+            let name = nameMap && typeof nameMap.get === 'function' ? nameMap.get(uid) : null;
+            if (!name && typeof store.findUserDisplayNameById === 'function') {
+              try {
+                name = await store.findUserDisplayNameById(uid);
+              } catch {
+                name = null;
+              }
+            }
+            if (name) {
+              lookups.users[uid] = String(name);
+            }
+          }
+        })(),
+      );
     }
 
     await Promise.all(tasks);
@@ -1812,6 +1859,7 @@ function createReturnsModule(options = {}) {
     catalogService: options.catalogService,
     customersService: options.customersService,
     locationsService: options.locationsService,
+    employeesService: options.employeesService,
     canAccessWarehouse: options.canAccessWarehouse,
     ...(options.idempotency === undefined ? {} : { idempotency: options.idempotency }),
     ...(options.now === undefined ? {} : { now: options.now }),
