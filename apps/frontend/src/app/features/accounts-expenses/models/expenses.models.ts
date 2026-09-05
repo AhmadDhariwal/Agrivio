@@ -24,11 +24,15 @@ export interface ExpenseRecord {
   status: ExpenseStatus;
   postedAt: string | null;
   postedBy: string | null;
+  postedByName?: string | null;
   accountMovementId: string | null;
+  accountMovementName?: string | null;
   correctionOfId: string | null;
   correctedByExpenseId: string | null;
+  correctedByExpenseName?: string | null;
   correctedAt: string | null;
   correctedBy: string | null;
+  correctedByName?: string | null;
   reason: string | null;
   version: number;
 }

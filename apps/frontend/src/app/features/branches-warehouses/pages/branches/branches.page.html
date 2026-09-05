@@ -38,9 +38,7 @@
         </svg>
         <span class="btn-text-full">Refresh</span>
       </button>
-      }
-
-      @if (canCreate()) {
+      } @if (canCreate()) {
       <a
         class="ag-btn ag-btn--primary page-head__add-btn"
         routerLink="/app/branches/new"
@@ -164,9 +162,7 @@
       </div>
 
       <div class="toolbar__right">
-        <span class="results-count">
-          Showing {{ items().length }} of {{ total() }}
-        </span>
+        <span class="results-count"> Showing {{ items().length }} of {{ total() }} </span>
       </div>
     </div>
 
@@ -229,9 +225,7 @@
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
-        }
-
-        @if (hasActiveFilters()) {
+        } @if (hasActiveFilters()) {
         <button type="button" class="mobile-clear-btn" (click)="clearFilters()">Reset</button>
         }
       </div>
@@ -269,11 +263,9 @@
         <col class="col-prefix" />
         @if (showCodeField()) {
         <col class="col-code" />
-        }
-        @if (showStatusField()) {
+        } @if (showStatusField()) {
         <col class="col-status" />
-        }
-        @if (hasAnyRowAction()) {
+        } @if (hasAnyRowAction()) {
         <col class="col-actions" />
         }
       </colgroup>
@@ -283,11 +275,9 @@
           <th scope="col" class="branch-table__th branch-table__th--prefix">Invoice Prefix</th>
           @if (showCodeField()) {
           <th scope="col" class="branch-table__th branch-table__th--code">Code</th>
-          }
-          @if (showStatusField()) {
+          } @if (showStatusField()) {
           <th scope="col" class="branch-table__th branch-table__th--status">Status</th>
-          }
-          @if (hasAnyRowAction()) {
+          } @if (hasAnyRowAction()) {
           <th scope="col" class="branch-table__th branch-table__th--actions">Actions</th>
           }
         </tr>
@@ -362,7 +352,7 @@
               @if (canEdit()) {
               <a
                 class="row-action-btn"
-                [routerLink]="['/app/branches', item.id]"
+                [routerLink]="['/app/branches', item.id, 'edit']"
                 title="Edit branch"
                 aria-label="Edit branch"
               >
@@ -380,9 +370,7 @@
                   <path d="m15 5 4 4" />
                 </svg>
               </a>
-              }
-
-              @if (canDeactivate() || canReactivate() || canDelete()) {
+              } @if (canDeactivate() || canReactivate() || canDelete()) {
               <div class="menu-container">
                 <button
                   type="button"
@@ -447,9 +435,7 @@
                     </svg>
                     Reactivate
                   </button>
-                  }
-
-                  @if (canDelete()) {
+                  } @if (canDelete()) {
                   <button
                     type="button"
                     class="menu-dropdown__item menu-dropdown__item--danger"
@@ -465,7 +451,9 @@
                       stroke-width="2"
                     >
                       <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      <path
+                        d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                      />
                     </svg>
                     Delete permanently
                   </button>
@@ -514,11 +502,13 @@
       @if (hasAnyRowAction()) {
       <div class="branch-card__foot">
         @if (canEdit()) {
-        <a class="ag-btn ag-btn--secondary branch-card__btn" [routerLink]="['/app/branches', item.id]">
+        <a
+          class="ag-btn ag-btn--secondary branch-card__btn"
+          [routerLink]="['/app/branches', item.id, 'edit']"
+        >
           Edit
         </a>
-        }
-        @if (item.status === 'active' && canDeactivate()) {
+        } @if (item.status === 'active' && canDeactivate()) {
         <button
           type="button"
           class="ag-btn ag-btn--secondary branch-card__btn"
@@ -534,8 +524,7 @@
         >
           Reactivate
         </button>
-        }
-        @if (canDelete()) {
+        } @if (canDelete()) {
         <button
           type="button"
           class="ag-btn ag-btn--danger-outline branch-card__btn"

@@ -9,7 +9,7 @@
       </p>
     </div>
     <div class="page-head__actions">
-      <a class="ag-btn ag-btn--secondary" routerLink="/app/suppliers">
+      <a class="ag-btn ag-btn--secondary" [routerLink]="supplierId() ? ['/app/suppliers', supplierId()] : ['/app/suppliers']">
         <svg
           width="15"
           height="15"
@@ -203,7 +203,7 @@
             Save Supplier
           }
         </button>
-        <a class="ag-btn ag-btn--secondary" routerLink="/app/suppliers">Cancel</a>
+        <a class="ag-btn ag-btn--secondary" [routerLink]="supplierId() ? ['/app/suppliers', supplierId()] : ['/app/suppliers']">Cancel</a>
       </footer>
     </form>
 

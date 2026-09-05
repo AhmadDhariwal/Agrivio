@@ -54,6 +54,17 @@ describe('ExpenseCategoryFormPage', () => {
     expect(saveButton.disabled).toBe(true);
   });
 
+  it('enables save when the required name is filled', () => {
+    const fixture: ComponentFixture<ExpenseCategoryFormPage> = TestBed.createComponent(ExpenseCategoryFormPage);
+    fixture.detectChanges();
+    fixture.componentInstance.form.patchValue({ name: 'Fuel' });
+    fixture.detectChanges();
+    const saveButton = fixture.nativeElement.querySelector(
+      '[data-testid="expense-category-save"]',
+    ) as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(false);
+  });
+
   it('blocks invalid submit without calling createCategory', () => {
     const fixture: ComponentFixture<ExpenseCategoryFormPage> = TestBed.createComponent(ExpenseCategoryFormPage);
     fixture.detectChanges();

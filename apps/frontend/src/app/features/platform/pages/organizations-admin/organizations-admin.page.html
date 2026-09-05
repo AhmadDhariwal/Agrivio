@@ -1,143 +1,446 @@
-<section class="ag-stack" data-testid="platform-organizations">
-  <agrivio-ui-page-header
-    eyebrow="Platform"
-    title="Organization requests"
-    lede="Super Admin review for organization activation requests. Approval issues a one-time Owner activation link for manual delivery."
-  />
+<div class="org-admin-shell" data-testid="platform-organizations">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">PLATFORM ADMINISTRATION</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">Organizations</h1>
+        @if (!loading()) {
+        <span class="page-head__count-pill" aria-label="Total organizations">
+          {{ total() }} organizations
+        </span>
+        }
+      </div>
+      <p class="page-head__lede">
+        Master registry, lifecycle governance, subscription status, and operational controls for tenant organizations.
+      </p>
+    </div>
+    <div class="page-head__actions">
+      <button
+        type="button"
+        class="ag-btn ag-btn--secondary"
+        [disabled]="loading() || refreshing()"
+        (click)="reload(true); reloadKpis(true)"
+        data-testid="refresh-orgs-btn"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19"/>
+        </svg>
+        <span>Refresh</span>
+      </button>
+      <button
+        type="button"
+        class="ag-btn ag-btn--primary"
+        (click)="openCreate()"
+        data-testid="open-create-org-modal"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span>Create Organization</span>
+      </button>
+    </div>
+  </header>
 
-  <div class="ag-actions">
-    <button
-      type="button"
-      class="ag-btn ag-btn--secondary"
-      [disabled]="loading()"
-      (click)="reload()"
-    >
-      Refresh
+  <!-- Server Summary KPI Cards -->
+  <section class="kpi-row" aria-label="Organization Overview KPIs">
+    <div class="kpi-card" data-testid="kpi-total-orgs">
+      <div class="kpi-card__icon kpi-card__icon--neutral">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 21h18M3 7v14M21 7v14M6 11h4M6 15h4M14 11h4M14 15h4M9 3h6v4H9z" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Total Organizations</span>
+        <span class="kpi-card__value">{{ kpis().total }}</span>
+      </div>
+    </div>
+
+    <div class="kpi-card" data-testid="kpi-active-orgs">
+      <div class="kpi-card__icon kpi-card__icon--green">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+          <polyline points="22 4 12 14.01 9 11.01" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Active</span>
+        <span class="kpi-card__value">{{ kpis().active }}</span>
+      </div>
+    </div>
+
+    <div class="kpi-card" data-testid="kpi-suspended-orgs">
+      <div class="kpi-card__icon kpi-card__icon--red">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Suspended</span>
+        <span class="kpi-card__value">{{ kpis().suspended }}</span>
+      </div>
+    </div>
+
+    <div class="kpi-card" data-testid="kpi-trial-orgs">
+      <div class="kpi-card__icon kpi-card__icon--amber">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Trial / Subscription State</span>
+        <span class="kpi-card__value">{{ kpis().trial }}</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Feedback Alerts -->
+  @if (errorMessage(); as error) {
+  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  }
+  @if (successMessage(); as success) {
+  <agrivio-ui-alert tone="success" [message]="success" />
+  }
+  @if (conflictError(); as conflict) {
+  <div class="conflict-banner" role="alert" data-testid="conflict-banner">
+    <div class="conflict-banner__text">
+      <strong>Stale Update Detected</strong>
+      <p>{{ conflict }}</p>
+    </div>
+    <button type="button" class="ag-btn ag-btn--secondary ag-btn--sm" (click)="reload(true); reloadKpis(true)">
+      Reload Organizations
     </button>
   </div>
+  }
 
-  <div class="ag-card ag-stack ag-stack--tight">
-    <h2>Create organization</h2>
-    <p class="ag-muted">
-      Direct platform create follows the same pending Owner/onboarding path as a public request. It
-      does not grant operational access.
-    </p>
-    <form
-      class="ag-form ag-form--with-required-hint"
-      [formGroup]="createForm"
-      (ngSubmit)="createOrganization()"
-    >
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Organization name"
-          for="create-org-name"
-          [required]="fieldRequired(createForm.controls.organizationName)"
-        />
-        <input
-          id="create-org-name"
-          class="ag-input"
-          type="text"
-          formControlName="organizationName"
-          [attr.aria-required]="fieldRequired(createForm.controls.organizationName) ? 'true' : null"
-        />
-      </div>
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Owner email"
-          for="create-owner-email"
-          [required]="fieldRequired(createForm.controls.ownerEmail)"
-        />
-        <input
-          id="create-owner-email"
-          class="ag-input"
-          type="email"
-          formControlName="ownerEmail"
-          [attr.aria-required]="fieldRequired(createForm.controls.ownerEmail) ? 'true' : null"
-        />
-      </div>
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Owner display name"
-          for="create-owner-name"
-          [required]="fieldRequired(createForm.controls.ownerDisplayName)"
-        />
-        <input
-          id="create-owner-name"
-          class="ag-input"
-          type="text"
-          formControlName="ownerDisplayName"
-          [attr.aria-required]="fieldRequired(createForm.controls.ownerDisplayName) ? 'true' : null"
-        />
-      </div>
-      <div class="ag-actions">
-        <button type="submit" class="ag-btn ag-btn--primary" data-testid="create-org">
-          Create organization
+  <!-- Filter & Control Toolbar (Matching Products Module) -->
+  <section class="toolbar" aria-label="Organization Filters">
+    <!-- Desktop / Tablet Inline Controls -->
+    <div class="toolbar__desktop">
+      <div class="toolbar__left">
+        <!-- Search Input -->
+        <div class="search-field">
+          <svg
+            class="search-field__icon"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            id="org-search"
+            class="search-field__input"
+            type="search"
+            placeholder="Search organizations by name or slug…"
+            [value]="search()"
+            (input)="onSearchChange($event)"
+            data-testid="org-search-input"
+            aria-label="Search organizations"
+          />
+        </div>
+
+        <!-- Status Filter -->
+        <div class="select-field">
+          <select
+            id="status-filter"
+            class="select-field__input"
+            [value]="statusFilter()"
+            (change)="onStatusFilterChange($any($event.target).value)"
+            data-testid="status-filter-select"
+            aria-label="Filter by status"
+          >
+            <option value="">All Statuses</option>
+            <option value="approved">Active / Approved</option>
+            <option value="suspended">Suspended</option>
+            <option value="pending_approval">Pending Approval</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+
+        <!-- Plan Filter -->
+        <div class="select-field">
+          <select
+            id="plan-filter"
+            class="select-field__input"
+            [value]="planFilter()"
+            (change)="onPlanFilterChange($any($event.target).value)"
+            data-testid="plan-filter-select"
+            aria-label="Filter by plan"
+          >
+            <option value="">All Plans</option>
+            <option value="Starter">Starter</option>
+            <option value="Business">Business</option>
+            <option value="Enterprise">Enterprise</option>
+          </select>
+        </div>
+
+        <!-- Subscription Filter -->
+        <div class="select-field">
+          <select
+            id="sub-status-filter"
+            class="select-field__input"
+            [value]="subStatusFilter()"
+            (change)="onSubStatusFilterChange($any($event.target).value)"
+            data-testid="sub-status-filter-select"
+            aria-label="Filter by subscription state"
+          >
+            <option value="">All States</option>
+            <option value="active">Active</option>
+            <option value="trial">Trial</option>
+            <option value="grace">Grace</option>
+            <option value="suspended">Suspended</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+
+        <!-- Clear Filters Button -->
+        @if (hasActiveFilters()) {
+        <button
+          type="button"
+          class="clear-filters-btn"
+          (click)="clearFilters()"
+          data-testid="clear-filters-btn"
+        >
+          Clear filters
         </button>
+        }
       </div>
-    </form>
-  </div>
+    </div>
 
+    <!-- Mobile Toolbar -->
+    <div class="toolbar__mobile">
+      <div class="search-field">
+        <svg
+          class="search-field__icon"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          class="search-field__input"
+          type="search"
+          placeholder="Search organizations…"
+          [value]="search()"
+          (input)="onSearchChange($event)"
+          aria-label="Search organizations"
+        />
+      </div>
+      <div class="toolbar__mobile-row">
+        <div class="select-field" style="flex: 1;">
+          <select
+            class="select-field__input"
+            style="width: 100%;"
+            [value]="statusFilter()"
+            (change)="onStatusFilterChange($any($event.target).value)"
+            aria-label="Filter by status"
+          >
+            <option value="">All Statuses</option>
+            <option value="approved">Active</option>
+            <option value="suspended">Suspended</option>
+            <option value="pending_approval">Pending</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div class="select-field" style="flex: 1;">
+          <select
+            class="select-field__input"
+            style="width: 100%;"
+            [value]="planFilter()"
+            (change)="onPlanFilterChange($any($event.target).value)"
+            aria-label="Filter by plan"
+          >
+            <option value="">All Plans</option>
+            <option value="Starter">Starter</option>
+            <option value="Business">Business</option>
+            <option value="Enterprise">Enterprise</option>
+          </select>
+        </div>
+        @if (hasActiveFilters()) {
+        <button type="button" class="clear-filters-btn" (click)="clearFilters()">
+          Clear
+        </button>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Table & List View -->
   @if (loading()) {
   <agrivio-ui-loading-state label="Loading organizations…" />
   } @else if (items().length === 0) {
   <agrivio-ui-empty-state
-    title="No organization requests"
-    message="New public access requests will appear here for review."
+    title="No organizations found"
+    [message]="search() || statusFilter() || planFilter() || subStatusFilter() ? 'No organizations match your selected filters.' : 'No organizations have been registered yet.'"
   />
   } @else {
-  <div class="ag-table-wrap">
-    <table class="ag-table">
+  <!-- Desktop Table View -->
+  <div class="table-container">
+    <table class="org-table">
       <thead>
         <tr>
-          <th>Organization</th>
-          <th>Status</th>
-          <th>Owner</th>
-          <th>Actions</th>
+          <th scope="col" class="th-org">Organization</th>
+          <th scope="col" class="th-status">Status</th>
+          <th scope="col" class="th-plan">Plan</th>
+          <th scope="col" class="th-owner">Owner</th>
+          <th scope="col" class="th-usage">Usage</th>
+          <th scope="col" class="th-created">Created</th>
+          <th scope="col" class="th-actions">Actions</th>
         </tr>
       </thead>
       <tbody>
         @for (item of items(); track item.id) {
         <tr data-testid="org-row">
-          <td>
-            <strong>{{ item.name }}</strong>
+          <td class="td-org">
+            <div class="org-cell">
+              <div class="org-cell__glyph">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 21h18M3 7v14M21 7v14M6 11h4M6 15h4M14 11h4M14 15h4M9 3h6v4H9z" />
+                </svg>
+              </div>
+              <div class="org-cell__meta">
+                <a [routerLink]="['/app/platform/organizations', item.id]" class="org-cell__name">
+                  {{ item.name }}
+                </a>
+                <span class="org-cell__slug">{{ item.timezone || 'Asia/Karachi' }}</span>
+              </div>
+            </div>
           </td>
-          <td>
-            <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+
+          <td class="td-status">
+            <agrivio-ui-status-badge [label]="statusLabel(item.status)" [tone]="statusTone(item.status)" />
           </td>
-          <td>{{ item.ownerEmail || '—' }}</td>
-          <td>
-            <div class="ag-actions">
+
+          <td class="td-plan">
+            @if (item.subscription; as sub) {
+            <div class="plan-cell">
+              <span class="plan-chip">{{ sub.planCode }}</span>
+              <span class="plan-meta">v{{ sub.planVersion }} • {{ sub.status }}</span>
+            </div>
+            } @else {
+            <span class="ag-muted">—</span>
+            }
+          </td>
+
+          <td class="td-owner">
+            <div class="owner-cell">
+              <span class="owner-email">{{ item.ownerEmail || '—' }}</span>
+              @if (item.ownerNeedsActivation) {
+              <span class="owner-tag owner-tag--pending">Needs Activation</span>
+              }
+            </div>
+          </td>
+
+          <td class="td-usage">
+            <div class="usage-pills">
+              @if (item.branchCount !== undefined) {
+              <span class="usage-pill" title="Branches"><strong>{{ item.branchCount }}</strong> B</span>
+              }
+              @if (item.warehouseCount !== undefined) {
+              <span class="usage-pill" title="Warehouses"><strong>{{ item.warehouseCount }}</strong> W</span>
+              }
+              @if (item.employeeCount !== undefined) {
+              <span class="usage-pill" title="Employees"><strong>{{ item.employeeCount }}</strong> E</span>
+              }
+              @if (item.branchCount === undefined && item.warehouseCount === undefined && item.employeeCount === undefined) {
+              <span class="ag-muted">—</span>
+              }
+            </div>
+          </td>
+
+          <td class="td-created">
+            <span class="date-text">{{ item.createdAt ? (item.createdAt | slice:0:10) : '—' }}</span>
+          </td>
+
+          <td class="td-actions">
+            <div class="action-btn-group">
+              <a
+                class="ag-btn ag-btn--secondary ag-btn--sm"
+                [routerLink]="['/app/platform/organizations', item.id]"
+                data-testid="view-org-btn"
+              >
+                View
+              </a>
+
+              <button
+                type="button"
+                class="ag-btn ag-btn--secondary ag-btn--sm"
+                (click)="openEdit(item)"
+                data-testid="edit-org-btn"
+              >
+                Edit
+              </button>
+
               <a
                 class="ag-btn ag-btn--secondary ag-btn--sm"
                 [routerLink]="['/app/platform/organizations', item.id, 'controls']"
-                data-testid="organization-controls-link"
+                data-testid="org-controls-btn"
               >
                 Controls
               </a>
+
+              @if (item.status === 'approved') {
+              <button
+                type="button"
+                class="ag-btn ag-btn--danger ag-btn--sm"
+                (click)="openSuspend(item)"
+                data-testid="suspend-org-btn"
+              >
+                Suspend
+              </button>
+              }
+
+              @if (item.status === 'suspended') {
+              <button
+                type="button"
+                class="ag-btn ag-btn--primary ag-btn--sm"
+                (click)="openReactivate(item)"
+                data-testid="reactivate-org-btn"
+              >
+                Reactivate
+              </button>
+              }
+
               @if (item.status === 'pending_approval') {
               <button
                 type="button"
                 class="ag-btn ag-btn--primary ag-btn--sm"
-                data-testid="approve-org"
                 (click)="askApprove(item)"
+                data-testid="approve-org-btn"
               >
                 Approve
               </button>
               <button
                 type="button"
                 class="ag-btn ag-btn--danger ag-btn--sm"
-                (click)="askReject(item)"
+                (click)="openReject(item)"
+                data-testid="reject-org-btn"
               >
                 Reject
               </button>
-              } @if (item.status === 'approved' && item.ownerNeedsActivation) {
+              }
+
+              @if (item.status === 'approved' && item.ownerNeedsActivation) {
               <button
                 type="button"
                 class="ag-btn ag-btn--secondary ag-btn--sm"
-                data-testid="reissue-activation"
                 (click)="askReissue(item)"
+                data-testid="reissue-activation-btn"
               >
-                Reissue activation
+                Reissue Link
               </button>
               }
             </div>
@@ -147,109 +450,331 @@
       </tbody>
     </table>
   </div>
+
+  <!-- Mobile Responsive Cards View (< 768px) -->
+  <div class="mobile-cards-list">
+    @for (item of items(); track item.id) {
+    <article class="mobile-card" data-testid="mobile-org-card">
+      <div class="mobile-card__header">
+        <div class="mobile-card__title-group">
+          <a [routerLink]="['/app/platform/organizations', item.id]" class="mobile-card__title">
+            {{ item.name }}
+          </a>
+          @if (item.timezone) {
+          <span class="mobile-card__tz">{{ item.timezone }}</span>
+          }
+        </div>
+        <agrivio-ui-status-badge [label]="statusLabel(item.status)" [tone]="statusTone(item.status)" />
+      </div>
+
+      <div class="mobile-card__body">
+        <div class="mobile-card__row">
+          <span class="mobile-card__label">Plan:</span>
+          <span class="mobile-card__val">{{ item.subscription ? item.subscription.planCode + ' (v' + item.subscription.planVersion + ')' : '—' }}</span>
+        </div>
+        <div class="mobile-card__row">
+          <span class="mobile-card__label">Owner:</span>
+          <span class="mobile-card__val">{{ item.ownerEmail || '—' }}</span>
+        </div>
+        <div class="mobile-card__row">
+          <span class="mobile-card__label">Usage:</span>
+          <div class="usage-pills">
+            <span class="usage-pill">{{ item.branchCount ?? 0 }} B</span>
+            <span class="usage-pill">{{ item.warehouseCount ?? 0 }} W</span>
+            <span class="usage-pill">{{ item.employeeCount ?? 0 }} E</span>
+          </div>
+        </div>
+        <div class="mobile-card__row">
+          <span class="mobile-card__label">Created:</span>
+          <span class="mobile-card__val">{{ item.createdAt ? (item.createdAt | slice:0:10) : '—' }}</span>
+        </div>
+      </div>
+
+      <div class="mobile-card__actions">
+        <a [routerLink]="['/app/platform/organizations', item.id]" class="ag-btn ag-btn--secondary ag-btn--sm">
+          View
+        </a>
+        <button type="button" class="ag-btn ag-btn--secondary ag-btn--sm" (click)="openEdit(item)">
+          Edit
+        </button>
+        <a [routerLink]="['/app/platform/organizations', item.id, 'controls']" class="ag-btn ag-btn--secondary ag-btn--sm">
+          Controls
+        </a>
+        @if (item.status === 'approved') {
+        <button type="button" class="ag-btn ag-btn--danger ag-btn--sm" (click)="openSuspend(item)">
+          Suspend
+        </button>
+        }
+        @if (item.status === 'suspended') {
+        <button type="button" class="ag-btn ag-btn--primary ag-btn--sm" (click)="openReactivate(item)">
+          Reactivate
+        </button>
+        }
+        @if (item.status === 'pending_approval') {
+        <button type="button" class="ag-btn ag-btn--primary ag-btn--sm" (click)="askApprove(item)">
+          Approve
+        </button>
+        <button type="button" class="ag-btn ag-btn--danger ag-btn--sm" (click)="openReject(item)">
+          Reject
+        </button>
+        }
+      </div>
+    </article>
+    }
+  </div>
+
+  <!-- Server Pagination -->
   <agrivio-ui-pagination
     [page]="page()"
     [pageSize]="pageSize()"
     [total]="total()"
-    [disabled]="loading()"
+    [disabled]="loading() || refreshing()"
     (pageChange)="onPageChange($event)"
     (pageSizeChange)="onPageSizeChange($event)"
   />
   }
 
-  <div class="ag-card ag-stack ag-stack--tight">
-    <h2>Rejection reason</h2>
-    <p class="ag-muted">Required before rejecting a request.</p>
-    <form class="ag-form ag-form--with-required-hint" [formGroup]="rejectForm">
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Reason"
-          for="reject-reason"
-          [required]="fieldRequired(rejectForm.controls.reason)"
-        />
-        <input
-          id="reject-reason"
-          class="ag-input"
-          type="text"
-          formControlName="reason"
-          [attr.aria-required]="fieldRequired(rejectForm.controls.reason) ? 'true' : null"
-        />
-      </div>
-    </form>
-  </div>
+  <!-- Modals & Dialogs -->
 
-  @if (activationHandoff(); as handoff) {
-  <div class="ag-card ag-stack" data-testid="activation-handoff">
-    <div class="ag-alert ag-alert--success" data-testid="activation-token">
-      <strong>One-time Owner activation link (shown once)</strong>
-      <p>
-        Copy and send this link out-of-band. Agrivio does not email it. The plaintext token is not
-        stored and cannot be recovered later—use Reissue activation if the link is lost before the
-        Owner sets a password.
+  <!-- 1. Create Organization Modal -->
+  @if (createOpen()) {
+  <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="create-org-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="create-org-title">Create Organization</h2>
+        <button type="button" class="close-btn" (click)="closeCreate()" aria-label="Close dialog">✕</button>
+      </div>
+      <p class="ag-muted modal-desc">
+        Direct platform create establishes a pending organization and owner. No operational access is granted until approved and activated.
       </p>
+      <form [formGroup]="createForm" (ngSubmit)="submitCreate()" class="ag-form">
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Organization Name" for="c-name" [required]="true" />
+          <input id="c-name" class="ag-input" type="text" formControlName="organizationName" placeholder="e.g. Green Acres" />
+        </div>
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Owner Email" for="c-email" [required]="true" />
+          <input id="c-email" class="ag-input" type="email" formControlName="ownerEmail" placeholder="owner@domain.com" />
+        </div>
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Owner Display Name" for="c-owner-name" [required]="true" />
+          <input id="c-owner-name" class="ag-input" type="text" formControlName="ownerDisplayName" placeholder="e.g. John Doe" />
+        </div>
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Timezone" for="c-tz" [required]="true" />
+          <select id="c-tz" class="ag-input ag-select" formControlName="timezone">
+            <option value="Asia/Karachi">Asia/Karachi (PKT)</option>
+            <option value="Asia/Dubai">Asia/Dubai (GST)</option>
+            <option value="UTC">UTC</option>
+            <option value="America/New_York">America/New_York (EST)</option>
+            <option value="Europe/London">Europe/London (GMT)</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="ag-btn ag-btn--secondary" (click)="closeCreate()">Cancel</button>
+          <button type="submit" class="ag-btn ag-btn--primary" [disabled]="createForm.invalid">Create Organization</button>
+        </div>
+      </form>
     </div>
-
-    <dl class="ag-stack ag-stack--tight">
-      <div>
-        <dt class="ag-muted">Owner</dt>
-        <dd data-testid="activation-owner-email">
-          {{ handoff.ownerDisplayName || 'Owner' }} @if (handoff.ownerEmail) { &lt;{{
-          handoff.ownerEmail }}&gt; }
-        </dd>
-      </div>
-      <div>
-        <dt class="ag-muted">Activation URL</dt>
-        <dd>
-          <code data-testid="activation-url">{{ handoff.activationUrl }}</code>
-        </dd>
-      </div>
-      <div>
-        <dt class="ag-muted">Expires</dt>
-        <dd>{{ handoff.activationTokenExpiresAt }}</dd>
-      </div>
-    </dl>
-
-    <div class="ag-actions">
-      <button
-        type="button"
-        class="ag-btn ag-btn--primary"
-        data-testid="copy-activation-url"
-        (click)="copyActivationUrl()"
-      >
-        Copy activation link
-      </button>
-      <a
-        class="ag-btn ag-btn--secondary"
-        [routerLink]="'/activate'"
-        [queryParams]="{ token: handoff.activationToken }"
-        data-testid="open-activation"
-      >
-        Open activation
-      </a>
-    </div>
-
-    @if (copyFeedback(); as copied) {
-    <agrivio-ui-alert [message]="copied" tone="success" />
-    }
-
-    <details>
-      <summary>Show raw token</summary>
-      <p><code data-testid="activation-token-value">{{ handoff.activationToken }}</code></p>
-    </details>
   </div>
-  } @if (successMessage(); as success) {
-  <agrivio-ui-alert [message]="success" tone="success" />
-  } @if (errorMessage(); as error) {
-  <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
   }
 
-  <agrivio-ui-confirm-dialog
-    [open]="confirmOpen()"
-    [title]="confirmTitle()"
-    [message]="confirmMessage()"
-    [confirmLabel]="confirmLabel()"
-    [danger]="confirmDanger()"
-    (confirmed)="runConfirmedAction()"
-    (dismiss)="confirmOpen.set(false)"
-  />
-</section>
+  <!-- 2. Edit Organization Modal -->
+  @if (editOpen()) {
+  <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="edit-org-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="edit-org-title">Edit Organization: {{ selectedItem()?.name }}</h2>
+        <button type="button" class="close-btn" (click)="closeEdit()" aria-label="Close dialog">✕</button>
+      </div>
+      <p class="ag-muted modal-desc">
+        Update organization profile attributes. Version concurrency is enforced automatically.
+      </p>
+      <form [formGroup]="editForm" (ngSubmit)="submitEdit()" class="ag-form">
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Organization Name" for="e-name" [required]="true" />
+          <input id="e-name" class="ag-input" type="text" formControlName="name" />
+        </div>
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Timezone" for="e-tz" [required]="true" />
+          <input id="e-tz" class="ag-input" type="text" formControlName="timezone" placeholder="e.g. Asia/Karachi" />
+        </div>
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Reason for Modification" for="e-reason" [required]="true" />
+          <input id="e-reason" class="ag-input" type="text" formControlName="reason" placeholder="Audited reason for administrative change" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="ag-btn ag-btn--secondary" (click)="closeEdit()">Cancel</button>
+          <button type="submit" class="ag-btn ag-btn--primary" [disabled]="editForm.invalid">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  }
+
+  <!-- 3. Suspend Organization Confirmation Dialog -->
+  @if (suspendOpen()) {
+  <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="suspend-org-title">
+    <div class="modal-card modal-card--danger">
+      <div class="modal-header">
+        <h2 id="suspend-org-title">Suspend {{ selectedItem()?.name }}?</h2>
+        <button type="button" class="close-btn" (click)="closeSuspend()" aria-label="Close dialog">✕</button>
+      </div>
+      <div class="consequence-notice">
+        <strong>Consequence Notice:</strong>
+        <p>
+          Suspending this organization restricts tenant operations according to platform policy. Organization data is preserved.
+        </p>
+      </div>
+      <form [formGroup]="suspendForm" (ngSubmit)="submitSuspend()" class="ag-form">
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Reason for Suspension" for="s-reason" [required]="true" />
+          <input
+            id="s-reason"
+            class="ag-input"
+            type="text"
+            formControlName="reason"
+            placeholder="Audited reason required by platform policy"
+            data-testid="suspend-reason-input"
+          />
+        </div>
+
+        <div class="checkbox-field">
+          <label class="checkbox-label">
+            <input type="checkbox" formControlName="confirmed" data-testid="suspend-confirm-checkbox" />
+            <span>I confirm that I want to suspend this organization. I understand data is preserved but operational access will be halted.</span>
+          </label>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="ag-btn ag-btn--secondary" (click)="closeSuspend()">Cancel</button>
+          <button
+            type="submit"
+            class="ag-btn ag-btn--danger"
+            [disabled]="suspendForm.invalid"
+            data-testid="confirm-suspend-btn"
+          >
+            Suspend Organization
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  }
+
+  <!-- 4. Reactivate Organization Confirmation Dialog -->
+  @if (reactivateOpen()) {
+  <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="reactivate-org-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="reactivate-org-title">Reactivate {{ selectedItem()?.name }}?</h2>
+        <button type="button" class="close-btn" (click)="closeReactivate()" aria-label="Close dialog">✕</button>
+      </div>
+      <p class="ag-muted modal-desc">
+        Reactivating returns normal tenant operations according to subscription status, RBAC assignments, and capabilities. Permissions and records remain preserved.
+      </p>
+      <form [formGroup]="reactivateForm" (ngSubmit)="submitReactivate()" class="ag-form">
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Reason for Reactivation" for="r-reason" [required]="true" />
+          <input
+            id="r-reason"
+            class="ag-input"
+            type="text"
+            formControlName="reason"
+            placeholder="Audited reason for reactivating access"
+            data-testid="reactivate-reason-input"
+          />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="ag-btn ag-btn--secondary" (click)="closeReactivate()">Cancel</button>
+          <button
+            type="submit"
+            class="ag-btn ag-btn--primary"
+            [disabled]="reactivateForm.invalid"
+            data-testid="confirm-reactivate-btn"
+          >
+            Reactivate Organization
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  }
+
+  <!-- 5. Reject Organization Modal -->
+  @if (rejectOpen()) {
+  <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="reject-org-title">
+    <div class="modal-card modal-card--danger">
+      <div class="modal-header">
+        <h2 id="reject-org-title">Reject {{ selectedItem()?.name }}?</h2>
+        <button type="button" class="close-btn" (click)="closeReject()" aria-label="Close dialog">✕</button>
+      </div>
+      <p class="ag-muted modal-desc">
+        Reject this pending activation request. The organization will be marked as rejected.
+      </p>
+      <form [formGroup]="rejectForm" (ngSubmit)="submitReject()" class="ag-form">
+        <div class="ag-field">
+          <agrivio-ui-field-label label="Rejection Reason" for="rej-reason" [required]="true" />
+          <input
+            id="rej-reason"
+            class="ag-input"
+            type="text"
+            formControlName="reason"
+            placeholder="Reason for rejecting the activation request"
+            data-testid="reject-reason-input"
+          />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="ag-btn ag-btn--secondary" (click)="closeReject()">Cancel</button>
+          <button
+            type="submit"
+            class="ag-btn ag-btn--danger"
+            [disabled]="rejectForm.invalid"
+            data-testid="confirm-reject-btn"
+          >
+            Reject Request
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  }
+
+  <!-- 6. One-time Activation Link Handoff Card -->
+  @if (activationHandoff(); as handoff) {
+  <div class="handoff-card" data-testid="activation-handoff">
+    <div class="handoff-header">
+      <div class="handoff-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+      </div>
+      <div>
+        <h3>One-Time Owner Activation Link (Generated Once)</h3>
+        <p class="ag-muted">
+          Copy and deliver this link out-of-band to {{ handoff.ownerDisplayName || 'the Owner' }} ({{ handoff.ownerEmail }}).
+          Agrivio does not email credentials. Plaintext cannot be viewed again once dismissed.
+        </p>
+      </div>
+    </div>
+
+    <div class="handoff-content">
+      <div class="link-display-box">
+        <code data-testid="activation-url">{{ handoff.activationUrl }}</code>
+      </div>
+      <div class="handoff-actions">
+        <button type="button" class="ag-btn ag-btn--primary" (click)="copyActivationUrl()" data-testid="copy-activation-url">
+          Copy Link
+        </button>
+        <button type="button" class="ag-btn ag-btn--secondary" (click)="activationHandoff.set(null)">
+          Dismiss
+        </button>
+      </div>
+    </div>
+    @if (copyFeedback(); as copied) {
+    <p class="copy-notice" role="status">{{ copied }}</p>
+    }
+  </div>
+  }
+</div>

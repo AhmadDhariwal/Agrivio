@@ -5,250 +5,252 @@
       <p class="page-head__eyebrow">PURCHASING</p>
       <div class="page-head__heading-wrap">
         <h1 class="page-head__title">Purchases</h1>
-        <span class="page-head__count-pill" aria-label="Total purchases" data-testid="purchases-count-pill">
+        <span
+          class="page-head__count-pill"
+          aria-label="Total purchases"
+          data-testid="purchases-count-pill"
+        >
           {{ total() }} {{ total() === 1 ? 'purchase' : 'purchases' }}
         </span>
       </div>
-      <p class="page-head__lede">
-        Track and manage purchase drafts and posted purchases.
-      </p>
+      <p class="page-head__lede">Track and manage purchase drafts and posted purchases.</p>
     </div>
 
     <div class="page-head__actions">
       @if (canCreate()) {
-        <a class="ag-btn ag-btn--primary page-head__create-btn" routerLink="/app/purchases/new" data-testid="purchase-create-link">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-          <span class="btn-text-full">Create purchase draft</span>
-          <span class="btn-text-mobile">Create</span>
-        </a>
+      <a
+        class="ag-btn ag-btn--primary page-head__create-btn"
+        routerLink="/app/purchases/new"
+        data-testid="purchase-create-link"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span class="btn-text-full">Create purchase draft</span>
+        <span class="btn-text-mobile">Create</span>
+      </a>
       }
     </div>
   </header>
 
   <!-- Permission / Error / Loading States -->
   @if (!canView()) {
-    <div class="alert-container" data-testid="purchases-permission-alert">
-      <agrivio-ui-alert tone="warning" message="You do not have permission to view purchases." />
-    </div>
+  <div class="alert-container" data-testid="purchases-permission-alert">
+    <agrivio-ui-alert tone="warning" message="You do not have permission to view purchases." />
+  </div>
   } @else if (loading()) {
-    <agrivio-ui-loading-state label="Loading purchases…" />
-  } @else {
-    @if (errorMessage(); as error) {
-      <div class="alert-container">
-        <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
-      </div>
+  <agrivio-ui-loading-state label="Loading purchases…" />
+  } @else { @if (errorMessage(); as error) {
+  <div class="alert-container">
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  </div>
+  }
+
+  <!-- Module Info Card -->
+  @if (showModuleInfo()) {
+  <agrivio-ui-module-info
+    title="About Purchases"
+    description="Manage purchase drafts, posted purchases, payments and supplier transactions in one place."
+    [items]="moduleInfoItems"
+    [defaultExpanded]="false"
+  />
+  }
+
+  <!-- Filter Toolbar -->
+  <div class="toolbar" data-testid="purchases-toolbar">
+    @if (showSearch()) {
+    <div class="toolbar__search">
+      <input
+        class="ag-input"
+        type="search"
+        placeholder="Search supplier, invoice ref…"
+        [ngModel]="search()"
+        (ngModelChange)="onSearchChange($event)"
+        aria-label="Search purchases"
+        data-testid="purchases-search-input"
+      />
+    </div>
     }
 
-    <!-- Module Info Card -->
-    @if (showModuleInfo()) {
-    <agrivio-ui-module-info
-      title="About Purchases"
-      description="Manage purchase drafts, posted purchases, payments and supplier transactions in one place."
-      [items]="moduleInfoItems"
-      [defaultExpanded]="false"
-    />
-    }
-
-    <!-- Filter Toolbar -->
-    <div class="toolbar" data-testid="purchases-toolbar">
-      @if (showSearch()) {
-      <div class="toolbar__search">
-        <input
-          class="ag-input"
-          type="search"
-          placeholder="Search supplier, invoice ref…"
-          [ngModel]="search()"
-          (ngModelChange)="onSearchChange($event)"
-          aria-label="Search purchases"
-          data-testid="purchases-search-input"
-        />
+    <div class="toolbar__filters">
+      <!-- Status Filter -->
+      @if (showStatusFilter()) {
+      <div class="select-wrapper">
+        <select
+          class="ag-select"
+          [ngModel]="status()"
+          (ngModelChange)="onStatusChange($event)"
+          aria-label="Filter by status"
+          data-testid="purchases-status-filter"
+        >
+          <option value="">All statuses</option>
+          <option value="draft">Draft (unposted)</option>
+          <option value="posted">Posted</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
       </div>
       }
 
-      <div class="toolbar__filters">
-        <!-- Status Filter -->
-        @if (showStatusFilter()) {
-        <div class="select-wrapper">
-          <select
-            class="ag-select"
-            [ngModel]="status()"
-            (ngModelChange)="onStatusChange($event)"
-            aria-label="Filter by status"
-            data-testid="purchases-status-filter"
-          >
-            <option value="">All statuses</option>
-            <option value="draft">Draft (unposted)</option>
-            <option value="posted">Posted</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-        </div>
-        }
-
-        <!-- Clear Filters Button -->
-        @if (search() || status()) {
-          <button
-            type="button"
-            class="ag-btn ag-btn--ghost toolbar__btn"
-            (click)="clearFilters()"
-            data-testid="purchases-clear-filters"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-            Clear
-          </button>
-        }
-
-        <!-- Refresh Button -->
-        <button
-          type="button"
-          class="ag-btn ag-btn--secondary toolbar__btn"
-          (click)="reload(true)"
-          data-testid="purchases-refresh-btn"
-          title="Refresh purchases list"
-          aria-label="Refresh purchases"
+      <!-- Clear Filters Button -->
+      @if (search() || status()) {
+      <button
+        type="button"
+        class="ag-btn ag-btn--ghost toolbar__btn"
+        (click)="clearFilters()"
+        data-testid="purchases-clear-filters"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-            <path d="M3 3v5h5" />
-            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-            <path d="M16 21h5v-5" />
-          </svg>
-          Refresh
-        </button>
-      </div>
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+        Clear
+      </button>
+      }
+
+      <!-- Refresh Button -->
+      <button
+        type="button"
+        class="ag-btn ag-btn--secondary toolbar__btn"
+        (click)="reload(true)"
+        data-testid="purchases-refresh-btn"
+        title="Refresh purchases list"
+        aria-label="Refresh purchases"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+          <path d="M3 3v5h5" />
+          <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+          <path d="M16 21h5v-5" />
+        </svg>
+        Refresh
+      </button>
     </div>
+  </div>
 
-    <!-- Desktop Table View -->
-    <div class="table-container desktop-only">
-      <table class="data-table" data-testid="purchases-table">
-        <thead>
-          <tr>
-            <th class="col-purchase">PURCHASE</th>
-            <th class="col-supplier">SUPPLIER</th>
-            <th class="col-warehouse">WAREHOUSE</th>
-            <th class="col-date">DATE</th>
-            <th class="col-total">TOTAL</th>
-            <th class="col-paid">PAID</th>
-            <th class="col-payable">PAYABLE</th>
-            <th class="col-status">STATUS</th>
-            <th class="col-actions">ACTION</th>
-          </tr>
-        </thead>
-        <tbody data-testid="purchases-list">
-          @for (item of items(); track item.id) {
-            <tr class="purchase-row" data-testid="purchase-row">
-              <!-- Purchase Ref / ID -->
-              <td class="col-purchase">
-                <div class="purchase-ref-cell">
-                  <div class="purchase-icon-box" [class.purchase-icon-box--draft]="item.status === 'draft'" [class.purchase-icon-box--posted]="item.status === 'posted'" [class.purchase-icon-box--cancelled]="item.status === 'cancelled'" aria-hidden="true">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-                      <line x1="3" y1="6" x2="21" y2="6"></line>
-                      <path d="M16 10a4 4 0 0 1-8 0"></path>
-                    </svg>
-                  </div>
-                  <div class="purchase-ref-info">
-                    <span class="purchase-ref-title">
-                      {{ item.supplierInvoiceReference || ('Purchase #' + item.id.slice(-6).toUpperCase()) }}
-                    </span>
-                    <span class="purchase-ref-sub">
-                      {{ item.id.slice(-8) }}
-                    </span>
-                  </div>
-                </div>
-              </td>
-
-              <!-- Supplier -->
-              <td class="col-supplier">
-                <span class="cell-supplier">{{ item.supplierNameSnapshot || 'Unknown supplier' }}</span>
-              </td>
-
-              <!-- Warehouse -->
-              <td class="col-warehouse">
-                <span class="cell-warehouse">{{ item.warehouseNameSnapshot || 'Warehouse' }}</span>
-              </td>
-
-              <!-- Date -->
-              <td class="col-date">
-                <span class="cell-date">{{ item.purchaseDate }}</span>
-              </td>
-
-              <!-- Total -->
-              <td class="col-total">
-                <span class="cell-amount">{{ item.purchaseTotal?.amount ? ('PKR ' + item.purchaseTotal!.amount) : '—' }}</span>
-              </td>
-
-              <!-- Paid -->
-              <td class="col-paid">
-                <span class="cell-amount">{{ item.paidTotal?.amount ? ('PKR ' + item.paidTotal!.amount) : '—' }}</span>
-              </td>
-
-              <!-- Payable -->
-              <td class="col-payable">
-                <span class="cell-amount" [class.cell-amount--due]="item.payableTotal?.amount && item.payableTotal!.amount !== '0.00' && item.payableTotal!.amount !== '0'">
-                  {{ item.payableTotal?.amount ? ('PKR ' + item.payableTotal!.amount) : '—' }}
-                </span>
-              </td>
-
-              <!-- Status -->
-              <td class="col-status">
-                <span
-                  class="status-pill"
-                  [class.status-pill--green]="item.status === 'posted'"
-                  [class.status-pill--amber]="item.status === 'draft'"
-                  [class.status-pill--gray]="item.status === 'cancelled'"
+  <!-- Desktop Table View -->
+  <div class="table-container desktop-only">
+    <table class="data-table" data-testid="purchases-table">
+      <thead>
+        <tr>
+          <th class="col-purchase">PURCHASE</th>
+          <th class="col-supplier">SUPPLIER</th>
+          <th class="col-warehouse">WAREHOUSE</th>
+          <th class="col-date">DATE</th>
+          <th class="col-total">TOTAL</th>
+          <th class="col-paid">PAID</th>
+          <th class="col-payable">PAYABLE</th>
+          <th class="col-status">STATUS</th>
+          <th class="col-actions">ACTION</th>
+        </tr>
+      </thead>
+      <tbody data-testid="purchases-list">
+        @for (item of items(); track item.id) {
+        <tr class="purchase-row" data-testid="purchase-row">
+          <!-- Purchase Ref / ID -->
+          <td class="col-purchase">
+            <div class="purchase-ref-cell">
+              <div
+                class="purchase-icon-box"
+                [class.purchase-icon-box--draft]="item.status === 'draft'"
+                [class.purchase-icon-box--posted]="item.status === 'posted'"
+                [class.purchase-icon-box--cancelled]="item.status === 'cancelled'"
+                aria-hidden="true"
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
                 >
-                  {{ statusLabel(item.status) }}
+                  <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                  <line x1="3" y1="6" x2="21" y2="6"></line>
+                  <path d="M16 10a4 4 0 0 1-8 0"></path>
+                </svg>
+              </div>
+              <div class="purchase-ref-info">
+                <span class="purchase-ref-title">
+                  {{ item.supplierInvoiceReference || ('Purchase #' +
+                  item.id.slice(-6).toUpperCase()) }}
                 </span>
-              </td>
-
-              <!-- Action -->
-              <td class="col-actions">
-                @if (canOpen(item)) {
-                  <a
-                    class="ag-btn ag-btn--sm ag-btn--secondary"
-                    [routerLink]="['/app/purchases', item.id]"
-                    data-testid="purchase-action-btn"
-                  >
-                    {{ actionLabel(item.status) }}
-                  </a>
-                }
-              </td>
-            </tr>
-          } @empty {
-            <tr>
-              <td colspan="9" class="empty-cell" data-testid="purchases-empty">
-                <div class="empty-content">
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-                    <line x1="3" y1="6" x2="21" y2="6"></line>
-                    <path d="M16 10a4 4 0 0 1-8 0"></path>
-                  </svg>
-                  <p>No purchases found matching the current criteria.</p>
-                </div>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Mobile Card View (<768px) -->
-    <div class="mobile-cards-list mobile-only" data-testid="purchases-mobile-list">
-      @for (item of items(); track item.id) {
-        <div class="mobile-purchase-card" data-testid="purchase-mobile-card">
-          <div class="mobile-purchase-card__header">
-            <div class="mobile-purchase-card__ref-wrap">
-              <span class="mobile-purchase-card__ref">
-                {{ item.supplierInvoiceReference || ('Purchase #' + item.id.slice(-6).toUpperCase()) }}
-              </span>
-              <span class="mobile-purchase-card__date">{{ item.purchaseDate }}</span>
+                <span class="purchase-ref-sub"> {{ item.id.slice(-8) }} </span>
+              </div>
             </div>
+          </td>
+
+          <!-- Supplier -->
+          <td class="col-supplier">
+            <span class="cell-supplier">{{ item.supplierNameSnapshot || 'Unknown supplier' }}</span>
+          </td>
+
+          <!-- Warehouse -->
+          <td class="col-warehouse">
+            <span class="cell-warehouse">{{ item.warehouseNameSnapshot || 'Warehouse' }}</span>
+          </td>
+
+          <!-- Date -->
+          <td class="col-date">
+            <span class="cell-date">{{ item.purchaseDate }}</span>
+          </td>
+
+          <!-- Total -->
+          <td class="col-total">
+            <span class="cell-amount"
+              >{{ item.purchaseTotal?.amount ? ('PKR ' + item.purchaseTotal!.amount) : '—' }}</span
+            >
+          </td>
+
+          <!-- Paid -->
+          <td class="col-paid">
+            <span class="cell-amount"
+              >{{ item.paidTotal?.amount ? ('PKR ' + item.paidTotal!.amount) : '—' }}</span
+            >
+          </td>
+
+          <!-- Payable -->
+          <td class="col-payable">
+            <span
+              class="cell-amount"
+              [class.cell-amount--due]="item.payableTotal?.amount && item.payableTotal!.amount !== '0.00' && item.payableTotal!.amount !== '0'"
+            >
+              {{ item.payableTotal?.amount ? ('PKR ' + item.payableTotal!.amount) : '—' }}
+            </span>
+          </td>
+
+          <!-- Status -->
+          <td class="col-status">
             <span
               class="status-pill"
               [class.status-pill--green]="item.status === 'posted'"
@@ -257,66 +259,151 @@
             >
               {{ statusLabel(item.status) }}
             </span>
-          </div>
+          </td>
 
-          <div class="mobile-purchase-card__body">
-            <div class="mobile-purchase-card__field">
-              <span class="mobile-purchase-card__label">Supplier</span>
-              <span class="mobile-purchase-card__value">{{ item.supplierNameSnapshot || 'Unknown supplier' }}</span>
-            </div>
-            <div class="mobile-purchase-card__field">
-              <span class="mobile-purchase-card__label">Warehouse</span>
-              <span class="mobile-purchase-card__value">{{ item.warehouseNameSnapshot || 'Warehouse' }}</span>
-            </div>
-
-            <div class="mobile-purchase-card__financials">
-              <div class="mobile-purchase-card__fin-item">
-                <span class="mobile-purchase-card__label">Total</span>
-                <span class="mobile-purchase-card__amount">{{ item.purchaseTotal?.amount ? ('PKR ' + item.purchaseTotal!.amount) : '—' }}</span>
-              </div>
-              <div class="mobile-purchase-card__fin-item">
-                <span class="mobile-purchase-card__label">Paid</span>
-                <span class="mobile-purchase-card__amount">{{ item.paidTotal?.amount ? ('PKR ' + item.paidTotal!.amount) : '—' }}</span>
-              </div>
-              <div class="mobile-purchase-card__fin-item">
-                <span class="mobile-purchase-card__label">Payable</span>
-                <span class="mobile-purchase-card__amount" [class.mobile-purchase-card__amount--due]="item.payableTotal?.amount && item.payableTotal!.amount !== '0.00' && item.payableTotal!.amount !== '0'">
-                  {{ item.payableTotal?.amount ? ('PKR ' + item.payableTotal!.amount) : '—' }}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div class="mobile-purchase-card__actions">
-            @if (canOpen(item)) {
-              <a
-                class="ag-btn ag-btn--sm ag-btn--secondary mobile-purchase-card__btn"
-                [routerLink]="['/app/purchases', item.id]"
-              >
-                {{ actionLabel(item.status) }}
-              </a>
+          <!-- Action -->
+          <td class="col-actions">
+            @if (canInspect()) {
+            <a
+              class="ag-btn ag-btn--sm ag-btn--secondary"
+              [routerLink]="['/app/purchases', item.id]"
+              data-testid="purchase-action-btn"
+            >
+              View
+            </a>
+            } @if (item.status === 'draft' && canEditDraft()) {
+            <a
+              class="ag-btn ag-btn--sm ag-btn--secondary"
+              [routerLink]="['/app/purchases', item.id, 'edit']"
+            >
+              Edit draft
+            </a>
             }
+          </td>
+        </tr>
+        } @empty {
+        <tr>
+          <td colspan="9" class="empty-cell" data-testid="purchases-empty">
+            <div class="empty-content">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <path d="M16 10a4 4 0 0 1-8 0"></path>
+              </svg>
+              <p>No purchases found matching the current criteria.</p>
+            </div>
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile Card View (<768px) -->
+  <div class="mobile-cards-list mobile-only" data-testid="purchases-mobile-list">
+    @for (item of items(); track item.id) {
+    <div class="mobile-purchase-card" data-testid="purchase-mobile-card">
+      <div class="mobile-purchase-card__header">
+        <div class="mobile-purchase-card__ref-wrap">
+          <span class="mobile-purchase-card__ref">
+            {{ item.supplierInvoiceReference || ('Purchase #' + item.id.slice(-6).toUpperCase()) }}
+          </span>
+          <span class="mobile-purchase-card__date">{{ item.purchaseDate }}</span>
+        </div>
+        <span
+          class="status-pill"
+          [class.status-pill--green]="item.status === 'posted'"
+          [class.status-pill--amber]="item.status === 'draft'"
+          [class.status-pill--gray]="item.status === 'cancelled'"
+        >
+          {{ statusLabel(item.status) }}
+        </span>
+      </div>
+
+      <div class="mobile-purchase-card__body">
+        <div class="mobile-purchase-card__field">
+          <span class="mobile-purchase-card__label">Supplier</span>
+          <span class="mobile-purchase-card__value"
+            >{{ item.supplierNameSnapshot || 'Unknown supplier' }}</span
+          >
+        </div>
+        <div class="mobile-purchase-card__field">
+          <span class="mobile-purchase-card__label">Warehouse</span>
+          <span class="mobile-purchase-card__value"
+            >{{ item.warehouseNameSnapshot || 'Warehouse' }}</span
+          >
+        </div>
+
+        <div class="mobile-purchase-card__financials">
+          <div class="mobile-purchase-card__fin-item">
+            <span class="mobile-purchase-card__label">Total</span>
+            <span class="mobile-purchase-card__amount"
+              >{{ item.purchaseTotal?.amount ? ('PKR ' + item.purchaseTotal!.amount) : '—' }}</span
+            >
+          </div>
+          <div class="mobile-purchase-card__fin-item">
+            <span class="mobile-purchase-card__label">Paid</span>
+            <span class="mobile-purchase-card__amount"
+              >{{ item.paidTotal?.amount ? ('PKR ' + item.paidTotal!.amount) : '—' }}</span
+            >
+          </div>
+          <div class="mobile-purchase-card__fin-item">
+            <span class="mobile-purchase-card__label">Payable</span>
+            <span
+              class="mobile-purchase-card__amount"
+              [class.mobile-purchase-card__amount--due]="item.payableTotal?.amount && item.payableTotal!.amount !== '0.00' && item.payableTotal!.amount !== '0'"
+            >
+              {{ item.payableTotal?.amount ? ('PKR ' + item.payableTotal!.amount) : '—' }}
+            </span>
           </div>
         </div>
-      } @empty {
-        <div class="empty-content" data-testid="purchases-mobile-empty">
-          <p>No purchases found matching the current criteria.</p>
-        </div>
-      }
-    </div>
-
-    <!-- Pagination -->
-    @if (total() > 0) {
-      <div class="pagination-wrap" data-testid="purchases-pagination">
-        <agrivio-ui-pagination
-          [page]="page()"
-          [total]="total()"
-          [pageSize]="pageSize()"
-          [pageSizeOptions]="[10, 25, 50]"
-          (pageChange)="onPageChange($event)"
-          (pageSizeChange)="onPageSizeChange($event)"
-        />
       </div>
+
+      <div class="mobile-purchase-card__actions">
+        @if (canInspect()) {
+        <a
+          class="ag-btn ag-btn--sm ag-btn--secondary mobile-purchase-card__btn"
+          [routerLink]="['/app/purchases', item.id]"
+        >
+          View
+        </a>
+        } @if (item.status === 'draft' && canEditDraft()) {
+        <a
+          class="ag-btn ag-btn--sm ag-btn--secondary mobile-purchase-card__btn"
+          [routerLink]="['/app/purchases', item.id, 'edit']"
+        >
+          Edit draft
+        </a>
+        }
+      </div>
+    </div>
+    } @empty {
+    <div class="empty-content" data-testid="purchases-mobile-empty">
+      <p>No purchases found matching the current criteria.</p>
+    </div>
     }
-  }
+  </div>
+
+  <!-- Pagination -->
+  @if (total() > 0) {
+  <div class="pagination-wrap" data-testid="purchases-pagination">
+    <agrivio-ui-pagination
+      [page]="page()"
+      [total]="total()"
+      [pageSize]="pageSize()"
+      [pageSizeOptions]="[10, 25, 50]"
+      (pageChange)="onPageChange($event)"
+      (pageSizeChange)="onPageSizeChange($event)"
+    />
+  </div>
+  } }
 </div>

@@ -11,7 +11,15 @@ import { UiStatusBadgeComponent } from '../../../../shared/ui/ui-status-badge/ui
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import { UiSearchInputComponent } from '../../../../shared/ui/ui-search-input/ui-search-input.component';
-import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, startWith, switchMap } from 'rxjs';
+import {
+  EMPTY,
+  Subject,
+  catchError,
+  debounceTime,
+  distinctUntilChanged,
+  startWith,
+  switchMap,
+} from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
@@ -106,7 +114,8 @@ export class SalesPage {
           this.loading.set(true);
           this.errorMessage.set(null);
           const effectiveSearch = this.canSearch() ? this.search() : '';
-          const effectiveStatus = this.canFilterStatus() && this.status() ? this.status() : undefined;
+          const effectiveStatus =
+            this.canFilterStatus() && this.status() ? this.status() : undefined;
           return this.api
             .listSales({
               page: this.page(),
@@ -198,13 +207,6 @@ export class SalesPage {
       return 'Cancelled';
     }
     return status;
-  }
-
-  actionLabel(status: string): string {
-    if (status === 'posted' || status === 'cancelled') {
-      return 'View';
-    }
-    return 'Edit draft';
   }
 
   statusTone(status: string): 'warning' | 'success' | 'neutral' | 'danger' {

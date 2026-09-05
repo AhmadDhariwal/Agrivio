@@ -166,6 +166,8 @@ const saleSchema = new mongoose.Schema(
   { timestamps: true, collection: 'sales' },
 );
 
+saleSchema.index({ organizationId: 1, saleDate: -1, createdAt: -1 });
+saleSchema.index({ organizationId: 1, status: 1, saleDate: -1, createdAt: -1 });
 saleSchema.index({ organizationId: 1, status: 1, createdAt: -1 });
 saleSchema.index({ organizationId: 1, branchId: 1, postedAt: -1 });
 saleSchema.index({ organizationId: 1, warehouseId: 1, createdAt: -1 });

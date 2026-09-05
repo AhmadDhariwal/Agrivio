@@ -1,4 +1,10 @@
-const { conflict, forbidden, notFound, validationFailed } = require('../../platform/errors/app-error');
+const {
+  conflict,
+  forbidden,
+  notFound,
+  validationFailed,
+} = require('../../platform/errors/app-error');
+const { assertOptimisticVersion } = require('../../platform/validation/request-validation');
 const { createAuditWriter } = require('../../platform/audit/audit-writer');
 const {
   createIdempotencyService,
@@ -23,6 +29,9 @@ const DEFAULT_TRIAL_DAYS = 14;
 function createOnboardingService(deps) {
   const store = deps.store;
   let subscriptionStore = deps.subscriptionStore ?? store;
+  if (typeof store.setPlatformSubscriptionStore === 'function') {
+    store.setPlatformSubscriptionStore(subscriptionStore);
+  }
   const now = deps.now ?? (() => new Date());
   const activationTtlMs = deps.activationTtlMs ?? DEFAULT_ACTIVATION_TTL_MS;
   const trialDays = deps.trialDays ?? DEFAULT_TRIAL_DAYS;
@@ -33,6 +42,7 @@ function createOnboardingService(deps) {
     append: (session, event) => store.appendAuditEvent(session, event),
   });
   let subscriptionBridge = deps.subscriptionBridge ?? null;
+  let administrationBridge = deps.administrationBridge ?? null;
   const idempotency =
     deps.idempotency ??
     createIdempotencyService(
@@ -143,8 +153,15 @@ function createOnboardingService(deps) {
       subscriptionBridge = bridge;
     },
 
+    setAdministrationBridge(bridge) {
+      administrationBridge = bridge;
+    },
+
     setSubscriptionStore(nextStore) {
       subscriptionStore = nextStore;
+      if (typeof store.setPlatformSubscriptionStore === 'function') {
+        store.setPlatformSubscriptionStore(nextStore);
+      }
     },
 
     /**
@@ -193,7 +210,8 @@ function createOnboardingService(deps) {
 
     async suspendOrganization(organizationId, body, actor, idempotencyKey) {
       const key = requireIdempotencyKey(idempotencyKey);
-      const { reason } = parseRejectionBody(body);
+      const input = parsePlatformLifecycleBody(body, { requireConfirmation: true });
+      const { reason, expectedVersion } = input;
       const result = await idempotency.execute(
         {
           scopeType: 'platform',
@@ -201,23 +219,60 @@ function createOnboardingService(deps) {
           operation: 'platform.organizations.suspend',
         },
         key,
-        { organizationId, reason },
-        async () => {
-          const organization = await store.findOrganizationById(organizationId);
-          if (organization === null) {
-            throw notFound('Organization not found');
-          }
-          if (
-            subscriptionBridge === null ||
-            typeof subscriptionBridge.getOrganizationSubscription !== 'function' ||
-            typeof subscriptionBridge.suspendSubscription !== 'function'
-          ) {
-            throw conflict('Subscription lifecycle is not available');
-          }
+        { organizationId, ...input },
+        () =>
+          deps.transactionRunner.run(async (session) => {
+            const organization = await store.findOrganizationById(organizationId);
+            if (organization === null) {
+              throw notFound('Organization not found');
+            }
+            if (
+              subscriptionBridge === null ||
+              typeof subscriptionBridge.getOrganizationSubscription !== 'function' ||
+              typeof subscriptionBridge.suspendSubscription !== 'function'
+            ) {
+              throw conflict('Subscription lifecycle is not available');
+            }
 
-          const subscription = await subscriptionBridge.getOrganizationSubscription(organizationId);
-          if (subscription.status === 'suspended') {
-            await auditWriter.appendBusinessEvent(null, {
+            assertOptimisticVersion(organization, expectedVersion);
+            if (organization.status === 'suspended') {
+              throw conflict('Organization is already suspended');
+            }
+            const subscription =
+              await subscriptionBridge.getOrganizationSubscription(organizationId);
+            if (subscription.status === 'suspended') {
+              throw conflict('Organization subscription is already suspended');
+            }
+
+            const updated = await subscriptionBridge.suspendSubscription(
+              subscription.id,
+              { expectedVersion: subscription.version, reason },
+              actor,
+              { session },
+            );
+
+            const suspendedAt = now();
+            const updatedOrganization = await store.updateOrganizationIfVersion(
+              session,
+              organizationId,
+              expectedVersion,
+              {
+                status: 'suspended',
+                version: expectedVersion + 1,
+              },
+            );
+            if (updatedOrganization === null) {
+              throw conflict('Organization version changed during suspension');
+            }
+            if (typeof administrationBridge?.revokeOrganizationSessions === 'function') {
+              await administrationBridge.revokeOrganizationSessions(
+                organizationId,
+                suspendedAt,
+                session,
+              );
+            }
+
+            await auditWriter.appendBusinessEvent(session, {
               scope: 'platform',
               organizationId,
               actorId: actor.actorId,
@@ -226,62 +281,99 @@ function createOnboardingService(deps) {
               resourceId: organizationId,
               reason,
               metadata: {
-                alreadySuspended: true,
-                subscriptionId: subscription.id,
+                subscriptionId: updated.id,
+                subscriptionStatus: updated.status,
               },
+            });
+
+            return {
+              statusCode: 200,
+              body: {
+                organizationId,
+                status: updatedOrganization.status,
+                version: updatedOrganization.version,
+                subscriptionStatus: updated.status,
+                subscriptionId: updated.id,
+              },
+            };
+          }),
+      );
+      return wrapIdempotentResult(result);
+    },
+
+    async reactivateOrganization(organizationId, body, actor, idempotencyKey) {
+      const key = requireIdempotencyKey(idempotencyKey);
+      const input = parsePlatformLifecycleBody(body);
+      const result = await idempotency.execute(
+        {
+          scopeType: 'platform',
+          actorId: actor.actorId,
+          operation: 'platform.organizations.reactivate',
+        },
+        key,
+        { organizationId, ...input },
+        () =>
+          deps.transactionRunner.run(async (session) => {
+            const organization = await store.findOrganizationById(organizationId);
+            if (organization === null) throw notFound('Organization not found');
+            assertOptimisticVersion(organization, input.expectedVersion);
+            if (organization.status !== 'suspended') {
+              throw conflict('Only suspended organizations can be reactivated');
+            }
+            if (typeof subscriptionBridge?.reactivateSubscription !== 'function') {
+              throw conflict('Subscription lifecycle is not available');
+            }
+            const subscription =
+              await subscriptionBridge.getOrganizationSubscription(organizationId);
+            const updatedSubscription = await subscriptionBridge.reactivateSubscription(
+              subscription.id,
+              { expectedVersion: subscription.version, reason: input.reason },
+              actor,
+              { session },
+            );
+            const updatedOrganization = await store.updateOrganizationIfVersion(
+              session,
+              organizationId,
+              input.expectedVersion,
+              { status: 'approved', version: input.expectedVersion + 1 },
+            );
+            if (updatedOrganization === null) {
+              throw conflict('Organization version changed during reactivation');
+            }
+            await auditWriter.appendBusinessEvent(session, {
+              scope: 'platform',
+              organizationId,
+              actorId: actor.actorId,
+              action: 'organization.reactivated',
+              resourceType: 'organization',
+              resourceId: organizationId,
+              reason: input.reason,
+              metadata: { subscriptionId: updatedSubscription.id },
             });
             return {
               statusCode: 200,
               body: {
                 organizationId,
-                status: organization['status'],
-                subscriptionStatus: 'suspended',
-                subscriptionId: subscription.id,
+                status: updatedOrganization.status,
+                version: updatedOrganization.version,
+                subscriptionStatus: updatedSubscription.status,
+                subscriptionId: updatedSubscription.id,
               },
             };
-          }
-
-          const updated = await subscriptionBridge.suspendSubscription(
-            subscription.id,
-            { expectedVersion: subscription.version, reason },
-            actor,
-          );
-
-          await auditWriter.appendBusinessEvent(null, {
-            scope: 'platform',
-            organizationId,
-            actorId: actor.actorId,
-            action: 'organization.suspended',
-            resourceType: 'organization',
-            resourceId: organizationId,
-            reason,
-            metadata: {
-              subscriptionId: updated.id,
-              subscriptionStatus: updated.status,
-            },
-          });
-
-          return {
-            statusCode: 200,
-            body: {
-              organizationId,
-              status: organization['status'],
-              subscriptionStatus: updated.status,
-              subscriptionId: updated.id,
-            },
-          };
-        },
+          }),
       );
       return wrapIdempotentResult(result);
     },
 
     async listOrganizations(filter = {}) {
-      const result = await store.listOrganizations(filter);
+      const normalizedFilter = parsePlatformOrganizationQuery(filter);
+      const result = await (typeof store.listPlatformOrganizations === 'function'
+        ? store.listPlatformOrganizations(normalizedFilter)
+        : store.listOrganizations(normalizedFilter));
       const organizations = Array.isArray(result) ? result : result.items;
-      const summaries = [];
-      for (const organization of organizations) {
-        summaries.push(await toOrganizationListItem(store, organization));
-      }
+      const summaries = await Promise.all(
+        organizations.map((organization) => toOrganizationListItem(store, organization)),
+      );
       return { items: summaries, total: Array.isArray(result) ? summaries.length : result.total };
     },
 
@@ -293,21 +385,107 @@ function createOnboardingService(deps) {
 
       const owner = await store.findUserById(String(organization['ownerUserId']));
       const subscription =
-        await subscriptionStore.findSubscriptionByOrganizationId(organizationId);
-      return {
+        typeof subscriptionBridge?.getOrganizationSubscription === 'function'
+          ? await subscriptionBridge.getOrganizationSubscription(organizationId)
+          : await subscriptionStore.findSubscriptionByOrganizationId(organizationId);
+      const base = {
         ...(await toOrganizationListItem(store, organization, owner)),
         owner: owner === null ? null : toUserSummary(owner),
         subscription:
           subscription === null
             ? null
             : {
-                id: String(subscription['_id']),
+                id: String(subscription['id'] ?? subscription['_id']),
                 status: subscription['status'],
                 planCode: subscription['planCode'],
                 planVersion: subscription['planVersion'],
                 trialEndsAt: subscription['trialEndsAt'] ?? null,
+                graceEndsAt: subscription['graceEndsAt'] ?? null,
+                periodStartsAt: subscription['periodStartsAt'] ?? null,
+                periodEndsAt: subscription['periodEndsAt'] ?? null,
+                version: Number(subscription['version'] ?? 1),
+                accessState: subscription['accessState'] ?? null,
+                plan: subscription['plan'] ?? null,
               },
       };
+      if (administrationBridge === null) return base;
+      const [usage, members, branches, warehouses, capabilities, settings, setup, audit, billing] =
+        await Promise.all([
+          administrationBridge.getUsage(organizationId),
+          administrationBridge.listMembers(organizationId, { skip: 0, pageSize: 25 }),
+          administrationBridge.listBranches(organizationId, { skip: 0, pageSize: 25 }),
+          administrationBridge.listWarehouses(organizationId, { skip: 0, pageSize: 25 }),
+          administrationBridge.getCapabilities(organizationId),
+          administrationBridge.getSettings(organizationId),
+          administrationBridge.getSetup(organizationId),
+          administrationBridge.getAuditSummary(organizationId),
+          administrationBridge.getBillingSummary(organizationId),
+        ]);
+      return {
+        ...base,
+        identity: {
+          name: base.name,
+          timezone: base.timezone,
+          settings,
+        },
+        lifecycle: { status: base.status, version: base.version },
+        usage,
+        members,
+        branches,
+        warehouses,
+        capabilities,
+        setup,
+        audit,
+        billing,
+        operationalWarnings: base.subscription?.accessState?.warnings ?? [],
+      };
+    },
+
+    async updateOrganizationProfile(organizationId, body, actor) {
+      const input = parseOrganizationProfilePatch(body);
+      return deps.transactionRunner.run(async (session) => {
+        const organization = await store.findOrganizationById(organizationId);
+        if (organization === null) throw notFound('Organization not found');
+        assertOptimisticVersion(organization, input.expectedVersion);
+        const updated = await store.updateOrganizationIfVersion(
+          session,
+          organizationId,
+          input.expectedVersion,
+          { ...input.patch, version: input.expectedVersion + 1 },
+        );
+        if (updated === null) throw conflict('Organization version changed during update');
+        await auditWriter.appendBusinessEvent(session, {
+          scope: 'platform',
+          organizationId,
+          actorId: actor.actorId,
+          action: 'organization.updated',
+          resourceType: 'organization',
+          resourceId: organizationId,
+          reason: input.reason,
+          metadata: { fields: Object.keys(input.patch) },
+        });
+        return toOrganizationSummary(updated);
+      });
+    },
+
+    async getOrganizationUsage(organizationId) {
+      if ((await store.findOrganizationById(organizationId)) === null) {
+        throw notFound('Organization not found');
+      }
+      if (typeof administrationBridge?.getUsage !== 'function') {
+        throw conflict('Organization usage service is not available');
+      }
+      return administrationBridge.getUsage(organizationId);
+    },
+
+    async listOrganizationMembers(organizationId, filter) {
+      if ((await store.findOrganizationById(organizationId)) === null) {
+        throw notFound('Organization not found');
+      }
+      if (typeof administrationBridge?.listMembers !== 'function') {
+        throw conflict('Organization member service is not available');
+      }
+      return administrationBridge.listMembers(organizationId, filter);
     },
 
     /**
@@ -632,6 +810,19 @@ function ownerNeedsActivation(owner) {
 }
 
 async function toOrganizationListItem(store, organization, preloadedOwner) {
+  if (organization._platformSummary === true) {
+    return {
+      ...toOrganizationSummary(organization),
+      ownerEmail: organization.ownerEmail ?? null,
+      ownerStatus: organization.ownerStatus ?? null,
+      ownerNeedsActivation: Boolean(organization.ownerNeedsActivation),
+      subscription: organization.subscription ?? null,
+      branchCount: Number(organization.branchCount ?? 0),
+      warehouseCount: Number(organization.warehouseCount ?? 0),
+      employeeCount: Number(organization.employeeCount ?? 0),
+      ownerCount: Number(organization.ownerCount ?? 0),
+    };
+  }
   const owner =
     preloadedOwner === undefined
       ? await store.findUserById(String(organization['ownerUserId']))
@@ -650,11 +841,137 @@ function toOrganizationSummary(organization) {
     name: organization['name'],
     timezone: organization['timezone'],
     status: organization['status'],
+    version: Number(organization['version'] ?? 1),
+    createdAt: organization['createdAt'] ?? null,
+    updatedAt: organization['updatedAt'] ?? null,
     ownerUserId: String(organization['ownerUserId']),
     rejectionReason: organization['rejectionReason'] ?? null,
     approvedAt: organization['approvedAt'] ?? null,
     rejectedAt: organization['rejectedAt'] ?? null,
   };
+}
+
+function parsePlatformOrganizationQuery(filter) {
+  const allowedStatuses = new Set(['pending_approval', 'approved', 'rejected', 'suspended']);
+  const allowedSubscriptionStatuses = new Set([
+    'pending_approval',
+    'trial',
+    'active',
+    'grace',
+    'suspended',
+    'cancelled',
+    'retained',
+    'rejected',
+  ]);
+  const status = optionalEnum(filter.status, allowedStatuses, 'status');
+  const subscriptionStatus = optionalEnum(
+    filter.subscriptionStatus,
+    allowedSubscriptionStatuses,
+    'subscriptionStatus',
+  );
+  const sort =
+    optionalEnum(filter.sort, new Set(['createdAt', 'updatedAt', 'name', 'status']), 'sort') ??
+    'createdAt';
+  const direction = optionalEnum(filter.direction, new Set(['asc', 'desc']), 'direction') ?? 'desc';
+  const createdFrom = optionalDate(filter.createdFrom, 'createdFrom');
+  const createdTo = optionalDate(filter.createdTo, 'createdTo');
+  if (createdFrom && createdTo && createdFrom > createdTo) {
+    throw validationFailed('createdFrom must be earlier than or equal to createdTo');
+  }
+  return {
+    ...filter,
+    status,
+    subscriptionStatus,
+    plan: optionalText(filter.plan, 'plan', 100),
+    search: optionalText(filter.search, 'search', 200),
+    sort,
+    direction,
+    createdFrom,
+    createdTo,
+  };
+}
+
+function parsePlatformLifecycleBody(body, options = {}) {
+  const reason = optionalText(body.reason, 'reason', 500);
+  if (reason === undefined) {
+    throw validationFailed('Validation failed', [
+      { field: 'reason', message: 'reason is required' },
+    ]);
+  }
+  const expectedVersion = body.expectedVersion;
+  if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
+    throw validationFailed('Validation failed', [
+      { field: 'expectedVersion', message: 'expectedVersion must be a positive integer' },
+    ]);
+  }
+  if (options.requireConfirmation === true && body.confirmed !== true) {
+    throw validationFailed('Validation failed', [
+      { field: 'confirmed', message: 'confirmed must be true' },
+    ]);
+  }
+  return { reason, expectedVersion, ...(options.requireConfirmation ? { confirmed: true } : {}) };
+}
+
+function parseOrganizationProfilePatch(body) {
+  const allowed = new Set(['expectedVersion', 'reason', 'name', 'timezone']);
+  const unknown = Object.keys(body).filter((key) => !allowed.has(key));
+  if (unknown.length > 0) {
+    throw validationFailed(
+      'Unsupported organization profile fields',
+      unknown.map((field) => ({
+        field,
+        message: `${field} is not platform-editable`,
+      })),
+    );
+  }
+  const lifecycle = parsePlatformLifecycleBody(body);
+  const patch = {};
+  if (body.name !== undefined) {
+    const name = optionalText(body.name, 'name', 200);
+    if (name === undefined) throw validationFailed('name must be a non-empty string');
+    patch.name = name.replace(/\s+/g, ' ');
+    patch.nameNormalized = patch.name.toLowerCase();
+  }
+  if (body.timezone !== undefined) {
+    const timezone = optionalText(body.timezone, 'timezone', 100);
+    if (timezone === undefined)
+      throw validationFailed('timezone must be a non-empty IANA identifier');
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(new Date());
+    } catch {
+      throw validationFailed('timezone must be a valid IANA identifier');
+    }
+    patch.timezone = timezone;
+  }
+  if (Object.keys(patch).length === 0) {
+    throw validationFailed('At least one editable organization field is required');
+  }
+  return { ...lifecycle, patch };
+}
+
+function optionalText(value, field, maxLength) {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw validationFailed(`${field} must be a non-empty string`);
+  }
+  const normalized = value.trim();
+  if (normalized.length > maxLength) throw validationFailed(`${field} exceeds maximum length`);
+  return normalized;
+}
+
+function optionalEnum(value, allowed, field) {
+  const normalized = optionalText(value, field, 100);
+  if (normalized === undefined) return undefined;
+  if (!allowed.has(normalized)) throw validationFailed(`${field} has an unsupported value`);
+  return normalized;
+}
+
+function optionalDate(value, field) {
+  const normalized = optionalText(value, field, 100);
+  if (normalized === undefined) return undefined;
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) throw validationFailed(`${field} must be an ISO date-time`);
+  return parsed;
 }
 
 function toUserSummary(user) {

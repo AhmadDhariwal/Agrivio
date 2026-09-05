@@ -413,6 +413,7 @@ function createAuditService(deps) {
     const result = await store.queryPage(
       {
         scope: 'platform',
+        ...(filters.organizationId === undefined ? {} : { organizationId: filters.organizationId }),
         ...(filters.actorId === undefined ? {} : { actorId: filters.actorId }),
         ...(filters.action === undefined ? {} : { action: filters.action }),
         ...(filters.resourceType === undefined ? {} : { resourceType: filters.resourceType }),

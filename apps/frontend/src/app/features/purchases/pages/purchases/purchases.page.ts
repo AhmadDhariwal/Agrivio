@@ -9,7 +9,15 @@ import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.compon
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
-import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, startWith, switchMap } from 'rxjs';
+import {
+  EMPTY,
+  Subject,
+  catchError,
+  debounceTime,
+  distinctUntilChanged,
+  startWith,
+  switchMap,
+} from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
@@ -179,14 +187,6 @@ export class PurchasesPage {
       return 'Cancelled';
     }
     return status;
-  }
-
-  canOpen(item: PurchaseRecord): boolean {
-    return item.status === 'draft' ? this.canEditDraft() || this.canInspect() : this.canInspect();
-  }
-
-  actionLabel(status: string): string {
-    return status === 'draft' && this.canEditDraft() ? 'Edit draft' : 'View';
   }
 
   statusTone(status: string): 'warning' | 'success' | 'neutral' {

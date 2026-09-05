@@ -193,17 +193,31 @@ function createEmployeesService(deps) {
             .map(String),
         ),
       ];
-      if (uniqueIds.length === 0 || typeof store.findMembershipsWithUsersByUserIds !== 'function') {
+      if (uniqueIds.length === 0) {
         return new Map();
       }
-      const rows = await store.findMembershipsWithUsersByUserIds(organizationId, uniqueIds);
       const nameMap = new Map();
-      for (const row of rows) {
-        const userId = String(row.userId ?? row.user?.['_id'] ?? '');
-        if (userId === '') {
-          continue;
+      if (typeof store.findMembershipsWithUsersByUserIds === 'function') {
+        const rows = await store.findMembershipsWithUsersByUserIds(organizationId, uniqueIds);
+        for (const row of rows) {
+          const userId = String(row.userId ?? row.user?.['_id'] ?? '');
+          if (userId === '') {
+            continue;
+          }
+          const name = String(row.user?.displayName ?? '').trim();
+          if (name) {
+            nameMap.set(userId, name);
+          }
         }
-        nameMap.set(userId, String(row.user?.displayName ?? '—'));
+      }
+      for (const uid of uniqueIds) {
+        if (!nameMap.has(uid) && typeof store.findUserById === 'function') {
+          const user = await store.findUserById(uid);
+          const name = String(user?.displayName ?? user?.name ?? '').trim();
+          if (name) {
+            nameMap.set(uid, name);
+          }
+        }
       }
       return nameMap;
     },

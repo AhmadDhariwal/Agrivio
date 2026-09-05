@@ -157,6 +157,18 @@ describe('ImportsPage', () => {
     expect(wrap?.contains(table)).toBe(true);
   });
 
+  it('does not clear a valid preview when import type is unchanged', async () => {
+    const { page } = await createComponent();
+    const file = new File(['ok'], 'categories.xls');
+    page.setFile(file);
+    page.job.set({ id: 'job-1', status: 'previewed' } as never);
+
+    page.onTypeChange('product_categories');
+
+    expect(page.job()?.id).toBe('job-1');
+    expect(page.selectedFile()).toBe(file);
+  });
+
   it('invalidates preview and errors when changing import type', async () => {
     const { page } = await createComponent();
     page.job.set({ id: 'job-1', status: 'previewed' } as never);
@@ -206,6 +218,7 @@ describe('ImportsPage', () => {
 
   it('enables execute button when invalidRows === 0 and status is previewed', async () => {
     const { fixture, page } = await createComponent();
+    page.setFile(new File(['ok'], 'categories.xls'));
     page.job.set({
       id: 'job-1',
       importType: 'product_categories',
@@ -224,6 +237,28 @@ describe('ImportsPage', () => {
 
     const executeBtn = fixture.nativeElement.querySelector('[data-testid="import-execute"]') as HTMLButtonElement | null;
     expect(executeBtn?.disabled).toBe(false);
+  });
+
+  it('keeps execute disabled until a workbook file is selected', async () => {
+    const { fixture, page } = await createComponent();
+    page.job.set({
+      id: 'job-1',
+      importType: 'product_categories',
+      templateVersion: 1,
+      status: 'previewed',
+      preview: {
+        templateType: 'product_categories',
+        templateVersion: 1,
+        createUpdatePolicy: 'create-only',
+        totalRows: 2,
+        validRows: 2,
+        invalidRows: 0,
+      },
+    } as never);
+    fixture.detectChanges();
+
+    const executeBtn = fixture.nativeElement.querySelector('[data-testid="import-execute"]') as HTMLButtonElement | null;
+    expect(executeBtn?.disabled).toBe(true);
   });
 
   it('gates template download button with imports.features.templateDownloads capability', async () => {

@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { ExpenseFormPage } from './expense-form.page';
 import { ExpensesApi } from '../../data-access/expenses.api';
@@ -7,11 +7,23 @@ import { AccountsApi } from '../../data-access/accounts.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 
 describe('ExpenseFormPage', () => {
+  const draftExpense = {
+    id: 'expense-1',
+    status: 'draft' as const,
+    version: 1,
+    categoryId: 'cat-1',
+    accountId: 'acct-1',
+    amount: { amount: '80.00', currency: 'PKR' },
+    purpose: 'Fuel',
+    expenseDate: '2026-08-29',
+  };
+
   let mockExpensesApi: {
     searchCategoryOptions: ReturnType<typeof vi.fn>;
     getExpense: ReturnType<typeof vi.fn>;
     createExpense: ReturnType<typeof vi.fn>;
     updateExpense: ReturnType<typeof vi.fn>;
+    postExpense: ReturnType<typeof vi.fn>;
     discardExpense: ReturnType<typeof vi.fn>;
   };
 
@@ -19,8 +31,9 @@ describe('ExpenseFormPage', () => {
     mockExpensesApi = {
       searchCategoryOptions: vi.fn().mockReturnValue(of([])),
       getExpense: vi.fn().mockReturnValue(of(null)),
-      createExpense: vi.fn().mockReturnValue(of({ id: 'expense-1' })),
-      updateExpense: vi.fn().mockReturnValue(of({ id: 'expense-1', status: 'draft', version: 2 })),
+      createExpense: vi.fn().mockReturnValue(of(draftExpense)),
+      updateExpense: vi.fn().mockReturnValue(of({ ...draftExpense, version: 2 })),
+      postExpense: vi.fn().mockReturnValue(of({ ...draftExpense, status: 'posted', version: 2 })),
       discardExpense: vi.fn().mockReturnValue(of({ discarded: true })),
     };
 
@@ -79,5 +92,49 @@ describe('ExpenseFormPage', () => {
     fixture.detectChanges();
     expect(mockExpensesApi.createExpense).not.toHaveBeenCalled();
     expect(fixture.nativeElement.textContent).toContain('Amount must be greater than zero.');
+  });
+
+  it('enables save draft and register when the form is valid', () => {
+    const fixture: ComponentFixture<ExpenseFormPage> = TestBed.createComponent(ExpenseFormPage);
+    fixture.detectChanges();
+    fixture.componentInstance.form.patchValue({
+      categoryId: 'cat-1',
+      accountId: 'acct-1',
+      amount: '80.00',
+      purpose: 'Fuel',
+      expenseDate: '2026-08-29',
+    });
+    fixture.detectChanges();
+    const saveButton = fixture.nativeElement.querySelector(
+      '[data-testid="expense-save"]',
+    ) as HTMLButtonElement;
+    const postButton = fixture.nativeElement.querySelector(
+      '[data-testid="expense-post"]',
+    ) as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(false);
+    expect(postButton.disabled).toBe(false);
+    expect(postButton.textContent).toContain('Register expense');
+  });
+
+  it('registers a new expense by creating a draft then posting it', () => {
+    const fixture: ComponentFixture<ExpenseFormPage> = TestBed.createComponent(ExpenseFormPage);
+    const router = TestBed.inject(Router);
+    vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    page.form.patchValue({
+      categoryId: 'cat-1',
+      accountId: 'acct-1',
+      amount: '80.00',
+      purpose: 'Fuel',
+      expenseDate: '2026-08-29',
+    });
+    page.post();
+    expect(mockExpensesApi.createExpense).toHaveBeenCalledTimes(1);
+    expect(mockExpensesApi.postExpense).toHaveBeenCalledWith(
+      'expense-1',
+      { expectedVersion: 1 },
+      expect.any(String),
+    );
   });
 });

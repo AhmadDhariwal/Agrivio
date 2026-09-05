@@ -37,6 +37,37 @@ function registerOnboardingRoutes(deps) {
     },
   );
 
+  router.patch(
+    `${API_PLATFORM_ORGANIZATIONS_PATH}/:id`,
+    optionalAuth,
+    requireCsrf,
+    platformActor,
+    requirePlatformPermission('platform.organizations.suspend'),
+    (req, res, next) => {
+      void platformController.update(req, res, next);
+    },
+  );
+
+  router.get(
+    `${API_PLATFORM_ORGANIZATIONS_PATH}/:id/usage`,
+    optionalAuth,
+    platformActor,
+    requirePlatformPermission('platform.organizations.view'),
+    (req, res, next) => {
+      void platformController.getUsage(req, res, next);
+    },
+  );
+
+  router.get(
+    `${API_PLATFORM_ORGANIZATIONS_PATH}/:id/members`,
+    optionalAuth,
+    platformActor,
+    requirePlatformPermission('platform.organizations.view'),
+    (req, res, next) => {
+      void platformController.listMembers(req, res, next);
+    },
+  );
+
   router.post(
     API_PLATFORM_ORGANIZATIONS_PATH,
     optionalAuth,
@@ -99,6 +130,17 @@ function registerOnboardingRoutes(deps) {
     requirePlatformPermission('platform.organizations.suspend'),
     (req, res, next) => {
       void platformController.suspend(req, res, next);
+    },
+  );
+
+  router.post(
+    `${API_PLATFORM_ORGANIZATIONS_PATH}/:id/reactivate`,
+    optionalAuth,
+    requireCsrf,
+    platformActor,
+    requirePlatformPermission('platform.organizations.suspend'),
+    (req, res, next) => {
+      void platformController.reactivate(req, res, next);
     },
   );
 

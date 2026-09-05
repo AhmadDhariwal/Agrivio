@@ -5,24 +5,56 @@
       <p class="page-head__eyebrow">Cash & Bank</p>
       <div class="page-head__heading-wrap">
         <h1 class="page-head__title">Accounts</h1>
-        <span class="page-head__count-pill" aria-label="Total accounts">{{ total() }} accounts</span>
+        <span class="page-head__count-pill" aria-label="Total accounts"
+          >{{ total() }} accounts</span
+        >
       </div>
-      <p class="page-head__lede">Manage cash, bank, and wallet accounts used for money movements and settlements.</p>
+      <p class="page-head__lede">
+        Manage cash, bank, and wallet accounts used for money movements and settlements.
+      </p>
     </div>
     <div class="page-head__actions">
       @if (canRefresh()) {
-      <button class="ag-btn ag-btn--secondary" type="button" (click)="reload(true)" aria-label="Refresh">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+      <button
+        class="ag-btn ag-btn--secondary"
+        type="button"
+        (click)="reload(true)"
+        aria-label="Refresh"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="23 4 23 10 17 10" />
+          <polyline points="1 20 1 14 7 14" />
           <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
         </svg>
         <span>Refresh</span>
       </button>
-      }
-      @if (canCreate()) {
-      <a class="ag-btn ag-btn--primary" routerLink="/app/accounts/new" data-testid="account-create-link">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+      } @if (canCreate()) {
+      <a
+        class="ag-btn ag-btn--primary"
+        routerLink="/app/accounts/new"
+        data-testid="account-create-link"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
         <span>Create account</span>
       </a>
@@ -45,14 +77,11 @@
   <div class="alert-container">
     <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
   </div>
-  }
-  @if (successMessage(); as success) {
+  } @if (successMessage(); as success) {
   <div class="alert-container">
     <agrivio-ui-alert tone="success" [message]="success" />
   </div>
-  }
-
-  @if (loading()) {
+  } @if (loading()) {
   <div class="state-container">
     <agrivio-ui-loading-state label="Loading accounts…" />
   </div>
@@ -66,33 +95,64 @@
   <section class="kpi-row" aria-label="Accounts Summary" data-testid="accounts-kpi-row">
     <div class="kpi-card" data-testid="kpi-total-accounts">
       <div class="kpi-card__icon kpi-card__icon--neutral">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <rect width="20" height="14" x="2" y="5" rx="2" />
           <line x1="2" y1="10" x2="22" y2="10" />
         </svg>
       </div>
       <div class="kpi-card__content">
         <span class="kpi-card__label">Total Accounts</span>
-        <span class="kpi-card__value" data-testid="kpi-total-value">{{ summary() ? summary()!.totalAccounts : '—' }}</span>
+        <span class="kpi-card__value" data-testid="kpi-total-value"
+          >{{ summary() ? summary()!.totalAccounts : '—' }}</span
+        >
       </div>
     </div>
 
     <div class="kpi-card" data-testid="kpi-active-accounts">
       <div class="kpi-card__icon kpi-card__icon--green">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
           <polyline points="22 4 12 14.01 9 11.01" />
         </svg>
       </div>
       <div class="kpi-card__content">
         <span class="kpi-card__label">Active Accounts</span>
-        <span class="kpi-card__value" data-testid="kpi-active-value">{{ summary() ? summary()!.activeAccounts : '—' }}</span>
+        <span class="kpi-card__value" data-testid="kpi-active-value"
+          >{{ summary() ? summary()!.activeAccounts : '—' }}</span
+        >
       </div>
     </div>
 
     <div class="kpi-card" data-testid="kpi-inactive-accounts">
       <div class="kpi-card__icon kpi-card__icon--amber">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <circle cx="12" cy="12" r="10" />
           <line x1="10" y1="15" x2="10" y2="9" />
           <line x1="14" y1="15" x2="14" y2="9" />
@@ -100,20 +160,33 @@
       </div>
       <div class="kpi-card__content">
         <span class="kpi-card__label">Inactive Accounts</span>
-        <span class="kpi-card__value" data-testid="kpi-inactive-value">{{ summary() ? summary()!.inactiveAccounts : '—' }}</span>
+        <span class="kpi-card__value" data-testid="kpi-inactive-value"
+          >{{ summary() ? summary()!.inactiveAccounts : '—' }}</span
+        >
       </div>
     </div>
 
     <div class="kpi-card" data-testid="kpi-total-balance">
       <div class="kpi-card__icon kpi-card__icon--blue">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <line x1="12" y1="1" x2="12" y2="23" />
           <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
         </svg>
       </div>
       <div class="kpi-card__content">
         <span class="kpi-card__label">Total Balance</span>
-        <span class="kpi-card__value" data-testid="kpi-balance-value">{{ formatSummaryBalance() }}</span>
+        <span class="kpi-card__value" data-testid="kpi-balance-value"
+          >{{ formatSummaryBalance() }}</span
+        >
       </div>
     </div>
   </section>
@@ -125,8 +198,19 @@
     <div class="filter-toolbar__filters">
       @if (showSearch()) {
       <div class="filter-toolbar__search">
-        <svg class="filter-toolbar__search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+        <svg
+          class="filter-toolbar__search-icon"
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
         <input
           class="filter-toolbar__search-input"
@@ -137,8 +221,7 @@
           data-testid="accounts-search"
         />
       </div>
-      }
-      @if (showStatusFilter()) {
+      } @if (showStatusFilter()) {
       <select
         class="filter-toolbar__select"
         [value]="statusFilter()"
@@ -155,17 +238,25 @@
     <div class="filter-toolbar__actions">
       @if (hasActiveFilters()) {
       <button class="filter-toolbar__clear" type="button" (click)="clearFilters()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
         </svg>
         Clear filters
       </button>
       }
     </div>
   </div>
-  }
-
-  @if (items().length === 0) {
+  } @if (items().length === 0) {
   <agrivio-ui-empty-state
     title="No accounts found"
     message="Create the first cash, bank, or wallet account."
@@ -179,14 +270,11 @@
           <th class="accounts-table__th">Account</th>
           @if (showAccountType()) {
           <th class="accounts-table__th">Type</th>
-          }
-          @if (showDerivedBalance()) {
+          } @if (showDerivedBalance()) {
           <th class="accounts-table__th accounts-table__th--amount">Balance (PKR)</th>
-          }
-          @if (showStatus()) {
+          } @if (showStatus()) {
           <th class="accounts-table__th">Status</th>
-          }
-          @if (canInspect() || canEdit() || canDeactivate() || canReactivate() || canDelete()) {
+          } @if (canInspect() || canEdit() || canDeactivate() || canReactivate() || canDelete()) {
           <th class="accounts-table__th accounts-table__th--actions">Actions</th>
           }
         </tr>
@@ -198,26 +286,27 @@
             <div class="account-identity">
               @if (showName()) {
               <span class="account-name">{{ item.name }}</span>
-              }
-              @if (showAccountType()) {
-              <span class="badge-type badge-type--{{ item.accountType }}">{{ accountTypeLabel(item.accountType) }}</span>
+              } @if (showAccountType()) {
+              <span class="badge-type badge-type--{{ item.accountType }}"
+                >{{ accountTypeLabel(item.accountType) }}</span
+              >
               }
             </div>
           </td>
           @if (showAccountType()) {
           <td class="accounts-table__td">{{ accountTypeLabel(item.accountType) }}</td>
-          }
-          @if (showDerivedBalance()) {
-          <td class="accounts-table__td accounts-table__td--amount" data-testid="account-list-balance">
+          } @if (showDerivedBalance()) {
+          <td
+            class="accounts-table__td accounts-table__td--amount"
+            data-testid="account-list-balance"
+          >
             {{ formatBalance(item) }}
           </td>
-          }
-          @if (showStatus()) {
+          } @if (showStatus()) {
           <td class="accounts-table__td">
             <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
           </td>
-          }
-          @if (canInspect() || canEdit() || canDeactivate() || canReactivate() || canDelete()) {
+          } @if (canInspect() || canEdit() || canDeactivate() || canReactivate() || canDelete()) {
           <td class="accounts-table__td accounts-table__td--actions">
             <div class="action-cell">
               @if (canInspect() || canEdit()) {
@@ -226,10 +315,17 @@
                 [routerLink]="['/app/accounts', item.id]"
                 data-testid="account-open"
               >
-                {{ canEdit() ? 'Edit' : 'Open' }}
+                Open
               </a>
-              }
-              @if (canDeactivate() || canReactivate() || canDelete()) {
+              } @if (canEdit()) {
+              <a
+                class="ag-btn ag-btn--secondary ag-btn--sm"
+                [routerLink]="['/app/accounts', item.id, 'edit']"
+                data-testid="account-edit"
+              >
+                Edit
+              </a>
+              } @if (canDeactivate() || canReactivate() || canDelete()) {
               <div class="row-menu-container">
                 <button
                   type="button"
@@ -238,20 +334,54 @@
                   aria-label="More actions"
                   [attr.aria-expanded]="openMenuAccountId() === item.id"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" />
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="5" r="1" />
+                    <circle cx="12" cy="12" r="1" />
+                    <circle cx="12" cy="19" r="1" />
                   </svg>
                 </button>
                 @if (openMenuAccountId() === item.id) {
                 <div class="row-menu" role="menu">
                   @if (canDeactivate() && item.status === 'active') {
-                  <button type="button" class="row-menu__item" role="menuitem" (click)="askDeactivate(item)" data-testid="account-deactivate">Deactivate</button>
-                  }
-                  @if (canReactivate() && item.status === 'inactive') {
-                  <button type="button" class="row-menu__item" role="menuitem" (click)="askReactivate(item)" data-testid="account-reactivate">Reactivate</button>
-                  }
-                  @if (canDelete() && (!item.openingBalance || item.openingBalance.status !== 'posted')) {
-                  <button type="button" class="row-menu__item row-menu__item--danger" role="menuitem" (click)="askDelete(item)" data-testid="account-delete">Delete permanently</button>
+                  <button
+                    type="button"
+                    class="row-menu__item"
+                    role="menuitem"
+                    (click)="askDeactivate(item)"
+                    data-testid="account-deactivate"
+                  >
+                    Deactivate
+                  </button>
+                  } @if (canReactivate() && item.status === 'inactive') {
+                  <button
+                    type="button"
+                    class="row-menu__item"
+                    role="menuitem"
+                    (click)="askReactivate(item)"
+                    data-testid="account-reactivate"
+                  >
+                    Reactivate
+                  </button>
+                  } @if (canDelete() && (!item.openingBalance || item.openingBalance.status !==
+                  'posted')) {
+                  <button
+                    type="button"
+                    class="row-menu__item row-menu__item--danger"
+                    role="menuitem"
+                    (click)="askDelete(item)"
+                    data-testid="account-delete"
+                  >
+                    Delete permanently
+                  </button>
                   }
                 </div>
                 }
@@ -274,9 +404,10 @@
         <div class="account-card__identity">
           @if (showName()) {
           <span class="account-card__name">{{ item.name }}</span>
-          }
-          @if (showAccountType()) {
-          <span class="badge-type badge-type--{{ item.accountType }}">{{ accountTypeLabel(item.accountType) }}</span>
+          } @if (showAccountType()) {
+          <span class="badge-type badge-type--{{ item.accountType }}"
+            >{{ accountTypeLabel(item.accountType) }}</span
+          >
           }
         </div>
         @if (showStatus()) {
@@ -290,19 +421,36 @@
           <span class="account-card__balance">{{ formatBalance(item) }}</span>
         </div>
       </div>
-      }
-      @if (canInspect() || canEdit() || (canDeactivate() && item.status === 'active') || (canReactivate() && item.status === 'inactive')) {
+      } @if (canInspect() || canEdit() || (canDeactivate() && item.status === 'active') ||
+      (canReactivate() && item.status === 'inactive')) {
       <div class="account-card__actions">
         @if (canInspect() || canEdit()) {
         <a class="ag-btn ag-btn--secondary ag-btn--sm" [routerLink]="['/app/accounts', item.id]">
-          {{ canEdit() ? 'Edit' : 'Open' }}
+          Open
         </a>
-        }
-        @if (canDeactivate() && item.status === 'active') {
-        <button type="button" class="ag-btn ag-btn--secondary ag-btn--sm" (click)="askDeactivate(item)">Deactivate</button>
-        }
-        @if (canReactivate() && item.status === 'inactive') {
-        <button type="button" class="ag-btn ag-btn--secondary ag-btn--sm" (click)="askReactivate(item)">Reactivate</button>
+        } @if (canEdit()) {
+        <a
+          class="ag-btn ag-btn--secondary ag-btn--sm"
+          [routerLink]="['/app/accounts', item.id, 'edit']"
+        >
+          Edit
+        </a>
+        } @if (canDeactivate() && item.status === 'active') {
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary ag-btn--sm"
+          (click)="askDeactivate(item)"
+        >
+          Deactivate
+        </button>
+        } @if (canReactivate() && item.status === 'inactive') {
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary ag-btn--sm"
+          (click)="askReactivate(item)"
+        >
+          Reactivate
+        </button>
         }
       </div>
       }
@@ -319,8 +467,7 @@
     (pageChange)="onPageChange($event)"
     (pageSizeChange)="onPageSizeChange($event)"
   />
-  }
-  }
+  } }
 </div>
 
 <agrivio-ui-confirm-dialog

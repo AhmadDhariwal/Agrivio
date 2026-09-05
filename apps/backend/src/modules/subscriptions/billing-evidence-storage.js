@@ -156,7 +156,10 @@ function objectPaths(rootDir, parsed) {
 }
 
 function createLocalBillingEvidenceStorage(options = {}) {
-  const rootDir = options.rootDir ?? join(tmpdir(), 'agrivio-billing-evidence');
+  const rootDir =
+    options.rootDir ??
+    (process.env['AGRIVIO_BILLING_EVIDENCE_STORAGE_DIR']?.trim() || null) ??
+    join(tmpdir(), 'agrivio-billing-evidence');
 
   return {
     kind: 'local',

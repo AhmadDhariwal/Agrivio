@@ -8,10 +8,14 @@ function createInMemoryOnboardingStore() {
   const users = new Map();
   const memberships = new Map();
   const subscriptions = new Map();
+  let platformSubscriptionStore = null;
   const activationTokens = new Map();
   const auditEvents = [];
 
   return {
+    setPlatformSubscriptionStore(nextStore) {
+      platformSubscriptionStore = nextStore;
+    },
     async findOrganizationByFingerprint(fingerprint) {
       for (const org of organizations.values()) {
         if (org['applicantFingerprint'] === fingerprint) {
@@ -71,6 +75,72 @@ function createInMemoryOnboardingStore() {
       return { items, total };
     },
 
+    async listPlatformOrganizations(filter = {}) {
+      const subscriptionRows =
+        platformSubscriptionStore &&
+        typeof platformSubscriptionStore.listSubscriptions === 'function'
+          ? await platformSubscriptionStore.listSubscriptions()
+          : [...subscriptions.values()];
+      let items = [...organizations.values()].filter((organization) => {
+        const subscription = subscriptionRows.find(
+          (item) => String(item.organizationId) === String(organization._id),
+        );
+        if (filter.status && organization.status !== filter.status) return false;
+        if (filter.plan && subscription?.planCode !== filter.plan) return false;
+        if (filter.subscriptionStatus && subscription?.status !== filter.subscriptionStatus)
+          return false;
+        if (
+          filter.search &&
+          !String(organization.nameNormalized).includes(filter.search.toLowerCase())
+        )
+          return false;
+        const createdAt = organization.createdAt ? new Date(organization.createdAt) : null;
+        if (filter.createdFrom && (createdAt === null || createdAt < filter.createdFrom))
+          return false;
+        if (filter.createdTo && (createdAt === null || createdAt > filter.createdTo)) return false;
+        return true;
+      });
+      const direction = filter.direction === 'asc' ? 1 : -1;
+      const field = filter.sort ?? 'createdAt';
+      items.sort(
+        (a, b) => String(a[field] ?? '').localeCompare(String(b[field] ?? '')) * direction,
+      );
+      const total = items.length;
+      items = items.slice(filter.skip ?? 0, (filter.skip ?? 0) + (filter.pageSize ?? 25));
+      return {
+        total,
+        items: items.map((organization) => {
+          const owner = users.get(String(organization.ownerUserId));
+          const subscription = subscriptionRows.find(
+            (item) => String(item.organizationId) === String(organization._id),
+          );
+          const organizationMemberships = [...memberships.values()].filter(
+            (item) => String(item.organizationId) === String(organization._id),
+          );
+          return {
+            ...organization,
+            _platformSummary: true,
+            ownerEmail: owner?.email ?? null,
+            ownerStatus: owner?.status ?? null,
+            ownerNeedsActivation: owner?.status === 'pending_activation' && !owner?.passwordHash,
+            subscription: subscription
+              ? {
+                  id: String(subscription._id),
+                  status: subscription.status,
+                  planCode: subscription.planCode,
+                  planVersion: subscription.planVersion,
+                  version: subscription.version,
+                }
+              : null,
+            employeeCount: organizationMemberships.length,
+            ownerCount: organizationMemberships.filter((item) => item.role === 'Owner').length,
+            branchCount: 0,
+            warehouseCount: 0,
+          };
+        }),
+      };
+    },
+
     async insertOrganization(_session, doc) {
       const id = String(doc['_id'] ?? randomUUID());
       const record = { ...doc, _id: id };
@@ -81,6 +151,16 @@ function createInMemoryOnboardingStore() {
     async updateOrganization(_session, id, patch) {
       const existing = organizations.get(id);
       if (existing === undefined) {
+        return null;
+      }
+      const next = { ...existing, ...patch };
+      organizations.set(id, next);
+      return { ...next };
+    },
+
+    async updateOrganizationIfVersion(_session, id, expectedVersion, patch) {
+      const existing = organizations.get(id);
+      if (existing === undefined || Number(existing.version) !== Number(expectedVersion)) {
         return null;
       }
       const next = { ...existing, ...patch };

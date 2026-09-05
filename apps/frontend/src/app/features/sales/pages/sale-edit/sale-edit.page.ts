@@ -1,15 +1,30 @@
-import { Component, computed, DestroyRef, ElementRef, HostListener, inject, signal, ViewChild } from '@angular/core';
 import {
-  FormArray,
-  FormBuilder,
-  FormGroup,
-  ReactiveFormsModule,
-  Validators,
-} from '@angular/forms';
+  Component,
+  computed,
+  DestroyRef,
+  ElementRef,
+  HostListener,
+  inject,
+  signal,
+  ViewChild,
+} from '@angular/core';
+import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin, of, catchError, map, switchMap, Subject, debounceTime, distinctUntilChanged, merge } from 'rxjs';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import {
+  EMPTY,
+  forkJoin,
+  of,
+  catchError,
+  map,
+  switchMap,
+  finalize,
+  Subject,
+  debounceTime,
+  distinctUntilChanged,
+  merge,
+} from 'rxjs';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { SalesApi } from '../../data-access/sales.api';
 import { SalesReturnsApi } from '../../data-access/sales-returns.api';
 import { ReturnsApi } from '../../../returns/data-access/returns.api';
@@ -38,7 +53,11 @@ import { PackagingUnitRecord, ProductRecord } from '../../../catalog/models/cata
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
-import { hasRequiredValidator, fieldValidationMessage, setRequiredValidator } from '../../../../shared/form/form-field.util';
+import {
+  hasRequiredValidator,
+  fieldValidationMessage,
+  setRequiredValidator,
+} from '../../../../shared/form/form-field.util';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
@@ -153,10 +172,14 @@ export class SaleEditPage {
       (this.capabilityService?.canPerformAction('sales.actions.print') ?? true),
   );
   readonly canAddPaymentAtPost = computed(
-    () => (this.capabilityService?.canPerformAction('sales.actions.addPaymentAtPost') ?? true) && this.canPost(),
+    () =>
+      (this.capabilityService?.canPerformAction('sales.actions.addPaymentAtPost') ?? true) &&
+      this.canPost(),
   );
   readonly canSellOnCredit = computed(
-    () => (this.capabilityService?.canPerformAction('sales.actions.sellOnCredit') ?? true) && this.canPost(),
+    () =>
+      (this.capabilityService?.canPerformAction('sales.actions.sellOnCredit') ?? true) &&
+      this.canPost(),
   );
   readonly canOverridePrice = computed(
     () =>
@@ -203,15 +226,75 @@ export class SaleEditPage {
   readonly canEditPackagingUnitField = computed(
     () => this.capabilityService?.canEditField('sales.fields.packagingUnit') ?? true,
   );
+  readonly form = this.formBuilder.nonNullable.group({
+    branchId: ['', Validators.required],
+    warehouseId: ['', Validators.required],
+    customerTypeMode: ['walk_in'],
+    customerId: [''],
+    saleDate: ['', Validators.required],
+    notes: [''],
+    lines: this.formBuilder.array([this.createLineGroup()]),
+    payments: this.formBuilder.array<FormGroup>([]),
+    creditLimitApprovalReason: [''],
+    expiredStockApprovalReason: [''],
+    negativeStockOverrideReason: [''],
+  });
+
+  private readonly formStateChanges = toSignal(
+    merge(this.form.statusChanges, this.form.valueChanges),
+    { initialValue: null },
+  );
+  private readonly formStateVersion = signal(0);
+
   readonly isPosted = computed(() => this.sale()?.status === 'posted');
   readonly isCancelled = computed(() => this.sale()?.status === 'cancelled');
   readonly isDraft = computed(() => {
     const record = this.sale();
     return record === null || record.status === 'draft';
   });
+
+  isDraftValid(): boolean {
+    const branchId = String(this.form.controls.branchId.value ?? '').trim();
+    const warehouseId = String(this.form.controls.warehouseId.value ?? '').trim();
+    const saleDate = String(this.form.controls.saleDate.value ?? '').trim();
+    if (branchId === '' || warehouseId === '' || saleDate === '') {
+      return false;
+    }
+    if (
+      this.form.controls.customerTypeMode.value !== 'walk_in' &&
+      String(this.form.controls.customerId.value ?? '').trim() === ''
+    ) {
+      return false;
+    }
+    if (this.lines.length === 0) {
+      return false;
+    }
+    for (let index = 0; index < this.lines.length; index += 1) {
+      const line = this.lineGroup(index);
+      const productId = String(line.get('productId')?.value ?? '').trim();
+      const rawQuantity = String(line.get('quantity')?.value ?? '').trim();
+      const rawUnitPrice = String(line.get('unitPrice')?.value ?? '').trim();
+
+      if (productId === '' || rawQuantity === '' || rawUnitPrice === '') {
+        return false;
+      }
+      const quantity = Number(rawQuantity);
+      const unitPrice = Number(rawUnitPrice);
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        return false;
+      }
+      if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   readonly canSaveDraft = computed(() => {
+    this.formStateChanges();
+    this.formStateVersion();
     const canMutate = this.saleId() === null ? this.canCreateDraft() : this.canEditDraft();
-    return canMutate && this.isDraft() && this.form.valid && !this.saving() && !this.posting();
+    return canMutate && this.isDraft() && this.isDraftValid() && !this.saving() && !this.posting();
   });
 
   statusLabel(status?: string | null): string {
@@ -242,27 +325,16 @@ export class SaleEditPage {
     return 'Selected customer';
   });
 
-  readonly form = this.formBuilder.nonNullable.group({
-    branchId: ['', Validators.required],
-    warehouseId: ['', Validators.required],
-    customerTypeMode: ['walk_in'],
-    customerId: [''],
-    saleDate: ['', Validators.required],
-    notes: [''],
-    lines: this.formBuilder.array([this.createLineGroup()]),
-    payments: this.formBuilder.array<FormGroup>([]),
-    creditLimitApprovalReason: [''],
-    expiredStockApprovalReason: [''],
-    negativeStockOverrideReason: [''],
-  });
-
   readonly cancelForm = this.formBuilder.nonNullable.group({
     reason: ['', Validators.required],
   });
 
   readonly returnForm = this.formBuilder.nonNullable.group({
     reason: ['', Validators.required],
-    resolution: ['ledger_adjustment' as 'ledger_adjustment' | 'account_refund', Validators.required],
+    resolution: [
+      'ledger_adjustment' as 'ledger_adjustment' | 'account_refund',
+      Validators.required,
+    ],
     refundAccountId: [''],
     returnLines: this.formBuilder.array([]),
   });
@@ -280,8 +352,22 @@ export class SaleEditPage {
   }
 
   constructor() {
+    this.form.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.formStateVersion.update((v) => v + 1);
+      });
+    this.form.statusChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.formStateVersion.update((v) => v + 1);
+      });
+
     this.returnForm.controls.resolution.valueChanges.subscribe((resolution) => {
-      setRequiredValidator(this.returnForm.controls.refundAccountId, resolution === 'account_refund');
+      setRequiredValidator(
+        this.returnForm.controls.refundAccountId,
+        resolution === 'account_refund',
+      );
     });
 
     const id = this.route.snapshot.paramMap.get('id');
@@ -302,7 +388,10 @@ export class SaleEditPage {
       refundAccounts: this.accountsApi.listAccountOptions().pipe(catchError(() => of([]))),
       relatedReturns:
         isEdit && id && this.canViewReturns()
-          ? this.returnsApi.listReturns({ saleId: id, page: 1, pageSize: 100 }).pipe(map((result) => result.items), catchError(() => of([])))
+          ? this.returnsApi.listReturns({ saleId: id, page: 1, pageSize: 100 }).pipe(
+              map((result) => result.items),
+              catchError(() => of([])),
+            )
           : of([]),
     });
 
@@ -311,11 +400,7 @@ export class SaleEditPage {
         debounceTime(300),
         distinctUntilChanged(),
         switchMap((query) =>
-          this.catalogApi.searchProductOptions(
-            query,
-            SaleEditPage.SELECTOR_SEARCH_LIMIT,
-            'active',
-          ),
+          this.catalogApi.searchProductOptions(query, SaleEditPage.SELECTOR_SEARCH_LIMIT, 'active'),
         ),
         takeUntilDestroyed(this.destroyRef),
       )
@@ -371,20 +456,28 @@ export class SaleEditPage {
       });
 
     if (isEdit && id) {
-      forkJoin({
-        masters: masters$,
-        sale: this.api.getSale(id),
-      }).subscribe({
-        next: ({ masters, sale }) => {
-          this.applyMasters(masters);
-          this.applySale(sale);
-          this.loading.set(false);
-        },
-        error: (error: unknown) => {
-          this.loading.set(false);
-          this.errorMessage.set(this.mapError(error, 'Unable to load sale.'));
-        },
-      });
+      this.api
+        .getSale(id)
+        .pipe(
+          switchMap((sale) => {
+            if (sale.status !== 'draft') {
+              void this.router.navigateByUrl(`/app/sales/${sale.id}`, { replaceUrl: true });
+              return EMPTY;
+            }
+            return masters$.pipe(map((masters) => ({ masters, sale })));
+          }),
+        )
+        .subscribe({
+          next: ({ masters, sale }) => {
+            this.applyMasters(masters);
+            this.applySale(sale);
+            this.loading.set(false);
+          },
+          error: (error: unknown) => {
+            this.loading.set(false);
+            this.errorMessage.set(this.mapError(error, 'Unable to load sale.'));
+          },
+        });
     } else {
       if (!this.canCreate()) {
         this.loading.set(false);
@@ -478,16 +571,32 @@ export class SaleEditPage {
     this.customerDropdownOpen.set(false);
   }
 
+  openCustomerDropdown(): void {
+    if (!this.canEditCustomerField() || this.isPosted()) {
+      return;
+    }
+    this.customerDropdownOpen.set(true);
+    this.requestCustomerSearch();
+  }
+
+  switchToRegisteredCustomer(): void {
+    this.form.controls.customerTypeMode.setValue('farmer');
+    this.openCustomerDropdown();
+  }
+
   selectCustomer(customer: CustomerRecord): void {
     this.form.controls.customerId.setValue(customer.id);
     this.selectedCustomer.set(customer);
     if (customer.customerType && customer.customerType !== 'walk_in') {
-      this.form.controls.customerTypeMode.setValue(String(customer.customerType), { emitEvent: false });
+      this.form.controls.customerTypeMode.setValue(String(customer.customerType), {
+        emitEvent: false,
+      });
       setRequiredValidator(this.form.controls.customerId, true);
     }
     this.customerSearchTerm.set('');
     this.closeCustomerDropdown();
     this.refreshTierPricesForAllLines();
+    this.formStateVersion.update((v) => v + 1);
   }
 
   lineFieldError(index: number, controlName: string, label: string): string | null {
@@ -528,6 +637,7 @@ export class SaleEditPage {
     const index = this.lines.length;
     this.lines.push(this.createLineGroup());
     this.bindLineProductChanges(index);
+    this.formStateVersion.update((v) => v + 1);
   }
 
   removeLine(index: number): void {
@@ -543,17 +653,21 @@ export class SaleEditPage {
         priceOverrideReason: '',
       });
       this.packagingByLine.update((current) => ({ ...current, [0]: [] }));
+      this.formStateVersion.update((v) => v + 1);
       return;
     }
     this.lines.removeAt(index);
     this.rebuildPackagingMap();
+    this.formStateVersion.update((v) => v + 1);
   }
 
   addPayment(): void {
     if (this.isPosted()) {
       return;
     }
+    this.tenderMode.set('custom');
     this.payments.push(this.createPaymentGroup());
+    this.formStateVersion.update((v) => v + 1);
   }
 
   removePayment(index: number): void {
@@ -561,10 +675,18 @@ export class SaleEditPage {
       return;
     }
     this.payments.removeAt(index);
+    if (this.payments.length === 0 && this.canSellOnCredit()) {
+      this.tenderMode.set('credit');
+    } else {
+      this.tenderMode.set('custom');
+    }
+    this.formStateVersion.update((v) => v + 1);
   }
 
   save(): void {
-    if (!this.canCreate() || this.isPosted()) {
+    const id = this.saleId();
+    const canManage = id === null ? this.canCreateDraft() : this.canEditDraft();
+    if (!canManage || !this.isDraft() || this.saving() || this.posting()) {
       return;
     }
     const validationError = this.validateFormForSubmit();
@@ -572,46 +694,91 @@ export class SaleEditPage {
       this.errorMessage.set(validationError);
       return;
     }
+
+    let payload: SaleDraftInput;
+    try {
+      payload = this.buildPayload();
+    } catch {
+      this.errorMessage.set('Unable to construct sale draft.');
+      return;
+    }
+
     this.saving.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
 
-    const payload = this.buildPayload();
-    const id = this.saleId();
     const request$ =
       id === null
         ? this.api.createSale(payload)
         : this.api.updateSale(id, { ...payload, expectedVersion: this.version });
 
-    request$.subscribe({
-      next: (record) => {
-        this.saving.set(false);
-        this.successMessage.set('Sale draft saved. Post when ready to apply stock and receivable effects.');
-        if (id === null) {
+    request$
+      .pipe(
+        finalize(() => {
+          this.saving.set(false);
+        }),
+      )
+      .subscribe({
+        next: (record) => {
+          this.successMessage.set(
+            'Sale draft saved. Post when ready to apply stock and receivable effects.',
+          );
           this.saleId.set(record.id);
-          this.version = record.version;
-          void this.router.navigateByUrl(`/app/sales/${record.id}`, { replaceUrl: true });
-        } else {
           this.applySale(record);
-        }
-      },
-      error: (error: unknown) => {
-        this.saving.set(false);
-        this.errorMessage.set(this.mapError(error, 'Unable to save sale draft.'));
-      },
-    });
+          if (id === null) {
+            void this.router.navigateByUrl(`/app/sales/${record.id}/edit`, { replaceUrl: true });
+          }
+        },
+        error: (error: unknown) => {
+          this.errorMessage.set(this.mapError(error, 'Unable to save sale draft.'));
+        },
+      });
   }
+
+  readonly tenderMode = signal<'cash' | 'credit' | 'custom' | null>(null);
+
+  readonly isCreditSelected = computed(() => {
+    this.formStateChanges();
+    this.formStateVersion();
+    if (!this.canSellOnCredit()) {
+      return false;
+    }
+    if (this.payments.controls.length > 0) {
+      return false;
+    }
+    return this.tenderMode() === 'credit';
+  });
+
+  readonly isCashSelected = computed(() => {
+    this.formStateChanges();
+    this.formStateVersion();
+    if (this.payments.controls.length !== 1) {
+      return false;
+    }
+    const payment = (this.payments.controls[0] as FormGroup).getRawValue() as {
+      amount?: string | number;
+    };
+    const amount = Number(payment.amount);
+    const cart = Number(this.cartEstimate());
+    return (
+      this.tenderMode() === 'cash' ||
+      (Number.isFinite(amount) && Number.isFinite(cart) && cart > 0 && Math.abs(amount - cart) < 0.01)
+    );
+  });
 
   fillFullCash(): void {
     if (!this.isDraft()) {
       return;
     }
+    this.tenderMode.set('cash');
     const accountId = this.accounts()[0]?.id ?? '';
     if (this.payments.length === 0) {
       this.payments.push(this.createPaymentGroup({ accountId, amount: this.cartEstimate() }));
+      this.formStateVersion.update((v) => v + 1);
       return;
     }
     this.paymentGroup(0).patchValue({ accountId, amount: this.cartEstimate() });
+    this.formStateVersion.update((v) => v + 1);
   }
 
   clearPaymentsForCredit(): void {
@@ -619,6 +786,12 @@ export class SaleEditPage {
       return;
     }
     this.payments.clear();
+    this.tenderMode.set('credit');
+    if (this.form.controls.customerTypeMode.value === 'walk_in') {
+      this.form.controls.customerTypeMode.setValue('farmer');
+      this.openCustomerDropdown();
+    }
+    this.formStateVersion.update((v) => v + 1);
   }
 
   cartEstimate(): string {
@@ -635,7 +808,7 @@ export class SaleEditPage {
   }
 
   post(): void {
-    if (!this.canPost() || this.isPosted() || this.posting()) {
+    if (!this.canPost() || this.isPosted() || this.posting() || this.saving()) {
       return;
     }
     const validationError = this.validateFormForSubmit();
@@ -651,95 +824,74 @@ export class SaleEditPage {
       }
     }
 
-    const existingId = this.saleId();
-    if (existingId !== null) {
-      this.submitPost(existingId);
+    let payload: SaleDraftInput;
+    let postData: {
+      payments: SalePaymentInput[];
+      linePriceOverrides: SaleLinePriceOverrideInput[];
+      approvals: SalePostApprovalsInput;
+    };
+
+    try {
+      payload = this.buildPayload();
+      postData = this.buildPostPayload();
+    } catch {
+      this.errorMessage.set('Unable to prepare sale for posting.');
       return;
     }
 
     this.posting.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
-    this.api.createSale(this.buildPayload()).subscribe({
-      next: (record) => {
-        this.saleId.set(record.id);
-        this.version = record.version;
-        void this.router.navigateByUrl(`/app/sales/${record.id}`, { replaceUrl: true });
-        this.submitPost(record.id);
-      },
-      error: (error: unknown) => {
-        this.posting.set(false);
-        this.errorMessage.set(this.mapError(error, 'Unable to save sale before posting.'));
-      },
-    });
-  }
 
-  private submitPost(id: string): void {
-    this.posting.set(true);
-    this.errorMessage.set(null);
-    this.successMessage.set(null);
+    const existingId = this.saleId();
+    const draft$ =
+      existingId === null
+        ? this.api.createSale(payload)
+        : this.api.updateSale(existingId, { ...payload, expectedVersion: this.version });
 
-    const idempotencyKey = this.postIdempotencySaleId === id && this.postIdempotencyKey
-      ? this.postIdempotencyKey
-      : crypto.randomUUID();
-    this.postIdempotencyKey = idempotencyKey;
-    this.postIdempotencySaleId = id;
+    draft$
+      .pipe(
+        switchMap((record) => {
+          this.saleId.set(record.id);
+          this.version = record.version;
+          const idempotencyKey =
+            this.postIdempotencySaleId === record.id && this.postIdempotencyKey
+              ? this.postIdempotencyKey
+              : crypto.randomUUID();
+          this.postIdempotencyKey = idempotencyKey;
+          this.postIdempotencySaleId = record.id;
 
-    const payments: SalePaymentInput[] = this.payments.controls.map((control) => {
-      const value = (control as FormGroup).getRawValue() as {
-        accountId: string;
-        amount: string;
-      };
-      return {
-        accountId: value.accountId,
-        amount: { amount: value.amount.trim(), currency: 'PKR' },
-      };
-    });
-
-    const linePriceOverrides: SaleLinePriceOverrideInput[] = [];
-    this.lines.controls.forEach((control, index) => {
-      const reason = String((control as FormGroup).get('priceOverrideReason')?.value ?? '').trim();
-      if (reason !== '') {
-        linePriceOverrides.push({ lineIndex: index, reason });
-      }
-    });
-
-    const approvals: SalePostApprovalsInput = {};
-    const creditReason = this.form.controls.creditLimitApprovalReason.value.trim();
-    const expiredReason = this.form.controls.expiredStockApprovalReason.value.trim();
-    const negativeReason = this.form.controls.negativeStockOverrideReason.value.trim();
-    if (creditReason !== '') {
-      approvals.creditLimit = { reason: creditReason };
-    }
-    if (expiredReason !== '') {
-      approvals.expiredStock = { reason: expiredReason };
-    }
-    if (negativeReason !== '') {
-      approvals.negativeStock = { reason: negativeReason };
-    }
-
-    this.api
-      .postSale(
-        id,
-        {
-          expectedVersion: this.version,
-          payments,
-          ...(linePriceOverrides.length > 0 ? { linePriceOverrides } : {}),
-          ...(Object.keys(approvals).length > 0 ? { approvals } : {}),
-        },
-        idempotencyKey,
+          return this.api.postSale(
+            record.id,
+            {
+              expectedVersion: record.version,
+              payments: postData.payments,
+              ...(postData.linePriceOverrides.length > 0
+                ? { linePriceOverrides: postData.linePriceOverrides }
+                : {}),
+              ...(Object.keys(postData.approvals).length > 0
+                ? { approvals: postData.approvals }
+                : {}),
+            },
+            idempotencyKey,
+          );
+        }),
+        finalize(() => {
+          this.posting.set(false);
+        }),
       )
       .subscribe({
-        next: (record) => {
-          this.posting.set(false);
+        next: (postedRecord) => {
           this.postIdempotencyKey = null;
           this.postIdempotencySaleId = null;
-          const invoice = record.invoiceNumber ? ` Invoice ${record.invoiceNumber}.` : '';
+          const invoice = postedRecord.invoiceNumber
+            ? ` Invoice ${postedRecord.invoiceNumber}.`
+            : '';
           this.successMessage.set(`Sale posted successfully.${invoice}`);
-          this.applySale(record);
+          this.applySale(postedRecord);
+          void this.router.navigateByUrl(`/app/sales/${postedRecord.id}`);
         },
         error: (error: unknown) => {
-          this.posting.set(false);
           if (error instanceof HttpErrorResponse && error.status > 0 && error.status < 500) {
             this.postIdempotencyKey = null;
             this.postIdempotencySaleId = null;
@@ -782,9 +934,9 @@ export class SaleEditPage {
         },
         error: (error: unknown) => {
           this.cancelling.set(false);
-        this.errorMessage.set(this.mapError(error, 'Unable to cancel sale.'));
-      },
-    });
+          this.errorMessage.set(this.mapError(error, 'Unable to cancel sale.'));
+        },
+      });
   }
 
   returnLineGroup(index: number): FormGroup {
@@ -827,8 +979,7 @@ export class SaleEditPage {
         originalLineIndex: Number(line.originalLineIndex),
         quantity: String(line.quantity ?? '').trim(),
         stockCondition: line.stockCondition,
-        unsellableReason:
-          line.stockCondition === 'unsellable' ? line.unsellableReason : null,
+        unsellableReason: line.stockCondition === 'unsellable' ? line.unsellableReason : null,
       }))
       .filter(
         (line) =>
@@ -843,7 +994,10 @@ export class SaleEditPage {
     }
     this.returnForm.controls.reason.markAsTouched();
     this.returnForm.controls.refundAccountId.markAsTouched();
-    if (this.returnForm.controls.reason.invalid || this.returnForm.controls.refundAccountId.invalid) {
+    if (
+      this.returnForm.controls.reason.invalid ||
+      this.returnForm.controls.refundAccountId.invalid
+    ) {
       return;
     }
     const { reason, resolution, refundAccountId } = this.returnForm.getRawValue();
@@ -1006,31 +1160,44 @@ export class SaleEditPage {
     for (let index = 0; index < this.lines.length; index += 1) {
       this.lineGroup(index).markAllAsTouched();
     }
-    if (this.form.controls.branchId.invalid) {
+    const branchId = String(this.form.controls.branchId.value ?? '').trim();
+    if (this.form.controls.branchId.invalid || branchId === '') {
       return 'Select a branch before continuing.';
     }
-    if (this.form.controls.warehouseId.invalid) {
+    const warehouseId = String(this.form.controls.warehouseId.value ?? '').trim();
+    if (this.form.controls.warehouseId.invalid || warehouseId === '') {
       return 'Select a warehouse before continuing.';
     }
-    if (this.form.controls.saleDate.invalid) {
+    const saleDate = String(this.form.controls.saleDate.value ?? '').trim();
+    if (this.form.controls.saleDate.invalid || saleDate === '') {
       return 'Enter a sale date before continuing.';
     }
+    const customerId = String(this.form.controls.customerId.value ?? '').trim();
+    const customerType = String(this.form.controls.customerTypeMode.value ?? '').trim();
     if (
-      this.form.controls.customerTypeMode.value !== 'walk_in' &&
-      this.form.controls.customerId.value.trim() === ''
+      customerType !== 'walk_in' &&
+      customerId === ''
     ) {
-      return `Select a ${this.getCustomerTypeLabel(this.form.controls.customerTypeMode.value).toLowerCase()} customer before continuing.`;
+      return `Select a ${this.getCustomerTypeLabel(customerType).toLowerCase()} customer before continuing.`;
+    }
+    if (this.lines.length === 0) {
+      return 'Add at least one sale line.';
     }
     for (let index = 0; index < this.lines.length; index += 1) {
       const line = this.lineGroup(index);
-      if (line.get('productId')?.invalid) {
+      const productId = String(line.get('productId')?.value ?? '').trim();
+      if (line.get('productId')?.invalid || productId === '') {
         return `Line ${index + 1}: select a product.`;
       }
-      if (line.get('quantity')?.invalid) {
-        return `Line ${index + 1}: enter a quantity.`;
+      const rawQuantity = String(line.get('quantity')?.value ?? '').trim();
+      const quantity = Number(rawQuantity);
+      if (line.get('quantity')?.invalid || rawQuantity === '' || !Number.isFinite(quantity) || quantity <= 0) {
+        return `Line ${index + 1}: enter a quantity greater than zero.`;
       }
-      if (line.get('unitPrice')?.invalid) {
-        return `Line ${index + 1}: enter a unit price.`;
+      const rawPrice = String(line.get('unitPrice')?.value ?? '').trim();
+      const unitPrice = Number(rawPrice);
+      if (line.get('unitPrice')?.invalid || rawPrice === '' || !Number.isFinite(unitPrice) || unitPrice <= 0) {
+        return `Line ${index + 1}: enter a unit price greater than zero.`;
       }
     }
     return null;
@@ -1137,6 +1304,13 @@ export class SaleEditPage {
       this.form.disable({ emitEvent: false });
     } else {
       this.form.enable({ emitEvent: false });
+      if (sale.customerId && (!sale.payments || sale.payments.length === 0)) {
+        this.tenderMode.set('credit');
+      } else if (sale.payments && sale.payments.length > 0) {
+        this.tenderMode.set(sale.payments.length === 1 ? 'cash' : 'custom');
+      } else {
+        this.tenderMode.set(null);
+      }
     }
 
     const customerId = sale.customerId ?? '';
@@ -1157,6 +1331,7 @@ export class SaleEditPage {
       this.selectedCustomer.set(null);
       this.form.controls.customerTypeMode.setValue('walk_in', { emitEvent: false });
     }
+    this.formStateVersion.update((v) => v + 1);
   }
 
   private bindLineProductChanges(index: number): void {
@@ -1209,7 +1384,10 @@ export class SaleEditPage {
         const retail = active.find((item) => item.priceTier === 'retail');
         const selected = tier ?? retail;
         if (selected) {
-          this.lineGroup(index).patchValue({ unitPrice: selected.price.amount }, { emitEvent: false });
+          this.lineGroup(index).patchValue(
+            { unitPrice: selected.price.amount },
+            { emitEvent: false },
+          );
         }
       },
     });
@@ -1238,33 +1416,75 @@ export class SaleEditPage {
 
   private buildPayload(): SaleDraftInput {
     const value = this.form.getRawValue();
-    const rawLines = value.lines as Array<{
-      productId: string;
-      packagingUnitId: string;
-      quantity: string;
-      unitPrice: string;
+    const rawLines = (value.lines ?? []) as Array<{
+      productId?: string;
+      packagingUnitId?: string;
+      quantity?: string | number;
+      unitPrice?: string | number;
     }>;
     const lines: SaleLineInput[] = rawLines.map((line) => {
       const payload: SaleLineInput = {
-        productId: line.productId,
-        quantity: line.quantity.trim(),
-        unitPrice: { amount: line.unitPrice.trim(), currency: 'PKR' },
+        productId: String(line.productId ?? '').trim(),
+        quantity: String(line.quantity ?? '').trim(),
+        unitPrice: { amount: String(line.unitPrice ?? '').trim(), currency: 'PKR' },
       };
-      if (line.packagingUnitId.trim() !== '') {
-        payload.packagingUnitId = line.packagingUnitId;
+      const packagingUnitId = String(line.packagingUnitId ?? '').trim();
+      if (packagingUnitId !== '') {
+        payload.packagingUnitId = packagingUnitId;
       }
       return payload;
     });
 
-    const customerId = value.customerId.trim();
+    const customerId = String(value.customerId ?? '').trim();
     return {
-      branchId: value.branchId,
-      warehouseId: value.warehouseId,
+      branchId: String(value.branchId ?? '').trim(),
+      warehouseId: String(value.warehouseId ?? '').trim(),
       customerId: customerId === '' ? null : customerId,
-      saleDate: value.saleDate,
-      notes: value.notes.trim(),
+      saleDate: String(value.saleDate ?? '').trim(),
+      notes: String(value.notes ?? '').trim(),
       lines,
     };
+  }
+
+  private buildPostPayload(): {
+    payments: SalePaymentInput[];
+    linePriceOverrides: SaleLinePriceOverrideInput[];
+    approvals: SalePostApprovalsInput;
+  } {
+    const payments: SalePaymentInput[] = this.payments.controls.map((control) => {
+      const value = (control as FormGroup).getRawValue() as {
+        accountId?: string;
+        amount?: string | number;
+      };
+      return {
+        accountId: String(value.accountId ?? '').trim(),
+        amount: { amount: String(value.amount ?? '').trim(), currency: 'PKR' },
+      };
+    });
+
+    const linePriceOverrides: SaleLinePriceOverrideInput[] = [];
+    this.lines.controls.forEach((control, index) => {
+      const reason = String((control as FormGroup).get('priceOverrideReason')?.value ?? '').trim();
+      if (reason !== '') {
+        linePriceOverrides.push({ lineIndex: index, reason });
+      }
+    });
+
+    const approvals: SalePostApprovalsInput = {};
+    const creditReason = String(this.form.controls.creditLimitApprovalReason.value ?? '').trim();
+    const expiredReason = String(this.form.controls.expiredStockApprovalReason.value ?? '').trim();
+    const negativeReason = String(this.form.controls.negativeStockOverrideReason.value ?? '').trim();
+    if (creditReason !== '') {
+      approvals.creditLimit = { reason: creditReason };
+    }
+    if (expiredReason !== '') {
+      approvals.expiredStock = { reason: expiredReason };
+    }
+    if (negativeReason !== '') {
+      approvals.negativeStock = { reason: negativeReason };
+    }
+
+    return { payments, linePriceOverrides, approvals };
   }
 
   private reloadRelatedReturns(saleId: string): void {
@@ -1276,7 +1496,9 @@ export class SaleEditPage {
     });
   }
 
-  formatCurrency(val: { amount?: string; currency?: string } | string | number | undefined | null): string {
+  formatCurrency(
+    val: { amount?: string; currency?: string } | string | number | undefined | null,
+  ): string {
     if (val === undefined || val === null) return 'PKR 0.00';
     if (typeof val === 'object') {
       if (!val.amount) return `${val.currency || 'PKR'} 0.00`;

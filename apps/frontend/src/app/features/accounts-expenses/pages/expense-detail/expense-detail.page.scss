@@ -1,0 +1,85 @@
+.detail-shell {
+  display: grid;
+  gap: 18px;
+}
+.page-head,
+.actions,
+.summary {
+  display: flex;
+}
+.page-head {
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.page-head h1 {
+  margin: 2px 0;
+  font-size: 1.75rem;
+}
+.eyebrow {
+  margin: 0;
+  color: #047857;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.lede,
+.card p {
+  color: #64748b;
+}
+.actions {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.summary article,
+.card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+}
+.summary article {
+  display: grid;
+  gap: 6px;
+}
+.summary span,
+dt {
+  color: #64748b;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.card h2 {
+  margin: 0 0 14px;
+  font-size: 1rem;
+}
+.facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+.facts div {
+  display: grid;
+  gap: 5px;
+}
+.facts .wide {
+  grid-column: 1 / -1;
+}
+dd {
+  margin: 0;
+}
+@media (max-width: 800px) {
+  .page-head {
+    flex-direction: column;
+  }
+  .summary,
+  .facts {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { ActivatedRoute, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { AccountFormPage } from './account-form.page';
 import { AccountsApi } from '../../data-access/accounts.api';
@@ -39,7 +39,7 @@ describe('AccountFormPage', () => {
     await TestBed.configureTestingModule({
       imports: [AccountFormPage],
       providers: [
-        provideRouter([]),
+        provideRouter([{ path: 'app/accounts', component: AccountFormPage }]),
         { provide: AccountsApi, useValue: mockApi },
         { provide: AuthSessionStore, useValue: { hasPermission: () => true } },
         {
@@ -92,6 +92,18 @@ describe('AccountFormPage', () => {
     expect(saveButton.disabled).toBe(true);
   });
 
+  it('enables save when required create fields are filled', () => {
+    const fixture: ComponentFixture<AccountFormPage> = TestBed.createComponent(AccountFormPage);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    component.form.patchValue({ name: 'Main Cash', accountType: 'cash' });
+    fixture.detectChanges();
+    const saveButton = fixture.nativeElement.querySelector(
+      '[data-testid="account-save"]',
+    ) as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(false);
+  });
+
   it('blocks invalid submit without calling createAccount', () => {
     const fixture: ComponentFixture<AccountFormPage> = TestBed.createComponent(AccountFormPage);
     fixture.detectChanges();
@@ -110,5 +122,62 @@ describe('AccountFormPage', () => {
     fixture.detectChanges();
     expect(mockApi.createAccount).not.toHaveBeenCalled();
     expect(fixture.nativeElement.textContent).toContain('Bank name is required.');
+  });
+
+  it('includes inactive status in the update payload', async () => {
+    TestBed.resetTestingModule();
+    mockApi.getAccount.mockReturnValue(
+      of({
+        id: 'acc-1',
+        name: 'Main Cash',
+        accountType: 'cash',
+        bankName: '',
+        accountNumberMasked: '',
+        walletIdentifier: '',
+        status: 'active',
+        version: 1,
+      }),
+    );
+
+    await TestBed.configureTestingModule({
+      imports: [AccountFormPage],
+      providers: [
+        provideRouter([{ path: 'app/accounts', component: AccountFormPage }]),
+        { provide: AccountsApi, useValue: mockApi },
+        { provide: AuthSessionStore, useValue: { hasPermission: () => true } },
+        {
+          provide: CapabilityService,
+          useValue: {
+            canUseModule: () => true,
+            canPerformAction: () => true,
+            canViewField: () => true,
+            canEditField: () => true,
+            canUseView: () => true,
+          },
+        },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              paramMap: { get: (key: string) => (key === 'id' ? 'acc-1' : null) },
+              routeConfig: { path: 'accounts/:id' },
+            },
+          },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture: ComponentFixture<AccountFormPage> = TestBed.createComponent(AccountFormPage);
+    fixture.detectChanges();
+
+    const page = fixture.componentInstance;
+    page.form.patchValue({ status: 'inactive' });
+    page.save();
+
+    expect(mockApi.updateAccount).toHaveBeenCalledWith('acc-1', {
+      expectedVersion: 1,
+      name: 'Main Cash',
+      status: 'inactive',
+    });
   });
 });

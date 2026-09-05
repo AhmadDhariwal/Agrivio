@@ -8,7 +8,7 @@ import {
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin, of } from 'rxjs';
+import { forkJoin, switchMap } from 'rxjs';
 import { ExpensesApi } from '../../data-access/expenses.api';
 import { AccountsApi } from '../../data-access/accounts.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
@@ -71,6 +71,7 @@ export class ExpenseFormPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
+  readonly isCorrectionMode = this.route.snapshot.routeConfig?.path === 'expenses/:id/correct';
 
   readonly expenseId = signal<string | null>(null);
   readonly loading = signal(false);
@@ -96,7 +97,7 @@ export class ExpenseFormPage {
   );
   readonly canView = computed(() => this.sessionStore.hasPermission('expenses.view'));
   readonly canSave = computed(
-    () => this.canPost() && this.isDraft && this.form.valid && !this.saving(),
+    () => this.canPost() && this.isDraft && !this.saving() && !this.posting(),
   );
   readonly showCategory = computed(
     () => this.capabilityService?.canViewField('expenses.fields.category') ?? true,
@@ -148,12 +149,40 @@ export class ExpenseFormPage {
   constructor() {
     const id = this.route.snapshot.paramMap.get('id');
     this.loading.set(true);
+    if (id && id !== 'new') {
+      this.api.getExpense(id).subscribe({
+        next: (expense) => {
+          const allowedStatus = this.isCorrectionMode
+            ? expense.status === 'posted'
+            : expense.status === 'draft';
+          if (!allowedStatus) {
+            void this.router.navigateByUrl(`/app/expenses/${expense.id}`, { replaceUrl: true });
+            return;
+          }
+          this.expenseId.set(expense.id);
+          this.applyExpense(expense);
+          if (this.isCorrectionMode) {
+            this.loading.set(false);
+            return;
+          }
+          this.loadEditableOptions(expense);
+        },
+        error: (error: unknown) => {
+          this.loading.set(false);
+          this.errorMessage.set(this.mapError(error, 'Unable to load expense.'));
+        },
+      });
+      return;
+    }
+    this.loadEditableOptions(null);
+  }
+
+  private loadEditableOptions(expense: ExpenseRecord | null): void {
     forkJoin({
       categories: this.api.searchCategoryOptions(),
       accounts: this.accountsApi.searchAccountOptions(),
-      expense: id && id !== 'new' ? this.api.getExpense(id) : of(null),
     }).subscribe({
-      next: ({ categories, accounts, expense }) => {
+      next: ({ categories, accounts }) => {
         this.categories.set(
           categories.filter(
             (item) => item.status === 'active' || (expense && item.id === expense.categoryId),
@@ -164,10 +193,6 @@ export class ExpenseFormPage {
             (item) => item.status === 'active' || (expense && item.id === expense.accountId),
           ),
         );
-        if (expense) {
-          this.expenseId.set(expense.id);
-          this.applyExpense(expense);
-        }
         this.loading.set(false);
       },
       error: (error: unknown) => {
@@ -204,7 +229,7 @@ export class ExpenseFormPage {
   save(): void {
     this.formSubmitAttempted.set(true);
     this.form.markAllAsTouched();
-    if (!this.canPost() || !this.isDraft || this.form.invalid) {
+    if (!this.canPost() || !this.isDraft || this.form.invalid || this.posting()) {
       return;
     }
     this.saving.set(true);
@@ -223,7 +248,7 @@ export class ExpenseFormPage {
       next: (expense) => {
         this.saving.set(false);
         if (this.expenseId() === null) {
-          void this.router.navigateByUrl(`/app/expenses/${expense.id}`);
+          void this.router.navigateByUrl(`/app/expenses/${expense.id}/edit`);
           return;
         }
         this.applyExpense(expense);
@@ -262,31 +287,57 @@ export class ExpenseFormPage {
   }
 
   post(): void {
-    const id = this.expenseId();
-    const current = this.expense();
-    if (!id || !current || !this.canPost() || current.status !== 'draft') {
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    if (!this.canPost() || !this.isDraft || this.form.invalid || this.posting() || this.saving()) {
       return;
     }
     this.posting.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
-    this.api.postExpense(id, { expectedVersion: this.version }, crypto.randomUUID()).subscribe({
-      next: (expense) => {
-        this.posting.set(false);
-        this.applyExpense(expense);
-        this.successMessage.set('Expense posted. A matching account outflow was recorded.');
-      },
-      error: (error: unknown) => {
-        this.posting.set(false);
-        this.errorMessage.set(this.mapError(error, 'Unable to post expense.'));
-      },
-    });
+    const value = this.form.getRawValue();
+    const existingId = this.expenseId();
+    const draft$ =
+      existingId === null
+        ? this.api.createExpense(this.buildExpenseCreatePayload(value))
+        : this.api.updateExpense(existingId, {
+            expectedVersion: this.version,
+            ...this.buildExpensePatchPayload(value),
+          });
+    draft$
+      .pipe(
+        switchMap((expense) => {
+          this.expenseId.set(expense.id);
+          this.version = expense.version;
+          return this.api.postExpense(
+            expense.id,
+            { expectedVersion: expense.version },
+            crypto.randomUUID(),
+          );
+        }),
+      )
+      .subscribe({
+        next: (expense) => {
+          this.posting.set(false);
+          void this.router.navigateByUrl(`/app/expenses/${expense.id}`);
+        },
+        error: (error: unknown) => {
+          this.posting.set(false);
+          this.errorMessage.set(this.mapError(error, 'Unable to post expense.'));
+        },
+      });
   }
 
   correct(): void {
     const id = this.expenseId();
     const current = this.expense();
-    if (!id || !current || !this.canCorrect() || current.status !== 'posted' || this.correctForm.invalid) {
+    if (
+      !id ||
+      !current ||
+      !this.canCorrect() ||
+      current.status !== 'posted' ||
+      this.correctForm.invalid
+    ) {
       this.correctForm.markAllAsTouched();
       return;
     }
@@ -302,10 +353,7 @@ export class ExpenseFormPage {
       .subscribe({
         next: (expense) => {
           this.correcting.set(false);
-          this.applyExpense(expense);
-          this.successMessage.set(
-            'Expense corrected. Original expense is preserved and the account effect was reversed.',
-          );
+          void this.router.navigateByUrl(`/app/expenses/${expense.id}`);
         },
         error: (error: unknown) => {
           this.correcting.set(false);

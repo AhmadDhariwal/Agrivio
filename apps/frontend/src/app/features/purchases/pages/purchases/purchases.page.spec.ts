@@ -98,7 +98,12 @@ const mockCancelledPurchase: PurchaseRecord = {
 };
 
 describe('PurchasesPage', () => {
-  let mockListPurchases: (query?: unknown) => Observable<{ items: PurchaseRecord[]; meta: { page: number; pageSize: number; total: number } }>;
+  let mockListPurchases: (
+    query?: unknown,
+  ) => Observable<{
+    items: PurchaseRecord[];
+    meta: { page: number; pageSize: number; total: number };
+  }>;
   let mockHasPermission: (perm: string) => boolean;
   let disabledCapabilities: Set<string>;
 
@@ -145,7 +150,9 @@ describe('PurchasesPage', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('[data-testid="purchases-page"]')).toBeTruthy();
-    expect(compiled.querySelector('[data-testid="purchases-count-pill"]')?.textContent).toContain('3');
+    expect(compiled.querySelector('[data-testid="purchases-count-pill"]')?.textContent).toContain(
+      '3',
+    );
     expect(compiled.querySelector('[data-testid="purchases-table"]')).toBeTruthy();
 
     const rows = compiled.querySelectorAll('[data-testid="purchase-row"]');
@@ -186,7 +193,7 @@ describe('PurchasesPage', () => {
     expect(createBtn?.getAttribute('href')).toBe('/app/purchases/new');
   });
 
-  it('differentiates action presentation between draft (Edit draft) and posted/cancelled (View)', () => {
+  it('routes View to detail and Edit draft to the explicit edit route', () => {
     const fixture: ComponentFixture<PurchasesPage> = TestBed.createComponent(PurchasesPage);
     fixture.detectChanges();
 
@@ -195,9 +202,14 @@ describe('PurchasesPage', () => {
     const action1 = rows[1]?.querySelector('[data-testid="purchase-action-btn"]');
     const action2 = rows[2]?.querySelector('[data-testid="purchase-action-btn"]');
 
-    expect(action0?.textContent?.trim()).toBe('Edit draft');
+    expect(action0?.textContent?.trim()).toBe('View');
+    expect(action0?.getAttribute('href')).toBe('/app/purchases/pur-1');
+    expect(rows[0]?.textContent).toContain('Edit draft');
+    expect(rows[0]?.querySelector('a[href="/app/purchases/pur-1/edit"]')).toBeTruthy();
     expect(action1?.textContent?.trim()).toBe('View');
     expect(action2?.textContent?.trim()).toBe('View');
+    expect(rows[1]?.textContent).not.toContain('Edit draft');
+    expect(rows[2]?.textContent).not.toContain('Edit draft');
   });
 
   it('handles search and status query filtering and clear action', () => {
@@ -214,7 +226,8 @@ describe('PurchasesPage', () => {
   });
 
   it('renders empty state when no purchases exist', () => {
-    mockListPurchases = () => of({ items: [] as PurchaseRecord[], meta: { page: 1, pageSize: 25, total: 0 } });
+    mockListPurchases = () =>
+      of({ items: [] as PurchaseRecord[], meta: { page: 1, pageSize: 25, total: 0 } });
     const fixture: ComponentFixture<PurchasesPage> = TestBed.createComponent(PurchasesPage);
     fixture.detectChanges();
 
@@ -226,7 +239,9 @@ describe('PurchasesPage', () => {
     const fixture: ComponentFixture<PurchasesPage> = TestBed.createComponent(PurchasesPage);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('[data-testid="purchases-permission-alert"]')).toBeTruthy();
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="purchases-permission-alert"]'),
+    ).toBeTruthy();
   });
 
   it('intersects module, feature, and lifecycle action capabilities', () => {
@@ -241,11 +256,15 @@ describe('PurchasesPage', () => {
     expect(compiled.querySelector('agrivio-ui-module-info')).toBeFalsy();
     expect(compiled.querySelector('[data-testid="purchases-search-input"]')).toBeFalsy();
     expect(compiled.querySelector('[data-testid="purchase-create-link"]')).toBeFalsy();
-    expect(compiled.querySelectorAll('[data-testid="purchase-action-btn"]')[0]?.textContent).toContain('View');
+    expect(
+      compiled.querySelectorAll('[data-testid="purchase-action-btn"]')[0]?.textContent,
+    ).toContain('View');
 
     disabledCapabilities.add('purchases');
     const disabledFixture = TestBed.createComponent(PurchasesPage);
     disabledFixture.detectChanges();
-    expect(disabledFixture.nativeElement.querySelector('[data-testid="purchases-permission-alert"]')).toBeTruthy();
+    expect(
+      disabledFixture.nativeElement.querySelector('[data-testid="purchases-permission-alert"]'),
+    ).toBeTruthy();
   });
 });

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "runId": "43112b9bff21",
+  "filename": "agrivio-20260904-111352-43112b9bff21.archive.gz",
+  "mongodbDbName": "Agrivio",
+  "startedAt": "2026-09-04T11:13:52.044Z",
+  "completedAt": "2026-09-04T11:13:53.236Z",
+  "recordedAt": "2026-09-04T11:13:53.236Z",
+  "fileSizeBytes": 186684,
+  "sha256": "bd21cb5c64b79a53f1cd8d5a349162ae8284fa2be3c468fa85ffa7ff2e3283f3",
+  "mongodumpExitCode": 0,
+  "retentionDays": 0,
+  "expiresAt": null,
+  "coverage": "mongodb_application_data"
+}

@@ -145,6 +145,20 @@ describe('WarehouseFormPage', () => {
     expect(saveButton.disabled).toBe(true);
   });
 
+  it('enables save when the required name is filled', () => {
+    const fixture: ComponentFixture<WarehouseFormPage> = TestBed.createComponent(WarehouseFormPage);
+    fixture.detectChanges();
+
+    const comp = fixture.componentInstance;
+    comp.form.patchValue({ name: 'Lahore Central Warehouse' });
+    fixture.detectChanges();
+
+    const saveButton = fixture.nativeElement.querySelector(
+      '[data-testid="warehouse-save"]',
+    ) as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(false);
+  });
+
   it('omits code from update payload when code field is not editable', async () => {
     TestBed.resetTestingModule();
     canEditFieldSpy.mockImplementation((field: string) => field !== 'warehouses.fields.code');

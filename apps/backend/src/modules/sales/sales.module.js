@@ -376,6 +376,9 @@ function createSalesService(deps) {
         branchId: query.branchId,
         warehouseIds: query.warehouseId ? undefined : warehouseIds === null ? undefined : warehouseIds,
         search: query.search,
+        saleDate: query.saleDate,
+        fromDate: query.fromDate,
+        toDate: query.toDate,
       }, { skip: query.skip, pageSize: query.pageSize });
       return { items: items.map((item) => toSaleDto(item)), total };
     },

@@ -272,6 +272,7 @@
             <th class="col-entity">AFFECTED ENTITY</th>
             <th class="col-severity">SEVERITY</th>
             <th class="col-status">STATUS</th>
+            <th class="col-date">DATE</th>
             <th class="col-action">ACTION</th>
           </tr>
         </thead>
@@ -327,6 +328,13 @@
                 </div>
               </td>
 
+              <!-- Date Column -->
+              <td class="col-date" data-testid="notification-date">
+                <span class="cell-date" [title]="formatFullTimestamp(item.createdAt || item.activatedAt)">
+                  {{ formatRelativeDate(item.createdAt || item.activatedAt) }}
+                </span>
+              </td>
+
               <!-- Action Column -->
               <td class="col-action">
                 <div class="action-btn-group">
@@ -356,7 +364,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="6" class="empty-cell" data-testid="alerts-empty-state">
+              <td colspan="7" class="empty-cell" data-testid="alerts-empty-state">
                 <div class="empty-content">
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
@@ -400,6 +408,9 @@
             <p class="mobile-alert-card__text">{{ item.body }}</p>
             <div class="mobile-alert-card__meta">
               <span class="mobile-alert-card__entity"><strong>Entity:</strong> {{ item.subjectKey }}</span>
+              <span class="mobile-alert-card__date" [title]="formatFullTimestamp(item.createdAt || item.activatedAt)">
+                {{ formatRelativeDate(item.createdAt || item.activatedAt) }}
+              </span>
               <div class="status-indicator">
                 @if (item.acknowledgedAt) {
                   <span class="status-dot status-dot--gray"></span>

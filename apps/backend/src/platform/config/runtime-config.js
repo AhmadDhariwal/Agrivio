@@ -243,6 +243,14 @@ function loadApiEnv(env = process.env) {
     }
   }
 
+  const billingEvidenceStorageDir = env['AGRIVIO_BILLING_EVIDENCE_STORAGE_DIR']?.trim() ?? '';
+  if (isNonEmptyString(billingEvidenceStorageDir)) {
+    const path = require('path');
+    if (!path.isAbsolute(billingEvidenceStorageDir)) {
+      issues.push('AGRIVIO_BILLING_EVIDENCE_STORAGE_DIR must be an absolute path when set');
+    }
+  }
+
   const rawPlatformAuditRetentionDays = env['AGRIVIO_PLATFORM_AUDIT_RETENTION_DAYS'];
   let platformAuditRetentionDays = null;
   if (isNonEmptyString(rawPlatformAuditRetentionDays)) {
@@ -302,6 +310,9 @@ function loadApiEnv(env = process.env) {
     smtpFrom,
     backupDir: isNonEmptyString(backupDir) ? backupDir : '',
     backupRetentionDays,
+    billingEvidenceStorageDir: isNonEmptyString(billingEvidenceStorageDir)
+      ? billingEvidenceStorageDir
+      : '',
     platformAuditRetentionDays,
     auditRetentionOverrideDays,
   };

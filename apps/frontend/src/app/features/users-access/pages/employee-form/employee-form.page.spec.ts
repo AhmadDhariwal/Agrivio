@@ -165,6 +165,23 @@ describe('EmployeeFormPage', () => {
     expect(saveButton.disabled).toBe(true);
   });
 
+  it('enables save when required fields are filled', () => {
+    const fixture: ComponentFixture<EmployeeFormPage> = TestBed.createComponent(EmployeeFormPage);
+    fixture.detectChanges();
+
+    const comp = fixture.componentInstance;
+    comp.form.patchValue({
+      email: 'cashier@agrivio.test',
+      displayName: 'Test Cashier',
+    });
+    fixture.detectChanges();
+
+    const saveButton = fixture.nativeElement.querySelector(
+      '[data-testid="employee-save"]',
+    ) as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(false);
+  });
+
   it('blocks invalid submit without calling createEmployee', () => {
     const fixture: ComponentFixture<EmployeeFormPage> = TestBed.createComponent(EmployeeFormPage);
     fixture.detectChanges();

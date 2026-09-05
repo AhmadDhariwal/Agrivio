@@ -74,7 +74,10 @@ const { createOperationsModule } = require('./modules/operations/operations.modu
 const { registerOperationsRoutes } = require('./modules/operations/routes/operations.routes');
 const { createSetupProgressService } = require('./modules/settings/setup-progress.service');
 const { canAccessBranch, canAccessWarehouse } = require('./modules/identity/assignment-scope');
-const { hasPermission } = require('./modules/identity/role-permissions');
+const {
+  hasPermission,
+  permissionsForMembershipRole,
+} = require('./modules/identity/role-permissions');
 
 function createApp(options) {
   const { config, database } = options;
@@ -117,8 +120,15 @@ function createApp(options) {
       subscriptions.subscriptionService.markReferencedPlan(planCode, planVersion, session, at),
     getOrganizationSubscription: (organizationId) =>
       subscriptions.subscriptionService.getOrganizationSubscription(organizationId),
-    suspendSubscription: (subscriptionId, body, actor) =>
-      subscriptions.subscriptionService.suspendSubscription(subscriptionId, body, actor),
+    suspendSubscription: (subscriptionId, body, actor, options) =>
+      subscriptions.subscriptionService.suspendSubscription(subscriptionId, body, actor, options),
+    reactivateSubscription: (subscriptionId, body, actor, options) =>
+      subscriptions.subscriptionService.reactivateSubscription(
+        subscriptionId,
+        body,
+        actor,
+        options,
+      ),
   });
   subscriptions.subscriptionService.setBillingReviewReadModel(onboardingCore.store);
 
@@ -293,6 +303,7 @@ function createApp(options) {
     createAccountsModule({
       persistence,
       capabilityService: capabilities.capabilityService,
+      employeesService: employees.employeesService,
       ...(options.now === undefined ? {} : { now: options.now }),
       ...(masterRefs === null
         ? {}
@@ -523,6 +534,71 @@ function createApp(options) {
       countAccountsWithOpening: (organizationId) =>
         accounts.store.countAccountsWithOpening(organizationId),
     });
+
+  onboardingCore.onboardingService.setAdministrationBridge({
+    async revokeOrganizationSessions(organizationId, revokedAt, session) {
+      const memberships = await employees.store.listMembershipsByOrganizationId(organizationId);
+      for (const membership of memberships) {
+        await auth.store.revokeAllSessionsForUser(session, String(membership.userId), revokedAt);
+      }
+    },
+    async getUsage(organizationId) {
+      const [access, branchCount, warehouseCount, activeUserCount] = await Promise.all([
+        subscriptions.subscriptionService.resolveAccessState(organizationId),
+        locations.store.countBranches(organizationId),
+        locations.store.countActiveWarehouses(organizationId),
+        employees.store.countActiveUsers(organizationId),
+      ]);
+      const limits = access.plan?.limits ?? {};
+      return {
+        planCode: access.planCode ?? null,
+        planVersion: access.planVersion ?? null,
+        resources: {
+          branches: { current: branchCount, limit: limits.branches ?? null },
+          warehouses: { current: warehouseCount, limit: limits.warehouses ?? null },
+          activeUsers: { current: activeUserCount, limit: limits.activeUsers ?? null },
+        },
+      };
+    },
+    listMembers: (organizationId, filter) =>
+      employees.employeesService.listEmployees(organizationId, filter, {
+        role: null,
+        permissions: [],
+      }),
+    listBranches: (organizationId, filter) =>
+      locations.locationsService.listBranches(organizationId, filter),
+    listWarehouses: (organizationId, filter) =>
+      locations.locationsService.listWarehouses(organizationId, filter),
+    getCapabilities: (organizationId) =>
+      capabilities.capabilityService.resolveEffective(organizationId),
+    async getSettings(organizationId) {
+      const record = await settings.store.findByOrganizationId(organizationId);
+      if (record === null) return null;
+      return {
+        tradingName: record.tradingName ?? '',
+        contactPhone: record.contactPhone ?? '',
+        contactEmail: record.contactEmail ?? '',
+        addressLine: record.addressLine ?? '',
+        documentFooterNote: record.documentFooterNote ?? '',
+        version: Number(record.version ?? 1),
+      };
+    },
+    getSetup: (organizationId) =>
+      setupProgressService.getSetupProgress(organizationId, {
+        permissions: permissionsForMembershipRole('Owner'),
+      }),
+    async getAuditSummary(organizationId) {
+      const result = await audit.auditService.queryPlatformEvents({
+        organizationId,
+        skip: 0,
+        pageSize: 5,
+      });
+      return { total: result.total, recent: result.items };
+    },
+    async getBillingSummary(organizationId) {
+      return subscriptions.subscriptionService.getOrganizationBillingSummary(organizationId);
+    },
+  });
 
   const onboardingRoutes = registerOnboardingRoutes({
     config,

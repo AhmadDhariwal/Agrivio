@@ -45,6 +45,7 @@
     "db:reset": "node scripts/mongodb/reset.mjs",
     "bootstrap:super-admin": "node scripts/bootstrap-super-admin.mjs",
     "seed:demo": "node scripts/seed-demo-dataset.mjs",
+    "db:sync-indexes": "node scripts/mongodb/sync-indexes.mjs",
     "ops:backup": "node scripts/ops/backup.mjs",
     "ops:restore": "node scripts/ops/restore.mjs"
   },

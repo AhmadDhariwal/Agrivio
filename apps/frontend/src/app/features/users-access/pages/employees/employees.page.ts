@@ -311,7 +311,7 @@ export class EmployeesPage {
   }
 
   rowCanInspect(item: EmployeeRecord): boolean {
-    return this.canView() && !this.rowCanUpdate(item);
+    return this.canView() && Boolean(item.id);
   }
 
   confirmDeactivate(): void {

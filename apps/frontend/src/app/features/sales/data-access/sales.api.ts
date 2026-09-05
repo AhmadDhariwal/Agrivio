@@ -26,6 +26,9 @@ type SalesListQuery = PaginationQuery & {
   warehouseId?: string;
   branchId?: string;
   status?: string;
+  saleDate?: string;
+  fromDate?: string;
+  toDate?: string;
   forceRefresh?: boolean;
 };
 
@@ -46,6 +49,9 @@ export class SalesApi {
     if (params.customerId) queryParams['customerId'] = params.customerId;
     if (params.warehouseId) queryParams['warehouseId'] = params.warehouseId;
     if (params.branchId) queryParams['branchId'] = params.branchId;
+    if (params.saleDate) queryParams['saleDate'] = params.saleDate;
+    if (params.fromDate) queryParams['fromDate'] = params.fromDate;
+    if (params.toDate) queryParams['toDate'] = params.toDate;
 
     const cacheKey = this.queryCache.buildKey('sales', queryParams);
     return this.queryCache.fetch({

@@ -35,6 +35,18 @@ function createSalesController(deps) {
                 ? req.query.branchId.trim()
                 : undefined,
             search: typeof req.query.search === 'string' ? req.query.search : undefined,
+            saleDate:
+              typeof req.query.saleDate === 'string' && req.query.saleDate.trim() !== ''
+                ? req.query.saleDate.trim()
+                : undefined,
+            fromDate:
+              typeof req.query.fromDate === 'string' && req.query.fromDate.trim() !== ''
+                ? req.query.fromDate.trim()
+                : undefined,
+            toDate:
+              typeof req.query.toDate === 'string' && req.query.toDate.trim() !== ''
+                ? req.query.toDate.trim()
+                : undefined,
             skip,
             pageSize,
           },

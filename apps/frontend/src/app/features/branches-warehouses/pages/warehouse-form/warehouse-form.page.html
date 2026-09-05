@@ -145,7 +145,7 @@
           <button
             class="ag-btn ag-btn--primary"
             type="submit"
-            [disabled]="!canSave()"
+            [disabled]="!canPerformSave() || form.invalid || saving()"
             data-testid="warehouse-save"
           >
             <svg
@@ -319,7 +319,7 @@
           <button
             class="ag-btn ag-btn--primary"
             type="submit"
-            [disabled]="!canSave()"
+            [disabled]="!canPerformSave() || form.invalid || saving()"
             data-testid="warehouse-save"
           >
             <svg

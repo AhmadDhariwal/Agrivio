@@ -90,10 +90,6 @@ export class ExpenseCategoryFormPage {
       this.canManage() &&
       (this.capabilityService?.canPerformAction('expenses.categories.actions.delete') ?? true),
   );
-  readonly canSave = computed(() => {
-    const allowed = this.categoryId() === null ? this.canCreate() : this.canEditCategory();
-    return allowed && this.form.valid && !this.saving();
-  });
 
   private version = 1;
   readonly fieldRequired = hasRequiredValidator;

@@ -34,9 +34,16 @@ function createMongooseSalesStore() {
       if (search !== '') {
         query.invoiceNumber = { $regex: `^${search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}` };
       }
+      if (filter.saleDate) {
+        query.saleDate = filter.saleDate;
+      } else if (filter.fromDate || filter.toDate) {
+        query.saleDate = {};
+        if (filter.fromDate) query.saleDate.$gte = filter.fromDate;
+        if (filter.toDate) query.saleDate.$lte = filter.toDate;
+      }
       const hasPagination = pagination.skip !== undefined || pagination.pageSize !== undefined;
       const { skip = 0, pageSize = 25 } = pagination;
-      let find = SaleModel.find(query).sort({ createdAt: -1, _id: -1 });
+      let find = SaleModel.find(query).sort({ saleDate: -1, createdAt: -1, _id: -1 });
       if (hasPagination) find = find.skip(skip).limit(pageSize);
       const [total, items] = await Promise.all([SaleModel.countDocuments(query).exec(), find.lean().exec()]);
       return { items, total };
@@ -167,10 +174,25 @@ function createInMemorySalesStore() {
           if (Array.isArray(filter.warehouseIds) && !filter.warehouseIds.map(String).includes(String(item.warehouseId))) return false;
           const search = String(filter.search ?? '').trim().toUpperCase();
           if (search !== '' && !String(item.invoiceNumber ?? '').toUpperCase().startsWith(search)) return false;
+          if (filter.saleDate && String(item.saleDate).slice(0, 10) !== String(filter.saleDate).slice(0, 10)) {
+            return false;
+          }
+          if (filter.fromDate && String(item.saleDate).slice(0, 10) < String(filter.fromDate).slice(0, 10)) {
+            return false;
+          }
+          if (filter.toDate && String(item.saleDate).slice(0, 10) > String(filter.toDate).slice(0, 10)) {
+            return false;
+          }
           return true;
         })
         .map((item) => ({ ...item, lines: item.lines.map((line) => ({ ...line })) }))
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() || String(b._id).localeCompare(String(a._id)));
+        .sort((a, b) => {
+          const dateCmp = String(b.saleDate ?? '').localeCompare(String(a.saleDate ?? ''));
+          if (dateCmp !== 0) return dateCmp;
+          const createdCmp = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          if (createdCmp !== 0) return createdCmp;
+          return String(b._id).localeCompare(String(a._id));
+        });
       const total = all.length;
       const hasPagination = pagination.skip !== undefined || pagination.pageSize !== undefined;
       const { skip = 0, pageSize = 25 } = pagination;

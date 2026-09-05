@@ -555,6 +555,89 @@ describe('F06 P1 customer payments, accounts, and sale drafts', () => {
       await close(server);
     }
   }, 120000);
+
+  it('lists sales default sorted newest first: sequence, pagination boundary, deterministic tie breaker', async () => {
+    const { server, baseUrl, jar } = await boot();
+    try {
+      await seedPlan(baseUrl, jar);
+      await createApprovedOwner(baseUrl, jar, {
+        organizationName: 'Sort Test Org',
+        ownerEmail: 'sort-test-owner@example.com',
+        password: 'a-strong-passphrase',
+      });
+      await login(baseUrl, jar, 'sort-test-owner@example.com', 'a-strong-passphrase');
+      const csrf = await issueCsrf(baseUrl, jar);
+
+      const branchRes = await fetchJson(baseUrl, 'POST', API_BRANCHES_PATH, {
+        name: 'Sort Branch',
+        invoicePrefix: 'SRT',
+      }, { [API_CSRF_HEADER]: csrf }, jar);
+      const branchId = branchRes.body.data.id;
+
+      const whRes = await fetchJson(baseUrl, 'POST', API_WAREHOUSES_PATH, {
+        name: 'Sort WH',
+        branchId,
+      }, { [API_CSRF_HEADER]: csrf }, jar);
+      const warehouseId = whRes.body.data.id;
+
+      const catRes = await fetchJson(baseUrl, 'POST', API_PRODUCT_CATEGORIES_PATH, {
+        name: 'Sort Cat',
+        productClass: 'general',
+      }, { [API_CSRF_HEADER]: csrf }, jar);
+      const categoryId = catRes.body.data.id;
+
+      const prodRes = await fetchJson(baseUrl, 'POST', API_PRODUCTS_PATH, {
+        name: 'Sort Product',
+        categoryId,
+        trackingMode: 'none',
+        baseUnitCode: 'EA',
+        measurementDimension: 'mass',
+      }, { [API_CSRF_HEADER]: csrf }, jar);
+      const productId = prodRes.body.data.id;
+
+      const makeSale = async (saleDate, note) => {
+        const res = await fetchJson(baseUrl, 'POST', API_SALES_PATH, {
+          branchId,
+          warehouseId,
+          saleDate,
+          notes: note,
+          lines: [{ productId, quantity: '1', unitPrice: { amount: '10.00', currency: 'PKR' } }],
+        }, { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) }, jar);
+        return res.body.data;
+      };
+
+      // 1. Create Sale A, Sale B, Sale C in sequence
+      const saleA = await makeSale('2026-08-10', 'Sale A');
+      const saleB = await makeSale('2026-08-11', 'Sale B');
+      const saleC = await makeSale('2026-08-12', 'Sale C');
+
+      const listRes = await fetchJson(baseUrl, 'GET', API_SALES_PATH, undefined, {}, jar);
+      expect(listRes.status).toBe(200);
+      expect(listRes.body.data.map((s) => s.id)).toEqual([saleC.id, saleB.id, saleA.id]);
+
+      // 2. Test pagination boundary: create 26 more sales (total 29)
+      for (let i = 1; i <= 26; i++) {
+        const day = String(13 + Math.floor(i / 2)).padStart(2, '0');
+        await makeSale(`2026-08-${day}`, `Extra ${i}`);
+      }
+
+      const page1Res = await fetchJson(baseUrl, 'GET', `${API_SALES_PATH}?page=1&pageSize=25`, undefined, {}, jar);
+      const page2Res = await fetchJson(baseUrl, 'GET', `${API_SALES_PATH}?page=2&pageSize=25`, undefined, {}, jar);
+
+      expect(page1Res.body.meta.total).toBe(29);
+      expect(page1Res.body.data).toHaveLength(25);
+      expect(page2Res.body.data).toHaveLength(4);
+
+      const allIds = [...page1Res.body.data.map((s) => s.id), ...page2Res.body.data.map((s) => s.id)];
+      expect(new Set(allIds).size).toBe(29);
+
+      const minPage1Date = page1Res.body.data[page1Res.body.data.length - 1].saleDate;
+      const maxPage2Date = page2Res.body.data[0].saleDate;
+      expect(minPage1Date >= maxPage2Date).toBe(true);
+    } finally {
+      await close(server);
+    }
+  }, 120000);
 });
 
 async function boot() {

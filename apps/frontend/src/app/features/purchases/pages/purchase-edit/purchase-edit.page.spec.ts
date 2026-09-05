@@ -160,7 +160,8 @@ describe('PurchaseEditPage', () => {
           provide: BranchesWarehousesApi,
           useValue: {
             listWarehouses: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
-            listWarehouseOptions: () => of([{ id: 'wh-1', name: 'Main Warehouse', status: 'active' }]),
+            listWarehouseOptions: () =>
+              of([{ id: 'wh-1', name: 'Main Warehouse', status: 'active' }]),
           },
         },
         {
@@ -177,7 +178,8 @@ describe('PurchaseEditPage', () => {
           provide: AccountsApi,
           useValue: {
             listAccounts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
-            listAccountOptions: () => of([{ id: 'acc-1', name: 'Cash Register', accountType: 'cash', status: 'active' }]),
+            listAccountOptions: () =>
+              of([{ id: 'acc-1', name: 'Cash Register', accountType: 'cash', status: 'active' }]),
           },
         },
         {
@@ -252,10 +254,16 @@ describe('PurchaseEditPage', () => {
     expect(compiled.querySelector('[data-testid="kpi-payable"]')?.textContent).toContain('3300.00');
 
     // Details card, desktop lines table, and mobile lines list
-    expect(compiled.querySelector('[data-testid="purchase-details-card"]')?.textContent).toContain('Engro Fertilizers');
-    expect(compiled.querySelector('[data-testid="purchase-lines-table"]')?.textContent).toContain('Standard Urea');
+    expect(compiled.querySelector('[data-testid="purchase-details-card"]')?.textContent).toContain(
+      'Engro Fertilizers',
+    );
+    expect(compiled.querySelector('[data-testid="purchase-lines-table"]')?.textContent).toContain(
+      'Standard Urea',
+    );
     expect(compiled.querySelector('[data-testid="purchase-lines-mobile-list"]')).toBeTruthy();
-    expect(compiled.querySelector('[data-testid="purchase-line-mobile-card"]')?.textContent).toContain('Standard Urea');
+    expect(
+      compiled.querySelector('[data-testid="purchase-line-mobile-card"]')?.textContent,
+    ).toContain('Standard Urea');
   });
 
   it('renders dynamic tracking controls according to product tracking mode', () => {
@@ -282,7 +290,9 @@ describe('PurchaseEditPage', () => {
     line.get('productId')?.setValue('prod-3');
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('[data-testid="purchase-line-batch"]')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('[data-testid="purchase-line-expiry"]')).toBeTruthy();
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="purchase-line-expiry"]'),
+    ).toBeTruthy();
   });
 
   it('keeps lifecycle actions reachable on posted purchases (Cancel and Return)', () => {
@@ -307,7 +317,9 @@ describe('PurchaseEditPage', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('[data-testid="purchase-notes"]')).toBeFalsy();
-    expect((compiled.querySelector('[data-testid="purchase-reference"]') as HTMLInputElement).readOnly).toBe(true);
+    expect(
+      (compiled.querySelector('[data-testid="purchase-reference"]') as HTMLInputElement).readOnly,
+    ).toBe(true);
     expect(compiled.querySelector('[data-testid="purchase-payments"]')).toBeFalsy();
 
     const component = fixture.componentInstance;
@@ -341,8 +353,8 @@ describe('PurchaseEditPage', () => {
 
     expect(createPurchase).not.toHaveBeenCalled();
     expect(component.formSubmitAttempted()).toBe(true);
-    expect(
-      component.fieldError(component.form.controls.warehouseId, 'Warehouse', true),
-    ).toContain('required');
+    expect(component.fieldError(component.form.controls.warehouseId, 'Warehouse', true)).toContain(
+      'required',
+    );
   });
 });

@@ -23,6 +23,11 @@ describe('appRoutes F02 routing', () => {
     const platformOrgs = app?.children?.find((route) => route.path === 'platform/organizations');
     expect(platformOrgs?.canActivate?.length).toBeGreaterThan(0);
 
+    const platformOrgDetail = app?.children?.find(
+      (route) => route.path === 'platform/organizations/:id',
+    );
+    expect(platformOrgDetail?.canActivate?.length).toBeGreaterThan(0);
+
     const context = appRoutes.find((route) => route.path === 'context');
     expect(context?.canActivate?.length).toBeGreaterThan(0);
 
@@ -68,6 +73,72 @@ describe('appRoutes F02 routing', () => {
       expect(route?.loadComponent).toBeTruthy();
       const component = await route?.loadComponent?.();
       expect(component).toBeTruthy();
+    }
+  }, 15000);
+
+  it('resolves platform organizations lazy page components', async () => {
+    const app = appRoutes.find((route) => route.path === 'app');
+    const paths = ['platform/organizations', 'platform/organizations/:id'];
+    for (const path of paths) {
+      const route = app?.children?.find((child) => child.path === path);
+      expect(route?.loadComponent).toBeTruthy();
+      const component = await route?.loadComponent?.();
+      expect(component).toBeTruthy();
+    }
+  }, 15000);
+
+  it('keeps view and edit routes explicit and component-distinct', async () => {
+    const app = appRoutes.find((route) => route.path === 'app');
+    const pairs = [
+      ['sales/:id', 'sales/:id/edit'],
+      ['purchases/:id', 'purchases/:id/edit'],
+      ['employees/:id', 'employees/:id/edit'],
+      ['customers/:id', 'customers/:id/edit'],
+      ['suppliers/:id', 'suppliers/:id/edit'],
+      ['accounts/:id', 'accounts/:id/edit'],
+      ['expenses/:id', 'expenses/:id/edit'],
+    ] as const;
+
+    for (const [viewPath, editPath] of pairs) {
+      const view = app?.children?.find((route) => route.path === viewPath);
+      const edit = app?.children?.find((route) => route.path === editPath);
+      expect(view?.loadComponent).toBeTruthy();
+      expect(edit?.loadComponent).toBeTruthy();
+      expect(view?.canActivate?.length).toBeGreaterThan(0);
+      expect(edit?.canActivate?.length).toBeGreaterThan(0);
+      expect(await view?.loadComponent?.()).not.toBe(await edit?.loadComponent?.());
+    }
+  }, 15000);
+
+  it('covers the application-wide view/edit route inventory without inventing detail routes', () => {
+    const app = appRoutes.find((route) => route.path === 'app');
+    const routeInventory = [
+      ['sales', 'sales/:id', 'sales/:id/edit', 'sales/new'],
+      ['purchases', 'purchases/:id', 'purchases/:id/edit', 'purchases/new'],
+      ['products', null, 'products/:id', 'products/new'],
+      ['categories', null, 'categories/:id', 'categories/new'],
+      ['customers', 'customers/:id', 'customers/:id/edit', 'customers/new'],
+      ['suppliers', 'suppliers/:id', 'suppliers/:id/edit', 'suppliers/new'],
+      ['returns', 'returns/:id', null, 'returns/without-invoice'],
+      ['expenses', 'expenses/:id', 'expenses/:id/edit', 'expenses/new'],
+      ['accounts', 'accounts/:id', 'accounts/:id/edit', 'accounts/new'],
+      ['branches', null, 'branches/:id/edit', 'branches/new'],
+      ['warehouses', null, 'warehouses/:id', 'warehouses/new'],
+      ['employees', 'employees/:id', 'employees/:id/edit', 'employees/new'],
+      ['stock adjustments', 'inventory/adjustments', null, null],
+      ['warehouse transfers', 'inventory/transfers', null, null],
+      ['product batches', 'inventory/batches', null, null],
+      ['customer payments', 'customer-payments', null, 'customer-payments/new'],
+      ['supplier payments', 'supplier-payments', null, 'supplier-payments/new'],
+      ['billing records', 'platform/billing-review', null, null],
+      ['imports', 'imports', null, null],
+      ['super admin organizations', 'platform/organizations/:id', null, null],
+    ] as const;
+
+    for (const [, view, edit, create] of routeInventory) {
+      for (const path of [view, edit, create]) {
+        if (path) expect(app?.children?.some((route) => route.path === path)).toBe(true);
+      }
     }
   });
 });

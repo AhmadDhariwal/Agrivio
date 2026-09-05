@@ -1,0 +1,141 @@
+<div class="detail-shell">
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Sales</p>
+      <h1 data-testid="customer-detail-title">Customer Details</h1>
+      <p class="lede">Customer profile, credit policy, and opening balance overview.</p>
+    </div>
+    <div class="actions">
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/customers">Back to Customers</a>
+      @if (customer(); as item) { @if (canEdit()) {
+      <a
+        class="ag-btn ag-btn--primary"
+        [routerLink]="['/app/customers', item.id, 'edit']"
+        data-testid="customer-edit-link"
+        >Edit</a
+      >
+      } }
+    </div>
+  </header>
+
+  @if (loading()) {
+  <agrivio-ui-loading-state label="Loading customer details…" />
+  } @else if (!canView()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to view this customer." />
+  } @else if (errorMessage(); as error) {
+  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  } @else if (customer(); as item) {
+
+  <section class="summary" data-testid="customer-detail">
+    <article><span>Name</span><strong>{{ item.name }}</strong></article>
+    <article>
+      <span>Status</span
+      ><agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+    </article>
+    <article>
+      <span>Customer type</span><strong>{{ formatLabel(item.customerType) }}</strong>
+    </article>
+    @if (canViewField('priceTier')) {
+    <article><span>Price tier</span><strong>{{ formatLabel(item.priceTier) }}</strong></article>
+    }
+  </section>
+
+  <section class="card">
+    <h2>Basic information</h2>
+    <dl class="facts">
+      <div>
+        <dt>Name</dt>
+        <dd>{{ item.name }}</dd>
+      </div>
+      @if (canViewField('phone')) {
+      <div>
+        <dt>Phone</dt>
+        <dd>{{ item.phone || '—' }}</dd>
+      </div>
+      }
+      <div>
+        <dt>Customer type</dt>
+        <dd>{{ formatLabel(item.customerType) }}</dd>
+      </div>
+      @if (canViewField('priceTier')) {
+      <div>
+        <dt>Price tier</dt>
+        <dd>{{ formatLabel(item.priceTier) }}</dd>
+      </div>
+      }
+      <div>
+        <dt>Status</dt>
+        <dd><agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" /></dd>
+      </div>
+      <div>
+        <dt>Record version</dt>
+        <dd>{{ item.version }}</dd>
+      </div>
+    </dl>
+  </section>
+
+  @if (canViewCreditSection()) {
+  <section class="card">
+    <h2>Credit policy</h2>
+    <dl class="facts">
+      <div>
+        <dt>Credit enabled</dt>
+        <dd>{{ item.creditEnabled ? 'Yes' : 'No' }}</dd>
+      </div>
+      @if (canViewField('creditLimit')) {
+      <div>
+        <dt>Credit limit</dt>
+        <dd>{{ formatMoney(item.creditLimit.amount, item.creditLimit.currency) }}</dd>
+      </div>
+      } @if (canViewField('creditLimitBehaviour')) {
+      <div>
+        <dt>Limit behaviour</dt>
+        <dd>{{ formatLabel(item.creditLimitBehaviour) }}</dd>
+      </div>
+      }
+    </dl>
+  </section>
+  }
+
+  @if (item.derivedBalances) {
+  <section class="card">
+    <h2>Derived balances</h2>
+    <dl class="facts">
+      <div>
+        <dt>Receivable</dt>
+        <dd>
+          {{ formatMoney(item.derivedBalances.receivable.amount,
+          item.derivedBalances.receivable.currency) }}
+        </dd>
+      </div>
+      <div>
+        <dt>Advance</dt>
+        <dd>
+          {{ formatMoney(item.derivedBalances.advance.amount, item.derivedBalances.advance.currency)
+          }}
+        </dd>
+      </div>
+    </dl>
+  </section>
+  } @if (item.openingBalance) {
+  <section class="card">
+    <h2>Opening balance</h2>
+    <dl class="facts">
+      <div>
+        <dt>Kind</dt>
+        <dd>{{ formatLabel(item.openingBalance.kind) }}</dd>
+      </div>
+      <div>
+        <dt>Amount</dt>
+        <dd>
+          {{ formatMoney(item.openingBalance.amount.amount, item.openingBalance.amount.currency) }}
+        </dd>
+      </div>
+      <div>
+        <dt>Status</dt>
+        <dd>{{ item.openingBalance.status }}</dd>
+      </div>
+    </dl>
+  </section>
+  } }
+</div>
