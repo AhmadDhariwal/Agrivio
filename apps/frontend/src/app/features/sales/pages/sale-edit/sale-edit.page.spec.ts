@@ -1591,6 +1591,53 @@ describe('SaleEditPage', () => {
       );
       expect(component.posting()).toBe(false);
     });
+
+    it('disables Register Sale button when quantity is not entered and enables when valid', async () => {
+      await setupDraftTest();
+      const fixture = TestBed.createComponent(SaleEditPage);
+      const component = fixture.componentInstance;
+      fixture.detectChanges();
+
+      component.form.patchValue({
+        branchId: 'br-1',
+        warehouseId: 'wh-1',
+        saleDate: '2026-08-13',
+      });
+      // Product and price provided, but quantity is not entered
+      component.lineGroup(0).patchValue({
+        productId: 'p1',
+        quantity: '',
+        unitPrice: '50.00',
+      });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const registerButton = compiled.querySelector('[data-testid="sale-post"]') as HTMLButtonElement;
+      const saveButton = compiled.querySelector('[data-testid="sale-save"]') as HTMLButtonElement;
+
+      expect(component.canSaveDraft()).toBe(false);
+      expect(component.canPostSale()).toBe(false);
+      expect(saveButton.disabled).toBe(true);
+      expect(registerButton.disabled).toBe(true);
+
+      // Enter valid quantity
+      component.lineGroup(0).patchValue({ quantity: '3' });
+      fixture.detectChanges();
+
+      expect(component.canSaveDraft()).toBe(true);
+      expect(component.canPostSale()).toBe(true);
+      expect(saveButton.disabled).toBe(false);
+      expect(registerButton.disabled).toBe(false);
+
+      // Invalidate quantity to 0
+      component.lineGroup(0).patchValue({ quantity: '0' });
+      fixture.detectChanges();
+
+      expect(component.canSaveDraft()).toBe(false);
+      expect(component.canPostSale()).toBe(false);
+      expect(saveButton.disabled).toBe(true);
+      expect(registerButton.disabled).toBe(true);
+    });
   });
 
   describe('Credit Button and Tender Selection UI', () => {

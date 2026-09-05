@@ -290,11 +290,40 @@ export class SaleEditPage {
     return true;
   }
 
+  isPaymentsValid(): boolean {
+    const payments = this.form.controls.payments;
+    for (let index = 0; index < payments.length; index += 1) {
+      const payment = payments.at(index) as FormGroup;
+      const accountId = String(payment.get('accountId')?.value ?? '').trim();
+      const rawAmount = String(payment.get('amount')?.value ?? '').trim();
+      const amount = Number(rawAmount);
+      if (payment.invalid || accountId === '' || rawAmount === '' || !Number.isFinite(amount) || amount <= 0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   readonly canSaveDraft = computed(() => {
     this.formStateChanges();
     this.formStateVersion();
     const canMutate = this.saleId() === null ? this.canCreateDraft() : this.canEditDraft();
     return canMutate && this.isDraft() && this.isDraftValid() && !this.saving() && !this.posting();
+  });
+
+  readonly canPostSale = computed(() => {
+    this.formStateChanges();
+    this.formStateVersion();
+    const canMutate = this.saleId() === null ? this.canCreateDraft() : this.canEditDraft();
+    return (
+      this.canPost() &&
+      canMutate &&
+      this.isDraft() &&
+      this.isDraftValid() &&
+      this.isPaymentsValid() &&
+      !this.saving() &&
+      !this.posting()
+    );
   });
 
   statusLabel(status?: string | null): string {

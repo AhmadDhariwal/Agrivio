@@ -1789,7 +1789,7 @@
       <button
         class="ag-btn ag-btn--primary"
         type="button"
-        [disabled]="posting() || saving()"
+        [disabled]="!canPostSale()"
         (click)="post()"
         data-testid="sale-post"
       >
