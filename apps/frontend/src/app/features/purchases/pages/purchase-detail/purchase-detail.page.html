@@ -1,164 +1,425 @@
 <div class="detail-shell">
+  <!-- Page Header -->
   <header class="page-head">
-    <div>
-      <p class="eyebrow">Purchases</p>
-      <h1 data-testid="purchase-detail-title">Purchase Details</h1>
-      <p class="lede">Authoritative purchase, inventory, and payment snapshots.</p>
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">Purchases</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title" data-testid="purchase-detail-title">Purchase Details</h1>
+        @if (purchase(); as item) {
+          <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+        }
+      </div>
+      <p class="page-head__lede">Authoritative purchase, inventory, and payment snapshots.</p>
     </div>
-    <div class="actions">
-      <a class="ag-btn ag-btn--secondary" routerLink="/app/purchases">Back to Purchases</a>@if
-      (purchase(); as item) {@if (canEdit()) {<a
-        class="ag-btn ag-btn--primary"
-        [routerLink]="['/app/purchases', item.id, 'edit']"
-        data-testid="purchase-edit-link"
-        >Edit draft</a
-      >}}
+    <div class="page-head__actions">
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/purchases">
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+        Back to Purchases
+      </a>
+      @if (purchase(); as item) {
+        @if (canEdit()) {
+          <a
+            class="ag-btn ag-btn--primary"
+            [routerLink]="['/app/purchases', item.id, 'edit']"
+            data-testid="purchase-edit-link"
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M12 20h9"></path>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+            </svg>
+            Edit draft
+          </a>
+        }
+      }
     </div>
   </header>
-  @if (loading()) {<agrivio-ui-loading-state label="Loading purchase details…" />} @else if
-  (!canView()) {<agrivio-ui-alert
-    tone="warning"
-    message="You do not have permission to view this purchase."
-  />} @else if (errorMessage(); as error) {<agrivio-ui-alert
-    tone="danger"
-    [message]="error"
-    role="alert"
-  />} @else if (purchase(); as item) {
-  <section class="summary" data-testid="purchase-detail">
-    <article>
-      <span>Reference</span
-      ><strong
-        >{{ item.supplierInvoiceReference || ('Purchase #' + item.id.slice(-6).toUpperCase())
-        }}</strong
-      >
-    </article>
-    <article>
-      <span>Status</span
-      ><agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
-    </article>
-    <article><span>Total</span><strong>{{ formatMoney(item.purchaseTotal) }}</strong></article>
-    <article><span>Outstanding</span><strong>{{ formatMoney(item.payableTotal) }}</strong></article>
-  </section>
-  <section class="card">
-    <h2>Purchase information</h2>
-    <dl class="facts">
-      @if (canViewField('supplier')) {
-      <div>
-        <dt>Supplier</dt>
-        <dd>{{ item.supplierNameSnapshot }}</dd>
-      </div>
-      } @if (canViewField('warehouse')) {
-      <div data-testid="purchase-detail-warehouse">
-        <dt>Warehouse</dt>
-        <dd>{{ item.warehouseNameSnapshot || '—' }}</dd>
-      </div>
-      } @if (canViewField('purchaseDate')) {
-      <div>
-        <dt>Purchase date</dt>
-        <dd>{{ formatDate(item.purchaseDate) }}</dd>
-      </div>
-      } @if (canViewField('notes')) {
-      <div>
-        <dt>Notes</dt>
-        <dd>{{ item.notes || '—' }}</dd>
-      </div>
-      }
-      <div>
-        <dt>Created</dt>
-        <dd>{{ formatDate(item.createdAt) }}</dd>
-      </div>
-      <div>
-        <dt>Updated</dt>
-        <dd>{{ formatDate(item.updatedAt) }}</dd>
-      </div>
-      @if (item.postedAt) {
-      <div>
-        <dt>Posted</dt>
-        <dd>{{ formatDate(item.postedAt) }}</dd>
-      </div>
-      } @if (item.cancelledAt) {
-      <div>
-        <dt>Cancelled</dt>
-        <dd>{{ formatDate(item.cancelledAt) }}</dd>
-      </div>
-      } @if (item.cancellationReason) {
-      <div class="wide">
-        <dt>Cancellation reason</dt>
-        <dd>{{ item.cancellationReason }}</dd>
-      </div>
-      }
-    </dl>
-  </section>
-  <section class="card">
-    <h2>Purchase lines</h2>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Product</th>
-            <th>Tracking</th>
-            <th class="num">Quantity</th>
-            <th class="num">Unit cost</th>
-            <th class="num">Line total</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (line of item.lines; track $index) {
-          <tr>
-            <td>
-              <strong>{{ line.productNameSnapshot }}</strong
-              ><small>{{ line.unitCodeSnapshot }} × {{ line.conversionFactorSnapshot }}</small>
-            </td>
-            <td>
-              {{ line.batchNumber || '—' }}@if (line.expiryDate) {<small
-                >Expires {{ line.expiryDate }}</small
-              >}
-            </td>
-            <td class="num">{{ line.quantity }}</td>
-            <td class="num">{{ formatMoney(line.unitCost) }}</td>
-            <td class="num">{{ formatMoney(line.lineProductAmount) }}</td>
-          </tr>
-          }
-        </tbody>
-      </table>
+
+  @if (loading()) {
+    <agrivio-ui-loading-state label="Loading purchase details…" />
+  } @else if (!canView()) {
+    <div class="alert-container">
+      <agrivio-ui-alert
+        tone="warning"
+        message="You do not have permission to view this purchase."
+      />
     </div>
-  </section>
-  <section class="grid">
-    @if (canViewField('landedCosts')) {
-    <article class="card">
-      <h2>Landed costs</h2>
-      <div class="row">
-        <span>Freight</span><strong>{{ formatMoney(item.landedCosts.freight) }}</strong>
+  } @else if (errorMessage(); as error) {
+    <div class="alert-container">
+      <agrivio-ui-alert
+        tone="danger"
+        [message]="error"
+        role="alert"
+      />
+    </div>
+  } @else if (purchase(); as item) {
+    <!-- 4 KPI Summary Cards -->
+    <section class="summary" data-testid="purchase-detail">
+      <article class="summary-card">
+        <div class="summary-card__icon summary-card__icon--blue">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+          </svg>
+        </div>
+        <div class="summary-card__content">
+          <span class="summary-card__label">Reference</span>
+          <strong class="summary-card__value">
+            {{ item.supplierInvoiceReference || ('Purchase #' + item.id.slice(-6).toUpperCase()) }}
+          </strong>
+        </div>
+      </article>
+
+      <article class="summary-card">
+        <div class="summary-card__icon summary-card__icon--amber">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+        </div>
+        <div class="summary-card__content">
+          <span class="summary-card__label">Status</span>
+          <div class="summary-card__badge">
+            <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+          </div>
+        </div>
+      </article>
+
+      <article class="summary-card">
+        <div class="summary-card__icon summary-card__icon--green">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+            <line x1="2" y1="10" x2="22" y2="10"></line>
+          </svg>
+        </div>
+        <div class="summary-card__content">
+          <span class="summary-card__label">Total</span>
+          <strong class="summary-card__value font-mono">{{ formatMoney(item.purchaseTotal) }}</strong>
+        </div>
+      </article>
+
+      <article class="summary-card">
+        <div class="summary-card__icon summary-card__icon--purple">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path>
+            <path d="M12 18V6"></path>
+          </svg>
+        </div>
+        <div class="summary-card__content">
+          <span class="summary-card__label">Outstanding</span>
+          <strong class="summary-card__value font-mono">{{ formatMoney(item.payableTotal) }}</strong>
+        </div>
+      </article>
+    </section>
+
+    <!-- Card 1: Purchase Information -->
+    <section class="card">
+      <div class="card__header">
+        <div class="card__icon">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+        </div>
+        <div>
+          <h2 class="card__title">Purchase information</h2>
+          <p class="card__subtitle">Supplier, warehouse, and immutable audit timestamps</p>
+        </div>
       </div>
-      <div class="row">
-        <span>Loading</span><strong>{{ formatMoney(item.landedCosts.loading) }}</strong>
+      <div class="card__body">
+        <dl class="facts">
+          @if (canViewField('supplier')) {
+            <div class="fact-item">
+              <dt>Supplier</dt>
+              <dd class="fact-item__primary">{{ item.supplierNameSnapshot }}</dd>
+            </div>
+          }
+          @if (canViewField('warehouse')) {
+            <div class="fact-item" data-testid="purchase-detail-warehouse">
+              <dt>Warehouse</dt>
+              <dd>{{ item.warehouseNameSnapshot || '—' }}</dd>
+            </div>
+          }
+          @if (canViewField('purchaseDate')) {
+            <div class="fact-item">
+              <dt>Purchase date</dt>
+              <dd>{{ formatDate(item.purchaseDate) }}</dd>
+            </div>
+          }
+          @if (canViewField('notes')) {
+            <div class="fact-item fact-item--wide">
+              <dt>Notes</dt>
+              <dd>{{ item.notes || '—' }}</dd>
+            </div>
+          }
+          <div class="fact-item">
+            <dt>Created</dt>
+            <dd>{{ formatDate(item.createdAt) }}</dd>
+          </div>
+          <div class="fact-item">
+            <dt>Updated</dt>
+            <dd>{{ formatDate(item.updatedAt) }}</dd>
+          </div>
+          @if (item.postedAt) {
+            <div class="fact-item">
+              <dt>Posted</dt>
+              <dd>{{ formatDate(item.postedAt) }}</dd>
+            </div>
+          }
+          @if (item.cancelledAt) {
+            <div class="fact-item">
+              <dt>Cancelled</dt>
+              <dd>{{ formatDate(item.cancelledAt) }}</dd>
+            </div>
+          }
+          @if (item.cancellationReason) {
+            <div class="fact-item fact-item--wide">
+              <dt>Cancellation reason</dt>
+              <dd class="text-danger">{{ item.cancellationReason }}</dd>
+            </div>
+          }
+        </dl>
       </div>
-      <div class="row">
-        <span>Transport</span><strong>{{ formatMoney(item.landedCosts.transport) }}</strong>
+    </section>
+
+    <!-- Card 2: Purchase Lines -->
+    <section class="card">
+      <div class="card__header">
+        <div class="card__icon">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="8" y1="6" x2="21" y2="6"></line>
+            <line x1="8" y1="12" x2="21" y2="12"></line>
+            <line x1="8" y1="18" x2="21" y2="18"></line>
+            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+          </svg>
+        </div>
+        <div>
+          <h2 class="card__title">Purchase lines</h2>
+          <p class="card__subtitle">Authoritative item quantities, tracking batches, and unit costs</p>
+        </div>
       </div>
-      <div class="row">
-        <span>Other</span><strong>{{ formatMoney(item.landedCosts.other) }}</strong>
+      <div class="card__body card__body--no-pad">
+        <div class="table-wrap">
+          <table class="detail-table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Tracking</th>
+                <th class="num">Quantity</th>
+                <th class="num">Unit cost</th>
+                <th class="num">Line total</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (line of item.lines; track $index) {
+                <tr>
+                  <td>
+                    <div class="product-cell">
+                      <strong class="product-cell__name">{{ line.productNameSnapshot }}</strong>
+                      <small class="product-cell__meta">{{ line.unitCodeSnapshot }} × {{ line.conversionFactorSnapshot }}</small>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="tracking-cell">
+                      @if (line.batchNumber) {
+                        <span class="batch-badge">Batch: {{ line.batchNumber }}</span>
+                      } @else {
+                        <span class="text-muted">—</span>
+                      }
+                      @if (line.expiryDate) {
+                        <small class="text-muted">Expires {{ line.expiryDate }}</small>
+                      }
+                    </div>
+                  </td>
+                  <td class="num font-mono">{{ line.quantity }}</td>
+                  <td class="num font-mono">{{ formatMoney(line.unitCost) }}</td>
+                  <td class="num font-mono line-total">{{ formatMoney(line.lineProductAmount) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
       </div>
-      <div class="row total">
-        <span>Total landed</span><strong>{{ formatMoney(item.landedCostTotal) }}</strong>
-      </div>
-    </article>
-    }
-    <article class="card">
-      <h2>Payments</h2>
-      @for (payment of item.payments ?? []; track payment.paymentId ?? payment.accountId) {
-      <div class="row">
-        <span
-          >{{ payment.accountNameSnapshot }} <small>{{ payment.accountTypeSnapshot }}</small></span
-        ><strong>{{ formatMoney(payment.amount) }}</strong>
-      </div>
-      } @if (!item.payments?.length) {
-      <p>None recorded.</p>
+    </section>
+
+    <!-- Card 3 & 4: Landed Costs & Payments -->
+    <section class="grid">
+      @if (canViewField('landedCosts')) {
+        <article class="card">
+          <div class="card__header">
+            <div class="card__icon">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="1" y="3" width="15" height="13"></rect>
+                <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                <circle cx="18.5" cy="18.5" r="2.5"></circle>
+              </svg>
+            </div>
+            <div>
+              <h2 class="card__title">Landed costs</h2>
+              <p class="card__subtitle">Apportioned additional expenses</p>
+            </div>
+          </div>
+          <div class="card__body">
+            <div class="cost-rows">
+              <div class="row">
+                <span class="row__label">Freight</span>
+                <strong class="row__val font-mono">{{ formatMoney(item.landedCosts.freight) }}</strong>
+              </div>
+              <div class="row">
+                <span class="row__label">Loading</span>
+                <strong class="row__val font-mono">{{ formatMoney(item.landedCosts.loading) }}</strong>
+              </div>
+              <div class="row">
+                <span class="row__label">Transport</span>
+                <strong class="row__val font-mono">{{ formatMoney(item.landedCosts.transport) }}</strong>
+              </div>
+              <div class="row">
+                <span class="row__label">Other</span>
+                <strong class="row__val font-mono">{{ formatMoney(item.landedCosts.other) }}</strong>
+              </div>
+              <div class="row row--total">
+                <span class="row__label">Total landed</span>
+                <strong class="row__val font-mono">{{ formatMoney(item.landedCostTotal) }}</strong>
+              </div>
+            </div>
+          </div>
+        </article>
       }
-      <div class="row total">
-        <span>Paid</span><strong>{{ formatMoney(item.paidTotal) }}</strong>
-      </div>
-    </article>
-  </section>
+
+      <article class="card">
+        <div class="card__header">
+          <div class="card__icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+              <line x1="2" y1="10" x2="22" y2="10"></line>
+            </svg>
+          </div>
+          <div>
+            <h2 class="card__title">Payments</h2>
+            <p class="card__subtitle">Settlements recorded at posting</p>
+          </div>
+        </div>
+        <div class="card__body">
+          <div class="cost-rows">
+            @for (payment of item.payments ?? []; track payment.paymentId ?? payment.accountId) {
+              <div class="row">
+                <span class="row__label">
+                  {{ payment.accountNameSnapshot }}
+                  <small class="account-type-tag">{{ payment.accountTypeSnapshot }}</small>
+                </span>
+                <strong class="row__val font-mono">{{ formatMoney(payment.amount) }}</strong>
+              </div>
+            }
+            @if (!item.payments?.length) {
+              <div class="empty-payments-notice">
+                <p>No upfront payments recorded (full balance on supplier ledger).</p>
+              </div>
+            }
+            <div class="row row--total">
+              <span class="row__label">Total paid</span>
+              <strong class="row__val font-mono">{{ formatMoney(item.paidTotal) }}</strong>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
   }
 </div>
