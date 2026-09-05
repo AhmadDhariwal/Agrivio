@@ -7,9 +7,8 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-width: 1400px;
-  margin: 0 auto;
   width: 100%;
+  box-sizing: border-box;
 }
 
 /* ==========================================================================
@@ -117,26 +116,35 @@
    ========================================================================== */
 .summary {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 
-  @media (max-width: 991px) and (min-width: 641px) {
-    grid-template-columns: repeat(2, 1fr);
+  @media (max-width: 1023px) and (min-width: 768px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
   }
 
-  @media (max-width: 640px) {
+  @media (max-width: 767px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  @media (max-width: 480px) {
     grid-template-columns: 1fr;
   }
 }
 
 .summary-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
+  height: 80px;
   background: var(--ag-color-surface, #ffffff);
   border: 1px solid var(--ag-color-border, #e2e8f0);
   border-radius: 6px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  box-sizing: border-box;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
 
   &__icon {
@@ -178,6 +186,7 @@
     flex-direction: column;
     min-width: 0;
     flex: 1;
+    overflow: hidden;
   }
 
   &__label {
@@ -187,21 +196,52 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   &__value {
-    font-size: 16px;
-    font-weight: 700;
+    font-size: 20px;
+    font-weight: 600;
     color: var(--ag-color-text, #0f172a);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.2;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    font-family: var(--ag-font-sans);
   }
 
   &__badge {
     display: flex;
     align-items: center;
+  }
+
+  @media (max-width: 767px) {
+    height: 68px;
+    padding: 8px 10px;
+    gap: 8px;
+
+    &__icon {
+      width: 28px;
+      height: 28px;
+      min-width: 28px;
+
+      svg {
+        width: 14px;
+        height: 14px;
+      }
+    }
+
+    &__label {
+      font-size: 10px;
+      margin-bottom: 1px;
+    }
+
+    &__value {
+      font-size: 16px;
+    }
   }
 }
 
@@ -284,19 +324,24 @@
 }
 
 /* ==========================================================================
-   4. Facts Definition List (Facts 3-Column Grid)
+   4. Facts Definition List (Responsive Grid)
    ========================================================================== */
 .facts {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px 20px;
   margin: 0;
 
-  @media (max-width: 991px) and (min-width: 641px) {
-    grid-template-columns: repeat(2, 1fr);
+  @media (max-width: 1200px) and (min-width: 768px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  @media (max-width: 640px) {
+  @media (max-width: 767px) and (min-width: 481px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 16px;
+  }
+
+  @media (max-width: 480px) {
     grid-template-columns: 1fr;
     gap: 12px;
   }
@@ -321,10 +366,12 @@
 
   dd {
     margin: 0;
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 500;
     color: var(--ag-color-text, #0f172a);
     word-break: break-word;
+    font-family: var(--ag-font-sans);
+    font-variant-numeric: tabular-nums;
   }
 
   &__primary {
@@ -381,11 +428,14 @@
   .num {
     text-align: right;
     font-variant-numeric: tabular-nums;
+    font-family: var(--ag-font-sans) !important;
+    font-size: 13.5px;
+    font-weight: 500;
   }
 
   .line-total {
     font-weight: 600;
-    color: var(--ag-color-primary, #065f46);
+    color: var(--ag-color-text, #0f172a);
   }
 }
 
@@ -464,6 +514,8 @@
     font-weight: 600;
     color: var(--ag-color-text, #0f172a);
     font-variant-numeric: tabular-nums;
+    font-family: var(--ag-font-sans) !important;
+    font-size: 13.5px;
   }
 
   &--total {
@@ -480,6 +532,8 @@
       font-size: 15px;
       font-weight: 700;
       color: var(--ag-color-primary, #065f46);
+      font-variant-numeric: tabular-nums;
+      font-family: var(--ag-font-sans) !important;
     }
   }
 }
@@ -507,8 +561,10 @@
 /* ==========================================================================
    7. Typography Utilities & Alert containers
    ========================================================================== */
-.font-mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+.tabular-num {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--ag-font-sans) !important;
+  white-space: nowrap;
 }
 
 .text-muted {
@@ -521,4 +577,106 @@
 
 .alert-container {
   margin-bottom: 8px;
+}
+
+/* ==========================================================================
+   8. Detail Lines Mobile Cards (<768px) & Responsive Visibility
+   ========================================================================== */
+.posted-lines-mobile {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.posted-line-mobile-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--ag-color-surface, #ffffff);
+  border: 1px solid var(--ag-color-border, #e2e8f0);
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    border-bottom: 1px solid var(--ag-color-border-light, #f1f5f9);
+    padding-bottom: 8px;
+  }
+
+  &__title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px 12px;
+  }
+}
+
+.posted-line-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ag-color-primary, #065f46);
+  background: #ecfdf5;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.posted-line-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ag-color-text, #0f172a);
+}
+
+.posted-line-total {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ag-color-primary, #065f46);
+  white-space: nowrap;
+}
+
+.posted-line-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+
+  .metric-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--ag-color-text-muted, #64748b);
+  }
+
+  .metric-value {
+    font-size: 12px;
+    color: var(--ag-color-text, #0f172a);
+  }
+}
+
+.desktop-only {
+  display: block;
+}
+
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .desktop-only {
+    display: none !important;
+  }
+
+  .mobile-only {
+    display: flex !important;
+  }
 }

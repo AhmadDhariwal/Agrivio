@@ -120,9 +120,7 @@
             <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
           </div>
         </div>
-      </article>
-
-      <article class="summary-card">
+      </article>      <article class="summary-card">
         <div class="summary-card__icon summary-card__icon--green">
           <svg
             width="18"
@@ -140,7 +138,7 @@
         </div>
         <div class="summary-card__content">
           <span class="summary-card__label">Total</span>
-          <strong class="summary-card__value font-mono">{{ formatMoney(item.purchaseTotal) }}</strong>
+          <strong class="summary-card__value tabular-num">{{ formatMoney(item.purchaseTotal) }}</strong>
         </div>
       </article>
 
@@ -162,8 +160,8 @@
           </svg>
         </div>
         <div class="summary-card__content">
-          <span class="summary-card__label">Outstanding</span>
-          <strong class="summary-card__value font-mono">{{ formatMoney(item.payableTotal) }}</strong>
+          <span class="summary-card__label">Outstanding / Remaining</span>
+          <strong class="summary-card__value tabular-num">{{ formatMoney(item.payableTotal) }}</strong>
         </div>
       </article>
     </section>
@@ -211,7 +209,7 @@
           @if (canViewField('purchaseDate')) {
             <div class="fact-item">
               <dt>Purchase date</dt>
-              <dd>{{ formatDate(item.purchaseDate) }}</dd>
+              <dd class="tabular-num">{{ formatDate(item.purchaseDate) }}</dd>
             </div>
           }
           @if (canViewField('notes')) {
@@ -222,22 +220,22 @@
           }
           <div class="fact-item">
             <dt>Created</dt>
-            <dd>{{ formatDate(item.createdAt) }}</dd>
+            <dd class="tabular-num">{{ formatDateTime(item.createdAt) }}</dd>
           </div>
           <div class="fact-item">
             <dt>Updated</dt>
-            <dd>{{ formatDate(item.updatedAt) }}</dd>
+            <dd class="tabular-num">{{ formatDateTime(item.updatedAt) }}</dd>
           </div>
           @if (item.postedAt) {
             <div class="fact-item">
               <dt>Posted</dt>
-              <dd>{{ formatDate(item.postedAt) }}</dd>
+              <dd class="tabular-num">{{ formatDateTime(item.postedAt) }}</dd>
             </div>
           }
           @if (item.cancelledAt) {
             <div class="fact-item">
               <dt>Cancelled</dt>
-              <dd>{{ formatDate(item.cancelledAt) }}</dd>
+              <dd class="tabular-num">{{ formatDateTime(item.cancelledAt) }}</dd>
             </div>
           }
           @if (item.cancellationReason) {
@@ -278,7 +276,7 @@
         </div>
       </div>
       <div class="card__body card__body--no-pad">
-        <div class="table-wrap">
+        <div class="table-wrap desktop-only">
           <table class="detail-table">
             <thead>
               <tr>
@@ -310,13 +308,55 @@
                       }
                     </div>
                   </td>
-                  <td class="num font-mono">{{ line.quantity }}</td>
-                  <td class="num font-mono">{{ formatMoney(line.unitCost) }}</td>
-                  <td class="num font-mono line-total">{{ formatMoney(line.lineProductAmount) }}</td>
+                  <td class="num tabular-num">{{ formatQuantity(line.quantity) }}</td>
+                  <td class="num tabular-num">{{ formatMoney(line.unitCost) }}</td>
+                  <td class="num tabular-num line-total">{{ formatMoney(line.lineProductAmount) }}</td>
                 </tr>
               }
             </tbody>
           </table>
+        </div>
+
+        <!-- Purpose-Built Mobile Cards (< 768px) -->
+        <div class="posted-lines-mobile mobile-only" data-testid="purchase-detail-lines-mobile">
+          @for (line of item.lines; track $index; let idx = $index) {
+            <div class="posted-line-mobile-card">
+              <div class="posted-line-mobile-card__header">
+                <div class="posted-line-mobile-card__title-wrap">
+                  <span class="posted-line-badge">#{{ idx + 1 }}</span>
+                  <strong class="posted-line-name">{{ line.productNameSnapshot }}</strong>
+                </div>
+                <span class="posted-line-total tabular-num">{{ formatMoney(line.lineProductAmount) }}</span>
+              </div>
+
+              <div class="posted-line-mobile-card__grid">
+                <div class="posted-line-metric">
+                  <span class="metric-label">Unit</span>
+                  <span class="metric-value">{{ line.unitCodeSnapshot }} × {{ line.conversionFactorSnapshot }}</span>
+                </div>
+                <div class="posted-line-metric">
+                  <span class="metric-label">Quantity</span>
+                  <span class="metric-value tabular-num font-semibold">{{ formatQuantity(line.quantity) }}</span>
+                </div>
+                <div class="posted-line-metric">
+                  <span class="metric-label">Unit Cost</span>
+                  <span class="metric-value tabular-num">{{ formatMoney(line.unitCost) }}</span>
+                </div>
+                @if (line.batchNumber) {
+                  <div class="posted-line-metric">
+                    <span class="metric-label">Tracking</span>
+                    <span class="batch-badge">Batch: {{ line.batchNumber }}</span>
+                  </div>
+                }
+                @if (line.expiryDate) {
+                  <div class="posted-line-metric">
+                    <span class="metric-label">Expiry Date</span>
+                    <span class="metric-value">{{ line.expiryDate }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+          }
         </div>
       </div>
     </section>
@@ -338,7 +378,7 @@
                 stroke-linejoin="round"
               >
                 <rect x="1" y="3" width="15" height="13"></rect>
-                <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                <polygon points="16 8 20 8 23 11 23 16 16 16 8"></polygon>
                 <circle cx="5.5" cy="18.5" r="2.5"></circle>
                 <circle cx="18.5" cy="18.5" r="2.5"></circle>
               </svg>
@@ -352,23 +392,23 @@
             <div class="cost-rows">
               <div class="row">
                 <span class="row__label">Freight</span>
-                <strong class="row__val font-mono">{{ formatMoney(item.landedCosts.freight) }}</strong>
+                <strong class="row__val tabular-num">{{ formatMoney(item.landedCosts.freight) }}</strong>
               </div>
               <div class="row">
                 <span class="row__label">Loading</span>
-                <strong class="row__val font-mono">{{ formatMoney(item.landedCosts.loading) }}</strong>
+                <strong class="row__val tabular-num">{{ formatMoney(item.landedCosts.loading) }}</strong>
               </div>
               <div class="row">
                 <span class="row__label">Transport</span>
-                <strong class="row__val font-mono">{{ formatMoney(item.landedCosts.transport) }}</strong>
+                <strong class="row__val tabular-num">{{ formatMoney(item.landedCosts.transport) }}</strong>
               </div>
               <div class="row">
                 <span class="row__label">Other</span>
-                <strong class="row__val font-mono">{{ formatMoney(item.landedCosts.other) }}</strong>
+                <strong class="row__val tabular-num">{{ formatMoney(item.landedCosts.other) }}</strong>
               </div>
               <div class="row row--total">
                 <span class="row__label">Total landed</span>
-                <strong class="row__val font-mono">{{ formatMoney(item.landedCostTotal) }}</strong>
+                <strong class="row__val tabular-num">{{ formatMoney(item.landedCostTotal) }}</strong>
               </div>
             </div>
           </div>
@@ -405,7 +445,7 @@
                   {{ payment.accountNameSnapshot }}
                   <small class="account-type-tag">{{ payment.accountTypeSnapshot }}</small>
                 </span>
-                <strong class="row__val font-mono">{{ formatMoney(payment.amount) }}</strong>
+                <strong class="row__val tabular-num">{{ formatMoney(payment.amount) }}</strong>
               </div>
             }
             @if (!item.payments?.length) {
@@ -415,7 +455,7 @@
             }
             <div class="row row--total">
               <span class="row__label">Total paid</span>
-              <strong class="row__val font-mono">{{ formatMoney(item.paidTotal) }}</strong>
+              <strong class="row__val tabular-num">{{ formatMoney(item.paidTotal) }}</strong>
             </div>
           </div>
         </div>

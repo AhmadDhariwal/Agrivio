@@ -1101,4 +1101,24 @@ export class PurchaseEditPage {
     }
     return error.error?.error?.message ?? fallback;
   }
+
+  formatAmount(val: string | null | undefined): string {
+    if (!val) return '0.00';
+    const num = Number(val);
+    if (!Number.isFinite(num)) return String(val);
+    return num.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  formatQuantity(quantity: string | number | undefined | null): string {
+    if (quantity === undefined || quantity === null || quantity === '') return '0';
+    const num = typeof quantity === 'number' ? quantity : parseFloat(quantity);
+    if (isNaN(num)) return String(quantity);
+    if (Number.isInteger(num)) {
+      return num.toLocaleString('en-PK');
+    }
+    return num.toLocaleString('en-PK', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 4,
+    });
+  }
 }
