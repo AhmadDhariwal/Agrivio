@@ -211,4 +211,19 @@ describe('CustomerPaymentsPage', () => {
       }),
     );
   });
+
+  it('does not apply a reversed date range', () => {
+    const fixture = TestBed.createComponent(CustomerPaymentsPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    listCustomerPaymentsSpy.mockClear();
+
+    component.setDateMode('range');
+    component.onFromDateInput('2026-09-10');
+    component.onToDateInput('2026-09-01');
+    component.applyFilters();
+
+    expect(listCustomerPaymentsSpy).not.toHaveBeenCalled();
+    expect(component.filterError()).toContain('From date');
+  });
 });

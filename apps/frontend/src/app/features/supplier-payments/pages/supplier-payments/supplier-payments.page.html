@@ -73,31 +73,78 @@
     <!-- Filter Toolbar -->
     <div class="toolbar" data-testid="supplier-payments-toolbar">
       @if (showPaymentDateFilter()) {
-      <div class="toolbar__search">
-        <div class="date-filter-group">
-          <span class="date-filter-icon" aria-hidden="true">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="16" y1="2" x2="16" y2="6"></line>
-              <line x1="8" y1="2" x2="8" y2="6"></line>
-              <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-          </span>
+      <div class="toolbar__date-controls">
+        <div class="date-mode-toggle" role="group" aria-label="Date filter mode">
+          <button
+            type="button"
+            class="date-mode-btn"
+            [class.date-mode-btn--active]="pendingDateMode() === 'single'"
+            (click)="setDateMode('single')"
+            data-testid="supplier-payments-mode-single"
+          >
+            Single
+          </button>
+          <button
+            type="button"
+            class="date-mode-btn"
+            [class.date-mode-btn--active]="pendingDateMode() === 'range'"
+            (click)="setDateMode('range')"
+            data-testid="supplier-payments-mode-range"
+          >
+            Range
+          </button>
+        </div>
+
+        @if (pendingDateMode() === 'single') {
           <input
             class="ag-input date-picker-input"
             type="date"
-            [ngModel]="paymentDate()"
-            (ngModelChange)="onDateChange($event)"
+            [ngModel]="pendingPaymentDate()"
+            (ngModelChange)="onPaymentDateInput($event)"
+            (keydown.enter)="applyFilters()"
             aria-label="Filter by payment date"
-            data-testid="supplier-payments-search-input"
+            data-testid="supplier-payments-date-input"
           />
-        </div>
+        } @else {
+          <div class="date-range-fields">
+            <input
+              class="ag-input date-picker-input"
+              type="date"
+              [ngModel]="pendingFromDate()"
+              [max]="pendingToDate() || null"
+              (ngModelChange)="onFromDateInput($event)"
+              (keydown.enter)="applyFilters()"
+              aria-label="From date"
+              data-testid="supplier-payments-from-date-input"
+            />
+            <span class="date-range-separator">to</span>
+            <input
+              class="ag-input date-picker-input"
+              type="date"
+              [ngModel]="pendingToDate()"
+              [min]="pendingFromDate() || null"
+              (ngModelChange)="onToDateInput($event)"
+              (keydown.enter)="applyFilters()"
+              aria-label="To date"
+              data-testid="supplier-payments-to-date-input"
+            />
+          </div>
+        }
+
+        <button
+          type="button"
+          class="ag-btn ag-btn--primary toolbar__btn"
+          (click)="applyFilters()"
+          data-testid="supplier-payments-apply-btn"
+        >
+          Apply
+        </button>
       </div>
       }
 
       <div class="toolbar__filters">
         <!-- Clear Filters Button -->
-        @if (paymentDate()) {
+        @if (hasActiveFilters() || hasPendingFilters()) {
           <button
             type="button"
             class="ag-btn ag-btn--ghost toolbar__btn"
@@ -125,8 +172,11 @@
           </svg>
           Refresh
         </button>
-      </div>
-    </div>
+  </div>
+</div>
+    @if (filterError(); as error) {
+      <agrivio-ui-alert tone="warning" [message]="error" role="alert" data-testid="supplier-payments-filter-error" />
+    }
 
     <!-- Data Presentation -->
     @if (items().length === 0) {
@@ -138,13 +188,13 @@
           </svg>
           <p class="empty-title">No supplier payments found</p>
           <p class="empty-desc">
-            @if (paymentDate()) {
-              No payments found for date {{ paymentDate() }}. Try clearing the date filter.
+            @if (hasActiveFilters()) {
+              No payments match the selected date filter. Try changing or clearing the range.
             } @else {
               Post a general supplier payment to settle payables or create an advance.
             }
           </p>
-          @if (paymentDate()) {
+          @if (hasActiveFilters()) {
             <button type="button" class="ag-btn ag-btn--secondary ag-btn--sm" (click)="clearFilters()">
               Clear filter
             </button>

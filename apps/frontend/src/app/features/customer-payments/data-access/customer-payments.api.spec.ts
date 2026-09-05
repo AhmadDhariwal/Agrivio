@@ -51,6 +51,19 @@ describe('CustomerPaymentsApi', () => {
     expect(httpGet).toHaveBeenCalledTimes(1);
   });
 
+  it('sends the selected date range in the query payload', () => {
+    httpGet.mockReturnValue(of({ data: [], meta: { page: 1, pageSize: 25, total: 0 } }));
+
+    api.listCustomerPayments({ fromDate: '2026-09-01', toDate: '2026-09-30' }).subscribe();
+
+    expect(httpGet.mock.calls[0]?.[1]?.params).toEqual({
+      page: 1,
+      pageSize: 25,
+      fromDate: '2026-09-01',
+      toDate: '2026-09-30',
+    });
+  });
+
   it('dedupes identical customer ledger requests', () => {
     httpGet.mockReturnValue(of({ data: { items: [{ id: 'ledger-1' }] } }));
 

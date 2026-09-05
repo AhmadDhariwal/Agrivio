@@ -151,6 +151,7 @@
                       class="date-field__input"
                       type="date"
                       [value]="pendingFromDate()"
+                      [max]="pendingToDate() || null"
                       (input)="onFromDateInput($any($event.target).value)"
                       (keydown.enter)="applyFilters()"
                       aria-label="From date"
@@ -170,6 +171,7 @@
                       class="date-field__input"
                       type="date"
                       [value]="pendingToDate()"
+                      [min]="pendingFromDate() || null"
                       (input)="onToDateInput($any($event.target).value)"
                       (keydown.enter)="applyFilters()"
                       aria-label="To date"
@@ -218,9 +220,8 @@
             </svg>
             <span class="btn-text-full">Refresh</span>
           </button>
-        </div>
-      </div>
-
+  </div>
+</div>
       <!-- Mobile Toolbar Controls (< 768px) -->
       <div class="toolbar__mobile">
         @if (showSearch()) {
@@ -285,6 +286,7 @@
                   class="date-field__input date-field__input--mobile"
                   type="date"
                   [value]="pendingFromDate()"
+                  [max]="pendingToDate() || null"
                   (input)="onFromDateInput($any($event.target).value)"
                   (keydown.enter)="applyFilters()"
                   aria-label="From date"
@@ -294,6 +296,7 @@
                   class="date-field__input date-field__input--mobile"
                   type="date"
                   [value]="pendingToDate()"
+                  [min]="pendingFromDate() || null"
                   (input)="onToDateInput($any($event.target).value)"
                   (keydown.enter)="applyFilters()"
                   aria-label="To date"
@@ -320,6 +323,10 @@
         </div>
       </div>
     </section>
+
+    @if (filterError(); as error) {
+      <agrivio-ui-alert tone="warning" [message]="error" role="alert" data-testid="customer-payments-filter-error" />
+    }
 
     <!-- Empty State or Table -->
     @if (items().length === 0) {

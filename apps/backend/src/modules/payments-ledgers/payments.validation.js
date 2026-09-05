@@ -23,7 +23,9 @@ function optionalNotes(value) {
     return '';
   }
   if (typeof value !== 'string') {
-    throw validationFailed('notes must be a string', [{ field: 'notes', message: 'notes must be a string' }]);
+    throw validationFailed('notes must be a string', [
+      { field: 'notes', message: 'notes must be a string' },
+    ]);
   }
   const trimmed = value.trim();
   if (trimmed.length > 500) {
@@ -32,6 +34,61 @@ function optionalNotes(value) {
     ]);
   }
   return trimmed;
+}
+
+function parseOptionalDateFilter(value, field) {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+  if (typeof value !== 'string') {
+    throw validationFailed(`${field} must be YYYY-MM-DD`, [
+      { field, message: 'expected YYYY-MM-DD' },
+    ]);
+  }
+  try {
+    return parseDateOnly(value);
+  } catch {
+    throw validationFailed(`${field} must be YYYY-MM-DD`, [
+      { field, message: 'expected YYYY-MM-DD' },
+    ]);
+  }
+}
+
+function parsePaymentListFilters(query = {}) {
+  const paymentDate = parseOptionalDateFilter(query.paymentDate, 'paymentDate');
+  const fromDate = parseOptionalDateFilter(query.fromDate, 'fromDate');
+  const toDate = parseOptionalDateFilter(query.toDate, 'toDate');
+  const rawSearch = typeof query.search === 'string' ? query.search.trim() : '';
+
+  if (paymentDate && (fromDate || toDate)) {
+    throw validationFailed('paymentDate cannot be combined with a date range', [
+      { field: 'paymentDate', message: 'use paymentDate or fromDate/toDate, not both' },
+    ]);
+  }
+  if (fromDate && toDate && fromDate > toDate) {
+    throw validationFailed('fromDate must be on or before toDate', [
+      { field: 'fromDate', message: 'fromDate must be on or before toDate' },
+    ]);
+  }
+  if (rawSearch.length > 200) {
+    throw validationFailed('search exceeds maximum length', [
+      { field: 'search', message: 'search must be at most 200 characters' },
+    ]);
+  }
+
+  let effectivePaymentDate = paymentDate;
+  let search = rawSearch || undefined;
+  if (!effectivePaymentDate && !fromDate && !toDate && /^\d{4}-\d{2}-\d{2}$/.test(rawSearch)) {
+    effectivePaymentDate = parseOptionalDateFilter(rawSearch, 'search');
+    search = undefined;
+  }
+
+  return {
+    ...(effectivePaymentDate ? { paymentDate: effectivePaymentDate } : {}),
+    ...(fromDate ? { fromDate } : {}),
+    ...(toDate ? { toDate } : {}),
+    ...(search ? { search } : {}),
+  };
 }
 
 function parsePositiveMoneyInput(value, field) {
@@ -252,7 +309,11 @@ function parsePaymentCorrect(body) {
   }
   let replacement = null;
   if (body.replacement !== undefined && body.replacement !== null) {
-    if (body.replacement === null || typeof body.replacement !== 'object' || Array.isArray(body.replacement)) {
+    if (
+      body.replacement === null ||
+      typeof body.replacement !== 'object' ||
+      Array.isArray(body.replacement)
+    ) {
       throw validationFailed('replacement must be an object', [
         { field: 'replacement', message: 'replacement must be an object' },
       ]);
@@ -263,6 +324,7 @@ function parsePaymentCorrect(body) {
 }
 
 module.exports = {
+  parsePaymentListFilters,
   parseSupplierPayment,
   parseCustomerPayment,
   parsePaymentCorrect,

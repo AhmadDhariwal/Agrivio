@@ -4,7 +4,10 @@ import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { EMPTY, Subject, catchError, startWith, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { CustomerPaymentsApi, CustomerPaymentsListQuery } from '../../data-access/customer-payments.api';
+import {
+  CustomerPaymentsApi,
+  CustomerPaymentsListQuery,
+} from '../../data-access/customer-payments.api';
 import { CustomerPaymentRecord, MoneyAmount } from '../../models/customer-payments.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
@@ -39,11 +42,13 @@ export class CustomerPaymentsPage {
   readonly items = signal<CustomerPaymentRecord[]>([]);
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
+  readonly filterError = signal<string | null>(null);
   readonly canUseCustomerPayments = computed(
     () => this.capabilityService?.canUseModule('payments.customer') ?? true,
   );
   readonly canView = computed(
-    () => this.sessionStore.hasPermission('customer-payments.view') && this.canUseCustomerPayments(),
+    () =>
+      this.sessionStore.hasPermission('customer-payments.view') && this.canUseCustomerPayments(),
   );
   readonly canPost = computed(
     () =>
@@ -58,7 +63,8 @@ export class CustomerPaymentsPage {
     () => this.capabilityService?.canUseFeature('payments.customer.features.search') ?? true,
   );
   readonly showPaymentDateFilter = computed(
-    () => this.capabilityService?.canUseFeature('payments.customer.features.paymentDateFilter') ?? true,
+    () =>
+      this.capabilityService?.canUseFeature('payments.customer.features.paymentDateFilter') ?? true,
   );
 
   canViewField(id: string): boolean {
@@ -98,6 +104,14 @@ export class CustomerPaymentsPage {
     }
     return this.pendingFromDate().trim() !== '' || this.pendingToDate().trim() !== '';
   });
+
+  readonly invalidPendingDateRange = computed(
+    () =>
+      this.pendingDateMode() === 'range' &&
+      this.pendingFromDate() !== '' &&
+      this.pendingToDate() !== '' &&
+      this.pendingFromDate() > this.pendingToDate(),
+  );
 
   readonly infoTitle = 'About Customer Payments';
   readonly infoDescription =
@@ -189,25 +203,35 @@ export class CustomerPaymentsPage {
 
   setDateMode(mode: 'single' | 'range'): void {
     this.pendingDateMode.set(mode);
+    this.filterError.set(null);
   }
 
   toggleDateMode(): void {
     this.pendingDateMode.update((mode) => (mode === 'single' ? 'range' : 'single'));
+    this.filterError.set(null);
   }
 
   onPaymentDateInput(value: string): void {
     this.pendingPaymentDate.set(value.trim());
+    this.filterError.set(null);
   }
 
   onFromDateInput(value: string): void {
     this.pendingFromDate.set(value.trim());
+    this.filterError.set(null);
   }
 
   onToDateInput(value: string): void {
     this.pendingToDate.set(value.trim());
+    this.filterError.set(null);
   }
 
   applyFilters(): void {
+    if (this.invalidPendingDateRange()) {
+      this.filterError.set('From date must be on or before To date.');
+      return;
+    }
+    this.filterError.set(null);
     this.search.set(this.pendingSearch().trim());
     this.dateMode.set(this.pendingDateMode());
     this.paymentDate.set(this.pendingPaymentDate().trim());
@@ -218,6 +242,7 @@ export class CustomerPaymentsPage {
   }
 
   clearFilters(): void {
+    this.filterError.set(null);
     this.pendingSearch.set('');
     this.pendingPaymentDate.set('');
     this.pendingFromDate.set('');

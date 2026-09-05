@@ -6,6 +6,7 @@ import { SupplierPaymentsApi } from '../../data-access/supplier-payments.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { SupplierPaymentRecord } from '../../models/supplier-payments.models';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockPaymentRecords: SupplierPaymentRecord[] = [
   {
@@ -49,6 +50,7 @@ describe('SupplierPaymentsPage', () => {
   };
   let mockPermission = true;
   let disabledCapabilities = new Set<string>();
+  const listSupplierPaymentsSpy = vi.fn();
 
   beforeEach(async () => {
     mockListResult = {
@@ -57,6 +59,8 @@ describe('SupplierPaymentsPage', () => {
     };
     mockPermission = true;
     disabledCapabilities = new Set<string>();
+    listSupplierPaymentsSpy.mockReset();
+    listSupplierPaymentsSpy.mockImplementation(() => of(mockListResult));
 
     await TestBed.configureTestingModule({
       imports: [SupplierPaymentsPage],
@@ -65,7 +69,7 @@ describe('SupplierPaymentsPage', () => {
         {
           provide: SupplierPaymentsApi,
           useValue: {
-            listSupplierPayments: () => of(mockListResult),
+            listSupplierPayments: listSupplierPaymentsSpy,
           },
         },
         {
@@ -94,9 +98,9 @@ describe('SupplierPaymentsPage', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('.page-head__title')?.textContent).toContain('Supplier payments');
-    expect(compiled.querySelector('[data-testid="supplier-payments-count-pill"]')?.textContent).toContain(
-      '2 payments',
-    );
+    expect(
+      compiled.querySelector('[data-testid="supplier-payments-count-pill"]')?.textContent,
+    ).toContain('2 payments');
     expect(compiled.querySelector('[data-testid="supplier-payment-create-link"]')).toBeTruthy();
     expect(compiled.querySelector('[data-testid="supplier-ledger-link"]')).toBeTruthy();
     expect(compiled.querySelector('agrivio-ui-module-info')).toBeTruthy();
@@ -156,17 +160,53 @@ describe('SupplierPaymentsPage', () => {
     expect(compiled.textContent).toContain('No supplier payments found');
   });
 
-  it('updates paymentDate and triggers reload on date changes and clear', () => {
+  it('stages an exact payment date and sends only paymentDate when applied', () => {
     const fixture: ComponentFixture<SupplierPaymentsPage> =
       TestBed.createComponent(SupplierPaymentsPage);
     const component = fixture.componentInstance;
     fixture.detectChanges();
+    listSupplierPaymentsSpy.mockClear();
 
-    component.onDateChange('2026-08-12');
+    component.onPaymentDateInput('2026-08-12');
+    expect(component.paymentDate()).toBe('');
+    component.applyFilters();
     expect(component.paymentDate()).toBe('2026-08-12');
+    expect(listSupplierPaymentsSpy).toHaveBeenCalledWith({
+      page: 1,
+      pageSize: 25,
+      forceRefresh: false,
+      paymentDate: '2026-08-12',
+    });
 
     component.clearFilters();
     expect(component.paymentDate()).toBe('');
+  });
+
+  it('applies an inclusive date range and blocks reversed ranges', () => {
+    const fixture = TestBed.createComponent(SupplierPaymentsPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    listSupplierPaymentsSpy.mockClear();
+
+    component.setDateMode('range');
+    component.onFromDateInput('2026-08-01');
+    component.onToDateInput('2026-08-31');
+    component.applyFilters();
+
+    expect(listSupplierPaymentsSpy).toHaveBeenCalledWith({
+      page: 1,
+      pageSize: 25,
+      forceRefresh: false,
+      fromDate: '2026-08-01',
+      toDate: '2026-08-31',
+    });
+
+    listSupplierPaymentsSpy.mockClear();
+    component.onFromDateInput('2026-09-10');
+    component.onToDateInput('2026-09-01');
+    component.applyFilters();
+    expect(listSupplierPaymentsSpy).not.toHaveBeenCalled();
+    expect(component.filterError()).toContain('From date');
   });
 
   it('shows permission warning when user lacks view permission', () => {
@@ -177,7 +217,9 @@ describe('SupplierPaymentsPage', () => {
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('[data-testid="supplier-payments-permission-alert"]')).toBeTruthy();
+    expect(
+      compiled.querySelector('[data-testid="supplier-payments-permission-alert"]'),
+    ).toBeTruthy();
     expect(compiled.textContent).toContain('You do not have permission to view supplier payments.');
   });
 

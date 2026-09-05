@@ -67,6 +67,7 @@ Central navigation for Agrivio documentation.
 * Next work item: `R1-F09-005` local technical rehearsal is complete. Do not start `R1-F09-006` until assigned. Production target/vendor backup verification remains pending.
 * Manual billing UX/storage hardening (Owner upload + plan picker, Super Admin review queue, start-review, evidence download) is implemented on the existing submitted → under_review → approved/rejected path. This does **not** claim F02 or F08 stage-exit. See [tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md](tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md).
 * Super Admin Billing Review backend production hardening is complete: display-safe queue/detail composition, private record-bound evidence download, strict review transitions, version-conditional actions, idempotent application, and existing RBAC/audit enforcement are verified. This does **not** add a gateway or change subscription lifecycle. See [tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md](tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md).
+* Customer and Supplier Payments date filtering hardened (2026-09-06): distinct exact/range payloads, inclusive range queries, strict API validation, and responsive range controls; see [tasks/F05-PHASE-3-SUPPLIER-PAYMENTS-CANCEL-RETURNS.md](tasks/F05-PHASE-3-SUPPLIER-PAYMENTS-CANCEL-RETURNS.md) and [tasks/F06-PHASE-1-SALES-FOUNDATION.md](tasks/F06-PHASE-1-SALES-FOUNDATION.md).
 
 ## Existing Documents
 
