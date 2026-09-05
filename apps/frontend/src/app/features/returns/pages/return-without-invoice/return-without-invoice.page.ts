@@ -82,6 +82,7 @@ export class ReturnWithoutInvoicePage {
   readonly warehouses = signal<WarehouseRecord[]>([]);
   readonly accounts = signal<AccountRecord[]>([]);
   readonly batchesByLine = signal<Record<number, ProductBatchRecord[]>>({});
+  readonly formValid = signal(false);
   readonly canPost = computed(
     () =>
       this.sessionStore.hasPermission('returns.post') &&
@@ -93,7 +94,7 @@ export class ReturnWithoutInvoicePage {
       (this.capabilityService?.canPerformAction('returns.actions.withoutInvoice') ?? true),
   );
   readonly canSubmit = computed(
-    () => this.canPost() && this.canApprove() && this.form.valid && !this.submitting(),
+    () => this.canPost() && this.canApprove() && this.formValid() && !this.submitting(),
   );
 
   readonly fieldRequired = hasRequiredValidator;
@@ -131,6 +132,13 @@ export class ReturnWithoutInvoicePage {
       },
     });
 
+    this.form.statusChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.updateFormValidity();
+    });
+    this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.updateFormValidity();
+    });
+
     this.customerSearchChanges
       .pipe(
         debounceTime(300),
@@ -138,7 +146,10 @@ export class ReturnWithoutInvoicePage {
         switchMap((query) => this.customersApi.searchCustomerOptions(query)),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((items) => this.customers.set(items.filter((item) => item.status === 'active')));
+      .subscribe((items) => {
+        this.customers.set(items.filter((item) => item.status === 'active'));
+        this.updateFormValidity();
+      });
 
     this.productSearchChanges
       .pipe(
@@ -147,15 +158,84 @@ export class ReturnWithoutInvoicePage {
         switchMap((query) => this.catalogApi.searchProductOptions(query, 25, 'active')),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((items) => this.products.set(items.filter((item) => item.status === 'active')));
+      .subscribe((items) => {
+        this.products.set(items.filter((item) => item.status === 'active'));
+        for (let i = 0; i < this.lines.length; i += 1) {
+          setRequiredValidator(this.lineGroup(i).get('batchId'), this.productNeedsBatch(i));
+        }
+        this.updateFormValidity();
+      });
 
     this.customerSearchChanges.next('');
     this.productSearchChanges.next('');
 
-    this.form.controls.resolution.valueChanges.subscribe((resolution) => {
-      setRequiredValidator(this.form.controls.refundAccountId, resolution === 'account_refund');
-    });
+    this.form.controls.resolution.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((resolution) => {
+        setRequiredValidator(this.form.controls.refundAccountId, resolution === 'account_refund');
+        this.updateFormValidity();
+      });
     this.bindLineConditionalRequired(0);
+    this.updateFormValidity();
+  }
+
+  updateFormValidity(): void {
+    const isBasicValid = this.form.valid;
+    const value = this.form.getRawValue();
+
+    const hasCustomer = Boolean(
+      (value.customerId && value.customerId.trim() !== '') ||
+      (value.customerIdentifyingName && value.customerIdentifyingName.trim() !== '') ||
+      (value.customerIdentifyingPhone && value.customerIdentifyingPhone.trim() !== '')
+    );
+
+    const ledgerValid =
+      value.resolution !== 'ledger_adjustment' || Boolean(value.customerId && value.customerId.trim() !== '');
+
+    const linesValid =
+      this.lines.length > 0 &&
+      this.lines.controls.every((ctrl, idx) => {
+        const group = ctrl as FormGroup;
+        if (!group.valid) return false;
+        const productId = group.get('productId')?.value;
+        const quantity = group.get('quantity')?.value;
+        if (!productId || !quantity || group.get('quantity')?.invalid) return false;
+        if (this.productNeedsBatch(idx) && !group.get('batchId')?.value) return false;
+        return true;
+      });
+
+    this.formValid.set(Boolean(isBasicValid && hasCustomer && ledgerValid && linesValid));
+  }
+
+  hasCustomerIdentifier(): boolean {
+    const value = this.form.getRawValue();
+    return Boolean(
+      (value.customerId && value.customerId.trim() !== '') ||
+      (value.customerIdentifyingName && value.customerIdentifyingName.trim() !== '') ||
+      (value.customerIdentifyingPhone && value.customerIdentifyingPhone.trim() !== '')
+    );
+  }
+
+  needsCustomerForLedger(): boolean {
+    const value = this.form.getRawValue();
+    return value.resolution === 'ledger_adjustment' && (!value.customerId || value.customerId.trim() === '');
+  }
+
+  needsAccountForRefund(): boolean {
+    const value = this.form.getRawValue();
+    return value.resolution === 'account_refund' && (!value.refundAccountId || value.refundAccountId.trim() === '');
+  }
+
+  missingLineFields(): boolean {
+    if (this.lines.length === 0) return true;
+    return this.lines.controls.some((ctrl, idx) => {
+      const g = ctrl as FormGroup;
+      const pid = g.get('productId')?.value;
+      const qty = g.get('quantity')?.value;
+      if (!pid || !qty || g.get('quantity')?.invalid) return true;
+      if (this.productNeedsBatch(idx) && !g.get('batchId')?.value) return true;
+      return false;
+    });
   }
 
   lineGroup(index: number): FormGroup {
@@ -187,11 +267,27 @@ export class ReturnWithoutInvoicePage {
   addLine(): void {
     this.lines.push(this.createLineGroup());
     this.bindLineConditionalRequired(this.lines.length - 1);
+    this.updateFormValidity();
   }
 
   removeLine(index: number): void {
     if (this.lines.length > 1) {
       this.lines.removeAt(index);
+      this.batchesByLine.update((current) => {
+        const next: Record<number, ProductBatchRecord[]> = {};
+        let targetIdx = 0;
+        for (let i = 0; i < this.lines.length + 1; i += 1) {
+          if (i !== index) {
+            const batches = current[i];
+            if (batches) {
+              next[targetIdx] = batches;
+            }
+            targetIdx += 1;
+          }
+        }
+        return next;
+      });
+      this.updateFormValidity();
     }
   }
 
@@ -207,20 +303,17 @@ export class ReturnWithoutInvoicePage {
 
   onProductChange(index: number): void {
     const productId = String(this.lineGroup(index).get('productId')?.value ?? '');
-    const warehouseId = String(this.form.controls.warehouseId.value ?? '');
     this.lineGroup(index).patchValue({ batchId: '' });
     setRequiredValidator(this.lineGroup(index).get('batchId'), this.productNeedsBatch(index));
+    this.updateFormValidity();
     if (!productId || !this.productNeedsBatch(index)) {
       this.batchesByLine.update((current) => ({ ...current, [index]: [] }));
       return;
     }
-    const batchQuery: { productId: string; warehouseId?: string } = { productId };
-    if (warehouseId) {
-      batchQuery.warehouseId = warehouseId;
-    }
-    this.inventoryApi.listBatches(batchQuery).subscribe({
+    this.inventoryApi.listBatches({ productId, pageSize: 100 }).subscribe({
       next: (batches) => {
         this.batchesByLine.update((current) => ({ ...current, [index]: batches.items }));
+        this.updateFormValidity();
       },
       error: (error: unknown) => {
         this.errorMessage.set(this.mapError(error, 'Unable to load batches.'));
@@ -234,9 +327,18 @@ export class ReturnWithoutInvoicePage {
     for (let index = 0; index < this.lines.length; index += 1) {
       this.lineGroup(index).markAllAsTouched();
     }
+    this.updateFormValidity();
     if (!this.canSubmit()) {
       if (!this.canApprove()) {
         this.errorMessage.set('Return without invoice requires approval permission.');
+      } else if (!this.hasCustomerIdentifier()) {
+        this.errorMessage.set('Customer lookup or identifying name/phone is required.');
+      } else if (this.needsCustomerForLedger()) {
+        this.errorMessage.set('Customer ledger adjustment requires selecting a registered customer. For walk-in customers, select Cash / bank / digital refund.');
+      } else if (this.needsAccountForRefund()) {
+        this.errorMessage.set('Please select a refund payment account for cash/bank refund.');
+      } else {
+        this.errorMessage.set('Please complete all required fields correctly before approving and posting.');
       }
       return;
     }
@@ -315,8 +417,9 @@ export class ReturnWithoutInvoicePage {
     const group = this.lineGroup(index);
     setRequiredValidator(group.get('batchId'), this.productNeedsBatch(index));
     setRequiredValidator(group.get('unsellableReason'), group.get('stockCondition')?.value === 'unsellable');
-    group.get('stockCondition')?.valueChanges.subscribe((condition) => {
+    group.get('stockCondition')?.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((condition) => {
       setRequiredValidator(group.get('unsellableReason'), condition === 'unsellable');
+      this.updateFormValidity();
     });
   }
 
