@@ -133,7 +133,7 @@
         <button
           class="ag-btn ag-btn--primary"
           type="submit"
-          [disabled]="!canSave()"
+          [disabled]="!(categoryId() ? canEditCategory() : canCreate()) || form.invalid || saving()"
           data-testid="expense-category-save"
         >
           {{ saving() ? 'Saving…' : (isEdit() ? 'Save changes' : 'Save category') }}
