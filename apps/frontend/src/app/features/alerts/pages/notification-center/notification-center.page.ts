@@ -138,9 +138,22 @@ export class NotificationCenterPage {
     }
 
     return [...list].sort((a, b) => {
-      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return sort === 'newest' ? timeB - timeA : timeA - timeB;
+      const dateStrA = a.createdAt || a.activatedAt;
+      const dateStrB = b.createdAt || b.activatedAt;
+      const rawA = dateStrA ? new Date(dateStrA).getTime() : 0;
+      const rawB = dateStrB ? new Date(dateStrB).getTime() : 0;
+      const timeA = Number.isFinite(rawA) ? rawA : 0;
+      const timeB = Number.isFinite(rawB) ? rawB : 0;
+      const timeDiff = sort === 'newest' ? timeB - timeA : timeA - timeB;
+
+      if (timeDiff !== 0) {
+        return timeDiff;
+      }
+
+      // Deterministic tie-breaker by id: ensures strict order reversal when timestamps are identical
+      return sort === 'newest'
+        ? String(b.id).localeCompare(String(a.id))
+        : String(a.id).localeCompare(String(b.id));
     });
   });
 
@@ -259,13 +272,38 @@ export class NotificationCenterPage {
       const now = new Date();
       const diffMs = now.getTime() - date.getTime();
       if (isNaN(diffMs)) return dateStr;
+
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const timeStr = `${hours}:${minutes}`;
+
+      if (diffMs < 0) {
+        return `Today, ${timeStr}`;
+      }
       const diffDays = Math.floor(diffMs / 86400000);
-      if (diffDays === 0) return 'Today';
-      if (diffDays === 1) return 'Yesterday';
-      if (diffDays > 1 && diffDays < 30) return `${diffDays} days ago`;
-      return date.toISOString().slice(0, 10);
+      if (diffDays === 0) {
+        return `Today, ${timeStr}`;
+      }
+      if (diffDays === 1) {
+        return `Yesterday, ${timeStr}`;
+      }
+      if (diffDays > 1 && diffDays < 30) {
+        return `${diffDays}d ago (${timeStr})`;
+      }
+      return `${date.toISOString().slice(0, 10)} ${timeStr}`;
     } catch {
       return dateStr;
+    }
+  }
+
+  formatFullTimestamp(dateStr?: string | null): string {
+    if (!dateStr) return '';
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      return date.toLocaleString();
+    } catch {
+      return dateStr ?? '';
     }
   }
 

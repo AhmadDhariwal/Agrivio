@@ -166,6 +166,109 @@ describe('NotificationCenterPage', () => {
     expect(component.filteredItems().every((i) => !i.acknowledgedAt)).toBe(true);
   });
 
+  it('sorts notifications by newest first by default and renders DATE column', () => {
+    expect(component.sortDirection()).toBe('newest');
+
+    const filtered = component.filteredItems();
+    expect(filtered.map((item) => item.id)).toEqual(['notif-1', 'notif-2', 'notif-3']);
+
+    const dateHeader = fixture.nativeElement.querySelector('th.col-date');
+    expect(dateHeader).toBeTruthy();
+    expect(dateHeader.textContent.trim()).toBe('DATE');
+
+    const dateCells = fixture.nativeElement.querySelectorAll('[data-testid="notification-date"]');
+    expect(dateCells.length).toBe(3);
+    expect(dateCells[0].textContent.trim().length).toBeGreaterThan(0);
+  });
+
+  it('sorts notifications by oldest first when changed and updates table rows', () => {
+    component.onSortChange('oldest');
+    fixture.detectChanges();
+
+    expect(component.sortDirection()).toBe('oldest');
+
+    const filtered = component.filteredItems();
+    expect(filtered.map((item) => item.id)).toEqual(['notif-3', 'notif-2', 'notif-1']);
+
+    const rows = fixture.nativeElement.querySelectorAll('tbody tr');
+    expect(rows[0].textContent).toContain('Customer dues');
+    expect(rows[2].textContent).toContain('Low stock');
+  });
+
+  it('reliably inverts sort order for items with identical timestamps using deterministic tie-breaker', () => {
+    const identicalTimestamp = '2026-08-26T12:00:00.000Z';
+    const makeItem = (id: string, title: string): import('../../models/alerts.models').NotificationItem => ({
+      id,
+      title,
+      alertType: 'low_stock',
+      body: 'Body text',
+      subjectKey: 'key',
+      fingerprint: `fp-${id}`,
+      isRead: false,
+      active: true,
+      activatedAt: null,
+      resolvedAt: null,
+      acknowledgedAt: null,
+      acknowledgedBy: null,
+      createdAt: identicalTimestamp,
+    });
+
+    component.items.set([
+      makeItem('notif-A', 'Alert A'),
+      makeItem('notif-B', 'Alert B'),
+      makeItem('notif-C', 'Alert C'),
+    ]);
+
+    component.onSortChange('newest');
+    fixture.detectChanges();
+    const newestOrder = component.filteredItems().map((i) => i.id);
+    expect(newestOrder).toEqual(['notif-C', 'notif-B', 'notif-A']);
+
+    component.onSortChange('oldest');
+    fixture.detectChanges();
+    const oldestOrder = component.filteredItems().map((i) => i.id);
+    expect(oldestOrder).toEqual(['notif-A', 'notif-B', 'notif-C']);
+  });
+
+  it('uses activatedAt as fallback when createdAt is missing or null', () => {
+    const makeItem = (
+      id: string,
+      createdAt: string | null,
+      activatedAt: string | null,
+    ): import('../../models/alerts.models').NotificationItem => ({
+      id,
+      title: id,
+      alertType: 'low_stock',
+      body: 'Body text',
+      subjectKey: 'key',
+      fingerprint: `fp-${id}`,
+      isRead: false,
+      active: true,
+      activatedAt,
+      resolvedAt: null,
+      acknowledgedAt: null,
+      acknowledgedBy: null,
+      createdAt,
+    });
+
+    component.items.set([
+      makeItem('notif-older', '2026-08-26T10:00:00.000Z', null),
+      makeItem('notif-newer-activated', null, '2026-08-26T14:00:00.000Z'),
+    ]);
+
+    component.onSortChange('newest');
+    expect(component.filteredItems().map((i) => i.id)).toEqual(['notif-newer-activated', 'notif-older']);
+
+    component.onSortChange('oldest');
+    expect(component.filteredItems().map((i) => i.id)).toEqual(['notif-older', 'notif-newer-activated']);
+  });
+
+  it('resets currentPage to 1 when sort direction changes', () => {
+    component.currentPage.set(3);
+    component.onSortChange('oldest');
+    expect(component.currentPage()).toBe(1);
+  });
+
   it('acknowledges an alert and updates item state', () => {
     const unacknowledgedItem = component.items()[0];
     expect(unacknowledgedItem).toBeDefined();
