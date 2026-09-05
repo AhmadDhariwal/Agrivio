@@ -15,6 +15,10 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
+import {
+  DropdownOption,
+  UiSearchableDropdownComponent,
+} from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
 import { applyPaginationMeta } from '../../../../shared/data-access/pagination';
 import {
   EMPTY,
@@ -84,6 +88,7 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
     UiConfirmDialogComponent,
     UiPaginationComponent,
     UiModuleInfoComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './products.page.html',
   styleUrl: './products.page.scss',
@@ -209,6 +214,14 @@ export class ProductsPage {
       this.showActiveProducts() ||
       this.showLowStock() ||
       this.showTrackedItems(),
+  );
+
+  readonly categoryDropdownOptions = computed<readonly DropdownOption[]>(() =>
+    this.categories().map((cat) => ({
+      value: cat.id,
+      label: cat.name,
+      meta: cat.productClass ? String(cat.productClass).toUpperCase() : undefined,
+    })),
   );
 
   // Category Map for fast lookup
@@ -446,14 +459,22 @@ export class ProductsPage {
     this.reload();
   }
 
+  onCategorySelect(categoryId: string): void {
+    this.categoryFilter.set(categoryId);
+  }
+
   onCategoryChange(event: Event): void {
     const target = event.target as HTMLSelectElement;
     this.categoryFilter.set(target.value);
   }
 
-  onCategorySearch(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    this.categorySearchChanges.next(target.value.trim());
+  onCategorySearch(termOrEvent: Event | string): void {
+    if (typeof termOrEvent === 'string') {
+      this.categorySearchChanges.next(termOrEvent.trim());
+      return;
+    }
+    const target = termOrEvent?.target as HTMLInputElement;
+    this.categorySearchChanges.next(target?.value?.trim() ?? '');
   }
 
   onTrackingChange(event: Event): void {

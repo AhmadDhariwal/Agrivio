@@ -8,6 +8,8 @@ import {
   debounceTime,
   distinctUntilChanged,
   forkJoin,
+  map,
+  merge,
   of,
   switchMap,
 } from 'rxjs';
@@ -28,6 +30,7 @@ import { AccountRecord } from '../../../accounts-expenses/models/accounts.models
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import { hasRequiredValidator, fieldValidationMessage } from '../../../../shared/form/form-field.util';
 
 @Component({
@@ -39,6 +42,7 @@ import { hasRequiredValidator, fieldValidationMessage } from '../../../../shared
     UiAlertComponent,
     UiLoadingStateComponent,
     UiFieldLabelComponent,
+    UiModuleInfoComponent,
   ],
   templateUrl: './customer-payment-form.page.html',
   styleUrl: './customer-payment-form.page.scss',
@@ -84,6 +88,19 @@ export class CustomerPaymentFormPage {
   readonly showLedgerPreview = computed(
     () => this.capabilityService?.canUseFeature('payments.customer.features.ledgerPreview') ?? true,
   );
+  readonly showModuleInfo = computed(
+    () => this.capabilityService?.canUseFeature('payments.customer.features.moduleInfo') ?? true,
+  );
+
+  readonly infoTitle = 'About Posting Customer Payments';
+  readonly infoDescription =
+    'Record customer money collections to settle open sales invoices, reduce customer receivable balances, or hold advance deposits.';
+  readonly infoItems: string[] = [
+    'General allocation: Automatically applies the received amount to open customer sales starting from the oldest outstanding invoice (FIFO). Any surplus amount becomes a customer advance.',
+    'Invoice-specific allocation: Applies the payment directly against a specified posted sale invoice.',
+    'Financial impact: Debits the receiving cash/bank account and credits Accounts Receivable, instantly updating customer balances and aging schedules.',
+    'Ledger immutability: All posted payments create irreversible financial and audit records to maintain strict ledger integrity.',
+  ];
 
   canViewField(id: string): boolean {
     return this.capabilityService?.canViewField(`payments.customer.fields.${id}`) ?? true;
@@ -95,18 +112,6 @@ export class CustomerPaymentFormPage {
 
   readonly fieldRequired = hasRequiredValidator;
   readonly fieldError = fieldValidationMessage;
-  readonly canSave = computed(() => {
-    if (!this.canPost() || this.saving()) {
-      return false;
-    }
-    if (this.form.invalid) {
-      return false;
-    }
-    if (this.isInvoiceSpecific() && this.invoiceAllocationForm.invalid) {
-      return false;
-    }
-    return true;
-  });
 
   readonly form = this.formBuilder.nonNullable.group({
     customerId: ['', Validators.required],
@@ -130,6 +135,33 @@ export class CustomerPaymentFormPage {
   readonly isInvoiceSpecific = computed(
     () => this.canPostInvoiceSpecific() && this.allocationModeChange() === 'invoice_specific',
   );
+
+  readonly formValid = toSignal(
+    merge(this.form.statusChanges, this.form.valueChanges).pipe(
+      map(() => this.form.valid),
+    ),
+    { initialValue: this.form.valid },
+  );
+
+  readonly invoiceAllocationValid = toSignal(
+    merge(this.invoiceAllocationForm.statusChanges, this.invoiceAllocationForm.valueChanges).pipe(
+      map(() => this.invoiceAllocationForm.valid),
+    ),
+    { initialValue: this.invoiceAllocationForm.valid },
+  );
+
+  readonly canSave = computed(() => {
+    if (!this.canPost() || this.saving()) {
+      return false;
+    }
+    if (!this.formValid()) {
+      return false;
+    }
+    if (this.isInvoiceSpecific() && !this.invoiceAllocationValid()) {
+      return false;
+    }
+    return true;
+  });
 
   constructor() {
     if (!this.canPost()) {

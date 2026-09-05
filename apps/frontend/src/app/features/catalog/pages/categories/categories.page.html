@@ -415,6 +415,7 @@
           class="cat-table__row"
           [class.cat-table__row--selected]="selectedCategory()?.id === item.id"
           [class.cat-table__row--inactive]="item.status === 'inactive'"
+          [class.cat-table__row--menu-open]="openMenuCategoryId() === item.id"
         >
           <!-- Category Identity (Level 1: Flexible & Truncated) -->
           @if (showName()) {
@@ -677,6 +678,7 @@
       class="cat-card"
       [class.cat-card--selected]="selectedCategory()?.id === item.id"
       [class.cat-card--inactive]="item.status === 'inactive'"
+      [class.cat-card--menu-open]="openMenuCategoryId() === item.id"
     >
       <!-- Card Header: Glyph + Name & Class + Status Dot -->
       <div class="cat-card__header">

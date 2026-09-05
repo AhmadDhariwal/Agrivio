@@ -3,6 +3,21 @@ const mongoose = require('mongoose');
 const TRACKING_MODES = ['none', 'batch', 'batch_expiry'];
 const MEASUREMENT_DIMENSIONS = ['mass', 'volume'];
 const PRODUCT_STATUSES = ['active', 'inactive'];
+const STANDARD_BASE_UNITS = [
+  'LITRE',
+  'KG',
+  'COUNT',
+  'BAG',
+  'BOTTLE',
+  'PACK',
+  'GRAM',
+  'ML',
+  'CAN',
+  'DRUM',
+  'TONNE',
+  'EA',
+  'UNIT',
+];
 
 const productSchema = new mongoose.Schema(
   {
@@ -58,5 +73,6 @@ module.exports = {
   TRACKING_MODES,
   MEASUREMENT_DIMENSIONS,
   PRODUCT_STATUSES,
+  STANDARD_BASE_UNITS,
   ProductModel,
 };

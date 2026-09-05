@@ -289,6 +289,39 @@ describe('Supplier Payments capability route enforcement', () => {
     });
   });
 
+  it.each([
+    ['supplier', '/api/v1/supplier-payments', 'listSupplierPayments'],
+    ['customer', '/api/v1/customer-payments', 'listCustomerPayments'],
+  ])('forwards an inclusive date range for %s payments', async (_party, path, method) => {
+    const paymentsService = serviceWith();
+    await withServer(buildApp(vi.fn(), paymentsService), async (baseUrl) => {
+      const response = await fetch(
+        `${baseUrl}${path}?fromDate=2026-08-01&toDate=2026-08-31&page=1&pageSize=25`,
+      );
+      expect(response.status).toBe(200);
+    });
+    expect(paymentsService[method]).toHaveBeenCalledWith('org-a', {
+      fromDate: '2026-08-01',
+      toDate: '2026-08-31',
+      skip: 0,
+      pageSize: 25,
+    });
+  });
+
+  it.each(['/api/v1/supplier-payments', '/api/v1/customer-payments'])(
+    'rejects a reversed date range on %s',
+    async (path) => {
+      const paymentsService = serviceWith();
+      await withServer(buildApp(vi.fn(), paymentsService), async (baseUrl) => {
+        const response = await fetch(`${baseUrl}${path}?fromDate=2026-08-31&toDate=2026-08-01`);
+        expect(response.status).toBe(400);
+        expect((await response.json()).error.code).toBe('VALIDATION_FAILED');
+      });
+      expect(paymentsService.listSupplierPayments).not.toHaveBeenCalled();
+      expect(paymentsService.listCustomerPayments).not.toHaveBeenCalled();
+    },
+  );
+
   it('forwards bounded supplier search to the ledger-owned lookup', async () => {
     const paymentsService = serviceWith();
     await withServer(buildApp(vi.fn(), paymentsService), async (baseUrl) => {

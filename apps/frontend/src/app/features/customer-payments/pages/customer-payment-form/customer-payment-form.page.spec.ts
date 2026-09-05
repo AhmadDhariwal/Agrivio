@@ -113,4 +113,34 @@ describe('CustomerPaymentFormPage', () => {
     component.setAllocationMode('invoice_specific');
     expect(component.isInvoiceSpecific()).toBe(false);
   });
+
+  it('renders module info section with title and description', () => {
+    const fixture: ComponentFixture<CustomerPaymentFormPage> =
+      TestBed.createComponent(CustomerPaymentFormPage);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('About Posting Customer Payments');
+    expect(fixture.nativeElement.textContent).toContain('Record customer money collections');
+  });
+
+  it('enables the save button when all required form fields are populated', () => {
+    const fixture: ComponentFixture<CustomerPaymentFormPage> =
+      TestBed.createComponent(CustomerPaymentFormPage);
+    fixture.detectChanges();
+
+    const saveButton: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="customer-payment-save"]',
+    );
+    expect(saveButton.disabled).toBe(true);
+
+    fixture.componentInstance.form.patchValue({
+      customerId: 'cust-1',
+      accountId: 'acc-1',
+      amount: '5000',
+      paymentDate: '2026-09-05',
+    });
+    fixture.detectChanges();
+
+    expect(saveButton.disabled).toBe(false);
+  });
 });

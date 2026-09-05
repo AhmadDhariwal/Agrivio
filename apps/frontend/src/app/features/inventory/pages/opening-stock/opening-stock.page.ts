@@ -1,7 +1,7 @@
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged, forkJoin, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { InventoryApi } from '../../data-access/inventory.api';
@@ -49,6 +49,7 @@ export class OpeningStockPage {
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly formBuilder = inject(FormBuilder);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
+  private readonly route = inject(ActivatedRoute, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
   private readonly productSearchChanges = new Subject<string>();
 
@@ -129,6 +130,17 @@ export class OpeningStockPage {
       this.formValid.set(this.form.valid);
     });
 
+    this.form.controls.productId.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((productId) => {
+        const product = this.products().find((item) => item.id === productId) ?? null;
+        this.selectedProduct.set(product);
+        const mode = product?.trackingMode ?? 'none';
+        this.selectedTrackingMode.set(mode);
+        this.syncTrackingRequired(mode);
+        this.loadPackagingUnits(productId);
+      });
+
     if (!this.canPostOpeningStock()) {
       this.loading.set(false);
       return;
@@ -138,9 +150,20 @@ export class OpeningStockPage {
       warehouses: this.locationsApi.listWarehouseOptions(),
     }).subscribe({
       next: ({ products, warehouses }) => {
-        this.products.set(products.filter((item) => item.status === 'active'));
-        this.warehouses.set(warehouses.filter((item) => item.status === 'active'));
+        const activeProducts = products.filter((item) => item.status === 'active');
+        const activeWarehouses = warehouses.filter((item) => item.status === 'active');
+        this.products.set(activeProducts);
+        this.warehouses.set(activeWarehouses);
+        const soleWarehouse = activeWarehouses.length === 1 ? activeWarehouses[0] : undefined;
+        if (soleWarehouse && !this.form.controls.warehouseId.value) {
+          this.form.patchValue({ warehouseId: soleWarehouse.id });
+        }
         this.loading.set(false);
+
+        const targetProductId = this.route?.snapshot?.queryParamMap?.get('productId');
+        if (targetProductId) {
+          this.applyTargetProduct(targetProductId);
+        }
       },
       error: (error: unknown) => {
         this.loading.set(false);
@@ -148,26 +171,18 @@ export class OpeningStockPage {
       },
     });
 
-    this.form.controls.productId.valueChanges.subscribe((productId) => {
-      const product = this.products().find((item) => item.id === productId) ?? null;
-      this.selectedProduct.set(product);
-      const mode = product?.trackingMode ?? 'none';
-      this.selectedTrackingMode.set(mode);
-      this.syncTrackingRequired(mode);
-      this.packagingUnits.set([]);
-      this.form.patchValue({ packagingUnitId: '' });
-      if (!productId || !this.showOpeningStockPackaging()) {
-        return;
-      }
-      this.catalogApi.listPackagingUnits(productId).subscribe({
-        next: (units) => {
-          this.packagingUnits.set(units.filter((item) => item.status === 'active'));
-        },
-        error: () => {
-          this.packagingUnits.set([]);
-        },
+    this.route?.queryParamMap
+      ?.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        const targetProductId = params.get('productId');
+        if (
+          targetProductId &&
+          targetProductId !== this.form.controls.productId.value &&
+          !this.loading()
+        ) {
+          this.applyTargetProduct(targetProductId);
+        }
       });
-    });
 
     this.productSearchChanges
       .pipe(
@@ -179,6 +194,53 @@ export class OpeningStockPage {
       .subscribe((items) => {
         this.products.set(items.filter((item) => item.status === 'active'));
       });
+  }
+
+  private loadPackagingUnits(productId: string): void {
+    this.packagingUnits.set([]);
+    this.form.patchValue({ packagingUnitId: '' });
+    if (!productId || !this.showOpeningStockPackaging()) {
+      return;
+    }
+    this.catalogApi.listPackagingUnits(productId).subscribe({
+      next: (units) => {
+        this.packagingUnits.set(units.filter((item) => item.status === 'active'));
+      },
+      error: () => {
+        this.packagingUnits.set([]);
+      },
+    });
+  }
+
+  private applyTargetProduct(targetProductId: string): void {
+    const existing = this.products().find((item) => item.id === targetProductId);
+    if (existing) {
+      this.selectedProduct.set(existing);
+      const mode = existing.trackingMode ?? 'none';
+      this.selectedTrackingMode.set(mode);
+      this.syncTrackingRequired(mode);
+      this.form.patchValue({ productId: targetProductId });
+      this.loadPackagingUnits(targetProductId);
+    } else {
+      this.catalogApi.getProduct(targetProductId).subscribe({
+        next: (product) => {
+          if (product && product.status === 'active') {
+            this.products.update((list) => {
+              return list.some((p) => p.id === product.id) ? list : [product, ...list];
+            });
+            this.selectedProduct.set(product);
+            const mode = product.trackingMode ?? 'none';
+            this.selectedTrackingMode.set(mode);
+            this.syncTrackingRequired(mode);
+            this.form.patchValue({ productId: targetProductId });
+            this.loadPackagingUnits(targetProductId);
+          }
+        },
+        error: () => {
+          // Keep current selection if product cannot be retrieved
+        },
+      });
+    }
   }
 
   private syncTrackingRequired(mode: string): void {

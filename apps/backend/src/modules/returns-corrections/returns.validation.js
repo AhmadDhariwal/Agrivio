@@ -433,6 +433,9 @@ function toReturnDto(record, displayLookups) {
     withoutInvoiceApproval: approval
       ? {
           approvedBy: String(approval.approvedBy),
+          approvedByName: approval.approvedBy
+            ? displayLookups?.users?.[String(approval.approvedBy)] ?? null
+            : null,
           approvedAt:
             approval.approvedAt instanceof Date
               ? approval.approvedAt.toISOString()
@@ -449,6 +452,9 @@ function toReturnDto(record, displayLookups) {
     currency: String(record['currency'] ?? 'PKR'),
     version: Number(record['version']),
     createdBy: String(record['createdBy']),
+    createdByName: record['createdBy']
+      ? displayLookups?.users?.[String(record['createdBy'])] ?? null
+      : null,
     createdAt:
       record['createdAt'] instanceof Date
         ? record['createdAt'].toISOString()
@@ -467,6 +473,9 @@ function toReturnDto(record, displayLookups) {
         : String(record['postedAt'])
       : null,
     postedBy: record['postedBy'] ? String(record['postedBy']) : null,
+    postedByName: record['postedBy']
+      ? displayLookups?.users?.[String(record['postedBy'])] ?? null
+      : null,
     reversedByCorrectiveTransactionId: record['reversedByCorrectiveTransactionId']
       ? String(record['reversedByCorrectiveTransactionId'])
       : null,
@@ -476,6 +485,9 @@ function toReturnDto(record, displayLookups) {
         : String(record['reversedAt'])
       : null,
     reversedBy: record['reversedBy'] ? String(record['reversedBy']) : null,
+    reversedByName: record['reversedBy']
+      ? displayLookups?.users?.[String(record['reversedBy'])] ?? null
+      : null,
   };
 }
 

@@ -62,6 +62,12 @@
 * Playwright `f05-p3-purchases.e2e.spec.ts` + full E2E suite (**11 passed**, `CI=true`, Playwright-owned servers)
 * Gates: lint, typecheck, test:unit, test:architecture, build, test:integration, e2e
 
+### Post-completion payment date-filter hardening (2026-09-06)
+
+* Supplier Payments now provides staged single-date and inclusive date-range controls on desktop and mobile.
+* List requests send only the active date filter fields; the former duplicate date-as-search payload was removed.
+* Shared backend validation rejects invalid, reversed, and ambiguous date filters before querying.
+
 ## Next
 
 * F06 Sales/POS may begin after F04 exit acceptance (does not require F05)

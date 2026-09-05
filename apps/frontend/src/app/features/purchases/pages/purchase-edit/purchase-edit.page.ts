@@ -2,7 +2,7 @@ import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { EMPTY, forkJoin, Subject, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
+import { EMPTY, forkJoin, merge, Subject, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PurchasesApi } from '../../data-access/purchases.api';
 import { ReturnsApi } from '../../data-access/returns.api';
@@ -26,6 +26,7 @@ import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api
 import { AccountRecord } from '../../../accounts-expenses/models/accounts.models';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
 import {
   fieldValidationMessage,
   hasRequiredValidator,
@@ -33,6 +34,21 @@ import {
 } from '../../../../shared/form/form-field.util';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+
+function toCleanString(val: unknown): string {
+  if (val === null || val === undefined) {
+    return '';
+  }
+  return String(val).trim();
+}
+
+function toMoneyString(val: unknown, fallback = '0.00'): string {
+  const str = toCleanString(val);
+  if (!str) {
+    return fallback;
+  }
+  return str;
+}
 
 @Component({
   selector: 'agrivio-purchase-edit-page',
@@ -43,6 +59,7 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
     UiAlertComponent,
     UiLoadingStateComponent,
     UiConfirmDialogComponent,
+    UiFieldLabelComponent,
   ],
   templateUrl: './purchase-edit.page.html',
   styleUrl: './purchase-edit.page.scss',
@@ -118,11 +135,15 @@ export class PurchaseEditPage {
       this.purchaseId() !== null &&
       this.isDraft(),
   );
-  readonly canPost = computed(
+  readonly hasPostPermission = computed(
     () =>
       this.sessionStore.hasPermission('purchases.post') &&
       this.canUsePurchases() &&
-      (this.capabilityService?.canPerformAction('purchases.actions.post') ?? true) &&
+      (this.capabilityService?.canPerformAction('purchases.actions.post') ?? true),
+  );
+  readonly canPost = computed(
+    () =>
+      this.hasPostPermission() &&
       this.purchaseId() !== null &&
       this.isDraft(),
   );
@@ -151,10 +172,58 @@ export class PurchaseEditPage {
       (this.capabilityService?.canPerformAction('purchases.actions.post') ?? true) &&
       (this.capabilityService?.canPerformAction('purchases.actions.addPaymentAtPost') ?? true),
   );
+  readonly formValid = signal(false);
+
+  isDraftValid(): boolean {
+    if (!this.form.valid) {
+      return false;
+    }
+    const warehouseId = toCleanString(this.form.controls.warehouseId.value);
+    const supplierId = toCleanString(this.form.controls.supplierId.value);
+    const purchaseDate = toCleanString(this.form.controls.purchaseDate.value);
+    if (!warehouseId || !supplierId || !purchaseDate) {
+      return false;
+    }
+    if (this.lines.length === 0) {
+      return false;
+    }
+    for (let index = 0; index < this.lines.length; index += 1) {
+      const line = this.lineGroup(index);
+      if (line.invalid) {
+        return false;
+      }
+      const productId = toCleanString(line.get('productId')?.value);
+      const rawQuantity = toCleanString(line.get('quantity')?.value);
+      const rawUnitCost = toCleanString(line.get('unitCost')?.value);
+      if (!productId || !rawQuantity || !rawUnitCost) {
+        return false;
+      }
+      const quantity = Number(rawQuantity);
+      const unitCost = Number(rawUnitCost);
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        return false;
+      }
+      if (!Number.isFinite(unitCost) || unitCost <= 0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   readonly canSaveDraft = computed(
     () =>
       (this.purchaseId() === null ? this.canCreate() : this.canEditDraft()) &&
-      this.form.valid &&
+      this.formValid() &&
+      !this.saving() &&
+      !this.posting() &&
+      this.isDraft(),
+  );
+
+  readonly canDirectPost = computed(
+    () =>
+      this.hasPostPermission() &&
+      (this.purchaseId() === null ? this.canCreate() : this.canEditDraft()) &&
+      this.formValid() &&
       !this.saving() &&
       !this.posting() &&
       this.isDraft(),
@@ -234,6 +303,13 @@ export class PurchaseEditPage {
   }
 
   constructor() {
+    this.formValid.set(this.isDraftValid());
+    merge(this.form.statusChanges, this.form.valueChanges)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.formValid.set(this.isDraftValid());
+      });
+
     const id = this.route.snapshot.paramMap.get('id');
     const isEdit = Boolean(id && id !== 'new');
     if (isEdit && id) {
@@ -357,16 +433,19 @@ export class PurchaseEditPage {
   }
 
   addLine(): void {
-    if (!this.canEditDraft()) {
+    const canMutate = this.purchaseId() === null ? this.canCreate() : this.canEditDraft();
+    if (!canMutate) {
       return;
     }
     const index = this.lines.length;
     this.lines.push(this.createLineGroup());
     this.bindLineProductChanges(index);
+    this.formValid.set(this.isDraftValid());
   }
 
   removeLine(index: number): void {
-    if (!this.canEditDraft()) {
+    const canMutate = this.purchaseId() === null ? this.canCreate() : this.canEditDraft();
+    if (!canMutate) {
       return;
     }
     if (this.lines.length <= 1) {
@@ -381,10 +460,12 @@ export class PurchaseEditPage {
       });
       this.packagingByLine.update((current) => ({ ...current, [0]: [] }));
       this.syncLineTrackingRequired(0);
+      this.formValid.set(this.isDraftValid());
       return;
     }
     this.lines.removeAt(index);
     this.rebuildPackagingMap();
+    this.formValid.set(this.isDraftValid());
   }
 
   addPayment(): void {
@@ -535,33 +616,125 @@ export class PurchaseEditPage {
     if (!canManage || this.form.invalid) {
       return;
     }
-    this.saving.set(true);
-    this.errorMessage.set(null);
-    this.successMessage.set(null);
 
-    const payload = this.buildPayload();
-    const request$ =
-      id === null
-        ? this.api.createPurchase(payload)
-        : this.api.updatePurchase(id, { ...payload, expectedVersion: this.version });
+    try {
+      const payload = this.buildPayload();
+      this.saving.set(true);
+      this.errorMessage.set(null);
+      this.successMessage.set(null);
 
-    request$.subscribe({
-      next: (record) => {
-        this.saving.set(false);
-        this.successMessage.set('Purchase draft saved. It remains unposted until you post it.');
-        if (id === null) {
-          this.purchaseId.set(record.id);
-          this.version = record.version;
-          void this.router.navigateByUrl(`/app/purchases/${record.id}/edit`, { replaceUrl: true });
-        } else {
-          this.applyPurchase(record);
-        }
-      },
-      error: (error: unknown) => {
-        this.saving.set(false);
-        this.errorMessage.set(this.mapError(error, 'Unable to save purchase draft.'));
-      },
-    });
+      const request$ =
+        id === null
+          ? this.api.createPurchase(payload)
+          : this.api.updatePurchase(id, { ...payload, expectedVersion: this.version });
+
+      request$.subscribe({
+        next: (record) => {
+          this.saving.set(false);
+          this.successMessage.set('Purchase draft saved. It remains unposted until you post it.');
+          if (id === null) {
+            this.purchaseId.set(record.id);
+            this.version = record.version;
+            void this.router.navigateByUrl(`/app/purchases/${record.id}/edit`, { replaceUrl: true });
+          } else {
+            this.applyPurchase(record);
+          }
+        },
+        error: (error: unknown) => {
+          this.saving.set(false);
+          this.errorMessage.set(this.mapError(error, 'Unable to save purchase draft.'));
+        },
+      });
+    } catch (err: unknown) {
+      this.saving.set(false);
+      this.errorMessage.set(
+        err instanceof Error ? err.message : 'Unable to prepare purchase draft.',
+      );
+    }
+  }
+
+  saveAndPost(): void {
+    const id = this.purchaseId();
+    const canManage = id === null ? this.canCreate() : this.canEditDraft();
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    for (let index = 0; index < this.lines.length; index += 1) {
+      this.lineGroup(index).markAllAsTouched();
+    }
+    for (const control of this.payments.controls) {
+      control.markAllAsTouched();
+    }
+    if (!canManage || !this.canDirectPost() || !this.isDraftValid()) {
+      return;
+    }
+    for (const control of this.payments.controls) {
+      if (control.invalid) {
+        this.errorMessage.set('Fix payment lines before posting.');
+        return;
+      }
+      const val = (control as FormGroup).getRawValue() as Record<string, unknown>;
+      const accountId = toCleanString(val['accountId']);
+      const amountStr = toCleanString(val['amount']);
+      const amountNum = Number(amountStr);
+      if (!accountId || !Number.isFinite(amountNum) || amountNum <= 0) {
+        this.errorMessage.set('Payment lines must specify an account and an amount greater than 0.');
+        return;
+      }
+    }
+
+    try {
+      const payments: PurchasePaymentInput[] = this.payments.controls.map((control) => {
+        const value = (control as FormGroup).getRawValue() as Record<string, unknown>;
+        return {
+          accountId: toCleanString(value['accountId']),
+          amount: { amount: toCleanString(value['amount']), currency: 'PKR' },
+        };
+      });
+
+      const payload = this.buildPayload();
+
+      this.posting.set(true);
+      this.errorMessage.set(null);
+      this.successMessage.set(null);
+
+      const draft$ =
+        id === null
+          ? this.api.createPurchase(payload)
+          : this.api.updatePurchase(id, { ...payload, expectedVersion: this.version });
+
+      draft$
+        .pipe(
+          switchMap((record) => {
+            this.purchaseId.set(record.id);
+            this.version = record.version;
+            return this.api.postPurchase(
+              record.id,
+              {
+                expectedVersion: record.version,
+                payments,
+              },
+              crypto.randomUUID(),
+            );
+          }),
+        )
+        .subscribe({
+          next: (postedRecord) => {
+            this.posting.set(false);
+            this.successMessage.set('Purchase posted successfully.');
+            this.applyPurchase(postedRecord);
+            void this.router.navigateByUrl(`/app/purchases/${postedRecord.id}`);
+          },
+          error: (error: unknown) => {
+            this.posting.set(false);
+            this.errorMessage.set(this.mapError(error, 'Unable to post purchase.'));
+          },
+        });
+    } catch (err: unknown) {
+      this.posting.set(false);
+      this.errorMessage.set(
+        err instanceof Error ? err.message : 'Unable to prepare purchase for posting.',
+      );
+    }
   }
 
   discard(): void {
@@ -603,41 +776,55 @@ export class PurchaseEditPage {
         this.errorMessage.set('Fix payment lines before posting.');
         return;
       }
+      const val = (control as FormGroup).getRawValue() as Record<string, unknown>;
+      const accountId = toCleanString(val['accountId']);
+      const amountStr = toCleanString(val['amount']);
+      const amountNum = Number(amountStr);
+      if (!accountId || !Number.isFinite(amountNum) || amountNum <= 0) {
+        this.errorMessage.set('Payment lines must specify an account and an amount greater than 0.');
+        return;
+      }
     }
-    this.posting.set(true);
-    this.errorMessage.set(null);
-    this.successMessage.set(null);
-    const payments: PurchasePaymentInput[] = this.payments.controls.map((control) => {
-      const value = (control as FormGroup).getRawValue() as {
-        accountId: string;
-        amount: string;
-      };
-      return {
-        accountId: value.accountId,
-        amount: { amount: value.amount.trim(), currency: 'PKR' },
-      };
-    });
 
-    this.api
-      .postPurchase(
-        id,
-        {
-          expectedVersion: this.version,
-          payments,
-        },
-        crypto.randomUUID(),
-      )
-      .subscribe({
-        next: (record) => {
-          this.posting.set(false);
-          this.successMessage.set('Purchase posted successfully.');
-          this.applyPurchase(record);
-        },
-        error: (error: unknown) => {
-          this.posting.set(false);
-          this.errorMessage.set(this.mapError(error, 'Unable to post purchase.'));
-        },
+    try {
+      const payments: PurchasePaymentInput[] = this.payments.controls.map((control) => {
+        const value = (control as FormGroup).getRawValue() as Record<string, unknown>;
+        return {
+          accountId: toCleanString(value['accountId']),
+          amount: { amount: toCleanString(value['amount']), currency: 'PKR' },
+        };
       });
+
+      this.posting.set(true);
+      this.errorMessage.set(null);
+      this.successMessage.set(null);
+
+      this.api
+        .postPurchase(
+          id,
+          {
+            expectedVersion: this.version,
+            payments,
+          },
+          crypto.randomUUID(),
+        )
+        .subscribe({
+          next: (record) => {
+            this.posting.set(false);
+            this.successMessage.set('Purchase posted successfully.');
+            this.applyPurchase(record);
+          },
+          error: (error: unknown) => {
+            this.posting.set(false);
+            this.errorMessage.set(this.mapError(error, 'Unable to post purchase.'));
+          },
+        });
+    } catch (err: unknown) {
+      this.posting.set(false);
+      this.errorMessage.set(
+        err instanceof Error ? err.message : 'Unable to prepare payment information.',
+      );
+    }
   }
 
   private createLineGroup(
@@ -681,6 +868,7 @@ export class PurchaseEditPage {
     this.warehouses.set(masters.warehouses.filter((item) => item.status === 'active'));
     this.accounts.set(masters.accounts.filter((item) => item.status === 'active'));
     this.bindLineProductChanges(0);
+    this.formValid.set(this.isDraftValid());
   }
 
   private seedSelectorOptionsFromPurchase(purchase: PurchaseRecord): void {
@@ -698,7 +886,7 @@ export class PurchaseEditPage {
     ]);
     const seen = new Set<string>();
     const productOptions: ProductRecord[] = [];
-    for (const line of purchase.lines) {
+    for (const line of purchase.lines ?? []) {
       if (seen.has(line.productId)) {
         continue;
       }
@@ -739,7 +927,7 @@ export class PurchaseEditPage {
 
     this.lines.clear();
     const nextPackaging: Record<number, PackagingUnitRecord[]> = {};
-    purchase.lines.forEach((line, index) => {
+    (purchase.lines ?? []).forEach((line, index) => {
       this.lines.push(
         this.createLineGroup({
           productId: line.productId,
@@ -783,6 +971,7 @@ export class PurchaseEditPage {
     } else {
       this.form.enable({ emitEvent: false });
     }
+    this.formValid.set(this.isDraftValid());
   }
 
   private bindLineProductChanges(index: number): void {
@@ -841,59 +1030,63 @@ export class PurchaseEditPage {
 
   private buildPayload(): PurchaseDraftInput {
     const value = this.form.getRawValue();
-    const rawLines = value.lines as Array<{
-      productId: string;
-      packagingUnitId: string;
-      quantity: string;
-      unitCost: string;
-      batchNumber: string;
-      manufacturingDate: string;
-      expiryDate: string;
-    }>;
+    const rawLines = (value.lines ?? []) as Array<Record<string, unknown>>;
     const lines: PurchaseLineInput[] = rawLines.map((line) => {
+      const productId = toCleanString(line['productId']);
       const mode =
-        this.products().find((item) => item.id === line['productId'])?.trackingMode ?? 'none';
+        this.products().find((item) => item.id === productId)?.trackingMode ?? 'none';
+      const quantity = toCleanString(line['quantity']);
+      const unitCost = toCleanString(line['unitCost']);
+      const packagingUnitId = toCleanString(line['packagingUnitId']);
+      const batchNumber = toCleanString(line['batchNumber']);
+      const manufacturingDate = toCleanString(line['manufacturingDate']);
+      const expiryDate = toCleanString(line['expiryDate']);
+
       const payload: PurchaseLineInput = {
-        productId: line['productId'],
-        quantity: line['quantity'].trim(),
-        unitCost: { amount: line['unitCost'].trim(), currency: 'PKR' },
+        productId,
+        quantity,
+        unitCost: { amount: unitCost, currency: 'PKR' },
       };
-      if (this.canEditPurchaseField('packagingUnit') && line['packagingUnitId'].trim() !== '') {
-        payload.packagingUnitId = line['packagingUnitId'];
+      if (this.canEditPurchaseField('packagingUnit') && packagingUnitId !== '') {
+        payload.packagingUnitId = packagingUnitId;
       }
-      if (mode !== 'none' && line['batchNumber'].trim() !== '') {
-        payload.batchNumber = line['batchNumber'].trim();
+      if (mode !== 'none' && batchNumber !== '') {
+        payload.batchNumber = batchNumber;
       }
       if (
         this.canEditPurchaseField('manufacturingDate') &&
-        line['manufacturingDate'].trim() !== ''
+        manufacturingDate !== ''
       ) {
-        payload.manufacturingDate = line['manufacturingDate'].trim();
+        payload.manufacturingDate = manufacturingDate;
       }
-      if (mode === 'batch_expiry' && line['expiryDate'].trim() !== '') {
-        payload.expiryDate = line['expiryDate'].trim();
+      if (mode === 'batch_expiry' && expiryDate !== '') {
+        payload.expiryDate = expiryDate;
       }
       return payload;
     });
 
+    const warehouseId = toCleanString(value.warehouseId);
+    const supplierId = toCleanString(value.supplierId);
+    const purchaseDate = toCleanString(value.purchaseDate);
+
     const payload: PurchaseDraftInput = {
-      warehouseId: value.warehouseId,
-      supplierId: value.supplierId,
-      purchaseDate: value.purchaseDate,
+      warehouseId,
+      supplierId,
+      purchaseDate,
       lines,
     };
     if (this.canEditPurchaseField('supplierInvoiceReference')) {
-      payload.supplierInvoiceReference = value.supplierInvoiceReference.trim();
+      payload.supplierInvoiceReference = toCleanString(value.supplierInvoiceReference);
     }
     if (this.canEditPurchaseField('notes')) {
-      payload.notes = value.notes.trim();
+      payload.notes = toCleanString(value.notes);
     }
     if (this.canEditPurchaseField('landedCosts')) {
       payload.landedCosts = {
-        freight: { amount: value.freight.trim() || '0.00', currency: 'PKR' },
-        loading: { amount: value.loadingCost.trim() || '0.00', currency: 'PKR' },
-        transport: { amount: value.transport.trim() || '0.00', currency: 'PKR' },
-        other: { amount: value.other.trim() || '0.00', currency: 'PKR' },
+        freight: { amount: toMoneyString(value.freight, '0.00'), currency: 'PKR' },
+        loading: { amount: toMoneyString(value.loadingCost, '0.00'), currency: 'PKR' },
+        transport: { amount: toMoneyString(value.transport, '0.00'), currency: 'PKR' },
+        other: { amount: toMoneyString(value.other, '0.00'), currency: 'PKR' },
       };
     }
     return payload;
@@ -907,5 +1100,25 @@ export class PurchaseEditPage {
       return 'This purchase changed elsewhere. Reload and try again.';
     }
     return error.error?.error?.message ?? fallback;
+  }
+
+  formatAmount(val: string | null | undefined): string {
+    if (!val) return '0.00';
+    const num = Number(val);
+    if (!Number.isFinite(num)) return String(val);
+    return num.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  formatQuantity(quantity: string | number | undefined | null): string {
+    if (quantity === undefined || quantity === null || quantity === '') return '0';
+    const num = typeof quantity === 'number' ? quantity : parseFloat(quantity);
+    if (isNaN(num)) return String(quantity);
+    if (Number.isInteger(num)) {
+      return num.toLocaleString('en-PK');
+    }
+    return num.toLocaleString('en-PK', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 4,
+    });
   }
 }

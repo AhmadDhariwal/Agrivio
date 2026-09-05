@@ -128,6 +128,23 @@ describe('CustomerFormPage', () => {
     expect(saveButton.disabled).toBe(true);
   });
 
+  it('enables save when required fields are filled', async () => {
+    const fixture = await createPage();
+    const page = fixture.componentInstance;
+    const saveButton = fixture.nativeElement.querySelector(
+      '[data-testid="customer-save"]',
+    ) as HTMLButtonElement;
+
+    expect(saveButton.disabled).toBe(true);
+
+    page.form.controls.name.setValue('Ahmad');
+    fixture.detectChanges();
+
+    expect(page.formValid()).toBe(true);
+    expect(page.canSave()).toBe(true);
+    expect(saveButton.disabled).toBe(false);
+  });
+
   it('blocks invalid submit without calling createCustomer', async () => {
     const fixture = await createPage();
     const page = fixture.componentInstance;

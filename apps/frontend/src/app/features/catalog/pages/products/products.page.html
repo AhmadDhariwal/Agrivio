@@ -190,26 +190,19 @@
         </div>
 
         <!-- Category Filter -->
-        <div class="select-field">
-          <input
-            class="select-field__input select-field__search"
-            type="search"
-            placeholder="Search categories…"
-            aria-label="Search categories"
-            data-testid="products-category-search"
-            (input)="onCategorySearch($event)"
-          />
-          <select
-            class="select-field__input"
+        <div class="category-dropdown-field">
+          <agrivio-ui-searchable-dropdown
             [value]="categoryFilter()"
-            (change)="onCategoryChange($event)"
-            aria-label="Filter by category"
-          >
-            <option value="">All Categories</option>
-            @for (category of categories(); track category.id) {
-            <option [value]="category.id">{{ category.name }}</option>
-            }
-          </select>
+            [options]="categoryDropdownOptions()"
+            allOptionLabel="All Categories"
+            placeholder="All Categories"
+            searchPlaceholder="Search categories…"
+            testId="products-category"
+            ariaLabel="Filter by category"
+            [serverSearch]="true"
+            (valueChange)="onCategorySelect($event)"
+            (searchChange)="onCategorySearch($event)"
+          />
         </div>
 
         <!-- Tracking Mode Filter -->
@@ -421,26 +414,19 @@
     <div class="mobile-filter-sheet__body">
       <!-- Category Filter -->
       <div class="mobile-filter-group">
-        <label class="mobile-filter-group__label" for="mobile-filter-cat-search">Category</label>
-        <input
-          id="mobile-filter-cat-search"
-          class="mobile-filter-group__select"
-          type="search"
-          placeholder="Search categories…"
-          data-testid="products-category-search-mobile"
-          (input)="onCategorySearch($event)"
-        />
-        <select
-          id="mobile-filter-cat"
-          class="mobile-filter-group__select"
+        <label class="mobile-filter-group__label">Category</label>
+        <agrivio-ui-searchable-dropdown
           [value]="categoryFilter()"
-          (change)="onCategoryChange($event)"
-        >
-          <option value="">All Categories</option>
-          @for (category of categories(); track category.id) {
-          <option [value]="category.id">{{ category.name }}</option>
-          }
-        </select>
+          [options]="categoryDropdownOptions()"
+          allOptionLabel="All Categories"
+          placeholder="All Categories"
+          searchPlaceholder="Search categories…"
+          testId="products-category-mobile"
+          ariaLabel="Filter by category"
+          [serverSearch]="true"
+          (valueChange)="onCategorySelect($event)"
+          (searchChange)="onCategorySearch($event)"
+        />
       </div>
 
       <!-- Tracking Mode Filter -->
@@ -557,6 +543,7 @@
           class="prod-table__row"
           [class.prod-table__row--selected]="selectedProduct()?.id === item.id"
           [class.prod-table__row--inactive]="item.status === 'inactive'"
+          [class.prod-table__row--menu-open]="openMenuProductId() === item.id"
         >
           <!-- Product Name + Thumbnail (Level 1: Flexible & Truncated) -->
           <td class="prod-table__td prod-table__td--product">
@@ -720,7 +707,7 @@
               @if (canEdit()) {
               <a
                 class="row-action-btn"
-                [routerLink]="['/app/products', item.id]"
+                [routerLink]="['/app/products', item.id, 'edit']"
                 title="Edit product"
                 aria-label="Edit product"
               >
@@ -870,6 +857,7 @@
       class="product-card"
       [class.product-card--selected]="selectedProduct()?.id === item.id"
       [class.product-card--inactive]="item.status === 'inactive'"
+      [class.product-card--menu-open]="openMenuProductId() === item.id"
     >
       <!-- Card Header: Glyph + Name & Category + Status Dot -->
       <div class="product-card__header">
@@ -1016,7 +1004,7 @@
             Inspect
           </button>
           } @if (canEdit()) {
-          <a class="card-action-btn" [routerLink]="['/app/products', item.id]" title="Edit product">
+          <a class="card-action-btn" [routerLink]="['/app/products', item.id, 'edit']" title="Edit product">
             <svg
               width="13"
               height="13"
@@ -1290,7 +1278,7 @@
         <div class="drawer-sec__head">
           <h3 class="drawer-sec__title">Packaging Units</h3>
           @if (canEdit()) {
-          <a [routerLink]="['/app/products', sel.id]" class="sec-link">Edit Packaging</a>
+          <a [routerLink]="['/app/products', sel.id, 'edit']" class="sec-link">Edit Packaging</a>
           }
         </div>
         @if (selectedPackagingUnits().length === 0) {
@@ -1314,7 +1302,7 @@
     <!-- Drawer Footer Actions -->
     <div class="inspector-drawer__footer">
       @if (canEdit()) {
-      <a class="ag-btn ag-btn--primary" [routerLink]="['/app/products', sel.id]">
+      <a class="ag-btn ag-btn--primary" [routerLink]="['/app/products', sel.id, 'edit']">
         <svg
           width="14"
           height="14"
@@ -1327,7 +1315,11 @@
         </svg>
         Edit Product
       </a>
-      } @if (canManagePricing()) {
+      }
+      <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/products', sel.id]">
+        Product Details
+      </a>
+      @if (canManagePricing()) {
       <a class="ag-btn ag-btn--secondary" [routerLink]="['/app/products', sel.id, 'pricing']">
         Pricing
       </a>

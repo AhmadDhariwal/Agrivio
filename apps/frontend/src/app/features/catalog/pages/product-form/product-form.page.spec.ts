@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, provideRouter } from '@angular/router';
+import { ActivatedRoute, Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { ProductFormPage } from './product-form.page';
 import { CatalogApi } from '../../data-access/catalog.api';
@@ -212,5 +212,95 @@ describe('ProductFormPage', () => {
 
     expect(createProduct).not.toHaveBeenCalled();
     expect(fixture.nativeElement.textContent).toContain('Category is required.');
+  });
+
+  it('renders standard base unit options and updates baseUnitCode when selected', async () => {
+    const fixture = await createFixture();
+    const select = fixture.nativeElement.querySelector(
+      '[data-testid="product-base-unit"]',
+    ) as HTMLSelectElement;
+    expect(select).toBeTruthy();
+    expect(select.tagName).toBe('SELECT');
+
+    const options = Array.from(select.querySelectorAll('option')).map((o) => o.value);
+    expect(options).toContain('LITRE');
+    expect(options).toContain('KG');
+    expect(options).toContain('COUNT');
+    expect(options).toContain('BAG');
+
+    select.value = 'LITRE';
+    select.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.form.controls.baseUnitCode.value).toBe('LITRE');
+  });
+
+  it('routes newly created product to opening stock with productId query parameter', async () => {
+    const createProduct = vi.fn(() =>
+      of({
+        id: 'prod-new-123',
+        organizationId: 'org-1',
+        categoryId: 'cat-1',
+        name: 'Super Bio',
+        trackingMode: 'batch',
+        baseUnitCode: 'LITRE',
+        measurementDimension: 'volume',
+        status: 'active',
+        version: 1,
+      }),
+    );
+    await TestBed.configureTestingModule({
+      imports: [ProductFormPage],
+      providers: [
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: () => null } } },
+        },
+        {
+          provide: CatalogApi,
+          useValue: {
+            searchCategoryOptions,
+            getCategory,
+            createProduct,
+            replacePackagingUnits: () => of({}),
+          },
+        },
+        { provide: AuthSessionStore, useValue: { hasPermission: () => true } },
+        {
+          provide: CapabilityService,
+          useValue: {
+            canPerformAction: () => true,
+            canViewField: () => true,
+            canEditField: () => true,
+            canUseModule: () => true,
+          },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(ProductFormPage);
+    fixture.detectChanges();
+    await waitForFormReady(fixture);
+
+    const router = TestBed.inject(Router);
+    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    fixture.componentInstance.form.patchValue({
+      name: 'Super Bio',
+      categoryId: 'cat-1',
+      trackingMode: 'batch',
+      baseUnitCode: 'LITRE',
+      measurementDimension: 'volume',
+    });
+    fixture.detectChanges();
+
+    fixture.componentInstance.save();
+    fixture.detectChanges();
+
+    expect(createProduct).toHaveBeenCalled();
+    expect(navigateSpy).toHaveBeenCalledWith(['/app/inventory/opening-stock'], {
+      queryParams: { productId: 'prod-new-123' },
+    });
   });
 });

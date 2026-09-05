@@ -1,0 +1,211 @@
+<div class="detail-shell">
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Catalog</p>
+      <h1 data-testid="product-detail-title">Product Details</h1>
+      <p class="lede">Product identity, specifications, packaging variants, and pricing tiers.</p>
+    </div>
+    <div class="actions">
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/products">
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        Back to Products
+      </a>
+      @if (product(); as item) {
+        @if (canEdit()) {
+        <a
+          class="ag-btn ag-btn--primary"
+          [routerLink]="['/app/products', item.id, 'edit']"
+          data-testid="product-edit-link"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+          </svg>
+          Edit Product
+        </a>
+        }
+        @if (canManagePricing()) {
+        <a
+          class="ag-btn ag-btn--secondary"
+          [routerLink]="['/app/products', item.id, 'pricing']"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="12" y1="1" x2="12" y2="23" />
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+          </svg>
+          Pricing
+        </a>
+        }
+      }
+    </div>
+  </header>
+
+  @if (loading()) {
+  <agrivio-ui-loading-state label="Loading product details…" />
+  } @else if (!canView()) {
+  <agrivio-ui-alert tone="warning" message="You do not have permission to view this product." />
+  } @else if (errorMessage(); as error) {
+  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+  } @else if (product(); as item) {
+
+  <!-- Summary KPI Cards -->
+  <section class="summary" data-testid="product-detail">
+    <article>
+      <span>Product Name</span>
+      <strong>{{ item.name }}</strong>
+    </article>
+    <article>
+      <span>Status</span>
+      <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+    </article>
+    <article>
+      <span>Category</span>
+      <strong>{{ category()?.name || 'General' }}</strong>
+    </article>
+    <article>
+      <span>Base Unit</span>
+      <strong>{{ item.baseUnitCode || 'Standard' }}</strong>
+    </article>
+  </section>
+
+  <!-- Section 1: Basic Information -->
+  <section class="card">
+    <h2>Basic Information</h2>
+    <dl class="facts">
+      <div>
+        <dt>Product Name</dt>
+        <dd>{{ item.name }}</dd>
+      </div>
+      <div>
+        <dt>SKU / Product Code</dt>
+        <dd class="font-mono">{{ item.sku || '—' }}</dd>
+      </div>
+      <div>
+        <dt>Category</dt>
+        <dd>{{ category()?.name || 'General' }} @if (category()?.productClass; as cls) { ({{ formatLabel(cls) }}) }</dd>
+      </div>
+      <div>
+        <dt>Measurement Dimension</dt>
+        <dd class="capitalize">{{ formatLabel(item.measurementDimension) }}</dd>
+      </div>
+      <div>
+        <dt>Base Unit of Measure</dt>
+        <dd class="font-mono font-semibold">{{ item.baseUnitCode }}</dd>
+      </div>
+      <div>
+        <dt>Status</dt>
+        <dd><agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" /></dd>
+      </div>
+      <div>
+        <dt>Record Version</dt>
+        <dd class="font-mono">v{{ item.version }}</dd>
+      </div>
+    </dl>
+  </section>
+
+  <!-- Section 2: Tracking Policy -->
+  <section class="card">
+    <h2>Tracking Policy</h2>
+    <dl class="facts">
+      <div>
+        <dt>Tracking Mode</dt>
+        <dd class="font-semibold">{{ formatTrackingMode(item.trackingMode) }}</dd>
+      </div>
+      <div>
+        <dt>Batch / Lot Tracking</dt>
+        <dd>{{ item.trackingMode === 'batch' || item.trackingMode === 'batch_expiry' ? 'Enabled' : 'Disabled' }}</dd>
+      </div>
+      <div>
+        <dt>Expiry Date Tracking</dt>
+        <dd>{{ item.trackingMode === 'batch_expiry' ? 'Enabled' : 'Disabled' }}</dd>
+      </div>
+    </dl>
+  </section>
+
+  <!-- Section 3: Packaging Variants -->
+  <section class="card">
+    <h2>Packaging Variants</h2>
+    @if (packagingUnits().length === 0) {
+    <p class="empty-hint">No alternative packaging variants configured for this product. Items are counted in base units ({{ item.baseUnitCode }}).</p>
+    } @else {
+    <div class="table-wrap">
+      <table class="detail-table">
+        <thead>
+          <tr>
+            <th>Variant Name</th>
+            <th>Conversion Factor</th>
+            <th>Equivalence</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (pkg of packagingUnits(); track pkg.id) {
+          <tr>
+            <td class="font-semibold">{{ pkg.name }}</td>
+            <td class="font-mono">{{ pkg.conversionFactor }}</td>
+            <td class="font-mono">1 {{ pkg.name }} = {{ pkg.conversionFactor }} {{ item.baseUnitCode }}</td>
+            <td><agrivio-ui-status-badge [label]="pkg.status" [tone]="statusTone(pkg.status)" /></td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    }
+  </section>
+
+  <!-- Section 4: Price Tiers -->
+  <section class="card">
+    <h2>Price Tiers</h2>
+    @if (prices().length === 0) {
+    <p class="empty-hint">No specific price tiers defined yet. Selling prices follow default sales catalog rules.</p>
+    } @else {
+    <div class="table-wrap">
+      <table class="detail-table">
+        <thead>
+          <tr>
+            <th>Tier</th>
+            <th>Unit Price</th>
+            <th>Currency</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (pr of prices(); track pr.id) {
+          <tr>
+            <td class="font-semibold capitalize">{{ formatLabel(pr.priceTier) }}</td>
+            <td class="font-mono font-semibold">{{ formatMoney(pr.price.amount, pr.price.currency) }}</td>
+            <td class="font-mono">{{ pr.price.currency || 'PKR' }}</td>
+            <td><agrivio-ui-status-badge [label]="pr.status" [tone]="statusTone(pr.status)" /></td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    }
+  </section>
+  }
+</div>

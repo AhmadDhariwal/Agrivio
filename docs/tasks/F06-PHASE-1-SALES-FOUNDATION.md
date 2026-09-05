@@ -41,6 +41,12 @@ Frozen `DATA_MODEL.md` §8.10 assigns draft and posted lifecycle to the canonica
 * Logout, login, organization/context changes, and permission-scope changes clear the in-memory tenant cache. A stale request completing after logout cannot repopulate it; a fresh login rebuilds Customer data.
 * Shared in-flight requests retain their deduplication marker until the shared source ends, including when one subscriber unsubscribes early.
 
+### Post-completion payment date-filter hardening (2026-09-06)
+
+* Customer Payments single-date and inclusive range payloads are normalized end to end.
+* Reversed ranges are blocked in the UI and rejected by the API; invalid calendar dates and mixed exact/range requests return validation errors.
+* Legacy date-only search requests remain compatible without also applying the notes/ID text predicate.
+
 ## Model review (A/B)
 
 | Model | Class | Result |

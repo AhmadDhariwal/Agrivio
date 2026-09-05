@@ -15,6 +15,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { SupplierPaymentsApi } from '../../data-access/supplier-payments.api';
 import {
   InvoiceAllocationInput,
+  MoneyAmount,
   SupplierLedgerEffectRecord,
   SupplierPaymentRecord,
   UnpaidPurchaseRecord,
@@ -24,7 +25,6 @@ import { SuppliersApi } from '../../../suppliers/data-access/suppliers.api';
 import { SupplierRecord } from '../../../suppliers/models/suppliers.models';
 import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
 import { AccountRecord } from '../../../accounts-expenses/models/accounts.models';
-import { UiPageHeaderComponent } from '../../../../shared/ui/ui-page-header/ui-page-header.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
@@ -37,7 +37,6 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    UiPageHeaderComponent,
     UiAlertComponent,
     UiLoadingStateComponent,
     UiFieldLabelComponent,
@@ -66,6 +65,7 @@ export class SupplierPaymentFormPage {
   readonly ledgerItems = signal<SupplierLedgerEffectRecord[]>([]);
   readonly unpaidPurchases = signal<UnpaidPurchaseRecord[]>([]);
   readonly lastPayment = signal<SupplierPaymentRecord | null>(null);
+
   readonly canUseSupplierPayments = computed(
     () => this.capabilityService?.canUseModule('payments.supplier') ?? true,
   );
@@ -91,18 +91,6 @@ export class SupplierPaymentFormPage {
 
   readonly fieldRequired = hasRequiredValidator;
   readonly fieldError = fieldValidationMessage;
-  readonly canSave = computed(() => {
-    if (!this.canPost() || this.saving()) {
-      return false;
-    }
-    if (this.form.invalid) {
-      return false;
-    }
-    if (this.isInvoiceSpecific() && this.invoiceAllocationForm.invalid) {
-      return false;
-    }
-    return true;
-  });
 
   readonly form = this.formBuilder.nonNullable.group({
     supplierId: ['', Validators.required],
@@ -115,17 +103,99 @@ export class SupplierPaymentFormPage {
 
   readonly invoiceAllocationForm = this.formBuilder.nonNullable.group({
     purchaseId: ['', Validators.required],
-    allocationAmount: ['', Validators.required],
+    allocationAmount: [''],
   });
 
-  private readonly allocationModeChange = toSignal(
-    this.form.controls.allocationMode.valueChanges,
-    { initialValue: this.form.controls.allocationMode.value },
-  );
+  // Track reactive form signals for robust computed reactivity
+  readonly formValues = toSignal(this.form.valueChanges, {
+    initialValue: this.form.getRawValue(),
+  });
+  readonly formStatus = toSignal(this.form.statusChanges, {
+    initialValue: this.form.status,
+  });
+  readonly invoiceAllocValues = toSignal(this.invoiceAllocationForm.valueChanges, {
+    initialValue: this.invoiceAllocationForm.getRawValue(),
+  });
+  readonly invoiceAllocStatus = toSignal(this.invoiceAllocationForm.statusChanges, {
+    initialValue: this.invoiceAllocationForm.status,
+  });
 
   readonly isInvoiceSpecific = computed(
-    () => this.canPostInvoiceSpecific() && this.allocationModeChange() === 'invoice_specific',
+    () => this.canPostInvoiceSpecific() && this.formValues()?.allocationMode === 'invoice_specific',
   );
+
+  readonly canSave = computed(() => {
+    const status = this.formStatus();
+    const allocStatus = this.invoiceAllocStatus();
+    const saving = this.saving();
+    const canPost = this.canPost();
+    const isInvoice = this.isInvoiceSpecific();
+
+    if (!canPost || saving) {
+      return false;
+    }
+    if (status !== 'VALID') {
+      return false;
+    }
+    if (isInvoice && allocStatus !== 'VALID') {
+      return false;
+    }
+    return true;
+  });
+
+  // Reactive Payment Summary signals
+  readonly selectedSupplier = computed(() => {
+    const supplierId = this.formValues()?.supplierId;
+    if (!supplierId) {
+      return 'Not selected';
+    }
+    return this.suppliers().find((s) => s.id === supplierId)?.name ?? 'Not selected';
+  });
+
+  readonly selectedAccount = computed(() => {
+    const accountId = this.formValues()?.accountId;
+    if (!accountId) {
+      return 'Not selected';
+    }
+    const acc = this.accounts().find((a) => a.id === accountId);
+    return acc ? `${acc.name} (${acc.accountType})` : 'Not selected';
+  });
+
+  readonly selectedAllocationMode = computed(() => {
+    const mode = this.formValues()?.allocationMode;
+    return mode === 'invoice_specific' ? 'Invoice-specific' : 'General (oldest-first)';
+  });
+
+  readonly selectedPurchase = computed(() => {
+    if (!this.isInvoiceSpecific()) {
+      return '—';
+    }
+    const purchaseId = this.invoiceAllocValues()?.purchaseId;
+    if (!purchaseId) {
+      return '—';
+    }
+    const p = this.unpaidPurchases().find((item) => item.id === purchaseId);
+    return p ? `${p.sequence || p.id} (${p.outstanding.amount} PKR)` : '—';
+  });
+
+  readonly summaryAmount = computed(() => {
+    const amount = this.formValues()?.amount?.trim();
+    return amount ? `Rs ${amount}` : 'Rs 0.00';
+  });
+
+  readonly summaryPaymentDate = computed(() => {
+    const date = this.formValues()?.paymentDate;
+    return date || '—';
+  });
+
+  readonly summaryNotes = computed(() => {
+    const notes = this.formValues()?.notes?.trim();
+    return notes || '—';
+  });
+
+  readonly notesCharCount = computed(() => {
+    return this.formValues()?.notes?.length ?? 0;
+  });
 
   canViewField(id: string): boolean {
     return this.capabilityService?.canViewField(`payments.supplier.fields.${id}`) ?? true;
@@ -141,6 +211,10 @@ export class SupplierPaymentFormPage {
       return;
     }
 
+    this.suppliersApi.searchSupplierOptions('').subscribe((items) => {
+      this.suppliers.set(items.filter((item) => item.status === 'active'));
+    });
+
     this.supplierSearchChanges
       .pipe(
         debounceTime(300),
@@ -149,8 +223,6 @@ export class SupplierPaymentFormPage {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((items) => this.suppliers.set(items.filter((item) => item.status === 'active')));
-
-    this.supplierSearchChanges.next('');
 
     this.accountsApi.listAccountOptions().subscribe({
       next: (accounts) => {
@@ -216,6 +288,26 @@ export class SupplierPaymentFormPage {
     }
   }
 
+  setAllocationMode(mode: 'general' | 'invoice_specific'): void {
+    if (mode === 'invoice_specific' && !this.canPostInvoiceSpecific()) {
+      return;
+    }
+    this.form.controls.allocationMode.setValue(mode);
+  }
+
+  formatCurrency(val?: MoneyAmount | string | number | null): string {
+    if (val === undefined || val === null) return 'PKR 0.00';
+    if (typeof val === 'object') {
+      if (!val.amount) return `${val.currency || 'PKR'} 0.00`;
+      const num = Number(val.amount);
+      if (isNaN(num)) return `${val.currency || 'PKR'} ${val.amount}`;
+      return `${val.currency || 'PKR'} ${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    const num = Number(val);
+    if (isNaN(num)) return `PKR ${val}`;
+    return `PKR ${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
   private loadUnpaidPurchases(supplierId: string): void {
     this.loadingUnpaid.set(true);
     this.api.listUnpaidPurchases(supplierId).subscribe({
@@ -237,14 +329,17 @@ export class SupplierPaymentFormPage {
       this.invoiceAllocationForm.markAllAsTouched();
     }
     if (!this.canPost() || this.form.invalid) {
+      this.saving.set(false);
       return;
     }
     const value = this.form.getRawValue();
     if (value.allocationMode === 'invoice_specific' && !this.canPostInvoiceSpecific()) {
       this.errorMessage.set('Invoice-specific supplier payments are not enabled.');
+      this.saving.set(false);
       return;
     }
     if (value.allocationMode === 'invoice_specific' && this.invoiceAllocationForm.invalid) {
+      this.saving.set(false);
       return;
     }
     this.saving.set(true);
@@ -254,10 +349,11 @@ export class SupplierPaymentFormPage {
     let allocations: InvoiceAllocationInput[] | undefined;
     if (value.allocationMode === 'invoice_specific') {
       const inv = this.invoiceAllocationForm.getRawValue();
+      const allocAmount = inv.allocationAmount.trim() || value.amount.trim();
       allocations = [
         {
           purchaseId: inv.purchaseId,
-          amount: { amount: inv.allocationAmount.trim(), currency: 'PKR' },
+          amount: { amount: allocAmount, currency: 'PKR' },
         },
       ];
     }
@@ -304,7 +400,7 @@ export class SupplierPaymentFormPage {
       });
   }
 
-  allocationGroupAt(_index: number): FormGroup {
+  allocationGroupAt(): FormGroup {
     return this.invoiceAllocationForm as unknown as FormGroup;
   }
 

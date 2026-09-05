@@ -878,6 +878,18 @@
     line-height: 1.2;
     display: block;
     width: 100%;
+
+    &--link {
+      color: #0f172a;
+      text-decoration: none;
+      cursor: pointer;
+      transition: color 0.15s ease;
+
+      &:hover {
+        color: var(--ag-color-primary, #065f46);
+        text-decoration: underline;
+      }
+    }
   }
 
   &__sub {
@@ -1120,6 +1132,18 @@
     overflow: hidden;
     word-break: break-word;
     margin: 0;
+
+    &--link {
+      color: #0f172a;
+      text-decoration: none;
+      cursor: pointer;
+      transition: color 0.15s ease;
+
+      &:hover {
+        color: var(--ag-color-primary, #065f46);
+        text-decoration: underline;
+      }
+    }
   }
 
   &__meta-strip {

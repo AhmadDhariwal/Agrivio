@@ -400,6 +400,7 @@
           class="supp-table__row"
           [class.supp-table__row--selected]="selectedSupplier()?.id === item.id"
           [class.supp-table__row--inactive]="item.status === 'inactive'"
+          [class.supp-table__row--menu-open]="openMenuSupplierId() === item.id"
           data-testid="supplier-row"
         >
           <!-- Supplier Identity + Avatar Glyph (Level 1: Flexible & Truncated) -->

@@ -314,6 +314,9 @@
                         <option [value]="batch.id">{{ batch.batchNumber }}</option>
                       }
                     </select>
+                    @if (batchesForLine(index).length === 0) {
+                      <p class="field-hint">No batches found for this product. If batch-tracked, ensure a batch has been created under Inventory.</p>
+                    }
                     @if (lineFieldError(index, 'batchId', 'Batch reference'); as batchError) {
                       <p class="field-error" role="alert">{{ batchError }}</p>
                     }
@@ -472,6 +475,43 @@
           </div>
         </div>
       </section>
+
+      <!-- Completion Guidance Notice when button is disabled -->
+      @if (!canSubmit() && !submitting() && (formSubmitAttempted() || form.dirty)) {
+        <div class="form-requirements-notice" data-testid="form-requirements-notice">
+          <div class="form-requirements-notice__header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span>Please complete the following required fields to approve and post:</span>
+          </div>
+          <ul class="form-requirements-notice__list">
+            @if (!form.controls.warehouseId.value) {
+              <li><strong>Warehouse:</strong> Select a receiving warehouse / facility.</li>
+            }
+            @if (!hasCustomerIdentifier()) {
+              <li><strong>Customer:</strong> Select a customer from lookup OR enter walk-in identifying name/phone.</li>
+            }
+            @if (needsCustomerForLedger()) {
+              <li><strong>Financial Resolution:</strong> Customer ledger adjustment requires a registered customer. Select a registered customer, or change resolution to "Cash / bank / digital refund".</li>
+            }
+            @if (missingLineFields()) {
+              <li><strong>Products & Batches:</strong> Ensure every item has a product, positive quantity, and batch reference (if batch-tracked).</li>
+            }
+            @if (!form.controls.approvedReturnValue.value || form.controls.approvedReturnValue.invalid) {
+              <li><strong>Approved Value:</strong> Enter a valid approved refund/credit value in PKR (e.g. 5000.00).</li>
+            }
+            @if (needsAccountForRefund()) {
+              <li><strong>Refund Account:</strong> Select a refund payment account for cash/bank refund.</li>
+            }
+            @if (!form.controls.reason.value) {
+              <li><strong>Reason:</strong> Enter a return reason & approval note.</li>
+            }
+          </ul>
+        </div>
+      }
 
       <!-- Form Actions -->
       <div class="form-actions">

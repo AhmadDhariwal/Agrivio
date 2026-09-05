@@ -112,13 +112,15 @@ const mockPostedRecord: PurchaseRecord = {
 describe('PurchaseEditPage', () => {
   let mockGetPurchase: () => Observable<PurchaseRecord | null>;
   let createPurchase: ReturnType<typeof vi.fn>;
+  let postPurchase: ReturnType<typeof vi.fn>;
   let disabledCapabilities: Set<string>;
   let searchProductOptionsCalls = 0;
   let searchSupplierOptionsCalls = 0;
 
   beforeEach(async () => {
     mockGetPurchase = () => of(null);
-    createPurchase = vi.fn(() => of({ id: 'pur-new', version: 1 } as PurchaseRecord));
+    createPurchase = vi.fn(() => of({ id: 'pur-new', version: 1, lines: [], payments: [] } as unknown as PurchaseRecord));
+    postPurchase = vi.fn(() => of({ id: 'pur-new', status: 'posted', version: 2, lines: [], payments: [] } as unknown as PurchaseRecord));
     disabledCapabilities = new Set();
     searchProductOptionsCalls = 0;
     searchSupplierOptionsCalls = 0;
@@ -126,7 +128,7 @@ describe('PurchaseEditPage', () => {
     await TestBed.configureTestingModule({
       imports: [PurchaseEditPage],
       providers: [
-        provideRouter([]),
+        provideRouter([{ path: '**', component: class {} }]),
         {
           provide: PurchasesApi,
           useValue: {
@@ -134,7 +136,7 @@ describe('PurchaseEditPage', () => {
             createPurchase,
             updatePurchase: () => of({} as PurchaseRecord),
             discardPurchase: () => of({} as PurchaseRecord),
-            postPurchase: () => of({} as PurchaseRecord),
+            postPurchase,
             cancelPurchase: () => of({} as PurchaseRecord),
           },
         },
@@ -356,5 +358,166 @@ describe('PurchaseEditPage', () => {
     expect(component.fieldError(component.form.controls.warehouseId, 'Warehouse', true)).toContain(
       'required',
     );
+  });
+
+  it('enables save and direct-post buttons reactively when all required fields are filled', () => {
+    const fixture: ComponentFixture<PurchaseEditPage> = TestBed.createComponent(PurchaseEditPage);
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    const saveButton = fixture.nativeElement.querySelector(
+      '[data-testid="purchase-save"]',
+    ) as HTMLButtonElement;
+    const postButton = fixture.nativeElement.querySelector(
+      '[data-testid="purchase-post"]',
+    ) as HTMLButtonElement;
+
+    expect(saveButton.disabled).toBe(true);
+    expect(postButton.disabled).toBe(true);
+
+    // Populate required fields
+    component.form.patchValue({
+      warehouseId: 'wh-1',
+      supplierId: 'sup-1',
+      purchaseDate: '2026-03-01',
+    });
+    const line = component.lineGroup(0);
+    line.patchValue({
+      productId: 'prod-1',
+      quantity: '25',
+      unitCost: '150.00',
+    });
+    fixture.detectChanges();
+
+    expect(component.form.valid).toBe(true);
+    expect(component.formValid()).toBe(true);
+    expect(component.canSaveDraft()).toBe(true);
+    expect(component.canDirectPost()).toBe(true);
+    expect(saveButton.disabled).toBe(false);
+    expect(postButton.disabled).toBe(false);
+  });
+
+  it('saveAndPost() creates draft and immediately posts purchase in one click', () => {
+    const fixture: ComponentFixture<PurchaseEditPage> = TestBed.createComponent(PurchaseEditPage);
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    component.form.patchValue({
+      warehouseId: 'wh-1',
+      supplierId: 'sup-1',
+      purchaseDate: '2026-03-01',
+    });
+    const line = component.lineGroup(0);
+    line.patchValue({
+      productId: 'prod-1',
+      quantity: '10',
+      unitCost: '500.00',
+    });
+    fixture.detectChanges();
+
+    component.saveAndPost();
+
+    expect(createPurchase).toHaveBeenCalledTimes(1);
+    expect(postPurchase).toHaveBeenCalledWith(
+      'pur-new',
+      expect.objectContaining({ expectedVersion: 1, payments: [] }),
+      expect.any(String),
+    );
+    expect(component.posting()).toBe(false);
+    expect(component.successMessage()).toContain('Purchase posted successfully');
+  });
+
+  it('saveAndPost() safely handles upfront payment lines with numeric amounts and landed costs', () => {
+    const fixture: ComponentFixture<PurchaseEditPage> = TestBed.createComponent(PurchaseEditPage);
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    component.form.patchValue({
+      warehouseId: 'wh-1',
+      supplierId: 'sup-1',
+      purchaseDate: '2026-03-01',
+      freight: '50.00',
+    });
+    const line = component.lineGroup(0);
+    line.patchValue({
+      productId: 'prod-1',
+      quantity: 5 as unknown as string,
+      unitCost: 600 as unknown as string,
+    });
+
+    component.addPayment();
+    const payment = component.paymentGroup(0);
+    payment.patchValue({
+      accountId: 'acc-1',
+      amount: 3000 as unknown as string,
+    });
+    fixture.detectChanges();
+
+    component.saveAndPost();
+
+    expect(createPurchase).toHaveBeenCalledTimes(1);
+    expect(createPurchase).toHaveBeenCalledWith(
+      expect.objectContaining({
+        warehouseId: 'wh-1',
+        supplierId: 'sup-1',
+        lines: [
+          expect.objectContaining({
+            productId: 'prod-1',
+            quantity: '5',
+            unitCost: { amount: '600', currency: 'PKR' },
+          }),
+        ],
+        landedCosts: expect.objectContaining({
+          freight: { amount: '50.00', currency: 'PKR' },
+        }),
+      }),
+    );
+    expect(postPurchase).toHaveBeenCalledWith(
+      'pur-new',
+      expect.objectContaining({
+        expectedVersion: 1,
+        payments: [
+          {
+            accountId: 'acc-1',
+            amount: { amount: '3000', currency: 'PKR' },
+          },
+        ],
+      }),
+      expect.any(String),
+    );
+    expect(component.posting()).toBe(false);
+    expect(component.successMessage()).toContain('Purchase posted successfully');
+  });
+
+  it('saveAndPost() halts and shows error if a payment line has amount <= 0', () => {
+    const fixture: ComponentFixture<PurchaseEditPage> = TestBed.createComponent(PurchaseEditPage);
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    component.form.patchValue({
+      warehouseId: 'wh-1',
+      supplierId: 'sup-1',
+      purchaseDate: '2026-03-01',
+    });
+    const line = component.lineGroup(0);
+    line.patchValue({
+      productId: 'prod-1',
+      quantity: '5',
+      unitCost: '100',
+    });
+
+    component.addPayment();
+    const payment = component.paymentGroup(0);
+    payment.patchValue({
+      accountId: 'acc-1',
+      amount: '0',
+    });
+    fixture.detectChanges();
+
+    component.saveAndPost();
+
+    expect(createPurchase).not.toHaveBeenCalled();
+    expect(component.posting()).toBe(false);
+    expect(component.errorMessage()).toContain('Payment lines must specify an account and an amount greater than 0');
   });
 });

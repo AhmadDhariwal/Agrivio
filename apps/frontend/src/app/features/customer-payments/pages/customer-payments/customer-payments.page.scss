@@ -254,9 +254,79 @@
   }
 }
 
+.date-filter-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.date-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 2px;
+  height: 34px;
+  box-sizing: border-box;
+
+  &--mobile {
+    height: 32px;
+  }
+}
+
+.date-mode-btn {
+  border: none;
+  background: transparent;
+  padding: 0 10px;
+  height: 100%;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--ag-font-sans);
+  white-space: nowrap;
+
+  &:hover {
+    color: #0f172a;
+  }
+
+  &--active {
+    background: #ffffff;
+    color: #065f46;
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  }
+
+  &--sm {
+    padding: 0 8px;
+    font-size: 11.5px;
+  }
+}
+
+.date-range-fields {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.date-range-separator {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+  text-transform: lowercase;
+}
+
 .date-field {
   position: relative;
   width: 170px;
+
+  &--range {
+    width: 145px;
+  }
 
   &__icon {
     position: absolute;
@@ -294,6 +364,53 @@
   }
 }
 
+.mobile-range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+
+  .date-field__input--mobile {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.apply-filters-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  background: #065f46;
+  border: 1px solid #065f46;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  font-family: var(--ag-font-sans);
+
+  &:hover:not(:disabled) {
+    background: #047857;
+    border-color: #047857;
+    box-shadow: 0 1px 2px rgba(6, 95, 70, 0.2);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  &--mobile {
+    height: 32px;
+    padding: 0 12px;
+    font-size: 12px;
+  }
+}
+
 .clear-filters-btn {
   background: none;
   border: none;
@@ -322,6 +439,12 @@
     color: #dc2626;
     text-decoration: underline;
   }
+}
+
+.toolbar__mobile-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .refresh-btn {

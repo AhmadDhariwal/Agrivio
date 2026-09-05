@@ -1,7 +1,9 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
+import { merge } from 'rxjs';
 import { SuppliersApi } from '../../data-access/suppliers.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
@@ -43,6 +45,7 @@ export class SupplierFormPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly supplierId = signal<string | null>(null);
   readonly loading = signal(false);
@@ -72,7 +75,9 @@ export class SupplierFormPage {
     return hasPerm && this.canUseSuppliers() && actionOk;
   });
 
-  readonly canSave = computed(() => this.canManage() && this.form.valid && !this.saving());
+  readonly formValid = signal(false);
+
+  readonly canSave = computed(() => this.canManage() && this.formValid() && !this.saving());
 
   readonly showContactName = computed(
     () => this.capabilityService?.canViewField('suppliers.fields.contactName') ?? true,
@@ -104,6 +109,12 @@ export class SupplierFormPage {
 
   constructor() {
     this.checkFieldPermissions();
+    merge(this.form.statusChanges, this.form.valueChanges)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.formValid.set(this.form.valid);
+      });
+    this.formValid.set(this.form.valid);
     const id = this.route.snapshot.paramMap.get('id');
     if (id && id !== 'new') {
       this.supplierId.set(id);
@@ -242,6 +253,7 @@ export class SupplierFormPage {
       status: supplier.status,
     });
     this.openingPosted.set(Boolean(supplier.openingBalance));
+    this.formValid.set(this.form.valid);
     this.checkFieldPermissions();
     if (supplier.openingBalance) {
       this.openingForm.patchValue({

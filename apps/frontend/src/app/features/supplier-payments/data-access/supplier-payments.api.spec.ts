@@ -51,6 +51,25 @@ describe('SupplierPaymentsApi', () => {
     expect(httpGet).toHaveBeenCalledTimes(1);
   });
 
+  it('sends exact-date and range filters as distinct query payloads', () => {
+    httpGet.mockReturnValue(of({ data: [], meta: { page: 1, pageSize: 25, total: 0 } }));
+
+    api.listSupplierPayments({ paymentDate: '2026-09-05' }).subscribe();
+    api.listSupplierPayments({ fromDate: '2026-09-01', toDate: '2026-09-30' }).subscribe();
+
+    expect(httpGet.mock.calls[0]?.[1]?.params).toEqual({
+      page: 1,
+      pageSize: 25,
+      paymentDate: '2026-09-05',
+    });
+    expect(httpGet.mock.calls[1]?.[1]?.params).toEqual({
+      page: 1,
+      pageSize: 25,
+      fromDate: '2026-09-01',
+      toDate: '2026-09-30',
+    });
+  });
+
   it('dedupes identical supplier ledger requests', () => {
     httpGet.mockReturnValue(of({ data: { items: [{ id: 'ledger-1' }] } }));
 

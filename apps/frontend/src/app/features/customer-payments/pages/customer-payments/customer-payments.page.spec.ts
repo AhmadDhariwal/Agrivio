@@ -120,4 +120,110 @@ describe('CustomerPaymentsPage', () => {
     expect(fixture.nativeElement.querySelector('[data-testid="customer-payments-search-input"]')).toBeFalsy();
     expect(fixture.nativeElement.querySelector('[data-testid="customer-payments-date-input"]')).toBeFalsy();
   });
+
+  it('renders apply button and date mode toggle buttons', () => {
+    const fixture: ComponentFixture<CustomerPaymentsPage> =
+      TestBed.createComponent(CustomerPaymentsPage);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="customer-payments-apply-btn"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="customer-payments-mode-single"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="customer-payments-mode-range"]')).toBeTruthy();
+  });
+
+  it('does not reload with filters until apply button is clicked', () => {
+    const fixture: ComponentFixture<CustomerPaymentsPage> =
+      TestBed.createComponent(CustomerPaymentsPage);
+    fixture.detectChanges();
+
+    listCustomerPaymentsSpy.mockClear();
+
+    const searchInput: HTMLInputElement = fixture.nativeElement.querySelector(
+      '[data-testid="customer-payments-search-input"]',
+    );
+    searchInput.value = 'note-1';
+    searchInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    const dateInput: HTMLInputElement = fixture.nativeElement.querySelector(
+      '[data-testid="customer-payments-date-input"]',
+    );
+    dateInput.value = '2026-09-05';
+    dateInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    expect(listCustomerPaymentsSpy).not.toHaveBeenCalled();
+
+    const applyBtn: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="customer-payments-apply-btn"]',
+    );
+    applyBtn.click();
+    fixture.detectChanges();
+
+    expect(listCustomerPaymentsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        search: 'note-1',
+        paymentDate: '2026-09-05',
+        page: 1,
+      }),
+    );
+  });
+
+  it('switches to range mode and applies fromDate and toDate', () => {
+    const fixture: ComponentFixture<CustomerPaymentsPage> =
+      TestBed.createComponent(CustomerPaymentsPage);
+    fixture.detectChanges();
+
+    listCustomerPaymentsSpy.mockClear();
+
+    const rangeModeBtn: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="customer-payments-mode-range"]',
+    );
+    rangeModeBtn.click();
+    fixture.detectChanges();
+
+    const fromInput: HTMLInputElement = fixture.nativeElement.querySelector(
+      '[data-testid="customer-payments-from-date-input"]',
+    );
+    const toInput: HTMLInputElement = fixture.nativeElement.querySelector(
+      '[data-testid="customer-payments-to-date-input"]',
+    );
+    expect(fromInput).toBeTruthy();
+    expect(toInput).toBeTruthy();
+
+    fromInput.value = '2026-08-01';
+    fromInput.dispatchEvent(new Event('input'));
+    toInput.value = '2026-08-31';
+    toInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    const applyBtn: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="customer-payments-apply-btn"]',
+    );
+    applyBtn.click();
+    fixture.detectChanges();
+
+    expect(listCustomerPaymentsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fromDate: '2026-08-01',
+        toDate: '2026-08-31',
+        page: 1,
+      }),
+    );
+  });
+
+  it('does not apply a reversed date range', () => {
+    const fixture = TestBed.createComponent(CustomerPaymentsPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    listCustomerPaymentsSpy.mockClear();
+
+    component.setDateMode('range');
+    component.onFromDateInput('2026-09-10');
+    component.onToDateInput('2026-09-01');
+    component.applyFilters();
+
+    expect(listCustomerPaymentsSpy).not.toHaveBeenCalled();
+    expect(component.filterError()).toContain('From date');
+  });
 });

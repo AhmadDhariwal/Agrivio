@@ -431,6 +431,7 @@ function createApp(options) {
       catalogService: catalog.catalogService,
       customersService: customers.customersService,
       locationsService: locations.locationsService,
+      employeesService: employees.employeesService,
       canAccessWarehouse,
       ...(options.now === undefined ? {} : { now: options.now }),
     });

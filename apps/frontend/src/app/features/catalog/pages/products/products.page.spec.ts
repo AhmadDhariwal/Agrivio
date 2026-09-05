@@ -161,6 +161,18 @@ describe('ProductsPage', () => {
     expect(searchCategoryOptions).toHaveBeenCalledTimes(1);
   });
 
+  it('updates categoryFilter on category select and accepts string search', async () => {
+    component.onCategorySelect('cat-123');
+    expect(component.categoryFilter()).toBe('cat-123');
+
+    searchCategoryOptions.mockClear();
+    component.onCategorySearch('grain');
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    expect(searchCategoryOptions).toHaveBeenCalledWith('grain', 'all');
+    expect(searchCategoryOptions).toHaveBeenCalledTimes(1);
+  });
+
   it('renders the module info section', () => {
     const moduleInfo = fixture.nativeElement.querySelector('agrivio-ui-module-info');
     expect(moduleInfo).not.toBeNull();

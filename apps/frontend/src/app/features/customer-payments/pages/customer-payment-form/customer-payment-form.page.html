@@ -18,6 +18,16 @@
     </div>
   </header>
 
+  <!-- Module Information Section -->
+  @if (showModuleInfo()) {
+    <agrivio-ui-module-info
+      [title]="infoTitle"
+      [description]="infoDescription"
+      [items]="infoItems"
+      [defaultExpanded]="false"
+    />
+  }
+
   @if (loading()) {
     <div class="state-container">
       <agrivio-ui-loading-state label="Loading payment form…" />

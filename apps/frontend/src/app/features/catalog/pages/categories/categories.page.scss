@@ -699,8 +699,21 @@
     }
 
     &--inactive {
-      opacity: 0.7;
       background: #fafaf9;
+
+      .cat-table__td:not(.cat-table__td--actions) {
+        opacity: 0.65;
+      }
+    }
+
+    &--menu-open {
+      position: relative;
+      z-index: 50;
+
+      .cat-table__td--actions {
+        position: relative;
+        z-index: 60;
+      }
     }
   }
 
@@ -903,6 +916,7 @@
 .menu-container {
   position: relative;
   display: inline-block;
+  z-index: 60;
 }
 
 .menu-dropdown {
@@ -910,16 +924,17 @@
   right: 0;
   top: 100%;
   margin-top: 4px;
-  z-index: 60;
+  z-index: 100;
   min-width: 160px;
-  background: #ffffff;
+  background: #ffffff !important;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.15), 0 8px 10px -6px rgba(15, 23, 42, 0.1);
   padding: 4px;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  opacity: 1 !important;
 
   &--up {
     top: auto;
@@ -937,25 +952,42 @@
     background: none;
     border: none;
     border-radius: 4px;
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 500;
-    color: #334155;
+    color: #1e293b;
     text-align: left;
     text-decoration: none;
     cursor: pointer;
     transition: background 0.12s ease;
 
+    svg {
+      flex-shrink: 0;
+      color: #64748b;
+    }
+
     &:hover {
       background: #f1f5f9;
       color: #0f172a;
+
+      svg {
+        color: #0f172a;
+      }
     }
 
     &--danger {
       color: #dc2626;
 
+      svg {
+        color: #dc2626;
+      }
+
       &:hover {
         background: #fef2f2;
         color: #b91c1c;
+
+        svg {
+          color: #b91c1c;
+        }
       }
     }
   }
@@ -1020,8 +1052,18 @@
   }
 
   &--inactive {
-    opacity: 0.7;
     background: #fafaf9;
+
+    .cat-card__header,
+    .cat-card__meta-strip,
+    .cat-card__status-wrap {
+      opacity: 0.65;
+    }
+  }
+
+  &--menu-open {
+    position: relative;
+    z-index: 50;
   }
 
   &__header {

@@ -172,7 +172,7 @@
               {{ formatDate(item.postedAt || item.createdAt) }}
             </span>
             <span class="kpi-card__sub">
-              {{ (item.postedAt || item.createdAt) ? formatDateTime(item.postedAt || item.createdAt).slice(-5) : '—' }}
+              By {{ postedByName(item) }}
             </span>
           </div>
         </article>
@@ -279,6 +279,31 @@
               </div>
             </div>
 
+            <!-- Processed By -->
+            <div class="detail-item">
+              <span class="detail-item__label">Processed By</span>
+              <div class="detail-item__value-wrap">
+                <span class="detail-item__value">{{ postedByName(item) }}</span>
+                @if (item.postedAt) {
+                  <span class="detail-item__sub">Posted {{ formatDateTime(item.postedAt) }}</span>
+                }
+              </div>
+            </div>
+
+            <!-- Manager Approval (if direct return without invoice) -->
+            @if (item.withoutInvoiceApproval) {
+              <div class="detail-item">
+                <span class="detail-item__label">Manager Approval</span>
+                <div class="detail-item__value-wrap">
+                  <span class="detail-item__value">{{ approverName(item) }}</span>
+                  <span class="detail-item__sub">Approved {{ formatDateTime(item.withoutInvoiceApproval.approvedAt) }}</span>
+                  @if (item.withoutInvoiceApproval.reason) {
+                    <span class="detail-item__sub">Note: {{ item.withoutInvoiceApproval.reason }}</span>
+                  }
+                </div>
+              </div>
+            }
+
             <!-- Reason -->
             <div class="detail-item detail-item--full">
               <span class="detail-item__label">Return Reason</span>
@@ -301,7 +326,7 @@
                   <div class="reversal-alert__content">
                     <strong class="reversal-alert__title">Return Reversed with Corrective Transaction</strong>
                     <p class="reversal-alert__desc">
-                      Reversed on {{ formatDateTime(item.reversedAt) }} by {{ item.reversedBy || 'Authorized User' }}.
+                      Reversed on {{ formatDateTime(item.reversedAt) }} by {{ reversedByName(item) }}.
                       @if (item.reversedByCorrectiveTransactionId) {
                         Corrective transaction reference: <code>{{ item.reversedByCorrectiveTransactionId }}</code>.
                       }

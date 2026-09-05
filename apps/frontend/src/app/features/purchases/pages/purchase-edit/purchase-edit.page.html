@@ -275,7 +275,7 @@
           </svg>
         </div>
         <div class="kpi-card__content">
-          <span class="kpi-card__label">Payable</span>
+          <span class="kpi-card__label">Outstanding / Remaining</span>
           <span class="kpi-card__value">PKR {{ posted.payableTotal?.amount ?? '0.00' }}</span>
         </div>
       </div>
@@ -529,7 +529,7 @@
               <span class="detail-value">PKR {{ posted.paidTotal?.amount ?? '0.00' }}</span>
             </div>
             <div class="detail-row">
-              <span class="detail-label">Balance payable</span>
+              <span class="detail-label">Outstanding / Remaining</span>
               <span
                 class="detail-value font-semibold"
                 [class.text-amber]="posted.payableTotal?.amount && posted.payableTotal!.amount !== '0.00'"
@@ -711,25 +711,29 @@
     <!-- Card 1: Purchase Information -->
     <section class="section-card" data-testid="purchase-info-card">
       <div class="section-card__header">
-        <div class="section-card__icon-title">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="text-primary"
-          >
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-            <polyline points="14 2 14 8 20 8"></polyline>
-            <line x1="16" y1="13" x2="8" y2="13"></line>
-            <line x1="16" y1="17" x2="8" y2="17"></line>
-            <polyline points="10 9 9 9 8 9"></polyline>
-          </svg>
-          <h2 class="section-card__title">Purchase information</h2>
+        <div class="section-card__header-group">
+          <div class="section-card__icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+          </div>
+          <div>
+            <h2 class="section-card__title">Purchase information</h2>
+            <p class="section-card__subtitle">Specify warehouse, supplier, and purchase date</p>
+          </div>
         </div>
       </div>
       <div class="section-card__body">
@@ -737,10 +741,12 @@
         <div class="form-grid-3col">
           <!-- Warehouse -->
           @if (canViewPurchaseField('warehouse')) {
-          <div class="form-field">
-            <label class="form-label" for="purchase-warehouse">
-              Warehouse <span class="required-star">*</span>
-            </label>
+          <div class="ag-field form-field">
+            <agrivio-ui-field-label
+              label="Warehouse"
+              for="purchase-warehouse"
+              [required]="fieldRequired(form.controls.warehouseId)"
+            />
             <select
               id="purchase-warehouse"
               class="ag-select"
@@ -765,10 +771,12 @@
 
           <!-- Supplier -->
           @if (canViewPurchaseField('supplier')) {
-          <div class="form-field">
-            <label class="form-label" for="purchase-supplier-search">
-              Supplier <span class="required-star">*</span>
-            </label>
+          <div class="ag-field form-field">
+            <agrivio-ui-field-label
+              label="Supplier"
+              for="purchase-supplier-search"
+              [required]="fieldRequired(form.controls.supplierId)"
+            />
             <input
               id="purchase-supplier-search"
               class="ag-input"
@@ -802,10 +810,12 @@
 
           <!-- Purchase Date -->
           @if (canViewPurchaseField('purchaseDate')) {
-          <div class="form-field">
-            <label class="form-label" for="purchase-date">
-              Purchase date <span class="required-star">*</span>
-            </label>
+          <div class="ag-field form-field">
+            <agrivio-ui-field-label
+              label="Purchase date"
+              for="purchase-date"
+              [required]="fieldRequired(form.controls.purchaseDate)"
+            />
             <input
               id="purchase-date"
               class="ag-input"
@@ -828,10 +838,11 @@
         <!-- Bottom Row: Invoice Ref & Notes -->
         <div class="form-grid-2col" style="margin-top: 14px">
           @if (canViewPurchaseField('supplierInvoiceReference')) {
-          <div class="form-field">
-            <label class="form-label" for="purchase-reference"
-              >Supplier invoice reference (optional)</label
-            >
+          <div class="ag-field form-field">
+            <agrivio-ui-field-label
+              label="Supplier invoice reference (optional)"
+              for="purchase-reference"
+            />
             <input
               id="purchase-reference"
               class="ag-input"
@@ -842,8 +853,11 @@
             />
           </div>
           } @if (canViewPurchaseField('notes')) {
-          <div class="form-field">
-            <label class="form-label" for="purchase-notes">Notes (optional)</label>
+          <div class="ag-field form-field">
+            <agrivio-ui-field-label
+              label="Notes (optional)"
+              for="purchase-notes"
+            />
             <textarea
               id="purchase-notes"
               class="ag-input"
@@ -862,26 +876,30 @@
     <!-- Card 2: Purchase Lines -->
     <section class="section-card" data-testid="purchase-lines-form-card">
       <div class="section-card__header flex-between">
-        <div class="section-card__icon-title">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="text-primary"
-          >
-            <line x1="8" y1="6" x2="21" y2="6"></line>
-            <line x1="8" y1="12" x2="21" y2="12"></line>
-            <line x1="8" y1="18" x2="21" y2="18"></line>
-            <line x1="3" y1="6" x2="3.01" y2="6"></line>
-            <line x1="3" y1="12" x2="3.01" y2="12"></line>
-            <line x1="3" y1="18" x2="3.01" y2="18"></line>
-          </svg>
-          <h2 class="section-card__title">Purchase lines</h2>
+        <div class="section-card__header-group">
+          <div class="section-card__icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+          </div>
+          <div>
+            <h2 class="section-card__title">Purchase lines</h2>
+            <p class="section-card__subtitle">Add products, quantities, batch tracking, and unit costs</p>
+          </div>
         </div>
         @if (canEditPurchaseField('product')) {
         <button
@@ -897,8 +915,8 @@
 
       <div class="section-card__body no-padding">
         @if (canEditPurchaseField('product')) {
-        <div class="lines-search-bar">
-          <label class="form-label" for="purchase-product-search">Search products</label>
+        <div class="lines-search-bar ag-field">
+          <agrivio-ui-field-label label="Search products" for="purchase-product-search" />
           <input
             id="purchase-product-search"
             class="ag-input"
@@ -942,10 +960,12 @@
 
             <div class="line-row-grid">
               <!-- Product -->
-              <div class="form-field form-field--product">
-                <label class="form-label" [for]="'purchase-line-product-' + index">
-                  Product <span class="required-star">*</span>
-                </label>
+              <div class="ag-field form-field form-field--product">
+                <agrivio-ui-field-label
+                  label="Product"
+                  [for]="'purchase-line-product-' + index"
+                  [required]="fieldRequired(lineGroup(index).controls['productId'])"
+                />
                 <select
                   [id]="'purchase-line-product-' + index"
                   class="ag-select"
@@ -970,10 +990,11 @@
 
               <!-- Packaging -->
               @if (canViewPurchaseField('packagingUnit')) {
-              <div class="form-field">
-                <label class="form-label" [for]="'purchase-line-packaging-' + index"
-                  >Packaging</label
-                >
+              <div class="ag-field form-field">
+                <agrivio-ui-field-label
+                  label="Packaging"
+                  [for]="'purchase-line-packaging-' + index"
+                />
                 <select
                   [id]="'purchase-line-packaging-' + index"
                   class="ag-select"
@@ -990,10 +1011,12 @@
               }
 
               <!-- Quantity -->
-              <div class="form-field">
-                <label class="form-label" [for]="'purchase-line-quantity-' + index">
-                  Quantity <span class="required-star">*</span>
-                </label>
+              <div class="ag-field form-field">
+                <agrivio-ui-field-label
+                  label="Quantity"
+                  [for]="'purchase-line-quantity-' + index"
+                  [required]="fieldRequired(lineGroup(index).controls['quantity'])"
+                />
                 <input
                   [id]="'purchase-line-quantity-' + index"
                   class="ag-input"
@@ -1013,10 +1036,12 @@
               </div>
 
               <!-- Unit Cost -->
-              <div class="form-field">
-                <label class="form-label" [for]="'purchase-line-unit-cost-' + index">
-                  Unit cost (PKR) <span class="required-star">*</span>
-                </label>
+              <div class="ag-field form-field">
+                <agrivio-ui-field-label
+                  label="Unit cost (PKR)"
+                  [for]="'purchase-line-unit-cost-' + index"
+                  [required]="fieldRequired(lineGroup(index).controls['unitCost'])"
+                />
                 <input
                   [id]="'purchase-line-unit-cost-' + index"
                   class="ag-input"
@@ -1038,28 +1063,40 @@
               <!-- Batch Number (Dynamic) -->
               @if (trackingModeForLine(index) !== 'none') { @if
               (canViewPurchaseField('batchNumber')) {
-              <div class="form-field">
-                <label class="form-label" [for]="'purchase-line-batch-' + index">
-                  Batch number <span class="required-star">*</span>
-                </label>
+              <div class="ag-field form-field">
+                <agrivio-ui-field-label
+                  label="Batch / Lot #"
+                  [for]="'purchase-line-batch-' + index"
+                  [required]="true"
+                />
                 <input
                   [id]="'purchase-line-batch-' + index"
                   class="ag-input"
                   placeholder="e.g. LOT-001"
                   formControlName="batchNumber"
+                  [class.ag-input--invalid]="lineFieldError(index, 'batchNumber', 'Batch number')"
                   [readonly]="!canEditPurchaseField('batchNumber')"
+                  [attr.aria-required]="fieldRequired(lineGroup(index).controls['batchNumber']) ? 'true' : null"
+                  [attr.aria-invalid]="lineFieldError(index, 'batchNumber', 'Batch number') ? 'true' : null"
                   data-testid="purchase-line-batch"
                 />
+                @if (lineFieldError(index, 'batchNumber', 'Batch number'); as batchError) {
+                <p class="field-error" role="alert">{{ batchError }}</p>
+                }
               </div>
               } @if (canViewPurchaseField('manufacturingDate')) {
-              <div class="form-field">
-                <label class="form-label" [for]="'purchase-line-mfg-' + index">Mfg. date</label>
+              <div class="ag-field form-field">
+                <agrivio-ui-field-label
+                  label="Mfg date"
+                  [for]="'purchase-line-mfg-' + index"
+                />
                 <input
                   [id]="'purchase-line-mfg-' + index"
                   class="ag-input"
                   type="date"
                   formControlName="manufacturingDate"
                   [readonly]="!canEditPurchaseField('manufacturingDate')"
+                  data-testid="purchase-line-mfg"
                 />
               </div>
               } }
@@ -1067,24 +1104,32 @@
               <!-- Expiry Date (Dynamic) -->
               @if (trackingModeForLine(index) === 'batch_expiry' &&
               canViewPurchaseField('expiryDate')) {
-              <div class="form-field">
-                <label class="form-label" [for]="'purchase-line-expiry-' + index">
-                  Expiry date <span class="required-star">*</span>
-                </label>
+              <div class="ag-field form-field">
+                <agrivio-ui-field-label
+                  label="Expiry date"
+                  [for]="'purchase-line-expiry-' + index"
+                  [required]="true"
+                />
                 <input
                   [id]="'purchase-line-expiry-' + index"
                   class="ag-input"
                   type="date"
                   formControlName="expiryDate"
+                  [class.ag-input--invalid]="lineFieldError(index, 'expiryDate', 'Expiry date')"
                   [readonly]="!canEditPurchaseField('expiryDate')"
+                  [attr.aria-required]="fieldRequired(lineGroup(index).controls['expiryDate']) ? 'true' : null"
+                  [attr.aria-invalid]="lineFieldError(index, 'expiryDate', 'Expiry date') ? 'true' : null"
                   data-testid="purchase-line-expiry"
                 />
+                @if (lineFieldError(index, 'expiryDate', 'Expiry date'); as expiryError) {
+                <p class="field-error" role="alert">{{ expiryError }}</p>
+                }
               </div>
               }
 
               <!-- Calculated Line Total -->
-              <div class="form-field form-field--total">
-                <span class="form-label">Line total (PKR)</span>
+              <div class="ag-field form-field form-field--total">
+                <span class="ag-field__label form-label">Line total (PKR)</span>
                 <span class="line-total-display">PKR {{ getLineTotal(index) }}</span>
               </div>
             </div>
@@ -1120,30 +1165,34 @@
       @if (canViewPurchaseField('landedCosts')) {
       <section class="section-card" data-testid="purchase-landed-form-card">
         <div class="section-card__header">
-          <div class="section-card__icon-title">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              class="text-primary"
-            >
-              <rect x="1" y="3" width="15" height="13"></rect>
-              <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
-              <circle cx="5.5" cy="18.5" r="2.5"></circle>
-              <circle cx="18.5" cy="18.5" r="2.5"></circle>
-            </svg>
-            <h2 class="section-card__title">Landed costs (optional)</h2>
+          <div class="section-card__header-group">
+            <div class="section-card__icon">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="1" y="3" width="15" height="13"></rect>
+                <polygon points="16 8 20 8 23 11 23 16 16 16 8"></polygon>
+                <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                <circle cx="18.5" cy="18.5" r="2.5"></circle>
+              </svg>
+            </div>
+            <div>
+              <h2 class="section-card__title">Landed costs (optional)</h2>
+              <p class="section-card__subtitle">Freight, loading, transport, and other landed expenses</p>
+            </div>
           </div>
         </div>
         <div class="section-card__body">
           <div class="form-grid-2col">
-            <div class="form-field">
-              <label class="form-label" for="purchase-freight">Freight (PKR)</label>
+            <div class="ag-field form-field">
+              <agrivio-ui-field-label label="Freight (PKR)" for="purchase-freight" />
               <input
                 id="purchase-freight"
                 class="ag-input"
@@ -1153,8 +1202,8 @@
                 [readonly]="!canEditPurchaseField('landedCosts')"
               />
             </div>
-            <div class="form-field">
-              <label class="form-label" for="purchase-loading">Loading (PKR)</label>
+            <div class="ag-field form-field">
+              <agrivio-ui-field-label label="Loading (PKR)" for="purchase-loading" />
               <input
                 id="purchase-loading"
                 class="ag-input"
@@ -1164,8 +1213,8 @@
                 [readonly]="!canEditPurchaseField('landedCosts')"
               />
             </div>
-            <div class="form-field">
-              <label class="form-label" for="purchase-transport">Transport (PKR)</label>
+            <div class="ag-field form-field">
+              <agrivio-ui-field-label label="Transport (PKR)" for="purchase-transport" />
               <input
                 id="purchase-transport"
                 class="ag-input"
@@ -1175,8 +1224,8 @@
                 [readonly]="!canEditPurchaseField('landedCosts')"
               />
             </div>
-            <div class="form-field">
-              <label class="form-label" for="purchase-other">Other (PKR)</label>
+            <div class="ag-field form-field">
+              <agrivio-ui-field-label label="Other (PKR)" for="purchase-other" />
               <input
                 id="purchase-other"
                 class="ag-input"
@@ -1195,22 +1244,26 @@
       @if (canAddPaymentAtPost()) {
       <section class="section-card" data-testid="purchase-payments">
         <div class="section-card__header flex-between">
-          <div class="section-card__icon-title">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              class="text-primary"
-            >
-              <rect x="2" y="4" width="20" height="16" rx="2"></rect>
-              <line x1="2" y1="10" x2="22" y2="10"></line>
-            </svg>
-            <h2 class="section-card__title">Payments at post</h2>
+          <div class="section-card__header-group">
+            <div class="section-card__icon">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                <line x1="2" y1="10" x2="22" y2="10"></line>
+              </svg>
+            </div>
+            <div>
+              <h2 class="section-card__title">Payments at post</h2>
+              <p class="section-card__subtitle">Leave empty for full credit, or add payment lines</p>
+            </div>
           </div>
           <button
             class="ag-btn ag-btn--secondary ag-btn--sm"
@@ -1249,10 +1302,12 @@
           <div class="payments-list">
             @for (payment of payments.controls; track $index; let index = $index) {
             <div class="payment-row" [formGroup]="paymentGroup(index)">
-              <div class="form-field flex-1">
-                <label class="form-label" [for]="'purchase-payment-account-' + index">
-                  Account <span class="required-star">*</span>
-                </label>
+              <div class="ag-field form-field flex-1">
+                <agrivio-ui-field-label
+                  label="Account"
+                  [for]="'purchase-payment-account-' + index"
+                  [required]="true"
+                />
                 <select
                   [id]="'purchase-payment-account-' + index"
                   class="ag-select"
@@ -1268,10 +1323,12 @@
                 </select>
               </div>
 
-              <div class="form-field" style="width: 140px">
-                <label class="form-label" [for]="'purchase-payment-amount-' + index">
-                  Amount (PKR) <span class="required-star">*</span>
-                </label>
+              <div class="ag-field form-field" style="width: 140px">
+                <agrivio-ui-field-label
+                  label="Amount (PKR)"
+                  [for]="'purchase-payment-amount-' + index"
+                  [required]="true"
+                />
                 <input
                   [id]="'purchase-payment-amount-' + index"
                   class="ag-input"
@@ -1327,17 +1384,43 @@
           [disabled]="!canSaveDraft()"
           data-testid="purchase-save"
         >
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            <polyline points="7 3 7 8 15 8"></polyline>
+          </svg>
           {{ saving() ? 'Saving…' : 'Save draft' }}
         </button>
-        } @if (purchaseId() && canPost()) {
+        } @if (hasPostPermission()) {
         <button
           class="ag-btn ag-btn--primary"
           type="button"
-          [disabled]="posting() || saving()"
-          (click)="post()"
+          [disabled]="!canDirectPost() || posting() || saving()"
+          (click)="saveAndPost()"
           data-testid="purchase-post"
         >
-          {{ posting() ? 'Posting…' : 'Post purchase' }}
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          {{ posting() ? 'Posting…' : (purchaseId() ? 'Post purchase' : 'Receive & post purchase') }}
         </button>
         }
       </div>

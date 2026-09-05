@@ -81,8 +81,33 @@ function createMongoosePaymentsStore() {
       const query = { organizationId, status: 'posted', partyType: filter.partyType ?? 'supplier' };
       if (filter.partyType === 'supplier' && filter.supplierId) query.supplierId = filter.supplierId;
       if (filter.partyType === 'customer' && filter.customerId) query.customerId = filter.customerId;
-      const paymentDate = String(filter.paymentDate ?? filter.search ?? '').trim();
-      if (paymentDate !== '') query.paymentDate = paymentDate;
+
+      const paymentDate = typeof filter.paymentDate === 'string' ? filter.paymentDate.trim() : '';
+      const fromDate = typeof filter.fromDate === 'string' ? filter.fromDate.trim() : '';
+      const toDate = typeof filter.toDate === 'string' ? filter.toDate.trim() : '';
+
+      if (paymentDate !== '') {
+        query.paymentDate = paymentDate;
+      } else if (fromDate !== '' || toDate !== '') {
+        query.paymentDate = {};
+        if (fromDate !== '') query.paymentDate.$gte = fromDate;
+        if (toDate !== '') query.paymentDate.$lte = toDate;
+      }
+
+      const search = typeof filter.search === 'string' ? filter.search.trim() : '';
+      if (search !== '') {
+        const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const conditions = [{ notes: { $regex: escaped, $options: 'i' } }];
+        if (mongoose.isValidObjectId(search)) {
+          conditions.push({ _id: new mongoose.Types.ObjectId(search) });
+        }
+        if (conditions.length === 1) {
+          query.notes = conditions[0].notes;
+        } else {
+          query.$or = conditions;
+        }
+      }
+
       const { skip = 0, pageSize = 25 } = pagination;
       const [total, items] = await Promise.all([
         PaymentModel.countDocuments(query).exec(),
@@ -203,10 +228,31 @@ function createInMemoryPaymentsStore() {
     },
 
     async listPaymentsPage(organizationId, filter = {}, pagination = {}) {
-      const paymentDate = String(filter.paymentDate ?? filter.search ?? '').trim();
-      const all = (await this.listPayments(organizationId, filter)).filter(
-        (item) => paymentDate === '' || String(item.paymentDate) === paymentDate,
-      );
+      const paymentDate = typeof filter.paymentDate === 'string' ? filter.paymentDate.trim() : '';
+      const fromDate = typeof filter.fromDate === 'string' ? filter.fromDate.trim() : '';
+      const toDate = typeof filter.toDate === 'string' ? filter.toDate.trim() : '';
+      const search = typeof filter.search === 'string' ? filter.search.trim().toLowerCase() : '';
+
+      const all = (await this.listPayments(organizationId, filter)).filter((item) => {
+        const itemDate = String(item.paymentDate ?? '').trim();
+        if (paymentDate !== '' && itemDate !== paymentDate) {
+          return false;
+        }
+        if (fromDate !== '' && itemDate < fromDate) {
+          return false;
+        }
+        if (toDate !== '' && itemDate > toDate) {
+          return false;
+        }
+        if (search !== '') {
+          const notesMatch = String(item.notes ?? '').toLowerCase().includes(search);
+          const idMatch = String(item._id ?? '').toLowerCase().includes(search);
+          if (!notesMatch && !idMatch) {
+            return false;
+          }
+        }
+        return true;
+      });
       const { skip = 0, pageSize = 25 } = pagination;
       return { items: all.slice(skip, skip + pageSize), total: all.length };
     },

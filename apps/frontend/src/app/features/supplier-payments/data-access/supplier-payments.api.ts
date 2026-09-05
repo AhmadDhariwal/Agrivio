@@ -17,9 +17,12 @@ import {
   UnpaidPurchaseRecord,
 } from '../models/supplier-payments.models';
 
-type SupplierPaymentsListQuery = PaginationQuery & {
+export type SupplierPaymentsListQuery = PaginationQuery & {
   supplierId?: string;
   paymentDate?: string;
+  fromDate?: string;
+  toDate?: string;
+  search?: string;
   forceRefresh?: boolean;
 };
 
@@ -40,6 +43,8 @@ export class SupplierPaymentsApi {
     };
     if (params.search) queryParams['search'] = params.search;
     if (params.paymentDate) queryParams['paymentDate'] = params.paymentDate;
+    if (params.fromDate) queryParams['fromDate'] = params.fromDate;
+    if (params.toDate) queryParams['toDate'] = params.toDate;
     if (params.supplierId) queryParams['supplierId'] = params.supplierId;
 
     const cacheKey = this.queryCache.buildKey('supplier-payments', queryParams);
@@ -54,7 +59,16 @@ export class SupplierPaymentsApi {
             withCredentials: true,
             params: queryParams,
           })
-          .pipe(map((response) => ({ items: response.data, meta: response.meta! }))),
+          .pipe(
+            map((response) => ({
+              items: response.data,
+              meta: response.meta ?? {
+                page: Number(params.page ?? 1),
+                pageSize: Number(params.pageSize ?? 25),
+                total: response.data.length,
+              },
+            })),
+          ),
     });
   }
 

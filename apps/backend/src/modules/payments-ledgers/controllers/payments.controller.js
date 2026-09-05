@@ -1,6 +1,7 @@
 const { sendSuccessEnvelope } = require('../../../platform/http/response-envelope');
 const { forbidden } = require('../../../platform/errors/app-error');
 const { parsePaginationQuery } = require('../../../platform/http/parse-pagination-query');
+const { parsePaymentListFilters } = require('../payments.validation');
 
 function requireOrganizationId(req) {
   const organizationId = req.authContext?.organizationId;
@@ -27,6 +28,8 @@ function createPaymentsController(deps) {
     async listSupplierPayments(req, res, next) {
       try {
         const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const filters = parsePaymentListFilters(req.query);
+
         const { items, total } = await deps.paymentsService.listSupplierPayments(
           requireOrganizationId(req),
           {
@@ -34,12 +37,7 @@ function createPaymentsController(deps) {
               typeof req.query.supplierId === 'string' && req.query.supplierId.trim() !== ''
                 ? req.query.supplierId.trim()
                 : undefined,
-            paymentDate:
-              typeof req.query.paymentDate === 'string' && req.query.paymentDate.trim() !== ''
-                ? req.query.paymentDate.trim()
-                : typeof req.query.search === 'string' && req.query.search.trim() !== ''
-                  ? req.query.search.trim()
-                  : undefined,
+            ...filters,
             skip,
             pageSize,
           },
@@ -127,6 +125,8 @@ function createPaymentsController(deps) {
     async listCustomerPayments(req, res, next) {
       try {
         const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const filters = parsePaymentListFilters(req.query);
+
         const { items, total } = await deps.paymentsService.listCustomerPayments(
           requireOrganizationId(req),
           {
@@ -134,12 +134,7 @@ function createPaymentsController(deps) {
               typeof req.query.customerId === 'string' && req.query.customerId.trim() !== ''
                 ? req.query.customerId.trim()
                 : undefined,
-            paymentDate:
-              typeof req.query.paymentDate === 'string' && req.query.paymentDate.trim() !== ''
-                ? req.query.paymentDate.trim()
-                : typeof req.query.search === 'string' && req.query.search.trim() !== ''
-                  ? req.query.search.trim()
-                  : undefined,
+            ...filters,
             skip,
             pageSize,
           },
