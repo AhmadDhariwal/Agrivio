@@ -1,8 +1,9 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { switchMap } from 'rxjs';
+import { merge, switchMap } from 'rxjs';
 import { CustomersApi } from '../../data-access/customers.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
@@ -42,6 +43,7 @@ export class CustomerFormPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly customerId = signal<string | null>(null);
   readonly loading = signal(false);
@@ -82,8 +84,6 @@ export class CustomerFormPage {
     return hasPerm && this.canUseCustomers() && actionOk && fieldEditable;
   });
 
-  readonly canSave = computed(() => this.canManage() && this.form.valid && !this.saving());
-
   readonly showCreditSection = computed(
     () => this.capabilityService?.canUseView('customers.features.creditSection') ?? true,
   );
@@ -116,12 +116,23 @@ export class CustomerFormPage {
     status: ['active'],
   });
 
+  readonly formValid = signal(false);
+
+  readonly canSave = computed(() => this.canManage() && this.formValid() && !this.saving());
+
   readonly openingForm = this.formBuilder.nonNullable.group({
     kind: ['receivable' as string, [Validators.required]],
     amount: ['', [Validators.required]],
   });
 
   constructor() {
+    this.formValid.set(this.form.valid);
+    merge(this.form.statusChanges, this.form.valueChanges)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.formValid.set(this.form.valid);
+      });
+
     const id = this.route.snapshot.paramMap.get('id');
     if (id && id !== 'new') {
       this.customerId.set(id);
@@ -326,6 +337,7 @@ export class CustomerFormPage {
       });
       this.openingForm.disable();
     }
+    this.formValid.set(this.form.valid);
   }
 
   private mapError(error: unknown, fallback: string): string {

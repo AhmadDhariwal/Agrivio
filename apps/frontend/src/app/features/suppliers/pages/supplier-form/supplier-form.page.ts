@@ -1,7 +1,9 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
+import { merge } from 'rxjs';
 import { SuppliersApi } from '../../data-access/suppliers.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
@@ -43,6 +45,7 @@ export class SupplierFormPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly supplierId = signal<string | null>(null);
   readonly loading = signal(false);
@@ -106,9 +109,11 @@ export class SupplierFormPage {
 
   constructor() {
     this.checkFieldPermissions();
-    this.form.statusChanges.subscribe(() => {
-      this.formValid.set(this.form.valid);
-    });
+    merge(this.form.statusChanges, this.form.valueChanges)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.formValid.set(this.form.valid);
+      });
     this.formValid.set(this.form.valid);
     const id = this.route.snapshot.paramMap.get('id');
     if (id && id !== 'new') {

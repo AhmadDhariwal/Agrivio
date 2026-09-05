@@ -8,7 +8,6 @@
   flex-direction: column;
   gap: 16px;
   width: 100%;
-  max-width: 1024px;
 }
 
 /* Page Header */
@@ -254,6 +253,13 @@
 
 .opening-form-actions {
   margin-top: 12px;
+
+  @media (max-width: 767px) {
+    .ag-btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
 }
 
 .alert-container,
