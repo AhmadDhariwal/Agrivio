@@ -48,6 +48,7 @@ export interface SalesReturnRecord {
   approvedReturnValue: MoneyAmount | null;
   withoutInvoiceApproval: {
     approvedBy: string;
+    approvedByName?: string | null;
     approvedAt: string;
     reason: string;
   } | null;
@@ -58,9 +59,13 @@ export interface SalesReturnRecord {
   version: number;
   postedAt: string | null;
   postedBy: string | null;
+  postedByName?: string | null;
   reversedByCorrectiveTransactionId: string | null;
   reversedAt: string | null;
   reversedBy: string | null;
+  reversedByName?: string | null;
+  createdBy?: string | null;
+  createdByName?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
 }

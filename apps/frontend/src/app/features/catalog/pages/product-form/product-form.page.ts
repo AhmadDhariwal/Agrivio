@@ -68,7 +68,8 @@ export class ProductFormPage {
     const action = this.productId() === null ? 'create' : 'edit';
     return this.capabilityService?.canPerformAction(`inventory.products.actions.${action}`) ?? true;
   });
-  readonly canSave = computed(() => this.canManage() && this.form.valid && !this.saving());
+  readonly formValid = signal(false);
+  readonly canSave = computed(() => this.canManage() && this.formValid() && !this.saving());
   readonly showSku = computed(
     () => this.capabilityService?.canViewField('inventory.products.fields.sku') ?? true,
   );
@@ -114,6 +115,13 @@ export class ProductFormPage {
   }
 
   constructor() {
+    this.form.statusChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.formValid.set(this.form.valid);
+      });
+    this.formValid.set(this.form.valid);
+
     const id = this.route.snapshot.paramMap.get('id');
 
     this.form.controls.categoryId.valueChanges
@@ -346,6 +354,7 @@ export class ProductFormPage {
       measurementDimension: product.measurementDimension,
       status: product.status,
     });
+    this.formValid.set(this.form.valid);
   }
 
   private mergeCategoryOptions(

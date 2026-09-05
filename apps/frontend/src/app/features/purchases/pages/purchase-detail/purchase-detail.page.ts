@@ -83,9 +83,61 @@ export class PurchaseDetailPage {
     return `${value.currency || 'PKR'} ${display}`;
   }
 
+  formatQuantity(quantity: string | number | undefined | null): string {
+    if (quantity === undefined || quantity === null || quantity === '') return '0';
+    const num = typeof quantity === 'number' ? quantity : parseFloat(quantity);
+    if (isNaN(num)) return String(quantity);
+    if (Number.isInteger(num)) {
+      return num.toLocaleString('en-PK');
+    }
+    return num.toLocaleString('en-PK', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 4,
+    });
+  }
+
   formatDate(value: string | null | undefined): string {
     if (!value) return '—';
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString('en-GB');
+    const trimmed = String(value).trim();
+    if (!trimmed) return '—';
+    const parts = trimmed.split('-');
+    if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
+      const year = parseInt(parts[0], 10);
+      const monthIndex = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const date = new Date(Date.UTC(year, monthIndex, day));
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+          timeZone: 'UTC',
+        });
+      }
+    }
+    const d = new Date(trimmed);
+    if (isNaN(d.getTime())) return trimmed;
+    return d.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  }
+
+  formatDateTime(value: string | null | undefined): string {
+    if (!value) return '—';
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return String(value);
+    const dateStr = d.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+    const timeStr = d.toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    return `${dateStr}, ${timeStr}`;
   }
 }

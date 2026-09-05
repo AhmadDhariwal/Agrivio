@@ -121,6 +121,26 @@ export class ReturnDetailPage {
     return 'Refund account';
   }
 
+  postedByName(record: SalesReturnRecord): string {
+    return record.postedByName || record.postedBy || 'Authorized User';
+  }
+
+  reversedByName(record: SalesReturnRecord): string {
+    return record.reversedByName || record.reversedBy || 'Authorized User';
+  }
+
+  createdByName(record: SalesReturnRecord): string {
+    return record.createdByName || record.createdBy || 'Staff';
+  }
+
+  approverName(record: SalesReturnRecord): string {
+    return (
+      record.withoutInvoiceApproval?.approvedByName ||
+      record.withoutInvoiceApproval?.approvedBy ||
+      'Authorized Manager'
+    );
+  }
+
   statusTone(status: string): UiBadgeTone {
     if (status === 'posted') return 'success';
     if (status === 'reversed') return 'warning';

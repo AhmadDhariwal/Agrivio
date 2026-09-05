@@ -48,7 +48,7 @@ describe('ReturnWithoutInvoicePage', () => {
     await TestBed.configureTestingModule({
       imports: [ReturnWithoutInvoicePage],
       providers: [
-        provideRouter([]),
+        provideRouter([{ path: 'app/returns', component: ReturnWithoutInvoicePage }]),
         { provide: ReturnsApi, useValue: mockReturnsApi },
         { provide: CatalogApi, useValue: mockCatalogApi },
         { provide: CustomersApi, useValue: mockCustomersApi },
@@ -167,5 +167,96 @@ describe('ReturnWithoutInvoicePage', () => {
     expect(
       page.fieldError(page.form.controls.warehouseId, 'Warehouse / Facility', true),
     ).toContain('required');
+  });
+
+  it('enables the submit button and successfully posts return when all required fields are filled', async () => {
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    fixture.detectChanges();
+
+    page.form.patchValue({
+      warehouseId: 'wh-1',
+      customerId: 'c1',
+      reason: 'Customer returned sealed fertilizer bag without receipt; manager approved',
+      approvedReturnValue: '5000.00',
+    });
+
+    const lineGroup = page.lineGroup(0);
+    lineGroup.patchValue({
+      productId: 'p1',
+      quantity: '5',
+    });
+    page.onProductChange(0);
+    lineGroup.patchValue({
+      batchId: 'b1',
+    });
+
+    fixture.detectChanges();
+
+    expect(page.canSubmit()).toBe(true);
+    const submitBtn = fixture.nativeElement.querySelector(
+      '[data-testid="without-invoice-submit"]',
+    ) as HTMLButtonElement;
+    expect(submitBtn.disabled).toBe(false);
+
+    page.submit();
+    fixture.detectChanges();
+
+    expect(mockReturnsApi.createWithoutInvoice).toHaveBeenCalledWith({
+      warehouseId: 'wh-1',
+      customerId: 'c1',
+      customerIdentifyingName: null,
+      customerIdentifyingPhone: null,
+      lines: [
+        {
+          productId: 'p1',
+          quantity: '5',
+          batchId: 'b1',
+          stockCondition: 'sellable',
+          unsellableReason: null,
+        },
+      ],
+    });
+    expect(mockReturnsApi.postReturn).toHaveBeenCalled();
+  });
+
+  it('requires account_refund when walk-in customer is specified without registered customer ledger', async () => {
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    fixture.detectChanges();
+
+    page.form.patchValue({
+      warehouseId: 'wh-1',
+      customerId: '',
+      customerIdentifyingName: 'Rasheed Ahmed',
+      customerIdentifyingPhone: '03001234567',
+      reason: 'Walk-in return approved by supervisor',
+      approvedReturnValue: '2500.00',
+      resolution: 'ledger_adjustment',
+    });
+
+    const lineGroup = page.lineGroup(0);
+    lineGroup.patchValue({
+      productId: 'p1',
+      quantity: '2',
+    });
+    page.onProductChange(0);
+    lineGroup.patchValue({
+      batchId: 'b1',
+    });
+
+    fixture.detectChanges();
+
+    // ledger_adjustment is not valid for walk-in (no customer ledger)
+    expect(page.canSubmit()).toBe(false);
+
+    // Switch to account_refund with a selected refund account
+    page.form.patchValue({
+      resolution: 'account_refund',
+      refundAccountId: 'acc-1',
+    });
+    fixture.detectChanges();
+
+    expect(page.canSubmit()).toBe(true);
   });
 });

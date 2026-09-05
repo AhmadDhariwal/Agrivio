@@ -80,4 +80,36 @@ describe('PurchaseDetailPage', () => {
     expect(fixture.nativeElement.querySelector('select')).toBeNull();
     expect(fixture.nativeElement.querySelector('[data-testid="purchase-edit-link"]')).toBeNull();
   });
+
+  it('correctly formats numbers, quantities, money amounts, and dates matching product module standard', async () => {
+    const api = { getPurchase: vi.fn().mockReturnValue(of(purchase)) };
+    await TestBed.configureTestingModule({
+      imports: [PurchaseDetailPage],
+      providers: [
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: convertToParamMap({ id: 'purchase-1' }) } },
+        },
+        { provide: PurchasesApi, useValue: api },
+        { provide: AuthSessionStore, useValue: { hasPermission: () => true } },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(PurchaseDetailPage);
+    const component = fixture.componentInstance;
+
+    expect(component.formatQuantity('20.0000')).toBe('20');
+    expect(component.formatQuantity('20.5000')).toBe('20.5');
+    expect(component.formatQuantity('1250')).toBe('1,250');
+    expect(component.formatQuantity(null)).toBe('0');
+
+    expect(component.formatMoney({ amount: '56000.00', currency: 'PKR' })).toBe('PKR 56,000.00');
+    expect(component.formatMoney(null)).toBe('—');
+
+    expect(component.formatDate('2026-08-24')).toMatch(/24 Aug 2026/);
+    expect(component.formatDate(null)).toBe('—');
+
+    expect(component.formatDateTime('2026-08-30T21:52:56.000Z')).toContain('2026');
+    expect(component.formatDateTime(null)).toBe('—');
+  });
 });

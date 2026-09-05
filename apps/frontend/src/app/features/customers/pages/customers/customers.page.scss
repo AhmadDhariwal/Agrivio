@@ -649,8 +649,11 @@
     }
 
     &--inactive {
-      opacity: 0.7;
       background: #fafaf9;
+
+      .cust-table__td:not(.cust-table__td--actions) {
+        opacity: 0.65;
+      }
     }
   }
 
@@ -959,6 +962,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  opacity: 1 !important;
 
   &--up {
     top: auto;
@@ -976,25 +980,42 @@
     background: none;
     border: none;
     border-radius: 4px;
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 500;
-    color: #334155;
+    color: #1e293b;
     text-align: left;
     text-decoration: none;
     cursor: pointer;
     transition: background 0.12s ease;
 
+    svg {
+      flex-shrink: 0;
+      color: #64748b;
+    }
+
     &:hover {
       background: #f1f5f9;
       color: #0f172a;
+
+      svg {
+        color: #0f172a;
+      }
     }
 
     &--danger {
       color: #dc2626;
 
+      svg {
+        color: #dc2626;
+      }
+
       &:hover {
         background: #fef2f2;
         color: #b91c1c;
+
+        svg {
+          color: #b91c1c;
+        }
       }
     }
   }

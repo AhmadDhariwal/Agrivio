@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const { ReturnModel } = require('./persistence/return.model');
 const { CorrectiveTransactionModel } = require('./persistence/corrective-transaction.model');
 const { AuditEventModel } = require('../audit/persistence/audit-event.model');
+const { UserModel } = require('../identity/persistence/identity.model');
 
 function withSession(session) {
   return session ? { session } : {};
@@ -232,6 +233,14 @@ function createMongooseReturnsStore() {
         }
       }
       return total.toString();
+    },
+
+    async findUserDisplayNameById(id) {
+      if (!mongoose.isValidObjectId(id)) {
+        return null;
+      }
+      const user = await UserModel.findById(id).select('displayName').lean().exec();
+      return user ? String(user.displayName ?? '') : null;
     },
 
     async appendAuditEvent(session, event) {
@@ -467,6 +476,10 @@ function createInMemoryReturnsStore() {
 
     async appendAuditEvent(_session, event) {
       audits.push({ ...event });
+    },
+
+    async findUserDisplayNameById(_id) {
+      return null;
     },
 
     listAuditsForTest() {
