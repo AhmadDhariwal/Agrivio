@@ -160,6 +160,14 @@ function createAccountsService(deps) {
     ) {
       nameMap = await employeesService.findEmployeeDisplayNamesByUserIds(organizationId, userIds);
     }
+    for (const uid of userIds) {
+      if (!nameMap.get(uid) && typeof store.findUserDisplayNameById === 'function') {
+        const directName = await store.findUserDisplayNameById(uid);
+        if (directName) {
+          nameMap.set(uid, directName);
+        }
+      }
+    }
 
     let accountMovementName = null;
     if (dto.accountMovementId && typeof store.findMovementById === 'function') {
@@ -173,7 +181,7 @@ function createAccountsService(deps) {
       if (related !== null) {
         const purpose = String(related.purpose ?? '').trim();
         const reference = String(related.reference ?? '').trim();
-        correctedByExpenseName = purpose || reference || null;
+        correctedByExpenseName = purpose || reference || `Expense (${dto.correctedByExpenseId})`;
       }
     }
 

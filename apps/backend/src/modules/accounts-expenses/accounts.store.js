@@ -4,6 +4,7 @@ const { AccountMovementModel } = require('./persistence/account-movement.model')
 const { ExpenseCategoryModel } = require('./persistence/expense-category.model');
 const { ExpenseModel } = require('./persistence/expense.model');
 const { AuditEventModel } = require('../audit/persistence/audit-event.model');
+const { UserModel } = require('../identity/persistence/identity.model');
 
 function withSession(session) {
   return session ? { session } : {};
@@ -165,11 +166,19 @@ function createMongooseAccountsStore() {
         return null;
       }
       return applySession(
-        AccountMovementModel.findOne({ _id: id, organizationId, status: 'posted' }),
+        AccountMovementModel.findOne({ _id: id, organizationId }),
         session,
       )
         .lean()
         .exec();
+    },
+
+    async findUserDisplayNameById(id) {
+      if (!mongoose.isValidObjectId(id)) {
+        return null;
+      }
+      const user = await UserModel.findById(id).select('displayName').lean().exec();
+      return user ? String(user.displayName ?? '') : null;
     },
 
     async findMovementByReversalOfId(organizationId, reversalOfId, session) {
@@ -608,12 +617,15 @@ function createInMemoryAccountsStore() {
       const record = movements.get(id);
       if (
         record === undefined ||
-        String(record.organizationId) !== String(organizationId) ||
-        record.status !== 'posted'
+        String(record.organizationId) !== String(organizationId)
       ) {
         return null;
       }
       return { ...record };
+    },
+
+    async findUserDisplayNameById(_id) {
+      return null;
     },
 
     async findMovementByReversalOfId(organizationId, reversalOfId) {
