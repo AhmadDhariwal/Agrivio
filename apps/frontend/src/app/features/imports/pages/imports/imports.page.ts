@@ -110,14 +110,17 @@ export class ImportsPage {
     () => this.selectedTemplate()?.columns.map((column) => column.key).join(', ') ?? '',
   );
 
-  readonly canSubmitExecute = computed(
-    () =>
+  readonly canSubmitExecute = computed(() => {
+    const job = this.job();
+    return (
       this.canExecute() &&
-      this.job()?.importType === this.selectedType() &&
-      this.job()?.status === 'previewed' &&
-      this.job()?.preview?.invalidRows === 0 &&
-      !this.executing(),
-  );
+      this.selectedFile() !== null &&
+      !this.executing() &&
+      !this.loading() &&
+      job?.status === 'previewed' &&
+      Number(job.preview?.invalidRows) === 0
+    );
+  });
 
   readonly totalPages = computed(() => Math.max(1, Math.ceil(this.errors().length / this.pageSize)));
 
@@ -155,6 +158,9 @@ export class ImportsPage {
   }
 
   onTypeChange(value: string): void {
+    if (value === this.selectedType()) {
+      return;
+    }
     this.selectedType.set(value);
     this.invalidateWorkflow(this.selectedFile());
   }

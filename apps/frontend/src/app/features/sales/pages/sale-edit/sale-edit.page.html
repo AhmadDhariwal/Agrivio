@@ -1434,20 +1434,52 @@
           <div class="quick-tender-actions">
             @if (canAddPaymentAtPost()) {
             <button
-              class="ag-btn ag-btn--secondary ag-btn--sm"
+              class="ag-btn ag-btn--secondary ag-btn--sm quick-tender-btn"
+              [class.ag-btn--primary]="isCashSelected()"
+              [class.quick-tender-btn--selected]="isCashSelected()"
+              [attr.aria-pressed]="isCashSelected()"
               type="button"
               (click)="fillFullCash()"
               data-testid="sale-fill-cash"
             >
+              @if (isCashSelected()) {
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="3"
+                aria-hidden="true"
+              >
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              }
               Full cash
             </button>
             } @if (canSellOnCredit()) {
             <button
-              class="ag-btn ag-btn--secondary ag-btn--sm"
+              class="ag-btn ag-btn--secondary ag-btn--sm quick-tender-btn"
+              [class.ag-btn--primary]="isCreditSelected()"
+              [class.quick-tender-btn--selected]="isCreditSelected()"
+              [attr.aria-pressed]="isCreditSelected()"
               type="button"
               (click)="clearPaymentsForCredit()"
               data-testid="sale-fill-credit"
             >
+              @if (isCreditSelected()) {
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="3"
+                aria-hidden="true"
+              >
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              }
               Credit (no payment)
             </button>
             }
@@ -1466,6 +1498,125 @@
             tone="warning"
             message="No payment accounts are available for this POS context."
           />
+        </div>
+        }
+
+        <!-- Credit Selected Panel -->
+        @if (isCreditSelected()) {
+        <div class="credit-selected-card" data-testid="sale-credit-selected-card">
+          <div class="credit-selected-card__header">
+            <div class="credit-selected-card__title-group">
+              <span class="credit-badge">
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="3"
+                  aria-hidden="true"
+                >
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                Credit Sale Active
+              </span>
+              <span class="credit-selected-card__subtitle">
+                Zero upfront payment — full balance billed to customer ledger
+              </span>
+            </div>
+            <div class="credit-selected-card__amount font-mono" data-testid="sale-credit-amount">
+              {{ cartEstimate() }} PKR
+            </div>
+          </div>
+
+          <div class="credit-selected-card__content">
+            @if (isWalkInCustomerType()) {
+            <div class="credit-customer-alert credit-customer-alert--warning" data-testid="sale-credit-walkin-warning">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h20.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+              <div class="credit-customer-alert__message">
+                <strong>Walk-in customers cannot purchase on credit.</strong>
+                <span>Please select a registered customer to record this receivable balance.</span>
+              </div>
+              <button
+                type="button"
+                class="ag-btn ag-btn--secondary ag-btn--sm"
+                (click)="switchToRegisteredCustomer()"
+                data-testid="sale-credit-select-customer-btn"
+              >
+                Select Customer
+              </button>
+            </div>
+            } @else if (!form.controls.customerId.value) {
+            <div class="credit-customer-alert credit-customer-alert--info" data-testid="sale-credit-no-customer-warning">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+              <div class="credit-customer-alert__message">
+                <strong>No customer selected.</strong>
+                <span>Choose a customer in Section 1 to link this credit transaction.</span>
+              </div>
+              <button
+                type="button"
+                class="ag-btn ag-btn--secondary ag-btn--sm"
+                (click)="openCustomerDropdown()"
+                data-testid="sale-credit-pick-customer-btn"
+              >
+                Choose Customer
+              </button>
+            </div>
+            } @else {
+            <div class="credit-customer-details" data-testid="sale-credit-customer-details">
+              <div class="credit-customer-details__row">
+                <span class="detail-label">Customer:</span>
+                <span class="detail-value" data-testid="sale-credit-customer-name">
+                  {{ selectedCustomer()?.name ?? selectedCustomerLabel() }}
+                </span>
+              </div>
+              <div class="credit-customer-details__row">
+                <span class="detail-label">Credit Status:</span>
+                @if (selectedCustomer()?.creditEnabled) {
+                <span class="credit-status-pill credit-status-pill--active" data-testid="sale-credit-enabled-badge">
+                  Credit Enabled
+                </span>
+                } @else {
+                <span class="credit-status-pill credit-status-pill--warning" data-testid="sale-credit-disabled-badge">
+                  Credit Disabled (Override required)
+                </span>
+                }
+              </div>
+              @if (selectedCustomer()?.creditLimit; as limit) {
+              <div class="credit-customer-details__row">
+                <span class="detail-label">Credit Limit:</span>
+                <span class="detail-value font-mono">
+                  {{ limit.amount }} {{ limit.currency }}
+                </span>
+              </div>
+              }
+            </div>
+            }
+          </div>
         </div>
         }
 
