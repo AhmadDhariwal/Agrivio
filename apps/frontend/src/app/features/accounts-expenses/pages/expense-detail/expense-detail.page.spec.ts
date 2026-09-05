@@ -21,11 +21,15 @@ const expense: ExpenseRecord = {
   status: 'posted',
   postedAt: '2026-09-04T10:00:00Z',
   postedBy: 'user-1',
+  postedByName: 'Chaudhry Tariq',
   accountMovementId: 'mov-1',
+  accountMovementName: 'Pesticide residue testing',
   correctionOfId: null,
-  correctedByExpenseId: null,
-  correctedAt: null,
-  correctedBy: null,
+  correctedByExpenseId: 'exp-2',
+  correctedByExpenseName: 'Pesticide residue testing',
+  correctedAt: '2026-09-05T08:55:45Z',
+  correctedBy: 'user-1',
+  correctedByName: 'Chaudhry Tariq',
   reason: null,
   version: 1,
 };
@@ -64,5 +68,41 @@ describe('ExpenseDetailPage', () => {
         ?.getAttribute('href'),
     ).toBe('/app/expenses/exp-1/correct');
     expect(fixture.nativeElement.querySelector('[data-testid="expense-edit-link"]')).toBeNull();
+  });
+
+  it('shows actor and related record names instead of ids', async () => {
+    const corrected: ExpenseRecord = {
+      ...expense,
+      status: 'corrected',
+    };
+    const api = { getExpense: vi.fn().mockReturnValue(of(corrected)) };
+    await TestBed.configureTestingModule({
+      imports: [ExpenseDetailPage],
+      providers: [
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: convertToParamMap({ id: 'exp-1' }) } },
+        },
+        { provide: ExpensesApi, useValue: api },
+        { provide: AuthSessionStore, useValue: { hasPermission: () => true } },
+        {
+          provide: CapabilityService,
+          useValue: {
+            canUseModule: () => true,
+            canPerformAction: () => true,
+            canViewField: () => true,
+          },
+        },
+      ],
+    }).compileComponents();
+    const fixture: ComponentFixture<ExpenseDetailPage> = TestBed.createComponent(ExpenseDetailPage);
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Chaudhry Tariq');
+    expect(text).toContain('Pesticide residue testing');
+    expect(text).not.toContain('user-1');
+    expect(text).not.toContain('mov-1');
   });
 });

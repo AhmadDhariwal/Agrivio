@@ -303,6 +303,7 @@ function createApp(options) {
     createAccountsModule({
       persistence,
       capabilityService: capabilities.capabilityService,
+      employeesService: employees.employeesService,
       ...(options.now === undefined ? {} : { now: options.now }),
       ...(masterRefs === null
         ? {}

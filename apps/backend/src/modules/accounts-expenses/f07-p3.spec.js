@@ -480,6 +480,12 @@ describe('F07 P3 manual account transactions, reversals, and expenses', () => {
       expect(preservedExpense.body.data.amount.amount).toBe('80.00');
       expect(preservedExpense.body.data.reference).toBe('BILL-80');
       expect(preservedExpense.body.data.status).toBe('corrected');
+      expect(preservedExpense.body.data.postedByName).toBeTruthy();
+      expect(preservedExpense.body.data.postedByName).not.toMatch(/^[a-f0-9]{24}$/i);
+      expect(preservedExpense.body.data.accountMovementName).toBe('Electricity bill');
+      expect(preservedExpense.body.data.correctedByName).toBeTruthy();
+      expect(preservedExpense.body.data.correctedByName).not.toMatch(/^[a-f0-9]{24}$/i);
+      expect(preservedExpense.body.data.correctedByExpenseName).toBe('Electricity bill');
 
       const cashAfterCorrect = await fetchJson(
         baseUrl,

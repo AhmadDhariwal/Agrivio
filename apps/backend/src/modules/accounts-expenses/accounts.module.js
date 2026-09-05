@@ -118,6 +118,7 @@ function createAccountsService(deps) {
   const store = deps.store;
   const idempotency = deps.idempotency;
   const capabilityService = deps.capabilityService ?? null;
+  const employeesService = deps.employeesService ?? null;
   const now = deps.now ?? (() => new Date());
   const auditWriter = createAuditWriter({
     append: (session, event) => store.appendAuditEvent(session, event),
@@ -134,6 +135,54 @@ function createAccountsService(deps) {
     return {
       amount: formatMoneyMinorUnits(BigInt(String(minor ?? '0'))),
       currency: 'PKR',
+    };
+  }
+
+  function accountMovementDisplayName(movement) {
+    if (movement === null || movement === undefined) {
+      return null;
+    }
+    const purpose = String(movement.purpose ?? '').trim();
+    if (purpose !== '') {
+      return purpose;
+    }
+    return movement.sourceType === 'expense_correction' ? 'Expense correction' : 'Operating expense';
+  }
+
+  async function enrichExpenseReadDto(organizationId, dto) {
+    const userIds = [dto.postedBy, dto.correctedBy].filter(
+      (id) => typeof id === 'string' && id.trim() !== '',
+    );
+    let nameMap = new Map();
+    if (
+      userIds.length > 0 &&
+      typeof employeesService?.findEmployeeDisplayNamesByUserIds === 'function'
+    ) {
+      nameMap = await employeesService.findEmployeeDisplayNamesByUserIds(organizationId, userIds);
+    }
+
+    let accountMovementName = null;
+    if (dto.accountMovementId && typeof store.findMovementById === 'function') {
+      const movement = await store.findMovementById(organizationId, dto.accountMovementId);
+      accountMovementName = accountMovementDisplayName(movement);
+    }
+
+    let correctedByExpenseName = null;
+    if (dto.correctedByExpenseId && typeof store.findExpenseById === 'function') {
+      const related = await store.findExpenseById(organizationId, dto.correctedByExpenseId);
+      if (related !== null) {
+        const purpose = String(related.purpose ?? '').trim();
+        const reference = String(related.reference ?? '').trim();
+        correctedByExpenseName = purpose || reference || null;
+      }
+    }
+
+    return {
+      ...dto,
+      postedByName: dto.postedBy ? (nameMap.get(String(dto.postedBy)) ?? null) : null,
+      correctedByName: dto.correctedBy ? (nameMap.get(String(dto.correctedBy)) ?? null) : null,
+      accountMovementName,
+      correctedByExpenseName,
     };
   }
 
@@ -1048,11 +1097,11 @@ function createAccountsService(deps) {
           ? store.findAccountsByIds(organizationId, [dto.accountId])
           : [],
       ]);
-      return {
+      return enrichExpenseReadDto(organizationId, {
         ...dto,
         categoryName: cats.length > 0 ? cats[0].name : null,
         accountName: accts.length > 0 ? accts[0].name : null,
-      };
+      });
     },
 
     async createExpenseDraft(organizationId, body, actor) {
@@ -1401,6 +1450,7 @@ function createAccountsModule(options) {
     transactionRunner,
     idempotency,
     capabilityService: options.capabilityService ?? null,
+    ...(options.employeesService === undefined ? {} : { employeesService: options.employeesService }),
     ...(options.now === undefined ? {} : { now: options.now }),
     ...(options.listAccountReferences === undefined
       ? {}

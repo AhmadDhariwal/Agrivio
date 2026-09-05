@@ -102,11 +102,11 @@
       </div>
       <div>
         <dt>Posted by</dt>
-        <dd>{{ item.postedBy || '—' }}</dd>
+        <dd>{{ item.postedByName || '—' }}</dd>
       </div>
       <div>
         <dt>Account movement</dt>
-        <dd>{{ item.accountMovementId || '—' }}</dd>
+        <dd>{{ item.accountMovementName || '—' }}</dd>
       </div>
     </dl>
   </section>
@@ -120,11 +120,19 @@
       </div>
       <div>
         <dt>Corrected by</dt>
-        <dd>{{ item.correctedBy || '—' }}</dd>
+        <dd>{{ item.correctedByName || '—' }}</dd>
       </div>
       <div>
         <dt>Corrected by expense</dt>
-        <dd>{{ item.correctedByExpenseId || '—' }}</dd>
+        <dd>
+          @if (item.correctedByExpenseId) {
+          <a [routerLink]="['/app/expenses', item.correctedByExpenseId]">{{
+            item.correctedByExpenseName || 'View correcting expense'
+          }}</a>
+          } @else {
+          <span>—</span>
+          }
+        </dd>
       </div>
       @if (item.reason) {
       <div class="wide">
