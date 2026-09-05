@@ -393,7 +393,7 @@
           <button
             class="ag-btn ag-btn--primary"
             type="submit"
-            [disabled]="!canSave()"
+            [disabled]="!canManage() || form.invalid || saving()"
             data-testid="employee-save"
           >
             <svg
@@ -850,7 +850,7 @@
       <button
         class="ag-btn ag-btn--primary"
         type="submit"
-        [disabled]="!canSave()"
+        [disabled]="!canManage() || form.invalid || saving()"
         data-testid="employee-save"
       >
         <svg

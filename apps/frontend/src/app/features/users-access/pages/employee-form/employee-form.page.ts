@@ -132,7 +132,6 @@ export class EmployeeFormPage {
     }
     return this.canUpdate();
   });
-  readonly canSave = computed(() => this.canManage() && this.form.valid && !this.saving());
   readonly inspectOnly = computed(() => this.employeeId() !== null && !this.canManage());
 
   readonly accessPolicy = signal<EmployeeAccessPolicy | null>(null);
