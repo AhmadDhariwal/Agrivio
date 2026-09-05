@@ -298,22 +298,22 @@
     <div class="form-actions">
       <button
         class="ag-btn ag-btn--primary"
+        type="button"
+        [disabled]="posting() || saving() || form.invalid"
+        (click)="post()"
+        data-testid="expense-post"
+      >
+        {{ posting() ? 'Registering…' : (expenseId() ? 'Post expense' : 'Register expense') }}
+      </button>
+      <button
+        class="ag-btn ag-btn--secondary"
         type="submit"
-        [disabled]="!canSave()"
+        [disabled]="!canSave() || form.invalid"
         data-testid="expense-save"
       >
         {{ saving() ? 'Saving…' : 'Save draft' }}
       </button>
       @if (expense()?.status === 'draft') {
-      <button
-        class="ag-btn ag-btn--success"
-        type="button"
-        [disabled]="posting()"
-        (click)="post()"
-        data-testid="expense-post"
-      >
-        {{ posting() ? 'Posting…' : 'Post expense' }}
-      </button>
       <button
         class="ag-btn ag-btn--danger"
         type="button"

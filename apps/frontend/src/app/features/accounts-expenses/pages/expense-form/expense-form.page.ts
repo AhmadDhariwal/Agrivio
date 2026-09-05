@@ -8,7 +8,7 @@ import {
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin } from 'rxjs';
+import { forkJoin, switchMap } from 'rxjs';
 import { ExpensesApi } from '../../data-access/expenses.api';
 import { AccountsApi } from '../../data-access/accounts.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
@@ -97,7 +97,7 @@ export class ExpenseFormPage {
   );
   readonly canView = computed(() => this.sessionStore.hasPermission('expenses.view'));
   readonly canSave = computed(
-    () => this.canPost() && this.isDraft && this.form.valid && !this.saving(),
+    () => this.canPost() && this.isDraft && !this.saving() && !this.posting(),
   );
   readonly showCategory = computed(
     () => this.capabilityService?.canViewField('expenses.fields.category') ?? true,
@@ -229,7 +229,7 @@ export class ExpenseFormPage {
   save(): void {
     this.formSubmitAttempted.set(true);
     this.form.markAllAsTouched();
-    if (!this.canPost() || !this.isDraft || this.form.invalid) {
+    if (!this.canPost() || !this.isDraft || this.form.invalid || this.posting()) {
       return;
     }
     this.saving.set(true);
@@ -287,24 +287,45 @@ export class ExpenseFormPage {
   }
 
   post(): void {
-    const id = this.expenseId();
-    const current = this.expense();
-    if (!id || !current || !this.canPost() || current.status !== 'draft') {
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    if (!this.canPost() || !this.isDraft || this.form.invalid || this.posting() || this.saving()) {
       return;
     }
     this.posting.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
-    this.api.postExpense(id, { expectedVersion: this.version }, crypto.randomUUID()).subscribe({
-      next: (expense) => {
-        this.posting.set(false);
-        void this.router.navigateByUrl(`/app/expenses/${expense.id}`);
-      },
-      error: (error: unknown) => {
-        this.posting.set(false);
-        this.errorMessage.set(this.mapError(error, 'Unable to post expense.'));
-      },
-    });
+    const value = this.form.getRawValue();
+    const existingId = this.expenseId();
+    const draft$ =
+      existingId === null
+        ? this.api.createExpense(this.buildExpenseCreatePayload(value))
+        : this.api.updateExpense(existingId, {
+            expectedVersion: this.version,
+            ...this.buildExpensePatchPayload(value),
+          });
+    draft$
+      .pipe(
+        switchMap((expense) => {
+          this.expenseId.set(expense.id);
+          this.version = expense.version;
+          return this.api.postExpense(
+            expense.id,
+            { expectedVersion: expense.version },
+            crypto.randomUUID(),
+          );
+        }),
+      )
+      .subscribe({
+        next: (expense) => {
+          this.posting.set(false);
+          void this.router.navigateByUrl(`/app/expenses/${expense.id}`);
+        },
+        error: (error: unknown) => {
+          this.posting.set(false);
+          this.errorMessage.set(this.mapError(error, 'Unable to post expense.'));
+        },
+      });
   }
 
   correct(): void {
