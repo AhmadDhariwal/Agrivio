@@ -152,13 +152,13 @@ export class AccountFormPage {
   readonly showStatus = computed(
     () => this.capabilityService?.canViewField('accounts.fields.status') ?? true,
   );
-  readonly canEditStatus = computed(
-    () =>
-      this.canEdit() && (this.capabilityService?.canEditField('accounts.fields.status') ?? true),
-  );
-  readonly canSave = computed(() => {
-    const allowed = this.accountId() === null ? this.canCreate() : this.canEdit();
-    return allowed && this.form.valid && !this.saving();
+  readonly loadedStatus = signal<'active' | 'inactive'>('active');
+  readonly canChangeStatus = computed(() => {
+    if (this.accountId() === null || !this.canEdit()) {
+      return false;
+    }
+    const action = this.loadedStatus() === 'active' ? 'deactivate' : 'reactivate';
+    return this.capabilityService?.canPerformAction(`accounts.actions.${action}`) ?? true;
   });
   readonly showDerivedBalance = computed(
     () => this.capabilityService?.canViewField('accounts.fields.derivedBalance') ?? true,
@@ -613,8 +613,8 @@ export class AccountFormPage {
     if (this.canEditName()) {
       payload.name = value.name.trim();
     }
-    if (this.canEditStatus()) {
-      payload.status = value.status;
+    if (this.canChangeStatus()) {
+      payload.status = value.status === 'inactive' ? 'inactive' : 'active';
     }
 
     const accountType = this.accountType();
@@ -661,6 +661,7 @@ export class AccountFormPage {
   private applyAccount(account: AccountRecord): void {
     this.version = account.version;
     this.accountType.set(account.accountType);
+    this.loadedStatus.set(account.status === 'inactive' ? 'inactive' : 'active');
     this.form.patchValue({
       accountType: account.accountType,
       name: account.name,

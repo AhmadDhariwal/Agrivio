@@ -226,6 +226,7 @@
             class="form-control"
             formControlName="status"
             data-testid="account-status"
+            [attr.disabled]="!canChangeStatus() ? true : null"
           >
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
@@ -238,7 +239,7 @@
         <button
           class="ag-btn ag-btn--primary"
           type="submit"
-          [disabled]="!canSave()"
+          [disabled]="!(accountId() ? canEdit() : canCreate()) || form.invalid || saving()"
           data-testid="account-save"
         >
           {{ saving() ? 'Saving…' : 'Save Account' }}

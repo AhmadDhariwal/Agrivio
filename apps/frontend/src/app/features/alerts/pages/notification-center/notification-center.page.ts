@@ -277,20 +277,17 @@ export class NotificationCenterPage {
       const minutes = String(date.getMinutes()).padStart(2, '0');
       const timeStr = `${hours}:${minutes}`;
 
-      if (diffMs < 0) {
-        return `Today, ${timeStr}`;
-      }
       const diffDays = Math.floor(diffMs / 86400000);
-      if (diffDays === 0) {
+      if (diffDays <= 0) {
         return `Today, ${timeStr}`;
       }
       if (diffDays === 1) {
         return `Yesterday, ${timeStr}`;
       }
-      if (diffDays > 1 && diffDays < 30) {
-        return `${diffDays}d ago (${timeStr})`;
+      if (diffDays < 30) {
+        return `${diffDays}d ago`;
       }
-      return `${date.toISOString().slice(0, 10)} ${timeStr}`;
+      return date.toISOString().slice(0, 10);
     } catch {
       return dateStr;
     }
