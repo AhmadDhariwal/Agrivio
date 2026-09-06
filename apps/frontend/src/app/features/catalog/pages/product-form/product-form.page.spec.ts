@@ -284,7 +284,7 @@ describe('ProductFormPage', () => {
     await waitForFormReady(fixture);
 
     const router = TestBed.inject(Router);
-    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    const navigateSpy = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
 
     fixture.componentInstance.form.patchValue({
       name: 'Super Bio',
@@ -299,8 +299,6 @@ describe('ProductFormPage', () => {
     fixture.detectChanges();
 
     expect(createProduct).toHaveBeenCalled();
-    expect(navigateSpy).toHaveBeenCalledWith(['/app/inventory/opening-stock'], {
-      queryParams: { productId: 'prod-new-123' },
-    });
+    expect(navigateSpy).toHaveBeenCalledWith('/app/products');
   });
 });

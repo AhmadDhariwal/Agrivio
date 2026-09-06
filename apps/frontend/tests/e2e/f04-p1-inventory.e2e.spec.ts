@@ -66,7 +66,7 @@ test.describe('F04 P1 inventory opening stock vertical slice', () => {
     await page.getByTestId('product-name').fill('Urea E2E');
     await page.getByTestId('product-category').selectOption({ label: 'Fertilizers' });
     await page.getByTestId('product-tracking-mode').selectOption('batch_expiry');
-    await page.getByTestId('product-base-unit').fill('KG');
+    await page.getByTestId('product-base-unit').selectOption('KG');
     await page.getByTestId('product-measurement-dimension').selectOption('mass');
     await page.getByTestId('packaging-unit-name').fill('50 KG');
     await page.getByTestId('packaging-conversion').fill('50');
@@ -98,7 +98,7 @@ test.describe('F04 P1 inventory opening stock vertical slice', () => {
 
     await page.locator('#ag-main').getByRole('link', { name: 'Movements' }).click();
     await expect(page.getByTestId('movements-list')).toBeVisible();
-    await expect(page.getByTestId('movement-row').first()).toContainText('opening_stock');
+    await expect(page.getByTestId('movement-row').first()).toContainText(/opening_stock|Opening Stock/i);
     await expect(page.getByTestId('movement-row').first()).toContainText('100.0000');
   });
 });

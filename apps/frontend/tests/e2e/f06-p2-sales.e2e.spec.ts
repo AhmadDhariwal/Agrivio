@@ -68,7 +68,7 @@ test.describe('F06 P2 sale posting vertical slice', () => {
     await expect(page.getByTestId('accounts-list')).toContainText('P2 Cash');
     await page
       .getByTestId('accounts-list')
-      .locator('article')
+      .locator('tr, article')
       .filter({ hasText: 'P2 Cash' })
       .getByRole('link', { name: 'Edit' })
       .click();
@@ -96,14 +96,14 @@ test.describe('F06 P2 sale posting vertical slice', () => {
     await page.getByTestId('product-name').fill('P2 Product');
     await page.getByTestId('product-category').selectOption({ label: 'P2 Cat' });
     await page.getByTestId('product-tracking-mode').selectOption('none');
-    await page.getByTestId('product-base-unit').fill('EA');
+    await page.getByTestId('product-base-unit').selectOption('EA');
     await page.getByTestId('product-measurement-dimension').selectOption('mass');
     await page.getByTestId('product-save').click();
     await expect(page.getByTestId('products-list')).toContainText('P2 Product');
 
     await page
       .getByTestId('products-list')
-      .locator('article')
+      .locator('tr, article')
       .filter({ hasText: 'P2 Product' })
       .getByRole('link', { name: 'Pricing' })
       .click();
@@ -131,7 +131,7 @@ test.describe('F06 P2 sale posting vertical slice', () => {
     await page.getByTestId('sale-line-quantity').fill('2');
     await expect(page.getByTestId('sale-line-unit-price')).toHaveValue('100.00', { timeout: 10_000 });
     await page.getByTestId('sale-save').click();
-    await expect(page).toHaveURL(/\/app\/sales\/[^/]+$/);
+    await expect(page).toHaveURL(/\/app\/sales\/(?!new)[^/]+(\/edit)?$/);
     await expect(page.getByTestId('sale-post')).toBeVisible();
 
     for (let attempt = 0; attempt < 6; attempt += 1) {

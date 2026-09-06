@@ -30,9 +30,9 @@ export async function seedStarterPlan(
   expect([200, 201]).toContain(plan.status());
 }
 
-import { login, enterPlatformWorkspace } from './e2e-auth-helper';
+import { login, login as signIn, enterPlatformWorkspace } from './e2e-auth-helper';
 
-export { API, login, enterPlatformWorkspace, login as signIn };
+export { API, login, enterPlatformWorkspace, signIn };
 
 export async function bootstrapApprovedOwner(
   page: Page,

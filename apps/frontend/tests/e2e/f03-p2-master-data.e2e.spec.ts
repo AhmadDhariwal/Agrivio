@@ -55,7 +55,7 @@ test.describe('F03 P2 master data vertical slice', () => {
     await page.getByTestId('product-name').fill('Urea 46');
     await page.getByTestId('product-category').selectOption({ label: 'Fertilizers' });
     await page.getByTestId('product-tracking-mode').selectOption('batch_expiry');
-    await page.getByTestId('product-base-unit').fill('KG');
+    await page.getByTestId('product-base-unit').selectOption('KG');
     await page.getByTestId('product-measurement-dimension').selectOption('mass');
     await page.getByTestId('packaging-unit-name').fill('50 KG');
     await page.getByTestId('packaging-conversion').fill('50');

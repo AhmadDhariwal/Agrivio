@@ -11,6 +11,12 @@
         @if (accountId() && form.controls.status.value; as status) {
         <agrivio-ui-status-badge [label]="status" [tone]="statusTone(status)" />
         }
+        @if (accountId() && showDerivedBalance()) {
+        <div class="balance-badge" data-testid="account-derived-balance">
+          <span class="balance-badge__label">Derived Balance:</span>
+          <span class="balance-badge__value">PKR {{ derivedBalance() }}</span>
+        </div>
+        }
       </div>
       <p class="page-head__lede">
         Balances come from signed account movements. Posted movements are never overwritten.
@@ -34,7 +40,7 @@
         >
           <polyline points="15 18 9 12 15 6" />
         </svg>
-        <span>Back to Accounts</span>
+        <span>Back</span>
       </a>
     </div>
   </header>
@@ -272,7 +278,8 @@
       </div>
     </div>
   </div>
-  } } @if (isActivityMode) {
+  } }
+
   <!-- Section 2: Opening Balance -->
   @if (accountId() && showOpeningBalance() && (openingPosted() || canPostOpening())) {
   <section class="form-card" data-testid="account-opening-section">
@@ -352,6 +359,7 @@
   </section>
   }
 
+  @if (isActivityMode) {
   <!-- Section 3: Manual Inflow / Outflow -->
   @if (accountId() && canPostTransaction()) {
   <section class="form-card" data-testid="account-transaction-section">
@@ -657,7 +665,7 @@
       @if (showDerivedBalance()) {
       <div class="balance-badge" data-testid="account-derived-balance">
         <span class="balance-badge__label">Derived Balance:</span>
-        <span class="balance-badge__value">PKR {{ formatAmount(derivedBalance()) }}</span>
+        <span class="balance-badge__value">PKR {{ derivedBalance() }}</span>
       </div>
       }
     </div>
