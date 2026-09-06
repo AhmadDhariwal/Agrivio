@@ -93,11 +93,14 @@ export class UiPaginationComponent {
   readonly total = input(0);
   readonly pageSizeOptions = input<readonly number[]>([10, 25, 50, 100]);
   readonly disabled = input(false);
+  readonly alwaysShowNavigation = input(false);
   readonly pageChange = output<number>();
   readonly pageSizeChange = output<number>();
 
   readonly visible = computed(() => this.total() > 10);
-  readonly showNavigation = computed(() => this.totalPages() > 1);
+  readonly showNavigation = computed(
+    () => this.alwaysShowNavigation() || this.totalPages() > 1,
+  );
   readonly totalPages = computed(() => Math.max(1, Math.ceil(this.total() / this.pageSize())));
   readonly rangeStart = computed(() =>
     this.total() === 0 ? 0 : (this.page() - 1) * this.pageSize() + 1,
