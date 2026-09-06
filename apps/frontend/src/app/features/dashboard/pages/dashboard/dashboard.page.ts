@@ -64,6 +64,17 @@ export class DashboardPage {
   readonly toDate = signal('');
   readonly branchId = signal('');
   readonly warehouseId = signal('');
+  readonly appliedFilters = signal<{
+    fromDate: string;
+    toDate: string;
+    branchId: string;
+    warehouseId: string;
+  }>({
+    fromDate: '',
+    toDate: '',
+    branchId: '',
+    warehouseId: '',
+  });
 
   readonly canView = computed(() => this.sessionStore.hasPermission('dashboard.view'));
   readonly suspended = computed(
@@ -160,6 +171,21 @@ export class DashboardPage {
       this.toDate().trim() !== '' &&
       this.toDate().trim() !== defaultTo;
     return hasBranch || hasWarehouse || hasCustomFrom || hasCustomTo;
+  });
+
+  readonly hasFilterChanges = computed(() => {
+    const applied = this.appliedFilters();
+    const currentFrom = this.fromDate().trim();
+    const currentTo = this.toDate().trim();
+    const currentBranch = this.branchId().trim();
+    const currentWarehouse = this.warehouseId().trim();
+
+    return (
+      currentFrom !== applied.fromDate ||
+      currentTo !== applied.toDate ||
+      currentBranch !== applied.branchId ||
+      currentWarehouse !== applied.warehouseId
+    );
   });
 
   readonly salesPurchaseSeries: ChartSeries[] = [
@@ -300,6 +326,12 @@ export class DashboardPage {
             this.toDate.set(data.period.toDate);
           }
         }
+        this.appliedFilters.set({
+          fromDate: this.fromDate().trim(),
+          toDate: this.toDate().trim(),
+          branchId: this.branchId().trim(),
+          warehouseId: this.warehouseId().trim(),
+        });
         this.loading.set(false);
       });
   }
