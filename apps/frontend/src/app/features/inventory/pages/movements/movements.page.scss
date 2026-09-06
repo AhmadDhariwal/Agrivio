@@ -294,7 +294,7 @@
 
   &__desktop {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
     min-width: 0;
@@ -318,6 +318,8 @@
     align-items: center;
     gap: 8px;
     flex: 0 0 auto;
+    align-self: flex-start;
+    height: 34px;
   }
 
   &__mobile {
@@ -335,9 +337,9 @@
   position: relative;
   display: flex;
   align-items: center;
-  min-width: 220px;
-  max-width: 280px;
-  flex: 1;
+  min-width: 170px;
+  max-width: 240px;
+  flex: 1 1 auto;
 
   @media (max-width: 767px) {
     max-width: 100%;
@@ -391,25 +393,20 @@
 }
 
 .select-field {
-  min-width: 0;
-  max-width: 100%;
+  min-width: 110px;
+  max-width: 165px;
+  flex: 1 1 auto;
 
   &--product {
-    flex: 1 1 100%;
-    width: 100%;
-
-    .select-field__input {
-      display: block;
-      width: 100%;
-      min-width: 0;
-      max-width: 100%;
-    }
+    min-width: 130px;
+    max-width: 200px;
+    flex: 1.2 1 auto;
   }
 
   &__input {
     height: 34px;
-    max-width: 100%;
-    padding: 0 10px;
+    width: 100%;
+    padding: 0 8px;
     font-size: 13px;
     border: 1px solid var(--ag-color-border, #cbd5e1);
     border-radius: 6px;
@@ -417,6 +414,9 @@
     color: var(--ag-color-text, #0f172a);
     outline: none;
     cursor: pointer;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--ag-font-sans);
     transition: all 0.15s ease;
 
     &:focus {
@@ -444,6 +444,8 @@
   border: 1px solid var(--ag-color-border, #cbd5e1);
   border-radius: 6px;
   overflow: hidden;
+  height: 34px;
+  box-sizing: border-box;
 
   &__btn {
     width: 32px;
@@ -682,10 +684,18 @@
   white-space: nowrap;
 }
 
+.col-actions,
+.cell-actions {
+  white-space: nowrap;
+  min-width: 80px;
+}
+
 .inspect-btn {
   font-size: 12.5px;
   font-weight: 500;
   color: var(--ag-color-primary, #065f46);
+  white-space: nowrap;
+  display: inline-block;
 
   &:hover {
     background: #ecfdf5;
@@ -796,6 +806,7 @@
   flex-direction: column;
   animation: slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
+  font-family: var(--ag-font-sans);
 
   @media (max-width: 480px) {
     max-width: 100%;
@@ -832,6 +843,7 @@
 }
 
 .drawer-eyebrow {
+  font-family: var(--ag-font-sans);
   font-size: 10.5px;
   font-weight: 700;
   text-transform: uppercase;
@@ -840,10 +852,12 @@
 }
 
 .drawer-title {
+  font-family: var(--ag-font-sans);
   font-size: 18px;
   font-weight: 600;
   color: #0f172a;
   margin: 0;
+  line-height: 1.25;
 }
 
 .drawer-close-btn {
@@ -873,6 +887,7 @@
 }
 
 .section-heading {
+  font-family: var(--ag-font-sans);
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
@@ -900,6 +915,7 @@
 }
 
 .detail-label {
+  font-family: var(--ag-font-sans);
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -908,6 +924,7 @@
 }
 
 .detail-value {
+  font-family: var(--ag-font-sans);
   font-size: 13px;
   color: #0f172a;
 }

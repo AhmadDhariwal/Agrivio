@@ -290,6 +290,34 @@ describe('ExpiryInquiryPage', () => {
     expect(component.selectedItem()).toBeNull();
   });
 
+  it('should toggle and close row overflow menu with appropriate open classes', () => {
+    const key = 'batch-1-prod-1-wh-1';
+    const dummyEvent = new MouseEvent('click');
+    vi.spyOn(dummyEvent, 'stopPropagation');
+
+    expect(component.openMenuBatchId()).toBeNull();
+
+    component.toggleRowMenu(key, dummyEvent);
+    expect(component.openMenuBatchId()).toBe(key);
+    expect(dummyEvent.stopPropagation).toHaveBeenCalled();
+
+    fixture.detectChanges();
+    const openRow = fixture.nativeElement.querySelector('.row--menu-open');
+    expect(openRow).toBeTruthy();
+    const openMenuContainer = fixture.nativeElement.querySelector('.menu-container--open');
+    expect(openMenuContainer).toBeTruthy();
+    const menuDropdown = fixture.nativeElement.querySelector('.menu-dropdown');
+    expect(menuDropdown).toBeTruthy();
+
+    component.closeRowMenu();
+    expect(component.openMenuBatchId()).toBeNull();
+
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.menu-dropdown')).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('.menu-container--open')).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('.row--menu-open')).toBeFalsy();
+  });
+
   it('should format dates and quantities accurately', () => {
     expect(component.formatDate('2026-09-04')).toContain('2026');
     expect(component.formatDate('2026-09-04')).toContain('04');

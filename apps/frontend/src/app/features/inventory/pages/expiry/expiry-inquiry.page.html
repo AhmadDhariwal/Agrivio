@@ -675,7 +675,7 @@
                       <div class="cell-entity">
                         <span class="cell-entity__primary" [title]="productName(item.productId)">{{ productName(item.productId) }}</span>
                         @if (productSku(item.productId); as sku) {
-                          <span class="cell-entity__secondary">SKU: {{ sku }}</span>
+                          <span class="cell-entity__secondary" [title]="'SKU: ' + sku">SKU: {{ sku }}</span>
                         }
                       </div>
                     </td>
@@ -686,7 +686,7 @@
                         <div class="cell-location">
                           <span class="cell-location__name" [title]="warehouseName(item.warehouseId)">{{ warehouseName(item.warehouseId) }}</span>
                           @if (warehouseCode(item.warehouseId); as code) {
-                            <span class="cell-location__code">{{ code }}</span>
+                            <span class="cell-location__code" [title]="code">{{ code }}</span>
                           }
                         </div>
                       </td>
@@ -784,7 +784,10 @@
                         }
 
                         <!-- Row Overflow Menu -->
-                        <div class="menu-container">
+                        <div
+                          class="menu-container"
+                          [class.menu-container--open]="openMenuBatchId() === ((item.batchId ?? '') + '-' + item.productId + '-' + item.warehouseId)"
+                        >
                           <button
                             class="row-action-btn row-action-btn--more"
                             type="button"
@@ -914,9 +917,9 @@
                     } @else {
                       <span class="muted-dash">—</span>
                     }
-                    <p class="batch-card__product-name">{{ productName(item.productId) }}</p>
+                    <p class="batch-card__product-name" [title]="productName(item.productId)">{{ productName(item.productId) }}</p>
                     @if (productSku(item.productId); as sku) {
-                      <span class="batch-card__sku">SKU: {{ sku }}</span>
+                      <span class="batch-card__sku" [title]="'SKU: ' + sku">SKU: {{ sku }}</span>
                     }
                   </div>
                   @let cls = getClassificationInfo(item.classification);

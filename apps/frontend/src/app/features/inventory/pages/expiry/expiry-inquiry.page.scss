@@ -593,6 +593,7 @@
   text-align: left;
   font-size: 13px;
   min-width: 880px;
+  table-layout: fixed;
 
   th {
     padding: 10px 10px;
@@ -606,6 +607,8 @@
     white-space: nowrap;
     user-select: none;
     font-family: var(--ag-font-sans);
+    overflow: hidden;
+    text-overflow: ellipsis;
 
     &.th-sortable {
       cursor: pointer;
@@ -627,6 +630,17 @@
     color: #334155;
     vertical-align: middle;
     font-family: var(--ag-font-sans);
+
+    &.col-product,
+    &.col-location,
+    &.col-batch {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    &.col-actions {
+      overflow: visible;
+    }
   }
 
   tbody tr {
@@ -652,11 +666,21 @@
 
     &.row--menu-open {
       position: relative;
-      z-index: 50;
+      z-index: 100;
 
       .col-actions {
         position: relative;
-        z-index: 60;
+        z-index: 100;
+      }
+
+      .row-actions {
+        position: relative;
+        z-index: 100;
+      }
+
+      .menu-container {
+        position: relative;
+        z-index: 120;
       }
     }
   }
@@ -673,39 +697,53 @@
   font-weight: 700;
 }
 
-/* Column Dimensions & Stability */
+/* Column Dimensions & Stability (table-layout: fixed) */
 .col-batch {
-  width: 160px;
-  min-width: 140px;
+  width: 14%;
+  min-width: 120px;
+  max-width: 160px;
 }
 
 .col-product {
-  min-width: 200px;
+  width: 28%;
+  min-width: 180px;
 }
 
 .col-location {
-  min-width: 160px;
+  width: 18%;
+  min-width: 130px;
 }
 
 .col-expiry {
-  width: 140px;
-  min-width: 120px;
+  width: 120px;
+  min-width: 115px;
+  max-width: 130px;
 }
 
 .col-qty {
-  width: 110px;
-  min-width: 90px;
+  width: 95px;
+  min-width: 85px;
+  max-width: 105px;
 }
 
 .col-classification {
-  width: 140px;
-  min-width: 130px;
+  width: 130px;
+  min-width: 125px;
+  max-width: 140px;
 }
 
 .col-actions {
   width: 104px;
   min-width: 104px;
+  max-width: 110px;
   text-align: right;
+  overflow: visible;
+}
+
+.batch-num-wrap {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .batch-text {
@@ -717,6 +755,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   display: block;
+  max-width: 100%;
 }
 
 .muted-dash {
@@ -728,6 +767,8 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 
   &__primary {
     font-size: 13.5px;
@@ -739,6 +780,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     display: block;
+    max-width: 100%;
   }
 
   &__secondary {
@@ -749,6 +791,8 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: block;
+    max-width: 100%;
   }
 }
 
@@ -757,6 +801,8 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 
   &__name {
     font-size: 13px;
@@ -768,6 +814,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     display: block;
+    max-width: 100%;
   }
 
   &__code {
@@ -778,6 +825,8 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: block;
+    max-width: 100%;
   }
 }
 
@@ -935,7 +984,10 @@
 .menu-container {
   position: relative;
   display: inline-block;
-  z-index: 60;
+
+  &--open {
+    z-index: 120;
+  }
 }
 
 .menu-dropdown {
@@ -943,7 +995,7 @@
   right: 0;
   top: 100%;
   margin-top: 4px;
-  z-index: 100;
+  z-index: 150;
   min-width: 160px;
   background: #ffffff !important;
   border: 1px solid #cbd5e1;
@@ -1063,6 +1115,9 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   &__product-name {
@@ -1070,11 +1125,21 @@
     font-weight: 600;
     color: #0f172a;
     margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    max-width: 100%;
   }
 
   &__sku {
     font-size: 11.5px;
     color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    max-width: 100%;
   }
 
   &__body {
