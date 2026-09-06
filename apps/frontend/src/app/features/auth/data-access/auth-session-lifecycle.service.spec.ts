@@ -6,6 +6,7 @@ import { CapabilityService } from '../../capabilities/data-access/capability.ser
 import { AuthApi } from './auth.api';
 import { AuthSessionLifecycleService } from './auth-session-lifecycle.service';
 import { AuthSessionStore } from './auth-session.store';
+import { AuthSessionCrossTabService } from './auth-session-cross-tab.service';
 
 describe('AuthSessionLifecycleService', () => {
   it('invalidates the server session, clears scoped client state, and redirects to /signin', () => {
@@ -14,6 +15,7 @@ describe('AuthSessionLifecycleService', () => {
     const queryCache = { clearTenantCache: vi.fn() };
     const capabilities = { clear: vi.fn() };
     const router = { navigateByUrl: vi.fn(() => Promise.resolve(true)) };
+    const crossTab = { loggedOut: vi.fn() };
     TestBed.configureTestingModule({
       providers: [
         AuthSessionLifecycleService,
@@ -22,6 +24,7 @@ describe('AuthSessionLifecycleService', () => {
         { provide: QueryCacheService, useValue: queryCache },
         { provide: CapabilityService, useValue: capabilities },
         { provide: Router, useValue: router },
+        { provide: AuthSessionCrossTabService, useValue: crossTab },
       ],
     });
 
@@ -32,6 +35,7 @@ describe('AuthSessionLifecycleService', () => {
     expect(queryCache.clearTenantCache).toHaveBeenCalledOnce();
     expect(capabilities.clear).toHaveBeenCalledOnce();
     expect(sessionStore.clear).toHaveBeenCalledOnce();
+    expect(crossTab.loggedOut).toHaveBeenCalledOnce();
     expect(router.navigateByUrl).toHaveBeenCalledWith('/signin');
   });
 });

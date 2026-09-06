@@ -5,8 +5,14 @@ import {
   RouterStateSnapshot,
   provideRouter,
 } from '@angular/router';
-import { firstValueFrom, of, throwError } from 'rxjs';
-import { publicOnlyGuard, requirePermissionGuard, requireSessionGuard } from './session.guards';
+import { firstValueFrom, of, Subject } from 'rxjs';
+import {
+  publicOnlyGuard,
+  requirePermissionGuard,
+  requirePlatformContextGuard,
+  requireSessionGuard,
+} from './session.guards';
+import { AuthSessionSnapshot } from '../../features/auth/data-access/auth.api';
 import { AuthSessionStore } from '../../features/auth/data-access/auth-session.store';
 
 const emptyRoute = {} as ActivatedRouteSnapshot;
@@ -21,6 +27,7 @@ describe('requirePermissionGuard', () => {
           provide: AuthSessionStore,
           useValue: {
             session: () => ({ user: { id: 'u1' } }),
+            authState: () => 'authenticated',
             hasPermission: (code: string) => code === 'purchases.view',
             loadSession: () => of({}),
           },
@@ -42,6 +49,7 @@ describe('requirePermissionGuard', () => {
           provide: AuthSessionStore,
           useValue: {
             session: () => ({ user: { id: 'u1' } }),
+            authState: () => 'authenticated',
             hasPermission: () => false,
             loadSession: () => of({}),
           },
@@ -66,6 +74,7 @@ describe('session route guards', () => {
           provide: AuthSessionStore,
           useValue: {
             session: () => null,
+            authState: () => 'unknown',
             activeContext: () => ({ contextType: 'organization', organizationId: 'org-1' }),
             loadSession: () => of({}),
           },
@@ -85,8 +94,9 @@ describe('session route guards', () => {
           provide: AuthSessionStore,
           useValue: {
             session: () => null,
+            authState: () => 'unknown',
             activeContext: () => null,
-            loadSession: () => throwError(() => new Error('unauthorized')),
+            loadSession: () => of(null),
           },
         },
       ],
@@ -103,7 +113,8 @@ describe('session route guards', () => {
           provide: AuthSessionStore,
           useValue: {
             session: () => null,
-            loadSession: () => throwError(() => new Error('expired')),
+            authState: () => 'unknown',
+            loadSession: () => of(null),
           },
         },
       ],
@@ -113,5 +124,124 @@ describe('session route guards', () => {
     expect(await firstValueFrom(result as ReturnType<typeof of>)).toEqual(
       router.parseUrl('/signin'),
     );
+  });
+
+  it('waits for session restoration before deciding a public-only route', () => {
+    const restored = new Subject<AuthSessionSnapshot | null>();
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            session: () => null,
+            authState: () => 'restoring',
+            activeContext: () => ({ contextType: 'organization' }),
+            loadSession: () => restored.asObservable(),
+          },
+        },
+      ],
+    });
+    let decision: unknown;
+    const result = TestBed.runInInjectionContext(() => publicOnlyGuard(emptyRoute, emptyState));
+    (result as ReturnType<typeof of>).subscribe((value) => (decision = value));
+
+    expect(decision).toBeUndefined();
+    restored.next({} as AuthSessionSnapshot);
+    expect(decision).toEqual(TestBed.inject(Router).parseUrl('/app'));
+  });
+
+  it('redirects a restored platform session to the canonical platform workspace', async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            session: () => null,
+            authState: () => 'unknown',
+            activeContext: () => ({ contextType: 'platform' }),
+            loadSession: () => of({ activeContext: { contextType: 'platform' } }),
+          },
+        },
+      ],
+    });
+    const router = TestBed.inject(Router);
+    const result = TestBed.runInInjectionContext(() => publicOnlyGuard(emptyRoute, emptyState));
+    expect(await firstValueFrom(result as ReturnType<typeof of>)).toEqual(
+      router.parseUrl('/app/platform/organizations'),
+    );
+  });
+
+  it('redirects an authenticated session without an active context to context selection', async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            session: () => null,
+            authState: () => 'unknown',
+            activeContext: () => null,
+            loadSession: () => of({ activeContext: null }),
+          },
+        },
+      ],
+    });
+    const result = TestBed.runInInjectionContext(() => publicOnlyGuard(emptyRoute, emptyState));
+    expect(await firstValueFrom(result as ReturnType<typeof of>)).toEqual(
+      TestBed.inject(Router).parseUrl('/context'),
+    );
+  });
+
+  it('keeps tenant context out of platform routes', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            session: () => ({ activeContext: { contextType: 'organization' } }),
+            authState: () => 'authenticated',
+            activeContext: () => ({ contextType: 'organization' }),
+            loadSession: vi.fn(),
+          },
+        },
+      ],
+    });
+    expect(
+      TestBed.runInInjectionContext(() =>
+        requirePlatformContextGuard(emptyRoute, emptyState),
+      ),
+    ).toEqual(TestBed.inject(Router).createUrlTree(['/context']));
+  });
+
+  it('does not repeat the session request after unauthenticated state is known', () => {
+    const loadSession = vi.fn();
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            session: () => null,
+            authState: () => 'unauthenticated',
+            activeContext: () => null,
+            loadSession,
+          },
+        },
+      ],
+    });
+    const router = TestBed.inject(Router);
+    const publicResult = TestBed.runInInjectionContext(() =>
+      publicOnlyGuard(emptyRoute, emptyState),
+    );
+    const protectedResult = TestBed.runInInjectionContext(() =>
+      requireSessionGuard(emptyRoute, emptyState),
+    );
+
+    expect(publicResult).toBe(true);
+    expect(protectedResult).toEqual(router.parseUrl('/signin'));
+    expect(loadSession).not.toHaveBeenCalled();
   });
 });

@@ -2,9 +2,9 @@ import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
-import { AuthSessionStore } from '../../features/auth/data-access/auth-session.store';
 import { mapAuthorizationError } from '../access/authorization-error';
 import { APP_PATHS } from '../navigation/app-paths';
+import { AuthSessionCrossTabService } from '../../features/auth/data-access/auth-session-cross-tab.service';
 
 /**
  * Global HTTP interceptor that intercepts 401 Unauthorized responses.
@@ -13,8 +13,8 @@ import { APP_PATHS } from '../navigation/app-paths';
  * Authorization failures keep the current page and expose a user-safe message.
  */
 export const authErrorInterceptor: HttpInterceptorFn = (req, next) => {
-  const sessionStore = inject(AuthSessionStore);
   const router = inject(Router);
+  const crossTab = inject(AuthSessionCrossTabService);
 
   return next(req).pipe(
     catchError((error: unknown) => {
@@ -25,7 +25,7 @@ export const authErrorInterceptor: HttpInterceptorFn = (req, next) => {
           (req.method === 'GET' && req.url.includes('/api/v1/auth/session'));
 
         if (!isAuthAttempt) {
-          sessionStore.clear();
+          crossTab.authoritativeSessionLost();
           if (!router.url.startsWith(APP_PATHS.signIn)) {
             void router.navigateByUrl(APP_PATHS.signIn);
           }

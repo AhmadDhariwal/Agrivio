@@ -54,3 +54,9 @@ MongoDB replica-set transaction/TTL proofs for `auth_sessions` / `password_reset
 `/signin` is now the canonical sign-in route; `/login` is a compatibility redirect. Sign-in, password reset, activation/request-access, and the public landing entry wait for the authoritative cookie-session probe and redirect authenticated users to `/app` or `/context` without rendering public auth UI. The `/app` parent guard continues to block all protected child rendering and sends missing/expired sessions to `/signin`; permission and capability denials remain `/app/access-denied` and `/app/feature-unavailable` respectively.
 
 Successful logout still posts the existing server endpoint, then clears the CSRF token, session/context, capability state, and existing scoped query cache before navigating to `/signin`. The authenticated context selector no longer offers “Back to sign in.” `QueryCacheService` was not modified.
+
+## Final auth and multi-tab routing hardening (2026-09-06)
+
+Frontend auth state now distinguishes unknown, restoring, authenticated, and unauthenticated states. Public-only and protected guards wait for the single deduplicated cookie-session restore result, preventing sign-in rendering and repeated session probes during redirect chains. Authenticated `/`, `/signin`, and legacy `/login` navigation resolves to `/app`, `/context`, or the canonical platform workspace according to the restored active context.
+
+Secret-free `BroadcastChannel` events notify sibling tabs after login, logout, or context change. Receiving tabs always revalidate through `GET /api/v1/auth/session`; logout and authoritative `401` handling clear existing CSRF, session/context, capability, and tenant-cache state. The server-side HttpOnly cookie, CSRF flow, authorization, and revocation model remain unchanged, and `QueryCacheService` was not modified.

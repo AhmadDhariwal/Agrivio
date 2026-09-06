@@ -1,5 +1,7 @@
 import {
   ApplicationConfig,
+  inject,
+  provideAppInitializer,
   provideBrowserGlobalErrorListeners,
   provideZonelessChangeDetection,
 } from '@angular/core';
@@ -7,6 +9,7 @@ import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { appRoutes } from './app.routes';
 import { authErrorInterceptor } from './core/interceptors/auth-error.interceptor';
+import { AuthSessionCrossTabService } from './features/auth/data-access/auth-session-cross-tab.service';
 import {
   API_AUDIT_EVENTS_PATH,
   API_IMPORTS_PATH,
@@ -25,6 +28,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideZonelessChangeDetection(),
+    provideAppInitializer(() => inject(AuthSessionCrossTabService).start()),
     provideRouter(appRoutes),
     provideHttpClient(withInterceptors([authErrorInterceptor])),
   ],

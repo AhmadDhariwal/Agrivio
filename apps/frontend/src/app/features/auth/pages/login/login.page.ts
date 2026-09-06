@@ -7,7 +7,8 @@ import { AuthLayoutComponent } from '../../../../shared/ui/auth-layout/auth-layo
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
 import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
-import { APP_PATHS } from '../../../../core/navigation/app-paths';
+import { authenticatedHomePath } from '../../../../core/navigation/app-paths';
+import { AuthSessionCrossTabService } from '../../data-access/auth-session-cross-tab.service';
 
 @Component({
   selector: 'agrivio-login-page',
@@ -27,6 +28,7 @@ export class LoginPage {
   private readonly authApi = inject(AuthApi);
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly router = inject(Router);
+  private readonly crossTab = inject(AuthSessionCrossTabService);
 
   readonly submitting = signal(false);
   readonly showPassword = signal(false);
@@ -54,12 +56,11 @@ export class LoginPage {
     this.authApi.login(email, password).subscribe({
       next: (result) => {
         this.sessionStore.applySession(result.session);
+        this.crossTab.sessionChanged();
         this.submitting.set(false);
         this.successMessage.set('Signed in successfully.');
         this.form.patchValue({ password: '' });
-        void this.router.navigateByUrl(
-          result.session.activeContext === null ? APP_PATHS.context : APP_PATHS.workspace,
-        );
+        void this.router.navigateByUrl(authenticatedHomePath(result.session.activeContext));
       },
       error: () => {
         this.submitting.set(false);

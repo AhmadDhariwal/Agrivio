@@ -1,7 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { AuthSessionStore } from './auth-session.store';
 import { AuthApi, AuthSessionSnapshot } from './auth.api';
-import { of, Subject } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
 
 describe('AuthSessionStore', () => {
   it('shares a single authoritative session bootstrap request', () => {
@@ -11,6 +12,7 @@ describe('AuthSessionStore', () => {
       providers: [AuthSessionStore, { provide: AuthApi, useValue: { getSession } }],
     });
     const store = TestBed.inject(AuthSessionStore);
+    expect(store.authState()).toBe('unknown');
 
     const first = store.loadSession();
     const second = store.loadSession();
@@ -19,9 +21,29 @@ describe('AuthSessionStore', () => {
 
     expect(first).toBe(second);
     expect(getSession).toHaveBeenCalledOnce();
+    expect(store.authState()).toBe('restoring');
     response.next(snapshot('org-1'));
     response.complete();
     expect(store.activeContext()?.organizationId).toBe('org-1');
+    expect(store.authState()).toBe('authenticated');
+  });
+
+  it('records an authoritative 401 once and does not create a redirect request storm', () => {
+    const getSession = vi.fn(() =>
+      throwError(
+        () => new HttpErrorResponse({ status: 401, statusText: 'Unauthorized' }),
+      ),
+    );
+    TestBed.configureTestingModule({
+      providers: [AuthSessionStore, { provide: AuthApi, useValue: { getSession } }],
+    });
+    const store = TestBed.inject(AuthSessionStore);
+
+    store.loadSession().subscribe((session) => expect(session).toBeNull());
+    store.loadSession().subscribe((session) => expect(session).toBeNull());
+
+    expect(store.authState()).toBe('unauthenticated');
+    expect(getSession).toHaveBeenCalledOnce();
   });
 
   it('exposes active context and reacts when the context changes', () => {

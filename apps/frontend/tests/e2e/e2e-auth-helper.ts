@@ -24,6 +24,11 @@ export async function login(page: Page, email: string, password: string): Promis
  * visible) and the multi-context selector flow.
  */
 export async function enterPlatformWorkspace(page: Page): Promise<void> {
+  if (/\/app\/platform\//.test(new URL(page.url()).pathname)) {
+    await expect(page.getByTestId('authenticated-shell')).toBeVisible();
+    return;
+  }
+
   const contextActive = page.getByTestId('context-active');
   if (await contextActive.isVisible()) {
     const label = (await contextActive.textContent()) ?? '';
