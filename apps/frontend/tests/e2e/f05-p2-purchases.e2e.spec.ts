@@ -242,7 +242,7 @@ test.describe('F05 P2 purchase posting vertical slice', () => {
     await expect(page.getByTestId('purchases-list')).toContainText('Posted');
     await page.getByTestId('purchase-row').first().getByRole('link').click();
     await expect(page.getByTestId('purchase-posted-banner')).toBeVisible();
-    await expect(page.getByTestId('purchase-warehouse')).toBeDisabled();
+    await expect(page.getByTestId('purchase-detail-warehouse')).toContainText('P2 Receive');
   });
 });
 

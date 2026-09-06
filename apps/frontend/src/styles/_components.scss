@@ -111,7 +111,7 @@
   box-sizing: border-box;
   min-height: var(--ag-control-height);
   padding: 0 var(--ag-space-3);
-  border: 1px solid var(--ag-color-border);
+  border: 1px solid var(--ag-color-border-control);
   border-radius: var(--ag-radius-md);
   background: var(--ag-color-surface);
   color: var(--ag-color-text);
@@ -150,7 +150,7 @@
 .ag-input:hover,
 .ag-select:hover,
 .ag-textarea:hover {
-  border-color: var(--ag-color-border-strong);
+  border-color: var(--ag-color-text-muted);
 }
 
 .ag-control:focus-visible,

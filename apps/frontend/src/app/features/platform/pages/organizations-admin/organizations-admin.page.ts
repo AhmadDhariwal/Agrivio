@@ -80,6 +80,7 @@ export class PlatformOrganizationsPage {
   readonly suspendOpen = signal(false);
   readonly reactivateOpen = signal(false);
   readonly rejectOpen = signal(false);
+  readonly approveOpen = signal(false);
 
   readonly selectedItem = signal<PlatformOrganizationSummary | null>(null);
   readonly activationHandoff = signal<PlatformOrganizationActivationHandoff | null>(null);
@@ -433,7 +434,28 @@ export class PlatformOrganizationsPage {
   }
 
   // Onboarding Actions
+  openApprove(item: PlatformOrganizationSummary): void {
+    this.selectedItem.set(item);
+    this.approveOpen.set(true);
+  }
+
+  closeApprove(): void {
+    this.approveOpen.set(false);
+    this.selectedItem.set(null);
+  }
+
+  submitApprove(): void {
+    const item = this.selectedItem();
+    if (!item) return;
+    this.approveOpen.set(false);
+    this.approve(item);
+  }
+
   askApprove(item: PlatformOrganizationSummary): void {
+    this.approve(item);
+  }
+
+  approve(item: PlatformOrganizationSummary): void {
     this.api.approve(item.id).subscribe({
       next: (result) => {
         this.successMessage.set(

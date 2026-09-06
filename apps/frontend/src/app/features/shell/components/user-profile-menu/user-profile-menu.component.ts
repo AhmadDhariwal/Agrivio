@@ -66,6 +66,7 @@ export class UserProfileMenuComponent {
     this.isOpen.set(false);
   }
 
+  @HostListener('keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
       this.closeDropdown();

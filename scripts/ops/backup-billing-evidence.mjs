@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * ops:backup-billing-evidence – Operator CLI for billing evidence storage backup & recovery.
  *
