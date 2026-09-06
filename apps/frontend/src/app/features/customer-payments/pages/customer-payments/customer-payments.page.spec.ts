@@ -165,6 +165,7 @@ describe('CustomerPaymentsPage', () => {
         search: 'note-1',
         paymentDate: '2026-09-05',
         page: 1,
+        forceRefresh: true,
       }),
     );
   });
@@ -197,6 +198,8 @@ describe('CustomerPaymentsPage', () => {
     toInput.dispatchEvent(new Event('input'));
     fixture.detectChanges();
 
+    expect(listCustomerPaymentsSpy).not.toHaveBeenCalled();
+
     const applyBtn: HTMLButtonElement = fixture.nativeElement.querySelector(
       '[data-testid="customer-payments-apply-btn"]',
     );
@@ -208,6 +211,7 @@ describe('CustomerPaymentsPage', () => {
         fromDate: '2026-08-01',
         toDate: '2026-08-31',
         page: 1,
+        forceRefresh: true,
       }),
     );
   });

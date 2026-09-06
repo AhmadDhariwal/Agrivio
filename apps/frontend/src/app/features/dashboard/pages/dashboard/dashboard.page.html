@@ -131,14 +131,38 @@
           </div>
 
           <div class="toolbar__actions">
-            <button type="submit" class="ag-btn ag-btn--primary filter-apply-btn" data-testid="dashboard-apply-filters-btn">
-              Apply Filters
+            <button
+              type="submit"
+              class="ag-btn ag-btn--primary ag-btn--sm filter-apply-btn"
+              data-testid="dashboard-apply-filters-btn"
+              [disabled]="!hasFilterChanges() || loading() || filtersLoading()"
+            >
+              @if (loading()) {
+                <svg
+                  class="spin"
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M21.5 2v6h-6" />
+                  <path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                </svg>
+                <span>Applying…</span>
+              } @else {
+                <span>Apply Filters</span>
+              }
             </button>
             @if (hasActiveFilters()) {
               <button
                 type="button"
                 class="filter-clear-btn"
                 (click)="clearFilters()"
+                [disabled]="loading() || filtersLoading()"
                 data-testid="dashboard-clear-filters-btn"
               >
                 Clear filters
@@ -148,7 +172,33 @@
         </form>
       </section>
     }
-    <!-- 1. Primary Financial KPI Row (5 Cards) -->
+
+    <!-- Dashboard Content Sections -->
+    <div class="dashboard-content-wrap">
+      @if (loading()) {
+        <div class="dashboard-updating-overlay" data-testid="dashboard-updating-overlay">
+          <div class="dashboard-updating-indicator">
+            <svg
+              class="spin"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21.5 2v6h-6" />
+              <path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+            </svg>
+            <span>Updating dashboard data…</span>
+          </div>
+        </div>
+      }
+
+      <div class="dashboard-content-body" [class.dashboard-content-body--dimmed]="loading()">
+        <!-- 1. Primary Financial KPI Row (5 Cards) -->
     @if (canShowFinancialSummary() && data.periodSales !== undefined) {
       <section class="kpi-row kpi-row--primary" aria-label="Primary Financial Summary">
         <!-- Sales (Period) -->
@@ -865,18 +915,20 @@
       </section>
     }
 
-    <!-- 6. Footer / Context Summary Bar -->
-    <footer class="dashboard-footer" data-testid="dashboard-context-footer">
-      <div class="dashboard-footer__left">
-        <span data-testid="dashboard-period-summary">
-          Showing summary for {{ data.period?.fromDate || 'start' }} to {{ data.period?.toDate || 'now' }}
-        </span>
+        <!-- 6. Footer / Context Summary Bar -->
+        <footer class="dashboard-footer" data-testid="dashboard-context-footer">
+          <div class="dashboard-footer__left">
+            <span data-testid="dashboard-period-summary">
+              Showing summary for {{ data.period?.fromDate || 'start' }} to {{ data.period?.toDate || 'now' }}
+            </span>
+          </div>
+          <div class="dashboard-footer__right">
+            <span>All amounts in PKR</span>
+            <span class="footer-divider">&bull;</span>
+            <span data-testid="dashboard-business-date">Business date: {{ data.businessDate }}</span>
+          </div>
+        </footer>
       </div>
-      <div class="dashboard-footer__right">
-        <span>All amounts in PKR</span>
-        <span class="footer-divider">&bull;</span>
-        <span data-testid="dashboard-business-date">Business date: {{ data.businessDate }}</span>
-      </div>
-    </footer>
+    </div>
   }
 </div>

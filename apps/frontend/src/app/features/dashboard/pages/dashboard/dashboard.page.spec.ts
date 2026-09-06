@@ -361,6 +361,54 @@ describe('DashboardPage', () => {
     expect(component.warehouseId()).toBe('');
   });
 
+  it('manages Apply Filters button disabled state and displays updating loader on apply', async () => {
+    await createComponent();
+
+    const root = fixture.nativeElement as HTMLElement;
+    const applyBtn = root.querySelector('[data-testid="dashboard-apply-filters-btn"]') as HTMLButtonElement;
+    expect(applyBtn).toBeTruthy();
+
+    // Initial state: no changes held -> button remains disabled
+    expect(component.hasFilterChanges()).toBe(false);
+    expect(applyBtn.disabled).toBe(true);
+
+    // Make a change to branch filter -> button becomes enabled
+    component.branchId.set('branch-new');
+    fixture.detectChanges();
+    expect(component.hasFilterChanges()).toBe(true);
+    expect(applyBtn.disabled).toBe(false);
+
+    // Revert change back to applied value -> button disables again
+    component.branchId.set('');
+    fixture.detectChanges();
+    expect(component.hasFilterChanges()).toBe(false);
+    expect(applyBtn.disabled).toBe(true);
+
+    // Change date filter and apply -> verify loading state and updating overlay
+    component.fromDate.set('2026-08-15');
+    fixture.detectChanges();
+    expect(applyBtn.disabled).toBe(false);
+
+    // Simulate reloading state
+    component.loading.set(true);
+    fixture.detectChanges();
+
+    expect(applyBtn.disabled).toBe(true);
+    expect(applyBtn.textContent).toContain('Applying…');
+    expect(root.querySelector('[data-testid="dashboard-updating-overlay"]')).toBeTruthy();
+
+    // Complete loading with new dashboard data
+    component.reload();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(component.loading()).toBe(false);
+    expect(root.querySelector('[data-testid="dashboard-updating-overlay"]')).toBeFalsy();
+    expect(applyBtn.textContent).toContain('Apply Filters');
+    expect(applyBtn.disabled).toBe(true);
+  });
+
   it('requests forceRefresh when toolbar refresh is clicked', async () => {
     await createComponent();
 

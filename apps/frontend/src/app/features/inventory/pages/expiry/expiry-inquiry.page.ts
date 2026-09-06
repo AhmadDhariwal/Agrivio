@@ -95,6 +95,7 @@ export class ExpiryInquiryPage {
   // Authoritative Relation Maps
   readonly productMap = signal<Map<string, ProductRecord>>(new Map());
   readonly warehouseMap = signal<Map<string, WarehouseRecord>>(new Map());
+  private readonly pendingProductFetches = new Set<string>();
 
   readonly productList = signal<ProductRecord[]>([]);
   readonly warehouseList = signal<WarehouseRecord[]>([]);
@@ -429,7 +430,35 @@ export class ExpiryInquiryPage {
         this.businessDate.set(expiry.businessDate);
         this.thresholdDays.set(expiry.thresholdDays);
         this.loading.set(false);
+        this.fetchMissingProducts(expiry.items);
       });
+  }
+
+  private fetchMissingProducts(items: ExpiryInventoryRecord[]): void {
+    const currentMap = this.productMap();
+    const missingIds = Array.from(
+      new Set(items.map((i) => i.productId).filter((id) => id && !currentMap.has(id))),
+    );
+    for (const id of missingIds) {
+      if (this.pendingProductFetches.has(id)) continue;
+      this.pendingProductFetches.add(id);
+      this.catalogApi
+        .getProduct(id)
+        .pipe(
+          catchError(() => of(null)),
+          takeUntilDestroyed(this.destroyRef),
+        )
+        .subscribe((product) => {
+          if (product) {
+            this.productMap.update((map) => {
+              const updated = new Map(map);
+              const prodId = product.id || (product as unknown as { _id?: string })._id;
+              if (prodId) updated.set(prodId, product);
+              return updated;
+            });
+          }
+        });
+    }
   }
 
   private loadReferenceData(): void {
@@ -440,7 +469,7 @@ export class ExpiryInquiryPage {
 
     forkJoin({
       products: this.catalogApi
-        .searchProductOptions('', 500)
+        .searchProductOptions('', 500, 'all')
         .pipe(catchError(() => of([]))),
       warehouses: this.locationsApi
         .listWarehouseOptions()
@@ -597,7 +626,31 @@ export class ExpiryInquiryPage {
 
   // Label & Lookup Helpers
   productName(productId: string): string {
-    return this.productMap().get(productId)?.name ?? productId;
+    const product = this.productMap().get(productId);
+    if (product?.name) return product.name;
+    if (productId && /^[0-9a-fA-F]{24}$/.test(productId)) {
+      if (!this.pendingProductFetches.has(productId)) {
+        this.pendingProductFetches.add(productId);
+        this.catalogApi
+          .getProduct(productId)
+          .pipe(
+            catchError(() => of(null)),
+            takeUntilDestroyed(this.destroyRef),
+          )
+          .subscribe((prod) => {
+            if (prod) {
+              this.productMap.update((map) => {
+                const updated = new Map(map);
+                const prodId = prod.id || (prod as unknown as { _id?: string })._id;
+                if (prodId) updated.set(prodId, prod);
+                return updated;
+              });
+            }
+          });
+      }
+      return `Product (${productId.slice(-6)})`;
+    }
+    return productId || '—';
   }
 
   productSku(productId: string): string | null {

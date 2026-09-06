@@ -57,6 +57,10 @@
 * Playwright `f04-p3-inventory.e2e.spec.ts` + full E2E suite
 * Gates: lint, typecheck, test:unit, test:architecture, build, test:integration, e2e
 
+## Post-completion UI hardening (2026-09-06)
+
+* Stock Movements constrains long product options to the available filter width and reserves space for the table/card view toggle at standard desktop zoom.
+
 ## Next
 
 * F05 Purchases / F06 Sales may begin after F04 exit acceptance (requires R1-F03-011 + R1-F04-012)

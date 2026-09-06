@@ -193,7 +193,7 @@ export class CatalogApi {
   }
 
   searchProductOptions(q = '', limit = 25, status = 'active'): Observable<ProductRecord[]> {
-    const params: Record<string, string> = { q, limit: String(Math.min(50, Math.max(1, limit))) };
+    const params: Record<string, string> = { q, limit: String(Math.min(500, Math.max(1, limit))) };
     if (status && status !== 'all') {
       params['status'] = status;
     }

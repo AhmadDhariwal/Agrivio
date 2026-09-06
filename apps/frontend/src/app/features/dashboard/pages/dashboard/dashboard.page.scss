@@ -209,27 +209,121 @@
 }
 
 .filter-apply-btn {
+  min-height: 32px !important;
   height: 32px;
   padding: 0 14px;
   font-size: 12.5px;
   font-weight: 600;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
   background: var(--ag-color-primary, #065f46);
   color: #ffffff;
-  border-radius: 5px;
+  border: 1px solid var(--ag-color-primary, #065f46);
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--ag-color-primary-hover, #047857);
+    border-color: var(--ag-color-primary-hover, #047857);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    background: var(--ag-color-primary, #065f46);
+    border-color: var(--ag-color-primary, #065f46);
+    color: #ffffff;
+  }
 }
 
 .filter-clear-btn {
+  height: 32px;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
   font-size: 12px;
   font-weight: 500;
   color: #64748b;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 0 8px;
+  white-space: nowrap;
+  transition: color 0.15s ease;
 
-  &:hover {
+  &:hover:not(:disabled) {
     color: #0f172a;
     text-decoration: underline;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+/* Dashboard Content Stacking & Updating Overlay */
+.dashboard-content-wrap {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dashboard-content-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  transition: opacity 0.2s ease;
+
+  &--dimmed {
+    opacity: 0.45;
+    pointer-events: none;
+    user-select: none;
+  }
+}
+
+.dashboard-updating-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 48px;
+  pointer-events: none;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.dashboard-updating-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  background: #ffffff;
+  color: var(--ag-color-primary, #065f46);
+  border: 1px solid #cbd5e1;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--ag-font-sans, inherit);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.08);
+  pointer-events: auto;
+
+  svg {
+    flex-shrink: 0;
+    color: var(--ag-color-primary, #065f46);
   }
 }
 

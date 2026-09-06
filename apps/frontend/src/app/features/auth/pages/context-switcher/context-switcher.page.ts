@@ -10,6 +10,8 @@ import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.compon
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
 import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
+import { authenticatedHomePath } from '../../../../core/navigation/app-paths';
+import { AuthSessionCrossTabService } from '../../data-access/auth-session-cross-tab.service';
 
 @Component({
   selector: 'agrivio-context-switcher-page',
@@ -28,6 +30,7 @@ export class ContextSwitcherPage {
   private readonly formBuilder = inject(FormBuilder);
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly router = inject(Router);
+  private readonly crossTab = inject(AuthSessionCrossTabService);
 
   readonly loading = signal(false);
   readonly submitting = signal(false);
@@ -119,10 +122,11 @@ export class ContextSwitcherPage {
 
     this.submitting.set(true);
     this.sessionStore.switchContext(selection).subscribe({
-      next: () => {
+      next: (session) => {
         this.submitting.set(false);
         this.successMessage.set('Active context updated.');
-        void this.router.navigateByUrl('/app');
+        this.crossTab.contextChanged();
+        void this.router.navigateByUrl(authenticatedHomePath(session.activeContext));
       },
       error: () => {
         this.submitting.set(false);

@@ -3,12 +3,10 @@ import { CanActivateFn, Router, UrlTree } from '@angular/router';
 import { catchError, map, of } from 'rxjs';
 import { AuthSessionStore } from '../../features/auth/data-access/auth-session.store';
 import { CapabilityService } from '../../features/capabilities/data-access/capability.service';
-import { APP_PATHS } from '../navigation/app-paths';
+import { APP_PATHS, authenticatedHomePath } from '../navigation/app-paths';
 
 function authenticatedDestination(sessionStore: AuthSessionStore, router: Router): UrlTree {
-  return router.parseUrl(
-    sessionStore.activeContext() === null ? APP_PATHS.context : APP_PATHS.workspace,
-  );
+  return router.parseUrl(authenticatedHomePath(sessionStore.activeContext()));
 }
 
 /**
@@ -19,13 +17,18 @@ export const publicOnlyGuard: CanActivateFn = () => {
   const sessionStore = inject(AuthSessionStore);
   const router = inject(Router);
 
-  if (sessionStore.session() !== null) {
+  if (sessionStore.authState() === 'authenticated') {
     return authenticatedDestination(sessionStore, router);
+  }
+  if (sessionStore.authState() === 'unauthenticated') {
+    return true;
   }
 
   return sessionStore.loadSession().pipe(
-    map(() => authenticatedDestination(sessionStore, router)),
-    catchError(() => of(true)),
+    map((session) =>
+      session === null ? true : authenticatedDestination(sessionStore, router),
+    ),
+    catchError(() => of(false)),
   );
 };
 
@@ -37,13 +40,16 @@ export const requireSessionGuard: CanActivateFn = () => {
   const sessionStore = inject(AuthSessionStore);
   const router = inject(Router);
 
-  if (sessionStore.session() !== null) {
+  if (sessionStore.authState() === 'authenticated') {
     return true;
+  }
+  if (sessionStore.authState() === 'unauthenticated') {
+    return router.parseUrl(APP_PATHS.signIn);
   }
 
   return sessionStore.loadSession().pipe(
-    map(() => true),
-    catchError(() => of(router.parseUrl(APP_PATHS.signIn))),
+    map((session) => (session === null ? router.parseUrl(APP_PATHS.signIn) : true)),
+    catchError(() => of(false)),
   );
 };
 
@@ -60,15 +66,18 @@ export const requirePlatformContextGuard: CanActivateFn = () => {
     return true;
   }
 
-  if (sessionStore.session() === null) {
+  if (sessionStore.authState() !== 'authenticated') {
     return sessionStore.loadSession().pipe(
       map((session) => {
-        if (session.activeContext?.contextType === 'platform') {
+        if (session?.activeContext?.contextType === 'platform') {
           return true;
+        }
+        if (session === null) {
+          return router.parseUrl(APP_PATHS.signIn);
         }
         return router.createUrlTree(['/context']);
       }),
-      catchError(() => of(router.parseUrl(APP_PATHS.signIn))),
+      catchError(() => of(false)),
     );
   }
 
@@ -82,13 +91,16 @@ export function requirePermissionGuard(permission: string): CanActivateFn {
     const decide = (): true | UrlTree =>
       sessionStore.hasPermission(permission) ? true : router.createUrlTree(['/app/access-denied']);
 
-    if (sessionStore.session() !== null) {
+    if (sessionStore.authState() === 'authenticated') {
       return decide();
+    }
+    if (sessionStore.authState() === 'unauthenticated') {
+      return router.parseUrl(APP_PATHS.signIn);
     }
 
     return sessionStore.loadSession().pipe(
-      map(() => decide()),
-      catchError(() => of(router.parseUrl(APP_PATHS.signIn))),
+      map((session) => (session === null ? router.parseUrl(APP_PATHS.signIn) : decide())),
+      catchError(() => of(false)),
     );
   };
 }

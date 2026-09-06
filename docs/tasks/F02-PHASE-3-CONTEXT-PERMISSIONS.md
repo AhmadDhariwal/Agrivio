@@ -53,3 +53,7 @@ Focused coverage lives in:
 * `apps/backend/src/modules/identity/role-permissions.spec.js`
 * `apps/frontend/src/app/features/auth/auth-session.store.spec.ts`
 * `apps/frontend/src/app/features/auth/context-switcher.page.spec.ts`
+
+## Post-completion context-routing hardening (2026-09-06)
+
+Restored organization context routes to `/app`, missing active context routes to `/context`, and restored platform context routes to the existing canonical `/app/platform/organizations` workspace. Tenant contexts remain blocked from platform routes, and context changes are revalidated across open tabs through the authoritative cookie session.

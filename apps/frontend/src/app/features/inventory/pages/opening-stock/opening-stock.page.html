@@ -165,7 +165,7 @@
           <div class="product-context-strip__meta">
             <span class="meta-item">
               <span class="meta-item__key">SKU:</span>
-              <span class="meta-item__val font-mono">{{ prod.sku || '—' }}</span>
+              <span class="meta-item__val">{{ prod.sku || '—' }}</span>
             </span>
             <span class="meta-sep">•</span>
             <span class="meta-item">
@@ -240,7 +240,7 @@
             />
             <input
               id="opening-inventory-value"
-              class="ag-input font-mono"
+              class="ag-input"
               formControlName="inventoryValue"
               placeholder="e.g. 250000.00"
               data-testid="opening-inventory-value"
@@ -317,7 +317,7 @@
             />
             <input
               id="opening-batch-number"
-              class="ag-input font-mono"
+              class="ag-input"
               formControlName="batchNumber"
               placeholder="e.g. BT-2026-08"
               data-testid="opening-batch-number"

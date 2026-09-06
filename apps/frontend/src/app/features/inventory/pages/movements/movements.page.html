@@ -307,7 +307,10 @@
 
           @if (showFilters()) {
             <!-- Product Filter (Server-side) -->
-            <div class="select-field" data-testid="movements-product-filter">
+            <div
+              class="select-field select-field--product"
+              data-testid="movements-product-filter"
+            >
               <select
                 class="select-field__input"
                 [value]="productFilter()"
@@ -405,7 +408,12 @@
         <div class="toolbar__right">
           <!-- View Mode Toggle -->
           @if (showMobileCards()) {
-            <div class="view-toggle" role="group" aria-label="View layout">
+            <div
+              class="view-toggle"
+              role="group"
+              aria-label="View layout"
+              data-testid="movements-view-toggle"
+            >
               <button
                 type="button"
                 class="view-toggle__btn"

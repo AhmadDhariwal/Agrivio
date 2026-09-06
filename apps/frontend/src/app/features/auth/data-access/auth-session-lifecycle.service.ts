@@ -6,6 +6,7 @@ import { QueryCacheService } from '../../../shared/data-access/query-cache.servi
 import { CapabilityService } from '../../capabilities/data-access/capability.service';
 import { AuthApi } from './auth.api';
 import { AuthSessionStore } from './auth-session.store';
+import { AuthSessionCrossTabService } from './auth-session-cross-tab.service';
 
 @Injectable({ providedIn: 'root' })
 export class AuthSessionLifecycleService {
@@ -14,6 +15,7 @@ export class AuthSessionLifecycleService {
   private readonly queryCache = inject(QueryCacheService);
   private readonly capabilityService = inject(CapabilityService);
   private readonly router = inject(Router);
+  private readonly crossTab = inject(AuthSessionCrossTabService);
 
   signOut(): Observable<unknown> {
     return this.authApi.logout().pipe(
@@ -22,6 +24,7 @@ export class AuthSessionLifecycleService {
         this.queryCache.clearTenantCache();
         this.capabilityService.clear();
         this.sessionStore.clear();
+        this.crossTab.loggedOut();
         void this.router.navigateByUrl(APP_PATHS.signIn);
       }),
     );

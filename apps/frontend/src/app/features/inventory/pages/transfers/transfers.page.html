@@ -220,7 +220,7 @@
               <div class="ag-input-group">
                 <input
                   id="transfer-quantity"
-                  class="ag-input font-mono"
+                  class="ag-input"
                   formControlName="quantity"
                   placeholder="0.00"
                   data-testid="transfer-quantity"
@@ -285,7 +285,7 @@
               <div class="product-context-strip__meta">
                 <span class="meta-item">
                   <span class="meta-item__key">SKU:</span>
-                  <span class="meta-item__val font-mono">{{ prod.sku || '—' }}</span>
+                  <span class="meta-item__val">{{ prod.sku || '—' }}</span>
                 </span>
                 <span class="meta-sep">•</span>
                 <span class="meta-item">
@@ -379,7 +379,7 @@
                   />
                   <select
                     id="transfer-batch"
-                    class="ag-select font-mono"
+                    class="ag-select"
                     formControlName="batchId"
                     data-testid="transfer-batch"
                     [class.ag-input--invalid]="fieldError(form.controls.batchId, 'Batch / lot number', formSubmitAttempted())"
