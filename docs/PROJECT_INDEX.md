@@ -70,6 +70,7 @@ Central navigation for Agrivio documentation.
 * Customer and Supplier Payments date filtering hardened (2026-09-06): distinct exact/range payloads, inclusive range queries, strict API validation, and responsive range controls; see [tasks/F05-PHASE-3-SUPPLIER-PAYMENTS-CANCEL-RETURNS.md](tasks/F05-PHASE-3-SUPPLIER-PAYMENTS-CANCEL-RETURNS.md) and [tasks/F06-PHASE-1-SALES-FOUNDATION.md](tasks/F06-PHASE-1-SALES-FOUNDATION.md).
 * Stock Movements desktop filter layout hardened (2026-09-06): long product options no longer push the table/card view toggle outside the visible toolbar; see [tasks/F04-PHASE-3-INVENTORY-TRANSFERS-RECONCILIATION.md](tasks/F04-PHASE-3-INVENTORY-TRANSFERS-RECONCILIATION.md).
 * Final auth/sign-in/multi-tab routing hardening complete (2026-09-06): explicit restore state, deduplicated public/protected guard decisions, canonical tenant/context/platform destinations, and authoritative secret-free cross-tab session synchronization; see [tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md](tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md) and [tasks/F02-PHASE-3-CONTEXT-PERMISSIONS.md](tasks/F02-PHASE-3-CONTEXT-PERMISSIONS.md).
+* Products table action column layout hardened (2026-09-06): replaced overflowing text in table pricing button with accessible hidden text, widened action column to 140px, and right-aligned action buttons to eliminate button clipping and row overflow; see [tasks/F03-PHASE-2-MASTER-DATA.md](tasks/F03-PHASE-2-MASTER-DATA.md).
 
 ## Existing Documents
 

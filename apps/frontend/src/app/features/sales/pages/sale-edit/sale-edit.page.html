@@ -1006,101 +1006,32 @@
         <div class="form-grid form-grid--3col">
           @if (canViewCustomerField()) {
           <div class="ag-field customer-picker" #customerPicker data-testid="sale-customer-picker">
-            <agrivio-ui-field-label label="Find Customer" for="sale-customer-trigger" />
-            <button
-              id="sale-customer-trigger"
-              type="button"
-              class="customer-picker__trigger ag-select"
+            <agrivio-ui-field-label label="Find Customer" for="sale-customer" />
+            <select
+              id="sale-customer"
+              class="ag-select"
+              formControlName="customerId"
               data-testid="sale-customer"
               [disabled]="!canEditCustomerField() || isPosted()"
-              [attr.aria-expanded]="customerDropdownOpen()"
-              aria-haspopup="listbox"
-              (click)="toggleCustomerDropdown($event)"
             >
-              <span class="customer-picker__label">{{ selectedCustomerLabel() }}</span>
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                aria-hidden="true"
-              >
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
-            </button>
+              <option value="">Walk-in (cash only)</option>
+              @for (customer of customers(); track customer.id) {
+              <option [value]="customer.id">{{ customer.name }} ({{ customer.priceTier || 'retail' }})</option>
+              }
+            </select>
+            @if (canUseCustomerSearch()) {
+            <input
+              id="sale-customer-search"
+              type="hidden"
+              data-testid="sale-customer-search"
+              [value]="customerSearchTerm()"
+            />
+            }
             @if (isWalkInCustomerType()) {
             <p class="field-hint text-muted">Not required for walk-in sales.</p>
             } @else if (fieldError(form.controls.customerId, 'Customer', formSubmitAttempted()); as
             customerError) {
             <p class="field-error" role="alert">{{ customerError }}</p>
-            } @if (customerDropdownOpen()) {
-            <div
-              class="customer-picker__panel"
-              role="listbox"
-              tabindex="0"
-              data-testid="sale-customer-panel"
-              (click)="$event.stopPropagation()"
-              (keydown)="$event.stopPropagation()"
-            >
-              @if (canUseCustomerSearch()) {
-              <div class="customer-picker__search">
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  aria-hidden="true"
-                >
-                  <circle cx="11" cy="11" r="8"></circle>
-                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-                <input
-                  id="sale-customer-search"
-                  class="customer-picker__search-input"
-                  type="search"
-                  placeholder="Search by name, phone, or ID…"
-                  data-testid="sale-customer-search"
-                  [value]="customerSearchTerm()"
-                  (input)="onCustomerSearchInput($event)"
-                />
-              </div>
-              }
-
-              <div class="customer-picker__options">
-                @if (!canSearchCustomers()) {
-                <p class="customer-picker__hint customer-picker__hint--muted">
-                  Select branch and warehouse before posting this sale.
-                </p>
-                } @if (customerSearchLoading()) {
-                <p class="customer-picker__hint">Loading customers…</p>
-                } @else if (customerSearchError()) {
-                <p class="customer-picker__hint customer-picker__hint--error">
-                  Unable to load customers. Try again.
-                </p>
-                } @else if (filteredCustomers().length === 0) {
-                <p class="customer-picker__hint">
-                  @if (customerSearchTerm().trim() === '') { No active customers for this customer
-                  type. } @else { No customers match &ldquo;{{ customerSearchTerm().trim()
-                  }}&rdquo;. }
-                </p>
-                } @else { @for (customer of filteredCustomers(); track customer.id) {
-                <button
-                  type="button"
-                  class="customer-picker__option"
-                  [class.is-selected]="form.controls.customerId.value === customer.id"
-                  (click)="selectCustomer(customer)"
-                  [attr.data-testid]="'sale-customer-option-' + customer.id"
-                >
-                  <span class="customer-picker__option-name">{{ customer.name }}</span>
-                  <span class="customer-picker__option-meta">{{ customer.priceTier }}</span>
-                </button>
-                } }
-              </div>
-            </div>
             }
           </div>
           }

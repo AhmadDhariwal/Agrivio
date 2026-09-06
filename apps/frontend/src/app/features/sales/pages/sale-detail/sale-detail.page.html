@@ -29,6 +29,14 @@
   } @else if (errorMessage(); as error) {
   <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
   } @else if (sale(); as item) {
+  @if (item.status === 'posted') {
+  <div class="ag-alert ag-alert--success posted-banner" data-testid="sale-posted-banner">
+    <div class="banner-content">
+      <div><strong>Posted</strong> — sale is locked.</div>
+    </div>
+  </div>
+  }
+  <div data-testid="sale-posted-details">
   <section class="summary" data-testid="sale-detail">
     <article>
       <span>Invoice / reference</span
@@ -43,6 +51,7 @@
       <span>Outstanding</span><strong>{{ formatMoney(item.receivableTotal) }}</strong>
     </article>
   </section>
+  </div>
 
   <section class="card">
     <h2>Sale information</h2>

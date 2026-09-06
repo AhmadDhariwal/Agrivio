@@ -666,7 +666,7 @@
 
 .prod-table {
   width: 100%;
-  min-width: 900px; /* Minimum table width tuned for comfortable laptop fitting */
+  min-width: 960px; /* Minimum table width tuned for comfortable laptop fitting */
   border-collapse: collapse;
   font-size: 13px;
   text-align: left;
@@ -720,9 +720,9 @@
   }
 
   .col-actions {
-    width: 75px;
-    min-width: 75px;
-    max-width: 75px;
+    width: 140px;
+    min-width: 140px;
+    max-width: 140px;
   }
 
   &__th {
@@ -1008,8 +1008,10 @@
 .row-actions {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 4px;
   position: relative;
+  width: 100%;
 }
 
 .row-action-btn {
