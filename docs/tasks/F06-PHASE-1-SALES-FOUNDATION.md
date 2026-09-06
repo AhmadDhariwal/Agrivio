@@ -44,6 +44,7 @@ Frozen `DATA_MODEL.md` §8.10 assigns draft and posted lifecycle to the canonica
 ### Post-completion payment date-filter hardening (2026-09-06)
 
 * Customer Payments single-date and inclusive range payloads are normalized end to end.
+* Date selections remain staged until Apply is clicked; applying or clearing filters bypasses the short-lived list cache so reused ranges cannot show stale rows.
 * Reversed ranges are blocked in the UI and rejected by the API; invalid calendar dates and mixed exact/range requests return validation errors.
 * Legacy date-only search requests remain compatible without also applying the notes/ID text predicate.
 

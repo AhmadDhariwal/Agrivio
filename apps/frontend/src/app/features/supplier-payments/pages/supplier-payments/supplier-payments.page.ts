@@ -185,7 +185,7 @@ export class SupplierPaymentsPage {
     this.fromDate.set(this.pendingFromDate().trim());
     this.toDate.set(this.pendingToDate().trim());
     this.page.set(1);
-    this.reload();
+    this.reload(true);
   }
 
   clearFilters(): void {
@@ -197,7 +197,7 @@ export class SupplierPaymentsPage {
     this.fromDate.set('');
     this.toDate.set('');
     this.page.set(1);
-    this.reload();
+    this.reload(true);
   }
 
   onPageChange(page: number): void {

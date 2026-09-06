@@ -160,7 +160,7 @@ describe('SupplierPaymentsPage', () => {
     expect(compiled.textContent).toContain('No supplier payments found');
   });
 
-  it('stages an exact payment date and sends only paymentDate when applied', () => {
+  it('stages an exact payment date and sends only paymentDate when Apply is clicked', () => {
     const fixture: ComponentFixture<SupplierPaymentsPage> =
       TestBed.createComponent(SupplierPaymentsPage);
     const component = fixture.componentInstance;
@@ -169,12 +169,20 @@ describe('SupplierPaymentsPage', () => {
 
     component.onPaymentDateInput('2026-08-12');
     expect(component.paymentDate()).toBe('');
-    component.applyFilters();
+    expect(listSupplierPaymentsSpy).not.toHaveBeenCalled();
+
+    const applyBtn: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="supplier-payments-apply-btn"]',
+    );
+    expect(applyBtn).toBeTruthy();
+    applyBtn.click();
+    fixture.detectChanges();
+
     expect(component.paymentDate()).toBe('2026-08-12');
     expect(listSupplierPaymentsSpy).toHaveBeenCalledWith({
       page: 1,
       pageSize: 25,
-      forceRefresh: false,
+      forceRefresh: true,
       paymentDate: '2026-08-12',
     });
 
@@ -191,12 +199,14 @@ describe('SupplierPaymentsPage', () => {
     component.setDateMode('range');
     component.onFromDateInput('2026-08-01');
     component.onToDateInput('2026-08-31');
+
+    expect(listSupplierPaymentsSpy).not.toHaveBeenCalled();
     component.applyFilters();
 
     expect(listSupplierPaymentsSpy).toHaveBeenCalledWith({
       page: 1,
       pageSize: 25,
-      forceRefresh: false,
+      forceRefresh: true,
       fromDate: '2026-08-01',
       toDate: '2026-08-31',
     });

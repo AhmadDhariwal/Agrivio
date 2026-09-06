@@ -66,6 +66,7 @@
 
 * Supplier Payments now provides staged single-date and inclusive date-range controls on desktop and mobile.
 * List requests send only the active date filter fields; the former duplicate date-as-search payload was removed.
+* Date selections remain staged until Apply is clicked; applying or clearing a filter bypasses the short-lived list cache and reloads authoritative results.
 * Shared backend validation rejects invalid, reversed, and ambiguous date filters before querying.
 
 ## Next

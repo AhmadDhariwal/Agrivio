@@ -252,6 +252,8 @@ describe('MovementsPage', () => {
       );
       expect(el.querySelector('[data-testid="movements-refresh"]')).toBeTruthy();
       expect(el.querySelector('[data-testid="movements-stock-link"]')).toBeTruthy();
+      expect(el.querySelector('[data-testid="movements-product-filter"]')).toBeTruthy();
+      expect(el.querySelector('[data-testid="movements-view-toggle"]')).toBeTruthy();
     });
 
     it('renders module info card with authoritative audit guidance', () => {
