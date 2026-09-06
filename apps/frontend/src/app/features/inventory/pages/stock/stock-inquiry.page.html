@@ -827,6 +827,9 @@
       class="product-card"
       [class.product-card--selected]="selectedBalance()?.id === row.id"
       (click)="selectBalance(row)"
+      (keydown.enter)="selectBalance(row)"
+      (keydown.space)="selectBalance(row); $event.preventDefault()"
+      tabindex="0"
     >
       <div class="product-card__header">
         <div class="product-card__glyph">
@@ -903,7 +906,7 @@
       </div>
 
       @if (showStatus() || canInspectStock()) {
-      <div class="product-card__footer" (click)="$event.stopPropagation()">
+      <div class="product-card__footer">
         @if (showStatus()) {
         <div class="product-card__status-wrap">
           @let status = stockStatus(row);
@@ -914,7 +917,11 @@
         </div>
         } @if (canInspectStock()) {
         <div class="product-card__actions">
-          <button type="button" class="card-action-btn" (click)="selectBalance(row)">
+          <button
+            type="button"
+            class="card-action-btn"
+            (click)="$event.stopPropagation(); selectBalance(row)"
+          >
             Inspect
           </button>
         </div>

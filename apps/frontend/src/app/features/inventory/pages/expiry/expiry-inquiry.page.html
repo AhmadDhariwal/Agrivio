@@ -789,13 +789,13 @@
                             &hellip;
                           </button>
                           @if (openMenuBatchId() === ((item.batchId ?? '') + '-' + item.productId + '-' + item.warehouseId)) {
-                            <div class="row-menu-dropdown" (click)="$event.stopPropagation()">
+                            <div class="row-menu-dropdown">
                               @if (canViewBatch() && item.batchNumber) {
                                 <a
                                   class="row-menu-item"
                                   [routerLink]="['/app/inventory/batches']"
                                   [queryParams]="{ search: item.batchNumber }"
-                                  (click)="closeRowMenu()"
+                                  (click)="$event.stopPropagation(); closeRowMenu()"
                                 >
                                   View in Batches
                                 </a>
@@ -805,7 +805,7 @@
                                   class="row-menu-item"
                                   [routerLink]="['/app/catalog/products']"
                                   [queryParams]="{ search: productName(item.productId) }"
-                                  (click)="closeRowMenu()"
+                                  (click)="$event.stopPropagation(); closeRowMenu()"
                                 >
                                   View Product
                                 </a>
@@ -815,7 +815,7 @@
                                   class="row-menu-item"
                                   [routerLink]="['/app/inventory/movements']"
                                   [queryParams]="{ productId: item.productId, warehouseId: item.warehouseId }"
-                                  (click)="closeRowMenu()"
+                                  (click)="$event.stopPropagation(); closeRowMenu()"
                                 >
                                   View Movements
                                 </a>
@@ -892,11 +892,11 @@
                 </div>
 
                 <!-- Card Footer Actions -->
-                <div class="batch-card__footer" (click)="$event.stopPropagation()">
+                <div class="batch-card__footer">
                   <button
                     class="ag-btn ag-btn--sm ag-btn--subtle"
                     type="button"
-                    (click)="openInspector(item)"
+                    (click)="$event.stopPropagation(); openInspector(item)"
                   >
                     Inspect
                   </button>
@@ -905,6 +905,7 @@
                       class="ag-btn ag-btn--sm ag-btn--secondary"
                       [routerLink]="['/app/inventory/stock']"
                       [queryParams]="{ productId: item.productId, warehouseId: item.warehouseId }"
+                      (click)="$event.stopPropagation()"
                     >
                       Stock
                     </a>
