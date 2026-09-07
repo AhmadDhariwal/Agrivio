@@ -38,4 +38,18 @@ describe('web public configuration', () => {
       }),
     ).toThrow(/publicApiBaseUrl/);
   });
+
+  it('uses AGRIVIO_PUBLIC_API_BASE_URL when provided to loadWebPublicConfigFromEnv', () => {
+    const cfg = loadWebPublicConfigFromEnv({
+      AGRIVIO_PUBLIC_API_BASE_URL: 'https://agrivio-staging-api.onrender.com',
+    });
+    expect(cfg.publicApiBaseUrl).toBe(
+      'https://agrivio-staging-api.onrender.com',
+    );
+  });
+
+  it('defaults to localhost:3000 when AGRIVIO_PUBLIC_API_BASE_URL is absent', () => {
+    const cfg = loadWebPublicConfigFromEnv({});
+    expect(cfg.publicApiBaseUrl).toBe('http://localhost:3000');
+  });
 });
