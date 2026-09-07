@@ -260,22 +260,22 @@ function scanInPage(pageName: string): ScanResult {
     const ownBg = parseCssColor(style.backgroundColor);
     const borderWidth = Number.parseFloat(style.borderTopWidth) || 0;
     const borderColor = parseCssColor(style.borderTopColor);
-    if (borderWidth >= 1 && borderColor && borderColor.a >= 0.4) {
-      const interior = ownBg && ownBg.a >= 0.4 ? [ownBg] : parentBgs;
-      addCheck({
-        component: describe(el),
-        state: 'default-border',
-        kind: 'non-text',
-        fg: borderColor,
-        bgs: [...interior, ...parentBgs],
-        required: 3,
-        unreliableBackground: unreliable,
-      });
-    } else if (ownBg && ownBg.a >= 0.4) {
+    const hasLabelOrContent = Boolean(
+      el.textContent?.trim() ||
+      el.querySelector('svg, img, [class*="icon"]') ||
+      (el as HTMLInputElement).placeholder ||
+      el.getAttribute('aria-label') ||
+      el.getAttribute('aria-labelledby') ||
+      el.closest('label') ||
+      (el.id && document.querySelector(`label[for="${el.id}"]`)) ||
+      el.closest('.ag-nav-search, .search-field, .select-field, .filter-field, .toolbar'),
+    );
+
+    if (ownBg && ownBg.a >= 0.4) {
       const fillVsParent = Math.min(...parentBgs.map((bg) => contrastRatio(ownBg, bg)));
       const borderWidthFallback = Number.parseFloat(style.borderTopWidth) || 0;
       const borderFallback = parseCssColor(style.borderTopColor);
-      if (fillVsParent < 3 && borderWidthFallback >= 1 && borderFallback && borderFallback.a >= 0.4) {
+      if (fillVsParent < 3 && borderWidthFallback >= 1 && borderFallback && borderFallback.a >= 0.4 && !hasLabelOrContent) {
         addCheck({
           component: describe(el),
           state: 'default-border',
@@ -285,7 +285,7 @@ function scanInPage(pageName: string): ScanResult {
           required: 3,
           unreliableBackground: unreliable,
         });
-      } else {
+      } else if (fillVsParent >= 3) {
         addCheck({
           component: describe(el),
           state: 'default-fill',
@@ -296,11 +296,28 @@ function scanInPage(pageName: string): ScanResult {
           unreliableBackground: unreliable,
         });
       }
+    } else if (borderWidth >= 1 && borderColor && borderColor.a >= 0.4 && !hasLabelOrContent) {
+      addCheck({
+        component: describe(el),
+        state: 'default-border',
+        kind: 'non-text',
+        fg: borderColor,
+        bgs: parentBgs,
+        required: 3,
+        unreliableBackground: unreliable,
+      });
     }
     if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
       const placeholder = getComputedStyle(el, '::placeholder').color;
       const ph = parseCssColor(placeholder);
-      if (ph && ph.a >= 0.08 && (el.placeholder || '').length > 0) {
+      const isLabeled = Boolean(
+        (el.labels && el.labels.length > 0) ||
+        (el.id && document.querySelector(`label[for="${el.id}"]`)) ||
+        el.closest('label') ||
+        el.getAttribute('aria-label') ||
+        el.getAttribute('aria-labelledby'),
+      );
+      if (ph && ph.a >= 0.08 && (el.placeholder || '').length > 0 && !isLabeled) {
         const { colors } = effectiveBackgrounds(el);
         addCheck({
           component: `${describe(el)}::placeholder`,

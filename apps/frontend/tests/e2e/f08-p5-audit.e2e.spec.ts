@@ -20,9 +20,10 @@ test.describe('F08 P5 audit', () => {
     await page.getByTestId('nav-audit').click();
     await expect(page).toHaveURL(/\/app\/audit$/);
     await expect(page.getByTestId('audit-page')).toBeVisible();
-    await expect(page.getByTestId('audit-table')).toContainText('customer.created');
-    await page.getByTestId('audit-action').fill('customer.created');
+    await expect(page.getByTestId('audit-table')).toContainText('Customer created');
+    await page.getByTestId('audit-action-trigger').click();
+    await page.getByTestId('audit-action-option-customer.created').click();
     await page.getByTestId('audit-search').click();
-    await expect(page.getByTestId('audit-table')).toContainText('customer.created');
+    await expect(page.getByTestId('audit-table')).toContainText('Customer created');
   });
 });

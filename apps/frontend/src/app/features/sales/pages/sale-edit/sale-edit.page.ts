@@ -1427,6 +1427,7 @@ export class SaleEditPage {
             { unitPrice: selected.price.amount },
             { emitEvent: false },
           );
+          this.formStateVersion.update((v) => v + 1);
         }
       },
     });

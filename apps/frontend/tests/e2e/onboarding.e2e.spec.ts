@@ -33,6 +33,9 @@ test.describe('F02 onboarding vertical slice', () => {
     await page.getByRole('link', { name: 'Organizations' }).click();
     await expect(page.getByTestId('platform-organizations')).toBeVisible();
 
+    const searchInput = page.getByTestId('org-search-input');
+    await searchInput.fill(organizationName);
+
     const orgRow = page.getByTestId('org-row').filter({ hasText: organizationName });
     await expect(orgRow).toBeVisible();
     await orgRow.getByTestId('approve-org').click();

@@ -75,9 +75,9 @@ test.describe('R1-F09-004 accessibility — WCAG 2.2 AA contrast (NFR-A11Y-006)'
       },
       {
         path: '/app/inventory/stock',
-        ready: () => expect(page.getByRole('heading', { name: 'Stock on hand' })).toBeVisible(),
+        ready: () => expect(page.getByRole('heading', { name: 'Stock on hand', exact: true })).toBeVisible(),
       },
-      { path: '/app/returns', ready: () => expect(page.getByRole('heading', { name: 'Returns' })).toBeVisible() },
+      { path: '/app/returns', ready: () => expect(page.getByRole('heading', { name: 'Returns', exact: true })).toBeVisible() },
       { path: '/app/expenses/new', ready: () => expect(page.getByTestId('expense-form')).toBeVisible() },
       { path: '/app/accounts/new', ready: () => expect(page.getByTestId('account-form')).toBeVisible() },
       { path: '/app/reports', ready: () => expect(page.getByTestId('reports-page')).toBeVisible() },

@@ -76,13 +76,18 @@ export async function bootstrapApprovedOwner(
   await signIn(page, superAdmin.email, superAdmin.password);
   await enterPlatformWorkspace(page);
   await page.getByRole('link', { name: 'Organizations' }).click();
+  const searchInput = page.getByTestId('org-search-input');
+  await searchInput.fill(input.organizationName);
   const orgRow = page.getByTestId('org-row').filter({ hasText: input.organizationName });
   await orgRow.getByTestId('approve-org').click();
   await page.getByRole('button', { name: 'Approve organization' }).click();
-  const urlText = (await page.getByTestId('activation-url').textContent())?.trim() ?? '';
+  const activationUrl = page.getByTestId('activation-url');
+  await expect(activationUrl).toBeVisible();
+  const urlText = (await activationUrl.textContent())?.trim() ?? '';
   const activationToken = activationTokenFromUrl(urlText);
 
   await page.getByTestId('sign-out').click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Sign in');
   await page.goto(`/activate?token=${encodeURIComponent(activationToken)}`);
   await page.getByTestId('activation-password-input').fill(OWNER_PASSWORD);
   await page.getByTestId('activation-password-confirm-input').fill(OWNER_PASSWORD);
