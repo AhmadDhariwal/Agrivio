@@ -15,7 +15,7 @@
 import { writeFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-
+//worked solution but need to figure out how to make it run from the root directory
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // const apiBaseUrl =
