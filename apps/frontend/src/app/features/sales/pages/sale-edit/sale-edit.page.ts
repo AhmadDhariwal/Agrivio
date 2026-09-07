@@ -480,8 +480,17 @@ export class SaleEditPage {
 
     this.form.controls.customerId.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => {
+      .subscribe((cid) => {
+        const found = this.customers().find((c) => c.id === cid) || null;
+        this.selectedCustomer.set(found);
+        if (found && found.customerType && found.customerType !== 'walk_in') {
+          this.form.controls.customerTypeMode.setValue(String(found.customerType), {
+            emitEvent: false,
+          });
+          setRequiredValidator(this.form.controls.customerId, true);
+        }
         this.refreshTierPricesForAllLines();
+        this.formStateVersion.update((v) => v + 1);
       });
 
     if (isEdit && id) {
@@ -1169,6 +1178,7 @@ export class SaleEditPage {
       this.relatedReturns.set(masters.relatedReturns);
     }
     this.productSearchChanges.next('');
+    this.customerSearchImmediate.next('');
     if (this.saleId() === null && this.form.controls.saleDate.value.trim() === '') {
       this.form.controls.saleDate.setValue(this.todayIsoDate());
     }
@@ -1417,6 +1427,7 @@ export class SaleEditPage {
             { unitPrice: selected.price.amount },
             { emitEvent: false },
           );
+          this.formStateVersion.update((v) => v + 1);
         }
       },
     });

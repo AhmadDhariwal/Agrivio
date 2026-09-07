@@ -41,24 +41,19 @@ test.describe('F08 P5 suspended UX', () => {
     await page.reload();
     await expect(page.getByTestId('authenticated-shell')).toBeVisible();
 
-    await page.getByTestId('nav-dashboard').click();
-    await expect(page.getByTestId('dashboard-page')).toBeVisible();
-    await expect(page.getByText(/operational dashboard is blocked/i)).toBeVisible();
+    await expect(page.getByTestId('nav-dashboard')).toHaveCount(0);
+    await expect(page.getByTestId('nav-imports')).toHaveCount(0);
+    await expect(page.getByText('Subscription suspended', { exact: true })).toBeVisible();
+    await expect(page.getByText(/Operational writes and imports are blocked/i)).toBeVisible();
 
-    await page.getByTestId('nav-reports').click();
+    await page.getByRole('link', { name: 'Reports' }).click();
     await expect(page.getByTestId('reports-page')).toBeVisible();
     await expect(page.getByText(/Historical report viewing and entitled exports remain available/)).toBeVisible();
     await page.getByTestId('report-select').selectOption('sales');
     await page.getByTestId('report-run').click();
     await expect(page.getByTestId('report-run')).toBeEnabled();
 
-    await page.getByTestId('nav-imports').click();
-    await expect(page.getByTestId('imports-page')).toBeVisible();
-    await expect(page.getByText(/Import preview and execution are blocked/)).toBeVisible();
-    await expect(page.getByTestId('import-preview-submit')).toHaveCount(0);
-
-    await page.getByTestId('nav-audit').click();
-    await expect(page.getByTestId('audit-page')).toBeVisible();
-    await expect(page.getByText(/Historical audit inquiry remains available/)).toBeVisible();
+    await page.getByTestId('nav-billing').click();
+    await expect(page).toHaveURL(/\/app\/subscription\/billing$/);
   });
 });

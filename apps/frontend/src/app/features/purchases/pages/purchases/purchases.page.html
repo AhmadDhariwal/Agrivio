@@ -69,26 +69,59 @@
 
   <!-- Filter Toolbar -->
   <div class="toolbar" data-testid="purchases-toolbar">
-    @if (showSearch()) {
-    <div class="toolbar__search">
-      <input
-        class="ag-input"
-        type="search"
-        placeholder="Search supplier, invoice ref…"
-        [ngModel]="search()"
-        (ngModelChange)="onSearchChange($event)"
-        aria-label="Search purchases"
-        data-testid="purchases-search-input"
-      />
-    </div>
-    }
+    <div class="toolbar__left">
+      <!-- Search Input -->
+      @if (showSearch()) {
+      <div class="search-field toolbar__search">
+        <svg
+          class="search-field__icon"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          class="search-field__input"
+          type="search"
+          placeholder="Search supplier, invoice ref…"
+          [ngModel]="search()"
+          (ngModelChange)="onSearchChange($event)"
+          aria-label="Search purchases"
+          data-testid="purchases-search-input"
+        />
+        @if (search()) {
+        <button
+          type="button"
+          class="search-field__clear"
+          (click)="clearFilters()"
+          aria-label="Clear search"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        }
+      </div>
+      }
 
-    <div class="toolbar__filters">
       <!-- Status Filter -->
       @if (showStatusFilter()) {
-      <div class="select-wrapper">
+      <div class="select-field">
         <select
-          class="ag-select"
+          class="select-field__input"
           [ngModel]="status()"
           (ngModelChange)="onStatusChange($event)"
           aria-label="Filter by status"
@@ -106,27 +139,16 @@
       @if (search() || status()) {
       <button
         type="button"
-        class="ag-btn ag-btn--ghost toolbar__btn"
+        class="clear-filters-btn"
         (click)="clearFilters()"
         data-testid="purchases-clear-filters"
       >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-        Clear
+        Clear filters
       </button>
       }
+    </div>
 
+    <div class="toolbar__right">
       <!-- Refresh Button -->
       <button
         type="button"
@@ -159,35 +181,46 @@
   <!-- Desktop Table View -->
   <div class="table-container desktop-only">
     <table class="data-table" data-testid="purchases-table">
+      <colgroup>
+        <col class="col-purchase" />
+        <col class="col-supplier" />
+        <col class="col-warehouse" />
+        <col class="col-date" />
+        <col class="col-total" />
+        <col class="col-paid" />
+        <col class="col-payable" />
+        <col class="col-status" />
+        <col class="col-actions" />
+      </colgroup>
       <thead>
         <tr>
-          <th class="col-purchase">PURCHASE</th>
-          <th class="col-supplier">SUPPLIER</th>
-          <th class="col-warehouse">WAREHOUSE</th>
-          <th class="col-date">DATE</th>
-          <th class="col-total">TOTAL</th>
-          <th class="col-paid">PAID</th>
-          <th class="col-payable">PAYABLE</th>
-          <th class="col-status">STATUS</th>
-          <th class="col-actions">ACTION</th>
+          <th scope="col" class="data-table__th col-purchase">Purchase</th>
+          <th scope="col" class="data-table__th col-supplier">Supplier</th>
+          <th scope="col" class="data-table__th col-warehouse">Warehouse</th>
+          <th scope="col" class="data-table__th col-date">Date</th>
+          <th scope="col" class="data-table__th col-total">Total</th>
+          <th scope="col" class="data-table__th col-paid">Paid</th>
+          <th scope="col" class="data-table__th col-payable">Payable</th>
+          <th scope="col" class="data-table__th col-status">Status</th>
+          <th scope="col" class="data-table__th col-actions">Actions</th>
         </tr>
       </thead>
       <tbody data-testid="purchases-list">
         @for (item of items(); track item.id) {
-        <tr class="purchase-row" data-testid="purchase-row">
+        <tr class="data-table__row purchase-row" data-testid="purchase-row">
           <!-- Purchase Ref / ID -->
-          <td class="col-purchase">
-            <div class="purchase-ref-cell">
+          <td class="data-table__td col-purchase">
+            <div class="purchase-cell">
               <div
-                class="purchase-icon-box"
-                [class.purchase-icon-box--draft]="item.status === 'draft'"
-                [class.purchase-icon-box--posted]="item.status === 'posted'"
-                [class.purchase-icon-box--cancelled]="item.status === 'cancelled'"
+                class="purchase-cell__glyph"
+                [class.purchase-cell__glyph--draft]="item.status === 'draft'"
+                [class.purchase-cell__glyph--posted]="item.status === 'posted'"
+                [class.purchase-cell__glyph--cancelled]="item.status === 'cancelled'"
                 aria-hidden="true"
               >
                 <svg
-                  width="15"
-                  height="15"
+                  width="14"
+                  height="14"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -200,85 +233,97 @@
                   <path d="M16 10a4 4 0 0 1-8 0"></path>
                 </svg>
               </div>
-              <div class="purchase-ref-info">
-                <span class="purchase-ref-title">
-                  {{ item.supplierInvoiceReference || ('Purchase #' +
-                  item.id.slice(-6).toUpperCase()) }}
+              <div class="purchase-cell__meta">
+                <span
+                  class="purchase-cell__name"
+                  [title]="item.supplierInvoiceReference || ('Purchase #' + item.id.slice(-6).toUpperCase())"
+                >
+                  {{ item.supplierInvoiceReference || ('Purchase #' + item.id.slice(-6).toUpperCase()) }}
                 </span>
-                <span class="purchase-ref-sub"> {{ item.id.slice(-8) }} </span>
+                <span class="purchase-cell__sub">{{ item.id.slice(-8) }}</span>
               </div>
             </div>
           </td>
 
           <!-- Supplier -->
-          <td class="col-supplier">
-            <span class="cell-supplier">{{ item.supplierNameSnapshot || 'Unknown supplier' }}</span>
+          <td class="data-table__td col-supplier">
+            <span class="supplier-text" [title]="item.supplierNameSnapshot || 'Unknown supplier'">
+              {{ item.supplierNameSnapshot || 'Unknown supplier' }}
+            </span>
           </td>
 
           <!-- Warehouse -->
-          <td class="col-warehouse">
-            <span class="cell-warehouse">{{ item.warehouseNameSnapshot || 'Warehouse' }}</span>
+          <td class="data-table__td col-warehouse">
+            <span class="warehouse-text" [title]="item.warehouseNameSnapshot || 'Warehouse'">
+              {{ item.warehouseNameSnapshot || 'Warehouse' }}
+            </span>
           </td>
 
           <!-- Date -->
-          <td class="col-date">
-            <span class="cell-date">{{ item.purchaseDate }}</span>
+          <td class="data-table__td col-date">
+            <span class="date-text">{{ item.purchaseDate }}</span>
           </td>
 
           <!-- Total -->
-          <td class="col-total">
-            <span class="cell-amount"
-              >{{ item.purchaseTotal?.amount ? ('PKR ' + item.purchaseTotal!.amount) : '—' }}</span
-            >
+          <td class="data-table__td col-total">
+            <span class="tabular-num price-text">
+              {{ item.purchaseTotal?.amount ? ('PKR ' + item.purchaseTotal!.amount) : '—' }}
+            </span>
           </td>
 
           <!-- Paid -->
-          <td class="col-paid">
-            <span class="cell-amount"
-              >{{ item.paidTotal?.amount ? ('PKR ' + item.paidTotal!.amount) : '—' }}</span
-            >
+          <td class="data-table__td col-paid">
+            <span class="tabular-num price-text">
+              {{ item.paidTotal?.amount ? ('PKR ' + item.paidTotal!.amount) : '—' }}
+            </span>
           </td>
 
           <!-- Payable -->
-          <td class="col-payable">
+          <td class="data-table__td col-payable">
             <span
-              class="cell-amount"
-              [class.cell-amount--due]="item.payableTotal?.amount && item.payableTotal!.amount !== '0.00' && item.payableTotal!.amount !== '0'"
+              class="tabular-num price-text"
+              [class.price-text--due]="item.payableTotal?.amount && item.payableTotal!.amount !== '0.00' && item.payableTotal!.amount !== '0'"
             >
               {{ item.payableTotal?.amount ? ('PKR ' + item.payableTotal!.amount) : '—' }}
             </span>
           </td>
 
           <!-- Status -->
-          <td class="col-status">
+          <td class="data-table__td col-status">
             <span
-              class="status-pill"
-              [class.status-pill--green]="item.status === 'posted'"
-              [class.status-pill--amber]="item.status === 'draft'"
-              [class.status-pill--gray]="item.status === 'cancelled'"
+              class="status-indicator"
+              [class.status-indicator--active]="item.status === 'posted'"
+              [class.status-indicator--amber]="item.status === 'draft'"
+              [class.status-indicator--inactive]="item.status === 'cancelled'"
             >
+              <span class="status-indicator__dot"></span>
               {{ statusLabel(item.status) }}
             </span>
           </td>
 
           <!-- Action -->
-          <td class="col-actions">
-            @if (canInspect()) {
-            <a
-              class="ag-btn ag-btn--sm ag-btn--secondary"
-              [routerLink]="['/app/purchases', item.id]"
-              data-testid="purchase-action-btn"
-            >
-              View
-            </a>
-            } @if (item.status === 'draft' && canEditDraft()) {
-            <a
-              class="ag-btn ag-btn--sm ag-btn--secondary"
-              [routerLink]="['/app/purchases', item.id, 'edit']"
-            >
-              Edit draft
-            </a>
-            }
+          <td class="data-table__td col-actions">
+            <div class="row-actions">
+              @if (canInspect()) {
+              <a
+                class="card-action-btn"
+                [routerLink]="['/app/purchases', item.id]"
+                data-testid="purchase-action-btn"
+                title="View purchase details"
+              >
+                View
+              </a>
+              }
+              @if (item.status === 'draft' && canEditDraft()) {
+              <a
+                class="card-action-btn card-action-btn--primary"
+                [routerLink]="['/app/purchases', item.id, 'edit']"
+                title="Edit purchase draft"
+              >
+                Edit draft
+              </a>
+              }
+            </div>
           </td>
         </tr>
         } @empty {
@@ -320,11 +365,12 @@
           <span class="mobile-purchase-card__date">{{ item.purchaseDate }}</span>
         </div>
         <span
-          class="status-pill"
-          [class.status-pill--green]="item.status === 'posted'"
-          [class.status-pill--amber]="item.status === 'draft'"
-          [class.status-pill--gray]="item.status === 'cancelled'"
+          class="status-indicator"
+          [class.status-indicator--active]="item.status === 'posted'"
+          [class.status-indicator--amber]="item.status === 'draft'"
+          [class.status-indicator--inactive]="item.status === 'cancelled'"
         >
+          <span class="status-indicator__dot"></span>
           {{ statusLabel(item.status) }}
         </span>
       </div>
@@ -371,14 +417,16 @@
       <div class="mobile-purchase-card__actions">
         @if (canInspect()) {
         <a
-          class="ag-btn ag-btn--sm ag-btn--secondary mobile-purchase-card__btn"
+          class="card-action-btn mobile-purchase-card__btn"
           [routerLink]="['/app/purchases', item.id]"
+          data-testid="purchase-action-btn"
         >
           View
         </a>
-        } @if (item.status === 'draft' && canEditDraft()) {
+        }
+        @if (item.status === 'draft' && canEditDraft()) {
         <a
-          class="ag-btn ag-btn--sm ag-btn--secondary mobile-purchase-card__btn"
+          class="card-action-btn card-action-btn--primary mobile-purchase-card__btn"
           [routerLink]="['/app/purchases', item.id, 'edit']"
         >
           Edit draft
@@ -395,15 +443,16 @@
 
   <!-- Pagination -->
   @if (total() > 0) {
-  <div class="pagination-wrap" data-testid="purchases-pagination">
-    <agrivio-ui-pagination
-      [page]="page()"
-      [total]="total()"
-      [pageSize]="pageSize()"
-      [pageSizeOptions]="[10, 25, 50]"
-      (pageChange)="onPageChange($event)"
-      (pageSizeChange)="onPageSizeChange($event)"
-    />
-  </div>
-  } }
+  <agrivio-ui-pagination
+    [page]="page()"
+    [pageSize]="pageSize()"
+    [total]="total()"
+    [disabled]="loading()"
+    [alwaysShowNavigation]="true"
+    (pageChange)="onPageChange($event)"
+    (pageSizeChange)="onPageSizeChange($event)"
+    data-testid="purchases-pagination"
+  />
+  }
+  }
 </div>

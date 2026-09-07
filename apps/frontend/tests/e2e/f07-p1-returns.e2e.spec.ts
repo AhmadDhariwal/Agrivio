@@ -65,7 +65,7 @@ test.describe('F07 P1 sales returns', () => {
     await expect(page.getByTestId('accounts-list')).toContainText('F07 Cash');
     await page
       .getByTestId('accounts-list')
-      .locator('article')
+      .locator('tr, article')
       .filter({ hasText: 'F07 Cash' })
       .getByRole('link', { name: 'Edit' })
       .click();
@@ -85,14 +85,14 @@ test.describe('F07 P1 sales returns', () => {
     await page.getByTestId('product-name').fill('F07 Product');
     await page.getByTestId('product-category').selectOption({ label: 'F07 Cat' });
     await page.getByTestId('product-tracking-mode').selectOption('none');
-    await page.getByTestId('product-base-unit').fill('EA');
+    await page.getByTestId('product-base-unit').selectOption('EA');
     await page.getByTestId('product-measurement-dimension').selectOption('mass');
     await page.getByTestId('product-save').click();
     await expect(page.getByTestId('products-list')).toContainText('F07 Product');
 
     await page
       .getByTestId('products-list')
-      .locator('article')
+      .locator('tr, article')
       .filter({ hasText: 'F07 Product' })
       .getByRole('link', { name: 'Pricing' })
       .click();
@@ -132,8 +132,7 @@ test.describe('F07 P1 sales returns', () => {
     await page.getByTestId('sale-payment-account').selectOption({ label: 'F07 Cash (cash)' });
     await page.getByTestId('sale-payment-amount').fill('200.00');
     await page.getByTestId('sale-post').click();
-    await expect(page.getByTestId('sale-posted-banner')).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByTestId('sale-invoice-number')).toContainText('F7E-');
+    await expect(page.getByTestId('sale-posted-details')).toContainText('F7E-');
 
     await expect(page.getByTestId('sales-return-section')).toBeVisible();
     await page.getByTestId('sales-return-reason').fill('E2E linked sales return');

@@ -37,7 +37,7 @@ test.describe('R1-F09-004 browser route navigation', () => {
       if (route.testId) {
         await expect(page.getByTestId(route.testId)).toBeVisible();
       } else {
-        await expect(page.getByRole('heading', { name: route.heading })).toBeVisible();
+        await expect(page.getByRole('heading', { name: route.heading, exact: true })).toBeVisible();
       }
       const elapsed = Date.now() - started;
       if (i >= 1) {

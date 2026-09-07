@@ -22,6 +22,7 @@ function sanitizeFileName(value) {
   const trimmed = value
     .trim()
     .replace(/[/\\]/g, '')
+    // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u001f\u007f]/g, '');
   if (trimmed.length === 0) {
     return 'evidence.bin';

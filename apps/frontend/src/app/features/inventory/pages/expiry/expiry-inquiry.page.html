@@ -809,7 +809,14 @@
                             </svg>
                           </button>
                           @if (openMenuBatchId() === ((item.batchId ?? '') + '-' + item.productId + '-' + item.warehouseId)) {
-                            <div class="menu-dropdown" (click)="$event.stopPropagation()">
+                            <div
+                              class="menu-dropdown"
+                              role="menu"
+                              tabindex="-1"
+                              (click)="$event.stopPropagation()"
+                              (keydown)="$event.stopPropagation()"
+                              (keydown.escape)="closeRowMenu()"
+                            >
                               @if (canViewBatch() && item.batchNumber) {
                                 <a
                                   class="menu-dropdown__item"
@@ -904,10 +911,15 @@
             ) {
               <div
                 class="batch-card"
+                role="button"
+                tabindex="0"
+                [attr.aria-label]="'Inspect expiry details for ' + productName(item.productId) + (item.batchNumber ? ' batch ' + item.batchNumber : '')"
                 data-testid="expiry-row"
                 [class.batch-card--expired]="item.classification === 'expired'"
                 [class.batch-card--upcoming]="item.classification === 'upcoming'"
                 (click)="openInspector(item)"
+                (keydown.enter)="openInspector(item)"
+                (keydown.space)="$event.preventDefault(); openInspector(item)"
               >
                 <!-- Card Header -->
                 <div class="batch-card__head">
@@ -959,11 +971,11 @@
                 </div>
 
                 <!-- Card Footer Actions -->
-                <div class="batch-card__footer" (click)="$event.stopPropagation()">
+                <div class="batch-card__footer">
                   <button
                     class="card-action-btn"
                     type="button"
-                    (click)="openInspector(item)"
+                    (click)="$event.stopPropagation(); openInspector(item)"
                     title="Inspect expiry details"
                   >
                     <svg
@@ -984,6 +996,7 @@
                       class="card-action-btn"
                       [routerLink]="['/app/inventory/stock']"
                       [queryParams]="{ productId: item.productId, warehouseId: item.warehouseId }"
+                      (click)="$event.stopPropagation()"
                       title="View stock on hand"
                     >
                       <svg

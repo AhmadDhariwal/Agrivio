@@ -77,7 +77,7 @@ test.describe('F06 P1 sales draft vertical slice', () => {
     await page.getByTestId('product-name').fill('Retail Widget');
     await page.getByTestId('product-category').selectOption({ label: 'Retail Cat' });
     await page.getByTestId('product-tracking-mode').selectOption('none');
-    await page.getByTestId('product-base-unit').fill('EA');
+    await page.getByTestId('product-base-unit').selectOption('EA');
     await page.getByTestId('product-measurement-dimension').selectOption('mass');
     await page.getByTestId('product-save').click();
     await expect(page.getByTestId('products-list')).toContainText('Retail Widget');
@@ -94,7 +94,7 @@ test.describe('F06 P1 sales draft vertical slice', () => {
     await page.getByTestId('sale-line-quantity').fill('3');
     await page.getByTestId('sale-line-unit-price').fill('100.00');
     await page.getByTestId('sale-save').click();
-    await expect(page).toHaveURL(/\/app\/sales\/[^/]+$/);
+    await expect(page).toHaveURL(/\/app\/sales\/(?!new)[^/]+(\/edit)?$/);
     await expect(page.getByTestId('sale-draft-banner')).toBeVisible();
     await expect(page.getByTestId('sale-post')).toBeVisible();
     await expect(page.getByTestId('sale-posted-details')).toHaveCount(0);
@@ -109,8 +109,9 @@ test.describe('F06 P1 sales draft vertical slice', () => {
     await expect(page.getByTestId('stock-empty')).toBeVisible();
 
     await page.getByTestId('nav-sales').click();
-    await page.getByTestId('sale-row').first().getByRole('link').click();
+    await page.getByTestId('sale-row').first().getByRole('link', { name: 'Edit draft' }).click();
     await page.getByTestId('sale-discard').click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Discard draft' }).click();
     await expect(page).toHaveURL(/\/app\/sales$/);
     await expect(page.getByTestId('sales-empty')).toBeVisible();
   });

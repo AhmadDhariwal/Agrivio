@@ -65,7 +65,7 @@ test.describe('F04 P3 inventory transfer vertical slice', () => {
     await page.getByTestId('product-name').fill('P3 Bag');
     await page.getByTestId('product-category').selectOption({ label: 'P3 Equipment' });
     await page.getByTestId('product-tracking-mode').selectOption('none');
-    await page.getByTestId('product-base-unit').fill('EA');
+    await page.getByTestId('product-base-unit').selectOption('EA');
     await page.getByTestId('product-measurement-dimension').selectOption('mass');
     await page.getByTestId('product-save').click();
     await expect(page.getByTestId('products-list')).toContainText('P3 Bag');
@@ -81,7 +81,7 @@ test.describe('F04 P3 inventory transfer vertical slice', () => {
     await page.getByTestId('nav-transfers').click();
     await page.getByTestId('transfer-source').selectOption({ label: 'P3 Source' });
     await page.getByTestId('transfer-destination').selectOption({ label: 'P3 Dest' });
-    await page.getByTestId('transfer-product').selectOption({ label: 'P3 Bag' });
+    await page.getByTestId('transfer-product').selectOption({ label: 'P3 Bag (EA)' });
     await page.getByTestId('transfer-quantity').fill('1');
     await page.getByTestId('transfer-reason').fill('E2E transfer');
     await page.getByTestId('transfer-submit').click();
@@ -94,10 +94,12 @@ test.describe('F04 P3 inventory transfer vertical slice', () => {
 
     await page.locator('#ag-main').getByRole('link', { name: 'Movements' }).click();
     await expect(page.getByTestId('movements-list')).toBeVisible();
-    await expect(page.getByTestId('movement-row').filter({ hasText: 'warehouse_transfer' }).first()).toBeVisible();
+    await expect(page.getByTestId('movement-row').filter({ hasText: 'Warehouse Transfer' }).first()).toBeVisible();
 
     await page.getByTestId('nav-transfers').click();
     await page.getByTestId('transfer-reverse').first().click();
+    await page.getByTestId('lifecycle-reason-input').fill('Reverse test transfer');
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Reverse' }).click();
     await expect(page.getByTestId('transfer-success')).toBeVisible();
 
     await page.getByTestId('nav-inventory').click();

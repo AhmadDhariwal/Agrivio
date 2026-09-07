@@ -30,9 +30,9 @@ export async function seedStarterPlan(
   expect([200, 201]).toContain(plan.status());
 }
 
-import { login, enterPlatformWorkspace } from './e2e-auth-helper';
+import { login, login as signIn, enterPlatformWorkspace } from './e2e-auth-helper';
 
-export { API, login, enterPlatformWorkspace, login as signIn };
+export { API, login, enterPlatformWorkspace, signIn };
 
 export async function bootstrapApprovedOwner(
   page: Page,
@@ -76,13 +76,18 @@ export async function bootstrapApprovedOwner(
   await signIn(page, superAdmin.email, superAdmin.password);
   await enterPlatformWorkspace(page);
   await page.getByRole('link', { name: 'Organizations' }).click();
+  const searchInput = page.getByTestId('org-search-input');
+  await searchInput.fill(input.organizationName);
   const orgRow = page.getByTestId('org-row').filter({ hasText: input.organizationName });
   await orgRow.getByTestId('approve-org').click();
   await page.getByRole('button', { name: 'Approve organization' }).click();
-  const urlText = (await page.getByTestId('activation-url').textContent())?.trim() ?? '';
+  const activationUrl = page.getByTestId('activation-url');
+  await expect(activationUrl).toBeVisible();
+  const urlText = (await activationUrl.textContent())?.trim() ?? '';
   const activationToken = activationTokenFromUrl(urlText);
 
   await page.getByTestId('sign-out').click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Sign in');
   await page.goto(`/activate?token=${encodeURIComponent(activationToken)}`);
   await page.getByTestId('activation-password-input').fill(OWNER_PASSWORD);
   await page.getByTestId('activation-password-confirm-input').fill(OWNER_PASSWORD);
@@ -132,9 +137,9 @@ export async function createAccountWithOpening(
   await createAccount(page, input);
   await page
     .getByTestId('accounts-list')
-    .locator('article')
+    .locator('tr, article')
     .filter({ hasText: input.name })
-    .getByTestId('account-open')
+    .getByRole('link', { name: 'Edit' })
     .click();
   await page.getByTestId('account-opening-amount').fill(input.opening);
   await page.getByTestId('account-opening-save').click();
@@ -164,13 +169,13 @@ export async function createSellableProductWithOpening(
   await page.getByTestId('product-name').fill(input.product);
   await page.getByTestId('product-category').selectOption({ label: input.category });
   await page.getByTestId('product-tracking-mode').selectOption('none');
-  await page.getByTestId('product-base-unit').fill('EA');
+  await page.getByTestId('product-base-unit').selectOption('EA');
   await page.getByTestId('product-measurement-dimension').selectOption('mass');
   await page.getByTestId('product-save').click();
   await expect(page.getByTestId('products-list')).toContainText(input.product);
   await page
     .getByTestId('products-list')
-    .locator('article')
+    .locator('tr, article')
     .filter({ hasText: input.product })
     .getByRole('link', { name: 'Pricing' })
     .click();

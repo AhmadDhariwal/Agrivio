@@ -14,6 +14,7 @@ function readEvidenceUpload(req) {
 
 function sendEvidenceFile(res, evidence) {
   const safeFileName = String(evidence.originalFileName)
+    // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u001f\u007f"]/g, '')
     .slice(0, 255);
   res.setHeader('Content-Type', evidence.contentType);

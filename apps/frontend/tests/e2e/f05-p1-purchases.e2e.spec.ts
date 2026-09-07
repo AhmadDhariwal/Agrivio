@@ -67,7 +67,7 @@ test.describe('F05 P1 purchase draft vertical slice', () => {
     await page.getByTestId('product-name').fill('P1 Seed');
     await page.getByTestId('product-category').selectOption({ label: 'P1 Inputs' });
     await page.getByTestId('product-tracking-mode').selectOption('none');
-    await page.getByTestId('product-base-unit').fill('EA');
+    await page.getByTestId('product-base-unit').selectOption('EA');
     await page.getByTestId('product-measurement-dimension').selectOption('mass');
     await page.getByTestId('product-save').click();
     await expect(page.getByTestId('products-list')).toContainText('P1 Seed');
@@ -82,7 +82,7 @@ test.describe('F05 P1 purchase draft vertical slice', () => {
     await page.getByTestId('purchase-line-quantity').fill('5');
     await page.getByTestId('purchase-line-unit-cost').fill('20.00');
     await page.getByTestId('purchase-save').click();
-    await expect(page).toHaveURL(/\/app\/purchases\/[^/]+$/);
+    await expect(page).toHaveURL(/\/app\/purchases\/(?!new)[^/]+(\/edit)?$/);
     await expect(page.getByTestId('purchase-draft-banner')).toBeVisible();
 
     await page.goto('/app/purchases');
@@ -92,7 +92,7 @@ test.describe('F05 P1 purchase draft vertical slice', () => {
     await expect(page.getByTestId('purchases-empty')).toHaveCount(0);
     await expect(page.getByTestId('purchases-list')).toBeVisible();
     await expect(page.getByTestId('purchases-list')).toContainText('Draft');
-    await page.getByTestId('purchase-row').first().getByRole('link').click();
+    await page.getByTestId('purchase-row').first().getByRole('link', { name: 'Edit draft' }).click();
     await expect(page.getByTestId('purchase-draft-banner')).toBeVisible();
     await page.getByTestId('purchase-notes').fill('Edited draft notes');
     await page.getByTestId('purchase-save').click();
@@ -107,8 +107,9 @@ test.describe('F05 P1 purchase draft vertical slice', () => {
 
     await page.getByTestId('nav-purchases').click();
     await expect(page).toHaveURL(/\/app\/purchases$/);
-    await page.getByTestId('purchase-row').first().getByRole('link').click();
+    await page.getByTestId('purchase-row').first().getByRole('link', { name: 'Edit draft' }).click();
     await page.getByTestId('purchase-discard').click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Discard draft' }).click();
     await expect(page.getByTestId('purchases-empty')).toBeVisible();
   });
 });

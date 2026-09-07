@@ -1,8 +1,9 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { forkJoin } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CatalogApi } from '../../data-access/catalog.api';
 import { PriceTier } from '../../models/catalog.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
@@ -37,6 +38,7 @@ export class ProductPricingPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly productId = signal<string | null>(null);
   readonly productName = signal('Product');
@@ -51,8 +53,9 @@ export class ProductPricingPage {
         true) &&
       (this.capabilityService?.canEditField('inventory.products.fields.sellingPrice') ?? true),
   );
+  readonly formValid = signal(false);
   readonly canSave = computed(
-    () => this.canManage() && this.productId() !== null && this.form.valid && !this.saving(),
+    () => this.canManage() && this.productId() !== null && this.formValid() && !this.saving(),
   );
   private version = 1;
 
@@ -74,6 +77,14 @@ export class ProductPricingPage {
       return;
     }
     this.productId.set(id);
+
+    this.form.statusChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.formValid.set(this.form.valid);
+      });
+    this.formValid.set(this.form.valid);
+
     forkJoin({
       product: this.api.getProduct(id),
       prices: this.api.listPrices(id),
@@ -90,6 +101,7 @@ export class ProductPricingPage {
           dealer: byTier.get('dealer')?.price.amount ?? '',
           distributor: byTier.get('distributor')?.price.amount ?? '',
         });
+        this.formValid.set(this.form.valid);
         this.loading.set(false);
       },
       error: (error: unknown) => {

@@ -418,8 +418,8 @@
               <button
                 type="button"
                 class="ag-btn ag-btn--primary ag-btn--sm"
-                (click)="askApprove(item)"
-                data-testid="approve-org-btn"
+                (click)="openApprove(item)"
+                data-testid="approve-org"
               >
                 Approve
               </button>
@@ -511,7 +511,7 @@
         </button>
         }
         @if (item.status === 'pending_approval') {
-        <button type="button" class="ag-btn ag-btn--primary ag-btn--sm" (click)="askApprove(item)">
+        <button type="button" class="ag-btn ag-btn--primary ag-btn--sm" (click)="openApprove(item)" data-testid="approve-org">
           Approve
         </button>
         <button type="button" class="ag-btn ag-btn--danger ag-btn--sm" (click)="openReject(item)">
@@ -740,6 +740,32 @@
   </div>
   }
 
+  <!-- 5b. Approve Organization Confirmation Dialog -->
+  @if (approveOpen()) {
+  <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="approve-org-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="approve-org-title">Approve {{ selectedItem()?.name }}?</h2>
+        <button type="button" class="close-btn" (click)="closeApprove()" aria-label="Close dialog">✕</button>
+      </div>
+      <p class="ag-muted modal-desc">
+        This grants organization approval and issues a one-time Owner activation link. The plaintext token is shown once for manual delivery.
+      </p>
+      <div class="modal-actions">
+        <button type="button" class="ag-btn ag-btn--secondary" (click)="closeApprove()">Cancel</button>
+        <button
+          type="button"
+          class="ag-btn ag-btn--primary"
+          (click)="submitApprove()"
+          data-testid="confirm-approve-btn"
+        >
+          Approve organization
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+
   <!-- 6. One-time Activation Link Handoff Card -->
   @if (activationHandoff(); as handoff) {
   <div class="handoff-card" data-testid="activation-handoff">
@@ -753,7 +779,7 @@
       <div>
         <h3>One-Time Owner Activation Link (Generated Once)</h3>
         <p class="ag-muted">
-          Copy and deliver this link out-of-band to {{ handoff.ownerDisplayName || 'the Owner' }} ({{ handoff.ownerEmail }}).
+          Copy and deliver this link out-of-band to <span data-testid="activation-owner-email">{{ handoff.ownerDisplayName || 'the Owner' }} ({{ handoff.ownerEmail }})</span>.
           Agrivio does not email credentials. Plaintext cannot be viewed again once dismissed.
         </p>
       </div>

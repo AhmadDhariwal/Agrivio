@@ -75,7 +75,7 @@ export async function createCustomerWithReceivable(
   await expect(page.getByTestId('customers-list')).toContainText(name);
   await page.getByTestId('customers-list').getByRole('link', { name: 'Edit' }).click();
   await expect(page.getByTestId('customer-opening-section')).toBeVisible();
-  const customerId = page.url().split('/').pop() ?? '';
+  const customerId = page.url().match(/\/customers\/([^/]+)/)?.[1] ?? '';
   await page.getByTestId('customer-opening-kind').selectOption('receivable');
   await page.getByTestId('customer-opening-amount').fill(amount);
   await page.getByTestId('customer-opening-save').click();

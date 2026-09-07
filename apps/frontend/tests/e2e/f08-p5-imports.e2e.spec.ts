@@ -22,7 +22,7 @@ test.describe('F08 P5 imports', () => {
       ]),
     });
     await page.getByTestId('import-preview-submit').click();
-    await expect(page.getByTestId('import-execute')).toHaveCount(0);
+    await expect(page.getByTestId('import-execute')).toBeDisabled();
     await expect(page.locator('[data-testid="import-errors"], .ag-alert--danger').first()).toBeVisible();
 
     await page.getByTestId('import-file').setInputFiles({

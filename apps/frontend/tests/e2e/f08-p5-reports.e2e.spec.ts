@@ -11,14 +11,14 @@ test.describe('F08 P5 reports and export', () => {
     const customerId = await createCustomerWithReceivable(page, `Ledger Farmer ${stamp}`, '1500.00');
 
     await page.getByTestId('nav-dashboard').click();
-    await expect(page.getByTestId('dash-receivables')).toContainText('1500.00');
+    await expect(page.getByTestId('dash-receivables')).toContainText('1,500.00');
 
     await page.getByTestId('nav-reports').click();
     await expect(page.getByTestId('reports-page')).toBeVisible();
     await page.getByTestId('report-select').selectOption('customer-ledger');
-    await page.getByTestId('filter-customerId').fill(customerId);
+    await page.getByTestId('filter-customerId').selectOption(customerId);
     await page.getByTestId('report-run').click();
-    await expect(page.getByTestId('report-totals')).toContainText('1500.00');
+    await expect(page.getByTestId('report-totals')).toContainText('1,500.00');
 
     const csrfRes = await page.request.post(`${API}/api/v1/auth/csrf`);
     const csrfBody = await csrfRes.json();

@@ -72,7 +72,15 @@
       />
     </div>
   } @else if (purchase(); as item) {
+    @if (item.status === 'posted') {
+      <div class="ag-alert ag-alert--success posted-banner" data-testid="purchase-posted-banner">
+        <div class="banner-content">
+          <div><strong>Posted</strong> — inventory, payable, and payment effects are locked.</div>
+        </div>
+      </div>
+    }
     <!-- 4 KPI Summary Cards -->
+    <div data-testid="purchase-posted-totals">
     <section class="summary" data-testid="purchase-detail">
       <article class="summary-card">
         <div class="summary-card__icon summary-card__icon--blue">
@@ -461,5 +469,6 @@
         </div>
       </article>
     </section>
+    </div>
   }
 </div>

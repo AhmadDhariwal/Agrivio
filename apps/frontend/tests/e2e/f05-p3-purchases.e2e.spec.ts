@@ -67,7 +67,7 @@ test.describe('F05 P3 supplier payments, returns, cancellation, reconciliation E
     await expect(page.getByTestId('accounts-list')).toContainText('P3 Cash');
     await page
       .getByTestId('accounts-list')
-      .locator('article')
+      .locator('tr, article')
       .filter({ hasText: 'P3 Cash' })
       .getByRole('link', { name: 'Edit' })
       .click();
@@ -87,7 +87,7 @@ test.describe('F05 P3 supplier payments, returns, cancellation, reconciliation E
     await page.getByTestId('product-name').fill('P3 Urea');
     await page.getByTestId('product-category').selectOption({ label: 'P3 Inputs' });
     await page.getByTestId('product-tracking-mode').selectOption('none');
-    await page.getByTestId('product-base-unit').fill('KG');
+    await page.getByTestId('product-base-unit').selectOption('KG');
     await page.getByTestId('product-measurement-dimension').selectOption('mass');
     await page.getByTestId('product-save').click();
     await expect(page.getByTestId('products-list')).toContainText('P3 Urea');
@@ -103,14 +103,14 @@ test.describe('F05 P3 supplier payments, returns, cancellation, reconciliation E
     await page.getByTestId('purchase-line-quantity').fill('10');
     await page.getByTestId('purchase-line-unit-cost').fill('50.00');
     await page.getByTestId('purchase-save').click();
-    await expect(page).toHaveURL(/\/app\/purchases\/[^/]+$/);
+    await expect(page).toHaveURL(/\/app\/purchases\/(?!new)[^/]+(\/edit)?$/);
 
     await page.getByTestId('purchase-post').click();
     await expect(page.getByTestId('purchase-posted-banner')).toBeVisible();
     await expect(page.getByTestId('purchase-posted-totals')).toContainText('500.00');
 
     const purchase1Url = page.url();
-    const purchase1Id = purchase1Url.split('/').pop() ?? '';
+    const purchase1Id = purchase1Url.match(/\/app\/purchases\/([^/]+)/)?.[1] ?? '';
 
     // ---- Verify inventory after purchase 1 ----
     await page.getByTestId('nav-inventory').click();
@@ -121,7 +121,8 @@ test.describe('F05 P3 supplier payments, returns, cancellation, reconciliation E
     const suppliersResp = await page.request.get(`${API}/api/v1/suppliers`);
     expect(suppliersResp.status()).toBe(200);
     const suppliersBody = await suppliersResp.json();
-    const p3Supplier = suppliersBody.data.items.find(
+    const supplierList = Array.isArray(suppliersBody.data) ? suppliersBody.data : (suppliersBody.data?.items ?? []);
+    const p3Supplier = supplierList.find(
       (item: { name: string }) => item.name === 'P3 Supplier',
     );
     expect(p3Supplier).toBeDefined();
@@ -153,14 +154,14 @@ test.describe('F05 P3 supplier payments, returns, cancellation, reconciliation E
     await page.getByRole('link', { name: 'Accounts' }).click();
     await page
       .getByTestId('accounts-list')
-      .locator('article')
+      .locator('tr, article')
       .filter({ hasText: 'P3 Cash' })
       .getByRole('link', { name: 'Edit' })
       .click();
     await expect(page.getByTestId('account-derived-balance')).toContainText('9800.00');
 
     // ---- Purchase return on purchase 1 (3 KG) ----
-    await page.goto(`/app/purchases/${purchase1Id}`);
+    await page.goto(`/app/purchases/${purchase1Id}/edit`);
     await expect(page.getByTestId('purchase-posted-banner')).toBeVisible();
     await page.getByTestId('add-return-line').click();
     await page.getByTestId('return-line-qty').fill('3');
@@ -176,8 +177,9 @@ test.describe('F05 P3 supplier payments, returns, cancellation, reconciliation E
     const movementsResp = await page.request.get(`${API}/api/v1/inventory/movements`);
     expect(movementsResp.status()).toBe(200);
     const movementsBody = await movementsResp.json();
+    const movementsList = Array.isArray(movementsBody.data) ? movementsBody.data : (movementsBody.data?.items ?? []);
     expect(
-      movementsBody.data.items.some((m: { sourceType: string }) => m.sourceType === 'purchase_return'),
+      movementsList.some((m: { sourceType: string }) => m.sourceType === 'purchase_return'),
     ).toBe(true);
 
     // ---- Purchase 2 (separate purchase for cancel) ----
@@ -191,15 +193,20 @@ test.describe('F05 P3 supplier payments, returns, cancellation, reconciliation E
     await page.getByTestId('purchase-line-quantity').fill('5');
     await page.getByTestId('purchase-line-unit-cost').fill('100.00');
     await page.getByTestId('purchase-save').click();
-    await expect(page).toHaveURL(/\/app\/purchases\/[^/]+$/);
+    await expect(page).toHaveURL(/\/app\/purchases\/(?!new)[^/]+(\/edit)?$/);
 
     await page.getByTestId('purchase-post').click();
     await expect(page.getByTestId('purchase-posted-banner')).toBeVisible();
     await expect(page.getByTestId('purchase-posted-totals')).toContainText('500.00');
 
     // ---- Cancel purchase 2 with reason ----
+    const purchase2Url = page.url();
+    const purchase2Id = purchase2Url.match(/\/app\/purchases\/([^/]+)/)?.[1] ?? '';
+    await page.goto(`/app/purchases/${purchase2Id}/edit`);
+    await expect(page.getByTestId('cancel-reason-input')).toBeVisible();
     await page.getByTestId('cancel-reason-input').fill('Supplier could not deliver');
     await page.getByTestId('purchase-cancel-btn').click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel Purchase' }).click();
     await expect(page.getByTestId('purchase-cancelled-banner')).toBeVisible();
 
     // ---- Verify supplier ledger / reconciliation is healthy ----

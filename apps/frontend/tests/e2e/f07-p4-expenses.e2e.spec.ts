@@ -42,31 +42,33 @@ test.describe('F07 P4 expenses vertical slice', () => {
     await page.getByTestId('expense-save').click();
     await expect(page).toHaveURL(/\/app\/expenses\/[^/]+$/);
     await page.getByTestId('expense-post').click();
-    await expect(page.getByTestId('expense-posted')).toBeVisible();
-    await expect(page.getByTestId('expense-success')).toContainText('account outflow');
+    await expect(page.getByTestId('expense-detail')).toBeVisible();
+    await expect(page.getByTestId('expense-detail')).toContainText('posted');
 
     await page.getByRole('link', { name: 'Accounts' }).click();
     await page
       .getByTestId('accounts-list')
-      .locator('article')
+      .locator('tr, article')
       .filter({ hasText: 'P4 Cash' })
-      .getByTestId('account-open')
+      .getByRole('link', { name: 'Edit' })
       .click();
-    await expect(page.getByTestId('account-derived-balance')).toContainText('920.00');
+    await expect(page.getByTestId('account-derived-balance').first()).toContainText('920.00');
 
     await page.getByTestId('nav-expenses').click();
-    await page.getByTestId('expense-open').first().click();
+    await page.getByTestId('expenses-list').getByRole('link', { name: 'Open' }).first().click();
+    await page.getByTestId('expense-correct-link').click();
     await page.getByTestId('expense-correct-reason').fill('Posted in error');
     await page.getByTestId('expense-correct-save').click();
-    await expect(page.getByTestId('expense-corrected')).toBeVisible();
+    await expect(page.getByTestId('expense-detail')).toBeVisible();
+    await expect(page.getByTestId('expense-detail')).toContainText('corrected');
 
     await page.getByRole('link', { name: 'Accounts' }).click();
     await page
       .getByTestId('accounts-list')
-      .locator('article')
+      .locator('tr, article')
       .filter({ hasText: 'P4 Cash' })
-      .getByTestId('account-open')
+      .getByRole('link', { name: 'Edit' })
       .click();
-    await expect(page.getByTestId('account-derived-balance')).toContainText('1000.00');
+    await expect(page.getByTestId('account-derived-balance').first()).toContainText('1000.00');
   });
 });

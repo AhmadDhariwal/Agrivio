@@ -304,21 +304,8 @@ export class ProductFormPage {
         }),
       )
       .subscribe({
-        next: (product: ProductRecord) => {
+        next: () => {
           this.saving.set(false);
-          if (this.productId() === null && product?.id) {
-            const canUseOpeningStock =
-              (this.capabilityService?.canUseModule('inventory.openingStock') ?? true) &&
-              this.sessionStore.hasPermission('inventory.opening-stock.post') &&
-              (this.capabilityService?.canPerformAction('inventory.openingStock.actions.post') ?? true);
-
-            if (canUseOpeningStock) {
-              void this.router.navigate(['/app/inventory/opening-stock'], {
-                queryParams: { productId: product.id },
-              });
-              return;
-            }
-          }
           void this.router.navigateByUrl('/app/products');
         },
         error: (error: unknown) => {

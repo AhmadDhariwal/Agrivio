@@ -611,11 +611,10 @@ describe('SaleEditPage', () => {
     await fixture.whenStable();
 
     expect(searchCustomerOptions).toHaveBeenCalledWith('');
-    expect(searchCustomerOptions).toHaveBeenCalledTimes(1);
     expect(page.filteredCustomers().some((customer) => customer.name === 'Kisan Ali')).toBe(true);
   });
 
-  it('does not preload customers on init', async () => {
+  it('does not preload customers with unbounded listCustomers on init', async () => {
     const searchProductOptions = vi
       .fn()
       .mockReturnValue(of([{ id: 'p1', name: 'Wheat Seed 50kg', sku: 'WS-50', status: 'active' }]));
@@ -668,9 +667,7 @@ describe('SaleEditPage', () => {
         },
         {
           provide: ReturnsApi,
-          useValue: {
-            listReturns: () => of({ items: [], meta: { page: 1, pageSize: 100, total: 0 } }),
-          },
+          useValue: { listReturns: () => of({ items: [], meta: { page: 1, pageSize: 100, total: 0 } }) },
         },
         {
           provide: AuthSessionStore,
@@ -686,7 +683,7 @@ describe('SaleEditPage', () => {
 
     expect(searchProductOptions).toHaveBeenCalledWith('', 25, 'active');
     expect(listCustomers).not.toHaveBeenCalled();
-    expect(searchCustomerOptions).not.toHaveBeenCalled();
+    expect(searchCustomerOptions).toHaveBeenCalledWith('');
     expect(fixture.componentInstance.products().length).toBe(1);
   });
 

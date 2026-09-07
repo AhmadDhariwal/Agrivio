@@ -135,3 +135,137 @@ td small {
     grid-template-columns: 1fr;
   }
 }
+
+.lifecycle-actions-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.action-card {
+  &--danger {
+    border-color: #fecaca;
+    background: #fffafa;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+
+    h2 {
+      margin: 0;
+    }
+    p {
+      margin: 2px 0 0;
+    }
+  }
+
+  &__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #eff6ff;
+    color: #2563eb;
+    border: 1px solid #bfdbfe;
+    flex-shrink: 0;
+
+    &--danger {
+      background: #fef2f2;
+      color: #dc2626;
+      border-color: #fecaca;
+    }
+  }
+
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__btn {
+    align-self: flex-start;
+  }
+
+  &__btn-group {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+}
+
+.return-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.return-lines-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.return-line-card {
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f8fafc;
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+}
+
+.line-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #047857;
+}
+
+.return-line-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.posted-banner,
+.cancelled-banner {
+  padding: 12px 16px;
+  border-radius: 8px;
+}
+
+.banner-sub {
+  margin-left: 6px;
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+@media (max-width: 800px) {
+  .return-fields-grid,
+  .return-line-fields-grid {
+    grid-template-columns: 1fr;
+  }
+}

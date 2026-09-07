@@ -47,7 +47,7 @@ test.describe('R1-F09-004 accessibility — critical workflows', () => {
     await assertPageHasHeading(page, 'Create customer');
     await assertControlHasAccessibleName(page, 'customer-name');
     await assertControlHasAccessibleName(page, 'customer-type');
-    await page.getByTestId('customer-save').click();
+    await expect(page.getByTestId('customer-save')).toBeDisabled();
     await expect(page.getByTestId('customer-form')).toBeVisible();
 
     await page.goto('/app/suppliers/new');

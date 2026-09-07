@@ -80,6 +80,12 @@ npm run test:integration     # fail — host Mongo not rs0 (environmental)
 npm run e2e -- apps/frontend/tests/e2e/f03-p2-master-data.e2e.spec.ts  # pass
 ```
 
+## UI Hardening Amendments (2026-09-06)
+
+* **Products table action column sizing**: Changed `.col-actions` from 75px to 140px in `products.page.scss` and added right-alignment to `.row-actions` to prevent multi-button overflow and clipping against table borders.
+* **Pricing button presentation**: Replaced visible text in table-view Pricing button with `<span class="ag-sr-only">Pricing</span>` to maintain clean 28x28px square icon button sizing consistent with Inspect, Edit, and Overflow actions, while preserving full accessibility and Playwright link name matching (`f03-p2-master-data.e2e.spec.ts` pass).
+* **Keyboard escape handling**: Added `(keydown.escape)="closeRowMenu()"` and `role="menu"` to the row overflow dropdown in `products.page.html`.
+
 ## Next
 
 * Enable local Mongo `rs0` to execute real-Mongo index proof

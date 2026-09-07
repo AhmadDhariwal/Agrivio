@@ -625,6 +625,7 @@
     <agrivio-ui-empty-state
       title="No stock balances yet"
       message="Post opening stock or receive purchases to initialize warehouse stock levels."
+      data-testid="stock-empty"
     />
     }
   </div>
@@ -825,8 +826,13 @@
     @for (row of balances(); track row.id) {
     <article
       class="product-card"
+      role="button"
+      tabindex="0"
+      [attr.aria-label]="'Inspect stock for ' + productName(row.productId)"
       [class.product-card--selected]="selectedBalance()?.id === row.id"
       (click)="selectBalance(row)"
+      (keydown.enter)="selectBalance(row)"
+      (keydown.space)="$event.preventDefault(); selectBalance(row)"
     >
       <div class="product-card__header">
         <div class="product-card__glyph">
@@ -903,7 +909,7 @@
       </div>
 
       @if (showStatus() || canInspectStock()) {
-      <div class="product-card__footer" (click)="$event.stopPropagation()">
+      <div class="product-card__footer">
         @if (showStatus()) {
         <div class="product-card__status-wrap">
           @let status = stockStatus(row);
@@ -914,7 +920,7 @@
         </div>
         } @if (canInspectStock()) {
         <div class="product-card__actions">
-          <button type="button" class="card-action-btn" (click)="selectBalance(row)">
+          <button type="button" class="card-action-btn" (click)="$event.stopPropagation(); selectBalance(row)">
             Inspect
           </button>
         </div>

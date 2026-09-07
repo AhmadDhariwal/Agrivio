@@ -414,7 +414,7 @@
     <div class="mobile-filter-sheet__body">
       <!-- Category Filter -->
       <div class="mobile-filter-group">
-        <label class="mobile-filter-group__label">Category</label>
+        <span class="mobile-filter-group__label">Category</span>
         <agrivio-ui-searchable-dropdown
           [value]="categoryFilter()"
           [options]="categoryDropdownOptions()"
@@ -725,6 +725,29 @@
               </a>
               }
 
+              <!-- Pricing Button -->
+              @if (canManagePricing()) {
+              <a
+                class="row-action-btn"
+                [routerLink]="['/app/products', item.id, 'pricing']"
+                title="Pricing"
+                aria-label="Pricing"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" />
+                  <path d="M7 7h.01" />
+                </svg>
+                <span class="ag-sr-only">Pricing</span>
+              </a>
+              }
+
               <!-- More Actions Menu Dropdown -->
               <div class="menu-container">
                 <button
@@ -749,7 +772,14 @@
                 </button>
 
                 @if (openMenuProductId() === item.id) {
-                <div class="menu-dropdown">
+                <div
+                  class="menu-dropdown"
+                  role="menu"
+                  tabindex="-1"
+                  (click)="$event.stopPropagation()"
+                  (keydown)="$event.stopPropagation()"
+                  (keydown.escape)="closeRowMenu()"
+                >
                   @if (canManagePricing()) {
                   <a
                     class="menu-dropdown__item"
@@ -1016,6 +1046,21 @@
               <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
             </svg>
             Edit
+          </a>
+          } @if (canManagePricing()) {
+          <a class="card-action-btn" [routerLink]="['/app/products', item.id, 'pricing']" title="Pricing">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" />
+              <path d="M7 7h.01" />
+            </svg>
+            Pricing
           </a>
           }
 

@@ -66,7 +66,7 @@ test.describe('F05 P2 purchase posting vertical slice', () => {
     await expect(page.getByTestId('accounts-list')).toContainText('P2 Cash');
     await page
       .getByTestId('accounts-list')
-      .locator('article')
+      .locator('tr, article')
       .filter({ hasText: 'P2 Cash' })
       .getByRole('link', { name: 'Edit' })
       .click();
@@ -83,7 +83,7 @@ test.describe('F05 P2 purchase posting vertical slice', () => {
     await expect(page.getByTestId('accounts-list')).toContainText('P2 Bank');
     await page
       .getByTestId('accounts-list')
-      .locator('article')
+      .locator('tr, article')
       .filter({ hasText: 'P2 Bank' })
       .getByRole('link', { name: 'Edit' })
       .click();
@@ -103,7 +103,7 @@ test.describe('F05 P2 purchase posting vertical slice', () => {
     await page.getByTestId('product-name').fill('P2 Urea');
     await page.getByTestId('product-category').selectOption({ label: 'P2 Inputs' });
     await page.getByTestId('product-tracking-mode').selectOption('batch_expiry');
-    await page.getByTestId('product-base-unit').fill('KG');
+    await page.getByTestId('product-base-unit').selectOption('KG');
     await page.getByTestId('product-measurement-dimension').selectOption('mass');
     await page.getByTestId('packaging-unit-name').fill('50 KG');
     await page.getByTestId('packaging-conversion').fill('50');
@@ -127,7 +127,7 @@ test.describe('F05 P2 purchase posting vertical slice', () => {
     await page.getByTestId('purchase-line-expiry').fill('2027-06-01');
     await page.getByTestId('purchase-freight').fill('20.00');
     await page.getByTestId('purchase-save').click();
-    await expect(page).toHaveURL(/\/app\/purchases\/[^/]+$/);
+    await expect(page).toHaveURL(/\/app\/purchases\/(?!new)[^/]+(\/edit)?$/);
     await expect(page.getByTestId('purchase-draft-banner')).toBeVisible();
 
     const paymentAccounts = page.getByTestId('purchase-payment-account');
@@ -217,13 +217,14 @@ test.describe('F05 P2 purchase posting vertical slice', () => {
     const supplierLedger = await page.request.get(`${API}/api/v1/suppliers`);
     expect(supplierLedger.status()).toBe(200);
     const suppliersBody = await supplierLedger.json();
-    const supplier = suppliersBody.data.items.find((item: { name: string }) => item.name === 'P2 Supplier');
+    const supplierList = Array.isArray(suppliersBody.data) ? suppliersBody.data : (suppliersBody.data?.items ?? []);
+    const supplier = supplierList.find((item: { name: string }) => item.name === 'P2 Supplier');
     expect(supplier.derivedBalances.payable.amount).toBe('50.00');
 
     await page.getByRole('link', { name: 'Accounts' }).click();
     await page
       .getByTestId('accounts-list')
-      .locator('article')
+      .locator('tr, article')
       .filter({ hasText: 'P2 Cash' })
       .getByRole('link', { name: 'Edit' })
       .click();
@@ -231,7 +232,7 @@ test.describe('F05 P2 purchase posting vertical slice', () => {
     await page.getByRole('link', { name: 'Accounts' }).click();
     await page
       .getByTestId('accounts-list')
-      .locator('article')
+      .locator('tr, article')
       .filter({ hasText: 'P2 Bank' })
       .getByRole('link', { name: 'Edit' })
       .click();
@@ -241,7 +242,7 @@ test.describe('F05 P2 purchase posting vertical slice', () => {
     await expect(page.getByTestId('purchases-list')).toContainText('Posted');
     await page.getByTestId('purchase-row').first().getByRole('link').click();
     await expect(page.getByTestId('purchase-posted-banner')).toBeVisible();
-    await expect(page.getByTestId('purchase-warehouse')).toBeDisabled();
+    await expect(page.getByTestId('purchase-detail-warehouse')).toContainText('P2 Receive');
   });
 });
 

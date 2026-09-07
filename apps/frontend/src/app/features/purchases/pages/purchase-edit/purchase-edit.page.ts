@@ -351,13 +351,7 @@ export class PurchaseEditPage {
       this.api
         .getPurchase(id)
         .pipe(
-          switchMap((purchase) => {
-            if (purchase.status !== 'draft') {
-              void this.router.navigateByUrl(`/app/purchases/${purchase.id}`, { replaceUrl: true });
-              return EMPTY;
-            }
-            return masters$.pipe(map((masters) => ({ masters, purchase })));
-          }),
+          switchMap((purchase) => masters$.pipe(map((masters) => ({ masters, purchase })))),
         )
         .subscribe({
           next: ({ masters, purchase }) => {

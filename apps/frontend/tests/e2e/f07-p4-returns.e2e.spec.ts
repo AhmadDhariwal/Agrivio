@@ -75,23 +75,24 @@ test.describe('F07 P4 returns vertical slice', () => {
     await expect(page.getByTestId('stock-list')).toContainText('49.0000');
 
     await page.getByRole('link', { name: 'Accounts' }).click();
-    await page.getByTestId('accounts-list').locator('article').filter({ hasText: 'F07 Cash' }).getByTestId('account-open').click();
-    await expect(page.getByTestId('account-derived-balance')).toContainText('10100.00');
+    await page.getByTestId('accounts-list').locator('tr, article').filter({ hasText: 'F07 Cash' }).getByRole('link', { name: 'Edit' }).click();
+    await expect(page.getByTestId('account-derived-balance').first()).toContainText('10100.00');
 
     await page.getByTestId('nav-returns').click();
     await expect(page.getByTestId('returns-list')).toBeVisible();
     await page.getByTestId('return-open').first().click();
     await expect(page.getByTestId('return-detail')).toBeVisible();
     await expect(page.getByTestId('return-status')).toContainText('posted');
-    await page.getByTestId('return-reverse-reason').fill('E2E reverse linked return');
-    await page.getByTestId('return-reverse').click();
+    await page.getByTestId('return-reverse-action-btn').click();
+    await page.getByTestId('lifecycle-reason-input').fill('E2E reverse linked return');
+    await page.getByRole('button', { name: 'Reverse', exact: true }).click();
     await expect(page.getByTestId('return-reversed')).toBeVisible();
 
     await page.getByTestId('nav-inventory').click();
     await expect(page.getByTestId('stock-list')).toContainText('48.0000');
     await page.getByRole('link', { name: 'Accounts' }).click();
-    await page.getByTestId('accounts-list').locator('article').filter({ hasText: 'F07 Cash' }).getByTestId('account-open').click();
-    await expect(page.getByTestId('account-derived-balance')).toContainText('10200.00');
+    await page.getByTestId('accounts-list').locator('tr, article').filter({ hasText: 'F07 Cash' }).getByRole('link', { name: 'Edit' }).click();
+    await expect(page.getByTestId('account-derived-balance').first()).toContainText('10200.00');
 
     await page.getByTestId('nav-returns').click();
     await page.getByTestId('without-invoice-link').click();
