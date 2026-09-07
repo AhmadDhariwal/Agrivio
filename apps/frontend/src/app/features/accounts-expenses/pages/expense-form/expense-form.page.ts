@@ -219,11 +219,8 @@ export class ExpenseFormPage {
     return fieldValidationMessage(control, label, this.formSubmitAttempted());
   }
 
-  isReadOnlyField(fieldKey: string): boolean {
-    return (
-      this.expenseId() !== null &&
-      !(this.capabilityService?.canEditField(`expenses.fields.${fieldKey}`) ?? true)
-    );
+  isReadOnlyField(_fieldKey: string): boolean {
+    return !this.isDraft;
   }
 
   save(): void {

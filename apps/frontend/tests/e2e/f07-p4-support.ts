@@ -132,9 +132,9 @@ export async function createAccountWithOpening(
   await createAccount(page, input);
   await page
     .getByTestId('accounts-list')
-    .locator('article')
+    .locator('tr, article')
     .filter({ hasText: input.name })
-    .getByTestId('account-open')
+    .getByRole('link', { name: 'Edit' })
     .click();
   await page.getByTestId('account-opening-amount').fill(input.opening);
   await page.getByTestId('account-opening-save').click();
@@ -164,13 +164,13 @@ export async function createSellableProductWithOpening(
   await page.getByTestId('product-name').fill(input.product);
   await page.getByTestId('product-category').selectOption({ label: input.category });
   await page.getByTestId('product-tracking-mode').selectOption('none');
-  await page.getByTestId('product-base-unit').fill('EA');
+  await page.getByTestId('product-base-unit').selectOption('EA');
   await page.getByTestId('product-measurement-dimension').selectOption('mass');
   await page.getByTestId('product-save').click();
   await expect(page.getByTestId('products-list')).toContainText(input.product);
   await page
     .getByTestId('products-list')
-    .locator('article')
+    .locator('tr, article')
     .filter({ hasText: input.product })
     .getByRole('link', { name: 'Pricing' })
     .click();

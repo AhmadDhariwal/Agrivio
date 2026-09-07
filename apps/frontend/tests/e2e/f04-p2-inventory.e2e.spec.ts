@@ -67,7 +67,7 @@ test.describe('F04 P2 inventory vertical slice', () => {
     await page.getByTestId('product-name').fill('P2 Urea');
     await page.getByTestId('product-category').selectOption({ label: 'P2 Fertilizers' });
     await page.getByTestId('product-tracking-mode').selectOption('batch_expiry');
-    await page.getByTestId('product-base-unit').fill('KG');
+    await page.getByTestId('product-base-unit').selectOption('KG');
     await page.getByTestId('product-measurement-dimension').selectOption('mass');
     await page.getByTestId('product-save').click();
     await expect(page.getByTestId('products-list')).toContainText('P2 Urea');
@@ -76,7 +76,7 @@ test.describe('F04 P2 inventory vertical slice', () => {
     await page.getByTestId('product-name').fill('P2 Bag');
     await page.getByTestId('product-category').selectOption({ label: 'P2 Equipment' });
     await page.getByTestId('product-tracking-mode').selectOption('none');
-    await page.getByTestId('product-base-unit').fill('EA');
+    await page.getByTestId('product-base-unit').selectOption('EA');
     await page.getByTestId('product-measurement-dimension').selectOption('mass');
     await page.getByTestId('product-save').click();
     await expect(page.getByTestId('products-list')).toContainText('P2 Bag');
@@ -101,11 +101,11 @@ test.describe('F04 P2 inventory vertical slice', () => {
 
     await page.getByTestId('nav-expiry').click();
     await expect(page.getByTestId('expiry-list')).toBeVisible();
-    await expect(page.getByTestId('expiry-row').first()).toContainText('normal');
+    await expect(page.getByTestId('expiry-row').first()).toContainText(/normal/i);
 
     await page.getByTestId('nav-adjustments').click();
     await page.getByTestId('adjustment-warehouse').selectOption({ label: 'P2 Warehouse' });
-    await page.getByTestId('adjustment-product').selectOption({ label: 'P2 Bag' });
+    await page.getByTestId('adjustment-product').selectOption({ label: 'P2 Bag (EA)' });
     await page.getByTestId('adjustment-type').selectOption('damage');
     await page.getByTestId('adjustment-quantity').fill('1');
     await page.getByTestId('adjustment-reason').fill('Damaged bag');
@@ -117,6 +117,8 @@ test.describe('F04 P2 inventory vertical slice', () => {
 
     await page.getByTestId('nav-adjustments').click();
     await page.getByTestId('adjustment-reverse').first().click();
+    await page.getByTestId('lifecycle-reason-input').fill('Reverse damaged bag');
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Reverse' }).click();
     await expect(page.getByTestId('adjustment-success')).toBeVisible();
 
     await page.getByTestId('nav-inventory').click();

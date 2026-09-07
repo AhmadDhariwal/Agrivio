@@ -68,7 +68,7 @@ test.describe('F06 P3 approvals and sale cancellation', () => {
     await expect(page.getByTestId('accounts-list')).toContainText('P3 Cash');
     await page
       .getByTestId('accounts-list')
-      .locator('article')
+      .locator('tr, article')
       .filter({ hasText: 'P3 Cash' })
       .getByRole('link', { name: 'Edit' })
       .click();
@@ -88,14 +88,14 @@ test.describe('F06 P3 approvals and sale cancellation', () => {
     await page.getByTestId('product-name').fill('P3 Product');
     await page.getByTestId('product-category').selectOption({ label: 'P3 Cat' });
     await page.getByTestId('product-tracking-mode').selectOption('none');
-    await page.getByTestId('product-base-unit').fill('EA');
+    await page.getByTestId('product-base-unit').selectOption('EA');
     await page.getByTestId('product-measurement-dimension').selectOption('mass');
     await page.getByTestId('product-save').click();
     await expect(page.getByTestId('products-list')).toContainText('P3 Product');
 
     await page
       .getByTestId('products-list')
-      .locator('article')
+      .locator('tr, article')
       .filter({ hasText: 'P3 Product' })
       .getByRole('link', { name: 'Pricing' })
       .click();
@@ -122,7 +122,7 @@ test.describe('F06 P3 approvals and sale cancellation', () => {
     await page.getByTestId('sale-line-quantity').fill('2');
     await expect(page.getByTestId('sale-line-unit-price')).toHaveValue('100.00', { timeout: 10_000 });
     await page.getByTestId('sale-save').click();
-    await expect(page).toHaveURL(/\/app\/sales\/[^/]+$/);
+    await expect(page).toHaveURL(/\/app\/sales\/[^/]+(\/edit)?$/);
     await expect(page.getByTestId('sale-post')).toBeVisible();
     await expect(page.getByTestId('sale-approvals')).toBeVisible();
 
@@ -142,6 +142,7 @@ test.describe('F06 P3 approvals and sale cancellation', () => {
     await expect(page.getByTestId('sale-cancel-section')).toBeVisible();
     await page.getByTestId('cancel-reason-input').fill('E2E cancellation proof');
     await page.getByTestId('sale-cancel-btn').click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel Sale' }).click();
     await expect(page.getByTestId('sale-cancelled-banner')).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId('sale-cancelled-banner')).toContainText('E2E cancellation proof');
     await expect(page.getByTestId('sale-posted-details')).toContainText('P3E-');

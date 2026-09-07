@@ -95,7 +95,7 @@ test.describe('F03 P3 setup openings and plan limits', () => {
     await page.getByTestId('product-name').fill('Urea P3');
     await page.getByTestId('product-category').selectOption({ label: 'Fertilizers' });
     await page.getByTestId('product-tracking-mode').selectOption('batch_expiry');
-    await page.getByTestId('product-base-unit').fill('KG');
+    await page.getByTestId('product-base-unit').selectOption('KG');
     await page.getByTestId('product-measurement-dimension').selectOption('mass');
     await page.getByTestId('packaging-unit-name').fill('50 KG');
     await page.getByTestId('packaging-conversion').fill('50');
@@ -122,7 +122,7 @@ test.describe('F03 P3 setup openings and plan limits', () => {
     await expect(page.getByTestId('customer-opening-posted')).toBeVisible();
 
     // Soft warning when remaining capacity hits the approach threshold (limit 2 → 2nd create).
-    await page.getByRole('link', { name: 'Customers' }).click();
+    await page.getByTestId('nav-customers').click();
     await page.getByTestId('customer-create-link').click();
     await page.getByTestId('customer-name').fill('Second Farmer');
     await page.getByTestId('customer-type').selectOption('farmer');
@@ -166,7 +166,7 @@ test.describe('F03 P3 setup openings and plan limits', () => {
     await expect(page.getByTestId('nav-setup')).toBeVisible();
     await page.getByTestId('nav-setup').click();
     await expect(page.getByTestId('setup-steps')).toBeVisible();
-    await expect(page.getByTestId('setup-step-opening_balances')).toContainText('complete');
+    await expect(page.getByTestId('setup-step-opening_balances')).toContainText(/complete/i);
     await expect(page.getByTestId('setup-ready')).toBeVisible();
     await expect(page.getByTestId('setup-notes')).toContainText('Inventory/Purchases/Sales');
   });

@@ -161,7 +161,7 @@ test.describe('F05 P3 supplier payments, returns, cancellation, reconciliation E
     await expect(page.getByTestId('account-derived-balance')).toContainText('9800.00');
 
     // ---- Purchase return on purchase 1 (3 KG) ----
-    await page.goto(`/app/purchases/${purchase1Id}`);
+    await page.goto(`/app/purchases/${purchase1Id}/edit`);
     await expect(page.getByTestId('purchase-posted-banner')).toBeVisible();
     await page.getByTestId('add-return-line').click();
     await page.getByTestId('return-line-qty').fill('3');
@@ -200,6 +200,10 @@ test.describe('F05 P3 supplier payments, returns, cancellation, reconciliation E
     await expect(page.getByTestId('purchase-posted-totals')).toContainText('500.00');
 
     // ---- Cancel purchase 2 with reason ----
+    const purchase2Url = page.url();
+    const purchase2Id = purchase2Url.match(/\/app\/purchases\/([^/]+)/)?.[1] ?? '';
+    await page.goto(`/app/purchases/${purchase2Id}/edit`);
+    await expect(page.getByTestId('cancel-reason-input')).toBeVisible();
     await page.getByTestId('cancel-reason-input').fill('Supplier could not deliver');
     await page.getByTestId('purchase-cancel-btn').click();
     await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel Purchase' }).click();
