@@ -17,8 +17,19 @@ import { createOnboardingModule } from './onboarding.module';
 import { createAuthModule } from '../identity/auth.module';
 import { createBridgedAuthStore } from '../identity/auth.bridge-store';
 import { hashToken } from '../identity/crypto-tokens';
+import onboardingValidationModule from './onboarding.validation';
+
+const { parseActivationBody } = onboardingValidationModule;
 
 describe('F02 Phase 1 organization onboarding', () => {
+  it('preserves the activation token exactly while validating blank input', () => {
+    const token = ' opaque+token/with=reserved_%2B-and_base64url-_ ';
+    expect(parseActivationBody({ token, password: 'a-strong-passphrase' }).token).toBe(token);
+    expect(() => parseActivationBody({ token: '   ', password: 'a-strong-passphrase' })).toThrow(
+      'Validation failed',
+    );
+  });
+
   it('accepts a valid public activation request and rejects invalid payloads', async () => {
     const { server, baseUrl, store, jar } = await boot();
 

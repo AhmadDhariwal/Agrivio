@@ -82,3 +82,9 @@ consumption, and the canonical `account_activation_tokens` collection are unchan
 A real replica-set Mongo regression now proves approve and reissue hashes remain retrievable after
 commit, the prior token is consumed, only the newest token activates, reuse is rejected, and an
 activation-token insert is visible both inside its transaction and after commit.
+
+The regression also passes the freshly reissued token through the production activation-URL
+builder and standard query-string decoding before the fresh HTTP activation request. Frontend
+coverage independently proves Angular query parsing and the `/auth/activate` payload preserve an
+opaque token byte-for-byte, including reserved characters. Activation-body validation rejects
+blank tokens without trimming or otherwise mutating a non-blank token before hashing.

@@ -11,6 +11,7 @@ import { createApp } from '../../app';
 import { createMockDatabaseLifecycle } from '../../platform/database/mongo-connection';
 import { loadApiEnv } from '../../platform/config/runtime-config';
 import { hashToken } from '../identity/crypto-tokens';
+import onboardingServiceModule from './onboarding.service';
 import auditModelModule from '../audit/persistence/audit-event.model';
 import identityModelModule from '../identity/persistence/identity.model';
 import organizationModelModule from '../organizations/persistence/organization.model';
@@ -21,6 +22,7 @@ const { AccountActivationTokenModel, AuthSessionModel, OrganizationMembershipMod
   identityModelModule;
 const { OrganizationModel } = organizationModelModule;
 const { SubscriptionModel } = subscriptionModelModule;
+const { buildActivationUrl } = onboardingServiceModule;
 
 async function isReplicaSetPrimary() {
   try {
@@ -192,6 +194,9 @@ describe('platform organization lifecycle Mongo transaction', () => {
     });
     const tokenB = reissued.activationToken;
     expect(tokenB).not.toBe(tokenA);
+    expect(reissued.activationUrl).toBe(buildActivationUrl('http://localhost:4200', tokenB));
+    const decodedTokenB = new URL(reissued.activationUrl).searchParams.get('token');
+    expect(decodedTokenB).toBe(tokenB);
 
     const [consumedA, storedB] = await Promise.all([
       app.agrivio.onboarding.store.findActivationTokenByHash(hashToken(tokenA)),
@@ -202,7 +207,9 @@ describe('platform organization lifecycle Mongo transaction', () => {
       tokenHash: hashToken(tokenB),
       purpose: 'owner_activation',
     });
+    expect(storedB?.tokenHash).toMatch(/^[a-f0-9]{64}$/);
     expect(storedB?.consumedAt ?? null).toBeNull();
+    expect(new Date(storedB.expiresAt).getTime()).toBeGreaterThan(Date.now());
 
     const server = createServer(app);
     await listen(server);
@@ -216,7 +223,7 @@ describe('platform organization lifecycle Mongo transaction', () => {
       expect(oldToken.status).toBe(409);
       expect(oldToken.body.error.message).toBe('Activation token has already been used');
 
-      const newestToken = await activate(baseUrl, jar, tokenB);
+      const newestToken = await activate(baseUrl, jar, decodedTokenB);
       expect(newestToken.status).toBe(200);
       expect(newestToken.body.data.status).toBe('active');
 
