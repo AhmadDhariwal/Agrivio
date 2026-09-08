@@ -52,6 +52,11 @@ function createSubscriptionModule(options) {
     evidenceStorage,
     subscriptionService,
     middlewares: {
+      requireBillingBootstrapAccess: createRequireSubscriptionAccessMiddleware({
+        label: 'billing-bootstrap',
+        resolveAccessState: (organizationId) =>
+          subscriptionService.resolveAccessState(organizationId),
+      }),
       requireBillingAccess: createRequireSubscriptionAccessMiddleware({
         label: 'billing-access',
         resolveAccessState: (organizationId) =>

@@ -125,3 +125,11 @@ lifecycle states, and Super Admin manual billing review.
 ## Final Manage Billing route hardening (2026-09-03)
 
 The shared subscription/grace banner used the nonexistent plural route `/app/subscriptions/billing`. It now consumes the same canonical `/app/subscription/billing` application-path constant as the working Billing sidebar item, preserving the existing route permission and Billing capability guards.
+
+## Billing bootstrap and missing-subscription recovery (2026-09-09)
+
+The existing entitlement resolver now defines `billing-bootstrap` for missing, pending approval, trial, active, grace, suspended, and cancelled subscription states. Only the tenant Billing acquisition/recovery module, status, plan, required payment fields, evidence upload/submission, and own history controls use this label. Authentication, tenant context, RBAC, CSRF, capability policy, file validation, audit, and billing domain validation remain in force; operational controls still require operational subscription access.
+
+Missing subscription reads return an explicit unavailable descriptor with no fabricated ID or plan. Platform organization detail converts that descriptor to `subscription: null`, preserves independent organization aggregation, and exposes the `subscription_missing` operational warning. The Owner Billing page presents an explicit recovery message, while the platform detail page renders Subscription Status as Unavailable.
+
+Normal onboarding remains strict: Request Access creates one pending Starter subscription, and approval requires that record before starting an exact 14-day trial anchored to `approvedAt`. The explicit `scripts/ops/repair-organization-subscription.mjs` utility can inspect or repair legacy malformed organizations. It defaults approved repairs from the original approval instant through trial/grace/suspension, uses a transaction and audit event, never overwrites an existing subscription, and never runs at application startup.

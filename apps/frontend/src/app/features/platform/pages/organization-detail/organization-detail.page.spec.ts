@@ -168,6 +168,34 @@ describe('PlatformOrganizationDetailPage', () => {
     expect(page.detail()?.audit?.total).toBe(1);
   });
 
+  it('renders an unavailable subscription without hiding independent organization data', () => {
+    page.detail.set({
+      ...sampleDetail,
+      subscription: null,
+      usage: {
+        planCode: null,
+        planVersion: null,
+        resources: sampleDetail.usage?.resources ?? {
+          branches: { current: 0, limit: null },
+          warehouses: { current: 0, limit: null },
+          activeUsers: { current: 0, limit: null },
+        },
+      },
+      operationalWarnings: [
+        { code: 'subscription_missing', message: 'No subscription record found.' },
+      ],
+    });
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('[data-testid="subscription-unavailable-state"]')).not.toBeNull();
+    expect(compiled.textContent).toContain('Subscription Status');
+    expect(compiled.textContent).toContain('Unavailable');
+    expect(compiled.textContent).toContain('No subscription record exists for this organization.');
+    expect(compiled.textContent).toContain('Sunrise Agro Ventures');
+    expect(compiled.textContent).toContain('Sunrise Owner');
+  });
+
   it('evaluates usage presentation states accurately', () => {
     const u = sampleDetail.usage?.resources;
     expect(page.getUsageState(u?.branches)).toBe('near-limit');

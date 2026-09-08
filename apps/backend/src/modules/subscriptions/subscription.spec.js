@@ -18,6 +18,7 @@ import {
 import { createApp } from '../../app';
 import { loadApiEnv } from '../../platform/config/runtime-config';
 import { createMockDatabaseLifecycle } from '../../platform/database/mongo-connection';
+import { createSubscriptionModule } from './subscription.module';
 import {
   applyExpiryTransitions,
   allowsSubscriptionLabel,
@@ -79,6 +80,21 @@ describe('subscription entitlement pure rules', () => {
     expect(allowsSubscriptionLabel('suspended', 'billing-access')).toBe(true);
     expect(allowsSubscriptionLabel('trial', 'operational')).toBe(true);
     expect(allowsSubscriptionLabel('active', 'mystery-label')).toBe(false);
+    expect(allowsSubscriptionLabel(null, 'billing-bootstrap')).toBe(true);
+    expect(allowsSubscriptionLabel('pending_approval', 'billing-bootstrap')).toBe(true);
+    expect(allowsSubscriptionLabel('cancelled', 'billing-bootstrap')).toBe(true);
+    expect(allowsSubscriptionLabel('rejected', 'billing-bootstrap')).toBe(false);
+    expect(allowsSubscriptionLabel('deleted', 'billing-bootstrap')).toBe(false);
+
+    const missing = buildSubscriptionAccessState(null, null);
+    expect(missing).toMatchObject({
+      status: null,
+      accessLevel: 'none',
+      operationalWriteAllowed: false,
+      billingAccessAllowed: true,
+      plan: null,
+      warnings: [{ code: 'subscription_missing', message: 'No subscription record found.' }],
+    });
 
     expect(evaluateFeatureEntitlement(null, 'imports').allowed).toBe(false);
     expect(evaluateFeatureEntitlement({ entitlements: { imports: null } }, 'imports').allowed).toBe(
@@ -113,6 +129,41 @@ describe('subscription entitlement pure rules', () => {
 });
 
 describe('F02 Phase 5 plans, lifecycle, and manual billing', () => {
+  it('returns an unavailable descriptor and accepts authorized recovery evidence without a subscription', async () => {
+    const subscriptions = createSubscriptionModule({ persistence: 'memory' });
+    const plan = await subscriptions.store.insertPlan(null, {
+      planCode: 'Starter', planVersion: 1, status: 'active', currency: 'PKR',
+      monthlyPriceMinorUnits: 5000, annualPriceMinorUnits: 50000,
+      annualDiscountPercent: null, trialEligible: true, limits: {}, entitlements: {},
+      referencedAt: null, version: 1,
+    });
+    const organizationId = 'missing-subscription-org';
+    const current = await subscriptions.subscriptionService.getOrganizationSubscription(organizationId);
+    expect(current).toMatchObject({
+      id: null, organizationId, status: null, plan: null,
+      accessState: { operationalWriteAllowed: false, billingAccessAllowed: true },
+    });
+    const evidence = await subscriptions.subscriptionService.uploadBillingEvidence(
+      organizationId,
+      { buffer: pdfBuffer(), originalFileName: 'recovery.pdf', contentType: 'application/pdf' },
+      { actorId: 'owner-1' },
+    );
+    const submitted = await subscriptions.subscriptionService.submitBillingEvidence(
+      organizationId,
+      {
+        paymentMethod: 'bank_transfer', billingPeriod: 'monthly',
+        submittedAmountMinorUnits: 5000, paymentReference: 'RECOVERY-001',
+        evidenceStorageRef: evidence.evidenceStorageRef,
+        requestedPlanCode: plan.planCode, requestedPlanVersion: plan.planVersion,
+      },
+      { actorId: 'owner-1' },
+    );
+    expect(submitted).toMatchObject({
+      organizationId, status: 'submitted', evidenceOriginalFileName: 'recovery.pdf',
+      evidenceContentType: 'application/pdf',
+    });
+  });
+
   it('creates versioned plans as platform data and denies organization mutation', async () => {
     const { server, baseUrl, jar, store } = await boot();
     try {

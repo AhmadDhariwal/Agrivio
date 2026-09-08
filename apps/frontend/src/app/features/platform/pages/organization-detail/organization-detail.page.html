@@ -269,7 +269,13 @@
         }
       </div>
       } @else {
-      <p class="ag-muted">No subscription record associated with this organization.</p>
+      <div class="grid-fields" data-testid="subscription-unavailable-state">
+        <div class="field-item">
+          <span class="field-label">Subscription Status</span>
+          <span class="field-value">Unavailable</span>
+        </div>
+      </div>
+      <p class="ag-muted">No subscription record exists for this organization.</p>
       }
     </div>
   </section>

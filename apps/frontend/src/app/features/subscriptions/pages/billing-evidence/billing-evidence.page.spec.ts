@@ -556,7 +556,7 @@ describe('BillingEvidencePage', () => {
 
       const compiled = fixture.nativeElement as HTMLElement;
       expect(compiled.querySelector('[data-testid="billing-disabled-alert"]')).not.toBeNull();
-      expect(compiled.textContent).toContain('Billing has been disabled for this organization');
+      expect(compiled.textContent).toContain('Billing recovery is unavailable');
       expect(compiled.querySelector('[data-testid="current-subscription-card"]')).toBeNull();
       expect(compiled.querySelector('[data-testid="submit-evidence-btn"]')).toBeNull();
       expect(compiled.querySelector('.plans-section')).toBeNull();

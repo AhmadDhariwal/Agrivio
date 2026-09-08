@@ -203,9 +203,6 @@ function createSubscriptionService(deps) {
 
   async function assertBillingAccess(organizationId) {
     const subscription = await store.findSubscriptionByOrganizationId(organizationId);
-    if (subscription === null) {
-      throw notFound('Subscription not found');
-    }
     const access = buildSubscriptionAccessState(subscription, null, now(), { graceDays });
     if (!access.billingAccessAllowed) {
       throw forbidden('Billing evidence cannot be submitted in the current subscription state');
@@ -489,7 +486,30 @@ function createSubscriptionService(deps) {
     async getOrganizationSubscription(organizationId) {
       const subscription = await store.findSubscriptionByOrganizationId(organizationId);
       if (subscription === null) {
-        throw notFound('Subscription not found');
+        const access = buildSubscriptionAccessState(null, null, now(), { graceDays });
+        return {
+          id: null,
+          organizationId: String(organizationId),
+          status: null,
+          planCode: null,
+          planVersion: null,
+          planId: null,
+          billingPeriod: null,
+          trialEndsAt: null,
+          graceEndsAt: null,
+          periodStartsAt: null,
+          periodEndsAt: null,
+          cancelledAt: null,
+          retainedUntil: null,
+          version: null,
+          accessState: {
+            accessLevel: access.accessLevel,
+            operationalWriteAllowed: access.operationalWriteAllowed,
+            billingAccessAllowed: access.billingAccessAllowed,
+            warnings: access.warnings,
+          },
+          plan: null,
+        };
       }
 
       const at = now();

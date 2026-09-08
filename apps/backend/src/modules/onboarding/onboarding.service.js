@@ -388,11 +388,17 @@ function createOnboardingService(deps) {
         typeof subscriptionBridge?.getOrganizationSubscription === 'function'
           ? await subscriptionBridge.getOrganizationSubscription(organizationId)
           : await subscriptionStore.findSubscriptionByOrganizationId(organizationId);
+      const subscriptionUnavailable = subscription === null || subscription['id'] === null;
+      const subscriptionWarnings =
+        subscription?.['accessState']?.['warnings'] ??
+        (subscriptionUnavailable
+          ? [{ code: 'subscription_missing', message: 'No subscription record found.' }]
+          : []);
       const base = {
         ...(await toOrganizationListItem(store, organization, owner)),
         owner: owner === null ? null : toUserSummary(owner),
         subscription:
-          subscription === null
+          subscriptionUnavailable
             ? null
             : {
                 id: String(subscription['id'] ?? subscription['_id']),
@@ -437,7 +443,7 @@ function createOnboardingService(deps) {
         setup,
         audit,
         billing,
-        operationalWarnings: base.subscription?.accessState?.warnings ?? [],
+        operationalWarnings: subscriptionWarnings,
       };
     },
 
