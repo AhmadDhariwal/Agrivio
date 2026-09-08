@@ -349,17 +349,19 @@ function createMongooseOnboardingStore() {
         .exec();
     },
 
-    async findActivationTokenByHash(tokenHash) {
-      return AccountActivationTokenModel.findOne({ tokenHash }).lean().exec();
+    async findActivationTokenByHash(tokenHash, session) {
+      return AccountActivationTokenModel.findOne({ tokenHash }, null, withSession(session))
+        .lean()
+        .exec();
     },
 
-    async listOpenActivationTokens(filter) {
+    async listOpenActivationTokens(filter, session) {
       const query = {
         userId: filter.userId,
         organizationId: filter.organizationId,
         $or: [{ consumedAt: null }, { consumedAt: { $exists: false } }],
       };
-      return AccountActivationTokenModel.find(query).lean().exec();
+      return AccountActivationTokenModel.find(query, null, withSession(session)).lean().exec();
     },
 
     async insertActivationToken(session, doc) {

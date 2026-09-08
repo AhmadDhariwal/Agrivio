@@ -1,15 +1,24 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import mongoose from 'mongoose';
+import { createServer } from 'node:http';
+import {
+  API_AUTH_ACTIVATE_PATH,
+  API_AUTH_CSRF_PATH,
+  API_CSRF_HEADER,
+  API_SESSION_COOKIE_NAME,
+} from '@agrivio/api-contracts';
 import { createApp } from '../../app';
 import { createMockDatabaseLifecycle } from '../../platform/database/mongo-connection';
 import { loadApiEnv } from '../../platform/config/runtime-config';
+import { hashToken } from '../identity/crypto-tokens';
 import auditModelModule from '../audit/persistence/audit-event.model';
 import identityModelModule from '../identity/persistence/identity.model';
 import organizationModelModule from '../organizations/persistence/organization.model';
 import subscriptionModelModule from '../subscriptions/persistence/subscription.model';
 
 const { AuditEventModel } = auditModelModule;
-const { AuthSessionModel, OrganizationMembershipModel, UserModel } = identityModelModule;
+const { AccountActivationTokenModel, AuthSessionModel, OrganizationMembershipModel, UserModel } =
+  identityModelModule;
 const { OrganizationModel } = organizationModelModule;
 const { SubscriptionModel } = subscriptionModelModule;
 
@@ -38,6 +47,7 @@ describe('platform organization lifecycle Mongo transaction', () => {
           OrganizationModel.syncIndexes(),
           UserModel.syncIndexes(),
           OrganizationMembershipModel.syncIndexes(),
+          AccountActivationTokenModel.syncIndexes(),
           AuthSessionModel.syncIndexes(),
           SubscriptionModel.syncIndexes(),
           AuditEventModel.syncIndexes(),
@@ -145,4 +155,172 @@ describe('platform organization lifecycle Mongo transaction', () => {
       revokedAt: expect.any(Date),
     });
   }, 120000);
+
+  it('persists approve and reissue activation hashes through commit and activates only the newest token', async ({
+    skip,
+  }) => {
+    if (!mongoReady) skip('Mongo replica set rs0 PRIMARY is required for activation-token proof');
+
+    const app = createApp({
+      config: loadApiEnv({ NODE_ENV: 'test' }),
+      database: createMockDatabaseLifecycle({ ready: true }),
+      onboardingPersistence: 'mongoose',
+      authPersistence: 'mongoose',
+      subscriptionPersistence: 'mongoose',
+    });
+    const service = app.agrivio.onboarding.onboardingService;
+    const submitted = await service.submitActivationRequest({
+      organizationName: 'Mongo Activation Org',
+      ownerEmail: 'mongo-activation-owner@example.com',
+      ownerDisplayName: 'Mongo Activation Owner',
+      timezone: 'UTC',
+    });
+
+    const approved = await service.approveOrganization(submitted.organizationId, {
+      actorId: 'platform-admin',
+    });
+    const tokenA = approved.activationToken;
+    const storedA = await app.agrivio.onboarding.store.findActivationTokenByHash(hashToken(tokenA));
+    expect(storedA).toMatchObject({
+      tokenHash: hashToken(tokenA),
+      purpose: 'owner_activation',
+    });
+    expect(storedA?.consumedAt ?? null).toBeNull();
+
+    const reissued = await service.reissueOwnerActivationToken(submitted.organizationId, {
+      actorId: 'platform-admin',
+    });
+    const tokenB = reissued.activationToken;
+    expect(tokenB).not.toBe(tokenA);
+
+    const [consumedA, storedB] = await Promise.all([
+      app.agrivio.onboarding.store.findActivationTokenByHash(hashToken(tokenA)),
+      app.agrivio.onboarding.store.findActivationTokenByHash(hashToken(tokenB)),
+    ]);
+    expect(consumedA?.consumedAt).toBeInstanceOf(Date);
+    expect(storedB).toMatchObject({
+      tokenHash: hashToken(tokenB),
+      purpose: 'owner_activation',
+    });
+    expect(storedB?.consumedAt ?? null).toBeNull();
+
+    const server = createServer(app);
+    await listen(server);
+    const address = server.address();
+    if (address === null || typeof address === 'string') throw new Error('Expected TCP port');
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const jar = createCookieJar();
+
+    try {
+      const oldToken = await activate(baseUrl, jar, tokenA);
+      expect(oldToken.status).toBe(409);
+      expect(oldToken.body.error.message).toBe('Activation token has already been used');
+
+      const newestToken = await activate(baseUrl, jar, tokenB);
+      expect(newestToken.status).toBe(200);
+      expect(newestToken.body.data.status).toBe('active');
+
+      const reusedToken = await activate(baseUrl, jar, tokenB);
+      expect(reusedToken.status).toBe(409);
+      expect(reusedToken.body.error.message).toBe('Activation token has already been used');
+
+      expect(
+        await UserModel.findOne({ emailNormalized: 'mongo-activation-owner@example.com' }).lean(),
+      ).toMatchObject({
+        status: 'active',
+        passwordHash: expect.any(String),
+      });
+      expect(
+        await OrganizationMembershipModel.findOne({
+          organizationId: new mongoose.Types.ObjectId(submitted.organizationId),
+        }).lean(),
+      ).toMatchObject({ status: 'active' });
+
+      const visibilityTokenHash = hashToken('mongo-activation-transaction-visibility');
+      const visibilitySession = await mongoose.startSession();
+      try {
+        await visibilitySession.withTransaction(async () => {
+          await app.agrivio.onboarding.store.insertActivationToken(visibilitySession, {
+            userId: storedB.userId,
+            organizationId: storedB.organizationId,
+            tokenHash: visibilityTokenHash,
+            expiresAt: new Date(Date.now() + 60_000),
+            purpose: 'owner_activation',
+          });
+          expect(
+            await app.agrivio.onboarding.store.findActivationTokenByHash(
+              visibilityTokenHash,
+              visibilitySession,
+            ),
+          ).toMatchObject({ tokenHash: visibilityTokenHash });
+        });
+      } finally {
+        await visibilitySession.endSession();
+      }
+      expect(
+        await app.agrivio.onboarding.store.findActivationTokenByHash(visibilityTokenHash),
+      ).toMatchObject({ tokenHash: visibilityTokenHash });
+    } finally {
+      await close(server);
+    }
+  }, 120000);
 });
+
+async function activate(baseUrl, jar, token) {
+  const csrf = await fetchJson(baseUrl, 'POST', API_AUTH_CSRF_PATH, {}, {}, jar);
+  expect(csrf.status).toBe(200);
+  return fetchJson(
+    baseUrl,
+    'POST',
+    API_AUTH_ACTIVATE_PATH,
+    { token, password: 'a-strong-passphrase' },
+    { [API_CSRF_HEADER]: csrf.body.data.csrfToken },
+    jar,
+  );
+}
+
+function createCookieJar() {
+  const cookies = new Map();
+  return {
+    absorb(headers) {
+      for (const entry of headers.getSetCookie?.() ?? []) {
+        const [pair] = entry.split(';');
+        const index = pair.indexOf('=');
+        if (index > 0) cookies.set(pair.slice(0, index), pair.slice(index + 1));
+      }
+    },
+    header() {
+      return [...cookies.entries()].map(([name, value]) => `${name}=${value}`).join('; ');
+    },
+    get(name) {
+      return cookies.get(name);
+    },
+  };
+}
+
+async function fetchJson(baseUrl, method, path, body, headers, jar) {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method,
+    headers: {
+      'content-type': 'application/json',
+      ...(jar.get(API_SESSION_COOKIE_NAME) === undefined ? {} : { cookie: jar.header() }),
+      ...headers,
+    },
+    body: JSON.stringify(body),
+  });
+  jar.absorb(response.headers);
+  return { status: response.status, body: await response.json() };
+}
+
+function listen(server) {
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => resolve(undefined));
+  });
+}
+
+function close(server) {
+  return new Promise((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve(undefined)));
+  });
+}

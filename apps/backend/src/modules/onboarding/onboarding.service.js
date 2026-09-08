@@ -606,10 +606,13 @@ function createOnboardingService(deps) {
 
         const issuedAt = now();
         const expiresAt = new Date(issuedAt.getTime() + activationTtlMs);
-        const openTokens = await store.listOpenActivationTokens({
-          userId: ownerUserId,
-          organizationId,
-        });
+        const openTokens = await store.listOpenActivationTokens(
+          {
+            userId: ownerUserId,
+            organizationId,
+          },
+          session,
+        );
         for (const openToken of openTokens) {
           await store.updateActivationToken(session, String(openToken['_id']), {
             consumedAt: issuedAt,
@@ -706,7 +709,7 @@ function createOnboardingService(deps) {
       const passwordHash = await hashPassword(password);
 
       return deps.transactionRunner.run(async (session) => {
-        const activation = await store.findActivationTokenByHash(tokenHash);
+        const activation = await store.findActivationTokenByHash(tokenHash, session);
         if (activation === null) {
           throw forbidden('Activation token is invalid');
         }

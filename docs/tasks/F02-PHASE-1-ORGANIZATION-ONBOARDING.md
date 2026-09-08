@@ -70,3 +70,15 @@ Backend runtime modules use Express 5 + JavaScript CommonJS (`require` / `module
 ## Docker-dependent checks
 
 MongoDB replica-set transaction/TTL proofs remain pending and do not block this phase.
+
+## Mongo activation-token session consistency hardening (2026-09-08)
+
+Owner activation-token lookup and open-token enumeration now receive the active Mongoose session
+when invoked inside onboarding transactions. This keeps approve/reissue/activate behavior on the
+transaction's primary snapshot instead of allowing those reads to escape through connection-level
+read routing. Token generation, SHA-256 hashing, hash-only persistence, expiry, single-use
+consumption, and the canonical `account_activation_tokens` collection are unchanged.
+
+A real replica-set Mongo regression now proves approve and reissue hashes remain retrievable after
+commit, the prior token is consumed, only the newest token activates, reuse is rejected, and an
+activation-token insert is visible both inside its transaction and after commit.
