@@ -17,9 +17,9 @@ function playwrightOwnedApiBaseUrl(): string | undefined {
  * Playwright serves the app on port 4300 and the API on 3100.
  *
  * For staging/production builds, set AGRIVIO_PUBLIC_API_BASE_URL in the
- * CI/CD environment (e.g. Cloudflare Pages build settings) and run
- * `node scripts/generate-frontend-env.mjs` before the Angular build.
- * The script overwrites environment.generated.ts with the correct URL.
+ * CI/CD environment (e.g. `same-origin` for the Cloudflare Pages proxy) and
+ * run `npm run build:frontend`. The build script overwrites
+ * environment.generated.ts with the correct browser-safe base URL.
  * Local development uses the committed default (http://localhost:3000).
  */
 export const environment: WebPublicConfig = validateWebPublicConfig({

@@ -34,10 +34,13 @@ describe('ActivatePage', () => {
     page.submit();
 
     const csrf = http.expectOne(`${environment.publicApiBaseUrl}/api/v1/auth/csrf`);
+    expect(csrf.request.method).toBe('POST');
+    expect(csrf.request.withCredentials).toBe(true);
     csrf.flush({ data: { csrfToken: 'csrf-test' }, requestId: 'test' });
 
     const req = http.expectOne(`${environment.publicApiBaseUrl}/api/v1/auth/activate`);
     expect(req.request.method).toBe('POST');
+    expect(req.request.withCredentials).toBe(true);
     expect(req.request.headers.get('X-CSRF-Token')).toBe('csrf-test');
     req.flush({
       data: {

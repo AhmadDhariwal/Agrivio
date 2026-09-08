@@ -23,6 +23,7 @@
     "typecheck": "nx run-many -t typecheck --all",
     "test": "npm run test:unit",
     "test:unit": "nx run-many -t test --all",
+    "test:pages-proxy": "node --test --test-isolation=none scripts/tests/cloudflare-pages-api-proxy.test.mjs",
     "test:integration": "nx run test-support:test-integration",
     "test:architecture": "node scripts/run-architecture-tests.mjs",
     "test:regression": "node scripts/run-regression.mjs",

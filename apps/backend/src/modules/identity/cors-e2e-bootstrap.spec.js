@@ -202,6 +202,60 @@ describe('F02 Phase 6 CORS and E2E bootstrap', () => {
         },
       );
       expect(missingCookie.status).toBe(403);
+      const missingBody = await missingCookie.json();
+      expect(missingBody.error.message).toBe('CSRF validation failed');
+
+      const mismatchedCsrf = await fetch(
+        `${baseUrl}${API_ORGANIZATION_ACTIVATION_REQUESTS_PATH}`,
+        {
+          method: 'POST',
+          headers: {
+            origin: webOrigin,
+            cookie,
+            'content-type': 'application/json',
+            [API_CSRF_HEADER]: 'mismatched-csrf-token',
+          },
+          body: JSON.stringify({
+            organizationName: 'Mismatched CSRF Farm',
+            ownerEmail: 'mismatched-csrf@example.com',
+            ownerDisplayName: 'Mismatched CSRF Owner',
+          }),
+        },
+      );
+      expect(mismatchedCsrf.status).toBe(403);
+      const mismatchedBody = await mismatchedCsrf.json();
+      expect(mismatchedBody.error.message).toBe('CSRF validation failed');
+
+      const rotatedCsrfRes = await fetch(`${baseUrl}${API_AUTH_CSRF_PATH}`, {
+        method: 'POST',
+        headers: { origin: webOrigin, cookie, 'content-type': 'application/json' },
+        body: '{}',
+      });
+      expect(rotatedCsrfRes.status).toBe(200);
+      const rotatedBody = await rotatedCsrfRes.json();
+      const newCsrfToken = rotatedBody.data.csrfToken;
+      expect(newCsrfToken).not.toBe(csrfToken);
+
+      const staleCsrf = await fetch(
+        `${baseUrl}${API_ORGANIZATION_ACTIVATION_REQUESTS_PATH}`,
+        {
+          method: 'POST',
+          headers: {
+            origin: webOrigin,
+            cookie,
+            'content-type': 'application/json',
+            [API_CSRF_HEADER]: csrfToken,
+          },
+          body: JSON.stringify({
+            organizationName: 'Stale CSRF Farm',
+            ownerEmail: 'stale-csrf@example.com',
+            ownerDisplayName: 'Stale CSRF Owner',
+          }),
+        },
+      );
+      expect(staleCsrf.status).toBe(403);
+      const staleBody = await staleCsrf.json();
+      expect(staleBody.error.message).toBe('CSRF validation failed');
 
       const submitted = await fetch(`${baseUrl}${API_ORGANIZATION_ACTIVATION_REQUESTS_PATH}`, {
         method: 'POST',
@@ -209,7 +263,7 @@ describe('F02 Phase 6 CORS and E2E bootstrap', () => {
           origin: webOrigin,
           cookie,
           'content-type': 'application/json',
-          [API_CSRF_HEADER]: csrfToken,
+          [API_CSRF_HEADER]: newCsrfToken,
         },
         body: JSON.stringify({
           organizationName: 'Cross Site Farm',
@@ -218,6 +272,33 @@ describe('F02 Phase 6 CORS and E2E bootstrap', () => {
         }),
       });
       expect(submitted.status).toBe(201);
+
+      const activateMissingCookie = await fetch(`${baseUrl}/api/v1/auth/activate`, {
+        method: 'POST',
+        headers: {
+          origin: webOrigin,
+          'content-type': 'application/json',
+          [API_CSRF_HEADER]: newCsrfToken,
+        },
+        body: JSON.stringify({ token: 'dummy-token', password: 'Password123456!' }),
+      });
+      expect(activateMissingCookie.status).toBe(403);
+      const activateMissingBody = await activateMissingCookie.json();
+      expect(activateMissingBody.error.message).toBe('CSRF validation failed');
+
+      const activateWithCookie = await fetch(`${baseUrl}/api/v1/auth/activate`, {
+        method: 'POST',
+        headers: {
+          origin: webOrigin,
+          cookie,
+          'content-type': 'application/json',
+          [API_CSRF_HEADER]: newCsrfToken,
+        },
+        body: JSON.stringify({ token: 'dummy-token', password: 'Password123456!' }),
+      });
+      expect(activateWithCookie.status).toBe(403);
+      const activateWithBody = await activateWithCookie.json();
+      expect(activateWithBody.error.message).toBe('Activation token is invalid');
     } finally {
       await close(server);
     }
