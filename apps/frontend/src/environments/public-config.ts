@@ -8,7 +8,7 @@ export interface WebPublicConfig {
 }
 
 export const SAME_ORIGIN_API_BASE_URL = 'same-origin';
-
+//web configure
 export class WebConfigValidationError extends Error {
   readonly issues: readonly string[];
 
