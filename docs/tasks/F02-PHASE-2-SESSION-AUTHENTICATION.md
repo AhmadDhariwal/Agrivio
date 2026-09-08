@@ -60,3 +60,16 @@ Successful logout still posts the existing server endpoint, then clears the CSRF
 Frontend auth state now distinguishes unknown, restoring, authenticated, and unauthenticated states. Public-only and protected guards wait for the single deduplicated cookie-session restore result, preventing sign-in rendering and repeated session probes during redirect chains. Authenticated `/`, `/signin`, and legacy `/login` navigation resolves to `/app`, `/context`, or the canonical platform workspace according to the restored active context.
 
 Secret-free `BroadcastChannel` events notify sibling tabs after login, logout, or context change. Receiving tabs always revalidate through `GET /api/v1/auth/session`; logout and authoritative `401` handling clear existing CSRF, session/context, capability, and tenant-cache state. The server-side HttpOnly cookie, CSRF flow, authorization, and revocation model remain unchanged, and `QueryCacheService` was not modified.
+
+## Cross-site staging CSRF transport hardening (2026-09-08)
+
+The production `staging` profile now emits the existing opaque HttpOnly session cookie with
+`Secure; SameSite=None`. This allows the allowlisted Cloudflare Pages frontend to return the
+pre-authentication session cookie to the Render API after obtaining the existing JSON CSRF token
+from `POST /api/v1/auth/csrf`. Other profiles retain `SameSite=Lax`; exact-origin credentialed CORS,
+Origin/Referer validation, session-bound CSRF validation, authentication, and token rotation are
+unchanged.
+
+Focused tests cover the deployed cross-site origin, cookie attributes, rejection when the CSRF
+header has no matching cookie, successful public organization activation request with both values,
+and Angular `withCredentials` plus `X-CSRF-Token` transport.

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createServer } from 'node:http';
-import { API_AUTH_CSRF_PATH } from '@agrivio/api-contracts';
+import {
+  API_AUTH_CSRF_PATH,
+  API_CSRF_HEADER,
+  API_ORGANIZATION_ACTIVATION_REQUESTS_PATH,
+} from '@agrivio/api-contracts';
 import { createApp } from '../../app';
 import { loadApiEnv } from '../../platform/config/runtime-config';
 import { createMockDatabaseLifecycle } from '../../platform/database/mongo-connection';
@@ -130,6 +134,90 @@ describe('F02 Phase 6 CORS and E2E bootstrap', () => {
       });
       expect(response.status).toBe(403);
       expect(response.headers.get('access-control-allow-origin')).toBeNull();
+    } finally {
+      await close(server);
+    }
+  });
+
+  it('supports the staging cross-site pre-auth CSRF flow with a Secure SameSite=None session cookie', async () => {
+    const webOrigin = 'https://agrivio-staging-web.pages.dev';
+    const config = loadApiEnv({
+      NODE_ENV: 'production',
+      AGRIVIO_APP_PROFILE: 'staging',
+      SESSION_SECRET: 'production-session-secret-with-32chars',
+      MONGODB_URI: 'mongodb://127.0.0.1:27017/?replicaSet=rs0',
+      AGRIVIO_PUBLIC_WEB_BASE_URL: webOrigin,
+      AGRIVIO_SMTP_HOST: 'smtp.example.com',
+      AGRIVIO_SMTP_FROM: 'noreply@example.com',
+    });
+    const app = createApp({
+      config,
+      database: createMockDatabaseLifecycle({ ready: true }),
+      onboardingPersistence: 'memory',
+      authPersistence: 'memory',
+      subscriptionPersistence: 'memory',
+    });
+    const server = createServer(app);
+    await listen(server);
+    const address = server.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('Expected TCP port');
+    }
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+
+    try {
+      const csrfResponse = await fetch(`${baseUrl}${API_AUTH_CSRF_PATH}`, {
+        method: 'POST',
+        headers: { origin: webOrigin, 'content-type': 'application/json' },
+        body: '{}',
+      });
+      expect(csrfResponse.status).toBe(200);
+      expect(csrfResponse.headers.get('access-control-allow-origin')).toBe(webOrigin);
+      expect(csrfResponse.headers.get('access-control-allow-credentials')).toBe('true');
+
+      const setCookie = csrfResponse.headers.getSetCookie();
+      expect(setCookie).toHaveLength(1);
+      expect(setCookie[0]).toMatch(/agrivio_session=/);
+      expect(setCookie[0]).toMatch(/HttpOnly/i);
+      expect(setCookie[0]).toMatch(/Secure/i);
+      expect(setCookie[0]).toMatch(/SameSite=None/i);
+      const cookie = setCookie[0].split(';')[0];
+      const csrfBody = await csrfResponse.json();
+      const csrfToken = csrfBody.data.csrfToken;
+
+      const missingCookie = await fetch(
+        `${baseUrl}${API_ORGANIZATION_ACTIVATION_REQUESTS_PATH}`,
+        {
+          method: 'POST',
+          headers: {
+            origin: webOrigin,
+            'content-type': 'application/json',
+            [API_CSRF_HEADER]: csrfToken,
+          },
+          body: JSON.stringify({
+            organizationName: 'Missing Cookie Farm',
+            ownerEmail: 'missing-cookie@example.com',
+            ownerDisplayName: 'Missing Cookie Owner',
+          }),
+        },
+      );
+      expect(missingCookie.status).toBe(403);
+
+      const submitted = await fetch(`${baseUrl}${API_ORGANIZATION_ACTIVATION_REQUESTS_PATH}`, {
+        method: 'POST',
+        headers: {
+          origin: webOrigin,
+          cookie,
+          'content-type': 'application/json',
+          [API_CSRF_HEADER]: csrfToken,
+        },
+        body: JSON.stringify({
+          organizationName: 'Cross Site Farm',
+          ownerEmail: 'cross-site@example.com',
+          ownerDisplayName: 'Cross Site Owner',
+        }),
+      });
+      expect(submitted.status).toBe(201);
     } finally {
       await close(server);
     }
