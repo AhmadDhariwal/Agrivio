@@ -45,6 +45,7 @@
     "db:down": "node scripts/mongodb/down.mjs",
     "db:reset": "node scripts/mongodb/reset.mjs",
     "bootstrap:super-admin": "node scripts/bootstrap-super-admin.mjs",
+    "bootstrap:plans": "node scripts/ops/bootstrap-subscription-plans.mjs",
     "seed:demo": "node scripts/seed-demo-dataset.mjs",
     "db:sync-indexes": "node scripts/mongodb/sync-indexes.mjs",
     "ops:backup": "node scripts/ops/backup.mjs",

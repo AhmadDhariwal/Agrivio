@@ -133,3 +133,36 @@ The existing entitlement resolver now defines `billing-bootstrap` for missing, p
 Missing subscription reads return an explicit unavailable descriptor with no fabricated ID or plan. Platform organization detail converts that descriptor to `subscription: null`, preserves independent organization aggregation, and exposes the `subscription_missing` operational warning. The Owner Billing page presents an explicit recovery message, while the platform detail page renders Subscription Status as Unavailable.
 
 Normal onboarding remains strict: Request Access creates one pending Starter subscription, and approval requires that record before starting an exact 14-day trial anchored to `approvedAt`. The explicit `scripts/ops/repair-organization-subscription.mjs` utility can inspect or repair legacy malformed organizations. It defaults approved repairs from the original approval instant through trial/grace/suspension, uses a transaction and audit event, never overwrites an existing subscription, and never runs at application startup.
+
+## R1 commercial catalog and plan management (2026-09-09)
+
+`docs/R1_PLAN_CATALOG.md` revision `R1-CATALOG-1` is now the single commercial source for Starter, Business, and Enterprise. The backend catalog module, demo seed, Super Admin editor, tenant Billing cards, and explicit catalog-sync utility all consume or present that policy. The 14-day no-card trial remains a subscription state pinned to the active Starter version, not a fourth plan.
+
+Active versions must have complete presentation metadata, PKR monthly and annual prices, all six positive runtime limits, explicit import/report/dedicated-cloud booleans, audit/backup/support policy references, and trial eligibility. Incomplete drafts may be saved, but cannot be activated. Annual savings are always calculated from prices; the persisted legacy discount field is compatibility evidence and must reconcile when supplied.
+
+Plan changes use an immutable version lifecycle:
+
+* A commercial edit creates a draft with the next `planVersion`; an unreferenced draft may be edited with optimistic `expectedVersion` checks.
+* Activation validates completeness, supersedes the previous active version, and makes the new version selectable.
+* Referenced versions cannot be edited or deleted. Existing subscriptions remain pinned to their purchased `planCode` and `planVersion` until an explicit upgrade, downgrade, or migration.
+* An active version may be retired only through the audited retire action with a reason. No hard-delete API is exposed.
+
+Catalog synchronization is an explicit operator action and never runs during application startup:
+
+```text
+npm run bootstrap:plans -- --dry-run
+npm run bootstrap:plans -- --apply --confirm=R1-CATALOG-1
+```
+
+For local or staging use, first verify the resolved environment targets the intended database, run dry-run and retain its database name/difference report, then run apply with the exact confirmation token. Apply creates and activates a new version when the active record differs; it never overwrites a referenced version. Run dry-run again and require exactly three matching active commercial plans with no proposed actions. The implementation task did not execute either local or staging apply.
+
+### Model review (plan presentation/catalog fields added)
+
+| Field | Class | Justification |
+| --- | --- | --- |
+| `displayName` | A | Stable customer-facing label for a particular historical plan version |
+| `shortDescription` | A | Versioned plan-card presentation copied from the frozen catalog |
+| `targetCustomer` | A | Versioned commercial positioning shown to platform operators and tenants |
+| `catalogRevision` | B | Provenance tying a plan version to the authoritative catalog revision |
+
+Collection ownership remains Subscriptions and tenant scope is unchanged because plans are platform reference data. The fields are nullable only for backward compatibility with historical records and incomplete drafts; activation requires them. No backfill migration or new index is required. Existing unique `(planCode, planVersion)` and partial unique active-plan indexes remain authoritative, and existing subscription references preserve historical pinning.

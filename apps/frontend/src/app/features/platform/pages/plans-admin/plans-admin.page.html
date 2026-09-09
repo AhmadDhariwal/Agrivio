@@ -1,92 +1,286 @@
-<section class="ag-stack">
+<section class="ag-stack plans-admin">
   <agrivio-ui-page-header
     eyebrow="Platform"
     title="Subscription plans"
-    lede="Platform-managed plan versions. Commercial prices stay data-driven — no hardcoded commercial decisions."
+    lede="Inspect and publish immutable commercial plan versions. Existing subscriptions remain pinned to their purchased version."
   />
 
-  <div class="ag-card">
-    <form class="ag-form ag-form--with-required-hint" [formGroup]="form" (ngSubmit)="createVersion()">
-      <div class="ag-field">
-        <agrivio-ui-field-label
-          label="Plan code"
-          for="plan-code"
-          [required]="fieldRequired(form.controls.planCode)"
-        />
-        <select
-          id="plan-code"
-          class="ag-select"
-          formControlName="planCode"
-          [attr.aria-required]="fieldRequired(form.controls.planCode) ? 'true' : null"
-        >
-          <option value="Starter">Starter</option>
-          <option value="Business">Business</option>
-          <option value="Enterprise">Enterprise</option>
-        </select>
-      </div>
-      <div class="ag-field">
-        <agrivio-ui-field-label label="Monthly price (minor units)" for="monthly-price" />
-        <input id="monthly-price" class="ag-input" type="number" formControlName="monthlyPriceMinorUnits" />
-      </div>
-      <div class="ag-field">
-        <agrivio-ui-field-label label="Annual price (minor units)" for="annual-price" />
-        <input id="annual-price" class="ag-input" type="number" formControlName="annualPriceMinorUnits" />
-      </div>
-      <div class="ag-field">
-        <agrivio-ui-field-label label="Annual discount percent" for="discount" />
-        <input id="discount" class="ag-input" type="number" formControlName="annualDiscountPercent" />
-      </div>
-      <label class="ag-checkbox">
-        <input type="checkbox" formControlName="activate" />
-        Activate as selectable version
-      </label>
-      <button type="submit" class="ag-btn ag-btn--primary" [disabled]="submitting() || form.invalid">
-        {{ submitting() ? 'Creating…' : 'Create plan version' }}
-      </button>
-    </form>
-  </div>
+  @if (successMessage(); as success) {
+  <agrivio-ui-alert [message]="success" tone="success" />
+  } @if (errorMessage(); as error) {
+  <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
+  }
 
-  <section class="ag-stack">
-    <h2>Plan versions</h2>
-    @if (loading()) {
+  <div class="plans-admin__layout">
+    <section class="ag-card editor-card">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">{{ editingDraft() ? 'EDIT DRAFT' : 'NEW VERSION' }}</span>
+          <h2>{{ editingDraft() ? 'Update unreferenced draft' : 'Create a plan version' }}</h2>
+        </div>
+        <button type="button" class="ag-btn ag-btn--secondary" (click)="createFrom()">
+          Clear form
+        </button>
+      </div>
+
+      <form class="plan-form" [formGroup]="form">
+        <fieldset>
+          <legend>Identity and presentation</legend>
+          <div class="form-grid">
+            <label
+              >Plan code
+              <select class="ag-select" formControlName="planCode">
+                <option value="Starter">Starter</option>
+                <option value="Business">Business</option>
+                <option value="Enterprise">Enterprise</option>
+              </select>
+            </label>
+            <label>Display name <input class="ag-input" formControlName="displayName" /></label>
+            <label class="span-2"
+              >Short description
+              <textarea class="ag-input" rows="2" formControlName="shortDescription"></textarea>
+            </label>
+            <label class="span-2"
+              >Target customer
+              <input class="ag-input" formControlName="targetCustomer" />
+            </label>
+            <label
+              >Catalog revision <input class="ag-input" formControlName="catalogRevision"
+            /></label>
+            <label>Currency <input class="ag-input" formControlName="currency" /></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Pricing</legend>
+          <div class="form-grid">
+            <label
+              >Monthly price (minor units)
+              <input class="ag-input" type="number" formControlName="monthlyPriceMinorUnits" />
+            </label>
+            <label
+              >Annual price (minor units)
+              <input class="ag-input" type="number" formControlName="annualPriceMinorUnits" />
+            </label>
+          </div>
+          <p class="form-note">
+            Annual savings is calculated from these prices; it is not edited separately.
+          </p>
+        </fieldset>
+
+        <fieldset>
+          <legend>Numeric limits</legend>
+          <div class="form-grid form-grid--three">
+            <label
+              >Products <input class="ag-input" type="number" formControlName="products"
+            /></label>
+            <label
+              >Active users <input class="ag-input" type="number" formControlName="activeUsers"
+            /></label>
+            <label
+              >Branches <input class="ag-input" type="number" formControlName="branches"
+            /></label>
+            <label
+              >Warehouses <input class="ag-input" type="number" formControlName="warehouses"
+            /></label>
+            <label
+              >Customers <input class="ag-input" type="number" formControlName="customers"
+            /></label>
+            <label
+              >Suppliers <input class="ag-input" type="number" formControlName="suppliers"
+            /></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Entitlements and policy references</legend>
+          <div class="form-grid">
+            <label>Audit history <input class="ag-input" formControlName="auditHistory" /></label>
+            <label
+              >Backup policy reference <input class="ag-input" formControlName="backupPolicyRef"
+            /></label>
+            <label
+              >Support level reference <input class="ag-input" formControlName="supportLevelRef"
+            /></label>
+            <label class="check"
+              ><input type="checkbox" formControlName="trialEligible" /> Trial eligible</label
+            >
+            <label class="check"
+              ><input type="checkbox" formControlName="imports" /> Master data imports</label
+            >
+            <label class="check"
+              ><input type="checkbox" formControlName="reportsExports" /> Reports and exports</label
+            >
+            <label class="check"
+              ><input type="checkbox" formControlName="dedicatedCloudEligible" /> Dedicated-cloud
+              eligible</label
+            >
+          </div>
+        </fieldset>
+
+        <div class="editor-actions">
+          <button
+            type="button"
+            class="ag-btn ag-btn--secondary"
+            (click)="saveDraft()"
+            [disabled]="submitting()"
+          >
+            {{ editingDraft() ? 'Save draft' : 'Create draft' }}
+          </button>
+          @if (!editingDraft()) {
+          <button
+            type="button"
+            class="ag-btn ag-btn--primary"
+            (click)="createAndActivate()"
+            [disabled]="submitting()"
+          >
+            Create and activate
+          </button>
+          }
+        </div>
+      </form>
+    </section>
+
+    <section class="versions-panel">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">VERSION HISTORY</span>
+          <h2>Plan catalog</h2>
+        </div>
+      </div>
+
+      @if (loading()) {
       <agrivio-ui-loading-state label="Loading plans…" />
-    } @else if (plans().length === 0) {
+      } @else if (plans().length === 0) {
       <agrivio-ui-empty-state
         title="No plan versions"
-        message="Create the first selectable plan version for organizations."
+        message="Run the explicit catalog bootstrap or create a draft."
       />
-    } @else {
-      <div class="ag-table-wrap">
-        <table class="ag-table">
-          <thead>
-            <tr>
-              <th>Plan</th>
-              <th>Version</th>
-              <th>Status</th>
-              <th>Monthly</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (plan of plans(); track plan.id) {
-              <tr>
-                <td>{{ plan.planCode }}</td>
-                <td>v{{ plan.planVersion }}</td>
-                <td>
-                  <agrivio-ui-status-badge [label]="plan.status" [tone]="statusTone(plan.status)" />
-                </td>
-                <td>{{ plan.monthlyPriceMinorUnits ?? 'unset' }}</td>
-              </tr>
+      } @else {
+      <div class="version-list">
+        @for (plan of plans(); track plan.id) {
+        <article class="version-card" [class.version-card--active]="plan.status === 'active'">
+          <div class="version-card__head">
+            <div>
+              <h3>{{ plan.displayName }}</h3>
+              <span
+                >v{{ plan.planVersion }} · {{ plan.catalogRevision || 'Unmapped catalog' }}</span
+              >
+            </div>
+            <agrivio-ui-status-badge [label]="plan.status" [tone]="statusTone(plan.status)" />
+          </div>
+          <p>{{ plan.shortDescription || 'Description not configured.' }}</p>
+          <dl>
+            <div>
+              <dt>Monthly</dt>
+              <dd>{{ formatPrice(plan.monthlyPriceMinorUnits) }}</dd>
+            </div>
+            <div>
+              <dt>Annual</dt>
+              <dd>{{ formatPrice(plan.annualPriceMinorUnits) }}</dd>
+            </div>
+            <div>
+              <dt>Savings</dt>
+              <dd>
+                {{ plan.annualDiscountPercent === null ? 'Not configured' :
+                plan.annualDiscountPercent + '%' }}
+              </dd>
+            </div>
+            <div>
+              <dt>Products</dt>
+              <dd>{{ formatLimit(plan.limits['products'], 'product', 'products') }}</dd>
+            </div>
+            <div>
+              <dt>Users</dt>
+              <dd>{{ formatLimit(plan.limits['activeUsers'], 'active user', 'active users') }}</dd>
+            </div>
+            <div>
+              <dt>Referenced</dt>
+              <dd>{{ plan.referenced ? 'Yes' : 'No' }}</dd>
+            </div>
+          </dl>
+          <div class="version-card__actions">
+            <button type="button" class="ag-btn ag-btn--secondary" (click)="inspect(plan)">
+              Inspect
+            </button>
+            <button type="button" class="ag-btn ag-btn--secondary" (click)="createFrom(plan)">
+              Create new version
+            </button>
+            @if (plan.status === 'draft' && !plan.referenced) {
+            <button type="button" class="ag-btn ag-btn--secondary" (click)="editDraft(plan)">
+              Edit draft
+            </button>
+            <button type="button" class="ag-btn ag-btn--primary" (click)="activate(plan)">
+              Activate
+            </button>
+            } @if (plan.status === 'active') {
+            <button type="button" class="ag-btn ag-btn--secondary" (click)="retire(plan)">
+              Retire
+            </button>
             }
-          </tbody>
-        </table>
+          </div>
+        </article>
+        }
       </div>
-    }
-  </section>
+      }
+    </section>
+  </div>
 
-  @if (successMessage(); as success) {
-    <agrivio-ui-alert [message]="success" tone="success" />
-  }
-  @if (errorMessage(); as error) {
-    <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
+  @if (selectedPlan(); as plan) {
+  <div class="drawer-backdrop" (click)="closeInspector()" aria-hidden="true"></div>
+  <aside
+    class="plan-inspector"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="plan-inspector-title"
+  >
+    <header>
+      <div>
+        <span class="eyebrow">PLAN INSPECTOR</span>
+        <h2 id="plan-inspector-title">{{ plan.displayName }} v{{ plan.planVersion }}</h2>
+      </div>
+      <button type="button" class="ag-btn ag-btn--secondary" (click)="closeInspector()">
+        Close
+      </button>
+    </header>
+    <p>{{ plan.shortDescription || 'Description not configured.' }}</p>
+    <p><strong>Target:</strong> {{ plan.targetCustomer || 'Not configured' }}</p>
+    <h3>Limits</h3>
+    <ul>
+      <li>{{ formatLimit(plan.limits['products'], 'product', 'products') }}</li>
+      <li>{{ formatLimit(plan.limits['activeUsers'], 'active user', 'active users') }}</li>
+      <li>{{ formatLimit(plan.limits['branches'], 'branch', 'branches') }}</li>
+      <li>{{ formatLimit(plan.limits['warehouses'], 'warehouse', 'warehouses') }}</li>
+      <li>{{ formatLimit(plan.limits['customers'], 'customer', 'customers') }}</li>
+      <li>{{ formatLimit(plan.limits['suppliers'], 'supplier', 'suppliers') }}</li>
+    </ul>
+    <h3>Entitlements</h3>
+    <dl>
+      <div>
+        <dt>Imports</dt>
+        <dd>{{ plan.entitlements['imports'] ? 'Included' : 'Not included' }}</dd>
+      </div>
+      <div>
+        <dt>Reports/exports</dt>
+        <dd>{{ plan.entitlements['reportsExports'] ? 'Included' : 'Not included' }}</dd>
+      </div>
+      <div>
+        <dt>Audit history</dt>
+        <dd>{{ plan.entitlements['auditHistory'] || 'Not configured' }}</dd>
+      </div>
+      <div>
+        <dt>Backup</dt>
+        <dd>{{ plan.entitlements['backupPolicyRef'] || 'Not configured' }}</dd>
+      </div>
+      <div>
+        <dt>Support</dt>
+        <dd>{{ plan.entitlements['supportLevelRef'] || 'Not configured' }}</dd>
+      </div>
+      <div>
+        <dt>Dedicated cloud</dt>
+        <dd>{{ plan.entitlements['dedicatedCloudEligible'] ? 'Eligible' : 'Not eligible' }}</dd>
+      </div>
+    </dl>
+  </aside>
   }
 </section>

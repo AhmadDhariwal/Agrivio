@@ -42,6 +42,10 @@ const {
   API_CSRF_HEADER,
   API_IDEMPOTENCY_KEY_HEADER,
 } = require('@agrivio/api-contracts');
+const {
+  R1_PLAN_CATALOG,
+  r1PlanPayload,
+} = require('../../../apps/backend/src/modules/subscriptions/r1-plan-catalog');
 
 const {
   DEMO_ORG_NAME,
@@ -240,83 +244,10 @@ async function runDemoSeed({ mongoUri, baseUrl, reset = false, referenceDate = n
 
   // 2. Canonical Subscription Plans
   console.log('[agrivio-seed] Creating canonical subscription plans (Starter, Business, Enterprise)...');
-  const starterPayload = {
-    planCode: 'Starter',
+  const [starterPayload, businessPayload, enterprisePayload] = R1_PLAN_CATALOG.map((plan) => ({
+    ...r1PlanPayload(plan),
     activate: true,
-    currency: 'PKR',
-    monthlyPriceMinorUnits: 500000,
-    annualPriceMinorUnits: 5000000,
-    annualDiscountPercent: 16,
-    trialEligible: true,
-    limits: {
-      branches: 1,
-      warehouses: 1,
-      activeUsers: 2,
-      products: 200,
-      customers: 100,
-      suppliers: 50,
-    },
-    entitlements: {
-      imports: false,
-      reportsExports: false,
-      auditHistory: '30d',
-      backupPolicyRef: 'weekly',
-      dedicatedCloudEligible: false,
-      supportLevelRef: 'standard',
-    },
-  };
-
-  const businessPayload = {
-    planCode: 'Business',
-    activate: true,
-    currency: 'PKR',
-    monthlyPriceMinorUnits: 1500000,
-    annualPriceMinorUnits: 15000000,
-    annualDiscountPercent: 16,
-    trialEligible: true,
-    limits: {
-      branches: 5,
-      warehouses: 10,
-      activeUsers: 15,
-      products: 2000,
-      customers: 1000,
-      suppliers: 500,
-    },
-    entitlements: {
-      imports: true,
-      reportsExports: true,
-      auditHistory: '90d',
-      backupPolicyRef: 'daily',
-      dedicatedCloudEligible: false,
-      supportLevelRef: 'business',
-    },
-  };
-
-  const enterprisePayload = {
-    planCode: 'Enterprise',
-    activate: true,
-    currency: 'PKR',
-    monthlyPriceMinorUnits: 3500000,
-    annualPriceMinorUnits: 35000000,
-    annualDiscountPercent: 16,
-    trialEligible: true,
-    limits: {
-      branches: 50,
-      warehouses: 50,
-      activeUsers: 100,
-      products: 10000,
-      customers: 10000,
-      suppliers: 5000,
-    },
-    entitlements: {
-      imports: true,
-      reportsExports: true,
-      auditHistory: '365d',
-      backupPolicyRef: 'daily_immutable',
-      dedicatedCloudEligible: true,
-      supportLevelRef: 'priority',
-    },
-  };
+  }));
 
   const superAdminHeader = { [API_PLATFORM_ACTOR_HEADER]: 'super-admin' };
 

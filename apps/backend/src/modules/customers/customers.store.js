@@ -36,8 +36,8 @@ function createMongooseCustomersStore() {
       return { items, total };
     },
 
-    async countCustomers(organizationId) {
-      return CustomerModel.countDocuments({ organizationId }).exec();
+    async countCustomers(organizationId, session = null) {
+      return CustomerModel.countDocuments({ organizationId }, withSession(session)).exec();
     },
 
     async countCustomersWithOpening(organizationId) {

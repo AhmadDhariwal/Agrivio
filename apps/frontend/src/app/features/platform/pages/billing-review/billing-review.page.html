@@ -323,9 +323,9 @@
                         <button
                           type="button"
                           class="row-action-btn"
-                          [disabled]="actionsDisabled()"
+                          [disabled]="isApproveDisabled(item)"
                           (click)="askApprove(item)"
-                          title="Approve"
+                          [title]="isSubscriptionMissing(item) ? 'Subscription repair required before approval' : 'Approve'"
                           aria-label="Approve"
                           data-testid="billing-approve"
                         >
@@ -411,7 +411,8 @@
                     <button
                       type="button"
                       class="card-action-btn"
-                      [disabled]="actionsDisabled()"
+                      [disabled]="isApproveDisabled(item)"
+                      [title]="isSubscriptionMissing(item) ? 'Subscription repair required before approval' : 'Approve'"
                       (click)="askApprove(item)"
                     >
                       Approve
@@ -483,6 +484,17 @@
             <button type="button" class="ag-btn ag-btn--secondary retry-btn" (click)="retryInspector()">Retry</button>
           </div>
         } @else if (inspectorDetail(); as detail) {
+          @if (isSubscriptionMissing(detail)) {
+            <div class="subscription-repair-warning" data-testid="billing-subscription-repair-warning">
+              <agrivio-ui-alert
+                tone="warning"
+                message="This organization is missing its subscription lifecycle record. Billing approval is blocked until the subscription is repaired."
+                role="status"
+              >
+                <strong class="repair-warning-title">Subscription repair required</strong>
+              </agrivio-ui-alert>
+            </div>
+          }
           <section class="drawer-sec">
             <h3 class="drawer-sec__title">Request</h3>
             <div class="spec-grid">
@@ -620,14 +632,23 @@
             </button>
           }
           @if (canApprove(detail)) {
-            <button
-              type="button"
-              class="ag-btn ag-btn--primary"
-              [disabled]="actionsDisabled()"
-              (click)="askApprove(detail)"
-            >
-              Approve
-            </button>
+            <div class="approve-action-group">
+              <button
+                type="button"
+                class="ag-btn ag-btn--primary"
+                [disabled]="isApproveDisabled(detail)"
+                [title]="isSubscriptionMissing(detail) ? 'Subscription repair required before approval' : ''"
+                (click)="askApprove(detail)"
+                data-testid="billing-approve"
+              >
+                Approve
+              </button>
+              @if (isSubscriptionMissing(detail)) {
+                <span class="btn-disabled-reason" data-testid="approve-disabled-reason">
+                  Subscription repair required before approval.
+                </span>
+              }
+            </div>
           }
           @if (canReject(detail)) {
             <button
@@ -666,12 +687,23 @@
           <span class="spec-row__v tabular-num">{{ formatAmount(item) }}</span>
         </div>
       </div>
+      @if (isSubscriptionMissing(item)) {
+        <div class="repair-dialog-alert" data-testid="modal-subscription-repair-warning">
+          <agrivio-ui-alert
+            tone="warning"
+            message="This organization is missing its subscription lifecycle record. Billing approval is blocked until the subscription is repaired."
+            role="status"
+          >
+            <strong class="repair-warning-title">Subscription repair required</strong>
+          </agrivio-ui-alert>
+        </div>
+      }
       <div class="review-dialog__actions">
         <button type="button" class="ag-btn ag-btn--secondary" (click)="closeDialogs()">Cancel</button>
         <button
           type="button"
           class="ag-btn ag-btn--primary"
-          [disabled]="actionInProgress()"
+          [disabled]="actionInProgress() || isSubscriptionMissing(item)"
           (click)="confirmApprove()"
           data-testid="billing-approve-confirm"
         >

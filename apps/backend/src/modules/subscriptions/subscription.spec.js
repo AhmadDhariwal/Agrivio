@@ -30,6 +30,17 @@ import {
 } from './entitlement';
 import { computeCoverageWindow, addCalendarMonthsUtc } from './billing-period';
 import { createRequirePermissionMiddleware } from '../identity/permission.middleware';
+import { R1_PLAN_CATALOG, r1PlanPayload } from './r1-plan-catalog';
+
+function completePlanBody(planCode, overrides = {}) {
+  const catalog = R1_PLAN_CATALOG.find((plan) => plan.planCode === planCode);
+  return {
+    ...r1PlanPayload(catalog),
+    ...overrides,
+    limits: { ...catalog.limits, ...(overrides.limits ?? {}) },
+    entitlements: { ...catalog.entitlements, ...(overrides.entitlements ?? {}) },
+  };
+}
 
 describe('subscription entitlement pure rules', () => {
   it('allows documented lifecycle transitions and rejects invalid ones', () => {
@@ -172,14 +183,7 @@ describe('F02 Phase 5 plans, lifecycle, and manual billing', () => {
         baseUrl,
         'POST',
         API_PLATFORM_SUBSCRIPTION_PLANS_PATH,
-        {
-          planCode: 'Starter',
-          activate: true,
-          monthlyPriceMinorUnits: 12345,
-          annualDiscountPercent: 11,
-          limits: { branches: 3 },
-          entitlements: { imports: true },
-        },
+        { ...completePlanBody('Starter', { limits: { branches: 3 }, entitlements: { imports: true } }), activate: true },
         {
           [API_CSRF_HEADER]: csrf,
           [API_PLATFORM_ACTOR_HEADER]: 'super-admin',
@@ -188,19 +192,14 @@ describe('F02 Phase 5 plans, lifecycle, and manual billing', () => {
       );
       expect(created.status).toBe(201);
       expect(created.body.data.planVersion).toBe(1);
-      expect(created.body.data.monthlyPriceMinorUnits).toBe(12345);
-      expect(created.body.data.annualDiscountPercent).toBe(11);
+      expect(created.body.data.monthlyPriceMinorUnits).toBe(500000);
+      expect(created.body.data.annualDiscountPercent).toBe(16.67);
 
       const v2 = await fetchJson(
         baseUrl,
         'POST',
         API_PLATFORM_SUBSCRIPTION_PLANS_PATH,
-        {
-          planCode: 'Starter',
-          activate: true,
-          monthlyPriceMinorUnits: 22222,
-          limits: { branches: 5 },
-        },
+        { ...completePlanBody('Starter', { limits: { branches: 5 } }), activate: true },
         {
           [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
           [API_PLATFORM_ACTOR_HEADER]: 'super-admin',
@@ -220,8 +219,49 @@ describe('F02 Phase 5 plans, lifecycle, and manual billing', () => {
       );
       expect(orgDenied.status).toBe(401);
 
+      const incompleteDraft = await fetchJson(
+        baseUrl,
+        'POST',
+        API_PLATFORM_SUBSCRIPTION_PLANS_PATH,
+        { planCode: 'Business', monthlyPriceMinorUnits: 1500000 },
+        {
+          [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+          [API_PLATFORM_ACTOR_HEADER]: 'super-admin',
+        },
+        jar,
+      );
+      expect(incompleteDraft.status).toBe(201);
+      expect(incompleteDraft.body.data.status).toBe('draft');
+
+      const invalidActivation = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_PLATFORM_SUBSCRIPTION_PLANS_PATH}/Business/1/activate`,
+        { expectedVersion: 1 },
+        {
+          [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+          [API_PLATFORM_ACTOR_HEADER]: 'super-admin',
+        },
+        jar,
+      );
+      expect(invalidActivation.status).toBe(400);
+      expect(invalidActivation.body.error.code).toBe('VALIDATION_FAILED');
+
+      const deleteNotSupported = await fetchJson(
+        baseUrl,
+        'DELETE',
+        `${API_PLATFORM_SUBSCRIPTION_PLANS_PATH}/Starter/2`,
+        undefined,
+        {
+          [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+          [API_PLATFORM_ACTOR_HEADER]: 'super-admin',
+        },
+        jar,
+      );
+      expect(deleteNotSupported.status).toBe(404);
+
       const plans = store.listPlans ? await store.listPlans() : [];
-      expect(plans.some((plan) => plan.monthlyPriceMinorUnits === 12345)).toBe(true);
+      expect(plans.some((plan) => plan.monthlyPriceMinorUnits === 500000)).toBe(true);
       expect(plans.every((plan) => plan.planCode !== 'HardcodedPremium')).toBe(true);
     } finally {
       await close(server);
@@ -236,9 +276,8 @@ describe('F02 Phase 5 plans, lifecycle, and manual billing', () => {
         'POST',
         API_PLATFORM_SUBSCRIPTION_PLANS_PATH,
         {
-          planCode: 'Starter',
+          ...completePlanBody('Starter'),
           activate: true,
-          monthlyPriceMinorUnits: 5000,
         },
         {
           [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
@@ -302,7 +341,7 @@ describe('F02 Phase 5 plans, lifecycle, and manual billing', () => {
         baseUrl,
         'POST',
         API_PLATFORM_SUBSCRIPTION_PLANS_PATH,
-        { planCode: 'Starter', activate: true, entitlements: { imports: true } },
+        { ...completePlanBody('Starter', { entitlements: { imports: true } }), activate: true },
         {
           [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
           [API_PLATFORM_ACTOR_HEADER]: 'super-admin',
@@ -434,9 +473,12 @@ describe('F02 Phase 5 plans, lifecycle, and manual billing', () => {
         'POST',
         API_PLATFORM_SUBSCRIPTION_PLANS_PATH,
         {
-          planCode: 'Business',
+          ...completePlanBody('Business', {
+            monthlyPriceMinorUnits: 9000,
+            annualPriceMinorUnits: 90000,
+            annualDiscountPercent: 16.67,
+          }),
           activate: true,
-          monthlyPriceMinorUnits: 9000,
         },
         {
           [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),

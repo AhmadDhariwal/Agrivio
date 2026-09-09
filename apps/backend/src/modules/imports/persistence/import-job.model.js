@@ -47,6 +47,10 @@ const importJobSchema = new mongoose.Schema(
 
 importJobSchema.index({ organizationId: 1, createdAt: -1 });
 importJobSchema.index({ organizationId: 1, status: 1, createdAt: -1 });
+importJobSchema.index(
+  { organizationId: 1, importType: 1 },
+  { unique: true, partialFilterExpression: { status: 'executing' } },
+);
 
 const ImportJobModel =
   mongoose.models['ImportJob'] || mongoose.model('ImportJob', importJobSchema);

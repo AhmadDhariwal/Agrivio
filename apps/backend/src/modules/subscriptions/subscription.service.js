@@ -28,9 +28,18 @@ const {
   parseExpectedVersion,
   parseLifecycleBody,
   parsePlanCreateBody,
+  parsePlanUpdateBody,
 } = require('./subscription.validation');
+const {
+  deriveAnnualSavings,
+  validateActivatableR1Plan,
+} = require('./r1-plan-catalog');
 
 function toPlanSummary(plan) {
+  const savings = deriveAnnualSavings(
+    plan.monthlyPriceMinorUnits,
+    plan.annualPriceMinorUnits,
+  );
   return {
     id: String(plan._id),
     planCode: plan.planCode,
@@ -39,11 +48,18 @@ function toPlanSummary(plan) {
     currency: plan.currency,
     monthlyPriceMinorUnits: plan.monthlyPriceMinorUnits ?? null,
     annualPriceMinorUnits: plan.annualPriceMinorUnits ?? null,
-    annualDiscountPercent: plan.annualDiscountPercent ?? null,
+    displayName: plan.displayName ?? plan.planCode,
+    shortDescription: plan.shortDescription ?? null,
+    targetCustomer: plan.targetCustomer ?? null,
+    catalogRevision: plan.catalogRevision ?? null,
+    annualDiscountPercent: savings.percent,
+    annualSavingsMinorUnits: savings.amountMinorUnits,
     trialEligible: plan.trialEligible !== false,
     limits: plan.limits ?? {},
     entitlements: plan.entitlements ?? {},
     referencedAt: plan.referencedAt ? new Date(plan.referencedAt).toISOString() : null,
+    referenced: Boolean(plan.referencedAt),
+    selectable: plan.status === 'active',
     version: plan.version,
   };
 }
@@ -74,6 +90,10 @@ function toSubscriptionSummary(subscription) {
 }
 
 function toBillingSummary(record, { includeEvidenceMeta = false } = {}) {
+  const listedSavings = deriveAnnualSavings(
+    record.listedMonthlyPriceMinorUnits,
+    record.listedAnnualPriceMinorUnits,
+  );
   const base = {
     id: String(record._id),
     organizationId: String(record.organizationId),
@@ -100,7 +120,7 @@ function toBillingSummary(record, { includeEvidenceMeta = false } = {}) {
     notes: record.notes ?? null,
     listedMonthlyPriceMinorUnits: record.listedMonthlyPriceMinorUnits ?? null,
     listedAnnualPriceMinorUnits: record.listedAnnualPriceMinorUnits ?? null,
-    listedAnnualDiscountPercent: record.listedAnnualDiscountPercent ?? null,
+    listedAnnualDiscountPercent: listedSavings.percent,
     version: record.version,
   };
 
@@ -122,6 +142,10 @@ function toBillingSummary(record, { includeEvidenceMeta = false } = {}) {
 }
 
 function toRequestedPlanSnapshot(record) {
+  const savings = deriveAnnualSavings(
+    record.listedMonthlyPriceMinorUnits,
+    record.listedAnnualPriceMinorUnits,
+  );
   return {
     id: record.requestedPlanId ? String(record.requestedPlanId) : null,
     planCode: record.requestedPlanCode,
@@ -130,7 +154,7 @@ function toRequestedPlanSnapshot(record) {
     currency: record.currency,
     monthlyPriceMinorUnits: record.listedMonthlyPriceMinorUnits ?? null,
     annualPriceMinorUnits: record.listedAnnualPriceMinorUnits ?? null,
-    annualDiscountPercent: record.listedAnnualDiscountPercent ?? null,
+    annualDiscountPercent: savings.percent,
   };
 }
 
@@ -289,19 +313,28 @@ function createSubscriptionService(deps) {
           .map(String),
       ),
     ];
-    const [organizations, reviewers] = await Promise.all([
+    const [organizations, reviewers, subscriptions] = await Promise.all([
       billingReviewReadModel?.findOrganizationsByIds?.(organizationIds) ?? [],
       billingReviewReadModel?.findUsersByIds?.(reviewerIds) ?? [],
+      typeof store.findSubscriptionsByOrganizationIds === 'function'
+        ? store.findSubscriptionsByOrganizationIds(organizationIds)
+        : Promise.all(organizationIds.map((id) => store.findSubscriptionByOrganizationId(id))),
     ]);
     const organizationsById = new Map(
       organizations.map((organization) => [String(organization._id), organization]),
     );
     const reviewersById = new Map(reviewers.map((user) => [String(user._id), user]));
+    const subscriptionsByOrgId = new Map(
+      (subscriptions ?? [])
+        .filter(Boolean)
+        .map((subscription) => [String(subscription.organizationId), subscription]),
+    );
 
     return records.map((record) => {
       const organization = toOrganizationSummary(
         organizationsById.get(String(record.organizationId)) ?? null,
       );
+      const hasSubscription = subscriptionsByOrgId.has(String(record.organizationId));
       return {
         ...toBillingSummary(record),
         organization,
@@ -313,6 +346,7 @@ function createSubscriptionService(deps) {
           record.reviewedBy,
           reviewersById.get(String(record.reviewedBy)) ?? null,
         ),
+        subscriptionHealth: hasSubscription ? 'available' : 'missing',
       };
     });
   }
@@ -425,6 +459,10 @@ function createSubscriptionService(deps) {
         const planVersion = await store.nextPlanVersion(input.planCode);
 
         if (input.activate) {
+          validateActivatableR1Plan(input);
+        }
+
+        if (input.activate) {
           const currentActive = await store.findActivePlanByCode(input.planCode);
           if (currentActive !== null) {
             await store.updatePlan(session, String(currentActive._id), {
@@ -438,6 +476,10 @@ function createSubscriptionService(deps) {
           planCode: input.planCode,
           planVersion,
           status: input.activate ? 'active' : 'draft',
+          displayName: input.displayName,
+          shortDescription: input.shortDescription,
+          targetCustomer: input.targetCustomer,
+          catalogRevision: input.catalogRevision,
           currency: input.currency,
           monthlyPriceMinorUnits: input.monthlyPriceMinorUnits,
           annualPriceMinorUnits: input.annualPriceMinorUnits,
@@ -464,6 +506,135 @@ function createSubscriptionService(deps) {
         });
 
         return toPlanSummary(created);
+      });
+    },
+
+    async getPlanVersion(planCode, planVersion) {
+      const plan = await store.findPlanByCodeVersion(planCode, Number(planVersion));
+      if (plan === null) {
+        throw notFound('Plan version not found');
+      }
+      return toPlanSummary(plan);
+    },
+
+    async updateDraftPlan(planCode, planVersion, body, actor) {
+      const input = parsePlanUpdateBody(body);
+      if (input.planCode !== planCode) {
+        throw validationFailed('planCode cannot be changed');
+      }
+      return deps.transactionRunner.run(async (session) => {
+        const plan = await store.findPlanByCodeVersion(planCode, Number(planVersion));
+        if (plan === null) {
+          throw notFound('Plan version not found');
+        }
+        if (plan.status !== 'draft' || plan.referencedAt) {
+          throw conflict('Only an unreferenced draft plan version can be edited');
+        }
+        const updated = await store.updatePlan(
+          session,
+          String(plan._id),
+          {
+            displayName: input.displayName,
+            shortDescription: input.shortDescription,
+            targetCustomer: input.targetCustomer,
+            catalogRevision: input.catalogRevision,
+            currency: input.currency,
+            monthlyPriceMinorUnits: input.monthlyPriceMinorUnits,
+            annualPriceMinorUnits: input.annualPriceMinorUnits,
+            annualDiscountPercent: input.annualDiscountPercent,
+            trialEligible: input.trialEligible,
+            limits: input.limits,
+            entitlements: input.entitlements,
+            version: Number(plan.version) + 1,
+          },
+          input.expectedVersion,
+        );
+        if (updated === null) {
+          throw versionConflict('Plan version conflict', { expectedVersion: input.expectedVersion });
+        }
+        await auditWriter.appendBusinessEvent(session, {
+          scope: 'platform',
+          organizationId: 'platform',
+          actorId: actor.actorId,
+          action: 'subscription_plan.draft_updated',
+          resourceType: 'subscription_plan',
+          resourceId: String(updated._id),
+          metadata: { planCode, planVersion: Number(planVersion) },
+        });
+        return toPlanSummary(updated);
+      });
+    },
+
+    async activatePlanVersion(planCode, planVersion, body, actor) {
+      const expectedVersion = parseExpectedVersion(body);
+      return deps.transactionRunner.run(async (session) => {
+        const plan = await store.findPlanByCodeVersion(planCode, Number(planVersion));
+        if (plan === null) {
+          throw notFound('Plan version not found');
+        }
+        if (plan.status !== 'draft' || plan.referencedAt) {
+          throw conflict('Only an unreferenced draft plan version can be activated');
+        }
+        validateActivatableR1Plan(plan);
+        const currentActive = await store.findActivePlanByCode(planCode);
+        if (currentActive !== null && String(currentActive._id) !== String(plan._id)) {
+          await store.updatePlan(session, String(currentActive._id), {
+            status: 'superseded',
+            version: Number(currentActive.version) + 1,
+          });
+        }
+        const updated = await store.updatePlan(
+          session,
+          String(plan._id),
+          { status: 'active', version: Number(plan.version) + 1 },
+          expectedVersion,
+        );
+        if (updated === null) {
+          throw versionConflict('Plan version conflict', { expectedVersion });
+        }
+        await auditWriter.appendBusinessEvent(session, {
+          scope: 'platform',
+          organizationId: 'platform',
+          actorId: actor.actorId,
+          action: 'subscription_plan.activated',
+          resourceType: 'subscription_plan',
+          resourceId: String(updated._id),
+          metadata: { planCode, planVersion: Number(planVersion) },
+        });
+        return toPlanSummary(updated);
+      });
+    },
+
+    async retirePlanVersion(planCode, planVersion, body, actor) {
+      const { expectedVersion, reason } = parseLifecycleBody(body, { requireReason: true });
+      return deps.transactionRunner.run(async (session) => {
+        const plan = await store.findPlanByCodeVersion(planCode, Number(planVersion));
+        if (plan === null) {
+          throw notFound('Plan version not found');
+        }
+        if (plan.status !== 'active') {
+          throw conflict('Only an active plan version can be retired');
+        }
+        const updated = await store.updatePlan(
+          session,
+          String(plan._id),
+          { status: 'superseded', version: Number(plan.version) + 1 },
+          expectedVersion,
+        );
+        if (updated === null) {
+          throw versionConflict('Plan version conflict', { expectedVersion });
+        }
+        await auditWriter.appendBusinessEvent(session, {
+          scope: 'platform',
+          organizationId: 'platform',
+          actorId: actor.actorId,
+          action: 'subscription_plan.retired',
+          resourceType: 'subscription_plan',
+          resourceId: String(updated._id),
+          reason,
+          metadata: { planCode, planVersion: Number(planVersion) },
+        });
+        return toPlanSummary(updated);
       });
     },
 
@@ -992,6 +1163,8 @@ function createSubscriptionService(deps) {
       return {
         ...toBillingSummary(record, { includeEvidenceMeta: true }),
         ...composed,
+        subscriptionHealth:
+          currentSubscription === null ? 'missing' : 'available',
         currentSubscription:
           currentSubscription === null ? null : toSubscriptionSummary(currentSubscription),
         evidence: {

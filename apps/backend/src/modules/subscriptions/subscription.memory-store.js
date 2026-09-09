@@ -68,9 +68,12 @@ function createInMemorySubscriptionStore() {
       return clone(record);
     },
 
-    async updatePlan(_session, id, patch) {
+    async updatePlan(_session, id, patch, expectedVersion) {
       const existing = plans.get(String(id));
       if (existing === undefined) {
+        return null;
+      }
+      if (expectedVersion !== undefined && Number(existing.version) !== Number(expectedVersion)) {
         return null;
       }
       const next = { ...existing, ...clone(patch) };
@@ -90,6 +93,20 @@ function createInMemorySubscriptionStore() {
         }
       }
       return null;
+    },
+
+    async findSubscriptionsByOrganizationIds(organizationIds) {
+      if (!Array.isArray(organizationIds) || organizationIds.length === 0) {
+        return [];
+      }
+      const set = new Set(organizationIds.map(String));
+      const matched = [];
+      for (const row of subscriptions.values()) {
+        if (set.has(String(row.organizationId))) {
+          matched.push(clone(row));
+        }
+      }
+      return matched;
     },
 
     async listSubscriptions() {

@@ -219,6 +219,49 @@ function registerSubscriptionRoutes(deps) {
   );
 
   router.get(
+    `${API_PLATFORM_SUBSCRIPTION_PLANS_PATH}/:planCode/:planVersion`,
+    optionalAuth,
+    platformActor,
+    requirePlatformPermission('platform.subscriptions.manage'),
+    (req, res, next) => {
+      void platformController.getPlan(req, res, next);
+    },
+  );
+
+  router.put(
+    `${API_PLATFORM_SUBSCRIPTION_PLANS_PATH}/:planCode/:planVersion`,
+    optionalAuth,
+    requireCsrf,
+    platformActor,
+    requirePlatformPermission('platform.subscriptions.manage'),
+    (req, res, next) => {
+      void platformController.updatePlan(req, res, next);
+    },
+  );
+
+  router.post(
+    `${API_PLATFORM_SUBSCRIPTION_PLANS_PATH}/:planCode/:planVersion/activate`,
+    optionalAuth,
+    requireCsrf,
+    platformActor,
+    requirePlatformPermission('platform.subscriptions.manage'),
+    (req, res, next) => {
+      void platformController.activatePlan(req, res, next);
+    },
+  );
+
+  router.post(
+    `${API_PLATFORM_SUBSCRIPTION_PLANS_PATH}/:planCode/:planVersion/retire`,
+    optionalAuth,
+    requireCsrf,
+    platformActor,
+    requirePlatformPermission('platform.subscriptions.manage'),
+    (req, res, next) => {
+      void platformController.retirePlan(req, res, next);
+    },
+  );
+
+  router.get(
     API_PLATFORM_SUBSCRIPTIONS_PATH,
     optionalAuth,
     platformActor,
