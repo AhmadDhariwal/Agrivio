@@ -367,14 +367,23 @@ function createOnboardingService(deps) {
 
     async listOrganizations(filter = {}) {
       const normalizedFilter = parsePlatformOrganizationQuery(filter);
-      const result = await (typeof store.listPlatformOrganizations === 'function'
-        ? store.listPlatformOrganizations(normalizedFilter)
-        : store.listOrganizations(normalizedFilter));
+      const [result, summary] = await Promise.all([
+        typeof store.listPlatformOrganizations === 'function'
+          ? store.listPlatformOrganizations(normalizedFilter)
+          : store.listOrganizations(normalizedFilter),
+        typeof store.getPlatformOrganizationSummary === 'function'
+          ? store.getPlatformOrganizationSummary()
+          : Promise.resolve(null),
+      ]);
       const organizations = Array.isArray(result) ? result : result.items;
       const summaries = await Promise.all(
         organizations.map((organization) => toOrganizationListItem(store, organization)),
       );
-      return { items: summaries, total: Array.isArray(result) ? summaries.length : result.total };
+      return {
+        items: summaries,
+        total: Array.isArray(result) ? summaries.length : result.total,
+        ...(summary === null ? {} : { summary }),
+      };
     },
 
     async getOrganization(organizationId) {

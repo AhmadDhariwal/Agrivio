@@ -156,6 +156,12 @@ describe('PlatformPlansPage', () => {
     expect(notice).toBeTruthy();
     expect(notice.textContent).toContain('Creating next plan version');
     expect(notice.textContent).toContain('remains immutable and all active subscriptions stay pinned');
+
+    const codeInput = fixture.nativeElement.querySelector('[data-testid="plan-code-input"]') as HTMLInputElement;
+    expect(codeInput).toBeTruthy();
+    expect(codeInput.readOnly).toBe(true);
+    expect(codeInput.disabled).toBe(true);
+    expect(codeInput.value).toBe('Starter');
   });
 
   it('submitting new version calls createPlatformPlan with activate flag', () => {
@@ -376,9 +382,11 @@ describe('PlatformPlansPage', () => {
     expect(page.inspectedPlan()).toBeNull();
     expect(fixture.nativeElement.querySelector('[data-testid="plan-inspector-drawer"]')).toBeNull();
 
-    // 5. Success message set and list refreshed
+    // 5. Success message set and list refreshed with active status
     expect(page.successMessage()).toBe('Activated Business v1');
     expect(api.listPlatformPlans).toHaveBeenCalled();
+    expect(page.plans().find((p) => p.planCode === 'Business')?.status).toBe('active');
+    expect(fixture.nativeElement.textContent).toContain('active');
   });
 
   it('renders plan card as non-interactive presentation container without card-level click or button role', () => {

@@ -88,3 +88,12 @@ builder and standard query-string decoding before the fresh HTTP activation requ
 coverage independently proves Angular query parsing and the `/auth/activate` payload preserve an
 opaque token byte-for-byte, including reserved characters. Activation-body validation rejects
 blank tokens without trimming or otherwise mutating a non-blank token before hashing.
+
+## Super Admin organization list request hardening (2026-09-10)
+
+The existing paginated platform organization list now returns additive global summary metadata for
+total, approved/active, suspended, and trial organizations. Counts are computed server-side with a
+Mongo aggregation using the existing unique `subscriptions.organizationId` index; no new index or
+persisted-model change was required. The Organizations page consumes list items, pagination, and
+summary from the same request, reducing initial load and manual refresh from five list requests to
+one while preserving search, filters, sorting, pagination, RBAC, and cache invalidation.

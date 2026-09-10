@@ -219,6 +219,31 @@ function createMongooseOnboardingStore() {
       return { items, total: page?.total?.[0]?.value ?? 0 };
     },
 
+    async getPlatformOrganizationSummary() {
+      const [summary] = await OrganizationModel.aggregate([
+        {
+          $lookup: {
+            from: 'subscriptions',
+            localField: '_id',
+            foreignField: 'organizationId',
+            as: 'subscriptionRows',
+          },
+        },
+        { $set: { subscription: { $arrayElemAt: ['$subscriptionRows', 0] } } },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            active: { $sum: { $cond: [{ $eq: ['$status', 'approved'] }, 1, 0] } },
+            suspended: { $sum: { $cond: [{ $eq: ['$status', 'suspended'] }, 1, 0] } },
+            trial: { $sum: { $cond: [{ $eq: ['$subscription.status', 'trial'] }, 1, 0] } },
+          },
+        },
+        { $project: { _id: 0, total: 1, active: 1, suspended: 1, trial: 1 } },
+      ]).exec();
+      return summary ?? { total: 0, active: 0, suspended: 0, trial: 0 };
+    },
+
     async insertOrganization(session, doc) {
       const [created] = await OrganizationModel.create([doc], withSession(session));
       return created.toObject();

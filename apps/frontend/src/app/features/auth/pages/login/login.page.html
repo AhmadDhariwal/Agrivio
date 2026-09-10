@@ -53,6 +53,7 @@
           type="button"
           class="ag-control-wrap__action"
           (click)="showPassword.set(!showPassword())"
+          [disabled]="submitting()"
           [attr.aria-pressed]="showPassword()"
           [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
         >

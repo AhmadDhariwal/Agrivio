@@ -5,6 +5,7 @@ import {
   requirePermissionGuard,
   requireSessionGuard,
   publicOnlyGuard,
+  signInGuard,
 } from './core/guards/session.guards';
 import { AppShellPage } from './features/shell/pages/app-shell/app-shell.page';
 
@@ -17,7 +18,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'signin',
-    canActivate: [publicOnlyGuard],
+    canActivate: [signInGuard],
     loadComponent: () => import('./features/auth/pages/login/login.page').then((m) => m.LoginPage),
   },
   {

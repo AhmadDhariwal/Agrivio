@@ -96,3 +96,15 @@ Cloudflare Pages staging settings are:
 
 The existing Render session, CSRF, strict origin, credentialed exact-origin CORS, Mongo session,
 and staging `Secure; SameSite=None` cookie policies remain unchanged for the first proxy deployment.
+
+## Staging Sign In request and submit hardening (2026-09-10)
+
+The canonical `/signin` route no longer performs a speculative cookie-session lookup merely to
+render the public form. Protected-route hard refreshes retain the existing deduplicated,
+authoritative session bootstrap, and authenticated state already established in the current tab
+still redirects away from Sign In. Successful login continues to apply the server-returned session
+directly, while logout, expiry, and secret-free cross-tab revalidation remain unchanged.
+
+During login, the email and password controls are disabled without resetting or mutating their
+values. Duplicate submits are ignored; failure re-enables the controls and preserves the submitted
+values for correction, while success navigates without a cleared/invalid form flash.

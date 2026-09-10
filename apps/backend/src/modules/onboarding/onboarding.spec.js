@@ -194,6 +194,24 @@ describe('F02 Phase 1 organization onboarding', () => {
       expect(rejected.status).toBe(200);
       expect(rejected.body.data.status).toBe('rejected');
       expect(rejected.body.data.reason).toBe('Incomplete paperwork');
+
+      const organizations = await fetchJson(
+        baseUrl,
+        'GET',
+        `${API_PLATFORM_ORGANIZATIONS_PATH}?status=approved&page=1&pageSize=1`,
+        undefined,
+        { [API_PLATFORM_ACTOR_HEADER]: 'super-admin-1' },
+        jar,
+      );
+      expect(organizations.status).toBe(200);
+      expect(organizations.body.data).toHaveLength(1);
+      expect(organizations.body.data[0].status).toBe('approved');
+      expect(organizations.body.meta).toMatchObject({
+        page: 1,
+        pageSize: 1,
+        total: 1,
+        summary: { total: 2, active: 1, suspended: 0, trial: 1 },
+      });
     } finally {
       await close(server);
     }
