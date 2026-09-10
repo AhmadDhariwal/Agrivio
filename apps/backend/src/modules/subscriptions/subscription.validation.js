@@ -65,6 +65,10 @@ function parsePlanCreateBody(body) {
   return {
     planCode,
     activate,
+    displayName: optionalString(input.displayName, 'displayName', 80),
+    shortDescription: optionalString(input.shortDescription, 'shortDescription', 300),
+    targetCustomer: optionalString(input.targetCustomer, 'targetCustomer', 200),
+    catalogRevision: optionalString(input.catalogRevision, 'catalogRevision', 80),
     currency: optionalString(input.currency, 'currency', 8) ?? 'PKR',
     monthlyPriceMinorUnits: optionalNumber(input.monthlyPriceMinorUnits, 'monthlyPriceMinorUnits'),
     annualPriceMinorUnits: optionalNumber(input.annualPriceMinorUnits, 'annualPriceMinorUnits'),
@@ -98,6 +102,15 @@ function parsePlanCreateBody(body) {
         'entitlements.supportLevelRef',
       ),
     },
+  };
+}
+
+function parsePlanUpdateBody(body) {
+  const parsed = parsePlanCreateBody(body);
+  return {
+    ...parsed,
+    expectedVersion: parseExpectedVersion(body),
+    activate: false,
   };
 }
 
@@ -257,6 +270,7 @@ function parseBillingApproveBody(body) {
 
 module.exports = {
   parsePlanCreateBody,
+  parsePlanUpdateBody,
   parseLifecycleBody,
   parseChangePlanBody,
   parseBillingSubmitBody,

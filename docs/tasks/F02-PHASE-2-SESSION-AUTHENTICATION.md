@@ -60,3 +60,51 @@ Successful logout still posts the existing server endpoint, then clears the CSRF
 Frontend auth state now distinguishes unknown, restoring, authenticated, and unauthenticated states. Public-only and protected guards wait for the single deduplicated cookie-session restore result, preventing sign-in rendering and repeated session probes during redirect chains. Authenticated `/`, `/signin`, and legacy `/login` navigation resolves to `/app`, `/context`, or the canonical platform workspace according to the restored active context.
 
 Secret-free `BroadcastChannel` events notify sibling tabs after login, logout, or context change. Receiving tabs always revalidate through `GET /api/v1/auth/session`; logout and authoritative `401` handling clear existing CSRF, session/context, capability, and tenant-cache state. The server-side HttpOnly cookie, CSRF flow, authorization, and revocation model remain unchanged, and `QueryCacheService` was not modified.
+
+## Cross-site staging CSRF transport hardening (2026-09-08)
+
+The production `staging` profile now emits the existing opaque HttpOnly session cookie with
+`Secure; SameSite=None`. This allows the allowlisted Cloudflare Pages frontend to return the
+pre-authentication session cookie to the Render API after obtaining the existing JSON CSRF token
+from `POST /api/v1/auth/csrf`. Other profiles retain `SameSite=Lax`; exact-origin credentialed CORS,
+Origin/Referer validation, session-bound CSRF validation, authentication, and token rotation are
+unchanged.
+
+Focused tests cover the deployed cross-site origin, cookie attributes, rejection when the CSRF
+header has no matching cookie, successful public organization activation request with both values,
+and Angular `withCredentials` plus `X-CSRF-Token` transport.
+
+## Staging same-origin API topology (2026-09-08)
+
+The staging Angular build uses `AGRIVIO_PUBLIC_API_BASE_URL=same-origin`, producing relative
+`/api/v1/...` browser requests. A Cloudflare Pages Function at `functions/api/[[path]].js` forwards
+only those requests to the fixed `AGRIVIO_API_UPSTREAM_ORIGIN` Render origin. It preserves the
+validated Pages Origin/Referer, cookies, CSRF and application headers, query strings, streaming
+bodies, upstream status/body, and each `Set-Cookie` header independently. Hop-by-hop and Cloudflare
+forwarding headers are removed, and API responses carry private/no-store browser and CDN cache
+directives. `apps/frontend/public/_routes.json` is copied to the Angular browser output so static and
+SPA routes do not invoke the Function.
+
+Cloudflare Pages staging settings are:
+
+* Root directory: repository root
+* Build command: `npm run build:frontend`
+* Build output directory: `dist/apps/frontend/browser`
+* `AGRIVIO_PUBLIC_API_BASE_URL=same-origin`
+* `AGRIVIO_API_UPSTREAM_ORIGIN=https://agrivio-staging-api.onrender.com`
+* `AGRIVIO_PUBLIC_WEB_ORIGIN=https://agrivio-staging-web.pages.dev`
+
+The existing Render session, CSRF, strict origin, credentialed exact-origin CORS, Mongo session,
+and staging `Secure; SameSite=None` cookie policies remain unchanged for the first proxy deployment.
+
+## Staging Sign In request and submit hardening (2026-09-10)
+
+The canonical `/signin` route no longer performs a speculative cookie-session lookup merely to
+render the public form. Protected-route hard refreshes retain the existing deduplicated,
+authoritative session bootstrap, and authenticated state already established in the current tab
+still redirects away from Sign In. Successful login continues to apply the server-returned session
+directly, while logout, expiry, and secret-free cross-tab revalidation remain unchanged.
+
+During login, the email and password controls are disabled without resetting or mutating their
+values. Duplicate submits are ignored; failure re-enables the controls and preserves the submitted
+values for correction, while success navigates without a cleared/invalid form flash.

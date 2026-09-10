@@ -52,9 +52,11 @@ Central navigation for Agrivio documentation.
 * F08 Phase 1 complete (`R1-F08-001`–`R1-F08-003`) — see [tasks/F08-PHASE-1-ALERTS-DASHBOARD.md](tasks/F08-PHASE-1-ALERTS-DASHBOARD.md); inventory/dues alerts and operational dashboard
 * F08 Phase 2 complete (`R1-F08-004`, `R1-F08-005`) — see [tasks/F08-PHASE-2-FIXED-REPORTS-EXPORTS.md](tasks/F08-PHASE-2-FIXED-REPORTS-EXPORTS.md); fixed reports and PDF/Excel/CSV exports
 * F08 Phase 3 complete (`R1-F08-006`) — see [tasks/F08-PHASE-3-EXCEL-IMPORTS.md](tasks/F08-PHASE-3-EXCEL-IMPORTS.md); Excel import preview and all-or-nothing execution
+* R1 create-limit hardening verified (2026-09-09) — pinned-version product/customer/supplier import preflight, transaction-consistent counts, and same-resource import serialization; see [tasks/F08-PHASE-3-EXCEL-IMPORTS.md](tasks/F08-PHASE-3-EXCEL-IMPORTS.md)
 * F08 Phase 4 complete (`R1-F08-007`–`R1-F08-009`) — see [tasks/F08-PHASE-4-AUDIT-BACKUP-SUSPENDED.md](tasks/F08-PHASE-4-AUDIT-BACKUP-SUSPENDED.md); audit inquiry, backup/restore status, suspended report/import policy
 * Audit History RBAC/privacy hardening verified (2026-09-03) — tenant list/detail/KPI/filter/actor-option isolation, explicit platform audit scope, and strict `super_admin` platform route; see [tasks/F08-PHASE-4-AUDIT-BACKUP-SUSPENDED.md](tasks/F08-PHASE-4-AUDIT-BACKUP-SUSPENDED.md)
 * Final platform-flow hardening complete (2026-09-03) — public-only `/signin`, protected-route/logout cleanup, canonical Manage Billing navigation, platform-controlled scoped Audit retention, and real-engine Backup Status metadata; see [tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md](tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md), [tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md](tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md), and [tasks/F08-PHASE-4-AUDIT-BACKUP-SUSPENDED.md](tasks/F08-PHASE-4-AUDIT-BACKUP-SUSPENDED.md)
+* Staging same-origin API proxy complete (2026-09-08) — Cloudflare Pages `/api/*` Function transport avoids third-party session-cookie blocking while retaining Render session/CSRF/origin controls; see [tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md](tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md)
 * Organization/data-operations API cache hardening complete (2026-08-30) — organization/settings/setup, branches/warehouses, employees/access, billing, audit, and imports now use scoped exact-query caching and success-only targeted invalidation; complete location option endpoints replace capped selector preloads
 * F08 Phase 5 complete (`R1-F08-010`) — see [tasks/F08-PHASE-5-ALERTS-REPORTING-IMPORTS-SLICE.md](tasks/F08-PHASE-5-ALERTS-REPORTING-IMPORTS-SLICE.md); alerts/reports/imports/audit/ops vertical slice and E2E; **F08 stage exit ready pending acceptance**
 * F09 Phase 1 complete (`R1-F09-001`) — see [tasks/F09-PHASE-1-REGRESSION-CONSOLIDATION.md](tasks/F09-PHASE-1-REGRESSION-CONSOLIDATION.md); canonical `npm run test:regression:release`
@@ -70,13 +72,19 @@ Central navigation for Agrivio documentation.
 * Customer and Supplier Payments date filtering hardened (2026-09-06): distinct exact/range payloads, inclusive range queries, strict API validation, and responsive range controls; see [tasks/F05-PHASE-3-SUPPLIER-PAYMENTS-CANCEL-RETURNS.md](tasks/F05-PHASE-3-SUPPLIER-PAYMENTS-CANCEL-RETURNS.md) and [tasks/F06-PHASE-1-SALES-FOUNDATION.md](tasks/F06-PHASE-1-SALES-FOUNDATION.md).
 * Stock Movements desktop filter layout hardened (2026-09-06): long product options no longer push the table/card view toggle outside the visible toolbar; see [tasks/F04-PHASE-3-INVENTORY-TRANSFERS-RECONCILIATION.md](tasks/F04-PHASE-3-INVENTORY-TRANSFERS-RECONCILIATION.md).
 * Final auth/sign-in/multi-tab routing hardening complete (2026-09-06): explicit restore state, deduplicated public/protected guard decisions, canonical tenant/context/platform destinations, and authoritative secret-free cross-tab session synchronization; see [tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md](tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md) and [tasks/F02-PHASE-3-CONTEXT-PERMISSIONS.md](tasks/F02-PHASE-3-CONTEXT-PERMISSIONS.md).
+* Cross-site staging CSRF transport hardened (2026-09-08): the production `staging` profile uses `Secure; SameSite=None` for the existing HttpOnly pre-auth/auth session cookie so the allowlisted Pages frontend can complete the JSON synchronizer-token flow against Render; other profiles retain `SameSite=Lax`; see [tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md](tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md).
+* Owner activation-token Mongo session consistency hardened (2026-09-09): activation-token reads remain inside the active Mongoose transaction; activation tokens are not mutated before hashing; and real replica-set coverage proves approve, reissue, commit visibility, activation-URL/query parsing fidelity, activation, and one-time reuse rejection; see [tasks/F02-PHASE-1-ORGANIZATION-ONBOARDING.md](tasks/F02-PHASE-1-ORGANIZATION-ONBOARDING.md).
+* Billing bootstrap and recovery lifecycle hardened (2026-09-09): missing subscriptions keep operational modules denied while authenticated, authorized Billing acquisition/recovery stays reachable; platform organization detail degrades to an explicit diagnostic; and legacy repair is an explicit transactional CLI anchored to the original approval date; see [tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md](tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md).
+* Release 1 Starter / Business / Enterprise commercial catalog frozen as `R1-CATALOG-1` and implemented in plan management, presentation, demo seed, and explicit sync tooling (2026-09-09); local/staging apply remains an operator-controlled deployment step — see [R1_PLAN_CATALOG.md](R1_PLAN_CATALOG.md) and [tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md](tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md).
 * Products table action column layout hardened (2026-09-06): replaced overflowing text in table pricing button with accessible hidden text, widened action column to 140px, and right-aligned action buttons to eliminate button clipping and row overflow; see [tasks/F03-PHASE-2-MASTER-DATA.md](tasks/F03-PHASE-2-MASTER-DATA.md).
+* Staging auth and Super Admin Organizations smoke issues hardened (2026-09-10): public Sign In no longer probes an anonymous session, pending login preserves and disables form values, and Organizations list plus global counters load in one request; see [tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md](tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md) and [tasks/F02-PHASE-1-ORGANIZATION-ONBOARDING.md](tasks/F02-PHASE-1-ORGANIZATION-ONBOARDING.md).
 
 ## Existing Documents
 
 | Document | Purpose |
 | --- | --- |
 | [PROJECT_DECISIONS.md](PROJECT_DECISIONS.md) | Finalized product and technical decisions |
+| [R1_PLAN_CATALOG.md](R1_PLAN_CATALOG.md) | Final Release 1 Starter / Business / Enterprise prices, limits, entitlements, presentation, and versioning policy |
 | [PRD.md](PRD.md) | Product requirements |
 | [RELEASE_1_SCOPE.md](RELEASE_1_SCOPE.md) | Release 1 scope boundary |
 | [BUSINESS_RULES.md](BUSINESS_RULES.md) | Release 1 formulas and operational behaviour (Frozen for Release 1, v1.0; 295 BR IDs; 20 prefixes) |
@@ -187,6 +195,7 @@ These documents are not created yet. Paths below are reserved targets for later 
 * API design (Frozen for Release 1, v1.0): [API_DESIGN.md](API_DESIGN.md)
 * Security and authorization (Frozen for Release 1, v1.0): [SECURITY_AUTHORIZATION.md](SECURITY_AUTHORIZATION.md)
 * Subscription and billing (Frozen for Release 1, v1.0): [SUBSCRIPTION_AND_BILLING.md](SUBSCRIPTION_AND_BILLING.md)
+* Release 1 commercial plan catalog (Frozen as `R1-CATALOG-1`): [R1_PLAN_CATALOG.md](R1_PLAN_CATALOG.md)
 * Implementation roadmap (Frozen for Release 1, v1.2.0): [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md)
 * Delivery plan (Frozen for Release 1, v1.0): [DELIVERY_PLAN.md](DELIVERY_PLAN.md)
 * Quality gates (Frozen for Release 1, v1.4.0): [QUALITY_GATES.md](QUALITY_GATES.md)

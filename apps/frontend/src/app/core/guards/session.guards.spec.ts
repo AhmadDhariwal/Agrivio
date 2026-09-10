@@ -11,6 +11,7 @@ import {
   requirePermissionGuard,
   requirePlatformContextGuard,
   requireSessionGuard,
+  signInGuard,
 } from './session.guards';
 import { AuthSessionSnapshot } from '../../features/auth/data-access/auth.api';
 import { AuthSessionStore } from '../../features/auth/data-access/auth-session.store';
@@ -66,6 +67,47 @@ describe('requirePermissionGuard', () => {
 });
 
 describe('session route guards', () => {
+  it('renders Sign In without probing the session when auth state is unknown', () => {
+    const loadSession = vi.fn();
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            authState: () => 'unknown',
+            activeContext: () => null,
+            loadSession,
+          },
+        },
+      ],
+    });
+
+    const result = TestBed.runInInjectionContext(() => signInGuard(emptyRoute, emptyState));
+
+    expect(result).toBe(true);
+    expect(loadSession).not.toHaveBeenCalled();
+  });
+
+  it('redirects an already-authenticated tab away from Sign In', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            authState: () => 'authenticated',
+            activeContext: () => ({ contextType: 'platform' }),
+          },
+        },
+      ],
+    });
+
+    const result = TestBed.runInInjectionContext(() => signInGuard(emptyRoute, emptyState));
+
+    expect(result).toEqual(TestBed.inject(Router).parseUrl('/app/platform/organizations'));
+  });
+
   it('redirects an authenticated user away from /signin to the active workspace', async () => {
     TestBed.configureTestingModule({
       providers: [

@@ -40,8 +40,8 @@ function registerSubscriptionRoutes(deps) {
   const requireBillingSubmit = createRequirePermissionMiddleware(
     'subscription.billing-evidence.submit',
   );
-  const requireBillingAccess = createRequireSubscriptionAccessMiddleware({
-    label: 'billing-access',
+  const requireBillingBootstrapAccess = createRequireSubscriptionAccessMiddleware({
+    label: 'billing-bootstrap',
     resolveAccessState: (organizationId) =>
       deps.subscriptionService.resolveAccessState(organizationId),
   });
@@ -96,7 +96,7 @@ function registerSubscriptionRoutes(deps) {
     requireAuth,
     requireOrganizationContext,
     requireSubscriptionView,
-    requireBillingAccess,
+    requireBillingBootstrapAccess,
     requireBillingModule,
     requireCurrentSubscription,
     (req, res, next) => {
@@ -109,7 +109,7 @@ function registerSubscriptionRoutes(deps) {
     requireAuth,
     requireOrganizationContext,
     requireSubscriptionView,
-    requireBillingAccess,
+    requireBillingBootstrapAccess,
     requireBillingModule,
     requirePlanSelection,
     (req, res, next) => {
@@ -134,7 +134,7 @@ function registerSubscriptionRoutes(deps) {
     requireCsrf,
     requireOrganizationContext,
     requireBillingSubmit,
-    requireBillingAccess,
+    requireBillingBootstrapAccess,
     requireBillingModule,
     requireEvidenceUploadAllowed,
     evidenceUploadParser,
@@ -148,7 +148,7 @@ function registerSubscriptionRoutes(deps) {
     requireAuth,
     requireOrganizationContext,
     requireSubscriptionView,
-    requireBillingAccess,
+    requireBillingBootstrapAccess,
     requireBillingModule,
     requireEvidenceDownloadAllowed,
     (req, res, next) => {
@@ -162,7 +162,7 @@ function registerSubscriptionRoutes(deps) {
     requireCsrf,
     requireOrganizationContext,
     requireBillingSubmit,
-    requireBillingAccess,
+    requireBillingBootstrapAccess,
     requireBillingModule,
     requireBillingSubmitAllowed,
     requireNotesEditable,
@@ -176,7 +176,7 @@ function registerSubscriptionRoutes(deps) {
     requireAuth,
     requireOrganizationContext,
     requireSubscriptionView,
-    requireBillingAccess,
+    requireBillingBootstrapAccess,
     requireBillingModule,
     requireBillingHistory,
     (req, res, next) => {
@@ -189,7 +189,7 @@ function registerSubscriptionRoutes(deps) {
     requireAuth,
     requireOrganizationContext,
     requireSubscriptionView,
-    requireBillingAccess,
+    requireBillingBootstrapAccess,
     requireBillingModule,
     requireHistoryInspectionAllowed,
     (req, res, next) => {
@@ -215,6 +215,49 @@ function registerSubscriptionRoutes(deps) {
     requirePlatformPermission('platform.subscriptions.manage'),
     (req, res, next) => {
       void platformController.createPlan(req, res, next);
+    },
+  );
+
+  router.get(
+    `${API_PLATFORM_SUBSCRIPTION_PLANS_PATH}/:planCode/:planVersion`,
+    optionalAuth,
+    platformActor,
+    requirePlatformPermission('platform.subscriptions.manage'),
+    (req, res, next) => {
+      void platformController.getPlan(req, res, next);
+    },
+  );
+
+  router.put(
+    `${API_PLATFORM_SUBSCRIPTION_PLANS_PATH}/:planCode/:planVersion`,
+    optionalAuth,
+    requireCsrf,
+    platformActor,
+    requirePlatformPermission('platform.subscriptions.manage'),
+    (req, res, next) => {
+      void platformController.updatePlan(req, res, next);
+    },
+  );
+
+  router.post(
+    `${API_PLATFORM_SUBSCRIPTION_PLANS_PATH}/:planCode/:planVersion/activate`,
+    optionalAuth,
+    requireCsrf,
+    platformActor,
+    requirePlatformPermission('platform.subscriptions.manage'),
+    (req, res, next) => {
+      void platformController.activatePlan(req, res, next);
+    },
+  );
+
+  router.post(
+    `${API_PLATFORM_SUBSCRIPTION_PLANS_PATH}/:planCode/:planVersion/retire`,
+    optionalAuth,
+    requireCsrf,
+    platformActor,
+    requirePlatformPermission('platform.subscriptions.manage'),
+    (req, res, next) => {
+      void platformController.retirePlan(req, res, next);
     },
   );
 

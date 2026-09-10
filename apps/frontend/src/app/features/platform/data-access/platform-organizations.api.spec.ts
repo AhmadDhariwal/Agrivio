@@ -60,35 +60,18 @@ describe('PlatformOrganizationsApi', () => {
           subscription: { id: 'sub-1', status: 'active', planCode: 'Business', planVersion: 1 },
         },
       ],
-      meta: { page: 1, pageSize: 10, total: 1 },
+      meta: {
+        page: 1,
+        pageSize: 10,
+        total: 1,
+        summary: { total: 42, active: 30, suspended: 5, trial: 7 },
+      },
     });
 
     expect(result.items.length).toBe(1);
     expect(result.items[0].name).toBe('Acme Farms');
     expect(result.items[0].subscription.planCode).toBe('Business');
-  });
-
-  it('fetches authoritative summary KPIs via real server queries', () => {
-    let kpis: any;
-    api.getSummaryKpis(true).subscribe((res) => {
-      kpis = res;
-    });
-
-    const requests = httpMock.match((r) =>
-      r.url === `${environment.publicApiBaseUrl}/api/v1/platform/organizations`,
-    );
-    expect(requests.length).toBe(4);
-
-    // total
-    requests[0]!.flush({ data: [], meta: { page: 1, pageSize: 1, total: 42 } });
-    // active
-    requests[1]!.flush({ data: [], meta: { page: 1, pageSize: 1, total: 30 } });
-    // suspended
-    requests[2]!.flush({ data: [], meta: { page: 1, pageSize: 1, total: 5 } });
-    // trial
-    requests[3]!.flush({ data: [], meta: { page: 1, pageSize: 1, total: 7 } });
-
-    expect(kpis).toEqual({
+    expect(result.summary).toEqual({
       total: 42,
       active: 30,
       suspended: 5,

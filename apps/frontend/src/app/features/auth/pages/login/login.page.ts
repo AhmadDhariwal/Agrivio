@@ -43,6 +43,9 @@ export class LoginPage {
   });
 
   submit(): void {
+    if (this.submitting()) {
+      return;
+    }
     this.successMessage.set(null);
     this.errorMessage.set(null);
     if (this.form.invalid) {
@@ -53,16 +56,16 @@ export class LoginPage {
 
     this.submitting.set(true);
     const { email, password } = this.form.getRawValue();
+    this.form.disable({ emitEvent: false });
     this.authApi.login(email, password).subscribe({
       next: (result) => {
         this.sessionStore.applySession(result.session);
         this.crossTab.sessionChanged();
-        this.submitting.set(false);
         this.successMessage.set('Signed in successfully.');
-        this.form.patchValue({ password: '' });
         void this.router.navigateByUrl(authenticatedHomePath(result.session.activeContext));
       },
       error: () => {
+        this.form.enable({ emitEvent: false });
         this.submitting.set(false);
         this.errorMessage.set('Sign-in failed. Check your email and password.');
       },

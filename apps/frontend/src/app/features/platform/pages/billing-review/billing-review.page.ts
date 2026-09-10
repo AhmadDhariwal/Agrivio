@@ -182,6 +182,27 @@ export class PlatformBillingReviewPage {
     return this.canApprove(item);
   }
 
+  isSubscriptionMissing(
+    item: BillingRecordSummary | PlatformBillingRecordDetail | null | undefined,
+  ): boolean {
+    if (!item) {
+      return false;
+    }
+    if (item.subscriptionHealth === 'missing') {
+      return true;
+    }
+    if ('currentSubscription' in item && item.currentSubscription === null) {
+      return true;
+    }
+    return false;
+  }
+
+  isApproveDisabled(
+    item: BillingRecordSummary | PlatformBillingRecordDetail | null | undefined,
+  ): boolean {
+    return this.actionsDisabled() || this.isSubscriptionMissing(item);
+  }
+
   hasRowActions(item: BillingRecordSummary): boolean {
     return this.canInspect() || this.canStartReview(item) || this.canApprove(item) || this.canReject(item);
   }
@@ -384,6 +405,21 @@ export class PlatformBillingReviewPage {
 
   refresh(): void {
     this.reload(true);
+    const selected = this.selectedId();
+    if (selected) {
+      this.subscriptionApi.getPlatformBillingRecord(selected, true).subscribe({
+        next: (detail) => {
+          if (this.selectedId() === selected) {
+            this.inspectorDetail.set(detail);
+          }
+        },
+        error: (err: unknown) => {
+          if (this.selectedId() === selected) {
+            this.inspectorError.set(this.readError(err, 'Unable to load billing record.'));
+          }
+        },
+      });
+    }
   }
 
   retry(): void {
@@ -496,7 +532,7 @@ export class PlatformBillingReviewPage {
   }
 
   askApprove(item: BillingRecordSummary): void {
-    if (!this.canApprove(item) || this.actionsDisabled()) {
+    if (!this.canApprove(item) || this.isApproveDisabled(item)) {
       return;
     }
     this.pending = { kind: 'approve', item };
@@ -508,7 +544,7 @@ export class PlatformBillingReviewPage {
     const pending = this.pending;
     this.approveOpen.set(false);
     this.pending = null;
-    if (!pending || pending.kind !== 'approve' || this.actionsDisabled()) {
+    if (!pending || pending.kind !== 'approve' || this.isApproveDisabled(pending.item)) {
       return;
     }
     this.runMutation(
@@ -641,6 +677,9 @@ export class PlatformBillingReviewPage {
     if (error instanceof HttpErrorResponse) {
       const message = error.error?.error?.message;
       if (typeof message === 'string' && message.trim()) {
+        if (error.status === 409 && message.includes('Subscription record is missing')) {
+          return 'Approval blocked: subscription record is missing. Complete subscription repair, refresh this billing record, and try again.';
+        }
         return message;
       }
     }

@@ -8,6 +8,7 @@ const {
 
 function createAuthController(deps) {
   const secure = deps.config.nodeEnv === 'production';
+  const sameSite = deps.config.sessionCookieSameSite ?? 'Lax';
 
   function setSessionCookie(res, session) {
     appendSetCookie(
@@ -16,12 +17,13 @@ function createAuthController(deps) {
         token: session.sessionToken,
         maxAgeSeconds: session.maxAgeSeconds,
         secure,
+        sameSite,
       }),
     );
   }
 
   function clearSessionCookie(res) {
-    appendSetCookie(res, buildClearedSessionCookie({ secure }));
+    appendSetCookie(res, buildClearedSessionCookie({ secure, sameSite }));
   }
 
   return {

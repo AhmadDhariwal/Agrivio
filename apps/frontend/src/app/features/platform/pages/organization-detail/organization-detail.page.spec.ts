@@ -168,6 +168,40 @@ describe('PlatformOrganizationDetailPage', () => {
     expect(page.detail()?.audit?.total).toBe(1);
   });
 
+  it('renders an unavailable subscription without hiding independent organization data', () => {
+    page.detail.set({
+      ...sampleDetail,
+      subscription: null,
+      usage: {
+        planCode: null,
+        planVersion: null,
+        resources: sampleDetail.usage?.resources ?? {
+          branches: { current: 0, limit: null },
+          warehouses: { current: 0, limit: null },
+          activeUsers: { current: 0, limit: null },
+        },
+      },
+      operationalWarnings: [
+        { code: 'subscription_missing', message: 'No subscription record found.' },
+      ],
+    });
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('[data-testid="subscription-unavailable-state"]')).not.toBeNull();
+    expect(compiled.querySelector('[data-testid="subscription-missing-warning"]')).not.toBeNull();
+    expect(compiled.textContent).toContain('Subscription Status');
+    expect(compiled.textContent).toContain('Unavailable');
+    expect(compiled.textContent).toContain('This organization does not have a subscription record.');
+    expect(compiled.textContent).toContain(
+      'Operational modules remain restricted. Complete the approved subscription-repair procedure before approving billing.',
+    );
+    expect(compiled.textContent).not.toContain('Manage billing');
+    expect(compiled.textContent).not.toContain('Select a plan');
+    expect(compiled.textContent).toContain('Sunrise Agro Ventures');
+    expect(compiled.textContent).toContain('Sunrise Owner');
+  });
+
   it('evaluates usage presentation states accurately', () => {
     const u = sampleDetail.usage?.resources;
     expect(page.getUsageState(u?.branches)).toBe('near-limit');

@@ -77,6 +77,21 @@ describe('loadApiEnv', () => {
     });
     expect(config.allowedOrigins).toEqual(['https://app.example.com']);
     expect(config.allowLoopbackBrowserOrigins).toBe(false);
+    expect(config.sessionCookieSameSite).toBe('Lax');
+  });
+
+  it('uses SameSite=None only for the production staging profile', () => {
+    const config = loadApiEnv({
+      NODE_ENV: 'production',
+      AGRIVIO_APP_PROFILE: 'staging',
+      SESSION_SECRET: 'abcdefghijklmnopqrstuvwxyz012345',
+      MONGODB_URI: 'mongodb://127.0.0.1:27017/?replicaSet=rs0',
+      AGRIVIO_PUBLIC_WEB_BASE_URL: 'https://agrivio-staging-web.pages.dev',
+      AGRIVIO_SMTP_HOST: 'smtp.example.com',
+      AGRIVIO_SMTP_FROM: 'noreply@example.com',
+    });
+
+    expect(config.sessionCookieSameSite).toBe('None');
   });
 
   it('defaults non-test MONGODB_DB_NAME to Agrivio when unset', () => {

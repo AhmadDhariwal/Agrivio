@@ -11,7 +11,6 @@ describe('PlatformOrganizationsPage', () => {
   let page: PlatformOrganizationsPage;
   let apiMock: {
     list: ReturnType<typeof vi.fn>;
-    getSummaryKpis: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
     suspend: ReturnType<typeof vi.fn>;
@@ -46,14 +45,7 @@ describe('PlatformOrganizationsPage', () => {
         of({
           items: [sampleOrg],
           meta: { page: 1, pageSize: 25, total: 1 },
-        }),
-      ),
-      getSummaryKpis: vi.fn().mockReturnValue(
-        of({
-          total: 10,
-          active: 8,
-          suspended: 1,
-          trial: 1,
+          summary: { total: 10, active: 8, suspended: 1, trial: 1 },
         }),
       ),
       create: vi.fn().mockReturnValue(
@@ -127,7 +119,7 @@ describe('PlatformOrganizationsPage', () => {
 
   it('loads real server KPIs and organizations on initialization', () => {
     expect(apiMock.list).toHaveBeenCalled();
-    expect(apiMock.getSummaryKpis).toHaveBeenCalled();
+    expect(apiMock.list).toHaveBeenCalledTimes(1);
     expect(page.items().length).toBe(1);
     expect(page.items()[0]?.name).toBe('Green Field Enterprises');
     expect(page.kpis()).toEqual({

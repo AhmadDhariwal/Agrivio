@@ -81,16 +81,34 @@ describe('BillingEvidencePage', () => {
         data: {
           items: [
             {
+              id: 'plan-starter',
+              planCode: 'Starter',
+              planVersion: 1,
+              status: 'active',
+              currency: 'PKR',
+              displayName: 'Starter',
+              shortDescription: 'Essential POS and inventory.',
+              monthlyPriceMinorUnits: 500000,
+              annualPriceMinorUnits: 5000000,
+              annualDiscountPercent: 16.67,
+              annualSavingsMinorUnits: 1000000,
+              limits: { products: 200, activeUsers: 2, branches: 1, warehouses: 1, customers: 100, suppliers: 50 },
+              entitlements: { imports: false, reportsExports: false, auditHistory: '30d', backupPolicyRef: 'weekly', dedicatedCloudEligible: false, supportLevelRef: 'standard' },
+            },
+            {
               id: 'plan-business',
               planCode: 'Business',
               planVersion: 2,
               status: 'active',
               currency: 'PKR',
-              monthlyPriceMinorUnits: 15000000,
-              annualPriceMinorUnits: 150000000,
-              annualDiscountPercent: 16,
-              limits: { products: 10000, activeUsers: 5 },
-              entitlements: { imports: true, reportsExports: true },
+              displayName: 'Business',
+              shortDescription: 'Expanded capacity and data tools.',
+              monthlyPriceMinorUnits: 1500000,
+              annualPriceMinorUnits: 15000000,
+              annualDiscountPercent: 16.67,
+              annualSavingsMinorUnits: 3000000,
+              limits: { products: 2000, activeUsers: 15, branches: 5, warehouses: 10, customers: 1000, suppliers: 500 },
+              entitlements: { imports: true, reportsExports: true, auditHistory: '90d', backupPolicyRef: 'daily', dedicatedCloudEligible: false, supportLevelRef: 'business' },
             },
             {
               id: 'plan-enterprise',
@@ -98,11 +116,14 @@ describe('BillingEvidencePage', () => {
               planVersion: 1,
               status: 'active',
               currency: 'PKR',
-              monthlyPriceMinorUnits: 35000000,
-              annualPriceMinorUnits: 350000000,
-              annualDiscountPercent: 20,
-              limits: { products: 50000, activeUsers: 20 },
-              entitlements: { imports: true, reportsExports: true },
+              displayName: 'Enterprise',
+              shortDescription: 'High-volume multi-branch operations.',
+              monthlyPriceMinorUnits: 3500000,
+              annualPriceMinorUnits: 35000000,
+              annualDiscountPercent: 16.67,
+              annualSavingsMinorUnits: 7000000,
+              limits: { products: 10000, activeUsers: 100, branches: 50, warehouses: 50, customers: 10000, suppliers: 5000 },
+              entitlements: { imports: true, reportsExports: true, auditHistory: '365d', backupPolicyRef: 'daily_immutable', dedicatedCloudEligible: true, supportLevelRef: 'priority' },
             },
           ],
         },
@@ -200,9 +221,14 @@ describe('BillingEvidencePage', () => {
       fixture.detectChanges();
       const compiled = fixture.nativeElement as HTMLElement;
       const planCards = compiled.querySelectorAll('.plan-card');
-      expect(planCards.length).toBe(2);
+      expect(planCards.length).toBe(3);
       expect(compiled.textContent).toContain('Business');
       expect(compiled.textContent).toContain('Enterprise');
+      expect(compiled.textContent).toContain('Starter');
+      expect(compiled.textContent).toContain('1 branch');
+      expect(compiled.textContent).toContain('1 warehouse');
+      expect(compiled.textContent).toContain('16.67%');
+      expect(compiled.textContent).not.toContain('Unlimited products');
     });
 
     it('clicking choose plan updates requested plan and pre-fills listed amount without making it immutable', () => {
@@ -216,8 +242,8 @@ describe('BillingEvidencePage', () => {
       fixture.detectChanges();
 
       expect(page.form.controls.requestedPlanId.value).toBe('plan-enterprise');
-      expect(page.form.controls.submittedAmountMinorUnits.value).toBe(35000000);
-      expect(page.amountPreviewDisplay()).toBe('PKR 350,000.00');
+      expect(page.form.controls.submittedAmountMinorUnits.value).toBe(3500000);
+      expect(page.amountPreviewDisplay()).toBe('PKR 35,000.00');
 
       // Amount remains editable
       page.form.controls.submittedAmountMinorUnits.setValue(36000000);
@@ -556,7 +582,7 @@ describe('BillingEvidencePage', () => {
 
       const compiled = fixture.nativeElement as HTMLElement;
       expect(compiled.querySelector('[data-testid="billing-disabled-alert"]')).not.toBeNull();
-      expect(compiled.textContent).toContain('Billing has been disabled for this organization');
+      expect(compiled.textContent).toContain('Billing recovery is unavailable');
       expect(compiled.querySelector('[data-testid="current-subscription-card"]')).toBeNull();
       expect(compiled.querySelector('[data-testid="submit-evidence-btn"]')).toBeNull();
       expect(compiled.querySelector('.plans-section')).toBeNull();

@@ -138,7 +138,7 @@ function createSuppliersService(deps) {
       if (typeof deps.capabilityService?.assertSupplierCreateAllowed === 'function') {
         await deps.capabilityService.assertSupplierCreateAllowed(organizationId);
       }
-      const currentUsage = await store.countSuppliers(organizationId);
+      const currentUsage = await store.countSuppliers(organizationId, options.session ?? null);
       const entitlement = await assertCreationLimit(
         evaluateEntitlement,
         organizationId,
@@ -344,8 +344,8 @@ function createSuppliersService(deps) {
       return store.countSuppliersWithOpening(organizationId);
     },
 
-    async countSuppliers(organizationId) {
-      return store.countSuppliers(organizationId);
+    async countSuppliers(organizationId, options = {}) {
+      return store.countSuppliers(organizationId, options.session ?? null);
     },
   };
 }

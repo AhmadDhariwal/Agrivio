@@ -38,4 +38,17 @@ describe('web public configuration', () => {
       }),
     ).toThrow(/publicApiBaseUrl/);
   });
+
+  it('uses a same-origin API route for the staging Pages build', () => {
+    const cfg = loadWebPublicConfigFromEnv({
+      AGRIVIO_PUBLIC_API_BASE_URL: 'same-origin',
+    });
+    expect(cfg.publicApiBaseUrl).toBe('');
+    expect(`${cfg.publicApiBaseUrl}/api/v1/auth/csrf`).toBe('/api/v1/auth/csrf');
+  });
+
+  it('defaults to localhost:3000 when AGRIVIO_PUBLIC_API_BASE_URL is absent', () => {
+    const cfg = loadWebPublicConfigFromEnv({});
+    expect(cfg.publicApiBaseUrl).toBe('http://localhost:3000');
+  });
 });

@@ -123,7 +123,6 @@ export class PlatformOrganizationsPage {
       });
 
     this.reload(true);
-    this.reloadKpis(true);
   }
 
   statusTone(status: string): UiBadgeTone {
@@ -175,29 +174,21 @@ export class PlatformOrganizationsPage {
     };
 
     this.api.list(query, forceRefresh).subscribe({
-      next: ({ items, meta }) => {
+      next: ({ items, meta, summary }) => {
         this.items.set(items);
         this.total.set(meta.total);
+        if (summary) {
+          this.kpis.set(summary);
+          this.kpisLoading.set(false);
+        }
         this.loading.set(false);
         this.refreshing.set(false);
       },
       error: () => {
         this.loading.set(false);
         this.refreshing.set(false);
+        this.kpisLoading.set(false);
         this.errorMessage.set('Unable to load organizations. Please try again.');
-      },
-    });
-  }
-
-  reloadKpis(forceRefresh = false): void {
-    this.kpisLoading.set(true);
-    this.api.getSummaryKpis(forceRefresh).subscribe({
-      next: (kpis) => {
-        this.kpis.set(kpis);
-        this.kpisLoading.set(false);
-      },
-      error: () => {
-        this.kpisLoading.set(false);
       },
     });
   }
@@ -277,7 +268,6 @@ export class PlatformOrganizationsPage {
             : `Organization ${input.organizationName} created successfully in ${result.status} state.`,
         );
         this.reload(true);
-        this.reloadKpis(true);
       },
       error: (err) => {
         this.errorMessage.set(err?.error?.message ?? 'Failed to create organization.');
@@ -371,7 +361,6 @@ export class PlatformOrganizationsPage {
             `Organization ${item.name} suspended. Tenant access is now restricted according to platform policy. Organization data is preserved.`,
           );
           this.reload(true);
-          this.reloadKpis(true);
         },
         error: (err) => {
           if (err?.status === 409) {
@@ -419,7 +408,6 @@ export class PlatformOrganizationsPage {
             `Organization ${item.name} reactivated. Normal operational access restored according to its subscription and RBAC policies.`,
           );
           this.reload(true);
-          this.reloadKpis(true);
         },
         error: (err) => {
           if (err?.status === 409) {
@@ -463,7 +451,6 @@ export class PlatformOrganizationsPage {
         );
         this.activationHandoff.set(result);
         this.reload(true);
-        this.reloadKpis(true);
       },
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Approve failed.'),
     });
@@ -494,7 +481,6 @@ export class PlatformOrganizationsPage {
         this.selectedItem.set(null);
         this.successMessage.set(`Organization request ${item.name} has been rejected.`);
         this.reload(true);
-        this.reloadKpis(true);
       },
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Reject failed.'),
     });

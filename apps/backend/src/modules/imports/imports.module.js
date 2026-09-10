@@ -11,6 +11,7 @@ const {
 } = require('../../platform/idempotency/idempotency-service');
 const { conflict, forbidden, notFound, validationFailed } = require('../../platform/errors/app-error');
 const { evaluateFeatureEntitlement } = require('../subscriptions/entitlement');
+const { assertCreationLimit } = require('../subscriptions/creation-limit');
 const { IMPORT_TYPES, getTemplate, listTemplates } = require('./import-templates');
 const { parseImportWorkbook, renderImportWorkbook } = require('./import-workbook');
 const { previewRows } = require('./import-preview');
@@ -184,6 +185,41 @@ async function executeRow(importType, row, deps, organizationId, actor, session)
     });
   }
   throw validationFailed('Unsupported import type');
+}
+
+const BULK_CREATION_LIMITS = Object.freeze({
+  products: {
+    limitKey: 'products',
+    count: (deps, organizationId, session) =>
+      deps.catalogService.countProducts(organizationId, { session }),
+  },
+  customers: {
+    limitKey: 'customers',
+    count: (deps, organizationId, session) =>
+      deps.customersService.countCustomers(organizationId, { session }),
+  },
+  suppliers: {
+    limitKey: 'suppliers',
+    count: (deps, organizationId, session) =>
+      deps.suppliersService.countSuppliers(organizationId, { session }),
+  },
+});
+
+async function assertBulkCreationLimit(importType, rowCount, deps, organizationId, session) {
+  const policy = BULK_CREATION_LIMITS[importType];
+  if (!policy || rowCount < 1) {
+    return;
+  }
+  if (typeof deps.evaluateEntitlement !== 'function') {
+    throw forbidden('Plan limit cannot be resolved for this import');
+  }
+  const currentUsage = await policy.count(deps, organizationId, session);
+  await assertCreationLimit(
+    deps.evaluateEntitlement,
+    organizationId,
+    policy.limitKey,
+    currentUsage + rowCount - 1,
+  );
 }
 
 function createImportsService(deps) {
@@ -470,6 +506,13 @@ function createImportsService(deps) {
 
             const references = [];
             await transactionRunner.run(async (session) => {
+              await assertBulkCreationLimit(
+                claimed.importType,
+                parsed.records.length,
+                deps,
+                organizationId,
+                session,
+              );
               let index = 0;
               for (const row of parsed.records) {
                 if (typeof options.failAfterRow === 'number' && index >= options.failAfterRow) {
@@ -535,6 +578,9 @@ function createImportsService(deps) {
         },
       );
       } catch (error) {
+        if (error?.agrivioConcurrentImport === true) {
+          throw conflict('Another import of this type is already executing for this organization');
+        }
         if (error?.name === 'IdempotencyInProgressError') {
           throw conflict('Import execute is already in progress');
         }
@@ -583,6 +629,7 @@ function createImportsModule(options = {}) {
     locationsService: options.locationsService,
     canAccessWarehouse: options.canAccessWarehouse,
     resolvePlanEntitlements: options.resolvePlanEntitlements,
+    evaluateEntitlement: options.evaluateEntitlement,
     ...(options.auditStore === undefined ? {} : { auditStore: options.auditStore }),
     ...(options.now === undefined ? {} : { now: options.now }),
   });
