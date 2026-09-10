@@ -1,164 +1,584 @@
 :host {
   display: block;
+  width: 100%;
 }
 
-.plans-admin__layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
-  gap: 1.25rem;
-  align-items: start;
-}
-
-.editor-card,
-.versions-panel,
-.version-card,
-.plan-inspector {
-  background: var(--ag-surface, #fff);
-  border: 1px solid var(--ag-border, #dfe5df);
-  border-radius: 14px;
-}
-
-.editor-card,
-.versions-panel {
-  padding: 1.25rem;
-}
-
-.section-heading,
-.version-card__head,
-.version-card__actions,
-.editor-actions,
-.plan-inspector header {
+.plans-admin {
   display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+/* ==========================================================================
+   1. Page Header (Alignd with Products / Organizations)
+   ========================================================================== */
+.page-head {
+  display: flex;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+
+  &__title-group {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ag-color-primary, #065f46);
+    margin: 0 0 2px 0;
+  }
+
+  &__heading-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  &__title {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--ag-color-text, #0f172a);
+    margin: 0 0 2px 0;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    font-family: var(--ag-font-sans, system-ui);
+  }
+
+  &__count-pill {
+    font-size: 12px;
+    font-weight: 500;
+    color: #475569;
+    background: #f1f5f9;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    border: 1px solid #e2e8f0;
+  }
+
+  &__lede {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--ag-color-text-muted, #64748b);
+    margin: 0;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+}
+
+/* ==========================================================================
+   2. Plan Catalog Grid & Cards
+   ========================================================================== */
+.plan-catalog {
+  width: 100%;
+}
+
+.version-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+.plan-card {
+  background: var(--ag-color-surface, #ffffff);
+  border: 1px solid var(--ag-color-border, #e2e8f0);
+  border-radius: var(--ag-radius-lg, 8px);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.08);
+  }
+
+  &--active {
+    border-color: #86efac;
+    background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 48px);
+  }
+
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  &__titles {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  &__name {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ag-color-text, #0f172a);
+    margin: 0;
+    line-height: 1.25;
+  }
+
+  &__meta {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ag-color-text-muted, #64748b);
+  }
+
+  &__badge-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  &__desc {
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: var(--ag-color-text-muted, #475569);
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 1px solid var(--ag-color-border, #f1f5f9);
+  }
+}
+
+.pinned-pill {
+  font-size: 11px;
+  font-weight: 600;
+  color: #0f766e;
+  background: #ccfbf1;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  border: 1px solid #99f6e4;
+}
+
+.plan-spec-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #f1f5f9;
+}
+
+.plan-spec-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+
+  dt {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--ag-color-text-muted, #64748b);
+  }
+
+  dd {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ag-color-text, #0f172a);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.ag-btn--danger-text {
+  color: #dc2626;
+
+  &:hover:not(:disabled) {
+    border-color: #fca5a5;
+    background: #fef2f2;
+    color: #b91c1c;
+  }
+}
+
+/* ==========================================================================
+   3. Inspector and Editor Slide-Over Drawers (Identical to Products)
+   ========================================================================== */
+.inspector-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(2px);
+  z-index: 100;
+}
+
+.inspector-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 420px;
+  max-width: 100vw;
+  background: #ffffff;
+  z-index: 101;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -4px 0 24px rgba(15, 23, 42, 0.15);
+  border-left: 1px solid #cbd5e1;
+  animation: drawerSlide 0.18s ease-out;
+
+  &--wide {
+    width: min(620px, 100vw);
+  }
+
+  &__head {
+    padding: 14px 18px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: #f8fafc;
+  }
+
+  &__head-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  &__titles {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+  }
+
+  &__body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  &__footer {
+    padding: 12px 18px;
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+}
+
+@keyframes drawerSlide {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.inspector-glyph {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  display: flex;
   align-items: center;
-  gap: 0.75rem;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.eyebrow {
-  color: var(--ag-text-muted, #5d6b62);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+.drawer-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--ag-font-sans, system-ui);
 }
 
-.plan-form fieldset {
-  margin: 1rem 0;
-  padding: 1rem;
-  border: 1px solid var(--ag-border, #dfe5df);
-  border-radius: 10px;
+.drawer-sub {
+  font-size: 12px;
+  font-weight: 400;
+  color: #64748b;
+  margin: 2px 0 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.plan-form legend {
-  padding: 0 0.35rem;
-  font-weight: 700;
+.drawer-close-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.12s ease;
+
+  &:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+  }
+}
+
+.drawer-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &__title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #475569;
+    margin: 0;
+  }
+
+  &__desc {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #334155;
+    margin: 0;
+  }
+}
+
+.spec-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.spec-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #ffffff;
+  gap: 12px;
+
+  &__k {
+    font-size: 12.5px;
+    color: #64748b;
+    font-weight: 500;
+  }
+
+  &__v {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+    text-align: right;
+  }
+}
+
+/* ==========================================================================
+   4. Form Sections & Elements inside the Editor Drawer
+   ========================================================================== */
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #f1f5f9;
+
+  &:last-of-type {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  &__title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #334155;
+    margin: 0;
+  }
 }
 
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.85rem;
-}
+  gap: 12px;
 
-.form-grid--three {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.form-grid label:not(.check) {
-  display: grid;
-  gap: 0.35rem;
-  color: var(--ag-text-muted, #5d6b62);
-  font-size: 0.82rem;
-  font-weight: 600;
+  &--3col {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .span-2 {
   grid-column: span 2;
 }
 
-.check {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
+.ag-input--readonly {
+  background-color: #f8fafc;
+  color: #64748b;
+  cursor: not-allowed;
 }
 
-.form-note,
-.version-card p {
-  color: var(--ag-text-muted, #5d6b62);
-}
-
-.version-list {
-  display: grid;
-  gap: 0.85rem;
-  margin-top: 1rem;
-}
-
-.version-card {
-  padding: 1rem;
-}
-
-.version-card--active {
-  border-color: var(--ag-success, #26834a);
-}
-
-.version-card h3,
-.section-heading h2,
-.plan-inspector h2 {
+.form-note {
   margin: 0;
 }
 
-.version-card dl,
-.plan-inspector dl {
+.checkbox-group {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.6rem;
+  gap: 10px;
 }
 
-.version-card dl div,
-.plan-inspector dl div {
-  display: grid;
-  gap: 0.1rem;
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+
+  input[type='checkbox'] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--ag-color-primary, #065f46);
+  }
 }
 
-dt {
-  color: var(--ag-text-muted, #5d6b62);
-  font-size: 0.75rem;
+.version-notice {
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    font-weight: 700;
+  }
+
+  p {
+    margin: 0;
+  }
+
+  &--info {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    color: #166534;
+
+    .version-notice__header {
+      color: #15803d;
+    }
+  }
+
+  &--warning {
+    background: #fffbeb;
+    border: 1px solid #fef3c7;
+    color: #92400e;
+
+    .version-notice__header {
+      color: #b45309;
+    }
+  }
 }
 
-dd {
-  margin: 0;
-  font-weight: 650;
-}
+/* ==========================================================================
+   5. Responsive Behavior
+   ========================================================================== */
+@media (max-width: 767px) {
+  .page-head {
+    gap: 10px;
 
-.version-card__actions,
-.editor-actions {
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  margin-top: 1rem;
-}
+    &__eyebrow {
+      display: none;
+    }
 
-.drawer-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  background: rgb(20 31 24 / 42%);
-}
+    &__title {
+      font-size: 20px;
+    }
 
-.plan-inspector {
-  position: fixed;
-  z-index: 41;
-  top: 0;
-  right: 0;
-  width: min(460px, 100%);
-  height: 100dvh;
-  padding: 1.5rem;
-  overflow: auto;
-  border-radius: 0;
-}
+    &__lede {
+      display: none;
+    }
+  }
 
-@media (max-width: 960px) {
-  .plans-admin__layout,
+  .version-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .inspector-drawer {
+    width: 100%;
+    max-width: 100vw;
+    border-left: none;
+
+    &__head {
+      padding: 12px 14px;
+    }
+
+    &__body {
+      padding: 14px;
+    }
+
+    &__footer {
+      padding: 12px 14px;
+      gap: 8px;
+
+      .ag-btn {
+        flex: 1;
+      }
+    }
+  }
+
   .form-grid,
-  .form-grid--three {
+  .form-grid--3col,
+  .checkbox-group {
     grid-template-columns: 1fr;
   }
 
