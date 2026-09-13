@@ -142,6 +142,7 @@ describe('BranchFormPage', () => {
       name: 'Multan Main',
       invoicePrefix: 'mlt-01',
       code: 'BR-MLT',
+      isDefault: false,
     });
     comp.save();
 
@@ -149,6 +150,7 @@ describe('BranchFormPage', () => {
       name: 'Multan Main',
       invoicePrefix: 'MLT-01',
       code: 'BR-MLT',
+      isDefault: false,
     });
   });
 
@@ -201,6 +203,7 @@ describe('BranchFormPage', () => {
     comp.form.patchValue({
       name: 'Existing Branch Updated',
       status: 'inactive',
+      isDefault: false,
     });
     comp.save();
 
@@ -210,6 +213,7 @@ describe('BranchFormPage', () => {
       invoicePrefix: 'EXB',
       code: 'EX-01',
       status: 'inactive',
+      isDefault: false,
     });
   });
 

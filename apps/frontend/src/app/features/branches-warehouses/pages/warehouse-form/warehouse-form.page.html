@@ -116,6 +116,22 @@
           </div>
           }
 
+          <div class="ag-field">
+            <agrivio-ui-field-label label="Branch" for="warehouse-branch-create" [required]="true" />
+            <select id="warehouse-branch-create" class="ag-select" formControlName="branchId" data-testid="warehouse-branch">
+              <option value="">Select branch</option>
+              @for (branch of branches(); track branch.id) {
+              <option [value]="branch.id">{{ branch.name }}{{ branch.isDefault ? ' · Default' : '' }}</option>
+              }
+            </select>
+            <p class="field-helper">Transactions can use this warehouse only with this branch.</p>
+          </div>
+
+          <label class="ag-field">
+            <span>Default warehouse for this branch</span>
+            <input type="checkbox" formControlName="isDefault" data-testid="warehouse-default" />
+          </label>
+
           <!-- Info Callout -->
           <div class="info-callout">
             <div class="info-callout__icon">
@@ -294,6 +310,22 @@
             <p class="field-helper">A short code to help identify this warehouse.</p>
           </div>
           }
+
+          <div class="ag-field">
+            <agrivio-ui-field-label label="Branch" for="warehouse-branch-edit" [required]="true" />
+            <select id="warehouse-branch-edit" class="ag-select" formControlName="branchId" data-testid="warehouse-branch">
+              <option value="">Select branch</option>
+              @for (branch of branches(); track branch.id) {
+              <option [value]="branch.id">{{ branch.name }}{{ branch.isDefault ? ' · Default' : '' }}</option>
+              }
+            </select>
+            <p class="field-helper">Transactions can use this warehouse only with this branch.</p>
+          </div>
+
+          <label class="ag-field">
+            <span>Default warehouse for this branch</span>
+            <input type="checkbox" formControlName="isDefault" data-testid="warehouse-default" />
+          </label>
 
           <!-- Status -->
           <div class="ag-field">

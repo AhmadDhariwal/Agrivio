@@ -78,6 +78,7 @@ Central navigation for Agrivio documentation.
 * Release 1 Starter / Business / Enterprise commercial catalog frozen as `R1-CATALOG-1` and implemented in plan management, presentation, demo seed, and explicit sync tooling (2026-09-09); local/staging apply remains an operator-controlled deployment step — see [R1_PLAN_CATALOG.md](R1_PLAN_CATALOG.md) and [tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md](tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md).
 * Products table action column layout hardened (2026-09-06): replaced overflowing text in table pricing button with accessible hidden text, widened action column to 140px, and right-aligned action buttons to eliminate button clipping and row overflow; see [tasks/F03-PHASE-2-MASTER-DATA.md](tasks/F03-PHASE-2-MASTER-DATA.md).
 * Staging auth and Super Admin Organizations smoke issues hardened (2026-09-10): public Sign In no longer probes an anonymous session, pending login preserves and disables form values, and Organizations list plus global counters load in one request; see [tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md](tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md) and [tasks/F02-PHASE-1-ORGANIZATION-ONBOARDING.md](tasks/F02-PHASE-1-ORGANIZATION-ONBOARDING.md).
+* Smart transaction location defaults implemented (2026-09-14): assignment-aware branch/warehouse resolution starts in New Sale, branch-scoped warehouse compatibility is backend-enforced, and explicit unique defaults are configured on Branch/Warehouse forms; see [tasks/F03-PHASE-1-ORG-SETUP.md](tasks/F03-PHASE-1-ORG-SETUP.md).
 
 ## Existing Documents
 

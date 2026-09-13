@@ -169,6 +169,12 @@
           </div>
           }
 
+          <label class="ag-field">
+            <span>Organization default</span>
+            <span class="field-helper">Use this branch as the initial choice when a user has no accessible preference.</span>
+            <input type="checkbox" formControlName="isDefault" data-testid="branch-default" />
+          </label>
+
           <!-- Status (Edit Mode) or Informational Callout (Create Mode) -->
           @if (branchId()) {
           @if (showStatusField()) {

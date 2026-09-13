@@ -225,7 +225,7 @@ describe('F06 P1 customer payments, accounts, and sale drafts', () => {
         baseUrl,
         'POST',
         API_WAREHOUSES_PATH,
-        { name: 'Sale WH' },
+        { name: 'Sale WH', branchId: branch.body.data.id },
         { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
         jar,
       );
@@ -271,6 +271,24 @@ describe('F06 P1 customer payments, accounts, and sale drafts', () => {
           },
         ],
       };
+
+      const otherBranch = await fetchJson(
+        baseUrl,
+        'POST',
+        API_BRANCHES_PATH,
+        { name: 'Other Sale Branch', invoicePrefix: 'OTH' },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      const incompatibleWarehouse = await fetchJson(
+        baseUrl,
+        'POST',
+        API_SALES_PATH,
+        { ...draftBody, branchId: otherBranch.body.data.id },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      expect(incompatibleWarehouse.status).toBe(400);
 
       const draft = await fetchJson(
         baseUrl,
