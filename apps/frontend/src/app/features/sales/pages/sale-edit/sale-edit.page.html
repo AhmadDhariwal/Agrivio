@@ -938,15 +938,19 @@
               class="ag-select"
               formControlName="branchId"
               data-testid="sale-branch"
+              [attr.disabled]="onlyBranch() ? true : null"
               [class.ag-input--invalid]="fieldError(form.controls.branchId, 'Branch', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.branchId) ? 'true' : null"
               [attr.aria-invalid]="fieldError(form.controls.branchId, 'Branch', formSubmitAttempted()) ? 'true' : null"
             >
+              @if (!onlyBranch()) {
               <option value="">Select branch</option>
+              }
               @for (branch of branches(); track branch.id) {
-              <option [value]="branch.id">{{ branch.name }}</option>
+              <option [value]="branch.id">{{ branch.name }}{{ branch.isDefault ? ' · Default' : '' }}</option>
               }
             </select>
+            @if (branchDefaultApplied()) { <p class="field-helper">Default selected</p> }
             @if (fieldError(form.controls.branchId, 'Branch', formSubmitAttempted()); as
             branchError) {
             <p class="field-error" role="alert">{{ branchError }}</p>
@@ -965,15 +969,19 @@
               class="ag-select"
               formControlName="warehouseId"
               data-testid="sale-warehouse"
+              [attr.disabled]="onlyWarehouse() ? true : null"
               [class.ag-input--invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.warehouseId) ? 'true' : null"
               [attr.aria-invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()) ? 'true' : null"
             >
+              @if (!onlyWarehouse()) {
               <option value="">Select warehouse</option>
+              }
               @for (warehouse of warehouses(); track warehouse.id) {
-              <option [value]="warehouse.id">{{ warehouse.name }}</option>
+              <option [value]="warehouse.id">{{ warehouse.name }}{{ warehouse.isDefault ? ' · Default' : '' }}</option>
               }
             </select>
+            @if (warehouseDefaultApplied()) { <p class="field-helper">Default selected</p> }
             @if (fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()); as
             warehouseError) {
             <p class="field-error" role="alert">{{ warehouseError }}</p>

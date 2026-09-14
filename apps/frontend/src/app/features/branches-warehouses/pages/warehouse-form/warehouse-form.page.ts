@@ -6,7 +6,10 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { HttpErrorResponse } from '@angular/common/http';
 
-import { BranchesWarehousesApi } from '../../data-access/branches-warehouses.api';
+import {
+  BranchesWarehousesApi,
+  BranchRecord,
+} from '../../data-access/branches-warehouses.api';
 
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 
@@ -27,6 +30,7 @@ import {
 } from '../../../../shared/form/form-field.util';
 
 import { mapPlanLimitError } from '../../../../core/plan-limits/plan-limit-feedback';
+import { LocationDefaultResolverService } from '../../../../shared/locations/location-default-resolver.service';
 
 
 
@@ -75,6 +79,7 @@ export class WarehouseFormPage {
   private readonly router = inject(Router);
 
   private readonly formBuilder = inject(FormBuilder);
+  private readonly locationResolver = inject(LocationDefaultResolverService);
 
 
 
@@ -87,6 +92,7 @@ export class WarehouseFormPage {
   readonly errorMessage = signal<string | null>(null);
 
   readonly formSubmitAttempted = signal(false);
+  readonly branches = signal<BranchRecord[]>([]);
 
 
 
@@ -147,12 +153,27 @@ export class WarehouseFormPage {
     code: ['', [Validators.maxLength(MAX_CODE)]],
 
     status: ['active'],
+    branchId: ['', Validators.required],
+    isDefault: [false],
 
   });
 
 
 
   constructor() {
+    this.api.listBranchOptions().subscribe({
+      next: (branches) => {
+        const resolution = this.locationResolver.resolveBranches(
+          branches,
+          this.form.controls.branchId.value,
+        );
+        this.branches.set(resolution.options);
+        if (!this.warehouseId() && resolution.selectedId) {
+          this.form.controls.branchId.setValue(resolution.selectedId);
+        }
+      },
+      error: () => this.errorMessage.set('Unable to load branches.'),
+    });
 
     const id = this.route.snapshot.paramMap.get('id');
 
@@ -175,6 +196,8 @@ export class WarehouseFormPage {
             code: warehouse.code ?? '',
 
             status: warehouse.status ?? 'active',
+            branchId: warehouse.branchId ?? '',
+            isDefault: warehouse.isDefault ?? false,
 
           });
 
@@ -241,6 +264,8 @@ export class WarehouseFormPage {
             name: value.name.trim(),
 
             ...(includeCode && value.code.trim() !== '' ? { code: value.code.trim() } : {}),
+            branchId: value.branchId,
+            isDefault: value.isDefault,
 
           })
 
@@ -253,6 +278,8 @@ export class WarehouseFormPage {
             ...(includeCode ? { code: value.code.trim() } : {}),
 
             status: value.status,
+            branchId: value.branchId,
+            isDefault: value.isDefault,
 
           });
 

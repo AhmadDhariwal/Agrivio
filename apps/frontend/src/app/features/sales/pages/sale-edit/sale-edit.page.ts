@@ -60,6 +60,7 @@ import {
 } from '../../../../shared/form/form-field.util';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { LocationDefaultResolverService } from '../../../../shared/locations/location-default-resolver.service';
 
 @Component({
   selector: 'agrivio-sale-edit-page',
@@ -89,6 +90,7 @@ export class SaleEditPage {
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly locationResolver = inject(LocationDefaultResolverService);
   private readonly productSearchChanges = new Subject<string>();
   private readonly customerSearchChanges = new Subject<string>();
   private readonly customerSearchImmediate = new Subject<string>();
@@ -126,6 +128,23 @@ export class SaleEditPage {
   readonly productSearchQuery = signal('');
   readonly branches = signal<BranchRecord[]>([]);
   readonly warehouses = signal<WarehouseRecord[]>([]);
+  private readonly allWarehouses = signal<WarehouseRecord[]>([]);
+  readonly onlyBranch = signal(false);
+  readonly onlyWarehouse = signal(false);
+  readonly resolvedDefaultBranchId = signal<string>('');
+  readonly resolvedDefaultWarehouseId = signal<string>('');
+  readonly branchDefaultApplied = computed(() => {
+    this.formStateVersion();
+    const current = this.form.controls.branchId.value;
+    const defaultId = this.resolvedDefaultBranchId();
+    return Boolean(defaultId && current === defaultId);
+  });
+  readonly warehouseDefaultApplied = computed(() => {
+    this.formStateVersion();
+    const current = this.form.controls.warehouseId.value;
+    const defaultId = this.resolvedDefaultWarehouseId();
+    return Boolean(defaultId && current === defaultId);
+  });
   readonly accounts = signal<PosPaymentAccount[]>([]);
   readonly refundAccounts = signal<AccountRecord[]>([]);
   readonly relatedReturns = signal<SalesReturnRecord[]>([]);
@@ -478,6 +497,10 @@ export class SaleEditPage {
         this.refreshTierPricesForAllLines();
       });
 
+    this.form.controls.branchId.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.resolveWarehouseSelection());
+
     this.form.controls.customerId.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((cid) => {
@@ -507,7 +530,7 @@ export class SaleEditPage {
         )
         .subscribe({
           next: ({ masters, sale }) => {
-            this.applyMasters(masters);
+            this.applyMasters(masters, sale.branchId, sale.warehouseId);
             this.applySale(sale);
             this.loading.set(false);
           },
@@ -1157,21 +1180,31 @@ export class SaleEditPage {
     });
   }
 
-  private applyMasters(masters: {
-    branches: BranchRecord[];
-    warehouses: WarehouseRecord[];
-    accounts: PosPaymentAccount[];
-    refundAccounts: AccountRecord[];
-    relatedReturns?: SalesReturnRecord[];
-  }): void {
-    this.branches.set(
-      this.sessionStore.filterBranches(masters.branches.filter((item) => item.status === 'active')),
+  private applyMasters(
+    masters: {
+      branches: BranchRecord[];
+      warehouses: WarehouseRecord[];
+      accounts: PosPaymentAccount[];
+      refundAccounts: AccountRecord[];
+      relatedReturns?: SalesReturnRecord[];
+    },
+    initialBranchId = this.form.controls.branchId.value,
+    initialWarehouseId = this.form.controls.warehouseId.value,
+  ): void {
+    const branchResolution = this.locationResolver.resolveBranches(
+      masters.branches,
+      initialBranchId,
     );
-    this.warehouses.set(
-      this.sessionStore.filterWarehouses(
-        masters.warehouses.filter((item) => item.status === 'active'),
-      ),
+    this.branches.set(branchResolution.options);
+    this.onlyBranch.set(branchResolution.isOnlyOption);
+    this.resolvedDefaultBranchId.set(
+      branchResolution.usedDefault ? branchResolution.selectedId : '',
     );
+    if (branchResolution.selectedId !== this.form.controls.branchId.value) {
+      this.form.controls.branchId.setValue(branchResolution.selectedId, { emitEvent: false });
+    }
+    this.allWarehouses.set(masters.warehouses);
+    this.resolveWarehouseSelection(initialWarehouseId);
     this.accounts.set(masters.accounts);
     this.refundAccounts.set(masters.refundAccounts.filter((item) => item.status === 'active'));
     if (masters.relatedReturns) {
@@ -1183,6 +1216,20 @@ export class SaleEditPage {
       this.form.controls.saleDate.setValue(this.todayIsoDate());
     }
     this.bindLineProductChanges(0);
+  }
+
+  private resolveWarehouseSelection(currentId = ''): void {
+    const resolution = this.locationResolver.resolveWarehouses(
+      this.allWarehouses(),
+      this.form.controls.branchId.value,
+      currentId,
+    );
+    this.warehouses.set(resolution.options);
+    this.onlyWarehouse.set(resolution.isOnlyOption);
+    this.resolvedDefaultWarehouseId.set(resolution.usedDefault ? resolution.selectedId : '');
+    if (resolution.selectedId !== this.form.controls.warehouseId.value) {
+      this.form.controls.warehouseId.setValue(resolution.selectedId);
+    }
   }
 
   private todayIsoDate(): string {

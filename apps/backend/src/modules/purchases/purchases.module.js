@@ -293,6 +293,11 @@ function createPurchasesService(deps) {
         ]);
       }
       await assertBranchAccess(authContext, input.branchId);
+      if (warehouse.branchId && String(warehouse.branchId) !== String(input.branchId)) {
+        throw validationFailed('Warehouse is not valid for the selected branch', [
+          { field: 'warehouseId', message: 'warehouse must belong to the selected branch' },
+        ]);
+      }
     }
 
     return { warehouse, supplier, branch };

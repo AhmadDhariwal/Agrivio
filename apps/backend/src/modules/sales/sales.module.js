@@ -304,6 +304,11 @@ function createSalesService(deps) {
     const warehouse = await locationsService.getWarehouse(organizationId, input.warehouseId);
     assertActiveWarehouse(warehouse);
     await assertWarehouseAccess(authContext, input.warehouseId);
+    if (warehouse.branchId && String(warehouse.branchId) !== String(input.branchId)) {
+      throw validationFailed('Warehouse is not valid for the selected branch', [
+        { field: 'warehouseId', message: 'warehouse must belong to the selected branch' },
+      ]);
+    }
 
     let customer = null;
     if (input.customerId) {
