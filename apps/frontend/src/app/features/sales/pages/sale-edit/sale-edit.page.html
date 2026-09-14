@@ -938,14 +938,14 @@
               class="ag-select"
               formControlName="branchId"
               data-testid="sale-branch"
-              [attr.aria-readonly]="onlyBranch() ? 'true' : null"
-              [attr.tabindex]="onlyBranch() ? -1 : null"
-              (mousedown)="onlyBranch() && $event.preventDefault()"
+              [attr.disabled]="onlyBranch() ? true : null"
               [class.ag-input--invalid]="fieldError(form.controls.branchId, 'Branch', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.branchId) ? 'true' : null"
               [attr.aria-invalid]="fieldError(form.controls.branchId, 'Branch', formSubmitAttempted()) ? 'true' : null"
             >
+              @if (!onlyBranch()) {
               <option value="">Select branch</option>
+              }
               @for (branch of branches(); track branch.id) {
               <option [value]="branch.id">{{ branch.name }}{{ branch.isDefault ? ' · Default' : '' }}</option>
               }
@@ -969,14 +969,14 @@
               class="ag-select"
               formControlName="warehouseId"
               data-testid="sale-warehouse"
-              [attr.aria-readonly]="onlyWarehouse() ? 'true' : null"
-              [attr.tabindex]="onlyWarehouse() ? -1 : null"
-              (mousedown)="onlyWarehouse() && $event.preventDefault()"
+              [attr.disabled]="onlyWarehouse() ? true : null"
               [class.ag-input--invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.warehouseId) ? 'true' : null"
               [attr.aria-invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()) ? 'true' : null"
             >
+              @if (!onlyWarehouse()) {
               <option value="">Select warehouse</option>
+              }
               @for (warehouse of warehouses(); track warehouse.id) {
               <option [value]="warehouse.id">{{ warehouse.name }}{{ warehouse.isDefault ? ' · Default' : '' }}</option>
               }

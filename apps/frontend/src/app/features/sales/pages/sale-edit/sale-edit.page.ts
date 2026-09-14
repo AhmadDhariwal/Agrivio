@@ -131,8 +131,20 @@ export class SaleEditPage {
   private readonly allWarehouses = signal<WarehouseRecord[]>([]);
   readonly onlyBranch = signal(false);
   readonly onlyWarehouse = signal(false);
-  readonly branchDefaultApplied = signal(false);
-  readonly warehouseDefaultApplied = signal(false);
+  readonly resolvedDefaultBranchId = signal<string>('');
+  readonly resolvedDefaultWarehouseId = signal<string>('');
+  readonly branchDefaultApplied = computed(() => {
+    this.formStateVersion();
+    const current = this.form.controls.branchId.value;
+    const defaultId = this.resolvedDefaultBranchId();
+    return Boolean(defaultId && current === defaultId);
+  });
+  readonly warehouseDefaultApplied = computed(() => {
+    this.formStateVersion();
+    const current = this.form.controls.warehouseId.value;
+    const defaultId = this.resolvedDefaultWarehouseId();
+    return Boolean(defaultId && current === defaultId);
+  });
   readonly accounts = signal<PosPaymentAccount[]>([]);
   readonly refundAccounts = signal<AccountRecord[]>([]);
   readonly relatedReturns = signal<SalesReturnRecord[]>([]);
@@ -518,7 +530,7 @@ export class SaleEditPage {
         )
         .subscribe({
           next: ({ masters, sale }) => {
-            this.applyMasters(masters);
+            this.applyMasters(masters, sale.branchId, sale.warehouseId);
             this.applySale(sale);
             this.loading.set(false);
           },
@@ -1168,25 +1180,31 @@ export class SaleEditPage {
     });
   }
 
-  private applyMasters(masters: {
-    branches: BranchRecord[];
-    warehouses: WarehouseRecord[];
-    accounts: PosPaymentAccount[];
-    refundAccounts: AccountRecord[];
-    relatedReturns?: SalesReturnRecord[];
-  }): void {
+  private applyMasters(
+    masters: {
+      branches: BranchRecord[];
+      warehouses: WarehouseRecord[];
+      accounts: PosPaymentAccount[];
+      refundAccounts: AccountRecord[];
+      relatedReturns?: SalesReturnRecord[];
+    },
+    initialBranchId = this.form.controls.branchId.value,
+    initialWarehouseId = this.form.controls.warehouseId.value,
+  ): void {
     const branchResolution = this.locationResolver.resolveBranches(
       masters.branches,
-      this.form.controls.branchId.value,
+      initialBranchId,
     );
     this.branches.set(branchResolution.options);
     this.onlyBranch.set(branchResolution.isOnlyOption);
-    this.branchDefaultApplied.set(branchResolution.usedDefault);
+    this.resolvedDefaultBranchId.set(
+      branchResolution.usedDefault ? branchResolution.selectedId : '',
+    );
     if (branchResolution.selectedId !== this.form.controls.branchId.value) {
       this.form.controls.branchId.setValue(branchResolution.selectedId, { emitEvent: false });
     }
     this.allWarehouses.set(masters.warehouses);
-    this.resolveWarehouseSelection();
+    this.resolveWarehouseSelection(initialWarehouseId);
     this.accounts.set(masters.accounts);
     this.refundAccounts.set(masters.refundAccounts.filter((item) => item.status === 'active'));
     if (masters.relatedReturns) {
@@ -1200,15 +1218,15 @@ export class SaleEditPage {
     this.bindLineProductChanges(0);
   }
 
-  private resolveWarehouseSelection(): void {
+  private resolveWarehouseSelection(currentId = ''): void {
     const resolution = this.locationResolver.resolveWarehouses(
       this.allWarehouses(),
       this.form.controls.branchId.value,
-      this.form.controls.warehouseId.value,
+      currentId,
     );
     this.warehouses.set(resolution.options);
     this.onlyWarehouse.set(resolution.isOnlyOption);
-    this.warehouseDefaultApplied.set(resolution.usedDefault);
+    this.resolvedDefaultWarehouseId.set(resolution.usedDefault ? resolution.selectedId : '');
     if (resolution.selectedId !== this.form.controls.warehouseId.value) {
       this.form.controls.warehouseId.setValue(resolution.selectedId);
     }

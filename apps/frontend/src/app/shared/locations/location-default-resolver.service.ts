@@ -50,18 +50,23 @@ export class LocationDefaultResolverService {
           (item.branchId == null || item.branchId === branchId),
       ),
     );
-    const preferredId = this.sessionStore.activeContext?.()?.warehouseId ?? '';
+    const activeCtx = this.sessionStore.activeContext?.();
+    const preferredId =
+      !activeCtx?.branchId || activeCtx.branchId === branchId
+        ? (activeCtx?.warehouseId ?? '')
+        : '';
     const branchDefault = valid.find(
       (item) => item.isDefault === true && item.branchId === branchId,
     );
     const organizationDefault = valid.find(
-      (item) => item.isDefault === true && item.branchId == null,
+      (item) => item.isDefault === true && (item.branchId == null || item.branchId === undefined),
     );
+    const defaultWarehouse = branchDefault ?? organizationDefault;
     return this.resolve(
       valid,
       currentId,
       preferredId,
-      (item) => item.id === branchDefault?.id || item.id === organizationDefault?.id,
+      (item) => item.id === defaultWarehouse?.id,
     );
   }
 

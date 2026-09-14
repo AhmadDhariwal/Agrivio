@@ -169,11 +169,26 @@
           </div>
           }
 
-          <label class="ag-field">
-            <span>Organization default</span>
-            <span class="field-helper">Use this branch as the initial choice when a user has no accessible preference.</span>
-            <input type="checkbox" formControlName="isDefault" data-testid="branch-default" />
-          </label>
+          <!-- Organization Default Branch Preference -->
+          <div class="preference-card">
+            <label class="preference-card__label" for="branch-default">
+              <span class="preference-card__checkbox-wrap">
+                <input
+                  type="checkbox"
+                  id="branch-default"
+                  class="preference-card__checkbox"
+                  formControlName="isDefault"
+                  data-testid="branch-default"
+                />
+              </span>
+              <span class="preference-card__content">
+                <span class="preference-card__title">Organization default branch</span>
+                <span class="preference-card__description">
+                  Automatically pre-select this branch for new transactions when users have no specific branch assignment.
+                </span>
+              </span>
+            </label>
+          </div>
 
           <!-- Status (Edit Mode) or Informational Callout (Create Mode) -->
           @if (branchId()) {

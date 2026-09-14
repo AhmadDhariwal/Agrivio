@@ -127,10 +127,26 @@
             <p class="field-helper">Transactions can use this warehouse only with this branch.</p>
           </div>
 
-          <label class="ag-field">
-            <span>Default warehouse for this branch</span>
-            <input type="checkbox" formControlName="isDefault" data-testid="warehouse-default" />
-          </label>
+          <!-- Default Warehouse Toggle Card -->
+          <div class="preference-card">
+            <label class="preference-card__label" for="warehouse-default-create">
+              <span class="preference-card__checkbox-wrap">
+                <input
+                  type="checkbox"
+                  id="warehouse-default-create"
+                  class="preference-card__checkbox"
+                  formControlName="isDefault"
+                  data-testid="warehouse-default"
+                />
+              </span>
+              <span class="preference-card__content">
+                <span class="preference-card__title">Default warehouse for this branch</span>
+                <span class="preference-card__description">
+                  Automatically select this warehouse when transactions are created under this branch.
+                </span>
+              </span>
+            </label>
+          </div>
 
           <!-- Info Callout -->
           <div class="info-callout">
@@ -322,10 +338,26 @@
             <p class="field-helper">Transactions can use this warehouse only with this branch.</p>
           </div>
 
-          <label class="ag-field">
-            <span>Default warehouse for this branch</span>
-            <input type="checkbox" formControlName="isDefault" data-testid="warehouse-default" />
-          </label>
+          <!-- Default Warehouse Toggle Card -->
+          <div class="preference-card">
+            <label class="preference-card__label" for="warehouse-default-edit">
+              <span class="preference-card__checkbox-wrap">
+                <input
+                  type="checkbox"
+                  id="warehouse-default-edit"
+                  class="preference-card__checkbox"
+                  formControlName="isDefault"
+                  data-testid="warehouse-default"
+                />
+              </span>
+              <span class="preference-card__content">
+                <span class="preference-card__title">Default warehouse for this branch</span>
+                <span class="preference-card__description">
+                  Automatically select this warehouse when transactions are created under this branch.
+                </span>
+              </span>
+            </label>
+          </div>
 
           <!-- Status -->
           <div class="ag-field">
