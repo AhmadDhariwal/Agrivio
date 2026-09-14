@@ -502,18 +502,15 @@
             for="account-transfer-destination"
             [required]="fieldRequired(transferForm.controls.destinationAccountId)"
           />
-          <select
+          <agrivio-ui-searchable-dropdown
             id="account-transfer-destination"
-            class="form-control"
             formControlName="destinationAccountId"
-            data-testid="account-transfer-destination"
-            [attr.aria-required]="fieldRequired(transferForm.controls.destinationAccountId) ? 'true' : null"
-          >
-            <option value="">Select destination account</option>
-            @for (item of destinationAccounts(); track item.id) {
-            <option [value]="item.id">{{ item.name }} ({{ item.accountType | uppercase }})</option>
-            }
-          </select>
+            [testId]="'account-transfer-destination'"
+            [options]="destinationAccountOptions()"
+            placeholder="Select destination account"
+            [required]="fieldRequired(transferForm.controls.destinationAccountId)"
+            ariaLabel="Destination Account"
+          />
         </div>
 
         <div class="form-group">

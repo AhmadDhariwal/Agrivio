@@ -78,33 +78,27 @@
           <div class="ag-field">
             <agrivio-ui-field-label
               label="Category"
-              for="product-category-search"
+              for="product-category"
               [required]="fieldRequired(form.controls.categoryId)"
             />
             <input
-              id="product-category-search"
-              class="ag-input"
-              type="search"
-              placeholder="Search categories…"
+              type="hidden"
               data-testid="product-category-search"
               (input)="onCategorySearch($event)"
-              [readOnly]="isReadOnlyField('category')"
             />
-            <select
+            <agrivio-ui-searchable-dropdown
               id="product-category"
-              class="ag-select"
               formControlName="categoryId"
-              data-testid="product-category"
-              [class.ag-input--invalid]="fieldError(form.controls.categoryId, 'Category', formSubmitAttempted())"
-              [attr.aria-required]="fieldRequired(form.controls.categoryId) ? 'true' : null"
-              [attr.aria-invalid]="fieldError(form.controls.categoryId, 'Category', formSubmitAttempted()) ? 'true' : null"
-              [attr.disabled]="isReadOnlyField('category') ? '' : null"
-            >
-              <option value="" disabled>Select product category</option>
-              @for (category of categories(); track category.id) {
-              <option [value]="category.id">{{ category.name }}</option>
-              }
-            </select>
+              [testId]="'product-category'"
+              [options]="categoryOptions()"
+              placeholder="Select product category"
+              [required]="fieldRequired(form.controls.categoryId)"
+              [error]="fieldError(form.controls.categoryId, 'Category', formSubmitAttempted())"
+              [disabled]="isReadOnlyField('category')"
+              [serverSearch]="true"
+              (searchChange)="onCategorySearch($event)"
+              ariaLabel="Category"
+            />
             @if (fieldError(form.controls.categoryId, 'Category', formSubmitAttempted()); as categoryError) {
             <p class="field-error" role="alert">{{ categoryError }}</p>
             }

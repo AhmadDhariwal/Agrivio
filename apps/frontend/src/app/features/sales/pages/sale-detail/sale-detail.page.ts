@@ -25,6 +25,11 @@ import {
   hasRequiredValidator,
   setRequiredValidator,
 } from '../../../../shared/form/form-field.util';
+import {
+  UiSearchableDropdownComponent,
+  SearchableDropdownOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import { formatAccountOption } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 
 @Component({
   selector: 'agrivio-sale-detail-page',
@@ -37,6 +42,7 @@ import {
     UiStatusBadgeComponent,
     UiFieldLabelComponent,
     UiConfirmDialogComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './sale-detail.page.html',
   styleUrl: './sale-detail.page.scss',
@@ -59,6 +65,10 @@ export class SaleDetailPage {
   readonly cancelConfirmOpen = signal(false);
   readonly submittingReturn = signal(false);
   readonly refundAccounts = signal<AccountRecord[]>([]);
+  readonly refundAccountOptions = computed<SearchableDropdownOption[]>(() => [
+    { value: '', label: 'None' },
+    ...this.refundAccounts().map(formatAccountOption),
+  ]);
   readonly relatedReturns = signal<SalesReturnRecord[]>([]);
   readonly lastPostedReturnId = signal<string | null>(null);
 

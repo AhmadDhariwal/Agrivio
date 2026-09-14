@@ -327,36 +327,32 @@
           <!-- Product Filter -->
           @if (showProductFilter()) {
             <div class="toolbar__select-wrapper">
-              <select
-                class="toolbar__select"
+              <agrivio-ui-searchable-dropdown
+                [options]="productOptions()"
                 [value]="productFilter()"
-                (change)="onProductChange($event)"
-                data-testid="expiry-filter-product"
-                aria-label="Filter by product"
-              >
-                <option value="">All Products</option>
-                @for (prod of productList(); track prod.id) {
-                  <option [value]="prod.id">{{ prod.name }}</option>
-                }
-              </select>
+                (valueChange)="onProductSelected($event)"
+                allOptionLabel="All Products"
+                placeholder="All Products"
+                [clearable]="true"
+                ariaLabel="Filter by product"
+                testId="expiry-filter-product"
+              />
             </div>
           }
 
           <!-- Warehouse Filter -->
           @if (showWarehouseFilter()) {
             <div class="toolbar__select-wrapper">
-              <select
-                class="toolbar__select"
+              <agrivio-ui-searchable-dropdown
+                [options]="warehouseOptions()"
                 [value]="warehouseFilter()"
-                (change)="onWarehouseChange($event)"
-                data-testid="expiry-filter-warehouse"
-                aria-label="Filter by warehouse"
-              >
-                <option value="">All Warehouses</option>
-                @for (wh of warehouseList(); track wh.id) {
-                  <option [value]="wh.id">{{ wh.name }}</option>
-                }
-              </select>
+                (valueChange)="onWarehouseSelected($event)"
+                allOptionLabel="All Warehouses"
+                placeholder="All Warehouses"
+                [clearable]="true"
+                ariaLabel="Filter by warehouse"
+                testId="expiry-filter-warehouse"
+              />
             </div>
           }
 
@@ -1324,34 +1320,32 @@
     <div class="mobile-filter-sheet__body">
       <!-- Product -->
       <div class="mobile-filter-group">
-        <label class="mobile-filter-label" for="mobile-filter-product">Product</label>
-        <select
-          id="mobile-filter-product"
-          class="toolbar__select"
+        <label class="mobile-filter-label">Product</label>
+        <agrivio-ui-searchable-dropdown
+          [options]="productOptions()"
           [value]="productFilter()"
-          (change)="onProductChange($event)"
-        >
-          <option value="">All Products</option>
-          @for (prod of productList(); track prod.id) {
-            <option [value]="prod.id">{{ prod.name }}</option>
-          }
-        </select>
+          (valueChange)="onProductSelected($event)"
+          allOptionLabel="All Products"
+          placeholder="All Products"
+          [clearable]="true"
+          ariaLabel="Filter by product"
+          testId="expiry-mobile-product-filter"
+        />
       </div>
 
       <!-- Warehouse -->
       <div class="mobile-filter-group">
-        <label class="mobile-filter-label" for="mobile-filter-warehouse">Warehouse</label>
-        <select
-          id="mobile-filter-warehouse"
-          class="toolbar__select"
+        <label class="mobile-filter-label">Warehouse</label>
+        <agrivio-ui-searchable-dropdown
+          [options]="warehouseOptions()"
           [value]="warehouseFilter()"
-          (change)="onWarehouseChange($event)"
-        >
-          <option value="">All Warehouses</option>
-          @for (wh of warehouseList(); track wh.id) {
-            <option [value]="wh.id">{{ wh.name }}</option>
-          }
-        </select>
+          (valueChange)="onWarehouseSelected($event)"
+          allOptionLabel="All Warehouses"
+          placeholder="All Warehouses"
+          [clearable]="true"
+          ariaLabel="Filter by warehouse"
+          testId="expiry-mobile-warehouse-filter"
+        />
       </div>
 
       <!-- Classification -->

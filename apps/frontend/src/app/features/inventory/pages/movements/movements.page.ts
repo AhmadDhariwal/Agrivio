@@ -32,6 +32,11 @@ import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-e
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
+import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import {
+  formatProductOption,
+  formatWarehouseOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { lockBodyScroll, unlockBodyScroll } from '../../../../shared/ui/body-scroll-lock';
 import { StockMovementRecord } from '../../models/inventory.models';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
@@ -63,6 +68,7 @@ export interface ResolvedBatchInfo {
     UiLoadingStateComponent,
     UiPaginationComponent,
     UiModuleInfoComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './movements.page.html',
   styleUrl: './movements.page.scss',
@@ -99,6 +105,13 @@ export class MovementsPage {
 
   readonly productList = signal<ProductRecord[]>([]);
   readonly warehouseList = signal<WarehouseRecord[]>([]);
+
+  readonly warehouseOptions = computed(() =>
+    this.warehouseList().map((w) => formatWarehouseOption(w)),
+  );
+  readonly productOptions = computed(() =>
+    this.productList().map((p) => formatProductOption(p)),
+  );
 
   // Filter Signals (Server-authoritative for warehouse/product, Client-side for direction/source/date/search)
   readonly search = signal<string>('');
@@ -427,16 +440,34 @@ export class MovementsPage {
     this.searchChanges.next('');
   }
 
-  onWarehouseChange(event: Event): void {
-    const select = event.target as HTMLSelectElement;
-    this.warehouseFilter.set(select.value);
+  onWarehouseChange(eventOrVal: Event | string | null): void {
+    const val =
+      typeof eventOrVal === 'string'
+        ? eventOrVal
+        : eventOrVal && 'target' in eventOrVal
+          ? (eventOrVal.target as HTMLSelectElement).value
+          : '';
+    this.onWarehouseSelected(val);
+  }
+
+  onWarehouseSelected(val: string | null): void {
+    this.warehouseFilter.set(val || '');
     this.page.set(1);
     this.reload();
   }
 
-  onProductChange(event: Event): void {
-    const select = event.target as HTMLSelectElement;
-    this.productFilter.set(select.value);
+  onProductChange(eventOrVal: Event | string | null): void {
+    const val =
+      typeof eventOrVal === 'string'
+        ? eventOrVal
+        : eventOrVal && 'target' in eventOrVal
+          ? (eventOrVal.target as HTMLSelectElement).value
+          : '';
+    this.onProductSelected(val);
+  }
+
+  onProductSelected(val: string | null): void {
+    this.productFilter.set(val || '');
     this.page.set(1);
     this.reload();
   }

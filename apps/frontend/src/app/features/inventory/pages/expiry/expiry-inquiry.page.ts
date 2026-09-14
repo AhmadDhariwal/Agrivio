@@ -32,6 +32,11 @@ import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-e
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
+import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import {
+  formatProductOption,
+  formatWarehouseOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import {
   ExpiryInventoryRecord,
 } from '../../models/inventory.models';
@@ -60,6 +65,7 @@ export type ExpirySortField =
     UiLoadingStateComponent,
     UiPaginationComponent,
     UiModuleInfoComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './expiry-inquiry.page.html',
   styleUrl: './expiry-inquiry.page.scss',
@@ -99,6 +105,13 @@ export class ExpiryInquiryPage {
 
   readonly productList = signal<ProductRecord[]>([]);
   readonly warehouseList = signal<WarehouseRecord[]>([]);
+
+  readonly warehouseOptions = computed(() =>
+    this.warehouseList().map((w) => formatWarehouseOption(w)),
+  );
+  readonly productOptions = computed(() =>
+    this.productList().map((p) => formatProductOption(p)),
+  );
 
   // Filter Signals
   readonly search = signal<string>('');
@@ -553,15 +566,33 @@ export class ExpiryInquiryPage {
     this.searchChanges.next('');
   }
 
-  onProductChange(event: Event): void {
-    const target = event.target as HTMLSelectElement;
-    this.productFilter.set(target.value);
+  onProductChange(eventOrVal: Event | string | null): void {
+    const val =
+      typeof eventOrVal === 'string'
+        ? eventOrVal
+        : eventOrVal && 'target' in eventOrVal
+          ? (eventOrVal.target as HTMLSelectElement).value
+          : '';
+    this.onProductSelected(val);
+  }
+
+  onProductSelected(val: string | null): void {
+    this.productFilter.set(val || '');
     this.page.set(1);
   }
 
-  onWarehouseChange(event: Event): void {
-    const target = event.target as HTMLSelectElement;
-    this.warehouseFilter.set(target.value);
+  onWarehouseChange(eventOrVal: Event | string | null): void {
+    const val =
+      typeof eventOrVal === 'string'
+        ? eventOrVal
+        : eventOrVal && 'target' in eventOrVal
+          ? (eventOrVal.target as HTMLSelectElement).value
+          : '';
+    this.onWarehouseSelected(val);
+  }
+
+  onWarehouseSelected(val: string | null): void {
+    this.warehouseFilter.set(val || '');
     this.page.set(1);
   }
 

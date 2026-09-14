@@ -95,34 +95,13 @@
           <div class="form-grid" [class.form-grid--3col]="showProductSearch()" [class.form-grid--2col]="!showProductSearch()">
             <!-- Find Product -->
             @if (showProductSearch()) {
-              <div class="ag-field">
-                <agrivio-ui-field-label label="Find product" for="adjustment-product-search" />
-                <div class="ag-input-with-icon">
-                  <svg
-                    class="input-icon"
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                  <input
-                    id="adjustment-product-search"
-                    class="ag-input"
-                    type="search"
-                    placeholder="Search by product name or SKU…"
-                    (input)="onProductSearch($event)"
-                    (change)="onProductSearch($event)"
-                  />
-                </div>
-                <p class="field-hint">Filter the product dropdown options.</p>
-              </div>
+              <input
+                id="adjustment-product-search"
+                type="hidden"
+                (input)="onProductSearch($event)"
+                (change)="onProductSearch($event)"
+                data-testid="adjustment-product-search"
+              />
             }
 
             <!-- Warehouse -->
@@ -132,20 +111,15 @@
                 for="adjustment-warehouse"
                 [required]="fieldRequired(form.controls.warehouseId)"
               />
-              <select
+              <agrivio-ui-searchable-dropdown
                 id="adjustment-warehouse"
-                class="ag-select"
+                testId="adjustment-warehouse"
                 formControlName="warehouseId"
-                data-testid="adjustment-warehouse"
-                [class.ag-input--invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted())"
-                [attr.aria-required]="fieldRequired(form.controls.warehouseId) ? 'true' : null"
-                [attr.aria-invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()) ? 'true' : null"
-              >
-                <option value="" disabled>Select warehouse</option>
-                @for (warehouse of warehouses(); track warehouse.id) {
-                  <option [value]="warehouse.id">{{ warehouse.name }}</option>
-                }
-              </select>
+                [options]="warehouseOptions()"
+                placeholder="Select warehouse"
+                [error]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted())"
+                [required]="fieldRequired(form.controls.warehouseId)"
+              />
               @if (fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()); as warehouseError) {
                 <p class="field-error" role="alert">{{ warehouseError }}</p>
               } @else {
@@ -160,20 +134,16 @@
                 for="adjustment-product"
                 [required]="fieldRequired(form.controls.productId)"
               />
-              <select
+              <agrivio-ui-searchable-dropdown
                 id="adjustment-product"
-                class="ag-select"
+                testId="adjustment-product"
                 formControlName="productId"
-                data-testid="adjustment-product"
-                [class.ag-input--invalid]="fieldError(form.controls.productId, 'Product', formSubmitAttempted())"
-                [attr.aria-required]="fieldRequired(form.controls.productId) ? 'true' : null"
-                [attr.aria-invalid]="fieldError(form.controls.productId, 'Product', formSubmitAttempted()) ? 'true' : null"
-              >
-                <option value="" disabled>Select product</option>
-                @for (product of products(); track product.id) {
-                  <option [value]="product.id">{{ product.name }} ({{ product.baseUnitCode }})</option>
-                }
-              </select>
+                [options]="productOptions()"
+                placeholder="Select product"
+                (searchChange)="onProductComboboxSearch($event)"
+                [error]="fieldError(form.controls.productId, 'Product', formSubmitAttempted())"
+                [required]="fieldRequired(form.controls.productId)"
+              />
               @if (fieldError(form.controls.productId, 'Product', formSubmitAttempted()); as productError) {
                 <p class="field-error" role="alert">{{ productError }}</p>
               } @else {
@@ -424,20 +394,16 @@
                     for="adjustment-batch"
                     [required]="fieldRequired(form.controls.batchId)"
                   />
-                  <select
+                  <agrivio-ui-searchable-dropdown
                     id="adjustment-batch"
-                    class="ag-select"
+                    testId="adjustment-batch"
                     formControlName="batchId"
-                    data-testid="adjustment-batch"
-                    [class.ag-input--invalid]="fieldError(form.controls.batchId, 'Batch / lot number', formSubmitAttempted())"
-                    [attr.aria-required]="fieldRequired(form.controls.batchId) ? 'true' : null"
-                    [attr.aria-invalid]="fieldError(form.controls.batchId, 'Batch / lot number', formSubmitAttempted()) ? 'true' : null"
-                  >
-                    <option value="">Select batch</option>
-                    @for (option of batchOptions(); track option.batchId) {
-                      <option [value]="option.batchId">{{ option.label }}</option>
-                    }
-                  </select>
+                    [options]="formattedBatchOptions()"
+                    placeholder="Select batch"
+                    [clearable]="true"
+                    [error]="fieldError(form.controls.batchId, 'Batch / lot number', formSubmitAttempted())"
+                    [required]="fieldRequired(form.controls.batchId)"
+                  />
                   @if (fieldError(form.controls.batchId, 'Batch / lot number', formSubmitAttempted()); as batchError) {
                     <p class="field-error" role="alert">{{ batchError }}</p>
                   } @else {

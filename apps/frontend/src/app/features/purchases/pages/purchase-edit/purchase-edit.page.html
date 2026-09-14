@@ -747,21 +747,15 @@
               for="purchase-warehouse"
               [required]="fieldRequired(form.controls.warehouseId)"
             />
-            <select
+            <agrivio-ui-searchable-dropdown
               id="purchase-warehouse"
-              class="ag-select"
               formControlName="warehouseId"
-              [class.ag-input--invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted())"
-              [attr.disabled]="!canEditPurchaseField('warehouse') ? true : null"
-              [attr.aria-required]="fieldRequired(form.controls.warehouseId) ? 'true' : null"
-              [attr.aria-invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()) ? 'true' : null"
-              data-testid="purchase-warehouse"
-            >
-              <option value="">Select warehouse</option>
-              @for (warehouse of warehouses(); track warehouse.id) {
-              <option [value]="warehouse.id">{{ warehouse.name }}</option>
-              }
-            </select>
+              [options]="warehouseOptions()"
+              placeholder="Select warehouse"
+              [disabled]="!canEditPurchaseField('warehouse')"
+              [invalid]="!!fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted())"
+              [required]="fieldRequired(form.controls.warehouseId)"
+            />
             @if (fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()); as
             warehouseError) {
             <p class="field-error" role="alert">{{ warehouseError }}</p>
@@ -774,33 +768,19 @@
           <div class="ag-field form-field">
             <agrivio-ui-field-label
               label="Supplier"
-              for="purchase-supplier-search"
+              for="purchase-supplier"
               [required]="fieldRequired(form.controls.supplierId)"
             />
-            <input
-              id="purchase-supplier-search"
-              class="ag-input"
-              type="search"
-              placeholder="Search suppliers…"
-              data-testid="purchase-supplier-search"
-              [readonly]="!canEditPurchaseField('supplier')"
-              (input)="onSupplierSearch($event)"
-            />
-            <select
+            <agrivio-ui-searchable-dropdown
               id="purchase-supplier"
-              class="ag-select"
               formControlName="supplierId"
-              [class.ag-input--invalid]="fieldError(form.controls.supplierId, 'Supplier', formSubmitAttempted())"
-              [attr.disabled]="!canEditPurchaseField('supplier') ? true : null"
-              [attr.aria-required]="fieldRequired(form.controls.supplierId) ? 'true' : null"
-              [attr.aria-invalid]="fieldError(form.controls.supplierId, 'Supplier', formSubmitAttempted()) ? 'true' : null"
-              data-testid="purchase-supplier"
-            >
-              <option value="">Select supplier</option>
-              @for (supplier of suppliers(); track supplier.id) {
-              <option [value]="supplier.id">{{ supplier.name }}</option>
-              }
-            </select>
+              [options]="supplierOptions()"
+              placeholder="Select supplier"
+              [disabled]="!canEditPurchaseField('supplier')"
+              [invalid]="!!fieldError(form.controls.supplierId, 'Supplier', formSubmitAttempted())"
+              [required]="fieldRequired(form.controls.supplierId)"
+              (searchChange)="onSupplierComboboxSearch($event)"
+            />
             @if (fieldError(form.controls.supplierId, 'Supplier', formSubmitAttempted()); as
             supplierError) {
             <p class="field-error" role="alert">{{ supplierError }}</p>
@@ -966,23 +946,17 @@
                   [for]="'purchase-line-product-' + index"
                   [required]="fieldRequired(lineGroup(index).controls['productId'])"
                 />
-                <select
+                <agrivio-ui-searchable-dropdown
                   [id]="'purchase-line-product-' + index"
-                  class="ag-select"
+                  testId="purchase-line-product"
                   formControlName="productId"
-                  [class.ag-input--invalid]="lineFieldError(index, 'productId', 'Product')"
-                  [attr.disabled]="!canEditPurchaseField('product') ? true : null"
-                  [attr.aria-required]="fieldRequired(lineGroup(index).controls['productId']) ? 'true' : null"
-                  [attr.aria-invalid]="lineFieldError(index, 'productId', 'Product') ? 'true' : null"
-                  data-testid="purchase-line-product"
-                >
-                  <option value="">Select product</option>
-                  @for (product of products(); track product.id) {
-                  <option [value]="product.id">
-                    {{ product.name }} ({{ product.trackingMode }})
-                  </option>
-                  }
-                </select>
+                  [options]="productOptions()"
+                  placeholder="Select product"
+                  [disabled]="!canEditPurchaseField('product')"
+                  [invalid]="!!lineFieldError(index, 'productId', 'Product')"
+                  [required]="fieldRequired(lineGroup(index).controls['productId'])"
+                  (searchChange)="onProductComboboxSearch($event)"
+                />
                 @if (lineFieldError(index, 'productId', 'Product'); as productError) {
                 <p class="field-error" role="alert">{{ productError }}</p>
                 }
@@ -995,18 +969,14 @@
                   label="Packaging"
                   [for]="'purchase-line-packaging-' + index"
                 />
-                <select
+                <agrivio-ui-searchable-dropdown
                   [id]="'purchase-line-packaging-' + index"
-                  class="ag-select"
+                  testId="purchase-line-packaging"
                   formControlName="packagingUnitId"
-                  [attr.disabled]="!canEditPurchaseField('packagingUnit') ? true : null"
-                  data-testid="purchase-line-packaging"
-                >
-                  <option value="">Base unit</option>
-                  @for (unit of packagingUnitsForLine(index); track unit.id) {
-                  <option [value]="unit.id">{{ unit.name }} (×{{ unit.conversionFactor }})</option>
-                  }
-                </select>
+                  [options]="packagingOptionsForLine(index)"
+                  placeholder="Base unit"
+                  [disabled]="!canEditPurchaseField('packagingUnit')"
+                />
               </div>
               }
 
@@ -1308,19 +1278,14 @@
                   [for]="'purchase-payment-account-' + index"
                   [required]="true"
                 />
-                <select
+                <agrivio-ui-searchable-dropdown
                   [id]="'purchase-payment-account-' + index"
-                  class="ag-select"
+                  testId="purchase-payment-account"
                   formControlName="accountId"
-                  data-testid="purchase-payment-account"
-                >
-                  <option value="">Select account</option>
-                  @for (account of accounts(); track account.id) {
-                  <option [value]="account.id">
-                    {{ account.name }} ({{ account.accountType }})
-                  </option>
-                  }
-                </select>
+                  [options]="accountOptions()"
+                  placeholder="Select account"
+                  [required]="true"
+                />
               </div>
 
               <div class="ag-field form-field" style="width: 140px">

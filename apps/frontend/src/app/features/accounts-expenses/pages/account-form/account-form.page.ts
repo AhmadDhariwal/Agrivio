@@ -28,6 +28,10 @@ import { AccountMovementRecord, AccountRecord } from '../../models/accounts.mode
 import { forkJoin, of } from 'rxjs';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 
+import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
+import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import { formatAccountOption } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
+
 const MAX_NAME = 160;
 const MAX_BANK = 120;
 const MAX_MASKED = 64;
@@ -48,6 +52,7 @@ const ACCOUNT_TYPES = ['cash', 'bank', 'jazzcash', 'easypaisa'] as const;
     UiFieldLabelComponent,
     UiStatusBadgeComponent,
     UiPaginationComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './account-form.page.html',
   styleUrl: './account-form.page.scss',
@@ -192,6 +197,9 @@ export class AccountFormPage {
   );
   readonly accountType = signal('cash');
   readonly destinationAccounts = signal<AccountRecord[]>([]);
+  readonly destinationAccountOptions = computed(() =>
+    this.destinationAccounts().map(formatAccountOption),
+  );
   readonly postingTransaction = signal(false);
   readonly postingTransfer = signal(false);
   readonly reversing = signal(false);

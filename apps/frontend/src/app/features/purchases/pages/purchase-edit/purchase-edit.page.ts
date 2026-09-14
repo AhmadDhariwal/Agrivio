@@ -34,6 +34,17 @@ import {
 } from '../../../../shared/form/form-field.util';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import {
+  UiSearchableDropdownComponent,
+  SearchableDropdownOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import {
+  formatWarehouseOption,
+  formatSupplierOption,
+  formatProductOption,
+  formatAccountOption,
+  formatPackagingUnitOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 
 function toCleanString(val: unknown): string {
   if (val === null || val === undefined) {
@@ -60,6 +71,7 @@ function toMoneyString(val: unknown, fallback = '0.00'): string {
     UiLoadingStateComponent,
     UiConfirmDialogComponent,
     UiFieldLabelComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './purchase-edit.page.html',
   styleUrl: './purchase-edit.page.scss',
@@ -98,6 +110,19 @@ export class PurchaseEditPage {
   readonly suppliers = signal<SupplierRecord[]>([]);
   readonly accounts = signal<AccountRecord[]>([]);
   readonly packagingByLine = signal<Record<number, PackagingUnitRecord[]>>({});
+
+  readonly warehouseOptions = computed<SearchableDropdownOption[]>(() =>
+    this.warehouses().map(formatWarehouseOption),
+  );
+  readonly supplierOptions = computed<SearchableDropdownOption[]>(() =>
+    this.suppliers().map(formatSupplierOption),
+  );
+  readonly productOptions = computed<SearchableDropdownOption[]>(() =>
+    this.products().map(formatProductOption),
+  );
+  readonly accountOptions = computed<SearchableDropdownOption[]>(() =>
+    this.accounts().map(formatAccountOption),
+  );
   readonly isPosted = computed(() => this.purchase()?.status === 'posted');
   readonly isCancelled = computed(() => this.purchase()?.status === 'cancelled');
   readonly isDraft = computed(() => {
@@ -424,6 +449,22 @@ export class PurchaseEditPage {
 
   packagingUnitsForLine(index: number): PackagingUnitRecord[] {
     return this.packagingByLine()[index] ?? [];
+  }
+
+  packagingOptionsForLine(index: number): SearchableDropdownOption[] {
+    const units = this.packagingUnitsForLine(index);
+    return [
+      { value: '', label: 'Base unit' },
+      ...units.map(formatPackagingUnitOption),
+    ];
+  }
+
+  onSupplierComboboxSearch(query: string): void {
+    this.supplierSearchChanges.next(query.trim());
+  }
+
+  onProductComboboxSearch(query: string): void {
+    this.productSearchChanges.next(query.trim());
   }
 
   addLine(): void {

@@ -28,6 +28,11 @@ import { AccountRecord } from '../../../accounts-expenses/models/accounts.models
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import {
+  formatSupplierOption,
+  formatAccountOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { hasRequiredValidator, fieldValidationMessage } from '../../../../shared/form/form-field.util';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
@@ -40,6 +45,7 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
     UiAlertComponent,
     UiLoadingStateComponent,
     UiFieldLabelComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './supplier-payment-form.page.html',
   styleUrl: './supplier-payment-form.page.scss',
@@ -64,6 +70,21 @@ export class SupplierPaymentFormPage {
   readonly accounts = signal<AccountRecord[]>([]);
   readonly ledgerItems = signal<SupplierLedgerEffectRecord[]>([]);
   readonly unpaidPurchases = signal<UnpaidPurchaseRecord[]>([]);
+
+  readonly supplierOptions = computed(() =>
+    this.suppliers().map((s) => formatSupplierOption(s)),
+  );
+  readonly accountOptions = computed(() =>
+    this.accounts().map((a) => formatAccountOption(a)),
+  );
+  readonly unpaidPurchaseOptions = computed(() =>
+    this.unpaidPurchases().map((p) => ({
+      value: p.id,
+      label: `${p.sequence || p.id}`,
+      description: `${p.purchaseDate} · Outstanding: ${p.outstanding.amount} PKR`,
+    })),
+  );
+
   readonly lastPayment = signal<SupplierPaymentRecord | null>(null);
 
   readonly canUseSupplierPayments = computed(
@@ -281,11 +302,14 @@ export class SupplierPaymentFormPage {
       });
   }
 
-  onSupplierSearch(event: Event): void {
-    const target = event.target;
-    if (target instanceof HTMLInputElement) {
-      this.supplierSearchChanges.next(target.value.trim());
-    }
+  onSupplierSearch(eventOrQuery: Event | string): void {
+    const query =
+      typeof eventOrQuery === 'string'
+        ? eventOrQuery
+        : eventOrQuery?.target instanceof HTMLInputElement
+          ? eventOrQuery.target.value
+          : '';
+    this.supplierSearchChanges.next(query.trim());
   }
 
   setAllocationMode(mode: 'general' | 'invoice_specific'): void {

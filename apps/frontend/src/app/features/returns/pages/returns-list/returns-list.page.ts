@@ -19,6 +19,8 @@ import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pa
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
+import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import { formatWarehouseOption } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { applyPaginationMeta } from '../../../../shared/data-access/pagination';
 
 @Component({
@@ -33,6 +35,7 @@ import { applyPaginationMeta } from '../../../../shared/data-access/pagination';
     UiEmptyStateComponent,
     UiModuleInfoComponent,
     UiConfirmDialogComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './returns-list.page.html',
   styleUrl: './returns-list.page.scss',
@@ -45,6 +48,7 @@ export class ReturnsListPage {
 
   readonly items = signal<SalesReturnRecord[]>([]);
   readonly warehouses = signal<WarehouseRecord[]>([]);
+  readonly warehouseOptions = computed(() => this.warehouses().map(formatWarehouseOption));
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
@@ -198,9 +202,12 @@ export class ReturnsListPage {
     this.reload();
   }
 
-  onWarehouseChange(event: Event): void {
-    const target = event.target as HTMLSelectElement;
-    this.warehouseFilter.set(target.value);
+  onWarehouseChange(eventOrValue: Event | string): void {
+    const value =
+      typeof eventOrValue === 'string'
+        ? eventOrValue
+        : ((eventOrValue.target as HTMLSelectElement | null)?.value ?? '');
+    this.warehouseFilter.set(value);
     this.page.set(1);
     this.reload();
   }
