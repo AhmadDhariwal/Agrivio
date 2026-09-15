@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Component } from '@angular/core';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { DropdownOption, UiSearchableDropdownComponent } from './ui-searchable-dropdown.component';
 
 @Component({
@@ -267,4 +267,48 @@ describe('UiSearchableDropdownComponent', () => {
     expect(selected).toEqual(['customer.created']);
     expect(fixture.componentInstance.open()).toBe(false);
   });
+
+  it('calculates dropup and bounds panel maxHeight when space below is constrained', () => {
+    const fixture = TestBed.createComponent(UiSearchableDropdownComponent);
+    fixture.componentRef.setInput('options', sampleOptions);
+    fixture.detectChanges();
+
+    const triggerBtn = fixture.componentInstance.triggerButtonRef?.nativeElement;
+    const mockRect = {
+      top: 400,
+      bottom: 435,
+      left: 100,
+      right: 300,
+      width: 200,
+      height: 35,
+      x: 100,
+      y: 400,
+      toJSON: () => ({}),
+    };
+    if (triggerBtn) {
+      vi.spyOn(triggerBtn, 'getBoundingClientRect').mockReturnValue(mockRect);
+    }
+    vi.spyOn(fixture.nativeElement, 'getBoundingClientRect').mockReturnValue(mockRect);
+
+    Object.defineProperty(window, 'innerHeight', { value: 500, configurable: true });
+
+    fixture.componentInstance.openDropdown();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.open()).toBe(true);
+    expect(fixture.componentInstance.dropup()).toBe(true);
+
+    const panel = fixture.nativeElement.querySelector('.searchable-dropdown__panel') as HTMLElement;
+    expect(panel.classList).toContain('searchable-dropdown__panel--dropup');
+    expect(panel.style.maxHeight).toBeTruthy();
+    expect(parseInt(panel.style.maxHeight, 10)).toBeGreaterThanOrEqual(140);
+    expect(parseInt(panel.style.maxHeight, 10)).toBeLessThanOrEqual(340);
+
+    const searchInput = fixture.nativeElement.querySelector('.searchable-dropdown__search-input');
+    expect(searchInput).toBeTruthy();
+
+    const optionsContainer = fixture.nativeElement.querySelector('.searchable-dropdown__options') as HTMLElement;
+    expect(optionsContainer.style.maxHeight).toBeTruthy();
+  });
 });
+

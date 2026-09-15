@@ -336,7 +336,7 @@
   border: 1px solid var(--ag-color-border, #e2e8f0);
   border-radius: 6px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
-  overflow: hidden;
+  overflow: visible;
 
   &__header {
     display: flex;
@@ -344,6 +344,8 @@
     justify-content: space-between;
     padding: 12px 18px;
     border-bottom: 1px solid var(--ag-color-border, #e2e8f0);
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
     background: var(--ag-color-surface-muted, #f8fafc);
   }
 

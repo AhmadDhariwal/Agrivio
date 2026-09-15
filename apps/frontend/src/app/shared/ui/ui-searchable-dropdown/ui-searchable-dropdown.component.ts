@@ -34,6 +34,10 @@ let nextUniqueId = 0;
       multi: true,
     },
   ],
+  host: {
+    '[class.searchable-dropdown-host]': 'true',
+    '[class.searchable-dropdown-host--open]': 'open()',
+  },
   template: `
     <div
       class="searchable-dropdown"
@@ -141,6 +145,7 @@ let nextUniqueId = 0;
         role="listbox"
         [attr.aria-label]="ariaLabel()"
         [attr.data-testid]="testId() ? testId() + '-panel' : 'dropdown-panel'"
+        [style.maxHeight.px]="panelMaxHeight()"
       >
         @if (searchable()) {
           <div class="searchable-dropdown__search">
@@ -195,7 +200,11 @@ let nextUniqueId = 0;
           </div>
         }
 
-        <div #optionsContainer class="searchable-dropdown__options">
+        <div
+          #optionsContainer
+          class="searchable-dropdown__options"
+          [style.maxHeight.px]="optionsMaxHeight()"
+        >
           @if (loading()) {
             <div class="searchable-dropdown__loading" role="status" aria-live="polite">
               <svg
@@ -344,6 +353,8 @@ export class UiSearchableDropdownComponent implements ControlValueAccessor {
   readonly searchTerm = signal('');
   readonly focusedIndex = signal(-1);
   readonly dropup = signal(false);
+  readonly panelMaxHeight = signal<number>(320);
+  readonly optionsMaxHeight = signal<number>(240);
 
   private readonly formValue = signal<string | null>(null);
   private readonly localValue = signal<string | null>(null);
@@ -503,6 +514,56 @@ export class UiSearchableDropdownComponent implements ControlValueAccessor {
     }
   }
 
+  recalculatePosition(): void {
+    if (typeof window === 'undefined') return;
+
+    const triggerEl = this.triggerButtonRef?.nativeElement ?? this.elementRef.nativeElement;
+    const rect = triggerEl.getBoundingClientRect();
+
+    const viewportHeight = window.innerHeight || document.documentElement?.clientHeight || 800;
+    const margin = 10;
+    const spaceBelow = Math.max(0, viewportHeight - rect.bottom - margin);
+    const spaceAbove = Math.max(0, rect.top - margin);
+
+    const defaultDesiredHeight = 280;
+    let isDropup = false;
+
+    if (this.dropupAuto()) {
+      if (spaceBelow < defaultDesiredHeight && spaceAbove > spaceBelow) {
+        isDropup = true;
+      } else {
+        isDropup = false;
+      }
+    }
+
+    this.dropup.set(isDropup);
+
+    const availableSpace = isDropup ? spaceAbove : spaceBelow;
+    const effectivePanelMax = Math.max(140, Math.min(340, availableSpace));
+    this.panelMaxHeight.set(effectivePanelMax);
+
+    const searchHeight = this.searchable() ? 46 : 0;
+    const effectiveOptionsMax = Math.max(60, effectivePanelMax - searchHeight - 10);
+    this.optionsMaxHeight.set(effectiveOptionsMax);
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    if (this.open()) {
+      this.recalculatePosition();
+    }
+  }
+
+  @HostListener('window:scroll', ['$event'])
+  onWindowScroll(event: Event): void {
+    if (!this.open()) return;
+    const target = event.target;
+    if (target instanceof Node && this.elementRef.nativeElement.contains(target)) {
+      return;
+    }
+    this.recalculatePosition();
+  }
+
   openDropdown(): void {
     if (this.isControlDisabled() || this.readonly()) return;
 
@@ -510,23 +571,21 @@ export class UiSearchableDropdownComponent implements ControlValueAccessor {
       document.dispatchEvent(new CustomEvent('agrivio-dropdown-opened', { detail: this }));
     }
 
-    if (this.dropupAuto() && typeof window !== 'undefined') {
-      const rect = this.elementRef.nativeElement.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const spaceAbove = rect.top;
-      this.dropup.set(spaceBelow < 250 && spaceAbove > spaceBelow);
-    }
+    this.recalculatePosition();
 
     this.open.set(true);
     this.searchTerm.set('');
     this.focusedIndex.set(-1);
     this.openChange.emit(true);
 
-    if (this.searchable()) {
-      setTimeout(() => {
+    setTimeout(() => {
+      if (this.optionsContainerRef?.nativeElement) {
+        this.optionsContainerRef.nativeElement.scrollTop = 0;
+      }
+      if (this.searchable()) {
         this.searchInputRef?.nativeElement.focus();
-      }, 0);
-    }
+      }
+    }, 0);
   }
 
   close(): void {

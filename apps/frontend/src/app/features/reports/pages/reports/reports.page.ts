@@ -39,7 +39,6 @@ import {
   UiSearchableDropdownComponent,
 } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
 import {
-  formatAccountOption,
   formatBranchOption,
   formatCategoryOption,
   formatCustomerOption,

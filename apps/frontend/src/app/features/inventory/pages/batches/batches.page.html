@@ -508,7 +508,7 @@
       <!-- Warehouse Filter -->
       @if (showBatchWarehouseFilter()) {
       <div class="mobile-filter-group">
-        <label class="mobile-filter-group__label">Warehouse</label>
+        <span class="mobile-filter-group__label">Warehouse</span>
         <agrivio-ui-searchable-dropdown
           [options]="warehouseOptions()"
           [value]="warehouseFilter()"
@@ -525,7 +525,7 @@
       <!-- Product Filter -->
       @if (showBatchProductFilter()) {
       <div class="mobile-filter-group">
-        <label class="mobile-filter-group__label">Product</label>
+        <span class="mobile-filter-group__label">Product</span>
         <agrivio-ui-searchable-dropdown
           [options]="productOptions()"
           [value]="productFilter()"
