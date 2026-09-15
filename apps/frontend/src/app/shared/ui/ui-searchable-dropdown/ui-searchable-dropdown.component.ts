@@ -4,6 +4,7 @@ import {
   HostListener,
   ViewChild,
   computed,
+  effect,
   forwardRef,
   inject,
   input,
@@ -333,7 +334,7 @@ export class UiSearchableDropdownComponent implements ControlValueAccessor {
   readonly error = input<string | null | undefined>('');
   readonly required = input(false);
   readonly ariaRequired = input<boolean | string | null>(null);
-  readonly clearable = input(false);
+  readonly clearable = input(true);
   readonly loading = input(false);
   readonly emptyText = input('No matching options');
   readonly testId = input('');
@@ -360,6 +361,18 @@ export class UiSearchableDropdownComponent implements ControlValueAccessor {
   private readonly localValue = signal<string | null>(null);
   private readonly formDisabled = signal(false);
   private isFormManaged = false;
+
+  constructor() {
+    effect(
+      () => {
+        const v = this.value();
+        if (!this.isFormManaged && v !== undefined) {
+          this.localValue.set(v !== null ? String(v) : '');
+        }
+      },
+      { allowSignalWrites: true },
+    );
+  }
 
   private onChange: (value: string) => void = (_value: string) => {
     // ControlValueAccessor default callback
@@ -435,14 +448,15 @@ export class UiSearchableDropdownComponent implements ControlValueAccessor {
   });
 
   readonly displayLabel = computed(() => {
-    const custom = this.selectedLabel();
-    if (custom) return custom;
     const currentVal = this.currentValue();
     if (!currentVal) {
       return this.allOptionLabel() || this.placeholder();
     }
     const found = this.options().find((o) => o.value === currentVal);
-    return found ? found.label : currentVal;
+    if (found) return found.label;
+    const custom = this.selectedLabel();
+    if (custom) return custom;
+    return currentVal;
   });
 
   readonly hasMatchingOption = computed(() => {
@@ -507,6 +521,10 @@ export class UiSearchableDropdownComponent implements ControlValueAccessor {
   toggle(event?: Event): void {
     event?.stopPropagation();
     if (this.isControlDisabled() || this.readonly()) return;
+    const target = event?.target;
+    if (target instanceof Element && target.closest('.searchable-dropdown__clear-btn')) {
+      return;
+    }
     if (this.open()) {
       this.close();
     } else {
@@ -612,21 +630,24 @@ export class UiSearchableDropdownComponent implements ControlValueAccessor {
   }
 
   clearSelection(event?: Event): void {
+    event?.preventDefault();
     event?.stopPropagation();
     if (this.isControlDisabled() || this.readonly()) return;
     if (this.isFormManaged) {
       this.formValue.set('');
-    } else {
-      this.localValue.set('');
     }
+    this.localValue.set('');
+    this.searchTerm.set('');
+    this.focusedIndex.set(-1);
     this.onChange('');
     this.onTouched();
     this.valueChange.emit('');
+    this.searchChange.emit('');
     this.clear.emit();
     if (this.open()) {
       this.close();
     }
-    this.triggerButtonRef?.nativeElement.focus();
+    this.triggerButtonRef?.nativeElement?.focus?.();
   }
 
   onSearchInput(event: Event): void {
@@ -647,6 +668,25 @@ export class UiSearchableDropdownComponent implements ControlValueAccessor {
 
   onTriggerKeydown(event: KeyboardEvent): void {
     if (this.isControlDisabled() || this.readonly()) return;
+
+    const target = event.target;
+    if (target instanceof Element && target.closest('.searchable-dropdown__clear-btn')) {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        event.stopPropagation();
+        this.clearSelection(event);
+        return;
+      }
+    }
+
+    if ((event.key === 'Backspace' || event.key === 'Delete') && !this.open()) {
+      if (this.clearable() && this.currentValue()) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.clearSelection(event);
+        return;
+      }
+    }
 
     if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();

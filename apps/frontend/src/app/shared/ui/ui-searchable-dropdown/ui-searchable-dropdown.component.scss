@@ -112,6 +112,10 @@
       outline: none;
       background-color: var(--ag-color-border-light, #e5e7eb);
     }
+
+    svg {
+      pointer-events: none;
+    }
   }
 
   &__chevron {
