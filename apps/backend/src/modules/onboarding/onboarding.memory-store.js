@@ -141,6 +141,29 @@ function createInMemoryOnboardingStore() {
       };
     },
 
+    async getPlatformOrganizationSummary() {
+      const subscriptionRows =
+        platformSubscriptionStore &&
+        typeof platformSubscriptionStore.listSubscriptions === 'function'
+          ? await platformSubscriptionStore.listSubscriptions()
+          : [...subscriptions.values()];
+      const organizationRows = [...organizations.values()];
+      return {
+        total: organizationRows.length,
+        active: organizationRows.filter((organization) => organization.status === 'approved')
+          .length,
+        suspended: organizationRows.filter((organization) => organization.status === 'suspended')
+          .length,
+        trial: organizationRows.filter((organization) =>
+          subscriptionRows.some(
+            (subscription) =>
+              String(subscription.organizationId) === String(organization._id) &&
+              subscription.status === 'trial',
+          ),
+        ).length,
+      };
+    },
+
     async insertOrganization(_session, doc) {
       const id = String(doc['_id'] ?? randomUUID());
       const record = { ...doc, _id: id };

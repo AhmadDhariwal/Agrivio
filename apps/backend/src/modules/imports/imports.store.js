@@ -38,13 +38,20 @@ function createMongooseImportsStore() {
     },
 
     async claimExecute(organizationId, id) {
-      return ImportJobModel.findOneAndUpdate(
-        { _id: id, organizationId, status: { $in: ['confirmed', 'failed'] } },
-        { $set: { status: 'executing' }, $inc: { version: 1 } },
-        { new: true },
-      )
-        .lean()
-        .exec();
+      try {
+        return await ImportJobModel.findOneAndUpdate(
+          { _id: id, organizationId, status: { $in: ['confirmed', 'failed'] } },
+          { $set: { status: 'executing' }, $inc: { version: 1 } },
+          { new: true },
+        )
+          .lean()
+          .exec();
+      } catch (error) {
+        if (error && (error.code === 11000 || error.code === 11001)) {
+          error.agrivioConcurrentImport = true;
+        }
+        throw error;
+      }
     },
 
     async replaceErrors(session, organizationId, importJobId, errors) {
@@ -125,6 +132,18 @@ function createInMemoryImportsStore() {
       const existing = await this.findJobById(organizationId, id);
       if (existing === null || (existing.status !== 'confirmed' && existing.status !== 'failed')) {
         return null;
+      }
+      const concurrent = [...jobs.values()].some(
+        (job) =>
+          String(job._id) !== String(id) &&
+          String(job.organizationId) === String(organizationId) &&
+          job.importType === existing.importType &&
+          job.status === 'executing',
+      );
+      if (concurrent) {
+        const error = new Error('Concurrent import');
+        error.agrivioConcurrentImport = true;
+        throw error;
       }
       const next = { ...existing, status: 'executing', version: Number(existing.version ?? 1) + 1 };
       jobs.set(id, next);

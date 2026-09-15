@@ -31,6 +31,11 @@ import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pa
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
+import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import {
+  formatProductOption,
+  formatWarehouseOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import {
   hasRequiredValidator,
   fieldValidationMessage,
@@ -70,6 +75,7 @@ function differentWarehousesValidator(group: AbstractControl): ValidationErrors 
     UiFieldLabelComponent,
     UiModuleInfoComponent,
     UiConfirmDialogComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './transfers.page.html',
   styleUrls: ['./transfers.page.scss'],
@@ -101,6 +107,16 @@ export class TransfersPage {
   readonly warehouses = signal<WarehouseRecord[]>([]);
   readonly batchOptions = signal<TransferBatchOption[]>([]);
   readonly balancesList = signal<InventoryBalanceRecord[]>([]);
+
+  readonly warehouseOptions = computed(() =>
+    this.warehouses().map((w) => formatWarehouseOption(w)),
+  );
+  readonly productOptions = computed(() =>
+    this.products().map((p) => formatProductOption(p)),
+  );
+  readonly formattedBatchOptions = computed(() =>
+    this.batchOptions().map((b) => ({ value: b.batchId, label: b.label })),
+  );
 
   // Selected State
   readonly selectedProduct = signal<ProductRecord | null>(null);
@@ -547,6 +563,10 @@ export class TransfersPage {
     if (target instanceof HTMLInputElement) {
       this.productSearchChanges.next(target.value.trim());
     }
+  }
+
+  onProductComboboxSearch(query: string): void {
+    this.productSearchChanges.next(query.trim());
   }
 
   transferProductName(item: WarehouseTransferRecord): string {

@@ -289,36 +289,32 @@
         <!-- Warehouse Filter -->
         @if (showBatchWarehouseFilter()) {
         <div class="select-field">
-          <select
-            class="select-field__input"
+          <agrivio-ui-searchable-dropdown
+            [options]="warehouseOptions()"
             [value]="warehouseFilter()"
-            (change)="onWarehouseChange($event)"
-            aria-label="Filter by warehouse"
-            data-testid="batches-warehouse-filter"
-          >
-            <option value="">All Warehouses</option>
-            @for (wh of warehouseList(); track wh.id) {
-            <option [value]="wh.id">{{ wh.name }}</option>
-            }
-          </select>
+            (valueChange)="onWarehouseSelected($event)"
+            allOptionLabel="All Warehouses"
+            placeholder="All Warehouses"
+            [clearable]="true"
+            ariaLabel="Filter by warehouse"
+            testId="batches-warehouse-filter"
+          />
         </div>
         }
 
         <!-- Product Filter -->
         @if (showBatchProductFilter()) {
         <div class="select-field">
-          <select
-            class="select-field__input"
+          <agrivio-ui-searchable-dropdown
+            [options]="productOptions()"
             [value]="productFilter()"
-            (change)="onProductChange($event)"
-            aria-label="Filter by product"
-            data-testid="batches-product-filter"
-          >
-            <option value="">All Products</option>
-            @for (prod of productList(); track prod.id) {
-            <option [value]="prod.id">{{ prod.name }}</option>
-            }
-          </select>
+            (valueChange)="onProductSelected($event)"
+            allOptionLabel="All Products"
+            placeholder="All Products"
+            [clearable]="true"
+            ariaLabel="Filter by product"
+            testId="batches-product-filter"
+          />
         </div>
         }
 
@@ -512,36 +508,34 @@
       <!-- Warehouse Filter -->
       @if (showBatchWarehouseFilter()) {
       <div class="mobile-filter-group">
-        <label class="mobile-filter-group__label" for="mobile-filter-wh">Warehouse</label>
-        <select
-          id="mobile-filter-wh"
-          class="mobile-filter-group__select"
+        <span class="mobile-filter-group__label">Warehouse</span>
+        <agrivio-ui-searchable-dropdown
+          [options]="warehouseOptions()"
           [value]="warehouseFilter()"
-          (change)="onWarehouseChange($event)"
-        >
-          <option value="">All Warehouses</option>
-          @for (wh of warehouseList(); track wh.id) {
-          <option [value]="wh.id">{{ wh.name }}</option>
-          }
-        </select>
+          (valueChange)="onWarehouseSelected($event)"
+          allOptionLabel="All Warehouses"
+          placeholder="All Warehouses"
+          [clearable]="true"
+          ariaLabel="Filter by warehouse"
+          testId="batches-mobile-warehouse-filter"
+        />
       </div>
       }
 
       <!-- Product Filter -->
       @if (showBatchProductFilter()) {
       <div class="mobile-filter-group">
-        <label class="mobile-filter-group__label" for="mobile-filter-prod">Product</label>
-        <select
-          id="mobile-filter-prod"
-          class="mobile-filter-group__select"
+        <span class="mobile-filter-group__label">Product</span>
+        <agrivio-ui-searchable-dropdown
+          [options]="productOptions()"
           [value]="productFilter()"
-          (change)="onProductChange($event)"
-        >
-          <option value="">All Products</option>
-          @for (prod of productList(); track prod.id) {
-          <option [value]="prod.id">{{ prod.name }}</option>
-          }
-        </select>
+          (valueChange)="onProductSelected($event)"
+          allOptionLabel="All Products"
+          placeholder="All Products"
+          [clearable]="true"
+          ariaLabel="Filter by product"
+          testId="batches-mobile-product-filter"
+        />
       </div>
       }
     </div>

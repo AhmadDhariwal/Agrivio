@@ -34,6 +34,19 @@ import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-e
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
+import {
+  DropdownOption,
+  UiSearchableDropdownComponent,
+} from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import {
+  formatBranchOption,
+  formatCategoryOption,
+  formatCustomerOption,
+  formatProductOption,
+  formatSupplierOption,
+  formatUserOption,
+  formatWarehouseOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { formatQuantity } from '../../../../shared/chart/chart-format.util';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
@@ -48,6 +61,7 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
     UiLoadingStateComponent,
     UiModuleInfoComponent,
     UiPaginationComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './reports.page.html',
   styleUrl: './reports.page.scss',
@@ -103,6 +117,38 @@ export class ReportsPage {
   readonly categories = signal<CategoryRecord[]>([]);
   readonly employees = signal<EmployeeRecord[]>([]);
   readonly accounts = signal<AccountRecord[]>([]);
+
+  readonly branchOptions = computed<DropdownOption[]>(() =>
+    this.branches().map(formatBranchOption),
+  );
+  readonly warehouseOptions = computed<DropdownOption[]>(() =>
+    this.warehouses().map(formatWarehouseOption),
+  );
+  readonly customerOptions = computed<DropdownOption[]>(() =>
+    this.customers().map(formatCustomerOption),
+  );
+  readonly supplierOptions = computed<DropdownOption[]>(() =>
+    this.suppliers().map(formatSupplierOption),
+  );
+  readonly productOptions = computed<DropdownOption[]>(() =>
+    this.products().map(formatProductOption),
+  );
+  readonly categoryOptions = computed<DropdownOption[]>(() =>
+    this.categories().map(formatCategoryOption),
+  );
+  readonly employeeOptions = computed<DropdownOption[]>(() =>
+    this.employees().map(formatUserOption),
+  );
+  readonly accountOptions = computed<DropdownOption[]>(() =>
+    this.accounts().map((acc) => {
+      const typeStr = acc.accountType || (acc as { type?: string }).type || '';
+      return {
+        value: acc.id,
+        label: acc.name,
+        meta: typeStr || undefined,
+      };
+    }),
+  );
 
   private readonly loadedLookups = {
     branches: false,
@@ -307,46 +353,39 @@ export class ReportsPage {
       });
   }
 
-  onCustomerSearch(event: Event): void {
-    const target = event.target;
-    if (target instanceof HTMLInputElement) {
-      this.customerSearchChanges.next(target.value.trim());
+  private extractSearchQuery(eventOrQuery: Event | string): string {
+    if (typeof eventOrQuery === 'string') {
+      return eventOrQuery.trim();
     }
+    const target = eventOrQuery.target;
+    if (target instanceof HTMLInputElement) {
+      return target.value.trim();
+    }
+    return '';
   }
 
-  onSupplierSearch(event: Event): void {
-    const target = event.target;
-    if (target instanceof HTMLInputElement) {
-      this.supplierSearchChanges.next(target.value.trim());
-    }
+  onCustomerSearch(eventOrQuery: Event | string): void {
+    this.customerSearchChanges.next(this.extractSearchQuery(eventOrQuery));
   }
 
-  onProductSearch(event: Event): void {
-    const target = event.target;
-    if (target instanceof HTMLInputElement) {
-      this.productSearchChanges.next(target.value.trim());
-    }
+  onSupplierSearch(eventOrQuery: Event | string): void {
+    this.supplierSearchChanges.next(this.extractSearchQuery(eventOrQuery));
   }
 
-  onCategorySearch(event: Event): void {
-    const target = event.target;
-    if (target instanceof HTMLInputElement) {
-      this.categorySearchChanges.next(target.value.trim());
-    }
+  onProductSearch(eventOrQuery: Event | string): void {
+    this.productSearchChanges.next(this.extractSearchQuery(eventOrQuery));
   }
 
-  onEmployeeSearch(event: Event): void {
-    const target = event.target;
-    if (target instanceof HTMLInputElement) {
-      this.employeeSearchChanges.next(target.value.trim());
-    }
+  onCategorySearch(eventOrQuery: Event | string): void {
+    this.categorySearchChanges.next(this.extractSearchQuery(eventOrQuery));
   }
 
-  onAccountSearch(event: Event): void {
-    const target = event.target;
-    if (target instanceof HTMLInputElement) {
-      this.accountSearchChanges.next(target.value.trim());
-    }
+  onEmployeeSearch(eventOrQuery: Event | string): void {
+    this.employeeSearchChanges.next(this.extractSearchQuery(eventOrQuery));
+  }
+
+  onAccountSearch(eventOrQuery: Event | string): void {
+    this.accountSearchChanges.next(this.extractSearchQuery(eventOrQuery));
   }
 
   private setupFilterSearchStreams(): void {

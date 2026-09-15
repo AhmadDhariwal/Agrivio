@@ -501,6 +501,8 @@ function createApp(options) {
         const access = await subscriptions.subscriptionService.resolveAccessState(organizationId);
         return access?.plan?.entitlements ?? null;
       },
+      evaluateEntitlement: (organizationId, entitlementOptions) =>
+        subscriptions.subscriptionService.evaluateEntitlement(organizationId, entitlementOptions),
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 

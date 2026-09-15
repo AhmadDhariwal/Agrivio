@@ -21,6 +21,7 @@ const branchSchema = new mongoose.Schema(
       enum: BRANCH_STATUSES,
       default: 'active',
     },
+    isDefault: { type: Boolean, required: true, default: false },
     version: { type: Number, required: true, default: 1 },
   },
   { timestamps: true, collection: 'branches' },
@@ -29,6 +30,10 @@ const branchSchema = new mongoose.Schema(
 branchSchema.index({ organizationId: 1, status: 1, createdAt: -1 });
 branchSchema.index({ organizationId: 1, nameNormalized: 1 }, { unique: true });
 branchSchema.index({ organizationId: 1, invoicePrefixNormalized: 1 }, { unique: true });
+branchSchema.index(
+  { organizationId: 1, isDefault: 1 },
+  { unique: true, partialFilterExpression: { isDefault: true } },
+);
 
 const BranchModel = mongoose.models['Branch'] || mongoose.model('Branch', branchSchema);
 

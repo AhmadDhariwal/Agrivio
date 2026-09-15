@@ -143,7 +143,7 @@ function createCustomersService(deps) {
 
     async createCustomer(organizationId, body, actor, options = {}) {
       const input = parseCustomerCreate(body);
-      const currentUsage = await store.countCustomers(organizationId);
+      const currentUsage = await store.countCustomers(organizationId, options.session ?? null);
       const entitlement = await assertCreationLimit(
         evaluateEntitlement,
         organizationId,
@@ -389,8 +389,8 @@ function createCustomersService(deps) {
       return store.countCustomersWithOpening(organizationId);
     },
 
-    async countCustomers(organizationId) {
-      return store.countCustomers(organizationId);
+    async countCustomers(organizationId, options = {}) {
+      return store.countCustomers(organizationId, options.session ?? null);
     },
   };
 }

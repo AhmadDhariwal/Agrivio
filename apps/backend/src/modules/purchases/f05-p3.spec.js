@@ -829,7 +829,20 @@ async function boot() {
 async function seedPlan(baseUrl, jar) {
   const response = await fetchJson(
     baseUrl, 'POST', API_PLATFORM_SUBSCRIPTION_PLANS_PATH,
-    { planCode: 'Starter', activate: true, monthlyPriceMinorUnits: 1000 },
+    {
+      planCode: 'Starter',
+      activate: true,
+      monthlyPriceMinorUnits: 1000,
+      annualPriceMinorUnits: 10000,
+      annualDiscountPercent: 16.67,
+      displayName: 'Starter',
+      shortDescription: 'Test plan',
+      targetCustomer: 'Test organization',
+      catalogRevision: 'test-catalog',
+      trialEligible: true,
+      limits: { products: 1000, activeUsers: 1000, branches: 1000, warehouses: 1000, customers: 1000, suppliers: 1000 },
+      entitlements: { imports: true, reportsExports: true, auditHistory: '90d', backupPolicyRef: 'test', dedicatedCloudEligible: false, supportLevelRef: 'test' },
+    },
     { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar), [API_PLATFORM_ACTOR_HEADER]: 'super-admin' }, jar,
   );
   expect([200, 201]).toContain(response.status);

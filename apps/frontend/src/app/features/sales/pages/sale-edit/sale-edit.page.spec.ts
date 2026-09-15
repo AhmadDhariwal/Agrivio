@@ -1197,7 +1197,7 @@ describe('SaleEditPage', () => {
       component.post();
 
       expect(component.posting()).toBe(false);
-      expect(component.errorMessage()).toBe('Select a branch before continuing.');
+      expect(component.errorMessage()).toBe('Line 1: select a product.');
       expect(createSaleSpy).not.toHaveBeenCalled();
       expect(postSaleSpy).not.toHaveBeenCalled();
     });

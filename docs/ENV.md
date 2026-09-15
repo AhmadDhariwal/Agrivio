@@ -15,7 +15,7 @@ Runtime variables for Agrivio. Copy `.env.example` to an ignored `.env.local`. N
 | Variable | Notes |
 | --- | --- |
 | `NODE_ENV` | `development`, `test`, or `production` |
-| `AGRIVIO_APP_PROFILE` | `local`, `test`, `staging`, `production` |
+| `AGRIVIO_APP_PROFILE` | `local`, `test`, `staging`, `production`. With `NODE_ENV=production`, `staging` emits the session cookie as `SameSite=None; Secure` for the cross-site staging topology; other profiles retain `SameSite=Lax`. |
 | `HOST` / `PORT` | API bind. Default `localhost:3000` |
 | `MONGODB_DB_NAME` | Default `Agrivio` (test default is `agrivio_test_default`) |
 | `MONGODB_REPLICA_SET` | Default `rs0` |

@@ -225,7 +225,7 @@ describe('F06 P1 customer payments, accounts, and sale drafts', () => {
         baseUrl,
         'POST',
         API_WAREHOUSES_PATH,
-        { name: 'Sale WH' },
+        { name: 'Sale WH', branchId: branch.body.data.id },
         { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
         jar,
       );
@@ -271,6 +271,24 @@ describe('F06 P1 customer payments, accounts, and sale drafts', () => {
           },
         ],
       };
+
+      const otherBranch = await fetchJson(
+        baseUrl,
+        'POST',
+        API_BRANCHES_PATH,
+        { name: 'Other Sale Branch', invoicePrefix: 'OTH' },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      const incompatibleWarehouse = await fetchJson(
+        baseUrl,
+        'POST',
+        API_SALES_PATH,
+        { ...draftBody, branchId: otherBranch.body.data.id },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      expect(incompatibleWarehouse.status).toBe(400);
 
       const draft = await fetchJson(
         baseUrl,
@@ -673,6 +691,29 @@ async function seedPlan(baseUrl, jar) {
       planCode: 'Starter',
       activate: true,
       monthlyPriceMinorUnits: 1000,
+      annualPriceMinorUnits: 10000,
+      annualDiscountPercent: 16.67,
+      displayName: 'Starter',
+      shortDescription: 'Test plan',
+      targetCustomer: 'Test organization',
+      catalogRevision: 'test-catalog',
+      trialEligible: true,
+      limits: {
+        products: 1000,
+        activeUsers: 1000,
+        branches: 1000,
+        warehouses: 1000,
+        customers: 1000,
+        suppliers: 1000,
+      },
+      entitlements: {
+        imports: true,
+        reportsExports: true,
+        auditHistory: '90d',
+        backupPolicyRef: 'test',
+        dedicatedCloudEligible: false,
+        supportLevelRef: 'test',
+      },
     },
     {
       [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),

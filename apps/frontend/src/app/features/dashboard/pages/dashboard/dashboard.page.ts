@@ -27,6 +27,11 @@ import {
   parseAmount,
 } from '../../../../shared/chart/chart-format.util';
 import { DashboardPayload, MoneyDto } from '../../models/dashboard.models';
+import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import {
+  formatBranchOption,
+  formatWarehouseOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 @Component({
@@ -42,6 +47,7 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
     UiLineChartComponent,
     UiHorizontalBarChartComponent,
     UiDonutChartComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './dashboard.page.html',
   styleUrl: './dashboard.page.scss',
@@ -60,6 +66,8 @@ export class DashboardPage {
   readonly dashboard = signal<DashboardPayload | null>(null);
   readonly branches = signal<BranchRecord[]>([]);
   readonly warehouses = signal<WarehouseRecord[]>([]);
+  readonly branchOptions = computed(() => this.branches().map(formatBranchOption));
+  readonly warehouseOptions = computed(() => this.warehouses().map(formatWarehouseOption));
   readonly fromDate = signal('');
   readonly toDate = signal('');
   readonly branchId = signal('');

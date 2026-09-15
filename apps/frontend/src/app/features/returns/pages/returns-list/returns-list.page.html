@@ -150,18 +150,15 @@
       <!-- Warehouse Filter -->
       @if (showWarehouseFilter() && warehouses().length > 0) {
       <div class="select-field">
-        <select
-          class="select-field__input"
+        <agrivio-ui-searchable-dropdown
+          [options]="warehouseOptions()"
           [value]="warehouseFilter()"
-          (change)="onWarehouseChange($event)"
-          aria-label="Filter by warehouse"
-          data-testid="returns-warehouse-filter"
-        >
-          <option value="">All warehouses</option>
-          @for (wh of warehouses(); track wh.id) {
-          <option [value]="wh.id">{{ wh.name }}</option>
-          }
-        </select>
+          (valueChange)="onWarehouseChange($event)"
+          allOptionLabel="All warehouses"
+          placeholder="All warehouses"
+          ariaLabel="Filter by warehouse"
+          testId="returns-warehouse-filter"
+        />
       </div>
       }
 

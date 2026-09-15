@@ -28,6 +28,11 @@ import { applyPaginationMeta } from '../../../../shared/data-access/pagination';
 import { ExpiryInventoryRecord, ProductBatchRecord } from '../../models/inventory.models';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import {
+  formatProductOption,
+  formatWarehouseOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 
 export interface BatchStatusInfo {
   label: string;
@@ -52,6 +57,7 @@ export interface BatchLocationStock {
     UiLoadingStateComponent,
     UiPaginationComponent,
     UiModuleInfoComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './batches.page.html',
   styleUrl: './batches.page.scss',
@@ -88,6 +94,13 @@ export class BatchesPage {
 
   readonly productList = signal<ProductRecord[]>([]);
   readonly warehouseList = signal<WarehouseRecord[]>([]);
+
+  readonly warehouseOptions = computed(() =>
+    this.warehouseList().map((w) => formatWarehouseOption(w)),
+  );
+  readonly productOptions = computed(() =>
+    this.productList().map((p) => formatProductOption(p)),
+  );
 
   // Filter Signals (Server-authoritative)
   readonly search = signal<string>('');
@@ -474,16 +487,34 @@ export class BatchesPage {
     this.searchChanges.next('');
   }
 
-  onProductChange(event: Event): void {
-    const target = event.target as HTMLSelectElement;
-    this.productFilter.set(target.value);
+  onProductChange(eventOrVal: Event | string | null): void {
+    const val =
+      typeof eventOrVal === 'string'
+        ? eventOrVal
+        : eventOrVal && 'target' in eventOrVal
+          ? (eventOrVal.target as HTMLSelectElement).value
+          : '';
+    this.onProductSelected(val);
+  }
+
+  onProductSelected(val: string | null): void {
+    this.productFilter.set(val || '');
     this.page.set(1);
     this.reload();
   }
 
-  onWarehouseChange(event: Event): void {
-    const target = event.target as HTMLSelectElement;
-    this.warehouseFilter.set(target.value);
+  onWarehouseChange(eventOrVal: Event | string | null): void {
+    const val =
+      typeof eventOrVal === 'string'
+        ? eventOrVal
+        : eventOrVal && 'target' in eventOrVal
+          ? (eventOrVal.target as HTMLSelectElement).value
+          : '';
+    this.onWarehouseSelected(val);
+  }
+
+  onWarehouseSelected(val: string | null): void {
+    this.warehouseFilter.set(val || '');
     this.page.set(1);
     this.reload();
   }

@@ -93,39 +93,33 @@
             @if (canUseBranchFilter()) {
               <div class="filter-field">
                 <label class="filter-field__label" for="dash-branch">Branch</label>
-                <select
+                <agrivio-ui-searchable-dropdown
                   id="dash-branch"
-                  class="filter-field__select"
-                  [ngModel]="branchId()"
-                  (ngModelChange)="branchId.set($event)"
-                  name="branchId"
+                  testId="dashboard-branch-select"
+                  [value]="branchId()"
+                  (valueChange)="branchId.set($event)"
+                  [options]="branchOptions()"
+                  allOptionLabel="All permitted branches"
+                  [clearable]="true"
                   [disabled]="filtersLoading()"
-                  data-testid="dashboard-branch-select"
-                >
-                  <option value="">All permitted branches</option>
-                  @for (branch of branches(); track branch.id) {
-                    <option [value]="branch.id">{{ branch.name }}</option>
-                  }
-                </select>
+                  placeholder="All permitted branches"
+                />
               </div>
             }
             @if (canUseWarehouseFilter()) {
               <div class="filter-field">
                 <label class="filter-field__label" for="dash-warehouse">Warehouse</label>
-                <select
+                <agrivio-ui-searchable-dropdown
                   id="dash-warehouse"
-                  class="filter-field__select"
-                  [ngModel]="warehouseId()"
-                  (ngModelChange)="warehouseId.set($event)"
-                  name="warehouseId"
+                  testId="dashboard-warehouse-select"
+                  [value]="warehouseId()"
+                  (valueChange)="warehouseId.set($event)"
+                  [options]="warehouseOptions()"
+                  allOptionLabel="All permitted warehouses"
+                  [clearable]="true"
                   [disabled]="filtersLoading()"
-                  data-testid="dashboard-warehouse-select"
-                >
-                  <option value="">All permitted warehouses</option>
-                  @for (warehouse of warehouses(); track warehouse.id) {
-                    <option [value]="warehouse.id">{{ warehouse.name }}</option>
-                  }
-                </select>
+                  placeholder="All permitted warehouses"
+                />
               </div>
             }
           </div>

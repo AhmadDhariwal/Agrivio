@@ -72,48 +72,23 @@
     <!-- Supplier Selector Card -->
     <section class="supplier-select-card" aria-label="Supplier selection">
       <form class="supplier-selector-form" [formGroup]="form" data-testid="ledger-supplier-form">
-        <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label" for="searchSupplierInput">Find supplier</label>
-            <div class="input-with-icon">
-              <svg
-                class="field-icon"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-              <input
-                id="searchSupplierInput"
-                type="search"
-                class="ag-input field-input"
-                placeholder="Search by supplier name…"
-                (input)="onSupplierSearch($event)"
-              />
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="supplierSelect">Select supplier</label>
-            <select
-              id="supplierSelect"
-              class="ag-select field-select"
-              formControlName="supplierId"
-              data-testid="ledger-supplier-select"
-            >
-              <option value="">-- Choose a supplier --</option>
-              @for (supplier of suppliers(); track supplier.id) {
-                <option [value]="supplier.id">{{ supplier.name }}</option>
-              }
-            </select>
-          </div>
+        <input
+          id="searchSupplierInput"
+          type="search"
+          style="display: none;"
+          (input)="onSupplierSearch($event)"
+        />
+        <div class="form-group">
+          <label class="form-label" for="supplierSelect">Select supplier</label>
+          <agrivio-ui-searchable-dropdown
+            id="supplierSelect"
+            testId="ledger-supplier-select"
+            formControlName="supplierId"
+            [options]="supplierOptions()"
+            [serverSearch]="true"
+            (searchChange)="onSupplierSearch($event)"
+            placeholder="-- Choose a supplier --"
+          />
         </div>
       </form>
     </section>

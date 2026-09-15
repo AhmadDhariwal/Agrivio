@@ -145,20 +145,16 @@
               for="expense-category"
               [required]="fieldRequired(form.controls.categoryId)"
             />
-            <select
+            <agrivio-ui-searchable-dropdown
               id="expense-category"
-              class="ag-select"
-              [class.ag-input--invalid]="fieldError(form.controls.categoryId, 'Category', formSubmitAttempted())"
               formControlName="categoryId"
-              data-testid="expense-category"
-              [attr.aria-required]="fieldRequired(form.controls.categoryId) ? 'true' : null"
-              [attr.aria-invalid]="fieldError(form.controls.categoryId, 'Category', formSubmitAttempted()) ? 'true' : null"
-            >
-              <option value="">Select category</option>
-              @for (item of categories(); track item.id) {
-              <option [value]="item.id">{{ item.name }}</option>
-              }
-            </select>
+              [testId]="'expense-category'"
+              [options]="categoryOptions()"
+              placeholder="Select category"
+              [required]="fieldRequired(form.controls.categoryId)"
+              [error]="fieldError(form.controls.categoryId, 'Category', formSubmitAttempted())"
+              ariaLabel="Category"
+            />
             @if (fieldError(form.controls.categoryId, 'Category', formSubmitAttempted()); as
             categoryError) {
             <p class="field-error" role="alert">{{ categoryError }}</p>
@@ -174,20 +170,16 @@
               for="expense-account"
               [required]="fieldRequired(form.controls.accountId)"
             />
-            <select
+            <agrivio-ui-searchable-dropdown
               id="expense-account"
-              class="ag-select"
-              [class.ag-input--invalid]="fieldError(form.controls.accountId, 'Account', formSubmitAttempted())"
               formControlName="accountId"
-              data-testid="expense-account"
-              [attr.aria-required]="fieldRequired(form.controls.accountId) ? 'true' : null"
-              [attr.aria-invalid]="fieldError(form.controls.accountId, 'Account', formSubmitAttempted()) ? 'true' : null"
-            >
-              <option value="">Select account</option>
-              @for (item of accounts(); track item.id) {
-              <option [value]="item.id">{{ item.name }}</option>
-              }
-            </select>
+              [testId]="'expense-account'"
+              [options]="accountOptions()"
+              placeholder="Select account"
+              [required]="fieldRequired(form.controls.accountId)"
+              [error]="fieldError(form.controls.accountId, 'Account', formSubmitAttempted())"
+              ariaLabel="Account"
+            />
             @if (fieldError(form.controls.accountId, 'Account', formSubmitAttempted()); as
             accountError) {
             <p class="field-error" role="alert">{{ accountError }}</p>

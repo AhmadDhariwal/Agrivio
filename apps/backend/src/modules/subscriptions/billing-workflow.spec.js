@@ -17,6 +17,17 @@ import { createApp } from '../../app';
 import { loadApiEnv } from '../../platform/config/runtime-config';
 import { createMockDatabaseLifecycle } from '../../platform/database/mongo-connection';
 import { parseEvidenceStorageRef } from './billing-evidence-storage';
+import { R1_PLAN_CATALOG, r1PlanPayload } from './r1-plan-catalog';
+
+function completePlanBody(planCode, overrides = {}) {
+  const catalog = R1_PLAN_CATALOG.find((plan) => plan.planCode === planCode);
+  return {
+    ...r1PlanPayload(catalog),
+    ...overrides,
+    limits: { ...catalog.limits, ...(overrides.limits ?? {}) },
+    entitlements: { ...catalog.entitlements, ...(overrides.entitlements ?? {}) },
+  };
+}
 
 describe('billing workflow hardening', () => {
   it('rejects path-traversal evidence storage refs', () => {
@@ -37,9 +48,12 @@ describe('billing workflow hardening', () => {
     const { server, baseUrl, jar, store, subscriptions, onboardingStore } = await boot();
     try {
       await createPlan(baseUrl, jar, {
-        planCode: 'Business',
+        ...completePlanBody('Business', {
+          monthlyPriceMinorUnits: 9000,
+          annualPriceMinorUnits: 90000,
+          annualDiscountPercent: 16.67,
+        }),
         activate: true,
-        monthlyPriceMinorUnits: 9000,
       });
       const draft = await createPlan(baseUrl, jar, { planCode: 'Enterprise', activate: false });
       expect(draft.status).toBe(201);
@@ -421,6 +435,7 @@ describe('billing workflow hardening', () => {
         status: 'active',
         planCode: 'Business',
       });
+      expect(detail.body.data.subscriptionHealth).toBe('available');
       expect(detail.body.data.evidence).toMatchObject({
         storageRef: firstUpload.body.data.evidenceStorageRef,
         originalFileName: 'first.pdf',
@@ -452,6 +467,8 @@ describe('billing workflow hardening', () => {
       const reviewerBatchSpy = vi.spyOn(onboardingStore, 'findUsersByIds');
       const organizationSingleSpy = vi.spyOn(onboardingStore, 'findOrganizationById');
       const planLookupSpy = vi.spyOn(store, 'findPlanByCodeVersion');
+      const subscriptionBatchSpy = vi.spyOn(store, 'findSubscriptionsByOrganizationIds');
+      const subscriptionSingleSpy = vi.spyOn(store, 'findSubscriptionByOrganizationId');
       const queue = await fetchJson(
         baseUrl,
         'GET',
@@ -467,16 +484,21 @@ describe('billing workflow hardening', () => {
         organizationName: 'Workflow Org',
         requestedPlanName: 'Business',
         listedAmountMinorUnits: 9000,
+        subscriptionHealth: 'available',
       });
       expect(queue.body.data.items[0].organization.displayLabel).toBe('Workflow Org');
       expect(queue.body.data.items[0].requestedPlanSnapshot.planVersion).toBe(business.planVersion);
       expect(queue.body.data.items[0].evidenceStorageRef).toBeUndefined();
       expect(organizationBatchSpy).toHaveBeenCalledTimes(1);
       expect(reviewerBatchSpy).toHaveBeenCalledTimes(1);
+      expect(subscriptionBatchSpy).toHaveBeenCalledTimes(1);
+      expect(subscriptionSingleSpy).not.toHaveBeenCalled();
       expect(organizationSingleSpy).not.toHaveBeenCalled();
       expect(planLookupSpy).not.toHaveBeenCalled();
       organizationBatchSpy.mockRestore();
       reviewerBatchSpy.mockRestore();
+      subscriptionBatchSpy.mockRestore();
+      subscriptionSingleSpy.mockRestore();
       organizationSingleSpy.mockRestore();
       planLookupSpy.mockRestore();
 

@@ -68,3 +68,9 @@ Deferred **C/D**: CSV entity types, scheduled imports, malware scan provider, F0
 ## API/cache hardening follow-up (2026-08-30)
 
 Import templates use reference caching; exact job/status and row-error reads use short organization-scoped caching with in-flight deduplication. Upload, validate, and confirm remain uncached and invalidate job/error reads only after success. Successful execute additionally invalidates the minimum import-type-specific domain tags so affected lists and selectors refresh on the next read.
+
+## R1 plan-limit enforcement follow-up (2026-09-09)
+
+Product, customer, and supplier imports now preflight the entire create-only batch against the subscription's pinned plan version inside the import transaction. Counts use the same organization and Mongo session as the writes, so an over-limit batch fails before its first row and remains all-or-nothing. A tenant-leading partial unique index permits only one executing job per organization and import type, preventing two same-resource imports from independently consuming the same remaining capacity.
+
+Model-review outcome: the `import_jobs` index is a **B — Structurally required now** concurrency constraint. It adds no fields, lifecycle states, transport fields, frontend representation, or sensitive data; preserves tenant ownership and existing audit behavior; is backward-compatible except that pre-existing duplicate executing jobs must be resolved before index synchronization; and is covered by a real replica-set uniqueness test. Deployment must run the existing index-synchronization procedure.

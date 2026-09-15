@@ -82,3 +82,11 @@ Focused coverage:
 ## API/cache hardening follow-up (2026-08-30)
 
 Organization profile/settings, branch/warehouse list/detail/options, and employee/access reads now use organization-scoped exact-query caching. Successful scoped mutations invalidate only their read families and derived setup progress. Location selectors use complete `/branches/options` and `/warehouses/options` read models, including selected inactive-value hydration, instead of capped list preloads.
+
+## Smart transaction location defaults follow-up (2026-09-14)
+
+* Branches can be marked as the single organization default; warehouses can be assigned to a branch and marked as that branch's single default.
+* Existing warehouses without `branchId` remain organization-wide for backward compatibility. New/edit warehouse forms require an active branch.
+* New Sale resolves assigned active locations through one shared frontend resolver: single option, active session preference, configured default, then manual selection. Branch changes always re-evaluate warehouse validity.
+* Sales and Purchases reject branch-scoped warehouses used with another branch; existing tenant, active-state, assignment, inventory, and costing enforcement remains authoritative.
+* Model review: `isDefault` and optional `warehouse.branchId` are Locations-owned A/B fields; service validation enforces same-organization active references, versioning remains unchanged, partial unique indexes prevent duplicate defaults, DTOs do not expose persistence internals, changes are audited through existing master-data events, and legacy records require no destructive migration.

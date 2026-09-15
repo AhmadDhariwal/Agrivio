@@ -31,6 +31,11 @@ import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.compon
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
+import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import {
+  formatCustomerOption,
+  formatAccountOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { hasRequiredValidator, fieldValidationMessage } from '../../../../shared/form/form-field.util';
 
 @Component({
@@ -43,6 +48,7 @@ import { hasRequiredValidator, fieldValidationMessage } from '../../../../shared
     UiLoadingStateComponent,
     UiFieldLabelComponent,
     UiModuleInfoComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './customer-payment-form.page.html',
   styleUrl: './customer-payment-form.page.scss',
@@ -67,6 +73,21 @@ export class CustomerPaymentFormPage {
   readonly accounts = signal<AccountRecord[]>([]);
   readonly ledgerItems = signal<CustomerLedgerEffectRecord[]>([]);
   readonly unpaidSales = signal<UnpaidSaleRecord[]>([]);
+
+  readonly customerOptions = computed(() =>
+    this.customers().map((c) => formatCustomerOption(c)),
+  );
+  readonly accountOptions = computed(() =>
+    this.accounts().map((a) => formatAccountOption(a)),
+  );
+  readonly unpaidSaleOptions = computed(() =>
+    this.unpaidSales().map((sale) => ({
+      value: sale.id,
+      label: `${sale.invoiceNumber || sale.sequence || sale.id}`,
+      description: `outstanding ${sale.outstanding.amount} PKR`,
+    })),
+  );
+
   readonly lastPayment = signal<CustomerPaymentRecord | null>(null);
   readonly canUseCustomerPayments = computed(
     () => this.capabilityService?.canUseModule('payments.customer') ?? true,
@@ -236,11 +257,14 @@ export class CustomerPaymentFormPage {
       });
   }
 
-  onCustomerSearch(event: Event): void {
-    const target = event.target;
-    if (target instanceof HTMLInputElement) {
-      this.customerSearchChanges.next(target.value.trim());
-    }
+  onCustomerSearch(eventOrQuery: Event | string): void {
+    const query =
+      typeof eventOrQuery === 'string'
+        ? eventOrQuery
+        : eventOrQuery?.target instanceof HTMLInputElement
+          ? eventOrQuery.target.value
+          : '';
+    this.customerSearchChanges.next(query.trim());
   }
 
   private loadUnpaidSales(customerId: string): void {
