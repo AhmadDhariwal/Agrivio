@@ -26,6 +26,11 @@ import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pa
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
+import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import {
+  formatProductOption,
+  formatWarehouseOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import {
   hasRequiredValidator,
   fieldValidationMessage,
@@ -56,6 +61,7 @@ export interface BatchOption {
     UiFieldLabelComponent,
     UiModuleInfoComponent,
     UiConfirmDialogComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './adjustments.page.html',
   styleUrl: './adjustments.page.scss',
@@ -89,6 +95,16 @@ export class AdjustmentsPage {
   readonly warehouses = signal<WarehouseRecord[]>([]);
   readonly batchOptions = signal<BatchOption[]>([]);
   readonly balancesList = signal<InventoryBalanceRecord[]>([]);
+
+  readonly warehouseOptions = computed(() =>
+    this.warehouses().map((w) => formatWarehouseOption(w)),
+  );
+  readonly productOptions = computed(() =>
+    this.products().map((p) => formatProductOption(p)),
+  );
+  readonly formattedBatchOptions = computed(() =>
+    this.batchOptions().map((b) => ({ value: b.batchId, label: b.label })),
+  );
 
   // Selected State
   readonly selectedProduct = signal<ProductRecord | null>(null);
@@ -575,6 +591,10 @@ export class AdjustmentsPage {
     this.pageSize.set(size);
     this.page.set(1);
     this.reloadAdjustments();
+  }
+
+  onProductComboboxSearch(query: string): void {
+    this.productSearchChanges.next(query.trim());
   }
 
   private mapError(error: unknown, fallback: string): string {

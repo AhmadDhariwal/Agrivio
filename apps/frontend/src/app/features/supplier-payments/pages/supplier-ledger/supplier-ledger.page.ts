@@ -23,6 +23,8 @@ import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.compon
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
+import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import { formatSupplierOption } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 @Component({
@@ -36,6 +38,7 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
     UiLoadingStateComponent,
     UiEmptyStateComponent,
     UiModuleInfoComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './supplier-ledger.page.html',
   styleUrl: './supplier-ledger.page.scss',
@@ -84,6 +87,7 @@ export class SupplierLedgerPage {
   readonly loadingLedger = signal(false);
   readonly loadingRecon = signal(false);
   readonly suppliers = signal<SupplierRecord[]>([]);
+  readonly supplierOptions = computed(() => this.suppliers().map(formatSupplierOption));
   readonly selectedSupplierId = signal<string>('');
   readonly ledgerItems = signal<SupplierLedgerEffectRecord[]>([]);
   readonly reconciliation = signal<SupplierReconciliationRecord | null>(null);
@@ -310,8 +314,12 @@ export class SupplierLedgerPage {
     return name.slice(0, 2).toUpperCase();
   }
 
-  onSupplierSearch(event: Event): void {
-    const target = event.target;
+  onSupplierSearch(eventOrQuery: Event | string): void {
+    if (typeof eventOrQuery === 'string') {
+      this.supplierSearchChanges.next(eventOrQuery.trim());
+      return;
+    }
+    const target = eventOrQuery.target;
     if (target instanceof HTMLInputElement) {
       this.supplierSearchChanges.next(target.value.trim());
     }

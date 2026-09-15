@@ -17,6 +17,7 @@ import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.compon
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
+import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
 
 type BillingStatus = 'submitted' | 'under_review' | 'approved' | 'rejected' | '';
 type PendingApprove = { kind: 'approve'; item: BillingRecordSummary };
@@ -25,7 +26,13 @@ type PendingReject = { kind: 'reject'; item: BillingRecordSummary };
 @Component({
   selector: 'agrivio-platform-billing-review-page',
   standalone: true,
-  imports: [UiAlertComponent, UiEmptyStateComponent, UiLoadingStateComponent, UiPaginationComponent],
+  imports: [
+    UiAlertComponent,
+    UiEmptyStateComponent,
+    UiLoadingStateComponent,
+    UiPaginationComponent,
+    UiSearchableDropdownComponent,
+  ],
   templateUrl: './billing-review.page.html',
   styleUrl: './billing-review.page.scss',
 })
@@ -75,6 +82,14 @@ export class PlatformBillingReviewPage {
     }
     return map;
   });
+
+  readonly organizationOptions = computed(() =>
+    this.organizations().map((org) => ({
+      value: org.id,
+      label: org.name,
+      meta: org.status || undefined,
+    })),
+  );
 
   readonly hasActiveFilters = computed(
     () => Boolean(this.search() || this.statusFilter() || this.organizationFilter()),
@@ -446,9 +461,11 @@ export class PlatformBillingReviewPage {
     this.reload();
   }
 
-  onOrganizationChange(event: Event): void {
-    const target = event.target as HTMLSelectElement | null;
-    this.organizationFilter.set(target?.value ?? '');
+  onOrganizationChange(valueOrEvent: Event | string): void {
+    const value = typeof valueOrEvent === 'string'
+      ? valueOrEvent
+      : ((valueOrEvent.target as HTMLSelectElement | null)?.value ?? '');
+    this.organizationFilter.set(value);
     this.page.set(1);
     this.reload();
   }

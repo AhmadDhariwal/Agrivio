@@ -32,7 +32,6 @@ test.describe('R1-F09-004 accessibility — critical workflows', () => {
     await assertControlHasAccessibleName(page, 'sale-warehouse');
     await assertControlHasAccessibleName(page, 'sale-customer');
     await assertControlHasAccessibleName(page, 'sale-line-product');
-    await assertControlHasAccessibleName(page, 'sale-product-search');
     await page.getByTestId('sale-branch').focus();
     await assertVisibleFocus(page);
     await expect(page.getByRole('button', { name: 'Add line' })).toBeVisible();

@@ -61,6 +61,18 @@ import {
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { LocationDefaultResolverService } from '../../../../shared/locations/location-default-resolver.service';
+import {
+  UiSearchableDropdownComponent,
+  SearchableDropdownOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import {
+  formatBranchOption,
+  formatWarehouseOption,
+  formatCustomerOption,
+  formatProductOption,
+  formatAccountOption,
+  formatPackagingUnitOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 
 @Component({
   selector: 'agrivio-sale-edit-page',
@@ -72,6 +84,7 @@ import { LocationDefaultResolverService } from '../../../../shared/locations/loc
     UiLoadingStateComponent,
     UiConfirmDialogComponent,
     UiFieldLabelComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './sale-edit.page.html',
   styleUrl: './sale-edit.page.scss',
@@ -150,6 +163,27 @@ export class SaleEditPage {
   readonly relatedReturns = signal<SalesReturnRecord[]>([]);
   readonly lastPostedReturnId = signal<string | null>(null);
   readonly packagingByLine = signal<Record<number, PackagingUnitRecord[]>>({});
+
+  readonly branchOptions = computed<SearchableDropdownOption[]>(() =>
+    this.branches().map(formatBranchOption),
+  );
+  readonly warehouseOptions = computed<SearchableDropdownOption[]>(() =>
+    this.warehouses().map(formatWarehouseOption),
+  );
+  readonly customerOptions = computed<SearchableDropdownOption[]>(() => [
+    { value: '', label: 'Walk-in (cash only)' },
+    ...this.customers().map(formatCustomerOption),
+  ]);
+  readonly productOptions = computed<SearchableDropdownOption[]>(() =>
+    this.products().map(formatProductOption),
+  );
+  readonly accountOptions = computed<SearchableDropdownOption[]>(() =>
+    this.accounts().map(formatAccountOption),
+  );
+  readonly refundAccountOptions = computed<SearchableDropdownOption[]>(() => [
+    { value: '', label: 'None' },
+    ...this.refundAccounts().map(formatAccountOption),
+  ]);
   readonly canUseSales = computed(() => this.capabilityService?.canUseModule('sales') ?? true);
   readonly canCreate = computed(() => this.sessionStore.hasPermission('sales.create'));
   readonly canCreateDraft = computed(
@@ -567,6 +601,31 @@ export class SaleEditPage {
 
   packagingUnitsForLine(index: number): PackagingUnitRecord[] {
     return this.packagingByLine()[index] ?? [];
+  }
+
+  packagingOptionsForLine(index: number): SearchableDropdownOption[] {
+    const units = this.packagingUnitsForLine(index);
+    return [
+      { value: '', label: 'Base unit' },
+      ...units.map(formatPackagingUnitOption),
+    ];
+  }
+
+  onCustomerSearchChange(term: string): void {
+    this.customerSearchTerm.set(term);
+    this.requestCustomerSearch(term.trim(), false);
+  }
+
+  onCustomerDropdownOpenChange(open: boolean): void {
+    this.customerDropdownOpen.set(open);
+    if (open) {
+      this.requestCustomerSearch();
+    }
+  }
+
+  onProductSearchChange(term: string): void {
+    this.productSearchQuery.set(term);
+    this.productSearchChanges.next(term.trim());
   }
 
   onProductSearchInput(event: Event): void {

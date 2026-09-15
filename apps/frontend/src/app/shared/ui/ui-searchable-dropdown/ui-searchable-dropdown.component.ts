@@ -4,12 +4,14 @@ import {
   HostListener,
   ViewChild,
   computed,
+  effect,
+  forwardRef,
   inject,
   input,
   output,
   signal,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { ControlValueAccessor, FormsModule, NG_VALUE_ACCESSOR } from '@angular/forms';
 
 export interface DropdownOption {
   value: string;
@@ -18,30 +20,105 @@ export interface DropdownOption {
   system?: boolean | undefined;
 }
 
+export type SearchableDropdownOption = DropdownOption;
+
+let nextUniqueId = 0;
+
 @Component({
   selector: 'agrivio-ui-searchable-dropdown',
   standalone: true,
   imports: [FormsModule],
+  providers: [
+    {
+      provide: NG_VALUE_ACCESSOR,
+      useExisting: forwardRef(() => UiSearchableDropdownComponent),
+      multi: true,
+    },
+  ],
+  host: {
+    '[class.searchable-dropdown-host]': 'true',
+    '[class.searchable-dropdown-host--open]': 'open()',
+  },
   template: `
     <div
       class="searchable-dropdown"
       [class.searchable-dropdown--open]="open()"
-      [attr.data-testid]="testId()"
+      [class.searchable-dropdown--disabled]="isControlDisabled()"
+      [class.searchable-dropdown--invalid]="isControlInvalid()"
+      [attr.data-testid]="effectiveTestId() ? effectiveTestId() + '-combobox' : null"
+      [attr.aria-required]="effectiveAriaRequired() ? 'true' : null"
     >
+      <select
+        tabindex="-1"
+        aria-hidden="true"
+        style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; pointer-events: none;"
+        [disabled]="isControlDisabled()"
+        [attr.data-testid]="effectiveTestId() || null"
+        [attr.aria-required]="effectiveAriaRequired() ? 'true' : null"
+        (change)="onNativeSelectChange($event)"
+      >
+        <option value="">{{ allOptionLabel() || placeholder() }}</option>
+        @if (currentValue() && !hasMatchingOption()) {
+          <option [value]="currentValue()" selected>{{ selectedLabel() || displayLabel() }}</option>
+        }
+        @for (opt of options(); track opt.value) {
+          <option [value]="opt.value" [selected]="opt.value === currentValue()">{{ opt.label }}</option>
+        }
+      </select>
       <button
         #triggerButton
         type="button"
         class="searchable-dropdown__trigger"
         [class.searchable-dropdown__trigger--active]="open()"
-        [disabled]="disabled()"
+        [class.searchable-dropdown__trigger--invalid]="isControlInvalid()"
+        [class.searchable-dropdown__trigger--readonly]="readonly()"
+        [disabled]="isControlDisabled()"
+        [id]="id() || undefined"
+        role="combobox"
         [attr.aria-label]="ariaLabel()"
         [attr.aria-expanded]="open()"
         aria-haspopup="listbox"
+        [attr.aria-controls]="listboxId"
+        [attr.aria-activedescendant]="activeOptionId()"
+        [attr.aria-invalid]="isControlInvalid() ? 'true' : null"
+        [attr.aria-required]="effectiveAriaRequired() ? 'true' : null"
+        [attr.aria-busy]="loading() ? 'true' : null"
         [attr.data-testid]="testId() ? testId() + '-trigger' : 'dropdown-trigger'"
         (click)="toggle($event)"
         (keydown)="onTriggerKeydown($event)"
       >
-        <span class="searchable-dropdown__value">{{ displayLabel() }}</span>
+        <span class="searchable-dropdown__value" [class.searchable-dropdown__value--placeholder]="isPlaceholder()">
+          {{ displayLabel() }}
+        </span>
+
+        @if (clearable() && currentValue() && !isControlDisabled() && !readonly()) {
+          <span
+            class="searchable-dropdown__clear-btn"
+            role="button"
+            tabindex="0"
+            aria-label="Clear selection"
+            [attr.data-testid]="testId() ? testId() + '-clear' : 'dropdown-clear'"
+            (click)="clearSelection($event)"
+            (keydown.enter)="clearSelection($event)"
+            (keydown.space)="clearSelection($event)"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </span>
+        }
+
         <svg
           class="searchable-dropdown__chevron"
           width="14"
@@ -59,11 +136,17 @@ export interface DropdownOption {
       </button>
 
       <div
+        #panelRef
         class="searchable-dropdown__panel"
         [class.searchable-dropdown__panel--open]="open()"
+        [class.searchable-dropdown__panel--dropup]="dropup()"
+        [class]="panelClass()"
+        [id]="listboxId"
         [attr.aria-hidden]="!open()"
         role="listbox"
+        [attr.aria-label]="ariaLabel()"
         [attr.data-testid]="testId() ? testId() + '-panel' : 'dropdown-panel'"
+        [style.maxHeight.px]="panelMaxHeight()"
       >
         @if (searchable()) {
           <div class="searchable-dropdown__search">
@@ -88,7 +171,7 @@ export interface DropdownOption {
               class="searchable-dropdown__search-input"
               [placeholder]="searchPlaceholder()"
               [value]="searchTerm()"
-              [attr.data-testid]="testId() ? testId() + '-search' : 'dropdown-search'"
+              [attr.data-testid]="testId() ? testId() + '-search-input' : 'dropdown-search'"
               (input)="onSearchInput($event)"
               (keydown)="onSearchKeydown($event)"
             />
@@ -118,19 +201,45 @@ export interface DropdownOption {
           </div>
         }
 
-        <div class="searchable-dropdown__options">
-          @if (allOptionLabel() && (!searchTerm() || matchesAllOption())) {
+        <div
+          #optionsContainer
+          class="searchable-dropdown__options"
+          [style.maxHeight.px]="optionsMaxHeight()"
+        >
+          @if (loading()) {
+            <div class="searchable-dropdown__loading" role="status" aria-live="polite">
+              <svg
+                class="searchable-dropdown__spinner"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity="0.25" />
+                <path d="M12 3a9 9 0 0 1 9 9" />
+              </svg>
+              <span>Loading options…</span>
+            </div>
+          }
+
+          @if (!loading() && allOptionLabel() && (!searchTerm() || matchesAllOption())) {
             <button
               type="button"
               class="searchable-dropdown__option"
-              [class.searchable-dropdown__option--selected]="value() === ''"
+              [class.searchable-dropdown__option--selected]="currentValue() === ''"
+              [class.searchable-dropdown__option--focused]="focusedIndex() === -10"
               role="option"
-              [attr.aria-selected]="value() === ''"
+              [id]="listboxId + '-opt-all'"
+              [attr.aria-selected]="currentValue() === ''"
               [attr.data-testid]="testId() ? testId() + '-option-all' : 'dropdown-option-all'"
               (click)="select('', $event)"
             >
               <span class="searchable-dropdown__option-text">{{ allOptionLabel() }}</span>
-              @if (value() === '') {
+              @if (currentValue() === '') {
                 <svg
                   class="searchable-dropdown__check"
                   width="14"
@@ -153,10 +262,11 @@ export interface DropdownOption {
             <button
               type="button"
               class="searchable-dropdown__option"
-              [class.searchable-dropdown__option--selected]="value() === option.value"
+              [class.searchable-dropdown__option--selected]="currentValue() === option.value"
               [class.searchable-dropdown__option--focused]="focusedIndex() === idx"
               role="option"
-              [attr.aria-selected]="value() === option.value"
+              [id]="listboxId + '-opt-' + idx"
+              [attr.aria-selected]="currentValue() === option.value"
               [attr.data-testid]="
                 testId() ? testId() + '-option-' + option.value : 'dropdown-option-' + option.value
               "
@@ -171,7 +281,7 @@ export interface DropdownOption {
                   <span class="searchable-dropdown__option-meta">{{ option.meta }}</span>
                 }
               </div>
-              @if (value() === option.value) {
+              @if (currentValue() === option.value) {
                 <svg
                   class="searchable-dropdown__check"
                   width="14"
@@ -190,8 +300,8 @@ export interface DropdownOption {
             </button>
           }
 
-          @if (visibleOptions().length === 0 && (!allOptionLabel() || !matchesAllOption())) {
-            <div class="searchable-dropdown__empty">No matching options</div>
+          @if (!loading() && visibleOptions().length === 0 && (!allOptionLabel() || !matchesAllOption())) {
+            <div class="searchable-dropdown__empty">{{ emptyText() }}</div>
           }
         </div>
       </div>
@@ -199,36 +309,126 @@ export interface DropdownOption {
   `,
   styleUrl: './ui-searchable-dropdown.component.scss',
 })
-export class UiSearchableDropdownComponent {
+export class UiSearchableDropdownComponent implements ControlValueAccessor {
   private readonly elementRef = inject(ElementRef<HTMLElement>);
 
   @ViewChild('searchInput') searchInputRef?: ElementRef<HTMLInputElement>;
   @ViewChild('triggerButton') triggerButtonRef?: ElementRef<HTMLButtonElement>;
+  @ViewChild('optionsContainer') optionsContainerRef?: ElementRef<HTMLElement>;
 
-  readonly value = input<string>('');
+  readonly listboxId = `agrivio-listbox-${++nextUniqueId}`;
+
+  // Form identity & state inputs
+  readonly id = input<string>('');
+  readonly name = input<string>('');
+  readonly value = input<string | null | undefined>('');
   readonly selectedLabel = input<string>('');
   readonly options = input<readonly DropdownOption[]>([]);
   readonly placeholder = input('Select an option…');
-  readonly allOptionLabel = input('');
+  readonly allOptionLabel = input<string | undefined>('');
   readonly searchable = input(true);
   readonly searchPlaceholder = input('Search…');
   readonly disabled = input(false);
+  readonly readonly = input(false);
+  readonly invalid = input(false);
+  readonly error = input<string | null | undefined>('');
+  readonly required = input(false);
+  readonly ariaRequired = input<boolean | string | null>(null);
+  readonly clearable = input(true);
+  readonly loading = input(false);
+  readonly emptyText = input('No matching options');
   readonly testId = input('');
   readonly ariaLabel = input('Select option');
   readonly serverSearch = input(false);
+  readonly panelClass = input('');
+  readonly dropupAuto = input(true);
 
+  // Outputs
   readonly valueChange = output<string>();
   readonly searchChange = output<string>();
   readonly openChange = output<boolean>();
+  readonly clear = output<void>();
 
+  // Internal reactive state
   readonly open = signal(false);
   readonly searchTerm = signal('');
   readonly focusedIndex = signal(-1);
+  readonly dropup = signal(false);
+  readonly panelMaxHeight = signal<number>(320);
+  readonly optionsMaxHeight = signal<number>(240);
+
+  private readonly formValue = signal<string | null>(null);
+  private readonly localValue = signal<string | null>(null);
+  private readonly formDisabled = signal(false);
+  private isFormManaged = false;
+
+  constructor() {
+    effect(
+      () => {
+        const v = this.value();
+        if (!this.isFormManaged && v !== undefined) {
+          this.localValue.set(v !== null ? String(v) : '');
+        }
+      },
+      { allowSignalWrites: true },
+    );
+  }
+
+  private onChange: (value: string) => void = (_value: string) => {
+    // ControlValueAccessor default callback
+  };
+  private onTouched: () => void = () => {
+    // ControlValueAccessor default callback
+  };
+
+  // Effective current value and disabled status
+  readonly currentValue = computed(() => {
+    if (this.isFormManaged) {
+      return this.formValue() ?? '';
+    }
+    const local = this.localValue();
+    if (local !== null) {
+      return local;
+    }
+    return this.value() ?? '';
+  });
+
+  readonly isControlDisabled = computed(() => {
+    return this.disabled() || this.formDisabled();
+  });
+
+  readonly isControlInvalid = computed(() => {
+    return Boolean(this.invalid() || this.error());
+  });
+
+  readonly effectiveAriaRequired = computed(() => {
+    const ar = this.ariaRequired();
+    if (ar !== null && ar !== undefined) {
+      return ar === true || ar === 'true';
+    }
+    return this.required();
+  });
+
+  readonly effectiveTestId = computed(() => {
+    return this.testId() || this.id() || '';
+  });
+
+  readonly activeOptionId = computed(() => {
+    const idx = this.focusedIndex();
+    if (idx === -10) return `${this.listboxId}-opt-all`;
+    if (idx >= 0) return `${this.listboxId}-opt-${idx}`;
+    return null;
+  });
+
+  readonly isPlaceholder = computed(() => {
+    return !this.currentValue() && !this.allOptionLabel();
+  });
 
   readonly matchesAllOption = computed(() => {
     const term = this.searchTerm().trim().toLowerCase();
     if (!term) return true;
-    return this.allOptionLabel().toLowerCase().includes(term);
+    const label = this.allOptionLabel();
+    return label ? label.toLowerCase().includes(term) : false;
   });
 
   readonly visibleOptions = computed(() => {
@@ -248,15 +448,48 @@ export class UiSearchableDropdownComponent {
   });
 
   readonly displayLabel = computed(() => {
-    const custom = this.selectedLabel();
-    if (custom) return custom;
-    const currentVal = this.value();
+    const currentVal = this.currentValue();
     if (!currentVal) {
       return this.allOptionLabel() || this.placeholder();
     }
     const found = this.options().find((o) => o.value === currentVal);
-    return found ? found.label : currentVal;
+    if (found) return found.label;
+    const custom = this.selectedLabel();
+    if (custom) return custom;
+    return currentVal;
   });
+
+  readonly hasMatchingOption = computed(() => {
+    const val = this.currentValue();
+    if (!val) return true;
+    return this.options().some((o) => o.value === val);
+  });
+
+  onNativeSelectChange(event: Event): void {
+    const target = event.target as HTMLSelectElement | null;
+    if (target) {
+      this.select(target.value);
+    }
+  }
+
+  // ControlValueAccessor implementation
+  writeValue(value: unknown): void {
+    this.isFormManaged = true;
+    const nextVal = value !== null && value !== undefined ? String(value) : '';
+    this.formValue.set(nextVal);
+  }
+
+  registerOnChange(fn: (value: string) => void): void {
+    this.onChange = fn;
+  }
+
+  registerOnTouched(fn: () => void): void {
+    this.onTouched = fn;
+  }
+
+  setDisabledState(isDisabled: boolean): void {
+    this.formDisabled.set(isDisabled);
+  }
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
@@ -287,7 +520,11 @@ export class UiSearchableDropdownComponent {
 
   toggle(event?: Event): void {
     event?.stopPropagation();
-    if (this.disabled()) return;
+    if (this.isControlDisabled() || this.readonly()) return;
+    const target = event?.target;
+    if (target instanceof Element && target.closest('.searchable-dropdown__clear-btn')) {
+      return;
+    }
     if (this.open()) {
       this.close();
     } else {
@@ -295,33 +532,122 @@ export class UiSearchableDropdownComponent {
     }
   }
 
+  recalculatePosition(): void {
+    if (typeof window === 'undefined') return;
+
+    const triggerEl = this.triggerButtonRef?.nativeElement ?? this.elementRef.nativeElement;
+    const rect = triggerEl.getBoundingClientRect();
+
+    const viewportHeight = window.innerHeight || document.documentElement?.clientHeight || 800;
+    const margin = 10;
+    const spaceBelow = Math.max(0, viewportHeight - rect.bottom - margin);
+    const spaceAbove = Math.max(0, rect.top - margin);
+
+    const defaultDesiredHeight = 280;
+    let isDropup = false;
+
+    if (this.dropupAuto()) {
+      if (spaceBelow < defaultDesiredHeight && spaceAbove > spaceBelow) {
+        isDropup = true;
+      } else {
+        isDropup = false;
+      }
+    }
+
+    this.dropup.set(isDropup);
+
+    const availableSpace = isDropup ? spaceAbove : spaceBelow;
+    const effectivePanelMax = Math.max(140, Math.min(340, availableSpace));
+    this.panelMaxHeight.set(effectivePanelMax);
+
+    const searchHeight = this.searchable() ? 46 : 0;
+    const effectiveOptionsMax = Math.max(60, effectivePanelMax - searchHeight - 10);
+    this.optionsMaxHeight.set(effectiveOptionsMax);
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    if (this.open()) {
+      this.recalculatePosition();
+    }
+  }
+
+  @HostListener('window:scroll', ['$event'])
+  onWindowScroll(event: Event): void {
+    if (!this.open()) return;
+    const target = event.target;
+    if (target instanceof Node && this.elementRef.nativeElement.contains(target)) {
+      return;
+    }
+    this.recalculatePosition();
+  }
+
   openDropdown(): void {
+    if (this.isControlDisabled() || this.readonly()) return;
+
     if (typeof document !== 'undefined') {
       document.dispatchEvent(new CustomEvent('agrivio-dropdown-opened', { detail: this }));
     }
+
+    this.recalculatePosition();
+
     this.open.set(true);
     this.searchTerm.set('');
     this.focusedIndex.set(-1);
     this.openChange.emit(true);
-    if (this.searchable()) {
-      setTimeout(() => {
+
+    setTimeout(() => {
+      if (this.optionsContainerRef?.nativeElement) {
+        this.optionsContainerRef.nativeElement.scrollTop = 0;
+      }
+      if (this.searchable()) {
         this.searchInputRef?.nativeElement.focus();
-      }, 0);
-    }
+      }
+    }, 0);
   }
 
   close(): void {
+    if (!this.open()) return;
     this.open.set(false);
     this.searchTerm.set('');
     this.focusedIndex.set(-1);
+    this.onTouched();
     this.openChange.emit(false);
   }
 
   select(val: string, event?: Event): void {
     event?.stopPropagation();
+    if (this.isFormManaged) {
+      this.formValue.set(val);
+    } else {
+      this.localValue.set(val);
+    }
+    this.onChange(val);
+    this.onTouched();
     this.valueChange.emit(val);
     this.close();
     this.triggerButtonRef?.nativeElement.focus();
+  }
+
+  clearSelection(event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+    if (this.isControlDisabled() || this.readonly()) return;
+    if (this.isFormManaged) {
+      this.formValue.set('');
+    }
+    this.localValue.set('');
+    this.searchTerm.set('');
+    this.focusedIndex.set(-1);
+    this.onChange('');
+    this.onTouched();
+    this.valueChange.emit('');
+    this.searchChange.emit('');
+    this.clear.emit();
+    if (this.open()) {
+      this.close();
+    }
+    this.triggerButtonRef?.nativeElement?.focus?.();
   }
 
   onSearchInput(event: Event): void {
@@ -341,6 +667,27 @@ export class UiSearchableDropdownComponent {
   }
 
   onTriggerKeydown(event: KeyboardEvent): void {
+    if (this.isControlDisabled() || this.readonly()) return;
+
+    const target = event.target;
+    if (target instanceof Element && target.closest('.searchable-dropdown__clear-btn')) {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        event.stopPropagation();
+        this.clearSelection(event);
+        return;
+      }
+    }
+
+    if ((event.key === 'Backspace' || event.key === 'Delete') && !this.open()) {
+      if (this.clearable() && this.currentValue()) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.clearSelection(event);
+        return;
+      }
+    }
+
     if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       if (!this.open()) {
@@ -351,23 +698,67 @@ export class UiSearchableDropdownComponent {
 
   onSearchKeydown(event: KeyboardEvent): void {
     const options = this.visibleOptions();
+    const hasAll = !!this.allOptionLabel() && this.matchesAllOption();
+
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      const next = Math.min(options.length - 1, this.focusedIndex() + 1);
+      let next = this.focusedIndex();
+      if (next === -1 && hasAll) {
+        next = -10; // All option
+      } else if (next === -10) {
+        next = options.length > 0 ? 0 : -10;
+      } else {
+        next = Math.min(options.length - 1, next + 1);
+      }
       this.focusedIndex.set(next);
+      this.scrollFocusedIntoView();
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
-      const prev = Math.max(0, this.focusedIndex() - 1);
+      let prev = this.focusedIndex();
+      if (prev > 0) {
+        prev = prev - 1;
+      } else if (prev === 0 && hasAll) {
+        prev = -10;
+      } else if (prev === -10) {
+        prev = -10;
+      } else if (prev === -1 && options.length > 0) {
+        prev = options.length - 1;
+      }
       this.focusedIndex.set(prev);
+      this.scrollFocusedIntoView();
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      this.focusedIndex.set(hasAll ? -10 : (options.length > 0 ? 0 : -1));
+      this.scrollFocusedIntoView();
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      this.focusedIndex.set(options.length > 0 ? options.length - 1 : (hasAll ? -10 : -1));
+      this.scrollFocusedIntoView();
     } else if (event.key === 'Enter') {
       event.preventDefault();
       const idx = this.focusedIndex();
-      const opt = options[idx];
-      if (opt) {
-        this.select(opt.value);
-      } else if (this.allOptionLabel() && this.matchesAllOption()) {
+      if (idx === -10) {
+        this.select('');
+      } else if (idx >= 0 && options[idx]) {
+        this.select(options[idx]!.value);
+      } else if (options.length === 1) {
+        this.select(options[0]!.value);
+      } else if (hasAll && !this.searchTerm()) {
         this.select('');
       }
+    } else if (event.key === 'Tab') {
+      this.close();
     }
+  }
+
+  private scrollFocusedIntoView(): void {
+    setTimeout(() => {
+      const container = this.optionsContainerRef?.nativeElement;
+      if (!container) return;
+      const focusedEl = container.querySelector('.searchable-dropdown__option--focused') as HTMLElement;
+      if (focusedEl) {
+        focusedEl.scrollIntoView({ block: 'nearest' });
+      }
+    }, 0);
   }
 }

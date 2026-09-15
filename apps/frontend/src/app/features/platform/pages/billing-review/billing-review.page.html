@@ -71,18 +71,16 @@
         </div>
 
         <div class="select-field">
-          <select
-            class="select-field__input"
+          <agrivio-ui-searchable-dropdown
+            testId="billing-org-filter"
             [value]="organizationFilter()"
-            (change)="onOrganizationChange($event)"
-            aria-label="Filter by organization"
-            data-testid="billing-org-filter"
-          >
-            <option value="">All organizations</option>
-            @for (org of organizations(); track org.id) {
-              <option [value]="org.id">{{ org.name }}</option>
-            }
-          </select>
+            (valueChange)="onOrganizationChange($event)"
+            [options]="organizationOptions()"
+            allOptionLabel="All organizations"
+            [clearable]="true"
+            ariaLabel="Filter by organization"
+            placeholder="All organizations"
+          />
         </div>
 
         @if (hasActiveFilters()) {
@@ -177,17 +175,16 @@
         </div>
         <div class="mobile-filter-group">
           <label class="mobile-filter-group__label" for="mobile-filter-org">Organization</label>
-          <select
+          <agrivio-ui-searchable-dropdown
             id="mobile-filter-org"
-            class="mobile-filter-group__select"
+            testId="mobile-billing-org-filter"
             [value]="organizationFilter()"
-            (change)="onOrganizationChange($event)"
-          >
-            <option value="">All organizations</option>
-            @for (org of organizations(); track org.id) {
-              <option [value]="org.id">{{ org.name }}</option>
-            }
-          </select>
+            (valueChange)="onOrganizationChange($event)"
+            [options]="organizationOptions()"
+            allOptionLabel="All organizations"
+            [clearable]="true"
+            placeholder="All organizations"
+          />
         </div>
       </div>
       <div class="mobile-filter-sheet__foot">

@@ -15,6 +15,13 @@ import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.compon
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
+import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
+import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import {
+  formatPackagingUnitOption,
+  formatProductOption,
+  formatWarehouseOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import {
   hasRequiredValidator,
   fieldValidationMessage,
@@ -38,6 +45,7 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
     UiLoadingStateComponent,
     UiFieldLabelComponent,
     UiModuleInfoComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './opening-stock.page.html',
   styleUrl: './opening-stock.page.scss',
@@ -62,6 +70,16 @@ export class OpeningStockPage {
   readonly warehouses = signal<WarehouseRecord[]>([]);
   readonly packagingUnits = signal<PackagingUnitRecord[]>([]);
   readonly selectedTrackingMode = signal<string>('none');
+
+  readonly warehouseOptions = computed(() =>
+    this.warehouses().map((w) => formatWarehouseOption(w)),
+  );
+  readonly productOptions = computed(() =>
+    this.products().map((p) => formatProductOption(p)),
+  );
+  readonly packagingOptions = computed(() =>
+    this.packagingUnits().map((u) => formatPackagingUnitOption(u)),
+  );
   readonly canUseOpeningStock = computed(
     () => this.capabilityService?.canUseModule('inventory.openingStock') ?? true,
   );
@@ -323,5 +341,9 @@ export class OpeningStockPage {
     if (target instanceof HTMLInputElement) {
       this.productSearchChanges.next(target.value.trim());
     }
+  }
+
+  onProductComboboxSearch(query: string): void {
+    this.productSearchChanges.next(query.trim());
   }
 }
