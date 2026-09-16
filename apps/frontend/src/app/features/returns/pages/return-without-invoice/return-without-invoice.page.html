@@ -94,6 +94,7 @@
                 allOptionLabel="No registered customer (Walk-in)"
                 [clearable]="true"
                 [serverSearch]="true"
+                [selectedLabel]="customerSelectedLabel()"
                 (searchChange)="onCustomerSearch($event)"
                 ariaLabel="Customer lookup"
               />
@@ -187,6 +188,7 @@
                     [required]="fieldRequired(lineGroup(index).controls['productId'])"
                     [error]="lineFieldError(index, 'productId', 'Product')"
                     [serverSearch]="true"
+                    [selectedLabel]="productSelectedLabel(index)"
                     (searchChange)="onProductSearch($event)"
                     (valueChange)="onProductChange(index, $event)"
                     ariaLabel="Product"

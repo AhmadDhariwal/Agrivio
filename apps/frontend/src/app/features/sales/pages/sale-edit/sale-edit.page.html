@@ -1000,6 +1000,8 @@
               [disabled]="!canEditCustomerField() || isPosted()"
               [invalid]="!isWalkInCustomerType() && !!fieldError(form.controls.customerId, 'Customer', formSubmitAttempted())"
               [loading]="customerSearchLoading()"
+              [serverSearch]="true"
+              [selectedLabel]="selectedCustomer()?.name || ''"
               (searchChange)="onCustomerSearchChange($event)"
               (openChange)="onCustomerDropdownOpenChange($event)"
             />
@@ -1157,6 +1159,8 @@
                   placeholder="Select product"
                   [invalid]="!!lineFieldError(index, 'productId', 'Product')"
                   [required]="fieldRequired(lineGroup(index).controls['productId'])"
+                  [serverSearch]="true"
+                  [selectedLabel]="productSelectedLabel(index)"
                   (searchChange)="onProductSearchChange($event)"
                 />
                 @if (lineFieldError(index, 'productId', 'Product'); as productError) {

@@ -210,8 +210,18 @@ export class OpeningStockPage {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((items) => {
-        this.products.set(items.filter((item) => item.status === 'active'));
+        const active = items.filter((item) => item.status === 'active');
+        const selected = this.selectedProduct();
+        if (selected && !active.some((p) => p.id === selected.id)) {
+          this.products.set([selected, ...active]);
+        } else {
+          this.products.set(active);
+        }
       });
+  }
+
+  productSelectedLabel(): string {
+    return this.selectedProduct()?.name ?? '';
   }
 
   private loadPackagingUnits(productId: string): void {

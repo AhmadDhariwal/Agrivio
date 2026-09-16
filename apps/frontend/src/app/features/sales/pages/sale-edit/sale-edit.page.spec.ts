@@ -16,6 +16,7 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { SaleRecord } from '../../models/sales.models';
 import { CustomerRecord } from '../../../customers/models/customers.models';
+import { ProductRecord } from '../../../catalog/models/catalog.models';
 
 const postedSale: SaleRecord = {
   id: 'sale-posted',
@@ -1698,6 +1699,85 @@ describe('SaleEditPage', () => {
       expect(creditBtn.classList.contains('ag-btn--primary')).toBe(false);
       expect(fixture.nativeElement.querySelector('[data-testid="sale-credit-selected-card"]')).toBeNull();
       expect(component.payments.length).toBe(1);
+    });
+  });
+
+  describe('Searchable Entity Dropdown & Cache Optimization', () => {
+    it('preserves Line 0 product selection and display label when searching for another product on Line 1', async () => {
+      await setupDraftTest();
+      const fixture = TestBed.createComponent(SaleEditPage);
+      const component = fixture.componentInstance;
+      fixture.detectChanges();
+
+      const p1 = { id: 'p1', name: 'Wheat Seed 50kg', sku: 'WS-50', status: 'active' } as ProductRecord;
+      const p2 = { id: 'p2', name: 'Hybrid Corn 20kg', sku: 'HC-20', status: 'active' } as ProductRecord;
+
+      (component as unknown as { knownProducts: Map<string, ProductRecord> }).knownProducts.set('p1', p1);
+      (component as unknown as { knownProducts: Map<string, ProductRecord> }).knownProducts.set('p2', p2);
+      component.products.set([p1]);
+
+      component.lineGroup(0).patchValue({
+        productId: 'p1',
+        quantity: '2',
+        unitPrice: '50.00',
+      });
+      fixture.detectChanges();
+
+      expect(component.productSelectedLabel(0)).toBe('Wheat Seed 50kg');
+
+      component.addLine();
+      fixture.detectChanges();
+
+      // Simulate a search result that only returns p2 from the server
+      component.products.set(
+        (component as unknown as { mergeProductOptions: (items: ProductRecord[]) => ProductRecord[] }).mergeProductOptions([p2]),
+      );
+      fixture.detectChanges();
+
+      const options = component.productOptions();
+      expect(options.some((opt) => opt.value === 'p1')).toBe(true);
+      expect(options.some((opt) => opt.value === 'p2')).toBe(true);
+      expect(component.productSelectedLabel(0)).toBe('Wheat Seed 50kg');
+    });
+
+    it('does not re-trigger customer search on dropdown open when customer options are already loaded', async () => {
+      const searchCustomerOptionsSpy = vi.fn().mockReturnValue(of([]));
+      await setupDraftTest();
+      const fixture = TestBed.createComponent(SaleEditPage);
+      const component = fixture.componentInstance;
+      fixture.detectChanges();
+
+      (component as unknown as { customersApi: CustomersApi }).customersApi.searchCustomerOptions = searchCustomerOptionsSpy;
+
+      component.customers.set([]);
+      component.openCustomerDropdown();
+      expect(searchCustomerOptionsSpy).toHaveBeenCalledTimes(1);
+
+      component.customers.set([
+        { id: 'c1', name: 'Farmer Ali', customerType: 'farmer', priceTier: 'retail', status: 'active' } as CustomerRecord,
+      ]);
+      searchCustomerOptionsSpy.mockClear();
+
+      component.openCustomerDropdown();
+      expect(searchCustomerOptionsSpy).not.toHaveBeenCalled();
+
+      component.toggleCustomerDropdown();
+      expect(searchCustomerOptionsSpy).not.toHaveBeenCalled();
+    });
+
+    it('does not flicker loading indicator when QueryCache yields immediate synchronous results', async () => {
+      await setupDraftTest();
+      const fixture = TestBed.createComponent(SaleEditPage);
+      const component = fixture.componentInstance;
+      fixture.detectChanges();
+
+      (component as unknown as { customersApi: CustomersApi }).customersApi.searchCustomerOptions = vi.fn().mockReturnValue(
+        of([{ id: 'c1', name: 'Farmer Ali', customerType: 'farmer', priceTier: 'retail', status: 'active' }]),
+      );
+
+      component.onCustomerSearchChange('Farmer');
+
+      expect(component.customerSearchLoading()).toBe(false);
     });
   });
 });

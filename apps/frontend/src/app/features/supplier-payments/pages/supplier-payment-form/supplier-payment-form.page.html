@@ -135,6 +135,8 @@
                       placeholder="Select supplier"
                       [searchable]="true"
                       [clearable]="true"
+                      [serverSearch]="true"
+                      [selectedLabel]="supplierSelectedLabel()"
                       (searchChange)="onSupplierSearch($event)"
                       [error]="fieldError(form.controls.supplierId, 'Supplier', formSubmitAttempted())"
                     />

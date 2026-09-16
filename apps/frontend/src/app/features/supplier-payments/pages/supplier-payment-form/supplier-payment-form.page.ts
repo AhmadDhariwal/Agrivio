@@ -59,6 +59,7 @@ export class SupplierPaymentFormPage {
   private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
   private readonly supplierSearchChanges = new Subject<string>();
+  private readonly knownSuppliers = new Map<string, SupplierRecord>();
 
   readonly loading = signal(true);
   readonly saving = signal(false);
@@ -243,7 +244,12 @@ export class SupplierPaymentFormPage {
         switchMap((query) => this.suppliersApi.searchSupplierOptions(query)),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((items) => this.suppliers.set(items.filter((item) => item.status === 'active')));
+      .subscribe((items) => {
+        for (const item of items) {
+          this.knownSuppliers.set(item.id, item);
+        }
+        this.suppliers.set(this.mergeSupplierOptions(items.filter((item) => item.status === 'active')));
+      });
 
     this.accountsApi.listAccountOptions().subscribe({
       next: (accounts) => {
@@ -300,6 +306,31 @@ export class SupplierPaymentFormPage {
           this.unpaidPurchases.set([]);
         }
       });
+  }
+
+  supplierSelectedLabel(): string {
+    const supplierId = String(this.form.controls.supplierId.value ?? '').trim();
+    if (!supplierId) {
+      return '';
+    }
+    const known =
+      this.knownSuppliers.get(supplierId) ??
+      this.suppliers().find((s) => s.id === supplierId);
+    return known?.name ?? '';
+  }
+
+  private mergeSupplierOptions(items: SupplierRecord[]): SupplierRecord[] {
+    const supplierId = String(this.form.controls.supplierId.value ?? '').trim();
+    if (!supplierId || items.some((s) => s.id === supplierId)) {
+      return items;
+    }
+    const existing =
+      this.knownSuppliers.get(supplierId) ??
+      this.suppliers().find((s) => s.id === supplierId);
+    if (existing) {
+      return [existing, ...items];
+    }
+    return items;
   }
 
   onSupplierSearch(eventOrQuery: Event | string): void {

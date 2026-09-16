@@ -779,6 +779,8 @@
               [disabled]="!canEditPurchaseField('supplier')"
               [invalid]="!!fieldError(form.controls.supplierId, 'Supplier', formSubmitAttempted())"
               [required]="fieldRequired(form.controls.supplierId)"
+              [serverSearch]="true"
+              [selectedLabel]="supplierSelectedLabel()"
               (searchChange)="onSupplierComboboxSearch($event)"
             />
             @if (fieldError(form.controls.supplierId, 'Supplier', formSubmitAttempted()); as
@@ -955,6 +957,8 @@
                   [disabled]="!canEditPurchaseField('product')"
                   [invalid]="!!lineFieldError(index, 'productId', 'Product')"
                   [required]="fieldRequired(lineGroup(index).controls['productId'])"
+                  [serverSearch]="true"
+                  [selectedLabel]="productSelectedLabel(index)"
                   (searchChange)="onProductComboboxSearch($event)"
                 />
                 @if (lineFieldError(index, 'productId', 'Product'); as productError) {

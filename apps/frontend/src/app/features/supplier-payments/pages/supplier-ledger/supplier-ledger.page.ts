@@ -164,7 +164,13 @@ export class SupplierLedgerPage {
       )
       .subscribe({
         next: (items) => {
-          this.suppliers.set(items.filter((s) => s.status === 'active'));
+          const active = items.filter((s) => s.status === 'active');
+          const current = this.selectedSupplier();
+          if (current && !active.some((s) => s.id === current.id)) {
+            this.suppliers.set([current, ...active]);
+          } else {
+            this.suppliers.set(active);
+          }
           this.loadingSuppliers.set(false);
         },
         error: () => {
@@ -312,6 +318,10 @@ export class SupplierLedgerPage {
       return (first + second).toUpperCase();
     }
     return name.slice(0, 2).toUpperCase();
+  }
+
+  supplierSelectedLabel(): string {
+    return this.selectedSupplier()?.name ?? '';
   }
 
   onSupplierSearch(eventOrQuery: Event | string): void {
