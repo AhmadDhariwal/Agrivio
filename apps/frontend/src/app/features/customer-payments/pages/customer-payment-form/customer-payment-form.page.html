@@ -133,6 +133,8 @@
                   placeholder="Select customer"
                   [searchable]="true"
                   [clearable]="true"
+                  [serverSearch]="true"
+                  [selectedLabel]="customerSelectedLabel()"
                   (searchChange)="onCustomerSearch($event)"
                   [error]="fieldError(form.controls.customerId, 'Customer', formSubmitAttempted())"
                 />

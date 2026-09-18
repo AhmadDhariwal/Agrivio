@@ -520,4 +520,70 @@ describe('PurchaseEditPage', () => {
     expect(component.posting()).toBe(false);
     expect(component.errorMessage()).toContain('Payment lines must specify an account and an amount greater than 0');
   });
+
+  describe('Searchable Entity Dropdown & Cache Optimization', () => {
+    it('preserves Line 0 product selection and display label when Line 1 merges new search results', () => {
+      const fixture: ComponentFixture<PurchaseEditPage> = TestBed.createComponent(PurchaseEditPage);
+      fixture.detectChanges();
+      const component = fixture.componentInstance;
+
+      (component as unknown as { knownProducts: Map<string, ProductRecord> }).knownProducts.set('prod-1', mockProductNone);
+      (component as unknown as { knownProducts: Map<string, ProductRecord> }).knownProducts.set('prod-2', mockProductBatch);
+      component.products.set([mockProductNone]);
+
+      const line0 = component.lineGroup(0);
+      line0.patchValue({
+        productId: 'prod-1',
+        quantity: '5',
+        unitCost: '100',
+      });
+      fixture.detectChanges();
+
+      expect(component.productSelectedLabel(0)).toBe('Standard Urea');
+
+      // Add Line 1
+      component.addLine();
+      fixture.detectChanges();
+
+      // Simulate a search result that only returns prod-2
+      component.products.set(
+        (component as unknown as { mergeProductOptions: (items: ProductRecord[]) => ProductRecord[] }).mergeProductOptions([mockProductBatch]),
+      );
+      fixture.detectChanges();
+
+      const options = component.productOptions();
+      expect(options.some((opt) => opt.value === 'prod-1')).toBe(true);
+      expect(options.some((opt) => opt.value === 'prod-2')).toBe(true);
+      expect(component.productSelectedLabel(0)).toBe('Standard Urea');
+    });
+
+    it('preserves selected supplier and authoritative label during search', () => {
+      const fixture: ComponentFixture<PurchaseEditPage> = TestBed.createComponent(PurchaseEditPage);
+      fixture.detectChanges();
+      const component = fixture.componentInstance;
+
+      const sup1 = { id: 'sup-1', name: 'Engro Fertilizers', status: 'active' as const, organizationId: 'org-1', phone: '', contactName: '', email: '', version: 1 };
+      (component as unknown as { knownSuppliers: Map<string, typeof sup1> }).knownSuppliers.set('sup-1', sup1);
+      component.suppliers.set([sup1]);
+
+      component.form.patchValue({
+        supplierId: 'sup-1',
+      });
+      fixture.detectChanges();
+
+      expect(component.supplierSelectedLabel()).toBe('Engro Fertilizers');
+
+      // Simulate search results that do not include sup-1
+      const sup2 = { id: 'sup-2', name: 'Fauji Fertilizer', status: 'active' as const, organizationId: 'org-1', phone: '', contactName: '', email: '', version: 1 };
+      component.suppliers.set(
+        (component as unknown as { mergeSupplierOptions: (items: typeof sup2[]) => typeof sup2[] }).mergeSupplierOptions([sup2]),
+      );
+      fixture.detectChanges();
+
+      const options = component.supplierOptions();
+      expect(options.some((opt) => opt.value === 'sup-1')).toBe(true);
+      expect(options.some((opt) => opt.value === 'sup-2')).toBe(true);
+      expect(component.supplierSelectedLabel()).toBe('Engro Fertilizers');
+    });
+  });
 });

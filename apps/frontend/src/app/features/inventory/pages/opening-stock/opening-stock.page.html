@@ -132,6 +132,8 @@
               formControlName="productId"
               [options]="productOptions()"
               placeholder="Select product"
+              [serverSearch]="true"
+              [selectedLabel]="productSelectedLabel()"
               (searchChange)="onProductComboboxSearch($event)"
               [error]="fieldError(form.controls.productId, 'Product', formSubmitAttempted())"
               [required]="fieldRequired(form.controls.productId)"
