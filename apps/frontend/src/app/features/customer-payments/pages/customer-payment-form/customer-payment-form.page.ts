@@ -200,10 +200,7 @@ export class CustomerPaymentFormPage {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((items) => {
-        for (const item of items) {
-          this.knownCustomers.set(item.id, item);
-        }
-        this.customers.set(this.mergeCustomerOptions(items.filter((item) => item.status === 'active')));
+        this.customers.set(items.filter((item) => item.status === 'active'));
       });
 
     this.customerSearchChanges.next('');
@@ -281,20 +278,6 @@ export class CustomerPaymentFormPage {
       this.knownCustomers.get(customerId) ??
       this.customers().find((c) => c.id === customerId);
     return known?.name ?? '';
-  }
-
-  private mergeCustomerOptions(items: CustomerRecord[]): CustomerRecord[] {
-    const customerId = String(this.form.controls.customerId.value ?? '').trim();
-    if (!customerId || items.some((c) => c.id === customerId)) {
-      return items;
-    }
-    const existing =
-      this.knownCustomers.get(customerId) ??
-      this.customers().find((c) => c.id === customerId);
-    if (existing) {
-      return [existing, ...items];
-    }
-    return items;
   }
 
   onCustomerSearch(eventOrQuery: Event | string): void {

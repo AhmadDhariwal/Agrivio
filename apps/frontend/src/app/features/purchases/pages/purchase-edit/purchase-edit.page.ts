@@ -372,10 +372,7 @@ export class PurchaseEditPage {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((items) => {
-        for (const item of items) {
-          this.knownProducts.set(item.id, item);
-        }
-        this.products.set(this.mergeProductOptions(items.filter((item) => item.status === 'active')));
+        this.products.set(items.filter((item) => item.status === 'active'));
       });
 
     this.supplierSearchChanges
@@ -386,10 +383,7 @@ export class PurchaseEditPage {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((items) => {
-        for (const item of items) {
-          this.knownSuppliers.set(item.id, item);
-        }
-        this.suppliers.set(this.mergeSupplierOptions(items.filter((item) => item.status === 'active')));
+        this.suppliers.set(items.filter((item) => item.status === 'active'));
       });
 
     this.supplierSearchChanges.next('');
@@ -462,7 +456,9 @@ export class PurchaseEditPage {
 
   trackingModeForLine(index: number): string {
     const productId = String(this.lineGroup(index).get('productId')?.value ?? '');
-    const fromCatalog = this.products().find((item) => item.id === productId)?.trackingMode;
+    const fromCatalog =
+      this.knownProducts.get(productId)?.trackingMode ??
+      this.products().find((item) => item.id === productId)?.trackingMode;
     if (fromCatalog) {
       return fromCatalog;
     }
@@ -519,40 +515,6 @@ export class PurchaseEditPage {
     }
     const snapshot = this.purchase()?.supplierNameSnapshot;
     return snapshot ?? '';
-  }
-
-  private mergeProductOptions(items: ProductRecord[]): ProductRecord[] {
-    const merged = [...items];
-    const seenIds = new Set(items.map((item) => item.id));
-
-    for (const control of this.lines.controls) {
-      const productId = String(control.get('productId')?.value ?? '').trim();
-      if (!productId || seenIds.has(productId)) {
-        continue;
-      }
-      const existing =
-        this.knownProducts.get(productId) ??
-        this.products().find((p) => p.id === productId);
-      if (existing) {
-        merged.push(existing);
-        seenIds.add(productId);
-      }
-    }
-    return merged;
-  }
-
-  private mergeSupplierOptions(items: SupplierRecord[]): SupplierRecord[] {
-    const supplierId = String(this.form.controls.supplierId.value ?? '').trim();
-    if (!supplierId || items.some((s) => s.id === supplierId)) {
-      return items;
-    }
-    const existing =
-      this.knownSuppliers.get(supplierId) ??
-      this.suppliers().find((s) => s.id === supplierId);
-    if (existing) {
-      return [existing, ...items];
-    }
-    return items;
   }
 
   addLine(): void {
@@ -1006,9 +968,7 @@ export class PurchaseEditPage {
       version: purchase.version,
     };
     this.knownSuppliers.set(purchase.supplierId, seededSupplier);
-    this.suppliers.set([seededSupplier]);
     const seen = new Set<string>();
-    const productOptions: ProductRecord[] = [];
     for (const line of purchase.lines ?? []) {
       if (seen.has(line.productId)) {
         continue;
@@ -1026,10 +986,8 @@ export class PurchaseEditPage {
         status: 'active',
         version: 1,
       };
-      productOptions.push(seededProduct);
       this.knownProducts.set(line.productId, seededProduct);
     }
-    this.products.set(productOptions);
   }
 
   private applyPurchase(purchase: PurchaseRecord): void {
@@ -1163,7 +1121,9 @@ export class PurchaseEditPage {
     const lines: PurchaseLineInput[] = rawLines.map((line) => {
       const productId = toCleanString(line['productId']);
       const mode =
-        this.products().find((item) => item.id === productId)?.trackingMode ?? 'none';
+        this.knownProducts.get(productId)?.trackingMode ??
+        this.products().find((item) => item.id === productId)?.trackingMode ??
+        'none';
       const quantity = toCleanString(line['quantity']);
       const unitCost = toCleanString(line['unitCost']);
       const packagingUnitId = toCleanString(line['packagingUnitId']);

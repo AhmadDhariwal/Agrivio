@@ -5,6 +5,7 @@ import { of } from 'rxjs';
 import { CustomerPaymentFormPage } from './customer-payment-form.page';
 import { CustomerPaymentsApi } from '../../data-access/customer-payments.api';
 import { CustomersApi } from '../../../customers/data-access/customers.api';
+import { CustomerRecord } from '../../../customers/models/customers.models';
 import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 
@@ -142,5 +143,54 @@ describe('CustomerPaymentFormPage', () => {
     fixture.detectChanges();
 
     expect(saveButton.disabled).toBe(false);
+  });
+
+  it('keeps the selected customer label separate from current search results', () => {
+    const fixture = TestBed.createComponent(CustomerPaymentFormPage);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    const selected = { id: 'cust-1', name: 'Farmer Ali', customerType: 'individual', status: 'active' } as CustomerRecord;
+    const result = { id: 'cust-2', name: 'Direct Buyer', customerType: 'business', status: 'active' } as CustomerRecord;
+
+    component.customers.set([selected]);
+    component.form.controls.customerId.setValue(selected.id);
+    component.customers.set([result]);
+
+    expect(component.customerOptions().map((option) => option.value)).toEqual(['cust-2']);
+    expect(component.form.controls.customerId.value).toBe('cust-1');
+    expect(component.customerSelectedLabel()).toBe('Farmer Ali');
+  });
+
+  it('differentiates clearing search text from clearing the selected customer value', () => {
+    const fixture = TestBed.createComponent(CustomerPaymentFormPage);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    const selected = { id: 'cust-1', name: 'Farmer Ali', customerType: 'individual', status: 'active' } as CustomerRecord;
+    const result = { id: 'cust-2', name: 'Direct Buyer', customerType: 'business', status: 'active' } as CustomerRecord;
+
+    component.customers.set([selected, result]);
+    component.form.controls.allocationMode.setValue('invoice_specific');
+    component.form.controls.customerId.setValue(selected.id);
+    fixture.detectChanges();
+
+    expect(component.form.controls.customerId.value).toBe('cust-1');
+    expect(component.customerSelectedLabel()).toBe('Farmer Ali');
+    expect(component.unpaidSales().length).toBeGreaterThan(0);
+
+    // Clearing search text only does NOT clear the selected value or reset dependent state
+    component.onCustomerSearch('');
+    fixture.detectChanges();
+
+    expect(component.form.controls.customerId.value).toBe('cust-1');
+    expect(component.customerSelectedLabel()).toBe('Farmer Ali');
+    expect(component.unpaidSales().length).toBeGreaterThan(0);
+
+    // Clearing the selected customer value resets selection and dependent state
+    component.form.controls.customerId.setValue('');
+    fixture.detectChanges();
+
+    expect(component.form.controls.customerId.value).toBe('');
+    expect(component.customerSelectedLabel()).toBe('');
+    expect(component.unpaidSales()).toEqual([]);
   });
 });

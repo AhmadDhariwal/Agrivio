@@ -1703,7 +1703,7 @@ describe('SaleEditPage', () => {
   });
 
   describe('Searchable Entity Dropdown & Cache Optimization', () => {
-    it('preserves Line 0 product selection and display label when searching for another product on Line 1', async () => {
+    it('keeps a selected product label without injecting it into another search result', async () => {
       await setupDraftTest();
       const fixture = TestBed.createComponent(SaleEditPage);
       const component = fixture.componentInstance;
@@ -1713,7 +1713,6 @@ describe('SaleEditPage', () => {
       const p2 = { id: 'p2', name: 'Hybrid Corn 20kg', sku: 'HC-20', status: 'active' } as ProductRecord;
 
       (component as unknown as { knownProducts: Map<string, ProductRecord> }).knownProducts.set('p1', p1);
-      (component as unknown as { knownProducts: Map<string, ProductRecord> }).knownProducts.set('p2', p2);
       component.products.set([p1]);
 
       component.lineGroup(0).patchValue({
@@ -1728,16 +1727,52 @@ describe('SaleEditPage', () => {
       component.addLine();
       fixture.detectChanges();
 
-      // Simulate a search result that only returns p2 from the server
-      component.products.set(
-        (component as unknown as { mergeProductOptions: (items: ProductRecord[]) => ProductRecord[] }).mergeProductOptions([p2]),
-      );
+      // Simulate an authoritative server response that only contains p2.
+      component.products.set([p2]);
       fixture.detectChanges();
 
       const options = component.productOptions();
-      expect(options.some((opt) => opt.value === 'p1')).toBe(true);
-      expect(options.some((opt) => opt.value === 'p2')).toBe(true);
+      expect(options.map((option) => option.value)).toEqual(['p2']);
+      expect(component.lineGroup(0).get('productId')?.value).toBe('p1');
       expect(component.productSelectedLabel(0)).toBe('Wheat Seed 50kg');
+    });
+
+    it('keeps two line selections while a third product search shows only its response', async () => {
+      await setupDraftTest();
+      const fixture = TestBed.createComponent(SaleEditPage);
+      const component = fixture.componentInstance;
+      fixture.detectChanges();
+
+      const p1 = { id: 'p1', name: 'Wheat Seed 50kg', sku: 'WS-50', status: 'active' } as ProductRecord;
+      const p2 = { id: 'p2', name: 'Hybrid Corn 20kg', sku: 'HC-20', status: 'active' } as ProductRecord;
+      const p3 = { id: 'p3', name: 'Direct Sown Rice', sku: 'DSR-1', status: 'active' } as ProductRecord;
+      const knownProducts = (component as unknown as { knownProducts: Map<string, ProductRecord> }).knownProducts;
+      knownProducts.set('p1', p1);
+      knownProducts.set('p2', p2);
+
+      component.lineGroup(0).patchValue({ productId: 'p1' });
+      component.addLine();
+      component.lineGroup(1).patchValue({ productId: 'p2' });
+      component.addLine();
+
+      component.products.set([p3]);
+      fixture.detectChanges();
+
+      expect(component.productOptions().map((option) => option.value)).toEqual(['p3']);
+      expect(component.lineGroup(0).get('productId')?.value).toBe('p1');
+      expect(component.lineGroup(1).get('productId')?.value).toBe('p2');
+      expect(component.productSelectedLabel(0)).toBe('Wheat Seed 50kg');
+      expect(component.productSelectedLabel(1)).toBe('Hybrid Corn 20kg');
+
+      // Clearing search restores default options without losing line selections or labels
+      component.products.set([p1, p2]);
+      fixture.detectChanges();
+
+      expect(component.productOptions().map((option) => option.value)).toEqual(['p1', 'p2']);
+      expect(component.lineGroup(0).get('productId')?.value).toBe('p1');
+      expect(component.lineGroup(1).get('productId')?.value).toBe('p2');
+      expect(component.productSelectedLabel(0)).toBe('Wheat Seed 50kg');
+      expect(component.productSelectedLabel(1)).toBe('Hybrid Corn 20kg');
     });
 
     it('does not re-trigger customer search on dropdown open when customer options are already loaded', async () => {
