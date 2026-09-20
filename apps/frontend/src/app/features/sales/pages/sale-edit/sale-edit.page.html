@@ -90,7 +90,7 @@
         <strong>Cancelled</strong> — original invoice preserved. @if (sale()?.cancellationReason) {
         <span class="banner-sub">Reason: {{ sale()!.cancellationReason }}</span>
         } @if (sale()?.cancelledAt) {
-        <span class="banner-sub">· {{ sale()!.cancelledAt }}</span>
+        <span class="banner-sub">· {{ formatDateTime(sale()!.cancelledAt) }}</span>
         }
       </div>
     </div>

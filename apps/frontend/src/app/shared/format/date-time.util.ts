@@ -50,7 +50,7 @@ export function formatAppDate(value: string | Date | null | undefined): string {
 
   const date = value instanceof Date ? value : new Date(String(value));
   if (Number.isNaN(date.getTime())) {
-    return typeof value === 'string' ? value : '—';
+    return '—';
   }
 
   const day = String(date.getDate()).padStart(2, '0');

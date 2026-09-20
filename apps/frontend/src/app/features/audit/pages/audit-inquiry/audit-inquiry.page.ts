@@ -17,7 +17,7 @@ import {
   DropdownOption,
   UiSearchableDropdownComponent,
 } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
-import { formatAppDateTime } from '../../../../shared/format/date-time.util';
+import { formatAppDate, formatAppDateTime } from '../../../../shared/format/date-time.util';
 
 const KNOWN_ACTION_LABELS: Readonly<Record<string, string>> = {
   'subscription.status_transition': 'Subscription status changed',
@@ -198,16 +198,8 @@ export class AuditInquiryPage {
   readonly retentionCutoffFormatted = computed(() => {
     const cutoff = this.retention()?.cutoffAt;
     if (!cutoff) return null;
-    try {
-      const d = new Date(cutoff);
-      return d.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      });
-    } catch {
-      return null;
-    }
+    const formatted = formatAppDate(cutoff);
+    return formatted !== '—' ? formatted : null;
   });
   readonly daysUntilOldestExpires = computed(() => {
     const oldest = this.retention()?.oldestVisibleEventAt;

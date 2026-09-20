@@ -91,7 +91,7 @@
         (purchase()?.cancellationReason) {
         <span class="banner-sub">Reason: {{ purchase()!.cancellationReason }}</span>
         } @if (purchase()?.cancelledAt) {
-        <span class="banner-sub">· {{ purchase()!.cancelledAt }}</span>
+        <span class="banner-sub">· {{ purchase()!.cancelledAt | agDateTime }}</span>
         }
       </div>
     </div>
