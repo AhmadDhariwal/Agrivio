@@ -6,28 +6,26 @@ const { createAuditWriter } = require('../../platform/audit/audit-writer');
 const { assertOptimisticVersion } = require('../../platform/validation/request-validation');
 const { conflict, notFound, validationFailed } = require('../../platform/errors/app-error');
 const { assertMasterUnused } = require('../../platform/lifecycle/record-in-use');
-const {
-  assertCreationLimit,
-  attachSoftWarning,
-} = require('../subscriptions/creation-limit');
+const { assertCreationLimit, attachSoftWarning } = require('../subscriptions/creation-limit');
 const {
   createIdempotencyService,
   createInMemoryIdempotencyStore,
   createMongooseIdempotencyStore,
 } = require('../../platform/idempotency/idempotency-service');
-const { formatMoneyMinorUnits } = require('../../platform/primitives/money-and-time');
+const {
+  formatMoneyMinorUnits,
+  parseMoneyMinorUnits,
+} = require('../../platform/primitives/money-and-time');
 const {
   parseCustomerCreate,
   parseCustomerPatch,
   parseCreditPolicyPatch,
   parseCustomerOpeningBalance,
+  parseCustomerOpeningBalanceCorrection,
   assertWalkInCreditPolicy,
   toCustomerDto,
 } = require('./customers.validation');
-const {
-  createInMemoryCustomersStore,
-  createMongooseCustomersStore,
-} = require('./customers.store');
+const { createInMemoryCustomersStore, createMongooseCustomersStore } = require('./customers.store');
 
 function createMongooseTransactionSessionPort() {
   const mongoose = require('mongoose');
@@ -118,7 +116,6 @@ function createCustomersService(deps) {
         total,
       };
     },
-
 
     async getCustomer(organizationId, customerId) {
       const record = await store.findCustomerById(organizationId, customerId);
@@ -255,12 +252,7 @@ function createCustomersService(deps) {
         }
         const nextEnabled =
           patch.creditEnabled === undefined ? current.creditEnabled : patch.creditEnabled;
-        assertWalkInCreditPolicy(
-          current.customerType,
-          nextEnabled,
-          current.name,
-          current.phone,
-        );
+        assertWalkInCreditPolicy(current.customerType, nextEnabled, current.name, current.phone);
         const updated = await store.updateCustomer(session, organizationId, customerId, {
           ...patch,
           version: Number(current['version']) + 1,
@@ -280,7 +272,14 @@ function createCustomersService(deps) {
       });
     },
 
-    async postOpeningBalance(organizationId, customerId, body, actor, idempotencyKey, options = {}) {
+    async postOpeningBalance(
+      organizationId,
+      customerId,
+      body,
+      actor,
+      idempotencyKey,
+      options = {},
+    ) {
       if (!ledgersService) {
         throw validationFailed('Ledger service is not configured');
       }
@@ -290,75 +289,73 @@ function createCustomersService(deps) {
       }
 
       const postWork = async (session) => {
-            const current = await store.findCustomerById(organizationId, customerId);
-            if (current === null) {
-              throw notFound('Customer not found');
-            }
-            if (current.status !== 'active') {
-              throw validationFailed('Opening balance requires an active customer', [
-                { field: 'status', message: 'customer must be active' },
-              ]);
-            }
-            if (current.openingBalance && current.openingBalance.status === 'posted') {
-              throw conflict('Customer opening balance already posted');
-            }
+        const current = await store.findCustomerById(organizationId, customerId);
+        if (current === null) {
+          throw notFound('Customer not found');
+        }
+        if (current.status !== 'active') {
+          throw validationFailed('Opening balance requires an active customer', [
+            { field: 'status', message: 'customer must be active' },
+          ]);
+        }
+        if (current.openingBalance && current.openingBalance.status === 'posted') {
+          throw conflict('Customer opening balance already posted');
+        }
 
-            const postedAt = now();
-            const effectKind = input.kind === 'receivable' ? 'receivable' : 'advance';
-            const sourceType =
-              input.kind === 'receivable'
-                ? 'customer_opening_receivable'
-                : 'customer_opening_advance';
+        const postedAt = now();
+        const effectKind = input.kind === 'receivable' ? 'receivable' : 'advance';
+        const sourceType =
+          input.kind === 'receivable' ? 'customer_opening_receivable' : 'customer_opening_advance';
 
-            const effect = await ledgersService.postLedgerEffect(session, {
-              organizationId,
-              partyType: 'customer',
-              customerId,
-              effectKind,
-              signedAmountMinorUnits: input.amountMinorUnits,
-              currency: input.currency,
-              sourceType,
-              sourceId: customerId,
-              postedAt,
-              postedBy: actor.actorId,
-            });
+        const effect = await ledgersService.postLedgerEffect(session, {
+          organizationId,
+          partyType: 'customer',
+          customerId,
+          effectKind,
+          signedAmountMinorUnits: input.amountMinorUnits,
+          currency: input.currency,
+          sourceType,
+          sourceId: customerId,
+          postedAt,
+          postedBy: actor.actorId,
+        });
 
-            const updated = await store.updateCustomer(session, organizationId, customerId, {
-              openingBalance: {
-                kind: input.kind,
-                amountMinorUnits: input.amountMinorUnits,
-                currency: input.currency,
-                postedAt,
-                postedBy: actor.actorId,
-                ledgerEffectId: effect['_id'],
-                status: 'posted',
-              },
-              version: Number(current['version']) + 1,
-            });
+        const updated = await store.updateCustomer(session, organizationId, customerId, {
+          openingBalance: {
+            kind: input.kind,
+            amountMinorUnits: input.amountMinorUnits,
+            currency: input.currency,
+            postedAt,
+            postedBy: actor.actorId,
+            ledgerEffectId: effect['_id'],
+            status: 'posted',
+          },
+          version: Number(current['version']) + 1,
+        });
 
-            await auditWriter.appendBusinessEvent(session, {
-              organizationId,
-              actorId: actor.actorId,
-              action: 'customer.opening_balance.posted',
-              resourceType: 'customer',
-              resourceId: customerId,
-              metadata: {
-                kind: input.kind,
-                amountMinorUnits: input.amountMinorUnits,
-                ledgerEffectId: String(effect['_id']),
-              },
-            });
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: actor.actorId,
+          action: 'customer.opening_balance.posted',
+          resourceType: 'customer',
+          resourceId: customerId,
+          metadata: {
+            kind: input.kind,
+            amountMinorUnits: input.amountMinorUnits,
+            ledgerEffectId: String(effect['_id']),
+          },
+        });
 
-            const zero = { amount: '0.00', currency: 'PKR' };
-            const postedMoney = {
-              amount: formatMoneyMinorUnits(BigInt(input.amountMinorUnits)),
-              currency: 'PKR',
-            };
-            const derivedBalances =
-              input.kind === 'receivable'
-                ? { receivable: postedMoney, advance: zero }
-                : { receivable: zero, advance: postedMoney };
-            return toCustomerDto(updated, derivedBalances);
+        const zero = { amount: '0.00', currency: 'PKR' };
+        const postedMoney = {
+          amount: formatMoneyMinorUnits(BigInt(input.amountMinorUnits)),
+          currency: 'PKR',
+        };
+        const derivedBalances =
+          input.kind === 'receivable'
+            ? { receivable: postedMoney, advance: zero }
+            : { receivable: zero, advance: postedMoney };
+        return toCustomerDto(updated, derivedBalances);
       };
 
       if (options.session) {
@@ -382,7 +379,147 @@ function createCustomersService(deps) {
         },
       );
 
-      return { replay: result.replay, data: result.response.body, statusCode: result.response.statusCode };
+      return {
+        replay: result.replay,
+        data: result.response.body,
+        statusCode: result.response.statusCode,
+      };
+    },
+
+    async correctOpeningBalance(organizationId, customerId, body, actor, idempotencyKey) {
+      if (!ledgersService) {
+        throw validationFailed('Ledger service is not configured');
+      }
+      const input = parseCustomerOpeningBalanceCorrection(body);
+      if (typeof deps.capabilityService?.assertCustomerOpeningBalanceAllowed === 'function') {
+        await deps.capabilityService.assertCustomerOpeningBalanceAllowed(organizationId);
+      }
+      const key = requireIdempotencyKey(idempotencyKey);
+      const result = await idempotency.execute(
+        {
+          scopeType: 'organization',
+          organizationId,
+          actorId: actor.actorId,
+          operation: 'customers.opening-balance.correct',
+        },
+        key,
+        {
+          customerId,
+          expectedVersion: input.expectedVersion,
+          reason: input.reason,
+          replacement: input.replacement,
+        },
+        async () => {
+          const dto = await transactionRunner.run(async (session) => {
+            const current = await store.findCustomerById(organizationId, customerId);
+            if (current === null) {
+              throw notFound('Customer not found');
+            }
+            if (current.status !== 'active') {
+              throw validationFailed('Opening balance correction requires an active customer', [
+                { field: 'status', message: 'customer must be active' },
+              ]);
+            }
+            if (!current.openingBalance || current.openingBalance.status !== 'posted') {
+              throw conflict('Customer has no posted opening balance to correct');
+            }
+            assertOptimisticVersion(current, input.expectedVersion);
+
+            const oldOpening = current.openingBalance;
+            const oldEffectId = String(oldOpening.ledgerEffectId);
+            const correctedAt = now();
+            const [receivableBefore, advanceBefore] = await Promise.all([
+              ledgersService.sumCustomerReceivable(organizationId, customerId),
+              ledgersService.sumCustomerAdvance(organizationId, customerId),
+            ]);
+
+            const reversal = await ledgersService.postLedgerEffect(session, {
+              organizationId,
+              partyType: 'customer',
+              customerId,
+              effectKind: oldOpening.kind === 'receivable' ? 'receivable' : 'advance',
+              signedAmountMinorUnits: `-${String(oldOpening.amountMinorUnits)}`,
+              currency: oldOpening.currency ?? 'PKR',
+              sourceType: 'customer_opening_correction_reversal',
+              sourceId: oldEffectId,
+              reversalOfId: oldEffectId,
+              postedAt: correctedAt,
+              postedBy: actor.actorId,
+            });
+
+            const replacement = await ledgersService.postLedgerEffect(session, {
+              organizationId,
+              partyType: 'customer',
+              customerId,
+              effectKind: input.replacement.kind === 'receivable' ? 'receivable' : 'advance',
+              signedAmountMinorUnits: input.replacement.amountMinorUnits,
+              currency: input.replacement.currency,
+              sourceType: 'customer_opening_correction_replacement',
+              sourceId: oldEffectId,
+              postedAt: correctedAt,
+              postedBy: actor.actorId,
+            });
+
+            const updated = await store.updateCustomer(session, organizationId, customerId, {
+              openingBalance: {
+                kind: input.replacement.kind,
+                amountMinorUnits: input.replacement.amountMinorUnits,
+                currency: input.replacement.currency,
+                postedAt: correctedAt,
+                postedBy: actor.actorId,
+                ledgerEffectId: replacement['_id'],
+                status: 'posted',
+              },
+              version: Number(current.version) + 1,
+            });
+
+            await auditWriter.appendBusinessEvent(session, {
+              organizationId,
+              actorId: actor.actorId,
+              action: 'customer.opening_balance.corrected',
+              resourceType: 'customer',
+              resourceId: customerId,
+              reason: input.reason,
+              metadata: {
+                oldLedgerEffectId: oldEffectId,
+                reversalLedgerEffectId: String(reversal['_id']),
+                replacementLedgerEffectId: String(replacement['_id']),
+                oldKind: String(oldOpening.kind),
+                oldAmountMinorUnits: String(oldOpening.amountMinorUnits),
+                replacementKind: input.replacement.kind,
+                replacementAmountMinorUnits: input.replacement.amountMinorUnits,
+              },
+            });
+
+            let receivableMinor = parseMoneyMinorUnits(receivableBefore.amount);
+            let advanceMinor = parseMoneyMinorUnits(advanceBefore.amount);
+            const oldAmount = BigInt(String(oldOpening.amountMinorUnits));
+            const replacementAmount = BigInt(input.replacement.amountMinorUnits);
+            if (oldOpening.kind === 'receivable') receivableMinor -= oldAmount;
+            else advanceMinor -= oldAmount;
+            if (input.replacement.kind === 'receivable') receivableMinor += replacementAmount;
+            else advanceMinor += replacementAmount;
+
+            return toCustomerDto(updated, {
+              receivable: {
+                amount: formatMoneyMinorUnits(receivableMinor),
+                currency: 'PKR',
+              },
+              advance: {
+                amount: formatMoneyMinorUnits(advanceMinor),
+                currency: 'PKR',
+              },
+            });
+          });
+          return { statusCode: 200, body: dto };
+        },
+      );
+
+      return {
+        replay: result.replay,
+        data: result.response.body,
+        statusCode: result.response.statusCode,
+      };
     },
 
     async countCustomersWithOpening(organizationId) {
@@ -399,9 +536,7 @@ function createCustomersModule(options) {
   const persistence = options.persistence ?? 'memory';
   const store =
     options.store ??
-    (persistence === 'mongoose'
-      ? createMongooseCustomersStore()
-      : createInMemoryCustomersStore());
+    (persistence === 'mongoose' ? createMongooseCustomersStore() : createInMemoryCustomersStore());
 
   const sessionPort =
     options.sessionPort ??

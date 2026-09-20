@@ -101,7 +101,7 @@ describe('F06 P1 customer payments, accounts, and sale drafts', () => {
         amount: { amount: '200.00', currency: 'PKR' },
         paymentDate: '2026-08-12',
         allocationMode: 'general',
-        notes: 'advance foundation',
+        notes: 'opening receivable allocation',
       };
       const paymentKey = 'cust-pay-1';
       const payment = await fetchJson(
@@ -118,7 +118,7 @@ describe('F06 P1 customer payments, accounts, and sale drafts', () => {
       expect(payment.status).toBe(201);
       expect(payment.body.data.status).toBe('posted');
       expect(payment.body.data.allocations).toHaveLength(1);
-      expect(payment.body.data.allocations[0].targetType).toBe('customer_advance');
+      expect(payment.body.data.allocations[0].targetType).toBe('customer_opening_receivable');
       expect(payment.body.data.allocations[0].allocatedAmount.amount).toBe('200.00');
 
       const paymentReplay = await fetchJson(
@@ -181,8 +181,8 @@ describe('F06 P1 customer payments, accounts, and sale drafts', () => {
         jar,
       );
       expect(customerAfter.status).toBe(200);
-      expect(customerAfter.body.data.derivedBalances.receivable.amount).toBe('500.00');
-      expect(customerAfter.body.data.derivedBalances.advance.amount).toBe('200.00');
+      expect(customerAfter.body.data.derivedBalances.receivable.amount).toBe('300.00');
+      expect(customerAfter.body.data.derivedBalances.advance.amount).toBe('0.00');
 
       const accountAfter = await fetchJson(
         baseUrl,

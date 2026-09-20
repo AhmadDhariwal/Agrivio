@@ -326,7 +326,7 @@
           </div>
         }
 
-        <!-- Customer Receivables (Current Balance) -->
+        <!-- Customer Financial Position -->
         @if (canViewCustomers()) {
           <a routerLink="/app/customers" class="kpi-card kpi-card--link" data-testid="dash-card-receivables">
             <div class="kpi-card__icon kpi-card__icon--purple">
@@ -338,8 +338,8 @@
               </svg>
             </div>
             <div class="kpi-card__content">
-              <span class="kpi-card__label">Customer Receivables</span>
-              <span class="kpi-card__value" data-testid="dash-receivables">{{ formatMoney(data.customerReceivables) }}</span>
+              <span class="kpi-card__label">Total Receivable</span>
+              <span class="kpi-card__value" data-testid="dash-receivables">{{ formatMoney(data.totalReceivable) }}</span>
               <span class="kpi-card__subtext">Current ledger balance</span>
             </div>
           </a>
@@ -354,9 +354,65 @@
               </svg>
             </div>
             <div class="kpi-card__content">
-              <span class="kpi-card__label">Customer Receivables</span>
-              <span class="kpi-card__value" data-testid="dash-receivables">{{ formatMoney(data.customerReceivables) }}</span>
+              <span class="kpi-card__label">Total Receivable</span>
+              <span class="kpi-card__value" data-testid="dash-receivables">{{ formatMoney(data.totalReceivable) }}</span>
               <span class="kpi-card__subtext">Current ledger balance</span>
+            </div>
+          </div>
+        }
+
+        @if (canViewCustomers()) {
+          <a routerLink="/app/customers" class="kpi-card kpi-card--link" data-testid="dash-card-customer-advance">
+            <div class="kpi-card__icon kpi-card__icon--green">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9" /><path d="M8 12h8" /><path d="m13 9 3 3-3 3" />
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Total Customer Advance</span>
+              <span class="kpi-card__value" data-testid="dash-customer-advance">{{ formatMoney(data.totalCustomerAdvance) }}</span>
+              <span class="kpi-card__subtext">Available ledger balance</span>
+            </div>
+          </a>
+        } @else {
+          <div class="kpi-card" data-testid="dash-card-customer-advance">
+            <div class="kpi-card__icon kpi-card__icon--green">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9" /><path d="M8 12h8" /><path d="m13 9 3 3-3 3" />
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Total Customer Advance</span>
+              <span class="kpi-card__value" data-testid="dash-customer-advance">{{ formatMoney(data.totalCustomerAdvance) }}</span>
+              <span class="kpi-card__subtext">Available ledger balance</span>
+            </div>
+          </div>
+        }
+
+        @if (canViewCustomers()) {
+          <a routerLink="/app/customers" class="kpi-card kpi-card--link" data-testid="dash-card-net-exposure">
+            <div class="kpi-card__icon kpi-card__icon--purple">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19V5" /><path d="M4 19h16" /><path d="m7 15 4-4 3 2 4-6" />
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Net Exposure</span>
+              <span class="kpi-card__value" data-testid="dash-net-exposure">{{ formatMoney(data.netExposure) }}</span>
+              <span class="kpi-card__subtext">Receivable less advance</span>
+            </div>
+          </a>
+        } @else {
+          <div class="kpi-card" data-testid="dash-card-net-exposure">
+            <div class="kpi-card__icon kpi-card__icon--purple">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19V5" /><path d="M4 19h16" /><path d="m7 15 4-4 3 2 4-6" />
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Net Exposure</span>
+              <span class="kpi-card__value" data-testid="dash-net-exposure">{{ formatMoney(data.netExposure) }}</span>
+              <span class="kpi-card__subtext">Receivable less advance</span>
             </div>
           </div>
         }

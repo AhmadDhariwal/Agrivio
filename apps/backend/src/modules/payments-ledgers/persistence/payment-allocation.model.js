@@ -1,6 +1,12 @@
 const mongoose = require('mongoose');
 
-const ALLOCATION_TARGET_TYPES = ['purchase', 'supplier_advance', 'sale', 'customer_advance'];
+const ALLOCATION_TARGET_TYPES = [
+  'purchase',
+  'supplier_advance',
+  'sale',
+  'customer_opening_receivable',
+  'customer_advance',
+];
 const ALLOCATION_STATUSES = ['posted'];
 
 const paymentAllocationSchema = new mongoose.Schema(

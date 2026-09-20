@@ -136,6 +136,20 @@ function registerCustomersRoutes(deps) {
     },
   );
 
+  router.post(
+    `${API_CUSTOMERS_PATH}/:id/opening-balance/correct`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('customers.opening-balance.post'),
+    deps.requireOperationalAccess,
+    requireCustomersModule,
+    requirePostOpeningBalanceAllowed,
+    (req, res, next) => {
+      void controller.correctOpeningBalance(req, res, next);
+    },
+  );
+
   return router;
 }
 

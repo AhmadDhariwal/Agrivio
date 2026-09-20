@@ -63,6 +63,9 @@ describe('DashboardPage', () => {
     jazzCashBalance: { amount: '123000.00', currency: 'PKR' },
     easypaisaBalance: { amount: '35000.00', currency: 'PKR' },
     customerReceivables: { amount: '2768650.00', currency: 'PKR' },
+    totalReceivable: { amount: '2768650.00', currency: 'PKR' },
+    totalCustomerAdvance: { amount: '125000.00', currency: 'PKR' },
+    netExposure: { amount: '2643650.00', currency: 'PKR' },
     supplierPayables: { amount: '2206000.00', currency: 'PKR' },
     stockValuation: { amount: '52028850.00', currency: 'PKR' },
     accountDistribution: [
