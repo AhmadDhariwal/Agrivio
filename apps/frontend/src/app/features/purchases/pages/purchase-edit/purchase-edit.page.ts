@@ -45,6 +45,7 @@ import {
   formatAccountOption,
   formatPackagingUnitOption,
 } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
+import { AppDatePipe, AppDateTimePipe } from '../../../../shared/format/date-time.pipe';
 
 function toCleanString(val: unknown): string {
   if (val === null || val === undefined) {
@@ -72,6 +73,8 @@ function toMoneyString(val: unknown, fallback = '0.00'): string {
     UiConfirmDialogComponent,
     UiFieldLabelComponent,
     UiSearchableDropdownComponent,
+    AppDatePipe,
+    AppDateTimePipe,
   ],
   templateUrl: './purchase-edit.page.html',
   styleUrl: './purchase-edit.page.scss',

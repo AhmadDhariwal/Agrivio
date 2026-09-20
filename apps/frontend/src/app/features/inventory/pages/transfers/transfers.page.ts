@@ -43,6 +43,7 @@ import {
 } from '../../../../shared/form/form-field.util';
 import { inventoryQuantityValidators } from '../../shared/inventory-form.validation';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
+import { formatAppDateTime } from '../../../../shared/format/date-time.util';
 import {
   InventoryBalanceRecord,
   WarehouseTransferRecord,
@@ -604,16 +605,7 @@ export class TransfersPage {
   }
 
   formatDate(dateStr: string | null | undefined): string {
-    if (!dateStr) return '—';
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatAppDateTime(dateStr);
   }
 
   private mapError(error: unknown, fallback: string): string {

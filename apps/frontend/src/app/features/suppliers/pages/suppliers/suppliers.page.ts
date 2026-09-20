@@ -28,6 +28,7 @@ import {
   reactivateCopy,
   recordInUseMessage,
 } from '../../../../shared/lifecycle/master-lifecycle';
+import { AppDateTimePipe } from '../../../../shared/format/date-time.pipe';
 
 function extractErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof HttpErrorResponse) {
@@ -60,6 +61,7 @@ function extractErrorMessage(error: unknown, fallback: string): string {
     UiConfirmDialogComponent,
     UiPaginationComponent,
     UiModuleInfoComponent,
+    AppDateTimePipe,
   ],
   templateUrl: './suppliers.page.html',
   styleUrl: './suppliers.page.scss',

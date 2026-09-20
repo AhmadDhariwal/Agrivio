@@ -16,6 +16,7 @@ import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-e
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
+import { AppDatePipe } from '../../../../shared/format/date-time.pipe';
 
 @Component({
   selector: 'agrivio-customer-payments-page',
@@ -28,6 +29,7 @@ import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pa
     UiLoadingStateComponent,
     UiModuleInfoComponent,
     UiPaginationComponent,
+    AppDatePipe,
   ],
   templateUrl: './customer-payments.page.html',
   styleUrl: './customer-payments.page.scss',

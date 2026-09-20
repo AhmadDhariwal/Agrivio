@@ -916,7 +916,7 @@
                           </div>
                         </td>
                         <td class="prod-table__td col-date">
-                          <span class="date-text">{{ sale.saleDate }}</span>
+                          <span class="date-text">{{ sale.saleDate | agDate }}</span>
                         </td>
                         <td class="prod-table__td col-total">
                           <span class="total-text">{{ formatMoney(sale.saleTotal) }}</span>
@@ -949,7 +949,7 @@
                     <div class="sale-mobile-card__body">
                       <div class="sale-mobile-card__meta">
                         <span class="sale-mobile-card__label">Date</span>
-                        <span class="sale-mobile-card__val">{{ sale.saleDate }}</span>
+                        <span class="sale-mobile-card__val">{{ sale.saleDate | agDate }}</span>
                       </div>
                       <div class="sale-mobile-card__meta sale-mobile-card__meta--total">
                         <span class="sale-mobile-card__label">Total</span>
@@ -969,13 +969,13 @@
         <footer class="dashboard-footer" data-testid="dashboard-context-footer">
           <div class="dashboard-footer__left">
             <span data-testid="dashboard-period-summary">
-              Showing summary for {{ data.period?.fromDate || 'start' }} to {{ data.period?.toDate || 'now' }}
+              Showing summary for {{ data.period?.fromDate ? (data.period.fromDate | agDate) : 'start' }} to {{ data.period?.toDate ? (data.period.toDate | agDate) : 'now' }}
             </span>
           </div>
           <div class="dashboard-footer__right">
             <span>All amounts in PKR</span>
             <span class="footer-divider">&bull;</span>
-            <span data-testid="dashboard-business-date">Business date: {{ data.businessDate }}</span>
+            <span data-testid="dashboard-business-date">Business date: {{ data.businessDate | agDate }}</span>
           </div>
         </footer>
       </div>

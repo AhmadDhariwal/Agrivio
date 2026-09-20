@@ -269,7 +269,7 @@
 
                 <!-- Date -->
                 @if (canViewField('paymentDate')) { <td class="cell-date">
-                  {{ item.paymentDate }}
+                  {{ item.paymentDate | agDate }}
                 </td> }
 
                 <!-- Type / Allocation Mode -->
@@ -326,7 +326,7 @@
             <div class="mobile-payment-card__header">
               <div class="mobile-payment-card__ref-wrap">
                 @if (canViewField('paymentReference')) { <span class="mobile-payment-card__ref font-medium">{{ formatPaymentId(item.id) }}</span> }
-                @if (canViewField('paymentDate')) { <span class="mobile-payment-card__date">{{ item.paymentDate }}</span> }
+                @if (canViewField('paymentDate')) { <span class="mobile-payment-card__date">{{ item.paymentDate | agDate }}</span> }
               </div>
               @if (canViewField('status')) {
               <span class="status-pill status-pill--green">

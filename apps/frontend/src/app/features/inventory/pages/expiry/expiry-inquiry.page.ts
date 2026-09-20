@@ -41,6 +41,7 @@ import {
   ExpiryInventoryRecord,
 } from '../../models/inventory.models';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
+import { formatAppDate } from '../../../../shared/format/date-time.util';
 
 export interface ExpiryClassificationInfo {
   label: string;
@@ -703,31 +704,7 @@ export class ExpiryInquiryPage {
   }
 
   formatDate(dateStr: string | null | undefined): string {
-    if (!dateStr) return '—';
-    const trimmed = dateStr.trim();
-    if (!trimmed) return '—';
-    const parts = trimmed.split('-');
-    if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
-      const year = parseInt(parts[0], 10);
-      const monthIndex = parseInt(parts[1], 10) - 1;
-      const day = parseInt(parts[2], 10);
-      const date = new Date(Date.UTC(year, monthIndex, day));
-      if (!isNaN(date.getTime())) {
-        return date.toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-          timeZone: 'UTC',
-        });
-      }
-    }
-    const d = new Date(trimmed);
-    if (isNaN(d.getTime())) return trimmed;
-    return d.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
+    return formatAppDate(dateStr);
   }
 
   formatQuantity(quantity: string | number | undefined | null): string {

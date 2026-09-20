@@ -12,6 +12,7 @@ import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.compon
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
+import { AppDatePipe } from '../../../../shared/format/date-time.pipe';
 import { EMPTY, Subject, catchError, startWith, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
@@ -26,6 +27,7 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
     UiLoadingStateComponent,
     UiPaginationComponent,
     UiModuleInfoComponent,
+    AppDatePipe,
   ],
   templateUrl: './supplier-payments.page.html',
   styleUrl: './supplier-payments.page.scss',

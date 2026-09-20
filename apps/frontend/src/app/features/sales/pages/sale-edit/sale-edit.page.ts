@@ -38,6 +38,7 @@ import {
   SalePostApprovalsInput,
   SaleRecord,
 } from '../../models/sales.models';
+import { formatAppDateTime } from '../../../../shared/format/date-time.util';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
 import {
@@ -1665,6 +1666,10 @@ export class SaleEditPage {
     const num = Number(val);
     if (isNaN(num)) return `PKR ${val}`;
     return `PKR ${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
+  formatDateTime(value: string | Date | null | undefined): string {
+    return formatAppDateTime(value);
   }
 
   formatQuantity(val: string | number | undefined | null): string {

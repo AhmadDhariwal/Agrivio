@@ -314,7 +314,7 @@
             } @if (posted.postedAt) {
             <div class="detail-row">
               <span class="detail-label">Posted at</span>
-              <span class="detail-value text-muted tabular-num">{{ posted.postedAt }}</span>
+              <span class="detail-value text-muted tabular-num">{{ formatDateTime(posted.postedAt) }}</span>
             </div>
             }
           </div>

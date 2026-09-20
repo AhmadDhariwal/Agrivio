@@ -22,6 +22,7 @@ import {
   MoneyAmount,
   UnpaidSaleRecord,
 } from '../../models/customer-payments.models';
+import { humanizeLedgerItem } from '../../models/ledger-presentation.util';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { CustomersApi } from '../../../customers/data-access/customers.api';
@@ -74,6 +75,9 @@ export class CustomerPaymentFormPage {
   readonly customers = signal<CustomerRecord[]>([]);
   readonly accounts = signal<AccountRecord[]>([]);
   readonly ledgerItems = signal<CustomerLedgerEffectRecord[]>([]);
+  readonly humanizedLedgerItems = computed(() =>
+    this.ledgerItems().map(humanizeLedgerItem),
+  );
   readonly unpaidSales = signal<UnpaidSaleRecord[]>([]);
 
   readonly customerOptions = computed(() =>

@@ -48,6 +48,7 @@ import {
   formatWarehouseOption,
 } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { formatQuantity } from '../../../../shared/chart/chart-format.util';
+import { formatAppDate } from '../../../../shared/format/date-time.util';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 @Component({
@@ -679,11 +680,9 @@ export class ReportsPage {
       return this.humanizeMetric(str);
     }
 
-    // Date formatting for ISO strings
-    if (columnKey === 'postedAt' || columnKey === 'createdAt') {
-      if (str.includes('T')) {
-        return str.split('T')[0] ?? str;
-      }
+    // Date formatting for ISO strings and date columns
+    if (['postedAt', 'createdAt', 'date', 'saleDate'].includes(columnKey)) {
+      return formatAppDate(str);
     }
 
     // Account Type humanization

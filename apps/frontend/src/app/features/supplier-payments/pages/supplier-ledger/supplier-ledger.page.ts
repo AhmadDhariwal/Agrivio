@@ -26,6 +26,7 @@ import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-m
 import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
 import { formatSupplierOption } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { AppDatePipe, AppTimePipe } from '../../../../shared/format/date-time.pipe';
 
 @Component({
   selector: 'agrivio-supplier-ledger-page',
@@ -39,6 +40,8 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
     UiEmptyStateComponent,
     UiModuleInfoComponent,
     UiSearchableDropdownComponent,
+    AppDatePipe,
+    AppTimePipe,
   ],
   templateUrl: './supplier-ledger.page.html',
   styleUrl: './supplier-ledger.page.scss',

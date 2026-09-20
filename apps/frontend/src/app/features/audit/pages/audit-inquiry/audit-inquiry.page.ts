@@ -17,6 +17,7 @@ import {
   DropdownOption,
   UiSearchableDropdownComponent,
 } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import { formatAppDateTime } from '../../../../shared/format/date-time.util';
 
 const KNOWN_ACTION_LABELS: Readonly<Record<string, string>> = {
   'subscription.status_transition': 'Subscription status changed',
@@ -581,21 +582,7 @@ export class AuditInquiryPage {
 
   // Formatting Helpers
   formatDateTime(dateVal: unknown): string {
-    if (!dateVal) return '—';
-    try {
-      const date = new Date(String(dateVal));
-      if (Number.isNaN(date.getTime())) return String(dateVal);
-      return date.toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: this.organizationTimezone(),
-      });
-    } catch {
-      return String(dateVal);
-    }
+    return formatAppDateTime(dateVal as string | Date);
   }
 
   formatActor(actorId: string | null | undefined): string {

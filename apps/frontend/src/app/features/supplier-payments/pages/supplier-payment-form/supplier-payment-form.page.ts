@@ -37,6 +37,7 @@ import {
 } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { hasRequiredValidator, fieldValidationMessage } from '../../../../shared/form/form-field.util';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { humanizeLedgerItem } from '../../../customer-payments/models/ledger-presentation.util';
 
 @Component({
   selector: 'agrivio-supplier-payment-form-page',
@@ -73,6 +74,10 @@ export class SupplierPaymentFormPage {
   readonly accounts = signal<AccountRecord[]>([]);
   readonly ledgerItems = signal<SupplierLedgerEffectRecord[]>([]);
   readonly unpaidPurchases = signal<UnpaidPurchaseRecord[]>([]);
+
+  readonly humanizedLedgerItems = computed(() =>
+    this.ledgerItems().map((item) => humanizeLedgerItem(item)),
+  );
 
   readonly supplierOptions = computed(() =>
     this.suppliers().map((s) => formatSupplierOption(s)),

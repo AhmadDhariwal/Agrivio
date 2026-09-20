@@ -14,6 +14,7 @@ import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.compon
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiStatusBadgeComponent, UiBadgeTone } from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
+import { formatAppDate, formatAppDateTime } from '../../../../shared/format/date-time.util';
 
 @Component({
   selector: 'agrivio-return-detail-page',
@@ -163,29 +164,11 @@ export class ReturnDetailPage {
   }
 
   formatDate(iso: string | null | undefined): string {
-    if (!iso) return '—';
-    const date = new Date(iso);
-    if (isNaN(date.getTime())) return iso;
-    return date.toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
+    return formatAppDate(iso);
   }
 
   formatDateTime(iso: string | null | undefined): string {
-    if (!iso) return '—';
-    const date = new Date(iso);
-    if (isNaN(date.getTime())) return iso;
-    return `${date.toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    })} ${date.toLocaleTimeString('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    })}`;
+    return formatAppDateTime(iso);
   }
 
   openReverseDialog(): void {

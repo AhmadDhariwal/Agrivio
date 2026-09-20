@@ -193,4 +193,57 @@ describe('CustomerPaymentFormPage', () => {
     expect(component.customerSelectedLabel()).toBe('');
     expect(component.unpaidSales()).toEqual([]);
   });
+
+  it('renders customer ledger preview with humanized titles, date, time, source, and formatted PKR amounts', () => {
+    const fixture = TestBed.createComponent(CustomerPaymentFormPage);
+    const component = fixture.componentInstance;
+
+    component.ledgerItems.set([
+      {
+        id: 'effect-1',
+        organizationId: 'org-1',
+        partyType: 'customer',
+        customerId: 'cust-1',
+        supplierId: null,
+        effectKind: 'advance',
+        signedAmount: { amount: '20000.00', currency: 'PKR' },
+        currency: 'PKR',
+        sourceType: 'customer_payment_advance',
+        sourceId: '6a835a6bc5d6f02a711e5d13',
+        status: 'posted',
+        postedAt: '2026-09-20T15:56:48.000Z',
+        postedBy: 'user-1',
+      },
+      {
+        id: 'effect-2',
+        organizationId: 'org-1',
+        partyType: 'customer',
+        customerId: 'cust-1',
+        supplierId: null,
+        effectKind: 'advance',
+        signedAmount: { amount: '-5800.00', currency: 'PKR' },
+        currency: 'PKR',
+        sourceType: 'customer_advance_consumption',
+        sourceId: 'sale-101',
+        status: 'posted',
+        postedAt: '2026-09-20T15:56:48.000Z',
+        postedBy: 'user-1',
+      },
+    ]);
+
+    fixture.detectChanges();
+
+    const rows = fixture.nativeElement.querySelectorAll('[data-testid="ledger-row"]');
+    expect(rows.length).toBe(2);
+
+    // Row 1: Advance Received
+    expect(rows[0].querySelector('.ledger-row__title')?.textContent).toContain('Customer Advance Received');
+    expect(rows[0].querySelector('.ledger-row__amount')?.textContent).toContain('+ PKR 20,000');
+    expect(rows[0].querySelector('.ledger-row__meta')?.textContent).toContain('Customer Advance');
+
+    // Row 2: Advance Consumed
+    expect(rows[1].querySelector('.ledger-row__title')?.textContent).toContain('Advance Consumed');
+    expect(rows[1].querySelector('.ledger-row__amount')?.textContent).toContain('- PKR 5,800');
+    expect(rows[1].querySelector('.ledger-row__meta')?.textContent).toContain('Advance Consumption');
+  });
 });

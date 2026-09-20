@@ -80,7 +80,7 @@ describe('CustomerPaymentsPage', () => {
     expect(table).toBeTruthy();
 
     const dateCell = fixture.nativeElement.querySelector('[data-testid="payment-date"]');
-    expect(dateCell?.textContent).toContain('2026-08-16');
+    expect(dateCell?.textContent).toContain('16 Aug 2026');
 
     const modeCell = fixture.nativeElement.querySelector('[data-testid="payment-mode"]');
     expect(modeCell?.textContent).toContain('General');

@@ -30,6 +30,7 @@ import {
   SearchableDropdownOption,
 } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
 import { formatAccountOption } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
+import { formatAppDateTime } from '../../../../shared/format/date-time.util';
 
 @Component({
   selector: 'agrivio-sale-detail-page',
@@ -358,9 +359,7 @@ export class SaleDetailPage {
   }
 
   formatDate(value: string | null | undefined): string {
-    if (!value) return '—';
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString('en-GB');
+    return formatAppDateTime(value);
   }
 
   private mapError(error: unknown, fallback = 'Unable to load sale details.'): string {

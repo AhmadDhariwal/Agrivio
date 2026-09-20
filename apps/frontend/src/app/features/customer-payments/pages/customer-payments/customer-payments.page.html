@@ -385,7 +385,7 @@
                       </svg>
                     </div>
                     <div class="product-cell__meta">
-                      <span class="tabular-num text-date">{{ item.paymentDate }}</span>
+                      <span class="tabular-num text-date">{{ item.paymentDate | agDate }}</span>
                     </div>
                   </div>
                 </td>
@@ -439,7 +439,7 @@
                     <line x1="8" y1="2" x2="8" y2="6"></line>
                   </svg>
                 </div>
-                <span class="payment-card__date tabular-num">{{ item.paymentDate }}</span>
+                <span class="payment-card__date tabular-num">{{ item.paymentDate | agDate }}</span>
               </div>
               <span class="payment-card__amount tabular-num price-text">{{ formatCurrency(item.amount) }}</span>
             </div>
