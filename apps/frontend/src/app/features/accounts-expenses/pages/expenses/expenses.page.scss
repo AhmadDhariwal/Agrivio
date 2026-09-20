@@ -426,6 +426,7 @@
 
 .expenses-table {
   width: 100%;
+  min-width: 860px;
   border-collapse: collapse;
   font-size: 13.5px;
 
@@ -447,7 +448,8 @@
 
     &--actions {
       text-align: right;
-      width: 80px;
+      width: 110px;
+      white-space: nowrap;
     }
   }
 
@@ -469,6 +471,10 @@
       max-width: 280px;
     }
 
+    &--date {
+      white-space: nowrap;
+    }
+
     &--amount {
       text-align: right;
       font-weight: 600;
@@ -481,6 +487,8 @@
 
     &--actions {
       text-align: right;
+      width: 110px;
+      white-space: nowrap;
     }
   }
 }
