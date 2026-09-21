@@ -91,7 +91,7 @@
         (purchase()?.cancellationReason) {
         <span class="banner-sub">Reason: {{ purchase()!.cancellationReason }}</span>
         } @if (purchase()?.cancelledAt) {
-        <span class="banner-sub">· {{ purchase()!.cancelledAt }}</span>
+        <span class="banner-sub">· {{ purchase()!.cancelledAt | agDateTime }}</span>
         }
       </div>
     </div>
@@ -305,7 +305,7 @@
             } @if (canViewPurchaseField('purchaseDate')) {
             <div class="detail-row">
               <span class="detail-label">Purchase date</span>
-              <span class="detail-value">{{ posted.purchaseDate }}</span>
+              <span class="detail-value">{{ posted.purchaseDate | agDate }}</span>
             </div>
             } @if (canViewPurchaseField('supplierInvoiceReference')) {
             <div class="detail-row">
@@ -325,7 +325,7 @@
             @if (posted.postedAt) {
             <div class="detail-row">
               <span class="detail-label">Posted at</span>
-              <span class="detail-value">{{ posted.postedAt }}</span>
+              <span class="detail-value">{{ posted.postedAt | agDateTime }}</span>
             </div>
             } @if (posted.postedBy) {
             <div class="detail-row">
@@ -779,6 +779,8 @@
               [disabled]="!canEditPurchaseField('supplier')"
               [invalid]="!!fieldError(form.controls.supplierId, 'Supplier', formSubmitAttempted())"
               [required]="fieldRequired(form.controls.supplierId)"
+              [serverSearch]="true"
+              [selectedLabel]="supplierSelectedLabel()"
               (searchChange)="onSupplierComboboxSearch($event)"
             />
             @if (fieldError(form.controls.supplierId, 'Supplier', formSubmitAttempted()); as
@@ -955,6 +957,8 @@
                   [disabled]="!canEditPurchaseField('product')"
                   [invalid]="!!lineFieldError(index, 'productId', 'Product')"
                   [required]="fieldRequired(lineGroup(index).controls['productId'])"
+                  [serverSearch]="true"
+                  [selectedLabel]="productSelectedLabel(index)"
                   (searchChange)="onProductComboboxSearch($event)"
                 />
                 @if (lineFieldError(index, 'productId', 'Product'); as productError) {

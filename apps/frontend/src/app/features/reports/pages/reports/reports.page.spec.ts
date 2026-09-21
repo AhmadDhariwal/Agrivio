@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { of } from 'rxjs';
 import { ReportsPage } from './reports.page';
 import { ReportsApi } from '../../data-access/reports.api';
@@ -361,6 +362,22 @@ describe('ReportsPage', () => {
     const table = fixture.nativeElement.querySelector('[data-testid="report-table"]');
     expect(table?.textContent).toContain('Urea 50kg');
     expect(table?.textContent).not.toContain('prod-1');
+  });
+
+  it('formats report date-only and instant timestamp columns accurately', () => {
+    // Calendar dates - date only
+    expect(component.formatCellValue('saleDate', '2026-09-20')).toBe('20 Sep 2026');
+    expect(component.formatCellValue('purchaseDate', '2026-08-24')).toBe('24 Aug 2026');
+    expect(component.formatCellValue('expenseDate', '2026-07-15')).toBe('15 Jul 2026');
+    expect(component.formatCellValue('groupLabel', '2026-09-20')).toBe('20 Sep 2026');
+
+    // Instant timestamps - date + time in local timezone
+    const timestampFormatted = component.formatCellValue('postedAt', '2026-09-20T15:56:48.000Z');
+    expect(timestampFormatted).toMatch(/^\d{2} [A-Z][a-z]{2} \d{4}, \d{2}:\d{2} (AM|PM)$/);
+
+    // Missing / invalid
+    expect(component.formatCellValue('saleDate', null)).toBe('—');
+    expect(component.formatCellValue('postedAt', '')).toBe('—');
   });
 
   it('bootstraps customer filter with bounded initial search', async () => {

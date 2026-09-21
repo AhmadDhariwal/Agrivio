@@ -54,6 +54,20 @@ function createMongooseCustomersStore() {
       return CustomerModel.findOne({ _id: id, organizationId }).lean().exec();
     },
 
+    async listCustomerSummariesByIds(organizationId, ids) {
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return [];
+      }
+      const validIds = ids.filter((id) => mongoose.isValidObjectId(id)).map((id) => new mongoose.Types.ObjectId(String(id)));
+      if (validIds.length === 0) {
+        return [];
+      }
+      return CustomerModel.find(
+        { organizationId, _id: { $in: validIds } },
+        { name: 1, phone: 1 },
+      ).lean().exec();
+    },
+
     async insertCustomer(session, doc) {
       try {
         const [created] = await CustomerModel.create([doc], withSession(session));
@@ -144,6 +158,20 @@ function createInMemoryCustomersStore() {
         return null;
       }
       return { ...record };
+    },
+
+    async listCustomerSummariesByIds(organizationId, ids) {
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return [];
+      }
+      const idSet = new Set(ids.map(String));
+      return [...customers.values()]
+        .filter(
+          (item) =>
+            String(item.organizationId) === String(organizationId) &&
+            idSet.has(String(item._id)),
+        )
+        .map((item) => ({ _id: item._id, name: item.name, phone: item.phone ?? '' }));
     },
 
     async insertCustomer(_session, doc) {

@@ -12,6 +12,7 @@ import {
   merge,
   of,
   switchMap,
+  tap,
 } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CustomerPaymentsApi } from '../../data-access/customer-payments.api';
@@ -21,6 +22,7 @@ import {
   MoneyAmount,
   UnpaidSaleRecord,
 } from '../../models/customer-payments.models';
+import { humanizeLedgerItem } from '../../models/ledger-presentation.util';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { CustomersApi } from '../../../customers/data-access/customers.api';
@@ -62,6 +64,7 @@ export class CustomerPaymentFormPage {
   private readonly formBuilder = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
   private readonly customerSearchChanges = new Subject<string>();
+  private readonly knownCustomers = new Map<string, CustomerRecord>();
 
   readonly loading = signal(true);
   readonly saving = signal(false);
@@ -72,6 +75,9 @@ export class CustomerPaymentFormPage {
   readonly customers = signal<CustomerRecord[]>([]);
   readonly accounts = signal<AccountRecord[]>([]);
   readonly ledgerItems = signal<CustomerLedgerEffectRecord[]>([]);
+  readonly humanizedLedgerItems = computed(() =>
+    this.ledgerItems().map(humanizeLedgerItem),
+  );
   readonly unpaidSales = signal<UnpaidSaleRecord[]>([]);
 
   readonly customerOptions = computed(() =>
@@ -197,7 +203,9 @@ export class CustomerPaymentFormPage {
         switchMap((query) => this.customersApi.searchCustomerOptions(query)),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((items) => this.customers.set(items.filter((item) => item.status === 'active')));
+      .subscribe((items) => {
+        this.customers.set(items.filter((item) => item.status === 'active'));
+      });
 
     this.customerSearchChanges.next('');
 
@@ -214,6 +222,14 @@ export class CustomerPaymentFormPage {
 
     this.form.controls.customerId.valueChanges
       .pipe(
+        tap((customerId) => {
+          if (customerId) {
+            const selected = this.customers().find((c) => c.id === customerId);
+            if (selected) {
+              this.knownCustomers.set(customerId, selected);
+            }
+          }
+        }),
         switchMap((customerId) => {
           this.ledgerItems.set([]);
           this.unpaidSales.set([]);
@@ -255,6 +271,17 @@ export class CustomerPaymentFormPage {
           this.unpaidSales.set([]);
         }
       });
+  }
+
+  customerSelectedLabel(): string {
+    const customerId = String(this.form.controls.customerId.value ?? '').trim();
+    if (!customerId) {
+      return '';
+    }
+    const known =
+      this.knownCustomers.get(customerId) ??
+      this.customers().find((c) => c.id === customerId);
+    return known?.name ?? '';
   }
 
   onCustomerSearch(eventOrQuery: Event | string): void {

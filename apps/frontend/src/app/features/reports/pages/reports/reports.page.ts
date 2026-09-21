@@ -48,6 +48,7 @@ import {
   formatWarehouseOption,
 } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { formatQuantity } from '../../../../shared/chart/chart-format.util';
+import { formatAppDate, formatAppDateTime } from '../../../../shared/format/date-time.util';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 @Component({
@@ -679,11 +680,22 @@ export class ReportsPage {
       return this.humanizeMetric(str);
     }
 
-    // Date formatting for ISO strings
-    if (columnKey === 'postedAt' || columnKey === 'createdAt') {
-      if (str.includes('T')) {
-        return str.split('T')[0] ?? str;
-      }
+    // Instant timestamp columns
+    if (['postedAt', 'createdAt', 'occurredAt', 'timestamp'].includes(columnKey)) {
+      return formatAppDateTime(str);
+    }
+
+    // Date-only calendar columns
+    if (
+      ['saleDate', 'purchaseDate', 'expenseDate', 'paymentDate', 'businessDate', 'date'].includes(
+        columnKey,
+      )
+    ) {
+      return formatAppDate(str);
+    }
+
+    if (columnKey === 'groupLabel' && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
+      return formatAppDate(str);
     }
 
     // Account Type humanization
@@ -713,11 +725,26 @@ export class ReportsPage {
     if (columnKey === 'sourceType') {
       const sources: Record<string, string> = {
         customer_opening_receivable: 'Opening Receivable',
+        customer_opening_advance: 'Opening Advance',
         supplier_opening_payable: 'Opening Payable',
+        supplier_opening_advance: 'Opening Advance',
         customer_payment: 'Customer Payment',
+        customer_payment_allocation: 'Payment Received',
+        customer_payment_advance: 'Customer Advance Received',
+        customer_advance_consumption: 'Advance Consumed',
+        customer_advance_application: 'Advance Applied to Sale',
         supplier_payment: 'Supplier Payment',
+        supplier_payment_allocation: 'Payment to Supplier',
+        supplier_payment_advance: 'Advance Paid to Supplier',
+        supplier_advance_application: 'Advance Applied to Purchase',
         sale: 'Sale Invoice',
+        sale_receivable: 'Sale Invoice',
         purchase: 'Purchase',
+        purchase_payable: 'Purchase Payable',
+        sale_cancellation: 'Sale Cancelled',
+        sale_cancellation_advance_reinstatement: 'Customer Advance Restored',
+        sale_cancellation_advance_receivable_reversal: 'Advance Application Reversed',
+        purchase_cancellation: 'Purchase Cancelled',
         sales_return: 'Sales Return',
         purchase_return: 'Purchase Return',
         account_opening: 'Account Opening',

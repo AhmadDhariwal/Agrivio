@@ -11,6 +11,7 @@ import {
   UiBadgeTone,
   UiStatusBadgeComponent,
 } from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
+import { formatAppDate, formatAppDateTime } from '../../../../shared/format/date-time.util';
 
 @Component({
   selector: 'agrivio-purchase-detail-page',
@@ -28,6 +29,7 @@ export class PurchaseDetailPage {
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly purchase = signal<PurchaseRecord | null>(null);
+
   readonly canView = computed(
     () =>
       this.sessionStore.hasPermission('purchases.view') &&
@@ -38,6 +40,7 @@ export class PurchaseDetailPage {
     () =>
       this.purchase()?.status === 'draft' &&
       this.sessionStore.hasPermission('purchases.create') &&
+      (this.capabilityService?.canUseModule('purchases') ?? true) &&
       (this.capabilityService?.canPerformAction('purchases.actions.editDraft') ?? true),
   );
 
@@ -97,47 +100,10 @@ export class PurchaseDetailPage {
   }
 
   formatDate(value: string | null | undefined): string {
-    if (!value) return '—';
-    const trimmed = String(value).trim();
-    if (!trimmed) return '—';
-    const parts = trimmed.split('-');
-    if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
-      const year = parseInt(parts[0], 10);
-      const monthIndex = parseInt(parts[1], 10) - 1;
-      const day = parseInt(parts[2], 10);
-      const date = new Date(Date.UTC(year, monthIndex, day));
-      if (!isNaN(date.getTime())) {
-        return date.toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-          timeZone: 'UTC',
-        });
-      }
-    }
-    const d = new Date(trimmed);
-    if (isNaN(d.getTime())) return trimmed;
-    return d.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
+    return formatAppDate(value);
   }
 
   formatDateTime(value: string | null | undefined): string {
-    if (!value) return '—';
-    const d = new Date(value);
-    if (isNaN(d.getTime())) return String(value);
-    const dateStr = d.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-    const timeStr = d.toLocaleTimeString('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-    return `${dateStr}, ${timeStr}`;
+    return formatAppDateTime(value);
   }
 }

@@ -135,6 +135,8 @@
                       placeholder="Select supplier"
                       [searchable]="true"
                       [clearable]="true"
+                      [serverSearch]="true"
+                      [selectedLabel]="supplierSelectedLabel()"
                       (searchChange)="onSupplierSearch($event)"
                       [error]="fieldError(form.controls.supplierId, 'Supplier', formSubmitAttempted())"
                     />
@@ -494,14 +496,26 @@
         </div>
         <div class="form-card__body">
           <div class="ledger-list">
-            @for (item of ledgerItems(); track item.id) {
+            @for (item of humanizedLedgerItems(); track item.id) {
               <div class="ledger-row">
                 <div class="ledger-row__info">
-                  <strong>{{ item.effectKind }}</strong>
-                  <p class="ag-muted">{{ item.sourceType }} · {{ item.postedAt }}</p>
+                  <span class="ledger-row__title">{{ item.title }}</span>
+                  <div class="ledger-row__meta">
+                    <span class="ledger-row__date">{{ item.date }}</span>
+                    @if (item.time) {
+                      <span class="ledger-row__dot" aria-hidden="true">·</span>
+                      <span class="ledger-row__time">{{ item.time }}</span>
+                    }
+                    <span class="ledger-row__dot" aria-hidden="true">·</span>
+                    <span class="ledger-row__source">{{ item.sourceReference }}</span>
+                  </div>
                 </div>
-                <span class="ledger-row__amount tabular-num font-semibold">
-                  {{ formatCurrency(item.signedAmount) }}
+                <span
+                  class="ledger-row__amount tabular-num font-semibold"
+                  [class.ledger-row__amount--credit]="item.isPositive"
+                  [class.ledger-row__amount--debit]="!item.isPositive"
+                >
+                  {{ item.formattedAmount }}
                 </span>
               </div>
             }

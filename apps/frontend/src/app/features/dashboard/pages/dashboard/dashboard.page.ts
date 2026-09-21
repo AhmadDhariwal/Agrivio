@@ -33,6 +33,7 @@ import {
   formatWarehouseOption,
 } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { AppDatePipe } from '../../../../shared/format/date-time.pipe';
 
 @Component({
   selector: 'agrivio-dashboard-page',
@@ -48,6 +49,7 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
     UiHorizontalBarChartComponent,
     UiDonutChartComponent,
     UiSearchableDropdownComponent,
+    AppDatePipe,
   ],
   templateUrl: './dashboard.page.html',
   styleUrl: './dashboard.page.scss',

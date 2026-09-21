@@ -151,7 +151,9 @@ export class OpeningStockPage {
     this.form.controls.productId.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((productId) => {
-        const product = this.products().find((item) => item.id === productId) ?? null;
+        const product =
+          this.products().find((item) => item.id === productId) ??
+          (this.selectedProduct()?.id === productId ? this.selectedProduct() : null);
         this.selectedProduct.set(product);
         const mode = product?.trackingMode ?? 'none';
         this.selectedTrackingMode.set(mode);
@@ -212,6 +214,10 @@ export class OpeningStockPage {
       .subscribe((items) => {
         this.products.set(items.filter((item) => item.status === 'active'));
       });
+  }
+
+  productSelectedLabel(): string {
+    return this.selectedProduct()?.name ?? '';
   }
 
   private loadPackagingUnits(productId: string): void {

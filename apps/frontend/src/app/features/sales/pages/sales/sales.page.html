@@ -198,7 +198,7 @@
 
           <!-- Date -->
           <td class="sales-table__td sales-table__td--date">
-            <span class="date-text tabular-num text-muted">{{ item.saleDate }}</span>
+            <span class="date-text tabular-num text-muted">{{ item.saleDate | agDate }}</span>
           </td>
 
           <!-- Total -->
@@ -274,7 +274,7 @@
         </div>
         <div class="sale-card__row">
           <span class="sale-card__label">Date</span>
-          <span class="sale-card__value tabular-num">{{ item.saleDate }}</span>
+          <span class="sale-card__value tabular-num">{{ item.saleDate | agDate }}</span>
         </div>
         <div class="sale-card__row sale-card__row--highlight">
           <span class="sale-card__label">Total</span>

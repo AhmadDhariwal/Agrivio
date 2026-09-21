@@ -86,6 +86,7 @@
             formControlName="supplierId"
             [options]="supplierOptions()"
             [serverSearch]="true"
+            [selectedLabel]="supplierSelectedLabel()"
             (searchChange)="onSupplierSearch($event)"
             placeholder="-- Choose a supplier --"
           />
@@ -378,8 +379,8 @@
                     <!-- Date -->
                     @if (canViewField('date')) {
                       <td class="cell-date">
-                        {{ item.postedAt | date: 'mediumDate' }}
-                        <span class="cell-subtext">{{ item.postedAt | date: 'shortTime' }}</span>
+                        {{ item.postedAt | agDate }}
+                        <span class="cell-subtext">{{ item.postedAt | agTime }}</span>
                       </td>
                     }
 
@@ -467,8 +468,8 @@
                 <div class="mobile-ledger-card__header">
                   @if (canViewField('date')) {
                     <div class="mobile-ledger-card__date-group">
-                      <span class="mobile-ledger-card__date">{{ item.postedAt | date: 'mediumDate' }}</span>
-                      <span class="mobile-ledger-card__time">{{ item.postedAt | date: 'shortTime' }}</span>
+                      <span class="mobile-ledger-card__date">{{ item.postedAt | agDate }}</span>
+                      <span class="mobile-ledger-card__time">{{ item.postedAt | agTime }}</span>
                     </div>
                   }
                   @if (canViewField('entryType')) {

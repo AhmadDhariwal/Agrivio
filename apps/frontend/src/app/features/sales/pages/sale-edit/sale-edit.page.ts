@@ -38,6 +38,7 @@ import {
   SalePostApprovalsInput,
   SaleRecord,
 } from '../../models/sales.models';
+import { formatAppDateTime } from '../../../../shared/format/date-time.util';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
 import {
@@ -108,6 +109,7 @@ export class SaleEditPage {
   private readonly customerSearchChanges = new Subject<string>();
   private readonly customerSearchImmediate = new Subject<string>();
   private static readonly SELECTOR_SEARCH_LIMIT = 25;
+  private readonly knownProducts = new Map<string, ProductRecord>();
   @ViewChild('customerPicker') customerPickerRef?: ElementRef<HTMLElement>;
 
   readonly customerTypeOptions = [
@@ -486,28 +488,38 @@ export class SaleEditPage {
         ),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((items) => this.products.set(items.filter((item) => item.status === 'active')));
+      .subscribe((items) => {
+        this.products.set(items.filter((item) => item.status === 'active'));
+      });
 
     merge(
       this.customerSearchImmediate,
       this.customerSearchChanges.pipe(debounceTime(300), distinctUntilChanged()),
     )
       .pipe(
-        switchMap((query) =>
-          this.customersApi.searchCustomerOptions(query).pipe(
+        switchMap((query) => {
+          let isAsync = false;
+          const timer = setTimeout(() => {
+            isAsync = true;
+            this.customerSearchLoading.set(true);
+          }, 0);
+          return this.customersApi.searchCustomerOptions(query).pipe(
             catchError(() => {
               this.customerSearchError.set(true);
               return of([] as CustomerRecord[]);
             }),
-          ),
-        ),
+            finalize(() => {
+              clearTimeout(timer);
+              if (isAsync) {
+                this.customerSearchLoading.set(false);
+              }
+            }),
+          );
+        }),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((items) => {
-        this.customers.set(
-          this.mergeCustomerOptions(items.filter((item) => item.status === 'active')),
-        );
-        this.customerSearchLoading.set(false);
+        this.customers.set(items.filter((item) => item.status === 'active'));
       });
 
     this.form.controls.customerTypeMode.valueChanges
@@ -618,7 +630,7 @@ export class SaleEditPage {
 
   onCustomerDropdownOpenChange(open: boolean): void {
     this.customerDropdownOpen.set(open);
-    if (open) {
+    if (open && this.customers().length === 0) {
       this.requestCustomerSearch();
     }
   }
@@ -669,7 +681,7 @@ export class SaleEditPage {
     }
     const opening = !this.customerDropdownOpen();
     this.customerDropdownOpen.set(opening);
-    if (opening) {
+    if (opening && this.customers().length === 0) {
       this.requestCustomerSearch();
     }
   }
@@ -678,7 +690,6 @@ export class SaleEditPage {
     if (!this.canUseCustomerSearch()) {
       return;
     }
-    this.customerSearchLoading.set(true);
     this.customerSearchError.set(false);
     if (immediate) {
       this.customerSearchImmediate.next(query);
@@ -696,7 +707,9 @@ export class SaleEditPage {
       return;
     }
     this.customerDropdownOpen.set(true);
-    this.requestCustomerSearch();
+    if (this.customers().length === 0) {
+      this.requestCustomerSearch();
+    }
   }
 
   switchToRegisteredCustomer(): void {
@@ -1348,26 +1361,30 @@ export class SaleEditPage {
     return null;
   }
 
-  private mergeCustomerOptions(items: CustomerRecord[]): CustomerRecord[] {
-    const selected = this.selectedCustomer();
-    if (!selected) {
-      return items;
+  productSelectedLabel(index: number): string {
+    const control = this.lines.at(index)?.get('productId');
+    const productId = String(control?.value ?? '').trim();
+    if (!productId) {
+      return '';
     }
-    if (items.some((item) => item.id === selected.id)) {
-      return items;
+    const known =
+      this.knownProducts.get(productId) ??
+      this.products().find((p) => p.id === productId);
+    if (known) {
+      return known.name;
     }
-    return [selected, ...items];
+    const snapshot = this.sale()?.lines?.find((l) => l.productId === productId)?.productNameSnapshot;
+    return snapshot ?? '';
   }
 
   private seedSelectorOptionsFromSale(sale: SaleRecord): void {
     const seen = new Set<string>();
-    const productOptions: ProductRecord[] = [];
     for (const line of sale.lines) {
       if (seen.has(line.productId)) {
         continue;
       }
       seen.add(line.productId);
-      productOptions.push({
+      const seeded: ProductRecord = {
         id: line.productId,
         organizationId: sale.organizationId,
         categoryId: '',
@@ -1378,18 +1395,9 @@ export class SaleEditPage {
         measurementDimension: 'mass',
         status: 'active',
         version: 1,
-      });
+      };
+      this.knownProducts.set(line.productId, seeded);
     }
-    if (productOptions.length === 0) {
-      return;
-    }
-    const merged = [...productOptions];
-    for (const product of this.products()) {
-      if (!seen.has(product.id)) {
-        merged.push(product);
-      }
-    }
-    this.products.set(merged);
   }
 
   private applySale(sale: SaleRecord): void {
@@ -1464,7 +1472,6 @@ export class SaleEditPage {
         next: (customer) => {
           if (customer.status === 'active') {
             this.selectedCustomer.set(customer);
-            this.customers.set(this.mergeCustomerOptions([customer]));
             this.form.controls.customerTypeMode.setValue(
               customer.customerType === 'walk_in' ? 'walk_in' : String(customer.customerType),
               { emitEvent: false },
@@ -1489,6 +1496,10 @@ export class SaleEditPage {
       if (!productId) {
         this.packagingByLine.update((current) => ({ ...current, [index]: [] }));
         return;
+      }
+      const selected = this.products().find((p) => p.id === productId);
+      if (selected) {
+        this.knownProducts.set(productId, selected);
       }
       this.catalogApi.listPackagingUnits(productId).subscribe({
         next: (units) => {
@@ -1655,6 +1666,10 @@ export class SaleEditPage {
     const num = Number(val);
     if (isNaN(num)) return `PKR ${val}`;
     return `PKR ${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
+  formatDateTime(value: string | Date | null | undefined): string {
+    return formatAppDateTime(value);
   }
 
   formatQuantity(val: string | number | undefined | null): string {

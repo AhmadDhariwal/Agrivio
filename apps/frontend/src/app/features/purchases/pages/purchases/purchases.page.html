@@ -261,7 +261,7 @@
 
           <!-- Date -->
           <td class="data-table__td col-date">
-            <span class="date-text">{{ item.purchaseDate }}</span>
+            <span class="date-text">{{ item.purchaseDate | agDate }}</span>
           </td>
 
           <!-- Total -->
@@ -362,7 +362,7 @@
           <span class="mobile-purchase-card__ref">
             {{ item.supplierInvoiceReference || ('Purchase #' + item.id.slice(-6).toUpperCase()) }}
           </span>
-          <span class="mobile-purchase-card__date">{{ item.purchaseDate }}</span>
+          <span class="mobile-purchase-card__date">{{ item.purchaseDate | agDate }}</span>
         </div>
         <span
           class="status-indicator"

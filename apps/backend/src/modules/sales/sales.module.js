@@ -29,10 +29,7 @@ const {
   resolveAccessibleWarehouseIds,
 } = require('../identity/assignment-scope');
 const { isExpiredOnBusinessDate } = require('../inventory/public');
-const {
-  createInMemorySalesStore,
-  createMongooseSalesStore,
-} = require('./sales.store');
+const { createInMemorySalesStore, createMongooseSalesStore } = require('./sales.store');
 const { formatInvoiceNumber } = require('./invoice-sequence');
 const {
   parseSaleDraft,
@@ -190,7 +187,10 @@ async function buildResolvedLines(deps, organizationId, lines) {
       );
     } catch (error) {
       throw validationFailed(error.message || 'Invalid quantity conversion', [
-        { field: `lines[${index}].quantity`, message: error.message || 'Invalid quantity conversion' },
+        {
+          field: `lines[${index}].quantity`,
+          message: error.message || 'Invalid quantity conversion',
+        },
       ]);
     }
 
@@ -374,17 +374,25 @@ function createSalesService(deps) {
         branchId: query.branchId,
       });
       const warehouseIds = resolveAccessibleWarehouseIds(authContext);
-      const { items, total } = await store.listSales(organizationId, {
-        status: query.status,
-        customerId: query.customerId,
-        warehouseId: query.warehouseId,
-        branchId: query.branchId,
-        warehouseIds: query.warehouseId ? undefined : warehouseIds === null ? undefined : warehouseIds,
-        search: query.search,
-        saleDate: query.saleDate,
-        fromDate: query.fromDate,
-        toDate: query.toDate,
-      }, { skip: query.skip, pageSize: query.pageSize });
+      const { items, total } = await store.listSales(
+        organizationId,
+        {
+          status: query.status,
+          customerId: query.customerId,
+          warehouseId: query.warehouseId,
+          branchId: query.branchId,
+          warehouseIds: query.warehouseId
+            ? undefined
+            : warehouseIds === null
+              ? undefined
+              : warehouseIds,
+          search: query.search,
+          saleDate: query.saleDate,
+          fromDate: query.fromDate,
+          toDate: query.toDate,
+        },
+        { skip: query.skip, pageSize: query.pageSize },
+      );
       return { items: items.map((item) => toSaleDto(item)), total };
     },
 
@@ -651,7 +659,10 @@ function createSalesService(deps) {
               priceTier = customer.priceTier ?? 'retail';
             }
 
-            const branch = await locationsService.getBranch(organizationId, String(existing.branchId));
+            const branch = await locationsService.getBranch(
+              organizationId,
+              String(existing.branchId),
+            );
             if (branch.status !== 'active') {
               throw validationFailed('Branch must be active', [
                 { field: 'branchId', message: 'branch must be active' },
@@ -679,19 +690,31 @@ function createSalesService(deps) {
               ]);
             }
             const receivablePreview = saleTotalPreview - paidTotal;
+            let availableAdvanceMinor = 0n;
+            if (customerId && receivablePreview > 0n) {
+              const availableAdvance = await paymentsService.sumCustomerAdvance(
+                organizationId,
+                customerId,
+              );
+              availableAdvanceMinor = parseMoneyMinorUnits(availableAdvance.amount);
+            }
+            const projectedNewCredit =
+              receivablePreview > availableAdvanceMinor
+                ? receivablePreview - availableAdvanceMinor
+                : 0n;
 
-            if (receivablePreview > 0n) {
+            if (projectedNewCredit > 0n) {
               await assertActionAllowed(organizationId, 'sellOnCredit');
             }
 
-            if (!customerId && receivablePreview > 0n) {
+            if (!customerId && projectedNewCredit > 0n) {
               throw validationFailed('Anonymous walk-in credit is not allowed', [
                 { field: 'customerId', message: 'a customer is required for credit sales' },
               ]);
             }
 
             if (customerId && receivablePreview > 0n) {
-              if (customer.creditEnabled !== true) {
+              if (projectedNewCredit > 0n && customer.creditEnabled !== true) {
                 throw validationFailed('Customer credit is not enabled', [
                   { field: 'customerId', message: 'credit is not enabled for this customer' },
                 ]);
@@ -714,7 +737,8 @@ function createSalesService(deps) {
                 customerId,
               );
               const currentReceivableMinor = parseMoneyMinorUnits(currentReceivable.amount);
-              const projectedReceivable = currentReceivableMinor + receivablePreview;
+              const projectedReceivable =
+                currentReceivableMinor - availableAdvanceMinor + receivablePreview;
               const creditLimitMinor = parseMoneyMinorUnits(customer.creditLimit?.amount ?? '0');
               const exceedsLimit = projectedReceivable > creditLimitMinor;
               const behaviour = String(customer.creditLimitBehaviour ?? 'warning');
@@ -854,9 +878,10 @@ function createSalesService(deps) {
                   throw insufficientStock();
                 }
                 if (!allocation.ok && negativeStockRequested) {
-                  allocation = withExpired.allocations.length >= allocation.allocations.length
-                    ? withExpired
-                    : allocation;
+                  allocation =
+                    withExpired.allocations.length >= allocation.allocations.length
+                      ? withExpired
+                      : allocation;
                 }
               }
 
@@ -963,7 +988,10 @@ function createSalesService(deps) {
               });
             }
 
-            const receivableTotal = saleTotal - paidTotal;
+            const beforeAdvance = saleTotal - paidTotal;
+            const advanceApplied =
+              beforeAdvance < availableAdvanceMinor ? beforeAdvance : availableAdvanceMinor;
+            const receivableTotal = beforeAdvance - advanceApplied;
 
             if (
               customerId &&
@@ -975,7 +1003,8 @@ function createSalesService(deps) {
                 customerId,
               );
               const currentReceivableMinor = parseMoneyMinorUnits(currentReceivable.amount);
-              const projectedReceivable = currentReceivableMinor + receivableTotal;
+              const projectedReceivable =
+                currentReceivableMinor - availableAdvanceMinor + beforeAdvance;
               const creditLimitMinor = parseMoneyMinorUnits(customer.creditLimit?.amount ?? '0');
               if (projectedReceivable > creditLimitMinor) {
                 await auditWriter.appendBusinessEvent(session, {
@@ -1087,6 +1116,17 @@ function createSalesService(deps) {
               });
             }
 
+            if (customerId && advanceApplied > 0n) {
+              await paymentsService.applyCustomerAdvanceInSession(session, {
+                organizationId,
+                customerId,
+                saleId,
+                amountMinorUnits: advanceApplied.toString(),
+                postedAt,
+                postedBy: actor.actorId,
+              });
+            }
+
             for (let paymentIndex = 0; paymentIndex < input.payments.length; paymentIndex += 1) {
               const payment = input.payments[paymentIndex];
               const account = await accountsService.getAccount(organizationId, payment.accountId);
@@ -1172,6 +1212,7 @@ function createSalesService(deps) {
                 lines: postedLines,
                 saleTotalMinorUnits: saleTotal.toString(),
                 paidTotalMinorUnits: paidTotal.toString(),
+                advanceAppliedMinorUnits: advanceApplied.toString(),
                 receivableTotalMinorUnits: receivableTotal.toString(),
                 cogsTotalMinorUnits: saleCogsTotal.toString(),
                 paymentSnapshots,
@@ -1304,6 +1345,18 @@ function createSalesService(deps) {
               });
             }
 
+            let advanceRestoredMinorUnits = '0';
+            if (customerId) {
+              advanceRestoredMinorUnits =
+                (await paymentsService.reverseCustomerAdvanceApplicationInSession(session, {
+                  organizationId,
+                  customerId,
+                  saleId,
+                  postedAt: cancelledAt,
+                  postedBy: actor.actorId,
+                })) ?? '0';
+            }
+
             const priorAllocations = customerId
               ? await paymentsService.listSaleAllocations(organizationId, saleId)
               : [];
@@ -1379,6 +1432,7 @@ function createSalesService(deps) {
               metadata: {
                 reason: input.reason,
                 saleTotalMinorUnits: saleTotal.toString(),
+                advanceRestoredMinorUnits,
                 priorAllocationsCount: priorAllocations.length,
                 invoiceNumber: existing.invoiceNumber ?? null,
               },
@@ -1457,7 +1511,19 @@ function createSalesService(deps) {
           (sum, allocation) => sum + BigInt(allocation.allocatedAmountMinorUnits),
           0n,
         );
-        const outstanding = saleTotal - allocated;
+        const advanceEffects =
+          paymentsService && typeof paymentsService.listLedgerEffectsBySource === 'function'
+            ? await paymentsService.listLedgerEffectsBySource(
+                organizationId,
+                'customer_advance_application',
+                String(item['_id']),
+              )
+            : [];
+        const advanceApplied = advanceEffects.reduce(
+          (sum, effect) => sum - BigInt(String(effect.signedAmountMinorUnits ?? '0')),
+          0n,
+        );
+        const outstanding = saleTotal - allocated - advanceApplied;
         if (outstanding <= 0n) {
           continue;
         }

@@ -2,7 +2,7 @@ import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { EMPTY, forkJoin, merge, Subject, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
+import { forkJoin, merge, Subject, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PurchasesApi } from '../../data-access/purchases.api';
 import { ReturnsApi } from '../../data-access/returns.api';
@@ -45,6 +45,7 @@ import {
   formatAccountOption,
   formatPackagingUnitOption,
 } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
+import { AppDatePipe, AppDateTimePipe } from '../../../../shared/format/date-time.pipe';
 
 function toCleanString(val: unknown): string {
   if (val === null || val === undefined) {
@@ -72,6 +73,8 @@ function toMoneyString(val: unknown, fallback = '0.00'): string {
     UiConfirmDialogComponent,
     UiFieldLabelComponent,
     UiSearchableDropdownComponent,
+    AppDatePipe,
+    AppDateTimePipe,
   ],
   templateUrl: './purchase-edit.page.html',
   styleUrl: './purchase-edit.page.scss',
@@ -91,6 +94,8 @@ export class PurchaseEditPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly productSearchChanges = new Subject<string>();
   private readonly supplierSearchChanges = new Subject<string>();
+  private readonly knownProducts = new Map<string, ProductRecord>();
+  private readonly knownSuppliers = new Map<string, SupplierRecord>();
 
   readonly purchaseId = signal<string | null>(null);
   readonly purchase = signal<PurchaseRecord | null>(null);
@@ -351,6 +356,17 @@ export class PurchaseEditPage {
       accounts: this.accountsApi.listAccountOptions(),
     });
 
+    this.form.controls.supplierId.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((supplierId) => {
+        if (supplierId) {
+          const selected = this.suppliers().find((s) => s.id === supplierId);
+          if (selected) {
+            this.knownSuppliers.set(supplierId, selected);
+          }
+        }
+      });
+
     this.productSearchChanges
       .pipe(
         debounceTime(300),
@@ -358,7 +374,9 @@ export class PurchaseEditPage {
         switchMap((query) => this.catalogApi.searchProductOptions(query, 25, 'active')),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((items) => this.products.set(items.filter((item) => item.status === 'active')));
+      .subscribe((items) => {
+        this.products.set(items.filter((item) => item.status === 'active'));
+      });
 
     this.supplierSearchChanges
       .pipe(
@@ -367,7 +385,9 @@ export class PurchaseEditPage {
         switchMap((query) => this.suppliersApi.searchSupplierOptions(query)),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((items) => this.suppliers.set(items.filter((item) => item.status === 'active')));
+      .subscribe((items) => {
+        this.suppliers.set(items.filter((item) => item.status === 'active'));
+      });
 
     this.supplierSearchChanges.next('');
     this.productSearchChanges.next('');
@@ -439,7 +459,9 @@ export class PurchaseEditPage {
 
   trackingModeForLine(index: number): string {
     const productId = String(this.lineGroup(index).get('productId')?.value ?? '');
-    const fromCatalog = this.products().find((item) => item.id === productId)?.trackingMode;
+    const fromCatalog =
+      this.knownProducts.get(productId)?.trackingMode ??
+      this.products().find((item) => item.id === productId)?.trackingMode;
     if (fromCatalog) {
       return fromCatalog;
     }
@@ -465,6 +487,37 @@ export class PurchaseEditPage {
 
   onProductComboboxSearch(query: string): void {
     this.productSearchChanges.next(query.trim());
+  }
+
+  productSelectedLabel(index: number): string {
+    const control = this.lines.at(index)?.get('productId');
+    const productId = String(control?.value ?? '').trim();
+    if (!productId) {
+      return '';
+    }
+    const known =
+      this.knownProducts.get(productId) ??
+      this.products().find((p) => p.id === productId);
+    if (known) {
+      return known.name;
+    }
+    const snapshot = this.purchase()?.lines[index]?.productNameSnapshot;
+    return snapshot ?? '';
+  }
+
+  supplierSelectedLabel(): string {
+    const supplierId = String(this.form.controls.supplierId.value ?? '').trim();
+    if (!supplierId) {
+      return '';
+    }
+    const known =
+      this.knownSuppliers.get(supplierId) ??
+      this.suppliers().find((s) => s.id === supplierId);
+    if (known) {
+      return known.name;
+    }
+    const snapshot = this.purchase()?.supplierNameSnapshot;
+    return snapshot ?? '';
   }
 
   addLine(): void {
@@ -907,26 +960,24 @@ export class PurchaseEditPage {
   }
 
   private seedSelectorOptionsFromPurchase(purchase: PurchaseRecord): void {
-    this.suppliers.set([
-      {
-        id: purchase.supplierId,
-        organizationId: purchase.organizationId,
-        name: purchase.supplierNameSnapshot,
-        phone: '',
-        contactName: '',
-        email: '',
-        status: 'active',
-        version: purchase.version,
-      },
-    ]);
+    const seededSupplier: SupplierRecord = {
+      id: purchase.supplierId,
+      organizationId: purchase.organizationId,
+      name: purchase.supplierNameSnapshot,
+      phone: '',
+      contactName: '',
+      email: '',
+      status: 'active',
+      version: purchase.version,
+    };
+    this.knownSuppliers.set(purchase.supplierId, seededSupplier);
     const seen = new Set<string>();
-    const productOptions: ProductRecord[] = [];
     for (const line of purchase.lines ?? []) {
       if (seen.has(line.productId)) {
         continue;
       }
       seen.add(line.productId);
-      productOptions.push({
+      const seededProduct: ProductRecord = {
         id: line.productId,
         organizationId: purchase.organizationId,
         categoryId: '',
@@ -937,9 +988,9 @@ export class PurchaseEditPage {
         measurementDimension: 'mass',
         status: 'active',
         version: 1,
-      });
+      };
+      this.knownProducts.set(line.productId, seededProduct);
     }
-    this.products.set(productOptions);
   }
 
   private applyPurchase(purchase: PurchaseRecord): void {
@@ -1021,6 +1072,10 @@ export class PurchaseEditPage {
         this.packagingByLine.update((current) => ({ ...current, [index]: [] }));
         return;
       }
+      const selected = this.products().find((p) => p.id === productId);
+      if (selected) {
+        this.knownProducts.set(productId, selected);
+      }
       this.catalogApi.listPackagingUnits(productId).subscribe({
         next: (units) => {
           this.packagingByLine.update((current) => ({
@@ -1069,7 +1124,9 @@ export class PurchaseEditPage {
     const lines: PurchaseLineInput[] = rawLines.map((line) => {
       const productId = toCleanString(line['productId']);
       const mode =
-        this.products().find((item) => item.id === productId)?.trackingMode ?? 'none';
+        this.knownProducts.get(productId)?.trackingMode ??
+        this.products().find((item) => item.id === productId)?.trackingMode ??
+        'none';
       const quantity = toCleanString(line['quantity']);
       const unitCost = toCleanString(line['unitCost']);
       const packagingUnitId = toCleanString(line['packagingUnitId']);

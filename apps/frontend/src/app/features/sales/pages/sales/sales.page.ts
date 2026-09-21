@@ -23,6 +23,8 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
+import { AppDatePipe } from '../../../../shared/format/date-time.pipe';
+
 @Component({
   selector: 'agrivio-sales-page',
   standalone: true,
@@ -35,6 +37,7 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
     UiPaginationComponent,
     UiModuleInfoComponent,
     UiSearchInputComponent,
+    AppDatePipe,
   ],
   templateUrl: './sales.page.html',
   styleUrl: './sales.page.scss',

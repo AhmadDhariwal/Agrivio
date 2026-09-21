@@ -90,7 +90,7 @@
         <strong>Cancelled</strong> — original invoice preserved. @if (sale()?.cancellationReason) {
         <span class="banner-sub">Reason: {{ sale()!.cancellationReason }}</span>
         } @if (sale()?.cancelledAt) {
-        <span class="banner-sub">· {{ sale()!.cancelledAt }}</span>
+        <span class="banner-sub">· {{ formatDateTime(sale()!.cancelledAt) }}</span>
         }
       </div>
     </div>
@@ -314,7 +314,7 @@
             } @if (posted.postedAt) {
             <div class="detail-row">
               <span class="detail-label">Posted at</span>
-              <span class="detail-value text-muted tabular-num">{{ posted.postedAt }}</span>
+              <span class="detail-value text-muted tabular-num">{{ formatDateTime(posted.postedAt) }}</span>
             </div>
             }
           </div>
@@ -935,7 +935,25 @@
               [invalid]="!!fieldError(form.controls.branchId, 'Branch', formSubmitAttempted())"
               [required]="fieldRequired(form.controls.branchId)"
             />
-            @if (branchDefaultApplied()) { <p class="field-helper">Default selected</p> }
+            @if (branchDefaultApplied()) {
+            <span class="field-default-pill">
+              <svg
+                class="field-default-pill__icon"
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Default selected
+            </span>
+            }
             @if (fieldError(form.controls.branchId, 'Branch', formSubmitAttempted()); as
             branchError) {
             <p class="field-error" role="alert">{{ branchError }}</p>
@@ -958,7 +976,25 @@
               [invalid]="!!fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted())"
               [required]="fieldRequired(form.controls.warehouseId)"
             />
-            @if (warehouseDefaultApplied()) { <p class="field-helper">Default selected</p> }
+            @if (warehouseDefaultApplied()) {
+            <span class="field-default-pill">
+              <svg
+                class="field-default-pill__icon"
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Default selected
+            </span>
+            }
             @if (fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()); as
             warehouseError) {
             <p class="field-error" role="alert">{{ warehouseError }}</p>
@@ -1000,6 +1036,8 @@
               [disabled]="!canEditCustomerField() || isPosted()"
               [invalid]="!isWalkInCustomerType() && !!fieldError(form.controls.customerId, 'Customer', formSubmitAttempted())"
               [loading]="customerSearchLoading()"
+              [serverSearch]="true"
+              [selectedLabel]="selectedCustomer()?.name || ''"
               (searchChange)="onCustomerSearchChange($event)"
               (openChange)="onCustomerDropdownOpenChange($event)"
             />
@@ -1157,6 +1195,8 @@
                   placeholder="Select product"
                   [invalid]="!!lineFieldError(index, 'productId', 'Product')"
                   [required]="fieldRequired(lineGroup(index).controls['productId'])"
+                  [serverSearch]="true"
+                  [selectedLabel]="productSelectedLabel(index)"
                   (searchChange)="onProductSearchChange($event)"
                 />
                 @if (lineFieldError(index, 'productId', 'Product'); as productError) {

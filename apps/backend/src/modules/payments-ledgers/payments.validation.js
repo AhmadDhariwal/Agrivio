@@ -195,15 +195,52 @@ function toMoneyDto(amountMinorUnits) {
   };
 }
 
-function toPaymentDto(record, allocations = []) {
+function deriveAppliedTo(allocations) {
+  const posted = allocations.filter((a) => String(a['status']) === 'posted');
+  if (posted.length === 0) {
+    return null;
+  }
+  const RECEIVABLE_TYPES = new Set(['sale', 'customer_opening_receivable']);
+  const ADVANCE_TYPES = new Set(['customer_advance']);
+  let hasReceivable = false;
+  let hasAdvance = false;
+  for (const a of posted) {
+    const tt = String(a['targetType']);
+    if (RECEIVABLE_TYPES.has(tt)) {
+      hasReceivable = true;
+    } else if (ADVANCE_TYPES.has(tt)) {
+      hasAdvance = true;
+    }
+  }
+  if (hasReceivable && hasAdvance) {
+    return 'receivable_and_advance';
+  }
+  if (hasReceivable) {
+    return 'receivable';
+  }
+  if (hasAdvance) {
+    return 'advance';
+  }
+  return null;
+}
+
+function toPaymentDto(record, allocations = [], customer = null) {
   return {
     id: String(record['_id']),
     organizationId: String(record['organizationId']),
     partyType: String(record['partyType']),
     supplierId: record['supplierId'] ? String(record['supplierId']) : null,
     customerId: record['customerId'] ? String(record['customerId']) : null,
+    customer: customer
+      ? {
+          id: String(customer.id),
+          name: String(customer.name),
+          phone: customer.phone ? String(customer.phone) : null,
+        }
+      : null,
     accountId: String(record['accountId']),
     allocationMode: String(record['allocationMode']),
+    appliedTo: deriveAppliedTo(allocations),
     amount: toMoneyDto(record['amountMinorUnits']),
     paymentDate: String(record['paymentDate']),
     notes: String(record['notes'] ?? ''),

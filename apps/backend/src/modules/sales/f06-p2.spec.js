@@ -38,16 +38,15 @@ describe('F06 P2 sale posting, tier pricing, and payments', () => {
       });
       await login(baseUrl, jar, 'f06p2-owner@example.com', 'a-strong-passphrase');
 
-      const branch = await postJson(
-        baseUrl,
-        jar,
-        'POST',
-        API_BRANCHES_PATH,
-        { name: 'LHR Branch', invoicePrefix: 'LHR' },
-      );
+      const branch = await postJson(baseUrl, jar, 'POST', API_BRANCHES_PATH, {
+        name: 'LHR Branch',
+        invoicePrefix: 'LHR',
+      });
       expect(branch.status).toBe(201);
 
-      const warehouse = await postJson(baseUrl, jar, 'POST', API_WAREHOUSES_PATH, { name: 'Main WH' });
+      const warehouse = await postJson(baseUrl, jar, 'POST', API_WAREHOUSES_PATH, {
+        name: 'Main WH',
+      });
       expect(warehouse.status).toBe(201);
 
       const cash = await postJson(baseUrl, jar, 'POST', API_ACCOUNTS_PATH, {
@@ -168,7 +167,9 @@ describe('F06 P2 sale posting, tier pricing, and payments', () => {
         `${API_SALES_PATH}/${walkInDraft.body.data.id}/post`,
         {
           expectedVersion: walkInDraft.body.data.version,
-          payments: [{ accountId: cash.body.data.id, amount: { amount: '200.00', currency: 'PKR' } }],
+          payments: [
+            { accountId: cash.body.data.id, amount: { amount: '200.00', currency: 'PKR' } },
+          ],
         },
         'walkin-cash-post',
       );
@@ -188,7 +189,9 @@ describe('F06 P2 sale posting, tier pricing, and payments', () => {
         `${API_SALES_PATH}/${walkInDraft.body.data.id}/post`,
         {
           expectedVersion: walkInDraft.body.data.version,
-          payments: [{ accountId: cash.body.data.id, amount: { amount: '200.00', currency: 'PKR' } }],
+          payments: [
+            { accountId: cash.body.data.id, amount: { amount: '200.00', currency: 'PKR' } },
+          ],
         },
         'walkin-cash-post',
       );
@@ -238,9 +241,9 @@ describe('F06 P2 sale posting, tier pricing, and payments', () => {
         jar,
       );
       expect(ledger.status).toBe(200);
-      expect(
-        ledger.body.data.items.some((item) => item.sourceType === 'sale_receivable'),
-      ).toBe(true);
+      expect(ledger.body.data.items.some((item) => item.sourceType === 'sale_receivable')).toBe(
+        true,
+      );
 
       // Partial + mixed payment sale
       const mixedDraft = await postJson(baseUrl, jar, 'POST', API_SALES_PATH, {
@@ -320,7 +323,9 @@ describe('F06 P2 sale posting, tier pricing, and payments', () => {
         `${API_SALES_PATH}/${overrideDraft.body.data.id}/post`,
         {
           expectedVersion: overrideDraft.body.data.version,
-          payments: [{ accountId: cash.body.data.id, amount: { amount: '85.00', currency: 'PKR' } }],
+          payments: [
+            { accountId: cash.body.data.id, amount: { amount: '85.00', currency: 'PKR' } },
+          ],
         },
         'override-denied',
       );
@@ -333,13 +338,137 @@ describe('F06 P2 sale posting, tier pricing, and payments', () => {
         `${API_SALES_PATH}/${overrideDraft.body.data.id}/post`,
         {
           expectedVersion: overrideDraft.body.data.version,
-          payments: [{ accountId: cash.body.data.id, amount: { amount: '85.00', currency: 'PKR' } }],
+          payments: [
+            { accountId: cash.body.data.id, amount: { amount: '85.00', currency: 'PKR' } },
+          ],
           linePriceOverrides: [{ lineIndex: 0, reason: 'Bulk discount approved' }],
         },
         'override-post',
       );
       expect(overridePost.status).toBe(200);
       expect(overridePost.body.data.lines[0].priceOverrideReason).toBe('Bulk discount approved');
+
+      const advanceCustomer = await postJson(baseUrl, jar, 'POST', API_CUSTOMERS_PATH, {
+        name: 'Advance Customer',
+        customerType: 'business',
+        priceTier: 'wholesale',
+        phone: '03001234568',
+        creditEnabled: true,
+        creditLimit: { amount: '100.00', currency: 'PKR' },
+        creditLimitBehaviour: 'block',
+      });
+      await postJson(
+        baseUrl,
+        jar,
+        'POST',
+        `${API_CUSTOMERS_PATH}/${advanceCustomer.body.data.id}/opening-balance`,
+        { kind: 'advance', amount: { amount: '250.00', currency: 'PKR' } },
+        'advance-opening-large',
+      );
+      const advanceDraft = await postJson(baseUrl, jar, 'POST', API_SALES_PATH, {
+        ...draftBody,
+        customerId: advanceCustomer.body.data.id,
+      });
+      const advancePost = await postJson(
+        baseUrl,
+        jar,
+        'POST',
+        `${API_SALES_PATH}/${advanceDraft.body.data.id}/post`,
+        { expectedVersion: advanceDraft.body.data.version, payments: [] },
+        'advance-sale-large',
+      );
+      expect(advancePost.status).toBe(200);
+      expect(advancePost.body.data.receivableTotal.amount).toBe('0.00');
+      const advanceAfterSale = await fetchJson(
+        baseUrl,
+        'GET',
+        `${API_CUSTOMERS_PATH}/${advanceCustomer.body.data.id}`,
+        null,
+        {},
+        jar,
+      );
+      expect(advanceAfterSale.body.data.derivedBalances.advance.amount).toBe('70.00');
+      expect(advanceAfterSale.body.data.derivedBalances.receivable.amount).toBe('0.00');
+
+      const cancelAdvanceSale = await postJson(
+        baseUrl,
+        jar,
+        'POST',
+        `${API_SALES_PATH}/${advanceDraft.body.data.id}/cancel`,
+        { expectedVersion: advancePost.body.data.version, reason: 'Advance sale cancelled' },
+        'advance-sale-cancel',
+      );
+      expect(cancelAdvanceSale.status).toBe(200);
+      const advanceAfterCancel = await fetchJson(
+        baseUrl,
+        'GET',
+        `${API_CUSTOMERS_PATH}/${advanceCustomer.body.data.id}`,
+        null,
+        {},
+        jar,
+      );
+      expect(advanceAfterCancel.body.data.derivedBalances.advance.amount).toBe('250.00');
+      expect(advanceAfterCancel.body.data.derivedBalances.receivable.amount).toBe('0.00');
+      const advanceLedger = await fetchJson(
+        baseUrl,
+        'GET',
+        `${API_CUSTOMERS_PATH}/${advanceCustomer.body.data.id}/ledger`,
+        null,
+        {},
+        jar,
+      );
+      expect(
+        advanceLedger.body.data.items.some(
+          (item) => item.sourceType === 'customer_advance_consumption',
+        ),
+      ).toBe(true);
+      expect(
+        advanceLedger.body.data.items.some(
+          (item) => item.sourceType === 'sale_cancellation_advance_reinstatement',
+        ),
+      ).toBe(true);
+
+      const partialAdvanceCustomer = await postJson(baseUrl, jar, 'POST', API_CUSTOMERS_PATH, {
+        name: 'Partial Advance Customer',
+        customerType: 'business',
+        priceTier: 'wholesale',
+        phone: '03001234569',
+        creditEnabled: true,
+        creditLimit: { amount: '150.00', currency: 'PKR' },
+        creditLimitBehaviour: 'block',
+      });
+      await postJson(
+        baseUrl,
+        jar,
+        'POST',
+        `${API_CUSTOMERS_PATH}/${partialAdvanceCustomer.body.data.id}/opening-balance`,
+        { kind: 'advance', amount: { amount: '50.00', currency: 'PKR' } },
+        'advance-opening-partial',
+      );
+      const partialAdvanceDraft = await postJson(baseUrl, jar, 'POST', API_SALES_PATH, {
+        ...draftBody,
+        customerId: partialAdvanceCustomer.body.data.id,
+      });
+      const partialAdvancePost = await postJson(
+        baseUrl,
+        jar,
+        'POST',
+        `${API_SALES_PATH}/${partialAdvanceDraft.body.data.id}/post`,
+        { expectedVersion: partialAdvanceDraft.body.data.version, payments: [] },
+        'advance-sale-partial',
+      );
+      expect(partialAdvancePost.status).toBe(200);
+      expect(partialAdvancePost.body.data.receivableTotal.amount).toBe('130.00');
+      const partialAdvanceAfterSale = await fetchJson(
+        baseUrl,
+        'GET',
+        `${API_CUSTOMERS_PATH}/${partialAdvanceCustomer.body.data.id}`,
+        null,
+        {},
+        jar,
+      );
+      expect(partialAdvanceAfterSale.body.data.derivedBalances.advance.amount).toBe('0.00');
+      expect(partialAdvanceAfterSale.body.data.derivedBalances.receivable.amount).toBe('130.00');
 
       const editPosted = await postJson(
         baseUrl,

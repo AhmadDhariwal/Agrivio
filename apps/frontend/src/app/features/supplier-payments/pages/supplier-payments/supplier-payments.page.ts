@@ -12,6 +12,7 @@ import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.compon
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
+import { AppDatePipe } from '../../../../shared/format/date-time.pipe';
 import { EMPTY, Subject, catchError, startWith, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
@@ -26,6 +27,7 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
     UiLoadingStateComponent,
     UiPaginationComponent,
     UiModuleInfoComponent,
+    AppDatePipe,
   ],
   templateUrl: './supplier-payments.page.html',
   styleUrl: './supplier-payments.page.scss',
@@ -74,6 +76,13 @@ export class SupplierPaymentsPage {
   readonly page = signal(1);
   readonly pageSize = signal(25);
   readonly total = signal(0);
+  readonly search = signal('');
+  readonly pendingSearch = signal('');
+  readonly showSearch = computed(
+    () =>
+      (this.capabilityService?.canUseFeature('payments.supplier.features.search') ?? true) &&
+      (this.capabilityService?.canUseFeature('payments.supplier.features.paymentDateFilter') ?? true),
+  );
   readonly dateMode = signal<'single' | 'range'>('single');
   readonly paymentDate = signal('');
   readonly fromDate = signal('');
@@ -82,16 +91,18 @@ export class SupplierPaymentsPage {
   readonly pendingPaymentDate = signal('');
   readonly pendingFromDate = signal('');
   readonly pendingToDate = signal('');
-  readonly hasActiveFilters = computed(() =>
-    this.dateMode() === 'single'
+  readonly hasActiveFilters = computed(() => {
+    if (this.search().trim() !== '') return true;
+    return this.dateMode() === 'single'
       ? this.paymentDate() !== ''
-      : this.fromDate() !== '' || this.toDate() !== '',
-  );
-  readonly hasPendingFilters = computed(() =>
-    this.pendingDateMode() === 'single'
+      : this.fromDate() !== '' || this.toDate() !== '';
+  });
+  readonly hasPendingFilters = computed(() => {
+    if (this.pendingSearch().trim() !== '') return true;
+    return this.pendingDateMode() === 'single'
       ? this.pendingPaymentDate() !== ''
-      : this.pendingFromDate() !== '' || this.pendingToDate() !== '',
-  );
+      : this.pendingFromDate() !== '' || this.pendingToDate() !== '';
+  });
   readonly invalidPendingDateRange = computed(
     () =>
       this.pendingDateMode() === 'range' &&
@@ -123,6 +134,7 @@ export class SupplierPaymentsPage {
             pageSize: this.pageSize(),
             forceRefresh: forceRefresh === true,
           };
+          if (this.search().trim()) params.search = this.search().trim();
           if (this.dateMode() === 'single') {
             if (this.paymentDate()) params.paymentDate = this.paymentDate();
           } else {
@@ -154,6 +166,20 @@ export class SupplierPaymentsPage {
     this.reloadRequests.next(forceRefresh);
   }
 
+  onSearchInput(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.pendingSearch.set(value);
+  }
+
+  onSearchClear(): void {
+    this.pendingSearch.set('');
+    if (this.search()) {
+      this.search.set('');
+      this.page.set(1);
+      this.reload();
+    }
+  }
+
   setDateMode(mode: 'single' | 'range'): void {
     this.pendingDateMode.set(mode);
     this.filterError.set(null);
@@ -180,6 +206,7 @@ export class SupplierPaymentsPage {
       return;
     }
     this.filterError.set(null);
+    this.search.set(this.pendingSearch().trim());
     this.dateMode.set(this.pendingDateMode());
     this.paymentDate.set(this.pendingPaymentDate().trim());
     this.fromDate.set(this.pendingFromDate().trim());
@@ -190,9 +217,11 @@ export class SupplierPaymentsPage {
 
   clearFilters(): void {
     this.filterError.set(null);
+    this.pendingSearch.set('');
     this.pendingPaymentDate.set('');
     this.pendingFromDate.set('');
     this.pendingToDate.set('');
+    this.search.set('');
     this.paymentDate.set('');
     this.fromDate.set('');
     this.toDate.set('');
@@ -223,5 +252,12 @@ export class SupplierPaymentsPage {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
+  }
+
+  formatMode(mode?: string | null): string {
+    if (!mode) return 'General';
+    if (mode === 'invoice_specific') return 'Invoice-specific';
+    if (mode === 'general') return 'General';
+    return mode.charAt(0).toUpperCase() + mode.slice(1);
   }
 }

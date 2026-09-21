@@ -3,6 +3,12 @@ export interface MoneyAmount {
   currency: string;
 }
 
+export interface CustomerSummary {
+  id: string;
+  name: string;
+  phone: string | null;
+}
+
 export interface PaymentAllocationRecord {
   id: string;
   targetType: string;
@@ -17,8 +23,10 @@ export interface CustomerPaymentRecord {
   partyType: string;
   supplierId: string | null;
   customerId: string | null;
+  customer: CustomerSummary | null;
   accountId: string;
   allocationMode: 'general' | 'invoice_specific' | string;
+  appliedTo: 'receivable' | 'advance' | 'receivable_and_advance' | null;
   amount: MoneyAmount;
   paymentDate: string;
   notes: string;

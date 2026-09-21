@@ -9,7 +9,9 @@ import {
   distinctUntilChanged,
   forkJoin,
   of,
+  startWith,
   switchMap,
+  tap,
 } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { SupplierPaymentsApi } from '../../data-access/supplier-payments.api';
@@ -35,6 +37,7 @@ import {
 } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { hasRequiredValidator, fieldValidationMessage } from '../../../../shared/form/form-field.util';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { humanizeLedgerItem } from '../../../customer-payments/models/ledger-presentation.util';
 
 @Component({
   selector: 'agrivio-supplier-payment-form-page',
@@ -59,6 +62,7 @@ export class SupplierPaymentFormPage {
   private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
   private readonly supplierSearchChanges = new Subject<string>();
+  private readonly knownSuppliers = new Map<string, SupplierRecord>();
 
   readonly loading = signal(true);
   readonly saving = signal(false);
@@ -70,6 +74,10 @@ export class SupplierPaymentFormPage {
   readonly accounts = signal<AccountRecord[]>([]);
   readonly ledgerItems = signal<SupplierLedgerEffectRecord[]>([]);
   readonly unpaidPurchases = signal<UnpaidPurchaseRecord[]>([]);
+
+  readonly humanizedLedgerItems = computed(() =>
+    this.ledgerItems().map((item) => humanizeLedgerItem(item)),
+  );
 
   readonly supplierOptions = computed(() =>
     this.suppliers().map((s) => formatSupplierOption(s)),
@@ -170,7 +178,10 @@ export class SupplierPaymentFormPage {
     if (!supplierId) {
       return 'Not selected';
     }
-    return this.suppliers().find((s) => s.id === supplierId)?.name ?? 'Not selected';
+    return (
+      this.knownSuppliers.get(supplierId) ??
+      this.suppliers().find((s) => s.id === supplierId)
+    )?.name ?? 'Not selected';
   });
 
   readonly selectedAccount = computed(() => {
@@ -232,18 +243,17 @@ export class SupplierPaymentFormPage {
       return;
     }
 
-    this.suppliersApi.searchSupplierOptions('').subscribe((items) => {
-      this.suppliers.set(items.filter((item) => item.status === 'active'));
-    });
-
     this.supplierSearchChanges
       .pipe(
         debounceTime(300),
         distinctUntilChanged(),
+        startWith(''),
         switchMap((query) => this.suppliersApi.searchSupplierOptions(query)),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((items) => this.suppliers.set(items.filter((item) => item.status === 'active')));
+      .subscribe((items) => {
+        this.suppliers.set(items.filter((item) => item.status === 'active'));
+      });
 
     this.accountsApi.listAccountOptions().subscribe({
       next: (accounts) => {
@@ -258,6 +268,14 @@ export class SupplierPaymentFormPage {
 
     this.form.controls.supplierId.valueChanges
       .pipe(
+        tap((supplierId) => {
+          if (supplierId) {
+            const selected = this.suppliers().find((supplier) => supplier.id === supplierId);
+            if (selected) {
+              this.knownSuppliers.set(supplierId, selected);
+            }
+          }
+        }),
         switchMap((supplierId) => {
           this.ledgerItems.set([]);
           this.unpaidPurchases.set([]);
@@ -300,6 +318,17 @@ export class SupplierPaymentFormPage {
           this.unpaidPurchases.set([]);
         }
       });
+  }
+
+  supplierSelectedLabel(): string {
+    const supplierId = String(this.form.controls.supplierId.value ?? '').trim();
+    if (!supplierId) {
+      return '';
+    }
+    const known =
+      this.knownSuppliers.get(supplierId) ??
+      this.suppliers().find((s) => s.id === supplierId);
+    return known?.name ?? '';
   }
 
   onSupplierSearch(eventOrQuery: Event | string): void {
