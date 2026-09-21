@@ -125,6 +125,15 @@ function createCustomersService(deps) {
       return buildCustomerDto(organizationId, record);
     },
 
+    async listCustomerSummariesByIds(organizationId, ids) {
+      const records = await store.listCustomerSummariesByIds(organizationId, ids);
+      return records.map((r) => ({
+        id: String(r['_id']),
+        name: String(r['name']),
+        phone: r['phone'] ? String(r['phone']) : null,
+      }));
+    },
+
     async findCustomerByName(organizationId, name) {
       const needle = String(name ?? '')
         .trim()

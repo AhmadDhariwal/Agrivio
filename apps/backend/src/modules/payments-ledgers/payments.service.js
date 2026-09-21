@@ -1330,14 +1330,35 @@ function createPaymentsService(deps) {
         },
         { skip: query.skip, pageSize: query.pageSize },
       );
-      const mapped = [];
+
+      // Batch-resolve allocations for the page (sequential per payment, as before)
+      const itemsWithAllocations = [];
       for (const item of items) {
         const allocations = await store.listAllocationsByPayment(
           organizationId,
           String(item['_id']),
         );
-        mapped.push(toPaymentDto(item, allocations));
+        itemsWithAllocations.push({ item, allocations });
       }
+
+      // Batch-resolve customer summaries in a single query
+      const customerIdSet = new Set();
+      for (const { item } of itemsWithAllocations) {
+        if (item['customerId']) {
+          customerIdSet.add(String(item['customerId']));
+        }
+      }
+      const customerSummaries = customersService
+        ? await customersService.listCustomerSummariesByIds(organizationId, [...customerIdSet])
+        : [];
+      const customerMap = new Map(customerSummaries.map((c) => [String(c.id), c]));
+
+      const mapped = itemsWithAllocations.map(({ item, allocations }) => {
+        const customer = item['customerId']
+          ? (customerMap.get(String(item['customerId'])) ?? null)
+          : null;
+        return toPaymentDto(item, allocations, customer);
+      });
       return { items: mapped, total };
     },
 
@@ -1347,7 +1368,13 @@ function createPaymentsService(deps) {
         throw notFound('Customer payment not found');
       }
       const allocations = await store.listAllocationsByPayment(organizationId, paymentId);
-      return toPaymentDto(payment, allocations);
+      const customer =
+        customersService && payment['customerId']
+          ? await customersService
+              .listCustomerSummariesByIds(organizationId, [String(payment['customerId'])])
+              .then((list) => list[0] ?? null)
+          : null;
+      return toPaymentDto(payment, allocations, customer);
     },
 
     async listCustomerLedger(organizationId, customerId) {

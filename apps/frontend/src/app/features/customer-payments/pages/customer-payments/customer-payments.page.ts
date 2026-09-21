@@ -1,8 +1,8 @@
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+﻿import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
-import { EMPTY, Subject, catchError, startWith, switchMap } from 'rxjs';
+import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, startWith, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   CustomerPaymentsApi,
@@ -11,12 +11,17 @@ import {
 import { CustomerPaymentRecord, MoneyAmount } from '../../models/customer-payments.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { CustomersApi } from '../../../customers/data-access/customers.api';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
+import { UiSearchableDropdownComponent, DropdownOption } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import { formatCustomerOption } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { AppDatePipe } from '../../../../shared/format/date-time.pipe';
+import { getAppliedToLabel } from './customer-payments-presentation.util';
+import type { CustomerRecord } from '../../../customers/models/customers.models';
 
 @Component({
   selector: 'agrivio-customer-payments-page',
@@ -29,6 +34,7 @@ import { AppDatePipe } from '../../../../shared/format/date-time.pipe';
     UiLoadingStateComponent,
     UiModuleInfoComponent,
     UiPaginationComponent,
+    UiSearchableDropdownComponent,
     AppDatePipe,
   ],
   templateUrl: './customer-payments.page.html',
@@ -39,7 +45,17 @@ export class CustomerPaymentsPage {
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly destroyRef = inject(DestroyRef);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
+  private readonly customersApi = inject(CustomersApi);
   private readonly reloadRequests = new Subject<boolean>();
+  private readonly customerSearchChanges = new Subject<string>();
+
+  /** Customer option state (for the customer filter dropdown). */
+  private readonly customerRecords = signal<CustomerRecord[]>([]);
+  /**
+   * Tracks which customer option label is currently committed (applied) to the
+   * filter, so it survives subsequent searches.
+   */
+  private selectedCustomerLabel = signal<string>('');
 
   readonly items = signal<CustomerPaymentRecord[]>([]);
   readonly loading = signal(true);
@@ -83,6 +99,8 @@ export class CustomerPaymentsPage {
   readonly paymentDate = signal('');
   readonly fromDate = signal('');
   readonly toDate = signal('');
+  /** Applied customer ID for the active filter. */
+  readonly customerId = signal<string>('');
 
   // Staged (pending) filters
   readonly pendingSearch = signal('');
@@ -90,9 +108,20 @@ export class CustomerPaymentsPage {
   readonly pendingPaymentDate = signal('');
   readonly pendingFromDate = signal('');
   readonly pendingToDate = signal('');
+  /** Staged customer ID before the user clicks Apply. */
+  readonly pendingCustomerId = signal<string>('');
+
+  /** Options for the customer dropdown (updated by the debounced search stream). */
+  readonly customerOptions = computed<DropdownOption[]>(() =>
+    this.customerRecords().map(formatCustomerOption),
+  );
+
+  /** Currently-selected label that persists across customer search changes. */
+  readonly selectedCustomerDisplayLabel = computed(() => this.selectedCustomerLabel());
 
   readonly hasActiveFilters = computed(() => {
     if (this.search().trim() !== '') return true;
+    if (this.customerId()) return true;
     if (this.dateMode() === 'single') {
       return this.paymentDate().trim() !== '';
     }
@@ -101,6 +130,7 @@ export class CustomerPaymentsPage {
 
   readonly hasPendingFilters = computed(() => {
     if (this.pendingSearch().trim() !== '') return true;
+    if (this.pendingCustomerId()) return true;
     if (this.pendingDateMode() === 'single') {
       return this.pendingPaymentDate().trim() !== '';
     }
@@ -125,6 +155,20 @@ export class CustomerPaymentsPage {
   ];
 
   constructor() {
+    // Boot the customer dropdown with all active customers immediately.
+    this.customerSearchChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((query) => this.customersApi.searchCustomerOptions(query)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((items) => {
+        this.customerRecords.set(items.filter((c) => c.status === 'active'));
+      });
+
+    this.customerSearchChanges.next('');
+
     this.reloadRequests
       .pipe(
         startWith(false),
@@ -146,6 +190,11 @@ export class CustomerPaymentsPage {
           const effectiveSearch = this.search().trim();
           if (effectiveSearch) {
             params.search = effectiveSearch;
+          }
+
+          const effectiveCustomerId = this.customerId();
+          if (effectiveCustomerId) {
+            params.customerId = effectiveCustomerId;
           }
 
           if (this.dateMode() === 'single') {
@@ -180,6 +229,11 @@ export class CustomerPaymentsPage {
       )
       .subscribe(({ items, meta }) => {
         this.items.set(items);
+        // Clamp page to valid bounds if the server returns fewer pages.
+        const maxPage = meta.total > 0 ? Math.ceil(meta.total / meta.pageSize) : 1;
+        if (this.page() > maxPage) {
+          this.page.set(maxPage);
+        }
         this.total.set(meta.total);
         this.loading.set(false);
       });
@@ -228,6 +282,27 @@ export class CustomerPaymentsPage {
     this.filterError.set(null);
   }
 
+  /** Called when the user types in the customer searchable dropdown. */
+  onCustomerSearch(query: string): void {
+    this.customerSearchChanges.next(query ?? '');
+  }
+
+  /**
+   * Called when the user selects (or clears) a customer in the dropdown.
+   * Sets the pending customer ID and persists the label so it survives
+   * subsequent search queries.
+   */
+  onCustomerChange(value: string | null): void {
+    const id = value ?? '';
+    this.pendingCustomerId.set(id);
+    if (id) {
+      const found = this.customerRecords().find((c) => c.id === id);
+      this.selectedCustomerLabel.set(found?.name ?? id);
+    } else {
+      this.selectedCustomerLabel.set('');
+    }
+  }
+
   applyFilters(): void {
     if (this.invalidPendingDateRange()) {
       this.filterError.set('From date must be on or before To date.');
@@ -239,6 +314,7 @@ export class CustomerPaymentsPage {
     this.paymentDate.set(this.pendingPaymentDate().trim());
     this.fromDate.set(this.pendingFromDate().trim());
     this.toDate.set(this.pendingToDate().trim());
+    this.customerId.set(this.pendingCustomerId());
     this.page.set(1);
     this.reload(true);
   }
@@ -249,10 +325,13 @@ export class CustomerPaymentsPage {
     this.pendingPaymentDate.set('');
     this.pendingFromDate.set('');
     this.pendingToDate.set('');
+    this.pendingCustomerId.set('');
+    this.selectedCustomerLabel.set('');
     this.search.set('');
     this.paymentDate.set('');
     this.fromDate.set('');
     this.toDate.set('');
+    this.customerId.set('');
     this.page.set(1);
     this.reload(true);
   }
@@ -286,6 +365,10 @@ export class CustomerPaymentsPage {
     if (mode === 'invoice_specific') return 'Invoice-specific';
     if (mode === 'general') return 'General';
     return mode.charAt(0).toUpperCase() + mode.slice(1);
+  }
+
+  formatAppliedTo(appliedTo?: string | null): string | null {
+    return getAppliedToLabel(appliedTo);
   }
 
   getStatusTone(status?: string | null): 'success' | 'warning' | 'neutral' | 'danger' {

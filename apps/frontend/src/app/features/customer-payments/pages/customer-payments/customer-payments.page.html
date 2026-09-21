@@ -96,6 +96,21 @@
             </div>
           }
 
+          <!-- Customer Filter Dropdown -->
+          <div class="customer-filter" data-testid="customer-payments-customer-filter">
+            <agrivio-ui-searchable-dropdown
+              [options]="customerOptions()"
+              [value]="pendingCustomerId()"
+              [selectedLabel]="pendingCustomerId() ? selectedCustomerDisplayLabel() : ''"
+              [serverSearch]="true"
+              placeholder="Filter by customer…"
+              ariaLabel="Filter by customer"
+              (searchChange)="onCustomerSearch($event)"
+              (valueChange)="onCustomerChange($event)"
+              data-testid="customer-payments-customer-dropdown"
+            />
+          </div>
+
           <!-- Date Filter Picker with Mode Toggle -->
           @if (showPaymentDateFilter()) {
             <div class="date-filter-group">
@@ -253,6 +268,20 @@
           </div>
         }
 
+        <!-- Mobile Customer Filter -->
+        <div class="customer-filter customer-filter--mobile">
+          <agrivio-ui-searchable-dropdown
+            [options]="customerOptions()"
+            [value]="pendingCustomerId()"
+            [selectedLabel]="pendingCustomerId() ? selectedCustomerDisplayLabel() : ''"
+            [serverSearch]="true"
+            placeholder="Filter by customer…"
+            ariaLabel="Filter by customer"
+            (searchChange)="onCustomerSearch($event)"
+            (valueChange)="onCustomerChange($event)"
+          />
+        </div>
+
         @if (showPaymentDateFilter()) {
           <div class="toolbar__mobile-row">
             <div class="date-mode-toggle date-mode-toggle--mobile" role="group" aria-label="Date filter mode">
@@ -337,8 +366,18 @@
         @if (hasActiveFilters()) {
           <agrivio-ui-empty-state
             title="No payments match your filters"
-            message="Try adjusting your search criteria or date filter."
+            message="Try adjusting your search criteria, customer, or date filter."
           />
+          <div class="empty-filter-action">
+            <button
+              type="button"
+              class="ag-btn ag-btn--ghost empty-clear-btn"
+              (click)="clearFilters()"
+              data-testid="customer-payments-empty-clear"
+            >
+              Clear filters
+            </button>
+          </div>
         } @else {
           <agrivio-ui-empty-state
             title="No customer payments yet"
@@ -352,7 +391,9 @@
         <table class="prod-table" data-testid="customer-payments-table">
           <colgroup>
             <col class="col-date" />
+            <col class="col-customer" />
             <col class="col-mode" />
+            <col class="col-applied-to" />
             @if (canViewField('notes')) {
               <col class="col-notes" />
             }
@@ -362,7 +403,9 @@
           <thead>
             <tr>
               <th scope="col" class="prod-table__th">Payment Date</th>
-              <th scope="col" class="prod-table__th">Allocation Mode</th>
+              <th scope="col" class="prod-table__th">Customer</th>
+              <th scope="col" class="prod-table__th">Mode</th>
+              <th scope="col" class="prod-table__th">Applied To</th>
               @if (canViewField('notes')) {
                 <th scope="col" class="prod-table__th">Notes</th>
               }
@@ -390,11 +433,32 @@
                   </div>
                 </td>
 
+                <!-- Customer Name -->
+                <td class="prod-table__td customer-cell" data-testid="payment-customer">
+                  @if (item.customer) {
+                    <span class="customer-cell__name">{{ item.customer.name }}</span>
+                    @if (item.customer.phone) {
+                      <span class="customer-cell__phone text-muted">{{ item.customer.phone }}</span>
+                    }
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+
                 <!-- Allocation Mode Chip -->
                 <td class="prod-table__td" data-testid="payment-mode">
                   <span class="tracking-chip tracking-chip--sm">
                     {{ formatMode(item.allocationMode) }}
                   </span>
+                </td>
+
+                <!-- Applied To Chip -->
+                <td class="prod-table__td" data-testid="payment-applied-to">
+                  @if (formatAppliedTo(item.appliedTo); as label) {
+                    <span class="applied-to-chip applied-to-chip--{{ item.appliedTo }}">{{ label }}</span>
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
                 </td>
 
                 <!-- Notes with Truncation -->
@@ -445,8 +509,20 @@
             </div>
 
             <div class="payment-card__body">
-              <div class="payment-card__mode">
+              <!-- Customer -->
+              @if (item.customer) {
+                <div class="payment-card__customer">
+                  <span class="payment-card__customer-name">{{ item.customer.name }}</span>
+                  @if (item.customer.phone) {
+                    <span class="payment-card__customer-phone text-muted">{{ item.customer.phone }}</span>
+                  }
+                </div>
+              }
+              <div class="payment-card__chips">
                 <span class="tracking-chip tracking-chip--sm">{{ formatMode(item.allocationMode) }}</span>
+                @if (formatAppliedTo(item.appliedTo); as label) {
+                  <span class="applied-to-chip applied-to-chip--{{ item.appliedTo }} applied-to-chip--sm">{{ label }}</span>
+                }
               </div>
               @if (canViewField('notes') && item.notes) {
                 <p class="payment-card__notes">{{ item.notes }}</p>
@@ -478,4 +554,5 @@
       />
     }
   }
+
 </div>
