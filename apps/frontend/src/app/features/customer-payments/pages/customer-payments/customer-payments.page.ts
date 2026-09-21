@@ -2,7 +2,7 @@ import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
-import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, startWith, switchMap } from 'rxjs';
+import { EMPTY, Subject, catchError, debounceTime, merge, startWith, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   CustomerPaymentsApi,
@@ -47,7 +47,9 @@ export class CustomerPaymentsPage {
   private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly customersApi = inject(CustomersApi);
   private readonly reloadRequests = new Subject<boolean>();
+  private readonly customerSearchImmediate = new Subject<string>();
   private readonly customerSearchChanges = new Subject<string>();
+  private readonly knownCustomers = new Map<string, CustomerRecord>();
 
   /** Customer option state (for the customer filter dropdown). */
   private readonly customerRecords = signal<CustomerRecord[]>([]);
@@ -116,10 +118,22 @@ export class CustomerPaymentsPage {
   /** Staged customer ID before the user clicks Apply. */
   readonly pendingCustomerId = signal<string>('');
 
-  /** Options for the customer dropdown (updated by the debounced search stream). */
-  readonly customerOptions = computed<DropdownOption[]>(() =>
-    this.customerRecords().map(formatCustomerOption),
-  );
+  /** Options for the customer dropdown (updated by the search stream).
+   * If the currently-selected customer is not in the fetched results (e.g.
+   * because the user searched for something else), it is prepended from the
+   * knownCustomers cache so the selection label never disappears.
+   */
+  readonly customerOptions = computed<DropdownOption[]>(() => {
+    const records = this.customerRecords();
+    const selectedId = this.pendingCustomerId();
+    if (selectedId && !records.some((c) => c.id === selectedId)) {
+      const known = this.knownCustomers.get(selectedId);
+      if (known) {
+        return [formatCustomerOption(known), ...records.map(formatCustomerOption)];
+      }
+    }
+    return records.map(formatCustomerOption);
+  });
 
   /** Currently-selected label that persists across customer search changes. */
   readonly selectedCustomerDisplayLabel = computed(() => this.selectedCustomerLabel());
@@ -161,18 +175,30 @@ export class CustomerPaymentsPage {
 
   constructor() {
     // Boot the customer dropdown with all active customers immediately.
-    this.customerSearchChanges
+    // Two-channel design:
+    //  - customerSearchImmediate: bypasses debounce for open/clear events.
+    //  - customerSearchChanges:   debounced for user keystrokes.
+    // distinctUntilChanged is intentionally omitted from both channels so that:
+    //  (a) reopening the dropdown always triggers a fresh fetch even if the
+    //      last query was also '' and
+    //  (b) re-searching the same term after a clear works correctly.
+    // switchMap naturally cancels stale in-flight requests.
+    merge(
+      this.customerSearchImmediate,
+      this.customerSearchChanges.pipe(debounceTime(300)),
+    )
       .pipe(
-        debounceTime(300),
-        distinctUntilChanged(),
         switchMap((query) => this.customersApi.searchCustomerOptions(query)),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((items) => {
+        for (const item of items) {
+          this.knownCustomers.set(item.id, item);
+        }
         this.customerRecords.set(items.filter((c) => c.status === 'active'));
       });
 
-    this.customerSearchChanges.next('');
+    this.customerSearchImmediate.next('');
 
     this.reloadRequests
       .pipe(
@@ -289,7 +315,23 @@ export class CustomerPaymentsPage {
 
   /** Called when the user types in the customer searchable dropdown. */
   onCustomerSearch(query: string): void {
-    this.customerSearchChanges.next(query ?? '');
+    const trimmed = (query ?? '').trim();
+    if (!trimmed) {
+      // Empty query (search cleared): fetch immediately without waiting for debounce.
+      this.customerSearchImmediate.next('');
+    } else {
+      this.customerSearchChanges.next(trimmed);
+    }
+  }
+
+  /** Called when the customer dropdown opens or closes. */
+  onCustomerDropdownOpenChange(open: boolean): void {
+    if (open) {
+      // Always re-fetch the full list on open, even if the last query was also
+      // ''. The immediate Subject bypasses any deduplication so this always
+      // triggers a fresh API call.
+      this.customerSearchImmediate.next('');
+    }
   }
 
   /**
@@ -301,7 +343,12 @@ export class CustomerPaymentsPage {
     const id = value ?? '';
     this.pendingCustomerId.set(id);
     if (id) {
-      const found = this.customerRecords().find((c) => c.id === id);
+      const found =
+        this.knownCustomers.get(id) ??
+        this.customerRecords().find((c) => c.id === id);
+      if (found) {
+        this.knownCustomers.set(id, found);
+      }
       this.selectedCustomerLabel.set(found?.name ?? id);
     } else {
       this.selectedCustomerLabel.set('');
@@ -338,6 +385,7 @@ export class CustomerPaymentsPage {
     this.toDate.set('');
     this.customerId.set('');
     this.page.set(1);
+    this.customerSearchImmediate.next('');
     this.reload(true);
   }
 
