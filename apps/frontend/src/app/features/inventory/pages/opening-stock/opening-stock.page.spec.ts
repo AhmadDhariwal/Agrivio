@@ -316,4 +316,28 @@ describe('OpeningStockPage', () => {
     expect(paramPage.selectedTrackingMode()).toBe('batch');
     expect(paramPage.form.controls.warehouseId.value).toBe('wh-main');
   });
+
+  it('keeps selected product label while dropdown shows only current search query matches', () => {
+    const fixture = TestBed.createComponent(OpeningStockPage);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+
+    const p1 = { id: 'prod-none', name: 'Product prod-none', status: 'active', trackingMode: 'none' } as any;
+    const p2 = { id: 'prod-batch', name: 'Product prod-batch', status: 'active', trackingMode: 'batch' } as any;
+
+    component.products.set([p1, p2]);
+    component.form.controls.productId.setValue('prod-none');
+    fixture.detectChanges();
+
+    expect(component.form.controls.productId.value).toBe('prod-none');
+    expect(component.productSelectedLabel()).toBe('Product prod-none');
+
+    // Unrelated search returns only prod-batch
+    component.products.set([p2]);
+    fixture.detectChanges();
+
+    expect(component.productOptions().map((opt) => opt.value)).toEqual(['prod-batch']);
+    expect(component.form.controls.productId.value).toBe('prod-none');
+    expect(component.productSelectedLabel()).toBe('Product prod-none');
+  });
 });

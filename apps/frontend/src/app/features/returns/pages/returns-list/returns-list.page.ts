@@ -22,6 +22,7 @@ import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialo
 import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
 import { formatWarehouseOption } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { applyPaginationMeta } from '../../../../shared/data-access/pagination';
+import { formatAppDate, formatAppDateTime } from '../../../../shared/format/date-time.util';
 
 @Component({
   selector: 'agrivio-returns-list-page',
@@ -295,45 +296,11 @@ export class ReturnsListPage {
   }
 
   formatDate(dateStr: string | null | undefined): string {
-    if (!dateStr) return '—';
-    const trimmed = dateStr.trim();
-    if (!trimmed) return '—';
-    const parts = trimmed.split('-');
-    if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
-      const year = parseInt(parts[0], 10);
-      const monthIndex = parseInt(parts[1], 10) - 1;
-      const day = parseInt(parts[2], 10);
-      const date = new Date(Date.UTC(year, monthIndex, day));
-      if (!isNaN(date.getTime())) {
-        return date.toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-          timeZone: 'UTC',
-        });
-      }
-    }
-    const d = new Date(trimmed);
-    if (isNaN(d.getTime())) return trimmed;
-    return d.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
+    return formatAppDate(dateStr);
   }
 
   formatDateTime(isoStr: string | null | undefined): string {
-    if (!isoStr) return '—';
-    const d = new Date(isoStr);
-    if (isNaN(d.getTime())) return String(isoStr);
-    return `${d.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    })} ${d.toLocaleTimeString('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit',
-    })}`;
+    return formatAppDateTime(isoStr);
   }
 
   formatMoney(total: MoneyAmount | null | undefined): string {

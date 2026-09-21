@@ -217,6 +217,14 @@
   box-shadow: var(--ag-shadow-md);
 }
 
+.kpi-card__label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ag-color-text-muted);
+}
+
 .ag-alert {
   display: grid;
   gap: var(--ag-space-1);
@@ -260,6 +268,7 @@
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
+  white-space: nowrap;
   background: var(--ag-color-primary-muted);
   color: var(--ag-color-primary);
 }
@@ -373,8 +382,15 @@
 }
 
 .ag-table td {
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.ag-table .tabular-num,
+.ag-table .date-cell,
+.ag-table .text-nowrap {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .ag-table th {

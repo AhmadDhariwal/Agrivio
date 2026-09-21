@@ -111,6 +111,21 @@ function createCustomersController(deps) {
         next(error);
       }
     },
+
+    async correctOpeningBalance(req, res, next) {
+      try {
+        const result = await deps.customersService.correctOpeningBalance(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.body,
+          { actorId: String(req.authContext.userId) },
+          req.get('Idempotency-Key'),
+        );
+        sendSuccessEnvelope(res, result.statusCode ?? 200, result.data);
+      } catch (error) {
+        next(error);
+      }
+    },
   };
 }
 

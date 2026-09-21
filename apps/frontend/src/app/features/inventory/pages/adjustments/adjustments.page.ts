@@ -261,7 +261,9 @@ export class AdjustmentsPage {
 
     // Downstream state reset: Product changes
     this.form.controls.productId.valueChanges.subscribe((productId) => {
-      const product = this.products().find((item) => item.id === productId) ?? null;
+      const product =
+        this.products().find((item) => item.id === productId) ??
+        (this.selectedProduct()?.id === productId ? this.selectedProduct() : null);
       this.selectedProduct.set(product);
       const mode = product?.trackingMode ?? 'none';
       this.selectedTrackingMode.set(mode);
@@ -367,13 +369,7 @@ export class AdjustmentsPage {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((items) => {
-        const active = items.filter((p) => p.status === 'active');
-        const selected = this.selectedProduct();
-        if (selected && !active.some((p) => p.id === selected.id)) {
-          this.products.set([selected, ...active]);
-        } else {
-          this.products.set(active);
-        }
+        this.products.set(items.filter((p) => p.status === 'active'));
       });
   }
 

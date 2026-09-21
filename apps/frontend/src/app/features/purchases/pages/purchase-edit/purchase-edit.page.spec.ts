@@ -522,13 +522,12 @@ describe('PurchaseEditPage', () => {
   });
 
   describe('Searchable Entity Dropdown & Cache Optimization', () => {
-    it('preserves Line 0 product selection and display label when Line 1 merges new search results', () => {
+    it('preserves Line 0 product selection and display label without merging it into search results', () => {
       const fixture: ComponentFixture<PurchaseEditPage> = TestBed.createComponent(PurchaseEditPage);
       fixture.detectChanges();
       const component = fixture.componentInstance;
 
       (component as unknown as { knownProducts: Map<string, ProductRecord> }).knownProducts.set('prod-1', mockProductNone);
-      (component as unknown as { knownProducts: Map<string, ProductRecord> }).knownProducts.set('prod-2', mockProductBatch);
       component.products.set([mockProductNone]);
 
       const line0 = component.lineGroup(0);
@@ -546,14 +545,12 @@ describe('PurchaseEditPage', () => {
       fixture.detectChanges();
 
       // Simulate a search result that only returns prod-2
-      component.products.set(
-        (component as unknown as { mergeProductOptions: (items: ProductRecord[]) => ProductRecord[] }).mergeProductOptions([mockProductBatch]),
-      );
+      component.products.set([mockProductBatch]);
       fixture.detectChanges();
 
       const options = component.productOptions();
-      expect(options.some((opt) => opt.value === 'prod-1')).toBe(true);
-      expect(options.some((opt) => opt.value === 'prod-2')).toBe(true);
+      expect(options.map((option) => option.value)).toEqual(['prod-2']);
+      expect(line0.get('productId')?.value).toBe('prod-1');
       expect(component.productSelectedLabel(0)).toBe('Standard Urea');
     });
 
@@ -575,14 +572,79 @@ describe('PurchaseEditPage', () => {
 
       // Simulate search results that do not include sup-1
       const sup2 = { id: 'sup-2', name: 'Fauji Fertilizer', status: 'active' as const, organizationId: 'org-1', phone: '', contactName: '', email: '', version: 1 };
-      component.suppliers.set(
-        (component as unknown as { mergeSupplierOptions: (items: typeof sup2[]) => typeof sup2[] }).mergeSupplierOptions([sup2]),
-      );
+      component.suppliers.set([sup2]);
       fixture.detectChanges();
 
       const options = component.supplierOptions();
-      expect(options.some((opt) => opt.value === 'sup-1')).toBe(true);
-      expect(options.some((opt) => opt.value === 'sup-2')).toBe(true);
+      expect(options.map((option) => option.value)).toEqual(['sup-2']);
+      expect(component.form.controls.supplierId.value).toBe('sup-1');
+      expect(component.supplierSelectedLabel()).toBe('Engro Fertilizers');
+    });
+
+    it('keeps two line selections while an unrelated product search shows only its response and restores defaults on clear', () => {
+      const fixture: ComponentFixture<PurchaseEditPage> = TestBed.createComponent(PurchaseEditPage);
+      fixture.detectChanges();
+      const component = fixture.componentInstance;
+
+      const p1 = { id: 'prod-1', name: 'Standard Urea', sku: 'UREA-1', status: 'active' as const, trackingMode: 'none' as const };
+      const p2 = { id: 'prod-2', name: 'Batch Wheat', sku: 'WHEAT-1', status: 'active' as const, trackingMode: 'batch' as const };
+      const p3 = { id: 'prod-3', name: 'Direct Sown Rice', sku: 'DSR-1', status: 'active' as const, trackingMode: 'none' as const };
+      const defaultProducts = [p1, p2];
+
+      (component as unknown as { knownProducts: Map<string, ProductRecord> }).knownProducts.set('prod-1', p1 as unknown as ProductRecord);
+      (component as unknown as { knownProducts: Map<string, ProductRecord> }).knownProducts.set('prod-2', p2 as unknown as ProductRecord);
+      component.products.set(defaultProducts as unknown as ProductRecord[]);
+
+      component.lineGroup(0).patchValue({ productId: 'prod-1' });
+      component.addLine();
+      component.lineGroup(1).patchValue({ productId: 'prod-2' });
+      component.addLine();
+      fixture.detectChanges();
+
+      // Search yields only prod-3
+      component.products.set([p3 as unknown as ProductRecord]);
+      fixture.detectChanges();
+
+      expect(component.productOptions().map((opt) => opt.value)).toEqual(['prod-3']);
+      expect(component.lineGroup(0).get('productId')?.value).toBe('prod-1');
+      expect(component.lineGroup(1).get('productId')?.value).toBe('prod-2');
+      expect(component.productSelectedLabel(0)).toBe('Standard Urea');
+      expect(component.productSelectedLabel(1)).toBe('Batch Wheat');
+
+      // Clear search restores default options without losing selections
+      component.products.set(defaultProducts as unknown as ProductRecord[]);
+      fixture.detectChanges();
+
+      expect(component.productOptions().map((opt) => opt.value)).toEqual(['prod-1', 'prod-2']);
+      expect(component.lineGroup(0).get('productId')?.value).toBe('prod-1');
+      expect(component.lineGroup(1).get('productId')?.value).toBe('prod-2');
+      expect(component.productSelectedLabel(0)).toBe('Standard Urea');
+      expect(component.productSelectedLabel(1)).toBe('Batch Wheat');
+    });
+
+    it('restores default supplier options after clearing a non-empty supplier search', () => {
+      const fixture: ComponentFixture<PurchaseEditPage> = TestBed.createComponent(PurchaseEditPage);
+      fixture.detectChanges();
+      const component = fixture.componentInstance;
+
+      const sup1 = { id: 'sup-1', name: 'Engro Fertilizers', status: 'active' as const, organizationId: 'org-1', phone: '', contactName: '', email: '', version: 1 };
+      const sup2 = { id: 'sup-2', name: 'Fauji Fertilizer', status: 'active' as const, organizationId: 'org-1', phone: '', contactName: '', email: '', version: 1 };
+
+      component.suppliers.set([sup1, sup2]);
+      component.form.patchValue({ supplierId: 'sup-1' });
+      fixture.detectChanges();
+
+      // Non-empty query returns only sup-2
+      component.suppliers.set([sup2]);
+      fixture.detectChanges();
+      expect(component.supplierOptions().map((opt) => opt.value)).toEqual(['sup-2']);
+      expect(component.form.controls.supplierId.value).toBe('sup-1');
+      expect(component.supplierSelectedLabel()).toBe('Engro Fertilizers');
+
+      // Clearing search restores default supplier list
+      component.suppliers.set([sup1, sup2]);
+      fixture.detectChanges();
+      expect(component.supplierOptions().map((opt) => opt.value)).toEqual(['sup-1', 'sup-2']);
       expect(component.supplierSelectedLabel()).toBe('Engro Fertilizers');
     });
   });

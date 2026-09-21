@@ -15,7 +15,11 @@ const STATUSES = new Set(['active', 'inactive']);
 
 function parseExpectedVersion(body) {
   const expectedVersion = body?.expectedVersion;
-  if (typeof expectedVersion !== 'number' || !Number.isInteger(expectedVersion) || expectedVersion < 1) {
+  if (
+    typeof expectedVersion !== 'number' ||
+    !Number.isInteger(expectedVersion) ||
+    expectedVersion < 1
+  ) {
     throw validationFailed('expectedVersion must be a positive integer', [
       { field: 'expectedVersion', message: 'expectedVersion must be a positive integer' },
     ]);
@@ -41,7 +45,9 @@ function optionalTrimmedString(value, field, maxLength) {
     return '';
   }
   if (typeof value !== 'string') {
-    throw validationFailed(`${field} must be a string`, [{ field, message: `${field} must be a string` }]);
+    throw validationFailed(`${field} must be a string`, [
+      { field, message: `${field} must be a string` },
+    ]);
   }
   const trimmed = value.trim();
   if (trimmed.length > maxLength) {
@@ -69,7 +75,10 @@ function assertObjectBody(body) {
 function parseCustomerType(value) {
   if (typeof value !== 'string' || !CUSTOMER_TYPES.includes(value)) {
     throw validationFailed('customerType is invalid', [
-      { field: 'customerType', message: `customerType must be one of: ${CUSTOMER_TYPES.join(', ')}` },
+      {
+        field: 'customerType',
+        message: `customerType must be one of: ${CUSTOMER_TYPES.join(', ')}`,
+      },
     ]);
   }
   return value;
@@ -301,12 +310,29 @@ function parseCustomerOpeningBalance(body) {
   };
 }
 
+function parseCustomerOpeningBalanceCorrection(body) {
+  assertObjectBody(body);
+  const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+  if (reason === '') {
+    throw validationFailed('reason is required', [
+      { field: 'reason', message: 'reason is required' },
+    ]);
+  }
+  const replacement = parseCustomerOpeningBalance(body.replacement);
+  return {
+    reason,
+    replacement,
+    expectedVersion: parseExpectedVersion(body),
+  };
+}
+
 module.exports = {
   parseExpectedVersion,
   parseCustomerCreate,
   parseCustomerPatch,
   parseCreditPolicyPatch,
   parseCustomerOpeningBalance,
+  parseCustomerOpeningBalanceCorrection,
   assertWalkInCreditPolicy,
   toCustomerDto,
   CUSTOMER_TYPES,

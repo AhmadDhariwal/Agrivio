@@ -307,7 +307,7 @@
 
 .data-table {
   width: 100%;
-  min-width: 1140px;
+  min-width: 980px;
   border-collapse: collapse;
   font-size: 13px;
   text-align: left;
@@ -315,17 +315,17 @@
 
   /* Level 1 Flexible Columns */
   .col-purchase {
-    min-width: 175px;
+    min-width: 165px;
     width: 18%;
   }
 
   .col-supplier {
-    min-width: 170px;
+    min-width: 155px;
     width: 18%;
   }
 
   .col-warehouse {
-    min-width: 140px;
+    min-width: 130px;
     width: 14%;
   }
 
@@ -355,15 +355,15 @@
   }
 
   .col-status {
-    width: 145px;
-    min-width: 145px;
-    max-width: 145px;
+    width: 95px;
+    min-width: 95px;
+    max-width: 95px;
   }
 
   .col-actions {
-    width: 170px;
-    min-width: 170px;
-    max-width: 170px;
+    width: 140px;
+    min-width: 140px;
+    max-width: 140px;
   }
 
   &__th {

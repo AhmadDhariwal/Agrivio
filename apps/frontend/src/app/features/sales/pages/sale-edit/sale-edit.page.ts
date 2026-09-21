@@ -38,6 +38,7 @@ import {
   SalePostApprovalsInput,
   SaleRecord,
 } from '../../models/sales.models';
+import { formatAppDateTime } from '../../../../shared/format/date-time.util';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
 import {
@@ -488,10 +489,7 @@ export class SaleEditPage {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((items) => {
-        for (const item of items) {
-          this.knownProducts.set(item.id, item);
-        }
-        this.products.set(this.mergeProductOptions(items.filter((item) => item.status === 'active')));
+        this.products.set(items.filter((item) => item.status === 'active'));
       });
 
     merge(
@@ -521,9 +519,7 @@ export class SaleEditPage {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((items) => {
-        this.customers.set(
-          this.mergeCustomerOptions(items.filter((item) => item.status === 'active')),
-        );
+        this.customers.set(items.filter((item) => item.status === 'active'));
       });
 
     this.form.controls.customerTypeMode.valueChanges
@@ -1365,37 +1361,6 @@ export class SaleEditPage {
     return null;
   }
 
-  private mergeCustomerOptions(items: CustomerRecord[]): CustomerRecord[] {
-    const selected = this.selectedCustomer();
-    if (!selected) {
-      return items;
-    }
-    if (items.some((item) => item.id === selected.id)) {
-      return items;
-    }
-    return [selected, ...items];
-  }
-
-  private mergeProductOptions(items: ProductRecord[]): ProductRecord[] {
-    const merged = [...items];
-    const seenIds = new Set(items.map((item) => item.id));
-
-    for (const control of this.lines.controls) {
-      const productId = String(control.get('productId')?.value ?? '').trim();
-      if (!productId || seenIds.has(productId)) {
-        continue;
-      }
-      const existing =
-        this.knownProducts.get(productId) ??
-        this.products().find((p) => p.id === productId);
-      if (existing) {
-        merged.push(existing);
-        seenIds.add(productId);
-      }
-    }
-    return merged;
-  }
-
   productSelectedLabel(index: number): string {
     const control = this.lines.at(index)?.get('productId');
     const productId = String(control?.value ?? '').trim();
@@ -1414,7 +1379,6 @@ export class SaleEditPage {
 
   private seedSelectorOptionsFromSale(sale: SaleRecord): void {
     const seen = new Set<string>();
-    const productOptions: ProductRecord[] = [];
     for (const line of sale.lines) {
       if (seen.has(line.productId)) {
         continue;
@@ -1432,19 +1396,8 @@ export class SaleEditPage {
         status: 'active',
         version: 1,
       };
-      productOptions.push(seeded);
       this.knownProducts.set(line.productId, seeded);
     }
-    if (productOptions.length === 0) {
-      return;
-    }
-    const merged = [...productOptions];
-    for (const product of this.products()) {
-      if (!seen.has(product.id)) {
-        merged.push(product);
-      }
-    }
-    this.products.set(merged);
   }
 
   private applySale(sale: SaleRecord): void {
@@ -1519,7 +1472,6 @@ export class SaleEditPage {
         next: (customer) => {
           if (customer.status === 'active') {
             this.selectedCustomer.set(customer);
-            this.customers.set(this.mergeCustomerOptions([customer]));
             this.form.controls.customerTypeMode.setValue(
               customer.customerType === 'walk_in' ? 'walk_in' : String(customer.customerType),
               { emitEvent: false },
@@ -1714,6 +1666,10 @@ export class SaleEditPage {
     const num = Number(val);
     if (isNaN(num)) return `PKR ${val}`;
     return `PKR ${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
+  formatDateTime(value: string | Date | null | undefined): string {
+    return formatAppDateTime(value);
   }
 
   formatQuantity(val: string | number | undefined | null): string {

@@ -72,6 +72,38 @@
 
     <!-- Filter Toolbar -->
     <div class="toolbar" data-testid="supplier-payments-toolbar">
+      @if (showSearch()) {
+        <div class="search-field">
+          <svg class="search-field__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            class="search-field__input"
+            type="search"
+            [value]="pendingSearch()"
+            (input)="onSearchInput($event)"
+            (keydown.enter)="applyFilters()"
+            placeholder="Search payments by note or ID…"
+            aria-label="Search payments"
+            data-testid="supplier-payments-search-input"
+          />
+          @if (pendingSearch()) {
+            <button
+              type="button"
+              class="search-field__clear"
+              (click)="onSearchClear()"
+              aria-label="Clear search"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          }
+        </div>
+      }
+
       @if (showPaymentDateFilter()) {
       <div class="toolbar__date-controls">
         <div class="date-mode-toggle" role="group" aria-label="Date filter mode">
@@ -237,7 +269,7 @@
 
                 <!-- Date -->
                 @if (canViewField('paymentDate')) { <td class="cell-date">
-                  {{ item.paymentDate }}
+                  {{ item.paymentDate | agDate }}
                 </td> }
 
                 <!-- Type / Allocation Mode -->
@@ -294,7 +326,7 @@
             <div class="mobile-payment-card__header">
               <div class="mobile-payment-card__ref-wrap">
                 @if (canViewField('paymentReference')) { <span class="mobile-payment-card__ref font-medium">{{ formatPaymentId(item.id) }}</span> }
-                @if (canViewField('paymentDate')) { <span class="mobile-payment-card__date">{{ item.paymentDate }}</span> }
+                @if (canViewField('paymentDate')) { <span class="mobile-payment-card__date">{{ item.paymentDate | agDate }}</span> }
               </div>
               @if (canViewField('status')) {
               <span class="status-pill status-pill--green">

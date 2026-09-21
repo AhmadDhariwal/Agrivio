@@ -33,6 +33,7 @@ describe('F06 P1 real-Mongo sales drafts, customer payments, invoice sequences',
   let actorId;
   let sales;
   let ledgers;
+  let customerOpeningBalance = null;
 
   beforeAll(async () => {
     const parsed = new URL(uri);
@@ -87,7 +88,12 @@ describe('F06 P1 real-Mongo sales drafts, customer payments, invoice sequences',
       const customersService = {
         async getCustomer(orgId, id) {
           if (String(orgId) === String(organizationId) && String(id) === String(customerId)) {
-            return { id: String(customerId), name: 'Customer A', status: 'active' };
+            return {
+              id: String(customerId),
+              name: 'Customer A',
+              status: 'active',
+              openingBalance: customerOpeningBalance,
+            };
           }
           throw new Error('not found');
         },
@@ -256,7 +262,7 @@ describe('F06 P1 real-Mongo sales drafts, customer payments, invoice sequences',
     }
 
     const postedAt = new Date();
-    await LedgerEffectModel.create({
+    const openingEffect = await LedgerEffectModel.create({
       organizationId,
       partyType: 'customer',
       customerId,
@@ -269,6 +275,12 @@ describe('F06 P1 real-Mongo sales drafts, customer payments, invoice sequences',
       postedAt,
       postedBy: actorId,
     });
+    customerOpeningBalance = {
+      kind: 'receivable',
+      amount: { amount: '100.00', currency: 'PKR' },
+      ledgerEffectId: String(openingEffect._id),
+      status: 'posted',
+    };
 
     const payment = await ledgers.paymentsService.postCustomerPayment(
       String(organizationId),
@@ -282,14 +294,17 @@ describe('F06 P1 real-Mongo sales drafts, customer payments, invoice sequences',
       { actorId: String(actorId) },
       `cust-pay-mongo-${Date.now()}`,
     );
-    expect(payment.data.allocations).toHaveLength(1);
-    expect(payment.data.allocations[0].targetType).toBe('customer_advance');
+    expect(payment.data.allocations).toHaveLength(2);
+    expect(payment.data.allocations[0].targetType).toBe('customer_opening_receivable');
+    expect(payment.data.allocations[0].allocatedAmount.amount).toBe('100.00');
+    expect(payment.data.allocations[1].targetType).toBe('customer_advance');
+    expect(payment.data.allocations[1].allocatedAmount.amount).toBe('50.00');
 
     const effects = await LedgerEffectModel.find({ organizationId, customerId, status: 'posted' }).lean().exec();
     const receivableTotal = effects
       .filter((item) => item.effectKind === 'receivable')
       .reduce((sum, item) => sum + BigInt(item.signedAmountMinorUnits), 0n);
-    expect(receivableTotal).toBe(10000n);
+    expect(receivableTotal).toBe(0n);
     expect(await PaymentModel.countDocuments({ organizationId, partyType: 'customer' })).toBe(1);
   });
 

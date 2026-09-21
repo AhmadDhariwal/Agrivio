@@ -185,10 +185,7 @@ export class ReturnWithoutInvoicePage {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((items) => {
-        for (const item of items) {
-          this.knownCustomers.set(item.id, item);
-        }
-        this.customers.set(this.mergeCustomerOptions(items.filter((item) => item.status === 'active')));
+        this.customers.set(items.filter((item) => item.status === 'active'));
         this.updateFormValidity();
       });
 
@@ -200,10 +197,7 @@ export class ReturnWithoutInvoicePage {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((items) => {
-        for (const item of items) {
-          this.knownProducts.set(item.id, item);
-        }
-        this.products.set(this.mergeProductOptions(items.filter((item) => item.status === 'active')));
+        this.products.set(items.filter((item) => item.status === 'active'));
         for (let i = 0; i < this.lines.length; i += 1) {
           setRequiredValidator(this.lineGroup(i).get('batchId'), this.productNeedsBatch(i));
         }
@@ -345,7 +339,9 @@ export class ReturnWithoutInvoicePage {
 
   productNeedsBatch(index: number): boolean {
     const productId = String(this.lineGroup(index).get('productId')?.value ?? '');
-    const product = this.products().find((item) => item.id === productId);
+    const product =
+      this.knownProducts.get(productId) ??
+      this.products().find((item) => item.id === productId);
     return Boolean(product && product.trackingMode !== 'none');
   }
 
@@ -374,40 +370,6 @@ export class ReturnWithoutInvoicePage {
       this.knownCustomers.get(customerId) ??
       this.customers().find((c) => c.id === customerId);
     return known?.name ?? '';
-  }
-
-  private mergeProductOptions(items: ProductRecord[]): ProductRecord[] {
-    const merged = [...items];
-    const seenIds = new Set(items.map((item) => item.id));
-
-    for (const control of this.lines.controls) {
-      const productId = String(control.get('productId')?.value ?? '').trim();
-      if (!productId || seenIds.has(productId)) {
-        continue;
-      }
-      const existing =
-        this.knownProducts.get(productId) ??
-        this.products().find((p) => p.id === productId);
-      if (existing) {
-        merged.push(existing);
-        seenIds.add(productId);
-      }
-    }
-    return merged;
-  }
-
-  private mergeCustomerOptions(items: CustomerRecord[]): CustomerRecord[] {
-    const customerId = String(this.form.controls.customerId.value ?? '').trim();
-    if (!customerId || items.some((c) => c.id === customerId)) {
-      return items;
-    }
-    const existing =
-      this.knownCustomers.get(customerId) ??
-      this.customers().find((c) => c.id === customerId);
-    if (existing) {
-      return [existing, ...items];
-    }
-    return items;
   }
 
   onProductChange(index: number, newProductId?: string): void {

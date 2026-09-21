@@ -40,6 +40,7 @@ import {
 import { lockBodyScroll, unlockBodyScroll } from '../../../../shared/ui/body-scroll-lock';
 import { StockMovementRecord } from '../../models/inventory.models';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
+import { formatAppDateTimeParts } from '../../../../shared/format/date-time.util';
 
 export interface ResolvedProductInfo {
   name: string;
@@ -624,24 +625,9 @@ export class MovementsPage {
   }
 
   formatPostedDate(isoString: string): { date: string; time: string } {
-    if (!isoString) return { date: '—', time: '—' };
-    try {
-      const d = new Date(isoString);
-      if (isNaN(d.getTime())) return { date: isoString, time: '—' };
-      const dateStr = d.toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      });
-      const timeStr = d.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-      });
-      return { date: dateStr, time: timeStr };
-    } catch {
-      return { date: isoString, time: '—' };
-    }
+    const parts = formatAppDateTimeParts(isoString);
+    if (!parts) return { date: '—', time: '—' };
+    return parts;
   }
 
   formatCurrency(amount: string | null | undefined): string {

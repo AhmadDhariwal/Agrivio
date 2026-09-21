@@ -416,15 +416,26 @@
           </div>
         </div>
         <div class="form-card__body">
-          <div class="ledger-list">
-            @for (item of ledgerItems(); track item.id) {
-              <div class="ledger-row">
+          <div class="ledger-list" role="list" aria-label="Recent customer ledger transactions">
+            @for (item of humanizedLedgerItems(); track item.id) {
+              <div class="ledger-row" role="listitem" data-testid="ledger-row">
                 <div class="ledger-row__info">
-                  <strong>{{ item.effectKind }}</strong>
-                  <p class="text-muted">{{ item.sourceType }} · {{ item.postedAt }}</p>
+                  <strong class="ledger-row__title">{{ item.title }}</strong>
+                  <div class="ledger-row__meta text-muted">
+                    <span class="ledger-row__date">{{ item.date }}</span>
+                    <span class="ledger-row__dot" aria-hidden="true">·</span>
+                    <span class="ledger-row__time">{{ item.time }}</span>
+                    <span class="ledger-row__dot" aria-hidden="true">·</span>
+                    <span class="ledger-row__source">{{ item.sourceReference }}</span>
+                  </div>
                 </div>
-                <span class="ledger-row__amount tabular-num font-semibold">
-                  {{ formatCurrency(item.signedAmount) }}
+                <span
+                  class="ledger-row__amount tabular-num font-semibold"
+                  [class.ledger-row__amount--credit]="item.isPositive"
+                  [class.ledger-row__amount--debit]="!item.isPositive"
+                  [attr.aria-label]="item.formattedAmount"
+                >
+                  {{ item.formattedAmount }}
                 </span>
               </div>
             }

@@ -43,6 +43,7 @@ import {
 } from '../../../../shared/form/form-field.util';
 import { inventoryQuantityValidators } from '../../shared/inventory-form.validation';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
+import { formatAppDateTime } from '../../../../shared/format/date-time.util';
 import {
   InventoryBalanceRecord,
   WarehouseTransferRecord,
@@ -282,7 +283,9 @@ export class TransfersPage {
 
     // Downstream state reset: Product changes
     this.form.controls.productId.valueChanges.subscribe((productId) => {
-      const product = this.products().find((item) => item.id === productId) ?? null;
+      const product =
+        this.products().find((item) => item.id === productId) ??
+        (this.selectedProduct()?.id === productId ? this.selectedProduct() : null);
       this.selectedProduct.set(product);
       const mode = product?.trackingMode ?? 'none';
       this.selectedTrackingMode.set(mode);
@@ -376,13 +379,7 @@ export class TransfersPage {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((items) => {
-        const active = items.filter((p) => p.status === 'active');
-        const selected = this.selectedProduct();
-        if (selected && !active.some((p) => p.id === selected.id)) {
-          this.products.set([selected, ...active]);
-        } else {
-          this.products.set(active);
-        }
+        this.products.set(items.filter((p) => p.status === 'active'));
       });
   }
 
@@ -608,16 +605,7 @@ export class TransfersPage {
   }
 
   formatDate(dateStr: string | null | undefined): string {
-    if (!dateStr) return '—';
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatAppDateTime(dateStr);
   }
 
   private mapError(error: unknown, fallback: string): string {

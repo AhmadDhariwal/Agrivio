@@ -5,6 +5,7 @@ import { of } from 'rxjs';
 import { CustomerPaymentsPage } from './customer-payments.page';
 import { CustomerPaymentsApi } from '../../data-access/customer-payments.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
+import { CustomersApi } from '../../../customers/data-access/customers.api';
 import { CustomerPaymentRecord } from '../../models/customer-payments.models';
 
 describe('CustomerPaymentsPage', () => {
@@ -14,8 +15,10 @@ describe('CustomerPaymentsPage', () => {
     partyType: 'customer',
     customerId: 'cust-1',
     supplierId: null,
+    customer: { id: 'cust-1', name: 'Rashid Farms', phone: '0300-1234567' },
     accountId: 'acc-1',
     allocationMode: 'general',
+    appliedTo: 'receivable',
     amount: { amount: '50000.00', currency: 'PKR' },
     paymentDate: '2026-08-16',
     notes: 'Partial payment against fertilizer ledger dues',
@@ -29,10 +32,13 @@ describe('CustomerPaymentsPage', () => {
     of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
   );
 
+  const searchCustomerOptionsSpy = vi.fn().mockReturnValue(of([]));
+
   beforeEach(async () => {
     listCustomerPaymentsSpy.mockReturnValue(
       of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
     );
+    searchCustomerOptionsSpy.mockReturnValue(of([]));
 
     await TestBed.configureTestingModule({
       imports: [CustomerPaymentsPage],
@@ -47,6 +53,12 @@ describe('CustomerPaymentsPage', () => {
         {
           provide: AuthSessionStore,
           useValue: { hasPermission: () => true },
+        },
+        {
+          provide: CustomersApi,
+          useValue: {
+            searchCustomerOptions: searchCustomerOptionsSpy,
+          },
         },
       ],
     }).compileComponents();
@@ -80,16 +92,31 @@ describe('CustomerPaymentsPage', () => {
     expect(table).toBeTruthy();
 
     const dateCell = fixture.nativeElement.querySelector('[data-testid="payment-date"]');
-    expect(dateCell?.textContent).toContain('2026-08-16');
+    expect(dateCell?.textContent).toContain('16 Aug 2026');
 
     const modeCell = fixture.nativeElement.querySelector('[data-testid="payment-mode"]');
     expect(modeCell?.textContent).toContain('General');
+
+    const customerCell = fixture.nativeElement.querySelector('[data-testid="payment-customer"]');
+    expect(customerCell?.textContent).toContain('Rashid Farms');
+
+    const appliedToCell = fixture.nativeElement.querySelector('[data-testid="payment-applied-to"]');
+    expect(appliedToCell?.textContent).toContain('Receivable');
 
     const amountCell = fixture.nativeElement.querySelector('[data-testid="payment-amount"]');
     expect(amountCell?.textContent).toContain('PKR 50,000.00');
 
     const mobileList = fixture.nativeElement.querySelector('[data-testid="customer-payments-mobile-list"]');
     expect(mobileList).toBeTruthy();
+  });
+
+  it('renders customer dropdown filter in toolbar', () => {
+    const fixture: ComponentFixture<CustomerPaymentsPage> =
+      TestBed.createComponent(CustomerPaymentsPage);
+    fixture.detectChanges();
+
+    const customerFilter = fixture.nativeElement.querySelector('[data-testid="customer-payments-customer-filter"]');
+    expect(customerFilter).toBeTruthy();
   });
 
   it('renders search and date controls in toolbar', () => {
@@ -229,5 +256,92 @@ describe('CustomerPaymentsPage', () => {
 
     expect(listCustomerPaymentsSpy).not.toHaveBeenCalled();
     expect(component.filterError()).toContain('From date');
+  });
+
+  it('applies customerId filter when a customer is selected and apply is clicked', () => {
+    const fixture = TestBed.createComponent(CustomerPaymentsPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    listCustomerPaymentsSpy.mockClear();
+
+    component.onCustomerChange('cust-42');
+    component.applyFilters();
+    fixture.detectChanges();
+
+    expect(listCustomerPaymentsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ customerId: 'cust-42', page: 1 }),
+    );
+  });
+
+  it('clears customer filter on clearFilters', () => {
+    const fixture = TestBed.createComponent(CustomerPaymentsPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    component.onCustomerChange('cust-42');
+    component.applyFilters();
+    listCustomerPaymentsSpy.mockClear();
+
+    component.clearFilters();
+    fixture.detectChanges();
+
+    expect(component.customerId()).toBe('');
+    expect(component.pendingCustomerId()).toBe('');
+    expect(listCustomerPaymentsSpy).toHaveBeenCalledWith(
+      expect.not.objectContaining({ customerId: 'cust-42' }),
+    );
+  });
+
+  it('renders customer profile link using correct customer ID and keyboard reachable anchor', () => {
+    listCustomerPaymentsSpy.mockReturnValue(
+      of({ items: [mockPayment], meta: { page: 1, pageSize: 25, total: 1 } }),
+    );
+
+    const fixture = TestBed.createComponent(CustomerPaymentsPage);
+    fixture.detectChanges();
+
+    const profileLink: HTMLAnchorElement | null = fixture.nativeElement.querySelector(
+      '[data-testid="customer-profile-link"]',
+    );
+    expect(profileLink).toBeTruthy();
+    expect(profileLink?.getAttribute('href')).toBe('/app/customers/cust-1');
+    expect(profileLink?.textContent?.trim()).toBe('Rashid Farms');
+
+    const mobileProfileLink: HTMLAnchorElement | null = fixture.nativeElement.querySelector(
+      '[data-testid="customer-profile-mobile-link"]',
+    );
+    expect(mobileProfileLink).toBeTruthy();
+    expect(mobileProfileLink?.getAttribute('href')).toBe('/app/customers/cust-1');
+  });
+
+  it('renders plain text for customer name when user lacks customers.view permission', () => {
+    listCustomerPaymentsSpy.mockReturnValue(
+      of({ items: [mockPayment], meta: { page: 1, pageSize: 25, total: 1 } }),
+    );
+
+    const fixture = TestBed.createComponent(CustomerPaymentsPage);
+    const component = fixture.componentInstance;
+    vi.spyOn(component, 'canViewCustomers').mockReturnValue(false);
+    fixture.detectChanges();
+
+    const profileLink = fixture.nativeElement.querySelector('[data-testid="customer-profile-link"]');
+    expect(profileLink).toBeFalsy();
+
+    const customerCell = fixture.nativeElement.querySelector('[data-testid="payment-customer"]');
+    expect(customerCell?.textContent).toContain('Rashid Farms');
+  });
+
+  it('renders filtered empty state with exact copy when active filters yield zero results', () => {
+    listCustomerPaymentsSpy.mockReturnValue(
+      of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+    );
+
+    const fixture = TestBed.createComponent(CustomerPaymentsPage);
+    const component = fixture.componentInstance;
+    component.search.set('unknown');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('No customer payments match your filters');
+    expect(fixture.nativeElement.querySelector('[data-testid="customer-payments-empty-clear"]')).toBeTruthy();
   });
 });
