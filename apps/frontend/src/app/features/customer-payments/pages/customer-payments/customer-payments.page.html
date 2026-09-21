@@ -365,7 +365,7 @@
       <div class="empty-container" data-testid="customer-payments-empty">
         @if (hasActiveFilters()) {
           <agrivio-ui-empty-state
-            title="No payments match your filters"
+            title="No customer payments match your filters"
             message="Try adjusting your search criteria, customer, or date filter."
           />
           <div class="empty-filter-action">
@@ -436,7 +436,17 @@
                 <!-- Customer Name -->
                 <td class="prod-table__td customer-cell" data-testid="payment-customer">
                   @if (item.customer) {
-                    <span class="customer-cell__name">{{ item.customer.name }}</span>
+                    @if (canViewCustomers()) {
+                      <a
+                        class="customer-cell__name customer-cell__link"
+                        [routerLink]="['/app/customers', item.customer.id]"
+                        data-testid="customer-profile-link"
+                      >
+                        {{ item.customer.name }}
+                      </a>
+                    } @else {
+                      <span class="customer-cell__name">{{ item.customer.name }}</span>
+                    }
                     @if (item.customer.phone) {
                       <span class="customer-cell__phone text-muted">{{ item.customer.phone }}</span>
                     }
@@ -512,7 +522,17 @@
               <!-- Customer -->
               @if (item.customer) {
                 <div class="payment-card__customer">
-                  <span class="payment-card__customer-name">{{ item.customer.name }}</span>
+                  @if (canViewCustomers()) {
+                    <a
+                      class="payment-card__customer-name payment-card__customer-link"
+                      [routerLink]="['/app/customers', item.customer.id]"
+                      data-testid="customer-profile-mobile-link"
+                    >
+                      {{ item.customer.name }}
+                    </a>
+                  } @else {
+                    <span class="payment-card__customer-name">{{ item.customer.name }}</span>
+                  }
                   @if (item.customer.phone) {
                     <span class="payment-card__customer-phone text-muted">{{ item.customer.phone }}</span>
                   }

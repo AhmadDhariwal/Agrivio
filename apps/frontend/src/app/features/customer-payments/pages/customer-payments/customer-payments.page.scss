@@ -845,6 +845,23 @@
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 170px;
+    display: inline-block;
+  }
+
+  &__link {
+    text-decoration: none;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--ag-color-primary, #065f46);
+      text-decoration: underline;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--ag-color-primary, #065f46);
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
   }
 
   &__phone {
@@ -907,6 +924,23 @@
     font-size: 13px;
     font-weight: 600;
     color: var(--ag-color-text, #0f172a);
+    display: inline-block;
+  }
+
+  &__customer-link {
+    text-decoration: none;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--ag-color-primary, #065f46);
+      text-decoration: underline;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--ag-color-primary, #065f46);
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
   }
 
   &__customer-phone {

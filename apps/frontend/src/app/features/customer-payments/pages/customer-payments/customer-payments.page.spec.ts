@@ -1,4 +1,4 @@
-﻿import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
@@ -290,5 +290,58 @@ describe('CustomerPaymentsPage', () => {
     expect(listCustomerPaymentsSpy).toHaveBeenCalledWith(
       expect.not.objectContaining({ customerId: 'cust-42' }),
     );
+  });
+
+  it('renders customer profile link using correct customer ID and keyboard reachable anchor', () => {
+    listCustomerPaymentsSpy.mockReturnValue(
+      of({ items: [mockPayment], meta: { page: 1, pageSize: 25, total: 1 } }),
+    );
+
+    const fixture = TestBed.createComponent(CustomerPaymentsPage);
+    fixture.detectChanges();
+
+    const profileLink: HTMLAnchorElement | null = fixture.nativeElement.querySelector(
+      '[data-testid="customer-profile-link"]',
+    );
+    expect(profileLink).toBeTruthy();
+    expect(profileLink?.getAttribute('href')).toBe('/app/customers/cust-1');
+    expect(profileLink?.textContent?.trim()).toBe('Rashid Farms');
+
+    const mobileProfileLink: HTMLAnchorElement | null = fixture.nativeElement.querySelector(
+      '[data-testid="customer-profile-mobile-link"]',
+    );
+    expect(mobileProfileLink).toBeTruthy();
+    expect(mobileProfileLink?.getAttribute('href')).toBe('/app/customers/cust-1');
+  });
+
+  it('renders plain text for customer name when user lacks customers.view permission', () => {
+    listCustomerPaymentsSpy.mockReturnValue(
+      of({ items: [mockPayment], meta: { page: 1, pageSize: 25, total: 1 } }),
+    );
+
+    const fixture = TestBed.createComponent(CustomerPaymentsPage);
+    const component = fixture.componentInstance;
+    vi.spyOn(component, 'canViewCustomers').mockReturnValue(false);
+    fixture.detectChanges();
+
+    const profileLink = fixture.nativeElement.querySelector('[data-testid="customer-profile-link"]');
+    expect(profileLink).toBeFalsy();
+
+    const customerCell = fixture.nativeElement.querySelector('[data-testid="payment-customer"]');
+    expect(customerCell?.textContent).toContain('Rashid Farms');
+  });
+
+  it('renders filtered empty state with exact copy when active filters yield zero results', () => {
+    listCustomerPaymentsSpy.mockReturnValue(
+      of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+    );
+
+    const fixture = TestBed.createComponent(CustomerPaymentsPage);
+    const component = fixture.componentInstance;
+    component.search.set('unknown');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('No customer payments match your filters');
+    expect(fixture.nativeElement.querySelector('[data-testid="customer-payments-empty-clear"]')).toBeTruthy();
   });
 });

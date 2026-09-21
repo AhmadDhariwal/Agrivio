@@ -1,4 +1,4 @@
-﻿import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -67,6 +67,11 @@ export class CustomerPaymentsPage {
   readonly canView = computed(
     () =>
       this.sessionStore.hasPermission('customer-payments.view') && this.canUseCustomerPayments(),
+  );
+  readonly canViewCustomers = computed(
+    () =>
+      this.sessionStore.hasPermission('customers.view') &&
+      (this.capabilityService?.canUseModule('customers') ?? true),
   );
   readonly canPost = computed(
     () =>
