@@ -76,10 +76,13 @@ function createMongooseLedgersStore() {
       return query.lean().exec();
     },
 
-    async sumPostedEffects(organizationId, filter) {
+    async sumPostedEffects(organizationId, filter, session) {
       const query = { organizationId, status: 'posted', ...filter };
-      const records = await LedgerEffectModel.find(query).select('signedAmountMinorUnits').lean().exec();
-      return sumMinorUnits(records);
+      const find = LedgerEffectModel.find(query).select('signedAmountMinorUnits');
+      if (session) {
+        find.session(session);
+      }
+      return sumMinorUnits(await find.lean().exec());
     },
 
     async listPartyBalancesByEffectKind(organizationId, partyType, effectKind) {

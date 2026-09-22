@@ -187,6 +187,33 @@ describe('F05 P3 reconcileSupplierLedgerState', () => {
     expect(sumAllocations(allocations)).toBe(100n);
   });
 
+  it('includes opening payable allocations in the payable allocation total', () => {
+    const allocations = [
+      { targetType: 'supplier_opening_payable', allocatedAmountMinorUnits: '60000', status: 'posted' },
+      { targetType: 'supplier_advance', allocatedAmountMinorUnits: '5000', status: 'posted' },
+    ];
+    expect(sumAllocations(allocations)).toBe(60000n);
+  });
+
+  it('flags legacy payable and advance coexistence and derives net payable', () => {
+    const result = reconcileSupplierLedgerState({
+      effects: [
+        { effectKind: 'payable', signedAmountMinorUnits: '50000', status: 'posted' },
+        { effectKind: 'supplier_advance', signedAmountMinorUnits: '20000', status: 'posted' },
+      ],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.netPayableMinorUnits).toBe('30000');
+    expect(result.findings).toContainEqual({
+      code: 'UNALLOCATED_SUPPLIER_ADVANCE_WITH_PAYABLE',
+      payableMinorUnits: '50000',
+      advanceMinorUnits: '20000',
+      netPayableMinorUnits: '30000',
+      message: 'Unallocated supplier advance coexists with supplier payable',
+    });
+  });
+
   it('handles empty input without throwing', () => {
     const result = reconcileSupplierLedgerState({});
     expect(result.ok).toBe(true);

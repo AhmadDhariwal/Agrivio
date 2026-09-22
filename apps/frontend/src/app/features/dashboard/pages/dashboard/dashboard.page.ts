@@ -145,7 +145,10 @@ export class DashboardPage {
     if (!data) return false;
     const hasFinancial =
       this.canShowFinancialSummary() &&
-      (data.supplierPayables !== undefined || data.stockValuation !== undefined);
+      (data.supplierPayables !== undefined ||
+        data.totalSupplierAdvance !== undefined ||
+        data.netSupplierPayable !== undefined ||
+        data.stockValuation !== undefined);
     const hasAccounts =
       this.canShowAccountSummary() &&
       (data.cashBalances !== undefined ||

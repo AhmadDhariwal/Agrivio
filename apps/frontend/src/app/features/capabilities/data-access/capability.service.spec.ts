@@ -627,13 +627,14 @@ describe('CapabilityService', () => {
     });
   });
 
-  it('exposes authoritative read-only defaults for Supplier Ledger (17 controls)', () => {
+  it('exposes authoritative read-only defaults for Supplier Ledger (18 controls)', () => {
     const service = TestBed.inject(CapabilityService);
     const features = ['moduleInfo', 'supplierSearch', 'reconciliationSummary', 'ledgerFilters'];
     const fields = [
       'supplierIdentity',
       'outstandingPayable',
       'supplierAdvance',
+      'netPayable',
       'reconciliationStatus',
       'allocationTotal',
       'date',
@@ -651,8 +652,8 @@ describe('CapabilityService', () => {
       ...actions.map((id) => `payments.supplierLedger.actions.${id}`),
     ];
 
-    expect(allKeys).toHaveLength(17);
-    expect(new Set(allKeys).size).toBe(17);
+    expect(allKeys).toHaveLength(18);
+    expect(new Set(allKeys).size).toBe(18);
     expect(service.canUseModule('payments.supplierLedger')).toBe(true);
     for (const id of features) {
       expect(service.canUseFeature(`payments.supplierLedger.features.${id}`)).toBe(true);

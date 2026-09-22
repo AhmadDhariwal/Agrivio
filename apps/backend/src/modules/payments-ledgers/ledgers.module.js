@@ -152,11 +152,11 @@ function createLedgersService(deps) {
       return toMoneyDto(minor);
     },
 
-    async sumSupplierAdvance(organizationId, supplierId) {
+    async sumSupplierAdvance(organizationId, supplierId, session) {
       const minor = await store.sumPostedEffects(organizationId, {
         supplierId,
         effectKind: 'supplier_advance',
-      });
+      }, session);
       return toMoneyDto(minor);
     },
 
@@ -209,6 +209,23 @@ function createLedgersService(deps) {
             payableMinorUnits: String(row.signedAmountMinorUnits),
           }))
           .filter((row) => BigInt(row.payableMinorUnits) > 0n),
+      };
+    },
+
+    async listSupplierAdvanceBalances(organizationId) {
+      const rows = await store.listPartyBalancesByEffectKind(
+        organizationId,
+        'supplier',
+        'supplier_advance',
+      );
+      return {
+        items: rows
+          .map((row) => ({
+            supplierId: row.partyId,
+            advance: toMoneyDto(row.signedAmountMinorUnits),
+            advanceMinorUnits: String(row.signedAmountMinorUnits),
+          }))
+          .filter((row) => BigInt(row.advanceMinorUnits) > 0n),
       };
     },
 

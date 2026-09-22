@@ -84,7 +84,7 @@ describe('F05 P3 real-Mongo payments, cancellation, returns, reconciliation', ()
     await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 5000 });
   }
 
-  function buildModules(orgIdOverride) {
+  function buildModules(orgIdOverride, options = {}) {
     const organizationId = orgIdOverride ?? new mongoose.Types.ObjectId().toString();
     const supplierId = new mongoose.Types.ObjectId().toString();
     const warehouseId = new mongoose.Types.ObjectId().toString();
@@ -116,7 +116,12 @@ describe('F05 P3 real-Mongo payments, cancellation, returns, reconciliation', ()
           error.code = 'NOT_FOUND';
           throw error;
         }
-        return { id: supplierId, status: 'active', name: 'Supplier' };
+        return {
+          id: supplierId,
+          status: 'active',
+          name: 'Supplier',
+          ...(options.openingBalance ? { openingBalance: options.openingBalance } : {}),
+        };
       },
     };
 
@@ -275,6 +280,145 @@ describe('F05 P3 real-Mongo payments, cancellation, returns, reconciliation', ()
     const unpaid = await listUnpaidSupplierPurchases(organizationId, supplierId);
     expect(unpaid.some((i) => i.id === p1.id)).toBe(false);
     expect(unpaid.some((i) => i.id === p2.id)).toBe(true);
+  }, 120000);
+
+  it('persists opening-payable allocation and supplier advance consumption/restoration transactionally', async ({ skip }) => {
+    if (!mongoReady) {
+      skip('Mongo replica set rs0 PRIMARY is required');
+    }
+    await ensureConnection();
+
+    const modules = buildModules(undefined, {
+      openingBalance: {
+        kind: 'payable',
+        amount: { amount: '100.00', currency: 'PKR' },
+        ledgerEffectId: new mongoose.Types.ObjectId().toString(),
+        status: 'posted',
+      },
+    });
+    const {
+      organizationId,
+      supplierId,
+      warehouseId,
+      productId,
+      actorId,
+      accounts,
+      ledgers,
+      purchases,
+      paymentsService,
+      auth,
+    } = modules;
+
+    await ledgers.ledgersService.postLedgerEffect(null, {
+      organizationId,
+      partyType: 'supplier',
+      supplierId,
+      effectKind: 'payable',
+      signedAmountMinorUnits: '10000',
+      currency: 'PKR',
+      sourceType: 'supplier_opening_payable',
+      sourceId: supplierId,
+      postedAt: new Date(),
+      postedBy: actorId,
+    });
+
+    const account = await accounts.accountsService.createAccount(
+      organizationId,
+      { name: 'Advance Cash', accountType: 'cash' },
+      { actorId },
+    );
+    await accounts.accountsService.postAccountMovement(null, {
+      organizationId,
+      accountId: account.id,
+      signedAmountMinorUnits: '100000',
+      currency: 'PKR',
+      sourceType: 'account_opening',
+      sourceId: account.id,
+      postedAt: new Date(),
+      postedBy: actorId,
+    });
+
+    const payment = await paymentsService.postSupplierPayment(
+      organizationId,
+      {
+        supplierId,
+        accountId: account.id,
+        amount: { amount: '120.00', currency: 'PKR' },
+        paymentDate: '2026-09-22',
+        allocationMode: 'general',
+      },
+      { actorId },
+      'mongo-opening-payable-payment',
+    );
+    expect(payment.data.allocations).toContainEqual(
+      expect.objectContaining({
+        targetType: 'supplier_opening_payable',
+        targetId: supplierId,
+        allocatedAmountMinorUnits: '10000',
+      }),
+    );
+    expect(await PaymentAllocationModel.countDocuments({
+      organizationId,
+      targetType: 'supplier_opening_payable',
+      targetId: supplierId,
+    })).toBe(1);
+
+    const draft = await purchases.purchasesService.createPurchaseDraft(
+      organizationId,
+      {
+        warehouseId,
+        supplierId,
+        purchaseDate: '2026-09-22',
+        lines: [
+          {
+            productId,
+            quantity: '1',
+            unitCost: { amount: '15.00', currency: 'PKR' },
+          },
+        ],
+        landedCosts: {},
+      },
+      auth,
+    );
+    const posted = await purchases.purchasesService.postPurchase(
+      organizationId,
+      draft.id,
+      { expectedVersion: draft.version, payments: [] },
+      auth,
+      'mongo-advance-purchase-post',
+    );
+    expect(posted.data.payableTotal.amount).toBe('0.00');
+    expect(await LedgerEffectModel.countDocuments({
+      organizationId,
+      sourceId: draft.id,
+      sourceType: { $in: ['supplier_advance_application', 'supplier_advance_consumption'] },
+    })).toBe(2);
+
+    const cancelBody = {
+      expectedVersion: posted.data.version,
+      reason: 'Mongo advance restoration proof',
+    };
+    const cancelled = await purchases.purchasesService.cancelPurchase(
+      organizationId,
+      draft.id,
+      cancelBody,
+      auth,
+      'mongo-advance-purchase-cancel',
+    );
+    const replay = await purchases.purchasesService.cancelPurchase(
+      organizationId,
+      draft.id,
+      cancelBody,
+      auth,
+      'mongo-advance-purchase-cancel',
+    );
+    expect(replay.data.id).toBe(cancelled.data.id);
+    expect(await LedgerEffectModel.countDocuments({
+      organizationId,
+      sourceId: draft.id,
+      sourceType: 'purchase_cancellation_advance_reinstatement',
+    })).toBe(1);
+    expect((await ledgers.ledgersService.sumSupplierAdvance(organizationId, supplierId)).amount).toBe('20.00');
   }, 120000);
 
   it('payment idempotency — replay produces no duplicates', async ({ skip }) => {

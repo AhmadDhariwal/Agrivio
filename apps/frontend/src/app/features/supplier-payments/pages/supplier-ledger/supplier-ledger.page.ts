@@ -272,6 +272,10 @@ export class SupplierLedgerPage {
       purchase_payable: 'Purchase invoice',
       supplier_payment_allocation: 'Payment allocation',
       supplier_payment_advance: 'Payment advance',
+      supplier_advance_application: 'Supplier Advance Applied',
+      supplier_advance_consumption: 'Supplier Advance Consumed',
+      purchase_cancellation_advance_payable_reversal: 'Supplier Advance Application Reversed',
+      purchase_cancellation_advance_reinstatement: 'Supplier Advance Restored',
       purchase_return: 'Purchase return',
       purchase_cancellation: 'Purchase cancellation',
       purchase_cancellation_allocation_reversal: 'Cancellation reversal',
@@ -283,7 +287,16 @@ export class SupplierLedgerPage {
 
   sourceRoute(item: SupplierLedgerEffectRecord): string[] | null {
     if (!item.sourceId || !this.canViewSourceAction()) return null;
-    if (item.sourceType === 'purchase_payable' || item.sourceType === 'purchase_cancellation') {
+    if (
+      [
+        'purchase_payable',
+        'purchase_cancellation',
+        'supplier_advance_application',
+        'supplier_advance_consumption',
+        'purchase_cancellation_advance_payable_reversal',
+        'purchase_cancellation_advance_reinstatement',
+      ].includes(item.sourceType)
+    ) {
       const canInspectPurchases =
         this.sessionStore.hasPermission('purchases.view') &&
         (this.capabilityService?.canUseModule('purchases') ?? true) &&

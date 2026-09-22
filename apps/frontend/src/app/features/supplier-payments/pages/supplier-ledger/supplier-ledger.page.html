@@ -184,6 +184,20 @@
               </div>
             }
 
+            @if (canViewField('netPayable')) {
+            <div class="kpi-card">
+              <div class="kpi-card__icon kpi-card__icon--blue">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 19V5"></path><path d="M4 19h16"></path><path d="m7 15 4-4 3 2 4-6"></path>
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Net Payable</span>
+                <span class="kpi-card__value" data-testid="supplier-ledger-net-payable">PKR {{ recon.netPayable.amount }}</span>
+              </div>
+            </div>
+            }
+
             <!-- Reconciliation Status Card -->
             @if (canViewField('reconciliationStatus')) {
               <div class="kpi-card">
@@ -257,6 +271,9 @@
                       <span class="finding-desc">
                         (Expected: {{ finding.expectedMinorUnits }}, Actual: {{ finding.actualMinorUnits }})
                       </span>
+                    }
+                    @if (finding.message) {
+                      <span class="finding-desc">{{ finding.message }}</span>
                     }
                   </li>
                 }

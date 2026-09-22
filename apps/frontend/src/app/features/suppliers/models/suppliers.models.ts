@@ -24,7 +24,7 @@ export interface SupplierRecord {
   status: EntityStatus;
   version: number;
   openingBalance?: SupplierOpeningBalance;
-  derivedBalances?: { payable: MoneyAmount; advance: MoneyAmount };
+  derivedBalances?: { payable: MoneyAmount; advance: MoneyAmount; netPayable?: MoneyAmount };
   softWarning?: {
     softWarning?: boolean;
     reason?: string;

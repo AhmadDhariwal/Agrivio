@@ -12,6 +12,7 @@ const {
 const {
   convertEnteredQuantityToBaseMinorUnits,
   computeUnitCostMinorUnits,
+  parseMoneyMinorUnits,
 } = require('../../platform/primitives/money-and-time');
 const {
   createIdempotencyService,
@@ -606,7 +607,19 @@ function createPurchasesService(deps) {
                 { field: 'payments', message: 'paid amount cannot exceed purchase total' },
               ]);
             }
-            const payableTotal = purchaseTotal - paidTotal;
+            const basePayable = purchaseTotal - paidTotal;
+            let availableSupplierAdvance = 0n;
+            if (basePayable > 0n && typeof paymentsService.sumSupplierAdvance === 'function') {
+              const availableAdvance = await paymentsService.sumSupplierAdvance(
+                organizationId,
+                String(existing.supplierId),
+                session,
+              );
+              availableSupplierAdvance = parseMoneyMinorUnits(availableAdvance.amount);
+            }
+            const advanceApplied =
+              basePayable < availableSupplierAdvance ? basePayable : availableSupplierAdvance;
+            const payableTotal = basePayable - advanceApplied;
             const postedAt = now();
             const postedLines = [];
 
@@ -660,6 +673,17 @@ function createPurchasesService(deps) {
               postedAt,
               postedBy: actor.actorId,
             });
+
+            if (advanceApplied > 0n) {
+              await paymentsService.applySupplierAdvanceInSession(session, {
+                organizationId,
+                supplierId: String(existing.supplierId),
+                purchaseId,
+                amountMinorUnits: advanceApplied.toString(),
+                postedAt,
+                postedBy: actor.actorId,
+              });
+            }
 
             const paymentSnapshots = [];
             for (const payment of input.payments) {
@@ -744,6 +768,7 @@ function createPurchasesService(deps) {
               metadata: {
                 purchaseTotalMinorUnits: purchaseTotal.toString(),
                 paidTotalMinorUnits: paidTotal.toString(),
+                advanceAppliedMinorUnits: advanceApplied.toString(),
                 payableTotalMinorUnits: payableTotal.toString(),
                 lineCount: postedLines.length,
               },
@@ -782,7 +807,19 @@ function createPurchasesService(deps) {
           (sum, a) => sum + BigInt(a.allocatedAmountMinorUnits),
           0n,
         );
-        let outstanding = purchaseTotal - allocated;
+        const advanceEffects =
+          paymentsService && typeof paymentsService.listLedgerEffectsBySource === 'function'
+            ? await paymentsService.listLedgerEffectsBySource(
+                organizationId,
+                'supplier_advance_application',
+                String(item['_id']),
+              )
+            : [];
+        const advanceApplied = advanceEffects.reduce(
+          (sum, effect) => sum - BigInt(String(effect.signedAmountMinorUnits ?? '0')),
+          0n,
+        );
+        let outstanding = purchaseTotal - allocated - advanceApplied;
         if (typeof deps.listPurchaseReturnCredits === 'function') {
           const returnCredit = BigInt(
             String(
@@ -929,6 +966,15 @@ function createPurchasesService(deps) {
               postedBy: actor.actorId,
             });
 
+            const advanceRestoredMinorUnits =
+              (await paymentsService.reverseSupplierAdvanceApplicationInSession(session, {
+                organizationId,
+                supplierId: String(existing.supplierId),
+                purchaseId,
+                postedAt: cancelledAt,
+                postedBy: actor.actorId,
+              })) ?? '0';
+
             const priorAllocations = await paymentsService.listPurchaseAllocations(
               organizationId,
               purchaseId,
@@ -989,6 +1035,7 @@ function createPurchasesService(deps) {
                 reason: input.reason,
                 purchaseTotalMinorUnits: purchaseTotal.toString(),
                 priorAllocationsCount: priorAllocations.length,
+                advanceRestoredMinorUnits,
               },
             });
 

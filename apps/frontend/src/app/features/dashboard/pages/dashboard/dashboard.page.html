@@ -457,6 +457,66 @@
           }
         }
 
+        @if (canShowFinancialSummary() && data.totalSupplierAdvance !== undefined) {
+          @if (canViewSuppliers()) {
+            <a routerLink="/app/suppliers" class="kpi-card kpi-card--link" data-testid="dash-card-supplier-advance">
+              <div class="kpi-card__icon kpi-card__icon--green">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="9" /><path d="M8 12h8" /><path d="m13 9 3 3-3 3" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Supplier Advance</span>
+                <span class="kpi-card__value" data-testid="dash-supplier-advance">{{ formatMoney(data.totalSupplierAdvance) }}</span>
+                <span class="kpi-card__subtext">Available ledger balance</span>
+              </div>
+            </a>
+          } @else {
+            <div class="kpi-card" data-testid="dash-card-supplier-advance">
+              <div class="kpi-card__icon kpi-card__icon--green">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="9" /><path d="M8 12h8" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Supplier Advance</span>
+                <span class="kpi-card__value" data-testid="dash-supplier-advance">{{ formatMoney(data.totalSupplierAdvance) }}</span>
+                <span class="kpi-card__subtext">Available ledger balance</span>
+              </div>
+            </div>
+          }
+        }
+
+        @if (canShowFinancialSummary() && data.netSupplierPayable !== undefined) {
+          @if (canViewSuppliers()) {
+            <a routerLink="/app/suppliers" class="kpi-card kpi-card--link" data-testid="dash-card-net-supplier-payable">
+              <div class="kpi-card__icon kpi-card__icon--purple">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 19V5" /><path d="M4 19h16" /><path d="m7 15 4-4 3 2 4-6" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Net Supplier Payable</span>
+                <span class="kpi-card__value" data-testid="dash-net-supplier-payable">{{ formatMoney(data.netSupplierPayable) }}</span>
+                <span class="kpi-card__subtext">Payable less advance</span>
+              </div>
+            </a>
+          } @else {
+            <div class="kpi-card" data-testid="dash-card-net-supplier-payable">
+              <div class="kpi-card__icon kpi-card__icon--purple">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 19V5" /><path d="M4 19h16" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Net Supplier Payable</span>
+                <span class="kpi-card__value" data-testid="dash-net-supplier-payable">{{ formatMoney(data.netSupplierPayable) }}</span>
+                <span class="kpi-card__subtext">Payable less advance</span>
+              </div>
+            </div>
+          }
+        }
+
         <!-- Cash -->
         @if (canShowAccountSummary() && data.cashBalances !== undefined) {
           @if (canViewAccounts()) {

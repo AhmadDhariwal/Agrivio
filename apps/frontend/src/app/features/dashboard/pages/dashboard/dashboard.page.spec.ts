@@ -67,6 +67,9 @@ describe('DashboardPage', () => {
     totalCustomerAdvance: { amount: '125000.00', currency: 'PKR' },
     netExposure: { amount: '2643650.00', currency: 'PKR' },
     supplierPayables: { amount: '2206000.00', currency: 'PKR' },
+    totalSupplierPayable: { amount: '2206000.00', currency: 'PKR' },
+    totalSupplierAdvance: { amount: '206000.00', currency: 'PKR' },
+    netSupplierPayable: { amount: '2000000.00', currency: 'PKR' },
     stockValuation: { amount: '52028850.00', currency: 'PKR' },
     accountDistribution: [
       { key: 'cash', label: 'Cash', balance: { amount: '234100.00', currency: 'PKR' } },
@@ -239,6 +242,8 @@ describe('DashboardPage', () => {
 
     const root = fixture.nativeElement as HTMLElement;
     expect(root.querySelector('[data-testid="dash-card-payables"]')?.textContent).toContain('2,206,000.00');
+    expect(root.querySelector('[data-testid="dash-card-supplier-advance"]')?.textContent).toContain('206,000.00');
+    expect(root.querySelector('[data-testid="dash-card-net-supplier-payable"]')?.textContent).toContain('2,000,000.00');
     expect(root.querySelector('[data-testid="dash-card-cash"]')?.textContent).toContain('234,100.00');
     expect(root.querySelector('[data-testid="dash-card-bank"]')?.textContent).toContain('2,617,500.00');
     expect(root.querySelector('[data-testid="dash-card-jazzcash"]')?.textContent).toContain('123,000.00');
