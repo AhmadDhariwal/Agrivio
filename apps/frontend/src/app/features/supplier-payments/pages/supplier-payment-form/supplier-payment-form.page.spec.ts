@@ -286,4 +286,49 @@ describe('SupplierPaymentFormPage', () => {
     expect(compiled.querySelector('[data-testid="supplier-payment-amount"]')).toBeTruthy();
     expect(compiled.querySelector('[data-testid="supplier-payment-date"]')).toBeTruthy();
   });
+
+  it('keeps the selected supplier label separate from current search results', () => {
+    const fixture = TestBed.createComponent(SupplierPaymentFormPage);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+
+    component.suppliers.set(mockSuppliers);
+    component.form.controls.supplierId.setValue('supplier-1');
+    component.suppliers.set(mockSuppliers.filter((supplier) => supplier.id === 'supplier-2'));
+
+    expect(component.supplierOptions().map((option) => option.value)).toEqual(['supplier-2']);
+    expect(component.form.controls.supplierId.value).toBe('supplier-1');
+    expect(component.supplierSelectedLabel()).toBe('Engro Fertilizers');
+    expect(component.selectedSupplier()).toBe('Engro Fertilizers');
+  });
+
+  it('differentiates clearing search text from clearing the selected supplier value', () => {
+    const fixture = TestBed.createComponent(SupplierPaymentFormPage);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+
+    component.suppliers.set(mockSuppliers);
+    component.form.controls.supplierId.setValue('supplier-1');
+    fixture.detectChanges();
+
+    expect(component.form.controls.supplierId.value).toBe('supplier-1');
+    expect(component.supplierSelectedLabel()).toBe('Engro Fertilizers');
+    expect(component.selectedSupplier()).toBe('Engro Fertilizers');
+
+    // Clearing search text only does NOT clear the selected value
+    component.onSupplierSearch('');
+    fixture.detectChanges();
+
+    expect(component.form.controls.supplierId.value).toBe('supplier-1');
+    expect(component.supplierSelectedLabel()).toBe('Engro Fertilizers');
+    expect(component.selectedSupplier()).toBe('Engro Fertilizers');
+
+    // Clearing selected supplier value resets selection and labels
+    component.form.controls.supplierId.setValue('');
+    fixture.detectChanges();
+
+    expect(component.form.controls.supplierId.value).toBe('');
+    expect(component.supplierSelectedLabel()).toBe('');
+    expect(component.selectedSupplier()).toBe('Not selected');
+  });
 });

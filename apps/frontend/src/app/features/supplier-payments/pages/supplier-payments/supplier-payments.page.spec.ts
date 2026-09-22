@@ -119,13 +119,13 @@ describe('SupplierPaymentsPage', () => {
     expect(rows.length).toBe(2);
 
     expect(rows[0]?.textContent).toContain('SPAY-CDEF');
-    expect(rows[0]?.textContent).toContain('2026-08-12');
+    expect(rows[0]?.textContent).toContain('12 Aug 2026');
     expect(rows[0]?.textContent).toContain('general');
     expect(rows[0]?.textContent).toContain('60,000.00');
     expect(rows[0]?.textContent).toContain('POSTED');
 
     expect(rows[1]?.textContent).toContain('SPAY-IJKL');
-    expect(rows[1]?.textContent).toContain('2026-08-11');
+    expect(rows[1]?.textContent).toContain('11 Aug 2026');
     expect(rows[1]?.textContent).toContain('invoice_specific');
     expect(rows[1]?.textContent).toContain('56,000.00');
   });

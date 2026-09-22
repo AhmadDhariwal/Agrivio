@@ -387,188 +387,146 @@
           />
         }
         @case ('branchId') {
-          <div class="select-field">
-            <select
-              [id]="'filter-' + field"
-              [attr.data-testid]="'filter-' + field"
-              class="select-input"
-              [ngModel]="filterValue(field)"
-              (ngModelChange)="setFilter(field, $event)"
-              [name]="field"
-            >
-              <option value="">All branches</option>
-              @for (branch of branches(); track branch.id) {
-                <option [value]="branch.id">{{ branch.name }} ({{ branch.code }})</option>
-              }
-            </select>
-          </div>
+          <agrivio-ui-searchable-dropdown
+            [testId]="'filter-' + field"
+            [value]="filterValue(field)"
+            (valueChange)="setFilter(field, $event)"
+            [options]="branchOptions()"
+            [allOptionLabel]="'All branches'"
+            [clearable]="true"
+            placeholder="All branches"
+          />
         }
         @case ('warehouseId') {
-          <div class="select-field">
-            <select
-              [id]="'filter-' + field"
-              [attr.data-testid]="'filter-' + field"
-              class="select-input"
-              [ngModel]="filterValue(field)"
-              (ngModelChange)="setFilter(field, $event)"
-              [name]="field"
-            >
-              <option value="">All warehouses</option>
-              @for (warehouse of warehouses(); track warehouse.id) {
-                <option [value]="warehouse.id">{{ warehouse.name }} ({{ warehouse.code }})</option>
-              }
-            </select>
-          </div>
+          <agrivio-ui-searchable-dropdown
+            [testId]="'filter-' + field"
+            [value]="filterValue(field)"
+            (valueChange)="setFilter(field, $event)"
+            [options]="warehouseOptions()"
+            [allOptionLabel]="'All warehouses'"
+            [clearable]="true"
+            placeholder="All warehouses"
+          />
         }
         @case ('customerId') {
           <input
             [id]="'filter-' + field + '-search'"
             [attr.data-testid]="'filter-' + field + '-search'"
             type="search"
-            class="filter-input filter-search-input"
-            placeholder="Search customers…"
+            style="display: none;"
             (input)="onCustomerSearch($event)"
           />
-          <div class="select-field">
-            <select
-              [id]="'filter-' + field"
-              [attr.data-testid]="'filter-' + field"
-              class="select-input"
-              [ngModel]="filterValue(field)"
-              (ngModelChange)="setFilter(field, $event)"
-              [name]="field"
-            >
-              <option value="">{{ required ? 'Select a customer' : 'All customers' }}</option>
-              @for (customer of customers(); track customer.id) {
-                <option [value]="customer.id">{{ customer.name }}{{ customer.phone ? ' (' + customer.phone + ')' : '' }}</option>
-              }
-            </select>
-          </div>
+          <agrivio-ui-searchable-dropdown
+            [testId]="'filter-' + field"
+            [value]="filterValue(field)"
+            (valueChange)="setFilter(field, $event)"
+            [options]="customerOptions()"
+            [allOptionLabel]="required ? '' : 'All customers'"
+            [clearable]="!required"
+            [serverSearch]="true"
+            (searchChange)="onCustomerSearch($event)"
+            [placeholder]="required ? 'Select a customer' : 'All customers'"
+          />
         }
         @case ('supplierId') {
           <input
             [id]="'filter-' + field + '-search'"
             [attr.data-testid]="'filter-' + field + '-search'"
             type="search"
-            class="filter-input filter-search-input"
-            placeholder="Search suppliers…"
+            style="display: none;"
             (input)="onSupplierSearch($event)"
           />
-          <div class="select-field">
-            <select
-              [id]="'filter-' + field"
-              [attr.data-testid]="'filter-' + field"
-              class="select-input"
-              [ngModel]="filterValue(field)"
-              (ngModelChange)="setFilter(field, $event)"
-              [name]="field"
-            >
-              <option value="">{{ required ? 'Select a supplier' : 'All suppliers' }}</option>
-              @for (supplier of suppliers(); track supplier.id) {
-                <option [value]="supplier.id">{{ supplier.name }}</option>
-              }
-            </select>
-          </div>
+          <agrivio-ui-searchable-dropdown
+            [testId]="'filter-' + field"
+            [value]="filterValue(field)"
+            (valueChange)="setFilter(field, $event)"
+            [options]="supplierOptions()"
+            [allOptionLabel]="required ? '' : 'All suppliers'"
+            [clearable]="!required"
+            [serverSearch]="true"
+            (searchChange)="onSupplierSearch($event)"
+            [placeholder]="required ? 'Select a supplier' : 'All suppliers'"
+          />
         }
         @case ('productId') {
           <input
             [id]="'filter-' + field + '-search'"
             [attr.data-testid]="'filter-' + field + '-search'"
             type="search"
-            class="filter-input filter-search-input"
-            placeholder="Search products…"
+            style="display: none;"
             (input)="onProductSearch($event)"
           />
-          <div class="select-field">
-            <select
-              [id]="'filter-' + field"
-              [attr.data-testid]="'filter-' + field"
-              class="select-input"
-              [ngModel]="filterValue(field)"
-              (ngModelChange)="setFilter(field, $event)"
-              [name]="field"
-            >
-              <option value="">All products</option>
-              @for (product of products(); track product.id) {
-                <option [value]="product.id">{{ product.name }}{{ product.sku ? ' (' + product.sku + ')' : '' }}</option>
-              }
-            </select>
-          </div>
+          <agrivio-ui-searchable-dropdown
+            [testId]="'filter-' + field"
+            [value]="filterValue(field)"
+            (valueChange)="setFilter(field, $event)"
+            [options]="productOptions()"
+            [allOptionLabel]="'All products'"
+            [clearable]="true"
+            [serverSearch]="true"
+            (searchChange)="onProductSearch($event)"
+            placeholder="All products"
+          />
         }
         @case ('categoryId') {
           <input
             [id]="'filter-' + field + '-search'"
             [attr.data-testid]="'filter-' + field + '-search'"
             type="search"
-            class="filter-input filter-search-input"
-            placeholder="Search categories…"
+            style="display: none;"
             (input)="onCategorySearch($event)"
           />
-          <div class="select-field">
-            <select
-              [id]="'filter-' + field"
-              [attr.data-testid]="'filter-' + field"
-              class="select-input"
-              [ngModel]="filterValue(field)"
-              (ngModelChange)="setFilter(field, $event)"
-              [name]="field"
-            >
-              <option value="">All categories</option>
-              @for (category of categories(); track category.id) {
-                <option [value]="category.id">{{ category.name }}</option>
-              }
-            </select>
-          </div>
+          <agrivio-ui-searchable-dropdown
+            [testId]="'filter-' + field"
+            [value]="filterValue(field)"
+            (valueChange)="setFilter(field, $event)"
+            [options]="categoryOptions()"
+            [allOptionLabel]="'All categories'"
+            [clearable]="true"
+            [serverSearch]="true"
+            (searchChange)="onCategorySearch($event)"
+            placeholder="All categories"
+          />
         }
         @case ('employeeId') {
           <input
             [id]="'filter-' + field + '-search'"
             [attr.data-testid]="'filter-' + field + '-search'"
             type="search"
-            class="filter-input filter-search-input"
-            placeholder="Search employees…"
+            style="display: none;"
             (input)="onEmployeeSearch($event)"
           />
-          <div class="select-field">
-            <select
-              [id]="'filter-' + field"
-              [attr.data-testid]="'filter-' + field"
-              class="select-input"
-              [ngModel]="filterValue(field)"
-              (ngModelChange)="setFilter(field, $event)"
-              [name]="field"
-            >
-              <option value="">All employees</option>
-              @for (employee of employees(); track employee.id) {
-                <option [value]="employee.id">{{ employee.displayName }} ({{ employee.role }})</option>
-              }
-            </select>
-          </div>
+          <agrivio-ui-searchable-dropdown
+            [testId]="'filter-' + field"
+            [value]="filterValue(field)"
+            (valueChange)="setFilter(field, $event)"
+            [options]="employeeOptions()"
+            [allOptionLabel]="'All employees'"
+            [clearable]="true"
+            [serverSearch]="true"
+            (searchChange)="onEmployeeSearch($event)"
+            placeholder="All employees"
+          />
         }
         @case ('accountId') {
           <input
             [id]="'filter-' + field + '-search'"
             [attr.data-testid]="'filter-' + field + '-search'"
             type="search"
-            class="filter-input filter-search-input"
-            placeholder="Search accounts…"
+            style="display: none;"
             (input)="onAccountSearch($event)"
           />
-          <div class="select-field">
-            <select
-              [id]="'filter-' + field"
-              [attr.data-testid]="'filter-' + field"
-              class="select-input"
-              [ngModel]="filterValue(field)"
-              (ngModelChange)="setFilter(field, $event)"
-              [name]="field"
-            >
-              <option value="">All accounts</option>
-              @for (account of accounts(); track account.id) {
-                <option [value]="account.id">{{ account.name }} ({{ account.accountType }})</option>
-              }
-            </select>
-          </div>
+          <agrivio-ui-searchable-dropdown
+            [testId]="'filter-' + field"
+            [value]="filterValue(field)"
+            (valueChange)="setFilter(field, $event)"
+            [options]="accountOptions()"
+            [allOptionLabel]="'All accounts'"
+            [clearable]="true"
+            [serverSearch]="true"
+            (searchChange)="onAccountSearch($event)"
+            placeholder="All accounts"
+          />
         }
         @case ('customerType') {
           <div class="select-field">

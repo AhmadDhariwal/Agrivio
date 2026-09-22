@@ -91,6 +91,15 @@
           }}
         </dd>
       </div>
+      @if (item.derivedBalances.netPayable) {
+      <div>
+        <dt>Net payable</dt>
+        <dd>
+          {{ formatMoney(item.derivedBalances.netPayable.amount,
+          item.derivedBalances.netPayable.currency) }}
+        </dd>
+      </div>
+      }
     </dl>
   </section>
   } @if (item.openingBalance) {

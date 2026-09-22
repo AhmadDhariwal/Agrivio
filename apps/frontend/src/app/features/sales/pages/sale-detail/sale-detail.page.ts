@@ -25,6 +25,12 @@ import {
   hasRequiredValidator,
   setRequiredValidator,
 } from '../../../../shared/form/form-field.util';
+import {
+  UiSearchableDropdownComponent,
+  SearchableDropdownOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import { formatAccountOption } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
+import { formatAppDateTime } from '../../../../shared/format/date-time.util';
 
 @Component({
   selector: 'agrivio-sale-detail-page',
@@ -37,6 +43,7 @@ import {
     UiStatusBadgeComponent,
     UiFieldLabelComponent,
     UiConfirmDialogComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './sale-detail.page.html',
   styleUrl: './sale-detail.page.scss',
@@ -59,6 +66,10 @@ export class SaleDetailPage {
   readonly cancelConfirmOpen = signal(false);
   readonly submittingReturn = signal(false);
   readonly refundAccounts = signal<AccountRecord[]>([]);
+  readonly refundAccountOptions = computed<SearchableDropdownOption[]>(() => [
+    { value: '', label: 'None' },
+    ...this.refundAccounts().map(formatAccountOption),
+  ]);
   readonly relatedReturns = signal<SalesReturnRecord[]>([]);
   readonly lastPostedReturnId = signal<string | null>(null);
 
@@ -348,9 +359,7 @@ export class SaleDetailPage {
   }
 
   formatDate(value: string | null | undefined): string {
-    if (!value) return '—';
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString('en-GB');
+    return formatAppDateTime(value);
   }
 
   private mapError(error: unknown, fallback = 'Unable to load sale details.'): string {

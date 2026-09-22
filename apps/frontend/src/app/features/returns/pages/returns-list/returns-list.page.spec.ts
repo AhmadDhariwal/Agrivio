@@ -139,6 +139,7 @@ describe('ReturnsListPage', () => {
     fixture: ComponentFixture<ReturnsListPage>;
     component: ReturnsListPage;
   }> {
+    TestBed.resetTestingModule();
     await TestBed.configureTestingModule({
       imports: [ReturnsListPage],
       providers: [

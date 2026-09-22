@@ -27,7 +27,9 @@ import { APP_PATHS } from '../../../../core/navigation/app-paths';
           <span class="sub-banner__message">{{ current.message }}</span>
           <span class="sub-banner__note">(Informational only)</span>
         </div>
-        <a class="sub-banner__link" [routerLink]="billingRoute">Manage billing →</a>
+        @if (showManageBilling()) {
+          <a class="sub-banner__link" [routerLink]="billingRoute">Manage billing →</a>
+        }
       </aside>
     }
   `,
@@ -120,5 +122,6 @@ import { APP_PATHS } from '../../../../core/navigation/app-paths';
 export class SubscriptionStatusBannerComponent {
   readonly billingRoute = APP_PATHS.billing;
   readonly accessState = input<SubscriptionAccessState | null>(null);
+  readonly showManageBilling = input<boolean>(true);
   readonly banner = computed(() => buildSubscriptionBanner(this.accessState()));
 }

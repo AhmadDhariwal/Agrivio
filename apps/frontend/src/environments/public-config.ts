@@ -7,6 +7,8 @@ export interface WebPublicConfig {
   readonly publicApiBaseUrl: string;
 }
 
+export const SAME_ORIGIN_API_BASE_URL = 'same-origin';
+//web configure
 export class WebConfigValidationError extends Error {
   readonly issues: readonly string[];
 
@@ -53,11 +55,23 @@ export function validateWebPublicConfig(candidate: unknown): WebPublicConfig {
     }
   }
 
-  const publicApiBaseUrl = record['publicApiBaseUrl'];
-  if (typeof publicApiBaseUrl !== 'string' || publicApiBaseUrl.trim() === '') {
-    issues.push('publicApiBaseUrl must be a non-empty string');
-  } else if (!isAbsoluteHttpUrl(publicApiBaseUrl)) {
-    issues.push('publicApiBaseUrl must be an absolute http(s) URL');
+  const configuredPublicApiBaseUrl = record['publicApiBaseUrl'];
+  let publicApiBaseUrl: string | undefined;
+  if (typeof configuredPublicApiBaseUrl !== 'string') {
+    issues.push('publicApiBaseUrl must be a string');
+  } else {
+    const trimmedPublicApiBaseUrl = configuredPublicApiBaseUrl.trim();
+    if (trimmedPublicApiBaseUrl === SAME_ORIGIN_API_BASE_URL) {
+      publicApiBaseUrl = '';
+    } else if (configuredPublicApiBaseUrl === '') {
+      publicApiBaseUrl = '';
+    } else if (!isAbsoluteHttpUrl(trimmedPublicApiBaseUrl)) {
+      issues.push(
+        `publicApiBaseUrl must be an absolute http(s) URL or ${SAME_ORIGIN_API_BASE_URL}`,
+      );
+    } else {
+      publicApiBaseUrl = trimmedPublicApiBaseUrl;
+    }
   }
 
   if (issues.length > 0) {

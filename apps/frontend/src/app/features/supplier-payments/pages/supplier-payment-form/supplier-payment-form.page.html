@@ -70,7 +70,7 @@
                 <div class="allocation-item">
                   <div class="allocation-item__info">
                     <span class="tracking-chip tracking-chip--sm">
-                      {{ alloc.targetType === 'supplier_advance' ? 'Supplier advance' : alloc.targetType }}
+                      {{ alloc.targetType === 'supplier_advance' ? 'Supplier advance' : alloc.targetType === 'supplier_opening_payable' ? 'Opening payable' : alloc.targetType }}
                     </span>
                     <span class="allocation-item__target ag-muted">{{ alloc.targetId }}</span>
                   </div>
@@ -112,47 +112,34 @@
             </div>
 
             <div class="form-card__body">
-              <!-- Row 1: Find Supplier (Search) + Supplier (Dropdown) -->
+              <!-- Row 1: Supplier (Searchable Combobox) -->
               @if (canViewField('supplier')) {
-                <div class="form-grid form-grid--2col">
-                  <div class="ag-field">
-                    <agrivio-ui-field-label label="Find supplier" for="supplier-payment-supplier-search" />
-                    <div class="search-field form-search-field">
-                      <svg class="search-field__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                      </svg>
-                      <input
-                        id="supplier-payment-supplier-search"
-                        class="ag-input search-field__input"
-                        type="search"
-                        placeholder="Search suppliers by name, code or NTN…"
-                        data-testid="supplier-payment-supplier-search"
-                        (input)="onSupplierSearch($event)"
-                      />
-                    </div>
-                  </div>
-
+                <div class="form-grid form-grid--1col">
+                  <input
+                    id="supplier-payment-supplier-search"
+                    type="hidden"
+                    data-testid="supplier-payment-supplier-search"
+                    aria-hidden="true"
+                  />
                   <div class="ag-field">
                     <agrivio-ui-field-label
                       label="Supplier"
                       for="supplier-payment-supplier"
                       [required]="fieldRequired(form.controls.supplierId)"
                     />
-                    <select
+                    <agrivio-ui-searchable-dropdown
                       id="supplier-payment-supplier"
-                      class="ag-select"
+                      testId="supplier-payment-supplier"
                       formControlName="supplierId"
-                      data-testid="supplier-payment-supplier"
-                      [class.ag-input--invalid]="fieldError(form.controls.supplierId, 'Supplier', formSubmitAttempted())"
-                      [attr.aria-required]="fieldRequired(form.controls.supplierId) ? 'true' : null"
-                      [attr.aria-invalid]="fieldError(form.controls.supplierId, 'Supplier', formSubmitAttempted()) ? 'true' : null"
-                    >
-                      <option value="">Select supplier</option>
-                      @for (supplier of suppliers(); track supplier.id) {
-                        <option [value]="supplier.id">{{ supplier.name }}</option>
-                      }
-                    </select>
+                      [options]="supplierOptions()"
+                      placeholder="Select supplier"
+                      [searchable]="true"
+                      [clearable]="true"
+                      [serverSearch]="true"
+                      [selectedLabel]="supplierSelectedLabel()"
+                      (searchChange)="onSupplierSearch($event)"
+                      [error]="fieldError(form.controls.supplierId, 'Supplier', formSubmitAttempted())"
+                    />
                     @if (fieldError(form.controls.supplierId, 'Supplier', formSubmitAttempted()); as supplierError) {
                       <p class="field-error" role="alert">{{ supplierError }}</p>
                     }
@@ -169,20 +156,16 @@
                       for="supplier-payment-account"
                       [required]="fieldRequired(form.controls.accountId)"
                     />
-                    <select
+                    <agrivio-ui-searchable-dropdown
                       id="supplier-payment-account"
-                      class="ag-select"
+                      testId="supplier-payment-account"
                       formControlName="accountId"
-                      data-testid="supplier-payment-account"
-                      [class.ag-input--invalid]="fieldError(form.controls.accountId, 'Account', formSubmitAttempted())"
-                      [attr.aria-required]="fieldRequired(form.controls.accountId) ? 'true' : null"
-                      [attr.aria-invalid]="fieldError(form.controls.accountId, 'Account', formSubmitAttempted()) ? 'true' : null"
-                    >
-                      <option value="">Select account</option>
-                      @for (account of accounts(); track account.id) {
-                        <option [value]="account.id">{{ account.name }} ({{ account.accountType }})</option>
-                      }
-                    </select>
+                      [options]="accountOptions()"
+                      placeholder="Select account"
+                      [searchable]="true"
+                      [clearable]="true"
+                      [error]="fieldError(form.controls.accountId, 'Account', formSubmitAttempted())"
+                    />
                     @if (fieldError(form.controls.accountId, 'Account', formSubmitAttempted()); as accountError) {
                       <p class="field-error" role="alert">{{ accountError }}</p>
                     }
@@ -275,20 +258,15 @@
                         for="alloc-purchase-select"
                         [required]="fieldRequired(invoiceAllocationForm.controls.purchaseId)"
                       />
-                      <select
+                      <agrivio-ui-searchable-dropdown
                         id="alloc-purchase-select"
-                        class="ag-select"
+                        testId="alloc-purchase-select"
                         formControlName="purchaseId"
-                        data-testid="alloc-purchase-select"
-                        [attr.aria-required]="fieldRequired(invoiceAllocationForm.controls.purchaseId) ? 'true' : null"
-                      >
-                        <option value="">Select purchase</option>
-                        @for (p of unpaidPurchases(); track p.id) {
-                          <option [value]="p.id">
-                            {{ p.sequence || p.id }} · {{ p.purchaseDate }} · Outstanding: {{ p.outstanding.amount }} PKR
-                          </option>
-                        }
-                      </select>
+                        [options]="unpaidPurchaseOptions()"
+                        placeholder="Select purchase"
+                        [searchable]="true"
+                        [clearable]="true"
+                      />
                     </div>
                   }
                 </div>
@@ -518,14 +496,26 @@
         </div>
         <div class="form-card__body">
           <div class="ledger-list">
-            @for (item of ledgerItems(); track item.id) {
+            @for (item of humanizedLedgerItems(); track item.id) {
               <div class="ledger-row">
                 <div class="ledger-row__info">
-                  <strong>{{ item.effectKind }}</strong>
-                  <p class="ag-muted">{{ item.sourceType }} · {{ item.postedAt }}</p>
+                  <span class="ledger-row__title">{{ item.title }}</span>
+                  <div class="ledger-row__meta">
+                    <span class="ledger-row__date">{{ item.date }}</span>
+                    @if (item.time) {
+                      <span class="ledger-row__dot" aria-hidden="true">·</span>
+                      <span class="ledger-row__time">{{ item.time }}</span>
+                    }
+                    <span class="ledger-row__dot" aria-hidden="true">·</span>
+                    <span class="ledger-row__source">{{ item.sourceReference }}</span>
+                  </div>
                 </div>
-                <span class="ledger-row__amount tabular-num font-semibold">
-                  {{ formatCurrency(item.signedAmount) }}
+                <span
+                  class="ledger-row__amount tabular-num font-semibold"
+                  [class.ledger-row__amount--credit]="item.isPositive"
+                  [class.ledger-row__amount--debit]="!item.isPositive"
+                >
+                  {{ item.formattedAmount }}
                 </span>
               </div>
             }

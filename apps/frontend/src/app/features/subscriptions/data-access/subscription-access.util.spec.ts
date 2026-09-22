@@ -2,6 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { buildSubscriptionBanner } from './subscription-access.util';
 
 describe('buildSubscriptionBanner', () => {
+  it('explains the subscription recovery path when no subscription is available', () => {
+    expect(buildSubscriptionBanner({ status: null })).toEqual({
+      tone: 'warning',
+      title: 'Subscription unavailable',
+      message:
+        'No active subscription was found for this organization. Select a plan and submit payment evidence to activate or recover your subscription.',
+    });
+  });
+
   it('builds informational banners for trial, grace, and suspended states', () => {
     expect(
       buildSubscriptionBanner({

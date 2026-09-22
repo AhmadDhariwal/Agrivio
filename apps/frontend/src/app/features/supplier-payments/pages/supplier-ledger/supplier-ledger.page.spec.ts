@@ -40,6 +40,7 @@ const MOCK_RECONCILIATION: SupplierReconciliationRecord = {
   ok: true,
   payable: { amount: '458,200.00', currency: 'PKR' },
   advance: { amount: '125,400.00', currency: 'PKR' },
+  netPayable: { amount: '332,800.00', currency: 'PKR' },
   allocationTotal: { amount: '320,000.00', currency: 'PKR' },
   accountMovementTotal: { amount: '320,000.00', currency: 'PKR' },
   findings: [],

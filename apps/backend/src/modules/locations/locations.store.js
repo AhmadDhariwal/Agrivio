@@ -66,6 +66,16 @@ function createMongooseLocationsStore() {
       }
     },
 
+    async clearBranchDefault(session, organizationId, excludeId) {
+      const query = { organizationId, isDefault: true };
+      if (excludeId) query._id = { $ne: excludeId };
+      await BranchModel.updateMany(
+        query,
+        { $set: { isDefault: false } },
+        withSession(session),
+      ).exec();
+    },
+
     async deleteBranch(session, organizationId, id) {
       const result = await BranchModel.deleteOne({ _id: id, organizationId }, withSession(session));
       return result.deletedCount === 1;
@@ -74,6 +84,9 @@ function createMongooseLocationsStore() {
     async listWarehouses(organizationId, filter = {}, pagination = {}) {
       const query = { organizationId };
       if (filter.status === 'active' || filter.status === 'inactive') query.status = filter.status;
+      if (filter.branchId) {
+        query.$or = [{ branchId: filter.branchId }, { branchId: null }, { branchId: { $exists: false } }];
+      }
       const search = String(filter.search ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
       if (search) query.nameNormalized = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') };
       const { skip, pageSize } = pagination;
@@ -136,6 +149,17 @@ function createMongooseLocationsStore() {
         }
         throw error;
       }
+    },
+
+    async clearWarehouseDefault(session, organizationId, branchId, excludeId) {
+      const branchScope = branchId ? branchId : null;
+      const query = { organizationId, branchId: branchScope, isDefault: true };
+      if (excludeId) query._id = { $ne: excludeId };
+      await WarehouseModel.updateMany(
+        query,
+        { $set: { isDefault: false } },
+        withSession(session),
+      ).exec();
     },
 
     async deleteWarehouse(session, organizationId, id) {
@@ -207,6 +231,19 @@ function createInMemoryLocationsStore() {
     }
   }
 
+  function clearDefault(records, organizationId, scopeId, excludeId) {
+    for (const [id, record] of records.entries()) {
+      if (
+        String(record.organizationId) === String(organizationId) &&
+        String(record.branchId ?? '') === String(scopeId ?? '') &&
+        record.isDefault === true &&
+        String(id) !== String(excludeId ?? '')
+      ) {
+        records.set(id, { ...record, isDefault: false });
+      }
+    }
+  }
+
   return {
     async listBranches(organizationId, filter = {}, pagination = {}) {
       let items = [...branches.values()].filter((item) => String(item.organizationId) === String(organizationId));
@@ -257,6 +294,18 @@ function createInMemoryLocationsStore() {
       return { ...next };
     },
 
+    async clearBranchDefault(_session, organizationId, excludeId) {
+      for (const [id, record] of branches.entries()) {
+        if (
+          String(record.organizationId) === String(organizationId) &&
+          record.isDefault === true &&
+          String(id) !== String(excludeId ?? '')
+        ) {
+          branches.set(id, { ...record, isDefault: false });
+        }
+      }
+    },
+
     async deleteBranch(_session, organizationId, id) {
       const existing = await this.findBranchById(organizationId, id);
       if (existing === null) {
@@ -269,6 +318,7 @@ function createInMemoryLocationsStore() {
     async listWarehouses(organizationId, filter = {}, pagination = {}) {
       let items = [...warehouses.values()].filter((item) => String(item.organizationId) === String(organizationId));
       if (filter.status === 'active' || filter.status === 'inactive') items = items.filter((item) => item.status === filter.status);
+      if (filter.branchId) items = items.filter((item) => item.branchId == null || String(item.branchId) === String(filter.branchId));
       const search = String(filter.search ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
       if (search) items = items.filter((item) => String(item.nameNormalized).includes(search));
       items.sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')) || String(b._id).localeCompare(String(a._id)));
@@ -328,6 +378,10 @@ function createInMemoryLocationsStore() {
       assertUniqueWarehouse(organizationId, next.nameNormalized, id);
       warehouses.set(id, next);
       return { ...next };
+    },
+
+    async clearWarehouseDefault(_session, organizationId, branchId, excludeId) {
+      clearDefault(warehouses, organizationId, branchId, excludeId);
     },
 
     async deleteWarehouse(_session, organizationId, id) {

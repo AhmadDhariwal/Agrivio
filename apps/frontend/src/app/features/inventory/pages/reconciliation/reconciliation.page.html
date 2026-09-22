@@ -420,18 +420,16 @@
         <!-- Warehouse Dropdown -->
         @if (showWarehouseFilter()) {
           <div class="filter-select-wrap">
-            <select
-              class="ag-select filter-select"
+            <agrivio-ui-searchable-dropdown
+              [options]="warehouseOptions()"
               [value]="warehouseFilter()"
-              (change)="onWarehouseChange($event)"
-              aria-label="Filter by warehouse"
-              data-testid="reconciliation-warehouse-filter"
-            >
-              <option value="">All warehouses</option>
-              @for (wh of warehouseList(); track wh.id) {
-                <option [value]="wh.id">{{ wh.name }}</option>
-              }
-            </select>
+              (valueChange)="onWarehouseSelected($event)"
+              allOptionLabel="All warehouses"
+              placeholder="All warehouses"
+              [clearable]="true"
+              ariaLabel="Filter by warehouse"
+              testId="reconciliation-warehouse-filter"
+            />
           </div>
         }
 

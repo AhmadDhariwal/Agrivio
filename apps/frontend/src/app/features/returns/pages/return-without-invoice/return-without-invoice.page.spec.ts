@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { ReturnWithoutInvoicePage } from './return-without-invoice.page';
 import { ReturnsApi } from '../../data-access/returns.api';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
@@ -10,6 +10,8 @@ import { InventoryApi } from '../../../inventory/data-access/inventory.api';
 import { BranchesWarehousesApi } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
+import { ProductRecord } from '../../../catalog/models/catalog.models';
+import { CustomerRecord } from '../../../customers/models/customers.models';
 
 describe('ReturnWithoutInvoicePage', () => {
   let fixture: ComponentFixture<ReturnWithoutInvoicePage>;
@@ -119,6 +121,92 @@ describe('ReturnWithoutInvoicePage', () => {
     fixture.detectChanges();
 
     expect(mockCustomersApi.searchCustomerOptions).toHaveBeenCalledWith('Chaudhry');
+  });
+
+  it('replaces product results with the authoritative response and restores defaults after clear', async () => {
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    const selected = {
+      id: 'p1',
+      name: 'Engro Urea 50KG',
+      sku: 'ENG-UREA',
+      status: 'active',
+      trackingMode: 'batch',
+    } as ProductRecord;
+    const direct = {
+      id: 'p-direct',
+      name: 'Direct Sown Rice',
+      sku: 'DSR-1',
+      status: 'active',
+      trackingMode: 'none',
+    } as ProductRecord;
+    const defaultProduct = {
+      id: 'p-default',
+      name: 'Default Seed',
+      sku: 'DEFAULT-1',
+      status: 'active',
+      trackingMode: 'none',
+    } as ProductRecord;
+    mockCatalogApi.searchProductOptions.mockImplementation((query: string) =>
+      of(query === '' ? [defaultProduct] : [direct]),
+    );
+
+    page.products.set([selected]);
+    page.onProductChange(0, selected.id);
+    page.onProductSearch('direct');
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    expect(page.productOptions().map((option) => option.value)).toEqual(['p-direct']);
+    expect(page.lineGroup(0).get('productId')?.value).toBe('p1');
+    expect(page.productSelectedLabel(0)).toBe('Engro Urea 50KG');
+
+    page.onProductSearch('');
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    expect(mockCatalogApi.searchProductOptions).toHaveBeenLastCalledWith('', 25, 'active');
+    expect(page.productOptions().map((option) => option.value)).toEqual(['p-default']);
+    expect(page.productOptions().some((option) => option.value === 'p-direct')).toBe(false);
+    expect(page.productSelectedLabel(0)).toBe('Engro Urea 50KG');
+  });
+
+  it('lets the latest product query win when an older request completes later', async () => {
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    const olderResponse = new Subject<ProductRecord[]>();
+    const latestResponse = new Subject<ProductRecord[]>();
+    mockCatalogApi.searchProductOptions.mockImplementation((query: string) => {
+      if (query === 'older') return olderResponse;
+      if (query === 'latest') return latestResponse;
+      return of([]);
+    });
+
+    page.onProductSearch('older');
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    page.onProductSearch('latest');
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    latestResponse.next([
+      { id: 'p-latest', name: 'Latest Product', status: 'active', trackingMode: 'none' } as ProductRecord,
+    ]);
+    olderResponse.next([
+      { id: 'p-older', name: 'Older Product', status: 'active', trackingMode: 'none' } as ProductRecord,
+    ]);
+
+    expect(page.productOptions().map((option) => option.value)).toEqual(['p-latest']);
+  });
+
+  it('keeps a selected customer label while showing only current customer search results', async () => {
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    const selected = { id: 'c1', name: 'Chaudhry Farms', phone: '03001234567', status: 'active' } as CustomerRecord;
+    const result = { id: 'c2', name: 'Direct Customer', phone: '03007654321', status: 'active' } as CustomerRecord;
+    mockCustomersApi.searchCustomerOptions.mockReturnValue(of([result]));
+
+    page.customers.set([selected]);
+    page.form.controls.customerId.setValue(selected.id);
+    page.onCustomerSearch('direct');
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    expect(page.customerOptions().map((option) => option.value)).toEqual(['c2']);
+    expect(page.form.controls.customerId.value).toBe('c1');
+    expect(page.customerSelectedLabel()).toBe('Chaudhry Farms');
   });
 
   it('requires refund account and shows the required marker for account_refund', () => {

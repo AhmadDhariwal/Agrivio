@@ -116,6 +116,38 @@
           </div>
           }
 
+          <div class="ag-field">
+            <agrivio-ui-field-label label="Branch" for="warehouse-branch-create" [required]="true" />
+            <select id="warehouse-branch-create" class="ag-select" formControlName="branchId" data-testid="warehouse-branch">
+              <option value="">Select branch</option>
+              @for (branch of branches(); track branch.id) {
+              <option [value]="branch.id">{{ branch.name }}{{ branch.isDefault ? ' · Default' : '' }}</option>
+              }
+            </select>
+            <p class="field-helper">Transactions can use this warehouse only with this branch.</p>
+          </div>
+
+          <!-- Default Warehouse Toggle Card -->
+          <div class="preference-card">
+            <label class="preference-card__label" for="warehouse-default-create">
+              <span class="preference-card__checkbox-wrap">
+                <input
+                  type="checkbox"
+                  id="warehouse-default-create"
+                  class="preference-card__checkbox"
+                  formControlName="isDefault"
+                  data-testid="warehouse-default"
+                />
+              </span>
+              <span class="preference-card__content">
+                <span class="preference-card__title">Default warehouse for this branch</span>
+                <span class="preference-card__description">
+                  Automatically select this warehouse when transactions are created under this branch.
+                </span>
+              </span>
+            </label>
+          </div>
+
           <!-- Info Callout -->
           <div class="info-callout">
             <div class="info-callout__icon">
@@ -294,6 +326,38 @@
             <p class="field-helper">A short code to help identify this warehouse.</p>
           </div>
           }
+
+          <div class="ag-field">
+            <agrivio-ui-field-label label="Branch" for="warehouse-branch-edit" [required]="true" />
+            <select id="warehouse-branch-edit" class="ag-select" formControlName="branchId" data-testid="warehouse-branch">
+              <option value="">Select branch</option>
+              @for (branch of branches(); track branch.id) {
+              <option [value]="branch.id">{{ branch.name }}{{ branch.isDefault ? ' · Default' : '' }}</option>
+              }
+            </select>
+            <p class="field-helper">Transactions can use this warehouse only with this branch.</p>
+          </div>
+
+          <!-- Default Warehouse Toggle Card -->
+          <div class="preference-card">
+            <label class="preference-card__label" for="warehouse-default-edit">
+              <span class="preference-card__checkbox-wrap">
+                <input
+                  type="checkbox"
+                  id="warehouse-default-edit"
+                  class="preference-card__checkbox"
+                  formControlName="isDefault"
+                  data-testid="warehouse-default"
+                />
+              </span>
+              <span class="preference-card__content">
+                <span class="preference-card__title">Default warehouse for this branch</span>
+                <span class="preference-card__description">
+                  Automatically select this warehouse when transactions are created under this branch.
+                </span>
+              </span>
+            </label>
+          </div>
 
           <!-- Status -->
           <div class="ag-field">

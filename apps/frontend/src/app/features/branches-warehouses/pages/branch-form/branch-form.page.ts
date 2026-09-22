@@ -83,6 +83,7 @@ export class BranchFormPage {
     ],
     code: ['', [Validators.maxLength(MAX_CODE)]],
     status: ['active'],
+    isDefault: [false],
   });
 
   constructor() {
@@ -98,6 +99,7 @@ export class BranchFormPage {
             invoicePrefix: branch.invoicePrefix,
             code: branch.code,
             status: branch.status,
+            isDefault: branch.isDefault ?? false,
           });
           this.loading.set(false);
         },
@@ -139,6 +141,7 @@ export class BranchFormPage {
             name: value.name.trim(),
             invoicePrefix: normalizedPrefix,
             ...(value.code.trim() === '' ? {} : { code: value.code.trim() }),
+            isDefault: value.isDefault,
           })
         : this.api.updateBranch(currentBranchId, {
             expectedVersion: this.version,
@@ -146,6 +149,7 @@ export class BranchFormPage {
             invoicePrefix: normalizedPrefix,
             code: value.code.trim(),
             status: value.status,
+            isDefault: value.isDefault,
           });
 
     request$.subscribe({

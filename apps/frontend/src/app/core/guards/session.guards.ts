@@ -33,6 +33,19 @@ export const publicOnlyGuard: CanActivateFn = () => {
 };
 
 /**
+ * Keeps the public Sign In entry free of a speculative cookie-session request.
+ * Authenticated state already established in this tab still redirects normally.
+ */
+export const signInGuard: CanActivateFn = () => {
+  const sessionStore = inject(AuthSessionStore);
+  const router = inject(Router);
+
+  return sessionStore.authState() === 'authenticated'
+    ? authenticatedDestination(sessionStore, router)
+    : true;
+};
+
+/**
  * Non-authoritative session presence check for UX routing only.
  * Backend authorization remains authoritative.
  */

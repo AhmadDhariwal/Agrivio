@@ -144,6 +144,74 @@ describe('F03 P3 openings, limits, and setup progress', () => {
       );
       expect(secondOpening.status).toBe(409);
 
+      const correction = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_CUSTOMERS_PATH}/${customer.body.data.id}/opening-balance/correct`,
+        {
+          expectedVersion: receivable.body.data.version,
+          reason: 'Opening statement was entered incorrectly',
+          replacement: {
+            kind: 'advance',
+            amount: { amount: '300.00', currency: 'PKR' },
+          },
+        },
+        {
+          [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+          [API_IDEMPOTENCY_KEY_HEADER]: 'cust-opening-correction-1',
+        },
+        jar,
+      );
+      expect(correction.status).toBe(200);
+      expect(correction.body.data.openingBalance.kind).toBe('advance');
+      expect(correction.body.data.derivedBalances.receivable.amount).toBe('0.00');
+      expect(correction.body.data.derivedBalances.advance.amount).toBe('300.00');
+      expect(correction.body.data.openingBalance.ledgerEffectId).not.toBe(
+        receivable.body.data.openingBalance.ledgerEffectId,
+      );
+      const correctionReplay = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_CUSTOMERS_PATH}/${customer.body.data.id}/opening-balance/correct`,
+        {
+          expectedVersion: receivable.body.data.version,
+          reason: 'Opening statement was entered incorrectly',
+          replacement: {
+            kind: 'advance',
+            amount: { amount: '300.00', currency: 'PKR' },
+          },
+        },
+        {
+          [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+          [API_IDEMPOTENCY_KEY_HEADER]: 'cust-opening-correction-1',
+        },
+        jar,
+      );
+      expect(correctionReplay.status).toBe(200);
+      expect(correctionReplay.body.data.openingBalance.ledgerEffectId).toBe(
+        correction.body.data.openingBalance.ledgerEffectId,
+      );
+      const correctedLedger = await fetchJson(
+        baseUrl,
+        'GET',
+        `${API_CUSTOMERS_PATH}/${customer.body.data.id}/ledger`,
+        undefined,
+        {},
+        jar,
+      );
+      expect(
+        correctedLedger.body.data.items.some(
+          (item) =>
+            item.sourceType === 'customer_opening_correction_reversal' &&
+            item.reversalOfId === receivable.body.data.openingBalance.ledgerEffectId,
+        ),
+      ).toBe(true);
+      expect(
+        correctedLedger.body.data.items.some(
+          (item) => item.sourceType === 'customer_opening_correction_replacement',
+        ),
+      ).toBe(true);
+
       const customer2 = await fetchJson(
         baseUrl,
         'POST',
@@ -183,7 +251,7 @@ describe('F03 P3 openings, limits, and setup progress', () => {
         baseUrl,
         'PATCH',
         `${API_CUSTOMERS_PATH}/${customer.body.data.id}`,
-        { expectedVersion: receivable.body.data.version, name: 'Customer One Updated' },
+        { expectedVersion: correction.body.data.version, name: 'Customer One Updated' },
         { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
         jar,
       );
@@ -465,7 +533,38 @@ async function seedPlan(baseUrl, jar, overrides = {}) {
       planCode: overrides.planCode ?? 'Starter',
       activate: true,
       monthlyPriceMinorUnits: 1000,
-      ...(overrides.limits === undefined ? {} : { limits: overrides.limits }),
+      annualPriceMinorUnits: 10000,
+      annualDiscountPercent: 16.67,
+      displayName: 'Starter',
+      shortDescription: 'Test plan',
+      targetCustomer: 'Test organization',
+      catalogRevision: 'test-catalog',
+      trialEligible: true,
+      limits: {
+        products: 1000,
+        activeUsers: 1000,
+        branches: 1000,
+        warehouses: 1000,
+        customers: 1000,
+        suppliers: 1000,
+      },
+      entitlements: {
+        imports: true,
+        reportsExports: true,
+        auditHistory: '90d',
+        backupPolicyRef: 'test',
+        dedicatedCloudEligible: false,
+        supportLevelRef: 'test',
+      },
+      limits: {
+        products: 1000,
+        activeUsers: 1000,
+        branches: 1000,
+        warehouses: 1000,
+        customers: 1000,
+        suppliers: 1000,
+        ...(overrides.limits ?? {}),
+      },
     },
     {
       [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),

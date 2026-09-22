@@ -22,7 +22,13 @@ export interface DashboardPayload {
   jazzCashBalance?: MoneyDto;
   easypaisaBalance?: MoneyDto;
   customerReceivables?: MoneyDto;
+  totalReceivable?: MoneyDto;
+  totalCustomerAdvance?: MoneyDto;
+  netExposure?: MoneyDto;
   supplierPayables?: MoneyDto;
+  totalSupplierPayable?: MoneyDto;
+  totalSupplierAdvance?: MoneyDto;
+  netSupplierPayable?: MoneyDto;
   accountDistribution?: Array<{ key: string; label: string; balance: MoneyDto }>;
   salesVsPurchases?: Array<{ date: string; sales: MoneyDto; purchases: MoneyDto }>;
   grossProfitTrend?: Array<{ date: string; grossProfit: MoneyDto }>;

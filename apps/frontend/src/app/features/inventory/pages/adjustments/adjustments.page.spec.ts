@@ -532,5 +532,24 @@ describe('AdjustmentsPage', () => {
       const compiled = fixture.nativeElement as HTMLElement;
       expect(compiled.querySelector('[data-testid="adjustment-override"]')).toBeNull();
     });
+
+    it('keeps selected product label while dropdown shows only current search query matches', () => {
+      const p1 = mockProduct('prod-1', 'none');
+      const p2 = mockProduct('prod-2', 'batch');
+      page.products.set([p1, p2]);
+      page.form.controls.productId.setValue('prod-1');
+      fixture.detectChanges();
+
+      expect(page.form.controls.productId.value).toBe('prod-1');
+      expect(page.productSelectedLabel()).toBe('Product prod-1');
+
+      // Unrelated search returns only prod-2
+      page.products.set([p2]);
+      fixture.detectChanges();
+
+      expect(page.productOptions().map((opt) => opt.value)).toEqual(['prod-2']);
+      expect(page.form.controls.productId.value).toBe('prod-1');
+      expect(page.productSelectedLabel()).toBe('Product prod-1');
+    });
   });
 });

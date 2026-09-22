@@ -264,4 +264,46 @@ describe('Billing capability API enforcement', () => {
       expect(submitted.status).toBe(201);
     });
   });
+
+  it('allows authorized bootstrap routes for missing and cancelled subscriptions', async () => {
+    for (const status of [null, 'cancelled']) {
+      const capabilityService = createCapabilityHarness(status);
+      const subscriptionService = createSubscriptionService(status);
+      const app = buildApp({
+        capabilityService,
+        subscriptionService,
+        permissions: ['subscription.view', 'subscription.billing-evidence.submit'],
+      });
+      await withServer(app, async (baseUrl) => {
+        expect((await fetch(`${baseUrl}${RECORDS}`)).status).toBe(200);
+        const uploaded = await fetch(`${baseUrl}${UPLOAD}`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/pdf', 'x-filename': 'receipt.pdf' },
+          body: Buffer.from('pdf'),
+        });
+        expect(uploaded.status).toBe(201);
+        const submitted = await fetch(`${baseUrl}${RECORDS}`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(validSubmit()),
+        });
+        expect(submitted.status).toBe(201);
+      });
+    }
+  });
+
+  it('blocks bootstrap routes for terminal subscription states', async () => {
+    for (const status of ['rejected', 'deleted']) {
+      const subscriptionService = createSubscriptionService(status);
+      const app = buildApp({
+        capabilityService: createCapabilityHarness(status),
+        subscriptionService,
+        permissions: ['subscription.view', 'subscription.billing-evidence.submit'],
+      });
+      await withServer(app, async (baseUrl) => {
+        expect((await fetch(`${baseUrl}${RECORDS}`)).status).toBe(403);
+      });
+      expect(subscriptionService.listOrganizationBillingRecords).not.toHaveBeenCalled();
+    }
+  });
 });

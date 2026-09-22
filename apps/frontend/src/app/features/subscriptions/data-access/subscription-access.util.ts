@@ -24,7 +24,12 @@ export function buildSubscriptionBanner(
   state: SubscriptionAccessState | null | undefined,
 ): SubscriptionBanner | null {
   if (state === null || state === undefined || state.status === null) {
-    return null;
+    return {
+      tone: 'warning',
+      title: 'Subscription unavailable',
+      message:
+        'No active subscription was found for this organization. Select a plan and submit payment evidence to activate or recover your subscription.',
+    };
   }
 
   if (state.status === 'trial') {

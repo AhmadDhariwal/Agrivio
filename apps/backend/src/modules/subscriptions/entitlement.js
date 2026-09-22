@@ -4,6 +4,14 @@ const DEFAULT_RETENTION_DAYS = 90;
 
 const OPERATIONAL_STATUSES = Object.freeze(['trial', 'active', 'grace']);
 const BILLING_ACCESS_STATUSES = Object.freeze(['trial', 'active', 'grace', 'suspended']);
+const BILLING_BOOTSTRAP_STATUSES = Object.freeze([
+  'pending_approval',
+  'trial',
+  'active',
+  'grace',
+  'suspended',
+  'cancelled',
+]);
 const SUSPENDED_READ_STATUSES = Object.freeze(['suspended', 'cancelled', 'retained']);
 
 const ALLOWED_TRANSITIONS = Object.freeze({
@@ -123,6 +131,9 @@ function allowsSubscriptionLabel(status, label) {
   if (label === 'billing-access') {
     return BILLING_ACCESS_STATUSES.includes(status);
   }
+  if (label === 'billing-bootstrap') {
+    return status === null || BILLING_BOOTSTRAP_STATUSES.includes(status);
+  }
   if (label === 'operational' || label === 'operational+limit') {
     return OPERATIONAL_STATUSES.includes(status);
   }
@@ -219,7 +230,7 @@ function buildSubscriptionAccessState(subscription, plan, at = new Date(), optio
       status: null,
       accessLevel: 'none',
       operationalWriteAllowed: false,
-      billingAccessAllowed: false,
+      billingAccessAllowed: true,
       warnings: [{ code: 'subscription_missing', message: 'No subscription record found.' }],
       plan: null,
     };
@@ -232,7 +243,7 @@ function buildSubscriptionAccessState(subscription, plan, at = new Date(), optio
     status: effective.status,
     accessLevel,
     operationalWriteAllowed: allowsSubscriptionLabel(effective.status, 'operational'),
-    billingAccessAllowed: allowsSubscriptionLabel(effective.status, 'billing-access'),
+    billingAccessAllowed: allowsSubscriptionLabel(effective.status, 'billing-bootstrap'),
     planCode: effective.planCode,
     planVersion: effective.planVersion,
     trialEndsAt: effective.trialEndsAt ? new Date(effective.trialEndsAt).toISOString() : null,
@@ -266,6 +277,7 @@ module.exports = {
   DEFAULT_RETENTION_DAYS,
   OPERATIONAL_STATUSES,
   BILLING_ACCESS_STATUSES,
+  BILLING_BOOTSTRAP_STATUSES,
   ALLOWED_TRANSITIONS,
   daysFrom,
   isAllowedTransition,

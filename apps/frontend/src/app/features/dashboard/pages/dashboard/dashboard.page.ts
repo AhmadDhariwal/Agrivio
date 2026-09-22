@@ -27,7 +27,13 @@ import {
   parseAmount,
 } from '../../../../shared/chart/chart-format.util';
 import { DashboardPayload, MoneyDto } from '../../models/dashboard.models';
+import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import {
+  formatBranchOption,
+  formatWarehouseOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { AppDatePipe } from '../../../../shared/format/date-time.pipe';
 
 @Component({
   selector: 'agrivio-dashboard-page',
@@ -42,6 +48,8 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
     UiLineChartComponent,
     UiHorizontalBarChartComponent,
     UiDonutChartComponent,
+    UiSearchableDropdownComponent,
+    AppDatePipe,
   ],
   templateUrl: './dashboard.page.html',
   styleUrl: './dashboard.page.scss',
@@ -60,6 +68,8 @@ export class DashboardPage {
   readonly dashboard = signal<DashboardPayload | null>(null);
   readonly branches = signal<BranchRecord[]>([]);
   readonly warehouses = signal<WarehouseRecord[]>([]);
+  readonly branchOptions = computed(() => this.branches().map(formatBranchOption));
+  readonly warehouseOptions = computed(() => this.warehouses().map(formatWarehouseOption));
   readonly fromDate = signal('');
   readonly toDate = signal('');
   readonly branchId = signal('');
@@ -130,12 +140,25 @@ export class DashboardPage {
       this.canShowRecentSales(),
   );
 
+  readonly hasWorkingCapitalCards = computed(() => {
+    const data = this.dashboard();
+    if (!data) return false;
+    return (
+      this.canShowFinancialSummary() &&
+      (data.totalReceivable !== undefined ||
+        data.totalCustomerAdvance !== undefined ||
+        data.netExposure !== undefined ||
+        data.supplierPayables !== undefined ||
+        data.totalSupplierAdvance !== undefined ||
+        data.netSupplierPayable !== undefined)
+    );
+  });
+
   readonly hasSecondaryCards = computed(() => {
     const data = this.dashboard();
     if (!data) return false;
     const hasFinancial =
-      this.canShowFinancialSummary() &&
-      (data.supplierPayables !== undefined || data.stockValuation !== undefined);
+      this.canShowFinancialSummary() && data.stockValuation !== undefined;
     const hasAccounts =
       this.canShowAccountSummary() &&
       (data.cashBalances !== undefined ||

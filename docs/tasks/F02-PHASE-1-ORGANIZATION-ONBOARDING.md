@@ -70,3 +70,30 @@ Backend runtime modules use Express 5 + JavaScript CommonJS (`require` / `module
 ## Docker-dependent checks
 
 MongoDB replica-set transaction/TTL proofs remain pending and do not block this phase.
+
+## Mongo activation-token session consistency hardening (2026-09-08)
+
+Owner activation-token lookup and open-token enumeration now receive the active Mongoose session
+when invoked inside onboarding transactions. This keeps approve/reissue/activate behavior on the
+transaction's primary snapshot instead of allowing those reads to escape through connection-level
+read routing. Token generation, SHA-256 hashing, hash-only persistence, expiry, single-use
+consumption, and the canonical `account_activation_tokens` collection are unchanged.
+
+A real replica-set Mongo regression now proves approve and reissue hashes remain retrievable after
+commit, the prior token is consumed, only the newest token activates, reuse is rejected, and an
+activation-token insert is visible both inside its transaction and after commit.
+
+The regression also passes the freshly reissued token through the production activation-URL
+builder and standard query-string decoding before the fresh HTTP activation request. Frontend
+coverage independently proves Angular query parsing and the `/auth/activate` payload preserve an
+opaque token byte-for-byte, including reserved characters. Activation-body validation rejects
+blank tokens without trimming or otherwise mutating a non-blank token before hashing.
+
+## Super Admin organization list request hardening (2026-09-10)
+
+The existing paginated platform organization list now returns additive global summary metadata for
+total, approved/active, suspended, and trial organizations. Counts are computed server-side with a
+Mongo aggregation using the existing unique `subscriptions.organizationId` index; no new index or
+persisted-model change was required. The Organizations page consumes list items, pagination, and
+summary from the same request, reducing initial load and manual refresh from five list requests to
+one while preserving search, filters, sorting, pagination, RBAC, and cache invalidation.

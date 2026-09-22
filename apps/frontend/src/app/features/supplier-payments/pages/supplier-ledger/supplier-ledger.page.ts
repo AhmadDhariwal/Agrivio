@@ -23,7 +23,10 @@ import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.compon
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
+import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import { formatSupplierOption } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { AppDatePipe, AppTimePipe } from '../../../../shared/format/date-time.pipe';
 
 @Component({
   selector: 'agrivio-supplier-ledger-page',
@@ -36,6 +39,9 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
     UiLoadingStateComponent,
     UiEmptyStateComponent,
     UiModuleInfoComponent,
+    UiSearchableDropdownComponent,
+    AppDatePipe,
+    AppTimePipe,
   ],
   templateUrl: './supplier-ledger.page.html',
   styleUrl: './supplier-ledger.page.scss',
@@ -84,6 +90,7 @@ export class SupplierLedgerPage {
   readonly loadingLedger = signal(false);
   readonly loadingRecon = signal(false);
   readonly suppliers = signal<SupplierRecord[]>([]);
+  readonly supplierOptions = computed(() => this.suppliers().map(formatSupplierOption));
   readonly selectedSupplierId = signal<string>('');
   readonly ledgerItems = signal<SupplierLedgerEffectRecord[]>([]);
   readonly reconciliation = signal<SupplierReconciliationRecord | null>(null);
@@ -160,7 +167,13 @@ export class SupplierLedgerPage {
       )
       .subscribe({
         next: (items) => {
-          this.suppliers.set(items.filter((s) => s.status === 'active'));
+          const active = items.filter((s) => s.status === 'active');
+          const current = this.selectedSupplier();
+          if (current && !active.some((s) => s.id === current.id)) {
+            this.suppliers.set([current, ...active]);
+          } else {
+            this.suppliers.set(active);
+          }
           this.loadingSuppliers.set(false);
         },
         error: () => {
@@ -259,6 +272,10 @@ export class SupplierLedgerPage {
       purchase_payable: 'Purchase invoice',
       supplier_payment_allocation: 'Payment allocation',
       supplier_payment_advance: 'Payment advance',
+      supplier_advance_application: 'Supplier Advance Applied',
+      supplier_advance_consumption: 'Supplier Advance Consumed',
+      purchase_cancellation_advance_payable_reversal: 'Supplier Advance Application Reversed',
+      purchase_cancellation_advance_reinstatement: 'Supplier Advance Restored',
       purchase_return: 'Purchase return',
       purchase_cancellation: 'Purchase cancellation',
       purchase_cancellation_allocation_reversal: 'Cancellation reversal',
@@ -270,7 +287,16 @@ export class SupplierLedgerPage {
 
   sourceRoute(item: SupplierLedgerEffectRecord): string[] | null {
     if (!item.sourceId || !this.canViewSourceAction()) return null;
-    if (item.sourceType === 'purchase_payable' || item.sourceType === 'purchase_cancellation') {
+    if (
+      [
+        'purchase_payable',
+        'purchase_cancellation',
+        'supplier_advance_application',
+        'supplier_advance_consumption',
+        'purchase_cancellation_advance_payable_reversal',
+        'purchase_cancellation_advance_reinstatement',
+      ].includes(item.sourceType)
+    ) {
       const canInspectPurchases =
         this.sessionStore.hasPermission('purchases.view') &&
         (this.capabilityService?.canUseModule('purchases') ?? true) &&
@@ -310,8 +336,16 @@ export class SupplierLedgerPage {
     return name.slice(0, 2).toUpperCase();
   }
 
-  onSupplierSearch(event: Event): void {
-    const target = event.target;
+  supplierSelectedLabel(): string {
+    return this.selectedSupplier()?.name ?? '';
+  }
+
+  onSupplierSearch(eventOrQuery: Event | string): void {
+    if (typeof eventOrQuery === 'string') {
+      this.supplierSearchChanges.next(eventOrQuery.trim());
+      return;
+    }
+    const target = eventOrQuery.target;
     if (target instanceof HTMLInputElement) {
       this.supplierSearchChanges.next(target.value.trim());
     }

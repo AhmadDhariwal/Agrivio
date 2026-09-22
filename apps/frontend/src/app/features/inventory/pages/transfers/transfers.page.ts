@@ -31,6 +31,11 @@ import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pa
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
+import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import {
+  formatProductOption,
+  formatWarehouseOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import {
   hasRequiredValidator,
   fieldValidationMessage,
@@ -38,6 +43,7 @@ import {
 } from '../../../../shared/form/form-field.util';
 import { inventoryQuantityValidators } from '../../shared/inventory-form.validation';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
+import { formatAppDateTime } from '../../../../shared/format/date-time.util';
 import {
   InventoryBalanceRecord,
   WarehouseTransferRecord,
@@ -70,6 +76,7 @@ function differentWarehousesValidator(group: AbstractControl): ValidationErrors 
     UiFieldLabelComponent,
     UiModuleInfoComponent,
     UiConfirmDialogComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './transfers.page.html',
   styleUrls: ['./transfers.page.scss'],
@@ -101,6 +108,16 @@ export class TransfersPage {
   readonly warehouses = signal<WarehouseRecord[]>([]);
   readonly batchOptions = signal<TransferBatchOption[]>([]);
   readonly balancesList = signal<InventoryBalanceRecord[]>([]);
+
+  readonly warehouseOptions = computed(() =>
+    this.warehouses().map((w) => formatWarehouseOption(w)),
+  );
+  readonly productOptions = computed(() =>
+    this.products().map((p) => formatProductOption(p)),
+  );
+  readonly formattedBatchOptions = computed(() =>
+    this.batchOptions().map((b) => ({ value: b.batchId, label: b.label })),
+  );
 
   // Selected State
   readonly selectedProduct = signal<ProductRecord | null>(null);
@@ -266,7 +283,9 @@ export class TransfersPage {
 
     // Downstream state reset: Product changes
     this.form.controls.productId.valueChanges.subscribe((productId) => {
-      const product = this.products().find((item) => item.id === productId) ?? null;
+      const product =
+        this.products().find((item) => item.id === productId) ??
+        (this.selectedProduct()?.id === productId ? this.selectedProduct() : null);
       this.selectedProduct.set(product);
       const mode = product?.trackingMode ?? 'none';
       this.selectedTrackingMode.set(mode);
@@ -362,6 +381,10 @@ export class TransfersPage {
       .subscribe((items) => {
         this.products.set(items.filter((p) => p.status === 'active'));
       });
+  }
+
+  productSelectedLabel(): string {
+    return this.selectedProduct()?.name ?? '';
   }
 
   private requestStockAndBatchContext(): void {
@@ -549,6 +572,10 @@ export class TransfersPage {
     }
   }
 
+  onProductComboboxSearch(query: string): void {
+    this.productSearchChanges.next(query.trim());
+  }
+
   transferProductName(item: WarehouseTransferRecord): string {
     return item.productNameSnapshot ?? '—';
   }
@@ -578,16 +605,7 @@ export class TransfersPage {
   }
 
   formatDate(dateStr: string | null | undefined): string {
-    if (!dateStr) return '—';
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatAppDateTime(dateStr);
   }
 
   private mapError(error: unknown, fallback: string): string {

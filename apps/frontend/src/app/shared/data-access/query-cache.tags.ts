@@ -16,6 +16,7 @@ export const QUERY_CACHE_TAGS = {
   subscriptionPlans: 'subscription-plans',
   billingRecords: 'billing-records',
   platformBillingRecords: 'platform-billing-records',
+  platformOrganizations: 'platform-organizations',
   audit: 'audit',
   importTemplates: 'import-templates',
   importJobs: 'import-jobs',

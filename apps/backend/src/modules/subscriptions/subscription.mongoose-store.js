@@ -52,9 +52,12 @@ function createMongooseSubscriptionStore() {
       return created.toObject();
     },
 
-    async updatePlan(session, id, patch) {
-      return SubscriptionPlanModel.findByIdAndUpdate(
-        id,
+    async updatePlan(session, id, patch, expectedVersion) {
+      return SubscriptionPlanModel.findOneAndUpdate(
+        {
+          _id: id,
+          ...(expectedVersion === undefined ? {} : { version: expectedVersion }),
+        },
         { $set: patch },
         { new: true, ...withSession(session) },
       )
@@ -74,6 +77,17 @@ function createMongooseSubscriptionStore() {
         return null;
       }
       return SubscriptionModel.findOne({ organizationId }).lean().exec();
+    },
+
+    async findSubscriptionsByOrganizationIds(organizationIds) {
+      if (!Array.isArray(organizationIds) || organizationIds.length === 0) {
+        return [];
+      }
+      const validIds = organizationIds.filter((id) => mongoose.isValidObjectId(id));
+      if (validIds.length === 0) {
+        return [];
+      }
+      return SubscriptionModel.find({ organizationId: { $in: validIds } }).lean().exec();
     },
 
     async listSubscriptions() {

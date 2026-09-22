@@ -3,13 +3,8 @@ const {
   createTransactionRunner,
 } = require('../../platform/transactions/transaction-runner');
 const { conflict, validationFailed } = require('../../platform/errors/app-error');
-const {
-  formatMoneyMinorUnits,
-} = require('../../platform/primitives/money-and-time');
-const {
-  createInMemoryLedgersStore,
-  createMongooseLedgersStore,
-} = require('./ledgers.store');
+const { formatMoneyMinorUnits } = require('../../platform/primitives/money-and-time');
+const { createInMemoryLedgersStore, createMongooseLedgersStore } = require('./ledgers.store');
 
 function createMongooseTransactionSessionPort() {
   const mongoose = require('mongoose');
@@ -52,6 +47,7 @@ function toLedgerEffectDto(record) {
     currency: String(record['currency'] ?? 'PKR'),
     sourceType: String(record['sourceType']),
     sourceId: String(record['sourceId']),
+    reversalOfId: record['reversalOfId'] ? String(record['reversalOfId']) : null,
     status: String(record['status']),
     postedAt:
       record['postedAt'] instanceof Date
@@ -117,12 +113,7 @@ function createLedgersService(deps) {
     },
 
     async listEffectsBySource(organizationId, sourceType, sourceId, session) {
-      const items = await store.listEffectsBySource(
-        organizationId,
-        sourceType,
-        sourceId,
-        session,
-      );
+      const items = await store.listEffectsBySource(organizationId, sourceType, sourceId, session);
       return items.map((item) => ({
         id: String(item['_id']),
         partyType: String(item.partyType),
@@ -161,20 +152,16 @@ function createLedgersService(deps) {
       return toMoneyDto(minor);
     },
 
-    async sumSupplierAdvance(organizationId, supplierId) {
+    async sumSupplierAdvance(organizationId, supplierId, session) {
       const minor = await store.sumPostedEffects(organizationId, {
         supplierId,
         effectKind: 'supplier_advance',
-      });
+      }, session);
       return toMoneyDto(minor);
     },
 
     async mapPartyBalances(organizationId, partyType, effectKind) {
-      const rows = await store.listPartyBalancesByEffectKind(
-        organizationId,
-        partyType,
-        effectKind,
-      );
+      const rows = await store.listPartyBalancesByEffectKind(organizationId, partyType, effectKind);
       const map = new Map();
       for (const row of rows) {
         map.set(String(row.partyId), toMoneyDto(row.signedAmountMinorUnits));
@@ -199,12 +186,21 @@ function createLedgersService(deps) {
       };
     },
 
+    async listCustomerAdvanceBalances(organizationId) {
+      const rows = await store.listPartyBalancesByEffectKind(organizationId, 'customer', 'advance');
+      return {
+        items: rows
+          .map((row) => ({
+            customerId: row.partyId,
+            advance: toMoneyDto(row.signedAmountMinorUnits),
+            advanceMinorUnits: String(row.signedAmountMinorUnits),
+          }))
+          .filter((row) => BigInt(row.advanceMinorUnits) > 0n),
+      };
+    },
+
     async listSupplierPayableBalances(organizationId) {
-      const rows = await store.listPartyBalancesByEffectKind(
-        organizationId,
-        'supplier',
-        'payable',
-      );
+      const rows = await store.listPartyBalancesByEffectKind(organizationId, 'supplier', 'payable');
       return {
         items: rows
           .map((row) => ({
@@ -213,6 +209,23 @@ function createLedgersService(deps) {
             payableMinorUnits: String(row.signedAmountMinorUnits),
           }))
           .filter((row) => BigInt(row.payableMinorUnits) > 0n),
+      };
+    },
+
+    async listSupplierAdvanceBalances(organizationId) {
+      const rows = await store.listPartyBalancesByEffectKind(
+        organizationId,
+        'supplier',
+        'supplier_advance',
+      );
+      return {
+        items: rows
+          .map((row) => ({
+            supplierId: row.partyId,
+            advance: toMoneyDto(row.signedAmountMinorUnits),
+            advanceMinorUnits: String(row.signedAmountMinorUnits),
+          }))
+          .filter((row) => BigInt(row.advanceMinorUnits) > 0n),
       };
     },
 
@@ -243,10 +256,7 @@ function createLedgersModule(options = {}) {
   const transactionRunner = options.transactionRunner ?? createTransactionRunner(sessionPort);
   const ledgersService = createLedgersService({ store, transactionRunner });
 
-  const {
-    createInMemoryPaymentsStore,
-    createMongoosePaymentsStore,
-  } = require('./payments.store');
+  const { createInMemoryPaymentsStore, createMongoosePaymentsStore } = require('./payments.store');
   const { createPaymentsService } = require('./payments.service');
 
   const paymentsStore =

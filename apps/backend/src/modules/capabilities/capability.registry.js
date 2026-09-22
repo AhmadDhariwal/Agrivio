@@ -2797,6 +2797,11 @@ const definitions = [
       'The signed advance total is required to understand the supplier financial position.',
     ],
     [
+      'netPayable',
+      'Net Payable',
+      'Payable less supplier advance is required to understand the net supplier position.',
+    ],
+    [
       'reconciliationStatus',
       'Reconciliation Status',
       'Reconciliation health and findings must remain visible with the summary.',
@@ -3747,7 +3752,7 @@ const definitions = [
     configurable: { enabled: true },
     risk: RISK_LEVELS.Critical,
     requiredPermissions: { enabled: 'subscription.view' },
-    subscriptionLabel: 'billing-access',
+    subscriptionLabel: 'billing-bootstrap',
     reason:
       'Disabling Billing blocks tenant Billing APIs without changing subscription lifecycle or platform review workflows.',
   },
@@ -3771,7 +3776,7 @@ const definitions = [
     configurable: { enabled: id !== 'planSelection' },
     risk: id === 'planSelection' ? RISK_LEVELS.Critical : RISK_LEVELS.Normal,
     requiredPermissions: { enabled: 'subscription.view' },
-    subscriptionLabel: 'billing-access',
+    subscriptionLabel: 'billing-bootstrap',
     ...(id === 'planSelection'
       ? {
           platformEnforced: true,
@@ -3832,7 +3837,7 @@ const definitions = [
       visible: 'subscription.view',
       editable: 'subscription.billing-evidence.submit',
     },
-    subscriptionLabel: 'billing-access',
+    subscriptionLabel: 'billing-bootstrap',
     ...(!configurable
       ? {
           platformEnforced: true,
@@ -3868,7 +3873,7 @@ const definitions = [
     configurable: { allowed: true },
     risk,
     requiredPermissions: { allowed: permission },
-    subscriptionLabel: 'billing-access',
+    subscriptionLabel: 'billing-bootstrap',
   })),
   {
     key: EMPLOYEES_MODULE_KEY,

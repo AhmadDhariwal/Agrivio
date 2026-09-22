@@ -38,6 +38,7 @@ import {
   SalePostApprovalsInput,
   SaleRecord,
 } from '../../models/sales.models';
+import { formatAppDateTime } from '../../../../shared/format/date-time.util';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
 import {
@@ -60,6 +61,19 @@ import {
 } from '../../../../shared/form/form-field.util';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { LocationDefaultResolverService } from '../../../../shared/locations/location-default-resolver.service';
+import {
+  UiSearchableDropdownComponent,
+  SearchableDropdownOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import {
+  formatBranchOption,
+  formatWarehouseOption,
+  formatCustomerOption,
+  formatProductOption,
+  formatAccountOption,
+  formatPackagingUnitOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 
 @Component({
   selector: 'agrivio-sale-edit-page',
@@ -71,6 +85,7 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
     UiLoadingStateComponent,
     UiConfirmDialogComponent,
     UiFieldLabelComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './sale-edit.page.html',
   styleUrl: './sale-edit.page.scss',
@@ -89,10 +104,12 @@ export class SaleEditPage {
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly locationResolver = inject(LocationDefaultResolverService);
   private readonly productSearchChanges = new Subject<string>();
   private readonly customerSearchChanges = new Subject<string>();
   private readonly customerSearchImmediate = new Subject<string>();
   private static readonly SELECTOR_SEARCH_LIMIT = 25;
+  private readonly knownProducts = new Map<string, ProductRecord>();
   @ViewChild('customerPicker') customerPickerRef?: ElementRef<HTMLElement>;
 
   readonly customerTypeOptions = [
@@ -126,11 +143,49 @@ export class SaleEditPage {
   readonly productSearchQuery = signal('');
   readonly branches = signal<BranchRecord[]>([]);
   readonly warehouses = signal<WarehouseRecord[]>([]);
+  private readonly allWarehouses = signal<WarehouseRecord[]>([]);
+  readonly onlyBranch = signal(false);
+  readonly onlyWarehouse = signal(false);
+  readonly resolvedDefaultBranchId = signal<string>('');
+  readonly resolvedDefaultWarehouseId = signal<string>('');
+  readonly branchDefaultApplied = computed(() => {
+    this.formStateVersion();
+    const current = this.form.controls.branchId.value;
+    const defaultId = this.resolvedDefaultBranchId();
+    return Boolean(defaultId && current === defaultId);
+  });
+  readonly warehouseDefaultApplied = computed(() => {
+    this.formStateVersion();
+    const current = this.form.controls.warehouseId.value;
+    const defaultId = this.resolvedDefaultWarehouseId();
+    return Boolean(defaultId && current === defaultId);
+  });
   readonly accounts = signal<PosPaymentAccount[]>([]);
   readonly refundAccounts = signal<AccountRecord[]>([]);
   readonly relatedReturns = signal<SalesReturnRecord[]>([]);
   readonly lastPostedReturnId = signal<string | null>(null);
   readonly packagingByLine = signal<Record<number, PackagingUnitRecord[]>>({});
+
+  readonly branchOptions = computed<SearchableDropdownOption[]>(() =>
+    this.branches().map(formatBranchOption),
+  );
+  readonly warehouseOptions = computed<SearchableDropdownOption[]>(() =>
+    this.warehouses().map(formatWarehouseOption),
+  );
+  readonly customerOptions = computed<SearchableDropdownOption[]>(() => [
+    { value: '', label: 'Walk-in (cash only)' },
+    ...this.customers().map(formatCustomerOption),
+  ]);
+  readonly productOptions = computed<SearchableDropdownOption[]>(() =>
+    this.products().map(formatProductOption),
+  );
+  readonly accountOptions = computed<SearchableDropdownOption[]>(() =>
+    this.accounts().map(formatAccountOption),
+  );
+  readonly refundAccountOptions = computed<SearchableDropdownOption[]>(() => [
+    { value: '', label: 'None' },
+    ...this.refundAccounts().map(formatAccountOption),
+  ]);
   readonly canUseSales = computed(() => this.capabilityService?.canUseModule('sales') ?? true);
   readonly canCreate = computed(() => this.sessionStore.hasPermission('sales.create'));
   readonly canCreateDraft = computed(
@@ -433,28 +488,38 @@ export class SaleEditPage {
         ),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((items) => this.products.set(items.filter((item) => item.status === 'active')));
+      .subscribe((items) => {
+        this.products.set(items.filter((item) => item.status === 'active'));
+      });
 
     merge(
       this.customerSearchImmediate,
       this.customerSearchChanges.pipe(debounceTime(300), distinctUntilChanged()),
     )
       .pipe(
-        switchMap((query) =>
-          this.customersApi.searchCustomerOptions(query).pipe(
+        switchMap((query) => {
+          let isAsync = false;
+          const timer = setTimeout(() => {
+            isAsync = true;
+            this.customerSearchLoading.set(true);
+          }, 0);
+          return this.customersApi.searchCustomerOptions(query).pipe(
             catchError(() => {
               this.customerSearchError.set(true);
               return of([] as CustomerRecord[]);
             }),
-          ),
-        ),
+            finalize(() => {
+              clearTimeout(timer);
+              if (isAsync) {
+                this.customerSearchLoading.set(false);
+              }
+            }),
+          );
+        }),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((items) => {
-        this.customers.set(
-          this.mergeCustomerOptions(items.filter((item) => item.status === 'active')),
-        );
-        this.customerSearchLoading.set(false);
+        this.customers.set(items.filter((item) => item.status === 'active'));
       });
 
     this.form.controls.customerTypeMode.valueChanges
@@ -477,6 +542,10 @@ export class SaleEditPage {
         }
         this.refreshTierPricesForAllLines();
       });
+
+    this.form.controls.branchId.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.resolveWarehouseSelection());
 
     this.form.controls.customerId.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -507,7 +576,7 @@ export class SaleEditPage {
         )
         .subscribe({
           next: ({ masters, sale }) => {
-            this.applyMasters(masters);
+            this.applyMasters(masters, sale.branchId, sale.warehouseId);
             this.applySale(sale);
             this.loading.set(false);
           },
@@ -544,6 +613,31 @@ export class SaleEditPage {
 
   packagingUnitsForLine(index: number): PackagingUnitRecord[] {
     return this.packagingByLine()[index] ?? [];
+  }
+
+  packagingOptionsForLine(index: number): SearchableDropdownOption[] {
+    const units = this.packagingUnitsForLine(index);
+    return [
+      { value: '', label: 'Base unit' },
+      ...units.map(formatPackagingUnitOption),
+    ];
+  }
+
+  onCustomerSearchChange(term: string): void {
+    this.customerSearchTerm.set(term);
+    this.requestCustomerSearch(term.trim(), false);
+  }
+
+  onCustomerDropdownOpenChange(open: boolean): void {
+    this.customerDropdownOpen.set(open);
+    if (open && this.customers().length === 0) {
+      this.requestCustomerSearch();
+    }
+  }
+
+  onProductSearchChange(term: string): void {
+    this.productSearchQuery.set(term);
+    this.productSearchChanges.next(term.trim());
   }
 
   onProductSearchInput(event: Event): void {
@@ -587,7 +681,7 @@ export class SaleEditPage {
     }
     const opening = !this.customerDropdownOpen();
     this.customerDropdownOpen.set(opening);
-    if (opening) {
+    if (opening && this.customers().length === 0) {
       this.requestCustomerSearch();
     }
   }
@@ -596,7 +690,6 @@ export class SaleEditPage {
     if (!this.canUseCustomerSearch()) {
       return;
     }
-    this.customerSearchLoading.set(true);
     this.customerSearchError.set(false);
     if (immediate) {
       this.customerSearchImmediate.next(query);
@@ -614,7 +707,9 @@ export class SaleEditPage {
       return;
     }
     this.customerDropdownOpen.set(true);
-    this.requestCustomerSearch();
+    if (this.customers().length === 0) {
+      this.requestCustomerSearch();
+    }
   }
 
   switchToRegisteredCustomer(): void {
@@ -1157,21 +1252,31 @@ export class SaleEditPage {
     });
   }
 
-  private applyMasters(masters: {
-    branches: BranchRecord[];
-    warehouses: WarehouseRecord[];
-    accounts: PosPaymentAccount[];
-    refundAccounts: AccountRecord[];
-    relatedReturns?: SalesReturnRecord[];
-  }): void {
-    this.branches.set(
-      this.sessionStore.filterBranches(masters.branches.filter((item) => item.status === 'active')),
+  private applyMasters(
+    masters: {
+      branches: BranchRecord[];
+      warehouses: WarehouseRecord[];
+      accounts: PosPaymentAccount[];
+      refundAccounts: AccountRecord[];
+      relatedReturns?: SalesReturnRecord[];
+    },
+    initialBranchId = this.form.controls.branchId.value,
+    initialWarehouseId = this.form.controls.warehouseId.value,
+  ): void {
+    const branchResolution = this.locationResolver.resolveBranches(
+      masters.branches,
+      initialBranchId,
     );
-    this.warehouses.set(
-      this.sessionStore.filterWarehouses(
-        masters.warehouses.filter((item) => item.status === 'active'),
-      ),
+    this.branches.set(branchResolution.options);
+    this.onlyBranch.set(branchResolution.isOnlyOption);
+    this.resolvedDefaultBranchId.set(
+      branchResolution.usedDefault ? branchResolution.selectedId : '',
     );
+    if (branchResolution.selectedId !== this.form.controls.branchId.value) {
+      this.form.controls.branchId.setValue(branchResolution.selectedId, { emitEvent: false });
+    }
+    this.allWarehouses.set(masters.warehouses);
+    this.resolveWarehouseSelection(initialWarehouseId);
     this.accounts.set(masters.accounts);
     this.refundAccounts.set(masters.refundAccounts.filter((item) => item.status === 'active'));
     if (masters.relatedReturns) {
@@ -1183,6 +1288,20 @@ export class SaleEditPage {
       this.form.controls.saleDate.setValue(this.todayIsoDate());
     }
     this.bindLineProductChanges(0);
+  }
+
+  private resolveWarehouseSelection(currentId = ''): void {
+    const resolution = this.locationResolver.resolveWarehouses(
+      this.allWarehouses(),
+      this.form.controls.branchId.value,
+      currentId,
+    );
+    this.warehouses.set(resolution.options);
+    this.onlyWarehouse.set(resolution.isOnlyOption);
+    this.resolvedDefaultWarehouseId.set(resolution.usedDefault ? resolution.selectedId : '');
+    if (resolution.selectedId !== this.form.controls.warehouseId.value) {
+      this.form.controls.warehouseId.setValue(resolution.selectedId);
+    }
   }
 
   private todayIsoDate(): string {
@@ -1242,26 +1361,30 @@ export class SaleEditPage {
     return null;
   }
 
-  private mergeCustomerOptions(items: CustomerRecord[]): CustomerRecord[] {
-    const selected = this.selectedCustomer();
-    if (!selected) {
-      return items;
+  productSelectedLabel(index: number): string {
+    const control = this.lines.at(index)?.get('productId');
+    const productId = String(control?.value ?? '').trim();
+    if (!productId) {
+      return '';
     }
-    if (items.some((item) => item.id === selected.id)) {
-      return items;
+    const known =
+      this.knownProducts.get(productId) ??
+      this.products().find((p) => p.id === productId);
+    if (known) {
+      return known.name;
     }
-    return [selected, ...items];
+    const snapshot = this.sale()?.lines?.find((l) => l.productId === productId)?.productNameSnapshot;
+    return snapshot ?? '';
   }
 
   private seedSelectorOptionsFromSale(sale: SaleRecord): void {
     const seen = new Set<string>();
-    const productOptions: ProductRecord[] = [];
     for (const line of sale.lines) {
       if (seen.has(line.productId)) {
         continue;
       }
       seen.add(line.productId);
-      productOptions.push({
+      const seeded: ProductRecord = {
         id: line.productId,
         organizationId: sale.organizationId,
         categoryId: '',
@@ -1272,18 +1395,9 @@ export class SaleEditPage {
         measurementDimension: 'mass',
         status: 'active',
         version: 1,
-      });
+      };
+      this.knownProducts.set(line.productId, seeded);
     }
-    if (productOptions.length === 0) {
-      return;
-    }
-    const merged = [...productOptions];
-    for (const product of this.products()) {
-      if (!seen.has(product.id)) {
-        merged.push(product);
-      }
-    }
-    this.products.set(merged);
   }
 
   private applySale(sale: SaleRecord): void {
@@ -1358,7 +1472,6 @@ export class SaleEditPage {
         next: (customer) => {
           if (customer.status === 'active') {
             this.selectedCustomer.set(customer);
-            this.customers.set(this.mergeCustomerOptions([customer]));
             this.form.controls.customerTypeMode.setValue(
               customer.customerType === 'walk_in' ? 'walk_in' : String(customer.customerType),
               { emitEvent: false },
@@ -1383,6 +1496,10 @@ export class SaleEditPage {
       if (!productId) {
         this.packagingByLine.update((current) => ({ ...current, [index]: [] }));
         return;
+      }
+      const selected = this.products().find((p) => p.id === productId);
+      if (selected) {
+        this.knownProducts.set(productId, selected);
       }
       this.catalogApi.listPackagingUnits(productId).subscribe({
         next: (units) => {
@@ -1549,6 +1666,10 @@ export class SaleEditPage {
     const num = Number(val);
     if (isNaN(num)) return `PKR ${val}`;
     return `PKR ${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
+  formatDateTime(value: string | Date | null | undefined): string {
+    return formatAppDateTime(value);
   }
 
   formatQuantity(val: string | number | undefined | null): string {

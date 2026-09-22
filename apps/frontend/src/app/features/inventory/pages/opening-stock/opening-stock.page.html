@@ -84,21 +84,16 @@
       </div>
 
       <div class="form-card__body">
-        <div class="form-grid form-grid--3col">
+        <div class="form-grid" [class.form-grid--3col]="showOpeningStockProductSearch()" [class.form-grid--2col]="!showOpeningStockProductSearch()">
           <!-- Find Product -->
           @if (showOpeningStockProductSearch()) {
-          <div class="ag-field">
-            <agrivio-ui-field-label label="Find Product" for="opening-product-search" />
             <input
               id="opening-product-search"
-              class="ag-input"
-              type="search"
-              placeholder="Search by name or SKU…"
+              type="hidden"
               (input)="onProductSearch($event)"
               (change)="onProductSearch($event)"
+              data-testid="opening-product-search"
             />
-            <p class="field-hint">Filter the product dropdown options.</p>
-          </div>
           }
 
           <!-- Warehouse -->
@@ -108,20 +103,15 @@
               for="opening-warehouse"
               [required]="fieldRequired(form.controls.warehouseId)"
             />
-            <select
+            <agrivio-ui-searchable-dropdown
               id="opening-warehouse"
-              class="ag-select"
+              testId="opening-warehouse"
               formControlName="warehouseId"
-              data-testid="opening-warehouse"
-              [class.ag-input--invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted())"
-              [attr.aria-required]="fieldRequired(form.controls.warehouseId) ? 'true' : null"
-              [attr.aria-invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()) ? 'true' : null"
-            >
-              <option value="" disabled>Select warehouse</option>
-              @for (warehouse of warehouses(); track warehouse.id) {
-              <option [value]="warehouse.id">{{ warehouse.name }}</option>
-              }
-            </select>
+              [options]="warehouseOptions()"
+              placeholder="Select warehouse"
+              [error]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted())"
+              [required]="fieldRequired(form.controls.warehouseId)"
+            />
             @if (fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()); as warehouseError) {
             <p class="field-error" role="alert">{{ warehouseError }}</p>
             } @else {
@@ -136,20 +126,18 @@
               for="opening-product"
               [required]="fieldRequired(form.controls.productId)"
             />
-            <select
+            <agrivio-ui-searchable-dropdown
               id="opening-product"
-              class="ag-select"
+              testId="opening-product"
               formControlName="productId"
-              data-testid="opening-product"
-              [class.ag-input--invalid]="fieldError(form.controls.productId, 'Product', formSubmitAttempted())"
-              [attr.aria-required]="fieldRequired(form.controls.productId) ? 'true' : null"
-              [attr.aria-invalid]="fieldError(form.controls.productId, 'Product', formSubmitAttempted()) ? 'true' : null"
-            >
-              <option value="" disabled>Select product</option>
-              @for (product of products(); track product.id) {
-              <option [value]="product.id">{{ product.name }} ({{ product.trackingMode }})</option>
-              }
-            </select>
+              [options]="productOptions()"
+              placeholder="Select product"
+              [serverSearch]="true"
+              [selectedLabel]="productSelectedLabel()"
+              (searchChange)="onProductComboboxSearch($event)"
+              [error]="fieldError(form.controls.productId, 'Product', formSubmitAttempted())"
+              [required]="fieldRequired(form.controls.productId)"
+            />
             @if (fieldError(form.controls.productId, 'Product', formSubmitAttempted()); as productError) {
             <p class="field-error" role="alert">{{ productError }}</p>
             } @else {
@@ -216,17 +204,14 @@
           @if (showOpeningStockPackaging()) {
           <div class="ag-field">
             <agrivio-ui-field-label label="Packaging Unit (Optional)" for="opening-packaging" />
-            <select
+            <agrivio-ui-searchable-dropdown
               id="opening-packaging"
-              class="ag-select"
+              testId="opening-packaging"
               formControlName="packagingUnitId"
-              data-testid="opening-packaging"
-            >
-              <option value="">Base unit</option>
-              @for (unit of packagingUnits(); track unit.id) {
-              <option [value]="unit.id">{{ unit.name }} (×{{ unit.conversionFactor }})</option>
-              }
-            </select>
+              [options]="packagingOptions()"
+              placeholder="Base unit"
+              [clearable]="true"
+            />
             <p class="field-hint">Optional packaging unit conversion.</p>
           </div>
           }

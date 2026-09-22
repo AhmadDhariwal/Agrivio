@@ -93,39 +93,33 @@
             @if (canUseBranchFilter()) {
               <div class="filter-field">
                 <label class="filter-field__label" for="dash-branch">Branch</label>
-                <select
+                <agrivio-ui-searchable-dropdown
                   id="dash-branch"
-                  class="filter-field__select"
-                  [ngModel]="branchId()"
-                  (ngModelChange)="branchId.set($event)"
-                  name="branchId"
+                  testId="dashboard-branch-select"
+                  [value]="branchId()"
+                  (valueChange)="branchId.set($event)"
+                  [options]="branchOptions()"
+                  allOptionLabel="All permitted branches"
+                  [clearable]="true"
                   [disabled]="filtersLoading()"
-                  data-testid="dashboard-branch-select"
-                >
-                  <option value="">All permitted branches</option>
-                  @for (branch of branches(); track branch.id) {
-                    <option [value]="branch.id">{{ branch.name }}</option>
-                  }
-                </select>
+                  placeholder="All permitted branches"
+                />
               </div>
             }
             @if (canUseWarehouseFilter()) {
               <div class="filter-field">
                 <label class="filter-field__label" for="dash-warehouse">Warehouse</label>
-                <select
+                <agrivio-ui-searchable-dropdown
                   id="dash-warehouse"
-                  class="filter-field__select"
-                  [ngModel]="warehouseId()"
-                  (ngModelChange)="warehouseId.set($event)"
-                  name="warehouseId"
+                  testId="dashboard-warehouse-select"
+                  [value]="warehouseId()"
+                  (valueChange)="warehouseId.set($event)"
+                  [options]="warehouseOptions()"
+                  allOptionLabel="All permitted warehouses"
+                  [clearable]="true"
                   [disabled]="filtersLoading()"
-                  data-testid="dashboard-warehouse-select"
-                >
-                  <option value="">All permitted warehouses</option>
-                  @for (warehouse of warehouses(); track warehouse.id) {
-                    <option [value]="warehouse.id">{{ warehouse.name }}</option>
-                  }
-                </select>
+                  placeholder="All permitted warehouses"
+                />
               </div>
             }
           </div>
@@ -198,9 +192,9 @@
       }
 
       <div class="dashboard-content-body" [class.dashboard-content-body--dimmed]="loading()">
-        <!-- 1. Primary Financial KPI Row (5 Cards) -->
+        <!-- 1. Primary Financial KPI Row (4 Cards) -->
     @if (canShowFinancialSummary() && data.periodSales !== undefined) {
-      <section class="kpi-row kpi-row--primary" aria-label="Primary Financial Summary">
+      <section class="kpi-row kpi-row--primary" aria-label="Trading and Profitability Summary">
         <!-- Sales (Period) -->
         @if (canViewSales()) {
           <a routerLink="/app/sales" class="kpi-card kpi-card--link" data-testid="dash-card-sales">
@@ -331,8 +325,13 @@
             </div>
           </div>
         }
+      </section>
+    }
 
-        <!-- Customer Receivables (Current Balance) -->
+    <!-- 2. Customer & Supplier Working Capital (6 Cards) -->
+    @if (hasWorkingCapitalCards()) {
+      <section class="kpi-row kpi-row--credit" aria-label="Customer and Supplier Working Capital">
+        <!-- Customer Financial Position -->
         @if (canViewCustomers()) {
           <a routerLink="/app/customers" class="kpi-card kpi-card--link" data-testid="dash-card-receivables">
             <div class="kpi-card__icon kpi-card__icon--purple">
@@ -344,8 +343,8 @@
               </svg>
             </div>
             <div class="kpi-card__content">
-              <span class="kpi-card__label">Customer Receivables</span>
-              <span class="kpi-card__value" data-testid="dash-receivables">{{ formatMoney(data.customerReceivables) }}</span>
+              <span class="kpi-card__label">Total Receivable</span>
+              <span class="kpi-card__value" data-testid="dash-receivables">{{ formatMoney(data.totalReceivable) }}</span>
               <span class="kpi-card__subtext">Current ledger balance</span>
             </div>
           </a>
@@ -360,19 +359,70 @@
               </svg>
             </div>
             <div class="kpi-card__content">
-              <span class="kpi-card__label">Customer Receivables</span>
-              <span class="kpi-card__value" data-testid="dash-receivables">{{ formatMoney(data.customerReceivables) }}</span>
+              <span class="kpi-card__label">Total Receivable</span>
+              <span class="kpi-card__value" data-testid="dash-receivables">{{ formatMoney(data.totalReceivable) }}</span>
               <span class="kpi-card__subtext">Current ledger balance</span>
             </div>
           </div>
         }
-      </section>
-    }
 
-    <!-- 2. Secondary Financial & Account KPI Row (6 Cards) -->
-    @if (hasSecondaryCards()) {
-      <section class="kpi-row kpi-row--secondary" aria-label="Account Balances and Payables">
-        <!-- Supplier Payables -->
+        @if (canViewCustomers()) {
+          <a routerLink="/app/customers" class="kpi-card kpi-card--link" data-testid="dash-card-customer-advance">
+            <div class="kpi-card__icon kpi-card__icon--green">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9" /><path d="M8 12h8" /><path d="m13 9 3 3-3 3" />
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Total Customer Advance</span>
+              <span class="kpi-card__value" data-testid="dash-customer-advance">{{ formatMoney(data.totalCustomerAdvance) }}</span>
+              <span class="kpi-card__subtext">Available ledger balance</span>
+            </div>
+          </a>
+        } @else {
+          <div class="kpi-card" data-testid="dash-card-customer-advance">
+            <div class="kpi-card__icon kpi-card__icon--green">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9" /><path d="M8 12h8" /><path d="m13 9 3 3-3 3" />
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Total Customer Advance</span>
+              <span class="kpi-card__value" data-testid="dash-customer-advance">{{ formatMoney(data.totalCustomerAdvance) }}</span>
+              <span class="kpi-card__subtext">Available ledger balance</span>
+            </div>
+          </div>
+        }
+
+        @if (canViewCustomers()) {
+          <a routerLink="/app/customers" class="kpi-card kpi-card--link" data-testid="dash-card-net-exposure">
+            <div class="kpi-card__icon kpi-card__icon--purple">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19V5" /><path d="M4 19h16" /><path d="m7 15 4-4 3 2 4-6" />
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Net Exposure</span>
+              <span class="kpi-card__value" data-testid="dash-net-exposure">{{ formatMoney(data.netExposure) }}</span>
+              <span class="kpi-card__subtext">Receivable less advance</span>
+            </div>
+          </a>
+        } @else {
+          <div class="kpi-card" data-testid="dash-card-net-exposure">
+            <div class="kpi-card__icon kpi-card__icon--purple">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19V5" /><path d="M4 19h16" /><path d="m7 15 4-4 3 2 4-6" />
+              </svg>
+            </div>
+            <div class="kpi-card__content">
+              <span class="kpi-card__label">Net Exposure</span>
+              <span class="kpi-card__value" data-testid="dash-net-exposure">{{ formatMoney(data.netExposure) }}</span>
+              <span class="kpi-card__subtext">Receivable less advance</span>
+            </div>
+          </div>
+        }
+
+        <!-- Supplier Financial Position (3 Cards) -->
         @if (canShowFinancialSummary() && data.supplierPayables !== undefined) {
           @if (canViewSuppliers()) {
             <a routerLink="/app/suppliers" class="kpi-card kpi-card--link" data-testid="dash-card-payables">
@@ -407,6 +457,71 @@
           }
         }
 
+        @if (canShowFinancialSummary() && data.totalSupplierAdvance !== undefined) {
+          @if (canViewSuppliers()) {
+            <a routerLink="/app/suppliers" class="kpi-card kpi-card--link" data-testid="dash-card-supplier-advance">
+              <div class="kpi-card__icon kpi-card__icon--green">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="9" /><path d="M8 12h8" /><path d="m13 9 3 3-3 3" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Supplier Advance</span>
+                <span class="kpi-card__value" data-testid="dash-supplier-advance">{{ formatMoney(data.totalSupplierAdvance) }}</span>
+                <span class="kpi-card__subtext">Available ledger balance</span>
+              </div>
+            </a>
+          } @else {
+            <div class="kpi-card" data-testid="dash-card-supplier-advance">
+              <div class="kpi-card__icon kpi-card__icon--green">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="9" /><path d="M8 12h8" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Supplier Advance</span>
+                <span class="kpi-card__value" data-testid="dash-supplier-advance">{{ formatMoney(data.totalSupplierAdvance) }}</span>
+                <span class="kpi-card__subtext">Available ledger balance</span>
+              </div>
+            </div>
+          }
+        }
+
+        @if (canShowFinancialSummary() && data.netSupplierPayable !== undefined) {
+          @if (canViewSuppliers()) {
+            <a routerLink="/app/suppliers" class="kpi-card kpi-card--link" data-testid="dash-card-net-supplier-payable">
+              <div class="kpi-card__icon kpi-card__icon--purple">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 19V5" /><path d="M4 19h16" /><path d="m7 15 4-4 3 2 4-6" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Net Supplier Payable</span>
+                <span class="kpi-card__value" data-testid="dash-net-supplier-payable">{{ formatMoney(data.netSupplierPayable) }}</span>
+                <span class="kpi-card__subtext">Payable less advance</span>
+              </div>
+            </a>
+          } @else {
+            <div class="kpi-card" data-testid="dash-card-net-supplier-payable">
+              <div class="kpi-card__icon kpi-card__icon--purple">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 19V5" /><path d="M4 19h16" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Net Supplier Payable</span>
+                <span class="kpi-card__value" data-testid="dash-net-supplier-payable">{{ formatMoney(data.netSupplierPayable) }}</span>
+                <span class="kpi-card__subtext">Payable less advance</span>
+              </div>
+            </div>
+          }
+        }
+      </section>
+    }
+
+    <!-- 3. Account Balances & Inventory Valuation (5 Cards) -->
+    @if (hasSecondaryCards()) {
+      <section class="kpi-row kpi-row--secondary" aria-label="Account Balances and Inventory Valuation">
         <!-- Cash -->
         @if (canShowAccountSummary() && data.cashBalances !== undefined) {
           @if (canViewAccounts()) {
@@ -866,7 +981,7 @@
                           </div>
                         </td>
                         <td class="prod-table__td col-date">
-                          <span class="date-text">{{ sale.saleDate }}</span>
+                          <span class="date-text">{{ sale.saleDate | agDate }}</span>
                         </td>
                         <td class="prod-table__td col-total">
                           <span class="total-text">{{ formatMoney(sale.saleTotal) }}</span>
@@ -899,7 +1014,7 @@
                     <div class="sale-mobile-card__body">
                       <div class="sale-mobile-card__meta">
                         <span class="sale-mobile-card__label">Date</span>
-                        <span class="sale-mobile-card__val">{{ sale.saleDate }}</span>
+                        <span class="sale-mobile-card__val">{{ sale.saleDate | agDate }}</span>
                       </div>
                       <div class="sale-mobile-card__meta sale-mobile-card__meta--total">
                         <span class="sale-mobile-card__label">Total</span>
@@ -919,13 +1034,13 @@
         <footer class="dashboard-footer" data-testid="dashboard-context-footer">
           <div class="dashboard-footer__left">
             <span data-testid="dashboard-period-summary">
-              Showing summary for {{ data.period?.fromDate || 'start' }} to {{ data.period?.toDate || 'now' }}
+              Showing summary for {{ data.period?.fromDate ? (data.period.fromDate | agDate) : 'start' }} to {{ data.period?.toDate ? (data.period.toDate | agDate) : 'now' }}
             </span>
           </div>
           <div class="dashboard-footer__right">
             <span>All amounts in PKR</span>
             <span class="footer-divider">&bull;</span>
-            <span data-testid="dashboard-business-date">Business date: {{ data.businessDate }}</span>
+            <span data-testid="dashboard-business-date">Business date: {{ data.businessDate | agDate }}</span>
           </div>
         </footer>
       </div>

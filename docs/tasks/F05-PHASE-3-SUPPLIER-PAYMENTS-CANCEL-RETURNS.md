@@ -69,6 +69,16 @@
 * Date selections remain staged until Apply is clicked; applying or clearing a filter bypasses the short-lived list cache and reloads authoritative results.
 * Shared backend validation rejects invalid, reversed, and ambiguous date filters before querying.
 
+### Post-audit supplier accounting correction (2026-09-22)
+
+* General supplier payments now use the customer receivable-target pattern: a synthetic dated opening target is combined with posted transaction targets and passed through the existing FIFO allocator. Supplier opening payable is therefore settled before later purchases, and only the true excess becomes supplier advance.
+* Purchase posting consumes available supplier advance after direct purchase payments through paired immutable `payable` and `supplier_advance` effects. Purchase cancellation appends linked compensating effects that reverse the payable application and restore the consumed advance exactly once.
+* Supplier DTOs and reconciliation derive gross payable, gross advance, and net payable (`payable - advance`) from posted ledger effects. Reconciliation reports legacy payable/advance coexistence without mutating history.
+* Dashboard financial summary retains gross Supplier Payables and adds Total Supplier Advance plus Net Supplier Payable from the same ledger source. Supplier ledger/detail views expose net payable and human-readable advance application/restoration entries.
+* Inventory receipt values, landed-cost allocation, stock movements, WAC, batches, and expiry behavior are unchanged.
+
+Model review: existing tenant-owned `ledger_effects` and `payment_allocations` remain Payments/Ledgers-owned, organization-scoped, append-only, and transactionally written. The changes are backward-compatible enum extensions for supplier advance consumption/restoration sources and the `supplier_opening_payable` allocation target; no new mutable balance field, collection, backfill, or destructive migration is introduced. Existing org-leading lookup indexes remain appropriate, operational source uniqueness provides idempotency for each purchase/source pair, and focused HTTP plus reconciliation tests cover allocation persistence and reversal behavior. Real-Mongo transaction/index verification remains part of the focused Mongo suite.
+
 ## Next
 
 * F06 Sales/POS may begin after F04 exit acceptance (does not require F05)

@@ -201,6 +201,7 @@ function loadApiEnv(env = process.env) {
     }
   }
   const allowLoopbackBrowserOrigins = nodeEnv !== 'production';
+  const sessionCookieSameSite = nodeEnv === 'production' && profile === 'staging' ? 'None' : 'Lax';
 
   const smtpHost = env['AGRIVIO_SMTP_HOST'];
   if (nodeEnv === 'production' && !isNonEmptyString(smtpHost)) {
@@ -300,6 +301,7 @@ function loadApiEnv(env = process.env) {
     publicWebBaseUrl,
     allowedOrigins,
     allowLoopbackBrowserOrigins,
+    sessionCookieSameSite,
     allowE2eBootstrap: allowE2eBootstrap && nodeEnv !== 'production',
     skipMongo: skipMongo && nodeEnv === 'test',
     smtpHost: isNonEmptyString(smtpHost) ? smtpHost.trim() : '',
@@ -332,6 +334,7 @@ function toSafeApiEnvSummary(config) {
     publicWebBaseUrl: config.publicWebBaseUrl,
     allowedOrigins: config.allowedOrigins,
     allowLoopbackBrowserOrigins: config.allowLoopbackBrowserOrigins === true,
+    sessionCookieSameSite: config.sessionCookieSameSite,
     smtpConfigured: config.smtpHost ? 'yes' : 'no',
     mongodbUriConfigured: 'yes',
     sessionSecretConfigured: 'yes',

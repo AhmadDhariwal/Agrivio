@@ -34,7 +34,21 @@ import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-e
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
+import {
+  DropdownOption,
+  UiSearchableDropdownComponent,
+} from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import {
+  formatBranchOption,
+  formatCategoryOption,
+  formatCustomerOption,
+  formatProductOption,
+  formatSupplierOption,
+  formatUserOption,
+  formatWarehouseOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { formatQuantity } from '../../../../shared/chart/chart-format.util';
+import { formatAppDate, formatAppDateTime } from '../../../../shared/format/date-time.util';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
 @Component({
@@ -48,6 +62,7 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
     UiLoadingStateComponent,
     UiModuleInfoComponent,
     UiPaginationComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './reports.page.html',
   styleUrl: './reports.page.scss',
@@ -103,6 +118,38 @@ export class ReportsPage {
   readonly categories = signal<CategoryRecord[]>([]);
   readonly employees = signal<EmployeeRecord[]>([]);
   readonly accounts = signal<AccountRecord[]>([]);
+
+  readonly branchOptions = computed<DropdownOption[]>(() =>
+    this.branches().map(formatBranchOption),
+  );
+  readonly warehouseOptions = computed<DropdownOption[]>(() =>
+    this.warehouses().map(formatWarehouseOption),
+  );
+  readonly customerOptions = computed<DropdownOption[]>(() =>
+    this.customers().map(formatCustomerOption),
+  );
+  readonly supplierOptions = computed<DropdownOption[]>(() =>
+    this.suppliers().map(formatSupplierOption),
+  );
+  readonly productOptions = computed<DropdownOption[]>(() =>
+    this.products().map(formatProductOption),
+  );
+  readonly categoryOptions = computed<DropdownOption[]>(() =>
+    this.categories().map(formatCategoryOption),
+  );
+  readonly employeeOptions = computed<DropdownOption[]>(() =>
+    this.employees().map(formatUserOption),
+  );
+  readonly accountOptions = computed<DropdownOption[]>(() =>
+    this.accounts().map((acc) => {
+      const typeStr = acc.accountType || (acc as { type?: string }).type || '';
+      return {
+        value: acc.id,
+        label: acc.name,
+        meta: typeStr || undefined,
+      };
+    }),
+  );
 
   private readonly loadedLookups = {
     branches: false,
@@ -307,46 +354,39 @@ export class ReportsPage {
       });
   }
 
-  onCustomerSearch(event: Event): void {
-    const target = event.target;
-    if (target instanceof HTMLInputElement) {
-      this.customerSearchChanges.next(target.value.trim());
+  private extractSearchQuery(eventOrQuery: Event | string): string {
+    if (typeof eventOrQuery === 'string') {
+      return eventOrQuery.trim();
     }
+    const target = eventOrQuery.target;
+    if (target instanceof HTMLInputElement) {
+      return target.value.trim();
+    }
+    return '';
   }
 
-  onSupplierSearch(event: Event): void {
-    const target = event.target;
-    if (target instanceof HTMLInputElement) {
-      this.supplierSearchChanges.next(target.value.trim());
-    }
+  onCustomerSearch(eventOrQuery: Event | string): void {
+    this.customerSearchChanges.next(this.extractSearchQuery(eventOrQuery));
   }
 
-  onProductSearch(event: Event): void {
-    const target = event.target;
-    if (target instanceof HTMLInputElement) {
-      this.productSearchChanges.next(target.value.trim());
-    }
+  onSupplierSearch(eventOrQuery: Event | string): void {
+    this.supplierSearchChanges.next(this.extractSearchQuery(eventOrQuery));
   }
 
-  onCategorySearch(event: Event): void {
-    const target = event.target;
-    if (target instanceof HTMLInputElement) {
-      this.categorySearchChanges.next(target.value.trim());
-    }
+  onProductSearch(eventOrQuery: Event | string): void {
+    this.productSearchChanges.next(this.extractSearchQuery(eventOrQuery));
   }
 
-  onEmployeeSearch(event: Event): void {
-    const target = event.target;
-    if (target instanceof HTMLInputElement) {
-      this.employeeSearchChanges.next(target.value.trim());
-    }
+  onCategorySearch(eventOrQuery: Event | string): void {
+    this.categorySearchChanges.next(this.extractSearchQuery(eventOrQuery));
   }
 
-  onAccountSearch(event: Event): void {
-    const target = event.target;
-    if (target instanceof HTMLInputElement) {
-      this.accountSearchChanges.next(target.value.trim());
-    }
+  onEmployeeSearch(eventOrQuery: Event | string): void {
+    this.employeeSearchChanges.next(this.extractSearchQuery(eventOrQuery));
+  }
+
+  onAccountSearch(eventOrQuery: Event | string): void {
+    this.accountSearchChanges.next(this.extractSearchQuery(eventOrQuery));
   }
 
   private setupFilterSearchStreams(): void {
@@ -640,11 +680,22 @@ export class ReportsPage {
       return this.humanizeMetric(str);
     }
 
-    // Date formatting for ISO strings
-    if (columnKey === 'postedAt' || columnKey === 'createdAt') {
-      if (str.includes('T')) {
-        return str.split('T')[0] ?? str;
-      }
+    // Instant timestamp columns
+    if (['postedAt', 'createdAt', 'occurredAt', 'timestamp'].includes(columnKey)) {
+      return formatAppDateTime(str);
+    }
+
+    // Date-only calendar columns
+    if (
+      ['saleDate', 'purchaseDate', 'expenseDate', 'paymentDate', 'businessDate', 'date'].includes(
+        columnKey,
+      )
+    ) {
+      return formatAppDate(str);
+    }
+
+    if (columnKey === 'groupLabel' && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
+      return formatAppDate(str);
     }
 
     // Account Type humanization
@@ -674,11 +725,29 @@ export class ReportsPage {
     if (columnKey === 'sourceType') {
       const sources: Record<string, string> = {
         customer_opening_receivable: 'Opening Receivable',
+        customer_opening_advance: 'Opening Advance',
         supplier_opening_payable: 'Opening Payable',
+        supplier_opening_advance: 'Opening Advance',
         customer_payment: 'Customer Payment',
+        customer_payment_allocation: 'Payment Received',
+        customer_payment_advance: 'Customer Advance Received',
+        customer_advance_consumption: 'Advance Consumed',
+        customer_advance_application: 'Advance Applied to Sale',
         supplier_payment: 'Supplier Payment',
+        supplier_payment_allocation: 'Payment to Supplier',
+        supplier_payment_advance: 'Advance Paid to Supplier',
+        supplier_advance_application: 'Advance Applied to Purchase',
+        supplier_advance_consumption: 'Supplier Advance Consumed',
+        purchase_cancellation_advance_payable_reversal: 'Advance Application Reversed',
+        purchase_cancellation_advance_reinstatement: 'Supplier Advance Restored',
         sale: 'Sale Invoice',
+        sale_receivable: 'Sale Invoice',
         purchase: 'Purchase',
+        purchase_payable: 'Purchase Payable',
+        sale_cancellation: 'Sale Cancelled',
+        sale_cancellation_advance_reinstatement: 'Customer Advance Restored',
+        sale_cancellation_advance_receivable_reversal: 'Advance Application Reversed',
+        purchase_cancellation: 'Purchase Cancelled',
         sales_return: 'Sales Return',
         purchase_return: 'Purchase Return',
         account_opening: 'Account Opening',
