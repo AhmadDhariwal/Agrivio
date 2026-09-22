@@ -192,9 +192,9 @@
       }
 
       <div class="dashboard-content-body" [class.dashboard-content-body--dimmed]="loading()">
-        <!-- 1. Primary Financial KPI Row (5 Cards) -->
+        <!-- 1. Primary Financial KPI Row (4 Cards) -->
     @if (canShowFinancialSummary() && data.periodSales !== undefined) {
-      <section class="kpi-row kpi-row--primary" aria-label="Primary Financial Summary">
+      <section class="kpi-row kpi-row--primary" aria-label="Trading and Profitability Summary">
         <!-- Sales (Period) -->
         @if (canViewSales()) {
           <a routerLink="/app/sales" class="kpi-card kpi-card--link" data-testid="dash-card-sales">
@@ -325,7 +325,12 @@
             </div>
           </div>
         }
+      </section>
+    }
 
+    <!-- 2. Customer & Supplier Working Capital (6 Cards) -->
+    @if (hasWorkingCapitalCards()) {
+      <section class="kpi-row kpi-row--credit" aria-label="Customer and Supplier Working Capital">
         <!-- Customer Financial Position -->
         @if (canViewCustomers()) {
           <a routerLink="/app/customers" class="kpi-card kpi-card--link" data-testid="dash-card-receivables">
@@ -416,13 +421,8 @@
             </div>
           </div>
         }
-      </section>
-    }
 
-    <!-- 2. Secondary Financial & Account KPI Row (6 Cards) -->
-    @if (hasSecondaryCards()) {
-      <section class="kpi-row kpi-row--secondary" aria-label="Account Balances and Payables">
-        <!-- Supplier Payables -->
+        <!-- Supplier Financial Position (3 Cards) -->
         @if (canShowFinancialSummary() && data.supplierPayables !== undefined) {
           @if (canViewSuppliers()) {
             <a routerLink="/app/suppliers" class="kpi-card kpi-card--link" data-testid="dash-card-payables">
@@ -516,7 +516,12 @@
             </div>
           }
         }
+      </section>
+    }
 
+    <!-- 3. Account Balances & Inventory Valuation (5 Cards) -->
+    @if (hasSecondaryCards()) {
+      <section class="kpi-row kpi-row--secondary" aria-label="Account Balances and Inventory Valuation">
         <!-- Cash -->
         @if (canShowAccountSummary() && data.cashBalances !== undefined) {
           @if (canViewAccounts()) {

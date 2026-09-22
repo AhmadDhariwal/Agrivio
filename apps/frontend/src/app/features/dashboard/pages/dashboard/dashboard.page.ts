@@ -140,15 +140,25 @@ export class DashboardPage {
       this.canShowRecentSales(),
   );
 
+  readonly hasWorkingCapitalCards = computed(() => {
+    const data = this.dashboard();
+    if (!data) return false;
+    return (
+      this.canShowFinancialSummary() &&
+      (data.totalReceivable !== undefined ||
+        data.totalCustomerAdvance !== undefined ||
+        data.netExposure !== undefined ||
+        data.supplierPayables !== undefined ||
+        data.totalSupplierAdvance !== undefined ||
+        data.netSupplierPayable !== undefined)
+    );
+  });
+
   readonly hasSecondaryCards = computed(() => {
     const data = this.dashboard();
     if (!data) return false;
     const hasFinancial =
-      this.canShowFinancialSummary() &&
-      (data.supplierPayables !== undefined ||
-        data.totalSupplierAdvance !== undefined ||
-        data.netSupplierPayable !== undefined ||
-        data.stockValuation !== undefined);
+      this.canShowFinancialSummary() && data.stockValuation !== undefined;
     const hasAccounts =
       this.canShowAccountSummary() &&
       (data.cashBalances !== undefined ||
