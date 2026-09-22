@@ -27,7 +27,7 @@ function sumAllocations(allocations) {
     if (String(item.status ?? 'posted') !== 'posted') {
       continue;
     }
-    if (String(item.targetType) !== 'purchase') {
+    if (!['purchase', 'supplier_opening_payable'].includes(String(item.targetType))) {
       continue;
     }
     total += toBigInt(item.allocatedAmountMinorUnits);
@@ -60,6 +60,17 @@ function reconcileSupplierLedgerState(input) {
   const advanceSum = sumByEffectKind(effects, 'supplier_advance');
   const allocationSum = sumAllocations(allocations);
   const accountMovementSum = sumAccountMovements(accountMovements);
+  const netPayable = payableSum - advanceSum;
+
+  if (payableSum > 0n && advanceSum > 0n) {
+    findings.push({
+      code: 'UNALLOCATED_SUPPLIER_ADVANCE_WITH_PAYABLE',
+      payableMinorUnits: payableSum.toString(),
+      advanceMinorUnits: advanceSum.toString(),
+      netPayableMinorUnits: netPayable.toString(),
+      message: 'Unallocated supplier advance coexists with supplier payable',
+    });
+  }
 
   if (
     input.expectedPayableMinorUnits !== undefined &&
@@ -133,6 +144,7 @@ function reconcileSupplierLedgerState(input) {
     ok: findings.length === 0,
     payableMinorUnits: payableSum.toString(),
     advanceMinorUnits: advanceSum.toString(),
+    netPayableMinorUnits: netPayable.toString(),
     allocationTotalMinorUnits: allocationSum.toString(),
     accountMovementTotalMinorUnits: accountMovementSum.toString(),
     findings,

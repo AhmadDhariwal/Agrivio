@@ -766,6 +766,254 @@ describe('F05 P3 supplier payments, cancellations, returns, and reconciliation',
     }
   }, 180000);
 
+  it('settles opening payable before advance, consumes advance on purchase, and restores it once on cancellation', async () => {
+    const { server, baseUrl, jar, ledgers } = await boot();
+
+    try {
+      await seedPlan(baseUrl, jar);
+      const org = await createApprovedOwner(baseUrl, jar, {
+        organizationName: 'Supplier Advance Correction Org',
+        ownerEmail: 'supplier-advance-correction@example.com',
+        password: 'a-strong-passphrase',
+      });
+      await login(
+        baseUrl,
+        jar,
+        'supplier-advance-correction@example.com',
+        'a-strong-passphrase',
+      );
+
+      const supplier = await fetchJson(
+        baseUrl,
+        'POST',
+        API_SUPPLIERS_PATH,
+        { name: 'Advance Correctness Supplier', phone: '03009990001' },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      const supplierId = supplier.body.data.id;
+      const opening = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_SUPPLIERS_PATH}/${supplierId}/opening-balance`,
+        { kind: 'payable', amount: { amount: '100.00', currency: 'PKR' } },
+        {
+          [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+          [API_IDEMPOTENCY_KEY_HEADER]: 'supplier-opening-payable',
+        },
+        jar,
+      );
+      expect(opening.status).toBe(201);
+
+      const cash = await fetchJson(
+        baseUrl,
+        'POST',
+        API_ACCOUNTS_PATH,
+        { name: 'Advance Test Cash', accountType: 'cash' },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      const cashId = cash.body.data.id;
+      await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_ACCOUNTS_PATH}/${cashId}/opening-balance`,
+        { amount: { amount: '1000.00', currency: 'PKR' } },
+        {
+          [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+          [API_IDEMPOTENCY_KEY_HEADER]: 'supplier-advance-cash-opening',
+        },
+        jar,
+      );
+
+      const postGeneralPayment = async (amount, key) =>
+        fetchJson(
+          baseUrl,
+          'POST',
+          API_SUPPLIER_PAYMENTS_PATH,
+          {
+            supplierId,
+            accountId: cashId,
+            amount: { amount, currency: 'PKR' },
+            paymentDate: '2026-09-22',
+            allocationMode: 'general',
+          },
+          {
+            [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+            [API_IDEMPOTENCY_KEY_HEADER]: key,
+          },
+          jar,
+        );
+
+      const partial = await postGeneralPayment('60.00', 'opening-partial-payment');
+      expect(partial.status).toBe(201);
+      expect(partial.body.data.allocations).toContainEqual(
+        expect.objectContaining({
+          targetType: 'supplier_opening_payable',
+          targetId: supplierId,
+          allocatedAmount: { amount: '60.00', currency: 'PKR' },
+        }),
+      );
+      expect((await ledgers.ledgersService.sumSupplierPayable(org.organizationId, supplierId)).amount).toBe('40.00');
+      expect((await ledgers.ledgersService.sumSupplierAdvance(org.organizationId, supplierId)).amount).toBe('0.00');
+
+      const overpayment = await postGeneralPayment('60.00', 'opening-overpayment');
+      expect(overpayment.status).toBe(201);
+      expect(overpayment.body.data.allocations).toContainEqual(
+        expect.objectContaining({
+          targetType: 'supplier_opening_payable',
+          allocatedAmount: { amount: '40.00', currency: 'PKR' },
+        }),
+      );
+      expect(overpayment.body.data.allocations).toContainEqual(
+        expect.objectContaining({
+          targetType: 'supplier_advance',
+          allocatedAmount: { amount: '20.00', currency: 'PKR' },
+        }),
+      );
+
+      const warehouse = await fetchJson(
+        baseUrl,
+        'POST',
+        API_WAREHOUSES_PATH,
+        { name: 'Advance Test Warehouse' },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      const category = await fetchJson(
+        baseUrl,
+        'POST',
+        API_PRODUCT_CATEGORIES_PATH,
+        { name: 'Advance Test Category', productClass: 'general' },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      const product = await fetchJson(
+        baseUrl,
+        'POST',
+        API_PRODUCTS_PATH,
+        {
+          name: 'Advance Test Product',
+          categoryId: category.body.data.id,
+          trackingMode: 'none',
+          baseUnitCode: 'KG',
+          measurementDimension: 'mass',
+        },
+        { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+
+      const postPurchase = async (amount, suffix) => {
+        const draft = await fetchJson(
+          baseUrl,
+          'POST',
+          API_PURCHASES_PATH,
+          {
+            warehouseId: warehouse.body.data.id,
+            supplierId,
+            purchaseDate: '2026-09-22',
+            lines: [
+              {
+                productId: product.body.data.id,
+                quantity: '1',
+                unitCost: { amount, currency: 'PKR' },
+              },
+            ],
+            landedCosts: { freight: { amount: '0.00', currency: 'PKR' } },
+          },
+          { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+          jar,
+        );
+        const posted = await fetchJson(
+          baseUrl,
+          'POST',
+          `${API_PURCHASES_PATH}/${draft.body.data.id}/post`,
+          { expectedVersion: draft.body.data.version, payments: [] },
+          {
+            [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+            [API_IDEMPOTENCY_KEY_HEADER]: `advance-purchase-${suffix}`,
+          },
+          jar,
+        );
+        expect(posted.status).toBe(200);
+        return posted.body.data;
+      };
+
+      const coveredPurchase = await postPurchase('15.00', 'covered');
+      expect(coveredPurchase.payableTotal.amount).toBe('0.00');
+      expect((await ledgers.ledgersService.sumSupplierAdvance(org.organizationId, supplierId)).amount).toBe('5.00');
+      expect((await ledgers.ledgersService.sumSupplierPayable(org.organizationId, supplierId)).amount).toBe('0.00');
+
+      const cancelBody = {
+        expectedVersion: coveredPurchase.version,
+        reason: 'Verify advance restoration',
+      };
+      const cancelHeaders = {
+        [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),
+        [API_IDEMPOTENCY_KEY_HEADER]: 'advance-purchase-cancel',
+      };
+      const cancelled = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_PURCHASES_PATH}/${coveredPurchase.id}/cancel`,
+        cancelBody,
+        cancelHeaders,
+        jar,
+      );
+      expect(cancelled.status).toBe(200);
+      const replay = await fetchJson(
+        baseUrl,
+        'POST',
+        `${API_PURCHASES_PATH}/${coveredPurchase.id}/cancel`,
+        cancelBody,
+        { ...cancelHeaders, [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) },
+        jar,
+      );
+      expect(replay.status).toBe(200);
+      expect((await ledgers.ledgersService.sumSupplierAdvance(org.organizationId, supplierId)).amount).toBe('20.00');
+      const restoredEffects = await ledgers.ledgersService.listEffectsBySource(
+        org.organizationId,
+        'purchase_cancellation_advance_reinstatement',
+        coveredPurchase.id,
+      );
+      expect(restoredEffects).toHaveLength(1);
+
+      const partiallyCoveredPurchase = await postPurchase('25.00', 'partial');
+      expect(partiallyCoveredPurchase.payableTotal.amount).toBe('5.00');
+      expect((await ledgers.ledgersService.sumSupplierAdvance(org.organizationId, supplierId)).amount).toBe('0.00');
+      expect((await ledgers.ledgersService.sumSupplierPayable(org.organizationId, supplierId)).amount).toBe('5.00');
+
+      const supplierDetail = await fetchJson(
+        baseUrl,
+        'GET',
+        `${API_SUPPLIERS_PATH}/${supplierId}`,
+        null,
+        {},
+        jar,
+      );
+      expect(supplierDetail.status).toBe(200);
+      expect(supplierDetail.body.data.derivedBalances).toEqual({
+        payable: { amount: '5.00', currency: 'PKR' },
+        advance: { amount: '0.00', currency: 'PKR' },
+        netPayable: { amount: '5.00', currency: 'PKR' },
+      });
+
+      const reconciliation = await fetchJson(
+        baseUrl,
+        'GET',
+        `${API_SUPPLIERS_PATH}/${supplierId}/reconciliation`,
+        null,
+        {},
+        jar,
+      );
+      expect(reconciliation.status).toBe(200);
+      expect(reconciliation.body.data.ok).toBe(true);
+      expect(reconciliation.body.data.netPayable.amount).toBe('5.00');
+    } finally {
+      await close(server);
+    }
+  }, 180000);
+
   it('architecture: returns module must not import foreign persistence models', () => {
     const violations = scanForeignPersistenceViolations(
       backendRoot,

@@ -137,6 +137,9 @@ function createReportingService(deps) {
         'totalCustomerAdvance',
         'netExposure',
         'supplierPayables',
+        'totalSupplierPayable',
+        'totalSupplierAdvance',
+        'netSupplierPayable',
         'stockValuation',
       ]);
     }
@@ -249,12 +252,15 @@ function createReportingService(deps) {
   }
 
   async function sumReceivablesPayables(organizationId) {
-    const [customers, advances, suppliers] = await Promise.all([
+    const [customers, advances, suppliers, supplierAdvances] = await Promise.all([
       paymentsService.listCustomerReceivableBalances(organizationId),
       typeof paymentsService.listCustomerAdvanceBalances === 'function'
         ? paymentsService.listCustomerAdvanceBalances(organizationId)
         : Promise.resolve({ items: [] }),
       paymentsService.listSupplierPayableBalances(organizationId),
+      typeof paymentsService.listSupplierAdvanceBalances === 'function'
+        ? paymentsService.listSupplierAdvanceBalances(organizationId)
+        : Promise.resolve({ items: [] }),
     ]);
     let receivable = 0n;
     for (const item of customers.items ?? []) {
@@ -268,12 +274,19 @@ function createReportingService(deps) {
     for (const item of suppliers.items ?? []) {
       payable += BigInt(String(item.payableMinorUnits ?? '0'));
     }
+    let supplierAdvance = 0n;
+    for (const item of supplierAdvances.items ?? []) {
+      supplierAdvance += BigInt(String(item.advanceMinorUnits ?? '0'));
+    }
     return {
       customerReceivables: toMoneyDto(receivable),
       totalReceivable: toMoneyDto(receivable),
       totalCustomerAdvance: toMoneyDto(advance),
       netExposure: toMoneyDto(receivable - advance),
       supplierPayables: toMoneyDto(payable),
+      totalSupplierPayable: toMoneyDto(payable),
+      totalSupplierAdvance: toMoneyDto(supplierAdvance),
+      netSupplierPayable: toMoneyDto(payable - supplierAdvance),
     };
   }
 

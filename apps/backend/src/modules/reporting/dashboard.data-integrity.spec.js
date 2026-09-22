@@ -129,6 +129,9 @@ describe('Dashboard End-to-End Data Integrity Verification', () => {
     const mockSupplierBalances = {
       items: [{ partyId: 'supp-1', payableMinorUnits: '85000' }], // 850.00
     };
+    const mockSupplierAdvances = {
+      items: [{ partyId: 'supp-2', advanceMinorUnits: '15000' }], // 150.00
+    };
 
     const mockAlertSummaries = {
       lowStockCount: 3,
@@ -155,6 +158,7 @@ describe('Dashboard End-to-End Data Integrity Verification', () => {
       listCustomerReceivableBalances: async () => mockCustomerBalances,
       listCustomerAdvanceBalances: async () => mockCustomerAdvances,
       listSupplierPayableBalances: async () => mockSupplierBalances,
+      listSupplierAdvanceBalances: async () => mockSupplierAdvances,
     };
 
     const alertsService = {
@@ -218,6 +222,9 @@ describe('Dashboard End-to-End Data Integrity Verification', () => {
 
     // 8. supplierPayables (850.00)
     expect(dashboard.supplierPayables).toEqual({ amount: '850.00', currency: 'PKR' });
+    expect(dashboard.totalSupplierPayable).toEqual({ amount: '850.00', currency: 'PKR' });
+    expect(dashboard.totalSupplierAdvance).toEqual({ amount: '150.00', currency: 'PKR' });
+    expect(dashboard.netSupplierPayable).toEqual({ amount: '700.00', currency: 'PKR' });
 
     // 9. cashBalances (5000.00)
     expect(dashboard.cashBalances).toEqual({ amount: '5000.00', currency: 'PKR' });

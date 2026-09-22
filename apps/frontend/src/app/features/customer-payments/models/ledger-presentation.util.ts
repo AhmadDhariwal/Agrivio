@@ -1,5 +1,4 @@
 import { formatAppDate, formatAppTime } from '../../../shared/format/date-time.util';
-import { CustomerLedgerEffectRecord } from './customer-payments.models';
 
 export interface HumanizedLedgerEntry {
   id: string;
@@ -35,7 +34,12 @@ const KNOWN_SOURCE_TITLES: Record<string, string> = {
   purchase_cancellation: 'Purchase Cancelled',
   supplier_payment_allocation: 'Payment Allocation',
   supplier_payment_advance: 'Supplier Advance Paid',
+  supplier_advance_application: 'Supplier Advance Applied',
+  supplier_advance_consumption: 'Supplier Advance Consumed',
+  purchase_cancellation_advance_payable_reversal: 'Supplier Advance Application Reversed',
+  purchase_cancellation_advance_reinstatement: 'Supplier Advance Restored',
   purchase_return: 'Purchase Return',
+  supplier_opening_payable: 'Opening Payable',
   supplier_opening_balance: 'Opening Balance',
   manual_adjustment: 'Manual Adjustment',
 };
@@ -61,7 +65,12 @@ const KNOWN_SOURCE_TYPES: Record<string, string> = {
   purchase_cancellation: 'Purchase Cancellation',
   supplier_payment_allocation: 'Payment Allocation',
   supplier_payment_advance: 'Supplier Advance',
+  supplier_advance_application: 'Advance Application',
+  supplier_advance_consumption: 'Advance Consumption',
+  purchase_cancellation_advance_payable_reversal: 'Purchase Cancellation',
+  purchase_cancellation_advance_reinstatement: 'Purchase Cancellation',
   purchase_return: 'Purchase Return',
+  supplier_opening_payable: 'Opening Balance',
   supplier_opening_balance: 'Opening Balance',
   manual_adjustment: 'Manual Adjustment',
 };

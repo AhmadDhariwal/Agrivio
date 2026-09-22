@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const ALLOCATION_TARGET_TYPES = [
   'purchase',
+  'supplier_opening_payable',
   'supplier_advance',
   'sale',
   'customer_opening_receivable',

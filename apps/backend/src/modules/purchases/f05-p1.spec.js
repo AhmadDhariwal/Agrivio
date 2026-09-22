@@ -101,7 +101,7 @@ describe('F05 P1 supplier payments, accounts, and purchase drafts', () => {
         amount: { amount: '200.00', currency: 'PKR' },
         paymentDate: '2026-08-11',
         allocationMode: 'general',
-        notes: 'advance foundation',
+        notes: 'opening payable allocation',
       };
       const paymentKey = 'sup-pay-1';
       const payment = await fetchJson(
@@ -118,7 +118,7 @@ describe('F05 P1 supplier payments, accounts, and purchase drafts', () => {
       expect(payment.status).toBe(201);
       expect(payment.body.data.status).toBe('posted');
       expect(payment.body.data.allocations).toHaveLength(1);
-      expect(payment.body.data.allocations[0].targetType).toBe('supplier_advance');
+      expect(payment.body.data.allocations[0].targetType).toBe('supplier_opening_payable');
       expect(payment.body.data.allocations[0].allocatedAmount.amount).toBe('200.00');
 
       const paymentReplay = await fetchJson(
@@ -174,8 +174,9 @@ describe('F05 P1 supplier payments, accounts, and purchase drafts', () => {
         jar,
       );
       expect(supplierAfter.status).toBe(200);
-      expect(supplierAfter.body.data.derivedBalances.payable.amount).toBe('500.00');
-      expect(supplierAfter.body.data.derivedBalances.advance.amount).toBe('200.00');
+      expect(supplierAfter.body.data.derivedBalances.payable.amount).toBe('300.00');
+      expect(supplierAfter.body.data.derivedBalances.advance.amount).toBe('0.00');
+      expect(supplierAfter.body.data.derivedBalances.netPayable.amount).toBe('300.00');
 
       const accountAfter = await fetchJson(
         baseUrl,

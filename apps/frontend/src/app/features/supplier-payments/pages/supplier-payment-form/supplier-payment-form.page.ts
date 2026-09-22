@@ -88,7 +88,7 @@ export class SupplierPaymentFormPage {
   readonly unpaidPurchaseOptions = computed(() =>
     this.unpaidPurchases().map((p) => ({
       value: p.id,
-      label: `${p.sequence || p.id}`,
+      label: p.targetType === 'supplier_opening_payable' ? 'Opening payable' : `${p.sequence || p.id}`,
       description: `${p.purchaseDate} · Outstanding: ${p.outstanding.amount} PKR`,
     })),
   );
@@ -207,7 +207,9 @@ export class SupplierPaymentFormPage {
       return '—';
     }
     const p = this.unpaidPurchases().find((item) => item.id === purchaseId);
-    return p ? `${p.sequence || p.id} (${p.outstanding.amount} PKR)` : '—';
+    return p
+      ? `${p.targetType === 'supplier_opening_payable' ? 'Opening payable' : p.sequence || p.id} (${p.outstanding.amount} PKR)`
+      : '—';
   });
 
   readonly summaryAmount = computed(() => {

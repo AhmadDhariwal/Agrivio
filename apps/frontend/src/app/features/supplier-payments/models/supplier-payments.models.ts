@@ -46,6 +46,7 @@ export interface SupplierLedgerEffectRecord {
 
 export interface UnpaidPurchaseRecord {
   id: string;
+  targetType?: 'purchase' | 'supplier_opening_payable' | string;
   purchaseDate: string;
   dueDate: string | null;
   sequence: string | null;
@@ -59,6 +60,10 @@ export interface SupplierReconciliationFinding {
   actualMinorUnits?: string;
   allocationTotalMinorUnits?: string;
   allocationEffectTotalMinorUnits?: string;
+  payableMinorUnits?: string;
+  advanceMinorUnits?: string;
+  netPayableMinorUnits?: string;
+  message?: string;
 }
 
 export interface SupplierReconciliationRecord {
@@ -66,6 +71,7 @@ export interface SupplierReconciliationRecord {
   ok: boolean;
   payable: MoneyAmount;
   advance: MoneyAmount;
+  netPayable: MoneyAmount;
   allocationTotal: MoneyAmount;
   accountMovementTotal: MoneyAmount;
   findings: SupplierReconciliationFinding[];

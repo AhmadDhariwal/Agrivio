@@ -1382,6 +1382,7 @@ describe('OrganizationControlsPage', () => {
         'supplierIdentity',
         'outstandingPayable',
         'supplierAdvance',
+        'netPayable',
         'reconciliationStatus',
         'allocationTotal',
         'date',
@@ -3126,19 +3127,19 @@ describe('OrganizationControlsPage', () => {
   });
 
   describe('Supplier Ledger Controls', () => {
-    it('renders all 17 controls with platform-enforced and feature metadata', () => {
+    it('renders all 18 controls with platform-enforced and feature metadata', () => {
       const component = fixture.componentInstance;
       component.selectModule('payments.supplierLedger');
       fixture.detectChanges();
 
       expect(component.moduleLabel('payments.supplierLedger')).toBe('Supplier Ledger');
-      expect(component.selectedControls()).toHaveLength(17);
+      expect(component.selectedControls()).toHaveLength(18);
       expect(component.moduleControls()).toHaveLength(1);
       expect(component.moduleInfoControls()).toHaveLength(1);
       expect(component.filterControls()).toHaveLength(2);
       expect(component.kpiControls()).toHaveLength(1);
       expect(component.fieldControls()).toHaveLength(0);
-      expect(component.requiredWorkflowControls()).toHaveLength(11);
+      expect(component.requiredWorkflowControls()).toHaveLength(12);
       expect(component.actionControls()).toHaveLength(1);
       expect(fixture.nativeElement.textContent).toContain('Platform enforced');
       expect(fixture.nativeElement.textContent).toContain(

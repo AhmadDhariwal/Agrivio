@@ -2797,6 +2797,11 @@ const definitions = [
       'The signed advance total is required to understand the supplier financial position.',
     ],
     [
+      'netPayable',
+      'Net Payable',
+      'Payable less supplier advance is required to understand the net supplier position.',
+    ],
+    [
       'reconciliationStatus',
       'Reconciliation Status',
       'Reconciliation health and findings must remain visible with the summary.',
