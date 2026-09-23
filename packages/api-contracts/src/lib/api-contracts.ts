@@ -100,6 +100,10 @@ export const API_ACCOUNT_TRANSACTIONS_PATH = `${API_V1_PREFIX}/account-transacti
 /** Account-to-account transfers (R1-F07-006/007). */
 export const API_ACCOUNT_TRANSFERS_PATH = `${API_V1_PREFIX}/account-transfers` as const;
 
+/** Set-balance treasury adjustment command. */
+export const API_ACCOUNT_BALANCE_ADJUSTMENTS_PATH =
+  `${API_V1_PREFIX}/account-balance-adjustments` as const;
+
 /** Expense categories (R1-F07-008). */
 export const API_EXPENSE_CATEGORIES_PATH = `${API_V1_PREFIX}/expense-categories` as const;
 

@@ -44,6 +44,7 @@ const accountSchema = new mongoose.Schema(
       default: undefined,
     },
     version: { type: Number, required: true, default: 1 },
+    movementVersion: { type: Number, required: true, default: 0 },
   },
   { timestamps: true, collection: 'accounts' },
 );

@@ -2,6 +2,7 @@ const { sendSuccessEnvelope } = require('../../../platform/http/response-envelop
 const { forbidden } = require('../../../platform/errors/app-error');
 const { parseMasterStatusQuery } = require('../../../platform/http/master-status-query');
 const { parsePaginationQuery } = require('../../../platform/http/parse-pagination-query');
+const { parseAccountMovementFilters } = require('../accounts.validation');
 
 function requireOrganizationId(req) {
   const organizationId = req.authContext?.organizationId;
@@ -108,7 +109,7 @@ function createAccountsController(deps) {
         const { items, total } = await deps.accountsService.listAccountMovements(
           requireOrganizationId(req),
           String(req.params.id),
-          { skip, pageSize },
+          { ...parseAccountMovementFilters(req.query), skip, pageSize },
         );
         sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
       } catch (error) {
@@ -181,6 +182,20 @@ function createAccountsController(deps) {
           req.get('Idempotency-Key'),
         );
         sendSuccessEnvelope(res, result.statusCode ?? 200, result.data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async adjustAccountBalance(req, res, next) {
+      try {
+        const result = await deps.accountsService.adjustAccountBalance(
+          requireOrganizationId(req),
+          req.body,
+          { actorId: String(req.authContext.userId) },
+          req.get('Idempotency-Key'),
+        );
+        sendSuccessEnvelope(res, result.statusCode ?? 201, result.data);
       } catch (error) {
         next(error);
       }

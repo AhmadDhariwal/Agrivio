@@ -23,11 +23,13 @@ const {
   parseAccountOpeningBalance,
   parseManualAccountTransaction,
   parseAccountTransfer,
+  parseBalanceAdjustment,
   parseReversalReason,
   toAccountDto,
   toAccountMovementDto,
   toManualAccountTransactionDto,
   toAccountTransferDto,
+  toBalanceAdjustmentDto,
 } = require('./accounts.validation');
 const {
   parseExpenseCategoryCreate,
@@ -130,6 +132,21 @@ function createAccountsService(deps) {
     return toAccountDto(record, { balance });
   }
 
+  async function lockAccountForMovement(session, organizationId, account) {
+    const locked = await store.bumpAccountMovementVersion(
+      session,
+      organizationId,
+      String(account['_id']),
+      Number(account.movementVersion ?? 0),
+    );
+    if (locked === null) {
+      throw versionConflict('Account balance changed while the operation was being posted', {
+        accountId: String(account['_id']),
+      });
+    }
+    return locked;
+  }
+
   async function sumAccountBalanceInternal(organizationId, accountId) {
     const minor = await store.sumPostedMovements(organizationId, accountId);
     return {
@@ -211,15 +228,29 @@ function createAccountsService(deps) {
           : all;
       }
       const items = result.items;
-      const mapped = [];
-      for (const item of items) {
-        mapped.push(await buildAccountDto(organizationId, item));
-      }
+      const balanceMap = typeof store.sumPostedMovementsByAccountIds === 'function'
+        ? await store.sumPostedMovementsByAccountIds(organizationId, items.map((item) => String(item['_id'])))
+        : new Map(await Promise.all(items.map(async (item) => [
+            String(item['_id']),
+            await store.sumPostedMovements(organizationId, String(item['_id'])),
+          ])));
+      const mapped = items.map((item) => toAccountDto(item, {
+        balance: {
+          amount: formatMoneyMinorUnits(BigInt(String(balanceMap.get(String(item['_id'])) ?? '0'))),
+          currency: 'PKR',
+        },
+      }));
       return { items: mapped, total: result.total };
     },
 
     async getAccountsSummary(organizationId) {
-      const { totalAccounts, activeAccounts, inactiveAccounts, totalMinorBigInt } =
+      const {
+        totalAccounts,
+        activeAccounts,
+        inactiveAccounts,
+        totalMinorBigInt,
+        totalLiquidFundsMinorBigInt,
+      } =
         await store.getAccountsSummary(organizationId);
       return {
         totalAccounts,
@@ -227,6 +258,10 @@ function createAccountsService(deps) {
         inactiveAccounts,
         totalBalance: {
           amount: formatMoneyMinorUnits(totalMinorBigInt),
+          currency: 'PKR',
+        },
+        totalLiquidFunds: {
+          amount: formatMoneyMinorUnits(totalLiquidFundsMinorBigInt ?? totalMinorBigInt),
           currency: 'PKR',
         },
       };
@@ -362,15 +397,17 @@ function createAccountsService(deps) {
      * Validates organization ownership and active status for purchase/payment reuse.
      */
     async postAccountMovement(session, input) {
-      const account = await store.findAccountById(input.organizationId, input.accountId);
+      const account = await store.findAccountById(input.organizationId, input.accountId, session);
       if (account === null) {
         throw notFound('Account not found');
       }
+
       if (account.status !== 'active') {
         throw validationFailed('Account must be active for movement posting', [
           { field: 'accountId', message: 'account must be active' },
         ]);
       }
+      await lockAccountForMovement(session, input.organizationId, account);
 
       try {
         return await store.insertAccountMovement(session, {
@@ -381,7 +418,12 @@ function createAccountsService(deps) {
           sourceType: input.sourceType,
           sourceId: input.sourceId,
           purpose: input.purpose ?? null,
+          category: input.category ?? null,
           reference: input.reference ?? null,
+          notes: input.notes ?? null,
+          businessDate: input.businessDate ?? null,
+          balanceBeforeMinorUnits: input.balanceBeforeMinorUnits ?? null,
+          desiredBalanceMinorUnits: input.desiredBalanceMinorUnits ?? null,
           reversalOfId: input.reversalOfId ?? null,
           status: 'posted',
           postedAt: input.postedAt,
@@ -407,7 +449,7 @@ function createAccountsService(deps) {
         throw notFound('Account not found');
       }
       let result;
-      if (typeof store.listMovementsByAccountPage === 'function') result = await store.listMovementsByAccountPage(organizationId, accountId, options);
+      if (typeof store.listMovementsByAccountPage === 'function') result = await store.listMovementsByAccountPage(organizationId, accountId, options, options);
       else { const all = await store.listMovementsByAccount(organizationId, accountId); result = { items: all.slice(options.skip ?? 0, (options.skip ?? 0) + (options.pageSize ?? 25)), total: all.length }; }
       return { items: result.items.map(toAccountMovementDto), total: result.total };
     },
@@ -437,7 +479,7 @@ function createAccountsService(deps) {
       const input = parseAccountOpeningBalance(body);
 
       const postWork = async (session) => {
-            const current = await store.findAccountById(organizationId, accountId);
+            const current = await store.findAccountById(organizationId, accountId, session);
             if (current === null) {
               throw notFound('Account not found');
             }
@@ -449,6 +491,7 @@ function createAccountsService(deps) {
             if (current.openingBalance && current.openingBalance.status === 'posted') {
               throw conflict('Account opening balance already posted');
             }
+            await lockAccountForMovement(session, organizationId, current);
 
             const postedAt = now();
             let movement;
@@ -549,11 +592,15 @@ function createAccountsService(deps) {
           amountMinorUnits: input.amountMinorUnits,
           purpose: input.purpose,
           reference: input.reference,
+          category: input.category,
+          notes: input.notes,
+          businessDate: input.businessDate,
         },
         async () => {
           const dto = await transactionRunner.run(async (session) => {
             const account = await store.findAccountById(organizationId, input.accountId, session);
             assertActiveAccount(account, 'accountId');
+            await lockAccountForMovement(session, organizationId, account);
             const postedAt = now();
             const sourceId = store.allocateId();
             let movement;
@@ -567,7 +614,10 @@ function createAccountsService(deps) {
                 sourceType,
                 sourceId,
                 purpose: input.purpose,
+                category: input.category,
                 reference: input.reference,
+                notes: input.notes,
+                businessDate: input.businessDate ?? postedAt.toISOString().slice(0, 10),
                 status: 'posted',
                 postedAt,
                 postedBy: actor.actorId,
@@ -588,7 +638,10 @@ function createAccountsService(deps) {
                 sourceType,
                 amountMinorUnits: input.amountMinorUnits,
                 purpose: input.purpose,
+                category: input.category,
                 reference: input.reference,
+                notes: input.notes,
+                businessDate: input.businessDate ?? postedAt.toISOString().slice(0, 10),
               },
             });
 
@@ -600,17 +653,145 @@ function createAccountsService(deps) {
       return wrapIdempotentResult(result);
     },
 
+    async adjustAccountBalance(organizationId, body, actor, idempotencyKey) {
+      if (typeof capabilityService?.assertAccountManualMovementAllowed === 'function') {
+        await capabilityService.assertAccountManualMovementAllowed(organizationId);
+      }
+      const key = requireIdempotencyKey(idempotencyKey);
+      const input = parseBalanceAdjustment(body);
+      const result = await idempotency.execute(
+        {
+          scopeType: 'organization',
+          organizationId,
+          actorId: actor.actorId,
+          operation: 'accounts.balance-adjustment.post',
+        },
+        key,
+        input,
+        async () => {
+          const dto = await transactionRunner.run(async (session) => {
+            const account = await store.findAccountById(organizationId, input.accountId, session);
+            assertActiveAccount(account, 'accountId');
+            const authoritativeMinorUnits = String(
+              await store.sumPostedMovements(organizationId, input.accountId, session),
+            );
+            if (authoritativeMinorUnits !== input.expectedCurrentBalanceMinorUnits) {
+              throw versionConflict('Account balance changed since it was last read', {
+                accountId: input.accountId,
+                expectedCurrentBalance: {
+                  amount: formatMoneyMinorUnits(BigInt(input.expectedCurrentBalanceMinorUnits)),
+                  currency: 'PKR',
+                },
+                currentBalance: {
+                  amount: formatMoneyMinorUnits(BigInt(authoritativeMinorUnits)),
+                  currency: 'PKR',
+                },
+              });
+            }
+
+            await lockAccountForMovement(session, organizationId, account);
+            const deltaMinorUnits = (
+              BigInt(input.desiredBalanceMinorUnits) - BigInt(authoritativeMinorUnits)
+            ).toString();
+            const postedAt = now();
+            const common = {
+              accountId: input.accountId,
+              expectedCurrentBalanceMinorUnits: input.expectedCurrentBalanceMinorUnits,
+              balanceBeforeMinorUnits: authoritativeMinorUnits,
+              desiredBalanceMinorUnits: input.desiredBalanceMinorUnits,
+              deltaMinorUnits,
+              category: input.category,
+              reason: input.reason,
+              reference: input.reference,
+              notes: input.notes,
+              businessDate: input.businessDate ?? postedAt.toISOString().slice(0, 10),
+              postedAt,
+              postedBy: actor.actorId,
+            };
+
+            if (deltaMinorUnits === '0') {
+              await auditWriter.appendBusinessEvent(session, {
+                organizationId,
+                actorId: actor.actorId,
+                action: 'account.balance_adjustment.noop',
+                resourceType: 'account',
+                resourceId: input.accountId,
+                reason: input.reason,
+                metadata: {
+                  balanceMinorUnits: authoritativeMinorUnits,
+                  category: input.category,
+                  reference: input.reference,
+                },
+              });
+              return toBalanceAdjustmentDto({ ...common, id: null, sourceType: null, status: 'no_change' });
+            }
+
+            const sourceId = store.allocateId();
+            const sourceType = BigInt(deltaMinorUnits) > 0n
+              ? 'balance_adjustment_increase'
+              : 'balance_adjustment_decrease';
+            let movement;
+            try {
+              movement = await store.insertAccountMovement(session, {
+                _id: sourceId,
+                organizationId,
+                accountId: input.accountId,
+                signedAmountMinorUnits: deltaMinorUnits,
+                currency: input.currency,
+                sourceType,
+                sourceId,
+                purpose: input.reason,
+                category: input.category,
+                reference: input.reference,
+                notes: input.notes,
+                businessDate: common.businessDate,
+                balanceBeforeMinorUnits: authoritativeMinorUnits,
+                desiredBalanceMinorUnits: input.desiredBalanceMinorUnits,
+                status: 'posted',
+                postedAt,
+                postedBy: actor.actorId,
+              });
+            } catch (error) {
+              mapDuplicate(error, 'Balance adjustment already exists for this source');
+            }
+
+            await auditWriter.appendBusinessEvent(session, {
+              organizationId,
+              actorId: actor.actorId,
+              action: 'account.balance_adjustment.posted',
+              resourceType: 'account_movement',
+              resourceId: String(movement['_id']),
+              reason: input.reason,
+              metadata: {
+                accountId: input.accountId,
+                balanceBeforeMinorUnits: authoritativeMinorUnits,
+                desiredBalanceMinorUnits: input.desiredBalanceMinorUnits,
+                deltaMinorUnits,
+                sourceType,
+                category: input.category,
+                reference: input.reference,
+              },
+            });
+            return toBalanceAdjustmentDto({ ...common, id: movement['_id'], sourceType });
+          });
+          return { statusCode: dto.status === 'no_change' ? 200 : 201, body: dto };
+        },
+      );
+      return wrapIdempotentResult(result);
+    },
+
     async getManualAccountTransaction(organizationId, transactionId) {
       const movement = await store.findMovementById(organizationId, transactionId);
       if (
         movement === null ||
-        (movement.sourceType !== 'manual_inflow' && movement.sourceType !== 'manual_outflow')
+        !['manual_inflow', 'manual_outflow', 'balance_adjustment_increase', 'balance_adjustment_decrease']
+          .includes(movement.sourceType)
       ) {
         throw notFound('Account transaction not found');
       }
       const reversal = await store.findMovementByReversalOfId(organizationId, String(movement['_id']));
       return toManualAccountTransactionDto(movement, {
-        direction: movement.sourceType === 'manual_outflow' ? 'outflow' : 'inflow',
+        direction: BigInt(String(movement.signedAmountMinorUnits)) < 0n ? 'outflow' : 'inflow',
         reversedByMovementId: reversal ? String(reversal['_id']) : null,
       });
     },
@@ -636,7 +817,8 @@ function createAccountsService(deps) {
             const original = await store.findMovementById(organizationId, transactionId, session);
             if (
               original === null ||
-              (original.sourceType !== 'manual_inflow' && original.sourceType !== 'manual_outflow')
+              !['manual_inflow', 'manual_outflow', 'balance_adjustment_increase', 'balance_adjustment_decrease']
+                .includes(original.sourceType)
             ) {
               throw notFound('Account transaction not found');
             }
@@ -655,12 +837,16 @@ function createAccountsService(deps) {
               session,
             );
             assertActiveAccount(account, 'accountId');
+            await lockAccountForMovement(session, organizationId, account);
 
             const postedAt = now();
-            const reversalSourceType =
-              original.sourceType === 'manual_outflow'
-                ? 'manual_outflow_reversal'
-                : 'manual_inflow_reversal';
+            const reversalTypes = {
+              manual_outflow: 'manual_outflow_reversal',
+              manual_inflow: 'manual_inflow_reversal',
+              balance_adjustment_increase: 'balance_adjustment_increase_reversal',
+              balance_adjustment_decrease: 'balance_adjustment_decrease_reversal',
+            };
+            const reversalSourceType = reversalTypes[original.sourceType];
             let reversal;
             try {
               reversal = await store.insertAccountMovement(session, {
@@ -671,7 +857,10 @@ function createAccountsService(deps) {
                 sourceType: reversalSourceType,
                 sourceId: original['_id'],
                 purpose: original.purpose ?? null,
+                category: original.category ?? null,
                 reference: original.reference ?? null,
+                notes: input.reason,
+                businessDate: postedAt.toISOString().slice(0, 10),
                 reversalOfId: original['_id'],
                 status: 'posted',
                 postedAt,
@@ -696,7 +885,7 @@ function createAccountsService(deps) {
             });
 
             return toManualAccountTransactionDto(original, {
-              direction: original.sourceType === 'manual_outflow' ? 'outflow' : 'inflow',
+              direction: BigInt(String(original.signedAmountMinorUnits)) < 0n ? 'outflow' : 'inflow',
               reversedByMovementId: String(reversal['_id']),
             });
           });
@@ -727,6 +916,8 @@ function createAccountsService(deps) {
           amountMinorUnits: input.amountMinorUnits,
           purpose: input.purpose,
           reference: input.reference,
+          notes: input.notes,
+          businessDate: input.businessDate,
         },
         async () => {
           const dto = await transactionRunner.run(async (session) => {
@@ -742,6 +933,12 @@ function createAccountsService(deps) {
               session,
             );
             assertActiveAccount(destination, 'destinationAccountId');
+            const orderedAccounts = [source, destination].sort((left, right) =>
+              String(left['_id']).localeCompare(String(right['_id'])),
+            );
+            for (const account of orderedAccounts) {
+              await lockAccountForMovement(session, organizationId, account);
+            }
 
             const postedAt = now();
             const transferId = store.allocateId();
@@ -757,6 +954,8 @@ function createAccountsService(deps) {
                 sourceId: transferId,
                 purpose: input.purpose,
                 reference: input.reference,
+                notes: input.notes,
+                businessDate: input.businessDate ?? postedAt.toISOString().slice(0, 10),
                 status: 'posted',
                 postedAt,
                 postedBy: actor.actorId,
@@ -770,6 +969,8 @@ function createAccountsService(deps) {
                 sourceId: transferId,
                 purpose: input.purpose,
                 reference: input.reference,
+                notes: input.notes,
+                businessDate: input.businessDate ?? postedAt.toISOString().slice(0, 10),
                 status: 'posted',
                 postedAt,
                 postedBy: actor.actorId,
@@ -792,6 +993,8 @@ function createAccountsService(deps) {
                 inboundMovementId: String(inbound['_id']),
                 purpose: input.purpose,
                 reference: input.reference,
+                notes: input.notes,
+                businessDate: input.businessDate ?? postedAt.toISOString().slice(0, 10),
               },
             });
 
@@ -803,6 +1006,8 @@ function createAccountsService(deps) {
               currency: input.currency,
               purpose: input.purpose,
               reference: input.reference,
+              notes: input.notes,
+              businessDate: input.businessDate ?? postedAt.toISOString().slice(0, 10),
               outboundMovementId: outbound['_id'],
               inboundMovementId: inbound['_id'],
               status: 'posted',
@@ -866,6 +1071,12 @@ function createAccountsService(deps) {
               session,
             );
             assertActiveAccount(destination, 'destinationAccountId');
+            const orderedAccounts = [source, destination].sort((left, right) =>
+              String(left['_id']).localeCompare(String(right['_id'])),
+            );
+            for (const account of orderedAccounts) {
+              await lockAccountForMovement(session, organizationId, account);
+            }
 
             const postedAt = now();
             let reversalOutbound;
@@ -879,7 +1090,10 @@ function createAccountsService(deps) {
                 sourceType: 'account_transfer_out_reversal',
                 sourceId: transferId,
                 purpose: outbound.purpose ?? null,
+                category: outbound.category ?? null,
                 reference: outbound.reference ?? null,
+                notes: input.reason,
+                businessDate: postedAt.toISOString().slice(0, 10),
                 reversalOfId: outbound['_id'],
                 status: 'posted',
                 postedAt,
@@ -893,7 +1107,10 @@ function createAccountsService(deps) {
                 sourceType: 'account_transfer_in_reversal',
                 sourceId: transferId,
                 purpose: inbound.purpose ?? null,
+                category: inbound.category ?? null,
                 reference: inbound.reference ?? null,
+                notes: input.reason,
+                businessDate: postedAt.toISOString().slice(0, 10),
                 reversalOfId: inbound['_id'],
                 status: 'posted',
                 postedAt,
@@ -1205,6 +1422,13 @@ function createAccountsService(deps) {
             await assertExpenseMasters(store, organizationId, current, session, {
               requireActiveCategory: true,
             });
+            const account = await store.findAccountById(
+              organizationId,
+              String(current.accountId),
+              session,
+            );
+            assertActiveAccount(account, 'accountId');
+            await lockAccountForMovement(session, organizationId, account);
 
             const postedAt = now();
             let movement;
@@ -1333,6 +1557,7 @@ function createAccountsService(deps) {
               session,
             );
             assertActiveAccount(account, 'accountId');
+            await lockAccountForMovement(session, organizationId, account);
 
             const postedAt = now();
             let corrective;
