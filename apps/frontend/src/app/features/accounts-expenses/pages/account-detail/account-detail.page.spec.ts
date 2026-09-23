@@ -22,7 +22,11 @@ const account: AccountRecord = {
 
 describe('AccountDetailPage', () => {
   it('loads the authoritative account on a read-only page with separate action routes', async () => {
-    const api = { getAccount: vi.fn().mockReturnValue(of(account)) };
+    const api = {
+      getAccount: vi.fn().mockReturnValue(of(account)),
+      listMovements: vi.fn().mockReturnValue(of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } })),
+      listAccounts: vi.fn().mockReturnValue(of({ items: [account], meta: { page: 1, pageSize: 200, total: 1 } })),
+    };
     await TestBed.configureTestingModule({
       imports: [AccountDetailPage],
       providers: [
@@ -59,5 +63,12 @@ describe('AccountDetailPage', () => {
         .querySelector('[data-testid="account-activity-link"]')
         ?.getAttribute('href'),
     ).toBe('/app/accounts/acc-1/activity');
+
+    // Treasury actions and movement history section
+    expect(fixture.nativeElement.querySelector('[data-testid="detail-add-money-btn"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="detail-withdraw-money-btn"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="detail-transfer-btn"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="detail-adjust-balance-btn"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="detail-movements-section"]')).toBeTruthy();
   });
 });

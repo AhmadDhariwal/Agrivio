@@ -121,4 +121,63 @@ describe('AccountsPage', () => {
       expect.objectContaining({ status: 'active' }),
     );
   });
+
+  it('renders primary treasury action buttons and opens dialogs on click', () => {
+    const fixture: ComponentFixture<AccountsPage> = TestBed.createComponent(AccountsPage);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+
+    const addMoneyBtn = fixture.nativeElement.querySelector('[data-testid="open-add-money-btn"]') as HTMLButtonElement;
+    const withdrawBtn = fixture.nativeElement.querySelector('[data-testid="open-withdraw-money-btn"]') as HTMLButtonElement;
+    const transferBtn = fixture.nativeElement.querySelector('[data-testid="open-transfer-btn"]') as HTMLButtonElement;
+    const adjustBtn = fixture.nativeElement.querySelector('[data-testid="open-adjust-balance-btn"]') as HTMLButtonElement;
+
+    expect(addMoneyBtn).toBeTruthy();
+    expect(withdrawBtn).toBeTruthy();
+    expect(transferBtn).toBeTruthy();
+    expect(adjustBtn).toBeTruthy();
+
+    addMoneyBtn.click();
+    fixture.detectChanges();
+    expect(component.addMoneyDialogOpen()).toBe(true);
+
+    withdrawBtn.click();
+    fixture.detectChanges();
+    expect(component.withdrawMoneyDialogOpen()).toBe(true);
+
+    transferBtn.click();
+    fixture.detectChanges();
+    expect(component.transferDialogOpen()).toBe(true);
+
+    adjustBtn.click();
+    fixture.detectChanges();
+    expect(component.adjustBalanceDialogOpen()).toBe(true);
+  });
+
+  it('hides treasury action buttons when permissions are revoked', () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [AccountsPage],
+      providers: [
+        provideRouter([]),
+        { provide: AccountsApi, useValue: mockApi },
+        { provide: CapabilityService, useValue: mockCapabilityService },
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            hasPermission: (perm: string) =>
+              perm !== 'accounts.transaction.post' && perm !== 'accounts.transfer',
+          },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture: ComponentFixture<AccountsPage> = TestBed.createComponent(AccountsPage);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="open-add-money-btn"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="open-withdraw-money-btn"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="open-transfer-btn"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="open-adjust-balance-btn"]')).toBeNull();
+  });
 });

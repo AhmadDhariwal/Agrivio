@@ -37,7 +37,65 @@
         </svg>
         <span>Refresh</span>
       </button>
-      } @if (canCreate()) {
+      }
+      @if (canAddMoney()) {
+      <button
+        class="ag-btn ag-btn--secondary"
+        type="button"
+        (click)="openAddMoney()"
+        data-testid="open-add-money-btn"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        <span>Add Money</span>
+      </button>
+      }
+      @if (canWithdrawMoney()) {
+      <button
+        class="ag-btn ag-btn--secondary"
+        type="button"
+        (click)="openWithdrawMoney()"
+        data-testid="open-withdraw-money-btn"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        <span>Withdraw Money</span>
+      </button>
+      }
+      @if (canTransferMoney()) {
+      <button
+        class="ag-btn ag-btn--secondary"
+        type="button"
+        (click)="openTransfer()"
+        data-testid="open-transfer-btn"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="17 1 21 5 17 9" />
+          <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+          <polyline points="7 23 3 19 7 15" />
+          <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+        </svg>
+        <span>Transfer Money</span>
+      </button>
+      }
+      @if (canAdjustBalance()) {
+      <button
+        class="ag-btn ag-btn--secondary"
+        type="button"
+        (click)="openAdjustBalance()"
+        data-testid="open-adjust-balance-btn"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+        <span>Adjust Balance</span>
+      </button>
+      }
+      @if (canCreate()) {
       <a
         class="ag-btn ag-btn--primary"
         routerLink="/app/accounts/new"
@@ -93,31 +151,7 @@
   <!-- KPI Summary Row -->
   @if (showKpiCards()) {
   <section class="kpi-row" aria-label="Accounts Summary" data-testid="accounts-kpi-row">
-    <div class="kpi-card" data-testid="kpi-total-accounts">
-      <div class="kpi-card__icon kpi-card__icon--neutral">
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <rect width="20" height="14" x="2" y="5" rx="2" />
-          <line x1="2" y1="10" x2="22" y2="10" />
-        </svg>
-      </div>
-      <div class="kpi-card__content">
-        <span class="kpi-card__label">Total Accounts</span>
-        <span class="kpi-card__value" data-testid="kpi-total-value"
-          >{{ summary() ? summary()!.totalAccounts : '—' }}</span
-        >
-      </div>
-    </div>
-
-    <div class="kpi-card" data-testid="kpi-active-accounts">
+    <div class="kpi-card" data-testid="kpi-total-cash">
       <div class="kpi-card__icon kpi-card__icon--green">
         <svg
           width="18"
@@ -129,19 +163,43 @@
           stroke-linecap="round"
           stroke-linejoin="round"
         >
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-          <polyline points="22 4 12 14.01 9 11.01" />
+          <rect width="20" height="12" x="2" y="6" rx="2" />
+          <circle cx="12" cy="12" r="2" />
+          <path d="M6 12h.01M18 12h.01" />
         </svg>
       </div>
       <div class="kpi-card__content">
-        <span class="kpi-card__label">Active Accounts</span>
-        <span class="kpi-card__value" data-testid="kpi-active-value"
-          >{{ summary() ? summary()!.activeAccounts : '—' }}</span
+        <span class="kpi-card__label">Total Cash</span>
+        <span class="kpi-card__value" data-testid="kpi-total-cash-value"
+          >PKR {{ totalCash() }}</span
         >
       </div>
     </div>
 
-    <div class="kpi-card" data-testid="kpi-inactive-accounts">
+    <div class="kpi-card" data-testid="kpi-total-bank">
+      <div class="kpi-card__icon kpi-card__icon--blue">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M3 21h18M3 10h18M5 10v11M9 10v11M15 10v11M19 10v11M12 2L2 7h20L12 2z" />
+        </svg>
+      </div>
+      <div class="kpi-card__content">
+        <span class="kpi-card__label">Total Bank</span>
+        <span class="kpi-card__value" data-testid="kpi-total-bank-value"
+          >PKR {{ totalBank() }}</span
+        >
+      </div>
+    </div>
+
+    <div class="kpi-card" data-testid="kpi-other-liquid">
       <div class="kpi-card__icon kpi-card__icon--amber">
         <svg
           width="18"
@@ -153,21 +211,20 @@
           stroke-linecap="round"
           stroke-linejoin="round"
         >
-          <circle cx="12" cy="12" r="10" />
-          <line x1="10" y1="15" x2="10" y2="9" />
-          <line x1="14" y1="15" x2="14" y2="9" />
+          <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
+          <path d="M12 18h.01" />
         </svg>
       </div>
       <div class="kpi-card__content">
-        <span class="kpi-card__label">Inactive Accounts</span>
-        <span class="kpi-card__value" data-testid="kpi-inactive-value"
-          >{{ summary() ? summary()!.inactiveAccounts : '—' }}</span
+        <span class="kpi-card__label">Other Liquid Accounts</span>
+        <span class="kpi-card__value" data-testid="kpi-other-liquid-value"
+          >PKR {{ otherLiquid() }}</span
         >
       </div>
     </div>
 
     <div class="kpi-card" data-testid="kpi-total-balance">
-      <div class="kpi-card__icon kpi-card__icon--blue">
+      <div class="kpi-card__icon kpi-card__icon--neutral">
         <svg
           width="18"
           height="18"
@@ -183,11 +240,17 @@
         </svg>
       </div>
       <div class="kpi-card__content">
-        <span class="kpi-card__label">Total Balance</span>
+        <span class="kpi-card__label">Total Liquid Funds</span>
         <span class="kpi-card__value" data-testid="kpi-balance-value"
           >{{ formatSummaryBalance() }}</span
         >
       </div>
+    </div>
+
+    <div style="display: none;" aria-hidden="true">
+      <span data-testid="kpi-total-value">{{ summary() ? summary()!.totalAccounts : '—' }}</span>
+      <span data-testid="kpi-active-value">{{ summary() ? summary()!.activeAccounts : '—' }}</span>
+      <span data-testid="kpi-inactive-value">{{ summary() ? summary()!.inactiveAccounts : '—' }}</span>
     </div>
   </section>
   }
@@ -274,7 +337,7 @@
           <th class="accounts-table__th accounts-table__th--amount">Balance (PKR)</th>
           } @if (showStatus()) {
           <th class="accounts-table__th">Status</th>
-          } @if (canInspect() || canEdit() || canDeactivate() || canReactivate() || canDelete()) {
+          } @if (canInspect() || canEdit() || canTransferMoney() || canAdjustBalance() || canDeactivate() || canReactivate() || canDelete()) {
           <th class="accounts-table__th accounts-table__th--actions">Actions</th>
           }
         </tr>
@@ -306,7 +369,7 @@
           <td class="accounts-table__td">
             <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
           </td>
-          } @if (canInspect() || canEdit() || canDeactivate() || canReactivate() || canDelete()) {
+          } @if (canInspect() || canEdit() || canTransferMoney() || canAdjustBalance() || canDeactivate() || canReactivate() || canDelete()) {
           <td class="accounts-table__td accounts-table__td--actions">
             <div class="action-cell">
               @if (canInspect() || canEdit()) {
@@ -325,7 +388,7 @@
               >
                 Edit
               </a>
-              } @if (canDeactivate() || canReactivate() || canDelete()) {
+              } @if (canTransferMoney() || canAdjustBalance() || canDeactivate() || canReactivate() || canDelete()) {
               <div class="row-menu-container">
                 <button
                   type="button"
@@ -351,7 +414,27 @@
                 </button>
                 @if (openMenuAccountId() === item.id) {
                 <div class="row-menu" role="menu">
-                  @if (canDeactivate() && item.status === 'active') {
+                  @if (canTransferMoney() && item.status === 'active') {
+                  <button
+                    type="button"
+                    class="row-menu__item"
+                    role="menuitem"
+                    (click)="openTransfer(item.id)"
+                    data-testid="account-row-transfer"
+                  >
+                    Transfer
+                  </button>
+                  } @if (canAdjustBalance() && item.status === 'active') {
+                  <button
+                    type="button"
+                    class="row-menu__item"
+                    role="menuitem"
+                    (click)="openAdjustBalance(item.id)"
+                    data-testid="account-row-adjust"
+                  >
+                    Adjust balance
+                  </button>
+                  } @if (canDeactivate() && item.status === 'active') {
                   <button
                     type="button"
                     class="row-menu__item"
@@ -421,13 +504,21 @@
           <span class="account-card__balance">{{ formatBalance(item) }}</span>
         </div>
       </div>
-      } @if (canInspect() || canEdit() || (canDeactivate() && item.status === 'active') ||
+      } @if (canInspect() || canEdit() || canTransferMoney() || (canDeactivate() && item.status === 'active') ||
       (canReactivate() && item.status === 'inactive')) {
       <div class="account-card__actions">
         @if (canInspect() || canEdit()) {
         <a class="ag-btn ag-btn--secondary ag-btn--sm" [routerLink]="['/app/accounts', item.id]">
           Open
         </a>
+        } @if (canTransferMoney() && item.status === 'active') {
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary ag-btn--sm"
+          (click)="openTransfer(item.id)"
+        >
+          Transfer
+        </button>
         } @if (canEdit()) {
         <a
           class="ag-btn ag-btn--secondary ag-btn--sm"
@@ -478,4 +569,36 @@
   [danger]="confirmLabel() === 'Deactivate' || confirmLabel() === 'Delete permanently'"
   (confirmed)="confirmLifecycle()"
   (dismiss)="confirmOpen.set(false)"
+/>
+
+<agrivio-transfer-money-dialog
+  [open]="transferDialogOpen()"
+  [preselectedAccountId]="actionAccountId()"
+  [accounts]="items()"
+  (transferred)="onTreasuryActionSuccess($event)"
+  (dismiss)="transferDialogOpen.set(false)"
+/>
+
+<agrivio-add-money-dialog
+  [open]="addMoneyDialogOpen()"
+  [preselectedAccountId]="actionAccountId()"
+  [accounts]="items()"
+  (moneyAdded)="onTreasuryActionSuccess($event)"
+  (dismiss)="addMoneyDialogOpen.set(false)"
+/>
+
+<agrivio-withdraw-money-dialog
+  [open]="withdrawMoneyDialogOpen()"
+  [preselectedAccountId]="actionAccountId()"
+  [accounts]="items()"
+  (moneyWithdrawn)="onTreasuryActionSuccess($event)"
+  (dismiss)="withdrawMoneyDialogOpen.set(false)"
+/>
+
+<agrivio-adjust-balance-dialog
+  [open]="adjustBalanceDialogOpen()"
+  [preselectedAccountId]="actionAccountId()"
+  [accounts]="items()"
+  (balanceAdjusted)="onTreasuryActionSuccess($event)"
+  (dismiss)="adjustBalanceDialogOpen.set(false)"
 />
