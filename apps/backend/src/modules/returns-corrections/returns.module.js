@@ -333,6 +333,7 @@ function createReturnsService(deps) {
       resolution,
       refundAccountId,
       returnTotal,
+      tradeTargetId,
     } = input;
 
     if (resolution === 'account_refund') {
@@ -356,6 +357,17 @@ function createReturnsService(deps) {
     }
 
     if (returnTotal !== 0n) {
+      if (
+        tradeTargetId &&
+        typeof paymentsService.assertCustomerTradeTargetUnadjusted === 'function'
+      ) {
+        await paymentsService.assertCustomerTradeTargetUnadjusted(
+          organizationId,
+          customerId,
+          'sale',
+          tradeTargetId,
+        );
+      }
       await paymentsService.postCustomerReceivableEffect(session, {
         organizationId,
         customerId,
@@ -742,6 +754,7 @@ function createReturnsService(deps) {
       resolution: input.resolution,
       refundAccountId: input.refundAccountId,
       returnTotal,
+      tradeTargetId: String(existing.saleId),
     });
 
     return { postedAt, postedLines, returnTotal, extraPatch: {} };

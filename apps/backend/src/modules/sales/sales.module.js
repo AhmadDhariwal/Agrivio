@@ -651,6 +651,7 @@ function createSalesService(deps) {
             }
 
             const customerId = existing.customerId ? String(existing.customerId) : null;
+
             let customer = null;
             let priceTier = 'retail';
             if (customerId) {
@@ -1304,6 +1305,18 @@ function createSalesService(deps) {
             const cancelledAt = now();
             const saleTotal = BigInt(String(existing.saleTotalMinorUnits ?? '0'));
             const customerId = existing.customerId ? String(existing.customerId) : null;
+
+            if (
+              customerId &&
+              typeof paymentsService.assertCustomerTradeTargetUnadjusted === 'function'
+            ) {
+              await paymentsService.assertCustomerTradeTargetUnadjusted(
+                organizationId,
+                customerId,
+                'sale',
+                saleId,
+              );
+            }
 
             for (const line of existing.lines) {
               for (const allocation of line.stockAllocations ?? []) {

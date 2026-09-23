@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const PARTY_TYPES = ['customer', 'supplier'];
-const EFFECT_KINDS = ['receivable', 'advance', 'payable', 'supplier_advance'];
+const EFFECT_KINDS = ['receivable', 'loan_receivable', 'advance', 'payable', 'supplier_advance'];
 const SOURCE_TYPES = [
   'customer_opening_receivable',
   'customer_opening_advance',
@@ -35,6 +35,14 @@ const SOURCE_TYPES = [
   'customer_payment_advance_reversal',
   'supplier_payment_allocation_reversal',
   'supplier_payment_advance_reversal',
+  'customer_loan_disbursement',
+  'customer_loan_repayment',
+  'customer_loan_repayment_reversal',
+  'customer_loan_reversal',
+  'customer_trade_receivable_adjustment',
+  'customer_advance_adjustment',
+  'customer_loan_adjustment',
+  'customer_balance_adjustment_reversal',
 ];
 const OPENING_SOURCE_TYPES = [
   'customer_opening_receivable',
@@ -83,6 +91,11 @@ const ledgerEffectSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       required: true,
     },
+    loanId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CustomerLoan',
+      default: null,
+    },
     status: {
       type: String,
       required: true,
@@ -104,6 +117,7 @@ const ledgerEffectSchema = new mongoose.Schema(
 );
 
 ledgerEffectSchema.index({ organizationId: 1, customerId: 1, postedAt: -1 });
+ledgerEffectSchema.index({ organizationId: 1, loanId: 1, postedAt: -1 });
 ledgerEffectSchema.index({ organizationId: 1, supplierId: 1, postedAt: -1 });
 ledgerEffectSchema.index(
   { organizationId: 1, sourceType: 1, sourceId: 1 },
@@ -150,6 +164,14 @@ ledgerEffectSchema.index(
           'customer_payment_advance_reversal',
           'supplier_payment_allocation_reversal',
           'supplier_payment_advance_reversal',
+          'customer_loan_disbursement',
+          'customer_loan_repayment',
+          'customer_loan_repayment_reversal',
+          'customer_loan_reversal',
+          'customer_trade_receivable_adjustment',
+          'customer_advance_adjustment',
+          'customer_loan_adjustment',
+          'customer_balance_adjustment_reversal',
         ],
       },
       status: 'posted',
@@ -161,6 +183,22 @@ ledgerEffectSchema.index(
 const LedgerEffectModel =
   mongoose.models['LedgerEffect'] || mongoose.model('LedgerEffect', ledgerEffectSchema);
 
+const customerFinancialVersionSchema = new mongoose.Schema(
+  {
+    organizationId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    customerId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    version: { type: Number, required: true, default: 0 },
+  },
+  { timestamps: true, collection: 'customer_financial_versions' },
+);
+customerFinancialVersionSchema.index(
+  { organizationId: 1, customerId: 1 },
+  { unique: true, name: 'customer_financial_version_unique' },
+);
+const CustomerFinancialVersionModel =
+  mongoose.models.CustomerFinancialVersion ||
+  mongoose.model('CustomerFinancialVersion', customerFinancialVersionSchema);
+
 module.exports = {
   PARTY_TYPES,
   EFFECT_KINDS,
@@ -168,4 +206,5 @@ module.exports = {
   OPENING_SOURCE_TYPES,
   EFFECT_STATUSES,
   LedgerEffectModel,
+  CustomerFinancialVersionModel,
 };

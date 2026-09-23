@@ -136,6 +136,8 @@ function createReportingService(deps) {
         'totalReceivable',
         'totalCustomerAdvance',
         'netExposure',
+        'totalCustomerLoanReceivable',
+        'totalCustomerExposure',
         'supplierPayables',
         'totalSupplierPayable',
         'totalSupplierAdvance',
@@ -252,8 +254,11 @@ function createReportingService(deps) {
   }
 
   async function sumReceivablesPayables(organizationId) {
-    const [customers, advances, suppliers, supplierAdvances] = await Promise.all([
+    const [customers, loans, advances, suppliers, supplierAdvances] = await Promise.all([
       paymentsService.listCustomerReceivableBalances(organizationId),
+      typeof paymentsService.listCustomerLoanReceivableBalances === 'function'
+        ? paymentsService.listCustomerLoanReceivableBalances(organizationId)
+        : Promise.resolve({ items: [] }),
       typeof paymentsService.listCustomerAdvanceBalances === 'function'
         ? paymentsService.listCustomerAdvanceBalances(organizationId)
         : Promise.resolve({ items: [] }),
@@ -270,6 +275,10 @@ function createReportingService(deps) {
     for (const item of advances.items ?? []) {
       advance += BigInt(String(item.advanceMinorUnits ?? '0'));
     }
+    let loanReceivable = 0n;
+    for (const item of loans.items ?? []) {
+      loanReceivable += BigInt(String(item.loanReceivableMinorUnits ?? '0'));
+    }
     let payable = 0n;
     for (const item of suppliers.items ?? []) {
       payable += BigInt(String(item.payableMinorUnits ?? '0'));
@@ -283,6 +292,8 @@ function createReportingService(deps) {
       totalReceivable: toMoneyDto(receivable),
       totalCustomerAdvance: toMoneyDto(advance),
       netExposure: toMoneyDto(receivable - advance),
+      totalCustomerLoanReceivable: toMoneyDto(loanReceivable),
+      totalCustomerExposure: toMoneyDto(receivable + loanReceivable - advance),
       supplierPayables: toMoneyDto(payable),
       totalSupplierPayable: toMoneyDto(payable),
       totalSupplierAdvance: toMoneyDto(supplierAdvance),

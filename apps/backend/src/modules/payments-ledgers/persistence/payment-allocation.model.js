@@ -7,6 +7,7 @@ const ALLOCATION_TARGET_TYPES = [
   'sale',
   'customer_opening_receivable',
   'customer_advance',
+  'customer_manual_receivable',
 ];
 const ALLOCATION_STATUSES = ['posted'];
 

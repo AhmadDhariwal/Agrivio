@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { LedgerEffectModel } = require('./persistence/ledger-effect.model');
+const { LedgerEffectModel, CustomerFinancialVersionModel } = require('./persistence/ledger-effect.model');
 const { AuditEventModel } = require('../audit/persistence/audit-event.model');
 
 function withSession(session) {
@@ -20,6 +20,20 @@ function sumMinorUnits(records) {
 
 function createMongooseLedgersStore() {
   return {
+    async bumpCustomerFinancialVersion(session, organizationId, customerId) {
+      try {
+        await CustomerFinancialVersionModel.findOneAndUpdate(
+          { organizationId, customerId },
+          { $inc: { version: 1 } },
+          { upsert: true, new: true, ...withSession(session) },
+        ).exec();
+      } catch (error) {
+        if (isDuplicateKeyError(error)) {
+          error.hasErrorLabel = (label) => label === 'TransientTransactionError';
+        }
+        throw error;
+      }
+    },
     async insertLedgerEffect(session, doc) {
       try {
         const [created] = await LedgerEffectModel.create([doc], withSession(session));
@@ -85,6 +99,47 @@ function createMongooseLedgersStore() {
       return sumMinorUnits(await find.lean().exec());
     },
 
+    async listLoanBalances(organizationId, customerId, session) {
+      const query = {
+        organizationId,
+        partyType: 'customer',
+        effectKind: 'loan_receivable',
+        status: 'posted',
+        loanId: { $ne: null },
+      };
+      if (customerId) query.customerId = customerId;
+      const find = LedgerEffectModel.find(query).select('loanId signedAmountMinorUnits');
+      if (session) find.session(session);
+      const records = await find.lean().exec();
+      const totals = new Map();
+      for (const record of records) {
+        const loanId = String(record.loanId);
+        totals.set(loanId, (totals.get(loanId) ?? 0n) + BigInt(String(record.signedAmountMinorUnits)));
+      }
+      return totals;
+    },
+
+    async listLoanRepaymentTotals(organizationId, customerId, session) {
+      const query = {
+        organizationId,
+        partyType: 'customer',
+        effectKind: 'loan_receivable',
+        status: 'posted',
+        loanId: { $ne: null },
+        sourceType: { $in: ['customer_loan_repayment', 'customer_loan_repayment_reversal'] },
+      };
+      if (customerId) query.customerId = customerId;
+      const find = LedgerEffectModel.find(query).select('loanId signedAmountMinorUnits');
+      if (session) find.session(session);
+      const records = await find.lean().exec();
+      const totals = new Map();
+      for (const record of records) {
+        const loanId = String(record.loanId);
+        totals.set(loanId, (totals.get(loanId) ?? 0n) - BigInt(String(record.signedAmountMinorUnits)));
+      }
+      return totals;
+    },
+
     async listPartyBalancesByEffectKind(organizationId, partyType, effectKind) {
       const partyField = partyType === 'customer' ? 'customerId' : 'supplierId';
       const query = {
@@ -145,6 +200,7 @@ function createInMemoryLedgersStore() {
   }
 
   return {
+    async bumpCustomerFinancialVersion() { return undefined; },
     async insertLedgerEffect(_session, doc) {
       for (const existing of effects.values()) {
         if (
@@ -209,6 +265,39 @@ function createInMemoryLedgersStore() {
           matchesFilter(item, filter),
       );
       return sumMinorUnits(records);
+    },
+
+    async listLoanBalances(organizationId, customerId) {
+      const totals = new Map();
+      for (const item of effects.values()) {
+        if (
+          String(item.organizationId) !== String(organizationId) ||
+          item.partyType !== 'customer' ||
+          item.effectKind !== 'loan_receivable' ||
+          item.status !== 'posted' ||
+          !item.loanId ||
+          (customerId && String(item.customerId) !== String(customerId))
+        ) continue;
+        const loanId = String(item.loanId);
+        totals.set(loanId, (totals.get(loanId) ?? 0n) + BigInt(String(item.signedAmountMinorUnits)));
+      }
+      return totals;
+    },
+
+    async listLoanRepaymentTotals(organizationId, customerId) {
+      const totals = new Map();
+      for (const item of effects.values()) {
+        if (
+          String(item.organizationId) !== String(organizationId) ||
+          item.effectKind !== 'loan_receivable' ||
+          !['customer_loan_repayment', 'customer_loan_repayment_reversal'].includes(item.sourceType) ||
+          !item.loanId ||
+          (customerId && String(item.customerId) !== String(customerId))
+        ) continue;
+        const loanId = String(item.loanId);
+        totals.set(loanId, (totals.get(loanId) ?? 0n) - BigInt(String(item.signedAmountMinorUnits)));
+      }
+      return totals;
     },
 
     async listPartyBalancesByEffectKind(organizationId, partyType, effectKind) {

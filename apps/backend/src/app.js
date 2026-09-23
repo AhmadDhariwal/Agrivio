@@ -52,6 +52,8 @@ const { registerAccountsRoutes } = require('./modules/accounts-expenses/routes/a
 const { registerExpensesRoutes } = require('./modules/accounts-expenses/routes/expenses.routes');
 const { createLedgersModule } = require('./modules/payments-ledgers/ledgers.module');
 const { registerPaymentsRoutes } = require('./modules/payments-ledgers/routes/payments.routes');
+const { createCustomerFinanceModule } = require('./modules/customer-finance/customer-finance.module');
+const { registerCustomerFinanceRoutes } = require('./modules/customer-finance/routes/customer-finance.routes');
 const { createInventoryModule } = require('./modules/inventory/inventory.module');
 const { registerInventoryRoutes } = require('./modules/inventory/routes/inventory.routes');
 const { createPurchasesModule } = require('./modules/purchases/purchases.module');
@@ -262,6 +264,7 @@ function createApp(options) {
       persistence,
       ...(options.now === undefined ? {} : { now: options.now }),
     });
+  const customerFinanceLookup = { service: null };
 
   const customers =
     options.customers ??
@@ -272,6 +275,15 @@ function createApp(options) {
       ledgersService: options.ledgersService ?? ledgers.ledgersService,
       auditStore: audit.store,
       capabilityService: capabilities.capabilityService,
+      assertOpeningReceivableCorrectionAllowed: (organizationId, customerId) =>
+        customerFinanceLookup.service
+          ? customerFinanceLookup.service.assertTradeTargetUnadjusted(
+              organizationId,
+              customerId,
+              'customer_opening_receivable',
+              customerId,
+            )
+          : undefined,
       ...(options.now === undefined ? {} : { now: options.now }),
       ...(masterRefs === null
         ? {}
@@ -327,7 +339,6 @@ function createApp(options) {
   const postedReturnsLookup = {
     fn: null,
   };
-
   if (!ledgers.paymentsService) {
     ledgers.paymentsService = ledgers.createPaymentsService({
       accountsService: accounts.accountsService,
@@ -346,8 +357,28 @@ function createApp(options) {
         }
         return unpaidSalesLookup.fn(organizationId, customerId);
       },
+      listManualCustomerReceivableTargets: (organizationId, customerId) =>
+        customerFinanceLookup.service
+          ? customerFinanceLookup.service.listManualReceivableTargets(organizationId, customerId)
+          : [],
+      listCustomerTradeTargetAdjustments: (organizationId, customerId) =>
+        customerFinanceLookup.service
+          ? customerFinanceLookup.service.listTradeTargetAdjustments(organizationId, customerId)
+          : [],
     });
   }
+
+  const customerFinance =
+    options.customerFinance ??
+    createCustomerFinanceModule({
+      persistence,
+      ledgersService: ledgers.ledgersService,
+      accountsService: accounts.accountsService,
+      customersService: customers.customersService,
+      paymentsService: ledgers.paymentsService,
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+  customerFinanceLookup.service = customerFinance.customerFinanceService;
 
   const inventory =
     options.inventory ??
@@ -732,6 +763,13 @@ function createApp(options) {
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
   });
 
+  const customerFinanceRoutes = registerCustomerFinanceRoutes({
+    customerFinanceService: customerFinance.customerFinanceService,
+    requireAuth: auth.middlewares.requireAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
+    requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+  });
+
   const purchasesRoutes = registerPurchasesRoutes({
     purchasesService: purchases.purchasesService,
     capabilityService: capabilities.capabilityService,
@@ -823,6 +861,7 @@ function createApp(options) {
   app.use(expensesRoutes);
   app.use(inventoryRoutes);
   app.use(paymentsRoutes);
+  app.use(customerFinanceRoutes);
   app.use(purchasesRoutes);
   app.use(salesRoutes);
   app.use(returnsRoutes);
@@ -879,6 +918,7 @@ function createApp(options) {
     capabilities,
     operations,
     ledgers,
+    customerFinance,
     setupProgressService,
   };
 

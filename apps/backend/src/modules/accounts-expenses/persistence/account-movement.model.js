@@ -27,6 +27,10 @@ const MOVEMENT_SOURCE_TYPES = [
   'expense_correction',
   'customer_payment_correction',
   'supplier_payment_correction',
+  'customer_loan_disbursement',
+  'customer_loan_repayment',
+  'customer_loan_repayment_reversal',
+  'customer_loan_reversal',
 ];
 const MOVEMENT_STATUSES = ['posted'];
 const ACCOUNT_OWNED_SOURCE_TYPES = [
@@ -129,6 +133,10 @@ accountMovementSchema.index(
           'customer_payment',
           'customer_payment_correction',
           'supplier_payment_correction',
+          'customer_loan_disbursement',
+          'customer_loan_repayment',
+          'customer_loan_repayment_reversal',
+          'customer_loan_reversal',
         ],
       },
       status: 'posted',

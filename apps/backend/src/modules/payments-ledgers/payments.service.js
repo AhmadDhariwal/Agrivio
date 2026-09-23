@@ -134,9 +134,15 @@ function createPaymentsService(deps) {
           }))
         : [];
 
+    if (typeof deps.listManualCustomerReceivableTargets === 'function') {
+      targets.push(
+        ...(await deps.listManualCustomerReceivableTargets(organizationId, customerId)),
+      );
+    }
+
     const opening = customer?.openingBalance;
     if (opening?.kind !== 'receivable' || !opening.ledgerEffectId) {
-      return targets;
+      return applyTradeTargetAdjustments(organizationId, customerId, targets);
     }
 
     const openingTargetId = String(customerId);
@@ -162,7 +168,44 @@ function createPaymentsService(deps) {
         outstandingMinorUnits: outstanding.toString(),
       });
     }
-    return targets;
+    return applyTradeTargetAdjustments(organizationId, customerId, targets);
+  }
+
+  async function applyTradeTargetAdjustments(organizationId, customerId, targets) {
+    const effects =
+      typeof deps.listCustomerTradeTargetAdjustments === 'function'
+        ? await deps.listCustomerTradeTargetAdjustments(organizationId, customerId)
+        : [];
+    const adjustmentByTarget = new Map();
+    for (const effect of effects) {
+      const key = `${effect.targetType}:${effect.targetId}`;
+      adjustmentByTarget.set(
+        key,
+        (adjustmentByTarget.get(key) ?? 0n) + BigInt(String(effect.signedAmountMinorUnits ?? '0')),
+      );
+    }
+    const result = [];
+    for (const target of targets) {
+      let outstanding = BigInt(String(target.outstandingMinorUnits ?? '0'));
+      const targetType = target.targetType ?? 'sale';
+      const targetId = target.targetId ?? target.id;
+      outstanding += adjustmentByTarget.get(`${targetType}:${targetId}`) ?? 0n;
+      if (targetType === 'customer_manual_receivable') {
+        const allocations = await store.listAllocationsByTarget(
+          organizationId,
+          targetType,
+          targetId,
+        );
+        outstanding -= allocations.reduce(
+          (sum, item) => sum + BigInt(String(item.allocatedAmountMinorUnits ?? '0')),
+          0n,
+        );
+      }
+      if (outstanding > 0n) {
+        result.push({ ...target, outstandingMinorUnits: outstanding.toString() });
+      }
+    }
+    return result;
   }
 
   async function listSupplierPayableTargets(organizationId, supplierId, supplier) {
@@ -786,6 +829,26 @@ function createPaymentsService(deps) {
     postSupplierPayableEffect,
     applySupplierAdvanceInSession,
     reverseSupplierAdvanceApplicationInSession,
+    listCustomerLoanReceivableBalances: (organizationId) =>
+      ledgersService.listCustomerLoanReceivableBalances(organizationId),
+    async assertCustomerTradeTargetUnadjusted(organizationId, customerId, targetType, targetId) {
+      const effects =
+        typeof deps.listCustomerTradeTargetAdjustments === 'function'
+          ? await deps.listCustomerTradeTargetAdjustments(organizationId, customerId)
+          : [];
+      const net = effects
+        .filter(
+          (effect) =>
+            effect.targetType === targetType && String(effect.targetId) === String(targetId),
+        )
+        .reduce(
+          (sum, effect) => sum + BigInt(String(effect.signedAmountMinorUnits ?? '0')),
+          0n,
+        );
+      if (net !== 0n) {
+        throw conflict('Trade receivable target has an active balance adjustment; reverse it first');
+      }
+    },
     postCustomerPaymentInSession,
     postCustomerReceivableEffect,
     applyCustomerAdvanceInSession,
@@ -1561,6 +1624,13 @@ function createPaymentsService(deps) {
           outstandingMinorUnits: String(item.outstandingMinorUnits ?? '0'),
         })),
       };
+    },
+
+    async listCustomerReceivableTargetsForAdjustment(organizationId, customerId) {
+      const customer = customersService
+        ? await customersService.getCustomer(organizationId, customerId)
+        : null;
+      return listCustomerReceivableTargets(organizationId, customerId, customer);
     },
 
     async postCustomerPayment(organizationId, body, actor, idempotencyKey) {
