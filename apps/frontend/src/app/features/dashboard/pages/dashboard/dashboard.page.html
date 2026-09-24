@@ -714,6 +714,37 @@
           }
         }
 
+        <!-- Total Liquid Funds -->
+        @if (canShowAccountSummary() && data.totalLiquidFunds !== undefined) {
+          @if (canViewAccounts()) {
+            <a routerLink="/app/accounts" class="kpi-card kpi-card--link" data-testid="dash-card-total-liquid">
+              <div class="kpi-card__icon kpi-card__icon--blue">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Total Liquid Funds</span>
+                <span class="kpi-card__value" data-testid="dash-card-total-liquid-value">{{ formatMoney(data.totalLiquidFunds) }}</span>
+                <span class="kpi-card__subtext">Cash, bank &amp; liquid accounts</span>
+              </div>
+            </a>
+          } @else {
+            <div class="kpi-card" data-testid="dash-card-total-liquid">
+              <div class="kpi-card__icon kpi-card__icon--blue">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Total Liquid Funds</span>
+                <span class="kpi-card__value" data-testid="dash-card-total-liquid-value">{{ formatMoney(data.totalLiquidFunds) }}</span>
+                <span class="kpi-card__subtext">Cash, bank &amp; liquid accounts</span>
+              </div>
+            </div>
+          }
+        }
+
         <!-- Stock Valuation -->
         @if (canShowFinancialSummary() && data.stockValuation !== undefined) {
           @if (canViewInventory()) {

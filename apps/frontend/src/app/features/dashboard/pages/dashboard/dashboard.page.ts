@@ -166,7 +166,9 @@ export class DashboardPage {
       (data.cashBalances !== undefined ||
         data.bankBalances !== undefined ||
         data.jazzCashBalance !== undefined ||
-        data.easypaisaBalance !== undefined);
+        data.easypaisaBalance !== undefined ||
+        data.otherLiquidBalances !== undefined ||
+        data.totalLiquidFunds !== undefined);
     return hasFinancial || hasAccounts;
   });
 

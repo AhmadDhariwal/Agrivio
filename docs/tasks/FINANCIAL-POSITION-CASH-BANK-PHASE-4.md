@@ -2,10 +2,10 @@
 
 ## Task status
 
-* Status: **Backend implementation complete**
-* Date: 2026-09-24
-* Scope: read-only financial position, cash/bank/treasury reporting, manual-adjustment reporting, and on-demand reconciliation diagnostics
-* Non-goals: general ledger, balance sheet, P&L redefinition, financial mutation, inventory mutation, and frontend workflows
+* Status: **Backend and Frontend implementation complete**
+* Date: 2026-09-24 (Backend) / 2026-09-25 (Frontend)
+* Scope: read-only financial position, cash/bank/treasury reporting, manual-adjustment reporting, on-demand reconciliation diagnostics, and frontend reporting views / dashboard integration
+* Non-goals: general ledger, balance sheet, P&L redefinition, financial mutation, inventory mutation, and client-side balance calculations
 
 ## Existing architecture reused
 
@@ -73,17 +73,37 @@ Report services expose only read methods. Tests assert bulk reads and cover tran
 
 The existing account summary adds `otherLiquidBalances` and `totalLiquidFunds`. Existing customer/supplier cards remain ledger-derived. Dashboard does not run the reconciliation report.
 
+## Frontend implementation
+
+* **Read-Only / Authoritative Architecture:** Zero client-side accounting or balance calculations from row data. The frontend consumes authoritative backend summaries, opening/closing balances, exposure totals, and reconciliation findings.
+* **Dashboard Enhancement:** Added authoritative Total Liquid Funds KPI card (`dash-card-total-liquid`) reflecting Cash in Hand + Bank Balances + JazzCash/Easypaisa (Other Liquid), with clear secondary account breakdowns.
+* **Navigation & Filter Subsystem:** Registered all 11 Phase 4 report capability keys and aliases in `REPORT_CAPABILITY_KEY_BY_REPORT_KEY`. Added quick sub-navigation tabs (`data-testid="reports-nav-tabs"`) and query parameter synchronization (`?report=...`). Added filter controls for `businessDate`, `asOf`, `dueDateFrom`, `dueDateTo`, `direction`, `accountType`, `status`, and `sourceType`.
+* **Component Architecture (9 Focused Views):**
+  1. `financial-position-view`: Position breakdown across liquid funds, customer exposure (trade + loan - advance), and supplier payables (payable - advance). Strictly labeled "Financial Position", never "Balance Sheet".
+  2. `daily-cash-view`: Liquid flow equation (`Opening + Inflows - Outflows ± Adjustments = Closing`). Presents internal transfers in a distinct card explaining they do not alter Total Liquid Funds, with net impact confirmed at PKR 0.00.
+  3. `account-statement-view`: Account statement with opening, inflow, outflow, net change, and closing KPI summary cards, plus paginated movement history.
+  4. `transfers-view`: Account transfers displayed with single business row semantics, paired-leg integrity status, and reversal indicators.
+  5. `treasury-movements-view`: Human-readable treasury movements and unclassified treasury activity presented with mandatory explanation (manual movements without business categorization, never labeled as asset or income).
+  6. `manual-adjustments-view`: Cross-domain audit log covering account, customer, and supplier adjustments, safely rendering null before/after amounts as `—`.
+  7. `customer-loans-view`: Loan portfolio table with principal, repaid, outstanding, disbursement account, due dates, and status.
+  8. `supplier-refunds-view`: Supplier refunds presented as treasury recovery, strictly separated from sales or operating income.
+  9. `reconciliation-view`: Diagnostic-only reconciliation view with check status badges (neutral "Not Checked" badge for unverified checks, never green), findings table with actionable remediation guidance, and no automatic "Fix All" button.
+
 ## Validation
 
-* Focused Phase 4 + Phase 1–3 finance tests: **32 passed**.
-* Existing reporting/capability compatibility selection: **20 passed**.
+* Backend focused Phase 4 + Phase 1–3 finance tests: **32 passed**.
+* Backend reporting/capability compatibility selection: **20 passed**.
 * Real-Mongo Accounts: **2 passed**.
 * Real-Mongo Customer Finance: **2 passed**.
 * Real-Mongo Supplier Finance: **4 passed**.
 * Architecture boundary gate: **6 passed**.
-* Repository lint: pass.
 * Backend production build: pass.
-* `git diff --check`: pass (line-ending notices only).
+* Frontend focused unit tests (`reports.page.spec.ts`): **41 passed** (100%).
+* Frontend dashboard unit tests (`dashboard.page.spec.ts`): **32 passed** (100%).
+* Frontend typecheck (`npx nx typecheck frontend`): pass (0 errors).
+* Frontend lint (`npx nx lint frontend`): pass (0 errors).
+* Frontend production build (`npx nx build frontend`): pass.
+* `git diff --check`: pass (no whitespace or conflict errors).
 * Full repository regression was not run, per assignment.
 
 ## Remaining risk

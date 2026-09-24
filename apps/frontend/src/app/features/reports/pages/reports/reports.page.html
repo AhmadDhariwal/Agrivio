@@ -64,6 +64,91 @@
     } @else {
     <section class="report-workspace" aria-label="Report configuration">
       <div class="workspace-card">
+        <!-- Report Quick Navigation Tabs -->
+        <nav class="report-nav-tabs" aria-label="Reports Quick Navigation" data-testid="reports-nav-tabs">
+          <button
+            type="button"
+            class="report-nav-tab"
+            [class.active]="selectedKey() === 'financial-position'"
+            (click)="onReportChange('financial-position')"
+            data-testid="tab-financial-position"
+          >
+            Financial Overview
+          </button>
+          <button
+            type="button"
+            class="report-nav-tab"
+            [class.active]="selectedKey() === 'daily-cash-position'"
+            (click)="onReportChange('daily-cash-position')"
+            data-testid="tab-daily-cash-position"
+          >
+            Cash Position
+          </button>
+          <button
+            type="button"
+            class="report-nav-tab"
+            [class.active]="selectedKey() === 'account-statement'"
+            (click)="onReportChange('account-statement')"
+            data-testid="tab-account-statement"
+          >
+            Account Statement
+          </button>
+          <button
+            type="button"
+            class="report-nav-tab"
+            [class.active]="selectedKey() === 'treasury-movements'"
+            (click)="onReportChange('treasury-movements')"
+            data-testid="tab-treasury-movements"
+          >
+            Treasury Movements
+          </button>
+          <button
+            type="button"
+            class="report-nav-tab"
+            [class.active]="selectedKey() === 'account-transfers' || selectedKey() === 'transfers'"
+            (click)="onReportChange('account-transfers')"
+            data-testid="tab-account-transfers"
+          >
+            Transfers
+          </button>
+          <button
+            type="button"
+            class="report-nav-tab"
+            [class.active]="selectedKey() === 'manual-adjustments'"
+            (click)="onReportChange('manual-adjustments')"
+            data-testid="tab-manual-adjustments"
+          >
+            Manual Adjustments
+          </button>
+          <button
+            type="button"
+            class="report-nav-tab"
+            [class.active]="selectedKey() === 'customer-loans'"
+            (click)="onReportChange('customer-loans')"
+            data-testid="tab-customer-loans"
+          >
+            Customer Loans
+          </button>
+          <button
+            type="button"
+            class="report-nav-tab"
+            [class.active]="selectedKey() === 'supplier-refunds'"
+            (click)="onReportChange('supplier-refunds')"
+            data-testid="tab-supplier-refunds"
+          >
+            Supplier Refunds
+          </button>
+          <button
+            type="button"
+            class="report-nav-tab"
+            [class.active]="selectedKey() === 'financial-reconciliation'"
+            (click)="onReportChange('financial-reconciliation')"
+            data-testid="tab-financial-reconciliation"
+          >
+            Reconciliation
+          </button>
+        </nav>
+
         <!-- Report Selector Bar -->
         <div class="report-select-bar">
           <div class="report-select-group">
@@ -229,6 +314,83 @@
         <agrivio-ui-loading-state label="Loading report data…" />
       </div>
     } @else if (dataset(); as data) {
+      @if (isPhase4Report(selectedKey())) {
+        <section class="phase4-results-section" aria-label="Financial Report View">
+          @switch (selectedKey()) {
+            @case ('financial-position') {
+              <agrivio-financial-position-view [dataset]="data" />
+            }
+            @case ('daily-cash-position') {
+              <agrivio-daily-cash-view [dataset]="data" />
+            }
+            @case ('account-statement') {
+              <agrivio-account-statement-view
+                [dataset]="data"
+                title="Account Statement"
+                (pageChange)="onServerPageChange($event)"
+              />
+            }
+            @case ('cash-book') {
+              <agrivio-account-statement-view
+                [dataset]="data"
+                title="Cash Book"
+                subtitle="Receipts, payments, and running balance for cash accounts."
+                (pageChange)="onServerPageChange($event)"
+              />
+            }
+            @case ('bank-book') {
+              <agrivio-account-statement-view
+                [dataset]="data"
+                title="Bank Book"
+                subtitle="Deposits, withdrawals, and running balance for bank accounts."
+                (pageChange)="onServerPageChange($event)"
+              />
+            }
+            @case ('account-transfers') {
+              <agrivio-transfers-view
+                [dataset]="data"
+                (pageChange)="onServerPageChange($event)"
+              />
+            }
+            @case ('transfers') {
+              <agrivio-transfers-view
+                [dataset]="data"
+                (pageChange)="onServerPageChange($event)"
+              />
+            }
+            @case ('treasury-movements') {
+              <agrivio-treasury-movements-view
+                [dataset]="data"
+                (pageChange)="onServerPageChange($event)"
+              />
+            }
+            @case ('manual-adjustments') {
+              <agrivio-manual-adjustments-view
+                [dataset]="data"
+                (pageChange)="onServerPageChange($event)"
+              />
+            }
+            @case ('customer-loans') {
+              <agrivio-customer-loans-view
+                [dataset]="data"
+                (pageChange)="onServerPageChange($event)"
+              />
+            }
+            @case ('supplier-refunds') {
+              <agrivio-supplier-refunds-view
+                [dataset]="data"
+                (pageChange)="onServerPageChange($event)"
+              />
+            }
+            @case ('financial-reconciliation') {
+              <agrivio-reconciliation-view
+                [dataset]="data"
+                (pageChange)="onServerPageChange($event)"
+              />
+            }
+          }
+        </section>
+      } @else {
       <section class="results-section" aria-label="Report results">
         <div class="results-header">
           <div class="results-title-group">
@@ -349,6 +511,7 @@
           </div>
         }
       </section>
+      }
     }
   }
 
@@ -381,6 +544,126 @@
             [attr.data-testid]="'filter-' + field"
             type="date"
             class="filter-input date-input"
+            [ngModel]="filterValue(field)"
+            (ngModelChange)="setFilter(field, $event)"
+            [name]="field"
+          />
+        }
+        @case ('asOf') {
+          <input
+            [id]="'filter-' + field"
+            [attr.data-testid]="'filter-' + field"
+            type="date"
+            class="filter-input date-input"
+            [ngModel]="filterValue(field)"
+            (ngModelChange)="setFilter(field, $event)"
+            [name]="field"
+          />
+        }
+        @case ('businessDate') {
+          <input
+            [id]="'filter-' + field"
+            [attr.data-testid]="'filter-' + field"
+            type="date"
+            class="filter-input date-input"
+            [ngModel]="filterValue(field)"
+            (ngModelChange)="setFilter(field, $event)"
+            [name]="field"
+          />
+        }
+        @case ('dueDateFrom') {
+          <input
+            [id]="'filter-' + field"
+            [attr.data-testid]="'filter-' + field"
+            type="date"
+            class="filter-input date-input"
+            [ngModel]="filterValue(field)"
+            (ngModelChange)="setFilter(field, $event)"
+            [name]="field"
+          />
+        }
+        @case ('dueDateTo') {
+          <input
+            [id]="'filter-' + field"
+            [attr.data-testid]="'filter-' + field"
+            type="date"
+            class="filter-input date-input"
+            [ngModel]="filterValue(field)"
+            (ngModelChange)="setFilter(field, $event)"
+            [name]="field"
+          />
+        }
+        @case ('direction') {
+          <div class="select-field">
+            <select
+              [id]="'filter-' + field"
+              [attr.data-testid]="'filter-' + field"
+              class="select-input"
+              [ngModel]="filterValue(field)"
+              (ngModelChange)="setFilter(field, $event)"
+              [name]="field"
+            >
+              @for (opt of directionOptions; track opt.value) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+          </div>
+        }
+        @case ('accountType') {
+          <div class="select-field">
+            <select
+              [id]="'filter-' + field"
+              [attr.data-testid]="'filter-' + field"
+              class="select-input"
+              [ngModel]="filterValue(field)"
+              (ngModelChange)="setFilter(field, $event)"
+              [name]="field"
+            >
+              @for (opt of accountTypeOptions; track opt.value) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+          </div>
+        }
+        @case ('status') {
+          <div class="select-field">
+            <select
+              [id]="'filter-' + field"
+              [attr.data-testid]="'filter-' + field"
+              class="select-input"
+              [ngModel]="filterValue(field)"
+              (ngModelChange)="setFilter(field, $event)"
+              [name]="field"
+            >
+              @for (opt of statusOptions; track opt.value) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+          </div>
+        }
+        @case ('sourceType') {
+          <div class="select-field">
+            <select
+              [id]="'filter-' + field"
+              [attr.data-testid]="'filter-' + field"
+              class="select-input"
+              [ngModel]="filterValue(field)"
+              (ngModelChange)="setFilter(field, $event)"
+              [name]="field"
+            >
+              @for (opt of sourceTypeOptions; track opt.value) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+          </div>
+        }
+        @case ('search') {
+          <input
+            [id]="'filter-' + field"
+            [attr.data-testid]="'filter-' + field"
+            type="search"
+            class="filter-input"
+            placeholder="Search reference, notes, reason..."
             [ngModel]="filterValue(field)"
             (ngModelChange)="setFilter(field, $event)"
             [name]="field"
