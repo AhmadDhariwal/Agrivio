@@ -112,6 +112,9 @@ export const API_EXPENSES_PATH = `${API_V1_PREFIX}/expenses` as const;
 
 /** Supplier payments (R1-F05-001). */
 export const API_SUPPLIER_PAYMENTS_PATH = `${API_V1_PREFIX}/supplier-payments` as const;
+export const API_SUPPLIER_REFUNDS_PATH = `${API_V1_PREFIX}/supplier-refunds` as const;
+export const API_SUPPLIER_BALANCE_ADJUSTMENTS_PATH =
+  `${API_V1_PREFIX}/supplier-balance-adjustments` as const;
 
 /** Purchase drafts and posted purchases (R1-F05-003+). */
 export const API_PURCHASES_PATH = `${API_V1_PREFIX}/purchases` as const;

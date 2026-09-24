@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { LedgerEffectModel, CustomerFinancialVersionModel } = require('./persistence/ledger-effect.model');
+const { LedgerEffectModel, CustomerFinancialVersionModel, SupplierFinancialVersionModel } = require('./persistence/ledger-effect.model');
 const { AuditEventModel } = require('../audit/persistence/audit-event.model');
 
 function withSession(session) {
@@ -31,6 +31,18 @@ function createMongooseLedgersStore() {
         if (isDuplicateKeyError(error)) {
           error.hasErrorLabel = (label) => label === 'TransientTransactionError';
         }
+        throw error;
+      }
+    },
+    async bumpSupplierFinancialVersion(session, organizationId, supplierId) {
+      try {
+        await SupplierFinancialVersionModel.findOneAndUpdate(
+          { organizationId, supplierId },
+          { $inc: { version: 1 } },
+          { upsert: true, new: true, ...withSession(session) },
+        ).exec();
+      } catch (error) {
+        if (isDuplicateKeyError(error)) error.hasErrorLabel = (label) => label === 'TransientTransactionError';
         throw error;
       }
     },
@@ -201,6 +213,7 @@ function createInMemoryLedgersStore() {
 
   return {
     async bumpCustomerFinancialVersion() { return undefined; },
+    async bumpSupplierFinancialVersion() { return undefined; },
     async insertLedgerEffect(_session, doc) {
       for (const existing of effects.values()) {
         if (

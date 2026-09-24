@@ -4,6 +4,7 @@ const ALLOCATION_TARGET_TYPES = [
   'purchase',
   'supplier_opening_payable',
   'supplier_advance',
+  'supplier_manual_payable',
   'sale',
   'customer_opening_receivable',
   'customer_advance',

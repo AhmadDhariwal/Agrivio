@@ -403,6 +403,16 @@ function createReturnsService(deps) {
       ]);
     }
 
+    if (typeof paymentsService.assertSupplierPayableTargetUnadjusted === 'function') {
+      await paymentsService.assertSupplierPayableTargetUnadjusted(
+        organizationId,
+        String(existing.supplierId),
+        'purchase',
+        String(existing.purchaseId),
+        session,
+      );
+    }
+
     const postedAt = now();
     const postedLines = [];
     let returnTotal = 0n;

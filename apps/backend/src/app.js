@@ -54,6 +54,8 @@ const { createLedgersModule } = require('./modules/payments-ledgers/ledgers.modu
 const { registerPaymentsRoutes } = require('./modules/payments-ledgers/routes/payments.routes');
 const { createCustomerFinanceModule } = require('./modules/customer-finance/customer-finance.module');
 const { registerCustomerFinanceRoutes } = require('./modules/customer-finance/routes/customer-finance.routes');
+const { createSupplierFinanceModule } = require('./modules/supplier-finance/supplier-finance.module');
+const { registerSupplierFinanceRoutes } = require('./modules/supplier-finance/routes/supplier-finance.routes');
 const { createInventoryModule } = require('./modules/inventory/inventory.module');
 const { registerInventoryRoutes } = require('./modules/inventory/routes/inventory.routes');
 const { createPurchasesModule } = require('./modules/purchases/purchases.module');
@@ -265,6 +267,7 @@ function createApp(options) {
       ...(options.now === undefined ? {} : { now: options.now }),
     });
   const customerFinanceLookup = { service: null };
+  const supplierFinanceLookup = { service: null };
 
   const customers =
     options.customers ??
@@ -345,11 +348,11 @@ function createApp(options) {
       suppliersService: suppliers.suppliersService,
       customersService: customers.customersService,
       capabilityService: capabilities.capabilityService,
-      listUnpaidSupplierPurchases: async (organizationId, supplierId) => {
+      listUnpaidSupplierPurchases: async (organizationId, supplierId, session) => {
         if (typeof unpaidPurchasesLookup.fn !== 'function') {
           return [];
         }
-        return unpaidPurchasesLookup.fn(organizationId, supplierId);
+        return unpaidPurchasesLookup.fn(organizationId, supplierId, session);
       },
       listUnpaidCustomerSales: async (organizationId, customerId) => {
         if (typeof unpaidSalesLookup.fn !== 'function') {
@@ -365,6 +368,14 @@ function createApp(options) {
         customerFinanceLookup.service
           ? customerFinanceLookup.service.listTradeTargetAdjustments(organizationId, customerId)
           : [],
+      listManualSupplierPayableTargets: (organizationId, supplierId, session) =>
+        supplierFinanceLookup.service
+          ? supplierFinanceLookup.service.listManualPayableTargets(organizationId, supplierId, session)
+          : [],
+      listSupplierPayableTargetAdjustments: (organizationId, supplierId, session) =>
+        supplierFinanceLookup.service
+          ? supplierFinanceLookup.service.listPayableTargetAdjustments(organizationId, supplierId, session)
+          : [],
     });
   }
 
@@ -379,6 +390,19 @@ function createApp(options) {
       ...(options.now === undefined ? {} : { now: options.now }),
     });
   customerFinanceLookup.service = customerFinance.customerFinanceService;
+
+  const supplierFinance =
+    options.supplierFinance ??
+    createSupplierFinanceModule({
+      persistence,
+      ledgersService: ledgers.ledgersService,
+      accountsService: accounts.accountsService,
+      suppliersService: suppliers.suppliersService,
+      paymentsService: ledgers.paymentsService,
+      capabilityService: capabilities.capabilityService,
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+  supplierFinanceLookup.service = supplierFinance.supplierFinanceService;
 
   const inventory =
     options.inventory ??
@@ -425,8 +449,8 @@ function createApp(options) {
     });
 
   if (typeof unpaidPurchasesLookup.fn !== 'function') {
-    unpaidPurchasesLookup.fn = (organizationId, supplierId) =>
-      purchases.purchasesService.listUnpaidSupplierPurchases(organizationId, supplierId);
+    unpaidPurchasesLookup.fn = (organizationId, supplierId, session) =>
+      purchases.purchasesService.listUnpaidSupplierPurchases(organizationId, supplierId, session);
   }
 
   const sales =
@@ -770,6 +794,13 @@ function createApp(options) {
     requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
   });
 
+  const supplierFinanceRoutes = registerSupplierFinanceRoutes({
+    supplierFinanceService: supplierFinance.supplierFinanceService,
+    requireAuth: auth.middlewares.requireAuth,
+    requireCsrf: auth.middlewares.requireCsrf,
+    requireOperationalAccess: subscriptions.middlewares.requireOperationalAccess,
+  });
+
   const purchasesRoutes = registerPurchasesRoutes({
     purchasesService: purchases.purchasesService,
     capabilityService: capabilities.capabilityService,
@@ -862,6 +893,7 @@ function createApp(options) {
   app.use(inventoryRoutes);
   app.use(paymentsRoutes);
   app.use(customerFinanceRoutes);
+  app.use(supplierFinanceRoutes);
   app.use(purchasesRoutes);
   app.use(salesRoutes);
   app.use(returnsRoutes);
@@ -919,6 +951,7 @@ function createApp(options) {
     operations,
     ledgers,
     customerFinance,
+    supplierFinance,
     setupProgressService,
   };
 

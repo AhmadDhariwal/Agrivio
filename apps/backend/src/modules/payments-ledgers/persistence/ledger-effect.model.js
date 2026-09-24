@@ -43,6 +43,11 @@ const SOURCE_TYPES = [
   'customer_advance_adjustment',
   'customer_loan_adjustment',
   'customer_balance_adjustment_reversal',
+  'supplier_advance_refund',
+  'supplier_advance_refund_reversal',
+  'supplier_payable_adjustment',
+  'supplier_advance_adjustment',
+  'supplier_balance_adjustment_reversal',
 ];
 const OPENING_SOURCE_TYPES = [
   'customer_opening_receivable',
@@ -172,6 +177,11 @@ ledgerEffectSchema.index(
           'customer_advance_adjustment',
           'customer_loan_adjustment',
           'customer_balance_adjustment_reversal',
+          'supplier_advance_refund',
+          'supplier_advance_refund_reversal',
+          'supplier_payable_adjustment',
+          'supplier_advance_adjustment',
+          'supplier_balance_adjustment_reversal',
         ],
       },
       status: 'posted',
@@ -199,6 +209,22 @@ const CustomerFinancialVersionModel =
   mongoose.models.CustomerFinancialVersion ||
   mongoose.model('CustomerFinancialVersion', customerFinancialVersionSchema);
 
+const supplierFinancialVersionSchema = new mongoose.Schema(
+  {
+    organizationId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    supplierId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    version: { type: Number, required: true, default: 0 },
+  },
+  { timestamps: true, collection: 'supplier_financial_versions' },
+);
+supplierFinancialVersionSchema.index(
+  { organizationId: 1, supplierId: 1 },
+  { unique: true, name: 'supplier_financial_version_unique' },
+);
+const SupplierFinancialVersionModel =
+  mongoose.models.SupplierFinancialVersion ||
+  mongoose.model('SupplierFinancialVersion', supplierFinancialVersionSchema);
+
 module.exports = {
   PARTY_TYPES,
   EFFECT_KINDS,
@@ -207,4 +233,5 @@ module.exports = {
   EFFECT_STATUSES,
   LedgerEffectModel,
   CustomerFinancialVersionModel,
+  SupplierFinancialVersionModel,
 };

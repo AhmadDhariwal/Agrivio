@@ -31,6 +31,8 @@ const MOVEMENT_SOURCE_TYPES = [
   'customer_loan_repayment',
   'customer_loan_repayment_reversal',
   'customer_loan_reversal',
+  'supplier_advance_refund',
+  'supplier_advance_refund_reversal',
 ];
 const MOVEMENT_STATUSES = ['posted'];
 const ACCOUNT_OWNED_SOURCE_TYPES = [
@@ -137,6 +139,8 @@ accountMovementSchema.index(
           'customer_loan_repayment',
           'customer_loan_repayment_reversal',
           'customer_loan_reversal',
+          'supplier_advance_refund',
+          'supplier_advance_refund_reversal',
         ],
       },
       status: 'posted',

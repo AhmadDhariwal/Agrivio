@@ -127,16 +127,31 @@ function createMongoosePaymentsStore() {
         .exec();
     },
 
-    async listAllocationsByTarget(organizationId, targetType, targetId) {
-      return PaymentAllocationModel.find({
+    async listAllocationsByTarget(organizationId, targetType, targetId, session) {
+      const query = PaymentAllocationModel.find({
         organizationId,
         targetType,
         targetId,
         status: 'posted',
       })
-        .sort({ createdAt: 1 })
-        .lean()
-        .exec();
+        .sort({ createdAt: 1 });
+      if (session) query.session(session);
+      const rows = await query.lean().exec();
+      if (rows.length === 0) return rows;
+      const paymentQuery = PaymentModel.find({
+        organizationId,
+        _id: { $in: rows.map((row) => row.paymentId) },
+        correctionOfId: { $ne: null },
+      }).select('_id');
+      if (session) paymentQuery.session(session);
+      const correctionPayments = new Set(
+        (await paymentQuery.lean().exec()).map((row) => String(row._id)),
+      );
+      return rows.map((row) =>
+        correctionPayments.has(String(row.paymentId))
+          ? { ...row, allocatedAmountMinorUnits: `-${row.allocatedAmountMinorUnits}` }
+          : row,
+      );
     },
 
     async appendAuditEvent(session, event) {
@@ -277,7 +292,12 @@ function createInMemoryPaymentsStore() {
             String(item.targetId) === String(targetId) &&
             item.status === 'posted',
         )
-        .map((item) => ({ ...item }));
+        .map((item) => ({
+          ...item,
+          allocatedAmountMinorUnits: payments.get(String(item.paymentId))?.correctionOfId
+            ? `-${item.allocatedAmountMinorUnits}`
+            : item.allocatedAmountMinorUnits,
+        }));
     },
 
     async appendAuditEvent(_session, event) {

@@ -45,6 +45,11 @@ function toLedgerEffectDto(record) {
     customer_advance_adjustment: 'Customer Advance Adjustment',
     customer_loan_adjustment: 'Loan Balance Adjustment',
     customer_balance_adjustment_reversal: 'Adjustment Reversal',
+    supplier_advance_refund: 'Supplier Advance Refunded',
+    supplier_advance_refund_reversal: 'Supplier Refund Reversed',
+    supplier_payable_adjustment: 'Supplier Payable Adjustment',
+    supplier_advance_adjustment: 'Supplier Advance Adjustment',
+    supplier_balance_adjustment_reversal: 'Supplier Balance Adjustment Reversed',
   };
   return {
     id: String(record['_id']),
@@ -76,6 +81,9 @@ function createLedgersService(deps) {
     async lockCustomerFinancialPosition(session, organizationId, customerId) {
       await store.bumpCustomerFinancialVersion(session, organizationId, customerId);
     },
+    async lockSupplierFinancialPosition(session, organizationId, supplierId) {
+      await store.bumpSupplierFinancialVersion(session, organizationId, supplierId);
+    },
     // Public Payments and Ledgers interface for signed party effects.
     async postLedgerEffect(session, input) {
       const partyType = input.partyType;
@@ -97,6 +105,9 @@ function createLedgersService(deps) {
 
       if (partyType === 'customer') {
         await store.bumpCustomerFinancialVersion(session, input.organizationId, input.customerId);
+      }
+      if (partyType === 'supplier') {
+        await store.bumpSupplierFinancialVersion(session, input.organizationId, input.supplierId);
       }
 
       try {
@@ -197,11 +208,11 @@ function createLedgersService(deps) {
       };
     },
 
-    async sumSupplierPayable(organizationId, supplierId) {
+    async sumSupplierPayable(organizationId, supplierId, session) {
       const minor = await store.sumPostedEffects(organizationId, {
         supplierId,
         effectKind: 'payable',
-      });
+      }, session);
       return toMoneyDto(minor);
     },
 
