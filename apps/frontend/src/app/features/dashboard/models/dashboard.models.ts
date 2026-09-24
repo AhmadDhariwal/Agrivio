@@ -25,6 +25,8 @@ export interface DashboardPayload {
   totalReceivable?: MoneyDto;
   totalCustomerAdvance?: MoneyDto;
   netExposure?: MoneyDto;
+  totalCustomerLoanReceivable?: MoneyDto;
+  totalCustomerExposure?: MoneyDto;
   supplierPayables?: MoneyDto;
   totalSupplierPayable?: MoneyDto;
   totalSupplierAdvance?: MoneyDto;

@@ -422,6 +422,67 @@
           </div>
         }
 
+        <!-- Customer Loan Position Cards -->
+        @if (data.totalCustomerLoanReceivable !== undefined) {
+          @if (canViewCustomers()) {
+            <a routerLink="/app/customer-loans" class="kpi-card kpi-card--link" data-testid="dash-card-customer-loan-receivable">
+              <div class="kpi-card__icon kpi-card__icon--blue">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Total Customer Loan Receivable</span>
+                <span class="kpi-card__value" data-testid="dash-customer-loan-receivable">{{ formatMoney(data.totalCustomerLoanReceivable) }}</span>
+                <span class="kpi-card__subtext">Outstanding customer loans</span>
+              </div>
+            </a>
+          } @else {
+            <div class="kpi-card" data-testid="dash-card-customer-loan-receivable">
+              <div class="kpi-card__icon kpi-card__icon--blue">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Total Customer Loan Receivable</span>
+                <span class="kpi-card__value" data-testid="dash-customer-loan-receivable">{{ formatMoney(data.totalCustomerLoanReceivable) }}</span>
+                <span class="kpi-card__subtext">Outstanding customer loans</span>
+              </div>
+            </div>
+          }
+        }
+
+        @if (data.totalCustomerExposure !== undefined) {
+          @if (canViewCustomers()) {
+            <a routerLink="/app/customers" class="kpi-card kpi-card--link" data-testid="dash-card-total-customer-exposure">
+              <div class="kpi-card__icon kpi-card__icon--purple">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21.21 15.89A10 10 0 1 1 8 2.83" /><path d="M22 12A10 10 0 0 0 12 2v10z" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Total Customer Exposure</span>
+                <span class="kpi-card__value" data-testid="dash-total-customer-exposure">{{ formatMoney(data.totalCustomerExposure) }}</span>
+                <span class="kpi-card__subtext">Trade + Loan less advance</span>
+              </div>
+            </a>
+          } @else {
+            <div class="kpi-card" data-testid="dash-card-total-customer-exposure">
+              <div class="kpi-card__icon kpi-card__icon--purple">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21.21 15.89A10 10 0 1 1 8 2.83" /><path d="M22 12A10 10 0 0 0 12 2v10z" />
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Total Customer Exposure</span>
+                <span class="kpi-card__value" data-testid="dash-total-customer-exposure">{{ formatMoney(data.totalCustomerExposure) }}</span>
+                <span class="kpi-card__subtext">Trade + Loan less advance</span>
+              </div>
+            </div>
+          }
+        }
+
         <!-- Supplier Financial Position (3 Cards) -->
         @if (canShowFinancialSummary() && data.supplierPayables !== undefined) {
           @if (canViewSuppliers()) {

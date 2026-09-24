@@ -51,7 +51,10 @@ export class QueryCacheService {
 
   buildKey(resource: string, params: Record<string, unknown> = {}): string {
     this.syncOrganizationScope();
-    const orgId = this.sessionStore.activeContext()?.organizationId ?? 'anonymous';
+    const orgId =
+      typeof this.sessionStore.activeContext === 'function'
+        ? this.sessionStore.activeContext()?.organizationId ?? 'anonymous'
+        : 'anonymous';
     const normalized = this.normalizeParams(params);
     const paramPart = Object.keys(normalized)
       .sort()
@@ -191,7 +194,9 @@ export class QueryCacheService {
   }
 
   private currentOrganizationId(): string | null {
-    return this.sessionStore.activeContext()?.organizationId ?? null;
+    return typeof this.sessionStore.activeContext === 'function'
+      ? this.sessionStore.activeContext()?.organizationId ?? null
+      : null;
   }
 
   private sessionScope(): string {

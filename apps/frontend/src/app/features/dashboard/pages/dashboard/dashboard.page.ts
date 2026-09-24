@@ -148,6 +148,8 @@ export class DashboardPage {
       (data.totalReceivable !== undefined ||
         data.totalCustomerAdvance !== undefined ||
         data.netExposure !== undefined ||
+        data.totalCustomerLoanReceivable !== undefined ||
+        data.totalCustomerExposure !== undefined ||
         data.supplierPayables !== undefined ||
         data.totalSupplierAdvance !== undefined ||
         data.netSupplierPayable !== undefined)

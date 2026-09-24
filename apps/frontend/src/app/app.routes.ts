@@ -481,6 +481,17 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'customer-loans',
+        canActivate: [
+          requirePermissionGuard('customers.view'),
+          requireCapabilityGuard('customers'),
+        ],
+        loadComponent: () =>
+          import('./features/customers/pages/customer-loans/customer-loans.page').then(
+            (m) => m.CustomerLoansPage,
+          ),
+      },
+      {
         path: 'suppliers',
         canActivate: [
           requirePermissionGuard('suppliers.view'),

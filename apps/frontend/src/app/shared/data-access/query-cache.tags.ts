@@ -32,6 +32,7 @@ export const QUERY_CACHE_TAGS = {
   customers: 'customers',
   customerOptions: 'customer-options',
   customerLedger: 'customer-ledger',
+  customerLoans: 'customer-loans',
   receivables: 'receivables',
   suppliers: 'suppliers',
   supplierOptions: 'supplier-options',
