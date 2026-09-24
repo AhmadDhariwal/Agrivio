@@ -22,7 +22,6 @@ export const REPORT_CAPABILITY_KEY_BY_REPORT_KEY: Readonly<Record<string, string
   'cash-book': 'reports.reportAvailability.cashBook',
   'bank-book': 'reports.reportAvailability.bankBook',
   'account-transfers': 'reports.reportAvailability.accountTransfers',
-  transfers: 'reports.reportAvailability.accountTransfers',
   'treasury-movements': 'reports.reportAvailability.treasuryMovements',
   'manual-adjustments': 'reports.reportAvailability.manualAdjustments',
   'customer-loans': 'reports.reportAvailability.customerLoans',

@@ -2,9 +2,9 @@
 
 ## Task status
 
-* Status: **Backend and Frontend implementation complete**
-* Date: 2026-09-24 (Backend) / 2026-09-25 (Frontend)
-* Scope: read-only financial position, cash/bank/treasury reporting, manual-adjustment reporting, on-demand reconciliation diagnostics, and frontend reporting views / dashboard integration
+* Status: **Verification complete — all quality gates passed**
+* Date: 2026-09-24 (Backend) / 2026-09-25 (Frontend & Final Verification)
+* Scope: read-only financial position, cash/bank/treasury reporting, manual-adjustment reporting, on-demand reconciliation diagnostics, frontend reporting views, dashboard integration, and comprehensive 58-point verification
 * Non-goals: general ledger, balance sheet, P&L redefinition, financial mutation, inventory mutation, and client-side balance calculations
 
 ## Existing architecture reused
@@ -91,20 +91,19 @@ The existing account summary adds `otherLiquidBalances` and `totalLiquidFunds`. 
 
 ## Validation
 
-* Backend focused Phase 4 + Phase 1–3 finance tests: **32 passed**.
-* Backend reporting/capability compatibility selection: **20 passed**.
-* Real-Mongo Accounts: **2 passed**.
-* Real-Mongo Customer Finance: **2 passed**.
-* Real-Mongo Supplier Finance: **4 passed**.
-* Architecture boundary gate: **6 passed**.
-* Backend production build: pass.
-* Frontend focused unit tests (`reports.page.spec.ts`): **41 passed** (100%).
-* Frontend dashboard unit tests (`dashboard.page.spec.ts`): **32 passed** (100%).
-* Frontend typecheck (`npx nx typecheck frontend`): pass (0 errors).
-* Frontend lint (`npx nx lint frontend`): pass (0 errors).
-* Frontend production build (`npx nx build frontend`): pass.
-* `git diff --check`: pass (no whitespace or conflict errors).
-* Full repository regression was not run, per assignment.
+* Backend full test suite (`npx nx test backend --skip-nx-cache`): **185/185 test files passed, 903/903 tests passed** (100%).
+* Frontend full test suite (`npx nx test frontend --skip-nx-cache`): **138/138 test files passed, 1276/1276 tests passed** (100%).
+* Workspace typecheck (`npx nx run-many -t typecheck --all`): **4/4 projects passed** (0 errors).
+* Workspace linting (`npx nx run-many -t lint --all`): **5/5 projects passed** (0 errors).
+* Architecture boundary gate (`npm run test:architecture`): **6/6 passed** (100%).
+* Backend production build (`npx nx build backend`): **passed** cleanly.
+* Frontend production build (`npx nx build frontend`): **passed** cleanly.
+* `git diff --check`: **passed** cleanly (0 whitespace or conflict errors).
+* Real-Mongo Integration Tests:
+  - `f07-p3-mongo.integration.spec.js`: 2/2 passed.
+  - `customer-finance-mongo.integration.spec.js`: 2/2 passed.
+  - `supplier-finance-mongo.integration.spec.js`: 4/4 passed.
+* Real-data scenario verification (Sections 4–37): all 34 accounting/treasury equations and invariants validated with 0 drift.
 
 ## Remaining risk
 
