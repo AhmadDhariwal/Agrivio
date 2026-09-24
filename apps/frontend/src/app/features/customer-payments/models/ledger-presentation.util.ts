@@ -55,6 +55,11 @@ const KNOWN_SOURCE_TITLES: Record<string, string> = {
   customer_advance_adjustment: 'Customer Advance Adjustment',
   customer_loan_adjustment: 'Loan Balance Adjustment',
   customer_balance_adjustment_reversal: 'Balance Adjustment Reversed',
+  supplier_advance_refund: 'Supplier Advance Refunded',
+  supplier_advance_refund_reversal: 'Supplier Refund Reversed',
+  supplier_payable_adjustment: 'Supplier Payable Adjustment',
+  supplier_advance_adjustment: 'Supplier Advance Adjustment',
+  supplier_balance_adjustment_reversal: 'Supplier Balance Adjustment Reversed',
 };
 
 const KNOWN_SOURCE_TYPES: Record<string, string> = {
@@ -94,6 +99,11 @@ const KNOWN_SOURCE_TYPES: Record<string, string> = {
   customer_advance_adjustment: 'Customer Advance Adjustment',
   customer_loan_adjustment: 'Loan Balance Adjustment',
   customer_balance_adjustment_reversal: 'Balance Adjustment Reversed',
+  supplier_advance_refund: 'Supplier Refund',
+  supplier_advance_refund_reversal: 'Supplier Refund Reversal',
+  supplier_payable_adjustment: 'Payable Adjustment',
+  supplier_advance_adjustment: 'Advance Adjustment',
+  supplier_balance_adjustment_reversal: 'Adjustment Reversal',
 };
 
 function humanizeIdentifier(id: string | null | undefined): string {

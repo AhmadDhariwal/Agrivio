@@ -37,6 +37,7 @@ export const QUERY_CACHE_TAGS = {
   suppliers: 'suppliers',
   supplierOptions: 'supplier-options',
   supplierLedger: 'supplier-ledger',
+  supplierRefunds: 'supplier-refunds',
   payables: 'payables',
   returns: 'returns',
   sales: 'sales',

@@ -5,6 +5,8 @@ import { SupplierDetailPage } from './supplier-detail.page';
 import { SuppliersApi } from '../../data-access/suppliers.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
+import { SupplierFinanceApi } from '../../data-access/supplier-finance.api';
 import { SupplierRecord } from '../../models/suppliers.models';
 
 const supplier: SupplierRecord = {
@@ -34,6 +36,8 @@ describe('SupplierDetailPage', () => {
           useValue: { snapshot: { paramMap: convertToParamMap({ id: 'supplier-1' }) } },
         },
         { provide: SuppliersApi, useValue: api },
+        { provide: AccountsApi, useValue: { listAccountOptions: () => of([]) } },
+        { provide: SupplierFinanceApi, useValue: { listRefunds: () => of({ items: [], meta: { total: 0 } }) } },
         { provide: AuthSessionStore, useValue: { hasPermission: () => true } },
         {
           provide: CapabilityService,

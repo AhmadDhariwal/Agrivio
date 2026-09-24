@@ -46,10 +46,12 @@ export interface SupplierLedgerEffectRecord {
 
 export interface UnpaidPurchaseRecord {
   id: string;
-  targetType?: 'purchase' | 'supplier_opening_payable' | string;
+  targetId?: string;
+  targetType?: 'purchase' | 'supplier_opening_payable' | 'supplier_manual_payable' | string;
   purchaseDate: string;
   dueDate: string | null;
   sequence: string | null;
+  reference?: string | null;
   outstanding: MoneyAmount;
   outstandingMinorUnits: string;
 }
