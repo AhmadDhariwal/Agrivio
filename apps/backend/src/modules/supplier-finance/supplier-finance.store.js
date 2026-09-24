@@ -14,8 +14,10 @@ function createMongooseSupplierFinanceStore() {
     async listRefunds(organizationId, filter, pagination) {
       const query = { organizationId };
       if (filter.supplierId) { if (!mongoose.isValidObjectId(filter.supplierId)) return { items: [], total: 0 }; query.supplierId = filter.supplierId; }
+      if (filter.accountId) { if (!mongoose.isValidObjectId(filter.accountId)) return { items: [], total: 0 }; query.accountId = filter.accountId; }
       if (filter.status) query.status = filter.status;
       if (filter.fromDate || filter.toDate) { query.businessDate = {}; if (filter.fromDate) query.businessDate.$gte = filter.fromDate; if (filter.toDate) query.businessDate.$lte = filter.toDate; }
+      if (filter.search) { const escaped = String(filter.search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); query.$or = [{ reference: { $regex: escaped, $options: 'i' } }, { notes: { $regex: escaped, $options: 'i' } }]; }
       const [items, total] = await Promise.all([SupplierRefundModel.find(query).sort({ businessDate: -1, _id: -1 }).skip(pagination.skip).limit(pagination.pageSize).lean(), SupplierRefundModel.countDocuments(query)]);
       return { items, total };
     },
@@ -23,6 +25,7 @@ function createMongooseSupplierFinanceStore() {
     async findAdjustment(organizationId, id, session) { if (!mongoose.isValidObjectId(id)) return null; return querySession(SupplierBalanceAdjustmentModel.findOne({ _id: id, organizationId }), session).lean().exec(); },
     async findAdjustmentReversal(organizationId, id, session) { if (!mongoose.isValidObjectId(id)) return null; return querySession(SupplierBalanceAdjustmentModel.findOne({ organizationId, reversalOfId: id }), session).lean().exec(); },
     async listPayableAdjustments(organizationId, supplierId, session) { return querySession(SupplierBalanceAdjustmentModel.find({ organizationId, supplierId, balanceType: 'supplier_payable' }).select('targetEffects deltaMinorUnits businessDate reference createdAt reversalOfId'), session).lean().exec(); },
+    async listAdjustmentsForReporting(organizationId) { return SupplierBalanceAdjustmentModel.find({ organizationId }).sort({ businessDate: -1, createdAt: -1, _id: -1 }).lean().exec(); },
     async appendAuditEvent(session, event) { await AuditEventModel.create([event], withSession(session)); },
   };
 }
@@ -36,11 +39,12 @@ function createInMemorySupplierFinanceStore() {
     async insertRefund(_s, doc) { const row = { ...doc, _id: doc._id ?? allocateId(), createdAt: new Date() }; refunds.set(String(row._id), row); return { ...row }; },
     async findRefund(org, id) { return own(refunds, org, id); },
     async updateRefund(_s, org, id, filter, patch) { const row = own(refunds, org, id); if (!row || Object.entries(filter).some(([k, v]) => String(row[k]) !== String(v))) return null; const next = { ...row, ...patch }; refunds.set(String(id), next); return { ...next }; },
-    async listRefunds(org, filter, pagination) { let rows = [...refunds.values()].filter((r) => String(r.organizationId) === String(org)); if (filter.supplierId) rows = rows.filter((r) => String(r.supplierId) === String(filter.supplierId)); if (filter.status) rows = rows.filter((r) => r.status === filter.status); if (filter.fromDate) rows = rows.filter((r) => r.businessDate >= filter.fromDate); if (filter.toDate) rows = rows.filter((r) => r.businessDate <= filter.toDate); rows.sort((a, b) => String(b.businessDate).localeCompare(String(a.businessDate))); return { items: rows.slice(pagination.skip, pagination.skip + pagination.pageSize).map((r) => ({ ...r })), total: rows.length }; },
+    async listRefunds(org, filter, pagination) { let rows = [...refunds.values()].filter((r) => String(r.organizationId) === String(org)); if (filter.supplierId) rows = rows.filter((r) => String(r.supplierId) === String(filter.supplierId)); if (filter.accountId) rows = rows.filter((r) => String(r.accountId) === String(filter.accountId)); if (filter.status) rows = rows.filter((r) => r.status === filter.status); if (filter.fromDate) rows = rows.filter((r) => r.businessDate >= filter.fromDate); if (filter.toDate) rows = rows.filter((r) => r.businessDate <= filter.toDate); if (filter.search) rows = rows.filter((r) => `${r.reference ?? ''} ${r.notes ?? ''}`.toLowerCase().includes(String(filter.search).toLowerCase())); rows.sort((a, b) => String(b.businessDate).localeCompare(String(a.businessDate))); return { items: rows.slice(pagination.skip, pagination.skip + pagination.pageSize).map((r) => ({ ...r })), total: rows.length }; },
     async insertAdjustment(_s, doc) { const row = { ...doc, _id: doc._id ?? allocateId(), createdAt: new Date() }; if (row.reversalOfId && [...adjustments.values()].some((r) => String(r.organizationId) === String(row.organizationId) && String(r.reversalOfId) === String(row.reversalOfId))) { const error = new Error('duplicate'); error.code = 11000; throw error; } adjustments.set(String(row._id), row); return { ...row }; },
     async findAdjustment(org, id) { return own(adjustments, org, id); },
     async findAdjustmentReversal(org, id) { const row = [...adjustments.values()].find((r) => String(r.organizationId) === String(org) && String(r.reversalOfId) === String(id)); return row ? { ...row } : null; },
     async listPayableAdjustments(org, supplierId) { return [...adjustments.values()].filter((r) => String(r.organizationId) === String(org) && String(r.supplierId) === String(supplierId) && r.balanceType === 'supplier_payable').map((r) => ({ ...r, targetEffects: r.targetEffects.map((e) => ({ ...e })) })); },
+    async listAdjustmentsForReporting(org) { return [...adjustments.values()].filter((r) => String(r.organizationId) === String(org)).map((r) => ({ ...r })).sort((a, b) => String(b.businessDate).localeCompare(String(a.businessDate))); },
     async appendAuditEvent(_s, event) { audits.push({ ...event }); },
     listForTest() { return { refunds: [...refunds.values()], adjustments: [...adjustments.values()], audits }; },
   };

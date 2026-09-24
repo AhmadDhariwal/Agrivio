@@ -57,6 +57,20 @@ function parseReportFilters(reportKey, raw = {}) {
   if (allowed.has('toDate')) {
     filters.toDate = parseOptionalDate(source.toDate, 'toDate');
   }
+  if (allowed.has('businessDate')) {
+    filters.businessDate = parseOptionalDate(source.businessDate, 'businessDate');
+  }
+  if (allowed.has('dueDateFrom')) {
+    filters.dueDateFrom = parseOptionalDate(source.dueDateFrom, 'dueDateFrom');
+  }
+  if (allowed.has('dueDateTo')) {
+    filters.dueDateTo = parseOptionalDate(source.dueDateTo, 'dueDateTo');
+  }
+  if (filters.dueDateFrom && filters.dueDateTo && filters.dueDateFrom > filters.dueDateTo) {
+    throw validationFailed('Due date range is invalid', [
+      { field: 'dueDateFrom', message: 'dueDateFrom must be on or before dueDateTo' },
+    ]);
+  }
   if (filters.fromDate && filters.toDate && filters.fromDate > filters.toDate) {
     throw validationFailed('Date range is invalid', [
       { field: 'fromDate', message: 'fromDate must be on or before toDate' },
@@ -75,10 +89,22 @@ function parseReportFilters(reportKey, raw = {}) {
     'paymentMethod',
     'employeeId',
     'accountId',
+    'accountType',
+    'sourceType',
+    'direction',
+    'search',
+    'status',
   ]) {
     if (allowed.has(field)) {
       filters[field] = optionalTrimmed(source[field]);
     }
+  }
+
+  if (allowed.has('page')) {
+    filters.page = parsePositiveInteger(source.page, 'page', 1, 1_000_000);
+  }
+  if (allowed.has('pageSize')) {
+    filters.pageSize = parsePositiveInteger(source.pageSize, 'pageSize', 25, 100);
   }
 
   if (allowed.has('paymentStatus')) {
@@ -110,6 +136,17 @@ function parseReportFilters(reportKey, raw = {}) {
   }
 
   return filters;
+}
+
+function parsePositiveInteger(value, field, fallback, maximum) {
+  if (value === undefined || value === null || value === '') return fallback;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > maximum) {
+    throw validationFailed(`${field} is invalid`, [
+      { field, message: `${field} must be an integer from 1 to ${maximum}` },
+    ]);
+  }
+  return parsed;
 }
 
 function parseOptionalDate(value, field) {

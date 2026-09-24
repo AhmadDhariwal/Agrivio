@@ -21,6 +21,7 @@ const supplierRefundSchema = new mongoose.Schema(
   { timestamps: true, collection: 'supplier_refunds' },
 );
 supplierRefundSchema.index({ organizationId: 1, supplierId: 1, businessDate: -1, _id: -1 });
+supplierRefundSchema.index({ organizationId: 1, accountId: 1, status: 1, businessDate: -1, _id: -1 });
 
 const targetEffectSchema = new mongoose.Schema(
   {
@@ -57,6 +58,7 @@ const supplierBalanceAdjustmentSchema = new mongoose.Schema(
   { timestamps: true, collection: 'supplier_balance_adjustments' },
 );
 supplierBalanceAdjustmentSchema.index({ organizationId: 1, supplierId: 1, createdAt: -1 });
+supplierBalanceAdjustmentSchema.index({ organizationId: 1, businessDate: -1, _id: -1 });
 supplierBalanceAdjustmentSchema.index(
   { organizationId: 1, reversalOfId: 1 },
   { unique: true, partialFilterExpression: { reversalOfId: { $type: 'objectId' } } },

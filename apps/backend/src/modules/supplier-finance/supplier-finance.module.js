@@ -16,7 +16,7 @@ function money(value) { return { amount: formatMoneyMinorUnits(BigInt(String(val
 function sourceType(balanceType) { return balanceType === 'supplier_payable' ? 'supplier_payable_adjustment' : 'supplier_advance_adjustment'; }
 function effectKind(balanceType) { return balanceType === 'supplier_payable' ? 'payable' : 'supplier_advance'; }
 function refundDto(row) { return { id: String(row._id), organizationId: String(row.organizationId), supplierId: String(row.supplierId), accountId: String(row.accountId), amount: money(row.amountMinorUnits), businessDate: row.businessDate, reference: row.reference ?? null, notes: row.notes ?? null, status: row.status, postedBy: String(row.postedBy), reversedAt: row.reversedAt ?? null, reversedBy: row.reversedBy ? String(row.reversedBy) : null, reversalReason: row.reversalReason ?? null }; }
-function adjustmentDto(row) { return { id: String(row._id), supplierId: String(row.supplierId), balanceType: row.balanceType, expectedCurrentBalance: money(row.expectedCurrentMinorUnits), desiredBalance: money(row.desiredMinorUnits), delta: money(row.deltaMinorUnits), signedDeltaMinorUnits: String(row.deltaMinorUnits), reason: row.reason, category: row.category, businessDate: row.businessDate, reference: row.reference ?? null, notes: row.notes ?? null, status: row.status, reversalOfId: row.reversalOfId ? String(row.reversalOfId) : null }; }
+function adjustmentDto(row) { return { id: String(row._id), supplierId: String(row.supplierId), balanceType: row.balanceType, expectedCurrentBalance: money(row.expectedCurrentMinorUnits), desiredBalance: money(row.desiredMinorUnits), delta: money(row.deltaMinorUnits), signedDeltaMinorUnits: String(row.deltaMinorUnits), reason: row.reason, category: row.category, businessDate: row.businessDate, reference: row.reference ?? null, notes: row.notes ?? null, status: row.status, reversalOfId: row.reversalOfId ? String(row.reversalOfId) : null, postedBy: row.postedBy ? String(row.postedBy) : null, createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt ?? null }; }
 
 function createSupplierFinanceService(deps) {
   const { store, ledgersService, accountsService, suppliersService, paymentsService, transactionRunner, idempotency } = deps;
@@ -95,6 +95,11 @@ function createSupplierFinanceService(deps) {
       const page = Number(query.page ?? 1); const pageSize = Math.min(Number(query.pageSize ?? 25), 100); const skip = (page - 1) * pageSize;
       const result = await store.listRefunds(organizationId, query, { skip, pageSize });
       return { items: result.items.map(refundDto), total: result.total, page, pageSize };
+    },
+
+    async listAdjustmentsForReporting(organizationId) {
+      const rows = await store.listAdjustmentsForReporting(organizationId);
+      return rows.map(adjustmentDto);
     },
 
     async adjustBalance(organizationId, body, actor, idempotencyKey) {

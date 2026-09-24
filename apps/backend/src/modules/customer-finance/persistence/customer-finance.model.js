@@ -23,6 +23,7 @@ const customerLoanSchema = new mongoose.Schema(
 );
 customerLoanSchema.index({ organizationId: 1, customerId: 1, businessDate: -1, _id: -1 });
 customerLoanSchema.index({ organizationId: 1, status: 1, businessDate: -1 });
+customerLoanSchema.index({ organizationId: 1, dueDate: 1, status: 1 });
 
 const customerLoanRepaymentSchema = new mongoose.Schema(
   {
@@ -85,6 +86,7 @@ const customerBalanceAdjustmentSchema = new mongoose.Schema(
   { timestamps: true, collection: 'customer_balance_adjustments' },
 );
 customerBalanceAdjustmentSchema.index({ organizationId: 1, customerId: 1, createdAt: -1 });
+customerBalanceAdjustmentSchema.index({ organizationId: 1, businessDate: -1, _id: -1 });
 customerBalanceAdjustmentSchema.index(
   { organizationId: 1, reversalOfId: 1 },
   { unique: true, partialFilterExpression: { reversalOfId: { $type: 'objectId' } } },

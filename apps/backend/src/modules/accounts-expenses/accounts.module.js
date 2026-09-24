@@ -472,6 +472,11 @@ function createAccountsService(deps) {
       }));
     },
 
+    async listPostedMovementsForReporting(organizationId) {
+      const items = await store.listPostedMovementsForReporting(organizationId);
+      return items.map(toAccountMovementDto);
+    },
+
     async postOpeningBalance(organizationId, accountId, body, actor, idempotencyKey, options = {}) {
       if (typeof capabilityService?.assertAccountOpeningBalanceAllowed === 'function') {
         await capabilityService.assertAccountOpeningBalanceAllowed(organizationId);

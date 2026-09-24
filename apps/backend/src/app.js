@@ -523,6 +523,8 @@ function createApp(options) {
       customersService: customers.customersService,
       locationsService: locations.locationsService,
       employeesService: employees.employeesService,
+      customerFinanceService: customerFinance.customerFinanceService,
+      supplierFinanceService: supplierFinance.supplierFinanceService,
       capabilityService: capabilities.capabilityService,
       resolveOrganizationTimezone,
       resolvePlanEntitlements: async (organizationId) => {

@@ -347,6 +347,13 @@ function createMongooseAccountsStore() {
         .exec();
     },
 
+    async listPostedMovementsForReporting(organizationId) {
+      return AccountMovementModel.find({ organizationId, status: 'posted' })
+        .sort({ postedAt: 1, _id: 1 })
+        .lean()
+        .exec();
+    },
+
     async sumPostedMovements(organizationId, accountId, session) {
       if (!mongoose.isValidObjectId(accountId)) {
         return '0';
@@ -838,6 +845,20 @@ function createInMemoryAccountsStore() {
         )
         .map((item) => ({ ...item }))
         .sort((a, b) => new Date(a.postedAt).getTime() - new Date(b.postedAt).getTime());
+    },
+
+    async listPostedMovementsForReporting(organizationId) {
+      return [...movements.values()]
+        .filter(
+          (item) =>
+            String(item.organizationId) === String(organizationId) && item.status === 'posted',
+        )
+        .map((item) => ({ ...item }))
+        .sort(
+          (left, right) =>
+            new Date(left.postedAt).getTime() - new Date(right.postedAt).getTime() ||
+            String(left._id).localeCompare(String(right._id)),
+        );
     },
 
     async sumPostedMovements(organizationId, accountId) {

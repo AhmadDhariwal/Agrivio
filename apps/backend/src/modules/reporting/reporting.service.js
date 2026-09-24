@@ -15,6 +15,7 @@ const { REPORT_BY_KEY, REPORT_FAMILIES } = require('./report-catalog');
 const { parseReportFilters, parseReportKey } = require('./report-filters');
 const { renderExport } = require('./report-exports');
 const { createReportQueries } = require('./report-queries');
+const { createFinancialReporting } = require('./financial-reporting');
 const {
   REPORT_CAPABILITY_KEY_BY_REPORT_KEY,
 } = require('../capabilities/capability.registry');
@@ -67,6 +68,20 @@ function createReportingService(deps) {
   const capabilityService = deps.capabilityService ?? null;
   const now = deps.now ?? (() => new Date());
   const queries = createReportQueries(deps);
+  const financial = createFinancialReporting(deps);
+  const financialReportQuery = Object.freeze({
+    'financial-position': financial.financialPosition,
+    'daily-cash-position': financial.dailyCashPosition,
+    'account-statement': financial.accountStatement,
+    'cash-book': financial.cashBook,
+    'bank-book': financial.bankBook,
+    'account-transfers': financial.transfers,
+    'treasury-movements': financial.treasuryMovements,
+    'manual-adjustments': financial.manualAdjustments,
+    'customer-loans': financial.customerLoans,
+    'supplier-refunds': financial.supplierRefunds,
+    'financial-reconciliation': financial.reconciliation,
+  });
 
   async function resolveOrgBusinessDate(organizationId) {
     const timezone = await resolveOrganizationTimezone(organizationId);
@@ -151,6 +166,8 @@ function createReportingService(deps) {
         'bankBalances',
         'jazzCashBalance',
         'easypaisaBalance',
+        'otherLiquidBalances',
+        'totalLiquidFunds',
         'accountDistribution',
       ]);
     }
@@ -172,7 +189,9 @@ function createReportingService(deps) {
   async function buildReportDataset(organizationId, key, rawFilters, authContext) {
     const filters = parseReportFilters(key, rawFilters);
     assertOptionalLocationFilters(authContext, filters);
-    const dataset = await queries.queryReport(organizationId, key, filters, authContext);
+    const dataset = financialReportQuery[key]
+      ? await financialReportQuery[key](organizationId, filters, authContext)
+      : await queries.queryReport(organizationId, key, filters, authContext);
     return { ...dataset, filters };
   }
 
@@ -250,6 +269,10 @@ function createReportingService(deps) {
       bankBalances: toMoneyDto(totals.bank),
       jazzCashBalance: toMoneyDto(totals.jazzcash),
       easypaisaBalance: toMoneyDto(totals.easypaisa),
+      otherLiquidBalances: toMoneyDto(totals.jazzcash + totals.easypaisa),
+      totalLiquidFunds: toMoneyDto(
+        totals.cash + totals.bank + totals.jazzcash + totals.easypaisa,
+      ),
     };
   }
 

@@ -105,6 +105,7 @@ const accountMovementSchema = new mongoose.Schema(
 
 accountMovementSchema.index({ organizationId: 1, accountId: 1, postedAt: -1 });
 accountMovementSchema.index({ organizationId: 1, accountId: 1, businessDate: -1, _id: -1 });
+accountMovementSchema.index({ organizationId: 1, status: 1, businessDate: -1, postedAt: -1, _id: -1 });
 accountMovementSchema.index({ organizationId: 1, sourceType: 1, sourceId: 1 });
 accountMovementSchema.index({ organizationId: 1, reversalOfId: 1 });
 accountMovementSchema.index(

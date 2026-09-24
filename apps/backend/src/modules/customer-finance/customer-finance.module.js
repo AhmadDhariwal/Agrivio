@@ -15,7 +15,7 @@ function money(minor) { return { amount: formatMoneyMinorUnits(BigInt(String(min
 function actorId(actor) { return String(actor.actorId); }
 function statusFor(loan, outstanding) { if (loan.status === 'reversed') return 'reversed'; if (outstanding === 0n) return 'repaid'; if (outstanding < BigInt(loan.principalMinorUnits)) return 'partially_repaid'; return 'open'; }
 function loanDto(loan, outstanding, repaid = 0n) { const principal = BigInt(loan.principalMinorUnits); return { id: String(loan._id), organizationId: String(loan.organizationId), customerId: String(loan.customerId), principal: money(principal), outstanding: money(outstanding), repaid: money(loan.status === 'reversed' ? 0n : repaid), businessDate: loan.businessDate, dueDate: loan.dueDate ?? null, disbursementAccountId: String(loan.disbursementAccountId), status: statusFor(loan, outstanding), reference: loan.reference ?? null, notes: loan.notes ?? null, createdBy: String(loan.createdBy) }; }
-function adjustmentDto(row) { return { id: String(row._id), customerId: String(row.customerId), balanceType: row.balanceType, loanId: row.loanId ? String(row.loanId) : null, expectedCurrentBalance: money(row.expectedCurrentMinorUnits), desiredBalance: money(row.desiredMinorUnits), delta: money(row.deltaMinorUnits), signedDeltaMinorUnits: String(row.deltaMinorUnits), reason: row.reason, category: row.category, businessDate: row.businessDate, reference: row.reference ?? null, notes: row.notes ?? null, status: row.status, reversalOfId: row.reversalOfId ? String(row.reversalOfId) : null }; }
+function adjustmentDto(row) { return { id: String(row._id), customerId: String(row.customerId), balanceType: row.balanceType, loanId: row.loanId ? String(row.loanId) : null, expectedCurrentBalance: money(row.expectedCurrentMinorUnits), desiredBalance: money(row.desiredMinorUnits), delta: money(row.deltaMinorUnits), signedDeltaMinorUnits: String(row.deltaMinorUnits), reason: row.reason, category: row.category, businessDate: row.businessDate, reference: row.reference ?? null, notes: row.notes ?? null, status: row.status, reversalOfId: row.reversalOfId ? String(row.reversalOfId) : null, postedBy: row.postedBy ? String(row.postedBy) : null, createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt ?? null }; }
 
 function createCustomerFinanceService(deps) {
   const { store, ledgersService, accountsService, customersService, paymentsService, transactionRunner, idempotency } = deps;
@@ -68,7 +68,7 @@ function createCustomerFinanceService(deps) {
         }
       }
       const page = Number(query.page ?? 1); const pageSize = Math.min(Number(query.pageSize ?? 25), 100); const skip = (page - 1) * pageSize;
-      const result = await store.listLoans(organizationId, { customerId: query.customerId, fromDate: query.fromDate, toDate: query.toDate, search: query.search }, { skip: 0, pageSize: 100000 });
+      const result = await store.listLoans(organizationId, { customerId: query.customerId, fromDate: query.fromDate, toDate: query.toDate, dueDateFrom: query.dueDateFrom, dueDateTo: query.dueDateTo, search: query.search }, { skip: 0, pageSize: 100000 });
       const [balances, repayments] = await Promise.all([
         ledgersService.listCustomerLoanBalances(organizationId, query.customerId),
         ledgersService.listCustomerLoanRepaymentTotals(organizationId, query.customerId),
@@ -76,6 +76,11 @@ function createCustomerFinanceService(deps) {
       let items = result.items.map((row) => loanDto(row, BigInt(String(balances.get(String(row._id)) ?? '0')), BigInt(String(repayments.get(String(row._id)) ?? '0'))));
       if (query.status) items = items.filter((row) => row.status === query.status);
       return { items: items.slice(skip, skip + pageSize), total: items.length, page, pageSize };
+    },
+
+    async listAdjustmentsForReporting(organizationId) {
+      const rows = await store.listAdjustmentsForReporting(organizationId);
+      return rows.map(adjustmentDto);
     },
 
     async getLoan(organizationId, loanId) { const loan = await store.findLoan(organizationId, loanId); if (!loan) throw notFound('Customer loan not found'); const [outstanding, repaymentTotals, repayments] = await Promise.all([loanOutstanding(organizationId, loanId), ledgersService.listCustomerLoanRepaymentTotals(organizationId, loan.customerId), store.listRepayments(organizationId, loanId)]); return { ...loanDto(loan, outstanding, BigInt(String(repaymentTotals.get(String(loanId)) ?? '0'))), repayments: repayments.map((row) => ({ id: String(row._id), amount: money(row.amountMinorUnits), accountId: String(row.accountId), businessDate: row.businessDate, reference: row.reference ?? null, notes: row.notes ?? null, status: row.status, postedBy: String(row.postedBy) })) }; },
