@@ -36,7 +36,7 @@ function createMongooseCustomerFinanceStore() {
     async insertAdjustment(session, doc) { const [row] = await CustomerBalanceAdjustmentModel.create([doc], sessionOptions(session)); return row.toObject(); },
     async findAdjustment(organizationId, id, session) { if (!mongoose.isValidObjectId(id)) return null; return sessionQuery(CustomerBalanceAdjustmentModel.findOne({ _id: id, organizationId }), session).lean().exec(); },
     async findAdjustmentReversal(organizationId, reversalOfId, session) { if (!mongoose.isValidObjectId(reversalOfId)) return null; return sessionQuery(CustomerBalanceAdjustmentModel.findOne({ organizationId, reversalOfId }), session).lean().exec(); },
-    async listCustomerTradeAdjustments(organizationId, customerId) { return CustomerBalanceAdjustmentModel.find({ organizationId, customerId, balanceType: 'trade_receivable' }).select('targetEffects deltaMinorUnits businessDate reference createdAt reversalOfId').lean().exec(); },
+    async listCustomerTradeAdjustments(organizationId, customerId, session) { return sessionQuery(CustomerBalanceAdjustmentModel.find({ organizationId, customerId, balanceType: 'trade_receivable' }), session).select('targetEffects deltaMinorUnits businessDate reference createdAt reversalOfId').lean().exec(); },
     async listAdjustmentsForReporting(organizationId) { return CustomerBalanceAdjustmentModel.find({ organizationId }).sort({ businessDate: -1, createdAt: -1, _id: -1 }).lean().exec(); },
     async appendAuditEvent(session, event) { await AuditEventModel.create([event], sessionOptions(session)); },
   };

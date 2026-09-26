@@ -11,6 +11,16 @@ import { FormsModule } from '@angular/forms';
 import { UiDialogComponent } from '../ui-dialog/ui-dialog.component';
 import { UiAlertComponent } from '../ui-alert/ui-alert.component';
 import { UiFieldLabelComponent } from '../ui-field-label/ui-field-label.component';
+import {
+  DropdownOption,
+  UiSearchableDropdownComponent,
+} from '../ui-searchable-dropdown/ui-searchable-dropdown.component';
+
+export interface PaymentCorrectionAllocationTarget {
+  id: string;
+  label: string;
+  outstandingAmount: string;
+}
 
 export interface PaymentCorrectionTarget {
   id: string;
@@ -27,6 +37,8 @@ export interface PaymentCorrectionTarget {
   correctionOfId?: string | null;
   reason?: string | null;
   replacementPaymentId?: string | null;
+  reversalPaymentId?: string | null;
+  correctionStatus?: 'reversed' | 'corrected' | null;
   allocations?: {
     id: string;
     targetType: string;
@@ -45,8 +57,8 @@ export interface PaymentCorrectionDialogResult {
     amount: { amount: string; currency: string };
     paymentDate: string;
     allocationMode: 'general' | 'invoice_specific';
+    allocations?: { targetId: string; amount: { amount: string; currency: string } }[];
     notes: string;
-    reference?: string;
   } | null;
   idempotencyKey: string;
 }
@@ -54,7 +66,14 @@ export interface PaymentCorrectionDialogResult {
 @Component({
   selector: 'agrivio-payment-correction-dialog',
   standalone: true,
-  imports: [CommonModule, FormsModule, UiDialogComponent, UiAlertComponent, UiFieldLabelComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    UiDialogComponent,
+    UiAlertComponent,
+    UiFieldLabelComponent,
+    UiSearchableDropdownComponent,
+  ],
   template: `
     <agrivio-ui-dialog
       [open]="open()"
@@ -101,13 +120,12 @@ export interface PaymentCorrectionDialogResult {
         </section>
 
         <!-- Mode Toggle Tabs (Reverse vs Correct) -->
-        <div class="correction-mode-tabs" role="tablist" aria-label="Correction Type">
+        <div class="correction-mode-tabs" role="group" aria-label="Correction type">
           <button
             type="button"
-            role="tab"
             class="correction-tab-btn"
             [class.correction-tab-btn--active]="mode() === 'reverse'"
-            [attr.aria-selected]="mode() === 'reverse'"
+            [attr.aria-pressed]="mode() === 'reverse'"
             (click)="setMode('reverse')"
             data-testid="correction-tab-reverse"
           >
@@ -116,10 +134,9 @@ export interface PaymentCorrectionDialogResult {
           </button>
           <button
             type="button"
-            role="tab"
             class="correction-tab-btn"
             [class.correction-tab-btn--active]="mode() === 'correct'"
-            [attr.aria-selected]="mode() === 'correct'"
+            [attr.aria-pressed]="mode() === 'correct'"
             (click)="setMode('correct')"
             data-testid="correction-tab-correct"
           >
@@ -139,7 +156,7 @@ export interface PaymentCorrectionDialogResult {
             <div class="correction-form-grid">
               <!-- Corrected Amount -->
               <div class="form-field">
-                <agrivio-ui-field-label forId="correction-amount" label="Corrected Amount (PKR)" [required]="true" />
+                <agrivio-ui-field-label for="correction-amount" label="Corrected Amount (PKR)" [required]="true" />
                 <input
                   id="correction-amount"
                   type="number"
@@ -160,7 +177,7 @@ export interface PaymentCorrectionDialogResult {
 
               <!-- Corrected Business Date -->
               <div class="form-field">
-                <agrivio-ui-field-label forId="correction-date" label="Payment Business Date" [required]="true" />
+                <agrivio-ui-field-label for="correction-date" label="Payment Business Date" [required]="true" />
                 <input
                   id="correction-date"
                   type="date"
@@ -178,21 +195,22 @@ export interface PaymentCorrectionDialogResult {
 
               <!-- Cash/Bank Account Override (Optional, defaults to original) -->
               <div class="form-field">
-                <agrivio-ui-field-label forId="correction-account" label="Cash/Bank Account ID (Blank = Original)" />
-                <input
+                <agrivio-ui-field-label for="correction-account" label="Cash/Bank Account" [required]="true" />
+                <agrivio-ui-searchable-dropdown
                   id="correction-account"
-                  type="text"
-                  class="ag-input font-mono"
+                  [options]="accountOptions()"
                   [ngModel]="replacementAccountId()"
                   (ngModelChange)="replacementAccountId.set($event)"
-                  [placeholder]="p.accountId"
-                  data-testid="correction-replacement-account"
+                  [selectedLabel]="selectedAccountLabel()"
+                  placeholder="Select active liquid account"
+                  ariaLabel="Cash or bank account"
+                  testId="correction-replacement-account"
                 />
               </div>
 
               <!-- Allocation Mode -->
               <div class="form-field">
-                <agrivio-ui-field-label forId="correction-alloc-mode" label="Allocation Mode" [required]="true" />
+                <agrivio-ui-field-label for="correction-alloc-mode" label="Allocation Mode" [required]="true" />
                 <select
                   id="correction-alloc-mode"
                   class="ag-select"
@@ -205,23 +223,9 @@ export interface PaymentCorrectionDialogResult {
                 </select>
               </div>
 
-              <!-- Reference -->
-              <div class="form-field form-field--full">
-                <agrivio-ui-field-label forId="correction-reference" label="Reference / Instrument Number" />
-                <input
-                  id="correction-reference"
-                  type="text"
-                  class="ag-input"
-                  [ngModel]="replacementReference()"
-                  (ngModelChange)="replacementReference.set($event)"
-                  placeholder="e.g. Cheque #, Online transfer Ref"
-                  data-testid="correction-replacement-reference"
-                />
-              </div>
-
               <!-- Replacement Notes -->
               <div class="form-field form-field--full">
-                <agrivio-ui-field-label forId="correction-notes" label="Replacement Payment Notes" />
+                <agrivio-ui-field-label for="correction-notes" label="Replacement Payment Notes" />
                 <input
                   id="correction-notes"
                   type="text"
@@ -233,13 +237,49 @@ export interface PaymentCorrectionDialogResult {
                 />
               </div>
             </div>
+
+            @if (replacementAllocationMode() === 'invoice_specific') {
+              <div class="allocation-targets" data-testid="correction-allocation-targets">
+                <h4>Target allocations</h4>
+                @if (allocationTargets().length === 0) {
+                  <p class="field-error">No valid outstanding targets are available.</p>
+                }
+                @for (target of allocationTargets(); track target.id) {
+                  <div class="allocation-row">
+                    <div>
+                      <strong>{{ target.label }}</strong>
+                      <span>Outstanding: PKR {{ formatMoney(target.outstandingAmount) }}</span>
+                    </div>
+                    <label [for]="'correction-allocation-' + $index" class="ag-sr-only">
+                      Allocation for {{ target.label }}
+                    </label>
+                    <input
+                      [id]="'correction-allocation-' + $index"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      class="ag-input allocation-row__amount"
+                      [ngModel]="allocationAmount(target.id)"
+                      (ngModelChange)="setAllocationAmount(target.id, $event)"
+                      [attr.data-testid]="'correction-allocation-' + target.id"
+                    />
+                  </div>
+                }
+                <div class="allocation-total">
+                  Allocated: PKR {{ formatMoney(allocationTotal()) }} / PKR {{ formatMoney(replacementAmount()) }}
+                </div>
+                @if (submitAttempted() && !isAllocationValid()) {
+                  <span class="field-error">Target allocations must equal the replacement amount and must not exceed target outstanding balances.</span>
+                }
+              </div>
+            }
           </section>
         }
 
         <!-- Required Correction Reason -->
         <section class="correction-section correction-section--reason" aria-label="Reason for correction">
           <agrivio-ui-field-label
-            forId="correction-reason"
+            for="correction-reason"
             [label]="mode() === 'reverse' ? 'Reason for Reversal' : 'Reason for Correction'"
             [required]="true"
           />
@@ -302,7 +342,7 @@ export interface PaymentCorrectionDialogResult {
             [class.ag-btn--danger]="mode() === 'reverse'"
             [class.ag-btn--primary]="mode() === 'correct'"
             (click)="onSubmit()"
-            [disabled]="submitting() || submitted()"
+            [disabled]="submitting()"
             data-testid="correction-submit-btn"
           >
             @if (submitting()) {
@@ -346,6 +386,12 @@ export interface PaymentCorrectionDialogResult {
     .ag-input:focus { outline: none; border-color: var(--ag-primary, #065f46); box-shadow: 0 0 0 3px rgba(6,95,70,.1); }
     .ag-input--error { border-color: #ef4444; }
     .ag-select { width: 100%; padding: .5rem .75rem; border: 1px solid var(--ag-border, #e5e7eb); border-radius: var(--ag-radius, 6px); font-size: .875rem; background: #fff; color: #111827; box-sizing: border-box; cursor: pointer; }
+    .allocation-targets { display: flex; flex-direction: column; gap: .625rem; margin-top: 1rem; }
+    .allocation-targets h4 { margin: 0; font-size: .875rem; }
+    .allocation-row { display: grid; grid-template-columns: 1fr 10rem; align-items: center; gap: 1rem; }
+    .allocation-row div { display: flex; flex-direction: column; gap: .125rem; font-size: .8125rem; }
+    .allocation-row span { color: var(--ag-text-muted, #6b7280); }
+    .allocation-total { text-align: right; font-size: .8125rem; font-weight: 600; }
     .ag-btn__spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; margin-right: .375rem; vertical-align: middle; }
     .font-mono { font-family: var(--ag-font-mono, monospace); }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -363,6 +409,8 @@ export class PaymentCorrectionDialogComponent {
   readonly initialMode = input<'reverse' | 'correct'>('reverse');
   readonly submitting = input(false);
   readonly errorMessage = input<string | null>(null);
+  readonly accountOptions = input<DropdownOption[]>([]);
+  readonly allocationTargets = input<PaymentCorrectionAllocationTarget[]>([]);
 
   readonly confirmed = output<PaymentCorrectionDialogResult>();
   readonly dismissed = output<void>();
@@ -373,10 +421,11 @@ export class PaymentCorrectionDialogComponent {
   readonly replacementDate = signal('');
   readonly replacementAccountId = signal('');
   readonly replacementAllocationMode = signal<'general' | 'invoice_specific'>('general');
-  readonly replacementReference = signal('');
   readonly replacementNotes = signal('');
+  readonly allocationAmounts = signal<Record<string, string>>({});
   readonly submitAttempted = signal(false);
-  readonly submitted = signal(false);
+  private attemptFingerprint = '';
+  private attemptKey = '';
 
   readonly dialogTitle = computed(() => this.mode() === 'reverse' ? 'Reverse Payment' : 'Correct Payment');
   readonly submitLabel = computed(() => {
@@ -388,6 +437,30 @@ export class PaymentCorrectionDialogComponent {
     if (this.mode() !== 'correct') return true;
     const val = parseFloat(this.replacementAmount());
     return !isNaN(val) && val > 0;
+  });
+  readonly selectedAccountLabel = computed(
+    () => this.accountOptions().find((item) => item.value === this.replacementAccountId())?.label ?? '',
+  );
+  readonly allocationTotal = computed(() => {
+    const totalMinor = this.selectedAllocations().reduce(
+      (sum, item) => sum + this.toMinorUnits(item.amount),
+      0,
+    );
+    return (totalMinor / 100).toFixed(2);
+  });
+  readonly isAllocationValid = computed(() => {
+    if (this.mode() !== 'correct' || this.replacementAllocationMode() !== 'invoice_specific') {
+      return true;
+    }
+    const allocations = this.selectedAllocations();
+    if (allocations.length === 0) return false;
+    const targets = new Map(this.allocationTargets().map((item) => [item.id, item]));
+    const allocatedMinor = allocations.reduce((sum, item) => sum + this.toMinorUnits(item.amount), 0);
+    if (allocatedMinor !== this.toMinorUnits(this.replacementAmount())) return false;
+    return allocations.every((item) => {
+      const target = targets.get(item.targetId);
+      return target && this.toMinorUnits(item.amount) <= this.toMinorUnits(target.outstandingAmount);
+    });
   });
 
   readonly impactLines = computed((): string[] => {
@@ -434,15 +507,16 @@ export class PaymentCorrectionDialogComponent {
         this.mode.set(this.initialMode());
         this.replacementAmount.set(p.amount.amount);
         this.replacementDate.set(p.paymentDate);
-        this.replacementAccountId.set('');
+        this.replacementAccountId.set(p.accountId);
         this.replacementAllocationMode.set(
           p.allocationMode === 'invoice_specific' ? 'invoice_specific' : 'general',
         );
-        this.replacementReference.set(p.reference ?? '');
         this.replacementNotes.set(p.notes ?? '');
+        this.allocationAmounts.set({});
         this.reason.set('');
         this.submitAttempted.set(false);
-        this.submitted.set(false);
+        this.attemptFingerprint = '';
+        this.attemptKey = '';
       }
     });
   }
@@ -450,6 +524,14 @@ export class PaymentCorrectionDialogComponent {
   setMode(m: 'reverse' | 'correct'): void {
     this.mode.set(m);
     this.submitAttempted.set(false);
+  }
+
+  allocationAmount(targetId: string): string {
+    return this.allocationAmounts()[targetId] ?? '';
+  }
+
+  setAllocationAmount(targetId: string, amount: string): void {
+    this.allocationAmounts.update((current) => ({ ...current, [targetId]: String(amount ?? '') }));
   }
 
   onDismiss(): void {
@@ -467,11 +549,44 @@ export class PaymentCorrectionDialogComponent {
     if (this.mode() === 'correct') {
       if (!this.isAmountValid()) return;
       if (!this.replacementDate().trim()) return;
+      if (!this.replacementAccountId().trim()) return;
+      if (!this.isAllocationValid()) return;
     }
 
-    this.submitted.set(true);
-
-    const idempotencyKey = `corr-${p.id}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const replacement = this.mode() === 'correct'
+      ? {
+          accountId: this.replacementAccountId().trim(),
+          amount: {
+            amount: (this.toMinorUnits(this.replacementAmount()) / 100).toFixed(2),
+            currency: p.amount.currency || 'PKR',
+          },
+          paymentDate: this.replacementDate().trim(),
+          allocationMode: this.replacementAllocationMode(),
+          ...(this.replacementAllocationMode() === 'invoice_specific'
+            ? {
+                allocations: this.selectedAllocations().map((item) => ({
+                  targetId: item.targetId,
+                  amount: {
+                    amount: (this.toMinorUnits(item.amount) / 100).toFixed(2),
+                    currency: p.amount.currency || 'PKR',
+                  },
+                })),
+              }
+            : {}),
+          notes: this.replacementNotes().trim(),
+        }
+      : null;
+    const fingerprint = JSON.stringify({
+      paymentId: p.id,
+      mode: this.mode(),
+      reason: this.reason().trim(),
+      replacement,
+    });
+    if (fingerprint !== this.attemptFingerprint) {
+      this.attemptFingerprint = fingerprint;
+      this.attemptKey = `corr-${p.id}-${crypto.randomUUID()}`;
+    }
+    const idempotencyKey = this.attemptKey;
 
     if (this.mode() === 'reverse') {
       this.confirmed.emit({
@@ -486,22 +601,21 @@ export class PaymentCorrectionDialogComponent {
         paymentId: p.id,
         mode: 'correct',
         reason: this.reason().trim(),
-        replacement: {
-          accountId: this.replacementAccountId().trim() || p.accountId,
-          amount: {
-            amount: parseFloat(this.replacementAmount()).toFixed(2),
-            currency: p.amount.currency || 'PKR',
-          },
-          paymentDate: this.replacementDate().trim(),
-          allocationMode: this.replacementAllocationMode(),
-          notes: this.replacementNotes().trim(),
-          ...(this.replacementReference().trim()
-            ? { reference: this.replacementReference().trim() }
-            : {}),
-        },
+        replacement,
         idempotencyKey,
       });
     }
+  }
+
+  private selectedAllocations(): { targetId: string; amount: string }[] {
+    return Object.entries(this.allocationAmounts())
+      .filter(([, amount]) => this.toMinorUnits(amount) > 0)
+      .map(([targetId, amount]) => ({ targetId, amount }));
+  }
+
+  private toMinorUnits(value: string): number {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed * 100) : 0;
   }
 
   formatMoney(amount: string | null | undefined): string {

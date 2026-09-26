@@ -99,7 +99,9 @@ describe('PaymentDetailDialogComponent', () => {
     const replacedTarget: PaymentCorrectionTarget = {
       ...sampleActiveTarget,
       id: 'pay-orig-001',
+      reversalPaymentId: 'pay-rev-002',
       replacementPaymentId: 'pay-rep-002',
+      correctionStatus: 'corrected',
       reason: 'Incorrect amount fixed',
     };
     setupDialog(replacedTarget, true, true);

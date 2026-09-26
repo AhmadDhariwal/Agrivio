@@ -483,7 +483,9 @@ describe('CustomerPaymentsPage', () => {
     const correctedRecord: CustomerPaymentRecord = {
       ...mockPayment,
       id: 'pay-orig-1',
+      reversalPaymentId: 'pay-rev-1',
       replacementPaymentId: 'pay-repl-1',
+      correctionStatus: 'corrected',
     };
     listCustomerPaymentsSpy.mockReturnValue(
       of({ items: [correctedRecord], meta: { page: 1, pageSize: 25, total: 1 } }),

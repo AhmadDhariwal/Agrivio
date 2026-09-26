@@ -8,23 +8,25 @@ import {
   CustomerPaymentsApi,
   CustomerPaymentsListQuery,
 } from '../../data-access/customer-payments.api';
-import { CustomerPaymentRecord, MoneyAmount } from '../../models/customer-payments.models';
+import { CustomerPaymentRecord, MoneyAmount, UnpaidSaleRecord } from '../../models/customer-payments.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { CustomersApi } from '../../../customers/data-access/customers.api';
+import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 import { UiSearchableDropdownComponent, DropdownOption } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
-import { formatCustomerOption } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
+import { formatAccountOption, formatCustomerOption } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { AppDatePipe } from '../../../../shared/format/date-time.pipe';
 import { getAppliedToLabel } from './customer-payments-presentation.util';
 import type { CustomerRecord } from '../../../customers/models/customers.models';
 import {
   PaymentCorrectionDialogComponent,
   PaymentCorrectionDialogResult,
+  PaymentCorrectionAllocationTarget,
   PaymentCorrectionTarget,
 } from '../../../../shared/ui/payment-correction-dialog/payment-correction-dialog.component';
 import { PaymentDetailDialogComponent } from '../../../../shared/ui/payment-detail-dialog/payment-detail-dialog.component';
@@ -55,6 +57,7 @@ export class CustomerPaymentsPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly customersApi = inject(CustomersApi);
+  private readonly accountsApi = inject(AccountsApi, { optional: true });
   private readonly reloadRequests = new Subject<boolean>();
   private readonly customerSearchImmediate = new Subject<string>();
   private readonly customerSearchChanges = new Subject<string>();
@@ -69,6 +72,8 @@ export class CustomerPaymentsPage {
   private selectedCustomerLabel = signal<string>('');
 
   readonly items = signal<CustomerPaymentRecord[]>([]);
+  readonly correctionAccountOptions = signal<DropdownOption[]>([]);
+  readonly correctionAllocationTargets = signal<PaymentCorrectionAllocationTarget[]>([]);
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly filterError = signal<string | null>(null);
@@ -214,6 +219,13 @@ export class CustomerPaymentsPage {
       });
 
     this.customerSearchImmediate.next('');
+
+    this.accountsApi?.listAccountOptions().subscribe({
+      next: (accounts) =>
+        this.correctionAccountOptions.set(
+          accounts.filter((account) => account.status === 'active').map(formatAccountOption),
+        ),
+    });
 
     this.reloadRequests
       .pipe(
@@ -474,12 +486,14 @@ export class CustomerPaymentsPage {
       correctionOfId: item.correctionOfId ?? null,
       reason: item.reason ?? null,
       replacementPaymentId: item.replacementPaymentId ?? null,
+      reversalPaymentId: item.reversalPaymentId ?? null,
+      correctionStatus: item.correctionStatus ?? null,
       allocations: item.allocations,
     };
   }
 
   isCorrectable(item: CustomerPaymentRecord): boolean {
-    return item.status === 'posted' && !item.correctionOfId && !item.replacementPaymentId;
+    return item.status === 'posted' && !item.correctionOfId && !item.correctionStatus && !item.replacementPaymentId;
   }
 
   openDetailDialog(item: CustomerPaymentRecord): void {
@@ -495,6 +509,7 @@ export class CustomerPaymentsPage {
     this.correctionTarget.set(this.toCorrectionTarget(item));
     this.correctionInitialMode.set(mode);
     this.correctionError.set(null);
+    this.loadCorrectionTargets(item);
     this.correctionDialogOpen.set(true);
   }
 
@@ -542,6 +557,14 @@ export class CustomerPaymentsPage {
             amount: event.replacement.amount,
             paymentDate: event.replacement.paymentDate,
             allocationMode: event.replacement.allocationMode,
+            ...(event.replacement.allocations
+              ? {
+                  allocations: event.replacement.allocations.map((allocation) => ({
+                    saleId: allocation.targetId,
+                    amount: allocation.amount,
+                  })),
+                }
+              : {}),
             notes: event.replacement.notes,
           }
         : null,
@@ -565,5 +588,52 @@ export class CustomerPaymentsPage {
           );
         },
       });
+  }
+
+  private loadCorrectionTargets(payment: CustomerPaymentRecord): void {
+    if (!payment.customerId) {
+      this.correctionAllocationTargets.set([]);
+      return;
+    }
+    if (typeof this.api.listUnpaidSales !== 'function') {
+      this.correctionAllocationTargets.set(this.mergeCustomerTargets([], payment));
+      return;
+    }
+    this.api.listUnpaidSales(payment.customerId, { forceRefresh: true }).subscribe({
+      next: (targets) => this.correctionAllocationTargets.set(this.mergeCustomerTargets(targets, payment)),
+      error: () => this.correctionAllocationTargets.set(this.mergeCustomerTargets([], payment)),
+    });
+  }
+
+  private mergeCustomerTargets(
+    targets: UnpaidSaleRecord[],
+    payment: CustomerPaymentRecord,
+  ): PaymentCorrectionAllocationTarget[] {
+    const result = new Map<string, PaymentCorrectionAllocationTarget>();
+    for (const target of targets) {
+      result.set(target.id, {
+        id: target.id,
+        label: target.invoiceNumber || target.sequence || target.id,
+        outstandingAmount: target.outstanding.amount,
+      });
+    }
+    for (const allocation of payment.allocations ?? []) {
+      if (!['sale', 'customer_opening_receivable', 'customer_manual_receivable'].includes(allocation.targetType)) continue;
+      const id = allocation.targetType === 'customer_opening_receivable'
+        ? `opening:${allocation.targetId}`
+        : allocation.targetId;
+      const existing = result.get(id);
+      const restored = this.moneyMinor(existing?.outstandingAmount ?? '0') + this.moneyMinor(allocation.allocatedAmount.amount);
+      result.set(id, {
+        id,
+        label: existing?.label ?? (allocation.targetType === 'customer_opening_receivable' ? 'Opening receivable' : allocation.targetId),
+        outstandingAmount: (restored / 100).toFixed(2),
+      });
+    }
+    return [...result.values()];
+  }
+
+  private moneyMinor(value: string): number {
+    return Math.round((Number(value) || 0) * 100);
   }
 }

@@ -31,8 +31,10 @@ import { PaymentCorrectionTarget } from '../payment-correction-dialog/payment-co
             <div class="detail-status-right">
               @if (p.correctionOfId) {
                 <span class="badge badge--warning" data-testid="detail-reversal-badge">Reversal Record</span>
-              } @else if (p.replacementPaymentId) {
-                <span class="badge badge--muted" data-testid="detail-corrected-badge">Superseded (Corrected)</span>
+              } @else if (p.correctionStatus || p.replacementPaymentId) {
+                <span class="badge badge--muted" data-testid="detail-corrected-badge">
+                  {{ p.correctionStatus === 'reversed' ? 'Reversed' : 'Superseded (Corrected)' }}
+                </span>
               } @else {
                 <span class="badge badge--success" data-testid="detail-posted-badge">Posted (Active)</span>
               }
@@ -102,15 +104,18 @@ import { PaymentCorrectionTarget } from '../payment-correction-dialog/payment-co
             </div>
           }
 
-          @if (p.replacementPaymentId) {
+          @if (p.correctionStatus || p.replacementPaymentId) {
             <div class="lineage-card lineage-card--replaced" data-testid="detail-replaced-notice">
               <div class="lineage-card__icon" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><polyline points="17 11 19 13 23 9"></polyline></svg>
               </div>
               <div class="lineage-card__content">
-                <h4 class="lineage-card__title">Payment Superseded by Correction</h4>
+                <h4 class="lineage-card__title">{{ p.correctionStatus === 'reversed' ? 'Payment Reversed' : 'Payment Superseded by Correction' }}</h4>
                 <p class="lineage-card__desc">
-                  This payment was reversed and replaced by payment <strong class="font-mono">{{ p.replacementPaymentId }}</strong>.
+                  Reversal payment: <strong class="font-mono">{{ p.reversalPaymentId || '—' }}</strong>.
+                  @if (p.replacementPaymentId) {
+                    Replacement payment: <strong class="font-mono">{{ p.replacementPaymentId }}</strong>.
+                  }
                 </p>
                 @if (p.reason) {
                   <p class="lineage-card__reason"><strong>Correction Reason:</strong> {{ p.reason }}</p>
@@ -241,7 +246,7 @@ export class PaymentDetailDialogComponent {
   isPaymentCorrectable(): boolean {
     const p = this.payment();
     if (!p) return false;
-    return p.correctionOfId === null && p.replacementPaymentId === null;
+    return !p.correctionOfId && !p.correctionStatus && !p.replacementPaymentId;
   }
 
   onReverseClicked(): void {

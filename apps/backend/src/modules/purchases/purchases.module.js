@@ -824,7 +824,7 @@ function createPurchasesService(deps) {
         if (typeof deps.listPurchaseReturnCredits === 'function') {
           const returnCredit = BigInt(
             String(
-              (await deps.listPurchaseReturnCredits(organizationId, String(item['_id']))) ?? '0',
+              (await deps.listPurchaseReturnCredits(organizationId, String(item['_id']), session)) ?? '0',
             ),
           );
           outstanding -= returnCredit;

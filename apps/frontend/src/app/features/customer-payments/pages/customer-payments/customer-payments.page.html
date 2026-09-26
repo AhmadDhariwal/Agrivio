@@ -545,8 +545,8 @@
                       </button>
                     } @else if (item.correctionOfId) {
                       <span class="reversal-badge" title="Immutable reversal record" data-testid="reversal-badge">Reversal</span>
-                    } @else if (item.replacementPaymentId) {
-                      <span class="corrected-badge" title="Payment superseded by correction" data-testid="corrected-badge">Corrected</span>
+                    } @else if (item.correctionStatus || item.replacementPaymentId) {
+                      <span class="corrected-badge" title="Payment correction status" data-testid="corrected-badge">{{ item.correctionStatus === 'reversed' ? 'Reversed' : 'Corrected' }}</span>
                     }
                   </div>
                 </td>
@@ -643,8 +643,8 @@
                   </button>
                 } @else if (item.correctionOfId) {
                   <span class="reversal-badge">Reversal</span>
-                } @else if (item.replacementPaymentId) {
-                  <span class="corrected-badge">Corrected</span>
+                } @else if (item.correctionStatus || item.replacementPaymentId) {
+                  <span class="corrected-badge">{{ item.correctionStatus === 'reversed' ? 'Reversed' : 'Corrected' }}</span>
                 }
               </div>
             </div>
@@ -681,6 +681,8 @@
     [initialMode]="correctionInitialMode()"
     [submitting]="correctionSubmitting()"
     [errorMessage]="correctionError()"
+    [accountOptions]="correctionAccountOptions()"
+    [allocationTargets]="correctionAllocationTargets()"
     (confirmed)="onCorrectionConfirmed($event)"
     (dismissed)="closeCorrectionDialog()"
   />

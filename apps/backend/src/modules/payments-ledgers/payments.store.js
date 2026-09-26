@@ -37,11 +37,13 @@ function createMongoosePaymentsStore() {
       }
     },
 
-    async findPaymentById(organizationId, id) {
+    async findPaymentById(organizationId, id, session) {
       if (!mongoose.isValidObjectId(id)) {
         return null;
       }
-      return PaymentModel.findOne({ _id: id, organizationId }).lean().exec();
+      const query = PaymentModel.findOne({ _id: id, organizationId });
+      if (session) query.session(session);
+      return query.lean().exec();
     },
 
     async findPaymentByCorrectionOfId(organizationId, correctionOfId, session) {
@@ -116,13 +118,24 @@ function createMongoosePaymentsStore() {
       return { items, total };
     },
 
-    async listAllocationsByPayment(organizationId, paymentId) {
-      return PaymentAllocationModel.find({
+    async listAllocationsByPayment(organizationId, paymentId, session) {
+      const query = PaymentAllocationModel.find({
         organizationId,
         paymentId,
         status: 'posted',
       })
-        .sort({ createdAt: 1 })
+        .sort({ createdAt: 1 });
+      if (session) query.session(session);
+      return query.lean().exec();
+    },
+
+    async listCorrectionsByOriginalIds(organizationId, originalIds) {
+      if (!Array.isArray(originalIds) || originalIds.length === 0) return [];
+      return PaymentModel.find({
+        organizationId,
+        correctionOfId: { $in: originalIds },
+      })
+        .select('_id correctionOfId replacementPaymentId')
         .lean()
         .exec();
     },
@@ -279,6 +292,18 @@ function createInMemoryPaymentsStore() {
             String(item.organizationId) === String(organizationId) &&
             String(item.paymentId) === String(paymentId) &&
             item.status === 'posted',
+        )
+        .map((item) => ({ ...item }));
+    },
+
+    async listCorrectionsByOriginalIds(organizationId, originalIds) {
+      const wanted = new Set((originalIds ?? []).map(String));
+      return [...payments.values()]
+        .filter(
+          (item) =>
+            String(item.organizationId) === String(organizationId) &&
+            item.correctionOfId &&
+            wanted.has(String(item.correctionOfId)),
         )
         .map((item) => ({ ...item }));
     },

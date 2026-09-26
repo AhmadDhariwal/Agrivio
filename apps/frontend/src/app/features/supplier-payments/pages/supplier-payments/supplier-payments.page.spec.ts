@@ -374,7 +374,9 @@ describe('SupplierPaymentsPage', () => {
     const correctedRecord: SupplierPaymentRecord = {
       ...mockPaymentRecords[0]!,
       id: 'pay-orig-sup-1',
+      reversalPaymentId: 'pay-rev-sup-1',
       replacementPaymentId: 'pay-repl-sup-1',
+      correctionStatus: 'corrected',
     };
     mockListResult = {
       items: [correctedRecord],

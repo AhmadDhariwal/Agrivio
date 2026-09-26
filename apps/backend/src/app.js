@@ -354,19 +354,19 @@ function createApp(options) {
         }
         return unpaidPurchasesLookup.fn(organizationId, supplierId, session);
       },
-      listUnpaidCustomerSales: async (organizationId, customerId) => {
+      listUnpaidCustomerSales: async (organizationId, customerId, session) => {
         if (typeof unpaidSalesLookup.fn !== 'function') {
           return [];
         }
-        return unpaidSalesLookup.fn(organizationId, customerId);
+        return unpaidSalesLookup.fn(organizationId, customerId, session);
       },
-      listManualCustomerReceivableTargets: (organizationId, customerId) =>
+      listManualCustomerReceivableTargets: (organizationId, customerId, session) =>
         customerFinanceLookup.service
-          ? customerFinanceLookup.service.listManualReceivableTargets(organizationId, customerId)
+          ? customerFinanceLookup.service.listManualReceivableTargets(organizationId, customerId, session)
           : [],
-      listCustomerTradeTargetAdjustments: (organizationId, customerId) =>
+      listCustomerTradeTargetAdjustments: (organizationId, customerId, session) =>
         customerFinanceLookup.service
-          ? customerFinanceLookup.service.listTradeTargetAdjustments(organizationId, customerId)
+          ? customerFinanceLookup.service.listTradeTargetAdjustments(organizationId, customerId, session)
           : [],
       listManualSupplierPayableTargets: (organizationId, supplierId, session) =>
         supplierFinanceLookup.service
@@ -433,11 +433,11 @@ function createApp(options) {
       capabilityService: capabilities.capabilityService,
       canAccessWarehouse,
       canAccessBranch,
-      listPurchaseReturnCredits: async (organizationId, purchaseId) => {
+      listPurchaseReturnCredits: async (organizationId, purchaseId, session) => {
         if (typeof purchaseReturnCreditsLookup.fn !== 'function') {
           return '0';
         }
-        return purchaseReturnCreditsLookup.fn(organizationId, purchaseId);
+        return purchaseReturnCreditsLookup.fn(organizationId, purchaseId, session);
       },
       listPostedReturnsByPurchase: async (organizationId, purchaseId) => {
         if (typeof postedReturnsLookup.fn !== 'function') {
@@ -470,8 +470,8 @@ function createApp(options) {
     });
 
   if (typeof unpaidSalesLookup.fn !== 'function') {
-    unpaidSalesLookup.fn = (organizationId, customerId) =>
-      sales.salesService.listUnpaidCustomerSales(organizationId, customerId);
+    unpaidSalesLookup.fn = (organizationId, customerId, session) =>
+      sales.salesService.listUnpaidCustomerSales(organizationId, customerId, session);
   }
 
   const returns =
@@ -563,8 +563,8 @@ function createApp(options) {
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
-  purchaseReturnCreditsLookup.fn = (organizationId, purchaseId) =>
-    returns.listPurchaseReturnCredits(organizationId, purchaseId);
+  purchaseReturnCreditsLookup.fn = (organizationId, purchaseId, session) =>
+    returns.listPurchaseReturnCredits(organizationId, purchaseId, session);
   postedReturnsLookup.fn = (organizationId, purchaseId) =>
     returns.listPostedReturnsByPurchase(organizationId, purchaseId);
 

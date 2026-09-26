@@ -133,8 +133,53 @@ describe('PaymentCorrectionDialogComponent', () => {
       paymentDate: '2026-08-20',
       allocationMode: 'general',
       notes: 'Corrected amount',
-      reference: undefined,
     });
+  });
+
+  it('sends invoice-specific target allocations and validates the replacement total', () => {
+    fixture.componentRef.setInput('accountOptions', [{ value: 'acc-cash-1', label: 'Cash' }]);
+    fixture.componentRef.setInput('allocationTargets', [
+      { id: 'sale-1', label: 'INV-001', outstandingAmount: '50000.00' },
+    ]);
+    setupDialog('correct', true);
+    component.reason.set('Correct target');
+    component.replacementAmount.set('40000.00');
+    component.replacementAllocationMode.set('invoice_specific');
+    component.setAllocationAmount('sale-1', '40000.00');
+
+    let emittedResult: PaymentCorrectionDialogResult | undefined;
+    component.confirmed.subscribe((result) => (emittedResult = result));
+    component.onSubmit();
+
+    expect(component.isAllocationValid()).toBe(true);
+    expect(emittedResult?.replacement?.allocations).toEqual([
+      { targetId: 'sale-1', amount: { amount: '40000.00', currency: 'PKR' } },
+    ]);
+  });
+
+  it('reuses an attempt key after failure and creates a new key after payload changes', () => {
+    setupDialog('reverse', true);
+    component.reason.set('Ambiguous transport failure');
+    const keys: string[] = [];
+    component.confirmed.subscribe((result) => keys.push(result.idempotencyKey));
+
+    component.onSubmit();
+    component.onSubmit();
+    component.reason.set('Changed correction reason');
+    component.onSubmit();
+
+    expect(keys[1]).toBe(keys[0]);
+    expect(keys[2]).not.toBe(keys[1]);
+  });
+
+  it('uses accessible mode buttons and field label relationships', () => {
+    setupDialog('correct', true);
+    const reverseButton = fixture.nativeElement.querySelector('[data-testid="correction-tab-reverse"]');
+    const amountLabel = fixture.nativeElement.querySelector('label[for="correction-amount"]');
+
+    expect(reverseButton.getAttribute('role')).toBeNull();
+    expect(reverseButton.getAttribute('aria-pressed')).toBe('false');
+    expect(amountLabel).toBeTruthy();
   });
 
   it('emits dismissed output when cancel button is clicked', () => {

@@ -1892,8 +1892,8 @@ function createReturnsModule(options = {}) {
     store,
     returnsService,
     transactionRunner,
-    async listPurchaseReturnCredits(organizationId, purchaseId) {
-      const items = await store.listPostedReturnsByPurchase(organizationId, purchaseId);
+    async listPurchaseReturnCredits(organizationId, purchaseId, session) {
+      const items = await store.listPostedReturnsByPurchase(organizationId, purchaseId, session);
       let total = 0n;
       for (const item of items) {
         total += BigInt(String(item.returnTotalMinorUnits ?? '0'));

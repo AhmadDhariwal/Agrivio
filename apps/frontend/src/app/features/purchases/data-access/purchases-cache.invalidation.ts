@@ -51,11 +51,14 @@ export function invalidatePurchaseMutationEffects(
 export function invalidateSupplierPaymentPostedEffects(queryCache: QueryCacheService): void {
   queryCache.invalidateTags(
     QUERY_CACHE_TAGS.supplierPayments,
+    QUERY_CACHE_TAGS.suppliers,
     QUERY_CACHE_TAGS.supplierLedger,
     QUERY_CACHE_TAGS.payables,
     QUERY_CACHE_TAGS.purchases,
     QUERY_CACHE_TAGS.dashboard,
     QUERY_CACHE_TAGS.reports,
+    QUERY_CACHE_TAGS.reconciliation,
+    QUERY_CACHE_TAGS.audit,
     QUERY_CACHE_TAGS.alerts,
   );
   invalidateAccountFinancialReads(queryCache);

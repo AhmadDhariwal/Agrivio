@@ -175,7 +175,7 @@ function createCustomerFinanceService(deps) {
           if (current + delta < 0n) throw conflict('Adjustment reversal would make loan outstanding negative');
         }
         if (original.balanceType === 'trade_receivable' && BigInt(original.deltaMinorUnits) > 0n) {
-          const targets = await paymentsService.listCustomerReceivableTargetsForAdjustment(organizationId, String(original.customerId));
+          const targets = await paymentsService.listCustomerReceivableTargetsForAdjustment(organizationId, String(original.customerId), session);
           const manual = targets.find((target) => target.targetType === 'customer_manual_receivable' && String(target.targetId) === String(original._id));
           if (!manual || BigInt(manual.outstandingMinorUnits) !== BigInt(original.deltaMinorUnits)) throw conflict('Manual receivable adjustment has dependent payments or corrections');
         }
@@ -187,11 +187,11 @@ function createCustomerFinanceService(deps) {
       }, 200);
     },
 
-    async listManualReceivableTargets(organizationId, customerId) {
-      const rows = await store.listCustomerTradeAdjustments(organizationId, customerId);
+    async listManualReceivableTargets(organizationId, customerId, session) {
+      const rows = await store.listCustomerTradeAdjustments(organizationId, customerId, session);
       return rows.filter((row) => !row.reversalOfId && BigInt(row.deltaMinorUnits) > 0n).map((row) => ({ id: String(row._id), targetId: String(row._id), targetType: 'customer_manual_receivable', invoiceNumber: row.reference || 'Manual receivable adjustment', invoiceDate: row.businessDate, dueDate: null, sequence: String(row._id), outstandingMinorUnits: '0' }));
     },
-    async listTradeTargetAdjustments(organizationId, customerId) { const rows = await store.listCustomerTradeAdjustments(organizationId, customerId); return rows.flatMap((row) => row.targetEffects.map((effect) => ({ targetType: effect.targetType, targetId: String(effect.targetId), signedAmountMinorUnits: String(effect.signedAmountMinorUnits) }))); },
+    async listTradeTargetAdjustments(organizationId, customerId, session) { const rows = await store.listCustomerTradeAdjustments(organizationId, customerId, session); return rows.flatMap((row) => row.targetEffects.map((effect) => ({ targetType: effect.targetType, targetId: String(effect.targetId), signedAmountMinorUnits: String(effect.signedAmountMinorUnits) }))); },
     async assertTradeTargetUnadjusted(organizationId, customerId, targetType, targetId) {
       const effects = await this.listTradeTargetAdjustments(organizationId, customerId);
       const net = effects

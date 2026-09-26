@@ -34,8 +34,10 @@ export interface CustomerPaymentRecord {
   postedAt: string;
   postedBy: string;
   correctionOfId?: string | null;
+  reversalPaymentId?: string | null;
   reason?: string;
   replacementPaymentId?: string | null;
+  correctionStatus?: 'reversed' | 'corrected' | null;
   allocations: PaymentAllocationRecord[];
 }
 
@@ -82,6 +84,7 @@ export interface SaleAllocationInput {
 
 export interface UnpaidSaleRecord {
   id: string;
+  targetType?: string;
   invoiceNumber: string | null;
   invoiceDate: string;
   dueDate: string | null;

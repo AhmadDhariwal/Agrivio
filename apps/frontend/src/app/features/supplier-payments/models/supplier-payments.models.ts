@@ -26,8 +26,10 @@ export interface SupplierPaymentRecord {
   postedAt: string;
   postedBy: string;
   correctionOfId?: string | null;
+  reversalPaymentId?: string | null;
   reason?: string;
   replacementPaymentId?: string | null;
+  correctionStatus?: 'reversed' | 'corrected' | null;
   allocations: PaymentAllocationRecord[];
 }
 
