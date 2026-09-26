@@ -310,7 +310,7 @@
                   <div class="row-actions-wrap">
                     <button
                       type="button"
-                      class="ag-btn ag-btn--ghost ag-btn--xs"
+                      class="ag-btn ag-btn--ghost ag-btn--xs row-action-btn--view"
                       (click)="openDetailDialog(item)"
                       title="View payment details"
                       data-testid="supplier-payment-view-btn"
@@ -358,7 +358,7 @@
 
                     @if (canViewLedger()) {
                       <a
-                        class="row-action-link"
+                        class="ag-btn ag-btn--ghost ag-btn--xs row-action-link"
                         [routerLink]="['/app/supplier-payments/ledger']"
                         [queryParams]="item.supplierId ? { supplierId: item.supplierId } : {}"
                         title="Open supplier ledger"
@@ -453,7 +453,7 @@
 
               @if (canViewLedger()) {
                 <a
-                  class="ag-btn ag-btn--secondary ag-btn--xs mobile-action-btn"
+                  class="ag-btn ag-btn--ghost ag-btn--xs row-action-link"
                   [routerLink]="['/app/supplier-payments/ledger']"
                   [queryParams]="item.supplierId ? { supplierId: item.supplierId } : {}"
                 >
