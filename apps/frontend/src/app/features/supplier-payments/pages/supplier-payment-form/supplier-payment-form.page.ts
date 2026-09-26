@@ -1,7 +1,7 @@
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   Subject,
@@ -60,6 +60,7 @@ export class SupplierPaymentFormPage {
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly formBuilder = inject(FormBuilder);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
+  private readonly route = inject(ActivatedRoute, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
   private readonly supplierSearchChanges = new Subject<string>();
   private readonly knownSuppliers = new Map<string, SupplierRecord>();
@@ -88,7 +89,12 @@ export class SupplierPaymentFormPage {
   readonly unpaidPurchaseOptions = computed(() =>
     this.unpaidPurchases().map((p) => ({
       value: p.id,
-      label: p.targetType === 'supplier_opening_payable' ? 'Opening payable' : `${p.sequence || p.id}`,
+      label:
+        p.targetType === 'supplier_opening_payable'
+          ? 'Opening payable'
+          : p.targetType === 'supplier_manual_payable'
+            ? p.reference || 'Manual payable adjustment'
+            : `${p.sequence || p.id}`,
       description: `${p.purchaseDate} · Outstanding: ${p.outstanding.amount} PKR`,
     })),
   );
@@ -207,9 +213,16 @@ export class SupplierPaymentFormPage {
       return '—';
     }
     const p = this.unpaidPurchases().find((item) => item.id === purchaseId);
-    return p
-      ? `${p.targetType === 'supplier_opening_payable' ? 'Opening payable' : p.sequence || p.id} (${p.outstanding.amount} PKR)`
-      : '—';
+    if (!p) {
+      return '—';
+    }
+    const label =
+      p.targetType === 'supplier_opening_payable'
+        ? 'Opening payable'
+        : p.targetType === 'supplier_manual_payable'
+          ? p.reference || 'Manual payable adjustment'
+          : p.sequence || p.id;
+    return `${label} (${p.outstanding.amount} PKR)`;
   });
 
   readonly summaryAmount = computed(() => {
@@ -232,11 +245,15 @@ export class SupplierPaymentFormPage {
   });
 
   canViewField(id: string): boolean {
-    return this.capabilityService?.canViewField(`payments.supplier.fields.${id}`) ?? true;
+    return this.capabilityService && typeof this.capabilityService.canViewField === 'function'
+      ? this.capabilityService.canViewField(`payments.supplier.fields.${id}`)
+      : true;
   }
 
   canEditField(id: string): boolean {
-    return this.capabilityService?.canEditField(`payments.supplier.fields.${id}`) ?? true;
+    return this.capabilityService && typeof this.capabilityService.canEditField === 'function'
+      ? this.capabilityService.canEditField(`payments.supplier.fields.${id}`)
+      : true;
   }
 
   constructor() {
@@ -256,6 +273,19 @@ export class SupplierPaymentFormPage {
       .subscribe((items) => {
         this.suppliers.set(items.filter((item) => item.status === 'active'));
       });
+
+    const initialSupplierId = this.route?.snapshot?.queryParamMap?.get('supplierId');
+    if (initialSupplierId) {
+      this.suppliersApi.getSupplier(initialSupplierId).subscribe({
+        next: (sup) => {
+          this.knownSuppliers.set(sup.id, sup);
+          this.suppliers.update((list) =>
+            list.some((s) => s.id === sup.id) ? list : [sup, ...list],
+          );
+          this.form.controls.supplierId.setValue(sup.id);
+        },
+      });
+    }
 
     this.accountsApi.listAccountOptions().subscribe({
       next: (accounts) => {

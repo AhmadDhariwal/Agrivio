@@ -74,7 +74,7 @@ function createMongooseAccountsStore() {
     },
 
     async getAccountsSummary(organizationId) {
-      const [countResult, balanceResult] = await Promise.all([
+      const [countResult, balanceResult, liquidFundsResult] = await Promise.all([
         AccountModel.aggregate([
           { $match: { organizationId: new mongoose.Types.ObjectId(String(organizationId)) } },
           {
@@ -91,10 +91,46 @@ function createMongooseAccountsStore() {
               status: 'posted',
             },
           },
+          { $group: { _id: null, totalSignedMinorUnits: { $sum: { $toLong: '$signedAmountMinorUnits' } } } },
+        ]).exec(),
+        AccountModel.aggregate([
+          {
+            $match: {
+              organizationId: new mongoose.Types.ObjectId(String(organizationId)),
+              status: 'active',
+            },
+          },
+          {
+            $lookup: {
+              from: 'account_movements',
+              let: { accountId: '$_id' },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $and: [
+                        { $eq: ['$accountId', '$$accountId'] },
+                        { $eq: ['$status', 'posted'] },
+                      ],
+                    },
+                  },
+                },
+                { $group: { _id: null, balance: { $sum: { $toLong: '$signedAmountMinorUnits' } } } },
+              ],
+              as: 'movementBalance',
+            },
+          },
+          {
+            $set: {
+              accountBalance: {
+                $ifNull: [{ $arrayElemAt: ['$movementBalance.balance', 0] }, 0],
+              },
+            },
+          },
           {
             $group: {
               _id: null,
-              totalSignedMinorUnits: { $sum: { $toLong: '$signedAmountMinorUnits' } },
+              totalSignedMinorUnits: { $sum: '$accountBalance' },
             },
           },
         ]).exec(),
@@ -109,7 +145,17 @@ function createMongooseAccountsStore() {
       }
       const rawMinor = balanceResult.length > 0 ? balanceResult[0].totalSignedMinorUnits : 0;
       const totalMinorBigInt = BigInt(String(rawMinor ?? 0));
-      return { totalAccounts, activeAccounts, inactiveAccounts, totalMinorBigInt };
+      const rawLiquidMinor = liquidFundsResult.length > 0
+        ? liquidFundsResult[0].totalSignedMinorUnits
+        : 0;
+      const totalLiquidFundsMinorBigInt = BigInt(String(rawLiquidMinor ?? 0));
+      return {
+        totalAccounts,
+        activeAccounts,
+        inactiveAccounts,
+        totalMinorBigInt,
+        totalLiquidFundsMinorBigInt,
+      };
     },
 
     async findAccountById(organizationId, id, session) {
@@ -145,6 +191,25 @@ function createMongooseAccountsStore() {
       } catch (error) {
         throw markDuplicate(error);
       }
+    },
+
+    async bumpAccountMovementVersion(session, organizationId, id, expectedVersion) {
+      const currentVersion = Number(expectedVersion ?? 0);
+      const updated = await AccountModel.findOneAndUpdate(
+        {
+          _id: id,
+          organizationId,
+          $or: [
+            { movementVersion: currentVersion },
+            ...(currentVersion === 0 ? [{ movementVersion: { $exists: false } }] : []),
+          ],
+        },
+        { $inc: { movementVersion: 1 } },
+        { new: true, ...withSession(session) },
+      )
+        .lean()
+        .exec();
+      return updated;
     },
 
     async deleteAccount(session, organizationId, id) {
@@ -211,9 +276,38 @@ function createMongooseAccountsStore() {
         .exec();
     },
 
-    async listMovementsByAccountPage(organizationId, accountId, pagination) {
+    async listMovementsByAccountPage(organizationId, accountId, filter, pagination = filter) {
       if (!mongoose.isValidObjectId(accountId)) return { items: [], total: 0 };
-      const query = { organizationId, accountId, status: 'posted' };
+      const query = { organizationId, accountId, status: filter.status ?? 'posted' };
+      if (filter.sourceType) query.sourceType = filter.sourceType;
+      if (filter.direction === 'inflow') {
+        query.$expr = { $gt: [{ $toLong: '$signedAmountMinorUnits' }, 0] };
+      } else if (filter.direction === 'outflow') {
+        query.$expr = { $lt: [{ $toLong: '$signedAmountMinorUnits' }, 0] };
+      }
+      const and = [];
+      if (filter.search) {
+        const escaped = filter.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = { $regex: escaped, $options: 'i' };
+        and.push({ $or: [{ reference: regex }, { purpose: regex }, { category: regex }, { notes: regex }] });
+      }
+      if (filter.fromDate) {
+        and.push({
+          $or: [
+            { businessDate: { $gte: filter.fromDate } },
+            { businessDate: null, postedAt: { $gte: new Date(`${filter.fromDate}T00:00:00.000Z`) } },
+          ],
+        });
+      }
+      if (filter.toDate) {
+        and.push({
+          $or: [
+            { businessDate: { $lte: filter.toDate } },
+            { businessDate: null, postedAt: { $lte: new Date(`${filter.toDate}T23:59:59.999Z`) } },
+          ],
+        });
+      }
+      if (and.length > 0) query.$and = and;
       const [total, items] = await Promise.all([
         AccountMovementModel.countDocuments(query).exec(),
         AccountMovementModel.find(query).sort({ postedAt: -1, _id: -1 }).skip(pagination.skip ?? 0).limit(pagination.pageSize ?? 25).lean().exec(),
@@ -253,6 +347,13 @@ function createMongooseAccountsStore() {
         .exec();
     },
 
+    async listPostedMovementsForReporting(organizationId) {
+      return AccountMovementModel.find({ organizationId, status: 'posted' })
+        .sort({ postedAt: 1, _id: 1 })
+        .lean()
+        .exec();
+    },
+
     async sumPostedMovements(organizationId, accountId, session) {
       if (!mongoose.isValidObjectId(accountId)) {
         return '0';
@@ -268,6 +369,22 @@ function createMongooseAccountsStore() {
         .lean()
         .exec();
       return sumMinorUnits(records);
+    },
+
+    async sumPostedMovementsByAccountIds(organizationId, accountIds) {
+      const validIds = accountIds.filter((id) => mongoose.isValidObjectId(id));
+      if (validIds.length === 0) return new Map();
+      const rows = await AccountMovementModel.aggregate([
+        {
+          $match: {
+            organizationId: new mongoose.Types.ObjectId(String(organizationId)),
+            accountId: { $in: validIds.map((id) => new mongoose.Types.ObjectId(String(id))) },
+            status: 'posted',
+          },
+        },
+        { $group: { _id: '$accountId', balance: { $sum: { $toLong: '$signedAmountMinorUnits' } } } },
+      ]).exec();
+      return new Map(rows.map((row) => [String(row._id), String(row.balance ?? 0)]));
     },
 
     async listExpenseCategories(organizationId) {
@@ -560,13 +677,28 @@ function createInMemoryAccountsStore() {
       const totalAccounts = orgAccounts.length;
       const activeAccounts = orgAccounts.filter((item) => item.status === 'active').length;
       const inactiveAccounts = orgAccounts.filter((item) => item.status === 'inactive').length;
+      const activeIds = new Set(
+        orgAccounts.filter((item) => item.status === 'active').map((item) => String(item._id)),
+      );
       const orgMovements = [...movements.values()].filter(
         (item) =>
           String(item.organizationId) === String(organizationId) &&
+          activeIds.has(String(item.accountId)) &&
           item.status === 'posted',
       );
-      const totalMinorBigInt = BigInt(sumMinorUnits(orgMovements));
-      return { totalAccounts, activeAccounts, inactiveAccounts, totalMinorBigInt };
+      const totalMinorBigInt = BigInt(sumMinorUnits(
+        [...movements.values()].filter(
+          (item) => String(item.organizationId) === String(organizationId) && item.status === 'posted',
+        ),
+      ));
+      const totalLiquidFundsMinorBigInt = BigInt(sumMinorUnits(orgMovements));
+      return {
+        totalAccounts,
+        activeAccounts,
+        inactiveAccounts,
+        totalMinorBigInt,
+        totalLiquidFundsMinorBigInt,
+      };
     },
 
     async findAccountById(organizationId, id) {
@@ -594,6 +726,16 @@ function createInMemoryAccountsStore() {
       assertUniqueAccount(organizationId, next.nameNormalized, id);
       accounts.set(id, next);
       return { ...next };
+    },
+
+    async bumpAccountMovementVersion(_session, organizationId, id, expectedVersion) {
+      const existing = await this.findAccountById(organizationId, id);
+      if (existing === null || Number(existing.movementVersion ?? 0) !== Number(expectedVersion ?? 0)) {
+        return null;
+      }
+      const updated = { ...existing, movementVersion: Number(existing.movementVersion ?? 0) + 1 };
+      accounts.set(id, updated);
+      return { ...updated };
     },
 
     async deleteAccount(_session, organizationId, id) {
@@ -654,6 +796,32 @@ function createInMemoryAccountsStore() {
         .sort((a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime());
     },
 
+    async listMovementsByAccountPage(organizationId, accountId, filter, pagination = filter) {
+      let items = await this.listMovementsByAccount(organizationId, accountId);
+      if (filter.sourceType) items = items.filter((item) => item.sourceType === filter.sourceType);
+      if (filter.direction === 'inflow') {
+        items = items.filter((item) => BigInt(String(item.signedAmountMinorUnits)) > 0n);
+      } else if (filter.direction === 'outflow') {
+        items = items.filter((item) => BigInt(String(item.signedAmountMinorUnits)) < 0n);
+      }
+      if (filter.fromDate) {
+        items = items.filter((item) => String(item.businessDate ?? item.postedAt).slice(0, 10) >= filter.fromDate);
+      }
+      if (filter.toDate) {
+        items = items.filter((item) => String(item.businessDate ?? item.postedAt).slice(0, 10) <= filter.toDate);
+      }
+      if (filter.search) {
+        const needle = filter.search.toLowerCase();
+        items = items.filter((item) => [item.reference, item.purpose, item.category, item.notes]
+          .some((value) => String(value ?? '').toLowerCase().includes(needle)));
+      }
+      const total = items.length;
+      return {
+        items: items.slice(pagination.skip ?? 0, (pagination.skip ?? 0) + (pagination.pageSize ?? 25)),
+        total,
+      };
+    },
+
     async listMovementsBySource(organizationId, sourceType, sourceId) {
       return [...movements.values()]
         .filter(
@@ -679,6 +847,20 @@ function createInMemoryAccountsStore() {
         .sort((a, b) => new Date(a.postedAt).getTime() - new Date(b.postedAt).getTime());
     },
 
+    async listPostedMovementsForReporting(organizationId) {
+      return [...movements.values()]
+        .filter(
+          (item) =>
+            String(item.organizationId) === String(organizationId) && item.status === 'posted',
+        )
+        .map((item) => ({ ...item }))
+        .sort(
+          (left, right) =>
+            new Date(left.postedAt).getTime() - new Date(right.postedAt).getTime() ||
+            String(left._id).localeCompare(String(right._id)),
+        );
+    },
+
     async sumPostedMovements(organizationId, accountId) {
       const records = [...movements.values()].filter(
         (item) =>
@@ -687,6 +869,14 @@ function createInMemoryAccountsStore() {
           item.status === 'posted',
       );
       return sumMinorUnits(records);
+    },
+
+    async sumPostedMovementsByAccountIds(organizationId, accountIds) {
+      const result = new Map();
+      for (const accountId of accountIds) {
+        result.set(String(accountId), await this.sumPostedMovements(organizationId, accountId));
+      }
+      return result;
     },
 
     async listExpenseCategories(organizationId) {

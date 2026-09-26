@@ -1,5 +1,7 @@
 const { validationFailed } = require('../../platform/errors/app-error');
 const { ACCOUNT_TYPES } = require('./persistence/account.model');
+const { MOVEMENT_SOURCE_TYPES } = require('./persistence/account-movement.model');
+const { parseDateOnly, parseMoneyMinorUnits, formatMoneyMinorUnits } = require('../../platform/primitives/money-and-time');
 
 const MAX_NAME = 160;
 const MAX_BANK = 120;
@@ -187,7 +189,16 @@ function toAccountDto(record, derivedBalances) {
 }
 
 function parsePositiveMoneyInput(value, field) {
-  const { parseMoneyMinorUnits } = require('../../platform/primitives/money-and-time');
+  const parsed = parseMoneyInput(value, field);
+  if (BigInt(parsed.amountMinorUnits) <= 0n) {
+    throw validationFailed(`${field}.amount must be greater than zero`, [
+      { field: `${field}.amount`, message: 'amount must be greater than zero' },
+    ]);
+  }
+  return parsed;
+}
+
+function parseMoneyInput(value, field) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     throw validationFailed(`${field} must be a money object`, [
       { field, message: `${field} must be { amount, currency }` },
@@ -210,11 +221,6 @@ function parsePositiveMoneyInput(value, field) {
   } catch {
     throw validationFailed(`${field}.amount is invalid`, [
       { field: `${field}.amount`, message: 'amount must have up to two decimal places' },
-    ]);
-  }
-  if (minor <= 0n) {
-    throw validationFailed(`${field}.amount must be greater than zero`, [
-      { field: `${field}.amount`, message: 'amount must be greater than zero' },
     ]);
   }
   return { amountMinorUnits: minor.toString(), currency: 'PKR' };
@@ -242,8 +248,18 @@ function toAccountMovementDto(record) {
     },
     sourceType: String(record['sourceType']),
     sourceId: String(record['sourceId']),
+    direction: BigInt(String(record['signedAmountMinorUnits'] ?? '0')) < 0n ? 'outflow' : 'inflow',
     purpose: record['purpose'] ? String(record['purpose']) : null,
+    category: record['category'] ? String(record['category']) : null,
     reference: record['reference'] ? String(record['reference']) : null,
+    notes: record['notes'] ? String(record['notes']) : null,
+    businessDate: record['businessDate'] ? String(record['businessDate']) : null,
+    balanceBefore: record['balanceBeforeMinorUnits'] === null || record['balanceBeforeMinorUnits'] === undefined
+      ? null
+      : { amount: formatMoneyMinorUnits(BigInt(String(record['balanceBeforeMinorUnits']))), currency: 'PKR' },
+    desiredBalance: record['desiredBalanceMinorUnits'] === null || record['desiredBalanceMinorUnits'] === undefined
+      ? null
+      : { amount: formatMoneyMinorUnits(BigInt(String(record['desiredBalanceMinorUnits']))), currency: 'PKR' },
     reversalOfId: record['reversalOfId'] ? String(record['reversalOfId']) : null,
     status: String(record['status']),
     postedAt:
@@ -258,6 +274,16 @@ const MANUAL_DIRECTIONS = ['inflow', 'outflow'];
 const MAX_PURPOSE = 500;
 const MAX_REFERENCE = 120;
 const MAX_REASON = 1000;
+const MAX_NOTES = 1000;
+const MANUAL_INFLOW_CATEGORIES = new Set([
+  'owner_funding', 'external_funds', 'bank_interest', 'cash_difference',
+  'reconciliation', 'unclassified', 'other',
+]);
+const MANUAL_OUTFLOW_CATEGORIES = new Set([
+  'owner_withdrawal', 'external_payment', 'cash_difference',
+  'reconciliation', 'unclassified', 'other',
+]);
+const ADJUSTMENT_CATEGORIES = new Set(['cash_difference', 'reconciliation', 'unclassified', 'other']);
 
 function requireIdString(value, field) {
   if (typeof value !== 'string' || value.trim() === '') {
@@ -278,6 +304,29 @@ function parseOptionalText(value, field, maxLength) {
   return optionalTrimmedString(value, field, maxLength) || null;
 }
 
+function parseCategory(value, direction) {
+  const normalized = value === undefined ? 'unclassified' : requireTrimmedString(value, 'category', 64).toLowerCase();
+  const allowed = direction === 'inflow' ? MANUAL_INFLOW_CATEGORIES : MANUAL_OUTFLOW_CATEGORIES;
+  if (!allowed.has(normalized)) {
+    throw validationFailed('category is invalid for this treasury direction', [
+      { field: 'category', message: `category must be one of: ${[...allowed].join(', ')}` },
+    ]);
+  }
+  return normalized;
+}
+
+function parseOptionalBusinessDate(value, field = 'businessDate') {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string') {
+    throw validationFailed(`${field} must be YYYY-MM-DD`, [{ field, message: `${field} must be YYYY-MM-DD` }]);
+  }
+  try {
+    return parseDateOnly(value);
+  } catch {
+    throw validationFailed(`${field} must be YYYY-MM-DD`, [{ field, message: `${field} must be YYYY-MM-DD` }]);
+  }
+}
+
 function parseManualAccountTransaction(body) {
   assertObjectBody(body);
   const direction = body.direction;
@@ -293,15 +342,18 @@ function parseManualAccountTransaction(body) {
     amountMinorUnits: money.amountMinorUnits,
     currency: money.currency,
     purpose: parseRequiredText(body.purpose, 'purpose', MAX_PURPOSE),
+    category: parseCategory(body.category, direction),
     reference: parseOptionalText(body.reference, 'reference', MAX_REFERENCE),
+    notes: parseOptionalText(body.notes, 'notes', MAX_NOTES),
+    businessDate: parseOptionalBusinessDate(body.businessDate ?? body.date),
   };
 }
 
 function parseAccountTransfer(body) {
   assertObjectBody(body);
   const money = parsePositiveMoneyInput(body.amount, 'amount');
-  const sourceAccountId = requireIdString(body.sourceAccountId, 'sourceAccountId');
-  const destinationAccountId = requireIdString(body.destinationAccountId, 'destinationAccountId');
+  const sourceAccountId = requireIdString(body.sourceAccountId ?? body.fromAccountId, 'sourceAccountId');
+  const destinationAccountId = requireIdString(body.destinationAccountId ?? body.toAccountId, 'destinationAccountId');
   if (sourceAccountId === destinationAccountId) {
     throw validationFailed('Source and destination account must differ', [
       { field: 'destinationAccountId', message: 'destination account must differ from source' },
@@ -314,6 +366,65 @@ function parseAccountTransfer(body) {
     currency: money.currency,
     purpose: parseOptionalText(body.purpose, 'purpose', MAX_PURPOSE),
     reference: parseOptionalText(body.reference, 'reference', MAX_REFERENCE),
+    notes: parseOptionalText(body.notes, 'notes', MAX_NOTES),
+    businessDate: parseOptionalBusinessDate(body.businessDate ?? body.date),
+  };
+}
+
+function parseBalanceAdjustment(body) {
+  assertObjectBody(body);
+  const expected = parseMoneyInput(body.expectedCurrentBalance, 'expectedCurrentBalance');
+  const desired = parseMoneyInput(body.desiredBalance, 'desiredBalance');
+  const category = body.category === undefined
+    ? 'unclassified'
+    : requireTrimmedString(body.category, 'category', 64).toLowerCase();
+  if (!ADJUSTMENT_CATEGORIES.has(category)) {
+    throw validationFailed('category is invalid for a balance adjustment', [
+      { field: 'category', message: `category must be one of: ${[...ADJUSTMENT_CATEGORIES].join(', ')}` },
+    ]);
+  }
+  return {
+    accountId: requireIdString(body.accountId, 'accountId'),
+    expectedCurrentBalanceMinorUnits: expected.amountMinorUnits,
+    desiredBalanceMinorUnits: desired.amountMinorUnits,
+    currency: 'PKR',
+    reason: parseRequiredText(body.reason, 'reason', MAX_REASON),
+    category,
+    reference: parseOptionalText(body.reference, 'reference', MAX_REFERENCE),
+    notes: parseOptionalText(body.notes, 'notes', MAX_NOTES),
+    businessDate: parseOptionalBusinessDate(body.businessDate ?? body.date),
+  };
+}
+
+function parseAccountMovementFilters(query) {
+  const sourceType = typeof query.sourceType === 'string' && query.sourceType.trim() !== ''
+    ? query.sourceType.trim()
+    : null;
+  if (sourceType && !MOVEMENT_SOURCE_TYPES.includes(sourceType)) {
+    throw validationFailed('sourceType is invalid', [{ field: 'sourceType', message: 'sourceType is invalid' }]);
+  }
+  const direction = typeof query.direction === 'string' && query.direction.trim() !== ''
+    ? query.direction.trim()
+    : null;
+  if (direction && !MANUAL_DIRECTIONS.includes(direction)) {
+    throw validationFailed('direction must be inflow or outflow', [{ field: 'direction', message: 'direction must be inflow or outflow' }]);
+  }
+  const status = typeof query.status === 'string' && query.status.trim() !== '' ? query.status.trim() : 'posted';
+  if (status !== 'posted') {
+    throw validationFailed('status must be posted', [{ field: 'status', message: 'status must be posted' }]);
+  }
+  const fromDate = parseOptionalBusinessDate(query.fromDate, 'fromDate');
+  const toDate = parseOptionalBusinessDate(query.toDate, 'toDate');
+  if (fromDate && toDate && fromDate > toDate) {
+    throw validationFailed('fromDate must be on or before toDate', [{ field: 'fromDate', message: 'fromDate must be on or before toDate' }]);
+  }
+  return {
+    sourceType,
+    direction,
+    status,
+    fromDate,
+    toDate,
+    search: parseOptionalText(query.search, 'search', 160),
   };
 }
 
@@ -346,7 +457,10 @@ function toManualAccountTransactionDto(record, extras) {
       currency: String(record['currency'] ?? 'PKR'),
     },
     purpose: record['purpose'] ? String(record['purpose']) : null,
+    category: record['category'] ? String(record['category']) : null,
     reference: record['reference'] ? String(record['reference']) : null,
+    notes: record['notes'] ? String(record['notes']) : null,
+    businessDate: record['businessDate'] ? String(record['businessDate']) : null,
     sourceType: String(record['sourceType']),
     sourceId: String(record['sourceId']),
     reversalOfId: record['reversalOfId'] ? String(record['reversalOfId']) : null,
@@ -372,6 +486,8 @@ function toAccountTransferDto(input) {
     },
     purpose: input.purpose ?? null,
     reference: input.reference ?? null,
+    notes: input.notes ?? null,
+    businessDate: input.businessDate ?? null,
     outboundMovementId: String(input.outboundMovementId),
     inboundMovementId: String(input.inboundMovementId),
     reversalOutboundMovementId: input.reversalOutboundMovementId
@@ -388,6 +504,26 @@ function toAccountTransferDto(input) {
   };
 }
 
+function toBalanceAdjustmentDto(input) {
+  return {
+    id: input.id ? String(input.id) : null,
+    accountId: String(input.accountId),
+    expectedCurrentBalance: { amount: formatMoneyMinorUnits(BigInt(input.expectedCurrentBalanceMinorUnits)), currency: 'PKR' },
+    balanceBefore: { amount: formatMoneyMinorUnits(BigInt(input.balanceBeforeMinorUnits)), currency: 'PKR' },
+    desiredBalance: { amount: formatMoneyMinorUnits(BigInt(input.desiredBalanceMinorUnits)), currency: 'PKR' },
+    delta: { amount: formatMoneyMinorUnits(BigInt(input.deltaMinorUnits)), currency: 'PKR' },
+    sourceType: input.sourceType ?? null,
+    category: input.category,
+    reason: input.reason,
+    reference: input.reference ?? null,
+    notes: input.notes ?? null,
+    businessDate: input.businessDate ?? null,
+    status: input.status ?? 'posted',
+    postedAt: input.postedAt instanceof Date ? input.postedAt.toISOString() : String(input.postedAt),
+    postedBy: String(input.postedBy),
+  };
+}
+
 module.exports = {
   parseExpectedVersion,
   parseAccountCreate,
@@ -395,10 +531,13 @@ module.exports = {
   parseAccountOpeningBalance,
   parseManualAccountTransaction,
   parseAccountTransfer,
+  parseBalanceAdjustment,
+  parseAccountMovementFilters,
   parseReversalReason,
   toAccountDto,
   toAccountMovementDto,
   toManualAccountTransactionDto,
   toAccountTransferDto,
+  toBalanceAdjustmentDto,
   ACCOUNT_TYPES,
 };

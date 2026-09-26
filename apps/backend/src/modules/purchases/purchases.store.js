@@ -12,7 +12,7 @@ function isDuplicateKeyError(error) {
 
 function createMongoosePurchasesStore() {
   return {
-    async listPurchases(organizationId, filter = {}, pagination = {}) {
+    async listPurchases(organizationId, filter = {}, pagination = {}, session) {
       const query = { organizationId };
       if (filter.status) {
         query.status = filter.status;
@@ -30,7 +30,11 @@ function createMongoosePurchasesStore() {
       const { skip = 0, pageSize = 25 } = pagination;
       let find = PurchaseModel.find(query).sort({ createdAt: -1, _id: -1 });
       if (hasPagination) find = find.skip(skip).limit(pageSize);
-      const [total, items] = await Promise.all([PurchaseModel.countDocuments(query).exec(), find.lean().exec()]);
+      if (session) find.session(session);
+      const count = PurchaseModel.countDocuments(query);
+      if (session) count.session(session);
+      const total = await count.exec();
+      const items = await find.lean().exec();
       return { items, total };
     },
 
@@ -118,7 +122,7 @@ function createInMemoryPurchasesStore() {
   let seq = 1;
 
   return {
-    async listPurchases(organizationId, filter = {}, pagination = {}) {
+    async listPurchases(organizationId, filter = {}, pagination = {}, _session) {
       const all = [...purchases.values()]
         .filter((item) => {
           if (String(item.organizationId) !== String(organizationId)) {

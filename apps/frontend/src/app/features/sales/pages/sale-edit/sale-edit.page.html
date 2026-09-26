@@ -931,7 +931,6 @@
               formControlName="branchId"
               [options]="branchOptions()"
               placeholder="Select branch"
-              [disabled]="onlyBranch()"
               [invalid]="!!fieldError(form.controls.branchId, 'Branch', formSubmitAttempted())"
               [required]="fieldRequired(form.controls.branchId)"
             />
@@ -972,7 +971,6 @@
               formControlName="warehouseId"
               [options]="warehouseOptions()"
               placeholder="Select warehouse"
-              [disabled]="onlyWarehouse()"
               [invalid]="!!fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted())"
               [required]="fieldRequired(form.controls.warehouseId)"
             />
@@ -1010,7 +1008,6 @@
               class="ag-select"
               formControlName="customerTypeMode"
               data-testid="sale-customer-type"
-              [disabled]="!canEditCustomerField() || isPosted()"
             >
               @for (option of customerTypeOptions; track option.value) {
               <option [value]="option.value">{{ option.label }}</option>
@@ -1033,7 +1030,6 @@
               formControlName="customerId"
               [options]="customerOptions()"
               placeholder="Walk-in (cash only)"
-              [disabled]="!canEditCustomerField() || isPosted()"
               [invalid]="!isWalkInCustomerType() && !!fieldError(form.controls.customerId, 'Customer', formSubmitAttempted())"
               [loading]="customerSearchLoading()"
               [serverSearch]="true"

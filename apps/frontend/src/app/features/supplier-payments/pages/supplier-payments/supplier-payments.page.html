@@ -236,23 +236,32 @@
     } @else {
       <!-- Desktop Table View (>=768px) -->
       <div class="table-container desktop-only" data-testid="supplier-payments-list">
-        <table class="data-table" data-testid="supplier-payments-table">
+        <table class="data-table prod-table" data-testid="supplier-payments-table">
+          <colgroup>
+            @if (canViewField('paymentReference')) { <col class="col-payment" /> }
+            @if (canViewField('paymentDate')) { <col class="col-date" /> }
+            @if (canViewField('allocationMode')) { <col class="col-type" /> }
+            @if (canViewField('notes')) { <col class="col-notes" /> }
+            @if (canViewField('amount')) { <col class="col-amount" /> }
+            @if (canViewField('status')) { <col class="col-status" /> }
+            <col class="col-actions" />
+          </colgroup>
           <thead>
             <tr>
-              @if (canViewField('paymentReference')) { <th>PAYMENT</th> }
-              @if (canViewField('paymentDate')) { <th>DATE <span class="sort-indicator" aria-hidden="true">⇅</span></th> }
-              @if (canViewField('allocationMode')) { <th>TYPE</th> }
-              @if (canViewField('notes')) { <th>NOTES</th> }
-              @if (canViewField('amount')) { <th class="text-right">AMOUNT</th> }
-              @if (canViewField('status')) { <th>STATUS</th> }
-              @if (canViewLedger()) { <th class="text-right">ACTIONS</th> }
+              @if (canViewField('paymentReference')) { <th scope="col" class="prod-table__th">Payment</th> }
+              @if (canViewField('paymentDate')) { <th scope="col" class="prod-table__th">Date <span class="sort-indicator" aria-hidden="true">⇅</span></th> }
+              @if (canViewField('allocationMode')) { <th scope="col" class="prod-table__th">Type</th> }
+              @if (canViewField('notes')) { <th scope="col" class="prod-table__th">Notes</th> }
+              @if (canViewField('amount')) { <th scope="col" class="prod-table__th text-right">Amount</th> }
+              @if (canViewField('status')) { <th scope="col" class="prod-table__th">Status</th> }
+              <th scope="col" class="prod-table__th text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             @for (item of items(); track item.id) {
-              <tr data-testid="supplier-payment-row">
+              <tr class="prod-table__row" data-testid="supplier-payment-row">
                 <!-- Payment Identifier -->
-                @if (canViewField('paymentReference')) { <td>
+                @if (canViewField('paymentReference')) { <td class="prod-table__td">
                   <div class="payment-ref-cell">
                     <div class="payment-icon-box" aria-hidden="true">
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -268,50 +277,103 @@
                 </td> }
 
                 <!-- Date -->
-                @if (canViewField('paymentDate')) { <td class="cell-date">
+                @if (canViewField('paymentDate')) { <td class="prod-table__td cell-date">
                   {{ item.paymentDate | agDate }}
                 </td> }
 
                 <!-- Type / Allocation Mode -->
-                @if (canViewField('allocationMode')) { <td>
+                @if (canViewField('allocationMode')) { <td class="prod-table__td">
                   <span class="type-pill" [class.type-pill--blue]="item.allocationMode === 'general'" [class.type-pill--purple]="item.allocationMode === 'invoice_specific'">
                     {{ item.allocationMode }}
                   </span>
                 </td> }
 
                 <!-- Supplier / Notes -->
-                @if (canViewField('notes')) { <td class="cell-notes">
+                @if (canViewField('notes')) { <td class="prod-table__td cell-notes">
                   <span class="notes-text" [title]="item.notes || 'General payment'">{{ item.notes || 'General payment' }}</span>
                 </td> }
 
                 <!-- Amount -->
-                @if (canViewField('amount')) { <td class="text-right cell-amount">
+                @if (canViewField('amount')) { <td class="prod-table__td text-right cell-amount">
                   <span class="amount-val font-semibold">PKR {{ formatMoney(item.amount.amount) }}</span>
                 </td> }
 
                 <!-- Status -->
-                @if (canViewField('status')) { <td>
+                @if (canViewField('status')) { <td class="prod-table__td">
                   <span class="status-pill status-pill--green">
                     {{ item.status.toUpperCase() }}
                   </span>
                 </td> }
 
                 <!-- Actions -->
-                @if (canViewLedger()) { <td class="text-right cell-actions">
-                  <a
-                    class="row-action-link"
-                    [routerLink]="['/app/supplier-payments/ledger']"
-                    [queryParams]="item.supplierId ? { supplierId: item.supplierId } : {}"
-                    data-testid="payment-action-btn"
-                  >
-                    <span>Open</span>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                      <polyline points="15 3 21 3 21 9"></polyline>
-                      <line x1="10" y1="14" x2="21" y2="3"></line>
-                    </svg>
-                  </a>
-                </td> }
+                <td class="prod-table__td text-right cell-actions" data-testid="payment-row-actions">
+                  <div class="row-actions-wrap">
+                    <button
+                      type="button"
+                      class="ag-btn ag-btn--ghost ag-btn--xs row-action-btn--view"
+                      (click)="openDetailDialog(item)"
+                      title="View payment details"
+                      data-testid="supplier-payment-view-btn"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      </svg>
+                      <span>View</span>
+                    </button>
+
+                    @if (isCorrectable(item) && canCorrect()) {
+                      <button
+                        type="button"
+                        class="ag-btn ag-btn--ghost ag-btn--xs btn-action-reverse"
+                        (click)="openCorrectionDialog(item, 'reverse')"
+                        title="Reverse payment"
+                        data-testid="supplier-payment-reverse-btn"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                          <polyline points="1 4 1 10 7 10"></polyline>
+                          <path d="M3.51 15a9 9 0 1 0 .49-3.36"></path>
+                        </svg>
+                        <span>Reverse</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        class="ag-btn ag-btn--ghost ag-btn--xs btn-action-correct"
+                        (click)="openCorrectionDialog(item, 'correct')"
+                        title="Correct payment"
+                        data-testid="supplier-payment-correct-btn"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                        <span>Correct</span>
+                      </button>
+                    } @else if (item.correctionOfId) {
+                      <span class="reversal-badge" title="Immutable reversal record" data-testid="reversal-badge">Reversal</span>
+                    } @else if (item.correctionStatus || item.replacementPaymentId) {
+                      <span class="corrected-badge" title="Payment correction status" data-testid="corrected-badge">{{ item.correctionStatus === 'reversed' ? 'Reversed' : 'Corrected' }}</span>
+                    }
+
+                    @if (canViewLedger()) {
+                      <a
+                        class="ag-btn ag-btn--ghost ag-btn--xs row-action-link"
+                        [routerLink]="['/app/supplier-payments/ledger']"
+                        [queryParams]="item.supplierId ? { supplierId: item.supplierId } : {}"
+                        title="Open supplier ledger"
+                        data-testid="payment-action-btn"
+                      >
+                        <span>Ledger</span>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                          <polyline points="15 3 21 3 21 9"></polyline>
+                          <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                      </a>
+                    }
+                  </div>
+                </td>
               </tr>
             }
           </tbody>
@@ -355,20 +417,55 @@
             </div>
 
             <!-- Footer Action -->
-            @if (canViewLedger()) { <div class="mobile-payment-card__footer">
-              <a
-                class="ag-btn ag-btn--secondary ag-btn--sm mobile-action-btn"
-                [routerLink]="['/app/supplier-payments/ledger']"
-                [queryParams]="item.supplierId ? { supplierId: item.supplierId } : {}"
-              >
-                <span>View ledger</span>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                  <polyline points="15 3 21 3 21 9"></polyline>
-                  <line x1="10" y1="14" x2="21" y2="3"></line>
-                </svg>
-              </a>
-            </div> }
+            <div class="mobile-payment-card__footer">
+              <div class="card-actions-wrap">
+                <button
+                  type="button"
+                  class="ag-btn ag-btn--ghost ag-btn--xs"
+                  (click)="openDetailDialog(item)"
+                  data-testid="supplier-payment-mobile-view-btn"
+                >
+                  View
+                </button>
+                @if (isCorrectable(item) && canCorrect()) {
+                  <button
+                    type="button"
+                    class="ag-btn ag-btn--ghost ag-btn--xs btn-action-reverse"
+                    (click)="openCorrectionDialog(item, 'reverse')"
+                    data-testid="supplier-payment-mobile-reverse-btn"
+                  >
+                    Reverse
+                  </button>
+                  <button
+                    type="button"
+                    class="ag-btn ag-btn--ghost ag-btn--xs btn-action-correct"
+                    (click)="openCorrectionDialog(item, 'correct')"
+                    data-testid="supplier-payment-mobile-correct-btn"
+                  >
+                    Correct
+                  </button>
+                } @else if (item.correctionOfId) {
+                  <span class="reversal-badge">Reversal</span>
+                } @else if (item.correctionStatus || item.replacementPaymentId) {
+                  <span class="corrected-badge">{{ item.correctionStatus === 'reversed' ? 'Reversed' : 'Corrected' }}</span>
+                }
+              </div>
+
+              @if (canViewLedger()) {
+                <a
+                  class="ag-btn ag-btn--ghost ag-btn--xs row-action-link"
+                  [routerLink]="['/app/supplier-payments/ledger']"
+                  [queryParams]="item.supplierId ? { supplierId: item.supplierId } : {}"
+                >
+                  <span>Ledger</span>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                  </svg>
+                </a>
+              }
+            </div>
           </article>
         }
       </div>
@@ -386,4 +483,27 @@
       </div>
     }
   }
+
+  <!-- Payment Detail Dialog -->
+  <agrivio-payment-detail-dialog
+    [open]="detailDialogOpen()"
+    [payment]="detailTarget()"
+    [canCorrect]="canCorrect()"
+    (reverseClicked)="onDetailReverse($event)"
+    (correctClicked)="onDetailCorrect($event)"
+    (dismissed)="closeDetailDialog()"
+  />
+
+  <!-- Payment Correction / Reversal Dialog -->
+  <agrivio-payment-correction-dialog
+    [open]="correctionDialogOpen()"
+    [payment]="correctionTarget()"
+    [initialMode]="correctionInitialMode()"
+    [submitting]="correctionSubmitting()"
+    [errorMessage]="correctionError()"
+    [accountOptions]="correctionAccountOptions()"
+    [allocationTargets]="correctionAllocationTargets()"
+    (confirmed)="onCorrectionConfirmed($event)"
+    (dismissed)="closeCorrectionDialog()"
+  />
 </div>

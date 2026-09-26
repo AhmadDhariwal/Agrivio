@@ -15,6 +15,10 @@ import {
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
+import { TransferMoneyDialogComponent } from '../../components/transfer-money-dialog/transfer-money-dialog.component';
+import { AddMoneyDialogComponent } from '../../components/add-money-dialog/add-money-dialog.component';
+import { WithdrawMoneyDialogComponent } from '../../components/withdraw-money-dialog/withdraw-money-dialog.component';
+import { AdjustBalanceDialogComponent } from '../../components/adjust-balance-dialog/adjust-balance-dialog.component';
 import {
   MasterLifecycleFilter,
   deactivateCopy,
@@ -35,6 +39,10 @@ import {
     UiConfirmDialogComponent,
     UiPaginationComponent,
     UiModuleInfoComponent,
+    TransferMoneyDialogComponent,
+    AddMoneyDialogComponent,
+    WithdrawMoneyDialogComponent,
+    AdjustBalanceDialogComponent,
   ],
   templateUrl: './accounts.page.html',
   styleUrl: './accounts.page.scss',
@@ -54,6 +62,13 @@ export class AccountsPage {
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
+
+  // Dialog states
+  readonly transferDialogOpen = signal(false);
+  readonly addMoneyDialogOpen = signal(false);
+  readonly withdrawMoneyDialogOpen = signal(false);
+  readonly adjustBalanceDialogOpen = signal(false);
+  readonly actionAccountId = signal<string | undefined>(undefined);
 
   readonly canUseAccounts = computed(
     () => this.capabilityService?.canUseModule('accounts') ?? true,
@@ -143,6 +158,85 @@ export class AccountsPage {
       this.canView() &&
       (this.capabilityService?.canPerformAction('accounts.actions.refresh') ?? true),
   );
+
+  // Treasury Primary Action Permissions (Capability ∩ RBAC)
+  readonly canPostTransaction = computed(
+    () =>
+      this.sessionStore.hasPermission('accounts.transaction.post') &&
+      this.canUseAccounts() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.postManualMovement') ?? true),
+  );
+  readonly canTransfer = computed(
+    () =>
+      this.sessionStore.hasPermission('accounts.transfer') &&
+      this.canUseAccounts() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.transfer') ?? true),
+  );
+  readonly canAddMoney = computed(() => this.canPostTransaction());
+  readonly canWithdrawMoney = computed(() => this.canPostTransaction());
+  readonly canAdjustBalance = computed(() => this.canPostTransaction());
+  readonly canTransferMoney = computed(() => this.canTransfer());
+
+  // Liquid position derived summary
+  readonly totalCash = computed(() => {
+    const cashAccounts = this.items().filter((a) => a.status === 'active' && a.accountType === 'cash');
+    const sum = cashAccounts.reduce((acc, curr) => acc + Number(curr.derivedBalances?.balance?.amount ?? 0), 0);
+    return sum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  });
+
+  readonly totalBank = computed(() => {
+    const bankAccounts = this.items().filter((a) => a.status === 'active' && a.accountType === 'bank');
+    const sum = bankAccounts.reduce((acc, curr) => acc + Number(curr.derivedBalances?.balance?.amount ?? 0), 0);
+    return sum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  });
+
+  readonly otherLiquid = computed(() => {
+    const otherAccounts = this.items().filter(
+      (a) => a.status === 'active' && (a.accountType === 'jazzcash' || a.accountType === 'easypaisa'),
+    );
+    const sum = otherAccounts.reduce((acc, curr) => acc + Number(curr.derivedBalances?.balance?.amount ?? 0), 0);
+    return sum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  });
+
+  readonly totalLiquidFunds = computed(() => {
+    const liquid = this.summary()?.totalLiquidFunds;
+    if (liquid) {
+      const val = Number(liquid.amount);
+      return isNaN(val)
+        ? liquid.amount
+        : val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    return this.formatSummaryBalance();
+  });
+
+  openTransfer(accountId?: string): void {
+    this.closeMenu();
+    this.actionAccountId.set(accountId);
+    this.transferDialogOpen.set(true);
+  }
+
+  openAddMoney(accountId?: string): void {
+    this.closeMenu();
+    this.actionAccountId.set(accountId);
+    this.addMoneyDialogOpen.set(true);
+  }
+
+  openWithdrawMoney(accountId?: string): void {
+    this.closeMenu();
+    this.actionAccountId.set(accountId);
+    this.withdrawMoneyDialogOpen.set(true);
+  }
+
+  openAdjustBalance(accountId?: string): void {
+    this.closeMenu();
+    this.actionAccountId.set(accountId);
+    this.adjustBalanceDialogOpen.set(true);
+  }
+
+  onTreasuryActionSuccess(message: string): void {
+    this.successMessage.set(message);
+    this.reload(true);
+  }
 
   readonly hasActiveFilters = computed(
     () => this.statusFilter() !== 'active' || !!this.search(),

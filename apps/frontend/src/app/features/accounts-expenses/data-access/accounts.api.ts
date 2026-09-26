@@ -9,6 +9,7 @@ import {
   AccountsSummary,
   AccountTransactionRecord,
   AccountTransferRecord,
+  BalanceAdjustmentRecord,
 } from '../models/accounts.models';
 import { PaginatedResult, PaginationQuery } from '../../../shared/data-access/pagination';
 import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
@@ -25,6 +26,12 @@ type AccountListQuery = PaginationQuery & {
 };
 
 type AccountMovementQuery = PaginationQuery & {
+  direction?: 'inflow' | 'outflow';
+  sourceType?: string;
+  status?: string;
+  fromDate?: string;
+  toDate?: string;
+  search?: string;
   forceRefresh?: boolean;
 };
 
@@ -116,6 +123,24 @@ export class AccountsApi {
     params: AccountMovementQuery = {},
   ): Observable<PaginatedResult<AccountMovementRecord>> {
     const queryParams = this.paginationParams(params);
+    if (params.direction) {
+      queryParams['direction'] = params.direction;
+    }
+    if (params.sourceType) {
+      queryParams['sourceType'] = params.sourceType;
+    }
+    if (params.status) {
+      queryParams['status'] = params.status;
+    }
+    if (params.fromDate) {
+      queryParams['fromDate'] = params.fromDate;
+    }
+    if (params.toDate) {
+      queryParams['toDate'] = params.toDate;
+    }
+    if (params.search) {
+      queryParams['search'] = params.search;
+    }
     const cacheKey = this.queryCache.buildKey('account-movements', { accountId, ...queryParams });
     return this.queryCache.fetch({
       key: cacheKey,
@@ -233,7 +258,10 @@ export class AccountsApi {
       direction: 'inflow' | 'outflow';
       amount: { amount: string; currency: string };
       purpose: string;
-      reference?: string;
+      category?: string | undefined;
+      reference?: string | undefined;
+      notes?: string | undefined;
+      businessDate?: string | undefined;
     },
     idempotencyKey: string,
   ): Observable<AccountTransactionRecord> {
@@ -291,8 +319,10 @@ export class AccountsApi {
       sourceAccountId: string;
       destinationAccountId: string;
       amount: { amount: string; currency: string };
-      purpose?: string;
-      reference?: string;
+      purpose?: string | undefined;
+      reference?: string | undefined;
+      notes?: string | undefined;
+      businessDate?: string | undefined;
     },
     idempotencyKey: string,
   ): Observable<AccountTransferRecord> {
@@ -328,6 +358,41 @@ export class AccountsApi {
         this.http
           .post<{ data: AccountTransferRecord }>(
             `${environment.publicApiBaseUrl}/api/v1/account-transfers/${id}/reverse`,
+            payload,
+            {
+              withCredentials: true,
+              headers: {
+                'X-CSRF-Token': csrfToken,
+                'Idempotency-Key': idempotencyKey,
+              },
+            },
+          )
+          .pipe(
+            map((response) => response.data),
+            tap(() => invalidateAccountFinancialReads(this.queryCache)),
+          ),
+      ),
+    );
+  }
+
+  adjustBalance(
+    payload: {
+      accountId: string;
+      expectedCurrentBalance: { amount: string; currency: string };
+      desiredBalance: { amount: string; currency: string };
+      category?: string | undefined;
+      reason: string;
+      reference?: string | undefined;
+      notes?: string | undefined;
+      businessDate?: string | undefined;
+    },
+    idempotencyKey: string,
+  ): Observable<BalanceAdjustmentRecord> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: BalanceAdjustmentRecord }>(
+            `${environment.publicApiBaseUrl}/api/v1/account-balance-adjustments`,
             payload,
             {
               withCredentials: true,

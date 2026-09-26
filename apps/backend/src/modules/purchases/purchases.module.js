@@ -788,11 +788,11 @@ function createPurchasesService(deps) {
       };
     },
 
-    async listUnpaidSupplierPurchases(organizationId, supplierId) {
+    async listUnpaidSupplierPurchases(organizationId, supplierId, session) {
       const { items } = await store.listPurchases(organizationId, {
         status: 'posted',
         supplierId,
-      });
+      }, {}, session);
       const result = [];
       for (const item of items) {
         if (!item.purchaseTotalMinorUnits) {
@@ -801,7 +801,7 @@ function createPurchasesService(deps) {
         const purchaseTotal = BigInt(String(item.purchaseTotalMinorUnits));
         const allocations =
           paymentsService && typeof paymentsService.listPurchaseAllocations === 'function'
-            ? await paymentsService.listPurchaseAllocations(organizationId, String(item['_id']))
+            ? await paymentsService.listPurchaseAllocations(organizationId, String(item['_id']), session)
             : [];
         const allocated = allocations.reduce(
           (sum, a) => sum + BigInt(a.allocatedAmountMinorUnits),
@@ -813,6 +813,7 @@ function createPurchasesService(deps) {
                 organizationId,
                 'supplier_advance_application',
                 String(item['_id']),
+                session,
               )
             : [];
         const advanceApplied = advanceEffects.reduce(
@@ -823,7 +824,7 @@ function createPurchasesService(deps) {
         if (typeof deps.listPurchaseReturnCredits === 'function') {
           const returnCredit = BigInt(
             String(
-              (await deps.listPurchaseReturnCredits(organizationId, String(item['_id']))) ?? '0',
+              (await deps.listPurchaseReturnCredits(organizationId, String(item['_id']), session)) ?? '0',
             ),
           );
           outstanding -= returnCredit;
@@ -920,6 +921,16 @@ function createPurchasesService(deps) {
               !deps.canAccessWarehouse(authContext, String(existing.warehouseId))
             ) {
               throw notFound('Purchase not found');
+            }
+
+            if (typeof paymentsService.assertSupplierPayableTargetUnadjusted === 'function') {
+              await paymentsService.assertSupplierPayableTargetUnadjusted(
+                organizationId,
+                String(existing.supplierId),
+                'purchase',
+                purchaseId,
+                session,
+              );
             }
 
             if (typeof deps.listPostedReturnsByPurchase === 'function') {

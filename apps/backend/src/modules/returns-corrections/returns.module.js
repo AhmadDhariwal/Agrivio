@@ -333,6 +333,7 @@ function createReturnsService(deps) {
       resolution,
       refundAccountId,
       returnTotal,
+      tradeTargetId,
     } = input;
 
     if (resolution === 'account_refund') {
@@ -356,6 +357,17 @@ function createReturnsService(deps) {
     }
 
     if (returnTotal !== 0n) {
+      if (
+        tradeTargetId &&
+        typeof paymentsService.assertCustomerTradeTargetUnadjusted === 'function'
+      ) {
+        await paymentsService.assertCustomerTradeTargetUnadjusted(
+          organizationId,
+          customerId,
+          'sale',
+          tradeTargetId,
+        );
+      }
       await paymentsService.postCustomerReceivableEffect(session, {
         organizationId,
         customerId,
@@ -389,6 +401,16 @@ function createReturnsService(deps) {
       throw validationFailed('Source purchase must still be posted', [
         { field: 'purchaseId', message: 'purchase must be posted' },
       ]);
+    }
+
+    if (typeof paymentsService.assertSupplierPayableTargetUnadjusted === 'function') {
+      await paymentsService.assertSupplierPayableTargetUnadjusted(
+        organizationId,
+        String(existing.supplierId),
+        'purchase',
+        String(existing.purchaseId),
+        session,
+      );
     }
 
     const postedAt = now();
@@ -742,6 +764,7 @@ function createReturnsService(deps) {
       resolution: input.resolution,
       refundAccountId: input.refundAccountId,
       returnTotal,
+      tradeTargetId: String(existing.saleId),
     });
 
     return { postedAt, postedLines, returnTotal, extraPatch: {} };
@@ -1869,8 +1892,8 @@ function createReturnsModule(options = {}) {
     store,
     returnsService,
     transactionRunner,
-    async listPurchaseReturnCredits(organizationId, purchaseId) {
-      const items = await store.listPostedReturnsByPurchase(organizationId, purchaseId);
+    async listPurchaseReturnCredits(organizationId, purchaseId, session) {
+      const items = await store.listPostedReturnsByPurchase(organizationId, purchaseId, session);
       let total = 0n;
       for (const item of items) {
         total += BigInt(String(item.returnTotalMinorUnits ?? '0'));

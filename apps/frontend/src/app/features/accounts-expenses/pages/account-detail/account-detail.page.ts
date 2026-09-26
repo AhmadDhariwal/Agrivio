@@ -11,11 +11,26 @@ import {
   UiBadgeTone,
   UiStatusBadgeComponent,
 } from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
+import { TransferMoneyDialogComponent } from '../../components/transfer-money-dialog/transfer-money-dialog.component';
+import { AddMoneyDialogComponent } from '../../components/add-money-dialog/add-money-dialog.component';
+import { WithdrawMoneyDialogComponent } from '../../components/withdraw-money-dialog/withdraw-money-dialog.component';
+import { AdjustBalanceDialogComponent } from '../../components/adjust-balance-dialog/adjust-balance-dialog.component';
+import { AccountMovementsTableComponent } from '../../components/account-movements-table/account-movements-table.component';
 
 @Component({
   selector: 'agrivio-account-detail-page',
   standalone: true,
-  imports: [RouterLink, UiAlertComponent, UiLoadingStateComponent, UiStatusBadgeComponent],
+  imports: [
+    RouterLink,
+    UiAlertComponent,
+    UiLoadingStateComponent,
+    UiStatusBadgeComponent,
+    TransferMoneyDialogComponent,
+    AddMoneyDialogComponent,
+    WithdrawMoneyDialogComponent,
+    AdjustBalanceDialogComponent,
+    AccountMovementsTableComponent,
+  ],
   templateUrl: './account-detail.page.html',
   styleUrl: './account-detail.page.scss',
 })
@@ -27,7 +42,13 @@ export class AccountDetailPage {
 
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
+  readonly successMessage = signal<string | null>(null);
   readonly account = signal<AccountRecord | null>(null);
+
+  readonly transferDialogOpen = signal(false);
+  readonly addMoneyDialogOpen = signal(false);
+  readonly withdrawMoneyDialogOpen = signal(false);
+  readonly adjustBalanceDialogOpen = signal(false);
 
   readonly canView = computed(
     () =>
@@ -47,8 +68,29 @@ export class AccountDetailPage {
       this.canView(),
   );
 
+  readonly canPostTransaction = computed(
+    () =>
+      this.sessionStore.hasPermission('accounts.transaction.post') &&
+      this.canView() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.postManualMovement') ?? true),
+  );
+  readonly canTransfer = computed(
+    () =>
+      this.sessionStore.hasPermission('accounts.transfer') &&
+      this.canView() &&
+      (this.capabilityService?.canPerformAction('accounts.actions.transfer') ?? true),
+  );
+  readonly canAddMoney = computed(() => this.canPostTransaction());
+  readonly canWithdrawMoney = computed(() => this.canPostTransaction());
+  readonly canAdjustBalance = computed(() => this.canPostTransaction());
+  readonly canTransferMoney = computed(() => this.canTransfer());
+
   constructor() {
-    const id = this.route.snapshot.paramMap.get('id');
+    this.reload();
+  }
+
+  reload(): void {
+    const id = this.account()?.id || this.route.snapshot.paramMap.get('id');
     if (!id || !this.canView()) {
       this.loading.set(false);
       return;
@@ -63,6 +105,27 @@ export class AccountDetailPage {
         this.loading.set(false);
       },
     });
+  }
+
+  openTransfer(): void {
+    this.transferDialogOpen.set(true);
+  }
+
+  openAddMoney(): void {
+    this.addMoneyDialogOpen.set(true);
+  }
+
+  openWithdrawMoney(): void {
+    this.withdrawMoneyDialogOpen.set(true);
+  }
+
+  openAdjustBalance(): void {
+    this.adjustBalanceDialogOpen.set(true);
+  }
+
+  onTreasuryActionSuccess(message: string): void {
+    this.successMessage.set(message);
+    this.reload();
   }
 
   statusTone(status: string): UiBadgeTone {

@@ -178,13 +178,14 @@ describe('F05 P3 reconcileSupplierLedgerState', () => {
     expect(sumByEffectKind(effects, 'supplier_advance')).toBe(50n);
   });
 
-  it('sumAllocations sums only purchase-target posted allocations', () => {
+  it('sumAllocations sums posted supplier payable target allocations', () => {
     const allocations = [
       { targetType: 'purchase', allocatedAmountMinorUnits: '100', status: 'posted' },
+      { targetType: 'supplier_manual_payable', allocatedAmountMinorUnits: '25', status: 'posted' },
       { targetType: 'supplier_advance', allocatedAmountMinorUnits: '50', status: 'posted' },
       { targetType: 'purchase', allocatedAmountMinorUnits: '200', status: 'void' },
     ];
-    expect(sumAllocations(allocations)).toBe(100n);
+    expect(sumAllocations(allocations)).toBe(125n);
   });
 
   it('includes opening payable allocations in the payable allocation total', () => {
@@ -211,6 +212,20 @@ describe('F05 P3 reconcileSupplierLedgerState', () => {
       advanceMinorUnits: '20000',
       netPayableMinorUnits: '30000',
       message: 'Unallocated supplier advance coexists with supplier payable',
+    });
+  });
+
+  it('flags a mismatch between ledger payable and remaining allocatable targets', () => {
+    const result = reconcileSupplierLedgerState({
+      effects: [{ effectKind: 'payable', signedAmountMinorUnits: '10000', status: 'posted' }],
+      payableTargetTotalMinorUnits: '9000',
+    });
+    expect(result.ok).toBe(false);
+    expect(result.findings).toContainEqual({
+      code: 'SUPPLIER_PAYABLE_TARGET_MISMATCH',
+      ledgerPayableMinorUnits: '10000',
+      targetPayableMinorUnits: '9000',
+      message: 'Supplier payable ledger does not match remaining allocatable payable targets',
     });
   });
 

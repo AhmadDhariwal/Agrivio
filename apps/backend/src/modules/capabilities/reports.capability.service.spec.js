@@ -23,6 +23,17 @@ const REPORT_KEYS = [
   'reports.reportAvailability.customerLedger',
   'reports.reportAvailability.supplierLedger',
   'reports.reportAvailability.accountCashBook',
+  'reports.reportAvailability.financialPosition',
+  'reports.reportAvailability.dailyCashPosition',
+  'reports.reportAvailability.accountStatement',
+  'reports.reportAvailability.cashBook',
+  'reports.reportAvailability.bankBook',
+  'reports.reportAvailability.accountTransfers',
+  'reports.reportAvailability.treasuryMovements',
+  'reports.reportAvailability.manualAdjustments',
+  'reports.reportAvailability.customerLoans',
+  'reports.reportAvailability.supplierRefunds',
+  'reports.reportAvailability.financialReconciliation',
   'reports.reportAvailability.expenses',
   'reports.reportAvailability.lowStock',
   'reports.reportAvailability.expiry',
@@ -56,11 +67,11 @@ function control(result, key) {
 }
 
 describe('Reports capability registry and service', () => {
-  it('registers the exact authoritative 22-control Reports model', () => {
+  it('registers the exact authoritative 33-control Reports model', () => {
     const definitions = listCapabilityControls().filter((item) => item.moduleKey === 'reports');
     expect(definitions.map((item) => item.key)).toEqual(REPORT_KEYS);
     expect(definitions.filter((item) => item.type === 'MODULE')).toHaveLength(1);
-    expect(definitions.filter((item) => item.key.startsWith('reports.reportAvailability.'))).toHaveLength(16);
+    expect(definitions.filter((item) => item.key.startsWith('reports.reportAvailability.'))).toHaveLength(27);
     expect(definitions.filter((item) => item.key.startsWith('reports.features.'))).toHaveLength(1);
     expect(definitions.filter((item) => item.type === 'ACTION')).toHaveLength(4);
     expect(definitions.every((item) => (item.dependencies ?? []).length === 0)).toBe(true);

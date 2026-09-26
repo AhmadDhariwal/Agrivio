@@ -227,7 +227,6 @@
                 [class.ag-input--invalid]="fieldError(form.controls.role, 'Role', formSubmitAttempted())"
                 [attr.aria-required]="fieldRequired(form.controls.role) ? 'true' : null"
                 [attr.aria-invalid]="fieldError(form.controls.role, 'Role', formSubmitAttempted()) ? 'true' : null"
-                [disabled]="isReadOnlyField('role') || inspectOnly()"
                 (change)="onRoleChange($any($event.target).value)"
               >
                 @for (role of roles(); track role) {
@@ -616,7 +615,6 @@
               [class.ag-input--invalid]="fieldError(form.controls.role, 'Role', formSubmitAttempted())"
               [attr.aria-required]="fieldRequired(form.controls.role) ? 'true' : null"
               [attr.aria-invalid]="fieldError(form.controls.role, 'Role', formSubmitAttempted()) ? 'true' : null"
-              [disabled]="isReadOnlyField('role') || inspectOnly()"
               (change)="onRoleChange($any($event.target).value)"
             >
               @for (role of roles(); track role) {

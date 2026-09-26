@@ -85,3 +85,44 @@ Deferred **C/D**: payroll, tax, double-entry GL, F08 reporting, R1-F07-009 E2E v
 ## Next
 
 * `R1-F07-009` Accounts/expenses/returns Angular vertical slice and stage-exit E2E / reconciliation suite
+
+## Treasury / Account Management Phase 1 hardening (2026-09-23)
+
+### Existing architecture audit
+
+* `accounts` is tenant-owned master data for Cash, Bank, JazzCash, and Easypaisa. It has no mutable balance; `openingBalance` is source metadata linked to its immutable opening movement.
+* `account_movements` remains the only authoritative money-effect collection. Balances are the sum of signed posted movements. Sales/customer payments, supplier payments, direct purchase payments, expenses, returns/refunds, cancellations, corrections, and opening balances already reuse the Accounts public posting interface and source linkage.
+* Manual inflow/outflow and paired transfers already used organization-scoped transactions, audit events, idempotency records, and the frozen Accounts permissions. Phase 1 extends those paths rather than creating another ledger or transaction collection.
+* Audit remains in `audit_events`; request replay protection remains in `idempotency_records`; Mongo work continues through the shared transaction runner/session.
+* Frontend financial cache invalidation already targets `accounts`, `accounts-summary`, `account-movements`, `dashboard`, and `reports` only. No inventory, customer, supplier, branch, warehouse, product, or category invalidation was added.
+
+### Added behavior
+
+* `POST /api/v1/account-balance-adjustments` uses `accounts.transaction.post` plus the existing `accounts.actions.postManualMovement` capability. It accepts `accountId`, `expectedCurrentBalance`, `desiredBalance`, required `reason`, category, optional business date/reference/notes, and `Idempotency-Key`.
+* Set-balance semantics recalculate the authoritative movement sum in the transaction, reject a stale expected balance with HTTP 409, and append only `desired - current`. Equal balances return `no_change` without a money movement and retain an audit event.
+* Added movement types: `balance_adjustment_increase`, `balance_adjustment_decrease`, and their linked reversal types. Adjustment movements retain balance-before, requested desired balance, delta, category, reason, date, actor, and reversal lineage.
+* Manual treasury inflow/outflow supports safe categories including `unclassified`; transfer accepts established source/destination names and the request aliases `fromAccountId`/`toAccountId`.
+* Every Accounts-owned/public money append advances an internal `accounts.movementVersion` in the same session. Adjustment read + version write prevents concurrent account activity from silently invalidating a set-balance decision. Paired transfer locks use stable account-ID order.
+* Account lists now resolve all displayed balances through one grouped aggregation rather than one query per account. Summary exposes derived `totalLiquidFunds` across active liquid accounts; transfers preserve it while external movements and adjustments change it by their signed delta.
+* Movement history now supports source type, inflow/outflow direction, inclusive date range, reference/purpose/category/notes search, posted status, and pagination. DTOs expose direction and readable treasury metadata.
+* Reversal stays append-only. Manual adjustments use the existing account-transaction reversal endpoint; transfer reversal still appends both corrective legs atomically.
+
+### Model review checklist outcome
+
+* Ownership/scope: `accounts` and `account_movements` remain in Accounts and Expenses and remain organization-scoped.
+* A fields: adjustment/source categories, notes, business date, balance-before, and desired balance provide required current-scope meaning and audit context. B field: `movementVersion` is an internal concurrency token; it is not a balance or API source of truth.
+* Lifecycle/relationships: movements remain posted and immutable; source IDs and `reversalOfId` retain lineage; both transfer accounts are resolved inside the current organization.
+* Indexes: the existing org/account/posting index remains primary; an org/account/business-date index supports the new history filter. No speculative collection or denormalized liquid-funds value was added.
+* Evolution: additive and backward-compatible. Existing account documents treat absent `movementVersion` as zero; historical movements may have null business/category metadata and continue to filter by `postedAt`.
+* Transaction/audit: multi-movement writes, balance adjustment validation+append, concurrency token writes, and audit events share the Mongo transaction.
+* Real-Mongo evidence: existing replica-set transfer rollback/idempotency/correction coverage passes after the schema and concurrency changes.
+
+### Validation
+
+* Treasury focused service + existing F07/summary: **7 passed**
+* Accounts capability/payment integration: **14 passed**
+* Real-Mongo rs0 F07 P3 integration: **2 passed**
+* Architecture boundary gate: **6 passed**
+* `npm run lint`: pass, warnings only (no errors)
+* `npm run build:backend`: pass
+* No full repository regression/smoke run was performed, per the Phase 1 light-testing instruction.

@@ -2,6 +2,7 @@
   display: grid;
   gap: 18px;
 }
+
 .page-head,
 .actions,
 .summary,
@@ -9,15 +10,18 @@
 .row {
   display: flex;
 }
+
 .page-head {
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
 }
+
 .page-head h1 {
   margin: 2px 0;
   font-size: 1.75rem;
 }
+
 .eyebrow {
   margin: 0;
   color: #047857;
@@ -25,20 +29,24 @@
   font-weight: 700;
   text-transform: uppercase;
 }
+
 .lede,
 small,
 .card p {
   color: #64748b;
 }
+
 .actions {
   gap: 8px;
   flex-wrap: wrap;
 }
+
 .summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
+
 .summary article,
 .card {
   background: #fff;
@@ -46,10 +54,12 @@ small,
   border-radius: 8px;
   padding: 16px;
 }
+
 .summary article {
   display: grid;
   gap: 6px;
 }
+
 .summary span,
 dt {
   color: #64748b;
@@ -57,29 +67,199 @@ dt {
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
+
 .card h2 {
   margin: 0 0 14px;
   font-size: 1rem;
 }
+
 .facts {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   margin: 0;
 }
+
+.financial-facts {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
 .facts div {
   display: grid;
   gap: 5px;
 }
+
 dd {
   margin: 0;
 }
+
+.highlight-fact {
+  background: #f8fafc;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border-left: 3px solid #047857;
+}
+
+.total-exposure-val {
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: #0f172a;
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.section-head h2 {
+  margin: 0;
+}
+
+.section-desc {
+  margin: 3px 0 0;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.empty-section {
+  text-align: center;
+  padding: 24px 16px;
+  color: #64748b;
+  font-size: 0.875rem;
+  background: #f8fafc;
+  border-radius: 6px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.loans-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.loans-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.loans-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.loans-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.text-outstanding {
+  color: #b45309;
+  font-weight: 600;
+}
+
+.actions-cell {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.cell-action-btn {
+  background: none;
+  border: none;
+  padding: 3px 6px;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #475569;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.cell-action-btn:hover {
+  background-color: #f1f5f9;
+  text-decoration: underline;
+}
+
+.cell-action-btn.text-primary {
+  color: #047857;
+}
+
+.cell-action-btn.text-danger {
+  color: #dc2626;
+}
+
+.ledger-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ledger-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
+}
+
+.ledger-row:hover {
+  background: #f8fafc;
+}
+
+.ledger-row__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ledger-row__title {
+  font-size: 0.875rem;
+  color: #1e293b;
+}
+
+.ledger-row__meta {
+  font-size: 0.75rem;
+  color: #64748b;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.ledger-row__amount {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.ledger-row__amount--credit {
+  color: #047857;
+}
+
+.ledger-row__amount--debit {
+  color: #b91c1c;
+}
+
 @media (max-width: 800px) {
   .page-head {
     flex-direction: column;
   }
   .summary,
-  .facts {
+  .facts,
+  .financial-facts {
     grid-template-columns: 1fr;
   }
 }

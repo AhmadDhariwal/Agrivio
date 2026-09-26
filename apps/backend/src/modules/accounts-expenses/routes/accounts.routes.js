@@ -3,6 +3,7 @@ const {
   API_ACCOUNTS_PATH,
   API_ACCOUNT_TRANSACTIONS_PATH,
   API_ACCOUNT_TRANSFERS_PATH,
+  API_ACCOUNT_BALANCE_ADJUSTMENTS_PATH,
 } = require('@agrivio/api-contracts');
 const {
   createRequireOrganizationContextMiddleware,
@@ -230,6 +231,20 @@ function registerAccountsRoutes(deps) {
     requireTransfer,
     (req, res, next) => {
       void controller.postAccountTransfer(req, res, next);
+    },
+  );
+
+  router.post(
+    API_ACCOUNT_BALANCE_ADJUSTMENTS_PATH,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('accounts.transaction.post'),
+    deps.requireOperationalAccess,
+    requireAccountsModule,
+    requireManualMovement,
+    (req, res, next) => {
+      void controller.adjustAccountBalance(req, res, next);
     },
   );
 

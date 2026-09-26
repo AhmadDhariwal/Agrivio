@@ -24,6 +24,9 @@ const mockPaymentRecords: SupplierPaymentRecord[] = [
     postedAt: '2026-08-12T10:00:00.000Z',
     postedBy: 'user-1',
     allocations: [],
+    correctionOfId: null,
+    reason: '',
+    replacementPaymentId: null,
   },
   {
     id: 'pay-0002-ghijkl',
@@ -40,6 +43,9 @@ const mockPaymentRecords: SupplierPaymentRecord[] = [
     postedAt: '2026-08-11T10:00:00.000Z',
     postedBy: 'user-1',
     allocations: [],
+    correctionOfId: null,
+    reason: '',
+    replacementPaymentId: null,
   },
 ];
 
@@ -49,8 +55,10 @@ describe('SupplierPaymentsPage', () => {
     meta: { page: 1, pageSize: 25, total: 2 },
   };
   let mockPermission = true;
+  let mockPermissionsMap: Record<string, boolean> = {};
   let disabledCapabilities = new Set<string>();
   const listSupplierPaymentsSpy = vi.fn();
+  const correctPaymentSpy = vi.fn();
 
   beforeEach(async () => {
     mockListResult = {
@@ -58,9 +66,17 @@ describe('SupplierPaymentsPage', () => {
       meta: { page: 1, pageSize: 25, total: 2 },
     };
     mockPermission = true;
+    mockPermissionsMap = {};
     disabledCapabilities = new Set<string>();
     listSupplierPaymentsSpy.mockReset();
     listSupplierPaymentsSpy.mockImplementation(() => of(mockListResult));
+    correctPaymentSpy.mockReset();
+    correctPaymentSpy.mockReturnValue(
+      of({
+        reversalPayment: { id: 'rev-sup-1', status: 'posted' },
+        replacementPayment: null,
+      }),
+    );
 
     await TestBed.configureTestingModule({
       imports: [SupplierPaymentsPage],
@@ -70,12 +86,16 @@ describe('SupplierPaymentsPage', () => {
           provide: SupplierPaymentsApi,
           useValue: {
             listSupplierPayments: listSupplierPaymentsSpy,
+            correctPayment: correctPaymentSpy,
           },
         },
         {
           provide: AuthSessionStore,
           useValue: {
-            hasPermission: () => mockPermission,
+            hasPermission: (perm?: string) =>
+              perm && perm in mockPermissionsMap
+                ? mockPermissionsMap[perm]
+                : mockPermission,
           },
         },
         {
@@ -255,5 +275,204 @@ describe('SupplierPaymentsPage', () => {
     const moduleDisabledFixture = TestBed.createComponent(SupplierPaymentsPage);
     moduleDisabledFixture.detectChanges();
     expect(moduleDisabledFixture.componentInstance.canView()).toBe(false);
+  });
+
+  it('renders View, Reverse, and Correct action buttons for posted supplier payments', () => {
+    const fixture = TestBed.createComponent(SupplierPaymentsPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const viewBtn = compiled.querySelector('[data-testid="supplier-payment-view-btn"]');
+    const reverseBtn = compiled.querySelector('[data-testid="supplier-payment-reverse-btn"]');
+    const correctBtn = compiled.querySelector('[data-testid="supplier-payment-correct-btn"]');
+
+    expect(viewBtn).toBeTruthy();
+    expect(reverseBtn).toBeTruthy();
+    expect(correctBtn).toBeTruthy();
+
+    const mobileViewBtn = compiled.querySelector('[data-testid="supplier-payment-mobile-view-btn"]');
+    const mobileReverseBtn = compiled.querySelector('[data-testid="supplier-payment-mobile-reverse-btn"]');
+    const mobileCorrectBtn = compiled.querySelector('[data-testid="supplier-payment-mobile-correct-btn"]');
+
+    expect(mobileViewBtn).toBeTruthy();
+    expect(mobileReverseBtn).toBeTruthy();
+    expect(mobileCorrectBtn).toBeTruthy();
+  });
+
+  it('opens detail dialog when View button is clicked', () => {
+    const fixture = TestBed.createComponent(SupplierPaymentsPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    const viewBtn = fixture.nativeElement.querySelector(
+      '[data-testid="supplier-payment-view-btn"]',
+    ) as HTMLButtonElement;
+    expect(viewBtn).toBeTruthy();
+    viewBtn.click();
+    fixture.detectChanges();
+
+    expect(component.detailDialogOpen()).toBe(true);
+    expect(component.detailTarget()?.id).toBe('pay-0001-abcdef');
+  });
+
+  it('opens correction dialog in reverse mode when Reverse button is clicked', () => {
+    const fixture = TestBed.createComponent(SupplierPaymentsPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    const reverseBtn = fixture.nativeElement.querySelector(
+      '[data-testid="supplier-payment-reverse-btn"]',
+    ) as HTMLButtonElement;
+    expect(reverseBtn).toBeTruthy();
+    reverseBtn.click();
+    fixture.detectChanges();
+
+    expect(component.correctionDialogOpen()).toBe(true);
+    expect(component.correctionInitialMode()).toBe('reverse');
+    expect(component.correctionTarget()?.id).toBe('pay-0001-abcdef');
+  });
+
+  it('opens correction dialog in correct mode when Correct button is clicked', () => {
+    const fixture = TestBed.createComponent(SupplierPaymentsPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    const correctBtn = fixture.nativeElement.querySelector(
+      '[data-testid="supplier-payment-correct-btn"]',
+    ) as HTMLButtonElement;
+    expect(correctBtn).toBeTruthy();
+    correctBtn.click();
+    fixture.detectChanges();
+
+    expect(component.correctionDialogOpen()).toBe(true);
+    expect(component.correctionInitialMode()).toBe('correct');
+    expect(component.correctionTarget()?.id).toBe('pay-0001-abcdef');
+  });
+
+  it('renders Reversal badge and blocks reverse/correct when payment is a reversal', () => {
+    const reversalRecord: SupplierPaymentRecord = {
+      ...mockPaymentRecords[0]!,
+      id: 'pay-rev-sup-1',
+      correctionOfId: 'pay-0001-abcdef',
+      reason: 'Entered duplicate invoice payment',
+    };
+    mockListResult = {
+      items: [reversalRecord],
+      meta: { page: 1, pageSize: 25, total: 1 },
+    };
+
+    const fixture = TestBed.createComponent(SupplierPaymentsPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('[data-testid="reversal-badge"]')).toBeTruthy();
+    expect(compiled.querySelector('[data-testid="supplier-payment-reverse-btn"]')).toBeFalsy();
+    expect(compiled.querySelector('[data-testid="supplier-payment-correct-btn"]')).toBeFalsy();
+  });
+
+  it('renders Corrected badge and blocks reverse/correct when payment was already corrected', () => {
+    const correctedRecord: SupplierPaymentRecord = {
+      ...mockPaymentRecords[0]!,
+      id: 'pay-orig-sup-1',
+      reversalPaymentId: 'pay-rev-sup-1',
+      replacementPaymentId: 'pay-repl-sup-1',
+      correctionStatus: 'corrected',
+    };
+    mockListResult = {
+      items: [correctedRecord],
+      meta: { page: 1, pageSize: 25, total: 1 },
+    };
+
+    const fixture = TestBed.createComponent(SupplierPaymentsPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('[data-testid="corrected-badge"]')).toBeTruthy();
+    expect(compiled.querySelector('[data-testid="supplier-payment-reverse-btn"]')).toBeFalsy();
+    expect(compiled.querySelector('[data-testid="supplier-payment-correct-btn"]')).toBeFalsy();
+  });
+
+  it('hides Reverse and Correct buttons when user lacks payments.correct permission or capability', () => {
+    mockPermissionsMap['payments.correct'] = false;
+    const fixture = TestBed.createComponent(SupplierPaymentsPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('[data-testid="supplier-payment-view-btn"]')).toBeTruthy();
+    expect(compiled.querySelector('[data-testid="supplier-payment-reverse-btn"]')).toBeFalsy();
+    expect(compiled.querySelector('[data-testid="supplier-payment-correct-btn"]')).toBeFalsy();
+  });
+
+  it('executes atomic correction via SupplierPaymentsApi and reloads payments on confirm', () => {
+    const fixture = TestBed.createComponent(SupplierPaymentsPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    listSupplierPaymentsSpy.mockClear();
+
+    const targetRecord = mockPaymentRecords[0]!;
+    component.openCorrectionDialog(targetRecord, 'correct');
+    expect(component.correctionDialogOpen()).toBe(true);
+
+    component.onCorrectionConfirmed({
+      paymentId: targetRecord.id,
+      mode: 'correct',
+      reason: 'Incorrect bank account selected',
+      replacement: {
+        accountId: 'acc-2',
+        amount: { amount: '55000.00', currency: 'PKR' },
+        paymentDate: '2026-08-12',
+        allocationMode: 'general',
+        notes: 'Corrected supplier payment',
+      },
+      idempotencyKey: 'idem-sup-test-1',
+    });
+
+    expect(correctPaymentSpy).toHaveBeenCalledWith(
+      targetRecord.id,
+      {
+        reason: 'Incorrect bank account selected',
+        replacement: {
+          accountId: 'acc-2',
+          amount: { amount: '55000.00', currency: 'PKR' },
+          paymentDate: '2026-08-12',
+          allocationMode: 'general',
+          notes: 'Corrected supplier payment',
+        },
+      },
+      'idem-sup-test-1',
+    );
+    expect(component.correctionDialogOpen()).toBe(false);
+    expect(component.correctionSubmitting()).toBe(false);
+    expect(listSupplierPaymentsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ forceRefresh: true }),
+    );
+  });
+
+  it('transitions from detail dialog to correction dialog on reverse/correct actions', () => {
+    const fixture = TestBed.createComponent(SupplierPaymentsPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    const targetRecord = mockPaymentRecords[0]!;
+    component.openDetailDialog(targetRecord);
+    expect(component.detailDialogOpen()).toBe(true);
+
+    const target = component.detailTarget();
+    expect(target).toBeTruthy();
+    if (!target) return;
+
+    component.onDetailReverse(target);
+    expect(component.detailDialogOpen()).toBe(false);
+    expect(component.correctionDialogOpen()).toBe(true);
+    expect(component.correctionInitialMode()).toBe('reverse');
+
+    component.closeCorrectionDialog();
+    expect(component.correctionDialogOpen()).toBe(false);
+
+    component.openDetailDialog(targetRecord);
+    component.onDetailCorrect(target);
+    expect(component.detailDialogOpen()).toBe(false);
+    expect(component.correctionDialogOpen()).toBe(true);
+    expect(component.correctionInitialMode()).toBe('correct');
   });
 });

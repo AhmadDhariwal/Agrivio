@@ -651,6 +651,7 @@ function createSalesService(deps) {
             }
 
             const customerId = existing.customerId ? String(existing.customerId) : null;
+
             let customer = null;
             let priceTier = 'retail';
             if (customerId) {
@@ -1305,6 +1306,18 @@ function createSalesService(deps) {
             const saleTotal = BigInt(String(existing.saleTotalMinorUnits ?? '0'));
             const customerId = existing.customerId ? String(existing.customerId) : null;
 
+            if (
+              customerId &&
+              typeof paymentsService.assertCustomerTradeTargetUnadjusted === 'function'
+            ) {
+              await paymentsService.assertCustomerTradeTargetUnadjusted(
+                organizationId,
+                customerId,
+                'sale',
+                saleId,
+              );
+            }
+
             for (const line of existing.lines) {
               for (const allocation of line.stockAllocations ?? []) {
                 const qtyBase = String(allocation.quantityBaseMinorUnits);
@@ -1495,8 +1508,8 @@ function createSalesService(deps) {
       };
     },
 
-    async listUnpaidCustomerSales(organizationId, customerId) {
-      const { items } = await store.listSales(organizationId, { status: 'posted', customerId });
+    async listUnpaidCustomerSales(organizationId, customerId, session) {
+      const { items } = await store.listSales(organizationId, { status: 'posted', customerId }, {}, session);
       const result = [];
       for (const item of items) {
         if (!item.saleTotalMinorUnits) {
@@ -1505,7 +1518,7 @@ function createSalesService(deps) {
         const saleTotal = BigInt(String(item.saleTotalMinorUnits));
         const allocations =
           paymentsService && typeof paymentsService.listSaleAllocations === 'function'
-            ? await paymentsService.listSaleAllocations(organizationId, String(item['_id']))
+            ? await paymentsService.listSaleAllocations(organizationId, String(item['_id']), session)
             : [];
         const allocated = allocations.reduce(
           (sum, allocation) => sum + BigInt(allocation.allocatedAmountMinorUnits),
@@ -1517,6 +1530,7 @@ function createSalesService(deps) {
                 organizationId,
                 'customer_advance_application',
                 String(item['_id']),
+                session,
               )
             : [];
         const advanceApplied = advanceEffects.reduce(

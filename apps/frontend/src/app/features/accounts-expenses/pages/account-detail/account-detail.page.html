@@ -7,7 +7,48 @@
     </div>
     <div class="actions">
       <a class="ag-btn ag-btn--secondary" routerLink="/app/accounts">Back to Accounts</a>
-      @if (account(); as item) { @if (canOpenActivity()) {
+      @if (account(); as item) {
+      @if (canAddMoney() && item.status === 'active') {
+      <button
+        class="ag-btn ag-btn--secondary"
+        type="button"
+        (click)="openAddMoney()"
+        data-testid="detail-add-money-btn"
+      >
+        Add Money
+      </button>
+      }
+      @if (canWithdrawMoney() && item.status === 'active') {
+      <button
+        class="ag-btn ag-btn--secondary"
+        type="button"
+        (click)="openWithdrawMoney()"
+        data-testid="detail-withdraw-money-btn"
+      >
+        Withdraw Money
+      </button>
+      }
+      @if (canTransferMoney() && item.status === 'active') {
+      <button
+        class="ag-btn ag-btn--secondary"
+        type="button"
+        (click)="openTransfer()"
+        data-testid="detail-transfer-btn"
+      >
+        Transfer Money
+      </button>
+      }
+      @if (canAdjustBalance() && item.status === 'active') {
+      <button
+        class="ag-btn ag-btn--secondary"
+        type="button"
+        (click)="openAdjustBalance()"
+        data-testid="detail-adjust-balance-btn"
+      >
+        Adjust Balance
+      </button>
+      }
+      @if (canOpenActivity()) {
       <a
         class="ag-btn ag-btn--secondary"
         [routerLink]="['/app/accounts', item.id, 'activity']"
@@ -130,5 +171,50 @@
       </div>
     </dl>
   </section>
-  } }
+  }
+
+  @if (successMessage(); as success) {
+  <div class="alert-container" style="margin-top: 1rem;">
+    <agrivio-ui-alert tone="success" [message]="success" />
+  </div>
+  }
+
+  <!-- Account Movement History Section -->
+  <section class="card" data-testid="detail-movements-section" style="margin-top: 1.5rem;">
+    <h2>Account Movement History</h2>
+    <agrivio-account-movements-table
+      [accountId]="item.id"
+      [accountName]="item.name"
+      (actionTriggered)="reload()"
+    />
+  </section>
+
+  <agrivio-transfer-money-dialog
+    [open]="transferDialogOpen()"
+    [preselectedAccountId]="item.id"
+    (transferred)="onTreasuryActionSuccess($event)"
+    (dismiss)="transferDialogOpen.set(false)"
+  />
+
+  <agrivio-add-money-dialog
+    [open]="addMoneyDialogOpen()"
+    [preselectedAccountId]="item.id"
+    (moneyAdded)="onTreasuryActionSuccess($event)"
+    (dismiss)="addMoneyDialogOpen.set(false)"
+  />
+
+  <agrivio-withdraw-money-dialog
+    [open]="withdrawMoneyDialogOpen()"
+    [preselectedAccountId]="item.id"
+    (moneyWithdrawn)="onTreasuryActionSuccess($event)"
+    (dismiss)="withdrawMoneyDialogOpen.set(false)"
+  />
+
+  <agrivio-adjust-balance-dialog
+    [open]="adjustBalanceDialogOpen()"
+    [preselectedAccountId]="item.id"
+    (balanceAdjusted)="onTreasuryActionSuccess($event)"
+    (dismiss)="adjustBalanceDialogOpen.set(false)"
+  />
+  }
 </div>

@@ -97,6 +97,8 @@ describe('CustomerPaymentsApi', () => {
       QUERY_CACHE_TAGS.sales,
       QUERY_CACHE_TAGS.dashboard,
       QUERY_CACHE_TAGS.reports,
+      QUERY_CACHE_TAGS.reconciliation,
+      QUERY_CACHE_TAGS.audit,
       QUERY_CACHE_TAGS.alerts,
     );
     expect(invalidateTags).toHaveBeenCalledWith(
@@ -141,6 +143,8 @@ describe('invalidateCustomerPaymentPostedEffects', () => {
       QUERY_CACHE_TAGS.sales,
       QUERY_CACHE_TAGS.dashboard,
       QUERY_CACHE_TAGS.reports,
+      QUERY_CACHE_TAGS.reconciliation,
+      QUERY_CACHE_TAGS.audit,
       QUERY_CACHE_TAGS.alerts,
     );
     expect(queryCache.invalidateTags).not.toHaveBeenCalledWith(QUERY_CACHE_TAGS.accountOptions);

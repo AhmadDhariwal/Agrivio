@@ -166,14 +166,14 @@ function createMongooseReturnsStore() {
       return query.lean().exec();
     },
 
-    async listPostedReturnsByPurchase(organizationId, purchaseId) {
-      return ReturnModel.find({
+    async listPostedReturnsByPurchase(organizationId, purchaseId, session) {
+      const query = ReturnModel.find({
         organizationId,
         purchaseId,
         status: 'posted',
-      })
-        .lean()
-        .exec();
+      });
+      if (session) query.session(session);
+      return query.lean().exec();
     },
 
     async sumPostedReturnedQuantityByPurchaseLine(organizationId, purchaseId, originalLineIndex) {
