@@ -553,6 +553,10 @@
     width: 110px;
   }
 
+  .col-actions {
+    width: 220px;
+  }
+
   &__th {
     padding: 10px 14px;
     background: #f8fafc;
@@ -967,5 +971,89 @@
 
 .empty-clear-btn {
   font-size: 13px;
+}
+
+/* ==========================================================================
+   12. Table Actions & Status Badges
+   ========================================================================== */
+.ag-btn--xs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 4px;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid var(--ag-color-border, #e2e8f0);
+  background: transparent;
+  color: var(--ag-color-text, #334155);
+
+  &:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #cbd5e1;
+  }
+}
+
+.row-actions-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.card-actions-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.btn-action-reverse {
+  &:hover {
+    background: #fffbeb;
+    color: #b45309;
+    border-color: #fde68a;
+  }
+}
+
+.btn-action-correct {
+  &:hover {
+    background: #ecfdf5;
+    color: #065f46;
+    border-color: #a7f3d0;
+  }
+}
+
+.reversal-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  border-radius: 4px;
+}
+
+.corrected-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
 }
 

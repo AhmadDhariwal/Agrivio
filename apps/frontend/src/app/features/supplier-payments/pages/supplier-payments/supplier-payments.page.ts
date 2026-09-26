@@ -16,6 +16,13 @@ import { AppDatePipe } from '../../../../shared/format/date-time.pipe';
 import { EMPTY, Subject, catchError, startWith, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import {
+  PaymentCorrectionDialogComponent,
+  PaymentCorrectionDialogResult,
+  PaymentCorrectionTarget,
+} from '../../../../shared/ui/payment-correction-dialog/payment-correction-dialog.component';
+import { PaymentDetailDialogComponent } from '../../../../shared/ui/payment-detail-dialog/payment-detail-dialog.component';
+import { SupplierPaymentCorrectionInput } from '../../models/supplier-payments.models';
 
 @Component({
   selector: 'agrivio-supplier-payments-page',
@@ -28,6 +35,8 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
     UiPaginationComponent,
     UiModuleInfoComponent,
     AppDatePipe,
+    PaymentCorrectionDialogComponent,
+    PaymentDetailDialogComponent,
   ],
   templateUrl: './supplier-payments.page.html',
   styleUrl: './supplier-payments.page.scss',
@@ -55,6 +64,12 @@ export class SupplierPaymentsPage {
       this.sessionStore.hasPermission('supplier-payments.post') &&
       this.canUseSupplierPayments() &&
       (this.capabilityService?.canPerformAction('payments.supplier.actions.post') ?? true),
+  );
+  readonly canCorrect = computed(
+    () =>
+      this.sessionStore.hasPermission('payments.correct') &&
+      this.canUseSupplierPayments() &&
+      (this.capabilityService?.canPerformAction('payments.supplier.actions.correct') ?? true),
   );
   readonly canViewLedger = computed(
     () =>
@@ -259,5 +274,123 @@ export class SupplierPaymentsPage {
     if (mode === 'invoice_specific') return 'Invoice-specific';
     if (mode === 'general') return 'General';
     return mode.charAt(0).toUpperCase() + mode.slice(1);
+  }
+
+  // Dialog State
+  readonly detailDialogOpen = signal(false);
+  readonly detailTarget = signal<PaymentCorrectionTarget | null>(null);
+
+  readonly correctionDialogOpen = signal(false);
+  readonly correctionTarget = signal<PaymentCorrectionTarget | null>(null);
+  readonly correctionInitialMode = signal<'reverse' | 'correct'>('reverse');
+  readonly correctionSubmitting = signal(false);
+  readonly correctionError = signal<string | null>(null);
+
+  toCorrectionTarget(item: SupplierPaymentRecord): PaymentCorrectionTarget {
+    return {
+      id: item.id,
+      partyType: 'supplier',
+      partyName: item.supplierId ? `Supplier ${item.supplierId}` : null,
+      amount: item.amount,
+      accountId: item.accountId,
+      paymentDate: item.paymentDate,
+      allocationMode: item.allocationMode,
+      appliedTo: null,
+      notes: item.notes,
+      reference: null,
+      correctionOfId: item.correctionOfId ?? null,
+      reason: item.reason ?? null,
+      replacementPaymentId: item.replacementPaymentId ?? null,
+      allocations: item.allocations,
+    };
+  }
+
+  isCorrectable(item: SupplierPaymentRecord): boolean {
+    return item.status === 'posted' && !item.correctionOfId && !item.replacementPaymentId;
+  }
+
+  openDetailDialog(item: SupplierPaymentRecord): void {
+    this.detailTarget.set(this.toCorrectionTarget(item));
+    this.detailDialogOpen.set(true);
+  }
+
+  closeDetailDialog(): void {
+    this.detailDialogOpen.set(false);
+  }
+
+  openCorrectionDialog(item: SupplierPaymentRecord, mode: 'reverse' | 'correct'): void {
+    this.correctionTarget.set(this.toCorrectionTarget(item));
+    this.correctionInitialMode.set(mode);
+    this.correctionError.set(null);
+    this.correctionDialogOpen.set(true);
+  }
+
+  closeCorrectionDialog(): void {
+    if (this.correctionSubmitting()) return;
+    this.correctionDialogOpen.set(false);
+    this.correctionError.set(null);
+  }
+
+  onDetailReverse(target: PaymentCorrectionTarget): void {
+    this.detailDialogOpen.set(false);
+    const item = this.items().find((i) => i.id === target.id);
+    if (item) {
+      this.openCorrectionDialog(item, 'reverse');
+    } else {
+      this.correctionTarget.set(target);
+      this.correctionInitialMode.set('reverse');
+      this.correctionError.set(null);
+      this.correctionDialogOpen.set(true);
+    }
+  }
+
+  onDetailCorrect(target: PaymentCorrectionTarget): void {
+    this.detailDialogOpen.set(false);
+    const item = this.items().find((i) => i.id === target.id);
+    if (item) {
+      this.openCorrectionDialog(item, 'correct');
+    } else {
+      this.correctionTarget.set(target);
+      this.correctionInitialMode.set('correct');
+      this.correctionError.set(null);
+      this.correctionDialogOpen.set(true);
+    }
+  }
+
+  onCorrectionConfirmed(event: PaymentCorrectionDialogResult): void {
+    this.correctionSubmitting.set(true);
+    this.correctionError.set(null);
+
+    const payload: SupplierPaymentCorrectionInput = {
+      reason: event.reason,
+      replacement: event.replacement
+        ? {
+            accountId: event.replacement.accountId,
+            amount: event.replacement.amount,
+            paymentDate: event.replacement.paymentDate,
+            allocationMode: event.replacement.allocationMode,
+            notes: event.replacement.notes,
+          }
+        : null,
+    };
+
+    this.api
+      .correctPayment(event.paymentId, payload, event.idempotencyKey)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.correctionSubmitting.set(false);
+          this.correctionDialogOpen.set(false);
+          this.reload(true);
+        },
+        error: (err: unknown) => {
+          this.correctionSubmitting.set(false);
+          this.correctionError.set(
+            err instanceof HttpErrorResponse
+              ? (err.error?.error?.message ?? err.error?.message ?? 'Failed to execute payment correction.')
+              : 'Failed to execute payment correction.',
+          );
+        },
+      });
   }
 }

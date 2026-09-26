@@ -1558,6 +1558,7 @@ function createPaymentsService(deps) {
                   organizationId,
                   replacementInput.supplierId,
                   replacementSupplier,
+                  session,
                 );
                 const plan = await resolveAllocationPlan(replacementInput, unpaidPurchases);
                 const postedReplacement = await postSupplierPaymentInSession(session, {

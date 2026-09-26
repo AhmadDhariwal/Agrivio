@@ -62,7 +62,7 @@ describe('appRoutes F02 routing', () => {
     expect(withoutInvoice).toBeTruthy();
     const returnDetail = app?.children?.find((route) => route.path === 'returns/:id');
     expect(returnDetail).toBeTruthy();
-    expect(app?.component).toBeTruthy();
+    expect(app?.loadComponent || app?.component).toBeTruthy();
   });
 
   it('resolves F08 lazy page components', async () => {
@@ -140,6 +140,26 @@ describe('appRoutes F02 routing', () => {
       for (const path of [view, edit, create]) {
         if (path) expect(app?.children?.some((route) => route.path === path)).toBe(true);
       }
+    }
+  });
+
+  it('covers specialized detail, print, and operational action routes', () => {
+    const app = appRoutes.find((route) => route.path === 'app');
+    const specializedRoutes = [
+      'sales/:id',
+      'sales/:id/print',
+      'expenses/:id',
+      'expenses/:id/correct',
+      'products/:id/pricing',
+      'branches/:id',
+      'accounts/:id/activity',
+      'platform/organizations/:id/controls',
+      'supplier-payments/ledger',
+      'customer-loans',
+    ] as const;
+
+    for (const path of specializedRoutes) {
+      expect(app?.children?.some((route) => route.path === path)).toBe(true);
     }
   });
 });

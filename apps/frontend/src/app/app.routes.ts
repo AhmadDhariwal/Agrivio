@@ -7,7 +7,6 @@ import {
   publicOnlyGuard,
   signInGuard,
 } from './core/guards/session.guards';
-import { AppShellPage } from './features/shell/pages/app-shell/app-shell.page';
 
 export const appRoutes: Route[] = [
   {
@@ -67,7 +66,8 @@ export const appRoutes: Route[] = [
   {
     path: 'app',
     canActivate: [requireSessionGuard],
-    component: AppShellPage,
+    loadComponent: () =>
+      import('./features/shell/pages/app-shell/app-shell.page').then((m) => m.AppShellPage),
     children: [
       {
         path: '',

@@ -12,6 +12,8 @@ import {
   CustomerLedgerEffectRecord,
   CustomerPaymentCreateInput,
   CustomerPaymentRecord,
+  PaymentCorrectionInput,
+  PaymentCorrectionResult,
   UnpaidSaleRecord,
 } from '../models/customer-payments.models';
 
@@ -127,5 +129,29 @@ export class CustomerPaymentsApi {
           )
           .pipe(map((response) => response.data.items)),
     });
+  }
+
+  correctPayment(
+    paymentId: string,
+    payload: PaymentCorrectionInput,
+    idempotencyKey: string,
+  ): Observable<PaymentCorrectionResult> {
+    const url = `${environment.publicApiBaseUrl}/api/v1/payments/${paymentId}/correct`;
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: PaymentCorrectionResult }>(url, payload, {
+            withCredentials: true,
+            headers: {
+              'X-CSRF-Token': csrfToken,
+              'Idempotency-Key': idempotencyKey,
+            },
+          })
+          .pipe(
+            map((response) => response.data),
+            tap(() => invalidateCustomerPaymentPostedEffects(this.queryCache)),
+          ),
+      ),
+    );
   }
 }

@@ -25,7 +25,30 @@ export interface SupplierPaymentRecord {
   status: string;
   postedAt: string;
   postedBy: string;
+  correctionOfId?: string | null;
+  reason?: string;
+  replacementPaymentId?: string | null;
   allocations: PaymentAllocationRecord[];
+}
+
+export interface SupplierPaymentCorrectionReplacement {
+  accountId?: string;
+  amount?: MoneyAmount;
+  paymentDate?: string;
+  allocationMode?: 'general' | 'invoice_specific';
+  allocations?: InvoiceAllocationInput[];
+  notes?: string;
+}
+
+export interface SupplierPaymentCorrectionInput {
+  reason: string;
+  replacement?: SupplierPaymentCorrectionReplacement | null;
+}
+
+export interface SupplierPaymentCorrectionResult {
+  original: SupplierPaymentRecord;
+  reversal: SupplierPaymentRecord;
+  replacement: SupplierPaymentRecord | null;
 }
 
 export interface SupplierLedgerEffectRecord {
