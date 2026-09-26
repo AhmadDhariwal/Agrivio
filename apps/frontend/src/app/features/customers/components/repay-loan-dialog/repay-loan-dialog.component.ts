@@ -15,11 +15,15 @@ import {
   UiSearchableDropdownComponent,
 } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
+import {
+  UiBadgeTone,
+  UiStatusBadgeComponent,
+} from '../../../../shared/ui/ui-status-badge/ui-status-badge.component';
 import { formatAccountOption } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
 import { CustomerFinanceApi } from '../../data-access/customer-finance.api';
 import { AccountRecord } from '../../../accounts-expenses/models/accounts.models';
-import { CustomerLoanRecord, CustomerLoanDetailRecord } from '../../models/customers.models';
+import { CustomerLoanRecord, CustomerLoanDetailRecord, CustomerLoanStatus } from '../../models/customers.models';
 
 function positiveMoneyValidator(control: AbstractControl): ValidationErrors | null {
   const val = control.value;
@@ -41,6 +45,7 @@ function positiveMoneyValidator(control: AbstractControl): ValidationErrors | nu
     UiFieldLabelComponent,
     UiSearchableDropdownComponent,
     UiAlertComponent,
+    UiStatusBadgeComponent,
   ],
   template: `
     <agrivio-ui-dialog
@@ -59,6 +64,22 @@ function positiveMoneyValidator(control: AbstractControl): ValidationErrors | nu
         }
 
         <div class="helper-box">
+          <svg
+            class="helper-box__icon"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
           <p class="helper-text">
             <strong>Note:</strong> Loan repayment reduces the selected loan balance. It is not Sales Revenue.
           </p>
@@ -67,35 +88,92 @@ function positiveMoneyValidator(control: AbstractControl): ValidationErrors | nu
         <div class="form-grid">
           <!-- Loan Details / Selector -->
           <div class="form-field form-field--full">
-            <agrivio-ui-field-label label="Loan" [required]="true" for="repay-loan-select" />
+            @if (!loan()) {
+              <div class="loan-select-group">
+                <agrivio-ui-field-label label="Select Loan to Repay" [required]="true" for="repay-loan-select" />
+                @if (loanOptions().length > 0) {
+                  <agrivio-ui-searchable-dropdown
+                    id="repay-loan-select"
+                    testId="repay-loan-select"
+                    formControlName="loanId"
+                    [options]="loanOptions()"
+                    placeholder="Select open loan"
+                    [searchable]="true"
+                    [clearable]="false"
+                    [serverSearch]="false"
+                  />
+                } @else {
+                  <p class="ag-muted" data-testid="no-loans-message">No active open loans available.</p>
+                }
+                @if (formSubmitAttempted() && form.controls.loanId.errors?.['required']) {
+                  <p class="field-error" role="alert">Please select a loan to repay.</p>
+                }
+              </div>
+            }
+
             @if (activeLoan(); as targetLoan) {
-              <div class="loan-info-box" data-testid="repay-loan-details">
-                <div class="loan-info-item">
-                  <span class="loan-info-label">Reference</span>
-                  <strong>{{ targetLoan.reference || targetLoan.id }}</strong>
+              <div class="loan-card" data-testid="repay-loan-details">
+                <!-- Loan Card Header -->
+                <div class="loan-card__header">
+                  <div class="loan-card__identity">
+                    <span class="loan-card__eyebrow">
+                      {{ targetLoan.reference ? 'Loan Reference' : 'Loan Identifier' }}
+                    </span>
+                    <div class="loan-card__title-row">
+                      <strong class="loan-card__title font-mono" [title]="targetLoan.reference || targetLoan.id">
+                        {{ targetLoan.reference || targetLoan.id }}
+                      </strong>
+                    </div>
+                    @if (targetLoan.customerName) {
+                      <span class="loan-card__customer">{{ targetLoan.customerName }}</span>
+                    }
+                  </div>
+                  <div class="loan-card__status">
+                    <agrivio-ui-status-badge
+                      [label]="humanStatus(targetLoan.status)"
+                      [tone]="statusTone(targetLoan.status)"
+                    />
+                  </div>
                 </div>
-                <div class="loan-info-item">
-                  <span class="loan-info-label">Principal</span>
-                  <span>PKR {{ targetLoan.principal.amount }}</span>
+
+                <!-- KPI Metric Tiles (styled matching Product Module summary tiles) -->
+                <div class="loan-card__kpis">
+                  <div class="loan-kpi">
+                    <span class="loan-kpi__label">Principal</span>
+                    <strong class="loan-kpi__val tabular-num">PKR {{ targetLoan.principal.amount }}</strong>
+                  </div>
+                  <div class="loan-kpi">
+                    <span class="loan-kpi__label">Repaid</span>
+                    <strong class="loan-kpi__val loan-kpi__val--repaid tabular-num">PKR {{ targetLoan.repaid.amount || '0.00' }}</strong>
+                  </div>
+                  <div class="loan-kpi loan-kpi--highlight">
+                    <span class="loan-kpi__label">Outstanding</span>
+                    <strong class="loan-kpi__val loan-kpi__val--outstanding tabular-num" data-testid="repay-current-outstanding">
+                      PKR {{ currentOutstanding() }}
+                    </strong>
+                  </div>
                 </div>
-                <div class="loan-info-item">
-                  <span class="loan-info-label">Outstanding</span>
-                  <strong class="text-outstanding" data-testid="repay-current-outstanding">PKR {{ currentOutstanding() }}</strong>
+
+                <!-- Meta Footer -->
+                <div class="loan-card__meta">
+                  <div class="loan-meta-item">
+                    <span class="loan-meta-label">Disbursed Date:</span>
+                    <span class="loan-meta-val font-semibold">{{ targetLoan.businessDate }}</span>
+                  </div>
+                  @if (targetLoan.dueDate) {
+                    <div class="loan-meta-item">
+                      <span class="loan-meta-label">Due Date:</span>
+                      <span class="loan-meta-val font-semibold">{{ targetLoan.dueDate }}</span>
+                    </div>
+                  }
+                  @if (targetLoan.reference && targetLoan.id) {
+                    <div class="loan-meta-item loan-meta-item--id">
+                      <span class="loan-meta-label">System ID:</span>
+                      <span class="loan-meta-val font-mono" [title]="targetLoan.id">{{ targetLoan.id }}</span>
+                    </div>
+                  }
                 </div>
               </div>
-            } @else if (loanOptions().length > 0) {
-              <agrivio-ui-searchable-dropdown
-                id="repay-loan-select"
-                testId="repay-loan-select"
-                formControlName="loanId"
-                [options]="loanOptions()"
-                placeholder="Select open loan"
-                [searchable]="true"
-                [clearable]="false"
-                [serverSearch]="false"
-              />
-            } @else {
-              <p class="ag-muted" data-testid="no-loans-message">No active open loans available.</p>
             }
           </div>
 
@@ -189,19 +267,24 @@ function positiveMoneyValidator(control: AbstractControl): ValidationErrors | nu
         <!-- Summary Preview Box -->
         @if (hasPreview()) {
           <div class="preview-box" data-testid="repay-summary-preview">
-            <h4 class="preview-title">Repayment Impact Preview</h4>
+            <div class="preview-header">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <h4 class="preview-title">Repayment Impact Preview</h4>
+            </div>
             <div class="preview-grid">
               <div class="preview-item">
                 <span class="preview-label">Loan Receivable</span>
-                <strong class="preview-val preview-val--neg">- PKR {{ formattedAmount() }}</strong>
+                <strong class="preview-val preview-val--neg tabular-num">- PKR {{ formattedAmount() }}</strong>
               </div>
               <div class="preview-item">
                 <span class="preview-label">{{ selectedAccountName() }}</span>
-                <strong class="preview-val preview-val--pos">+ PKR {{ formattedAmount() }}</strong>
+                <strong class="preview-val preview-val--pos tabular-num">+ PKR {{ formattedAmount() }}</strong>
               </div>
               <div class="preview-item">
                 <span class="preview-label">Remaining Outstanding</span>
-                <strong class="preview-val">{{ formatRemaining() }}</strong>
+                <strong class="preview-val tabular-num">{{ formatRemaining() }}</strong>
               </div>
             </div>
           </div>
@@ -233,39 +316,168 @@ function positiveMoneyValidator(control: AbstractControl): ValidationErrors | nu
     .repay-loan-form {
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      gap: 0.75rem;
     }
     .helper-box {
-      background: var(--color-surface-subtle, #f8fafc);
-      border: 1px solid var(--color-border-subtle, #e2e8f0);
-      border-radius: 6px;
-      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      background: var(--ag-color-bg-accent, #f1f5f9);
+      border: 1px solid var(--ag-color-border, #e2e8f0);
+      border-radius: var(--ag-radius-md, 6px);
+      padding: 0.5rem 0.75rem;
+    }
+    .helper-box__icon {
+      flex-shrink: 0;
+      color: var(--ag-color-primary, #065f46);
+      margin-top: 0.125rem;
     }
     .helper-text {
       margin: 0;
-      font-size: 0.875rem;
-      color: var(--color-text-secondary, #475569);
+      font-size: 0.8125rem;
+      line-height: 1.4;
+      color: var(--ag-color-text-muted, #475569);
     }
-    .loan-info-box {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 0.5rem;
-      padding: 0.625rem 0.875rem;
-      background: var(--color-surface-subtle, #f8fafc);
-      border: 1px solid var(--color-border, #cbd5e1);
-      border-radius: 6px;
+    .helper-text strong {
+      color: var(--ag-color-text, #0f172a);
     }
-    .loan-info-item {
+    .loan-select-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      margin-bottom: 0.375rem;
+    }
+    .loan-card {
+      background: var(--ag-color-surface, #ffffff);
+      border: 1px solid var(--ag-color-border, #e2e8f0);
+      border-radius: var(--ag-radius-lg, 8px);
+      box-shadow: var(--ag-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.04));
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .loan-card__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.5rem 0.875rem;
+      background: var(--ag-color-bg, #f8fafc);
+      border-bottom: 1px solid var(--ag-color-border, #e2e8f0);
+    }
+    .loan-card__identity {
       display: flex;
       flex-direction: column;
       gap: 0.125rem;
+      min-width: 0;
+      flex: 1;
     }
-    .loan-info-label {
+    .loan-card__eyebrow {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--ag-color-primary, #065f46);
+    }
+    .loan-card__title-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      min-width: 0;
+    }
+    .loan-card__title {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--ag-color-text, #0f172a);
+      word-break: break-all;
+      overflow-wrap: anywhere;
+      line-height: 1.25;
+    }
+    .loan-card__customer {
       font-size: 0.75rem;
-      color: var(--color-text-muted, #64748b);
+      color: var(--ag-color-text-muted, #64748b);
+      font-weight: 500;
     }
-    .text-outstanding {
-      color: var(--color-primary-dark, #0f766e);
+    .loan-card__status {
+      flex-shrink: 0;
+    }
+    .loan-card__kpis {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.5rem;
+      padding: 0.5rem 0.875rem;
+      background: var(--ag-color-surface, #ffffff);
+    }
+    .loan-kpi {
+      display: flex;
+      flex-direction: column;
+      gap: 0.125rem;
+      padding: 0.375rem 0.5rem;
+      background: var(--ag-color-bg, #f8fafc);
+      border: 1px solid var(--ag-color-border, #e2e8f0);
+      border-radius: var(--ag-radius-md, 6px);
+      min-width: 0;
+    }
+    .loan-kpi--highlight {
+      background: var(--ag-color-primary-muted, #ecfdf5);
+      border-color: color-mix(in srgb, var(--ag-color-primary) 30%, white);
+    }
+    .loan-kpi__label {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--ag-color-text-muted, #64748b);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .loan-kpi__val {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--ag-color-text, #0f172a);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .loan-kpi__val--repaid {
+      color: var(--ag-color-success, #1f7a45);
+    }
+    .loan-kpi__val--outstanding {
+      color: var(--ag-color-primary, #065f46);
+    }
+    .loan-card__meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      padding: 0.375rem 0.875rem;
+      background: var(--ag-color-bg, #f8fafc);
+      border-top: 1px solid var(--ag-color-border, #e2e8f0);
+      font-size: 0.75rem;
+    }
+    .loan-meta-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      color: var(--ag-color-text-muted, #64748b);
+      min-width: 0;
+    }
+    .loan-meta-item--id {
+      max-width: 100%;
+    }
+    .loan-meta-label {
+      font-weight: 500;
+    }
+    .loan-meta-val {
+      color: var(--ag-color-text, #0f172a);
+      word-break: break-all;
+      overflow-wrap: anywhere;
+    }
+    .font-mono {
+      font-family: var(--ag-font-mono, monospace);
+    }
+    .tabular-num {
+      font-variant-numeric: tabular-nums;
     }
     .form-grid {
       display: grid;
@@ -275,51 +487,79 @@ function positiveMoneyValidator(control: AbstractControl): ValidationErrors | nu
     .form-field {
       display: flex;
       flex-direction: column;
-      gap: 0.25rem;
+      gap: 0.3125rem;
     }
     .form-field--full {
       grid-column: span 2;
     }
     .preview-box {
-      background: var(--color-surface-highlight, #f0fdf4);
-      border: 1px solid var(--color-border-success, #bbf7d0);
-      border-radius: 6px;
-      padding: 0.875rem;
+      background: var(--ag-color-surface, #ffffff);
+      border: 1px solid var(--ag-color-border, #e2e8f0);
+      border-radius: var(--ag-radius-md, 6px);
+      padding: 0.875rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.625rem;
+      box-shadow: var(--ag-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.04));
+    }
+    .preview-header {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      color: var(--ag-color-primary, #065f46);
     }
     .preview-title {
-      margin: 0 0 0.5rem;
-      font-size: 0.8125rem;
+      margin: 0;
+      font-size: 0.75rem;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--color-text-secondary, #15803d);
+      letter-spacing: 0.04em;
+      color: var(--ag-color-primary, #065f46);
     }
     .preview-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-      gap: 0.75rem;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.625rem;
     }
     .preview-item {
       display: flex;
       flex-direction: column;
-      gap: 0.125rem;
+      gap: 0.25rem;
+      padding: 0.5rem 0.625rem;
+      background: var(--ag-color-bg, #f8fafc);
+      border: 1px solid var(--ag-color-border, #e2e8f0);
+      border-radius: var(--ag-radius-md, 6px);
+      min-width: 0;
     }
     .preview-label {
-      font-size: 0.75rem;
-      color: var(--color-text-muted, #64748b);
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: var(--ag-color-text-muted, #64748b);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .preview-val {
       font-size: 0.9375rem;
+      font-weight: 700;
+      color: var(--ag-color-text, #0f172a);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .preview-val--pos {
-      color: #166534;
+      color: var(--ag-color-success, #1f7a45);
     }
     .preview-val--neg {
-      color: #991b1b;
+      color: var(--ag-color-danger, #b42318);
     }
     .field-error {
       margin: 0;
       font-size: 0.75rem;
-      color: var(--color-danger, #dc2626);
+      color: var(--ag-color-danger, #dc2626);
+      font-weight: 500;
     }
     .dialog-actions {
       display: flex;
@@ -333,6 +573,10 @@ function positiveMoneyValidator(control: AbstractControl): ValidationErrors | nu
       }
       .form-field--full {
         grid-column: span 1;
+      }
+      .loan-card__kpis,
+      .preview-grid {
+        grid-template-columns: 1fr;
       }
     }
   `],
@@ -490,6 +734,36 @@ export class RepayLoanDialogComponent {
       next: (items) => this.accounts.set(items.filter((a) => a.status === 'active')),
       error: () => this.errorMessage.set('Unable to load liquid accounts.'),
     });
+  }
+
+  humanStatus(status?: CustomerLoanStatus | string): string {
+    switch (status) {
+      case 'open':
+        return 'Open';
+      case 'partially_repaid':
+        return 'Partially Repaid';
+      case 'repaid':
+        return 'Repaid';
+      case 'reversed':
+        return 'Reversed';
+      default:
+        return status ? String(status) : 'Open';
+    }
+  }
+
+  statusTone(status?: CustomerLoanStatus | string): UiBadgeTone {
+    switch (status) {
+      case 'open':
+        return 'primary';
+      case 'partially_repaid':
+        return 'warning';
+      case 'repaid':
+        return 'success';
+      case 'reversed':
+        return 'danger';
+      default:
+        return 'neutral';
+    }
   }
 
   onDismiss(): void {

@@ -1557,6 +1557,7 @@
   gap: var(--ag-space-3);
   overflow: hidden;
   box-sizing: border-box;
+  font-family: var(--ag-font-sans, 'Manrope', 'Segoe UI', sans-serif);
 }
 
 .ag-dialog--wide {
@@ -1576,9 +1577,12 @@
 }
 
 .ag-dialog__title {
+  font-family: var(--ag-font-sans, 'Manrope', 'Segoe UI', sans-serif);
   font-size: var(--ag-text-lg);
   font-weight: 700;
+  color: var(--ag-color-text, #0f172a);
   margin: 0;
+  letter-spacing: -0.01em;
 }
 
 .ag-dialog__close {
@@ -1596,6 +1600,8 @@
 .ag-dialog__description {
   margin: 0;
   font-size: var(--ag-text-xs);
+  font-family: var(--ag-font-sans, 'Manrope', 'Segoe UI', sans-serif);
+  color: var(--ag-color-text-muted, #64748b);
   flex-shrink: 0;
 }
 
