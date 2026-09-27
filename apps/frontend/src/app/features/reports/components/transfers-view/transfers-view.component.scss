@@ -1,0 +1,88 @@
+.transfers-report {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.transfers-head {
+  border-bottom: 1px solid var(--ag-border, #e2e8f0);
+  padding-bottom: 0.75rem;
+}
+.transfers-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--ag-text-primary, #0f172a);
+  margin: 0;
+}
+.transfers-subtitle {
+  font-size: 0.875rem;
+  color: var(--ag-text-muted, #64748b);
+  margin: 0.25rem 0 0 0;
+}
+.notice-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid #64748b;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  color: #334155;
+}
+.table-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--ag-border, #e2e8f0);
+  border-radius: 8px;
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  background: var(--ag-surface, #ffffff);
+}
+.data-table th, .data-table td {
+  padding: 0.65rem 0.9rem;
+  border-bottom: 1px solid var(--ag-border, #e2e8f0);
+  text-align: left;
+}
+.data-table th {
+  background: var(--ag-bg-subtle, #f8fafc);
+  color: var(--ag-text-secondary, #475569);
+  font-weight: 600;
+  font-size: 0.775rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.transfer-row:hover { background: #f8fafc; }
+.row-reversed { opacity: 0.75; background: #fafafa; }
+.date-cell { white-space: nowrap; color: #475569; }
+.account-name { color: #0f172a; font-weight: 600; }
+.transfer-amount { font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; }
+.ref-badge { font-family: monospace; font-size: 0.8rem; color: #64748b; }
+.text-right { text-align: right !important; }
+.num-cell { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.status-pill {
+  font-size: 0.725rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+}
+.status-pill--posted { background: #dcfce7; color: #15803d; }
+.status-pill--reversed { background: #f1f5f9; color: #64748b; text-decoration: line-through; }
+.reversal-pill {
+  font-size: 0.725rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+}
+.reversal-pill--active { background: #e0f2fe; color: #0369a1; }
+.reversal-pill--reversed { background: #fee2e2; color: #b91c1c; }
+.created-by { font-size: 0.8rem; color: #64748b; }
+.pagination-container { display: flex; justify-content: flex-end; }
+.empty-wrap { padding: 2rem 0; }

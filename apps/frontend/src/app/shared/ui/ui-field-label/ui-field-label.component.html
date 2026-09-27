@@ -1,0 +1,7 @@
+<label class="ag-field__label" [attr.for]="for()">
+  {{ label() }}
+  @if (required()) {
+    <span class="ag-field__required" aria-hidden="true">*</span>
+    <span class="ag-sr-only"> (required)</span>
+  }
+</label>

@@ -38,37 +38,8 @@ function hexToRgba(hex: string, alpha = 1): string {
 @Component({
   selector: 'agrivio-ui-line-chart',
   standalone: true,
-  template: `
-    @if (points().length === 0) {
-      <div class="ag-chart__empty">
-        <p class="ag-muted">{{ emptyLabel() }}</p>
-      </div>
-    } @else {
-      <div class="ag-chart-container" [attr.aria-label]="title()">
-        <canvas #chartCanvas></canvas>
-      </div>
-    }
-  `,
-  styles: [
-    `
-      :host {
-        display: block;
-        width: 100%;
-      }
-      .ag-chart-container {
-        position: relative;
-        width: 100%;
-        height: 230px;
-      }
-      .ag-chart__empty {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 180px;
-        text-align: center;
-      }
-    `,
-  ],
+  templateUrl: './ui-line-chart.component.html',
+  styleUrl: './ui-line-chart.component.scss',
 })
 export class UiLineChartComponent implements OnDestroy {
   @ViewChild('chartCanvas') chartCanvas?: ElementRef<HTMLCanvasElement>;

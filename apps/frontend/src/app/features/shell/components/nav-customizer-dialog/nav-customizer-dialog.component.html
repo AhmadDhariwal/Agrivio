@@ -1,0 +1,165 @@
+<agrivio-ui-dialog
+  [open]="navService.isCustomizerOpen()"
+  [closeOnBackdropClick]="false"
+  [contained]="true"
+  title="Customize Navigation"
+  description="Choose which permitted modules appear, and drag to change their order."
+  size="md"
+  (dismiss)="navService.closeCustomizer()"
+>
+  <div class="ag-nav-customizer">
+    <div class="ag-nav-customizer__pinned">
+      <div class="ag-nav-customizer__search">
+        <agrivio-ui-search-input
+          placeholder="Filter modules in customizer…"
+          [value]="navService.customizerSearchTerm()"
+          ariaLabel="Filter modules"
+          (searchChange)="navService.setCustomizerSearchTerm($event)"
+        />
+      </div>
+
+      <div class="ag-nav-customizer__toolbar">
+        <button
+          type="button"
+          class="ag-btn ag-btn--ghost ag-btn--sm"
+          (click)="navService.resetDraftToDefault()"
+        >
+          Reset to default
+        </button>
+      </div>
+
+      @if (tree().isFiltered) {
+        <p class="ag-muted ag-nav-customizer__hint">Clear search to reorder navigation.</p>
+      }
+
+      @if (navService.saveError(); as error) {
+        <agrivio-ui-alert [message]="error" tone="danger" role="alert" />
+      }
+    </div>
+
+    <div
+      class="ag-nav-customizer__tree"
+      role="group"
+      aria-label="Customizable navigation items"
+    >
+      @if (tree().entries.length === 0) {
+        <agrivio-ui-empty-state
+          title="No modules found"
+          message="No modules matched your search filter."
+        />
+      }
+
+      @for (entry of tree().entries; track trackEntry($index, entry)) {
+        @if (entry.type === 'item') {
+          <div
+            class="ag-nav-customizer__row"
+            [class.ag-nav-customizer__row--drop]="dropTarget === entry.item.id"
+            (dragover)="onGroupDragOver($event, entry.item.id)"
+            (drop)="onGroupDrop($event, entry.item.id)"
+            (dragleave)="onDragLeave(entry.item.id)"
+          >
+            <button
+              type="button"
+              class="ag-nav-customizer__handle"
+              [disabled]="tree().isFiltered"
+              draggable="true"
+              [attr.aria-label]="'Move ' + entry.item.label"
+              (dragstart)="onGroupDragStart($event, entry.item.id)"
+              (dragend)="onDragEnd()"
+              (keydown)="onGroupKeydown($event, entry.item.id)"
+            >
+              <span aria-hidden="true">≡</span>
+            </button>
+            <agrivio-ui-checkbox
+              [id]="'chk-' + entry.item.id"
+              [checked]="entry.item.visible"
+              [label]="entry.item.label"
+              (checkedChange)="navService.toggleDraftItem(entry.item.id)"
+            />
+          </div>
+        } @else {
+          <div
+            class="ag-nav-customizer__group"
+            [class.ag-nav-customizer__row--drop]="dropTarget === entry.group.id"
+            (dragover)="onGroupDragOver($event, entry.group.id)"
+            (drop)="onGroupDrop($event, entry.group.id)"
+            (dragleave)="onDragLeave(entry.group.id)"
+          >
+            <div class="ag-nav-customizer__group-header">
+              <button
+                type="button"
+                class="ag-nav-customizer__handle"
+                [disabled]="tree().isFiltered"
+                draggable="true"
+                [attr.aria-label]="'Move ' + entry.group.label"
+                (dragstart)="onGroupDragStart($event, entry.group.id)"
+                (dragend)="onDragEnd()"
+                (keydown)="onGroupKeydown($event, entry.group.id)"
+              >
+                <span aria-hidden="true">≡</span>
+              </button>
+              <agrivio-ui-checkbox
+                [id]="'chk-group-' + entry.group.id"
+                [checked]="entry.group.state === 'checked'"
+                [indeterminate]="entry.group.state === 'indeterminate'"
+                [label]="entry.group.label"
+                (checkedChange)="navService.toggleDraftGroup(entry.group.id)"
+              />
+            </div>
+
+            <div class="ag-nav-customizer__children">
+              @for (child of entry.group.items; track child.id) {
+                <div
+                  class="ag-nav-customizer__child-row"
+                  [class.ag-nav-customizer__row--drop]="dropTarget === child.id"
+                  (dragover)="onChildDragOver($event, entry.group.id, child.id)"
+                  (drop)="onChildDrop($event, entry.group.id, child.id)"
+                  (dragleave)="onDragLeave(child.id)"
+                >
+                  <button
+                    type="button"
+                    class="ag-nav-customizer__handle"
+                    [disabled]="tree().isFiltered"
+                    draggable="true"
+                    [attr.aria-label]="'Move ' + child.label"
+                    (dragstart)="onChildDragStart($event, entry.group.id, child.id)"
+                    (dragend)="onDragEnd()"
+                    (keydown)="onChildKeydown($event, entry.group.id, child.id)"
+                  >
+                    <span aria-hidden="true">≡</span>
+                  </button>
+                  <agrivio-ui-checkbox
+                    [id]="'chk-' + child.id"
+                    [checked]="child.visible"
+                    [label]="child.label"
+                    (checkedChange)="navService.toggleDraftItem(child.id)"
+                  />
+                </div>
+              }
+            </div>
+          </div>
+        }
+      }
+    </div>
+    <div class="ag-sr-only" aria-live="polite">{{ navService.reorderAnnouncement() }}</div>
+  </div>
+
+  <div dialog-actions class="ag-actions">
+    <button
+      type="button"
+      class="ag-btn ag-btn--secondary"
+      [disabled]="navService.isSaving()"
+      (click)="navService.closeCustomizer()"
+    >
+      Cancel
+    </button>
+    <button
+      type="button"
+      class="ag-btn ag-btn--primary"
+      [disabled]="navService.isSaving()"
+      (click)="navService.saveCustomizer()"
+    >
+      {{ navService.isSaving() ? 'Saving…' : 'Save preferences' }}
+    </button>
+  </div>
+</agrivio-ui-dialog>

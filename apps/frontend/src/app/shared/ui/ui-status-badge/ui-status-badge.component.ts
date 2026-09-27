@@ -5,17 +5,7 @@ export type UiBadgeTone = 'success' | 'warning' | 'danger' | 'neutral' | 'primar
 @Component({
   selector: 'agrivio-ui-status-badge',
   standalone: true,
-  template: `
-    <span
-      class="ag-badge"
-      [class.ag-badge--success]="tone() === 'success'"
-      [class.ag-badge--warning]="tone() === 'warning'"
-      [class.ag-badge--danger]="tone() === 'danger'"
-      [class.ag-badge--neutral]="tone() === 'neutral'"
-    >
-      {{ label() }}
-    </span>
-  `,
+  templateUrl: './ui-status-badge.component.html',
 })
 export class UiStatusBadgeComponent {
   readonly label = input.required<string>();

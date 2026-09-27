@@ -1,0 +1,14 @@
+<label class="ag-checkbox" [class.is-disabled]="disabled()">
+  <input
+    type="checkbox"
+    [id]="id()"
+    [checked]="checked()"
+    [indeterminate]="indeterminate()"
+    [disabled]="disabled()"
+    (change)="onCheckboxChange($event)"
+  />
+  @if (label()) {
+    <span>{{ label() }}</span>
+  }
+  <ng-content />
+</label>

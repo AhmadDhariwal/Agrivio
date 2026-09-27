@@ -1,0 +1,263 @@
+<agrivio-ui-dialog
+  [open]="open()"
+  title="Record Loan Repayment"
+  description="Record customer repayment against an active loan receivable."
+  size="md"
+  (dismiss)="onDismiss()"
+>
+  <form [formGroup]="form" (ngSubmit)="submit()" class="repay-loan-form" novalidate>
+    @if (errorMessage()) {
+      <agrivio-ui-alert tone="danger" [message]="errorMessage()!" role="alert" />
+    }
+    @if (conflictMessage()) {
+      <agrivio-ui-alert tone="warning" [message]="conflictMessage()!" role="alert" />
+    }
+
+    <div class="helper-box">
+      <svg
+        class="helper-box__icon"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="16" x2="12" y2="12" />
+        <line x1="12" y1="8" x2="12.01" y2="8" />
+      </svg>
+      <p class="helper-text">
+        <strong>Note:</strong> Loan repayment reduces the selected loan balance. It is not Sales Revenue.
+      </p>
+    </div>
+
+    <div class="form-grid">
+      <!-- Loan Details / Selector -->
+      <div class="form-field form-field--full">
+        @if (!loan()) {
+          <div class="loan-select-group">
+            <agrivio-ui-field-label label="Select Loan to Repay" [required]="true" for="repay-loan-select" />
+            @if (loanOptions().length > 0) {
+              <agrivio-ui-searchable-dropdown
+                id="repay-loan-select"
+                testId="repay-loan-select"
+                formControlName="loanId"
+                [options]="loanOptions()"
+                placeholder="Select open loan"
+                [searchable]="true"
+                [clearable]="false"
+                [serverSearch]="false"
+              />
+            } @else {
+              <p class="ag-muted" data-testid="no-loans-message">No active open loans available.</p>
+            }
+            @if (formSubmitAttempted() && form.controls.loanId.errors?.['required']) {
+              <p class="field-error" role="alert">Please select a loan to repay.</p>
+            }
+          </div>
+        }
+
+        @if (activeLoan(); as targetLoan) {
+          <div class="loan-card" data-testid="repay-loan-details">
+            <!-- Loan Card Header -->
+            <div class="loan-card__header">
+              <div class="loan-card__identity">
+                <span class="loan-card__eyebrow">
+                  {{ targetLoan.reference ? 'Loan Reference' : 'Loan Identifier' }}
+                </span>
+                <div class="loan-card__title-row">
+                  <strong class="loan-card__title font-mono" [title]="targetLoan.reference || targetLoan.id">
+                    {{ targetLoan.reference || targetLoan.id }}
+                  </strong>
+                </div>
+                @if (targetLoan.customerName) {
+                  <span class="loan-card__customer">{{ targetLoan.customerName }}</span>
+                }
+              </div>
+              <div class="loan-card__status">
+                <agrivio-ui-status-badge
+                  [label]="humanStatus(targetLoan.status)"
+                  [tone]="statusTone(targetLoan.status)"
+                />
+              </div>
+            </div>
+
+            <!-- KPI Metric Tiles (styled matching Product Module summary tiles) -->
+            <div class="loan-card__kpis">
+              <div class="loan-kpi">
+                <span class="loan-kpi__label">Principal</span>
+                <strong class="loan-kpi__val tabular-num">PKR {{ targetLoan.principal.amount }}</strong>
+              </div>
+              <div class="loan-kpi">
+                <span class="loan-kpi__label">Repaid</span>
+                <strong class="loan-kpi__val loan-kpi__val--repaid tabular-num">PKR {{ targetLoan.repaid.amount || '0.00' }}</strong>
+              </div>
+              <div class="loan-kpi loan-kpi--highlight">
+                <span class="loan-kpi__label">Outstanding</span>
+                <strong class="loan-kpi__val loan-kpi__val--outstanding tabular-num" data-testid="repay-current-outstanding">
+                  PKR {{ currentOutstanding() }}
+                </strong>
+              </div>
+            </div>
+
+            <!-- Meta Footer -->
+            <div class="loan-card__meta">
+              <div class="loan-meta-item">
+                <span class="loan-meta-label">Disbursed Date:</span>
+                <span class="loan-meta-val font-semibold">{{ targetLoan.businessDate }}</span>
+              </div>
+              @if (targetLoan.dueDate) {
+                <div class="loan-meta-item">
+                  <span class="loan-meta-label">Due Date:</span>
+                  <span class="loan-meta-val font-semibold">{{ targetLoan.dueDate }}</span>
+                </div>
+              }
+              @if (targetLoan.reference && targetLoan.id) {
+                <div class="loan-meta-item loan-meta-item--id">
+                  <span class="loan-meta-label">System ID:</span>
+                  <span class="loan-meta-val font-mono" [title]="targetLoan.id">{{ targetLoan.id }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Receive Into Account -->
+      <div class="form-field form-field--full">
+        <agrivio-ui-field-label label="Receive Into (Account)" [required]="true" for="repay-account" />
+        <agrivio-ui-searchable-dropdown
+          id="repay-account"
+          testId="repay-account"
+          formControlName="accountId"
+          [options]="accountOptions()"
+          placeholder="Select cash, bank, or wallet account"
+          [searchable]="true"
+          [clearable]="false"
+          [serverSearch]="false"
+        />
+        @if (formSubmitAttempted() && form.controls.accountId.errors?.['required']) {
+          <p class="field-error" role="alert">Receiving account is required.</p>
+        }
+      </div>
+
+      <!-- Repayment Amount -->
+      <div class="form-field">
+        <agrivio-ui-field-label label="Repayment Amount (PKR)" [required]="true" for="repay-amount" />
+        <input
+          id="repay-amount"
+          type="text"
+          inputmode="decimal"
+          class="ag-input"
+          [class.ag-input--invalid]="formSubmitAttempted() && (form.controls.amount.invalid || isOverpayment())"
+          formControlName="amount"
+          placeholder="0.00"
+          data-testid="repay-amount-input"
+        />
+        @if (formSubmitAttempted() && form.controls.amount.errors?.['required']) {
+          <p class="field-error" role="alert">Repayment amount is required.</p>
+        } @else if (formSubmitAttempted() && form.controls.amount.errors?.['positiveMoney']) {
+          <p class="field-error" role="alert">Amount must be greater than zero.</p>
+        } @else if (formSubmitAttempted() && isOverpayment()) {
+          <p class="field-error" role="alert" data-testid="overpayment-error">
+            Repayment exceeds loan outstanding (PKR {{ currentOutstanding() }}).
+          </p>
+        }
+      </div>
+
+      <!-- Business Date -->
+      <div class="form-field">
+        <agrivio-ui-field-label label="Business Date" [required]="true" for="repay-business-date" />
+        <input
+          id="repay-business-date"
+          type="date"
+          class="ag-input"
+          [class.ag-input--invalid]="formSubmitAttempted() && form.controls.businessDate.invalid"
+          formControlName="businessDate"
+          data-testid="repay-business-date-input"
+        />
+        @if (formSubmitAttempted() && form.controls.businessDate.errors?.['required']) {
+          <p class="field-error" role="alert">Business date is required.</p>
+        }
+      </div>
+
+      <!-- Reference (Optional) -->
+      <div class="form-field">
+        <agrivio-ui-field-label label="Reference (Optional)" [required]="false" for="repay-reference" />
+        <input
+          id="repay-reference"
+          type="text"
+          class="ag-input"
+          formControlName="reference"
+          placeholder="e.g. REP-2026-001"
+          maxlength="160"
+          data-testid="repay-reference-input"
+        />
+      </div>
+
+      <!-- Notes (Optional) -->
+      <div class="form-field form-field--full">
+        <agrivio-ui-field-label label="Notes (Optional)" [required]="false" for="repay-notes" />
+        <textarea
+          id="repay-notes"
+          class="ag-input"
+          formControlName="notes"
+          placeholder="Optional repayment notes"
+          rows="2"
+          maxlength="1000"
+          data-testid="repay-notes-input"
+        ></textarea>
+      </div>
+    </div>
+
+    <!-- Summary Preview Box -->
+    @if (hasPreview()) {
+      <div class="preview-box" data-testid="repay-summary-preview">
+        <div class="preview-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          <h4 class="preview-title">Repayment Impact Preview</h4>
+        </div>
+        <div class="preview-grid">
+          <div class="preview-item">
+            <span class="preview-label">Loan Receivable</span>
+            <strong class="preview-val preview-val--neg tabular-num">- PKR {{ formattedAmount() }}</strong>
+          </div>
+          <div class="preview-item">
+            <span class="preview-label">{{ selectedAccountName() }}</span>
+            <strong class="preview-val preview-val--pos tabular-num">+ PKR {{ formattedAmount() }}</strong>
+          </div>
+          <div class="preview-item">
+            <span class="preview-label">Remaining Outstanding</span>
+            <strong class="preview-val tabular-num">{{ formatRemaining() }}</strong>
+          </div>
+        </div>
+      </div>
+    }
+
+    <div dialog-actions class="dialog-actions">
+      <button
+        type="button"
+        class="ag-btn ag-btn--secondary"
+        (click)="onDismiss()"
+        [disabled]="saving()"
+        data-testid="repay-cancel-btn"
+      >
+        Cancel
+      </button>
+      <button
+        type="submit"
+        class="ag-btn ag-btn--primary"
+        [disabled]="saving() || isOverpayment()"
+        data-testid="repay-submit-btn"
+      >
+        {{ saving() ? 'Recording…' : 'Record Repayment' }}
+      </button>
+    </div>
+  </form>
+</agrivio-ui-dialog>

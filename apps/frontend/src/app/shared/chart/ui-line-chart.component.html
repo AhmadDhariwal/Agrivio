@@ -1,0 +1,9 @@
+@if (points().length === 0) {
+  <div class="ag-chart__empty">
+    <p class="ag-muted">{{ emptyLabel() }}</p>
+  </div>
+} @else {
+  <div class="ag-chart-container" [attr.aria-label]="title()">
+    <canvas #chartCanvas></canvas>
+  </div>
+}

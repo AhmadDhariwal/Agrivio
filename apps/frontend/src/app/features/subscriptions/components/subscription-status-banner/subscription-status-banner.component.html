@@ -1,0 +1,21 @@
+@if (banner(); as current) {
+  <aside
+    class="sub-banner"
+    [class.sub-banner--warning]="current.tone === 'warning'"
+    [class.sub-banner--danger]="current.tone === 'danger'"
+    [class.sub-banner--info]="current.tone === 'info'"
+    [attr.data-tone]="current.tone"
+    role="status"
+  >
+    <div class="sub-banner__content">
+      <span class="sub-banner__dot" aria-hidden="true"></span>
+      <strong class="sub-banner__title">{{ current.title }}</strong>
+      <span class="sub-banner__sep">·</span>
+      <span class="sub-banner__message">{{ current.message }}</span>
+      <span class="sub-banner__note">(Informational only)</span>
+    </div>
+    @if (showManageBilling()) {
+      <a class="sub-banner__link" [routerLink]="billingRoute">Manage billing →</a>
+    }
+  </aside>
+}

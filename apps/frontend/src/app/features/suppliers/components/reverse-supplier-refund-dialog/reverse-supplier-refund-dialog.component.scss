@@ -1,0 +1,73 @@
+.reverse-refund-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.warning-callout {
+  background: var(--color-surface-warning-subtle, #fffbeb);
+  border: 1px solid var(--color-border-warning, #fde68a);
+  border-radius: 6px;
+  padding: 0.875rem;
+}
+.warning-title {
+  margin: 0 0 0.375rem;
+  font-size: 0.875rem;
+  color: var(--color-warning-dark, #b45309);
+}
+.warning-desc {
+  margin: 0 0 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary, #475569);
+}
+.impact-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-primary, #0f172a);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.refund-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--color-surface-subtle, #f8fafc);
+  border: 1px solid var(--color-border-subtle, #e2e8f0);
+  border-radius: 6px;
+}
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  font-size: 0.875rem;
+}
+.summary-label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #64748b);
+}
+.text-pos {
+  color: #166534;
+  font-weight: 600;
+}
+.text-neg {
+  color: #991b1b;
+  font-weight: 600;
+}
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.field-error {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-danger, #dc2626);
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  width: 100%;
+}

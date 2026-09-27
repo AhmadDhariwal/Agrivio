@@ -1,0 +1,84 @@
+<agrivio-ui-dialog
+  [open]="open()"
+  [title]="dialogTitle()"
+  description="Post an offsetting corrective movement. The original posted movement remains immutable."
+  size="md"
+  (dismiss)="onDismiss()"
+>
+  @if (movement(); as m) {
+    <form [formGroup]="form" (ngSubmit)="submit()" class="reversal-form" novalidate>
+      @if (errorMessage()) {
+        <agrivio-ui-alert tone="danger" [message]="errorMessage()!" role="alert" />
+      }
+
+      <!-- Details Card -->
+      <div class="reversal-details-card" data-testid="reversal-details-card">
+        <div class="detail-row">
+          <span class="detail-row__label">Transaction</span>
+          <span class="detail-row__val">{{ transactionTypeLabel(m.sourceType) }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-row__label">Amount</span>
+          <span class="detail-row__val font-bold">PKR {{ formatAmount(m.signedAmount.amount) }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-row__label">Account(s)</span>
+          <span class="detail-row__val">{{ getAccountDisplay(m) }}</span>
+        </div>
+        @if (m.reference) {
+          <div class="detail-row">
+            <span class="detail-row__label">Reference</span>
+            <span class="detail-row__val">{{ m.reference }}</span>
+          </div>
+        }
+      </div>
+
+      <div class="reversal-warning-callout">
+        <p class="warning-text">
+          Reversing this operation will create an offsetting record with opposite sign. Posted transactions are never deleted or rewritten.
+        </p>
+      </div>
+
+      <!-- Reason Input -->
+      <div class="form-field">
+        <agrivio-ui-field-label label="Reason for Reversal" [required]="true" for="reversal-reason" />
+        <input
+          id="reversal-reason"
+          type="text"
+          class="ag-input"
+          [class.ag-input--invalid]="formSubmitAttempted() && form.controls.reason.invalid"
+          formControlName="reason"
+          placeholder="e.g. Entered incorrect amount or duplicate posting"
+          data-testid="reversal-reason-input"
+          maxlength="500"
+        />
+        @if (formSubmitAttempted() && form.controls.reason.errors?.['required']) {
+          <p class="field-error" role="alert">Reason is required for reversal.</p>
+        }
+      </div>
+
+      <div dialog-actions class="dialog-actions">
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary"
+          (click)="onDismiss()"
+          [disabled]="submitting()"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="ag-btn ag-btn--danger"
+          [disabled]="submitting() || form.invalid"
+          data-testid="confirm-reversal-btn"
+        >
+          @if (submitting()) {
+            <span>Reversing…</span>
+          } @else {
+            <span>Confirm Reversal</span>
+          }
+        </button>
+      </div>
+    </form>
+  }
+</agrivio-ui-dialog>

@@ -1,0 +1,88 @@
+<div class="loans-report" data-testid="customer-loans-report-view">
+  <!-- Header -->
+  <div class="report-head">
+    <h2 class="report-title" data-testid="customer-loans-title">Customer Loans</h2>
+    <p class="report-subtitle">
+      Customer financing ledger, repayment tracking, and outstanding balances.
+    </p>
+  </div>
+
+  <!-- Loans Table -->
+  @if (!dataset()?.rows?.length) {
+    <div class="empty-wrap">
+      <agrivio-ui-empty-state
+        title="No customer loans found"
+        message="No customer loans match the selected filter criteria."
+      />
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table class="data-table" data-testid="customer-loans-table">
+          <thead>
+            <tr>
+              <th scope="col">Customer</th>
+              <th scope="col">Loan Date</th>
+              <th scope="col">Reference</th>
+              <th scope="col" class="text-right">Principal</th>
+              <th scope="col" class="text-right">Repaid</th>
+              <th scope="col" class="text-right">Outstanding</th>
+              <th scope="col">Due Date</th>
+              <th scope="col">Status</th>
+              <th scope="col">Disbursement Account</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of dataset()!.rows; track (row.id ?? $index)) {
+              <tr class="loan-row" [attr.data-testid]="'loan-row-' + (row.id ?? $index)">
+                <td>
+                  <strong class="customer-name">{{ getCustomerName(row) }}</strong>
+                </td>
+                <td class="date-cell">{{ (row.businessDate || row.loanDate) | agDate }}</td>
+                <td class="ref-cell">{{ row.reference || row.loanNumber || '—' }}</td>
+                <td class="text-right num-cell">
+                  PKR {{ formatMoney(getPrincipalAmount(row)) }}
+                </td>
+                <td class="text-right num-cell text-muted">
+                  PKR {{ formatMoney(getRepaidAmount(row)) }}
+                </td>
+                <td class="text-right num-cell font-bold" [class.text-danger]="isOverdue(row)">
+                  PKR {{ formatMoney(getOutstandingAmount(row)) }}
+                </td>
+                <td class="date-cell">
+                  @if (row.dueDate) {
+                    <span [class.overdue-label]="isOverdue(row)">
+                      {{ row.dueDate | agDate }}
+                    </span>
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+                <td>
+                  <span class="status-badge" [class]="'badge-' + normalizeStatus(row.status)">
+                    {{ formatStatus(row.status) }}
+                  </span>
+                </td>
+                <td class="account-cell">
+                  {{ getAccountName(row) }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      @if (dataset()?.pagination && dataset()!.pagination!.totalPages > 1) {
+        <div class="pagination-footer">
+          <agrivio-ui-pagination
+            [page]="dataset()!.pagination!.page"
+            [pageSize]="dataset()!.pagination!.pageSize"
+            [total]="dataset()!.pagination!.total"
+            (pageChange)="pageChange.emit($event)"
+          />
+        </div>
+      }
+    </div>
+  }
+</div>

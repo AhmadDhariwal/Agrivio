@@ -1,0 +1,88 @@
+<agrivio-ui-dialog
+  [open]="open()"
+  title="Reverse Supplier Refund"
+  description="Post a compensating reversal for a previously recorded supplier refund."
+  size="md"
+  (dismiss)="onDismiss()"
+>
+  @if (refund(); as targetRefund) {
+    <form [formGroup]="form" (ngSubmit)="submit()" class="reverse-refund-form" novalidate>
+      @if (errorMessage()) {
+        <agrivio-ui-alert tone="danger" [message]="errorMessage()!" role="alert" />
+      }
+
+      <div class="warning-callout" data-testid="refund-reversal-callout">
+        <h4 class="warning-title">Reversal Impact Confirmation</h4>
+        <p class="warning-desc">
+          Reversing this refund will restore the supplier advance balance and deduct funds from the account:
+        </p>
+        <ul class="impact-list">
+          <li>
+            <strong>Supplier Advance:</strong> will increase by
+            <span class="text-pos" data-testid="reversal-advance-impact">+ PKR {{ targetRefund.amount.amount }}</span>
+          </li>
+          <li>
+            <strong>{{ accountName() || 'Account' }}:</strong> will decrease by
+            <span class="text-neg" data-testid="reversal-account-impact">- PKR {{ targetRefund.amount.amount }}</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="refund-summary-grid">
+        <div class="summary-item">
+          <span class="summary-label">Refund Reference</span>
+          <strong>{{ targetRefund.reference || targetRefund.id }}</strong>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Business Date</span>
+          <span>{{ targetRefund.businessDate }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Refund Amount</span>
+          <strong data-testid="reversal-amount-display">PKR {{ targetRefund.amount.amount }}</strong>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Status</span>
+          <span>{{ targetRefund.status }}</span>
+        </div>
+      </div>
+
+      <div class="form-field">
+        <agrivio-ui-field-label label="Reversal Reason" [required]="true" for="reverse-refund-reason" />
+        <textarea
+          id="reverse-refund-reason"
+          class="ag-input"
+          [class.ag-input--invalid]="formSubmitAttempted() && form.controls.reason.invalid"
+          formControlName="reason"
+          placeholder="State the clear audit reason for reversing this supplier refund"
+          rows="3"
+          maxlength="500"
+          data-testid="reverse-refund-reason-input"
+        ></textarea>
+        @if (formSubmitAttempted() && form.controls.reason.errors?.['required']) {
+          <p class="field-error" role="alert">Reversal reason is required.</p>
+        }
+      </div>
+
+      <div dialog-actions class="dialog-actions">
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary"
+          (click)="onDismiss()"
+          [disabled]="saving()"
+          data-testid="reverse-refund-cancel-btn"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="ag-btn ag-btn--danger"
+          [disabled]="saving()"
+          data-testid="reverse-refund-confirm-btn"
+        >
+          {{ saving() ? 'Reversing…' : 'Reverse Refund' }}
+        </button>
+      </div>
+    </form>
+  }
+</agrivio-ui-dialog>

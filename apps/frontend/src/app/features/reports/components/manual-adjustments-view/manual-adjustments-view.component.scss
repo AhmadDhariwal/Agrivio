@@ -1,0 +1,84 @@
+.manual-adjustments {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.adjustments-head {
+  border-bottom: 1px solid var(--ag-border, #e2e8f0);
+  padding-bottom: 0.75rem;
+}
+.adjustments-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--ag-text-primary, #0f172a);
+  margin: 0;
+}
+.adjustments-subtitle {
+  font-size: 0.875rem;
+  color: var(--ag-text-muted, #64748b);
+  margin: 0.25rem 0 0 0;
+}
+.table-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--ag-border, #e2e8f0);
+  border-radius: 8px;
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  background: var(--ag-surface, #ffffff);
+}
+.data-table th, .data-table td {
+  padding: 0.65rem 0.9rem;
+  border-bottom: 1px solid var(--ag-border, #e2e8f0);
+  text-align: left;
+}
+.data-table th {
+  background: var(--ag-bg-subtle, #f8fafc);
+  color: var(--ag-text-secondary, #475569);
+  font-weight: 600;
+  font-size: 0.775rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.adjustment-row:hover { background: #f8fafc; }
+.row-reversal { opacity: 0.8; background: #fafafa; }
+.date-cell { white-space: nowrap; color: #475569; }
+.domain-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+.domain-badge--account { background: #e0f2fe; color: #0369a1; }
+.domain-badge--customer { background: #f3e8ff; color: #7e22ce; }
+.domain-badge--supplier { background: #fef3c7; color: #b45309; }
+.entity-name { color: #0f172a; }
+.balance-type { font-size: 0.8rem; color: #334155; }
+.reason-cell { max-width: 180px; }
+.user-cell { font-size: 0.8rem; color: #64748b; }
+.ref-badge { font-family: monospace; font-size: 0.8rem; color: #64748b; }
+.text-right { text-align: right !important; }
+.text-center { text-align: center !important; }
+.text-muted { color: #94a3b8; }
+.num-cell { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.num-pos { color: #0f766e; }
+.num-neg { color: #b91c1c; }
+.status-pill {
+  font-size: 0.725rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+}
+.status-pill--posted { background: #dcfce7; color: #15803d; }
+.status-pill--reversal { background: #fee2e2; color: #b91c1c; }
+.pagination-container { display: flex; justify-content: flex-end; }
+.empty-wrap { padding: 2rem 0; }

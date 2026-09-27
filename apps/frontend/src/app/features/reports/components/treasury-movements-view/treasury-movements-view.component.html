@@ -1,0 +1,114 @@
+<div class="treasury-movements" data-testid="treasury-movements-view">
+  <!-- Header -->
+  <div class="movements-head">
+    <h2 class="movements-title" data-testid="treasury-movements-title">Treasury Movements</h2>
+    <p class="movements-subtitle">
+      Comprehensive, chronological history of all account-level movements across organization accounts.
+    </p>
+  </div>
+
+  <!-- Unclassified Treasury Summary Banner -->
+  @if (dataset()?.summary; as sum) {
+    <div class="unclass-banner" data-testid="treasury-unclassified-banner">
+      <div class="unclass-banner__header">
+        <span class="unclass-pill">Treasury Diagnostic</span>
+        <h3 class="unclass-title">Unclassified Treasury Activity</h3>
+      </div>
+      <p class="unclass-desc" data-testid="unclassified-helper-text">
+        Unclassified treasury activity represents manual money movements whose business source was not categorized. It is not automatically treated as revenue or expense.
+      </p>
+      <div class="unclass-row">
+        <div class="unclass-stat">
+          <span class="stat-lbl">Unclassified Inflows</span>
+          <strong class="stat-val stat-inflow">+ PKR {{ formatMoney(sum['unclassifiedInflow']?.amount) }}</strong>
+        </div>
+        <div class="unclass-stat">
+          <span class="stat-lbl">Unclassified Outflows</span>
+          <strong class="stat-val stat-outflow">− PKR {{ formatMoney(sum['unclassifiedOutflow']?.amount) }}</strong>
+        </div>
+        <div class="unclass-stat unclass-stat--net">
+          <span class="stat-lbl">Net Unclassified Movement</span>
+          <strong class="stat-val" data-testid="net-unclassified-movement">
+            PKR {{ formatSignedMoney(sum['netUnclassifiedTreasuryMovement']?.amount) }}
+          </strong>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Movements Table -->
+  @if (!dataset()?.rows?.length) {
+    <div class="empty-wrap">
+      <agrivio-ui-empty-state
+        title="No movements found"
+        message="No treasury movements match the selected filters."
+      />
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table class="data-table" data-testid="treasury-movements-table">
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">Account</th>
+              <th scope="col">Type</th>
+              <th scope="col">Reference</th>
+              <th scope="col" class="text-right">Inflow (PKR)</th>
+              <th scope="col" class="text-right">Outflow (PKR)</th>
+              <th scope="col" class="text-center">Status</th>
+              <th scope="col">Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of dataset()!.rows; track (row.id ?? $index)) {
+              <tr class="movement-row" [class.row-reversed]="row.status === 'reversed'">
+                <td class="date-cell">{{ row.businessDate | agDate }}</td>
+                <td><strong class="account-cell">{{ row.accountName }}</strong></td>
+                <td><span class="type-badge">{{ row.sourceLabel ?? row.sourceType }}</span></td>
+                <td><span class="ref-badge">{{ row.reference || '—' }}</span></td>
+                <td class="text-right num-cell inflow-num">
+                  @if (hasAmount(getInflow(row))) {
+                    + {{ formatMoney(getInflow(row)) }}
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+                <td class="text-right num-cell outflow-num">
+                  @if (hasAmount(getOutflow(row))) {
+                    − {{ formatMoney(getOutflow(row)) }}
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+                <td class="text-center">
+                  <span
+                    class="status-pill"
+                    [ngClass]="'status-pill--' + (row.status === 'reversed' ? 'reversed' : 'posted')"
+                  >
+                    {{ row.status === 'reversed' ? 'Reversed' : 'Posted' }}
+                  </span>
+                </td>
+                <td><span class="source-tag">{{ formatSource(row.sourceType) }}</span></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      @if (total() > 0) {
+        <div class="pagination-container">
+          <agrivio-ui-pagination
+            [page]="page()"
+            [pageSize]="pageSize()"
+            [total]="total()"
+            [disabled]="loading()"
+            (pageChange)="pageChange.emit($event)"
+            (pageSizeChange)="pageSizeChange.emit($event)"
+          />
+        </div>
+      }
+    </div>
+  }
+</div>

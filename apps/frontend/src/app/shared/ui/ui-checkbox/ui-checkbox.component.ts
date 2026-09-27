@@ -3,22 +3,7 @@ import { Component, input, output } from '@angular/core';
 @Component({
   selector: 'agrivio-ui-checkbox',
   standalone: true,
-  template: `
-    <label class="ag-checkbox" [class.is-disabled]="disabled()">
-      <input
-        type="checkbox"
-        [id]="id()"
-        [checked]="checked()"
-        [indeterminate]="indeterminate()"
-        [disabled]="disabled()"
-        (change)="onCheckboxChange($event)"
-      />
-      @if (label()) {
-        <span>{{ label() }}</span>
-      }
-      <ng-content />
-    </label>
-  `,
+  templateUrl: './ui-checkbox.component.html',
 })
 export class UiCheckboxComponent {
   readonly checked = input(false);
