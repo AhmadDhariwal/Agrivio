@@ -423,6 +423,18 @@
     }
   }
 
+  &--stock {
+    grid-column: span 2;
+
+    @media (max-width: 899px) {
+      grid-column: span 2;
+    }
+
+    @media (max-width: 359px) {
+      grid-column: span 1;
+    }
+  }
+
   &__icon {
     width: 36px;
     height: 36px;
@@ -468,6 +480,7 @@
     flex-direction: column;
     min-width: 0;
     flex: 1;
+    overflow: hidden;
   }
 
   &__label {
@@ -482,14 +495,16 @@
   }
 
   &__value {
-    font-size: 15px;
+    font-size: 14.5px;
     font-weight: 700;
     color: var(--ag-color-text, #0f172a);
     line-height: 1.25;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
-    overflow: visible;
-    text-overflow: clip;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    letter-spacing: -0.01em;
   }
 
   &__subtext {

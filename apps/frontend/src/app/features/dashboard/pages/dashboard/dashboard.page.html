@@ -748,7 +748,7 @@
         <!-- Stock Valuation -->
         @if (canShowFinancialSummary() && data.stockValuation !== undefined) {
           @if (canViewInventory()) {
-            <a routerLink="/app/inventory/stock" class="kpi-card kpi-card--link" data-testid="dash-card-stock-val">
+            <a routerLink="/app/inventory/stock" class="kpi-card kpi-card--link kpi-card--stock" data-testid="dash-card-stock-val" [title]="'Stock Valuation: ' + formatMoney(data.stockValuation)">
               <div class="kpi-card__icon kpi-card__icon--purple">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
@@ -758,12 +758,12 @@
               </div>
               <div class="kpi-card__content">
                 <span class="kpi-card__label">Stock Valuation</span>
-                <span class="kpi-card__value" data-testid="dash-stock-valuation">{{ formatMoney(data.stockValuation) }}</span>
+                <span class="kpi-card__value" data-testid="dash-stock-valuation" [title]="formatMoney(data.stockValuation)">{{ formatMoney(data.stockValuation) }}</span>
                 <span class="kpi-card__subtext">Current WAC inventory value</span>
               </div>
             </a>
           } @else {
-            <div class="kpi-card" data-testid="dash-card-stock-val">
+            <div class="kpi-card kpi-card--stock" data-testid="dash-card-stock-val" [title]="'Stock Valuation: ' + formatMoney(data.stockValuation)">
               <div class="kpi-card__icon kpi-card__icon--purple">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
@@ -773,7 +773,7 @@
               </div>
               <div class="kpi-card__content">
                 <span class="kpi-card__label">Stock Valuation</span>
-                <span class="kpi-card__value" data-testid="dash-stock-valuation">{{ formatMoney(data.stockValuation) }}</span>
+                <span class="kpi-card__value" data-testid="dash-stock-valuation" [title]="formatMoney(data.stockValuation)">{{ formatMoney(data.stockValuation) }}</span>
                 <span class="kpi-card__subtext">Current WAC inventory value</span>
               </div>
             </div>

@@ -151,7 +151,7 @@
   <!-- KPI Summary Row -->
   @if (showKpiCards()) {
   <section class="kpi-row" aria-label="Accounts Summary" data-testid="accounts-kpi-row">
-    <div class="kpi-card" data-testid="kpi-total-cash">
+    <div class="kpi-card" data-testid="kpi-total-cash" [title]="'Total Cash: PKR ' + totalCash()">
       <div class="kpi-card__icon kpi-card__icon--green">
         <svg
           width="18"
@@ -170,13 +170,13 @@
       </div>
       <div class="kpi-card__content">
         <span class="kpi-card__label">Total Cash</span>
-        <span class="kpi-card__value" data-testid="kpi-total-cash-value"
+        <span class="kpi-card__value" data-testid="kpi-total-cash-value" [title]="'PKR ' + totalCash()"
           >PKR {{ totalCash() }}</span
         >
       </div>
     </div>
 
-    <div class="kpi-card" data-testid="kpi-total-bank">
+    <div class="kpi-card" data-testid="kpi-total-bank" [title]="'Total Bank: PKR ' + totalBank()">
       <div class="kpi-card__icon kpi-card__icon--blue">
         <svg
           width="18"
@@ -193,13 +193,13 @@
       </div>
       <div class="kpi-card__content">
         <span class="kpi-card__label">Total Bank</span>
-        <span class="kpi-card__value" data-testid="kpi-total-bank-value"
+        <span class="kpi-card__value" data-testid="kpi-total-bank-value" [title]="'PKR ' + totalBank()"
           >PKR {{ totalBank() }}</span
         >
       </div>
     </div>
 
-    <div class="kpi-card" data-testid="kpi-other-liquid">
+    <div class="kpi-card" data-testid="kpi-other-liquid" [title]="'Other Liquid Accounts: PKR ' + otherLiquid()">
       <div class="kpi-card__icon kpi-card__icon--amber">
         <svg
           width="18"
@@ -217,13 +217,13 @@
       </div>
       <div class="kpi-card__content">
         <span class="kpi-card__label">Other Liquid Accounts</span>
-        <span class="kpi-card__value" data-testid="kpi-other-liquid-value"
+        <span class="kpi-card__value" data-testid="kpi-other-liquid-value" [title]="'PKR ' + otherLiquid()"
           >PKR {{ otherLiquid() }}</span
         >
       </div>
     </div>
 
-    <div class="kpi-card" data-testid="kpi-total-balance">
+    <div class="kpi-card" data-testid="kpi-total-balance" [title]="'Total Liquid Funds: ' + formatSummaryBalance()">
       <div class="kpi-card__icon kpi-card__icon--neutral">
         <svg
           width="18"
@@ -241,7 +241,7 @@
       </div>
       <div class="kpi-card__content">
         <span class="kpi-card__label">Total Liquid Funds</span>
-        <span class="kpi-card__value" data-testid="kpi-balance-value"
+        <span class="kpi-card__value" data-testid="kpi-balance-value" [title]="formatSummaryBalance()"
           >{{ formatSummaryBalance() }}</span
         >
       </div>
