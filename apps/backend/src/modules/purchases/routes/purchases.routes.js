@@ -118,6 +118,22 @@ function registerPurchasesRoutes(deps) {
     },
   );
 
+  router.post(
+    `${API_PURCHASES_PATH}/:id/correct`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('purchases.cancel'),
+    createRequirePermissionMiddleware('purchases.post'),
+    deps.requireOperationalAccess,
+    requirePurchasesModule,
+    requireAction('cancel'),
+    requireAction('post'),
+    (req, res, next) => {
+      void controller.correctPurchase(req, res, next);
+    },
+  );
+
   return router;
 }
 

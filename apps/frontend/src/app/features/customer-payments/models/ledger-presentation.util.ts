@@ -1,4 +1,7 @@
 import { formatAppDate, formatAppTime } from '../../../shared/format/date-time.util';
+import type { CustomerLedgerEffectRecord } from './customer-payments.models';
+
+export type { CustomerLedgerEffectRecord };
 
 export interface HumanizedLedgerEntry {
   id: string;
@@ -12,6 +15,8 @@ export interface HumanizedLedgerEntry {
   isPositive: boolean;
   effectKind: string;
 }
+
+export type HumanizedCustomerLedgerItem = HumanizedLedgerEntry;
 
 const KNOWN_SOURCE_TITLES: Record<string, string> = {
   customer_payment_advance: 'Customer Advance Received',
@@ -42,6 +47,19 @@ const KNOWN_SOURCE_TITLES: Record<string, string> = {
   supplier_opening_payable: 'Opening Payable',
   supplier_opening_balance: 'Opening Balance',
   manual_adjustment: 'Manual Adjustment',
+  customer_loan_disbursement: 'Customer Loan Disbursed',
+  customer_loan_repayment: 'Loan Repayment',
+  customer_loan_repayment_reversal: 'Loan Repayment Reversed',
+  customer_loan_reversal: 'Customer Loan Reversed',
+  customer_trade_receivable_adjustment: 'Trade Receivable Adjustment',
+  customer_advance_adjustment: 'Customer Advance Adjustment',
+  customer_loan_adjustment: 'Loan Balance Adjustment',
+  customer_balance_adjustment_reversal: 'Balance Adjustment Reversed',
+  supplier_advance_refund: 'Supplier Advance Refunded',
+  supplier_advance_refund_reversal: 'Supplier Refund Reversed',
+  supplier_payable_adjustment: 'Supplier Payable Adjustment',
+  supplier_advance_adjustment: 'Supplier Advance Adjustment',
+  supplier_balance_adjustment_reversal: 'Supplier Balance Adjustment Reversed',
 };
 
 const KNOWN_SOURCE_TYPES: Record<string, string> = {
@@ -73,6 +91,19 @@ const KNOWN_SOURCE_TYPES: Record<string, string> = {
   supplier_opening_payable: 'Opening Balance',
   supplier_opening_balance: 'Opening Balance',
   manual_adjustment: 'Manual Adjustment',
+  customer_loan_disbursement: 'Customer Loan Disbursed',
+  customer_loan_repayment: 'Loan Repayment',
+  customer_loan_repayment_reversal: 'Loan Repayment Reversed',
+  customer_loan_reversal: 'Customer Loan Reversed',
+  customer_trade_receivable_adjustment: 'Trade Receivable Adjustment',
+  customer_advance_adjustment: 'Customer Advance Adjustment',
+  customer_loan_adjustment: 'Loan Balance Adjustment',
+  customer_balance_adjustment_reversal: 'Balance Adjustment Reversed',
+  supplier_advance_refund: 'Supplier Refund',
+  supplier_advance_refund_reversal: 'Supplier Refund Reversal',
+  supplier_payable_adjustment: 'Payable Adjustment',
+  supplier_advance_adjustment: 'Advance Adjustment',
+  supplier_balance_adjustment_reversal: 'Adjustment Reversal',
 };
 
 function humanizeIdentifier(id: string | null | undefined): string {

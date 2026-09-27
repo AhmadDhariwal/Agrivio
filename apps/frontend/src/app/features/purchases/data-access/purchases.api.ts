@@ -13,6 +13,8 @@ import {
 } from './purchases-cache.invalidation';
 import {
   PurchaseCancelInput,
+  PurchaseCorrectInput,
+  PurchaseCorrectionResult,
   PurchaseDraftInput,
   PurchaseDraftUpdateInput,
   PurchasePostInput,
@@ -168,6 +170,37 @@ export class PurchasesApi {
                 affectsAccounts: (record.payments?.length ?? 0) > 0,
               }),
             ),
+          ),
+      ),
+    );
+  }
+
+  correctPurchase(
+    id: string,
+    payload: PurchaseCorrectInput,
+    idempotencyKey: string,
+  ): Observable<PurchaseCorrectionResult> {
+    const affectsAccounts = (payload.correctedPurchase?.payments?.length ?? 0) > 0;
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: PurchaseCorrectionResult }>(`${this.baseUrl}/${id}/correct`, payload, {
+            withCredentials: true,
+            headers: {
+              'X-CSRF-Token': csrfToken,
+              'Idempotency-Key': idempotencyKey,
+            },
+          })
+          .pipe(
+            map((response) => response.data),
+            tap((result) => {
+              const hadOriginalPayments = (result?.originalPurchase?.payments?.length ?? 0) > 0;
+              const hasReplacementPayments =
+                (result?.replacementPurchase?.payments?.length ?? 0) > 0;
+              invalidatePurchaseMutationEffects(this.queryCache, 'correct', {
+                affectsAccounts: affectsAccounts || hadOriginalPayments || hasReplacementPayments,
+              });
+            }),
           ),
       ),
     );

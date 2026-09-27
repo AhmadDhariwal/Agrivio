@@ -6,13 +6,17 @@
       <div class="page-head__heading-wrap">
         <h1 class="page-head__title" data-testid="purchase-detail-title">Purchase Details</h1>
         @if (purchase(); as item) {
-          <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+          <agrivio-ui-status-badge
+            [label]="statusLabel(item)"
+            [tone]="statusTone(item.status)"
+            data-testid="purchase-status-badge"
+          />
         }
       </div>
       <p class="page-head__lede">Authoritative purchase, inventory, and payment snapshots.</p>
     </div>
-    <div class="page-head__actions">
-      <a class="ag-btn ag-btn--secondary" routerLink="/app/purchases">
+    <div class="page-head__actions" data-testid="purchase-detail-actions">
+      <a class="ag-btn ag-btn--secondary" routerLink="/app/purchases" data-testid="back-to-purchases">
         <svg
           width="15"
           height="15"
@@ -22,33 +26,136 @@
           stroke-width="2"
           stroke-linecap="round"
           stroke-linejoin="round"
+          aria-hidden="true"
         >
           <polyline points="15 18 9 12 15 6"></polyline>
         </svg>
         Back to Purchases
       </a>
+
       @if (purchase(); as item) {
-        @if (canEdit()) {
-          <a
-            class="ag-btn ag-btn--primary"
-            [routerLink]="['/app/purchases', item.id, 'edit']"
-            data-testid="purchase-edit-link"
-          >
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
+        <!-- DRAFT ACTIONS -->
+        @if (isDraft()) {
+          @if (canDiscardDraft()) {
+            <button
+              type="button"
+              class="ag-btn ag-btn--danger-outline"
+              (click)="openDiscardDialog()"
+              [disabled]="discarding()"
+              data-testid="purchase-delete-draft-btn"
             >
-              <path d="M12 20h9"></path>
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-            </svg>
-            Edit draft
-          </a>
+              {{ discarding() ? 'Deleting…' : 'Delete Draft' }}
+            </button>
+          }
+          @if (canEdit()) {
+            <a
+              class="ag-btn ag-btn--secondary"
+              [routerLink]="['/app/purchases', item.id, 'edit']"
+              data-testid="purchase-edit-link"
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M12 20h9"></path>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+              </svg>
+              Edit Draft
+            </a>
+          }
+          @if (canPostDraft()) {
+            <a
+              class="ag-btn ag-btn--primary"
+              [routerLink]="['/app/purchases', item.id, 'edit']"
+              data-testid="purchase-post-draft-link"
+            >
+              Post Purchase
+            </a>
+          }
+        }
+
+        <!-- POSTED ACTIVE ACTIONS -->
+        @if (isPostedActive()) {
+          @if (canReturn()) {
+            <button
+              type="button"
+              class="ag-btn ag-btn--primary"
+              (click)="toggleReturnDrawer()"
+              data-testid="purchase-return-items-btn"
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="1 4 1 10 7 10"></polyline>
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+              </svg>
+              Return Items
+            </button>
+          }
+          @if (canCorrect()) {
+            <a
+              class="ag-btn ag-btn--secondary"
+              [routerLink]="['/app/purchases', item.id, 'correct']"
+              data-testid="purchase-correct-btn"
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+              Correct Purchase
+            </a>
+          }
+          @if (canCancel()) {
+            <button
+              type="button"
+              class="ag-btn ag-btn--danger-outline"
+              (click)="openCancelDialog()"
+              [disabled]="cancelling()"
+              data-testid="purchase-cancel-btn"
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+              </svg>
+              Cancel Purchase
+            </button>
+          }
         }
       }
     </div>
@@ -72,360 +179,307 @@
       />
     </div>
   } @else if (purchase(); as item) {
-    @if (item.status === 'posted') {
+    <!-- Flash Success Message -->
+    @if (successMessage(); as msg) {
+      <div class="alert-container">
+        <agrivio-ui-alert tone="success" [message]="msg" data-testid="purchase-success-alert" />
+      </div>
+    }
+
+    <!-- Lineage & Status Banners -->
+    @if (isCancelled()) {
+      <div class="ag-alert ag-alert--danger cancelled-banner" data-testid="purchase-cancelled-banner">
+        <div class="banner-content">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="15" y1="9" x2="9" y2="15"></line>
+            <line x1="9" y1="9" x2="15" y2="15"></line>
+          </svg>
+          <div>
+            <strong>Cancelled</strong> — all inventory and payable effects have been reversed. The original purchase remains in history.
+            @if (item.cancellationReason) {
+              <div class="banner-sub" data-testid="purchase-cancellation-reason">
+                Reason: <em>{{ item.cancellationReason }}</em>
+              </div>
+            }
+            @if (item.cancelledAt) {
+              <div class="banner-sub">
+                Cancelled on {{ formatDateTime(item.cancelledAt) }}
+                @if (item.cancelledBy) {
+                  by {{ item.cancelledBy }}
+                }
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    } @else if (isCorrected()) {
+      <div class="ag-alert ag-alert--warning corrected-banner" data-testid="purchase-corrected-banner">
+        <div class="banner-content">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+          <div>
+            <strong>CORRECTED</strong> — this purchase was corrected and replaced by
+            @if (item.replacementPurchaseId) {
+              <a
+                class="banner-link"
+                [routerLink]="['/app/purchases', item.replacementPurchaseId]"
+                data-testid="replacement-purchase-link"
+              >
+                {{ formatPurchaseNumber(item.replacementPurchaseId) }}
+              </a>.
+            }
+            @if (item.correctionReason) {
+              <div class="banner-sub" data-testid="purchase-correction-reason">
+                Correction reason: <em>{{ item.correctionReason }}</em>
+              </div>
+            }
+            @if (item.correctedAt) {
+              <div class="banner-sub">
+                Corrected on {{ formatDateTime(item.correctedAt) }}
+                @if (item.correctedBy) {
+                  by {{ item.correctedBy }}
+                }
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (isReplacement()) {
+      <div class="ag-alert ag-alert--info replacement-banner" data-testid="purchase-replacement-banner">
+        <div class="banner-content">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="15 14 20 9 15 4"></polyline>
+            <path d="M4 20v-7a4 4 0 0 1 4-4h12"></path>
+          </svg>
+          <div>
+            <strong>Replacement Purchase</strong> — replacement for
+            @if (item.originalPurchaseId) {
+              <a
+                class="banner-link"
+                [routerLink]="['/app/purchases', item.originalPurchaseId]"
+                data-testid="original-purchase-link"
+              >
+                {{ formatPurchaseNumber(item.originalPurchaseId) }}
+              </a>.
+            }
+            <span class="banner-sub">Reverses and replaces original purchase entries.</span>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (isPostedActive()) {
       <div class="ag-alert ag-alert--success posted-banner" data-testid="purchase-posted-banner">
         <div class="banner-content">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
           <div><strong>Posted</strong> — inventory, payable, and payment effects are locked.</div>
         </div>
       </div>
     }
+
+    <!-- Inline Return Section (When Return Items is clicked) -->
+    @if (returnDrawerOpen()) {
+      <section class="card return-card" data-testid="purchase-return-section">
+        <div class="card__header">
+          <div class="card__icon card__icon--primary">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="1 4 1 10 7 10"></polyline>
+              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+            </svg>
+          </div>
+          <div>
+            <h2 class="card__title">Return Items to Supplier</h2>
+            <p class="card__subtitle">
+              Return items when physical goods are returned. If this purchase entry was recorded incorrectly, use
+              <a [routerLink]="['/app/purchases', item.id, 'correct']" class="text-primary font-medium">Correct Purchase</a> instead.
+            </p>
+          </div>
+        </div>
+        <div class="card__body">
+          <div class="return-helper-box">
+            <strong>Note:</strong> Returning items creates a physical return with ledger adjustment. Original purchase remains active for unreturned quantities.
+          </div>
+
+          <form [formGroup]="returnForm" (ngSubmit)="submitReturn()">
+            <div class="return-table-wrap">
+              <table class="return-table">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th class="num">Original Qty</th>
+                    <th class="num">Unit Cost</th>
+                    <th class="num" style="width: 140px;">Return Qty</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of item.lines; track $index; let idx = $index) {
+                    <tr [formGroup]="returnLineGroup(idx)">
+                      <td>
+                        <strong>{{ line.productNameSnapshot }}</strong>
+                        <small class="text-muted block">{{ line.unitCodeSnapshot }}</small>
+                      </td>
+                      <td class="num tabular-num">{{ formatQuantity(line.quantity) }}</td>
+                      <td class="num tabular-num">{{ formatMoney(line.unitCost) }}</td>
+                      <td class="num">
+                        <input
+                          type="number"
+                          step="any"
+                          min="0"
+                          [max]="line.quantity"
+                          formControlName="quantity"
+                          class="ag-input return-qty-input"
+                          placeholder="0"
+                          data-testid="return-qty-input"
+                        />
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <div class="return-reason-field">
+              <label for="return-reason" class="return-reason-label">Return Reason</label>
+              <input
+                id="return-reason"
+                type="text"
+                class="ag-input"
+                formControlName="reason"
+                placeholder="Reason for physical return (e.g. damaged goods, wrong shipment)…"
+                data-testid="return-reason-input"
+              />
+            </div>
+
+            @if (returnError(); as err) {
+              <div class="return-error-alert">
+                <agrivio-ui-alert tone="danger" [message]="err" role="alert" data-testid="return-error-alert" />
+              </div>
+            }
+
+            <div class="return-actions">
+              <button
+                type="button"
+                class="ag-btn ag-btn--secondary"
+                (click)="toggleReturnDrawer()"
+                [disabled]="submittingReturn()"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                class="ag-btn ag-btn--primary"
+                [disabled]="submittingReturn()"
+                data-testid="submit-return-btn"
+              >
+                {{ submittingReturn() ? 'Submitting Return…' : 'Submit Return' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+    }
+
     <!-- 4 KPI Summary Cards -->
     <div data-testid="purchase-posted-totals">
-    <section class="summary" data-testid="purchase-detail">
-      <article class="summary-card">
-        <div class="summary-card__icon summary-card__icon--blue">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-            <polyline points="14 2 14 8 20 8"></polyline>
-          </svg>
-        </div>
-        <div class="summary-card__content">
-          <span class="summary-card__label">Reference</span>
-          <strong class="summary-card__value">
-            {{ item.supplierInvoiceReference || ('Purchase #' + item.id.slice(-6).toUpperCase()) }}
-          </strong>
-        </div>
-      </article>
-
-      <article class="summary-card">
-        <div class="summary-card__icon summary-card__icon--amber">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
-        </div>
-        <div class="summary-card__content">
-          <span class="summary-card__label">Status</span>
-          <div class="summary-card__badge">
-            <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+      <section class="summary" data-testid="purchase-detail">
+        <article class="summary-card">
+          <div class="summary-card__icon summary-card__icon--blue">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
           </div>
-        </div>
-      </article>      <article class="summary-card">
-        <div class="summary-card__icon summary-card__icon--green">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <rect x="2" y="4" width="20" height="16" rx="2"></rect>
-            <line x1="2" y1="10" x2="22" y2="10"></line>
-          </svg>
-        </div>
-        <div class="summary-card__content">
-          <span class="summary-card__label">Total</span>
-          <strong class="summary-card__value tabular-num">{{ formatMoney(item.purchaseTotal) }}</strong>
-        </div>
-      </article>
-
-      <article class="summary-card">
-        <div class="summary-card__icon summary-card__icon--purple">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="12" cy="12" r="10"></circle>
-            <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path>
-            <path d="M12 18V6"></path>
-          </svg>
-        </div>
-        <div class="summary-card__content">
-          <span class="summary-card__label">Outstanding / Remaining</span>
-          <strong class="summary-card__value tabular-num">{{ formatMoney(item.payableTotal) }}</strong>
-        </div>
-      </article>
-    </section>
-
-    <!-- Card 1: Purchase Information -->
-    <section class="card">
-      <div class="card__header">
-        <div class="card__icon">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-            <polyline points="14 2 14 8 20 8"></polyline>
-            <line x1="16" y1="13" x2="8" y2="13"></line>
-            <line x1="16" y1="17" x2="8" y2="17"></line>
-            <polyline points="10 9 9 9 8 9"></polyline>
-          </svg>
-        </div>
-        <div>
-          <h2 class="card__title">Purchase information</h2>
-          <p class="card__subtitle">Supplier, warehouse, and immutable audit timestamps</p>
-        </div>
-      </div>
-      <div class="card__body">
-        <dl class="facts">
-          @if (canViewField('supplier')) {
-            <div class="fact-item">
-              <dt>Supplier</dt>
-              <dd class="fact-item__primary">{{ item.supplierNameSnapshot }}</dd>
-            </div>
-          }
-          @if (canViewField('warehouse')) {
-            <div class="fact-item" data-testid="purchase-detail-warehouse">
-              <dt>Warehouse</dt>
-              <dd>{{ item.warehouseNameSnapshot || '—' }}</dd>
-            </div>
-          }
-          @if (canViewField('purchaseDate')) {
-            <div class="fact-item">
-              <dt>Purchase date</dt>
-              <dd class="tabular-num">{{ formatDate(item.purchaseDate) }}</dd>
-            </div>
-          }
-          @if (canViewField('notes')) {
-            <div class="fact-item fact-item--wide">
-              <dt>Notes</dt>
-              <dd>{{ item.notes || '—' }}</dd>
-            </div>
-          }
-          <div class="fact-item">
-            <dt>Created</dt>
-            <dd class="tabular-num">{{ formatDateTime(item.createdAt) }}</dd>
+          <div class="summary-card__content">
+            <span class="summary-card__label">Reference</span>
+            <strong class="summary-card__value">
+              {{ item.supplierInvoiceReference || ('Purchase #' + item.id.slice(-6).toUpperCase()) }}
+            </strong>
           </div>
-          <div class="fact-item">
-            <dt>Updated</dt>
-            <dd class="tabular-num">{{ formatDateTime(item.updatedAt) }}</dd>
+        </article>
+
+        <article class="summary-card">
+          <div class="summary-card__icon summary-card__icon--amber">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
           </div>
-          @if (item.postedAt) {
-            <div class="fact-item">
-              <dt>Posted</dt>
-              <dd class="tabular-num">{{ formatDateTime(item.postedAt) }}</dd>
-            </div>
-          }
-          @if (item.cancelledAt) {
-            <div class="fact-item">
-              <dt>Cancelled</dt>
-              <dd class="tabular-num">{{ formatDateTime(item.cancelledAt) }}</dd>
-            </div>
-          }
-          @if (item.cancellationReason) {
-            <div class="fact-item fact-item--wide">
-              <dt>Cancellation reason</dt>
-              <dd class="text-danger">{{ item.cancellationReason }}</dd>
-            </div>
-          }
-        </dl>
-      </div>
-    </section>
-
-    <!-- Card 2: Purchase Lines -->
-    <section class="card">
-      <div class="card__header">
-        <div class="card__icon">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <line x1="8" y1="6" x2="21" y2="6"></line>
-            <line x1="8" y1="12" x2="21" y2="12"></line>
-            <line x1="8" y1="18" x2="21" y2="18"></line>
-            <line x1="3" y1="6" x2="3.01" y2="6"></line>
-            <line x1="3" y1="12" x2="3.01" y2="12"></line>
-            <line x1="3" y1="18" x2="3.01" y2="18"></line>
-          </svg>
-        </div>
-        <div>
-          <h2 class="card__title">Purchase lines</h2>
-          <p class="card__subtitle">Authoritative item quantities, tracking batches, and unit costs</p>
-        </div>
-      </div>
-      <div class="card__body card__body--no-pad">
-        <div class="table-wrap desktop-only">
-          <table class="detail-table">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Tracking</th>
-                <th class="num">Quantity</th>
-                <th class="num">Unit cost</th>
-                <th class="num">Line total</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (line of item.lines; track $index) {
-                <tr>
-                  <td>
-                    <div class="product-cell">
-                      <strong class="product-cell__name">{{ line.productNameSnapshot }}</strong>
-                      <small class="product-cell__meta">{{ line.unitCodeSnapshot }} × {{ line.conversionFactorSnapshot }}</small>
-                    </div>
-                  </td>
-                  <td>
-                    <div class="tracking-cell">
-                      @if (line.batchNumber) {
-                        <span class="batch-badge">Batch: {{ line.batchNumber }}</span>
-                      } @else {
-                        <span class="text-muted">—</span>
-                      }
-                      @if (line.expiryDate) {
-                        <small class="text-muted">Expires {{ line.expiryDate }}</small>
-                      }
-                    </div>
-                  </td>
-                  <td class="num tabular-num">{{ formatQuantity(line.quantity) }}</td>
-                  <td class="num tabular-num">{{ formatMoney(line.unitCost) }}</td>
-                  <td class="num tabular-num line-total">{{ formatMoney(line.lineProductAmount) }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Purpose-Built Mobile Cards (< 768px) -->
-        <div class="posted-lines-mobile mobile-only" data-testid="purchase-detail-lines-mobile">
-          @for (line of item.lines; track $index; let idx = $index) {
-            <div class="posted-line-mobile-card">
-              <div class="posted-line-mobile-card__header">
-                <div class="posted-line-mobile-card__title-wrap">
-                  <span class="posted-line-badge">#{{ idx + 1 }}</span>
-                  <strong class="posted-line-name">{{ line.productNameSnapshot }}</strong>
-                </div>
-                <span class="posted-line-total tabular-num">{{ formatMoney(line.lineProductAmount) }}</span>
-              </div>
-
-              <div class="posted-line-mobile-card__grid">
-                <div class="posted-line-metric">
-                  <span class="metric-label">Unit</span>
-                  <span class="metric-value">{{ line.unitCodeSnapshot }} × {{ line.conversionFactorSnapshot }}</span>
-                </div>
-                <div class="posted-line-metric">
-                  <span class="metric-label">Quantity</span>
-                  <span class="metric-value tabular-num font-semibold">{{ formatQuantity(line.quantity) }}</span>
-                </div>
-                <div class="posted-line-metric">
-                  <span class="metric-label">Unit Cost</span>
-                  <span class="metric-value tabular-num">{{ formatMoney(line.unitCost) }}</span>
-                </div>
-                @if (line.batchNumber) {
-                  <div class="posted-line-metric">
-                    <span class="metric-label">Tracking</span>
-                    <span class="batch-badge">Batch: {{ line.batchNumber }}</span>
-                  </div>
-                }
-                @if (line.expiryDate) {
-                  <div class="posted-line-metric">
-                    <span class="metric-label">Expiry Date</span>
-                    <span class="metric-value">{{ line.expiryDate }}</span>
-                  </div>
-                }
-              </div>
-            </div>
-          }
-        </div>
-      </div>
-    </section>
-
-    <!-- Card 3 & 4: Landed Costs & Payments -->
-    <section class="grid">
-      @if (canViewField('landedCosts')) {
-        <article class="card">
-          <div class="card__header">
-            <div class="card__icon">
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <rect x="1" y="3" width="15" height="13"></rect>
-                <polygon points="16 8 20 8 23 11 23 16 16 16 8"></polygon>
-                <circle cx="5.5" cy="18.5" r="2.5"></circle>
-                <circle cx="18.5" cy="18.5" r="2.5"></circle>
-              </svg>
-            </div>
-            <div>
-              <h2 class="card__title">Landed costs</h2>
-              <p class="card__subtitle">Apportioned additional expenses</p>
-            </div>
-          </div>
-          <div class="card__body">
-            <div class="cost-rows">
-              <div class="row">
-                <span class="row__label">Freight</span>
-                <strong class="row__val tabular-num">{{ formatMoney(item.landedCosts.freight) }}</strong>
-              </div>
-              <div class="row">
-                <span class="row__label">Loading</span>
-                <strong class="row__val tabular-num">{{ formatMoney(item.landedCosts.loading) }}</strong>
-              </div>
-              <div class="row">
-                <span class="row__label">Transport</span>
-                <strong class="row__val tabular-num">{{ formatMoney(item.landedCosts.transport) }}</strong>
-              </div>
-              <div class="row">
-                <span class="row__label">Other</span>
-                <strong class="row__val tabular-num">{{ formatMoney(item.landedCosts.other) }}</strong>
-              </div>
-              <div class="row row--total">
-                <span class="row__label">Total landed</span>
-                <strong class="row__val tabular-num">{{ formatMoney(item.landedCostTotal) }}</strong>
-              </div>
+          <div class="summary-card__content">
+            <span class="summary-card__label">Status</span>
+            <div class="summary-card__badge">
+              <agrivio-ui-status-badge [label]="statusLabel(item)" [tone]="statusTone(item.status)" />
             </div>
           </div>
         </article>
-      }
 
-      <article class="card">
-        <div class="card__header">
-          <div class="card__icon">
+        <article class="summary-card">
+          <div class="summary-card__icon summary-card__icon--green">
             <svg
               width="18"
               height="18"
@@ -440,35 +494,364 @@
               <line x1="2" y1="10" x2="22" y2="10"></line>
             </svg>
           </div>
+          <div class="summary-card__content">
+            <span class="summary-card__label">Total</span>
+            <strong class="summary-card__value tabular-num">{{ formatMoney(item.purchaseTotal) }}</strong>
+          </div>
+        </article>
+
+        <article class="summary-card">
+          <div class="summary-card__icon summary-card__icon--purple">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path>
+              <path d="M12 18V6"></path>
+            </svg>
+          </div>
+          <div class="summary-card__content">
+            <span class="summary-card__label">Outstanding / Remaining</span>
+            <strong class="summary-card__value tabular-num">{{ formatMoney(item.payableTotal) }}</strong>
+          </div>
+        </article>
+      </section>
+
+      <!-- Card 1: Purchase Information -->
+      <section class="card">
+        <div class="card__header">
+          <div class="card__icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+          </div>
           <div>
-            <h2 class="card__title">Payments</h2>
-            <p class="card__subtitle">Settlements recorded at posting</p>
+            <h2 class="card__title">Purchase information</h2>
+            <p class="card__subtitle">Supplier, warehouse, and immutable audit timestamps</p>
           </div>
         </div>
         <div class="card__body">
-          <div class="cost-rows">
-            @for (payment of item.payments ?? []; track payment.paymentId ?? payment.accountId) {
-              <div class="row">
-                <span class="row__label">
-                  {{ payment.accountNameSnapshot }}
-                  <small class="account-type-tag">{{ payment.accountTypeSnapshot }}</small>
-                </span>
-                <strong class="row__val tabular-num">{{ formatMoney(payment.amount) }}</strong>
+          <dl class="facts">
+            @if (canViewField('supplier')) {
+              <div class="fact-item">
+                <dt>Supplier</dt>
+                <dd class="fact-item__primary">{{ item.supplierNameSnapshot }}</dd>
               </div>
             }
-            @if (!item.payments?.length) {
-              <div class="empty-payments-notice">
-                <p>No upfront payments recorded (full balance on supplier ledger).</p>
+            @if (canViewField('warehouse')) {
+              <div class="fact-item" data-testid="purchase-detail-warehouse">
+                <dt>Warehouse</dt>
+                <dd>{{ item.warehouseNameSnapshot || '—' }}</dd>
               </div>
             }
-            <div class="row row--total">
-              <span class="row__label">Total paid</span>
-              <strong class="row__val tabular-num">{{ formatMoney(item.paidTotal) }}</strong>
+            @if (canViewField('purchaseDate')) {
+              <div class="fact-item">
+                <dt>Purchase date</dt>
+                <dd class="tabular-num">{{ formatDate(item.purchaseDate) }}</dd>
+              </div>
+            }
+            @if (canViewField('notes')) {
+              <div class="fact-item fact-item--wide">
+                <dt>Notes</dt>
+                <dd>{{ item.notes || '—' }}</dd>
+              </div>
+            }
+            <div class="fact-item">
+              <dt>Created</dt>
+              <dd class="tabular-num">{{ formatDateTime(item.createdAt) }}</dd>
             </div>
+            <div class="fact-item">
+              <dt>Updated</dt>
+              <dd class="tabular-num">{{ formatDateTime(item.updatedAt) }}</dd>
+            </div>
+            @if (item.postedAt) {
+              <div class="fact-item">
+                <dt>Posted</dt>
+                <dd class="tabular-num">{{ formatDateTime(item.postedAt) }}</dd>
+              </div>
+            }
+            @if (item.cancelledAt) {
+              <div class="fact-item">
+                <dt>Cancelled</dt>
+                <dd class="tabular-num">{{ formatDateTime(item.cancelledAt) }}</dd>
+              </div>
+            }
+            @if (item.cancellationReason) {
+              <div class="fact-item fact-item--wide">
+                <dt>Cancellation reason</dt>
+                <dd class="text-danger">{{ item.cancellationReason }}</dd>
+              </div>
+            }
+            @if (item.correctedAt) {
+              <div class="fact-item">
+                <dt>Corrected</dt>
+                <dd class="tabular-num">{{ formatDateTime(item.correctedAt) }}</dd>
+              </div>
+            }
+            @if (item.correctionReason) {
+              <div class="fact-item fact-item--wide">
+                <dt>Correction reason</dt>
+                <dd class="text-warning">{{ item.correctionReason }}</dd>
+              </div>
+            }
+          </dl>
+        </div>
+      </section>
+
+      <!-- Card 2: Purchase Lines -->
+      <section class="card">
+        <div class="card__header">
+          <div class="card__icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+          </div>
+          <div>
+            <h2 class="card__title">Purchase lines</h2>
+            <p class="card__subtitle">Authoritative item quantities, tracking batches, and unit costs</p>
           </div>
         </div>
-      </article>
-    </section>
+        <div class="card__body card__body--no-pad">
+          <div class="table-wrap desktop-only">
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Tracking</th>
+                  <th class="num">Quantity</th>
+                  <th class="num">Unit cost</th>
+                  <th class="num">Line total</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of item.lines; track $index) {
+                  <tr>
+                    <td>
+                      <div class="product-cell">
+                        <strong class="product-cell__name">{{ line.productNameSnapshot }}</strong>
+                        <small class="product-cell__meta">{{ line.unitCodeSnapshot }} × {{ line.conversionFactorSnapshot }}</small>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="tracking-cell">
+                        @if (line.batchNumber) {
+                          <span class="batch-badge">Batch: {{ line.batchNumber }}</span>
+                        } @else {
+                          <span class="text-muted">—</span>
+                        }
+                        @if (line.expiryDate) {
+                          <small class="text-muted">Expires {{ line.expiryDate }}</small>
+                        }
+                      </div>
+                    </td>
+                    <td class="num tabular-num">{{ formatQuantity(line.quantity) }}</td>
+                    <td class="num tabular-num">{{ formatMoney(line.unitCost) }}</td>
+                    <td class="num tabular-num line-total">{{ formatMoney(line.lineProductAmount) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Mobile Cards (< 768px) -->
+          <div class="posted-lines-mobile mobile-only" data-testid="purchase-detail-lines-mobile">
+            @for (line of item.lines; track $index; let idx = $index) {
+              <div class="posted-line-mobile-card">
+                <div class="posted-line-mobile-card__header">
+                  <div class="posted-line-mobile-card__title-wrap">
+                    <span class="posted-line-badge">#{{ idx + 1 }}</span>
+                    <strong class="posted-line-name">{{ line.productNameSnapshot }}</strong>
+                  </div>
+                  <span class="posted-line-total tabular-num">{{ formatMoney(line.lineProductAmount) }}</span>
+                </div>
+
+                <div class="posted-line-mobile-card__grid">
+                  <div class="posted-line-metric">
+                    <span class="metric-label">Unit</span>
+                    <span class="metric-value">{{ line.unitCodeSnapshot }} × {{ line.conversionFactorSnapshot }}</span>
+                  </div>
+                  <div class="posted-line-metric">
+                    <span class="metric-label">Quantity</span>
+                    <span class="metric-value tabular-num font-semibold">{{ formatQuantity(line.quantity) }}</span>
+                  </div>
+                  <div class="posted-line-metric">
+                    <span class="metric-label">Unit Cost</span>
+                    <span class="metric-value tabular-num">{{ formatMoney(line.unitCost) }}</span>
+                  </div>
+                  @if (line.batchNumber) {
+                    <div class="posted-line-metric">
+                      <span class="metric-label">Tracking</span>
+                      <span class="batch-badge">Batch: {{ line.batchNumber }}</span>
+                    </div>
+                  }
+                  @if (line.expiryDate) {
+                    <div class="posted-line-metric">
+                      <span class="metric-label">Expiry Date</span>
+                      <span class="metric-value">{{ line.expiryDate }}</span>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </section>
+
+      <!-- Card 3 & 4: Landed Costs & Payments -->
+      <section class="grid">
+        @if (canViewField('landedCosts')) {
+          <article class="card">
+            <div class="card__header">
+              <div class="card__icon">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="1" y="3" width="15" height="13"></rect>
+                  <polygon points="16 8 20 8 23 11 23 16 16 16 8"></polygon>
+                  <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                  <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                </svg>
+              </div>
+              <div>
+                <h2 class="card__title">Landed costs</h2>
+                <p class="card__subtitle">Apportioned additional expenses</p>
+              </div>
+            </div>
+            <div class="card__body">
+              <div class="cost-rows">
+                <div class="row">
+                  <span class="row__label">Freight</span>
+                  <strong class="row__val tabular-num">{{ formatMoney(item.landedCosts.freight) }}</strong>
+                </div>
+                <div class="row">
+                  <span class="row__label">Loading</span>
+                  <strong class="row__val tabular-num">{{ formatMoney(item.landedCosts.loading) }}</strong>
+                </div>
+                <div class="row">
+                  <span class="row__label">Transport</span>
+                  <strong class="row__val tabular-num">{{ formatMoney(item.landedCosts.transport) }}</strong>
+                </div>
+                <div class="row">
+                  <span class="row__label">Other</span>
+                  <strong class="row__val tabular-num">{{ formatMoney(item.landedCosts.other) }}</strong>
+                </div>
+                <div class="row row--total">
+                  <span class="row__label">Total landed</span>
+                  <strong class="row__val tabular-num">{{ formatMoney(item.landedCostTotal) }}</strong>
+                </div>
+              </div>
+            </div>
+          </article>
+        }
+
+        <article class="card">
+          <div class="card__header">
+            <div class="card__icon">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                <line x1="2" y1="10" x2="22" y2="10"></line>
+              </svg>
+            </div>
+            <div>
+              <h2 class="card__title">Payments</h2>
+              <p class="card__subtitle">Settlements recorded at posting</p>
+            </div>
+          </div>
+          <div class="card__body">
+            <div class="cost-rows">
+              @for (payment of item.payments ?? []; track payment.paymentId ?? payment.accountId) {
+                <div class="row">
+                  <span class="row__label">
+                    {{ payment.accountNameSnapshot }}
+                    <small class="account-type-tag">{{ payment.accountTypeSnapshot }}</small>
+                  </span>
+                  <strong class="row__val tabular-num">{{ formatMoney(payment.amount) }}</strong>
+                </div>
+              }
+              @if (!item.payments?.length) {
+                <div class="empty-payments-notice">
+                  <p>No upfront payments recorded (full balance on supplier ledger).</p>
+                </div>
+              }
+              <div class="row row--total">
+                <span class="row__label">Total paid</span>
+                <strong class="row__val tabular-num">{{ formatMoney(item.paidTotal) }}</strong>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
     </div>
   }
+
+  <!-- Cancel Purchase Dialog -->
+  <agrivio-purchase-cancel-dialog
+    [open]="cancelDialogOpen()"
+    [purchase]="purchase()"
+    [submitting]="cancelling()"
+    [errorMessage]="cancelError()"
+    (confirmed)="onCancelConfirmed($event)"
+    (dismissed)="onCancelDismissed()"
+  />
+
+  <!-- Discard Draft Confirm Dialog -->
+  <agrivio-ui-confirm-dialog
+    [open]="discardDialogOpen()"
+    title="Discard Draft Purchase"
+    message="Are you sure you want to discard this draft purchase? This action cannot be undone."
+    confirmLabel="Discard Draft"
+    tone="danger"
+    (confirmed)="onDiscardConfirmed()"
+    (dismissed)="discardDialogOpen.set(false)"
+  />
 </div>

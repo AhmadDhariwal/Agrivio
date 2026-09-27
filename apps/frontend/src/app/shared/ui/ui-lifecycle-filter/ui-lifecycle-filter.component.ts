@@ -4,20 +4,7 @@ import { MasterLifecycleFilter } from '../../lifecycle/master-lifecycle';
 @Component({
   selector: 'agrivio-ui-lifecycle-filter',
   standalone: true,
-  template: `
-    <label class="ag-inline">
-      Status
-      <select
-        [value]="value()"
-        (change)="onChange($event)"
-        data-testid="lifecycle-status-filter"
-      >
-        <option value="active">Active</option>
-        <option value="inactive">Inactive</option>
-        <option value="all">All</option>
-      </select>
-    </label>
-  `,
+  templateUrl: './ui-lifecycle-filter.component.html',
 })
 export class UiLifecycleFilterComponent {
   readonly value = input<MasterLifecycleFilter>('active');

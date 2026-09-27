@@ -386,7 +386,7 @@ describe('CapabilityService', () => {
     expect(service.canPerformAction('accounts.actions.reverseTransfer')).toBe(true);
     expect(service.canPerformAction('accounts.actions.refresh')).toBe(true);
   });
-  it('provides the exact 22 Reports defaults and wires module route/navigation gating', () => {
+  it('provides the exact 33 Reports defaults and wires module route/navigation gating', () => {
     TestBed.configureTestingModule({
       providers: [
         CapabilityService,
@@ -408,8 +408,8 @@ describe('CapabilityService', () => {
       ...actionKeys,
     ];
 
-    expect(allKeys).toHaveLength(22);
-    expect(new Set(allKeys).size).toBe(22);
+    expect(allKeys).toHaveLength(33);
+    expect(new Set(allKeys).size).toBe(33);
     expect(service.canUseModule('reports')).toBe(true);
     expect(service.canUseView('reports.features.moduleInfo')).toBe(true);
     for (const key of availabilityKeys) {

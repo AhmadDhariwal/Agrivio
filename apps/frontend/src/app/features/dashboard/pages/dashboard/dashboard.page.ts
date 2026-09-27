@@ -148,6 +148,8 @@ export class DashboardPage {
       (data.totalReceivable !== undefined ||
         data.totalCustomerAdvance !== undefined ||
         data.netExposure !== undefined ||
+        data.totalCustomerLoanReceivable !== undefined ||
+        data.totalCustomerExposure !== undefined ||
         data.supplierPayables !== undefined ||
         data.totalSupplierAdvance !== undefined ||
         data.netSupplierPayable !== undefined)
@@ -164,7 +166,9 @@ export class DashboardPage {
       (data.cashBalances !== undefined ||
         data.bankBalances !== undefined ||
         data.jazzCashBalance !== undefined ||
-        data.easypaisaBalance !== undefined);
+        data.easypaisaBalance !== undefined ||
+        data.otherLiquidBalances !== undefined ||
+        data.totalLiquidFunds !== undefined);
     return hasFinancial || hasAccounts;
   });
 

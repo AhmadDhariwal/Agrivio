@@ -1,0 +1,180 @@
+<agrivio-ui-dialog
+  [open]="open()"
+  title="Give Customer Loan"
+  description="Record principal disbursed to a customer as a durable loan receivable."
+  size="md"
+  (dismiss)="onDismiss()"
+>
+  <form [formGroup]="form" (ngSubmit)="submit()" class="give-loan-form" novalidate>
+    @if (errorMessage()) {
+      <agrivio-ui-alert tone="danger" [message]="errorMessage()!" role="alert" />
+    }
+
+    <div class="helper-box">
+      <p class="helper-text">
+        <strong>Note:</strong> This records money lent to the customer. It is not a Sale or Expense.
+      </p>
+    </div>
+
+    <div class="form-grid">
+      <!-- Customer -->
+      <div class="form-field form-field--full">
+        <agrivio-ui-field-label label="Customer" [required]="true" for="loan-customer" />
+        @if (preselectedCustomer(); as pre) {
+          <div class="static-value-box" data-testid="loan-preselected-customer">
+            <strong>{{ pre.name }}</strong>
+          </div>
+        } @else {
+          <agrivio-ui-searchable-dropdown
+            id="loan-customer"
+            testId="loan-customer"
+            formControlName="customerId"
+            [options]="customerOptions()"
+            placeholder="Select customer"
+            [searchable]="true"
+            [clearable]="false"
+            [serverSearch]="false"
+          />
+        }
+        @if (formSubmitAttempted() && form.controls.customerId.errors?.['required']) {
+          <p class="field-error" role="alert">Customer is required.</p>
+        }
+      </div>
+
+      <!-- Pay From Account -->
+      <div class="form-field form-field--full">
+        <agrivio-ui-field-label label="Pay From (Disbursement Account)" [required]="true" for="loan-account" />
+        <agrivio-ui-searchable-dropdown
+          id="loan-account"
+          testId="loan-account"
+          formControlName="disbursementAccountId"
+          [options]="accountOptions()"
+          placeholder="Select cash, bank, or wallet account"
+          [searchable]="true"
+          [clearable]="false"
+          [serverSearch]="false"
+        />
+        @if (formSubmitAttempted() && form.controls.disbursementAccountId.errors?.['required']) {
+          <p class="field-error" role="alert">Disbursement account is required.</p>
+        }
+      </div>
+
+      <!-- Principal Amount -->
+      <div class="form-field">
+        <agrivio-ui-field-label label="Amount (PKR)" [required]="true" for="loan-amount" />
+        <input
+          id="loan-amount"
+          type="text"
+          inputmode="decimal"
+          class="ag-input"
+          [class.ag-input--invalid]="formSubmitAttempted() && form.controls.amount.invalid"
+          formControlName="amount"
+          placeholder="0.00"
+          data-testid="loan-amount-input"
+        />
+        @if (formSubmitAttempted() && form.controls.amount.errors?.['required']) {
+          <p class="field-error" role="alert">Loan amount is required.</p>
+        } @else if (formSubmitAttempted() && form.controls.amount.errors?.['positiveMoney']) {
+          <p class="field-error" role="alert">Amount must be greater than zero.</p>
+        }
+      </div>
+
+      <!-- Business Date -->
+      <div class="form-field">
+        <agrivio-ui-field-label label="Business Date" [required]="true" for="loan-business-date" />
+        <input
+          id="loan-business-date"
+          type="date"
+          class="ag-input"
+          [class.ag-input--invalid]="formSubmitAttempted() && form.controls.businessDate.invalid"
+          formControlName="businessDate"
+          data-testid="loan-business-date-input"
+        />
+        @if (formSubmitAttempted() && form.controls.businessDate.errors?.['required']) {
+          <p class="field-error" role="alert">Business date is required.</p>
+        }
+      </div>
+
+      <!-- Due Date (Optional) -->
+      <div class="form-field">
+        <agrivio-ui-field-label label="Due Date (Optional)" [required]="false" for="loan-due-date" />
+        <input
+          id="loan-due-date"
+          type="date"
+          class="ag-input"
+          formControlName="dueDate"
+          data-testid="loan-due-date-input"
+        />
+      </div>
+
+      <!-- Reference (Optional) -->
+      <div class="form-field">
+        <agrivio-ui-field-label label="Reference (Optional)" [required]="false" for="loan-reference" />
+        <input
+          id="loan-reference"
+          type="text"
+          class="ag-input"
+          formControlName="reference"
+          placeholder="e.g. LOAN-2026-001"
+          maxlength="160"
+          data-testid="loan-reference-input"
+        />
+      </div>
+
+      <!-- Notes (Optional) -->
+      <div class="form-field form-field--full">
+        <agrivio-ui-field-label label="Notes (Optional)" [required]="false" for="loan-notes" />
+        <textarea
+          id="loan-notes"
+          class="ag-input"
+          formControlName="notes"
+          placeholder="Optional loan disbursement notes"
+          rows="2"
+          maxlength="1000"
+          data-testid="loan-notes-input"
+        ></textarea>
+      </div>
+    </div>
+
+    <!-- Summary Preview Box -->
+    @if (hasPreview()) {
+      <div class="preview-box" data-testid="loan-summary-preview">
+        <h4 class="preview-title">Disbursement Preview</h4>
+        <div class="preview-grid">
+          <div class="preview-item">
+            <span class="preview-label">Customer</span>
+            <strong class="preview-val">{{ selectedCustomerName() }}</strong>
+          </div>
+          <div class="preview-item">
+            <span class="preview-label">Loan Receivable</span>
+            <strong class="preview-val preview-val--pos">+ PKR {{ formattedAmount() }}</strong>
+          </div>
+          <div class="preview-item">
+            <span class="preview-label">{{ selectedAccountName() }}</span>
+            <strong class="preview-val preview-val--neg">- PKR {{ formattedAmount() }}</strong>
+          </div>
+        </div>
+      </div>
+    }
+
+    <div dialog-actions class="dialog-actions">
+      <button
+        type="button"
+        class="ag-btn ag-btn--secondary"
+        (click)="onDismiss()"
+        [disabled]="saving()"
+        data-testid="loan-cancel-btn"
+      >
+        Cancel
+      </button>
+      <button
+        type="submit"
+        class="ag-btn ag-btn--primary"
+        [disabled]="saving()"
+        data-testid="loan-submit-btn"
+      >
+        {{ saving() ? 'Disbursing…' : 'Give Customer Loan' }}
+      </button>
+    </div>
+  </form>
+</agrivio-ui-dialog>

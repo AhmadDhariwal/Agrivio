@@ -1,0 +1,300 @@
+<div class="loans-shell">
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="page-head__title-group">
+      <p class="page-head__eyebrow">Sales &amp; Financing</p>
+      <div class="page-head__heading-wrap">
+        <h1 class="page-head__title">Customer Loans</h1>
+        <span class="page-head__count-pill" aria-label="Total customer loans" data-testid="loans-count-pill">
+          {{ total() }} {{ total() === 1 ? 'loan' : 'loans' }}
+        </span>
+      </div>
+      <p class="page-head__lede">Record loans disbursed to customers, track repayments, and manage balances.</p>
+    </div>
+    <div class="page-head__actions">
+      @if (canDisburseLoan()) {
+        <button
+          type="button"
+          class="ag-btn ag-btn--primary"
+          (click)="openGiveLoan()"
+          data-testid="give-loan-btn"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span class="btn-text-full">Give Customer Loan</span>
+          <span class="btn-text-mobile">Give Loan</span>
+        </button>
+      }
+    </div>
+  </header>
+
+  <!-- Error Alert -->
+  @if (errorMessage()) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="danger" [message]="errorMessage()!" role="alert" />
+    </div>
+  }
+
+  <!-- Filter & Control Toolbar -->
+  <section class="toolbar" aria-label="Filters and view controls">
+    <div class="toolbar__filters">
+      <!-- Search Input -->
+      <div class="search-field">
+        <svg class="search-field__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          class="search-field__input"
+          type="search"
+          [value]="search()"
+          (input)="onSearch($any($event.target).value)"
+          placeholder="Search loans…"
+          aria-label="Search loans"
+          data-testid="loans-search-input"
+        />
+      </div>
+
+      <!-- Status Filter -->
+      <div class="filter-field">
+        <label for="loan-status-filter" class="filter-label">Status</label>
+        <select
+          id="loan-status-filter"
+          class="ag-input filter-select"
+          [value]="statusFilter()"
+          (change)="onStatusChange($any($event.target).value)"
+          data-testid="loans-status-filter"
+        >
+          <option value="all">All statuses</option>
+          <option value="open">Open</option>
+          <option value="partially_repaid">Partially Repaid</option>
+          <option value="repaid">Repaid</option>
+          <option value="reversed">Reversed</option>
+        </select>
+      </div>
+
+      <!-- Date Range: From -->
+      <div class="filter-field">
+        <label for="loan-from-date" class="filter-label">From</label>
+        <input
+          id="loan-from-date"
+          type="date"
+          class="ag-input filter-date"
+          [value]="fromDate()"
+          (change)="onFromDateChange($any($event.target).value)"
+          data-testid="loans-from-date"
+        />
+      </div>
+
+      <!-- Date Range: To -->
+      <div class="filter-field">
+        <label for="loan-to-date" class="filter-label">To</label>
+        <input
+          id="loan-to-date"
+          type="date"
+          class="ag-input filter-date"
+          [value]="toDate()"
+          (change)="onToDateChange($any($event.target).value)"
+          data-testid="loans-to-date"
+        />
+      </div>
+    </div>
+  </section>
+
+  <!-- Content State -->
+  @if (loading()) {
+    <agrivio-ui-loading-state label="Loading customer loans…" />
+  } @else if (loans().length === 0) {
+    <div class="empty-state-wrap" data-testid="loans-empty-state">
+      @if (isFiltered()) {
+        <agrivio-ui-empty-state
+          title="No customer loans match your filters"
+          description="Try adjusting your status, date, or search parameters."
+        />
+      } @else {
+        <agrivio-ui-empty-state
+          title="No customer loans yet"
+          description="Customer loans recorded will appear here."
+        />
+      }
+    </div>
+  } @else {
+    <!-- Desktop Table View -->
+    <div class="table-container loans-table-desktop">
+      <table class="ag-table" data-testid="loans-table">
+        <thead>
+          <tr>
+            <th scope="col">Date</th>
+            <th scope="col">Customer</th>
+            <th scope="col">Reference</th>
+            <th scope="col">Principal</th>
+            <th scope="col">Repaid</th>
+            <th scope="col">Outstanding</th>
+            <th scope="col">Due Date</th>
+            <th scope="col">Status</th>
+            <th scope="col" class="ag-table__col--actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (loan of loans(); track loan.id) {
+            <tr data-testid="loan-row">
+              <td>{{ loan.businessDate }}</td>
+              <td>
+                <a [routerLink]="['/app/customers', loan.customerId]" class="customer-link" data-testid="loan-customer-link">
+                  {{ customerName(loan.customerId) }}
+                </a>
+              </td>
+              <td>{{ loan.reference || '—' }}</td>
+              <td class="tabular-num font-semibold">PKR {{ loan.principal.amount }}</td>
+              <td class="tabular-num text-success">PKR {{ loan.repaid.amount }}</td>
+              <td class="tabular-num text-outstanding font-semibold">PKR {{ loan.outstanding.amount }}</td>
+              <td>{{ loan.dueDate || '—' }}</td>
+              <td>
+                <agrivio-ui-status-badge
+                  [label]="humanStatus(loan.status)"
+                  [tone]="statusTone(loan.status)"
+                />
+              </td>
+              <td class="ag-table__col--actions">
+                <div class="row-actions">
+                  <button
+                    type="button"
+                    class="ag-btn ag-btn--ghost ag-btn--sm"
+                    (click)="openDetails(loan)"
+                    data-testid="loan-view-details-btn"
+                  >
+                    Details
+                  </button>
+                  @if (canRepay(loan)) {
+                    <button
+                      type="button"
+                      class="ag-btn ag-btn--secondary ag-btn--sm"
+                      (click)="openRepay(loan)"
+                      data-testid="loan-record-repayment-btn"
+                    >
+                      Repay
+                    </button>
+                  }
+                  @if (canReverse(loan)) {
+                    <button
+                      type="button"
+                      class="ag-btn ag-btn--ghost ag-btn--sm text-danger"
+                      (click)="openReverse(loan)"
+                      data-testid="loan-reverse-btn"
+                    >
+                      Reverse
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mobile Card View -->
+    <div class="loans-cards-mobile" data-testid="loans-mobile-list">
+      @for (loan of loans(); track loan.id) {
+        <article class="loan-card" data-testid="loan-mobile-card">
+          <div class="loan-card__header">
+            <div>
+              <a [routerLink]="['/app/customers', loan.customerId]" class="loan-card__customer">
+                {{ customerName(loan.customerId) }}
+              </a>
+              <p class="loan-card__ref">{{ loan.reference || loan.id }} · {{ loan.businessDate }}</p>
+            </div>
+            <agrivio-ui-status-badge
+              [label]="humanStatus(loan.status)"
+              [tone]="statusTone(loan.status)"
+            />
+          </div>
+
+          <div class="loan-card__amounts">
+            <div>
+              <span class="loan-card__label">Principal</span>
+              <strong>PKR {{ loan.principal.amount }}</strong>
+            </div>
+            <div>
+              <span class="loan-card__label">Repaid</span>
+              <strong class="text-success">PKR {{ loan.repaid.amount }}</strong>
+            </div>
+            <div>
+              <span class="loan-card__label">Outstanding</span>
+              <strong class="text-outstanding">PKR {{ loan.outstanding.amount }}</strong>
+            </div>
+          </div>
+
+          <div class="loan-card__footer">
+            <button
+              type="button"
+              class="ag-btn ag-btn--ghost ag-btn--sm"
+              (click)="openDetails(loan)"
+            >
+              Details
+            </button>
+            @if (canRepay(loan)) {
+              <button
+                type="button"
+                class="ag-btn ag-btn--secondary ag-btn--sm"
+                (click)="openRepay(loan)"
+              >
+                Record Repayment
+              </button>
+            }
+            @if (canReverse(loan)) {
+              <button
+                type="button"
+                class="ag-btn ag-btn--ghost ag-btn--sm text-danger"
+                (click)="openReverse(loan)"
+              >
+                Reverse
+              </button>
+            }
+          </div>
+        </article>
+      }
+    </div>
+
+    <!-- Pagination -->
+    <agrivio-ui-pagination
+      [page]="page()"
+      [pageSize]="pageSize()"
+      [total]="total()"
+      (pageChange)="onPageChange($event)"
+    />
+  }
+</div>
+
+<!-- Give Customer Loan Dialog -->
+<agrivio-give-loan-dialog
+  [open]="giveLoanOpen()"
+  (dismiss)="closeGiveLoan()"
+  (loanCreated)="onLoanCreated()"
+/>
+
+<!-- Repay Loan Dialog -->
+<agrivio-repay-loan-dialog
+  [open]="repayLoanOpen()"
+  [loan]="selectedLoan()"
+  (dismiss)="closeRepay()"
+  (repaymentRecorded)="onRepaymentRecorded()"
+/>
+
+<!-- Reverse Loan Dialog -->
+<agrivio-reverse-loan-dialog
+  [open]="reverseLoanOpen()"
+  [loan]="selectedLoan()"
+  (dismiss)="closeReverse()"
+  (loanReversed)="onLoanReversed()"
+/>
+
+<!-- Loan Detail Dialog -->
+<agrivio-loan-detail-dialog
+  [open]="detailLoanOpen()"
+  [loanId]="selectedLoan()?.id ?? null"
+  (dismiss)="closeDetails()"
+  (refreshNeeded)="reload()"
+/>

@@ -1,0 +1,292 @@
+<div class="movements-container" data-testid="account-movements-section">
+  <!-- Toolbar Filters -->
+  <div class="filter-toolbar">
+    <div class="filter-toolbar__filters">
+      <!-- Search input -->
+      <div class="filter-toolbar__search">
+        <svg
+          class="filter-toolbar__search-icon"
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input
+          type="search"
+          class="filter-toolbar__search-input"
+          placeholder="Search by reference, reason, notes…"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="onSearchChange($event)"
+          data-testid="movements-search"
+        />
+      </div>
+
+      <!-- Direction Filter -->
+      <select
+        class="filter-toolbar__select"
+        [ngModel]="directionFilter()"
+        (ngModelChange)="onDirectionChange($event)"
+        aria-label="Filter by direction"
+        data-testid="movements-direction-filter"
+      >
+        <option value="all">All Directions</option>
+        <option value="inflow">Inflow Only (+)</option>
+        <option value="outflow">Outflow Only (-)</option>
+      </select>
+
+      <!-- Date Filters -->
+      <div class="date-filter-group">
+        <input
+          type="date"
+          class="filter-toolbar__date-input"
+          [ngModel]="fromDate()"
+          (ngModelChange)="onFromDateChange($event)"
+          aria-label="From date"
+          placeholder="From"
+          data-testid="movements-from-date"
+        />
+        <span class="date-separator">to</span>
+        <input
+          type="date"
+          class="filter-toolbar__date-input"
+          [ngModel]="toDate()"
+          (ngModelChange)="onToDateChange($event)"
+          aria-label="To date"
+          placeholder="To"
+          data-testid="movements-to-date"
+        />
+      </div>
+    </div>
+
+    <div class="filter-toolbar__actions">
+      @if (hasActiveFilters()) {
+        <button class="filter-toolbar__clear" type="button" (click)="clearFilters()">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+          Clear filters
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Alerts -->
+  @if (errorMessage()) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="danger" [message]="errorMessage()!" role="alert" />
+    </div>
+  }
+  @if (successMessage()) {
+    <div class="alert-container">
+      <agrivio-ui-alert tone="success" [message]="successMessage()!" />
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="state-container">
+      <agrivio-ui-loading-state label="Loading movement history…" />
+    </div>
+  } @else if (movements().length === 0) {
+    <agrivio-ui-empty-state
+      title="No movements found"
+      message="There are no posted movements matching the selected criteria."
+    />
+  } @else {
+    <!-- Desktop Table -->
+    <div class="table-container" data-testid="movements-table">
+      <table class="ag-table">
+        <thead>
+          <tr>
+            <th class="ag-table__th">Date</th>
+            <th class="ag-table__th">Account</th>
+            <th class="ag-table__th">Transaction Type</th>
+            <th class="ag-table__th">Reference</th>
+            <th class="ag-table__th ag-table__th--amount">In (PKR)</th>
+            <th class="ag-table__th ag-table__th--amount">Out (PKR)</th>
+            <th class="ag-table__th">Reason / Notes</th>
+            <th class="ag-table__th">Status</th>
+            @if (canReverseMovementComputed() || canReverseTransferComputed()) {
+              <th class="ag-table__th ag-table__th--actions">Actions</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of movements(); track item.id) {
+            <tr class="ag-table__row" [class.ag-table__row--reversed]="item.status === 'reversed'">
+              <!-- Date -->
+              <td class="ag-table__td ag-table__td--date">
+                <span class="date-main">{{ item.businessDate || item.postedAt | agDate }}</span>
+                <span class="date-sub">{{ item.postedAt | agDateTime }}</span>
+              </td>
+
+              <!-- Account -->
+              <td class="ag-table__td">
+                <span class="account-name">{{ currentAccountName() || 'Account' }}</span>
+              </td>
+
+              <!-- Transaction Type -->
+              <td class="ag-table__td">
+                <div class="tx-type-wrap">
+                  <span class="tx-title font-medium">{{ getTransactionTitle(item) }}</span>
+                  @if (getTransferSubtext(item); as subtext) {
+                    <span class="tx-subtext">{{ subtext }}</span>
+                  }
+                </div>
+              </td>
+
+              <!-- Reference -->
+              <td class="ag-table__td">
+                <span class="reference-val">{{ item.reference || '—' }}</span>
+              </td>
+
+              <!-- In -->
+              <td class="ag-table__td ag-table__td--amount in-col">
+                @if (isInflow(item)) {
+                  <span class="amount-val amount-val--in">+{{ formatAmount(item.signedAmount.amount) }}</span>
+                } @else {
+                  <span class="amount-val--dash">—</span>
+                }
+              </td>
+
+              <!-- Out -->
+              <td class="ag-table__td ag-table__td--amount out-col">
+                @if (!isInflow(item)) {
+                  <span class="amount-val amount-val--out">-{{ formatAmount(item.signedAmount.amount) }}</span>
+                } @else {
+                  <span class="amount-val--dash">—</span>
+                }
+              </td>
+
+              <!-- Reason / Notes -->
+              <td class="ag-table__td">
+                <div class="reason-notes-cell">
+                  <span class="reason-text">{{ getReasonText(item) }}</span>
+                  @if (item.category && item.category !== 'unclassified') {
+                    <span class="category-badge">{{ item.category }}</span>
+                  }
+                </div>
+              </td>
+
+              <!-- Status -->
+              <td class="ag-table__td">
+                <agrivio-ui-status-badge
+                  [label]="item.status === 'reversed' ? 'Reversed' : 'Posted'"
+                  [tone]="item.status === 'reversed' ? 'neutral' : 'success'"
+                />
+              </td>
+
+              <!-- Actions -->
+              @if (canReverseMovementComputed() || canReverseTransferComputed()) {
+                <td class="ag-table__td ag-table__td--actions">
+                  @if (isReversible(item)) {
+                    <button
+                      type="button"
+                      class="ag-btn ag-btn--secondary ag-btn--sm"
+                      (click)="openReversal(item)"
+                      data-testid="reverse-movement-btn"
+                    >
+                      Reverse
+                    </button>
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mobile Cards -->
+    <div class="movement-cards">
+      @for (item of movements(); track item.id) {
+        <article class="movement-card" [class.movement-card--reversed]="item.status === 'reversed'">
+          <div class="movement-card__header">
+            <div>
+              <div class="movement-card__title">{{ getTransactionTitle(item) }}</div>
+              <div class="movement-card__date">{{ item.businessDate || item.postedAt | agDate }}</div>
+            </div>
+            <agrivio-ui-status-badge
+              [label]="item.status === 'reversed' ? 'Reversed' : 'Posted'"
+              [tone]="item.status === 'reversed' ? 'neutral' : 'success'"
+            />
+          </div>
+
+          @if (getTransferSubtext(item); as subtext) {
+            <div class="movement-card__subtext">{{ subtext }}</div>
+          }
+
+          <div class="movement-card__body">
+            <div class="movement-card__row">
+              <span class="movement-card__label">Amount</span>
+              @if (isInflow(item)) {
+                <span class="amount-val amount-val--in">+PKR {{ formatAmount(item.signedAmount.amount) }}</span>
+              } @else {
+                <span class="amount-val amount-val--out">-PKR {{ formatAmount(item.signedAmount.amount) }}</span>
+              }
+            </div>
+            @if (item.reference) {
+              <div class="movement-card__row">
+                <span class="movement-card__label">Reference</span>
+                <span>{{ item.reference }}</span>
+              </div>
+            }
+            <div class="movement-card__row">
+              <span class="movement-card__label">Reason / Purpose</span>
+              <span>{{ getReasonText(item) }}</span>
+            </div>
+          </div>
+
+          @if (isReversible(item)) {
+            <div class="movement-card__actions">
+              <button
+                type="button"
+                class="ag-btn ag-btn--secondary ag-btn--sm"
+                (click)="openReversal(item)"
+              >
+                Reverse
+              </button>
+            </div>
+          }
+        </article>
+      }
+    </div>
+
+    <!-- Pagination -->
+    <agrivio-ui-pagination
+      [page]="page()"
+      [pageSize]="pageSize()"
+      [total]="total()"
+      [disabled]="loading()"
+      (pageChange)="onPageChange($event)"
+      (pageSizeChange)="onPageSizeChange($event)"
+    />
+  }
+
+  <!-- Reverse Treasury Dialog -->
+  <agrivio-reverse-treasury-dialog
+    [open]="reversalDialogOpen()"
+    [movement]="selectedMovementForReversal()"
+    [accounts]="accounts()"
+    (dismiss)="reversalDialogOpen.set(false)"
+    (reversed)="onReversalComplete()"
+  />
+</div>

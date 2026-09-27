@@ -198,6 +198,7 @@ function createInventoryService(deps) {
       organizationId,
       product.id,
       input.batchNumber,
+      session,
     );
     if (existing !== null) {
       if (
@@ -305,7 +306,12 @@ function createInventoryService(deps) {
 
     if (payload.direction === 'inbound' && stockCondition === 'unsellable') {
       costResult = {
-        costState: await store.findCostState(organizationId, scope.warehouseId, scope.productId),
+        costState: await store.findCostState(
+          organizationId,
+          scope.warehouseId,
+          scope.productId,
+          session,
+        ),
         receiptUnitCostMinorUnits: computeUnitCostMinorUnits(
           payload.inventoryValueMinorUnits,
           quantity,
@@ -323,7 +329,12 @@ function createInventoryService(deps) {
     } else if (payload.direction === 'outbound' && stockCondition === 'unsellable') {
       const unsellableValue = BigInt(String(payload.inventoryValueMinorUnits ?? '0'));
       costResult = {
-        costState: await store.findCostState(organizationId, scope.warehouseId, scope.productId),
+        costState: await store.findCostState(
+          organizationId,
+          scope.warehouseId,
+          scope.productId,
+          session,
+        ),
         receiptUnitCostMinorUnits: computeUnitCostMinorUnits(unsellableValue, quantity),
       };
       balance = await applyBalanceUnsellableOutbound(
@@ -1997,7 +2008,7 @@ function createInventoryService(deps) {
       let batchId;
 
       if (input.batchId) {
-        batch = await store.findBatchById(organizationId, input.batchId);
+        batch = await store.findBatchById(organizationId, input.batchId, session);
         if (batch === null || String(batch.productId) !== String(input.productId)) {
           throw validationFailed('batchId does not match product', [
             { field: 'batchId', message: 'batch must belong to the product' },
@@ -2072,7 +2083,7 @@ function createInventoryService(deps) {
       }
 
       if (batchId) {
-        const batch = await store.findBatchById(organizationId, batchId);
+        const batch = await store.findBatchById(organizationId, batchId, session);
         if (batch === null || String(batch.productId) !== String(input.productId)) {
           throw validationFailed('batchId does not match product', [
             { field: 'batchId', message: 'batch must belong to the product' },

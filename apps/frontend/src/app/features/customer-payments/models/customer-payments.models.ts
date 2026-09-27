@@ -33,7 +33,32 @@ export interface CustomerPaymentRecord {
   status: string;
   postedAt: string;
   postedBy: string;
+  correctionOfId?: string | null;
+  reversalPaymentId?: string | null;
+  reason?: string;
+  replacementPaymentId?: string | null;
+  correctionStatus?: 'reversed' | 'corrected' | null;
   allocations: PaymentAllocationRecord[];
+}
+
+export interface PaymentCorrectionReplacement {
+  accountId?: string;
+  amount?: MoneyAmount;
+  paymentDate?: string;
+  allocationMode?: 'general' | 'invoice_specific';
+  allocations?: SaleAllocationInput[];
+  notes?: string;
+}
+
+export interface PaymentCorrectionInput {
+  reason: string;
+  replacement?: PaymentCorrectionReplacement | null;
+}
+
+export interface PaymentCorrectionResult {
+  original: CustomerPaymentRecord;
+  reversal: CustomerPaymentRecord;
+  replacement: CustomerPaymentRecord | null;
 }
 
 export interface CustomerLedgerEffectRecord {
@@ -59,6 +84,7 @@ export interface SaleAllocationInput {
 
 export interface UnpaidSaleRecord {
   id: string;
+  targetType?: string;
   invoiceNumber: string | null;
   invoiceDate: string;
   dueDate: string | null;

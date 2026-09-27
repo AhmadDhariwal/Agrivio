@@ -2,6 +2,7 @@ import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
+import { ActivatedRoute } from '@angular/router';
 import { EMPTY, of, Subject } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -50,6 +51,15 @@ import {
 import { formatQuantity } from '../../../../shared/chart/chart-format.util';
 import { formatAppDate, formatAppDateTime } from '../../../../shared/format/date-time.util';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { FinancialPositionViewComponent } from '../../components/financial-position-view/financial-position-view.component';
+import { DailyCashViewComponent } from '../../components/daily-cash-view/daily-cash-view.component';
+import { AccountStatementViewComponent } from '../../components/account-statement-view/account-statement-view.component';
+import { TransfersViewComponent } from '../../components/transfers-view/transfers-view.component';
+import { TreasuryMovementsViewComponent } from '../../components/treasury-movements-view/treasury-movements-view.component';
+import { ManualAdjustmentsViewComponent } from '../../components/manual-adjustments-view/manual-adjustments-view.component';
+import { CustomerLoansViewComponent } from '../../components/customer-loans-view/customer-loans-view.component';
+import { SupplierRefundsViewComponent } from '../../components/supplier-refunds-view/supplier-refunds-view.component';
+import { ReconciliationViewComponent } from '../../components/reconciliation-view/reconciliation-view.component';
 
 @Component({
   selector: 'agrivio-reports-page',
@@ -63,11 +73,21 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
     UiModuleInfoComponent,
     UiPaginationComponent,
     UiSearchableDropdownComponent,
+    FinancialPositionViewComponent,
+    DailyCashViewComponent,
+    AccountStatementViewComponent,
+    TransfersViewComponent,
+    TreasuryMovementsViewComponent,
+    ManualAdjustmentsViewComponent,
+    CustomerLoansViewComponent,
+    SupplierRefundsViewComponent,
+    ReconciliationViewComponent,
   ],
   templateUrl: './reports.page.html',
   styleUrl: './reports.page.scss',
 })
 export class ReportsPage {
+  private readonly route = inject(ActivatedRoute, { optional: true });
   private readonly api = inject(ReportsApi);
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly branchesApi = inject(BranchesWarehousesApi);
@@ -203,6 +223,42 @@ export class ReportsPage {
     { value: 'day', label: 'Day' },
   ];
 
+  readonly directionOptions: FilterSelectOption[] = [
+    { value: '', label: 'All directions' },
+    { value: 'inflow', label: 'Inflow (+)' },
+    { value: 'outflow', label: 'Outflow (-)' },
+  ];
+
+  readonly accountTypeOptions: FilterSelectOption[] = [
+    { value: '', label: 'All account types' },
+    { value: 'cash', label: 'Cash' },
+    { value: 'bank', label: 'Bank' },
+    { value: 'jazzcash', label: 'JazzCash' },
+    { value: 'easypaisa', label: 'Easypaisa' },
+  ];
+
+  readonly statusOptions: FilterSelectOption[] = [
+    { value: '', label: 'All statuses' },
+    { value: 'posted', label: 'Posted' },
+    { value: 'open', label: 'Open' },
+    { value: 'repaid', label: 'Repaid' },
+    { value: 'reversed', label: 'Reversed' },
+    { value: 'cancelled', label: 'Cancelled' },
+  ];
+
+  readonly sourceTypeOptions: FilterSelectOption[] = [
+    { value: '', label: 'All source types' },
+    { value: 'customer_payment', label: 'Customer Payment' },
+    { value: 'supplier_payment', label: 'Supplier Payment' },
+    { value: 'expense', label: 'Expense Payment' },
+    { value: 'account_transfer', label: 'Account Transfer' },
+    { value: 'manual_balance_adjustment', label: 'Balance Adjustment' },
+    { value: 'customer_loan_disbursement', label: 'Customer Loan' },
+    { value: 'supplier_refund', label: 'Supplier Refund' },
+    { value: 'manual_external_inflow', label: 'External Inflow' },
+    { value: 'manual_external_outflow', label: 'External Outflow' },
+  ];
+
   readonly hasViewPermission = computed(() => this.sessionStore.hasPermission('reports.view'));
   readonly canView = computed(
     () => this.hasViewPermission() && this.capabilityService.canUseModule('reports'),
@@ -228,14 +284,18 @@ export class ReportsPage {
     const report = this.selectedReport();
     if (!report) return [];
     const required = report.required ?? [];
-    return report.filters.filter((field) => required.includes(field));
+    return report.filters.filter(
+      (field) => required.includes(field) && field !== 'page' && field !== 'pageSize',
+    );
   });
 
   readonly optionalFilters = computed<string[]>(() => {
     const report = this.selectedReport();
     if (!report) return [];
     const required = new Set(report.required ?? []);
-    return report.filters.filter((field) => !required.has(field));
+    return report.filters.filter(
+      (field) => !required.has(field) && field !== 'page' && field !== 'pageSize',
+    );
   });
 
   readonly canRunAction = computed(
@@ -315,7 +375,7 @@ export class ReportsPage {
           items.push({
             key,
             label: this.formatTotalKey(key),
-            formattedValue: `PKR ${this.formatMoney(value)}`,
+            formattedValue: `PKR ${this.formatMoney(value as string | number)}`,
           });
         }
       }
@@ -327,6 +387,16 @@ export class ReportsPage {
   constructor() {
     this.setupFilterSearchStreams();
     this.loadCatalog();
+    if (this.route) {
+      this.route.queryParams
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe((params) => {
+          const reportParam = params['report'];
+          if (reportParam && reportParam !== this.selectedKey()) {
+            this.onReportChange(reportParam);
+          }
+        });
+    }
     this.runRequests
       .pipe(
         switchMap(() => {
@@ -467,8 +537,13 @@ export class ReportsPage {
         this.catalogLoading.set(false);
         const currentKey = this.selectedKey();
         const available = this.availableCatalog();
+        const queryParamKey = this.route?.snapshot?.queryParams?.['report'];
         const first = available[0];
-        if (first && !available.some((item) => item.key === currentKey)) {
+        if (queryParamKey && available.some((item) => item.key === queryParamKey)) {
+          this.selectedKey.set(queryParamKey);
+          this.filters.set(this.getDefaultFiltersForReport(queryParamKey));
+          this.ensureLookupsForReport(queryParamKey);
+        } else if (first && !available.some((item) => item.key === currentKey)) {
           this.selectedKey.set(first.key);
           this.filters.set(this.getDefaultFiltersForReport(first.key));
           this.ensureLookupsForReport(first.key);
@@ -507,6 +582,11 @@ export class ReportsPage {
       updated['groupBy'] = 'document';
     }
 
+    // Set authoritative default for businessDate on daily cash position if not present
+    if (key === 'daily-cash-position' && allowed.has('businessDate') && !updated['businessDate']) {
+      updated['businessDate'] = new Date().toISOString().slice(0, 10);
+    }
+
     this.filters.set(updated);
     this.dataset.set(null);
     this.errorMessage.set(null);
@@ -516,6 +596,31 @@ export class ReportsPage {
 
   setFilter(field: string, value: string): void {
     this.filters.update((current) => ({ ...current, [field]: value }));
+    if (field !== 'page') {
+      this.page.set(1);
+    }
+  }
+
+  onServerPageChange(nextPage: number): void {
+    this.page.set(nextPage);
+    this.run();
+  }
+
+  isPhase4Report(key: string): boolean {
+    return [
+      'financial-position',
+      'daily-cash-position',
+      'account-statement',
+      'cash-book',
+      'bank-book',
+      'account-transfers',
+      'transfers',
+      'treasury-movements',
+      'manual-adjustments',
+      'customer-loans',
+      'supplier-refunds',
+      'financial-reconciliation',
+    ].includes(key);
   }
 
   filterValue(field: string): string {
@@ -853,6 +958,14 @@ export class ReportsPage {
     const labels: Record<string, string> = {
       fromDate: 'From date',
       toDate: 'To date',
+      asOf: 'As of date',
+      businessDate: 'Business date',
+      dueDateFrom: 'Due date from',
+      dueDateTo: 'Due date to',
+      direction: 'Direction',
+      sourceType: 'Source type',
+      status: 'Status',
+      search: 'Search',
       branchId: 'Branch',
       warehouseId: 'Warehouse',
       customerId: 'Customer',
@@ -861,6 +974,7 @@ export class ReportsPage {
       categoryId: 'Category',
       employeeId: 'Employee',
       accountId: 'Account',
+      accountType: 'Account type',
       customerType: 'Customer type',
       priceTier: 'Price tier',
       paymentStatus: 'Payment status',
@@ -920,6 +1034,9 @@ export class ReportsPage {
     if (report?.filters.includes('groupBy')) {
       defaults['groupBy'] = 'document';
     }
+    if (reportKey === 'daily-cash-position' && report?.filters.includes('businessDate')) {
+      defaults['businessDate'] = new Date().toISOString().slice(0, 10);
+    }
     return defaults;
   }
 
@@ -932,6 +1049,12 @@ export class ReportsPage {
       if (allowed.has(key) && typeof value === 'string' && value.trim() !== '') {
         clean[key] = value.trim();
       }
+    }
+    if (allowed.has('page')) {
+      clean['page'] = String(this.page());
+    }
+    if (allowed.has('pageSize')) {
+      clean['pageSize'] = String(this.pageSize());
     }
     return clean;
   }

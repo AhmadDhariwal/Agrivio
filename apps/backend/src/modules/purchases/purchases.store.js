@@ -12,7 +12,7 @@ function isDuplicateKeyError(error) {
 
 function createMongoosePurchasesStore() {
   return {
-    async listPurchases(organizationId, filter = {}, pagination = {}) {
+    async listPurchases(organizationId, filter = {}, pagination = {}, session) {
       const query = { organizationId };
       if (filter.status) {
         query.status = filter.status;
@@ -30,15 +30,30 @@ function createMongoosePurchasesStore() {
       const { skip = 0, pageSize = 25 } = pagination;
       let find = PurchaseModel.find(query).sort({ createdAt: -1, _id: -1 });
       if (hasPagination) find = find.skip(skip).limit(pageSize);
-      const [total, items] = await Promise.all([PurchaseModel.countDocuments(query).exec(), find.lean().exec()]);
+      if (session) find.session(session);
+      const count = PurchaseModel.countDocuments(query);
+      if (session) count.session(session);
+      const total = await count.exec();
+      const items = await find.lean().exec();
       return { items, total };
     },
 
-    async findPurchaseById(organizationId, id) {
+    async findPurchaseById(organizationId, id, session) {
       if (!mongoose.isValidObjectId(id)) {
         return null;
       }
-      return PurchaseModel.findOne({ _id: id, organizationId }).lean().exec();
+      const query = PurchaseModel.findOne({ _id: id, organizationId });
+      if (session) query.session(session);
+      return query.lean().exec();
+    },
+
+    async lockPostedPurchaseDependency(session, organizationId, id) {
+      if (!session || !mongoose.isValidObjectId(id)) return null;
+      return PurchaseModel.findOneAndUpdate(
+        { _id: id, organizationId, status: 'posted' },
+        { $inc: { dependencyRevision: 1 } },
+        { new: true, session },
+      ).lean().exec();
     },
 
     async insertPurchase(session, doc) {
@@ -118,7 +133,7 @@ function createInMemoryPurchasesStore() {
   let seq = 1;
 
   return {
-    async listPurchases(organizationId, filter = {}, pagination = {}) {
+    async listPurchases(organizationId, filter = {}, pagination = {}, _session) {
       const all = [...purchases.values()]
         .filter((item) => {
           if (String(item.organizationId) !== String(organizationId)) {
@@ -156,6 +171,12 @@ function createInMemoryPurchasesStore() {
         lines: record.lines.map((line) => ({ ...line })),
         landedCosts: { ...record.landedCosts },
       };
+    },
+
+    async lockPostedPurchaseDependency(_session, organizationId, id) {
+      void _session;
+      const record = await this.findPurchaseById(organizationId, id);
+      return record?.status === 'posted' ? record : null;
     },
 
     async insertPurchase(_session, doc) {

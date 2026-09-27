@@ -43,15 +43,19 @@ function paginateRows(items, pagination) {
 
 function createMongooseInventoryStore() {
   return {
-    async findBatchById(organizationId, id) {
+    async findBatchById(organizationId, id, session) {
       if (!mongoose.isValidObjectId(id)) {
         return null;
       }
-      return ProductBatchModel.findOne({ _id: id, organizationId }).lean().exec();
+      const query = ProductBatchModel.findOne({ _id: id, organizationId });
+      if (session) query.session(session);
+      return query.lean().exec();
     },
 
-    async findBatchByNumber(organizationId, productId, batchNumber) {
-      return ProductBatchModel.findOne({ organizationId, productId, batchNumber }).lean().exec();
+    async findBatchByNumber(organizationId, productId, batchNumber, session) {
+      const query = ProductBatchModel.findOne({ organizationId, productId, batchNumber });
+      if (session) query.session(session);
+      return query.lean().exec();
     },
 
     async listBatches(organizationId, filters) {
@@ -213,15 +217,15 @@ function createMongooseInventoryStore() {
       return total.toString();
     },
 
-    async findBalance(organizationId, warehouseId, productId, batchId) {
-      return InventoryBalanceModel.findOne({
+    async findBalance(organizationId, warehouseId, productId, batchId, session) {
+      const query = InventoryBalanceModel.findOne({
         organizationId,
         warehouseId,
         productId,
         batchId: batchId ?? null,
-      })
-        .lean()
-        .exec();
+      });
+      if (session) query.session(session);
+      return query.lean().exec();
     },
 
     async listBalances(organizationId, filters) {
@@ -279,10 +283,10 @@ function createMongooseInventoryStore() {
       return updated;
     },
 
-    async findCostState(organizationId, warehouseId, productId) {
-      return InventoryCostStateModel.findOne({ organizationId, warehouseId, productId })
-        .lean()
-        .exec();
+    async findCostState(organizationId, warehouseId, productId, session) {
+      const query = InventoryCostStateModel.findOne({ organizationId, warehouseId, productId });
+      if (session) query.session(session);
+      return query.lean().exec();
     },
 
     async listCostStates(organizationId, filters) {

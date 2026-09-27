@@ -1,14 +1,32 @@
 function csvEscape(value) {
-  const text = value === null || value === undefined ? '' : String(value);
+  const text = displayCell(value);
   if (/[",\n\r]/.test(text)) {
     return `"${text.replaceAll('"', '""')}"`;
   }
   return text;
 }
 
+function displayCell(value) {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'object') {
+    if (typeof value.amount === 'string') {
+      return `${value.amount}${value.currency ? ` ${value.currency}` : ''}`;
+    }
+    if (typeof value.name === 'string') return value.name;
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+
 function flattenDatasetRows(dataset) {
-  const columns = dataset.columns ?? [];
-  const rows = [...(dataset.rows ?? [])];
+  const sourceRows = dataset.rows ?? [];
+  const columns = dataset.columns?.length
+    ? dataset.columns
+    : Object.keys(sourceRows[0] ?? {}).map((key) => ({
+        key,
+        label: key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/^./, (letter) => letter.toUpperCase()),
+      }));
+  const rows = [...sourceRows];
   if (dataset.totals && Object.keys(dataset.totals).length > 0) {
     const totalsRow = {};
     for (const column of columns) {
@@ -30,7 +48,7 @@ function renderCsv(dataset) {
 }
 
 function xmlEscape(value) {
-  return String(value ?? '')
+  return displayCell(value)
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
@@ -64,7 +82,7 @@ function renderExcel(dataset) {
 }
 
 function pdfEscape(text) {
-  return String(text ?? '')
+  return displayCell(text)
     .replaceAll('\\', '\\\\')
     .replaceAll('(', '\\(')
     .replaceAll(')', '\\)');
@@ -84,7 +102,7 @@ function renderPdf(dataset) {
   }
   lines.push(columns.map((column) => column.label).join(' | '));
   for (const row of rows) {
-    lines.push(columns.map((column) => String(row[column.key] ?? '')).join(' | '));
+    lines.push(columns.map((column) => displayCell(row[column.key])).join(' | '));
   }
 
   const content = lines

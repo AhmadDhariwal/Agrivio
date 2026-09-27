@@ -200,7 +200,11 @@ function deriveAppliedTo(allocations) {
   if (posted.length === 0) {
     return null;
   }
-  const RECEIVABLE_TYPES = new Set(['sale', 'customer_opening_receivable']);
+  const RECEIVABLE_TYPES = new Set([
+    'sale',
+    'customer_opening_receivable',
+    'customer_manual_receivable',
+  ]);
   const ADVANCE_TYPES = new Set(['customer_advance']);
   let hasReceivable = false;
   let hasAdvance = false;
@@ -224,7 +228,7 @@ function deriveAppliedTo(allocations) {
   return null;
 }
 
-function toPaymentDto(record, allocations = [], customer = null) {
+function toPaymentDto(record, allocations = [], customer = null, lineage = null) {
   return {
     id: String(record['_id']),
     organizationId: String(record['organizationId']),
@@ -252,8 +256,16 @@ function toPaymentDto(record, allocations = [], customer = null) {
     postedBy: String(record['postedBy']),
     correctionOfId: record['correctionOfId'] ? String(record['correctionOfId']) : null,
     reason: record['reason'] ? String(record['reason']) : '',
-    replacementPaymentId: record['replacementPaymentId']
-      ? String(record['replacementPaymentId'])
+    reversalPaymentId: lineage?.reversalPaymentId
+      ? String(lineage.reversalPaymentId)
+      : null,
+    replacementPaymentId: lineage?.replacementPaymentId
+      ? String(lineage.replacementPaymentId)
+      : record['replacementPaymentId']
+        ? String(record['replacementPaymentId'])
+        : null,
+    correctionStatus: lineage?.correctionStatus
+      ? String(lineage.correctionStatus)
       : null,
     allocations: allocations.map((item) => ({
       id: String(item['_id']),

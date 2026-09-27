@@ -78,6 +78,8 @@ Implemented protected routes were checked against [API_DESIGN.md](../API_DESIGN.
 
 No risk acceptance was manufactured. F09-003-M1/M2/M3 Frozen HTTP capability gaps are closed. Remaining F09-003-L1 is an extra unguarded readiness probe, not a missing Frozen endpoint.
 
+Payment-correction review hardening (2026-09-26): customer replacement target reads now retain the active Mongo session; customer and supplier invoice-specific replacements share normal target validation/allocation rules (including opening and manual payable targets); list/detail DTOs derive immutable correction lineage; the Angular workflow uses cached active account options, explicit target allocations, retry-stable idempotency keys, precise cache invalidation, and accessible controls. The standalone mutable verification script was removed in favor of the isolated real-Mongo integration suite.
+
 ### Payment model review (F09-003-M1)
 
 `payments` fields `correctionOfId`, `reason`, `replacementPaymentId` are class **A/B** for Frozen `POST /api/v1/payments/:id/correct` (source-linked, auditable, unique one-correction-per-original). Original posted payments remain immutable. Unique partial index `payments_correction_of_unique`. Ledger reversal source types and account `customer_payment_correction` / `supplier_payment_correction` are required neutralizing effects, not a generic correction API.

@@ -1,0 +1,10 @@
+<header class="ag-page-header">
+  @if (eyebrow()) {
+    <p class="ag-page-header__eyebrow">{{ eyebrow() }}</p>
+  }
+  <h1>{{ title() }}</h1>
+  @if (lede()) {
+    <p class="ag-page-header__lede">{{ lede() }}</p>
+  }
+  <ng-content />
+</header>

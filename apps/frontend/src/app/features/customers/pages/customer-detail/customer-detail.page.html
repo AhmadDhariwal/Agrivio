@@ -3,139 +3,381 @@
     <div>
       <p class="eyebrow">Sales</p>
       <h1 data-testid="customer-detail-title">Customer Details</h1>
-      <p class="lede">Customer profile, credit policy, and opening balance overview.</p>
+      <p class="lede">Customer profile, credit policy, and financial overview.</p>
     </div>
     <div class="actions">
       <a class="ag-btn ag-btn--secondary" routerLink="/app/customers">Back to Customers</a>
-      @if (customer(); as item) { @if (canEdit()) {
-      <a
-        class="ag-btn ag-btn--primary"
-        [routerLink]="['/app/customers', item.id, 'edit']"
-        data-testid="customer-edit-link"
-        >Edit</a
-      >
-      } }
+      @if (customer(); as item) {
+        @if (canReceivePayment()) {
+          <a
+            class="ag-btn ag-btn--secondary"
+            [routerLink]="['/app/customer-payments/new']"
+            [queryParams]="{ customerId: item.id }"
+            data-testid="customer-receive-payment-btn"
+          >
+            Receive Payment
+          </a>
+        }
+        @if (canManageLoans()) {
+          <button
+            type="button"
+            class="ag-btn ag-btn--secondary"
+            (click)="openGiveLoan()"
+            data-testid="customer-give-loan-btn"
+          >
+            Give Loan
+          </button>
+          <button
+            type="button"
+            class="ag-btn ag-btn--secondary"
+            (click)="openRepayLoan()"
+            data-testid="customer-repay-loan-btn"
+          >
+            Repay Loan
+          </button>
+        }
+        @if (canAdjustBalance()) {
+          <button
+            type="button"
+            class="ag-btn ag-btn--secondary"
+            (click)="openAdjustBalance()"
+            data-testid="customer-adjust-balance-btn"
+          >
+            Adjust Balance
+          </button>
+        }
+        @if (canEdit()) {
+          <a
+            class="ag-btn ag-btn--primary"
+            [routerLink]="['/app/customers', item.id, 'edit']"
+            data-testid="customer-edit-link"
+          >
+            Edit
+          </a>
+        }
+      }
     </div>
   </header>
 
   @if (loading()) {
-  <agrivio-ui-loading-state label="Loading customer details…" />
+    <agrivio-ui-loading-state label="Loading customer details…" />
   } @else if (!canView()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to view this customer." />
+    <agrivio-ui-alert tone="warning" message="You do not have permission to view this customer." />
   } @else if (errorMessage(); as error) {
-  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
   } @else if (customer(); as item) {
 
-  <section class="summary" data-testid="customer-detail">
-    <article><span>Name</span><strong>{{ item.name }}</strong></article>
-    <article>
-      <span>Status</span
-      ><agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
-    </article>
-    <article>
-      <span>Customer type</span><strong>{{ formatLabel(item.customerType) }}</strong>
-    </article>
-    @if (canViewField('priceTier')) {
-    <article><span>Price tier</span><strong>{{ formatLabel(item.priceTier) }}</strong></article>
-    }
-  </section>
-
-  <section class="card">
-    <h2>Basic information</h2>
-    <dl class="facts">
-      <div>
-        <dt>Name</dt>
-        <dd>{{ item.name }}</dd>
-      </div>
-      @if (canViewField('phone')) {
-      <div>
-        <dt>Phone</dt>
-        <dd>{{ item.phone || '—' }}</dd>
-      </div>
-      }
-      <div>
-        <dt>Customer type</dt>
-        <dd>{{ formatLabel(item.customerType) }}</dd>
-      </div>
+    <!-- Summary Overview Header -->
+    <section class="summary" data-testid="customer-detail">
+      <article><span>Name</span><strong>{{ item.name }}</strong></article>
+      <article>
+        <span>Status</span>
+        <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+      </article>
+      <article>
+        <span>Customer type</span><strong>{{ formatLabel(item.customerType) }}</strong>
+      </article>
       @if (canViewField('priceTier')) {
-      <div>
-        <dt>Price tier</dt>
-        <dd>{{ formatLabel(item.priceTier) }}</dd>
-      </div>
+        <article><span>Price tier</span><strong>{{ formatLabel(item.priceTier) }}</strong></article>
       }
-      <div>
-        <dt>Status</dt>
-        <dd><agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" /></dd>
-      </div>
-      <div>
-        <dt>Record version</dt>
-        <dd>{{ item.version }}</dd>
-      </div>
-    </dl>
-  </section>
+    </section>
 
-  @if (canViewCreditSection()) {
-  <section class="card">
-    <h2>Credit policy</h2>
-    <dl class="facts">
-      <div>
-        <dt>Credit enabled</dt>
-        <dd>{{ item.creditEnabled ? 'Yes' : 'No' }}</dd>
+    <!-- Basic Information -->
+    <section class="card">
+      <h2>Basic information</h2>
+      <dl class="facts">
+        <div>
+          <dt>Name</dt>
+          <dd>{{ item.name }}</dd>
+        </div>
+        @if (canViewField('phone')) {
+          <div>
+            <dt>Phone</dt>
+            <dd>{{ item.phone || '—' }}</dd>
+          </div>
+        }
+        <div>
+          <dt>Customer type</dt>
+          <dd>{{ formatLabel(item.customerType) }}</dd>
+        </div>
+        @if (canViewField('priceTier')) {
+          <div>
+            <dt>Price tier</dt>
+            <dd>{{ formatLabel(item.priceTier) }}</dd>
+          </div>
+        }
+        <div>
+          <dt>Status</dt>
+          <dd><agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" /></dd>
+        </div>
+        <div>
+          <dt>Record version</dt>
+          <dd>{{ item.version }}</dd>
+        </div>
+      </dl>
+    </section>
+
+    <!-- Credit Policy -->
+    @if (canViewCreditSection()) {
+      <section class="card">
+        <h2>Credit policy</h2>
+        <dl class="facts">
+          <div>
+            <dt>Credit enabled</dt>
+            <dd>{{ item.creditEnabled ? 'Yes' : 'No' }}</dd>
+          </div>
+          @if (canViewField('creditLimit')) {
+            <div>
+              <dt>Credit limit</dt>
+              <dd>{{ formatMoney(item.creditLimit.amount, item.creditLimit.currency) }}</dd>
+            </div>
+          }
+          @if (canViewField('creditLimitBehaviour')) {
+            <div>
+              <dt>Limit behaviour</dt>
+              <dd>{{ formatLabel(item.creditLimitBehaviour) }}</dd>
+            </div>
+          }
+        </dl>
+      </section>
+    }
+
+    <!-- Financial Summary (Derived balances) -->
+    @if (item.derivedBalances) {
+      <section class="card" data-testid="customer-financial-summary">
+        <h2>Financial summary</h2>
+        <dl class="facts financial-facts">
+          <div>
+            <dt>Trade Receivable</dt>
+            <dd data-testid="cust-trade-receivable">
+              {{ formatMoney(item.derivedBalances.receivable.amount, item.derivedBalances.receivable.currency) }}
+            </dd>
+          </div>
+          <div>
+            <dt>Loan Receivable</dt>
+            <dd data-testid="cust-loan-receivable">
+              {{ formatMoney(item.derivedBalances.loanReceivable?.amount ?? '0.00', item.derivedBalances.loanReceivable?.currency ?? 'PKR') }}
+            </dd>
+          </div>
+          <div>
+            <dt>Customer Advance</dt>
+            <dd data-testid="cust-customer-advance">
+              {{ formatMoney(item.derivedBalances.advance.amount, item.derivedBalances.advance.currency) }}
+            </dd>
+          </div>
+          @if (item.derivedBalances.netExposure) {
+            <div>
+              <dt>Net Exposure</dt>
+              <dd data-testid="cust-net-exposure">
+                {{ formatMoney(item.derivedBalances.netExposure.amount, item.derivedBalances.netExposure.currency) }}
+              </dd>
+            </div>
+          }
+          @if (item.derivedBalances.totalExposure) {
+            <div class="highlight-fact">
+              <dt>Total Customer Exposure</dt>
+              <dd data-testid="cust-total-exposure" class="total-exposure-val">
+                {{ formatMoney(item.derivedBalances.totalExposure.amount, item.derivedBalances.totalExposure.currency) }}
+              </dd>
+            </div>
+          }
+        </dl>
+      </section>
+    }
+
+    <!-- Opening Balance (if any) -->
+    @if (item.openingBalance) {
+      <section class="card">
+        <h2>Opening balance</h2>
+        <dl class="facts">
+          <div>
+            <dt>Kind</dt>
+            <dd>{{ formatLabel(item.openingBalance.kind) }}</dd>
+          </div>
+          <div>
+            <dt>Amount</dt>
+            <dd>
+              {{ formatMoney(item.openingBalance.amount.amount, item.openingBalance.amount.currency) }}
+            </dd>
+          </div>
+          <div>
+            <dt>Status</dt>
+            <dd>{{ item.openingBalance.status }}</dd>
+          </div>
+        </dl>
+      </section>
+    }
+
+    <!-- Customer Loans Section -->
+    <section class="card" data-testid="customer-loans-section">
+      <div class="section-head">
+        <div>
+          <h2>Customer Loans</h2>
+          <p class="section-desc">Active and repaid loans disbursed to this customer.</p>
+        </div>
+        @if (canManageLoans()) {
+          <button
+            type="button"
+            class="ag-btn ag-btn--sm ag-btn--secondary"
+            (click)="openGiveLoan()"
+            data-testid="customer-section-give-loan-btn"
+          >
+            + Give Loan
+          </button>
+        }
       </div>
-      @if (canViewField('creditLimit')) {
-      <div>
-        <dt>Credit limit</dt>
-        <dd>{{ formatMoney(item.creditLimit.amount, item.creditLimit.currency) }}</dd>
-      </div>
-      } @if (canViewField('creditLimitBehaviour')) {
-      <div>
-        <dt>Limit behaviour</dt>
-        <dd>{{ formatLabel(item.creditLimitBehaviour) }}</dd>
-      </div>
+
+      @if (loadingLoans()) {
+        <agrivio-ui-loading-state label="Loading customer loans…" />
+      } @else if (loans().length === 0) {
+        <div class="empty-section" data-testid="empty-customer-loans">
+          <p>No loans recorded for this customer yet.</p>
+        </div>
+      } @else {
+        <div class="table-wrap">
+          <table class="loans-table" data-testid="customer-loans-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Reference</th>
+                <th>Principal</th>
+                <th>Repaid</th>
+                <th>Outstanding</th>
+                <th>Due Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (loan of loans(); track loan.id) {
+                <tr data-testid="customer-loan-row">
+                  <td>{{ loan.businessDate }}</td>
+                  <td>{{ loan.reference || loan.id }}</td>
+                  <td>{{ formatMoney(loan.principal.amount, loan.principal.currency) }}</td>
+                  <td>{{ formatMoney(loan.repaid.amount, loan.principal.currency) }}</td>
+                  <td class="font-semibold text-outstanding">
+                    {{ formatMoney(loan.outstanding.amount, loan.outstanding.currency) }}
+                  </td>
+                  <td>{{ loan.dueDate || '—' }}</td>
+                  <td>
+                    <agrivio-ui-status-badge
+                      [label]="formatLoanStatus(loan.status)"
+                      [tone]="loanStatusTone(loan.status)"
+                    />
+                  </td>
+                  <td class="actions-cell">
+                    <button
+                      type="button"
+                      class="cell-action-btn"
+                      (click)="openLoanDetail(loan.id)"
+                      data-testid="loan-view-detail-btn"
+                    >
+                      Details
+                    </button>
+                    @if (canManageLoans() && (loan.status === 'open' || loan.status === 'partially_repaid')) {
+                      <button
+                        type="button"
+                        class="cell-action-btn text-primary"
+                        (click)="openRepayLoan(loan)"
+                        data-testid="loan-record-repayment-btn"
+                      >
+                        Repay
+                      </button>
+                    }
+                    @if (canReverseLoan(loan)) {
+                      <button
+                        type="button"
+                        class="cell-action-btn text-danger"
+                        (click)="openReverseLoan(loan)"
+                        data-testid="loan-reverse-btn"
+                      >
+                        Reverse
+                      </button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
       }
-    </dl>
-  </section>
+    </section>
+
+    <!-- Customer Ledger Section -->
+    <section class="card" data-testid="customer-ledger-section">
+      <div class="section-head">
+        <div>
+          <h2>Customer Ledger</h2>
+          <p class="section-desc">Audit history of receivables, payments, loans, and balance adjustments.</p>
+        </div>
+      </div>
+
+      @if (loadingLedger()) {
+        <agrivio-ui-loading-state label="Loading customer ledger…" />
+      } @else if (ledgerItems().length === 0) {
+        <div class="empty-section" data-testid="empty-customer-ledger">
+          <p>No ledger entries recorded for this customer.</p>
+        </div>
+      } @else {
+        <div class="ledger-list" role="list" aria-label="Customer ledger entries">
+          @for (item of humanizedLedgerItems(); track item.id) {
+            <div class="ledger-row" role="listitem" data-testid="customer-ledger-row">
+              <div class="ledger-row__info">
+                <strong class="ledger-row__title">{{ item.title }}</strong>
+                <div class="ledger-row__meta text-muted">
+                  <span class="ledger-row__date">{{ item.date }}</span>
+                  <span class="ledger-row__dot" aria-hidden="true">·</span>
+                  <span class="ledger-row__time">{{ item.time }}</span>
+                  <span class="ledger-row__dot" aria-hidden="true">·</span>
+                  <span class="ledger-row__source">{{ item.sourceReference }}</span>
+                </div>
+              </div>
+              <span
+                class="ledger-row__amount tabular-num font-semibold"
+                [class.ledger-row__amount--credit]="item.isPositive"
+                [class.ledger-row__amount--debit]="!item.isPositive"
+                [attr.aria-label]="item.formattedAmount"
+              >
+                {{ item.formattedAmount }}
+              </span>
+            </div>
+          }
+        </div>
+      }
+    </section>
+
+    <!-- Dialogs -->
+    <agrivio-give-loan-dialog
+      [open]="giveLoanOpen()"
+      [customer]="preselectedCustomer()"
+      (closed)="onGiveLoanClosed($event)"
+    />
+
+    <agrivio-repay-loan-dialog
+      [open]="repayLoanOpen()"
+      [loan]="selectedLoan()"
+      [customerId]="item.id"
+      (closed)="onRepayLoanClosed($event)"
+    />
+
+    <agrivio-reverse-loan-dialog
+      [open]="reverseLoanOpen()"
+      [loan]="selectedLoan()"
+      (closed)="onReverseLoanClosed($event)"
+    />
+
+    <agrivio-loan-detail-dialog
+      [open]="loanDetailOpen()"
+      [loanId]="selectedLoanId()"
+      (dismiss)="onLoanDetailClosed()"
+      (refreshNeeded)="onLoanDetailClosed()"
+    />
+
+    <agrivio-adjust-customer-balance-dialog
+      [open]="adjustBalanceOpen()"
+      [customer]="preselectedCustomer()"
+      (closed)="onAdjustBalanceClosed($event)"
+    />
+
   }
-
-  @if (item.derivedBalances) {
-  <section class="card">
-    <h2>Derived balances</h2>
-    <dl class="facts">
-      <div>
-        <dt>Receivable</dt>
-        <dd>
-          {{ formatMoney(item.derivedBalances.receivable.amount,
-          item.derivedBalances.receivable.currency) }}
-        </dd>
-      </div>
-      <div>
-        <dt>Advance</dt>
-        <dd>
-          {{ formatMoney(item.derivedBalances.advance.amount, item.derivedBalances.advance.currency)
-          }}
-        </dd>
-      </div>
-    </dl>
-  </section>
-  } @if (item.openingBalance) {
-  <section class="card">
-    <h2>Opening balance</h2>
-    <dl class="facts">
-      <div>
-        <dt>Kind</dt>
-        <dd>{{ formatLabel(item.openingBalance.kind) }}</dd>
-      </div>
-      <div>
-        <dt>Amount</dt>
-        <dd>
-          {{ formatMoney(item.openingBalance.amount.amount, item.openingBalance.amount.currency) }}
-        </dd>
-      </div>
-      <div>
-        <dt>Status</dt>
-        <dd>{{ item.openingBalance.status }}</dd>
-      </div>
-    </dl>
-  </section>
-  } }
 </div>

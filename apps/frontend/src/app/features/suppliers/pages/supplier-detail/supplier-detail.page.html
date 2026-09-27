@@ -7,120 +7,254 @@
     </div>
     <div class="actions">
       <a class="ag-btn ag-btn--secondary" routerLink="/app/suppliers">Back to Suppliers</a>
-      @if (supplier(); as item) { @if (canEdit()) {
-      <a
-        class="ag-btn ag-btn--primary"
-        [routerLink]="['/app/suppliers', item.id, 'edit']"
-        data-testid="supplier-edit-link"
-        >Edit</a
-      >
-      } }
+      @if (supplier(); as item) {
+        @if (canPaySupplier()) {
+          <a
+            class="ag-btn ag-btn--secondary"
+            [routerLink]="['/app/supplier-payments/new']"
+            [queryParams]="{ supplierId: item.id }"
+            data-testid="supplier-pay-action-btn"
+          >
+            Pay Supplier
+          </a>
+        }
+        @if (canRecordRefund()) {
+          <button
+            type="button"
+            class="ag-btn ag-btn--secondary"
+            (click)="recordRefundOpen.set(true)"
+            data-testid="supplier-refund-action-btn"
+          >
+            Record Refund
+          </button>
+        }
+        @if (canAdjustBalance()) {
+          <button
+            type="button"
+            class="ag-btn ag-btn--secondary"
+            (click)="adjustBalanceOpen.set(true)"
+            data-testid="supplier-adjust-balance-action-btn"
+          >
+            Adjust Balance
+          </button>
+        }
+        @if (canEdit()) {
+          <a
+            class="ag-btn ag-btn--primary"
+            [routerLink]="['/app/suppliers', item.id, 'edit']"
+            data-testid="supplier-edit-link"
+          >
+            Edit
+          </a>
+        }
+      }
     </div>
   </header>
 
   @if (loading()) {
-  <agrivio-ui-loading-state label="Loading supplier details…" />
+    <agrivio-ui-loading-state label="Loading supplier details…" />
   } @else if (!canView()) {
-  <agrivio-ui-alert tone="warning" message="You do not have permission to view this supplier." />
+    <agrivio-ui-alert tone="warning" message="You do not have permission to view this supplier." />
   } @else if (errorMessage(); as error) {
-  <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
+    <agrivio-ui-alert tone="danger" [message]="error" role="alert" />
   } @else if (supplier(); as item) {
-
-  <section class="summary" data-testid="supplier-detail">
-    <article><span>Name</span><strong>{{ item.name }}</strong></article>
-    <article>
-      <span>Status</span
-      ><agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
-    </article>
-    @if (canViewField('contactName')) {
-    <article><span>Contact</span><strong>{{ item.contactName || '—' }}</strong></article>
-    } @if (canViewField('phone')) {
-    <article><span>Phone</span><strong>{{ item.phone || '—' }}</strong></article>
-    }
-  </section>
-
-  <section class="card">
-    <h2>Basic information</h2>
-    <dl class="facts">
-      <div>
-        <dt>Name</dt>
-        <dd>{{ item.name }}</dd>
-      </div>
+    <section class="summary" data-testid="supplier-detail">
+      <article><span>Name</span><strong>{{ item.name }}</strong></article>
+      <article>
+        <span>Status</span>
+        <agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" />
+      </article>
+      @if (canViewField('contactName')) {
+        <article><span>Contact</span><strong>{{ item.contactName || '—' }}</strong></article>
+      }
       @if (canViewField('phone')) {
-      <div>
-        <dt>Phone</dt>
-        <dd>{{ item.phone || '—' }}</dd>
-      </div>
-      } @if (canViewField('contactName')) {
-      <div>
-        <dt>Contact name</dt>
-        <dd>{{ item.contactName || '—' }}</dd>
-      </div>
-      } @if (canViewField('email')) {
-      <div>
-        <dt>Email</dt>
-        <dd>{{ item.email || '—' }}</dd>
-      </div>
+        <article><span>Phone</span><strong>{{ item.phone || '—' }}</strong></article>
       }
-      <div>
-        <dt>Status</dt>
-        <dd><agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" /></dd>
-      </div>
-      <div>
-        <dt>Record version</dt>
-        <dd>{{ item.version }}</dd>
-      </div>
-    </dl>
-  </section>
+    </section>
 
-  @if (item.derivedBalances) {
-  <section class="card">
-    <h2>Derived balances</h2>
-    <dl class="facts">
-      <div>
-        <dt>Payable</dt>
-        <dd>
-          {{ formatMoney(item.derivedBalances.payable.amount, item.derivedBalances.payable.currency)
-          }}
-        </dd>
-      </div>
-      <div>
-        <dt>Advance</dt>
-        <dd>
-          {{ formatMoney(item.derivedBalances.advance.amount, item.derivedBalances.advance.currency)
-          }}
-        </dd>
-      </div>
-      @if (item.derivedBalances.netPayable) {
-      <div>
-        <dt>Net payable</dt>
-        <dd>
-          {{ formatMoney(item.derivedBalances.netPayable.amount,
-          item.derivedBalances.netPayable.currency) }}
-        </dd>
-      </div>
-      }
-    </dl>
-  </section>
-  } @if (item.openingBalance) {
-  <section class="card">
-    <h2>Opening balance</h2>
-    <dl class="facts">
-      <div>
-        <dt>Kind</dt>
-        <dd>{{ item.openingBalance.kind }}</dd>
-      </div>
-      <div>
-        <dt>Amount</dt>
-        <dd>
-          {{ formatMoney(item.openingBalance.amount.amount, item.openingBalance.amount.currency) }}
-        </dd>
-      </div>
-      <div>
-        <dt>Status</dt>
-        <dd>{{ item.openingBalance.status }}</dd>
-      </div>
-    </dl>
-  </section>
-  } }
+    <section class="card">
+      <h2>Basic information</h2>
+      <dl class="facts">
+        <div>
+          <dt>Name</dt>
+          <dd>{{ item.name }}</dd>
+        </div>
+        @if (canViewField('phone')) {
+          <div>
+            <dt>Phone</dt>
+            <dd>{{ item.phone || '—' }}</dd>
+          </div>
+        }
+        @if (canViewField('contactName')) {
+          <div>
+            <dt>Contact name</dt>
+            <dd>{{ item.contactName || '—' }}</dd>
+          </div>
+        }
+        @if (canViewField('email')) {
+          <div>
+            <dt>Email</dt>
+            <dd>{{ item.email || '—' }}</dd>
+          </div>
+        }
+        <div>
+          <dt>Status</dt>
+          <dd><agrivio-ui-status-badge [label]="item.status" [tone]="statusTone(item.status)" /></dd>
+        </div>
+        <div>
+          <dt>Record version</dt>
+          <dd>{{ item.version }}</dd>
+        </div>
+      </dl>
+    </section>
+
+    @if (item.derivedBalances) {
+      <section class="card" data-testid="supplier-financial-summary-card">
+        <h2>Financial summary</h2>
+        <dl class="facts">
+          <div>
+            <dt>Outstanding Payable</dt>
+            <dd data-testid="supplier-detail-payable">
+              {{ formatMoney(item.derivedBalances.payable.amount, item.derivedBalances.payable.currency) }}
+            </dd>
+          </div>
+          <div>
+            <dt>Supplier Advance</dt>
+            <dd data-testid="supplier-detail-advance">
+              {{ formatMoney(item.derivedBalances.advance.amount, item.derivedBalances.advance.currency) }}
+            </dd>
+          </div>
+          @if (item.derivedBalances.netPayable) {
+            <div>
+              <dt>Net Payable</dt>
+              <dd data-testid="supplier-detail-net-payable">
+                {{ formatMoney(item.derivedBalances.netPayable.amount, item.derivedBalances.netPayable.currency) }}
+              </dd>
+            </div>
+          }
+        </dl>
+      </section>
+    }
+
+    @if (item.openingBalance) {
+      <section class="card">
+        <h2>Opening balance</h2>
+        <dl class="facts">
+          <div>
+            <dt>Kind</dt>
+            <dd>{{ item.openingBalance.kind }}</dd>
+          </div>
+          <div>
+            <dt>Amount</dt>
+            <dd>
+              {{ formatMoney(item.openingBalance.amount.amount, item.openingBalance.amount.currency) }}
+            </dd>
+          </div>
+          <div>
+            <dt>Status</dt>
+            <dd>{{ item.openingBalance.status }}</dd>
+          </div>
+        </dl>
+      </section>
+    }
+
+    <!-- Dedicated Supplier Refunds Section -->
+    @if (canViewRefunds()) {
+      <section class="card" data-testid="supplier-refunds-section">
+        <div class="card-header-with-actions">
+          <div>
+            <h2>Supplier refunds</h2>
+            <p class="section-desc">Refunds recorded when this supplier returned advance money.</p>
+          </div>
+          @if (canRecordRefund()) {
+            <button
+              type="button"
+              class="ag-btn ag-btn--secondary ag-btn--sm"
+              (click)="recordRefundOpen.set(true)"
+              data-testid="record-refund-section-btn"
+            >
+              Record Refund
+            </button>
+          }
+        </div>
+
+        @if (loadingRefunds()) {
+          <agrivio-ui-loading-state label="Loading supplier refunds…" />
+        } @else if (refunds().length === 0) {
+          <p class="ag-muted" data-testid="no-refunds-msg">No refunds recorded for this supplier.</p>
+        } @else {
+          <div class="table-responsive">
+            <table class="ag-table" data-testid="supplier-refunds-table">
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col">Reference</th>
+                  <th scope="col">Amount</th>
+                  <th scope="col">Received Into</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (refund of refunds(); track refund.id) {
+                  <tr [attr.data-testid]="'refund-row-' + refund.id">
+                    <td>{{ refund.businessDate }}</td>
+                    <td>{{ refund.reference || '—' }}</td>
+                    <td class="tabular-num font-semibold">PKR {{ refund.amount.amount }}</td>
+                    <td>{{ getAccountName(refund.accountId) }}</td>
+                    <td>
+                      <agrivio-ui-status-badge
+                        [label]="refund.status"
+                        [tone]="refund.status === 'posted' ? 'success' : 'neutral'"
+                      />
+                      @if (refund.status === 'reversed' && refund.reversalReason) {
+                        <span class="reversal-reason-text">({{ refund.reversalReason }})</span>
+                      }
+                    </td>
+                    <td>
+                      @if (refund.status === 'posted' && canReverseRefund()) {
+                        <button
+                          type="button"
+                          class="ag-btn ag-btn--secondary ag-btn--xs"
+                          (click)="openReverseRefund(refund)"
+                          [attr.data-testid]="'reverse-refund-btn-' + refund.id"
+                        >
+                          Reverse Refund
+                        </button>
+                      } @else {
+                        <span class="ag-muted">—</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+    }
+
+    <!-- Dialog Components -->
+    <agrivio-record-supplier-refund-dialog
+      [open]="recordRefundOpen()"
+      [supplier]="supplier()"
+      (refundRecorded)="onRefundRecorded()"
+      (dismiss)="recordRefundOpen.set(false)"
+    />
+
+    <agrivio-reverse-supplier-refund-dialog
+      [open]="reverseRefundOpen()"
+      [refund]="selectedRefund()"
+      [accountName]="selectedRefundAccountName()"
+      (refundReversed)="onRefundReversed()"
+      (dismiss)="reverseRefundOpen.set(false)"
+    />
+
+    <agrivio-adjust-supplier-balance-dialog
+      [open]="adjustBalanceOpen()"
+      [supplier]="supplier()"
+      (balanceAdjusted)="onBalanceAdjusted()"
+      (dismiss)="adjustBalanceOpen.set(false)"
+    />
+  }
 </div>

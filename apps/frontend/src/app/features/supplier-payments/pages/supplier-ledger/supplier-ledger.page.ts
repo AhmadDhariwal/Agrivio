@@ -281,6 +281,11 @@ export class SupplierLedgerPage {
       purchase_cancellation_allocation_reversal: 'Cancellation reversal',
       supplier_opening_payable: 'Opening payable',
       supplier_opening_advance: 'Opening advance',
+      supplier_advance_refund: 'Supplier Advance Refunded',
+      supplier_advance_refund_reversal: 'Supplier Refund Reversed',
+      supplier_payable_adjustment: 'Supplier Payable Adjustment',
+      supplier_advance_adjustment: 'Supplier Advance Adjustment',
+      supplier_balance_adjustment_reversal: 'Supplier Balance Adjustment Reversed',
     };
     return labels[type] ?? type;
   }

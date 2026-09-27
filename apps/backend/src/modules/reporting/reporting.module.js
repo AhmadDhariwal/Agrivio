@@ -13,6 +13,8 @@ function createReportingModule(options = {}) {
     customersService: options.customersService,
     locationsService: options.locationsService,
     employeesService: options.employeesService,
+    customerFinanceService: options.customerFinanceService,
+    supplierFinanceService: options.supplierFinanceService,
     resolveOrganizationTimezone: options.resolveOrganizationTimezone,
     resolvePlanEntitlements: options.resolvePlanEntitlements,
     capabilityService: options.capabilityService,

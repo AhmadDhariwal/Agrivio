@@ -393,6 +393,26 @@ function toPurchaseDto(record) {
         : String(record['cancelledAt'])
       : null,
     cancelledBy: record['cancelledBy'] ? String(record['cancelledBy']) : null,
+    originalPurchaseId: record['originalPurchaseId']
+      ? String(record['originalPurchaseId'])
+      : null,
+    replacementPurchaseId: record['replacementPurchaseId']
+      ? String(record['replacementPurchaseId'])
+      : null,
+    correctionReason: record['correctionReason'] ?? null,
+    correctedAt: record['correctedAt']
+      ? record['correctedAt'] instanceof Date
+        ? record['correctedAt'].toISOString()
+        : String(record['correctedAt'])
+      : null,
+    correctedBy: record['correctedBy'] ? String(record['correctedBy']) : null,
+    correctionStatus: record['replacementPurchaseId']
+      ? 'corrected'
+      : record['originalPurchaseId']
+        ? 'replacement'
+        : record['status'] === 'cancelled'
+          ? 'cancelled'
+          : null,
   };
 }
 
@@ -438,10 +458,33 @@ function parsePurchaseCancel(body) {
   return { expectedVersion, reason };
 }
 
+function parsePurchaseCorrect(body) {
+  assertObjectBody(body);
+  const expectedVersion = parseExpectedVersion(body);
+  if (typeof body.correctionReason !== 'string' || body.correctionReason.trim() === '') {
+    throw validationFailed('correctionReason is required', [
+      { field: 'correctionReason', message: 'correctionReason is required' },
+    ]);
+  }
+  const correctionReason = body.correctionReason.trim();
+  if (correctionReason.length > 1000) {
+    throw validationFailed('correctionReason exceeds maximum length', [
+      { field: 'correctionReason', message: 'correctionReason must be at most 1000 characters' },
+    ]);
+  }
+  const correctedPurchase = parsePurchaseDraft(body.correctedPurchase);
+  const payments = parsePurchasePost({
+    expectedVersion: 1,
+    payments: body.correctedPurchase?.payments,
+  }).payments;
+  return { expectedVersion, correctionReason, correctedPurchase, payments };
+}
+
 module.exports = {
   parsePurchaseDraft,
   parsePurchasePost,
   parsePurchaseCancel,
+  parsePurchaseCorrect,
   parseExpectedVersion,
   computeLineProductAmount,
   toPurchaseDto,

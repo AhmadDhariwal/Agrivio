@@ -1,0 +1,43 @@
+@if (items().length === 0) {
+  <div class="ag-hbar-empty">
+    <p class="ag-muted">{{ emptyLabel() }}</p>
+  </div>
+} @else {
+  <div class="ag-hbar-chart" [attr.aria-label]="title()">
+    <div class="ag-hbar-chart__list">
+      @for (item of items(); track item.label) {
+        <div class="ag-hbar-chart__item">
+          <div class="ag-hbar-chart__meta">
+            <div class="ag-hbar-chart__label-wrap">
+              @if (item.href) {
+                <a [routerLink]="item.href" class="ag-hbar-chart__link" [title]="item.label">
+                  {{ item.label }}
+                </a>
+              } @else {
+                <span class="ag-hbar-chart__name" [title]="item.label">{{ item.label }}</span>
+              }
+            </div>
+            <div class="ag-hbar-chart__values">
+              @if (item.detail) {
+                <span class="ag-hbar-chart__detail">{{ item.detail }}</span>
+              } @else {
+                <span class="ag-hbar-chart__value">{{ formatValue(item.value) }}</span>
+              }
+            </div>
+          </div>
+          <div class="ag-hbar-chart__track" aria-hidden="true">
+            <span class="ag-hbar-chart__bar" [style.width.%]="barWidth(item.value)"></span>
+          </div>
+        </div>
+      }
+    </div>
+
+    @if (scaleTicks().length > 0) {
+      <div class="ag-hbar-chart__scale" aria-hidden="true">
+        @for (tick of scaleTicks(); track tick.label) {
+          <span class="ag-hbar-chart__tick" [style.left.%]="tick.percent">{{ tick.label }}</span>
+        }
+      </div>
+    }
+  </div>
+}

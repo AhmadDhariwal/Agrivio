@@ -2,6 +2,7 @@ import {
   Component,
   computed,
   DestroyRef,
+  effect,
   ElementRef,
   HostListener,
   inject,
@@ -446,6 +447,39 @@ export class SaleEditPage {
       .subscribe(() => {
         this.formStateVersion.update((v) => v + 1);
       });
+
+    effect(() => {
+      const customerDisabled = !this.canEditCustomerField() || this.isPosted();
+      const customerTypeCtrl = this.form.controls.customerTypeMode;
+      if (customerDisabled && customerTypeCtrl.enabled) {
+        customerTypeCtrl.disable({ emitEvent: false });
+      } else if (!customerDisabled && customerTypeCtrl.disabled) {
+        customerTypeCtrl.enable({ emitEvent: false });
+      }
+
+      const customerIdCtrl = this.form.controls.customerId;
+      if (customerDisabled && customerIdCtrl.enabled) {
+        customerIdCtrl.disable({ emitEvent: false });
+      } else if (!customerDisabled && customerIdCtrl.disabled) {
+        customerIdCtrl.enable({ emitEvent: false });
+      }
+
+      const branchDisabled = this.onlyBranch();
+      const branchCtrl = this.form.controls.branchId;
+      if (branchDisabled && branchCtrl.enabled) {
+        branchCtrl.disable({ emitEvent: false });
+      } else if (!branchDisabled && branchCtrl.disabled) {
+        branchCtrl.enable({ emitEvent: false });
+      }
+
+      const warehouseDisabled = this.onlyWarehouse();
+      const warehouseCtrl = this.form.controls.warehouseId;
+      if (warehouseDisabled && warehouseCtrl.enabled) {
+        warehouseCtrl.disable({ emitEvent: false });
+      } else if (!warehouseDisabled && warehouseCtrl.disabled) {
+        warehouseCtrl.enable({ emitEvent: false });
+      }
+    });
 
     this.returnForm.controls.resolution.valueChanges.subscribe((resolution) => {
       setRequiredValidator(

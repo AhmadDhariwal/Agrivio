@@ -328,55 +328,30 @@
 }
 
 /* ==========================================================================
-   3. KPI Rows (Primary 4-Cards, Credit 3-Columns, Accounts 5-Cards)
+   3. KPI Rows (Consistent 4-Column Desktop Grid, 2-Column Responsive Grid)
    ========================================================================== */
 .kpi-row {
   display: grid;
   gap: 12px;
   width: 100%;
 
-  &--primary {
+  &--primary,
+  &--credit,
+  &--secondary {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  &--credit {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+  @media (max-width: 1023px) {
+    gap: 10px;
 
-  &--secondary {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-
-  @media (max-width: 1200px) and (min-width: 900px) {
-    &--primary {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-
-    &--credit {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    &--secondary {
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    }
-  }
-
-  @media (max-width: 899px) and (min-width: 600px) {
-    &--primary {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    &--credit {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
+    &--primary,
+    &--credit,
     &--secondary {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 
   @media (max-width: 599px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
 
     &--primary,
@@ -387,8 +362,6 @@
   }
 
   @media (max-width: 359px) {
-    grid-template-columns: 1fr;
-
     &--primary,
     &--credit,
     &--secondary {
@@ -423,9 +396,18 @@
     }
   }
 
+  &--summary,
+  &--stock {
+    grid-column: span 2;
+
+    @media (max-width: 1023px) {
+      grid-column: span 1;
+    }
+  }
+
   &__icon {
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
     border-radius: 6px;
     display: flex;
     align-items: center;
@@ -468,6 +450,7 @@
     flex-direction: column;
     min-width: 0;
     flex: 1;
+    overflow: hidden;
   }
 
   &__label {
@@ -482,14 +465,14 @@
   }
 
   &__value {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
     color: var(--ag-color-text, #0f172a);
     line-height: 1.25;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
     overflow: visible;
-    text-overflow: clip;
+    letter-spacing: -0.01em;
   }
 
   &__subtext {

@@ -2,10 +2,12 @@
   <!-- Page Header -->
   <header class="page-head">
     <div class="page-head__title-group">
-      <p class="page-head__eyebrow">PURCHASING</p>
+      <p class="page-head__eyebrow">{{ isCorrectionMode() ? 'PURCHASE CORRECTION' : 'PURCHASING' }}</p>
       <div class="page-head__heading-wrap">
         <h1 class="page-head__title">
-          @if (isCancelled()) {
+          @if (isCorrectionMode()) {
+            Correct purchase
+          } @else if (isCancelled()) {
             Cancelled purchase
           } @else if (isPosted()) {
             Posted purchase
@@ -17,8 +19,8 @@
         </h1>
         <span
           class="status-pill"
-          [class.status-pill--green]="isPosted()"
-          [class.status-pill--amber]="isDraft()"
+          [class.status-pill--green]="isPosted() && !isCorrectionMode()"
+          [class.status-pill--amber]="isDraft() || isCorrectionMode()"
           [class.status-pill--red]="isCancelled()"
           data-testid="purchase-status-badge"
         >
@@ -26,10 +28,15 @@
         </span>
       </div>
       <p class="page-head__lede">
-        @if (isCancelled()) { This purchase was cancelled. All inventory and payable effects have
-        been reversed. } @else if (isPosted()) { Posted purchases are immutable. Totals and
-        snapshots below are authoritative. } @else { Drafts are unposted. Saving does not update
-        inventory or supplier payables until you post. }
+        @if (isCorrectionMode()) {
+          Correcting {{ originalPurchaseRef() }} — original purchase remains posted historically and will be reversed when correction succeeds.
+        } @else if (isCancelled()) {
+          This purchase was cancelled. All inventory and payable effects have been reversed.
+        } @else if (isPosted()) {
+          Posted purchases are immutable. Totals and snapshots below are authoritative.
+        } @else {
+          Drafts are unposted. Saving does not update inventory or supplier payables until you post.
+        }
       </p>
     </div>
 
@@ -69,7 +76,28 @@
   </div>
   } @else {
   <!-- Status Banners -->
-  @if (isCancelled()) {
+  @if (isCorrectionMode()) {
+  <div class="ag-alert ag-alert--warning correction-banner" data-testid="purchase-correcting-banner">
+    <div class="banner-content">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+      </svg>
+      <div>
+        <strong>Correcting Purchase #{{ originalPurchaseRef() }}</strong> — modifying this purchase will post a new replacement purchase and reverse the original purchase with compensating entries.
+      </div>
+    </div>
+  </div>
+  } @else if (isCancelled()) {
   <div class="ag-alert ag-alert--danger cancelled-banner" data-testid="purchase-cancelled-banner">
     <div class="banner-content">
       <svg
@@ -97,7 +125,7 @@
     </div>
   </div>
   } @else if (isPosted()) {
-  <div class="ag-alert ag-alert--success posted-banner" data-testid="purchase-posted-banner">
+  <div class="ag-alert ag-alert--warning posted-banner" data-testid="purchase-posted-banner">
     <div class="banner-content">
       <svg
         width="18"
@@ -109,10 +137,14 @@
         stroke-linecap="round"
         stroke-linejoin="round"
       >
-        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+        <line x1="12" y1="9" x2="12" y2="13"></line>
+        <line x1="12" y1="17" x2="12.01" y2="17"></line>
       </svg>
-      <div><strong>Posted</strong> — inventory, payable, and payment effects are locked.</div>
+      <div>
+        <strong>Posted Purchase</strong> — posted purchases cannot be edited directly. To make corrections, use
+        <a [routerLink]="['/app/purchases', purchaseId(), 'correct']" class="font-semibold text-primary underline" data-testid="correct-purchase-link">Correct Purchase</a>.
+      </div>
     </div>
   </div>
   } @else {
@@ -151,7 +183,7 @@
   <!-- ========================================================================= -->
   <!-- 1. POSTED / CANCELLED PURCHASE READ-ONLY DETAIL VIEW                     -->
   <!-- ========================================================================= -->
-  @if ((isPosted() || isCancelled()) && purchase(); as posted) {
+  @if ((isPosted() || isCancelled()) && !isCorrectionMode() && purchase(); as posted) {
   <div class="posted-view-container" data-testid="purchase-posted-view">
     <!-- 5 KPI Summary Cards -->
     <section
@@ -699,15 +731,79 @@
   }
 
   <!-- ========================================================================= -->
-  <!-- 2. DRAFT CREATION & EDITING FORM VIEW                                    -->
+  <!-- 2. DRAFT & CORRECTION FORM VIEW                                          -->
   <!-- ========================================================================= -->
-  @if (isDraft()) {
+  @if (isDraft() || isCorrectionMode()) {
   <form
     class="draft-form-container"
     [formGroup]="form"
-    (ngSubmit)="save()"
+    (ngSubmit)="isCorrectionMode() ? postCorrection() : save()"
     data-testid="purchase-form"
   >
+    <!-- Card 0: Correction Reason (Correction Mode Only) -->
+    @if (isCorrectionMode()) {
+    <section class="section-card correction-reason-card" data-testid="correction-reason-card">
+      <div class="section-card__header">
+        <div class="section-card__header-group">
+          <div class="section-card__icon section-card__icon--amber">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+          </div>
+          <div>
+            <h2 class="section-card__title">Correction Reason (Mandatory)</h2>
+            <p class="section-card__subtitle">
+              Explain why this purchase is being corrected. This reason is recorded in audit logs and financial history.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="section-card__body">
+        <div class="ag-field form-field">
+          <agrivio-ui-field-label
+            label="Correction reason"
+            for="purchase-correction-reason"
+            [required]="true"
+          />
+          <textarea
+            id="purchase-correction-reason"
+            class="ag-input correction-reason-textarea"
+            formControlName="correctionReason"
+            rows="3"
+            placeholder="Explain why this purchase is being corrected (e.g. incorrect quantities recorded, wrong unit cost, adjusted landed costs)…"
+            maxlength="1000"
+            aria-required="true"
+            data-testid="correction-reason-input"
+            [class.is-invalid]="formSubmitAttempted() && !isCorrectionReasonValid()"
+          ></textarea>
+          <div class="field-meta">
+            @if (formSubmitAttempted() && !isCorrectionReasonValid()) {
+              <p class="field-error" role="alert" data-testid="correction-reason-error">
+                Correction reason is required (1 to 1000 characters).
+              </p>
+            } @else {
+              <span></span>
+            }
+            <span class="char-count" [class.char-count--warn]="form.controls.correctionReason.value.length > 900">
+              {{ form.controls.correctionReason.value.length }} / 1000
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+    }
+
     <!-- Card 1: Purchase Information -->
     <section class="section-card" data-testid="purchase-info-card">
       <div class="section-card__header">
@@ -1326,71 +1422,246 @@
       }
     </div>
 
+    <!-- Section: Impact Preview (Correction Mode Only) -->
+    @if (isCorrectionMode()) {
+    <section class="section-card impact-preview-card" data-testid="impact-preview-card">
+      <div class="section-card__header">
+        <div class="section-card__header-group">
+          <div class="section-card__icon section-card__icon--blue">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+            </svg>
+          </div>
+          <div>
+            <h2 class="section-card__title">Impact Preview (Original vs Replacement)</h2>
+            <p class="section-card__subtitle">Review changes and net compensating adjustments before posting.</p>
+          </div>
+        </div>
+      </div>
+      <div class="section-card__body">
+        <!-- Top KPI comparison grid -->
+        <div class="preview-kpi-grid">
+          <div class="preview-kpi-card" data-testid="preview-kpi-goods">
+            <span class="preview-kpi-card__label">Original Goods</span>
+            <span class="preview-kpi-card__orig tabular-num">PKR {{ formatAmount(purchase()?.goodsTotal?.amount) }}</span>
+            <span class="preview-kpi-card__label">Replacement Goods</span>
+            <span class="preview-kpi-card__rep tabular-num">PKR {{ formatAmount(formLinesSummary().totalGoods.toFixed(2)) }}</span>
+            <span
+              class="preview-kpi-card__diff"
+              [class.diff-neg]="previewDiffs().goodsDiff < 0"
+              [class.diff-pos]="previewDiffs().goodsDiff > 0"
+            >
+              Net: {{ previewDiffs().goodsDiff >= 0 ? '+' : '' }}PKR {{ formatAmount(previewDiffs().goodsDiff.toFixed(2)) }}
+            </span>
+          </div>
+
+          <div class="preview-kpi-card" data-testid="preview-kpi-landed">
+            <span class="preview-kpi-card__label">Original Landed</span>
+            <span class="preview-kpi-card__orig tabular-num">PKR {{ formatAmount(purchase()?.landedCostTotal?.amount) }}</span>
+            <span class="preview-kpi-card__label">Replacement Landed</span>
+            <span class="preview-kpi-card__rep tabular-num">PKR {{ formatAmount(formLandedTotal().toFixed(2)) }}</span>
+            <span
+              class="preview-kpi-card__diff"
+              [class.diff-neg]="previewDiffs().landedDiff < 0"
+              [class.diff-pos]="previewDiffs().landedDiff > 0"
+            >
+              Net: {{ previewDiffs().landedDiff >= 0 ? '+' : '' }}PKR {{ formatAmount(previewDiffs().landedDiff.toFixed(2)) }}
+            </span>
+          </div>
+
+          <div class="preview-kpi-card preview-kpi-card--accent" data-testid="preview-kpi-total">
+            <span class="preview-kpi-card__label">Original Total</span>
+            <span class="preview-kpi-card__orig tabular-num">PKR {{ formatAmount(purchase()?.purchaseTotal?.amount) }}</span>
+            <span class="preview-kpi-card__label">Replacement Total</span>
+            <span class="preview-kpi-card__rep tabular-num">PKR {{ formatAmount(formPurchaseTotal().toFixed(2)) }}</span>
+            <span
+              class="preview-kpi-card__diff font-bold"
+              [class.diff-neg]="previewDiffs().totalDiff < 0"
+              [class.diff-pos]="previewDiffs().totalDiff > 0"
+            >
+              Net: {{ previewDiffs().totalDiff >= 0 ? '+' : '' }}PKR {{ formatAmount(previewDiffs().totalDiff.toFixed(2)) }}
+            </span>
+          </div>
+
+          <div class="preview-kpi-card" data-testid="preview-kpi-payable">
+            <span class="preview-kpi-card__label">Supplier Payable Impact</span>
+            <span class="preview-kpi-card__orig tabular-num">Original: PKR {{ formatAmount(purchase()?.payableTotal?.amount) }}</span>
+            <span class="preview-kpi-card__rep tabular-num">New: PKR {{ formatAmount(formPayableTotal().toFixed(2)) }}</span>
+            <span
+              class="preview-kpi-card__diff"
+              [class.diff-neg]="previewDiffs().payableDiff < 0"
+              [class.diff-pos]="previewDiffs().payableDiff > 0"
+            >
+              Net Liability: {{ previewDiffs().payableDiff >= 0 ? '+' : '' }}PKR {{ formatAmount(previewDiffs().payableDiff.toFixed(2)) }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Line Items Comparison Table -->
+        <div class="table-container desktop-only preview-table-wrap">
+          <table class="data-table preview-table" data-testid="correction-lines-preview-table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th class="text-right">Original Qty</th>
+                <th class="text-right">New Qty</th>
+                <th class="text-right">Net Qty</th>
+                <th class="text-right">Original Cost</th>
+                <th class="text-right">New Cost</th>
+                <th class="text-right">Original Total</th>
+                <th class="text-right">New Total</th>
+                <th class="text-right">Net Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of formLinesSummary().items; track item.idx) {
+                <tr>
+                  <td>
+                    <strong>{{ item.productName }}</strong>
+                    @if (item.batchNumber !== '—' || item.originalBatchNumber !== '—') {
+                      <small class="text-muted block font-mono">Batch: {{ item.batchNumber }}</small>
+                    }
+                  </td>
+                  <td class="text-right tabular-num">{{ formatQuantity(item.originalQty) }}</td>
+                  <td class="text-right tabular-num font-medium">{{ formatQuantity(item.replacementQty) }}</td>
+                  <td
+                    class="text-right tabular-num font-medium"
+                    [class.text-danger]="item.qtyDiff < 0"
+                    [class.text-success]="item.qtyDiff > 0"
+                  >
+                    {{ item.qtyDiff >= 0 ? '+' : '' }}{{ formatQuantity(item.qtyDiff) }}
+                  </td>
+                  <td class="text-right tabular-num">PKR {{ formatAmount(item.originalCost.toFixed(2)) }}</td>
+                  <td class="text-right tabular-num font-medium">PKR {{ formatAmount(item.replacementCost.toFixed(2)) }}</td>
+                  <td class="text-right tabular-num">PKR {{ formatAmount(item.originalTotal.toFixed(2)) }}</td>
+                  <td class="text-right tabular-num font-medium">PKR {{ formatAmount(item.replacementTotal.toFixed(2)) }}</td>
+                  <td
+                    class="text-right tabular-num font-semibold"
+                    [class.text-danger]="item.totalDiff < 0"
+                    [class.text-success]="item.totalDiff > 0"
+                  >
+                    {{ item.totalDiff >= 0 ? '+' : '' }}PKR {{ formatAmount(item.totalDiff.toFixed(2)) }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Notices for Warehouse or Payment Changes -->
+        <div class="preview-notices">
+          @if (form.controls.warehouseId.value !== purchase()?.warehouseId) {
+            <div class="preview-notice preview-notice--warn" data-testid="preview-warehouse-change-notice">
+              <strong>Warehouse Changed:</strong> Received stock will be issued back from the original warehouse and received into the new selected warehouse.
+            </div>
+          }
+          @if (previewDiffs().paidDiff !== 0) {
+            <div class="preview-notice preview-notice--info" data-testid="preview-payment-change-notice">
+              <strong>Cash / Bank Settlements Adjusted:</strong> Net payment difference of {{ previewDiffs().paidDiff >= 0 ? '+' : '' }}PKR {{ formatAmount(previewDiffs().paidDiff.toFixed(2)) }}. Compensating account transactions will be posted.
+            </div>
+          }
+        </div>
+      </div>
+    </section>
+    }
+
     <!-- Form Action Bar / Footer -->
     <div class="form-footer-bar">
       <div class="form-footer-left">
         <a
           class="ag-btn ag-btn--secondary"
           [routerLink]="purchaseId() ? ['/app/purchases', purchaseId()] : ['/app/purchases']"
-          >Cancel</a
+          data-testid="purchase-form-cancel"
         >
+          Cancel
+        </a>
       </div>
       <div class="form-footer-right">
-        @if (canDiscard()) {
-        <button
-          class="ag-btn ag-btn--danger-outline"
-          type="button"
-          [disabled]="discarding() || posting()"
-          (click)="discard()"
-          data-testid="purchase-discard"
-        >
-          {{ discarding() ? 'Discarding…' : 'Discard draft' }}
-        </button>
-        } @if (purchaseId() === null ? canCreate() : canEditDraft()) {
-        <button
-          class="ag-btn ag-btn--secondary"
-          type="submit"
-          [disabled]="!canSaveDraft()"
-          data-testid="purchase-save"
-        >
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
+        @if (isCorrectionMode()) {
+          @if (canCorrect()) {
+            <button
+              class="ag-btn ag-btn--primary"
+              type="button"
+              [disabled]="posting() || (formSubmitAttempted() && (!formValid() || !isCorrectionReasonValid()))"
+              (click)="postCorrection()"
+              data-testid="post-correction-btn"
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              {{ posting() ? 'Posting Correction…' : 'Post Replacement Purchase' }}
+            </button>
+          }
+        } @else {
+          @if (canDiscard()) {
+          <button
+            class="ag-btn ag-btn--danger-outline"
+            type="button"
+            [disabled]="discarding() || posting()"
+            (click)="discard()"
+            data-testid="purchase-discard"
           >
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-            <polyline points="17 21 17 13 7 13 7 21"></polyline>
-            <polyline points="7 3 7 8 15 8"></polyline>
-          </svg>
-          {{ saving() ? 'Saving…' : 'Save draft' }}
-        </button>
-        } @if (hasPostPermission()) {
-        <button
-          class="ag-btn ag-btn--primary"
-          type="button"
-          [disabled]="!canDirectPost() || posting() || saving()"
-          (click)="saveAndPost()"
-          data-testid="purchase-post"
-        >
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
+            {{ discarding() ? 'Discarding…' : 'Discard draft' }}
+          </button>
+          } @if (purchaseId() === null ? canCreate() : canEditDraft()) {
+          <button
+            class="ag-btn ag-btn--secondary"
+            type="submit"
+            [disabled]="!canSaveDraft()"
+            data-testid="purchase-save"
           >
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-          {{ posting() ? 'Posting…' : (purchaseId() ? 'Post purchase' : 'Receive & post purchase') }}
-        </button>
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+              <polyline points="17 21 17 13 7 13 7 21"></polyline>
+              <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+            {{ saving() ? 'Saving…' : 'Save draft' }}
+          </button>
+          } @if (hasPostPermission()) {
+          <button
+            class="ag-btn ag-btn--primary"
+            type="button"
+            [disabled]="!canDirectPost() || posting() || saving()"
+            (click)="saveAndPost()"
+            data-testid="purchase-post"
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            {{ posting() ? 'Posting…' : (purchaseId() ? 'Post purchase' : 'Receive & post purchase') }}
+          </button>
+          }
         }
       </div>
     </div>

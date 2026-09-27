@@ -98,7 +98,7 @@ function createReturnsService(deps) {
     }
   }
 
-  async function resolvePurchaseSource(organizationId, purchaseId) {
+  async function resolvePurchaseSource(organizationId, purchaseId, session) {
     if (!deps.purchasesService) {
       throw validationFailed('purchasesService dependency is not configured');
     }
@@ -107,7 +107,7 @@ function createReturnsService(deps) {
         'purchasesService.getPurchaseSourceForReturn is not implemented — wire the purchases module public method',
       );
     }
-    return deps.purchasesService.getPurchaseSourceForReturn(organizationId, purchaseId);
+    return deps.purchasesService.getPurchaseSourceForReturn(organizationId, purchaseId, session);
   }
 
   async function resolveSaleSource(organizationId, saleId) {
@@ -333,6 +333,7 @@ function createReturnsService(deps) {
       resolution,
       refundAccountId,
       returnTotal,
+      tradeTargetId,
     } = input;
 
     if (resolution === 'account_refund') {
@@ -356,6 +357,17 @@ function createReturnsService(deps) {
     }
 
     if (returnTotal !== 0n) {
+      if (
+        tradeTargetId &&
+        typeof paymentsService.assertCustomerTradeTargetUnadjusted === 'function'
+      ) {
+        await paymentsService.assertCustomerTradeTargetUnadjusted(
+          organizationId,
+          customerId,
+          'sale',
+          tradeTargetId,
+        );
+      }
       await paymentsService.postCustomerReceivableEffect(session, {
         organizationId,
         customerId,
@@ -384,11 +396,25 @@ function createReturnsService(deps) {
       throw forbidden('Missing permission returns.post');
     }
 
-    const purchase = await resolvePurchaseSource(organizationId, String(existing.purchaseId));
+    const purchase = await resolvePurchaseSource(
+      organizationId,
+      String(existing.purchaseId),
+      session,
+    );
     if (!purchase || purchase.status !== 'posted') {
       throw validationFailed('Source purchase must still be posted', [
         { field: 'purchaseId', message: 'purchase must be posted' },
       ]);
+    }
+
+    if (typeof paymentsService.assertSupplierPayableTargetUnadjusted === 'function') {
+      await paymentsService.assertSupplierPayableTargetUnadjusted(
+        organizationId,
+        String(existing.supplierId),
+        'purchase',
+        String(existing.purchaseId),
+        session,
+      );
     }
 
     const postedAt = now();
@@ -742,6 +768,7 @@ function createReturnsService(deps) {
       resolution: input.resolution,
       refundAccountId: input.refundAccountId,
       returnTotal,
+      tradeTargetId: String(existing.saleId),
     });
 
     return { postedAt, postedLines, returnTotal, extraPatch: {} };
@@ -1869,16 +1896,16 @@ function createReturnsModule(options = {}) {
     store,
     returnsService,
     transactionRunner,
-    async listPurchaseReturnCredits(organizationId, purchaseId) {
-      const items = await store.listPostedReturnsByPurchase(organizationId, purchaseId);
+    async listPurchaseReturnCredits(organizationId, purchaseId, session) {
+      const items = await store.listPostedReturnsByPurchase(organizationId, purchaseId, session);
       let total = 0n;
       for (const item of items) {
         total += BigInt(String(item.returnTotalMinorUnits ?? '0'));
       }
       return total.toString();
     },
-    async listPostedReturnsByPurchase(organizationId, purchaseId) {
-      return store.listPostedReturnsByPurchase(organizationId, purchaseId);
+    async listPostedReturnsByPurchase(organizationId, purchaseId, session) {
+      return store.listPostedReturnsByPurchase(organizationId, purchaseId, session);
     },
     async listPostedReturnsBySale(organizationId, saleId) {
       return store.listPostedReturnsBySale(organizationId, saleId);

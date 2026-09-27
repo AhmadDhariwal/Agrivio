@@ -1,0 +1,82 @@
+<agrivio-ui-dialog
+  [open]="open()"
+  title="Reverse Loan Repayment"
+  description="Post a compensating reversal for an existing customer loan repayment."
+  size="md"
+  (dismiss)="onDismiss()"
+>
+  @if (repayment(); as rep) {
+    <form [formGroup]="form" (ngSubmit)="submit()" class="reverse-repayment-form" novalidate>
+      @if (errorMessage()) {
+        <agrivio-ui-alert tone="danger" [message]="errorMessage()!" role="alert" />
+      }
+
+      <div class="warning-callout">
+        <h4 class="warning-title">Reversal Impact Confirmation</h4>
+        <p class="warning-desc">
+          Reversing this repayment will post compensating accounting movements:
+        </p>
+        <ul class="impact-list">
+          <li><strong>Loan Receivable</strong> will increase by PKR {{ rep.amount.amount }}</li>
+          <li><strong>Receiving Account</strong> balance will decrease by PKR {{ rep.amount.amount }}</li>
+        </ul>
+      </div>
+
+      <div class="repay-summary-grid">
+        <div class="summary-item">
+          <span class="summary-label">Repayment ID</span>
+          <strong>{{ rep.id }}</strong>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Payment Date</span>
+          <span>{{ rep.businessDate }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Amount</span>
+          <strong>PKR {{ rep.amount.amount }}</strong>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Reference</span>
+          <span>{{ rep.reference || '—' }}</span>
+        </div>
+      </div>
+
+      <div class="form-field">
+        <agrivio-ui-field-label label="Reversal Reason" [required]="true" for="reverse-rep-reason" />
+        <textarea
+          id="reverse-rep-reason"
+          class="ag-input"
+          [class.ag-input--invalid]="formSubmitAttempted() && form.controls.reason.invalid"
+          formControlName="reason"
+          placeholder="State the audit reason for reversing this repayment"
+          rows="3"
+          maxlength="500"
+          data-testid="reverse-repayment-reason-input"
+        ></textarea>
+        @if (formSubmitAttempted() && form.controls.reason.errors?.['required']) {
+          <p class="field-error" role="alert">Reversal reason is required.</p>
+        }
+      </div>
+
+      <div dialog-actions class="dialog-actions">
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary"
+          (click)="onDismiss()"
+          [disabled]="saving()"
+          data-testid="reverse-repayment-cancel-btn"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="ag-btn ag-btn--danger"
+          [disabled]="saving()"
+          data-testid="reverse-repayment-confirm-btn"
+        >
+          {{ saving() ? 'Reversing…' : 'Confirm Repayment Reversal' }}
+        </button>
+      </div>
+    </form>
+  }
+</agrivio-ui-dialog>

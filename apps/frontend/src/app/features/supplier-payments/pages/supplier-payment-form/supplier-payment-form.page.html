@@ -70,7 +70,7 @@
                 <div class="allocation-item">
                   <div class="allocation-item__info">
                     <span class="tracking-chip tracking-chip--sm">
-                      {{ alloc.targetType === 'supplier_advance' ? 'Supplier advance' : alloc.targetType === 'supplier_opening_payable' ? 'Opening payable' : alloc.targetType }}
+                      {{ alloc.targetType === 'supplier_advance' ? 'Supplier advance' : alloc.targetType === 'supplier_opening_payable' ? 'Opening payable' : alloc.targetType === 'supplier_manual_payable' ? 'Manual payable adjustment' : alloc.targetType }}
                     </span>
                     <span class="allocation-item__target ag-muted">{{ alloc.targetId }}</span>
                   </div>

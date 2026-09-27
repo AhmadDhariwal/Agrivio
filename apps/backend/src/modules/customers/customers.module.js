@@ -79,11 +79,26 @@ function createCustomersService(deps) {
       return toCustomerDto(record);
     }
     const customerId = String(record['_id']);
-    const [receivable, advance] = await Promise.all([
+    const [receivable, loanReceivable, advance] = await Promise.all([
       ledgersService.sumCustomerReceivable(organizationId, customerId),
+      typeof ledgersService.sumCustomerLoanReceivable === 'function'
+        ? ledgersService.sumCustomerLoanReceivable(organizationId, customerId)
+        : { amount: '0.00', currency: 'PKR' },
       ledgersService.sumCustomerAdvance(organizationId, customerId),
     ]);
-    return toCustomerDto(record, { receivable, advance });
+    const receivableMinor = parseMoneyMinorUnits(receivable.amount);
+    const loanMinor = parseMoneyMinorUnits(loanReceivable.amount);
+    const advanceMinor = parseMoneyMinorUnits(advance.amount);
+    return toCustomerDto(record, {
+      receivable,
+      loanReceivable,
+      advance,
+      netExposure: { amount: formatMoneyMinorUnits(receivableMinor - advanceMinor), currency: 'PKR' },
+      totalExposure: {
+        amount: formatMoneyMinorUnits(receivableMinor + loanMinor - advanceMinor),
+        currency: 'PKR',
+      },
+    });
   }
 
   return {
@@ -101,17 +116,29 @@ function createCustomersService(deps) {
         }
         return { items: mapped, total };
       }
-      const [receivableMap, advanceMap] = await Promise.all([
+      const [receivableMap, loanMap, advanceMap] = await Promise.all([
         ledgersService.mapPartyBalances(organizationId, 'customer', 'receivable'),
+        ledgersService.mapPartyBalances(organizationId, 'customer', 'loan_receivable'),
         ledgersService.mapPartyBalances(organizationId, 'customer', 'advance'),
       ]);
       const zero = { amount: '0.00', currency: 'PKR' };
       return {
         items: items.map((item) =>
-          toCustomerDto(item, {
-            receivable: receivableMap.get(String(item['_id'])) ?? zero,
-            advance: advanceMap.get(String(item['_id'])) ?? zero,
-          }),
+          (() => {
+            const receivable = receivableMap.get(String(item['_id'])) ?? zero;
+            const loanReceivable = loanMap.get(String(item['_id'])) ?? zero;
+            const advance = advanceMap.get(String(item['_id'])) ?? zero;
+            const trade = parseMoneyMinorUnits(receivable.amount);
+            const loan = parseMoneyMinorUnits(loanReceivable.amount);
+            const prepayment = parseMoneyMinorUnits(advance.amount);
+            return toCustomerDto(item, {
+              receivable,
+              loanReceivable,
+              advance,
+              netExposure: { amount: formatMoneyMinorUnits(trade - prepayment), currency: 'PKR' },
+              totalExposure: { amount: formatMoneyMinorUnits(trade + loan - prepayment), currency: 'PKR' },
+            });
+          })(),
         ),
         total,
       };
@@ -431,6 +458,12 @@ function createCustomersService(deps) {
             }
             if (!current.openingBalance || current.openingBalance.status !== 'posted') {
               throw conflict('Customer has no posted opening balance to correct');
+            }
+            if (
+              current.openingBalance.kind === 'receivable' &&
+              typeof deps.assertOpeningReceivableCorrectionAllowed === 'function'
+            ) {
+              await deps.assertOpeningReceivableCorrectionAllowed(organizationId, customerId);
             }
             assertOptimisticVersion(current, input.expectedVersion);
 

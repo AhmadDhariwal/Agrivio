@@ -143,6 +143,24 @@ const purchaseSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    originalPurchaseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Purchase',
+      default: null,
+    },
+    replacementPurchaseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Purchase',
+      default: null,
+    },
+    correctionReason: { type: String, default: null },
+    correctedAt: { type: Date, default: null },
+    correctedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    dependencyRevision: { type: Number, required: true, default: 0 },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
@@ -157,6 +175,8 @@ purchaseSchema.index({ organizationId: 1, status: 1, createdAt: -1 });
 purchaseSchema.index({ organizationId: 1, warehouseId: 1, createdAt: -1 });
 purchaseSchema.index({ organizationId: 1, supplierId: 1, createdAt: -1 });
 purchaseSchema.index({ organizationId: 1, supplierInvoiceReferenceNormalized: 1 });
+purchaseSchema.index({ organizationId: 1, replacementPurchaseId: 1 });
+purchaseSchema.index({ organizationId: 1, originalPurchaseId: 1 });
 
 const PurchaseModel = mongoose.models['Purchase'] || mongoose.model('Purchase', purchaseSchema);
 

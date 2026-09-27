@@ -1,0 +1,58 @@
+@if (open()) {
+  <div
+    class="ag-dialog-backdrop"
+    role="presentation"
+    (click)="dismiss.emit()"
+    (keydown.escape)="dismiss.emit()"
+  >
+    <div
+      class="ag-dialog confirm-dialog"
+      role="alertdialog"
+      aria-modal="true"
+      [attr.aria-labelledby]="titleId"
+      tabindex="-1"
+      (click)="$event.stopPropagation()"
+      (keydown)="$event.stopPropagation()"
+    >
+      <div class="confirm-dialog__header">
+        <h2 [id]="titleId" class="confirm-dialog__title">{{ title() }}</h2>
+      </div>
+      <div class="confirm-dialog__body">
+        <p class="confirm-dialog__message">{{ message() }}</p>
+        @if (requireReason()) {
+          <div class="ag-field confirm-dialog__field">
+            <label class="ag-field__label" for="confirm-dialog-reason">
+              Reason <span class="confirm-dialog__required" aria-hidden="true">*</span>
+            </label>
+            <input
+              id="confirm-dialog-reason"
+              class="ag-input confirm-dialog__input"
+              type="text"
+              placeholder="Enter reason for this action (required)…"
+              [value]="reason()"
+              (input)="onReasonInput($event)"
+              data-testid="lifecycle-reason-input"
+              autocomplete="off"
+            />
+            <span class="ag-field__hint">Provide a clear operational or audit reason for this action.</span>
+          </div>
+        }
+      </div>
+      <div class="confirm-dialog__actions">
+        <button type="button" class="ag-btn ag-btn--secondary" (click)="dismiss.emit()">
+          {{ cancelLabel() }}
+        </button>
+        <button
+          type="button"
+          class="ag-btn"
+          [class.ag-btn--danger]="danger()"
+          [class.ag-btn--primary]="!danger()"
+          [disabled]="requireReason() && reason().trim() === ''"
+          (click)="confirmed.emit(reason().trim())"
+        >
+          {{ confirmLabel() }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

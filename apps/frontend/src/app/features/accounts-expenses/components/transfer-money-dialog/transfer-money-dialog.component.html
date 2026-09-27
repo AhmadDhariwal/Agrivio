@@ -1,0 +1,161 @@
+<agrivio-ui-dialog
+  [open]="open()"
+  title="Transfer Money"
+  description="Transfer funds directly between two active business accounts."
+  size="md"
+  (dismiss)="onDismiss()"
+>
+  <form [formGroup]="form" (ngSubmit)="submit()" class="transfer-form" novalidate>
+    @if (errorMessage()) {
+      <agrivio-ui-alert tone="danger" [message]="errorMessage()!" role="alert" />
+    }
+
+    <div class="form-grid">
+      <!-- From Account -->
+      <div class="form-field">
+        <agrivio-ui-field-label label="From Account" [required]="true" for="transfer-from-account" />
+        <agrivio-ui-searchable-dropdown
+          id="transfer-from-account"
+          testId="transfer-from-account"
+          formControlName="fromAccountId"
+          [options]="fromAccountOptions()"
+          placeholder="Select source account"
+          [searchable]="true"
+          [clearable]="false"
+          [serverSearch]="false"
+        />
+        @if (formSubmitAttempted() && form.controls.fromAccountId.errors?.['required']) {
+          <p class="field-error" role="alert">Source account is required.</p>
+        }
+      </div>
+
+      <!-- To Account -->
+      <div class="form-field">
+        <agrivio-ui-field-label label="To Account" [required]="true" for="transfer-to-account" />
+        <agrivio-ui-searchable-dropdown
+          id="transfer-to-account"
+          testId="transfer-to-account"
+          formControlName="toAccountId"
+          [options]="toAccountOptions()"
+          placeholder="Select destination account"
+          [searchable]="true"
+          [clearable]="false"
+          [serverSearch]="false"
+        />
+        @if (formSubmitAttempted() && form.controls.toAccountId.errors?.['required']) {
+          <p class="field-error" role="alert">Destination account is required.</p>
+        }
+        @if (formSubmitAttempted() && form.errors?.['sameAccount']) {
+          <p class="field-error" role="alert">Source and destination accounts must differ.</p>
+        }
+      </div>
+
+      <!-- Amount -->
+      <div class="form-field">
+        <agrivio-ui-field-label label="Amount (PKR)" [required]="true" for="transfer-amount" />
+        <input
+          id="transfer-amount"
+          type="text"
+          inputmode="decimal"
+          class="ag-input"
+          [class.ag-input--invalid]="formSubmitAttempted() && form.controls.amount.invalid"
+          formControlName="amount"
+          placeholder="0.00"
+          data-testid="transfer-amount-input"
+        />
+        @if (formSubmitAttempted() && form.controls.amount.errors?.['required']) {
+          <p class="field-error" role="alert">Amount is required.</p>
+        } @else if (formSubmitAttempted() && form.controls.amount.errors?.['positiveMoney']) {
+          <p class="field-error" role="alert">Amount must be greater than zero.</p>
+        }
+      </div>
+
+      <!-- Date -->
+      <div class="form-field">
+        <agrivio-ui-field-label label="Date" for="transfer-date" />
+        <input
+          id="transfer-date"
+          type="date"
+          class="ag-input"
+          formControlName="businessDate"
+          data-testid="transfer-date-input"
+        />
+      </div>
+
+      <!-- Reference -->
+      <div class="form-field">
+        <agrivio-ui-field-label label="Reference" for="transfer-reference" />
+        <input
+          id="transfer-reference"
+          type="text"
+          class="ag-input"
+          formControlName="reference"
+          placeholder="e.g. TR-2026-001 or Cheque #"
+          data-testid="transfer-reference-input"
+          maxlength="120"
+        />
+      </div>
+
+      <!-- Notes -->
+      <div class="form-field form-field--full">
+        <agrivio-ui-field-label label="Notes" for="transfer-notes" />
+        <input
+          id="transfer-notes"
+          type="text"
+          class="ag-input"
+          formControlName="notes"
+          placeholder="Optional transfer remarks"
+          data-testid="transfer-notes-input"
+          maxlength="500"
+        />
+      </div>
+    </div>
+
+    <!-- Transfer Preview -->
+    @if (preview(); as p) {
+      <div class="transfer-preview" data-testid="transfer-preview">
+        <div class="transfer-preview__title">Transfer Effect Preview</div>
+        <div class="transfer-preview__grid">
+          <div class="transfer-preview__leg">
+            <span class="transfer-preview__label">From</span>
+            <span class="transfer-preview__name">{{ p.fromName }}</span>
+            <span class="transfer-preview__delta transfer-preview__delta--out">- PKR {{ p.formattedAmount }}</span>
+          </div>
+          <div class="transfer-preview__arrow" aria-hidden="true">→</div>
+          <div class="transfer-preview__leg">
+            <span class="transfer-preview__label">To</span>
+            <span class="transfer-preview__name">{{ p.toName }}</span>
+            <span class="transfer-preview__delta transfer-preview__delta--in">+ PKR {{ p.formattedAmount }}</span>
+          </div>
+        </div>
+        <div class="transfer-preview__footer">
+          <span>Total Liquid Funds: <strong>No change</strong></span>
+          <span class="transfer-preview__neutral-badge">Balance Neutral</span>
+        </div>
+      </div>
+    }
+
+    <div dialog-actions class="dialog-actions">
+      <button
+        type="button"
+        class="ag-btn ag-btn--secondary"
+        (click)="onDismiss()"
+        [disabled]="submitting()"
+      >
+        Cancel
+      </button>
+      <button
+        type="submit"
+        class="ag-btn ag-btn--primary"
+        [disabled]="submitting() || form.invalid"
+        data-testid="transfer-submit-btn"
+      >
+        @if (submitting()) {
+          <span>Posting transfer…</span>
+        } @else {
+          <span>Post Transfer</span>
+        }
+      </button>
+    </div>
+  </form>
+</agrivio-ui-dialog>

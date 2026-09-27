@@ -21,10 +21,14 @@ export interface DashboardPayload {
   bankBalances?: MoneyDto;
   jazzCashBalance?: MoneyDto;
   easypaisaBalance?: MoneyDto;
+  otherLiquidBalances?: MoneyDto;
+  totalLiquidFunds?: MoneyDto;
   customerReceivables?: MoneyDto;
   totalReceivable?: MoneyDto;
   totalCustomerAdvance?: MoneyDto;
   netExposure?: MoneyDto;
+  totalCustomerLoanReceivable?: MoneyDto;
+  totalCustomerExposure?: MoneyDto;
   supplierPayables?: MoneyDto;
   totalSupplierPayable?: MoneyDto;
   totalSupplierAdvance?: MoneyDto;

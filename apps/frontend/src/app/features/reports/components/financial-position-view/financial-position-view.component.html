@@ -1,0 +1,149 @@
+<div class="financial-position" data-testid="financial-position-view">
+  <!-- Header -->
+  <div class="position-head">
+    <div class="position-head__info">
+      <h2 class="position-title" data-testid="financial-position-title">Financial Position</h2>
+      <p class="position-subtitle">
+        Current authoritative liquidity, customer balances, and supplier liabilities.
+        @if (dataset()?.asOf; as asOf) {
+          <span class="as-of-badge" data-testid="position-as-of">As of {{ asOf | agDateTime }}</span>
+        }
+      </p>
+    </div>
+  </div>
+
+  <!-- 1. LIQUID POSITION CARDS -->
+  <section class="position-section" aria-label="Liquid Position" data-testid="section-liquid-position">
+    <div class="section-header">
+      <div class="section-indicator section-indicator--liquid" aria-hidden="true"></div>
+      <h3 class="section-title">Liquid Position</h3>
+      <span class="section-hint">Active cash, bank accounts &amp; digital wallets</span>
+    </div>
+    <div class="cards-grid cards-grid--4">
+      <div class="summary-card" data-testid="card-cash-in-hand">
+        <span class="card-label">Cash in Hand</span>
+        <strong class="card-value">{{ formatMoney(liquid()?.cashInHand?.amount) }}</strong>
+        <span class="card-meta">Active cash accounts</span>
+      </div>
+
+      <div class="summary-card" data-testid="card-bank-balances">
+        <span class="card-label">Bank Balances</span>
+        <strong class="card-value">{{ formatMoney(liquid()?.bankBalances?.amount) }}</strong>
+        <span class="card-meta">Active bank accounts</span>
+      </div>
+
+      <div class="summary-card" data-testid="card-other-liquid">
+        <span class="card-label">Other Liquid</span>
+        <strong class="card-value">{{ formatMoney(liquid()?.otherLiquidAccounts?.amount) }}</strong>
+        <span class="card-meta">JazzCash &amp; Easypaisa</span>
+      </div>
+
+      <div class="summary-card summary-card--primary" data-testid="card-total-liquid">
+        <span class="card-label">Total Liquid Funds</span>
+        <strong class="card-value card-value--large" data-testid="total-liquid-funds-value">
+          {{ formatMoney(liquid()?.totalLiquidFunds?.amount) }}
+        </strong>
+        <span class="card-meta">Authoritative total liquidity</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. CUSTOMER POSITION CARDS -->
+  <section class="position-section" aria-label="Customer Position" data-testid="section-customer-position">
+    <div class="section-header">
+      <div class="section-indicator section-indicator--customers" aria-hidden="true"></div>
+      <h3 class="section-title">Customer Position</h3>
+      <span class="section-hint">Trade receivables, customer loans, and advances</span>
+    </div>
+    <div class="cards-grid cards-grid--5">
+      <div class="summary-card" data-testid="card-trade-receivable">
+        <span class="card-label">Trade Receivable</span>
+        <strong class="card-value">{{ formatMoney(customers()?.tradeReceivable?.amount) }}</strong>
+        <span class="card-meta">Outstanding sales balances</span>
+      </div>
+
+      <div class="summary-card" data-testid="card-customer-loan">
+        <span class="card-label">Customer Loan Receivable</span>
+        <strong class="card-value">{{ formatMoney(customers()?.customerLoanReceivable?.amount) }}</strong>
+        <span class="card-meta">Disbursed principal outstanding</span>
+      </div>
+
+      <div class="summary-card" data-testid="card-customer-advance">
+        <span class="card-label">Customer Advance</span>
+        <strong class="card-value">{{ formatMoney(customers()?.customerAdvance?.amount) }}</strong>
+        <span class="card-meta">Available customer deposits</span>
+      </div>
+
+      <div class="summary-card" data-testid="card-net-trade-exposure">
+        <span class="card-label">Net Exposure</span>
+        <strong class="card-value">{{ formatMoney(customers()?.netTradeExposure?.amount) }}</strong>
+        <span class="card-meta">Trade receivable less advance</span>
+      </div>
+
+      <div class="summary-card summary-card--primary" data-testid="card-total-customer-exposure">
+        <span class="card-label">Total Customer Exposure</span>
+        <strong class="card-value card-value--large" data-testid="total-customer-exposure-value">
+          {{ formatMoney(customers()?.totalCustomerExposure?.amount) }}
+        </strong>
+        <span class="card-meta">Trade + Loans less advance</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. SUPPLIER POSITION CARDS -->
+  <section class="position-section" aria-label="Supplier Position" data-testid="section-supplier-position">
+    <div class="section-header">
+      <div class="section-indicator section-indicator--suppliers" aria-hidden="true"></div>
+      <h3 class="section-title">Supplier Position</h3>
+      <span class="section-hint">Payables and prepaid advances</span>
+    </div>
+    <div class="cards-grid cards-grid--3">
+      <div class="summary-card" data-testid="card-supplier-payable">
+        <span class="card-label">Supplier Payable</span>
+        <strong class="card-value">{{ formatMoney(suppliers()?.supplierPayable?.amount) }}</strong>
+        <span class="card-meta">Total supplier invoices due</span>
+      </div>
+
+      <div class="summary-card" data-testid="card-supplier-advance">
+        <span class="card-label">Supplier Advance</span>
+        <strong class="card-value">{{ formatMoney(suppliers()?.supplierAdvance?.amount) }}</strong>
+        <span class="card-meta">Advance payments held with suppliers</span>
+      </div>
+
+      <div class="summary-card summary-card--primary" data-testid="card-net-supplier-payable">
+        <span class="card-label">Net Supplier Payable</span>
+        <strong class="card-value card-value--large" data-testid="net-supplier-payable-value">
+          {{ formatMoney(suppliers()?.netSupplierPayable?.amount) }}
+        </strong>
+        <span class="card-meta">Payable less advance</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Position Breakdown Table -->
+  @if (dataset()?.rows?.length) {
+    <section class="breakdown-table-wrap" aria-label="Position Metrics Breakdown">
+      <h3 class="breakdown-title">Position Summary Table</h3>
+      <div class="table-scroll">
+        <table class="data-table" data-testid="financial-position-table">
+          <thead>
+            <tr>
+              <th scope="col">Section</th>
+              <th scope="col">Metric</th>
+              <th scope="col" class="text-right">Amount (PKR)</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of dataset()!.rows; track $index) {
+              <tr>
+                <td><strong>{{ row['section'] }}</strong></td>
+                <td>{{ row['metric'] }}</td>
+                <td class="text-right num-cell">PKR {{ formatMoney(getAmount(row)) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+</div>
