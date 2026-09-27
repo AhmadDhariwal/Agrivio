@@ -282,14 +282,14 @@
                 </td> }
 
                 <!-- Type / Allocation Mode -->
-                @if (canViewField('allocationMode')) { <td class="prod-table__td">
+                @if (canViewField('allocationMode')) { <td class="prod-table__td cell-type">
                   <span class="type-pill" [class.type-pill--blue]="item.allocationMode === 'general'" [class.type-pill--purple]="item.allocationMode === 'invoice_specific'">
                     {{ item.allocationMode }}
                   </span>
                 </td> }
 
                 <!-- Supplier / Notes -->
-                @if (canViewField('notes')) { <td class="prod-table__td cell-notes">
+                @if (canViewField('notes')) { <td class="prod-table__td cell-notes" [title]="item.notes || 'General payment'">
                   <span class="notes-text" [title]="item.notes || 'General payment'">{{ item.notes || 'General payment' }}</span>
                 </td> }
 

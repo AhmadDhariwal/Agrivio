@@ -207,6 +207,7 @@
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+  row-gap: 10px;
 
   &__date-controls {
     display: flex;
@@ -221,6 +222,7 @@
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+    margin-left: auto;
   }
 
   &__btn {
@@ -344,7 +346,7 @@
 .prod-table,
 .data-table {
   width: 100%;
-  min-width: 900px;
+  min-width: 1105px;
   border-collapse: collapse;
   font-size: 13px;
   text-align: left;
@@ -364,20 +366,21 @@
   }
 
   .col-type {
-    width: 110px;
-    min-width: 110px;
-    max-width: 110px;
+    width: 125px;
+    min-width: 125px;
+    max-width: 125px;
   }
 
   .col-notes {
-    min-width: 130px;
-    width: auto;
+    width: 220px;
+    min-width: 180px;
+    max-width: 260px;
   }
 
   .col-amount {
-    width: 115px;
-    min-width: 115px;
-    max-width: 115px;
+    width: 130px;
+    min-width: 130px;
+    max-width: 130px;
   }
 
   .col-status {
@@ -471,11 +474,22 @@
   white-space: nowrap;
 }
 
+.cell-type {
+  padding-right: 14px;
+  white-space: nowrap;
+}
+
 .cell-notes {
-  max-width: 300px;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-left: 14px;
+  padding-right: 16px;
 
   .notes-text {
-    display: inline-block;
+    display: block;
+    width: 100%;
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -487,10 +501,12 @@
 .cell-amount {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  padding-left: 12px;
 
   .amount-val {
     color: var(--ag-color-text, #0f172a);
     font-size: 13px;
+    white-space: nowrap;
   }
 }
 
@@ -513,6 +529,7 @@
   border-radius: 9999px;
   line-height: 1.2;
   white-space: nowrap;
+  max-width: 100%;
   text-transform: capitalize;
   background: var(--ag-color-surface-muted, #f1f5f9);
   color: var(--ag-color-text-muted, #475569);

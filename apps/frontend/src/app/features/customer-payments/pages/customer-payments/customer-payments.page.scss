@@ -143,29 +143,20 @@
     gap: 10px;
     width: 100%;
     min-width: 0;
+    flex-wrap: nowrap;
 
     @media (max-width: 767px) {
       display: none;
-    }
-
-    @media (max-width: 1024px) {
-      flex-wrap: wrap;
-      row-gap: 8px;
     }
   }
 
   &__left {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: nowrap;
-    flex: 1;
+    flex: 1 1 auto;
     min-width: 0;
-
-    @media (max-width: 1024px) {
-      flex-wrap: wrap;
-      row-gap: 8px;
-    }
   }
 
   &__right {
@@ -173,10 +164,8 @@
     align-items: center;
     gap: 6px;
     flex-shrink: 0;
-
-    @media (max-width: 1024px) {
-      margin-left: auto;
-    }
+    margin-left: auto;
+    white-space: nowrap;
   }
 
   &__mobile {
@@ -207,9 +196,9 @@
 
 .search-field {
   position: relative;
-  min-width: 160px;
-  flex: 1 1 auto;
-  max-width: 260px;
+  min-width: 120px;
+  flex: 1 1 150px;
+  max-width: 180px;
 
   &__icon {
     position: absolute;
@@ -276,7 +265,7 @@
 .date-filter-group {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   flex-wrap: nowrap;
   flex-shrink: 0;
 }
@@ -300,10 +289,10 @@
 .date-mode-btn {
   border: none;
   background: transparent;
-  padding: 0 8px;
+  padding: 0 7px;
   height: 100%;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
   color: #64748b;
   cursor: pointer;
@@ -346,11 +335,11 @@
 
 .date-field {
   position: relative;
-  width: 138px;
+  width: 125px;
   flex-shrink: 0;
 
   &--range {
-    width: 124px;
+    width: 112px;
   }
 
   &__icon {
@@ -367,11 +356,11 @@
   &__input {
     width: 100%;
     height: 34px;
-    padding: 0 4px 0 25px;
+    padding: 0 4px 0 22px;
     background: #f8fafc;
     border: 1px solid #cbd5e1;
     border-radius: 6px;
-    font-size: 12.5px;
+    font-size: 12px;
     color: #0f172a;
     outline: none;
     font-family: var(--ag-font-sans);
@@ -407,13 +396,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 4px;
   height: 34px;
-  padding: 0 12px;
+  padding: 0 9px;
   background: #065f46;
   border: 1px solid #065f46;
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   color: #ffffff;
   cursor: pointer;
@@ -490,13 +479,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
   height: 34px;
-  padding: 0 12px;
+  padding: 0 10px;
   background: #f8fafc;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
   color: #475569;
   cursor: pointer;
@@ -526,47 +515,49 @@
 
 .prod-table {
   width: 100%;
-  min-width: 960px;
+  min-width: 1240px;
   border-collapse: collapse;
   font-size: 13px;
   text-align: left;
   table-layout: fixed;
   font-family: var(--ag-font-sans, 'Manrope', 'Segoe UI', sans-serif);
 
-  /* Level 1: Flexible Descriptive Columns (Priority Shrink: Customer -> Notes) */
+  /* Level 1: Descriptive Columns */
   .col-customer {
-    min-width: 170px;
-    width: 22%;
+    width: 175px;
+    min-width: 160px;
+    max-width: 200px;
   }
 
   .col-notes {
-    min-width: 120px;
-    width: auto;
+    width: 215px;
+    min-width: 180px;
+    max-width: 260px;
   }
 
   /* Level 2: Operational Data Columns (Fixed Stable Widths - NEVER Squeezed) */
   .col-date {
+    width: 110px;
+    min-width: 110px;
+    max-width: 110px;
+  }
+
+  .col-mode {
     width: 115px;
     min-width: 115px;
     max-width: 115px;
   }
 
-  .col-mode {
-    width: 125px;
-    min-width: 125px;
-    max-width: 125px;
-  }
-
   .col-applied-to {
-    width: 135px;
-    min-width: 135px;
-    max-width: 135px;
+    width: 170px;
+    min-width: 170px;
+    max-width: 170px;
   }
 
   .col-amount {
-    width: 120px;
-    min-width: 120px;
-    max-width: 120px;
+    width: 125px;
+    min-width: 125px;
+    max-width: 125px;
   }
 
   .col-status {
@@ -616,10 +607,20 @@
     color: #334155;
     vertical-align: middle;
 
-    &--notes {
+    &--applied-to,
+    &.cell-applied-to {
+      padding-right: 16px;
+      white-space: nowrap;
+    }
+
+    &--notes,
+    &.cell-notes {
+      max-width: 260px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      padding-left: 14px;
+      padding-right: 16px;
     }
 
     &.text-right {
@@ -659,12 +660,19 @@
 }
 
 .notes-text {
-  max-width: 320px;
+  display: block;
+  width: 100%;
+  max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  display: inline-block;
   vertical-align: middle;
+}
+
+.cell-amount {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding-left: 12px;
 }
 
 .text-dark {
@@ -681,6 +689,7 @@
   color: #0f172a;
   font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
@@ -836,8 +845,9 @@
    6. Customer Filter Dropdown
    ========================================================================== */
 .customer-filter {
-  min-width: 200px;
-  max-width: 260px;
+  min-width: 130px;
+  max-width: 175px;
+  flex: 1 1 150px;
 
   &--mobile {
     max-width: 100%;
@@ -905,6 +915,7 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   white-space: nowrap;
+  max-width: 100%;
 
   // Receivable — blue tint
   &--receivable {

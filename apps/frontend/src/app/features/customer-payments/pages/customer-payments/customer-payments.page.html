@@ -466,7 +466,7 @@
                 </td>
 
                 <!-- Applied To Chip -->
-                <td class="prod-table__td" data-testid="payment-applied-to">
+                <td class="prod-table__td cell-applied-to" data-testid="payment-applied-to">
                   @if (formatAppliedTo(item.appliedTo); as label) {
                     <span class="applied-to-chip applied-to-chip--{{ item.appliedTo }}">{{ label }}</span>
                   } @else {
@@ -476,13 +476,13 @@
 
                 <!-- Notes with Truncation -->
                 @if (canViewField('notes')) {
-                  <td class="prod-table__td prod-table__td--notes" data-testid="payment-notes" [title]="item.notes || ''">
-                    <span class="notes-text text-muted">{{ item.notes || '—' }}</span>
+                  <td class="prod-table__td prod-table__td--notes cell-notes" data-testid="payment-notes" [title]="item.notes || ''">
+                    <span class="notes-text text-muted" [title]="item.notes || ''">{{ item.notes || '—' }}</span>
                   </td>
                 }
 
                 <!-- Amount (Right-aligned, clean tabular price) -->
-                <td class="prod-table__td text-right" data-testid="payment-amount">
+                <td class="prod-table__td text-right cell-amount" data-testid="payment-amount">
                   <span class="tabular-num price-text">{{ formatCurrency(item.amount) }}</span>
                 </td>
 
