@@ -225,6 +225,7 @@ export class CustomerPaymentsPage {
         this.correctionAccountOptions.set(
           accounts.filter((account) => account.status === 'active').map(formatAccountOption),
         ),
+      error: () => this.correctionAccountOptions.set([]),
     });
 
     this.reloadRequests

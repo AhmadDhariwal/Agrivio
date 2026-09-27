@@ -145,6 +145,7 @@ export class SupplierPaymentsPage {
         this.correctionAccountOptions.set(
           accounts.filter((account) => account.status === 'active').map(formatAccountOption),
         ),
+      error: () => this.correctionAccountOptions.set([]),
     });
     this.reloadRequests
       .pipe(

@@ -6,6 +6,7 @@ import { SupplierPaymentsApi } from '../../data-access/supplier-payments.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { SupplierPaymentRecord } from '../../models/supplier-payments.models';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockPaymentRecords: SupplierPaymentRecord[] = [
@@ -96,6 +97,12 @@ describe('SupplierPaymentsPage', () => {
               perm && perm in mockPermissionsMap
                 ? mockPermissionsMap[perm]
                 : mockPermission,
+          },
+        },
+        {
+          provide: AccountsApi,
+          useValue: {
+            listAccountOptions: () => of([]),
           },
         },
         {

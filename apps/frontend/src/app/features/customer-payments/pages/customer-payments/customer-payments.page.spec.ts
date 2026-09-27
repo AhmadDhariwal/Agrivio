@@ -6,6 +6,7 @@ import { CustomerPaymentsPage } from './customer-payments.page';
 import { CustomerPaymentsApi } from '../../data-access/customer-payments.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CustomersApi } from '../../../customers/data-access/customers.api';
+import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
 import { CustomerPaymentRecord } from '../../models/customer-payments.models';
 
 describe('CustomerPaymentsPage', () => {
@@ -78,6 +79,12 @@ describe('CustomerPaymentsPage', () => {
         {
           provide: AuthSessionStore,
           useValue: { hasPermission: (perm: string) => permissionMap[perm] ?? true },
+        },
+        {
+          provide: AccountsApi,
+          useValue: {
+            listAccountOptions: () => of([]),
+          },
         },
         {
           provide: CustomersApi,
