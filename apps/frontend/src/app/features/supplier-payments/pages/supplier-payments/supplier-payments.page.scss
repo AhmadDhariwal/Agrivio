@@ -387,9 +387,9 @@
   }
 
   .col-actions {
-    width: 265px;
-    min-width: 265px;
-    max-width: 265px;
+    width: 300px;
+    min-width: 300px;
+    max-width: 300px;
   }
 
   &__th, thead th {
@@ -496,8 +496,9 @@
 
 .cell-actions {
   white-space: nowrap;
+  text-align: right;
   padding-left: 6px !important;
-  padding-right: 6px !important;
+  padding-right: 10px !important;
 }
 
 
@@ -766,8 +767,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 4px;
+  gap: 6px;
   flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .card-actions-wrap {
