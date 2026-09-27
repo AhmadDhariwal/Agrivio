@@ -865,7 +865,7 @@ describe('F05 P3 real-Mongo payments, cancellation, returns, reconciliation', ()
     await ensureConnection();
     const {
       organizationId, supplierId, warehouseId, productId, actorId,
-      accounts, inventory, purchases, paymentsService, auth,
+      accounts, inventory, purchases, returnsModule, paymentsService, auth,
     } = buildModules();
     const account = await accounts.accountsService.createAccount(
       organizationId, { name: 'Dependency cash', accountType: 'cash' }, { actorId },
@@ -980,6 +980,52 @@ describe('F05 P3 real-Mongo payments, cancellation, returns, reconciliation', ()
     await expect(correctionAttempt).rejects.toMatchObject({ code: 'CONFLICT' });
     inventory.inventoryService.postOutboundIssueInSession = originalOutbound;
     expect((await PurchaseModel.findById(racePurchase.data.id).lean().exec()).status).toBe('posted');
+
+    const returnRacePurchase = await makePosted('return-race');
+    const returnDraft = await returnsModule.returnsService.createPurchaseReturnDraft(
+      organizationId,
+      returnRacePurchase.data.id,
+      { lines: [{ originalLineIndex: 0, quantity: '1' }] },
+      auth,
+    );
+    let releaseReturn;
+    let returnReachedMovement;
+    const returnMovementReached = new Promise((resolve) => {
+      returnReachedMovement = resolve;
+    });
+    const returnRelease = new Promise((resolve) => {
+      releaseReturn = resolve;
+    });
+    let pauseReturnOnce = true;
+    inventory.inventoryService.postOutboundIssueInSession = async (...args) => {
+      if (pauseReturnOnce && args[3]?.sourceType === 'purchase_return') {
+        pauseReturnOnce = false;
+        returnReachedMovement();
+        await returnRelease;
+      }
+      return originalOutbound(...args);
+    };
+    const returnAttempt = returnsModule.returnsService.postReturn(
+      organizationId,
+      returnDraft.id,
+      { expectedVersion: returnDraft.version, reason: 'Return race', resolution: 'ledger_adjustment' },
+      auth,
+      'racing-purchase-return',
+    );
+    await returnMovementReached;
+    const correctionAgainstReturn = purchases.purchasesService.correctPurchase(
+      organizationId,
+      returnRacePurchase.data.id,
+      correctionBodyFor(returnRacePurchase, 'return-race'),
+      auth,
+      'return-race-correction',
+    );
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    releaseReturn();
+    const returnRaceResults = await Promise.allSettled([returnAttempt, correctionAgainstReturn]);
+    expect(returnRaceResults.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(returnRaceResults.filter((result) => result.status === 'rejected')).toHaveLength(1);
+    inventory.inventoryService.postOutboundIssueInSession = originalOutbound;
   }, 120000);
 
   it('corrects batch, warehouse, supplier, landed cost, and Advance funding through normal engines', async ({ skip }) => {

@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
-import { Observable, of } from 'rxjs';
+import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Observable, of, throwError } from 'rxjs';
 import { PurchaseEditPage } from './purchase-edit.page';
 import { PurchasesApi } from '../../data-access/purchases.api';
 import { ReturnsApi } from '../../data-access/returns.api';
@@ -113,6 +114,7 @@ describe('PurchaseEditPage', () => {
   let mockGetPurchase: () => Observable<PurchaseRecord | null>;
   let createPurchase: ReturnType<typeof vi.fn>;
   let postPurchase: ReturnType<typeof vi.fn>;
+  let correctPurchase: ReturnType<typeof vi.fn>;
   let disabledCapabilities: Set<string>;
   let searchProductOptionsCalls = 0;
   let searchSupplierOptionsCalls = 0;
@@ -121,6 +123,13 @@ describe('PurchaseEditPage', () => {
     mockGetPurchase = () => of(null);
     createPurchase = vi.fn(() => of({ id: 'pur-new', version: 1, lines: [], payments: [] } as unknown as PurchaseRecord));
     postPurchase = vi.fn(() => of({ id: 'pur-new', status: 'posted', version: 2, lines: [], payments: [] } as unknown as PurchaseRecord));
+    correctPurchase = vi.fn(() =>
+      of({
+        originalPurchase: mockPostedRecord,
+        replacementPurchase: { id: 'pur-rep-101', status: 'posted' } as PurchaseRecord,
+        correctionStatus: 'corrected',
+      }),
+    );
     disabledCapabilities = new Set();
     searchProductOptionsCalls = 0;
     searchSupplierOptionsCalls = 0;
@@ -138,6 +147,7 @@ describe('PurchaseEditPage', () => {
             discardPurchase: () => of({} as PurchaseRecord),
             postPurchase,
             cancelPurchase: () => of({} as PurchaseRecord),
+            correctPurchase: (...args: any[]) => (correctPurchase as any)(...args),
           },
         },
         {
@@ -646,6 +656,248 @@ describe('PurchaseEditPage', () => {
       fixture.detectChanges();
       expect(component.supplierOptions().map((opt) => opt.value)).toEqual(['sup-1', 'sup-2']);
       expect(component.supplierSelectedLabel()).toBe('Engro Fertilizers');
+    });
+  });
+
+  describe('Purchase Correction Mode', () => {
+    let router: Router;
+
+    const setupCorrectionFixture = async (record: PurchaseRecord = mockPostedRecord) => {
+      mockGetPurchase = () => of(record);
+      await TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        imports: [PurchaseEditPage],
+        providers: [
+          provideRouter([{ path: '**', component: class {} }]),
+          {
+            provide: ActivatedRoute,
+            useValue: {
+              snapshot: {
+                paramMap: convertToParamMap({ id: record.id }),
+                url: [{ path: 'purchases' }, { path: record.id }, { path: 'correct' }],
+              },
+            },
+          },
+          {
+            provide: PurchasesApi,
+            useValue: {
+              getPurchase: () => mockGetPurchase(),
+              createPurchase,
+              updatePurchase: () => of({} as PurchaseRecord),
+              discardPurchase: () => of({} as PurchaseRecord),
+              postPurchase,
+              cancelPurchase: () => of({} as PurchaseRecord),
+              correctPurchase: (...args: any[]) => (correctPurchase as any)(...args),
+            },
+          },
+          {
+            provide: ReturnsApi,
+            useValue: {
+              createReturn: () => of({ id: 'ret-1', version: 1 }),
+              postReturn: () => of({}),
+            },
+          },
+          {
+            provide: CatalogApi,
+            useValue: {
+              listProducts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+              searchProductOptions: () => of([mockProductNone, mockProductBatch, mockProductExpiry]),
+              listPackagingUnits: () => of([]),
+            },
+          },
+          {
+            provide: BranchesWarehousesApi,
+            useValue: {
+              listWarehouses: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+              listWarehouseOptions: () => of([{ id: 'wh-1', name: 'Main Warehouse', status: 'active' }]),
+            },
+          },
+          {
+            provide: SuppliersApi,
+            useValue: {
+              listSuppliers: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+              searchSupplierOptions: () => of([{ id: 'sup-1', name: 'Engro Fertilizers', status: 'active' }]),
+            },
+          },
+          {
+            provide: AccountsApi,
+            useValue: {
+              listAccounts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }),
+              listAccountOptions: () => of([{ id: 'acc-1', name: 'Cash Register', accountType: 'cash', status: 'active' }]),
+            },
+          },
+          {
+            provide: AuthSessionStore,
+            useValue: {
+              hasPermission: () => true,
+            },
+          },
+          {
+            provide: CapabilityService,
+            useValue: {
+              canUseModule: () => true,
+              canPerformAction: () => true,
+              canViewField: () => true,
+              canEditField: () => true,
+            },
+          },
+        ],
+      }).compileComponents();
+
+      router = TestBed.inject(Router);
+      vi.spyOn(router, 'navigateByUrl').mockReturnValue(Promise.resolve(true));
+
+      const fixture: ComponentFixture<PurchaseEditPage> = TestBed.createComponent(PurchaseEditPage);
+      fixture.detectChanges();
+      return { fixture, component: fixture.componentInstance };
+    };
+
+    it('initializes in correction mode and preloads original values with form editable', async () => {
+      const { fixture, component } = await setupCorrectionFixture();
+      expect(component.isCorrectionMode()).toBe(true);
+      expect(component.form.enabled).toBe(true);
+      expect(component.form.controls.supplierId.value).toBe('sup-1');
+      expect(component.form.controls.warehouseId.value).toBe('wh-1');
+      expect(component.lines.length).toBe(1);
+      expect(component.lineGroup(0).get('quantity')?.value).toBe('50');
+      expect(component.lineGroup(0).get('unitCost')?.value).toBe('100.00');
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="purchase-correcting-banner"]')).toBeTruthy();
+      expect(compiled.querySelector('[data-testid="correction-reason-card"]')).toBeTruthy();
+      expect(compiled.querySelector('[data-testid="impact-preview-card"]')).toBeTruthy();
+      expect(compiled.querySelector('[data-testid="post-correction-btn"]')).toBeTruthy();
+    });
+
+    it('enforces mandatory correction reason (1 to 1000 chars)', async () => {
+      const { fixture, component } = await setupCorrectionFixture();
+
+      expect(component.isCorrectionReasonValid()).toBe(false);
+      component.postCorrection();
+      fixture.detectChanges();
+
+      expect(correctPurchase).not.toHaveBeenCalled();
+      expect(component.errorMessage()).toContain('A mandatory correction reason');
+
+      component.form.controls.correctionReason.setValue('Adjusting quantities received due to damage in transit');
+      fixture.detectChanges();
+
+      expect(component.isCorrectionReasonValid()).toBe(true);
+    });
+
+    it('calculates impact preview differences when quantity, cost, or landed costs change', async () => {
+      const { fixture, component } = await setupCorrectionFixture();
+
+      // Original goods: 5000, landed: 300, total: 5300
+      expect(component.previewDiffs().goodsDiff).toBe(0);
+      expect(component.previewDiffs().totalDiff).toBe(0);
+
+      // Change line 0 quantity to 40 (was 50) and cost to 120 (was 100) -> 40 * 120 = 4800 (diff: -200)
+      component.lineGroup(0).patchValue({ quantity: '40', unitCost: '120.00' });
+      fixture.detectChanges();
+
+      expect(component.previewDiffs().goodsDiff).toBe(-200);
+      expect(component.previewDiffs().totalDiff).toBe(-200);
+
+      // Change freight to 400 (was 200, +200)
+      component.form.patchValue({ freight: '400.00' });
+      fixture.detectChanges();
+
+      expect(component.previewDiffs().landedDiff).toBe(200);
+      expect(component.previewDiffs().totalDiff).toBe(0);
+    });
+
+    it('submits correction to backend and navigates to replacement purchase', async () => {
+      const { fixture, component } = await setupCorrectionFixture();
+
+      component.form.controls.correctionReason.setValue('Fixing inaccurate quantity');
+      component.lineGroup(0).patchValue({ quantity: '45' });
+      fixture.detectChanges();
+
+      component.postCorrection();
+
+      expect(correctPurchase).toHaveBeenCalledWith(
+        'pur-100',
+        expect.objectContaining({
+          expectedVersion: 2,
+          correctionReason: 'Fixing inaccurate quantity',
+          correctedPurchase: expect.objectContaining({
+            supplierId: 'sup-1',
+            warehouseId: 'wh-1',
+          }),
+        }),
+        expect.any(String),
+      );
+
+      expect(router.navigateByUrl).toHaveBeenCalledWith('/app/purchases/pur-rep-101');
+    });
+
+    it('maps 409 conflict errors to actionable user messages', async () => {
+      const { fixture, component } = await setupCorrectionFixture();
+      component.form.controls.correctionReason.setValue('Valid correction reason');
+      fixture.detectChanges();
+
+      // Dependent return conflict
+      correctPurchase.mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              status: 409,
+              error: {
+                error: {
+                  message:
+                    'Purchase cannot be corrected because posted purchase returns exist; reverse the dependent return first',
+                },
+              },
+            }),
+        ),
+      );
+
+      component.postCorrection();
+      expect(component.errorMessage()).toBe(
+        'This Purchase cannot be corrected or cancelled because posted purchase returns exist. Reverse the dependent return first.',
+      );
+
+      // Dependent payment conflict
+      correctPurchase.mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              status: 409,
+              error: {
+                error: {
+                  message:
+                    'Purchase has dependent Supplier Payment allocations; reverse or correct those payments first',
+                },
+              },
+            }),
+        ),
+      );
+
+      component.postCorrection();
+      expect(component.errorMessage()).toBe(
+        'This Purchase has dependent Supplier Payment allocations. Reverse or correct those payments first.',
+      );
+
+      // Stock consumed conflict
+      correctPurchase.mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              status: 409,
+              error: {
+                error: {
+                  message: 'Cannot reverse original purchase stock because received inventory has already been consumed',
+                },
+              },
+            }),
+        ),
+      );
+
+      component.postCorrection();
+      expect(component.errorMessage()).toBe(
+        'Cannot reverse original purchase stock because received inventory has already been sold, consumed, or transferred.',
+      );
     });
   });
 });

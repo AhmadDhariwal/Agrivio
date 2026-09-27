@@ -736,6 +736,20 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'purchases/:id/correct',
+        canActivate: [
+          requirePermissionGuard('purchases.cancel'),
+          requirePermissionGuard('purchases.post'),
+          requireCapabilityGuard('purchases'),
+          requireCapabilityGuard('purchases.actions.cancel', 'action'),
+          requireCapabilityGuard('purchases.actions.post', 'action'),
+        ],
+        loadComponent: () =>
+          import('./features/purchases/pages/purchase-edit/purchase-edit.page').then(
+            (m) => m.PurchaseEditPage,
+          ),
+      },
+      {
         path: 'supplier-payments',
         canActivate: [
           requirePermissionGuard('supplier-payments.view'),

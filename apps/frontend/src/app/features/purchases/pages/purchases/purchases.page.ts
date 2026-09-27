@@ -178,7 +178,17 @@ export class PurchasesPage {
     this.reload();
   }
 
-  statusLabel(status: string): string {
+  statusLabel(itemOrStatus: PurchaseRecord | string): string {
+    if (typeof itemOrStatus === 'object' && itemOrStatus !== null) {
+      if (
+        itemOrStatus.status === 'posted' &&
+        (itemOrStatus.replacementPurchaseId || itemOrStatus.correctionStatus === 'corrected')
+      ) {
+        return 'Corrected';
+      }
+      return this.statusLabel(itemOrStatus.status);
+    }
+    const status = itemOrStatus;
     if (status === 'draft') {
       return 'Draft (unposted)';
     }
@@ -191,12 +201,25 @@ export class PurchasesPage {
     return status;
   }
 
-  statusTone(status: string): 'warning' | 'success' | 'neutral' {
+  statusTone(itemOrStatus: PurchaseRecord | string): 'warning' | 'success' | 'danger' | 'neutral' {
+    if (typeof itemOrStatus === 'object' && itemOrStatus !== null) {
+      if (
+        itemOrStatus.status === 'posted' &&
+        (itemOrStatus.replacementPurchaseId || itemOrStatus.correctionStatus === 'corrected')
+      ) {
+        return 'warning';
+      }
+      return this.statusTone(itemOrStatus.status);
+    }
+    const status = itemOrStatus;
     if (status === 'draft') {
       return 'warning';
     }
     if (status === 'posted') {
       return 'success';
+    }
+    if (status === 'cancelled') {
+      return 'danger';
     }
     return 'neutral';
   }

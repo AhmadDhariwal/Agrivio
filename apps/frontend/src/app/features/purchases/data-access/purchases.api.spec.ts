@@ -106,16 +106,18 @@ describe('PurchasesApi', () => {
 
     expect(invalidateTags).toHaveBeenCalledWith(
       QUERY_CACHE_TAGS.purchases,
+      QUERY_CACHE_TAGS.suppliers,
+      QUERY_CACHE_TAGS.supplierLedger,
+      QUERY_CACHE_TAGS.payables,
       QUERY_CACHE_TAGS.inventory,
       QUERY_CACHE_TAGS.batches,
       QUERY_CACHE_TAGS.expiry,
       QUERY_CACHE_TAGS.stockMovements,
       QUERY_CACHE_TAGS.stockBalances,
       QUERY_CACHE_TAGS.products,
-      QUERY_CACHE_TAGS.supplierLedger,
-      QUERY_CACHE_TAGS.payables,
       QUERY_CACHE_TAGS.dashboard,
       QUERY_CACHE_TAGS.reports,
+      QUERY_CACHE_TAGS.reconciliation,
       QUERY_CACHE_TAGS.alerts,
     );
     expect(invalidateTags).not.toHaveBeenCalledWith(QUERY_CACHE_TAGS.accountOptions);
@@ -144,6 +146,78 @@ describe('PurchasesApi', () => {
     );
   });
 
+  it('invalidates cache when cancelPurchase succeeds', () => {
+    httpPost.mockReturnValue(
+      of({ data: { id: 'pur-1', version: 2, status: 'cancelled', payments: [] } }),
+    );
+
+    api.cancelPurchase('pur-1', { expectedVersion: 1, reason: 'Testing cancellation' }, 'key-1').subscribe();
+
+    expect(invalidateTags).toHaveBeenCalledWith(
+      QUERY_CACHE_TAGS.purchases,
+      QUERY_CACHE_TAGS.suppliers,
+      QUERY_CACHE_TAGS.supplierLedger,
+      QUERY_CACHE_TAGS.payables,
+      QUERY_CACHE_TAGS.inventory,
+      QUERY_CACHE_TAGS.batches,
+      QUERY_CACHE_TAGS.expiry,
+      QUERY_CACHE_TAGS.stockMovements,
+      QUERY_CACHE_TAGS.stockBalances,
+      QUERY_CACHE_TAGS.products,
+      QUERY_CACHE_TAGS.dashboard,
+      QUERY_CACHE_TAGS.reports,
+      QUERY_CACHE_TAGS.reconciliation,
+      QUERY_CACHE_TAGS.alerts,
+    );
+  });
+
+  it('invalidates cache when correctPurchase succeeds', () => {
+    httpPost.mockReturnValue(
+      of({
+        data: {
+          originalPurchase: { id: 'pur-1', status: 'posted' },
+          replacementPurchase: { id: 'pur-2', status: 'posted' },
+          correctionStatus: 'corrected',
+        },
+      }),
+    );
+
+    api
+      .correctPurchase(
+        'pur-1',
+        {
+          expectedVersion: 1,
+          correctionReason: 'Testing correction',
+          correctedPurchase: {
+            supplierId: 'sup-1',
+            warehouseId: 'wh-1',
+            purchaseDate: '2026-03-01',
+            lines: [],
+            payments: [],
+          },
+        },
+        'key-1',
+      )
+      .subscribe();
+
+    expect(invalidateTags).toHaveBeenCalledWith(
+      QUERY_CACHE_TAGS.purchases,
+      QUERY_CACHE_TAGS.suppliers,
+      QUERY_CACHE_TAGS.supplierLedger,
+      QUERY_CACHE_TAGS.payables,
+      QUERY_CACHE_TAGS.inventory,
+      QUERY_CACHE_TAGS.batches,
+      QUERY_CACHE_TAGS.expiry,
+      QUERY_CACHE_TAGS.stockMovements,
+      QUERY_CACHE_TAGS.stockBalances,
+      QUERY_CACHE_TAGS.products,
+      QUERY_CACHE_TAGS.dashboard,
+      QUERY_CACHE_TAGS.reports,
+      QUERY_CACHE_TAGS.reconciliation,
+      QUERY_CACHE_TAGS.alerts,
+    );
+  });
+
   it('does not invalidate cache when post fails', () => {
     httpPost.mockReturnValue(throwError(() => new Error('post failed')));
 
@@ -167,16 +241,18 @@ describe('invalidatePurchaseMutationEffects', () => {
     invalidatePurchaseMutationEffects(queryCache, 'post', { affectsAccounts: false });
     expect(queryCache.invalidateTags).toHaveBeenCalledWith(
       QUERY_CACHE_TAGS.purchases,
+      QUERY_CACHE_TAGS.suppliers,
+      QUERY_CACHE_TAGS.supplierLedger,
+      QUERY_CACHE_TAGS.payables,
       QUERY_CACHE_TAGS.inventory,
       QUERY_CACHE_TAGS.batches,
       QUERY_CACHE_TAGS.expiry,
       QUERY_CACHE_TAGS.stockMovements,
       QUERY_CACHE_TAGS.stockBalances,
       QUERY_CACHE_TAGS.products,
-      QUERY_CACHE_TAGS.supplierLedger,
-      QUERY_CACHE_TAGS.payables,
       QUERY_CACHE_TAGS.dashboard,
       QUERY_CACHE_TAGS.reports,
+      QUERY_CACHE_TAGS.reconciliation,
       QUERY_CACHE_TAGS.alerts,
     );
   });
