@@ -38,11 +38,22 @@ function createMongoosePurchasesStore() {
       return { items, total };
     },
 
-    async findPurchaseById(organizationId, id) {
+    async findPurchaseById(organizationId, id, session) {
       if (!mongoose.isValidObjectId(id)) {
         return null;
       }
-      return PurchaseModel.findOne({ _id: id, organizationId }).lean().exec();
+      const query = PurchaseModel.findOne({ _id: id, organizationId });
+      if (session) query.session(session);
+      return query.lean().exec();
+    },
+
+    async lockPostedPurchaseDependency(session, organizationId, id) {
+      if (!session || !mongoose.isValidObjectId(id)) return null;
+      return PurchaseModel.findOneAndUpdate(
+        { _id: id, organizationId, status: 'posted' },
+        { $inc: { dependencyRevision: 1 } },
+        { new: true, session },
+      ).lean().exec();
     },
 
     async insertPurchase(session, doc) {
@@ -160,6 +171,12 @@ function createInMemoryPurchasesStore() {
         lines: record.lines.map((line) => ({ ...line })),
         landedCosts: { ...record.landedCosts },
       };
+    },
+
+    async lockPostedPurchaseDependency(_session, organizationId, id) {
+      void _session;
+      const record = await this.findPurchaseById(organizationId, id);
+      return record?.status === 'posted' ? record : null;
     },
 
     async insertPurchase(_session, doc) {

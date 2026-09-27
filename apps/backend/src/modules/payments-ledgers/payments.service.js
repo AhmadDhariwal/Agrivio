@@ -969,8 +969,8 @@ function createPaymentsService(deps) {
       return store.listAllocationsByTarget(organizationId, 'purchase', purchaseId, session);
     },
 
-    async getSupplierPaymentRaw(organizationId, paymentId) {
-      return store.findPaymentById(organizationId, paymentId);
+    async getSupplierPaymentRaw(organizationId, paymentId, session) {
+      return store.findPaymentById(organizationId, paymentId, session);
     },
 
     async getCustomerPaymentRaw(organizationId, paymentId) {

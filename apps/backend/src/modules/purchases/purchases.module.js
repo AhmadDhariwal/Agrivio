@@ -31,6 +31,7 @@ const {
   parsePurchaseDraft,
   parsePurchasePost,
   parsePurchaseCancel,
+  parsePurchaseCorrect,
   computeLineProductAmount,
   toPurchaseDto,
 } = require('./purchases.validation');
@@ -348,6 +349,376 @@ function createPurchasesService(deps) {
     return refreshed;
   }
 
+  async function postPurchaseInSession(
+    session,
+    organizationId,
+    purchaseId,
+    input,
+    authContext,
+  ) {
+    const actor = { actorId: String(authContext.userId) };
+    const existing = await store.findPurchaseById(organizationId, purchaseId, session);
+    if (existing === null) throw notFound('Purchase not found');
+    if (existing.status !== 'draft') throw conflict('Only draft purchases can be posted');
+    assertOptimisticVersion(existing, input.expectedVersion);
+    if (
+      typeof deps.canAccessWarehouse === 'function' &&
+      !deps.canAccessWarehouse(authContext, String(existing.warehouseId))
+    ) {
+      throw notFound('Purchase not found');
+    }
+
+    const { warehouse, supplier, branch } = await resolveHeaderMasters(
+      organizationId,
+      {
+        warehouseId: String(existing.warehouseId),
+        supplierId: String(existing.supplierId),
+        branchId: existing.branchId ? String(existing.branchId) : null,
+      },
+      authContext,
+    );
+    const lines = await refreshLineSnapshotsForPost(organizationId, existing.lines);
+    const goodsTotal = lines.reduce(
+      (sum, line) => sum + BigInt(line.lineProductAmountMinorUnits),
+      0n,
+    );
+    const landedCostTotal = BigInt(sumLandedCostComponents(existing.landedCosts));
+    const landedAllocations = allocateLandedCosts(lines, landedCostTotal.toString());
+    const purchaseTotal = goodsTotal + landedCostTotal;
+    const paidTotal = input.payments.reduce(
+      (sum, payment) => sum + BigInt(payment.amountMinorUnits),
+      0n,
+    );
+    if (paidTotal > purchaseTotal) {
+      throw validationFailed('Payment total cannot exceed purchase total', [
+        { field: 'payments', message: 'paid amount cannot exceed purchase total' },
+      ]);
+    }
+    const basePayable = purchaseTotal - paidTotal;
+    let availableSupplierAdvance = 0n;
+    if (basePayable > 0n && typeof paymentsService.sumSupplierAdvance === 'function') {
+      const availableAdvance = await paymentsService.sumSupplierAdvance(
+        organizationId,
+        String(existing.supplierId),
+        session,
+      );
+      availableSupplierAdvance = parseMoneyMinorUnits(availableAdvance.amount);
+    }
+    const advanceApplied = basePayable < availableSupplierAdvance
+      ? basePayable
+      : availableSupplierAdvance;
+    const payableTotal = basePayable - advanceApplied;
+    const postedAt = now();
+    const postedLines = [];
+
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index];
+      const allocatedLanded = BigInt(landedAllocations[index]);
+      const receiptInventoryValue = BigInt(line.lineProductAmountMinorUnits) + allocatedLanded;
+      const receiptUnitCost = computeUnitCostMinorUnits(
+        receiptInventoryValue,
+        BigInt(line.quantityBaseMinorUnits),
+      );
+      const receipt = await inventoryService.postInboundReceiptInSession(
+        session,
+        organizationId,
+        actor,
+        {
+          warehouseId: String(existing.warehouseId),
+          productId: line.productId,
+          batchNumber: line.batchNumber,
+          manufacturingDate: line.manufacturingDate,
+          expiryDate: line.expiryDate,
+          quantityBaseMinorUnits: line.quantityBaseMinorUnits,
+          enteredQuantityMinorUnits: line.enteredQuantityMinorUnits,
+          unitCode: line.unitCodeSnapshot,
+          conversionFactorSnapshot: line.conversionFactorSnapshot,
+          packagingUnitId: line.packagingUnitId,
+          inventoryValueMinorUnits: receiptInventoryValue.toString(),
+          sourceType: 'purchase',
+          sourceId: purchaseId,
+          postedAt,
+        },
+      );
+      postedLines.push({
+        ...line,
+        allocatedLandedCostMinorUnits: allocatedLanded.toString(),
+        receiptInventoryValueMinorUnits: receiptInventoryValue.toString(),
+        receiptUnitCostMinorUnits: receiptUnitCost.toString(),
+        batchIdSnapshot: receipt.batchId,
+      });
+    }
+
+    await paymentsService.postSupplierPayableEffect(session, {
+      organizationId,
+      supplierId: String(existing.supplierId),
+      signedAmountMinorUnits: purchaseTotal.toString(),
+      sourceType: 'purchase_payable',
+      sourceId: purchaseId,
+      postedAt,
+      postedBy: actor.actorId,
+    });
+    if (advanceApplied > 0n) {
+      await paymentsService.applySupplierAdvanceInSession(session, {
+        organizationId,
+        supplierId: String(existing.supplierId),
+        purchaseId,
+        amountMinorUnits: advanceApplied.toString(),
+        postedAt,
+        postedBy: actor.actorId,
+      });
+    }
+
+    const paymentSnapshots = [];
+    for (const payment of input.payments) {
+      const account = await accountsService.getAccount(organizationId, payment.accountId);
+      if (account.status !== 'active') {
+        throw validationFailed('Account must be active', [
+          { field: 'payments', message: 'account must be active' },
+        ]);
+      }
+      const paymentResult = await paymentsService.postSupplierPaymentInSession(session, {
+        organizationId,
+        supplierId: String(existing.supplierId),
+        accountId: payment.accountId,
+        allocationMode: 'invoice_specific',
+        amountMinorUnits: payment.amountMinorUnits,
+        paymentDate: String(existing.purchaseDate),
+        notes: '',
+        purchaseAllocations: [{ purchaseId, allocatedAmountMinorUnits: payment.amountMinorUnits }],
+        advanceAmountMinorUnits: '0',
+        postedAt,
+        postedBy: actor.actorId,
+        postAccountMovement: false,
+      });
+      await accountsService.postAccountMovement(session, {
+        organizationId,
+        accountId: payment.accountId,
+        signedAmountMinorUnits: `-${payment.amountMinorUnits}`,
+        sourceType: 'purchase_payment',
+        sourceId: String(paymentResult.payment['_id']),
+        postedAt,
+        postedBy: actor.actorId,
+      });
+      paymentSnapshots.push({
+        accountId: payment.accountId,
+        accountNameSnapshot: account.name,
+        accountTypeSnapshot: account.accountType,
+        amountMinorUnits: payment.amountMinorUnits,
+        paymentId: paymentResult.payment['_id'],
+      });
+    }
+
+    const updated = await store.updatePurchaseIfDraft(
+      session,
+      organizationId,
+      purchaseId,
+      input.expectedVersion,
+      {
+        supplierNameSnapshot: supplier.name,
+        warehouseNameSnapshot: warehouse.name,
+        branchNameSnapshot: branch ? branch.name : null,
+        lines: postedLines,
+        goodsTotalMinorUnits: goodsTotal.toString(),
+        landedCostTotalMinorUnits: landedCostTotal.toString(),
+        purchaseTotalMinorUnits: purchaseTotal.toString(),
+        paidTotalMinorUnits: paidTotal.toString(),
+        payableTotalMinorUnits: payableTotal.toString(),
+        paymentSnapshots,
+        status: 'posted',
+        postedAt,
+        postedBy: actor.actorId,
+        updatedAt: postedAt,
+      },
+    );
+    if (updated === null) throw conflict('Purchase was already posted or modified concurrently');
+
+    await auditWriter.appendBusinessEvent(session, {
+      organizationId,
+      actorId: actor.actorId,
+      action: 'purchase.posted',
+      resourceType: 'purchase',
+      resourceId: purchaseId,
+      metadata: {
+        purchaseTotalMinorUnits: purchaseTotal.toString(),
+        paidTotalMinorUnits: paidTotal.toString(),
+        advanceAppliedMinorUnits: advanceApplied.toString(),
+        payableTotalMinorUnits: payableTotal.toString(),
+        lineCount: postedLines.length,
+        originalPurchaseId: existing.originalPurchaseId
+          ? String(existing.originalPurchaseId)
+          : null,
+      },
+    });
+    return updated;
+  }
+
+  async function cancelPurchaseInSession(
+    session,
+    organizationId,
+    purchaseId,
+    input,
+    authContext,
+    correction = null,
+  ) {
+    const actor = { actorId: String(authContext.userId) };
+    const existing = await store.findPurchaseById(organizationId, purchaseId, session);
+    if (existing === null) throw notFound('Purchase not found');
+    if (existing.status !== 'posted') throw conflict('Only posted purchases can be cancelled');
+    if (Number(existing.version) !== Number(input.expectedVersion)) {
+      throw conflict('Purchase was modified by another request');
+    }
+    if (
+      typeof deps.canAccessWarehouse === 'function' &&
+      !deps.canAccessWarehouse(authContext, String(existing.warehouseId))
+    ) {
+      throw notFound('Purchase not found');
+    }
+    if (typeof paymentsService.assertSupplierPayableTargetUnadjusted === 'function') {
+      await paymentsService.assertSupplierPayableTargetUnadjusted(
+        organizationId,
+        String(existing.supplierId),
+        'purchase',
+        purchaseId,
+        session,
+      );
+    }
+    if (typeof deps.listPostedReturnsByPurchase === 'function') {
+      const dependentReturns = await deps.listPostedReturnsByPurchase(
+        organizationId,
+        purchaseId,
+        session,
+      );
+      if (Array.isArray(dependentReturns) && dependentReturns.length > 0) {
+        throw conflict(
+          'Purchase cannot be cancelled because posted purchase returns exist; reverse the dependent return first',
+        );
+      }
+    }
+
+    const priorAllocations = await paymentsService.listPurchaseAllocations(
+      organizationId,
+      purchaseId,
+      session,
+    );
+    const ownedPaymentIds = new Set(
+      (existing.paymentSnapshots ?? [])
+        .map((payment) => payment.paymentId)
+        .filter(Boolean)
+        .map(String),
+    );
+    const externalAllocations = priorAllocations.filter(
+      (allocation) => !ownedPaymentIds.has(String(allocation.paymentId)),
+    );
+    if (externalAllocations.length > 0) {
+      throw conflict(
+        'Purchase has dependent Supplier Payment allocations; reverse or correct those payments first',
+      );
+    }
+
+    const cancelledAt = now();
+    const purchaseTotal = BigInt(String(existing.purchaseTotalMinorUnits));
+    for (const line of existing.lines) {
+      await inventoryService.postOutboundIssueInSession(session, organizationId, actor, {
+        warehouseId: String(existing.warehouseId),
+        productId: String(line.productId),
+        batchId: line.batchIdSnapshot ? String(line.batchIdSnapshot) : null,
+        quantityBaseMinorUnits: String(line.quantityBaseMinorUnits),
+        enteredQuantityMinorUnits: String(line.enteredQuantityMinorUnits),
+        unitCode: String(line.unitCodeSnapshot),
+        conversionFactorSnapshot: String(line.conversionFactorSnapshot),
+        packagingUnitId: line.packagingUnitId ? String(line.packagingUnitId) : null,
+        inventoryValueMinorUnits: String(line.receiptInventoryValueMinorUnits),
+        useExplicitOutboundValue: true,
+        sourceType: 'purchase_cancellation',
+        sourceId: purchaseId,
+        reason: input.reason,
+        postedAt: cancelledAt,
+      });
+    }
+    await paymentsService.postSupplierPayableEffect(session, {
+      organizationId,
+      supplierId: String(existing.supplierId),
+      signedAmountMinorUnits: `-${purchaseTotal.toString()}`,
+      sourceType: 'purchase_cancellation',
+      sourceId: purchaseId,
+      postedAt: cancelledAt,
+      postedBy: actor.actorId,
+    });
+    const advanceRestoredMinorUnits =
+      (await paymentsService.reverseSupplierAdvanceApplicationInSession(session, {
+        organizationId,
+        supplierId: String(existing.supplierId),
+        purchaseId,
+        postedAt: cancelledAt,
+        postedBy: actor.actorId,
+      })) ?? '0';
+    for (const allocation of priorAllocations) {
+      await paymentsService.postSupplierPayableEffect(session, {
+        organizationId,
+        supplierId: String(existing.supplierId),
+        signedAmountMinorUnits: allocation.allocatedAmountMinorUnits,
+        sourceType: 'purchase_cancellation_allocation_reversal',
+        sourceId: String(allocation['_id']),
+        postedAt: cancelledAt,
+        postedBy: actor.actorId,
+      });
+      const payment = await paymentsService.getSupplierPaymentRaw(
+        organizationId,
+        String(allocation.paymentId),
+        session,
+      );
+      if (payment) {
+        await accountsService.postAccountMovement(session, {
+          organizationId,
+          accountId: String(payment.accountId),
+          signedAmountMinorUnits: allocation.allocatedAmountMinorUnits,
+          sourceType: 'purchase_cancellation_refund',
+          sourceId: String(allocation['_id']),
+          postedAt: cancelledAt,
+          postedBy: actor.actorId,
+        });
+      }
+    }
+    const updated = await store.updatePurchaseIfPosted(
+      session,
+      organizationId,
+      purchaseId,
+      input.expectedVersion,
+      {
+        status: 'cancelled',
+        cancellationReason: input.reason,
+        cancelledAt,
+        cancelledBy: actor.actorId,
+        ...(correction
+          ? {
+              replacementPurchaseId: correction.replacementPurchaseId,
+              correctionReason: correction.reason,
+              correctedAt: cancelledAt,
+              correctedBy: actor.actorId,
+            }
+          : {}),
+        updatedAt: cancelledAt,
+      },
+    );
+    if (updated === null) throw conflict('Purchase was already cancelled or modified concurrently');
+    await auditWriter.appendBusinessEvent(session, {
+      organizationId,
+      actorId: actor.actorId,
+      action: 'purchase.cancelled',
+      resourceType: 'purchase',
+      resourceId: purchaseId,
+      metadata: {
+        reason: input.reason,
+        purchaseTotalMinorUnits: purchaseTotal.toString(),
+        priorAllocationsCount: priorAllocations.length,
+        advanceRestoredMinorUnits,
+        correction: Boolean(correction),
+      },
+    });
+    return updated;
+  }
+
   return {
     async listPurchases(organizationId, query = {}, authContext) {
       assertOptionalLocationFilters(authContext, {
@@ -563,219 +934,10 @@ function createPurchasesService(deps) {
           payments: input.payments,
         },
         async () => {
-          const dto = await transactionRunner.run(async (session) => {
-            const existing = await store.findPurchaseById(organizationId, purchaseId);
-            if (existing === null) {
-              throw notFound('Purchase not found');
-            }
-            if (existing.status !== 'draft') {
-              throw conflict('Only draft purchases can be posted');
-            }
-            assertOptimisticVersion(existing, input.expectedVersion);
-            if (
-              typeof deps.canAccessWarehouse === 'function' &&
-              !deps.canAccessWarehouse(authContext, String(existing.warehouseId))
-            ) {
-              throw notFound('Purchase not found');
-            }
-
-            const { warehouse, supplier, branch } = await resolveHeaderMasters(
-              organizationId,
-              {
-                warehouseId: String(existing.warehouseId),
-                supplierId: String(existing.supplierId),
-                branchId: existing.branchId ? String(existing.branchId) : null,
-              },
-              authContext,
-            );
-
-            const lines = await refreshLineSnapshotsForPost(organizationId, existing.lines);
-            const goodsTotal = lines.reduce(
-              (sum, line) => sum + BigInt(line.lineProductAmountMinorUnits),
-              0n,
-            );
-            const landedCostTotal = BigInt(sumLandedCostComponents(existing.landedCosts));
-            const landedAllocations = allocateLandedCosts(lines, landedCostTotal.toString());
-            const purchaseTotal = goodsTotal + landedCostTotal;
-
-            let paidTotal = 0n;
-            for (const payment of input.payments) {
-              paidTotal += BigInt(payment.amountMinorUnits);
-            }
-            if (paidTotal > purchaseTotal) {
-              throw validationFailed('Payment total cannot exceed purchase total', [
-                { field: 'payments', message: 'paid amount cannot exceed purchase total' },
-              ]);
-            }
-            const basePayable = purchaseTotal - paidTotal;
-            let availableSupplierAdvance = 0n;
-            if (basePayable > 0n && typeof paymentsService.sumSupplierAdvance === 'function') {
-              const availableAdvance = await paymentsService.sumSupplierAdvance(
-                organizationId,
-                String(existing.supplierId),
-                session,
-              );
-              availableSupplierAdvance = parseMoneyMinorUnits(availableAdvance.amount);
-            }
-            const advanceApplied =
-              basePayable < availableSupplierAdvance ? basePayable : availableSupplierAdvance;
-            const payableTotal = basePayable - advanceApplied;
-            const postedAt = now();
-            const postedLines = [];
-
-            for (let index = 0; index < lines.length; index += 1) {
-              const line = lines[index];
-              const allocatedLanded = BigInt(landedAllocations[index]);
-              const receiptInventoryValue =
-                BigInt(line.lineProductAmountMinorUnits) + allocatedLanded;
-              const receiptUnitCost = computeUnitCostMinorUnits(
-                receiptInventoryValue,
-                BigInt(line.quantityBaseMinorUnits),
-              );
-
-              const receipt = await inventoryService.postInboundReceiptInSession(
-                session,
-                organizationId,
-                actor,
-                {
-                  warehouseId: String(existing.warehouseId),
-                  productId: line.productId,
-                  batchNumber: line.batchNumber,
-                  manufacturingDate: line.manufacturingDate,
-                  expiryDate: line.expiryDate,
-                  quantityBaseMinorUnits: line.quantityBaseMinorUnits,
-                  enteredQuantityMinorUnits: line.enteredQuantityMinorUnits,
-                  unitCode: line.unitCodeSnapshot,
-                  conversionFactorSnapshot: line.conversionFactorSnapshot,
-                  packagingUnitId: line.packagingUnitId,
-                  inventoryValueMinorUnits: receiptInventoryValue.toString(),
-                  sourceType: 'purchase',
-                  sourceId: purchaseId,
-                  postedAt,
-                },
-              );
-
-              postedLines.push({
-                ...line,
-                allocatedLandedCostMinorUnits: allocatedLanded.toString(),
-                receiptInventoryValueMinorUnits: receiptInventoryValue.toString(),
-                receiptUnitCostMinorUnits: receiptUnitCost.toString(),
-                batchIdSnapshot: receipt.batchId,
-              });
-            }
-
-            await paymentsService.postSupplierPayableEffect(session, {
-              organizationId,
-              supplierId: String(existing.supplierId),
-              signedAmountMinorUnits: purchaseTotal.toString(),
-              sourceType: 'purchase_payable',
-              sourceId: purchaseId,
-              postedAt,
-              postedBy: actor.actorId,
-            });
-
-            if (advanceApplied > 0n) {
-              await paymentsService.applySupplierAdvanceInSession(session, {
-                organizationId,
-                supplierId: String(existing.supplierId),
-                purchaseId,
-                amountMinorUnits: advanceApplied.toString(),
-                postedAt,
-                postedBy: actor.actorId,
-              });
-            }
-
-            const paymentSnapshots = [];
-            for (const payment of input.payments) {
-              const account = await accountsService.getAccount(organizationId, payment.accountId);
-              if (account.status !== 'active') {
-                throw validationFailed('Account must be active', [
-                  { field: 'payments', message: 'account must be active' },
-                ]);
-              }
-
-              const paymentResult = await paymentsService.postSupplierPaymentInSession(session, {
-                organizationId,
-                supplierId: String(existing.supplierId),
-                accountId: payment.accountId,
-                allocationMode: 'invoice_specific',
-                amountMinorUnits: payment.amountMinorUnits,
-                paymentDate: String(existing.purchaseDate),
-                notes: '',
-                purchaseAllocations: [
-                  {
-                    purchaseId,
-                    allocatedAmountMinorUnits: payment.amountMinorUnits,
-                  },
-                ],
-                advanceAmountMinorUnits: '0',
-                postedAt,
-                postedBy: actor.actorId,
-                postAccountMovement: false,
-              });
-
-              await accountsService.postAccountMovement(session, {
-                organizationId,
-                accountId: payment.accountId,
-                signedAmountMinorUnits: `-${payment.amountMinorUnits}`,
-                sourceType: 'purchase_payment',
-                sourceId: String(paymentResult.payment['_id']),
-                postedAt,
-                postedBy: actor.actorId,
-              });
-
-              paymentSnapshots.push({
-                accountId: payment.accountId,
-                accountNameSnapshot: account.name,
-                accountTypeSnapshot: account.accountType,
-                amountMinorUnits: payment.amountMinorUnits,
-                paymentId: paymentResult.payment['_id'],
-              });
-            }
-
-            const updated = await store.updatePurchaseIfDraft(
-              session,
-              organizationId,
-              purchaseId,
-              input.expectedVersion,
-              {
-                supplierNameSnapshot: supplier.name,
-                warehouseNameSnapshot: warehouse.name,
-                branchNameSnapshot: branch ? branch.name : null,
-                lines: postedLines,
-                goodsTotalMinorUnits: goodsTotal.toString(),
-                landedCostTotalMinorUnits: landedCostTotal.toString(),
-                purchaseTotalMinorUnits: purchaseTotal.toString(),
-                paidTotalMinorUnits: paidTotal.toString(),
-                payableTotalMinorUnits: payableTotal.toString(),
-                paymentSnapshots,
-                status: 'posted',
-                postedAt,
-                postedBy: actor.actorId,
-                updatedAt: postedAt,
-              },
-            );
-            if (updated === null) {
-              throw conflict('Purchase was already posted or modified concurrently');
-            }
-
-            await auditWriter.appendBusinessEvent(session, {
-              organizationId,
-              actorId: actor.actorId,
-              action: 'purchase.posted',
-              resourceType: 'purchase',
-              resourceId: purchaseId,
-              metadata: {
-                purchaseTotalMinorUnits: purchaseTotal.toString(),
-                paidTotalMinorUnits: paidTotal.toString(),
-                advanceAppliedMinorUnits: advanceApplied.toString(),
-                payableTotalMinorUnits: payableTotal.toString(),
-                lineCount: postedLines.length,
-              },
-            });
-
-            return toPurchaseDto(updated);
-          });
+          const record = await transactionRunner.run((session) =>
+            postPurchaseInSession(session, organizationId, purchaseId, input, authContext),
+          );
+          const dto = toPurchaseDto(record);
 
           return { statusCode: 200, body: dto };
         },
@@ -795,6 +957,14 @@ function createPurchasesService(deps) {
       }, {}, session);
       const result = [];
       for (const item of items) {
+        if (session) {
+          const locked = await store.lockPostedPurchaseDependency(
+            session,
+            organizationId,
+            String(item['_id']),
+          );
+          if (locked === null) continue;
+        }
         if (!item.purchaseTotalMinorUnits) {
           continue;
         }
@@ -846,13 +1016,19 @@ function createPurchasesService(deps) {
       return result;
     },
 
-    async getPurchaseSourceForReturn(organizationId, purchaseId) {
-      const record = await store.findPurchaseById(organizationId, purchaseId);
+    async getPurchaseSourceForReturn(organizationId, purchaseId, session) {
+      let record = await store.findPurchaseById(organizationId, purchaseId, session);
       if (record === null) {
         throw notFound('Purchase not found');
       }
       if (record.status !== 'posted') {
         throw conflict('Purchase must be posted to be used as a return source');
+      }
+      if (session) {
+        record = await store.lockPostedPurchaseDependency(session, organizationId, purchaseId);
+        if (record === null) {
+          throw conflict('Purchase is no longer available for a return');
+        }
       }
       return {
         id: String(record['_id']),
@@ -881,6 +1057,119 @@ function createPurchasesService(deps) {
       };
     },
 
+    async correctPurchase(organizationId, purchaseId, body, authContext, idempotencyKey) {
+      if (!inventoryService || !paymentsService || !accountsService) {
+        throw validationFailed('Purchase correction dependencies are not configured');
+      }
+      await assertDraftFieldEditability(organizationId, body?.correctedPurchase);
+      if (
+        deps.capabilityService &&
+        Array.isArray(body?.correctedPurchase?.payments) &&
+        body.correctedPurchase.payments.length > 0
+      ) {
+        await deps.capabilityService.assertAllowed(
+          organizationId,
+          'purchases.actions.addPaymentAtPost',
+          'allowed',
+        );
+      }
+
+      const key = requireIdempotencyKey(idempotencyKey);
+      const input = parsePurchaseCorrect(body);
+      const actorId = String(authContext.userId);
+      const result = await idempotency.execute(
+        {
+          scopeType: 'organization',
+          organizationId,
+          actorId,
+          operation: 'purchases.correct',
+        },
+        key,
+        { purchaseId, ...input },
+        async () => {
+          const correction = await transactionRunner.run(async (session) => {
+            const original = await store.findPurchaseById(organizationId, purchaseId, session);
+            if (original === null) throw notFound('Purchase not found');
+            if (original.status !== 'posted' || original.replacementPurchaseId) {
+              throw conflict('Only an uncorrected posted purchase can be corrected');
+            }
+            if (Number(original.version) !== Number(input.expectedVersion)) {
+              throw conflict('Purchase was modified by another request');
+            }
+
+            const { supplier } = await resolveHeaderMasters(
+              organizationId,
+              input.correctedPurchase,
+              authContext,
+            );
+            const lines = await buildResolvedLines(
+              { catalogService },
+              organizationId,
+              input.correctedPurchase.lines,
+            );
+            const replacement = await store.insertPurchase(session, {
+              organizationId,
+              branchId: input.correctedPurchase.branchId,
+              warehouseId: input.correctedPurchase.warehouseId,
+              supplierId: input.correctedPurchase.supplierId,
+              supplierNameSnapshot: supplier.name,
+              supplierInvoiceReference: input.correctedPurchase.supplierInvoiceReference,
+              supplierInvoiceReferenceNormalized:
+                input.correctedPurchase.supplierInvoiceReferenceNormalized,
+              purchaseDate: input.correctedPurchase.purchaseDate,
+              notes: input.correctedPurchase.notes,
+              lines,
+              landedCosts: input.correctedPurchase.landedCosts,
+              status: 'draft',
+              postedAt: null,
+              postedBy: null,
+              originalPurchaseId: purchaseId,
+              createdBy: actorId,
+              version: 1,
+            });
+            const replacementPurchaseId = String(replacement['_id']);
+            const cancelledOriginal = await cancelPurchaseInSession(
+              session,
+              organizationId,
+              purchaseId,
+              { expectedVersion: input.expectedVersion, reason: input.correctionReason },
+              authContext,
+              { replacementPurchaseId, reason: input.correctionReason },
+            );
+            const postedReplacement = await postPurchaseInSession(
+              session,
+              organizationId,
+              replacementPurchaseId,
+              { expectedVersion: 1, payments: input.payments },
+              authContext,
+            );
+            await auditWriter.appendBusinessEvent(session, {
+              organizationId,
+              actorId,
+              action: 'purchase.corrected',
+              resourceType: 'purchase',
+              resourceId: purchaseId,
+              metadata: {
+                replacementPurchaseId,
+                correctionReason: input.correctionReason,
+              },
+            });
+            return {
+              originalPurchase: toPurchaseDto(cancelledOriginal),
+              replacementPurchase: toPurchaseDto(postedReplacement),
+              correctionStatus: 'corrected',
+            };
+          });
+          return { statusCode: 200, body: correction };
+        },
+      );
+      return {
+        replay: result.replay,
+        data: result.response.body,
+        statusCode: result.response.statusCode,
+      };
+    },
+
     async cancelPurchase(organizationId, purchaseId, body, authContext, idempotencyKey) {
       if (!inventoryService || !paymentsService || !accountsService) {
         throw validationFailed('Purchase cancellation dependencies are not configured');
@@ -904,154 +1193,10 @@ function createPurchasesService(deps) {
           reason: input.reason,
         },
         async () => {
-          const dto = await transactionRunner.run(async (session) => {
-            const existing = await store.findPurchaseById(organizationId, purchaseId);
-            if (existing === null) {
-              throw notFound('Purchase not found');
-            }
-            if (existing.status !== 'posted') {
-              throw conflict('Only posted purchases can be cancelled');
-            }
-            if (Number(existing.version) !== Number(input.expectedVersion)) {
-              throw conflict('Purchase was modified by another request');
-            }
-
-            if (
-              typeof deps.canAccessWarehouse === 'function' &&
-              !deps.canAccessWarehouse(authContext, String(existing.warehouseId))
-            ) {
-              throw notFound('Purchase not found');
-            }
-
-            if (typeof paymentsService.assertSupplierPayableTargetUnadjusted === 'function') {
-              await paymentsService.assertSupplierPayableTargetUnadjusted(
-                organizationId,
-                String(existing.supplierId),
-                'purchase',
-                purchaseId,
-                session,
-              );
-            }
-
-            if (typeof deps.listPostedReturnsByPurchase === 'function') {
-              const dependentReturns = await deps.listPostedReturnsByPurchase(
-                organizationId,
-                purchaseId,
-              );
-              if (Array.isArray(dependentReturns) && dependentReturns.length > 0) {
-                throw conflict(
-                  'Purchase cannot be cancelled because posted purchase returns exist; use approved corrective workflows',
-                );
-              }
-            }
-
-            const cancelledAt = now();
-            const purchaseTotal = BigInt(String(existing.purchaseTotalMinorUnits));
-
-            for (const line of existing.lines) {
-              await inventoryService.postOutboundIssueInSession(session, organizationId, actor, {
-                warehouseId: String(existing.warehouseId),
-                productId: String(line.productId),
-                batchId: line.batchIdSnapshot ? String(line.batchIdSnapshot) : null,
-                quantityBaseMinorUnits: String(line.quantityBaseMinorUnits),
-                enteredQuantityMinorUnits: String(line.enteredQuantityMinorUnits),
-                unitCode: String(line.unitCodeSnapshot),
-                conversionFactorSnapshot: String(line.conversionFactorSnapshot),
-                packagingUnitId: line.packagingUnitId ? String(line.packagingUnitId) : null,
-                inventoryValueMinorUnits: String(line.receiptInventoryValueMinorUnits),
-                useExplicitOutboundValue: true,
-                sourceType: 'purchase_cancellation',
-                sourceId: purchaseId,
-                reason: input.reason,
-                postedAt: cancelledAt,
-              });
-            }
-
-            await paymentsService.postSupplierPayableEffect(session, {
-              organizationId,
-              supplierId: String(existing.supplierId),
-              signedAmountMinorUnits: `-${purchaseTotal.toString()}`,
-              sourceType: 'purchase_cancellation',
-              sourceId: purchaseId,
-              postedAt: cancelledAt,
-              postedBy: actor.actorId,
-            });
-
-            const advanceRestoredMinorUnits =
-              (await paymentsService.reverseSupplierAdvanceApplicationInSession(session, {
-                organizationId,
-                supplierId: String(existing.supplierId),
-                purchaseId,
-                postedAt: cancelledAt,
-                postedBy: actor.actorId,
-              })) ?? '0';
-
-            const priorAllocations = await paymentsService.listPurchaseAllocations(
-              organizationId,
-              purchaseId,
-            );
-
-            for (const allocation of priorAllocations) {
-              await paymentsService.postSupplierPayableEffect(session, {
-                organizationId,
-                supplierId: String(existing.supplierId),
-                signedAmountMinorUnits: allocation.allocatedAmountMinorUnits,
-                sourceType: 'purchase_cancellation_allocation_reversal',
-                sourceId: String(allocation['_id']),
-                postedAt: cancelledAt,
-                postedBy: actor.actorId,
-              });
-
-              const payment = await paymentsService.getSupplierPaymentRaw(
-                organizationId,
-                String(allocation.paymentId),
-              );
-              if (payment) {
-                await accountsService.postAccountMovement(session, {
-                  organizationId,
-                  accountId: String(payment.accountId),
-                  signedAmountMinorUnits: allocation.allocatedAmountMinorUnits,
-                  sourceType: 'purchase_cancellation_refund',
-                  sourceId: String(allocation['_id']),
-                  postedAt: cancelledAt,
-                  postedBy: actor.actorId,
-                });
-              }
-            }
-
-            const updated = await store.updatePurchaseIfPosted(
-              session,
-              organizationId,
-              purchaseId,
-              input.expectedVersion,
-              {
-                status: 'cancelled',
-                cancellationReason: input.reason,
-                cancelledAt,
-                cancelledBy: actor.actorId,
-                updatedAt: cancelledAt,
-              },
-            );
-            if (updated === null) {
-              throw conflict('Purchase was already cancelled or modified concurrently');
-            }
-
-            await auditWriter.appendBusinessEvent(session, {
-              organizationId,
-              actorId: actor.actorId,
-              action: 'purchase.cancelled',
-              resourceType: 'purchase',
-              resourceId: purchaseId,
-              metadata: {
-                reason: input.reason,
-                purchaseTotalMinorUnits: purchaseTotal.toString(),
-                priorAllocationsCount: priorAllocations.length,
-                advanceRestoredMinorUnits,
-              },
-            });
-
-            return toPurchaseDto(updated);
-          });
+          const record = await transactionRunner.run((session) =>
+            cancelPurchaseInSession(session, organizationId, purchaseId, input, authContext),
+          );
+          const dto = toPurchaseDto(record);
 
           return { statusCode: 200, body: dto };
         },

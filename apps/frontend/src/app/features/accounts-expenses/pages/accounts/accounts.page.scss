@@ -219,9 +219,7 @@
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.01em;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
+    overflow: visible;
   }
 
   @media (max-width: 767px) {

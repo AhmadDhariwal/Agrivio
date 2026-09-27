@@ -77,6 +77,15 @@
 * Dashboard financial summary retains gross Supplier Payables and adds Total Supplier Advance plus Net Supplier Payable from the same ledger source. Supplier ledger/detail views expose net payable and human-readable advance application/restoration entries.
 * Inventory receipt values, landed-cost allocation, stock movements, WAC, batches, and expiry behavior are unchanged.
 
+### Posted Purchase cancellation/correction hardening (2026-09-27)
+
+* `POST /api/v1/purchases/:id/correct` atomically composes the existing Purchase cancellation and normal Purchase posting engines. The original remains immutable, its owned stock/payable/Advance/direct-payment effects are compensated, and a normally validated replacement is posted in the same Mongo transaction.
+* Purchase list/detail DTOs expose durable original/replacement lineage and correction status. The existing `purchases.cancel` and `purchases.post` permissions plus the existing cancel/post capability controls remain authoritative; no new permission was introduced.
+* Cancellation now blocks external Supplier Payment allocations and posted Purchase Returns with actionable conflicts. Purchase target reads used by Supplier Payments and Purchase Returns acquire a transaction-scoped dependency revision so cancel/correct races serialize safely.
+* Inventory balance, batch, and cost-state reads now honor the active session, allowing a cancellation reversal and replacement receipt to observe each other while retaining the existing WAC and negative-stock engines.
+
+Model review: the tenant-owned Purchase model remains canonically owned by Purchases. `originalPurchaseId`, `replacementPurchaseId`, correction reason/actor/time, and internal `dependencyRevision` are current-scope A/B fields used by read DTOs, audit, lineage, and concurrency control. References are organization-scoped in services; org-leading lineage indexes support list/detail derivation. The change is backward-compatible (legacy rows read with null lineage and revision defaulting to zero), introduces no destructive migration or mutable accounting balance, and is covered by isolated real-Mongo transaction, idempotency, dependency, tenancy, inventory/WAC, payable, Advance, batch, and lineage tests.
+
 Model review: existing tenant-owned `ledger_effects` and `payment_allocations` remain Payments/Ledgers-owned, organization-scoped, append-only, and transactionally written. The changes are backward-compatible enum extensions for supplier advance consumption/restoration sources and the `supplier_opening_payable` allocation target; no new mutable balance field, collection, backfill, or destructive migration is introduced. Existing org-leading lookup indexes remain appropriate, operational source uniqueness provides idempotency for each purchase/source pair, and focused HTTP plus reconciliation tests cover allocation persistence and reversal behavior. Real-Mongo transaction/index verification remains part of the focused Mongo suite.
 
 ## Next

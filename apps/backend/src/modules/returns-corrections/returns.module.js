@@ -98,7 +98,7 @@ function createReturnsService(deps) {
     }
   }
 
-  async function resolvePurchaseSource(organizationId, purchaseId) {
+  async function resolvePurchaseSource(organizationId, purchaseId, session) {
     if (!deps.purchasesService) {
       throw validationFailed('purchasesService dependency is not configured');
     }
@@ -107,7 +107,7 @@ function createReturnsService(deps) {
         'purchasesService.getPurchaseSourceForReturn is not implemented — wire the purchases module public method',
       );
     }
-    return deps.purchasesService.getPurchaseSourceForReturn(organizationId, purchaseId);
+    return deps.purchasesService.getPurchaseSourceForReturn(organizationId, purchaseId, session);
   }
 
   async function resolveSaleSource(organizationId, saleId) {
@@ -396,7 +396,11 @@ function createReturnsService(deps) {
       throw forbidden('Missing permission returns.post');
     }
 
-    const purchase = await resolvePurchaseSource(organizationId, String(existing.purchaseId));
+    const purchase = await resolvePurchaseSource(
+      organizationId,
+      String(existing.purchaseId),
+      session,
+    );
     if (!purchase || purchase.status !== 'posted') {
       throw validationFailed('Source purchase must still be posted', [
         { field: 'purchaseId', message: 'purchase must be posted' },
@@ -1900,8 +1904,8 @@ function createReturnsModule(options = {}) {
       }
       return total.toString();
     },
-    async listPostedReturnsByPurchase(organizationId, purchaseId) {
-      return store.listPostedReturnsByPurchase(organizationId, purchaseId);
+    async listPostedReturnsByPurchase(organizationId, purchaseId, session) {
+      return store.listPostedReturnsByPurchase(organizationId, purchaseId, session);
     },
     async listPostedReturnsBySale(organizationId, saleId) {
       return store.listPostedReturnsBySale(organizationId, saleId);

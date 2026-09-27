@@ -14,6 +14,7 @@ async function applyBalanceInbound(store, session, organizationId, scope, quanti
     scope.warehouseId,
     scope.productId,
     scope.batchId,
+    session,
   );
   if (existing === null) {
     try {
@@ -68,6 +69,7 @@ async function applyBalanceUnsellableInbound(
     scope.warehouseId,
     scope.productId,
     scope.batchId,
+    session,
   );
   if (existing === null) {
     try {
@@ -120,6 +122,7 @@ async function applyBalanceOutbound(
     scope.warehouseId,
     scope.productId,
     scope.batchId,
+    session,
   );
   if (existing === null) {
     if (!options.allowNegativeStockOverride) {
@@ -174,6 +177,7 @@ async function applyBalanceUnsellableOutbound(
     scope.warehouseId,
     scope.productId,
     scope.batchId,
+    session,
   );
   if (existing === null) {
     throw insufficientStock();
@@ -199,7 +203,12 @@ async function applyBalanceUnsellableOutbound(
 }
 
 async function applyCostInbound(store, session, organizationId, scope, receipt) {
-  const existing = await store.findCostState(organizationId, scope.warehouseId, scope.productId);
+  const existing = await store.findCostState(
+    organizationId,
+    scope.warehouseId,
+    scope.productId,
+    session,
+  );
   const prior = existing
     ? {
         quantityBaseMinorUnits: BigInt(String(existing.quantityBaseMinorUnits)),
@@ -259,7 +268,12 @@ async function applyCostInbound(store, session, organizationId, scope, receipt) 
 }
 
 async function applyCostOutbound(store, session, organizationId, scope, outboundQuantityBaseMinorUnits) {
-  const existing = await store.findCostState(organizationId, scope.warehouseId, scope.productId);
+  const existing = await store.findCostState(
+    organizationId,
+    scope.warehouseId,
+    scope.productId,
+    session,
+  );
   const prior = existing
     ? {
         quantityBaseMinorUnits: BigInt(String(existing.quantityBaseMinorUnits)),
@@ -321,7 +335,12 @@ async function applyCostOutboundAtValue(
   outboundQuantityBaseMinorUnits,
   outboundValueMinorUnits,
 ) {
-  const existing = await store.findCostState(organizationId, scope.warehouseId, scope.productId);
+  const existing = await store.findCostState(
+    organizationId,
+    scope.warehouseId,
+    scope.productId,
+    session,
+  );
   const prior = existing
     ? {
         quantityBaseMinorUnits: BigInt(String(existing.quantityBaseMinorUnits)),

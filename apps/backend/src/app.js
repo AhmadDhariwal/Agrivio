@@ -439,11 +439,11 @@ function createApp(options) {
         }
         return purchaseReturnCreditsLookup.fn(organizationId, purchaseId, session);
       },
-      listPostedReturnsByPurchase: async (organizationId, purchaseId) => {
+      listPostedReturnsByPurchase: async (organizationId, purchaseId, session) => {
         if (typeof postedReturnsLookup.fn !== 'function') {
           return [];
         }
-        return postedReturnsLookup.fn(organizationId, purchaseId);
+        return postedReturnsLookup.fn(organizationId, purchaseId, session);
       },
       ...(options.now === undefined ? {} : { now: options.now }),
     });
@@ -565,8 +565,8 @@ function createApp(options) {
 
   purchaseReturnCreditsLookup.fn = (organizationId, purchaseId, session) =>
     returns.listPurchaseReturnCredits(organizationId, purchaseId, session);
-  postedReturnsLookup.fn = (organizationId, purchaseId) =>
-    returns.listPostedReturnsByPurchase(organizationId, purchaseId);
+  postedReturnsLookup.fn = (organizationId, purchaseId, session) =>
+    returns.listPostedReturnsByPurchase(organizationId, purchaseId, session);
 
   const setupProgressService =
     options.setupProgressService ??
