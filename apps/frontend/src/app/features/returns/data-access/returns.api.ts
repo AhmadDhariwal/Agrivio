@@ -154,4 +154,34 @@ export class ReturnsApi {
       ),
     );
   }
+
+  discardReturn(
+    returnId: string,
+    expectedVersion?: number,
+  ): Observable<{ id: string; discarded: boolean }> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .delete<{ data: { id: string; discarded: boolean } }>(
+            `${this.baseUrl}/${returnId}`,
+            {
+              withCredentials: true,
+              headers: { 'X-CSRF-Token': csrfToken },
+              body: expectedVersion !== undefined ? { expectedVersion } : {},
+            },
+          )
+          .pipe(
+            map((response) => response.data),
+            tap(() => {
+              this.queryCache.invalidateTags(
+                QUERY_CACHE_TAGS.returns,
+                QUERY_CACHE_TAGS.sales,
+                QUERY_CACHE_TAGS.purchases,
+                QUERY_CACHE_TAGS.inventory,
+              );
+            }),
+          ),
+      ),
+    );
+  }
 }

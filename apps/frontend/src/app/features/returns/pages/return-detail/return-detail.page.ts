@@ -1,9 +1,10 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ReturnsApi } from '../../data-access/returns.api';
 import {
   MoneyAmount,
+  ReturnResolution,
   SalesReturnRecord,
   returnResolutionLabel,
   returnTypeLabel,
@@ -34,9 +35,13 @@ export class ReturnDetailPage {
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   readonly loading = signal(true);
   readonly reversing = signal(false);
+  readonly discarding = signal(false);
+  readonly posting = signal(false);
+  readonly discardDialogOpen = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly record = signal<SalesReturnRecord | null>(null);
@@ -46,6 +51,11 @@ export class ReturnDetailPage {
     () =>
       this.sessionStore.hasPermission('returns.reverse') &&
       (this.capabilityService?.canPerformAction('returns.actions.reverse') ?? true),
+  );
+  readonly canPostReturn = computed(
+    () =>
+      this.sessionStore.hasPermission('returns.post') &&
+      (this.capabilityService?.canPerformAction('returns.actions.post') ?? true),
   );
 
   constructor() {
@@ -220,13 +230,90 @@ export class ReturnDetailPage {
       });
   }
 
+  openDiscardDialog(): void {
+    const current = this.record();
+    if (!current || current.status !== 'draft' || this.discarding()) {
+      return;
+    }
+    this.discardDialogOpen.set(true);
+  }
+
+  onDismissDiscard(): void {
+    this.discardDialogOpen.set(false);
+  }
+
+  onConfirmDiscard(): void {
+    const current = this.record();
+    if (!current || current.status !== 'draft' || this.discarding()) {
+      return;
+    }
+    this.discarding.set(true);
+    this.discardDialogOpen.set(false);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+
+    this.api.discardReturn(current.id, current.version).subscribe({
+      next: () => {
+        this.discarding.set(false);
+        this.router.navigate(['/app/returns']);
+      },
+      error: (error: unknown) => {
+        this.discarding.set(false);
+        this.errorMessage.set(this.mapError(error, 'Unable to discard return draft.'));
+      },
+    });
+  }
+
+  postCurrentReturn(): void {
+    const current = this.record();
+    if (!current || current.status !== 'draft' || this.posting()) {
+      return;
+    }
+    this.posting.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    const idempotencyKey = `return-post-${current.id}-${Date.now()}`;
+    this.api
+      .postReturn(
+        current.id,
+        {
+          expectedVersion: current.version,
+          resolution: (current.resolution as ReturnResolution) || 'ledger_adjustment',
+          reason: current.reason || 'Post return draft',
+        },
+        idempotencyKey,
+      )
+      .subscribe({
+        next: (updated) => {
+          this.record.set(updated);
+          this.posting.set(false);
+          this.successMessage.set('Return posted successfully.');
+        },
+        error: (error: unknown) => {
+          this.posting.set(false);
+          this.errorMessage.set(this.mapError(error, 'Unable to post return.'));
+        },
+      });
+  }
+
   private mapError(error: unknown, fallback: string): string {
-    if (!(error instanceof HttpErrorResponse)) {
-      return fallback;
+    if (error instanceof HttpErrorResponse) {
+      if (error.status === 409) {
+        return 'Return was modified or is no longer a draft.';
+      }
+      if (error.status === 403) {
+        return error.error?.error?.message ?? 'You do not have permission for this action.';
+      }
+      return error.error?.error?.message ?? fallback;
+    } else if (typeof error === 'object' && error !== null) {
+      const errObj = error as { status?: number; error?: { error?: { message?: string } } };
+      if (errObj.status === 409) {
+        return 'Return was modified or is no longer a draft.';
+      }
+      if (errObj.error?.error?.message) {
+        return errObj.error.error.message;
+      }
     }
-    if (error.status === 403) {
-      return error.error?.error?.message ?? 'You do not have permission for this action.';
-    }
-    return error.error?.error?.message ?? fallback;
+    return fallback;
   }
 }

@@ -1,7 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal, WritableSignal } from '@angular/core';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
+import { of, throwError } from 'rxjs';
 import { OpeningStockPage } from './opening-stock.page';
 import { InventoryApi } from '../../data-access/inventory.api';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
@@ -9,7 +10,10 @@ import { BranchesWarehousesApi } from '../../../branches-warehouses/data-access/
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
+import { By } from '@angular/platform-browser';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { OpeningStockRecord } from '../../models/inventory.models';
+import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 
 function product(id: string, trackingMode: ProductRecord['trackingMode']): ProductRecord {
   return {
@@ -44,7 +48,38 @@ describe('OpeningStockPage', () => {
       imports: [OpeningStockPage],
       providers: [
         provideRouter([]),
-        { provide: InventoryApi, useValue: { postOpeningStock } },
+        {
+          provide: InventoryApi,
+          useValue: {
+            postOpeningStock,
+            getOpeningStock: vi.fn(() => of({
+              id: 'draft-1',
+              organizationId: 'org-1',
+              warehouseId: 'wh-1',
+              productId: 'prod-none',
+              quantity: '50.0000',
+              inventoryValue: { amount: '500.00', currency: 'PKR' },
+              status: 'draft',
+              version: 1,
+            })),
+            createOpeningStockDraft: vi.fn(() => of({
+              id: 'draft-1',
+              organizationId: 'org-1',
+              warehouseId: 'wh-1',
+              productId: 'prod-none',
+              quantity: '50.0000',
+              inventoryValue: { amount: '500.00', currency: 'PKR' },
+              status: 'draft',
+              version: 1,
+            })),
+            updateOpeningStock: vi.fn(),
+            discardOpeningStock: vi.fn(() => of({ id: 'draft-1', discarded: true })),
+            postOpeningStockDraft: vi.fn(() => of({
+              balance: { quantityBase: '50.0000' },
+              costState: { weightedAverageCost: { amount: '10.00' } },
+            })),
+          },
+        },
         {
           provide: CatalogApi,
           useValue: {
@@ -339,5 +374,132 @@ describe('OpeningStockPage', () => {
     expect(component.productOptions().map((opt) => opt.value)).toEqual(['prod-batch']);
     expect(component.form.controls.productId.value).toBe('prod-none');
     expect(component.productSelectedLabel()).toBe('Product prod-none');
+  });
+
+  function mockOpeningStock(overrides: Partial<OpeningStockRecord> = {}): OpeningStockRecord {
+    return {
+      id: 'draft-1',
+      organizationId: 'org-1',
+      warehouseId: 'wh-1',
+      productId: 'prod-none',
+      quantity: '20.0000',
+      quantityBase: '20.0000',
+      unitCode: 'KG',
+      conversionFactorSnapshot: '1',
+      packagingUnitId: null,
+      batchNumber: null,
+      manufacturingDate: null,
+      expiryDate: null,
+      inventoryValue: { amount: '200.00', currency: 'PKR' },
+      status: 'draft',
+      postedAt: null,
+      postedBy: null,
+      postedMovementId: null,
+      batchId: null,
+      version: 1,
+      ...overrides,
+    };
+  }
+
+  describe('Draft & Discard Lifecycle', () => {
+    it('renders draft actions (Discard Draft, Save as draft, Post opening stock) when record is in draft status', () => {
+      page.openingStockRecord.set(mockOpeningStock({ status: 'draft', version: 1 }));
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="opening-stock-draft-badge"]')).toBeTruthy();
+      expect(compiled.querySelector('[data-testid="opening-stock-discard"]')).toBeTruthy();
+      expect(compiled.querySelector('[data-testid="opening-stock-save-draft"]')).toBeTruthy();
+      expect(compiled.querySelector('[data-testid="opening-stock-save"]')).toBeTruthy();
+      // Confirm discard button has exact required label "Discard Draft"
+      expect(compiled.querySelector('[data-testid="opening-stock-discard"]')?.textContent?.trim()).toContain('Discard Draft');
+    });
+
+    it('opens confirm dialog with Discard Draft label and danger styling when Discard Draft is clicked', () => {
+      page.openingStockRecord.set(mockOpeningStock({ status: 'draft', version: 1 }));
+      fixture.detectChanges();
+
+      expect(page.discardDialogOpen()).toBe(false);
+      const discardBtn = fixture.nativeElement.querySelector('[data-testid="opening-stock-discard"]') as HTMLButtonElement;
+      discardBtn.click();
+      fixture.detectChanges();
+
+      expect(page.discardDialogOpen()).toBe(true);
+      const dialogDebug = fixture.debugElement.query(By.directive(UiConfirmDialogComponent));
+      expect(dialogDebug).toBeTruthy();
+      expect(dialogDebug.componentInstance.confirmLabel()).toBe('Discard Draft');
+      expect(dialogDebug.componentInstance.danger()).toBe(true);
+    });
+
+    it('discards draft and resets form upon confirmation', () => {
+      const inventoryApi = TestBed.inject(InventoryApi);
+      const discardSpy = vi.spyOn(inventoryApi, 'discardOpeningStock').mockReturnValue(
+        of({ id: 'draft-1', discarded: true })
+      );
+
+      page.openingStockRecord.set(mockOpeningStock({ status: 'draft', version: 2 }));
+      page.discardDialogOpen.set(true);
+
+      page.onDiscardConfirmed();
+
+      expect(discardSpy).toHaveBeenCalledWith('draft-1', 2);
+      expect(page.openingStockRecord()).toBeNull();
+      expect(page.discardDialogOpen()).toBe(false);
+      expect(page.successMessage()).toContain('Opening stock draft discarded');
+    });
+
+    it('handles 409 conflict gracefully when draft was modified elsewhere', () => {
+      const inventoryApi = TestBed.inject(InventoryApi);
+      vi.spyOn(inventoryApi, 'discardOpeningStock').mockReturnValue(
+        throwError(() => new HttpErrorResponse({ status: 409, error: { error: { message: 'Version mismatch' } } }))
+      );
+
+      page.openingStockRecord.set(mockOpeningStock({ status: 'draft', version: 1 }));
+
+      page.onDiscardConfirmed();
+
+      expect(page.discarding()).toBe(false);
+      expect(page.errorMessage()).toBe('Opening stock record was modified or is no longer a draft.');
+    });
+
+    it('hides delete and discard actions and disables form when opening stock is posted', () => {
+      page.openingStockRecord.set(mockOpeningStock({ id: 'post-1', status: 'posted', version: 2 }));
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="opening-stock-posted-badge"]')).toBeTruthy();
+      expect(compiled.querySelector('[data-testid="opening-stock-discard"]')).toBeNull();
+      expect(compiled.querySelector('[data-testid="opening-stock-save-draft"]')).toBeNull();
+      expect(compiled.querySelector('[data-testid="opening-stock-save"]')).toBeNull();
+      expect(compiled.querySelector('[data-testid="opening-stock-view-stock"]')).toBeTruthy();
+      expect(compiled.querySelector('[data-testid="opening-stock-cancel"]')).toBeTruthy();
+    });
+
+    it('creates draft when Save as draft is clicked for a new record', () => {
+      const inventoryApi = TestBed.inject(InventoryApi);
+      const createDraftSpy = vi.spyOn(inventoryApi, 'createOpeningStockDraft').mockReturnValue(
+        of(mockOpeningStock({
+          id: 'draft-new-1',
+          quantity: '15.0000',
+          quantityBase: '15.0000',
+          inventoryValue: { amount: '150.00', currency: 'PKR' },
+          status: 'draft',
+          version: 1,
+        }))
+      );
+
+      page.form.patchValue({
+        warehouseId: 'wh-1',
+        productId: 'prod-none',
+        quantity: '15',
+        inventoryValue: '150.00',
+      });
+
+      page.saveDraft();
+
+      expect(createDraftSpy).toHaveBeenCalled();
+      expect(page.openingStockRecord()?.id).toBe('draft-new-1');
+      expect(page.successMessage()).toContain('Opening stock draft saved');
+    });
   });
 });

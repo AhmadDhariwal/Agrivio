@@ -3,7 +3,14 @@
   <header class="page-head">
     <div class="page-head__title-group">
       <p class="page-head__eyebrow">INVENTORY</p>
-      <h1 class="page-head__title">Opening stock</h1>
+      <div class="page-head__title-wrap" style="display: flex; align-items: center; gap: 0.75rem;">
+        <h1 class="page-head__title">Opening stock</h1>
+        @if (isDraft()) {
+          <span class="tracking-chip" data-testid="opening-stock-draft-badge">Draft</span>
+        } @else if (isPosted()) {
+          <span class="tracking-chip tracking-chip--batch" data-testid="opening-stock-posted-badge">Posted</span>
+        }
+      </div>
       <p class="page-head__lede">
         Post auditable opening stock with batch and expiry where product tracking requires them.
       </p>
@@ -384,56 +391,174 @@
 
     <!-- Action Footer -->
     <footer class="form-actions">
-      <button
-        class="ag-btn ag-btn--primary"
-        type="submit"
-        [disabled]="!canPost()"
-        data-testid="opening-stock-save"
-      >
-        @if (saving()) {
-        <svg
-          class="spin-icon"
-          width="15"
-          height="15"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
+      @if (isPosted()) {
+        @if (showViewStockAction()) {
+        <a
+          class="ag-btn ag-btn--secondary"
+          routerLink="/app/inventory/stock"
+          data-testid="opening-stock-view-stock"
         >
-          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-        </svg>
-        Posting… } @else {
-        <svg
-          width="15"
-          height="15"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
+          View stock
+        </a>
+        }
+        <a
+          class="ag-btn ag-btn--secondary"
+          routerLink="/app/inventory/stock"
+          data-testid="opening-stock-cancel"
         >
-          <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
-        Post opening stock }
-      </button>
-      @if (showViewStockAction()) {
-      <a
-        class="ag-btn ag-btn--secondary"
-        routerLink="/app/inventory/stock"
-        data-testid="opening-stock-view-stock"
-      >
-        View stock
-      </a>
+          Cancel
+        </a>
+      } @else if (isDraft()) {
+        @if (!isEditing()) {
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary"
+          (click)="enableEditing()"
+          data-testid="opening-stock-edit"
+        >
+          Edit
+        </button>
+        }
+        <button
+          type="button"
+          class="ag-btn ag-btn--danger-outline"
+          (click)="openDiscardDialog()"
+          [disabled]="discarding()"
+          data-testid="opening-stock-discard"
+        >
+          {{ discarding() ? 'Discarding…' : 'Discard Draft' }}
+        </button>
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary"
+          (click)="saveDraft()"
+          [disabled]="savingDraft() || saving()"
+          data-testid="opening-stock-save-draft"
+        >
+          {{ savingDraft() ? 'Saving…' : 'Save as draft' }}
+        </button>
+        <button
+          class="ag-btn ag-btn--primary"
+          type="submit"
+          [disabled]="!canPost()"
+          data-testid="opening-stock-save"
+        >
+          @if (saving()) {
+          <svg
+            class="spin-icon"
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+          Posting… } @else {
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          Post opening stock }
+        </button>
+        @if (showViewStockAction()) {
+        <a
+          class="ag-btn ag-btn--secondary"
+          routerLink="/app/inventory/stock"
+          data-testid="opening-stock-view-stock"
+        >
+          View stock
+        </a>
+        }
+        <a
+          class="ag-btn ag-btn--secondary"
+          routerLink="/app/inventory/stock"
+          data-testid="opening-stock-cancel"
+        >
+          Cancel
+        </a>
+      } @else {
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary"
+          (click)="saveDraft()"
+          [disabled]="savingDraft() || saving()"
+          data-testid="opening-stock-save-draft"
+        >
+          {{ savingDraft() ? 'Saving…' : 'Save as draft' }}
+        </button>
+        <button
+          class="ag-btn ag-btn--primary"
+          type="submit"
+          [disabled]="!canPost()"
+          data-testid="opening-stock-save"
+        >
+          @if (saving()) {
+          <svg
+            class="spin-icon"
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+          Posting… } @else {
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          Post opening stock }
+        </button>
+        @if (showViewStockAction()) {
+        <a
+          class="ag-btn ag-btn--secondary"
+          routerLink="/app/inventory/stock"
+          data-testid="opening-stock-view-stock"
+        >
+          View stock
+        </a>
+        }
+        <a
+          class="ag-btn ag-btn--secondary"
+          routerLink="/app/inventory/stock"
+          data-testid="opening-stock-cancel"
+        >
+          Cancel
+        </a>
       }
-      <a
-        class="ag-btn ag-btn--secondary"
-        routerLink="/app/inventory/stock"
-        data-testid="opening-stock-cancel"
-      >
-        Cancel
-      </a>
     </footer>
   </form>
   }
+
+  <!-- Discard Draft Confirm Dialog -->
+  <agrivio-ui-confirm-dialog
+    [open]="discardDialogOpen()"
+    title="Discard draft opening stock?"
+    message="Are you sure you want to discard this draft opening stock? This action cannot be undone."
+    confirmLabel="Discard Draft"
+    cancelLabel="Cancel"
+    [danger]="true"
+    (confirmed)="onDiscardConfirmed()"
+    (dismiss)="onDiscardDismissed()"
+  />
 </div>

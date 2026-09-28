@@ -1,7 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { signal } from '@angular/core';
-import { of } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
+import { By } from '@angular/platform-browser';
+import { of, throwError } from 'rxjs';
 import { AdjustmentsPage } from './adjustments.page';
 import { InventoryApi } from '../../data-access/inventory.api';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
@@ -11,6 +13,7 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 import { StockAdjustmentRecord } from '../../models/inventory.models';
+import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 
 function mockProduct(id: string, trackingMode: ProductRecord['trackingMode']): ProductRecord {
   return {
@@ -132,6 +135,20 @@ describe('AdjustmentsPage', () => {
           id: 'adj-1',
           status: 'reversed',
         } as StockAdjustmentRecord),
+      ),
+      updateAdjustment: vi.fn((id: string, payload: any) =>
+        of({
+          id,
+          status: 'draft',
+          version: 2,
+          ...payload,
+        } as StockAdjustmentRecord),
+      ),
+      discardAdjustment: vi.fn((id: string) =>
+        of({
+          id,
+          discarded: true,
+        }),
       ),
     };
 
@@ -550,6 +567,153 @@ describe('AdjustmentsPage', () => {
       expect(page.productOptions().map((opt) => opt.value)).toEqual(['prod-2']);
       expect(page.form.controls.productId.value).toBe('prod-1');
       expect(page.productSelectedLabel()).toBe('Product prod-1');
+    });
+  });
+
+  describe('Draft & Discard Lifecycle', () => {
+    const mockDraft: StockAdjustmentRecord = {
+      id: 'draft-10',
+      organizationId: 'org-1',
+      warehouseId: 'wh-1',
+      productId: 'prod-none',
+      batchId: null,
+      adjustmentType: 'damage',
+      direction: 'outbound',
+      quantityBase: '7.0000',
+      enteredQuantity: '7.0000',
+      unitCode: 'KG',
+      conversionFactorSnapshot: '1.0000',
+      packagingUnitId: null,
+      inventoryValue: null,
+      reason: 'Draft damage test',
+      status: 'draft',
+      postedAt: null,
+      postedBy: null,
+      postedMovementId: null,
+      reversalOfId: null,
+      reversedByAdjustmentId: null,
+      negativeStockOverride: false,
+      version: 1,
+    };
+
+    const mockPosted: StockAdjustmentRecord = {
+      id: 'adj-posted',
+      organizationId: 'org-1',
+      warehouseId: 'wh-1',
+      productId: 'prod-none',
+      batchId: null,
+      adjustmentType: 'damage',
+      direction: 'outbound',
+      quantityBase: '10.0000',
+      enteredQuantity: '10.0000',
+      unitCode: 'KG',
+      conversionFactorSnapshot: '1.0000',
+      packagingUnitId: null,
+      inventoryValue: null,
+      reason: 'Posted damage',
+      status: 'posted',
+      postedAt: '2026-08-20T10:00:00Z',
+      postedBy: 'user-1',
+      postedMovementId: 'mov-1',
+      reversalOfId: null,
+      reversedByAdjustmentId: null,
+      negativeStockOverride: false,
+      version: 2,
+    };
+
+    it('renders draft actions (Edit, Discard Draft, Post) for draft rows and no delete action', () => {
+      page.adjustments.set([mockDraft]);
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const editBtn = compiled.querySelector('[data-testid="adjustment-edit-draft"]');
+      const discardBtn = compiled.querySelector('[data-testid="adjustment-discard-draft"]');
+      const postBtn = compiled.querySelector('[data-testid="adjustment-post-draft"]');
+
+      expect(editBtn).toBeTruthy();
+      expect(discardBtn).toBeTruthy();
+      expect(postBtn).toBeTruthy();
+      expect(discardBtn?.textContent?.trim()).toBe('Discard Draft');
+      expect(compiled.textContent).not.toContain('Delete');
+    });
+
+    it('hides discard/delete actions for posted adjustments, showing only reverse', () => {
+      page.adjustments.set([mockPosted]);
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="adjustment-reverse"]')).toBeTruthy();
+      expect(compiled.querySelector('[data-testid="adjustment-discard-draft"]')).toBeNull();
+      expect(compiled.querySelector('[data-testid="adjustment-edit-draft"]')).toBeNull();
+      expect(compiled.querySelector('[data-testid="adjustment-post-draft"]')).toBeNull();
+      expect(compiled.textContent).not.toContain('Delete');
+    });
+
+    it('opens confirm dialog with Discard Draft label and danger styling when Discard Draft is clicked', () => {
+      page.adjustments.set([mockDraft]);
+      fixture.detectChanges();
+
+      expect(page.discardConfirmOpen()).toBe(false);
+      const discardBtn = fixture.nativeElement.querySelector('[data-testid="adjustment-discard-draft"]') as HTMLButtonElement;
+      discardBtn.click();
+      fixture.detectChanges();
+
+      expect(page.discardConfirmOpen()).toBe(true);
+      const dialogDebug = fixture.debugElement.query(By.directive(UiConfirmDialogComponent));
+      expect(dialogDebug).toBeTruthy();
+      expect(dialogDebug.componentInstance.confirmLabel()).toBe('Discard Draft');
+      expect(dialogDebug.componentInstance.danger()).toBe(true);
+    });
+
+    it('discards draft adjustment upon confirmation and refreshes list', () => {
+      page.adjustments.set([mockDraft]);
+      fixture.detectChanges();
+
+      page.askDiscard(mockDraft);
+      expect(page.discardConfirmOpen()).toBe(true);
+
+      page.confirmDiscard();
+      expect(mockInventoryApi.discardAdjustment).toHaveBeenCalledWith('draft-10', 1);
+      expect(page.discardConfirmOpen()).toBe(false);
+      expect(page.successMessage()).toBe('Stock adjustment draft discarded.');
+      expect(mockInventoryApi.listAdjustments).toHaveBeenCalled();
+    });
+
+    it('handles 409 conflict gracefully with user-friendly message when draft was modified elsewhere', () => {
+      mockInventoryApi.discardAdjustment.mockReturnValueOnce(
+        throwError(() => new HttpErrorResponse({ status: 409, error: { message: 'Conflict' } }))
+      );
+
+      page.askDiscard(mockDraft);
+      page.confirmDiscard();
+
+      expect(page.errorMessage()).toBe('Stock adjustment was modified or is no longer a draft.');
+      expect(page.discardConfirmOpen()).toBe(false);
+    });
+
+    it('allows editing draft, updating values, and saving draft without posting', () => {
+      page.editDraft(mockDraft);
+      fixture.detectChanges();
+
+      expect(page.editingDraft()?.id).toBe('draft-10');
+      expect(page.form.controls.quantity.value).toBe('7.0000');
+      expect(page.form.controls.reason.value).toBe('Draft damage test');
+
+      page.form.controls.quantity.setValue('12.0000');
+      fixture.detectChanges();
+
+      page.saveDraft();
+
+      expect(mockInventoryApi.updateAdjustment).toHaveBeenCalledWith(
+        'draft-10',
+        expect.objectContaining({
+          quantity: '12.0000',
+          expectedVersion: 1,
+        })
+      );
+      expect(mockInventoryApi.postAdjustment).not.toHaveBeenCalled();
+      expect(page.editingDraft()).toBeNull();
+      expect(page.successMessage()).toBe('Stock adjustment draft saved.');
     });
   });
 });

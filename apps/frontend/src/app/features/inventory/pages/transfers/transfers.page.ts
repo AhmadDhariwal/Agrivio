@@ -1,4 +1,5 @@
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   AbstractControl,
   FormBuilder,
@@ -102,6 +103,13 @@ export class TransfersPage {
   readonly formSubmitAttempted = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
+
+  // Draft Lifecycle State
+  readonly editingDraft = signal<WarehouseTransferRecord | null>(null);
+  readonly discardConfirmOpen = signal(false);
+  readonly discarding = signal(false);
+  readonly savingDraft = signal(false);
+  private pendingDiscard: WarehouseTransferRecord | null = null;
 
   // Master Data
   readonly products = signal<ProductRecord[]>([]);
@@ -447,6 +455,45 @@ export class TransfersPage {
       draftPayload.batchId = value.batchId;
     }
 
+    const current = this.editingDraft();
+    if (current) {
+      this.inventoryApi
+        .updateTransfer(current.id, { ...draftPayload, expectedVersion: current.version })
+        .subscribe({
+          next: (draft) => {
+            const postPayload: {
+              reason: string;
+              negativeStockOverride?: boolean;
+              negativeStockOverrideReason?: string;
+            } = { reason: value.reason };
+            if (value.negativeStockOverride) {
+              postPayload.negativeStockOverride = true;
+              postPayload.negativeStockOverrideReason = value.negativeStockOverrideReason;
+            }
+
+            const idempotencyKey = `xfer-post-${draft.id}-${Date.now()}`;
+            this.inventoryApi.postTransfer(draft.id, postPayload, idempotencyKey).subscribe({
+              next: () => {
+                this.successMessage.set('Transfer posted successfully.');
+                this.saving.set(false);
+                this.editingDraft.set(null);
+                this.resetForm();
+                this.reloadTransfers(true);
+              },
+              error: (error: unknown) => {
+                this.saving.set(false);
+                this.errorMessage.set(this.mapError(error, 'Unable to post transfer.'));
+              },
+            });
+          },
+          error: (error: unknown) => {
+            this.saving.set(false);
+            this.errorMessage.set(this.mapError(error, 'Unable to update transfer draft.'));
+          },
+        });
+      return;
+    }
+
     this.inventoryApi.createTransferDraft(draftPayload).subscribe({
       next: (draft) => {
         const postPayload: {
@@ -478,6 +525,159 @@ export class TransfersPage {
         this.errorMessage.set(this.mapError(error, 'Unable to create transfer draft.'));
       },
     });
+  }
+
+  editDraft(item: WarehouseTransferRecord): void {
+    this.editingDraft.set(item);
+    this.form.patchValue({
+      sourceWarehouseId: item.sourceWarehouseId,
+      destinationWarehouseId: item.destinationWarehouseId,
+      productId: item.productId,
+      batchId: item.batchId ?? '',
+      quantity: item.enteredQuantity ?? item.quantityBase,
+      reason: item.reason ?? '',
+      negativeStockOverride: false,
+      negativeStockOverrideReason: '',
+    });
+    const product =
+      this.products().find((p) => p.id === item.productId) ??
+      (this.selectedProduct()?.id === item.productId ? this.selectedProduct() : null);
+    this.selectedProduct.set(product);
+    const mode = product?.trackingMode ?? 'none';
+    this.selectedTrackingMode.set(mode);
+    this.syncBatchRequired(mode);
+    this.requestStockAndBatchContext();
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  cancelEditDraft(): void {
+    this.editingDraft.set(null);
+    this.resetForm();
+  }
+
+  saveDraft(): void {
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    if (
+      !this.form.controls.sourceWarehouseId.valid ||
+      !this.form.controls.destinationWarehouseId.valid ||
+      !this.form.controls.productId.valid ||
+      !this.form.controls.quantity.valid
+    ) {
+      return;
+    }
+    const value = this.form.getRawValue();
+    if (value.sourceWarehouseId === value.destinationWarehouseId) {
+      this.errorMessage.set('Source and destination warehouses must differ.');
+      return;
+    }
+
+    this.savingDraft.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+
+    const draftPayload: Parameters<InventoryApi['createTransferDraft']>[0] = {
+      sourceWarehouseId: value.sourceWarehouseId,
+      destinationWarehouseId: value.destinationWarehouseId,
+      productId: value.productId,
+      quantity: value.quantity,
+      reason: value.reason,
+    };
+    if (this.selectedTrackingMode() !== 'none' && value.batchId.trim() !== '') {
+      draftPayload.batchId = value.batchId;
+    }
+
+    const current = this.editingDraft();
+    if (current) {
+      this.inventoryApi
+        .updateTransfer(current.id, {
+          ...draftPayload,
+          expectedVersion: current.version,
+        })
+        .subscribe({
+          next: () => {
+            this.savingDraft.set(false);
+            this.editingDraft.set(null);
+            this.successMessage.set('Warehouse transfer draft saved.');
+            this.resetForm();
+            this.reloadTransfers(true);
+          },
+          error: (error: unknown) => {
+            this.savingDraft.set(false);
+            this.errorMessage.set(this.mapError(error, 'Unable to update transfer draft.'));
+          },
+        });
+    } else {
+      this.inventoryApi.createTransferDraft(draftPayload).subscribe({
+        next: () => {
+          this.savingDraft.set(false);
+          this.successMessage.set('Warehouse transfer draft saved.');
+          this.resetForm();
+          this.reloadTransfers(true);
+        },
+        error: (error: unknown) => {
+          this.savingDraft.set(false);
+          this.errorMessage.set(this.mapError(error, 'Unable to create transfer draft.'));
+        },
+      });
+    }
+  }
+
+  askDiscard(item: WarehouseTransferRecord): void {
+    this.pendingDiscard = item;
+    this.discardConfirmOpen.set(true);
+  }
+
+  confirmDiscard(): void {
+    const item = this.pendingDiscard ?? this.editingDraft();
+    this.discardConfirmOpen.set(false);
+    this.pendingDiscard = null;
+    if (!item) return;
+
+    this.discarding.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+
+    this.inventoryApi.discardTransfer(item.id, item.version).subscribe({
+      next: () => {
+        this.discarding.set(false);
+        if (this.editingDraft()?.id === item.id) {
+          this.cancelEditDraft();
+        }
+        this.successMessage.set('Warehouse transfer draft discarded.');
+        this.reloadTransfers(true);
+      },
+      error: (error: unknown) => {
+        this.discarding.set(false);
+        this.errorMessage.set(this.mapError(error, 'Unable to discard draft.'));
+      },
+    });
+  }
+
+  postDraftRow(item: WarehouseTransferRecord): void {
+    this.saving.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+
+    const idempotencyKey = `xfer-post-${item.id}-${Date.now()}`;
+    this.inventoryApi
+      .postTransfer(item.id, { reason: item.reason || 'Post transfer draft' }, idempotencyKey)
+      .subscribe({
+        next: () => {
+          this.saving.set(false);
+          this.successMessage.set('Transfer posted successfully.');
+          if (this.editingDraft()?.id === item.id) {
+            this.cancelEditDraft();
+          }
+          this.reloadTransfers(true);
+        },
+        error: (error: unknown) => {
+          this.saving.set(false);
+          this.errorMessage.set(this.mapError(error, 'Unable to post transfer.'));
+        },
+      });
   }
 
   private resetForm(): void {
@@ -609,10 +809,21 @@ export class TransfersPage {
   }
 
   private mapError(error: unknown, fallback: string): string {
-    if (typeof error === 'object' && error !== null && 'error' in error) {
-      const body = (error as { error?: { error?: { message?: string } } }).error;
-      if (body?.error?.message) {
-        return body.error.message;
+    if (error instanceof HttpErrorResponse) {
+      if (error.status === 409) {
+        return 'Warehouse transfer was modified or is no longer a draft.';
+      }
+      const message = error.error?.error?.message;
+      if (typeof message === 'string' && message.trim() !== '') {
+        return message;
+      }
+    } else if (typeof error === 'object' && error !== null) {
+      const errObj = error as { status?: number; error?: { error?: { message?: string } } };
+      if (errObj.status === 409) {
+        return 'Warehouse transfer was modified or is no longer a draft.';
+      }
+      if (errObj.error?.error?.message) {
+        return errObj.error.error.message;
       }
     }
     return fallback;

@@ -1,11 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ReturnsListPage } from './returns-list.page';
 import { ReturnsApi } from '../../data-access/returns.api';
 import { BranchesWarehousesApi } from '../../../branches-warehouses/data-access/branches-warehouses.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { SalesReturnRecord } from '../../models/returns.models';
+import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 
 describe('ReturnsListPage', () => {
   const mockReturn1: SalesReturnRecord = {
@@ -98,6 +101,15 @@ describe('ReturnsListPage', () => {
     reversedBy: 'user-2',
   };
 
+  const mockDraftReturn: SalesReturnRecord = {
+    ...mockReturn1,
+    id: 'ret-103',
+    status: 'draft',
+    postedAt: null,
+    postedBy: null,
+    version: 1,
+  };
+
   const mockWarehouses = [
     { id: 'wh-1', name: 'Central Distribution Hub (Multan)', code: 'CDH-01' },
     { id: 'wh-2', name: 'North Branch Depot (Lahore)', code: 'NBD-01' },
@@ -106,6 +118,8 @@ describe('ReturnsListPage', () => {
   let mockReturnsApi: {
     listReturns: ReturnType<typeof vi.fn>;
     reverseReturn: ReturnType<typeof vi.fn>;
+    discardReturn: ReturnType<typeof vi.fn>;
+    postReturn: ReturnType<typeof vi.fn>;
   };
   let mockLocationsApi: {
     listWarehouseOptions: ReturnType<typeof vi.fn>;
@@ -124,6 +138,10 @@ describe('ReturnsListPage', () => {
       reverseReturn: vi
         .fn()
         .mockReturnValue(of({ ...mockReturn1, status: 'reversed', version: 2 })),
+      discardReturn: vi.fn().mockReturnValue(of({ id: 'ret-103', discarded: true })),
+      postReturn: vi
+        .fn()
+        .mockReturnValue(of({ ...mockDraftReturn, status: 'posted', version: 2 })),
     };
 
     mockLocationsApi = {
@@ -375,5 +393,126 @@ describe('ReturnsListPage', () => {
     expect(mockReturnsApi.listReturns).toHaveBeenCalledWith(
       expect.objectContaining({ page: 1, pageSize: 50 }),
     );
+  });
+
+  it('renders [ Post ] and [ Discard Draft ] for draft items and hides delete/discard for posted items', async () => {
+    mockReturnsApi.listReturns.mockReturnValue(
+      of({ items: [mockDraftReturn, mockReturn1], meta: { page: 1, pageSize: 25, total: 2 } }),
+    );
+    const { fixture } = await createComponent();
+
+    const postBtn = fixture.nativeElement.querySelector('[data-testid="return-post"]');
+    const discardBtn = fixture.nativeElement.querySelector('[data-testid="return-discard"]');
+    expect(postBtn).toBeTruthy();
+    expect(postBtn.textContent).toContain('Post');
+    expect(discardBtn).toBeTruthy();
+    expect(discardBtn.textContent).toContain('Discard Draft');
+
+    // In mobile cards
+    const mobilePostBtn = fixture.nativeElement.querySelector('[data-testid="return-mobile-post"]');
+    const mobileDiscardBtn = fixture.nativeElement.querySelector('[data-testid="return-mobile-discard"]');
+    expect(mobilePostBtn).toBeTruthy();
+    expect(mobileDiscardBtn).toBeTruthy();
+
+    // Verify posted item in row 2 does NOT have delete or discard
+    const rows = fixture.nativeElement.querySelectorAll('[data-testid="return-row"]');
+    const postedRowText = rows[1].textContent;
+    expect(postedRowText).not.toContain('Discard Draft');
+    expect(postedRowText).not.toContain('Delete');
+  });
+
+  it('opens confirmation dialog on discard draft with danger=true and confirmLabel="Discard Draft"', async () => {
+    mockReturnsApi.listReturns.mockReturnValue(
+      of({ items: [mockDraftReturn], meta: { page: 1, pageSize: 25, total: 1 } }),
+    );
+    const { fixture, component } = await createComponent();
+
+    expect(component.discardDialogOpen()).toBe(false);
+    const discardBtn: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="return-discard"]',
+    );
+    discardBtn.click();
+    fixture.detectChanges();
+
+    expect(component.discardDialogOpen()).toBe(true);
+
+    const dialogDebugs = fixture.debugElement.queryAll(By.directive(UiConfirmDialogComponent));
+    const discardDialog = dialogDebugs.find(
+      (d) => d.componentInstance.confirmLabel() === 'Discard Draft',
+    );
+    expect(discardDialog).toBeTruthy();
+    expect(discardDialog!.componentInstance.open()).toBe(true);
+    expect(discardDialog!.componentInstance.confirmLabel()).toBe('Discard Draft');
+    expect(discardDialog!.componentInstance.danger()).toBe(true);
+    expect(discardDialog!.componentInstance.title()).toBe('Discard draft return?');
+  });
+
+  it('executes discard draft, removes item from list, and updates count', async () => {
+    mockReturnsApi.listReturns.mockReturnValue(
+      of({ items: [mockDraftReturn, mockReturn1], meta: { page: 1, pageSize: 25, total: 2 } }),
+    );
+    const { component } = await createComponent();
+
+    component.openDiscardDialog(mockDraftReturn);
+    component.onConfirmDiscard();
+
+    expect(mockReturnsApi.discardReturn).toHaveBeenCalledWith('ret-103', 1);
+    expect(component.items().find((item) => item.id === 'ret-103')).toBeUndefined();
+    expect(component.total()).toBe(1);
+    expect(component.successMessage()).toBe('Draft return was discarded.');
+  });
+
+  it('handles 409 conflict when discarding draft return with standard message', async () => {
+    mockReturnsApi.listReturns.mockReturnValue(
+      of({ items: [mockDraftReturn], meta: { page: 1, pageSize: 25, total: 1 } }),
+    );
+    mockReturnsApi.discardReturn.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 409, statusText: 'Conflict' })),
+    );
+    const { component } = await createComponent();
+
+    component.openDiscardDialog(mockDraftReturn);
+    component.onConfirmDiscard();
+
+    expect(component.errorMessage()).toBe('Return was modified or is no longer a draft.');
+  });
+
+  it('posts draft return when Post is clicked', async () => {
+    mockReturnsApi.listReturns.mockReturnValue(
+      of({ items: [mockDraftReturn], meta: { page: 1, pageSize: 25, total: 1 } }),
+    );
+    const { fixture, component } = await createComponent();
+
+    const postBtn: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="return-post"]',
+    );
+    postBtn.click();
+    fixture.detectChanges();
+
+    expect(mockReturnsApi.postReturn).toHaveBeenCalledWith(
+      'ret-103',
+      {
+        expectedVersion: 1,
+        resolution: 'ledger_adjustment',
+        reason: 'Customer returned excess DAP bags in original factory packing',
+      },
+      expect.any(String),
+    );
+    const updated = component.items().find((item) => item.id === 'ret-103');
+    expect(updated?.status).toBe('posted');
+    expect(component.successMessage()).toBe('Return posted successfully.');
+  });
+
+  it('hides Post and Discard Draft buttons when returns.post permission is missing', async () => {
+    mockReturnsApi.listReturns.mockReturnValue(
+      of({ items: [mockDraftReturn], meta: { page: 1, pageSize: 25, total: 1 } }),
+    );
+    mockSessionStore.hasPermission.mockImplementation((perm: string) => perm !== 'returns.post');
+    const { fixture } = await createComponent();
+
+    const postBtn = fixture.nativeElement.querySelector('[data-testid="return-post"]');
+    const discardBtn = fixture.nativeElement.querySelector('[data-testid="return-discard"]');
+    expect(postBtn).toBeNull();
+    expect(discardBtn).toBeNull();
   });
 });

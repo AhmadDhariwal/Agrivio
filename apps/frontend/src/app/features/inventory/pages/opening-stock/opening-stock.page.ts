@@ -35,6 +35,8 @@ import {
 import { PackagingUnitRecord, ProductRecord } from '../../../catalog/models/catalog.models';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 
+import { OpeningStockRecord } from '../../models/inventory.models';
+
 @Component({
   selector: 'agrivio-opening-stock-page',
   standalone: true,
@@ -45,6 +47,7 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
     UiLoadingStateComponent,
     UiFieldLabelComponent,
     UiModuleInfoComponent,
+    UiConfirmDialogComponent,
     UiSearchableDropdownComponent,
   ],
   templateUrl: './opening-stock.page.html',
@@ -60,6 +63,14 @@ export class OpeningStockPage {
   private readonly route = inject(ActivatedRoute, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
   private readonly productSearchChanges = new Subject<string>();
+
+  readonly openingStockRecord = signal<OpeningStockRecord | null>(null);
+  readonly isDraft = computed(() => this.openingStockRecord()?.status === 'draft');
+  readonly isPosted = computed(() => this.openingStockRecord()?.status === 'posted');
+  readonly discardDialogOpen = signal(false);
+  readonly discarding = signal(false);
+  readonly savingDraft = signal(false);
+  readonly isEditing = signal(true);
 
   readonly loading = signal(true);
   readonly saving = signal(false);
@@ -214,6 +225,45 @@ export class OpeningStockPage {
       .subscribe((items) => {
         this.products.set(items.filter((item) => item.status === 'active'));
       });
+
+    const recordId =
+      this.route?.snapshot?.paramMap?.get('id') ??
+      this.route?.snapshot?.queryParamMap?.get('draftId') ??
+      this.route?.snapshot?.queryParamMap?.get('id');
+    if (recordId) {
+      this.loadOpeningStockRecord(recordId);
+    }
+  }
+
+  loadOpeningStockRecord(id: string): void {
+    this.inventoryApi.getOpeningStock(id).subscribe({
+      next: (record) => {
+        this.openingStockRecord.set(record);
+        this.form.patchValue({
+          warehouseId: record.warehouseId,
+          productId: record.productId,
+          quantity: record.quantity,
+          packagingUnitId: record.packagingUnitId ?? '',
+          batchNumber: record.batchNumber ?? '',
+          manufacturingDate: record.manufacturingDate ?? '',
+          expiryDate: record.expiryDate ?? '',
+          inventoryValue: record.inventoryValue?.amount ?? '',
+        });
+        if (record.productId) {
+          this.applyTargetProduct(record.productId);
+        }
+        if (record.status === 'posted') {
+          this.form.disable();
+          this.isEditing.set(false);
+        } else {
+          this.form.enable();
+          this.isEditing.set(true);
+        }
+      },
+      error: (error: unknown) => {
+        this.errorMessage.set(this.mapError(error, 'Unable to load opening stock record.'));
+      },
+    });
   }
 
   productSelectedLabel(): string {
@@ -278,15 +328,16 @@ export class OpeningStockPage {
     return 'Standard (None)';
   }
 
-  submit(): void {
-    this.formSubmitAttempted.set(true);
-    this.form.markAllAsTouched();
-    if (!this.canPost()) {
-      return;
-    }
-    this.saving.set(true);
-    this.errorMessage.set(null);
-    this.successMessage.set(null);
+  buildPayload(): {
+    warehouseId: string;
+    productId: string;
+    quantity: string;
+    packagingUnitId?: string;
+    batchNumber?: string;
+    manufacturingDate?: string;
+    expiryDate?: string;
+    inventoryValue: { amount: string; currency: string };
+  } {
     const value = this.form.getRawValue();
     const mode = this.selectedTrackingMode();
     const payload: {
@@ -316,20 +367,162 @@ export class OpeningStockPage {
     if (mode === 'batch_expiry' && value.expiryDate.trim() !== '') {
       payload.expiryDate = value.expiryDate.trim();
     }
+    return payload;
+  }
 
-    const idempotencyKey = `opening-stock-${crypto.randomUUID()}`;
-    this.inventoryApi.postOpeningStock(payload, idempotencyKey).subscribe({
-      next: (result) => {
-        this.saving.set(false);
-        this.successMessage.set(
-          `Opening stock posted. Balance ${result.balance.quantityBase}; WAC ${result.costState.weightedAverageCost.amount} PKR.`,
-        );
+  enableEditing(): void {
+    if (this.isPosted()) return;
+    this.isEditing.set(true);
+    this.form.enable();
+  }
+
+  openDiscardDialog(): void {
+    if (!this.canPostOpeningStock() || !this.isDraft() || this.discarding()) return;
+    this.discardDialogOpen.set(true);
+  }
+
+  onDiscardDismissed(): void {
+    this.discardDialogOpen.set(false);
+  }
+
+  onDiscardConfirmed(): void {
+    const record = this.openingStockRecord();
+    if (!record || !this.canPostOpeningStock() || record.status !== 'draft' || this.discarding()) return;
+    this.discarding.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    this.inventoryApi.discardOpeningStock(record.id, record.version).subscribe({
+      next: () => {
+        this.discarding.set(false);
+        this.discardDialogOpen.set(false);
+        this.openingStockRecord.set(null);
+        this.form.reset({
+          warehouseId: '',
+          productId: '',
+          quantity: '',
+          packagingUnitId: '',
+          batchNumber: '',
+          manufacturingDate: '',
+          expiryDate: '',
+          inventoryValue: '',
+        });
+        this.selectedProduct.set(null);
+        this.selectedTrackingMode.set('none');
+        this.form.enable();
+        this.isEditing.set(true);
+        this.successMessage.set('Opening stock draft discarded successfully.');
       },
       error: (error: unknown) => {
-        this.saving.set(false);
-        this.errorMessage.set(this.mapError(error, 'Unable to post opening stock.'));
+        this.discarding.set(false);
+        this.discardDialogOpen.set(false);
+        this.errorMessage.set(this.mapConflictError(error, 'Unable to discard opening stock draft.'));
       },
     });
+  }
+
+  saveDraft(): void {
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    if (!this.canPostOpeningStock() || this.savingDraft()) return;
+    const value = this.form.getRawValue();
+    if (!value.warehouseId || !value.productId || !value.quantity) {
+      this.errorMessage.set('Warehouse, product, and quantity are required to save draft.');
+      return;
+    }
+    this.savingDraft.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    const payload = this.buildPayload();
+    const current = this.openingStockRecord();
+    if (current && current.status === 'draft') {
+      this.inventoryApi.updateOpeningStock(current.id, payload, current.version).subscribe({
+        next: (updated) => {
+          this.savingDraft.set(false);
+          this.openingStockRecord.set(updated);
+          this.successMessage.set('Opening stock draft updated successfully.');
+        },
+        error: (error: unknown) => {
+          this.savingDraft.set(false);
+          this.errorMessage.set(this.mapConflictError(error, 'Unable to update opening stock draft.'));
+        },
+      });
+    } else {
+      this.inventoryApi.createOpeningStockDraft(payload).subscribe({
+        next: (created) => {
+          this.savingDraft.set(false);
+          this.openingStockRecord.set(created);
+          this.successMessage.set('Opening stock draft saved successfully.');
+        },
+        error: (error: unknown) => {
+          this.savingDraft.set(false);
+          this.errorMessage.set(this.mapConflictError(error, 'Unable to create opening stock draft.'));
+        },
+      });
+    }
+  }
+
+  submit(): void {
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    if (!this.canPost()) {
+      return;
+    }
+    this.saving.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    const payload = this.buildPayload();
+    const current = this.openingStockRecord();
+    const idempotencyKey = `opening-stock-${crypto.randomUUID()}`;
+
+    if (current && current.status === 'draft') {
+      this.inventoryApi.postOpeningStockDraft(current.id, current.version, idempotencyKey).subscribe({
+        next: (result) => {
+          this.saving.set(false);
+          this.openingStockRecord.set({
+            ...current,
+            status: 'posted',
+            version: current.version + 1,
+          });
+          this.form.disable();
+          this.isEditing.set(false);
+          this.successMessage.set(
+            `Opening stock posted. Balance ${result.balance.quantityBase}; WAC ${result.costState.weightedAverageCost.amount} PKR.`,
+          );
+        },
+        error: (error: unknown) => {
+          this.saving.set(false);
+          this.errorMessage.set(this.mapConflictError(error, 'Unable to post opening stock draft.'));
+        },
+      });
+    } else {
+      this.inventoryApi.postOpeningStock(payload, idempotencyKey).subscribe({
+        next: (result) => {
+          this.saving.set(false);
+          this.form.disable();
+          this.isEditing.set(false);
+          this.successMessage.set(
+            `Opening stock posted. Balance ${result.balance.quantityBase}; WAC ${result.costState.weightedAverageCost.amount} PKR.`,
+          );
+        },
+        error: (error: unknown) => {
+          this.saving.set(false);
+          this.errorMessage.set(this.mapConflictError(error, 'Unable to post opening stock.'));
+        },
+      });
+    }
+  }
+
+  private mapConflictError(error: unknown, fallback: string): string {
+    if (error instanceof HttpErrorResponse) {
+      if (error.status === 409) {
+        return 'Opening stock record was modified or is no longer a draft.';
+      }
+      const message = error.error?.error?.message ?? error.error?.message;
+      if (typeof message === 'string' && message.trim() !== '') {
+        return message;
+      }
+    }
+    return fallback;
   }
 
   private mapError(error: unknown, fallback: string): string {

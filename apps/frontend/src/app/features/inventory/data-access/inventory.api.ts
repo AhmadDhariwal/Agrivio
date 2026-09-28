@@ -8,6 +8,7 @@ import { PaginatedResult, PaginationQuery } from '../../../shared/data-access/pa
 import {
   ExpiryInventoryRecord,
   InventoryBalanceRecord,
+  OpeningStockRecord,
   OpeningStockResult,
   ProductBatchRecord,
   ReconciliationResult,
@@ -181,6 +182,147 @@ export class InventoryApi {
     );
   }
 
+  createOpeningStockDraft(payload: {
+    warehouseId: string;
+    productId: string;
+    quantity: string;
+    packagingUnitId?: string;
+    batchNumber?: string;
+    manufacturingDate?: string;
+    expiryDate?: string;
+    inventoryValue: { amount: string; currency: string };
+  }): Observable<OpeningStockRecord> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: OpeningStockRecord }>(
+            `${environment.publicApiBaseUrl}/api/v1/inventory/opening-stock/drafts`,
+            payload,
+            {
+              withCredentials: true,
+              headers: { 'X-CSRF-Token': csrfToken },
+            },
+          )
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.queryCache.invalidateTags(QUERY_CACHE_TAGS.inventory)),
+          ),
+      ),
+    );
+  }
+
+  getOpeningStock(id: string): Observable<OpeningStockRecord> {
+    return this.http
+      .get<{ data: OpeningStockRecord }>(
+        `${environment.publicApiBaseUrl}/api/v1/inventory/opening-stock/${id}`,
+        { withCredentials: true },
+      )
+      .pipe(map((response) => response.data));
+  }
+
+  updateOpeningStock(
+    id: string,
+    payload: {
+      expectedVersion?: number;
+      warehouseId?: string;
+      productId?: string;
+      quantity?: string;
+      packagingUnitId?: string | null;
+      batchNumber?: string | null;
+      manufacturingDate?: string | null;
+      expiryDate?: string | null;
+      inventoryValue?: { amount: string; currency: string };
+    },
+    expectedVersion?: number,
+  ): Observable<OpeningStockRecord> {
+    const finalPayload =
+      expectedVersion !== undefined
+        ? { ...payload, expectedVersion }
+        : payload;
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .patch<{ data: OpeningStockRecord }>(
+            `${environment.publicApiBaseUrl}/api/v1/inventory/opening-stock/${id}`,
+            finalPayload,
+            {
+              withCredentials: true,
+              headers: { 'X-CSRF-Token': csrfToken },
+            },
+          )
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.queryCache.invalidateTags(QUERY_CACHE_TAGS.inventory)),
+          ),
+      ),
+    );
+  }
+
+  discardOpeningStock(
+    id: string,
+    expectedVersionOrPayload?: number | { expectedVersion?: number },
+  ): Observable<{ id: string; discarded: boolean }> {
+    const expectedVersion =
+      typeof expectedVersionOrPayload === 'number'
+        ? expectedVersionOrPayload
+        : expectedVersionOrPayload?.expectedVersion;
+    const body = expectedVersion !== undefined ? { expectedVersion } : {};
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .delete<{ data: { id: string; discarded: boolean } }>(
+            `${environment.publicApiBaseUrl}/api/v1/inventory/opening-stock/${id}`,
+            {
+              withCredentials: true,
+              headers: { 'X-CSRF-Token': csrfToken },
+              body,
+            },
+          )
+          .pipe(
+            map((response) => response.data),
+            tap(() =>
+              this.queryCache.invalidateTags(
+                QUERY_CACHE_TAGS.inventory,
+                QUERY_CACHE_TAGS.stockBalances,
+                QUERY_CACHE_TAGS.stockAdjustments,
+              ),
+            ),
+          ),
+      ),
+    );
+  }
+
+  postOpeningStockDraft(
+    id: string,
+    expectedVersionOrPayload: number | { expectedVersion: number },
+    idempotencyKey?: string,
+  ): Observable<OpeningStockResult> {
+    const expectedVersion =
+      typeof expectedVersionOrPayload === 'number'
+        ? expectedVersionOrPayload
+        : expectedVersionOrPayload.expectedVersion;
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: OpeningStockResult }>(
+            `${environment.publicApiBaseUrl}/api/v1/inventory/opening-stock/${id}/post`,
+            { expectedVersion },
+            {
+              withCredentials: true,
+              headers: {
+                'X-CSRF-Token': csrfToken,
+                ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+              },
+            },
+          )
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.invalidateInventoryReads()),
+          ),
+      ),
+    );
+  }
+
   listExpiry(query?: {
     warehouseId?: string;
     productId?: string;
@@ -266,6 +408,78 @@ export class InventoryApi {
             },
           )
           .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
+  updateAdjustment(
+    id: string,
+    payload: {
+      expectedVersion?: number;
+      warehouseId?: string;
+      productId?: string;
+      adjustmentType?: string;
+      quantity?: string;
+      direction?: string;
+      batchId?: string;
+      reason?: string;
+      inventoryValue?: { amount: string; currency: string };
+    },
+  ): Observable<StockAdjustmentRecord> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .patch<{ data: StockAdjustmentRecord }>(
+            `${environment.publicApiBaseUrl}/api/v1/stock-adjustments/${id}`,
+            payload,
+            {
+              withCredentials: true,
+              headers: { 'X-CSRF-Token': csrfToken },
+            },
+          )
+          .pipe(
+            map((response) => response.data),
+            tap(() =>
+              this.queryCache.invalidateTags(
+                QUERY_CACHE_TAGS.stockAdjustments,
+                QUERY_CACHE_TAGS.inventory,
+              ),
+            ),
+          ),
+      ),
+    );
+  }
+
+  discardAdjustment(
+    id: string,
+    expectedVersionOrPayload?: number | { expectedVersion?: number },
+  ): Observable<{ id: string; discarded: boolean }> {
+    const expectedVersion =
+      typeof expectedVersionOrPayload === 'number'
+        ? expectedVersionOrPayload
+        : expectedVersionOrPayload?.expectedVersion;
+    const body = expectedVersion !== undefined ? { expectedVersion } : {};
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .delete<{ data: { id: string; discarded: boolean } }>(
+            `${environment.publicApiBaseUrl}/api/v1/stock-adjustments/${id}`,
+            {
+              withCredentials: true,
+              headers: { 'X-CSRF-Token': csrfToken },
+              body,
+            },
+          )
+          .pipe(
+            map((response) => response.data),
+            tap(() =>
+              this.queryCache.invalidateTags(
+                QUERY_CACHE_TAGS.stockAdjustments,
+                QUERY_CACHE_TAGS.stockBalances,
+                QUERY_CACHE_TAGS.inventory,
+              ),
+            ),
+          ),
       ),
     );
   }
@@ -394,6 +608,77 @@ export class InventoryApi {
             },
           )
           .pipe(map((response) => response.data)),
+      ),
+    );
+  }
+
+  updateTransfer(
+    id: string,
+    payload: {
+      expectedVersion?: number;
+      sourceWarehouseId?: string;
+      destinationWarehouseId?: string;
+      productId?: string;
+      quantity?: string;
+      batchId?: string;
+      reason?: string;
+      packagingUnitId?: string;
+    },
+  ): Observable<WarehouseTransferRecord> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .patch<{ data: WarehouseTransferRecord }>(
+            `${environment.publicApiBaseUrl}/api/v1/warehouse-transfers/${id}`,
+            payload,
+            {
+              withCredentials: true,
+              headers: { 'X-CSRF-Token': csrfToken },
+            },
+          )
+          .pipe(
+            map((response) => response.data),
+            tap(() =>
+              this.queryCache.invalidateTags(
+                QUERY_CACHE_TAGS.stockTransfers,
+                QUERY_CACHE_TAGS.inventory,
+              ),
+            ),
+          ),
+      ),
+    );
+  }
+
+  discardTransfer(
+    id: string,
+    expectedVersionOrPayload?: number | { expectedVersion?: number },
+  ): Observable<{ id: string; discarded: boolean }> {
+    const expectedVersion =
+      typeof expectedVersionOrPayload === 'number'
+        ? expectedVersionOrPayload
+        : expectedVersionOrPayload?.expectedVersion;
+    const body = expectedVersion !== undefined ? { expectedVersion } : {};
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .delete<{ data: { id: string; discarded: boolean } }>(
+            `${environment.publicApiBaseUrl}/api/v1/warehouse-transfers/${id}`,
+            {
+              withCredentials: true,
+              headers: { 'X-CSRF-Token': csrfToken },
+              body,
+            },
+          )
+          .pipe(
+            map((response) => response.data),
+            tap(() =>
+              this.queryCache.invalidateTags(
+                QUERY_CACHE_TAGS.stockTransfers,
+                QUERY_CACHE_TAGS.stockBalances,
+                QUERY_CACHE_TAGS.inventory,
+              ),
+            ),
+          ),
       ),
     );
   }

@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { By } from '@angular/platform-browser';
 import { of, throwError } from 'rxjs';
 import { TransfersPage } from './transfers.page';
 import { InventoryApi } from '../../data-access/inventory.api';
@@ -11,6 +13,7 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 import { hasRequiredValidator } from '../../../../shared/form/form-field.util';
 import { WarehouseTransferRecord } from '../../models/inventory.models';
+import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 
 function mockProduct(id: string, trackingMode: ProductRecord['trackingMode']): ProductRecord {
   return {
@@ -160,6 +163,20 @@ describe('TransfersPage', () => {
           id: 'xfer-1',
           status: 'reversed',
         } as WarehouseTransferRecord),
+      ),
+      updateTransfer: vi.fn((id: string, payload: any) =>
+        of({
+          id,
+          status: 'draft',
+          version: 2,
+          ...payload,
+        } as WarehouseTransferRecord),
+      ),
+      discardTransfer: vi.fn((id: string) =>
+        of({
+          id,
+          discarded: true,
+        }),
       ),
     };
 
@@ -928,6 +945,175 @@ describe('TransfersPage', () => {
       expect(page.productOptions().map((opt) => opt.value)).toEqual(['prod-2']);
       expect(page.form.controls.productId.value).toBe('prod-1');
       expect(page.productSelectedLabel()).toBe('Product prod-1');
+    });
+  });
+
+  describe('Draft & Discard Lifecycle', () => {
+    const mockDraftTransfer: WarehouseTransferRecord = {
+      id: 'draft-xfer-99',
+      organizationId: 'org-1',
+      sourceWarehouseId: 'wh-source',
+      destinationWarehouseId: 'wh-dest',
+      productId: 'prod-none',
+      batchId: null,
+      quantityBase: '15.0000',
+      enteredQuantity: '15.0000',
+      unitCode: 'KG',
+      transferValue: null,
+      reason: 'Draft test transfer',
+      status: 'draft',
+      postedAt: null,
+      postedBy: null,
+      outboundMovementId: null,
+      inboundMovementId: null,
+      reversalOfId: null,
+      reversedByTransferId: null,
+      negativeStockOverride: false,
+      version: 1,
+      productNameSnapshot: 'Product prod-none',
+      productSkuSnapshot: 'SKU-prod-none',
+      sourceWarehouseNameSnapshot: 'Source Warehouse',
+      destinationWarehouseNameSnapshot: 'Destination Warehouse',
+    };
+
+    const mockPostedTransfer: WarehouseTransferRecord = {
+      id: 'xfer-posted',
+      organizationId: 'org-1',
+      sourceWarehouseId: 'wh-source',
+      destinationWarehouseId: 'wh-dest',
+      productId: 'prod-none',
+      batchId: null,
+      quantityBase: '20.0000',
+      enteredQuantity: '20.0000',
+      unitCode: 'KG',
+      transferValue: null,
+      reason: 'Posted transfer',
+      status: 'posted',
+      postedAt: '2026-08-22T10:30:00Z',
+      postedBy: 'user-1',
+      outboundMovementId: 'mov-out-1',
+      inboundMovementId: 'mov-in-1',
+      reversalOfId: null,
+      reversedByTransferId: null,
+      negativeStockOverride: false,
+      version: 2,
+      productNameSnapshot: 'Product prod-none',
+      productSkuSnapshot: 'SKU-prod-none',
+      sourceWarehouseNameSnapshot: 'Source Warehouse',
+      destinationWarehouseNameSnapshot: 'Destination Warehouse',
+    };
+
+    it('renders draft actions (Edit, Discard Draft, Post) in desktop table and mobile card for draft rows and no delete action', () => {
+      page.transfers.set([mockDraftTransfer]);
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      // Desktop table
+      const editBtn = compiled.querySelector('[data-testid="transfer-edit-draft"]');
+      const discardBtn = compiled.querySelector('[data-testid="transfer-discard-draft"]');
+      const postBtn = compiled.querySelector('[data-testid="transfer-post-draft"]');
+      expect(editBtn).toBeTruthy();
+      expect(discardBtn).toBeTruthy();
+      expect(postBtn).toBeTruthy();
+      expect(discardBtn?.textContent?.trim()).toBe('Discard Draft');
+
+      // Mobile card
+      const editCardBtn = compiled.querySelector('[data-testid="transfer-edit-draft-card"]');
+      const discardCardBtn = compiled.querySelector('[data-testid="transfer-discard-draft-card"]');
+      const postCardBtn = compiled.querySelector('[data-testid="transfer-post-draft-card"]');
+      expect(editCardBtn).toBeTruthy();
+      expect(discardCardBtn).toBeTruthy();
+      expect(postCardBtn).toBeTruthy();
+      expect(discardCardBtn?.textContent?.trim()).toBe('Discard Draft');
+
+      expect(compiled.textContent).not.toContain('Delete');
+    });
+
+    it('hides discard/delete actions for posted transfers in table and mobile card, showing only inspect/reverse', () => {
+      page.transfers.set([mockPostedTransfer]);
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="transfer-inspect"]')).toBeTruthy();
+      expect(compiled.querySelector('[data-testid="transfer-reverse"]')).toBeTruthy();
+      expect(compiled.querySelector('[data-testid="transfer-discard-draft"]')).toBeNull();
+      expect(compiled.querySelector('[data-testid="transfer-edit-draft"]')).toBeNull();
+      expect(compiled.querySelector('[data-testid="transfer-post-draft"]')).toBeNull();
+
+      expect(compiled.querySelector('[data-testid="transfer-inspect-card"]')).toBeTruthy();
+      expect(compiled.querySelector('[data-testid="transfer-reverse-card"]')).toBeTruthy();
+      expect(compiled.querySelector('[data-testid="transfer-discard-draft-card"]')).toBeNull();
+      expect(compiled.querySelector('[data-testid="transfer-edit-draft-card"]')).toBeNull();
+      expect(compiled.querySelector('[data-testid="transfer-post-draft-card"]')).toBeNull();
+
+      expect(compiled.textContent).not.toContain('Delete');
+    });
+
+    it('opens confirm dialog with Discard Draft label and danger styling when Discard Draft is clicked', () => {
+      page.transfers.set([mockDraftTransfer]);
+      fixture.detectChanges();
+
+      expect(page.discardConfirmOpen()).toBe(false);
+      const discardBtn = fixture.nativeElement.querySelector('[data-testid="transfer-discard-draft"]') as HTMLButtonElement;
+      discardBtn.click();
+      fixture.detectChanges();
+
+      expect(page.discardConfirmOpen()).toBe(true);
+      const dialogDebug = fixture.debugElement.query(By.directive(UiConfirmDialogComponent));
+      expect(dialogDebug).toBeTruthy();
+      expect(dialogDebug.componentInstance.confirmLabel()).toBe('Discard Draft');
+      expect(dialogDebug.componentInstance.danger()).toBe(true);
+    });
+
+    it('discards draft transfer upon confirmation and refreshes list', () => {
+      page.transfers.set([mockDraftTransfer]);
+      fixture.detectChanges();
+
+      page.askDiscard(mockDraftTransfer);
+      expect(page.discardConfirmOpen()).toBe(true);
+
+      page.confirmDiscard();
+      expect(mockInventoryApi.discardTransfer).toHaveBeenCalledWith('draft-xfer-99', 1);
+      expect(page.discardConfirmOpen()).toBe(false);
+      expect(page.successMessage()).toBe('Warehouse transfer draft discarded.');
+      expect(mockInventoryApi.listTransfers).toHaveBeenCalled();
+    });
+
+    it('handles 409 conflict gracefully with user-friendly message when draft was modified elsewhere', () => {
+      mockInventoryApi.discardTransfer.mockReturnValueOnce(
+        throwError(() => new HttpErrorResponse({ status: 409, error: { message: 'Conflict' } }))
+      );
+
+      page.askDiscard(mockDraftTransfer);
+      page.confirmDiscard();
+
+      expect(page.errorMessage()).toBe('Warehouse transfer was modified or is no longer a draft.');
+      expect(page.discardConfirmOpen()).toBe(false);
+    });
+
+    it('allows editing draft, updating values, and saving draft without posting', () => {
+      page.editDraft(mockDraftTransfer);
+      fixture.detectChanges();
+
+      expect(page.editingDraft()?.id).toBe('draft-xfer-99');
+      expect(page.form.controls.quantity.value).toBe('15.0000');
+      expect(page.form.controls.reason.value).toBe('Draft test transfer');
+
+      page.form.controls.quantity.setValue('30.0000');
+      fixture.detectChanges();
+
+      page.saveDraft();
+
+      expect(mockInventoryApi.updateTransfer).toHaveBeenCalledWith(
+        'draft-xfer-99',
+        expect.objectContaining({
+          quantity: '30.0000',
+          expectedVersion: 1,
+        })
+      );
+      expect(mockInventoryApi.postTransfer).not.toHaveBeenCalled();
+      expect(page.editingDraft()).toBeNull();
+      expect(page.successMessage()).toBe('Warehouse transfer draft saved.');
     });
   });
 });

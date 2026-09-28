@@ -40,7 +40,28 @@
         Back to Returns
       </a>
       @if (record(); as item) {
-        @if (canReverse() && item.status === 'posted') {
+        @if (item.status === 'draft') {
+          <button
+            type="button"
+            class="ag-btn ag-btn--danger-outline"
+            (click)="openDiscardDialog()"
+            [disabled]="discarding()"
+            data-testid="return-discard-action-btn"
+          >
+            {{ discarding() ? 'Discarding…' : 'Discard Draft' }}
+          </button>
+          @if (canPostReturn()) {
+            <button
+              type="button"
+              class="ag-btn ag-btn--primary"
+              (click)="postCurrentReturn()"
+              [disabled]="posting()"
+              data-testid="return-post-action-btn"
+            >
+              {{ posting() ? 'Posting…' : 'Post Return' }}
+            </button>
+          }
+        } @else if (canReverse() && item.status === 'posted') {
           <button
             type="button"
             class="ag-btn ag-btn--danger-outline reverse-btn"
@@ -447,6 +468,18 @@
           </div>
         </div>
       </section>
+
+      <!-- Discard Confirmation Modal Dialog -->
+      <agrivio-ui-confirm-dialog
+        [open]="discardDialogOpen()"
+        title="Discard draft return?"
+        message="This return draft will be permanently deleted and cannot be recovered."
+        confirmLabel="Discard Draft"
+        cancelLabel="Keep draft"
+        [danger]="true"
+        (confirmed)="onConfirmDiscard()"
+        (dismiss)="onDismissDiscard()"
+      />
 
       <!-- Reversal Confirmation Modal Dialog -->
       <agrivio-ui-confirm-dialog

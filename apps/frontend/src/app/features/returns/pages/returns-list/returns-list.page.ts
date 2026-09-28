@@ -2,7 +2,12 @@ import { Component, HostListener, computed, inject, signal } from '@angular/core
 import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ReturnsApi } from '../../data-access/returns.api';
-import { MoneyAmount, SalesReturnRecord, returnTypeLabel } from '../../models/returns.models';
+import {
+  MoneyAmount,
+  ReturnResolution,
+  SalesReturnRecord,
+  returnTypeLabel,
+} from '../../models/returns.models';
 import {
   BranchesWarehousesApi,
   WarehouseRecord,
@@ -119,6 +124,12 @@ export class ReturnsListPage {
   readonly reverseDialogOpen = signal(false);
   readonly itemToReverse = signal<SalesReturnRecord | null>(null);
   readonly reversing = signal(false);
+
+  // Draft discard dialog state
+  readonly discardDialogOpen = signal(false);
+  readonly itemToDiscard = signal<SalesReturnRecord | null>(null);
+  readonly discarding = signal(false);
+  readonly postingId = signal<string | null>(null);
 
   // Row action menu state
   readonly openMenuReturnId = signal<string | null>(null);
@@ -366,6 +377,77 @@ export class ReturnsListPage {
       });
   }
 
+  openDiscardDialog(item: SalesReturnRecord): void {
+    if (!this.canPost() || item.status !== 'draft' || this.discarding()) {
+      return;
+    }
+    this.closeRowMenu();
+    this.itemToDiscard.set(item);
+    this.discardDialogOpen.set(true);
+  }
+
+  onDismissDiscard(): void {
+    this.discardDialogOpen.set(false);
+    this.itemToDiscard.set(null);
+  }
+
+  onConfirmDiscard(): void {
+    const item = this.itemToDiscard();
+    if (!item || !this.canPost() || item.status !== 'draft' || this.discarding()) {
+      return;
+    }
+    this.discarding.set(true);
+    this.discardDialogOpen.set(false);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+
+    this.api.discardReturn(item.id, item.version).subscribe({
+      next: () => {
+        this.items.update((rows) => rows.filter((row) => row.id !== item.id));
+        this.total.update((t) => Math.max(0, t - 1));
+        this.discarding.set(false);
+        this.itemToDiscard.set(null);
+        this.successMessage.set('Draft return was discarded.');
+      },
+      error: (error: unknown) => {
+        this.discarding.set(false);
+        this.itemToDiscard.set(null);
+        this.errorMessage.set(this.mapError(error, 'Unable to discard return draft.'));
+      },
+    });
+  }
+
+  postDraftReturn(item: SalesReturnRecord): void {
+    if (!this.canPost() || item.status !== 'draft' || this.postingId() !== null) {
+      return;
+    }
+    this.postingId.set(item.id);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    const idempotencyKey = `return-post-${item.id}-${Date.now()}`;
+    this.api
+      .postReturn(
+        item.id,
+        {
+          expectedVersion: item.version,
+          resolution: (item.resolution as ReturnResolution) || 'ledger_adjustment',
+          reason: item.reason || 'Post return draft',
+        },
+        idempotencyKey,
+      )
+      .subscribe({
+        next: (updated) => {
+          this.items.update((rows) => rows.map((row) => (row.id === updated.id ? updated : row)));
+          this.postingId.set(null);
+          this.successMessage.set('Return posted successfully.');
+        },
+        error: (error: unknown) => {
+          this.postingId.set(null);
+          this.errorMessage.set(this.mapError(error, 'Unable to post return.'));
+        },
+      });
+  }
+
   @HostListener('document:click')
   onDocumentClick(): void {
     this.closeRowMenu();
@@ -381,12 +463,23 @@ export class ReturnsListPage {
   }
 
   private mapError(error: unknown, fallback: string): string {
-    if (!(error instanceof HttpErrorResponse)) {
-      return fallback;
+    if (error instanceof HttpErrorResponse) {
+      if (error.status === 409) {
+        return 'Return was modified or is no longer a draft.';
+      }
+      if (error.status === 403) {
+        return error.error?.error?.message ?? 'You do not have permission for this action.';
+      }
+      return error.error?.error?.message ?? fallback;
+    } else if (typeof error === 'object' && error !== null) {
+      const errObj = error as { status?: number; error?: { error?: { message?: string } } };
+      if (errObj.status === 409) {
+        return 'Return was modified or is no longer a draft.';
+      }
+      if (errObj.error?.error?.message) {
+        return errObj.error.error.message;
+      }
     }
-    if (error.status === 403) {
-      return error.error?.error?.message ?? 'You do not have permission for this action.';
-    }
-    return error.error?.error?.message ?? fallback;
+    return fallback;
   }
 }

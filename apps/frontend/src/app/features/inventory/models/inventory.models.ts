@@ -65,10 +65,33 @@ export interface StockMovementRecord {
   batchNumberSnapshot?: string | null;
 }
 
+export interface OpeningStockRecord {
+  id: string;
+  organizationId: string;
+  warehouseId: string;
+  productId: string;
+  quantity: string;
+  quantityBase: string;
+  unitCode: string;
+  conversionFactorSnapshot: string;
+  packagingUnitId: string | null;
+  batchNumber: string | null;
+  manufacturingDate: string | null;
+  expiryDate: string | null;
+  inventoryValue: MoneyAmount;
+  status: 'draft' | 'posted';
+  postedAt: string | null;
+  postedBy: string | null;
+  postedMovementId: string | null;
+  batchId: string | null;
+  version: number;
+}
+
 export interface OpeningStockResult {
   movement: StockMovementRecord;
   batch: ProductBatchRecord | null;
   balance: InventoryBalanceRecord;
+  openingStock?: OpeningStockRecord;
   costState: {
     organizationId: string;
     warehouseId: string;
