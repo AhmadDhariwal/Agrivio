@@ -1566,32 +1566,35 @@ function createReturnsService(deps) {
     },
 
     async discardReturnDraft(organizationId, returnId, authContext) {
-      const existing = await store.findReturnById(organizationId, returnId);
-      if (existing === null) {
-        throw notFound('Return not found');
-      }
-      if (existing.status !== 'draft') {
-        throw conflict('Only draft returns can be discarded');
-      }
-      if (
-        typeof deps.canAccessWarehouse === 'function' &&
-        !deps.canAccessWarehouse(authContext, String(existing.warehouseId))
-      ) {
-        throw notFound('Return not found');
-      }
-      const deleted = await store.deleteReturnIfDraft(null, organizationId, returnId);
-      if (!deleted) {
-        throw conflict('Only draft returns can be discarded');
-      }
-      await auditWriter.appendBusinessEvent(null, {
-        organizationId,
-        actorId: authContext.userId,
-        action: 'return.draft.discarded',
-        resourceType: 'return',
-        resourceId: returnId,
-        metadata: {},
+      return transactionRunner.run(async (session) => {
+        const existing = await store.findReturnById(organizationId, returnId, session);
+        if (existing === null) throw notFound('Return not found');
+        if (existing.status !== 'draft') {
+          throw conflict('Only draft returns can be discarded');
+        }
+        if (
+          typeof deps.canAccessWarehouse === 'function' &&
+          !deps.canAccessWarehouse(authContext, String(existing.warehouseId))
+        ) {
+          throw notFound('Return not found');
+        }
+        const deleted = await store.deleteReturnIfDraft(
+          session,
+          organizationId,
+          returnId,
+          Number(existing.version),
+        );
+        if (!deleted) throw conflict('Return was modified or is no longer a draft');
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: authContext.userId,
+          action: 'return.draft.discarded',
+          resourceType: 'return',
+          resourceId: returnId,
+          metadata: { version: Number(existing.version) },
+        });
+        return { id: returnId, discarded: true };
       });
-      return { id: returnId, discarded: true };
     },
 
     async postReturn(organizationId, returnId, body, authContext, idempotencyKey) {

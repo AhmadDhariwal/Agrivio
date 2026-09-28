@@ -87,6 +87,7 @@ Central navigation for Agrivio documentation.
 * Products table action column layout hardened (2026-09-06): replaced overflowing text in table pricing button with accessible hidden text, widened action column to 140px, and right-aligned action buttons to eliminate button clipping and row overflow; see [tasks/F03-PHASE-2-MASTER-DATA.md](tasks/F03-PHASE-2-MASTER-DATA.md).
 * Staging auth and Super Admin Organizations smoke issues hardened (2026-09-10): public Sign In no longer probes an anonymous session, pending login preserves and disables form values, and Organizations list plus global counters load in one request; see [tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md](tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md) and [tasks/F02-PHASE-1-ORGANIZATION-ONBOARDING.md](tasks/F02-PHASE-1-ORGANIZATION-ONBOARDING.md).
 * Smart transaction location defaults implemented (2026-09-14): assignment-aware branch/warehouse resolution starts in New Sale, branch-scoped warehouse compatibility is backend-enforced, and explicit unique defaults are configured on Branch/Warehouse forms; see [tasks/F03-PHASE-1-ORG-SETUP.md](tasks/F03-PHASE-1-ORG-SETUP.md).
+* Draft/discard lifecycle backend hardening complete (2026-09-28): Opening Stock persisted drafts, version-conditional transactional discard for Stock Adjustments, Warehouse Transfers, and Returns, plus unused pending employee-invitation cancellation; existing posting and reversal/correction engines remain authoritative — see the owning F03/F04/F07 phase records.
 
 ## Existing Documents
 

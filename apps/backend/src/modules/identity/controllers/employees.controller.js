@@ -83,6 +83,20 @@ function createEmployeesController(deps) {
         next(error);
       }
     },
+
+    async cancelInvitation(req, res, next) {
+      try {
+        const data = await deps.employeesService.cancelPendingInvitation(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.body,
+          actorFromRequest(req),
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
   };
 }
 

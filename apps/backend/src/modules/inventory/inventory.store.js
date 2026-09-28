@@ -6,6 +6,7 @@ const { InventoryCostStateModel } = require('./persistence/inventory-cost-state.
 const { StockAdjustmentModel } = require('./persistence/stock-adjustment.model');
 const { InventorySettingsModel } = require('./persistence/inventory-settings.model');
 const { WarehouseTransferModel } = require('./persistence/warehouse-transfer.model');
+const { OpeningStockModel } = require('./persistence/opening-stock.model');
 const { AuditEventModel } = require('../audit/persistence/audit-event.model');
 
 function withSession(session) {
@@ -339,6 +340,48 @@ function createMongooseInventoryStore() {
       return updated;
     },
 
+    async findOpeningStockById(organizationId, id, session) {
+      if (!mongoose.isValidObjectId(id)) {
+        return null;
+      }
+      const query = OpeningStockModel.findOne({ _id: id, organizationId });
+      if (session) query.session(session);
+      return query.lean().exec();
+    },
+
+    async insertOpeningStock(session, doc) {
+      const [created] = await OpeningStockModel.create([doc], withSession(session));
+      return created.toObject();
+    },
+
+    async updateOpeningStockIfDraft(session, organizationId, id, expectedVersion, patch) {
+      return OpeningStockModel.findOneAndUpdate(
+        { _id: id, organizationId, status: 'draft', version: expectedVersion },
+        { $set: { ...patch, version: expectedVersion + 1 } },
+        { new: true, ...withSession(session) },
+      )
+        .lean()
+        .exec();
+    },
+
+    async markOpeningStockPosted(session, organizationId, id, expectedVersion, patch) {
+      return OpeningStockModel.findOneAndUpdate(
+        { _id: id, organizationId, status: 'draft', version: expectedVersion },
+        { $set: { ...patch, status: 'posted', version: expectedVersion + 1 } },
+        { new: true, ...withSession(session) },
+      )
+        .lean()
+        .exec();
+    },
+
+    async deleteOpeningStockDraft(session, organizationId, id, expectedVersion) {
+      const result = await OpeningStockModel.deleteOne(
+        { _id: id, organizationId, status: 'draft', version: expectedVersion },
+        withSession(session),
+      );
+      return result.deletedCount === 1;
+    },
+
     async findAdjustmentById(organizationId, id) {
       if (!mongoose.isValidObjectId(id)) {
         return null;
@@ -374,9 +417,21 @@ function createMongooseInventoryStore() {
       }
     },
 
-    async updateAdjustmentConditional(session, organizationId, id, expectedVersion, patch) {
+    async updateAdjustmentConditional(
+      session,
+      organizationId,
+      id,
+      expectedVersion,
+      patch,
+      expectedStatus,
+    ) {
       const updated = await StockAdjustmentModel.findOneAndUpdate(
-        { _id: id, organizationId, version: expectedVersion },
+        {
+          _id: id,
+          organizationId,
+          version: expectedVersion,
+          ...(expectedStatus ? { status: expectedStatus } : {}),
+        },
         { $set: { ...patch, version: expectedVersion + 1 } },
         { new: true, ...withSession(session) },
       )
@@ -385,9 +440,9 @@ function createMongooseInventoryStore() {
       return updated;
     },
 
-    async deleteAdjustmentDraft(session, organizationId, id) {
+    async deleteAdjustmentDraft(session, organizationId, id, expectedVersion) {
       const result = await StockAdjustmentModel.deleteOne(
-        { _id: id, organizationId, status: 'draft' },
+        { _id: id, organizationId, status: 'draft', version: expectedVersion },
         withSession(session),
       );
       return result.deletedCount === 1;
@@ -469,9 +524,21 @@ function createMongooseInventoryStore() {
       }
     },
 
-    async updateTransferConditional(session, organizationId, id, expectedVersion, patch) {
+    async updateTransferConditional(
+      session,
+      organizationId,
+      id,
+      expectedVersion,
+      patch,
+      expectedStatus,
+    ) {
       const updated = await WarehouseTransferModel.findOneAndUpdate(
-        { _id: id, organizationId, version: expectedVersion },
+        {
+          _id: id,
+          organizationId,
+          version: expectedVersion,
+          ...(expectedStatus ? { status: expectedStatus } : {}),
+        },
         { $set: { ...patch, version: expectedVersion + 1 } },
         { new: true, ...withSession(session) },
       )
@@ -480,9 +547,9 @@ function createMongooseInventoryStore() {
       return updated;
     },
 
-    async deleteTransferDraft(session, organizationId, id) {
+    async deleteTransferDraft(session, organizationId, id, expectedVersion) {
       const result = await WarehouseTransferModel.deleteOne(
-        { _id: id, organizationId, status: 'draft' },
+        { _id: id, organizationId, status: 'draft', version: expectedVersion },
         withSession(session),
       );
       return result.deletedCount === 1;
@@ -509,6 +576,7 @@ function createInMemoryInventoryStore() {
   const costStates = new Map();
   const adjustments = new Map();
   const transfers = new Map();
+  const openingStocks = new Map();
   const inventorySettings = new Map();
   const audits = [];
   let seq = 1;
@@ -892,6 +960,70 @@ function createInMemoryInventoryStore() {
       return { ...updated };
     },
 
+    async findOpeningStockById(organizationId, id) {
+      const record = openingStocks.get(String(id));
+      if (!record || String(record.organizationId) !== String(organizationId)) {
+        return null;
+      }
+      return { ...record };
+    },
+
+    async insertOpeningStock(session, doc) {
+      void session;
+      const created = {
+        _id: doc._id ?? nextId(),
+        ...doc,
+        version: doc.version ?? 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      openingStocks.set(String(created._id), created);
+      return { ...created };
+    },
+
+    async updateOpeningStockIfDraft(session, organizationId, id, expectedVersion, patch) {
+      void session;
+      const record = openingStocks.get(String(id));
+      if (
+        !record ||
+        String(record.organizationId) !== String(organizationId) ||
+        record.status !== 'draft' ||
+        Number(record.version) !== Number(expectedVersion)
+      ) {
+        return null;
+      }
+      const updated = {
+        ...record,
+        ...patch,
+        version: expectedVersion + 1,
+        updatedAt: new Date(),
+      };
+      openingStocks.set(String(id), updated);
+      return { ...updated };
+    },
+
+    async markOpeningStockPosted(session, organizationId, id, expectedVersion, patch) {
+      return this.updateOpeningStockIfDraft(session, organizationId, id, expectedVersion, {
+        ...patch,
+        status: 'posted',
+      });
+    },
+
+    async deleteOpeningStockDraft(session, organizationId, id, expectedVersion) {
+      void session;
+      const record = openingStocks.get(String(id));
+      if (
+        !record ||
+        String(record.organizationId) !== String(organizationId) ||
+        record.status !== 'draft' ||
+        Number(record.version) !== Number(expectedVersion)
+      ) {
+        return false;
+      }
+      openingStocks.delete(String(id));
+      return true;
+    },
+
     async findAdjustmentById(organizationId, id) {
       const record = adjustments.get(String(id));
       if (!record || String(record.organizationId) !== String(organizationId)) {
@@ -942,13 +1074,23 @@ function createInMemoryInventoryStore() {
       return { ...created };
     },
 
-    async updateAdjustmentConditional(session, organizationId, id, expectedVersion, patch) {
+    async updateAdjustmentConditional(
+      session,
+      organizationId,
+      id,
+      expectedVersion,
+      patch,
+      expectedStatus,
+    ) {
       void session;
       const record = adjustments.get(String(id));
       if (!record || String(record.organizationId) !== String(organizationId)) {
         return null;
       }
       if (Number(record.version) !== Number(expectedVersion)) {
+        return null;
+      }
+      if (expectedStatus && record.status !== expectedStatus) {
         return null;
       }
       const updated = {
@@ -961,13 +1103,14 @@ function createInMemoryInventoryStore() {
       return { ...updated };
     },
 
-    async deleteAdjustmentDraft(session, organizationId, id) {
+    async deleteAdjustmentDraft(session, organizationId, id, expectedVersion) {
       void session;
       const record = adjustments.get(String(id));
       if (
         !record ||
         String(record.organizationId) !== String(organizationId) ||
-        record.status !== 'draft'
+        record.status !== 'draft' ||
+        Number(record.version) !== Number(expectedVersion)
       ) {
         return false;
       }
@@ -1063,13 +1206,23 @@ function createInMemoryInventoryStore() {
       return { ...created };
     },
 
-    async updateTransferConditional(session, organizationId, id, expectedVersion, patch) {
+    async updateTransferConditional(
+      session,
+      organizationId,
+      id,
+      expectedVersion,
+      patch,
+      expectedStatus,
+    ) {
       void session;
       const record = transfers.get(String(id));
       if (!record || String(record.organizationId) !== String(organizationId)) {
         return null;
       }
       if (Number(record.version) !== Number(expectedVersion)) {
+        return null;
+      }
+      if (expectedStatus && record.status !== expectedStatus) {
         return null;
       }
       const updated = {
@@ -1082,13 +1235,14 @@ function createInMemoryInventoryStore() {
       return { ...updated };
     },
 
-    async deleteTransferDraft(session, organizationId, id) {
+    async deleteTransferDraft(session, organizationId, id, expectedVersion) {
       void session;
       const record = transfers.get(String(id));
       if (
         !record ||
         String(record.organizationId) !== String(organizationId) ||
-        record.status !== 'draft'
+        record.status !== 'draft' ||
+        Number(record.version) !== Number(expectedVersion)
       ) {
         return false;
       }
@@ -1124,6 +1278,7 @@ function createInMemoryInventoryStore() {
       costStates,
       adjustments,
       transfers,
+      openingStocks,
       inventorySettings,
       audits,
     },

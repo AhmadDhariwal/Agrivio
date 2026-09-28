@@ -90,3 +90,10 @@ Organization profile/settings, branch/warehouse list/detail/options, and employe
 * New Sale resolves assigned active locations through one shared frontend resolver: single option, active session preference, configured default, then manual selection. Branch changes always re-evaluate warehouse validity.
 * Sales and Purchases reject branch-scoped warehouses used with another branch; existing tenant, active-state, assignment, inventory, and costing enforcement remains authoritative.
 * Model review: `isDefault` and optional `warehouse.branchId` are Locations-owned A/B fields; service validation enforces same-organization active references, versioning remains unchanged, partial unique indexes prevent duplicate defaults, DTOs do not expose persistence internals, changes are audited through existing master-data events, and legacy records require no destructive migration.
+
+## Pending invitation cancellation follow-up (2026-09-28)
+
+* `DELETE /api/v1/users/:id` cancels only a tenant-owned, never-activated pending employee invitation with `expectedVersion`; it reuses `users.deactivate` and the existing deactivate capability control.
+* Active/credentialed employees remain Deactivate-only. Used activation tokens, stale versions, cross-tenant targets, and activation/cancellation races return a conflict or scoped not-found response.
+* Cancellation atomically invalidates the unused activation token, removes the pending membership, revokes any assignments, and appends the existing Audit event pattern. The global pending user identity is retained for safe reinvitation.
+* Model review: no new collection or permission; existing Identity-owned membership/token models and org-leading indexes remain authoritative. The change is backward-compatible and covered by focused in-memory plus isolated real-Mongo transaction tests.

@@ -64,3 +64,8 @@
 ## Next
 
 * F05 Purchases / F06 Sales may begin after F04 exit acceptance (requires R1-F03-011 + R1-F04-012)
+
+## Draft discard hardening follow-up (2026-09-28)
+
+* Existing Warehouse Transfer post/reverse engines are unchanged. Draft discard is now transactionally audited and version-conditional; concurrent edit/post or a non-draft lifecycle returns `409`.
+* Draft update conditionals include `status=draft`, and assignment scope is rechecked for changed source and destination warehouses. No model or permission change was required.

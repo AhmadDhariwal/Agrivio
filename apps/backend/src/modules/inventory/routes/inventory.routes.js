@@ -171,6 +171,75 @@ function registerInventoryRoutes(deps) {
   );
 
   router.post(
+    `${API_INVENTORY_OPENING_STOCK_PATH}/drafts`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('inventory.opening-stock.post'),
+    deps.requireOperationalAccess,
+    requireOpeningStockModule,
+    requirePostOpeningStock,
+    createRequireWarehouseAccessMiddleware(),
+    (req, res, next) => {
+      void controller.createOpeningStockDraft(req, res, next);
+    },
+  );
+
+  router.get(
+    `${API_INVENTORY_OPENING_STOCK_PATH}/:id`,
+    deps.requireAuth,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('inventory.view'),
+    deps.requireOperationalAccess,
+    requireOpeningStockModule,
+    (req, res, next) => {
+      void controller.getOpeningStock(req, res, next);
+    },
+  );
+
+  router.patch(
+    `${API_INVENTORY_OPENING_STOCK_PATH}/:id`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('inventory.opening-stock.post'),
+    deps.requireOperationalAccess,
+    requireOpeningStockModule,
+    requirePostOpeningStock,
+    createRequireWarehouseAccessMiddleware(),
+    (req, res, next) => {
+      void controller.updateOpeningStock(req, res, next);
+    },
+  );
+
+  router.delete(
+    `${API_INVENTORY_OPENING_STOCK_PATH}/:id`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('inventory.opening-stock.post'),
+    deps.requireOperationalAccess,
+    requireOpeningStockModule,
+    (req, res, next) => {
+      void controller.discardOpeningStock(req, res, next);
+    },
+  );
+
+  router.post(
+    `${API_INVENTORY_OPENING_STOCK_PATH}/:id/post`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('inventory.opening-stock.post'),
+    deps.requireOperationalAccess,
+    requireOpeningStockModule,
+    requirePostOpeningStock,
+    (req, res, next) => {
+      void controller.postOpeningStockDraft(req, res, next);
+    },
+  );
+
+  router.post(
     API_INVENTORY_OPENING_STOCK_PATH,
     deps.requireAuth,
     deps.requireCsrf,

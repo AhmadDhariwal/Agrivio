@@ -115,11 +115,13 @@ function createMongooseEmployeesStore() {
       }).exec();
     },
 
-    async findMembershipByOrganizationAndUserId(organizationId, userId) {
+    async findMembershipByOrganizationAndUserId(organizationId, userId, session) {
       if (!mongoose.isValidObjectId(userId)) {
         return null;
       }
-      return OrganizationMembershipModel.findOne({ organizationId, userId }).lean().exec();
+      const query = OrganizationMembershipModel.findOne({ organizationId, userId });
+      if (session) query.session(session);
+      return query.lean().exec();
     },
 
     async findMembershipsWithUsersByUserIds(organizationId, userIds) {
@@ -167,11 +169,13 @@ function createMongooseEmployeesStore() {
       return this.listMembershipsByOrganizationId(organizationId);
     },
 
-    async findUserById(id) {
+    async findUserById(id, session) {
       if (!mongoose.isValidObjectId(id)) {
         return null;
       }
-      return UserModel.findById(id).lean().exec();
+      const query = UserModel.findById(id);
+      if (session) query.session(session);
+      return query.lean().exec();
     },
 
     async findUserByEmailNormalized(emailNormalized) {
@@ -223,6 +227,42 @@ function createMongooseEmployeesStore() {
         { $set: { consumedAt } },
         withSession(session),
       ).exec();
+    },
+
+    async hasConsumedEmployeeActivationToken(session, userId, organizationId) {
+      const query = AccountActivationTokenModel.exists({
+        userId,
+        organizationId,
+        purpose: 'employee_activation',
+        consumedAt: { $exists: true },
+      });
+      if (session) query.session(session);
+      return (await query.exec()) !== null;
+    },
+
+    async deleteOpenActivationTokens(session, userId, organizationId) {
+      await AccountActivationTokenModel.deleteMany(
+        {
+          userId,
+          organizationId,
+          purpose: 'employee_activation',
+          consumedAt: { $exists: false },
+        },
+        withSession(session),
+      ).exec();
+    },
+
+    async deletePendingMembership(session, organizationId, membershipId, expectedVersion) {
+      const result = await OrganizationMembershipModel.deleteOne(
+        {
+          _id: membershipId,
+          organizationId,
+          status: 'pending',
+          version: expectedVersion,
+        },
+        withSession(session),
+      ).exec();
+      return result.deletedCount === 1;
     },
 
     async listAccessAssignmentsByMembershipId(membershipId) {
@@ -432,6 +472,44 @@ function createInMemoryEmployeesStore(options = {}) {
           activationTokens.set(id, { ...token, consumedAt });
         }
       }
+    },
+
+    async hasConsumedEmployeeActivationToken(_session, userId, organizationId) {
+      return [...activationTokens.values()].some(
+        (token) =>
+          String(token.userId) === String(userId) &&
+          String(token.organizationId) === String(organizationId) &&
+          token.purpose === 'employee_activation' &&
+          token.consumedAt !== undefined &&
+          token.consumedAt !== null,
+      );
+    },
+
+    async deleteOpenActivationTokens(_session, userId, organizationId) {
+      for (const [id, token] of activationTokens.entries()) {
+        if (
+          String(token.userId) === String(userId) &&
+          String(token.organizationId) === String(organizationId) &&
+          token.purpose === 'employee_activation' &&
+          (token.consumedAt === undefined || token.consumedAt === null)
+        ) {
+          activationTokens.delete(id);
+        }
+      }
+    },
+
+    async deletePendingMembership(_session, organizationId, membershipId, expectedVersion) {
+      const membership = memberships.get(String(membershipId));
+      if (
+        !membership ||
+        String(membership.organizationId) !== String(organizationId) ||
+        membership.status !== 'pending' ||
+        Number(membership.version) !== Number(expectedVersion)
+      ) {
+        return false;
+      }
+      memberships.delete(String(membershipId));
+      return true;
     },
 
     async listAccessAssignmentsByMembershipId(membershipId) {

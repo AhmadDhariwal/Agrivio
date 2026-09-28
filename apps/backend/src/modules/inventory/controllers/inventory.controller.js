@@ -92,6 +92,76 @@ function createInventoryController(deps) {
       }
     },
 
+    async createOpeningStockDraft(req, res, next) {
+      try {
+        const data = await deps.inventoryService.createOpeningStockDraft(
+          requireOrganizationId(req),
+          req.body,
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 201, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async getOpeningStock(req, res, next) {
+      try {
+        const data = await deps.inventoryService.getOpeningStock(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async updateOpeningStock(req, res, next) {
+      try {
+        const data = await deps.inventoryService.updateOpeningStockDraft(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.body,
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async discardOpeningStock(req, res, next) {
+      try {
+        const data = await deps.inventoryService.discardOpeningStockDraft(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.body,
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async postOpeningStockDraft(req, res, next) {
+      try {
+        const result = await deps.inventoryService.postOpeningStockDraft(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.body,
+          { actorId: String(req.authContext.userId) },
+          req.authContext,
+          req.get('Idempotency-Key'),
+        );
+        sendSuccessEnvelope(res, result.statusCode ?? 200, result.data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async listAdjustments(req, res, next) {
       try {
         const { page, pageSize, skip } = parsePaginationQuery(req.query);

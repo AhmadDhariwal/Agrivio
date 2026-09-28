@@ -73,3 +73,10 @@ npm run e2e                  # pass (includes f04-p1-inventory)
 ## Next
 
 * F04 P2 (`R1-F04-005`+) after P1 acceptance
+
+## Draft/discard lifecycle follow-up (2026-09-28)
+
+* Opening Stock now supports persisted `draft → posted` source records without changing the existing immediate `POST /api/v1/inventory/opening-stock` contract used by current UI/import flows.
+* Draft APIs are `POST /api/v1/inventory/opening-stock/drafts`, `GET/PATCH/DELETE /api/v1/inventory/opening-stock/:id`, and `POST /api/v1/inventory/opening-stock/:id/post`.
+* Draft create/edit/discard have zero batch, movement, balance, or WAC effects. Final post reuses the existing atomic opening-stock posting engine and links the movement to the Opening Stock source record.
+* Model review: `opening_stocks` is an Inventory-owned A/B source collection with tenant scope, lifecycle/version fields, posting linkage, and org-leading status/warehouse indexes. No mutable accounting balance or new permission was added; the change is backward-compatible and has isolated real-Mongo index/transaction/concurrency coverage.
