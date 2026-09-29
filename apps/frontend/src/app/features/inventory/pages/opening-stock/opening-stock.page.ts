@@ -13,6 +13,7 @@ import {
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
+import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
@@ -45,6 +46,7 @@ import { OpeningStockRecord } from '../../models/inventory.models';
     RouterLink,
     UiAlertComponent,
     UiLoadingStateComponent,
+    UiPaginationComponent,
     UiFieldLabelComponent,
     UiModuleInfoComponent,
     UiConfirmDialogComponent,
@@ -71,6 +73,14 @@ export class OpeningStockPage {
   readonly discarding = signal(false);
   readonly savingDraft = signal(false);
   readonly isEditing = signal(true);
+
+  // History List
+  readonly recentOpeningStock = signal<OpeningStockRecord[]>([]);
+  readonly page = signal(1);
+  readonly pageSize = signal(25);
+  readonly total = signal(0);
+  readonly statusFilter = signal<string>('all');
+  private pendingDiscard: OpeningStockRecord | null = null;
 
   readonly loading = signal(true);
   readonly saving = signal(false);
@@ -179,8 +189,9 @@ export class OpeningStockPage {
     forkJoin({
       products: this.catalogApi.searchProductOptions(),
       warehouses: this.locationsApi.listWarehouseOptions(),
+      history: this.inventoryApi.listOpeningStock({ page: this.page(), pageSize: this.pageSize() }),
     }).subscribe({
-      next: ({ products, warehouses }) => {
+      next: ({ products, warehouses, history }) => {
         const activeProducts = products.filter((item) => item.status === 'active');
         const activeWarehouses = warehouses.filter((item) => item.status === 'active');
         this.products.set(activeProducts);
@@ -189,6 +200,8 @@ export class OpeningStockPage {
         if (soleWarehouse && !this.form.controls.warehouseId.value) {
           this.form.patchValue({ warehouseId: soleWarehouse.id });
         }
+        this.recentOpeningStock.set(history.items);
+        this.total.set(history.total);
         this.loading.set(false);
 
         const targetProductId = this.route?.snapshot?.queryParamMap?.get('productId');
@@ -377,16 +390,25 @@ export class OpeningStockPage {
   }
 
   openDiscardDialog(): void {
-    if (!this.canPostOpeningStock() || !this.isDraft() || this.discarding()) return;
+    const record = this.openingStockRecord();
+    if (!this.canPostOpeningStock() || !record || record.status !== 'draft' || this.discarding()) return;
+    this.pendingDiscard = record;
+    this.discardDialogOpen.set(true);
+  }
+
+  askDiscardRow(record: OpeningStockRecord): void {
+    if (!this.canPostOpeningStock() || record.status !== 'draft' || this.discarding()) return;
+    this.pendingDiscard = record;
     this.discardDialogOpen.set(true);
   }
 
   onDiscardDismissed(): void {
+    this.pendingDiscard = null;
     this.discardDialogOpen.set(false);
   }
 
   onDiscardConfirmed(): void {
-    const record = this.openingStockRecord();
+    const record = this.pendingDiscard;
     if (!record || !this.canPostOpeningStock() || record.status !== 'draft' || this.discarding()) return;
     this.discarding.set(true);
     this.errorMessage.set(null);
@@ -410,11 +432,14 @@ export class OpeningStockPage {
         this.selectedTrackingMode.set('none');
         this.form.enable();
         this.isEditing.set(true);
+        this.pendingDiscard = null;
         this.successMessage.set('Opening stock draft discarded successfully.');
+        this.loadHistory();
       },
       error: (error: unknown) => {
         this.discarding.set(false);
         this.discardDialogOpen.set(false);
+        this.pendingDiscard = null;
         this.errorMessage.set(this.mapConflictError(error, 'Unable to discard opening stock draft.'));
       },
     });
@@ -440,6 +465,7 @@ export class OpeningStockPage {
           this.savingDraft.set(false);
           this.openingStockRecord.set(updated);
           this.successMessage.set('Opening stock draft updated successfully.');
+          this.loadHistory();
         },
         error: (error: unknown) => {
           this.savingDraft.set(false);
@@ -452,6 +478,7 @@ export class OpeningStockPage {
           this.savingDraft.set(false);
           this.openingStockRecord.set(created);
           this.successMessage.set('Opening stock draft saved successfully.');
+          this.loadHistory();
         },
         error: (error: unknown) => {
           this.savingDraft.set(false);
@@ -488,6 +515,7 @@ export class OpeningStockPage {
           this.successMessage.set(
             `Opening stock posted. Balance ${result.balance.quantityBase}; WAC ${result.costState.weightedAverageCost.amount} PKR.`,
           );
+          this.loadHistory();
         },
         error: (error: unknown) => {
           this.saving.set(false);
@@ -503,6 +531,7 @@ export class OpeningStockPage {
           this.successMessage.set(
             `Opening stock posted. Balance ${result.balance.quantityBase}; WAC ${result.costState.weightedAverageCost.amount} PKR.`,
           );
+          this.loadHistory();
         },
         error: (error: unknown) => {
           this.saving.set(false);
@@ -544,5 +573,83 @@ export class OpeningStockPage {
 
   onProductComboboxSearch(query: string): void {
     this.productSearchChanges.next(query.trim());
+  }
+
+  loadHistory(
+    page = this.page(),
+    pageSize = this.pageSize(),
+    status = this.statusFilter(),
+  ): void {
+    const filters: { page?: number; pageSize?: number; status?: string } = {
+      page,
+      pageSize,
+    };
+    if (status !== 'all') {
+      filters.status = status;
+    }
+    this.inventoryApi.listOpeningStock(filters).subscribe({
+      next: (result) => {
+        this.recentOpeningStock.set(result.items);
+        this.total.set(result.total);
+        this.page.set(result.page);
+        this.pageSize.set(result.pageSize);
+      },
+      error: () => {
+        // silently fail or show toast if needed, adjusting state minimally
+      },
+    });
+  }
+
+  onPageChange(newPage: number): void {
+    if (newPage === this.page() || this.loading()) return;
+    this.loadHistory(newPage, this.pageSize(), this.statusFilter());
+  }
+
+  onPageSizeChange(newSize: number): void {
+    if (newSize === this.pageSize() || this.loading()) return;
+    this.loadHistory(1, newSize, this.statusFilter());
+  }
+
+  onFilterChange(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    this.statusFilter.set(value);
+    this.loadHistory(1, this.pageSize(), value);
+  }
+
+  editDraftRow(record: OpeningStockRecord): void {
+    this.loadOpeningStockRecord(record.id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  postDraftRow(record: OpeningStockRecord): void {
+    if (!this.canPostOpeningStock() || record.status !== 'draft') return;
+    
+    // If the currently edited draft is the one being posted, just trigger standard submit
+    if (this.openingStockRecord()?.id === record.id) {
+      this.submit();
+      return;
+    }
+
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    const idempotencyKey = `opening-stock-post-${crypto.randomUUID()}`;
+    
+    this.inventoryApi.postOpeningStockDraft(record.id, record.version, idempotencyKey).subscribe({
+      next: () => {
+        this.successMessage.set('Opening stock posted successfully.');
+        this.loadHistory();
+      },
+      error: (error: unknown) => {
+        this.errorMessage.set(this.mapConflictError(error, 'Unable to post opening stock draft.'));
+      },
+    });
+  }
+
+  getProductName(id: string): string {
+    return this.products().find((p) => p.id === id)?.name || id;
+  }
+
+  getWarehouseName(id: string): string {
+    return this.warehouses().find((w) => w.id === id)?.name || id;
   }
 }

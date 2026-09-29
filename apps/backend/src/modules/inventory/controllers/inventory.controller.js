@@ -78,6 +78,20 @@ function createInventoryController(deps) {
       }
     },
 
+    async listOpeningStock(req, res, next) {
+      try {
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.inventoryService.listOpeningStock(
+          requireOrganizationId(req),
+          { ...req.query, skip, pageSize },
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async postOpeningStock(req, res, next) {
       try {
         const result = await deps.inventoryService.postOpeningStock(

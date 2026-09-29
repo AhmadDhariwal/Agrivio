@@ -170,6 +170,18 @@ function registerInventoryRoutes(deps) {
     },
   );
 
+  router.get(
+    API_INVENTORY_OPENING_STOCK_PATH,
+    deps.requireAuth,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('inventory.view'),
+    deps.requireOperationalAccess,
+    requireOpeningStockModule,
+    (req, res, next) => {
+      void controller.listOpeningStock(req, res, next);
+    },
+  );
+
   router.post(
     `${API_INVENTORY_OPENING_STOCK_PATH}/drafts`,
     deps.requireAuth,

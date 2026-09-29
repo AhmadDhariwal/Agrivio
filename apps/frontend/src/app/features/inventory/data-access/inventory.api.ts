@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map, switchMap, tap } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
@@ -145,6 +145,38 @@ export class InventoryApi {
         { withCredentials: true },
       )
       .pipe(map((response) => response.data));
+  }
+
+  listOpeningStock(
+    filters: {
+      status?: string;
+      warehouseId?: string;
+      page?: number;
+      pageSize?: number;
+    } = {},
+  ): Observable<{ items: OpeningStockRecord[]; total: number; page: number; pageSize: number }> {
+    let params = new HttpParams();
+    if (filters.status) params = params.set('status', filters.status);
+    if (filters.warehouseId) params = params.set('warehouseId', filters.warehouseId);
+    if (filters.page) params = params.set('page', filters.page.toString());
+    if (filters.pageSize) params = params.set('pageSize', filters.pageSize.toString());
+
+    return this.http
+      .get<{
+        data: OpeningStockRecord[];
+        meta: { total: number; page: number; pageSize: number };
+      }>(`${environment.publicApiBaseUrl}/api/v1/inventory/opening-stock`, {
+        params,
+        withCredentials: true,
+      })
+      .pipe(
+        map((response) => ({
+          items: response.data,
+          total: response.meta.total,
+          page: response.meta.page,
+          pageSize: response.meta.pageSize,
+        })),
+      );
   }
 
   postOpeningStock(

@@ -152,4 +152,78 @@ describe('draft/discard inventory lifecycle', () => {
       inventoryService.getOpeningStock('org-2', draft.id, auth('org-2')),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
+
+  it('lists both draft and posted opening stock records for the tenant', async () => {
+    const { inventoryService } = setup();
+    const authCtx = auth();
+
+    const draft1 = await inventoryService.createOpeningStockDraft('org-1', openingBody(), authCtx);
+    const draft2 = await inventoryService.createOpeningStockDraft(
+      'org-1',
+      openingBody({ quantity: '10', warehouseId: 'wh-2' }),
+      authCtx,
+    );
+
+    await inventoryService.postOpeningStockDraft(
+      'org-1',
+      draft2.id,
+      { expectedVersion: draft2.version },
+      { actorId: 'owner-1' },
+      authCtx,
+      'list-test-post-1',
+    );
+
+    const all = await inventoryService.listOpeningStock('org-1', {}, authCtx);
+    expect(all.items).toHaveLength(2);
+    const statuses = all.items.map((item) => item.status).sort();
+    expect(statuses).toEqual(['draft', 'posted']);
+
+    const draftsOnly = await inventoryService.listOpeningStock('org-1', { status: 'draft' }, authCtx);
+    expect(draftsOnly.items).toHaveLength(1);
+    expect(draftsOnly.items[0].id).toBe(draft1.id);
+    expect(draftsOnly.items[0].status).toBe('draft');
+
+    const postedOnly = await inventoryService.listOpeningStock('org-1', { status: 'posted' }, authCtx);
+    expect(postedOnly.items).toHaveLength(1);
+    expect(postedOnly.items[0].id).toBe(draft2.id);
+    expect(postedOnly.items[0].status).toBe('posted');
+  });
+
+  it('list endpoint reflects discard: discarded draft disappears immediately', async () => {
+    const { inventoryService } = setup();
+    const authCtx = auth();
+
+    const draft = await inventoryService.createOpeningStockDraft('org-1', openingBody(), authCtx);
+
+    const before = await inventoryService.listOpeningStock('org-1', {}, authCtx);
+    expect(before.items).toHaveLength(1);
+
+    await inventoryService.discardOpeningStockDraft('org-1', draft.id, { expectedVersion: draft.version }, authCtx);
+
+    const after = await inventoryService.listOpeningStock('org-1', {}, authCtx);
+    expect(after.items).toHaveLength(0);
+  });
+
+  it('list scopes results by warehouse assignment', async () => {
+    const { inventoryService } = setup();
+    const fullAuth = auth('org-1', ['wh-1', 'wh-2']);
+    const restrictedAuth = auth('org-1', ['wh-1']);
+
+    await inventoryService.createOpeningStockDraft('org-1', openingBody({ warehouseId: 'wh-1' }), fullAuth);
+    await inventoryService.createOpeningStockDraft('org-1', openingBody({ warehouseId: 'wh-2' }), fullAuth);
+
+    const fullList = await inventoryService.listOpeningStock('org-1', {}, fullAuth);
+    expect(fullList.items).toHaveLength(2);
+
+    const restrictedList = await inventoryService.listOpeningStock('org-1', {}, restrictedAuth);
+    expect(restrictedList.items).toHaveLength(1);
+    expect(restrictedList.items[0].warehouseId).toBe('wh-1');
+  });
+
+  it('list is tenant-isolated: org-2 cannot see org-1 records', async () => {
+    const { inventoryService } = setup();
+    await inventoryService.createOpeningStockDraft('org-1', openingBody(), auth('org-1'));
+    const result = await inventoryService.listOpeningStock('org-2', {}, auth('org-2'));
+    expect(result.items).toHaveLength(0);
+  });
 });

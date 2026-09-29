@@ -3,6 +3,7 @@ import { signal, WritableSignal } from '@angular/core';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { OpeningStockPage } from './opening-stock.page';
 import { InventoryApi } from '../../data-access/inventory.api';
 import { CatalogApi } from '../../../catalog/data-access/catalog.api';
@@ -77,6 +78,12 @@ describe('OpeningStockPage', () => {
             postOpeningStockDraft: vi.fn(() => of({
               balance: { quantityBase: '50.0000' },
               costState: { weightedAverageCost: { amount: '10.00' } },
+            })),
+            listOpeningStock: vi.fn(() => of({
+              items: [],
+              page: 1,
+              pageSize: 25,
+              total: 0
             })),
           },
         },
@@ -299,7 +306,13 @@ describe('OpeningStockPage', () => {
             queryParamMap: of(routeSnapshot.queryParamMap),
           },
         },
-        { provide: InventoryApi, useValue: { postOpeningStock } },
+        {
+          provide: InventoryApi,
+          useValue: {
+            postOpeningStock,
+            listOpeningStock: vi.fn(() => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } })),
+          },
+        },
         {
           provide: CatalogApi,
           useValue: {
@@ -438,7 +451,7 @@ describe('OpeningStockPage', () => {
       );
 
       page.openingStockRecord.set(mockOpeningStock({ status: 'draft', version: 2 }));
-      page.discardDialogOpen.set(true);
+      page.openDiscardDialog();
 
       page.onDiscardConfirmed();
 
@@ -455,6 +468,7 @@ describe('OpeningStockPage', () => {
       );
 
       page.openingStockRecord.set(mockOpeningStock({ status: 'draft', version: 1 }));
+      page.openDiscardDialog();
 
       page.onDiscardConfirmed();
 
@@ -500,6 +514,145 @@ describe('OpeningStockPage', () => {
       expect(createDraftSpy).toHaveBeenCalled();
       expect(page.openingStockRecord()?.id).toBe('draft-new-1');
       expect(page.successMessage()).toContain('Opening stock draft saved');
+    });
+
+    it('verifies exact flow: Create Draft -> List -> Leave Page -> Return -> See Draft -> Edit Draft -> Save -> Post', () => {
+      vi.spyOn(window, 'scrollTo').mockReturnValue(undefined);
+      const inventoryApi = TestBed.inject(InventoryApi);
+
+      // 1. Create Draft
+      const draftRecord = mockOpeningStock({
+        id: 'draft-flow-1',
+        warehouseId: 'wh-1',
+        productId: 'prod-none',
+        quantity: '25.0000',
+        inventoryValue: { amount: '2500.00', currency: 'PKR' },
+        status: 'draft',
+        version: 1,
+      });
+      vi.spyOn(inventoryApi, 'createOpeningStockDraft').mockReturnValue(of(draftRecord));
+
+      page.form.patchValue({
+        warehouseId: 'wh-1',
+        productId: 'prod-none',
+        quantity: '25',
+        inventoryValue: '2500.00',
+      });
+      page.saveDraft();
+      expect(page.openingStockRecord()?.status).toBe('draft');
+
+      // 2 & 3. Leave Page -> Return -> See Draft in List
+      page.recentOpeningStock.set([draftRecord]);
+      page.total.set(1);
+      fixture.detectChanges();
+
+      const row = fixture.nativeElement.querySelector('[data-testid="opening-stock-row"]');
+      expect(row).toBeTruthy();
+      expect(row.querySelector('[data-testid="opening-stock-edit-draft"]')).toBeTruthy();
+      expect(row.querySelector('[data-testid="opening-stock-discard-draft"]')).toBeTruthy();
+      expect(row.querySelector('[data-testid="opening-stock-post-draft"]')).toBeTruthy();
+
+      // 4. Edit Draft: click Edit Draft button and restore details
+      vi.spyOn(inventoryApi, 'getOpeningStock').mockReturnValue(of(draftRecord));
+      page.editDraftRow(draftRecord);
+      fixture.detectChanges();
+
+      expect(page.form.controls.warehouseId.value).toBe('wh-1');
+      expect(page.form.controls.productId.value).toBe('prod-none');
+      expect(page.form.controls.quantity.value).toBe('25.0000');
+      expect(page.form.controls.inventoryValue.value).toBe('2500.00');
+      expect(page.isEditing()).toBe(true);
+      expect(page.form.enabled).toBe(true);
+
+      // 5. Save: modify quantity and save draft, status remains draft
+      const updatedDraft = { ...draftRecord, quantity: '30.0000', version: 2 };
+      const updateSpy = vi.spyOn(inventoryApi, 'updateOpeningStock').mockReturnValue(of(updatedDraft));
+      page.form.patchValue({ quantity: '30' });
+      page.saveDraft();
+
+      expect(updateSpy).toHaveBeenCalledWith('draft-flow-1', expect.anything(), 1);
+      expect(page.openingStockRecord()?.status).toBe('draft');
+      expect(page.openingStockRecord()?.version).toBe(2);
+
+      // 6. Post: post the draft, status changes to posted, form is disabled
+      const postSpy = vi.spyOn(inventoryApi, 'postOpeningStockDraft').mockReturnValue(
+        of({
+          movement: {} as any,
+          batch: null,
+          balance: { quantityBase: '30.0000' } as any,
+          costState: { weightedAverageCost: { amount: '100.00', currency: 'PKR' } } as any,
+        })
+      );
+      page.submit();
+
+      expect(postSpy).toHaveBeenCalledWith('draft-flow-1', 2, expect.any(String));
+      expect(page.openingStockRecord()?.status).toBe('posted');
+      expect(page.form.disabled).toBe(true);
+      expect(page.isEditing()).toBe(false);
+
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="opening-stock-save-draft"]')).toBeNull();
+      expect(compiled.querySelector('[data-testid="opening-stock-discard"]')).toBeNull();
+      expect(compiled.querySelector('[data-testid="opening-stock-posted-badge"]')).toBeTruthy();
+    });
+
+    it('verifies exact flow: Create Draft -> List -> Leave Page -> Return -> See Draft -> Discard', () => {
+      const inventoryApi = TestBed.inject(InventoryApi);
+      const draftRecord = mockOpeningStock({
+        id: 'draft-flow-2',
+        warehouseId: 'wh-1',
+        productId: 'prod-none',
+        quantity: '10.0000',
+        status: 'draft',
+        version: 1,
+      });
+
+      // 1. Revisit page and see draft in list
+      page.recentOpeningStock.set([draftRecord]);
+      page.total.set(1);
+      fixture.detectChanges();
+
+      const row = fixture.nativeElement.querySelector('[data-testid="opening-stock-row"]');
+      expect(row).toBeTruthy();
+
+      // 2. Click Discard Draft on the row
+      page.askDiscardRow(draftRecord);
+      fixture.detectChanges();
+      expect(page.discardDialogOpen()).toBe(true);
+
+      // 3. Confirm Discard
+      const discardSpy = vi.spyOn(inventoryApi, 'discardOpeningStock').mockReturnValue(
+        of({ id: 'draft-flow-2', discarded: true })
+      );
+      const listSpy = vi.spyOn(inventoryApi, 'listOpeningStock').mockReturnValue(
+        of({ items: [], total: 0, page: 1, pageSize: 25 })
+      );
+
+      page.onDiscardConfirmed();
+
+      expect(discardSpy).toHaveBeenCalledWith('draft-flow-2', 1);
+      expect(page.discardDialogOpen()).toBe(false);
+      expect(listSpy).toHaveBeenCalled();
+      expect(page.successMessage()).toContain('discarded successfully');
+    });
+
+    it('displays only View action for posted records in list', () => {
+      const postedRecord = mockOpeningStock({
+        id: 'posted-row-1',
+        status: 'posted',
+        version: 2,
+      });
+      page.recentOpeningStock.set([postedRecord]);
+      page.total.set(1);
+      fixture.detectChanges();
+
+      const row = fixture.nativeElement.querySelector('[data-testid="opening-stock-row"]');
+      expect(row).toBeTruthy();
+      expect(row.querySelector('[data-testid="opening-stock-view-posted"]')).toBeTruthy();
+      expect(row.querySelector('[data-testid="opening-stock-edit-draft"]')).toBeNull();
+      expect(row.querySelector('[data-testid="opening-stock-discard-draft"]')).toBeNull();
+      expect(row.querySelector('[data-testid="opening-stock-post-draft"]')).toBeNull();
     });
   });
 });

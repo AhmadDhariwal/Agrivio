@@ -382,6 +382,21 @@ function createMongooseInventoryStore() {
       return result.deletedCount === 1;
     },
 
+    async listOpeningStock(organizationId, filters) {
+      const query = { organizationId };
+      if (filters.status) query.status = filters.status;
+      if (filters.warehouseId) query.warehouseId = filters.warehouseId;
+      return OpeningStockModel.find(query).sort({ createdAt: -1 }).lean().exec();
+    },
+
+    async listOpeningStockPage(organizationId, filters, pagination) {
+      const query = { organizationId };
+      if (filters.status) query.status = filters.status;
+      if (filters.warehouseId) query.warehouseId = filters.warehouseId;
+      if (Array.isArray(filters.warehouseIds)) query.warehouseId = { $in: filters.warehouseIds };
+      return paginateModel(OpeningStockModel, query, { createdAt: -1, _id: -1 }, pagination);
+    },
+
     async findAdjustmentById(organizationId, id) {
       if (!mongoose.isValidObjectId(id)) {
         return null;
@@ -1022,6 +1037,29 @@ function createInMemoryInventoryStore() {
       }
       openingStocks.delete(String(id));
       return true;
+    },
+
+    async listOpeningStock(organizationId, filters) {
+      return [...openingStocks.values()]
+        .filter((item) => {
+          if (String(item.organizationId) !== String(organizationId)) return false;
+          if (filters.status && item.status !== filters.status) return false;
+          if (filters.warehouseId && String(item.warehouseId) !== String(filters.warehouseId)) return false;
+          return true;
+        })
+        .sort(
+          (left, right) =>
+            String(right.createdAt).localeCompare(String(left.createdAt)) ||
+            String(right._id).localeCompare(String(left._id)),
+        )
+        .map((item) => ({ ...item }));
+    },
+
+    async listOpeningStockPage(organizationId, filters, pagination) {
+      const items = (await this.listOpeningStock(organizationId, filters)).filter((item) =>
+        !Array.isArray(filters.warehouseIds) || filters.warehouseIds.map(String).includes(String(item.warehouseId)),
+      );
+      return paginateRows(items, pagination);
     },
 
     async findAdjustmentById(organizationId, id) {

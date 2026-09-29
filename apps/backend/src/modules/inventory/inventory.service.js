@@ -773,6 +773,35 @@ function createInventoryService(deps) {
       };
     },
 
+    async listOpeningStock(organizationId, query, authContext) {
+      const filters = {};
+      if (typeof query?.warehouseId === 'string' && query.warehouseId.trim() !== '') {
+        filters.warehouseId = query.warehouseId.trim();
+        if (
+          typeof deps.canAccessWarehouse === 'function' &&
+          !deps.canAccessWarehouse(authContext, filters.warehouseId)
+        ) {
+          throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
+        }
+      }
+      if (typeof query?.status === 'string' && query.status.trim() !== '') {
+        filters.status = query.status.trim();
+      }
+      if (!filters.warehouseId) filters.warehouseIds = accessibleWarehouseIds(organizationId, authContext);
+      const paginated = query?.skip !== undefined || query?.pageSize !== undefined;
+      const result = paginated
+        ? await store.listOpeningStockPage(organizationId, filters, query)
+        : { items: await store.listOpeningStock(organizationId, filters), total: undefined };
+      const records = result.items;
+      const items = records
+        .filter((item) => {
+          if (typeof deps.canAccessWarehouse !== 'function') return true;
+          return deps.canAccessWarehouse(authContext, String(item.warehouseId));
+        })
+        .map(toOpeningStockDraftDto);
+      return { items, total: result.total ?? items.length };
+    },
+
     async createOpeningStockDraft(organizationId, body, authContext) {
       const input = parseOpeningStock(body);
       const product = await catalogService.getProduct(organizationId, input.productId);

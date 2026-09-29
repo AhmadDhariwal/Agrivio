@@ -548,6 +548,111 @@
       }
     </footer>
   </form>
+
+  <!-- Opening Stock History Section -->
+  <section class="history-card" style="margin-top: 2rem;">
+    <div class="history-card__header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <div>
+        <h2 class="history-card__title">Recent opening stock</h2>
+        <span class="history-card__count">{{ total() }} {{ total() === 1 ? 'record' : 'records' }}</span>
+      </div>
+      <div>
+        <select class="ag-select" [value]="statusFilter()" (change)="onFilterChange($event)" data-testid="opening-stock-status-filter">
+          <option value="all">All</option>
+          <option value="draft">Draft</option>
+          <option value="posted">Posted</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="ag-table-wrap">
+      <table class="ag-table" data-testid="opening-stock-list">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Warehouse</th>
+            <th>Quantity</th>
+            <th>Value</th>
+            <th>Status</th>
+            <th class="text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of recentOpeningStock(); track item.id) {
+            <tr data-testid="opening-stock-row">
+              <td>
+                <strong>{{ getProductName(item.productId) }}</strong>
+              </td>
+              <td>{{ getWarehouseName(item.warehouseId) }}</td>
+              <td>
+                <div class="quantity-cell">
+                  <span class="quantity-cell__amount">{{ item.quantity }}</span>
+                </div>
+              </td>
+              <td>{{ item.inventoryValue.amount }} {{ item.inventoryValue.currency }}</td>
+              <td>
+                <span class="tracking-chip" [class.tracking-chip--batch]="item.status === 'posted'">
+                  {{ item.status }}
+                </span>
+              </td>
+              <td class="text-right">
+                @if (item.status === 'draft') {
+                  <button
+                    type="button"
+                    class="ag-btn-sm ag-btn-sm--secondary"
+                    data-testid="opening-stock-edit-draft"
+                    (click)="editDraftRow(item)"
+                  >
+                    Edit Draft
+                  </button>
+                  <button
+                    type="button"
+                    class="ag-btn-sm ag-btn-sm--danger"
+                    data-testid="opening-stock-discard-draft"
+                    (click)="askDiscardRow(item)"
+                  >
+                    Discard Draft
+                  </button>
+                  @if (canPostOpeningStock()) {
+                    <button
+                      type="button"
+                      class="ag-btn-sm ag-btn-sm--primary"
+                      data-testid="opening-stock-post-draft"
+                      (click)="postDraftRow(item)"
+                    >
+                      Post
+                    </button>
+                  }
+                } @else {
+                  <button
+                    type="button"
+                    class="ag-btn-sm ag-btn-sm--secondary"
+                    data-testid="opening-stock-view-posted"
+                    (click)="editDraftRow(item)"
+                  >
+                    View
+                  </button>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6" class="text-center text-muted py-4">No opening stock records found.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <agrivio-ui-pagination
+      [page]="page()"
+      [pageSize]="pageSize()"
+      [total]="total()"
+      [disabled]="loading()"
+      (pageChange)="onPageChange($event)"
+      (pageSizeChange)="onPageSizeChange($event)"
+    />
+  </section>
   }
 
   <!-- Discard Draft Confirm Dialog -->
