@@ -927,12 +927,21 @@
         <h3 class="drawer-sec__title">Financial Balances (PKR)</h3>
         <div class="spec-grid">
           <div class="spec-row">
-            <span class="spec-row__k">Outstanding Receivable</span>
+            <span class="spec-row__k">Trade Receivable</span>
             <span class="spec-row__v tabular-num">
               {{ formatCurrency(sel.derivedBalances?.receivable?.amount,
               sel.derivedBalances?.receivable?.currency) }}
             </span>
           </div>
+          @if (sel.derivedBalances?.loanReceivable?.amount && sel.derivedBalances!.loanReceivable!.amount !== '0.00') {
+          <div class="spec-row" data-testid="inspector-loan-receivable-row">
+            <span class="spec-row__k">Loan Receivable</span>
+            <span class="spec-row__v tabular-num">
+              {{ formatCurrency(sel.derivedBalances!.loanReceivable!.amount,
+              sel.derivedBalances!.loanReceivable!.currency) }}
+            </span>
+          </div>
+          }
           <div class="spec-row">
             <span class="spec-row__k">Advance Balance</span>
             <span class="spec-row__v tabular-num">
@@ -940,6 +949,15 @@
               sel.derivedBalances?.advance?.currency) }}
             </span>
           </div>
+          @if (sel.derivedBalances?.totalExposure) {
+          <div class="spec-row spec-row--highlight" data-testid="inspector-total-exposure-row">
+            <span class="spec-row__k">Total Exposure</span>
+            <span class="spec-row__v tabular-num spec-row__v--bold">
+              {{ formatCurrency(sel.derivedBalances!.totalExposure!.amount,
+              sel.derivedBalances!.totalExposure!.currency) }}
+            </span>
+          </div>
+          }
         </div>
       </section>
 
