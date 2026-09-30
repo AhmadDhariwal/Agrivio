@@ -2,8 +2,8 @@
   <div
     class="ag-dialog-backdrop"
     role="presentation"
-    (click)="dismiss.emit()"
-    (keydown.escape)="dismiss.emit()"
+    (click)="onDismiss()"
+    (keydown.escape)="onDismiss()"
   >
     <div
       class="ag-dialog confirm-dialog"
@@ -39,14 +39,14 @@
         }
       </div>
       <div class="confirm-dialog__actions">
-        <button type="button" class="ag-btn ag-btn--secondary" (click)="dismiss.emit()">
+        <button type="button" class="ag-btn ag-btn--secondary" (click)="onDismiss()">
           {{ cancelLabel() }}
         </button>
         <button
           type="button"
           class="ag-btn"
-          [class.ag-btn--danger]="danger()"
-          [class.ag-btn--primary]="!danger()"
+          [class.ag-btn--danger]="isDanger()"
+          [class.ag-btn--primary]="!isDanger()"
           [disabled]="requireReason() && reason().trim() === ''"
           (click)="confirmed.emit(reason().trim())"
         >

@@ -1,4 +1,4 @@
-import { Component, input, output, signal } from '@angular/core';
+import { Component, computed, input, output, signal } from '@angular/core';
 
 @Component({
   selector: 'agrivio-ui-confirm-dialog',
@@ -13,11 +13,19 @@ export class UiConfirmDialogComponent {
   readonly confirmLabel = input('Confirm');
   readonly cancelLabel = input('Cancel');
   readonly danger = input(false);
+  readonly tone = input<string>();
   readonly requireReason = input(false);
   readonly confirmed = output<string>();
   readonly dismiss = output<void>();
+  readonly dismissed = output<void>();
+  readonly isDanger = computed(() => this.danger() || this.tone() === 'danger');
   readonly titleId = `ag-confirm-${Math.random().toString(36).slice(2, 9)}`;
   readonly reason = signal('');
+
+  onDismiss(): void {
+    this.dismiss.emit();
+    this.dismissed.emit();
+  }
 
   onReasonInput(event: Event): void {
     const target = event.target;
