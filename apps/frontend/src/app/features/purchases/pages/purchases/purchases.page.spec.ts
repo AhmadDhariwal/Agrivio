@@ -169,7 +169,7 @@ describe('PurchasesPage', () => {
     // Verify row contents
     expect(rows[0]?.textContent).toContain('ENG-901');
     expect(rows[0]?.textContent).toContain('Ali Fertilizers');
-    expect(rows[0]?.textContent).toContain('Draft (unposted)');
+    expect(rows[0]?.textContent).toContain('Draft');
 
     expect(rows[1]?.textContent).toContain('FFC-441');
     expect(rows[1]?.textContent).toContain('Fauji Fertilizer Co');

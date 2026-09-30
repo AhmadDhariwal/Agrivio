@@ -850,8 +850,9 @@
     title="Discard Draft Purchase"
     message="Are you sure you want to discard this draft purchase? This action cannot be undone."
     confirmLabel="Discard Draft"
-    tone="danger"
+    [danger]="true"
     (confirmed)="onDiscardConfirmed()"
+    (dismiss)="discardDialogOpen.set(false)"
     (dismissed)="discardDialogOpen.set(false)"
   />
 </div>

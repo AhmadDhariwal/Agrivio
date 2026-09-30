@@ -426,7 +426,7 @@ export class PurchaseEditPage {
 
   statusLabel(status?: string | null): string {
     if (this.isCorrectionMode()) return 'Correction Mode';
-    if (status === 'draft') return 'Draft (unposted)';
+    if (status === 'draft') return 'Draft';
     if (status === 'posted') return 'Posted';
     if (status === 'cancelled') return 'Cancelled';
     return status || 'Draft';

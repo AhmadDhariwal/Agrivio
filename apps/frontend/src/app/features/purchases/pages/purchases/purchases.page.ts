@@ -190,7 +190,7 @@ export class PurchasesPage {
     }
     const status = itemOrStatus;
     if (status === 'draft') {
-      return 'Draft (unposted)';
+      return 'Draft';
     }
     if (status === 'posted') {
       return 'Posted';

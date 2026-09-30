@@ -1450,6 +1450,22 @@
     color: #0f172a;
     font-family: var(--ag-font-sans);
   }
+
+  &--highlight {
+    background: #f0fdf4;
+    border-top: 1px solid #bbf7d0;
+    border-bottom: none;
+
+    .spec-row__k {
+      color: #166534;
+      font-weight: 500;
+    }
+  }
+
+  &__v--bold {
+    font-weight: 700;
+    color: #047857;
+  }
 }
 
 .capitalize {

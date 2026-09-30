@@ -1,11 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
 import { vi } from 'vitest';
 import { EmployeesPage } from './employees.page';
 import { EmployeeRecord, UsersAccessApi } from '../../data-access/users-access.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 
 describe('EmployeesPage', () => {
   const mockEmployees: EmployeeRecord[] = [
@@ -35,8 +38,30 @@ describe('EmployeesPage', () => {
     },
   ];
 
+  const mockPendingEmployee: EmployeeRecord = {
+    id: 'emp-pending',
+    membershipId: 'mem-pending',
+    email: 'pending@agrivio.pk',
+    displayName: 'Pending Member',
+    role: 'Cashier',
+    status: 'pending',
+    userStatus: 'pending_activation',
+    version: 1,
+    branchIds: ['b-1'],
+    warehouseIds: [],
+    activationUrl: 'https://app.agrivio.pk/activate?token=token-123',
+    allowedActions: {
+      canUpdate: true,
+      canDeactivate: false,
+      canCancelInvitation: true,
+      canAssignAccess: true,
+      canManageConditionalGrants: false,
+    },
+  };
+
   let listEmployeesSpy: ReturnType<typeof vi.fn>;
   let deactivateEmployeeSpy: ReturnType<typeof vi.fn>;
+  let cancelInvitationSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     listEmployeesSpy = vi
@@ -45,6 +70,9 @@ describe('EmployeesPage', () => {
     deactivateEmployeeSpy = vi
       .fn()
       .mockReturnValue(of({ ...mockEmployees[0], status: 'deactivated' }));
+    cancelInvitationSpy = vi
+      .fn()
+      .mockReturnValue(of({ id: 'emp-pending', invitationCancelled: true }));
 
     await TestBed.configureTestingModule({
       imports: [EmployeesPage],
@@ -55,6 +83,7 @@ describe('EmployeesPage', () => {
           useValue: {
             listEmployees: listEmployeesSpy,
             deactivateEmployee: deactivateEmployeeSpy,
+            cancelInvitation: cancelInvitationSpy,
           },
         },
         {
@@ -293,5 +322,208 @@ describe('EmployeesPage', () => {
     expect(owner && page.rowCanInspect(owner)).toBe(true);
     expect(manager && page.rowCanUpdate(manager)).toBe(false);
     expect(manager && page.rowCanDeactivate(manager)).toBe(false);
+  });
+
+  it('renders [ Resend ] and [ Cancel Invitation ] for pending invitations and hides Deactivate', () => {
+    listEmployeesSpy.mockReturnValue(
+      of({ items: [mockPendingEmployee], meta: { page: 1, pageSize: 25, total: 1 } }),
+    );
+
+    const fixture = TestBed.createComponent(EmployeesPage);
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    const item = page.visibleItems()[0]!;
+
+    expect(page.rowCanDeactivate(item)).toBe(false);
+    expect(page.rowCanCancelInvitation(item)).toBe(true);
+    expect(page.rowCanResendInvitation(item)).toBe(true);
+
+    // Open desktop row dropdown
+    page.openMenuEmployeeId.set(item.id);
+    fixture.detectChanges();
+
+    const resendBtn = fixture.nativeElement.querySelector('[data-testid="employee-resend-btn"]');
+    const cancelBtn = fixture.nativeElement.querySelector(
+      '[data-testid="employee-cancel-invitation-btn"]',
+    );
+    const deactivateBtn = fixture.nativeElement.querySelector(
+      '[data-testid="employee-deactivate-btn"]',
+    );
+
+    expect(resendBtn).toBeTruthy();
+    expect(cancelBtn).toBeTruthy();
+    expect(deactivateBtn).toBeNull();
+
+    // Mobile card actions
+    const mobileResend = fixture.nativeElement.querySelector(
+      '[data-testid="employee-mobile-resend-btn"]',
+    );
+    const mobileCancel = fixture.nativeElement.querySelector(
+      '[data-testid="employee-mobile-cancel-invitation-btn"]',
+    );
+    const mobileDeactivate = fixture.nativeElement.querySelector(
+      '[data-testid="employee-mobile-deactivate-btn"]',
+    );
+
+    expect(mobileResend).toBeTruthy();
+    expect(mobileCancel).toBeTruthy();
+    expect(mobileDeactivate).toBeNull();
+  });
+
+  it('renders Deactivate only for active employee and hides Resend and Cancel Invitation', () => {
+    listEmployeesSpy.mockReturnValue(
+      of({ items: [mockEmployees[0]], meta: { page: 1, pageSize: 25, total: 1 } }),
+    );
+
+    const fixture = TestBed.createComponent(EmployeesPage);
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    const item = page.visibleItems()[0]!;
+
+    expect(page.rowCanDeactivate(item)).toBe(true);
+    expect(page.rowCanCancelInvitation(item)).toBe(false);
+    expect(page.rowCanResendInvitation(item)).toBe(false);
+
+    // Open desktop row dropdown
+    page.openMenuEmployeeId.set(item.id);
+    fixture.detectChanges();
+
+    const resendBtn = fixture.nativeElement.querySelector('[data-testid="employee-resend-btn"]');
+    const cancelBtn = fixture.nativeElement.querySelector(
+      '[data-testid="employee-cancel-invitation-btn"]',
+    );
+    const deactivateBtn = fixture.nativeElement.querySelector(
+      '[data-testid="employee-deactivate-btn"]',
+    );
+
+    expect(deactivateBtn).toBeTruthy();
+    expect(resendBtn).toBeNull();
+    expect(cancelBtn).toBeNull();
+
+    // Mobile card actions
+    const mobileDeactivate = fixture.nativeElement.querySelector(
+      '[data-testid="employee-mobile-deactivate-btn"]',
+    );
+    const mobileResend = fixture.nativeElement.querySelector(
+      '[data-testid="employee-mobile-resend-btn"]',
+    );
+    const mobileCancel = fixture.nativeElement.querySelector(
+      '[data-testid="employee-mobile-cancel-invitation-btn"]',
+    );
+
+    expect(mobileDeactivate).toBeTruthy();
+    expect(mobileResend).toBeNull();
+    expect(mobileCancel).toBeNull();
+  });
+
+  it('opens confirmation dialog on cancel invitation with danger=true and confirmLabel="Cancel Invitation"', () => {
+    listEmployeesSpy.mockReturnValue(
+      of({ items: [mockPendingEmployee], meta: { page: 1, pageSize: 25, total: 1 } }),
+    );
+
+    const fixture = TestBed.createComponent(EmployeesPage);
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+
+    expect(page.cancelConfirmOpen()).toBe(false);
+    page.askCancelInvitation(mockPendingEmployee);
+    fixture.detectChanges();
+
+    expect(page.cancelConfirmOpen()).toBe(true);
+
+    const dialogDebugs = fixture.debugElement.queryAll(By.directive(UiConfirmDialogComponent));
+    const cancelDialog = dialogDebugs.find(
+      (d) => d.componentInstance.confirmLabel() === 'Cancel Invitation',
+    );
+    expect(cancelDialog).toBeTruthy();
+    expect(cancelDialog!.componentInstance.open()).toBe(true);
+    expect(cancelDialog!.componentInstance.confirmLabel()).toBe('Cancel Invitation');
+    expect(cancelDialog!.componentInstance.danger()).toBe(true);
+    expect(cancelDialog!.componentInstance.title()).toBe('Cancel employee invitation?');
+  });
+
+  it('executes cancel invitation and reloads the employee list', () => {
+    listEmployeesSpy.mockReturnValue(
+      of({ items: [mockPendingEmployee], meta: { page: 1, pageSize: 25, total: 1 } }),
+    );
+
+    const fixture = TestBed.createComponent(EmployeesPage);
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+
+    page.askCancelInvitation(mockPendingEmployee);
+    page.confirmCancelInvitation();
+
+    expect(cancelInvitationSpy).toHaveBeenCalledWith('emp-pending', 1);
+    expect(page.successMessage()).toContain('Invitation for Pending Member was cancelled.');
+  });
+
+  it('handles 409 conflict when cancelling invitation with standard message', () => {
+    listEmployeesSpy.mockReturnValue(
+      of({ items: [mockPendingEmployee], meta: { page: 1, pageSize: 25, total: 1 } }),
+    );
+    cancelInvitationSpy.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 409, statusText: 'Conflict' })),
+    );
+
+    const fixture = TestBed.createComponent(EmployeesPage);
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+
+    page.askCancelInvitation(mockPendingEmployee);
+    page.confirmCancelInvitation();
+
+    expect(page.errorMessage()).toBe('Invitation was modified or has already been activated.');
+  });
+
+  it('resends invitation link and displays success notification', () => {
+    listEmployeesSpy.mockReturnValue(
+      of({ items: [mockPendingEmployee], meta: { page: 1, pageSize: 25, total: 1 } }),
+    );
+
+    const fixture = TestBed.createComponent(EmployeesPage);
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+
+    page.resendInvitation(mockPendingEmployee);
+
+    expect(page.successMessage()).toContain('Invitation link resent for Pending Member');
+  });
+
+  it('enforces RBAC: hides Cancel Invitation when users.deactivate is missing, hides Resend when users.create is missing', () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [EmployeesPage],
+      providers: [
+        provideRouter([]),
+        {
+          provide: UsersAccessApi,
+          useValue: {
+            listEmployees: listEmployeesSpy,
+            deactivateEmployee: deactivateEmployeeSpy,
+            cancelInvitation: cancelInvitationSpy,
+          },
+        },
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            hasPermission: (perm: string) => ['users.view'].includes(perm),
+          },
+        },
+      ],
+    }).compileComponents();
+
+    listEmployeesSpy.mockReturnValue(
+      of({ items: [mockPendingEmployee], meta: { page: 1, pageSize: 25, total: 1 } }),
+    );
+
+    const fixture = TestBed.createComponent(EmployeesPage);
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    const item = page.visibleItems()[0]!;
+
+    expect(page.rowCanCancelInvitation(item)).toBe(false);
+    expect(page.rowCanResendInvitation(item)).toBe(false);
+    expect(page.rowCanDeactivate(item)).toBe(false);
   });
 });

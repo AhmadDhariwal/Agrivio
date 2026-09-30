@@ -78,6 +78,20 @@ function createInventoryController(deps) {
       }
     },
 
+    async listOpeningStock(req, res, next) {
+      try {
+        const { page, pageSize, skip } = parsePaginationQuery(req.query);
+        const { items, total } = await deps.inventoryService.listOpeningStock(
+          requireOrganizationId(req),
+          { ...req.query, skip, pageSize },
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 200, items, { page, pageSize, total });
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async postOpeningStock(req, res, next) {
       try {
         const result = await deps.inventoryService.postOpeningStock(
@@ -87,6 +101,76 @@ function createInventoryController(deps) {
           req.get('Idempotency-Key'),
         );
         sendSuccessEnvelope(res, result.statusCode ?? 201, result.data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async createOpeningStockDraft(req, res, next) {
+      try {
+        const data = await deps.inventoryService.createOpeningStockDraft(
+          requireOrganizationId(req),
+          req.body,
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 201, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async getOpeningStock(req, res, next) {
+      try {
+        const data = await deps.inventoryService.getOpeningStock(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async updateOpeningStock(req, res, next) {
+      try {
+        const data = await deps.inventoryService.updateOpeningStockDraft(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.body,
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async discardOpeningStock(req, res, next) {
+      try {
+        const data = await deps.inventoryService.discardOpeningStockDraft(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.body,
+          req.authContext,
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async postOpeningStockDraft(req, res, next) {
+      try {
+        const result = await deps.inventoryService.postOpeningStockDraft(
+          requireOrganizationId(req),
+          String(req.params.id),
+          req.body,
+          { actorId: String(req.authContext.userId) },
+          req.authContext,
+          req.get('Idempotency-Key'),
+        );
+        sendSuccessEnvelope(res, result.statusCode ?? 200, result.data);
       } catch (error) {
         next(error);
       }

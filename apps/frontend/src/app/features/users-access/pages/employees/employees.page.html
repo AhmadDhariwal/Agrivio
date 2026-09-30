@@ -502,7 +502,7 @@
               }
 
               <!-- More Actions Dropdown -->
-              @if (rowCanDeactivate(item)) {
+              @if (rowCanDeactivate(item) || rowCanCancelInvitation(item) || rowCanResendInvitation(item)) {
               <div class="menu-container">
                 <button
                   type="button"
@@ -510,6 +510,7 @@
                   (click)="toggleRowMenu(item.id, $event)"
                   title="More actions"
                   aria-label="More actions"
+                  data-testid="employee-more-actions-btn"
                 >
                   <svg
                     width="14"
@@ -527,10 +528,57 @@
 
                 @if (openMenuEmployeeId() === item.id) {
                 <div class="menu-dropdown">
+                  @if (rowCanResendInvitation(item)) {
+                  <button
+                    type="button"
+                    class="menu-dropdown__item"
+                    (click)="resendInvitation(item)"
+                    data-testid="employee-resend-btn"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M22 2L11 13" />
+                      <path d="M22 2l-7 20-4-9-9-4 20-7z" />
+                    </svg>
+                    Resend
+                  </button>
+                  }
+                  @if (rowCanCancelInvitation(item)) {
+                  <button
+                    type="button"
+                    class="menu-dropdown__item menu-dropdown__item--danger"
+                    (click)="askCancelInvitation(item)"
+                    data-testid="employee-cancel-invitation-btn"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="15" y1="9" x2="9" y2="15" />
+                      <line x1="9" y1="9" x2="15" y2="15" />
+                    </svg>
+                    Cancel Invitation
+                  </button>
+                  }
+                  @if (rowCanDeactivate(item)) {
                   <button
                     type="button"
                     class="menu-dropdown__item menu-dropdown__item--danger"
                     (click)="askDeactivate(item)"
+                    data-testid="employee-deactivate-btn"
                   >
                     <svg
                       width="14"
@@ -545,6 +593,7 @@
                     </svg>
                     Deactivate
                   </button>
+                  }
                 </div>
                 }
               </div>
@@ -625,11 +674,30 @@
         >
           View
         </a>
+        } @if (rowCanResendInvitation(item)) {
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary emp-card__btn"
+          (click)="resendInvitation(item)"
+          data-testid="employee-mobile-resend-btn"
+        >
+          Resend
+        </button>
+        } @if (rowCanCancelInvitation(item)) {
+        <button
+          type="button"
+          class="ag-btn ag-btn--danger-outline emp-card__btn"
+          (click)="askCancelInvitation(item)"
+          data-testid="employee-mobile-cancel-invitation-btn"
+        >
+          Cancel Invitation
+        </button>
         } @if (rowCanDeactivate(item)) {
         <button
           type="button"
           class="ag-btn ag-btn--danger-outline emp-card__btn"
           (click)="askDeactivate(item)"
+          data-testid="employee-mobile-deactivate-btn"
         >
           Deactivate
         </button>
@@ -661,4 +729,16 @@
   [danger]="true"
   (confirmed)="confirmDeactivate()"
   (dismiss)="confirmOpen.set(false)"
+/>
+
+<!-- Cancel Invitation Confirmation Dialog -->
+<agrivio-ui-confirm-dialog
+  [open]="cancelConfirmOpen()"
+  title="Cancel employee invitation?"
+  message="This cancels the pending invitation and revokes the activation link. The user will not be able to join the organization."
+  confirmLabel="Cancel Invitation"
+  cancelLabel="Keep invitation"
+  [danger]="true"
+  (confirmed)="confirmCancelInvitation()"
+  (dismiss)="cancelConfirmOpen.set(false)"
 />

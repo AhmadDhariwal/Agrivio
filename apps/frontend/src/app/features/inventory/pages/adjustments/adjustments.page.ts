@@ -84,6 +84,13 @@ export class AdjustmentsPage {
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
 
+  // Draft Lifecycle State
+  readonly editingDraft = signal<StockAdjustmentRecord | null>(null);
+  readonly discardConfirmOpen = signal(false);
+  readonly discarding = signal(false);
+  readonly savingDraft = signal(false);
+  private pendingDiscard: StockAdjustmentRecord | null = null;
+
   // Adjustments History
   readonly adjustments = signal<StockAdjustmentRecord[]>([]);
   readonly page = signal(1);
@@ -487,6 +494,49 @@ export class AdjustmentsPage {
       }
     }
 
+    const current = this.editingDraft();
+    if (current) {
+      this.inventoryApi
+        .updateAdjustment(current.id, { ...payload, expectedVersion: current.version })
+        .subscribe({
+          next: (draft) => {
+            const postPayload: {
+              reason: string;
+              negativeStockOverride?: boolean;
+              negativeStockOverrideReason?: string;
+            } = { reason: value.reason.trim() };
+
+            if (value.negativeStockOverride) {
+              postPayload.negativeStockOverride = true;
+              if (value.negativeStockOverrideReason.trim() !== '') {
+                postPayload.negativeStockOverrideReason = value.negativeStockOverrideReason.trim();
+              }
+            }
+
+            const idempotencyKey = `adj-post-${draft.id}-${Date.now()}`;
+            this.inventoryApi.postAdjustment(draft.id, postPayload, idempotencyKey).subscribe({
+              next: () => {
+                this.successMessage.set('Stock adjustment posted successfully.');
+                this.saving.set(false);
+                this.editingDraft.set(null);
+                this.resetForm();
+                this.reloadAdjustments(true);
+                this.requestStockAndBatchContext();
+              },
+              error: (error: unknown) => {
+                this.saving.set(false);
+                this.errorMessage.set(this.mapError(error, 'Unable to post adjustment.'));
+              },
+            });
+          },
+          error: (error: unknown) => {
+            this.saving.set(false);
+            this.errorMessage.set(this.mapError(error, 'Unable to update adjustment draft.'));
+          },
+        });
+      return;
+    }
+
     this.inventoryApi.createAdjustmentDraft(payload).subscribe({
       next: (draft) => {
         const postPayload: {
@@ -522,6 +572,168 @@ export class AdjustmentsPage {
         this.errorMessage.set(this.mapError(error, 'Unable to create adjustment draft.'));
       },
     });
+  }
+
+  editDraft(item: StockAdjustmentRecord): void {
+    this.editingDraft.set(item);
+    this.form.patchValue({
+      warehouseId: item.warehouseId,
+      productId: item.productId,
+      batchId: item.batchId ?? '',
+      adjustmentType: item.adjustmentType,
+      direction: item.direction,
+      quantity: item.enteredQuantity ?? item.quantityBase,
+      reason: item.reason ?? '',
+      inventoryValue: item.inventoryValue?.amount ?? '',
+      negativeStockOverride: false,
+      negativeStockOverrideReason: '',
+    });
+    const product =
+      this.products().find((p) => p.id === item.productId) ??
+      (this.selectedProduct()?.id === item.productId ? this.selectedProduct() : null);
+    this.selectedProduct.set(product);
+    const mode = product?.trackingMode ?? 'none';
+    this.selectedTrackingMode.set(mode);
+    this.syncBatchRequired(mode);
+    this.syncCorrectionRequired();
+    this.requestStockAndBatchContext();
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  cancelEditDraft(): void {
+    this.editingDraft.set(null);
+    this.resetForm();
+  }
+
+  saveDraft(): void {
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    if (
+      !this.form.controls.warehouseId.valid ||
+      !this.form.controls.productId.valid ||
+      !this.form.controls.adjustmentType.valid ||
+      !this.form.controls.quantity.valid ||
+      !this.form.controls.reason.valid
+    ) {
+      return;
+    }
+
+    this.savingDraft.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+
+    const value = this.form.getRawValue();
+    const payload: Parameters<InventoryApi['createAdjustmentDraft']>[0] = {
+      warehouseId: value.warehouseId,
+      productId: value.productId,
+      adjustmentType: value.adjustmentType,
+      quantity: value.quantity.trim(),
+      reason: value.reason.trim(),
+    };
+
+    if (this.selectedTrackingMode() !== 'none' && value.batchId.trim() !== '') {
+      payload.batchId = value.batchId.trim();
+    }
+
+    if (value.adjustmentType === 'correction') {
+      payload.direction = value.direction;
+      if (value.direction === 'inbound' && value.inventoryValue.trim() !== '') {
+        payload.inventoryValue = { amount: value.inventoryValue.trim(), currency: 'PKR' };
+      }
+    }
+
+    const current = this.editingDraft();
+    if (current) {
+      this.inventoryApi
+        .updateAdjustment(current.id, {
+          ...payload,
+          expectedVersion: current.version,
+        })
+        .subscribe({
+          next: () => {
+            this.savingDraft.set(false);
+            this.editingDraft.set(null);
+            this.successMessage.set('Stock adjustment draft saved.');
+            this.resetForm();
+            this.reloadAdjustments(true);
+          },
+          error: (error: unknown) => {
+            this.savingDraft.set(false);
+            this.errorMessage.set(this.mapError(error, 'Unable to update adjustment draft.'));
+          },
+        });
+    } else {
+      this.inventoryApi.createAdjustmentDraft(payload).subscribe({
+        next: () => {
+          this.savingDraft.set(false);
+          this.successMessage.set('Stock adjustment draft saved.');
+          this.resetForm();
+          this.reloadAdjustments(true);
+        },
+        error: (error: unknown) => {
+          this.savingDraft.set(false);
+          this.errorMessage.set(this.mapError(error, 'Unable to create adjustment draft.'));
+        },
+      });
+    }
+  }
+
+  askDiscard(item: StockAdjustmentRecord): void {
+    this.pendingDiscard = item;
+    this.discardConfirmOpen.set(true);
+  }
+
+  confirmDiscard(): void {
+    const item = this.pendingDiscard ?? this.editingDraft();
+    this.discardConfirmOpen.set(false);
+    this.pendingDiscard = null;
+    if (!item) return;
+
+    this.discarding.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+
+    this.inventoryApi.discardAdjustment(item.id, item.version).subscribe({
+      next: () => {
+        this.discarding.set(false);
+        if (this.editingDraft()?.id === item.id) {
+          this.cancelEditDraft();
+        }
+        this.successMessage.set('Stock adjustment draft discarded.');
+        this.reloadAdjustments(true);
+      },
+      error: (error: unknown) => {
+        this.discarding.set(false);
+        this.errorMessage.set(this.mapError(error, 'Unable to discard draft.'));
+      },
+    });
+  }
+
+  postDraftRow(item: StockAdjustmentRecord): void {
+    this.saving.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+
+    const idempotencyKey = `adj-post-${item.id}-${Date.now()}`;
+    this.inventoryApi
+      .postAdjustment(item.id, { reason: item.reason || 'Post adjustment draft' }, idempotencyKey)
+      .subscribe({
+        next: () => {
+          this.saving.set(false);
+          this.successMessage.set('Stock adjustment posted successfully.');
+          if (this.editingDraft()?.id === item.id) {
+            this.cancelEditDraft();
+          }
+          this.reloadAdjustments(true);
+          this.requestStockAndBatchContext();
+        },
+        error: (error: unknown) => {
+          this.saving.set(false);
+          this.errorMessage.set(this.mapError(error, 'Unable to post adjustment.'));
+        },
+      });
   }
 
   private resetForm(): void {
@@ -605,14 +817,20 @@ export class AdjustmentsPage {
 
   private mapError(error: unknown, fallback: string): string {
     if (error instanceof HttpErrorResponse) {
+      if (error.status === 409) {
+        return 'Stock adjustment was modified or is no longer a draft.';
+      }
       const message = error.error?.error?.message;
       if (typeof message === 'string' && message.trim() !== '') {
         return message;
       }
-    } else if (typeof error === 'object' && error !== null && 'error' in error) {
-      const body = (error as { error?: { error?: { message?: string } } }).error;
-      if (body?.error?.message) {
-        return body.error.message;
+    } else if (typeof error === 'object' && error !== null) {
+      const errObj = error as { status?: number; error?: { error?: { message?: string } } };
+      if (errObj.status === 409) {
+        return 'Stock adjustment was modified or is no longer a draft.';
+      }
+      if (errObj.error?.error?.message) {
+        return errObj.error.error.message;
       }
     }
     return fallback;

@@ -14,6 +14,7 @@ export type OrganizationRole = 'Owner' | 'Manager' | 'Cashier' | 'StoreKeeper';
 export interface EmployeeAllowedActions {
   canUpdate: boolean;
   canDeactivate: boolean;
+  canCancelInvitation?: boolean;
   canAssignAccess: boolean;
   canManageConditionalGrants: boolean;
 }
@@ -198,6 +199,29 @@ export class UsersAccessApi {
             {
               withCredentials: true,
               headers: { 'X-CSRF-Token': csrfToken },
+            },
+          )
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.invalidateEmployees()),
+          ),
+      ),
+    );
+  }
+
+  cancelInvitation(
+    id: string,
+    expectedVersion: number,
+  ): Observable<{ id: string; invitationCancelled: boolean }> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .delete<{ data: { id: string; invitationCancelled: boolean } }>(
+            `${environment.publicApiBaseUrl}/api/v1/users/${id}`,
+            {
+              withCredentials: true,
+              headers: { 'X-CSRF-Token': csrfToken },
+              body: { expectedVersion },
             },
           )
           .pipe(

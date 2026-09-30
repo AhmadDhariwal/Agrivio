@@ -909,6 +909,17 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'inventory/opening-stock/:id',
+        canActivate: [
+          requirePermissionGuard('inventory.opening-stock.post'),
+          requireCapabilityGuard('inventory.openingStock'),
+        ],
+        loadComponent: () =>
+          import('./features/inventory/pages/opening-stock/opening-stock.page').then(
+            (m) => m.OpeningStockPage,
+          ),
+      },
+      {
         path: 'inventory/movements',
         canActivate: [
           requirePermissionGuard('inventory.view'),

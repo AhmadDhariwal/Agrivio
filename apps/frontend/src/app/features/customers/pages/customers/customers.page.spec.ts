@@ -426,4 +426,198 @@ describe('CustomersPage', () => {
       expect.objectContaining({ forceRefresh: true }),
     );
   });
+
+  describe('Inspector drawer — loan receivable discoverability', () => {
+    function openInspectorWith(fixture: any, customer: CustomerRecord) {
+      fixture.componentInstance.openInspector(customer);
+      fixture.detectChanges();
+    }
+
+    it('shows Loan Receivable row in inspector when customer has non-zero loanReceivable', () => {
+      const loanCustomer: CustomerRecord = {
+        id: 'loan-cust-1',
+        organizationId: 'org-1',
+        name: 'Loan Only Customer',
+        customerType: 'individual',
+        priceTier: 'retail',
+        status: 'active',
+        version: 1,
+        phone: '042-0000001',
+        creditEnabled: false,
+        creditLimit: { amount: '0.00', currency: 'PKR' },
+        creditLimitBehaviour: 'warning',
+        derivedBalances: {
+          receivable: { amount: '0.00', currency: 'PKR' },
+          loanReceivable: { amount: '50000.00', currency: 'PKR' },
+          advance: { amount: '0.00', currency: 'PKR' },
+        },
+      };
+
+      mockApi.listCustomers.mockReturnValue(
+        of({ items: [loanCustomer], meta: { page: 1, pageSize: 25, total: 1 } }),
+      );
+
+      const fixture = TestBed.createComponent(CustomersPage);
+      fixture.detectChanges();
+      openInspectorWith(fixture, loanCustomer);
+
+      const drawer = fixture.nativeElement.querySelector('[data-testid="customer-inspector"]');
+      expect(drawer).toBeTruthy();
+      expect(drawer.querySelector('[data-testid="inspector-loan-receivable-row"]')).toBeTruthy();
+      expect(drawer.textContent).toContain('Loan Receivable');
+      expect(drawer.textContent).toContain('50,000');
+    });
+
+    it('does NOT show Loan Receivable row when loanReceivable is zero', () => {
+      const tradeCustomer: CustomerRecord = {
+        id: 'trade-cust-1',
+        organizationId: 'org-1',
+        name: 'Trade Only Customer',
+        customerType: 'corporate',
+        priceTier: 'wholesale',
+        status: 'active',
+        version: 1,
+        phone: '042-0000002',
+        creditEnabled: true,
+        creditLimit: { amount: '100000.00', currency: 'PKR' },
+        creditLimitBehaviour: 'warning',
+        derivedBalances: {
+          receivable: { amount: '25000.00', currency: 'PKR' },
+          loanReceivable: { amount: '0.00', currency: 'PKR' },
+          advance: { amount: '0.00', currency: 'PKR' },
+        },
+      };
+
+      mockApi.listCustomers.mockReturnValue(
+        of({ items: [tradeCustomer], meta: { page: 1, pageSize: 25, total: 1 } }),
+      );
+
+      const fixture = TestBed.createComponent(CustomersPage);
+      fixture.detectChanges();
+      openInspectorWith(fixture, tradeCustomer);
+
+      const drawer = fixture.nativeElement.querySelector('[data-testid="customer-inspector"]');
+      expect(drawer).toBeTruthy();
+      expect(drawer.querySelector('[data-testid="inspector-loan-receivable-row"]')).toBeNull();
+    });
+
+    it('does NOT show Loan Receivable row when loanReceivable is absent', () => {
+      const noLoanCustomer: CustomerRecord = {
+        id: 'no-loan-cust-1',
+        organizationId: 'org-1',
+        name: 'No Loan Customer',
+        customerType: 'corporate',
+        priceTier: 'retail',
+        status: 'active',
+        version: 1,
+        phone: '042-0000003',
+        creditEnabled: true,
+        creditLimit: { amount: '50000.00', currency: 'PKR' },
+        creditLimitBehaviour: 'block',
+        derivedBalances: {
+          receivable: { amount: '12000.00', currency: 'PKR' },
+          advance: { amount: '0.00', currency: 'PKR' },
+        },
+      };
+
+      mockApi.listCustomers.mockReturnValue(
+        of({ items: [noLoanCustomer], meta: { page: 1, pageSize: 25, total: 1 } }),
+      );
+
+      const fixture = TestBed.createComponent(CustomersPage);
+      fixture.detectChanges();
+      openInspectorWith(fixture, noLoanCustomer);
+
+      const drawer = fixture.nativeElement.querySelector('[data-testid="customer-inspector"]');
+      expect(drawer).toBeTruthy();
+      expect(drawer.querySelector('[data-testid="inspector-loan-receivable-row"]')).toBeNull();
+    });
+
+    it('shows Total Exposure row in inspector when totalExposure is present', () => {
+      const exposureCustomer: CustomerRecord = {
+        id: 'exp-cust-1',
+        organizationId: 'org-1',
+        name: 'Exposure Customer',
+        customerType: 'corporate',
+        priceTier: 'wholesale',
+        status: 'active',
+        version: 1,
+        phone: '042-0000004',
+        creditEnabled: true,
+        creditLimit: { amount: '200000.00', currency: 'PKR' },
+        creditLimitBehaviour: 'warning',
+        derivedBalances: {
+          receivable: { amount: '30000.00', currency: 'PKR' },
+          loanReceivable: { amount: '20000.00', currency: 'PKR' },
+          advance: { amount: '5000.00', currency: 'PKR' },
+          totalExposure: { amount: '45000.00', currency: 'PKR' },
+        },
+      };
+
+      mockApi.listCustomers.mockReturnValue(
+        of({ items: [exposureCustomer], meta: { page: 1, pageSize: 25, total: 1 } }),
+      );
+
+      const fixture = TestBed.createComponent(CustomersPage);
+      fixture.detectChanges();
+      openInspectorWith(fixture, exposureCustomer);
+
+      const drawer = fixture.nativeElement.querySelector('[data-testid="customer-inspector"]');
+      expect(drawer).toBeTruthy();
+      expect(drawer.querySelector('[data-testid="inspector-total-exposure-row"]')).toBeTruthy();
+      expect(drawer.textContent).toContain('Total Exposure');
+      expect(drawer.textContent).toContain('45,000');
+    });
+
+    it('does NOT show Total Exposure row when totalExposure is absent', () => {
+      const noExposureCustomer: CustomerRecord = {
+        id: 'no-exp-cust-1',
+        organizationId: 'org-1',
+        name: 'No Exposure Customer',
+        customerType: 'individual',
+        priceTier: 'retail',
+        status: 'active',
+        version: 1,
+        phone: '042-0000005',
+        creditEnabled: false,
+        creditLimit: { amount: '0.00', currency: 'PKR' },
+        creditLimitBehaviour: 'warning',
+        derivedBalances: {
+          receivable: { amount: '8000.00', currency: 'PKR' },
+          advance: { amount: '0.00', currency: 'PKR' },
+        },
+      };
+
+      mockApi.listCustomers.mockReturnValue(
+        of({ items: [noExposureCustomer], meta: { page: 1, pageSize: 25, total: 1 } }),
+      );
+
+      const fixture = TestBed.createComponent(CustomersPage);
+      fixture.detectChanges();
+      openInspectorWith(fixture, noExposureCustomer);
+
+      const drawer = fixture.nativeElement.querySelector('[data-testid="customer-inspector"]');
+      expect(drawer).toBeTruthy();
+      expect(drawer.querySelector('[data-testid="inspector-total-exposure-row"]')).toBeNull();
+    });
+
+    it('trade receivable row is always shown and labelled "Trade Receivable" in inspector', () => {
+      const item = makeCustomers(1)[0]!;
+      mockApi.listCustomers.mockReturnValue(
+        of({ items: [item], meta: { page: 1, pageSize: 25, total: 1 } }),
+      );
+
+      const fixture = TestBed.createComponent(CustomersPage);
+      fixture.detectChanges();
+      openInspectorWith(fixture, item);
+
+      const drawer = fixture.nativeElement.querySelector('[data-testid="customer-inspector"]');
+      expect(drawer).toBeTruthy();
+      // The first spec-row__k in the Financial Balances section must say 'Trade Receivable'
+      const keys = Array.from(drawer.querySelectorAll('.drawer-sec .spec-row__k')).map(
+        (el: any) => el.textContent.trim(),
+      );
+      expect(keys[0]).toBe('Trade Receivable');
+    });
+  });
 });

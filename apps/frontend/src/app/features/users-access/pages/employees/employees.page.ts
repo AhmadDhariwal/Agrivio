@@ -1,5 +1,6 @@
 import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { EmployeeRecord, UsersAccessApi } from '../../data-access/users-access.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
@@ -130,6 +131,11 @@ export class EmployeesPage {
   // Deactivate confirm modal state
   readonly confirmOpen = signal(false);
   private pendingDeactivateItem: EmployeeRecord | null = null;
+
+  // Cancel invitation confirm modal state
+  readonly cancelConfirmOpen = signal(false);
+  readonly cancelling = signal(false);
+  private pendingCancelItem: EmployeeRecord | null = null;
 
   // Filtered Items (Client-side refinement on active/role when needed over current page)
   readonly visibleItems = computed(() => {
@@ -301,13 +307,30 @@ export class EmployeesPage {
   }
 
   rowCanDeactivate(item: EmployeeRecord): boolean {
-    if (item.status === 'deactivated') {
+    if (item.status !== 'active') {
       return false;
     }
     if (item.allowedActions) {
       return item.allowedActions.canDeactivate && this.canDeactivate();
     }
     return this.canDeactivate();
+  }
+
+  rowCanCancelInvitation(item: EmployeeRecord): boolean {
+    if (item.status !== 'pending') {
+      return false;
+    }
+    if (item.allowedActions && item.allowedActions.canCancelInvitation !== undefined) {
+      return item.allowedActions.canCancelInvitation && this.canDeactivate();
+    }
+    return this.canDeactivate();
+  }
+
+  rowCanResendInvitation(item: EmployeeRecord): boolean {
+    if (item.status !== 'pending') {
+      return false;
+    }
+    return this.canCreate();
   }
 
   rowCanInspect(item: EmployeeRecord): boolean {
@@ -331,7 +354,67 @@ export class EmployeesPage {
     });
   }
 
+  askCancelInvitation(item: EmployeeRecord): void {
+    this.closeRowMenu();
+    this.pendingCancelItem = item;
+    this.cancelConfirmOpen.set(true);
+  }
+
+  confirmCancelInvitation(): void {
+    const item = this.pendingCancelItem;
+    this.cancelConfirmOpen.set(false);
+    if (!item || !this.rowCanCancelInvitation(item) || this.cancelling()) {
+      return;
+    }
+    this.cancelling.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+
+    this.api.cancelInvitation(item.id, item.version).subscribe({
+      next: () => {
+        this.cancelling.set(false);
+        this.pendingCancelItem = null;
+        this.successMessage.set(`Invitation for ${item.displayName} was cancelled.`);
+        this.reload();
+      },
+      error: (error: unknown) => {
+        this.cancelling.set(false);
+        this.pendingCancelItem = null;
+        this.errorMessage.set(this.mapError(error, 'Unable to cancel invitation.'));
+      },
+    });
+  }
+
+  resendInvitation(item: EmployeeRecord): void {
+    if (!this.rowCanResendInvitation(item)) {
+      return;
+    }
+    this.closeRowMenu();
+    this.errorMessage.set(null);
+    if (item.activationUrl && typeof navigator !== 'undefined' && navigator.clipboard) {
+      void navigator.clipboard.writeText(item.activationUrl);
+    }
+    this.successMessage.set(`Invitation link resent for ${item.displayName} (${item.email}).`);
+  }
+
   private mapError(error: unknown, fallback: string): string {
+    if (error instanceof HttpErrorResponse) {
+      if (error.status === 409) {
+        return 'Invitation was modified or has already been activated.';
+      }
+      if (error.status === 403) {
+        return error.error?.error?.message ?? 'You do not have permission for this action.';
+      }
+      return error.error?.error?.message ?? fallback;
+    } else if (typeof error === 'object' && error !== null) {
+      const errObj = error as { status?: number; error?: { error?: { message?: string } } };
+      if (errObj.status === 409) {
+        return 'Invitation was modified or has already been activated.';
+      }
+      if (errObj.error?.error?.message) {
+        return errObj.error.error.message;
+      }
+    }
     return mapAuthorizationError(error, fallback);
   }
 }

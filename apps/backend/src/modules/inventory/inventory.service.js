@@ -11,6 +11,7 @@ const {
 } = require('../../platform/errors/app-error');
 const {
   convertEnteredQuantityToBaseMinorUnits,
+  formatMoneyMinorUnits,
   formatQuantityMinorUnits,
   computeUnitCostMinorUnits,
 } = require('../../platform/primitives/money-and-time');
@@ -32,6 +33,7 @@ const {
 const {
   parseAdjustmentDraft,
   parseAdjustmentPostOptions,
+  parseExpectedVersion,
   parseOpeningStock,
   parseTransferDraft,
   parseTransferPostOptions,
@@ -41,6 +43,7 @@ const {
   toCostStateDto,
   toExpiryItemDto,
   toOpeningStockResultDto,
+  toOpeningStockDraftDto,
   toReconciliationDto,
   toTransferDto,
 } = require('./inventory.validation');
@@ -417,6 +420,71 @@ function createInventoryService(deps) {
     return { movement, balance, costState: costResult.costState };
   }
 
+  async function postOpeningStockEffects(
+    session,
+    organizationId,
+    input,
+    actor,
+    authContext,
+    sourceId,
+  ) {
+    const product = await catalogService.getProduct(organizationId, input.productId);
+    assertActiveProduct(product);
+    assertTrackingInputs(product, input);
+
+    const warehouse = await locationsService.getWarehouse(organizationId, input.warehouseId);
+    assertActiveWarehouse(warehouse);
+    if (
+      typeof deps.canAccessWarehouse === 'function' &&
+      authContext &&
+      !deps.canAccessWarehouse(authContext, String(input.warehouseId))
+    ) {
+      throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
+    }
+
+    const unitSnapshot = await resolveUnitSnapshot(
+      catalogService,
+      organizationId,
+      product,
+      input.packagingUnitId,
+    );
+
+    let quantityBaseMinorUnits;
+    try {
+      quantityBaseMinorUnits = convertEnteredQuantityToBaseMinorUnits(
+        BigInt(input.enteredQuantityMinorUnits),
+        unitSnapshot.conversionFactorSnapshot,
+      );
+    } catch (error) {
+      throw validationFailed(error.message || 'Invalid quantity conversion', [
+        { field: 'quantity', message: error.message || 'Invalid quantity conversion' },
+      ]);
+    }
+
+    const postedAt = now();
+    const movementId = createObjectId();
+    const batch = await resolveOrCreateBatch(session, organizationId, product, input, postedAt);
+    const batchId = batch ? batch['_id'] : null;
+    const effects = await postStockMovementEffects(session, organizationId, actor, {
+      movementId,
+      warehouseId: input.warehouseId,
+      productId: input.productId,
+      batchId,
+      direction: 'inbound',
+      quantityBaseMinorUnits,
+      enteredQuantityMinorUnits: input.enteredQuantityMinorUnits,
+      unitCode: unitSnapshot.unitCode,
+      conversionFactorSnapshot: unitSnapshot.conversionFactorSnapshot,
+      packagingUnitId: unitSnapshot.packagingUnitId,
+      inventoryValueMinorUnits: BigInt(input.inventoryValueMinorUnits),
+      sourceType: 'opening_stock',
+      sourceId: sourceId ?? movementId,
+      postedAt,
+    });
+
+    return { product, batch, batchId, postedAt, effects, quantityBaseMinorUnits };
+  }
+
   return {
     async sumAvailableQuantityByProductIds(organizationId, productIds) {
       if (!Array.isArray(productIds) || productIds.length === 0) {
@@ -705,74 +773,365 @@ function createInventoryService(deps) {
       };
     },
 
+    async listOpeningStock(organizationId, query, authContext) {
+      const filters = {};
+      if (typeof query?.warehouseId === 'string' && query.warehouseId.trim() !== '') {
+        filters.warehouseId = query.warehouseId.trim();
+        if (
+          typeof deps.canAccessWarehouse === 'function' &&
+          !deps.canAccessWarehouse(authContext, filters.warehouseId)
+        ) {
+          throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
+        }
+      }
+      if (typeof query?.status === 'string' && query.status.trim() !== '') {
+        filters.status = query.status.trim();
+      }
+      if (!filters.warehouseId) filters.warehouseIds = accessibleWarehouseIds(organizationId, authContext);
+      const paginated = query?.skip !== undefined || query?.pageSize !== undefined;
+      const result = paginated
+        ? await store.listOpeningStockPage(organizationId, filters, query)
+        : { items: await store.listOpeningStock(organizationId, filters), total: undefined };
+      const records = result.items;
+      const items = records
+        .filter((item) => {
+          if (typeof deps.canAccessWarehouse !== 'function') return true;
+          return deps.canAccessWarehouse(authContext, String(item.warehouseId));
+        })
+        .map(toOpeningStockDraftDto);
+      return { items, total: result.total ?? items.length };
+    },
+
+    async createOpeningStockDraft(organizationId, body, authContext) {
+      const input = parseOpeningStock(body);
+      const product = await catalogService.getProduct(organizationId, input.productId);
+      assertActiveProduct(product);
+      assertTrackingInputs(product, input);
+      const warehouse = await locationsService.getWarehouse(organizationId, input.warehouseId);
+      assertActiveWarehouse(warehouse);
+      if (
+        typeof deps.canAccessWarehouse === 'function' &&
+        !deps.canAccessWarehouse(authContext, String(input.warehouseId))
+      ) {
+        throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
+      }
+      const unitSnapshot = await resolveUnitSnapshot(
+        catalogService,
+        organizationId,
+        product,
+        input.packagingUnitId,
+      );
+      const quantityBaseMinorUnits = convertEnteredQuantityToBaseMinorUnits(
+        BigInt(input.enteredQuantityMinorUnits),
+        unitSnapshot.conversionFactorSnapshot,
+      );
+
+      return transactionRunner.run(async (session) => {
+        const created = await store.insertOpeningStock(session, {
+          organizationId,
+          warehouseId: input.warehouseId,
+          productId: input.productId,
+          enteredQuantityMinorUnits: input.enteredQuantityMinorUnits,
+          quantityBaseMinorUnits: quantityBaseMinorUnits.toString(),
+          unitCode: unitSnapshot.unitCode,
+          conversionFactorSnapshot: unitSnapshot.conversionFactorSnapshot,
+          packagingUnitId: unitSnapshot.packagingUnitId,
+          batchNumber: input.batchNumber,
+          manufacturingDate: input.manufacturingDate,
+          expiryDate: input.expiryDate,
+          inventoryValueMinorUnits: input.inventoryValueMinorUnits,
+          currency: input.currency,
+          status: 'draft',
+          postedAt: null,
+          postedBy: null,
+          postedMovementId: null,
+          batchId: null,
+          createdBy: authContext.userId,
+          version: 1,
+        });
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: authContext.userId,
+          action: 'inventory.opening_stock.draft.created',
+          resourceType: 'opening_stock',
+          resourceId: String(created['_id']),
+          metadata: {},
+        });
+        return toOpeningStockDraftDto(created);
+      });
+    },
+
+    async getOpeningStock(organizationId, openingStockId, authContext) {
+      const record = await store.findOpeningStockById(organizationId, openingStockId);
+      if (record === null) {
+        throw notFound('Opening stock record not found');
+      }
+      if (
+        typeof deps.canAccessWarehouse === 'function' &&
+        !deps.canAccessWarehouse(authContext, String(record.warehouseId))
+      ) {
+        throw notFound('Opening stock record not found');
+      }
+      return toOpeningStockDraftDto(record);
+    },
+
+    async updateOpeningStockDraft(organizationId, openingStockId, body, authContext) {
+      const existing = await store.findOpeningStockById(organizationId, openingStockId);
+      if (existing === null) {
+        throw notFound('Opening stock record not found');
+      }
+      if (existing.status !== 'draft') {
+        throw conflict('Only draft opening stock records can be updated');
+      }
+      const expectedVersion = parseExpectedVersion(body);
+      if (Number(existing.version) !== expectedVersion) {
+        throw versionConflict('Opening stock version conflict', { expectedVersion });
+      }
+      if (
+        typeof deps.canAccessWarehouse === 'function' &&
+        !deps.canAccessWarehouse(authContext, String(existing.warehouseId))
+      ) {
+        throw notFound('Opening stock record not found');
+      }
+
+      const has = (field) => Object.prototype.hasOwnProperty.call(body, field);
+      const input = parseOpeningStock({
+        warehouseId: has('warehouseId') ? body.warehouseId : String(existing.warehouseId),
+        productId: has('productId') ? body.productId : String(existing.productId),
+        quantity: has('quantity')
+          ? body.quantity
+          : formatQuantityMinorUnits(BigInt(String(existing.enteredQuantityMinorUnits))),
+        packagingUnitId: has('packagingUnitId')
+          ? body.packagingUnitId
+          : existing.packagingUnitId
+            ? String(existing.packagingUnitId)
+            : null,
+        batchNumber: has('batchNumber') ? body.batchNumber : existing.batchNumber,
+        manufacturingDate: has('manufacturingDate')
+          ? body.manufacturingDate
+          : existing.manufacturingDate,
+        expiryDate: has('expiryDate') ? body.expiryDate : existing.expiryDate,
+        inventoryValue: has('inventoryValue')
+          ? body.inventoryValue
+          : {
+              amount: formatMoneyMinorUnits(BigInt(String(existing.inventoryValueMinorUnits))),
+              currency: 'PKR',
+            },
+      });
+      const product = await catalogService.getProduct(organizationId, input.productId);
+      assertActiveProduct(product);
+      assertTrackingInputs(product, input);
+      const warehouse = await locationsService.getWarehouse(organizationId, input.warehouseId);
+      assertActiveWarehouse(warehouse);
+      if (
+        typeof deps.canAccessWarehouse === 'function' &&
+        !deps.canAccessWarehouse(authContext, String(input.warehouseId))
+      ) {
+        throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
+      }
+      const unitSnapshot = await resolveUnitSnapshot(
+        catalogService,
+        organizationId,
+        product,
+        input.packagingUnitId,
+      );
+      const quantityBaseMinorUnits = convertEnteredQuantityToBaseMinorUnits(
+        BigInt(input.enteredQuantityMinorUnits),
+        unitSnapshot.conversionFactorSnapshot,
+      );
+
+      return transactionRunner.run(async (session) => {
+        const updated = await store.updateOpeningStockIfDraft(
+          session,
+          organizationId,
+          openingStockId,
+          expectedVersion,
+          {
+            warehouseId: input.warehouseId,
+            productId: input.productId,
+            enteredQuantityMinorUnits: input.enteredQuantityMinorUnits,
+            quantityBaseMinorUnits: quantityBaseMinorUnits.toString(),
+            unitCode: unitSnapshot.unitCode,
+            conversionFactorSnapshot: unitSnapshot.conversionFactorSnapshot,
+            packagingUnitId: unitSnapshot.packagingUnitId,
+            batchNumber: input.batchNumber,
+            manufacturingDate: input.manufacturingDate,
+            expiryDate: input.expiryDate,
+            inventoryValueMinorUnits: input.inventoryValueMinorUnits,
+            currency: input.currency,
+          },
+        );
+        if (updated === null) {
+          throw conflict('Opening stock record was modified or is no longer a draft');
+        }
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: authContext.userId,
+          action: 'inventory.opening_stock.draft.updated',
+          resourceType: 'opening_stock',
+          resourceId: openingStockId,
+          metadata: { version: expectedVersion + 1 },
+        });
+        return toOpeningStockDraftDto(updated);
+      });
+    },
+
+    async discardOpeningStockDraft(organizationId, openingStockId, body, authContext) {
+      const expectedVersion = parseExpectedVersion(body);
+      return transactionRunner.run(async (session) => {
+        const existing = await store.findOpeningStockById(
+          organizationId,
+          openingStockId,
+          session,
+        );
+        if (existing === null) {
+          throw notFound('Opening stock record not found');
+        }
+        if (existing.status !== 'draft') {
+          throw conflict('Only draft opening stock records can be discarded');
+        }
+        if (
+          typeof deps.canAccessWarehouse === 'function' &&
+          !deps.canAccessWarehouse(authContext, String(existing.warehouseId))
+        ) {
+          throw notFound('Opening stock record not found');
+        }
+        const deleted = await store.deleteOpeningStockDraft(
+          session,
+          organizationId,
+          openingStockId,
+          expectedVersion,
+        );
+        if (!deleted) {
+          throw conflict('Opening stock record was modified or is no longer a draft');
+        }
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: authContext.userId,
+          action: 'inventory.opening_stock.draft.discarded',
+          resourceType: 'opening_stock',
+          resourceId: openingStockId,
+          metadata: { version: expectedVersion },
+        });
+        return { id: openingStockId, discarded: true };
+      });
+    },
+
+    async postOpeningStockDraft(
+      organizationId,
+      openingStockId,
+      body,
+      actor,
+      authContext,
+      idempotencyKey,
+    ) {
+      const expectedVersion = parseExpectedVersion(body);
+      const key = requireIdempotencyKey(idempotencyKey);
+      const result = await idempotency.execute(
+        {
+          scopeType: 'organization',
+          organizationId,
+          actorId: actor.actorId,
+          operation: 'inventory.opening-stock-draft.post',
+        },
+        key,
+        { openingStockId, expectedVersion },
+        async () => {
+          const response = await transactionRunner.run(async (session) => {
+            const existing = await store.findOpeningStockById(
+              organizationId,
+              openingStockId,
+              session,
+            );
+            if (existing === null) {
+              throw notFound('Opening stock record not found');
+            }
+            if (existing.status !== 'draft') {
+              throw conflict('Only draft opening stock records can be posted');
+            }
+            if (Number(existing.version) !== expectedVersion) {
+              throw conflict('Opening stock record was modified by another request');
+            }
+            const input = {
+              warehouseId: String(existing.warehouseId),
+              productId: String(existing.productId),
+              enteredQuantityMinorUnits: String(existing.enteredQuantityMinorUnits),
+              packagingUnitId: existing.packagingUnitId
+                ? String(existing.packagingUnitId)
+                : null,
+              batchNumber: existing.batchNumber ?? null,
+              manufacturingDate: existing.manufacturingDate ?? null,
+              expiryDate: existing.expiryDate ?? null,
+              inventoryValueMinorUnits: String(existing.inventoryValueMinorUnits),
+              currency: 'PKR',
+            };
+            const posted = await postOpeningStockEffects(
+              session,
+              organizationId,
+              input,
+              actor,
+              authContext,
+              existing['_id'],
+            );
+            const updated = await store.markOpeningStockPosted(
+              session,
+              organizationId,
+              openingStockId,
+              expectedVersion,
+              {
+                postedAt: posted.postedAt,
+                postedBy: actor.actorId,
+                postedMovementId: posted.effects.movement['_id'],
+                batchId: posted.batchId,
+              },
+            );
+            if (updated === null) {
+              throw conflict('Opening stock record was modified or is no longer a draft');
+            }
+            await auditWriter.appendBusinessEvent(session, {
+              organizationId,
+              actorId: actor.actorId,
+              action: 'inventory.opening_stock.posted',
+              resourceType: 'opening_stock',
+              resourceId: openingStockId,
+              metadata: {
+                movementId: String(posted.effects.movement['_id']),
+                warehouseId: input.warehouseId,
+                productId: input.productId,
+              },
+            });
+            return {
+              openingStock: toOpeningStockDraftDto(updated),
+              ...toOpeningStockResultDto({
+                movement: posted.effects.movement,
+                batch: posted.batch,
+                balance: posted.effects.balance,
+                costState: posted.effects.costState,
+              }),
+            };
+          });
+          return { statusCode: 200, body: response };
+        },
+      );
+      return {
+        replay: result.replay,
+        data: result.response.body,
+        statusCode: result.response.statusCode,
+      };
+    },
+
     async postOpeningStock(organizationId, body, actor, idempotencyKey, options = {}) {
       const input = parseOpeningStock(body);
 
       const postWork = async (session) => {
-            const product = await catalogService.getProduct(organizationId, input.productId);
-            assertActiveProduct(product);
-            assertTrackingInputs(product, input);
-
-            const warehouse = await locationsService.getWarehouse(
-              organizationId,
-              input.warehouseId,
-            );
-            assertActiveWarehouse(warehouse);
-            const authContext = actor.authContext ?? options.authContext;
-            if (
-              typeof deps.canAccessWarehouse === 'function' &&
-              authContext &&
-              !deps.canAccessWarehouse(authContext, String(input.warehouseId))
-            ) {
-              throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
-            }
-
-            const unitSnapshot = await resolveUnitSnapshot(
-              catalogService,
-              organizationId,
-              product,
-              input.packagingUnitId,
-            );
-
-            let quantityBaseMinorUnits;
-            try {
-              quantityBaseMinorUnits = convertEnteredQuantityToBaseMinorUnits(
-                BigInt(input.enteredQuantityMinorUnits),
-                unitSnapshot.conversionFactorSnapshot,
+            const { batch, batchId, effects, quantityBaseMinorUnits } =
+              await postOpeningStockEffects(
+                session,
+                organizationId,
+                input,
+                actor,
+                actor.authContext ?? options.authContext,
               );
-            } catch (error) {
-              throw validationFailed(error.message || 'Invalid quantity conversion', [
-                { field: 'quantity', message: error.message || 'Invalid quantity conversion' },
-              ]);
-            }
-
-            const postedAt = now();
-            const movementId = createObjectId();
-            const batch = await resolveOrCreateBatch(
-              session,
-              organizationId,
-              product,
-              input,
-              postedAt,
-            );
-            const batchId = batch ? batch['_id'] : null;
-
-            const effects = await postStockMovementEffects(session, organizationId, actor, {
-              movementId,
-              warehouseId: input.warehouseId,
-              productId: input.productId,
-              batchId,
-              direction: 'inbound',
-              quantityBaseMinorUnits,
-              enteredQuantityMinorUnits: input.enteredQuantityMinorUnits,
-              unitCode: unitSnapshot.unitCode,
-              conversionFactorSnapshot: unitSnapshot.conversionFactorSnapshot,
-              packagingUnitId: unitSnapshot.packagingUnitId,
-              inventoryValueMinorUnits: BigInt(input.inventoryValueMinorUnits),
-              sourceType: 'opening_stock',
-              sourceId: movementId,
-              postedAt,
-            });
 
             await auditWriter.appendBusinessEvent(session, {
               organizationId,
@@ -951,6 +1310,12 @@ function createInventoryService(deps) {
       const warehouseId = input.warehouseId ?? String(existing.warehouseId);
       const warehouse = await locationsService.getWarehouse(organizationId, warehouseId);
       assertActiveWarehouse(warehouse);
+      if (
+        typeof deps.canAccessWarehouse === 'function' &&
+        !deps.canAccessWarehouse(authContext, String(warehouseId))
+      ) {
+        throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
+      }
 
       const unitSnapshot = await resolveUnitSnapshot(
         catalogService,
@@ -992,6 +1357,7 @@ function createInventoryService(deps) {
               : input.inventoryValueMinorUnits,
           reason: input.reason === undefined ? existing.reason : input.reason,
         },
+        'draft',
       );
       if (updated === null) {
         throw versionConflict('Adjustment version conflict', {
@@ -1002,32 +1368,35 @@ function createInventoryService(deps) {
     },
 
     async discardAdjustmentDraft(organizationId, adjustmentId, authContext) {
-      const existing = await store.findAdjustmentById(organizationId, adjustmentId);
-      if (existing === null) {
-        throw notFound('Stock adjustment not found');
-      }
-      if (existing.status !== 'draft') {
-        throw conflict('Only draft adjustments can be discarded');
-      }
-      if (
-        typeof deps.canAccessWarehouse === 'function' &&
-        !deps.canAccessWarehouse(authContext, String(existing.warehouseId))
-      ) {
-        throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
-      }
-      const deleted = await store.deleteAdjustmentDraft(null, organizationId, adjustmentId);
-      if (!deleted) {
-        throw conflict('Only draft adjustments can be discarded');
-      }
-      await auditWriter.appendBusinessEvent(null, {
-        organizationId,
-        actorId: authContext.userId,
-        action: 'stock_adjustment.draft.discarded',
-        resourceType: 'stock_adjustment',
-        resourceId: adjustmentId,
-        metadata: {},
+      return transactionRunner.run(async (session) => {
+        const existing = await store.findAdjustmentById(organizationId, adjustmentId);
+        if (existing === null) throw notFound('Stock adjustment not found');
+        if (existing.status !== 'draft') {
+          throw conflict('Only draft adjustments can be discarded');
+        }
+        if (
+          typeof deps.canAccessWarehouse === 'function' &&
+          !deps.canAccessWarehouse(authContext, String(existing.warehouseId))
+        ) {
+          throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
+        }
+        const deleted = await store.deleteAdjustmentDraft(
+          session,
+          organizationId,
+          adjustmentId,
+          Number(existing.version),
+        );
+        if (!deleted) throw conflict('Adjustment was modified or is no longer a draft');
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: authContext.userId,
+          action: 'stock_adjustment.draft.discarded',
+          resourceType: 'stock_adjustment',
+          resourceId: adjustmentId,
+          metadata: { version: Number(existing.version) },
+        });
+        return { id: adjustmentId, discarded: true };
       });
-      return { id: adjustmentId, discarded: true };
     },
 
     async postAdjustment(organizationId, adjustmentId, body, actor, authContext, idempotencyKey) {
@@ -1146,6 +1515,7 @@ function createInventoryService(deps) {
                 negativeStockOverrideReason: override.reason,
                 negativeStockOverrideBy: override.actorId,
               },
+              'draft',
             );
             if (posted === null) {
               throw versionConflict('Adjustment version conflict', {
@@ -1303,6 +1673,7 @@ function createInventoryService(deps) {
                 status: 'reversed',
                 reversedByAdjustmentId: reversalDraft['_id'],
               },
+              'posted',
             );
             if (markedOriginal === null) {
               throw versionConflict('Adjustment version conflict', {
@@ -1316,6 +1687,7 @@ function createInventoryService(deps) {
               reversalDraft['_id'],
               1,
               { postedMovementId: effects.movement['_id'] },
+              'posted',
             );
 
             await auditWriter.appendBusinessEvent(session, {
@@ -1512,6 +1884,13 @@ function createInventoryService(deps) {
       assertActiveWarehouse(
         await locationsService.getWarehouse(organizationId, destinationWarehouseId),
       );
+      if (
+        typeof deps.canAccessWarehouse === 'function' &&
+        (!deps.canAccessWarehouse(authContext, String(sourceWarehouseId)) ||
+          !deps.canAccessWarehouse(authContext, String(destinationWarehouseId)))
+      ) {
+        throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
+      }
 
       const unitSnapshot = await resolveUnitSnapshot(
         catalogService,
@@ -1544,6 +1923,7 @@ function createInventoryService(deps) {
           packagingUnitId: unitSnapshot.packagingUnitId,
           reason: input.reason === undefined ? existing.reason : input.reason,
         },
+        'draft',
       );
       if (updated === null) {
         throw versionConflict('Transfer version conflict', {
@@ -1554,34 +1934,36 @@ function createInventoryService(deps) {
     },
 
     async discardTransferDraft(organizationId, transferId, authContext) {
-      const existing = await store.findTransferById(organizationId, transferId);
-      if (existing === null) {
-        throw notFound('Warehouse transfer not found');
-      }
-      if (existing.status !== 'draft') {
-        throw conflict('Only draft transfers can be discarded');
-      }
-      if (typeof deps.canAccessWarehouse === 'function') {
+      return transactionRunner.run(async (session) => {
+        const existing = await store.findTransferById(organizationId, transferId);
+        if (existing === null) throw notFound('Warehouse transfer not found');
+        if (existing.status !== 'draft') {
+          throw conflict('Only draft transfers can be discarded');
+        }
         if (
-          !deps.canAccessWarehouse(authContext, String(existing.sourceWarehouseId)) ||
-          !deps.canAccessWarehouse(authContext, String(existing.destinationWarehouseId))
+          typeof deps.canAccessWarehouse === 'function' &&
+          (!deps.canAccessWarehouse(authContext, String(existing.sourceWarehouseId)) ||
+            !deps.canAccessWarehouse(authContext, String(existing.destinationWarehouseId)))
         ) {
           throw assignmentScopeDenied("You don't have access to this branch or warehouse.");
         }
-      }
-      const deleted = await store.deleteTransferDraft(null, organizationId, transferId);
-      if (!deleted) {
-        throw conflict('Only draft transfers can be discarded');
-      }
-      await auditWriter.appendBusinessEvent(null, {
-        organizationId,
-        actorId: authContext.userId,
-        action: 'warehouse_transfer.draft.discarded',
-        resourceType: 'warehouse_transfer',
-        resourceId: transferId,
-        metadata: {},
+        const deleted = await store.deleteTransferDraft(
+          session,
+          organizationId,
+          transferId,
+          Number(existing.version),
+        );
+        if (!deleted) throw conflict('Transfer was modified or is no longer a draft');
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: authContext.userId,
+          action: 'warehouse_transfer.draft.discarded',
+          resourceType: 'warehouse_transfer',
+          resourceId: transferId,
+          metadata: { version: Number(existing.version) },
+        });
+        return { id: transferId, discarded: true };
       });
-      return { id: transferId, discarded: true };
     },
 
     async postTransfer(organizationId, transferId, body, actor, authContext, idempotencyKey) {
@@ -1725,6 +2107,7 @@ function createInventoryService(deps) {
                 negativeStockOverrideReason: override.reason,
                 negativeStockOverrideBy: override.actorId,
               },
+              'draft',
             );
             if (posted === null) {
               throw versionConflict('Transfer version conflict', {
@@ -1907,6 +2290,7 @@ function createInventoryService(deps) {
                 status: 'reversed',
                 reversedByTransferId: reversalDraft['_id'],
               },
+              'posted',
             );
             if (markedOriginal === null) {
               throw versionConflict('Transfer version conflict', {
@@ -1924,6 +2308,7 @@ function createInventoryService(deps) {
                 inboundMovementId: inbound.movement['_id'],
                 transferValueMinorUnits: transferValueMinorUnits.toString(),
               },
+              'posted',
             );
 
             await auditWriter.appendBusinessEvent(session, {
