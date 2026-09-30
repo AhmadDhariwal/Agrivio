@@ -724,4 +724,89 @@ describe('OpeningStockPage', () => {
       expect(page.recentOpeningStock()).toHaveLength(0);
     });
   });
+
+  describe('Post Confirmation & Edit Draft Scroll', () => {
+    it('opens post confirmation dialog when Post opening stock is clicked on valid form', () => {
+      page.form.patchValue({
+        warehouseId: 'wh-1',
+        productId: 'prod-none',
+        quantity: '20',
+        inventoryValue: '200.00',
+      });
+      fixture.detectChanges();
+
+      page.openPostDialog();
+      fixture.detectChanges();
+
+      expect(page.postDialogOpen()).toBe(true);
+      expect(page.pendingPost()).toBeNull();
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.textContent).toContain('Post opening stock?');
+    });
+
+    it('opens post confirmation dialog when Post is clicked on a draft work-tray row', () => {
+      const draft = mockOpeningStock({ id: 'draft-row-post-1', status: 'draft', version: 1 });
+      page.recentOpeningStock.set([draft]);
+      page.total.set(1);
+      fixture.detectChanges();
+
+      page.askPostRow(draft);
+      fixture.detectChanges();
+
+      expect(page.postDialogOpen()).toBe(true);
+      expect(page.pendingPost()?.id).toBe('draft-row-post-1');
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.textContent).toContain('Post opening stock draft?');
+    });
+
+    it('posts the row draft and closes dialog when post is confirmed', () => {
+      const inventoryApi = TestBed.inject(InventoryApi);
+      const postSpy = vi.spyOn(inventoryApi, 'postOpeningStockDraft').mockReturnValue(
+        of({
+          movement: {} as any,
+          batch: null,
+          balance: { quantityBase: '10.0000' } as any,
+          costState: { weightedAverageCost: { amount: '50.00', currency: 'PKR' } } as any,
+        })
+      );
+      const draft = mockOpeningStock({ id: 'draft-confirm-1', status: 'draft', version: 2 });
+      page.askPostRow(draft);
+      expect(page.postDialogOpen()).toBe(true);
+
+      page.onPostConfirmed();
+
+      expect(postSpy).toHaveBeenCalledWith('draft-confirm-1', 2, expect.any(String));
+      expect(page.postDialogOpen()).toBe(false);
+      expect(page.pendingPost()).toBeNull();
+      expect(page.successMessage()).toContain('posted successfully');
+    });
+
+    it('dismisses post dialog without posting when canceled', () => {
+      const inventoryApi = TestBed.inject(InventoryApi);
+      const postDraftSpy = vi.spyOn(inventoryApi, 'postOpeningStockDraft');
+      const postSpy = vi.spyOn(inventoryApi, 'postOpeningStock');
+
+      const draft = mockOpeningStock({ id: 'draft-cancel-1', status: 'draft', version: 1 });
+      page.askPostRow(draft);
+      expect(page.postDialogOpen()).toBe(true);
+
+      page.onPostDismissed();
+
+      expect(page.postDialogOpen()).toBe(false);
+      expect(page.pendingPost()).toBeNull();
+      expect(postDraftSpy).not.toHaveBeenCalled();
+      expect(postSpy).not.toHaveBeenCalled();
+    });
+
+    it('scrolls to top when editDraftRow is called', () => {
+      const scrollSpy = vi.spyOn(window, 'scrollTo').mockReturnValue(undefined);
+      const inventoryApi = TestBed.inject(InventoryApi);
+      const draft = mockOpeningStock({ id: 'draft-scroll-1', status: 'draft' });
+      vi.spyOn(inventoryApi, 'getOpeningStock').mockReturnValue(of(draft));
+
+      page.editDraftRow(draft);
+
+      expect(scrollSpy).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+    });
+  });
 });

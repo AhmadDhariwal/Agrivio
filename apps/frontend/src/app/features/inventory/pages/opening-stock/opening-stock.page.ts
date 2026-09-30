@@ -1,4 +1,4 @@
-import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, ElementRef, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -64,6 +64,7 @@ export class OpeningStockPage {
   private readonly capabilityService = inject(CapabilityService, { optional: true });
   private readonly route = inject(ActivatedRoute, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
+  private readonly elementRef = inject(ElementRef);
   private readonly productSearchChanges = new Subject<string>();
 
   readonly openingStockRecord = signal<OpeningStockRecord | null>(null);
@@ -71,6 +72,8 @@ export class OpeningStockPage {
   readonly isPosted = computed(() => this.openingStockRecord()?.status === 'posted');
   readonly discardDialogOpen = signal(false);
   readonly discarding = signal(false);
+  readonly postDialogOpen = signal(false);
+  readonly pendingPost = signal<OpeningStockRecord | null>(null);
   readonly savingDraft = signal(false);
   readonly isEditing = signal(true);
 
@@ -516,6 +519,7 @@ export class OpeningStockPage {
             `Opening stock posted. Balance ${result.balance.quantityBase}; WAC ${result.costState.weightedAverageCost.amount} PKR.`,
           );
           this.loadHistory();
+          this.scrollToTop();
         },
         error: (error: unknown) => {
           this.saving.set(false);
@@ -532,6 +536,7 @@ export class OpeningStockPage {
             `Opening stock posted. Balance ${result.balance.quantityBase}; WAC ${result.costState.weightedAverageCost.amount} PKR.`,
           );
           this.loadHistory();
+          this.scrollToTop();
         },
         error: (error: unknown) => {
           this.saving.set(false);
@@ -601,12 +606,48 @@ export class OpeningStockPage {
 
   editDraftRow(record: OpeningStockRecord): void {
     this.loadOpeningStockRecord(record.id);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    this.scrollToTop();
+  }
+
+  openPostDialog(): void {
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    if (!this.canPost()) {
+      return;
+    }
+    this.pendingPost.set(null);
+    this.postDialogOpen.set(true);
+  }
+
+  askPostRow(record: OpeningStockRecord): void {
+    if (!this.canPostOpeningStock() || record.status !== 'draft') return;
+    this.pendingPost.set(record);
+    this.postDialogOpen.set(true);
   }
 
   postDraftRow(record: OpeningStockRecord): void {
+    this.askPostRow(record);
+  }
+
+  onPostConfirmed(): void {
+    this.postDialogOpen.set(false);
+    const target = this.pendingPost();
+    this.pendingPost.set(null);
+    if (target) {
+      this.executePostDraftRow(target);
+    } else {
+      this.submit();
+    }
+  }
+
+  onPostDismissed(): void {
+    this.pendingPost.set(null);
+    this.postDialogOpen.set(false);
+  }
+
+  private executePostDraftRow(record: OpeningStockRecord): void {
     if (!this.canPostOpeningStock() || record.status !== 'draft') return;
-    
+
     // If the currently edited draft is the one being posted, just trigger standard submit
     if (this.openingStockRecord()?.id === record.id) {
       this.submit();
@@ -616,11 +657,12 @@ export class OpeningStockPage {
     this.errorMessage.set(null);
     this.successMessage.set(null);
     const idempotencyKey = `opening-stock-post-${crypto.randomUUID()}`;
-    
+
     this.inventoryApi.postOpeningStockDraft(record.id, record.version, idempotencyKey).subscribe({
       next: () => {
         this.successMessage.set('Opening stock posted successfully.');
         this.loadHistory();
+        this.scrollToTop();
       },
       error: (error: unknown) => {
         this.errorMessage.set(this.mapConflictError(error, 'Unable to post opening stock draft.'));
@@ -628,8 +670,30 @@ export class OpeningStockPage {
     });
   }
 
+  private scrollToTop(): void {
+    if (typeof document !== 'undefined') {
+      const shellContent = document.querySelector('.ag-shell__content');
+      if (shellContent && typeof shellContent.scrollTo === 'function') {
+        shellContent.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+
+    const hostEl = this.elementRef?.nativeElement;
+    if (hostEl && typeof hostEl.scrollIntoView === 'function') {
+      hostEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
   getProductName(id: string): string {
     return this.products().find((p) => p.id === id)?.name || id;
+  }
+
+  getProductSku(id: string): string | null {
+    return this.products().find((p) => p.id === id)?.sku || null;
   }
 
   getWarehouseName(id: string): string {
