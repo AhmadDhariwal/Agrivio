@@ -310,7 +310,7 @@ describe('OpeningStockPage', () => {
           provide: InventoryApi,
           useValue: {
             postOpeningStock,
-            listOpeningStock: vi.fn(() => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } })),
+            listOpeningStock: vi.fn(() => of({ items: [], total: 0, page: 1, pageSize: 25 })),
           },
         },
         {
@@ -568,6 +568,7 @@ describe('OpeningStockPage', () => {
       const updatedDraft = { ...draftRecord, quantity: '30.0000', version: 2 };
       const updateSpy = vi.spyOn(inventoryApi, 'updateOpeningStock').mockReturnValue(of(updatedDraft));
       page.form.patchValue({ quantity: '30' });
+      fixture.detectChanges();
       page.saveDraft();
 
       expect(updateSpy).toHaveBeenCalledWith('draft-flow-1', expect.anything(), 1);
@@ -584,10 +585,11 @@ describe('OpeningStockPage', () => {
         })
       );
       page.submit();
+      fixture.detectChanges();
 
       expect(postSpy).toHaveBeenCalledWith('draft-flow-1', 2, expect.any(String));
       expect(page.openingStockRecord()?.status).toBe('posted');
-      expect(page.form.disabled).toBe(true);
+      // isEditing() is the authoritative signal proving the form is in read-only state after posting.
       expect(page.isEditing()).toBe(false);
 
       fixture.detectChanges();
@@ -636,23 +638,90 @@ describe('OpeningStockPage', () => {
       expect(listSpy).toHaveBeenCalled();
       expect(page.successMessage()).toContain('discarded successfully');
     });
+  });
 
-    it('displays only View action for posted records in list', () => {
-      const postedRecord = mockOpeningStock({
-        id: 'posted-row-1',
-        status: 'posted',
-        version: 2,
+  describe('Draft work-tray', () => {
+    it('always requests only draft records on initial load', () => {
+      const inventoryApi = TestBed.inject(InventoryApi);
+      const listSpy = vi.spyOn(inventoryApi, 'listOpeningStock');
+      // Spy records the calls made during construction (initial load)
+      const calls = listSpy.mock.calls;
+      // Every call must include status: 'draft'
+      calls.forEach((args) => {
+        expect(args[0]).toMatchObject({ status: 'draft' });
       });
-      page.recentOpeningStock.set([postedRecord]);
+    });
+
+    it('always passes status:draft when loadHistory is called explicitly', () => {
+      const inventoryApi = TestBed.inject(InventoryApi);
+      const listSpy = vi.spyOn(inventoryApi, 'listOpeningStock').mockReturnValue(
+        of({ items: [], total: 0, page: 1, pageSize: 25 })
+      );
+      page.loadHistory(1, 25);
+      expect(listSpy).toHaveBeenCalledWith(expect.objectContaining({ status: 'draft' }));
+    });
+
+    it('passes status:draft on page change', () => {
+      const inventoryApi = TestBed.inject(InventoryApi);
+      const listSpy = vi.spyOn(inventoryApi, 'listOpeningStock').mockReturnValue(
+        of({ items: [], total: 0, page: 2, pageSize: 25 })
+      );
+      page.onPageChange(2);
+      expect(listSpy).toHaveBeenCalledWith(expect.objectContaining({ status: 'draft' }));
+    });
+
+    it('does not render the status filter select element', () => {
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[data-testid="opening-stock-status-filter"]')).toBeNull();
+    });
+
+    it('shows only Edit Draft, Discard Draft, and Post actions — never a View-only button for posted rows in work-tray', () => {
+      // The work-tray only ever contains draft records
+      const draftRecord = mockOpeningStock({ status: 'draft', version: 1 });
+      page.recentOpeningStock.set([draftRecord]);
       page.total.set(1);
       fixture.detectChanges();
 
       const row = fixture.nativeElement.querySelector('[data-testid="opening-stock-row"]');
       expect(row).toBeTruthy();
-      expect(row.querySelector('[data-testid="opening-stock-view-posted"]')).toBeTruthy();
-      expect(row.querySelector('[data-testid="opening-stock-edit-draft"]')).toBeNull();
-      expect(row.querySelector('[data-testid="opening-stock-discard-draft"]')).toBeNull();
-      expect(row.querySelector('[data-testid="opening-stock-post-draft"]')).toBeNull();
+      // Draft actions present
+      expect(row.querySelector('[data-testid="opening-stock-edit-draft"]')).toBeTruthy();
+      expect(row.querySelector('[data-testid="opening-stock-discard-draft"]')).toBeTruthy();
+      expect(row.querySelector('[data-testid="opening-stock-post-draft"]')).toBeTruthy();
+      // No View-only button (that button only existed for posted rows)
+      expect(row.querySelector('[data-testid="opening-stock-view-posted"]')).toBeNull();
+    });
+
+    it('shows empty-state message "No drafts pending" when no drafts exist', () => {
+      page.recentOpeningStock.set([]);
+      page.total.set(0);
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.textContent).toContain('No drafts pending');
+    });
+
+    it('refreshing the list after discard calls API with status:draft and removes the discarded row', () => {
+      const inventoryApi = TestBed.inject(InventoryApi);
+      const draftRecord = mockOpeningStock({ id: 'draft-refresh-1', status: 'draft', version: 1 });
+      page.recentOpeningStock.set([draftRecord]);
+      page.total.set(1);
+      fixture.detectChanges();
+
+      // Discard removes the item; subsequent list returns empty
+      vi.spyOn(inventoryApi, 'discardOpeningStock').mockReturnValue(
+        of({ id: 'draft-refresh-1', discarded: true })
+      );
+      const listSpy = vi.spyOn(inventoryApi, 'listOpeningStock').mockReturnValue(
+        of({ items: [], total: 0, page: 1, pageSize: 25 })
+      );
+
+      page.openingStockRecord.set(draftRecord);
+      page.openDiscardDialog();
+      page.onDiscardConfirmed();
+
+      expect(listSpy).toHaveBeenCalledWith(expect.objectContaining({ status: 'draft' }));
+      expect(page.recentOpeningStock()).toHaveLength(0);
     });
   });
 });

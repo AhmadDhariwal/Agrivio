@@ -79,7 +79,7 @@ export class OpeningStockPage {
   readonly page = signal(1);
   readonly pageSize = signal(25);
   readonly total = signal(0);
-  readonly statusFilter = signal<string>('all');
+  readonly statusFilter = signal<string>('draft');
   private pendingDiscard: OpeningStockRecord | null = null;
 
   readonly loading = signal(true);
@@ -189,7 +189,7 @@ export class OpeningStockPage {
     forkJoin({
       products: this.catalogApi.searchProductOptions(),
       warehouses: this.locationsApi.listWarehouseOptions(),
-      history: this.inventoryApi.listOpeningStock({ page: this.page(), pageSize: this.pageSize() }),
+      history: this.inventoryApi.listOpeningStock({ page: this.page(), pageSize: this.pageSize(), status: 'draft' }),
     }).subscribe({
       next: ({ products, warehouses, history }) => {
         const activeProducts = products.filter((item) => item.status === 'active');
@@ -575,19 +575,8 @@ export class OpeningStockPage {
     this.productSearchChanges.next(query.trim());
   }
 
-  loadHistory(
-    page = this.page(),
-    pageSize = this.pageSize(),
-    status = this.statusFilter(),
-  ): void {
-    const filters: { page?: number; pageSize?: number; status?: string } = {
-      page,
-      pageSize,
-    };
-    if (status !== 'all') {
-      filters.status = status;
-    }
-    this.inventoryApi.listOpeningStock(filters).subscribe({
+  loadHistory(page = this.page(), pageSize = this.pageSize()): void {
+    this.inventoryApi.listOpeningStock({ page, pageSize, status: 'draft' }).subscribe({
       next: (result) => {
         this.recentOpeningStock.set(result.items);
         this.total.set(result.total);
@@ -595,25 +584,19 @@ export class OpeningStockPage {
         this.pageSize.set(result.pageSize);
       },
       error: () => {
-        // silently fail or show toast if needed, adjusting state minimally
+        // silently fail; list retains last known state
       },
     });
   }
 
   onPageChange(newPage: number): void {
     if (newPage === this.page() || this.loading()) return;
-    this.loadHistory(newPage, this.pageSize(), this.statusFilter());
+    this.loadHistory(newPage, this.pageSize());
   }
 
   onPageSizeChange(newSize: number): void {
     if (newSize === this.pageSize() || this.loading()) return;
-    this.loadHistory(1, newSize, this.statusFilter());
-  }
-
-  onFilterChange(event: Event): void {
-    const value = (event.target as HTMLSelectElement).value;
-    this.statusFilter.set(value);
-    this.loadHistory(1, this.pageSize(), value);
+    this.loadHistory(1, newSize);
   }
 
   editDraftRow(record: OpeningStockRecord): void {
