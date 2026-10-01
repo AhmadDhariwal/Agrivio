@@ -279,14 +279,61 @@ function pdfEscape(text) {
     .replaceAll(')', '\\)');
 }
 
-function truncateText(str, maxChars) {
-  const s = sanitizePdfText(str);
-  if (s.length <= maxChars) return s;
-  return s.slice(0, Math.max(1, maxChars - 3)) + '...';
+function estimateTextWidth(text, fontSize = 8.5, isBold = false) {
+  let w = 0;
+  const scale = fontSize / 10;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch >= '0' && ch <= '9') {
+      w += (isBold ? 5.8 : 5.4) * scale;
+    } else if (ch === '.' || ch === ',' || ch === ':' || ch === ';' || ch === '!' || ch === '|' || ch === "'") {
+      w += 2.8 * scale;
+    } else if (ch === ' ' || ch === '-') {
+      w += 3.2 * scale;
+    } else if (/[WMQ@]/.test(ch)) {
+      w += (isBold ? 8.5 : 8.0) * scale;
+    } else if (/[A-Z]/.test(ch)) {
+      w += (isBold ? 6.8 : 6.2) * scale;
+    } else if (/[ijlrt]/.test(ch)) {
+      w += 3.2 * scale;
+    } else {
+      w += (isBold ? 5.4 : 5.0) * scale;
+    }
+  }
+  return w;
+}
+
+function fitText(text, maxPixelWidth, fontSize = 8.5, isBold = false) {
+  const sanitized = sanitizePdfText(text);
+  if (estimateTextWidth(sanitized, fontSize, isBold) <= maxPixelWidth) {
+    return sanitized;
+  }
+  let s = sanitized;
+  while (s.length > 1 && estimateTextWidth(s + '...', fontSize, isBold) > maxPixelWidth) {
+    s = s.slice(0, -1);
+  }
+  return s + '...';
 }
 
 function isNumericColumnKey(key, val) {
-  if (['total', 'amount', 'cogs', 'paid', 'receivable', 'payable', 'revenue', 'inventoryValue', 'quantity', 'count'].includes(key)) {
+  if ([
+    'total',
+    'amount',
+    'cogs',
+    'paid',
+    'receivable',
+    'payable',
+    'revenue',
+    'inventoryValue',
+    'quantity',
+    'count',
+    'debit',
+    'credit',
+    'balance',
+    'valuation',
+    'runningBalance',
+    'signedAmount',
+  ].includes(key)) {
     return true;
   }
   return isNumericCell(val);
@@ -350,17 +397,17 @@ function renderPdf(dataset) {
   const marginLeft = 36;
   const marginRight = 36;
   const marginTop = 36;
-  const marginBottom = 40;
+  const marginBottom = 36;
   const contentWidth = pageWidth - marginLeft - marginRight;
 
-  // Calculate column widths
+  // Calculate column widths proportional to content
   const colWeights = columns.map((col) => {
     let maxLen = col.label.length;
     for (const r of rows.slice(0, 50)) {
       const val = displayCell(r[col.key]);
       if (val.length > maxLen) maxLen = Math.min(val.length, 30);
     }
-    return Math.max(maxLen, 8);
+    return Math.max(maxLen, 7);
   });
   const totalWeight = colWeights.reduce((a, b) => a + b, 0);
   const colWidths = colWeights.map((w) => Math.floor((w / totalWeight) * contentWidth));
@@ -373,158 +420,272 @@ function renderPdf(dataset) {
     colX.push(currX);
     currX += colWidths[i];
   }
+  const rightBoundary = marginLeft + contentWidth;
 
   const pages = [];
-  let currentPageCommands = [];
+  let cmds = [];
 
-  function drawHeader(y) {
-    currentPageCommands.push('0.12 0.18 0.28 rg');
-    currentPageCommands.push(`${marginLeft} ${y - 20} ${contentWidth} 20 re f`);
+  function drawBrandHeader(yTop) {
+    // Top right: Agrivio Brand Block
+    const brandW = 160;
+    const brandX = rightBoundary - brandW;
 
-    currentPageCommands.push('1 1 1 rg');
+    // Vector Emblem: Emerald rounded box with white sprout/leaf
+    const emblemSize = 26;
+    const emblemX = brandX;
+    const emblemY = yTop - 26;
+    cmds.push('0.06 0.48 0.32 rg');
+    cmds.push(`${emblemX} ${emblemY} ${emblemSize} ${emblemSize} re f`);
+    cmds.push('1 1 1 RG 1.5 w');
+    cmds.push(`${emblemX + 6} ${emblemY + 6} m ${emblemX + 13} ${emblemY + 20} l S`);
+    cmds.push(`${emblemX + 13} ${emblemY + 20} m ${emblemX + 20} ${emblemY + 14} l S`);
+    cmds.push(`${emblemX + 13} ${emblemY + 13} m ${emblemX + 7} ${emblemY + 11} l S`);
+
+    // Brand Name & Tagline
+    cmds.push('0.06 0.10 0.18 rg');
+    cmds.push(`BT /F2 16 Tf ${emblemX + 32} ${yTop - 13} Td (AGRIVIO) Tj ET`);
+    cmds.push('0.35 0.40 0.48 rg');
+    cmds.push(`BT /F2 6.5 Tf ${emblemX + 32} ${yTop - 23} Td (AGRICULTURAL COMMERCE) Tj ET`);
+
+    // Emerald accent bar under brand
+    cmds.push('0.06 0.48 0.32 RG 2 w');
+    cmds.push(`${brandX} ${yTop - 30} m ${rightBoundary} ${yTop - 30} l S`);
+
+    // Top left: Entity / Statement Details
+    const entityTitle = dataset.filters?.customerName || dataset.filters?.supplierName || dataset.title || dataset.reportKey || 'Report';
+    cmds.push('0.06 0.10 0.18 rg');
+    cmds.push(`BT /F2 13 Tf ${marginLeft} ${yTop - 13} Td (${pdfEscape(fitText(entityTitle, 300, 13, true))}) Tj ET`);
+
+    let leftSubY = yTop - 24;
+    if (dataset.filters?.customerAddress) {
+      cmds.push('0.35 0.40 0.48 rg');
+      cmds.push(`BT /F1 8 Tf ${marginLeft} ${leftSubY} Td (${pdfEscape(fitText(dataset.filters.customerAddress, 300, 8))}) Tj ET`);
+      leftSubY -= 11;
+    } else {
+      cmds.push('0.35 0.40 0.48 rg');
+      cmds.push(`BT /F1 8 Tf ${marginLeft} ${leftSubY} Td (Agrivio Enterprise Business Statement) Tj ET`);
+      leftSubY -= 11;
+    }
+
+    const reportRef = dataset.reportKey ? dataset.reportKey.toUpperCase().replace(/-/g, ' ') : 'ACCOUNT STATEMENT';
+    cmds.push('0.45 0.50 0.58 rg');
+    cmds.push(`BT /F1 7.5 Tf ${marginLeft} ${leftSubY} Td (Reference: ${pdfEscape(reportRef)}) Tj ET`);
+
+    // Right-aligned Date Box (From / To) below brand bar
+    const dateBoxX = rightBoundary - 130;
+    let dateY = yTop - 44;
+
+    const fromDate = dataset.filters?.fromDate || 'Beginning of Period';
+    const toDate = dataset.filters?.toDate || new Date().toISOString().slice(0, 10);
+
+    cmds.push('0.35 0.40 0.48 rg');
+    cmds.push(`BT /F2 8 Tf ${dateBoxX} ${dateY} Td (From:) Tj ET`);
+    cmds.push('0.06 0.10 0.18 rg');
+    cmds.push(`BT /F1 8 Tf ${dateBoxX + 32} ${dateY} Td (${pdfEscape(fromDate)}) Tj ET`);
+
+    dateY -= 12;
+    cmds.push('0.35 0.40 0.48 rg');
+    cmds.push(`BT /F2 8 Tf ${dateBoxX} ${dateY} Td (To:) Tj ET`);
+    cmds.push('0.06 0.10 0.18 rg');
+    cmds.push(`BT /F1 8 Tf ${dateBoxX + 32} ${dateY} Td (${pdfEscape(toDate)}) Tj ET`);
+
+    return Math.min(leftSubY, dateY) - 16;
+  }
+
+  function drawTableHeader(y) {
+    const headerHeight = 22;
+    const headerY = y - headerHeight;
+
+    // Header background: crisp slate-100 fill
+    cmds.push('0.94 0.95 0.97 rg');
+    cmds.push(`${marginLeft} ${headerY} ${contentWidth} ${headerHeight} re f`);
+
+    // Outer and horizontal borders of header
+    cmds.push('0.25 0.30 0.38 RG 1 w');
+    cmds.push(`${marginLeft} ${y} m ${rightBoundary} ${y} l S`);
+    cmds.push(`${marginLeft} ${headerY} m ${rightBoundary} ${headerY} l S`);
+
+    // Header text & vertical lines
+    cmds.push('0.08 0.12 0.20 rg');
     for (let i = 0; i < columns.length; i++) {
       const col = columns[i];
       const w = colWidths[i];
-      const maxChars = Math.max(3, Math.floor((w - 8) / 5.2));
-      const text = truncateText(col.label, maxChars);
+      const maxTextW = w - 12;
+      const text = fitText(col.label, maxTextW, 8.5, true);
       const isNum = isNumericColumnKey(col.key);
-      const textX = isNum ? colX[i] + w - 6 - text.length * 5.2 : colX[i] + 5;
-      currentPageCommands.push(`BT /F2 8.5 Tf ${Math.floor(textX)} ${y - 14} Td (${pdfEscape(text)}) Tj ET`);
+      const textW = estimateTextWidth(text, 8.5, true);
+      const textX = isNum ? colX[i] + w - 6 - textW : colX[i] + 6;
+
+      cmds.push(`BT /F2 8.5 Tf ${Math.floor(textX)} ${headerY + 7} Td (${pdfEscape(text)}) Tj ET`);
+
+      // Vertical line on left of column
+      cmds.push('0.25 0.30 0.38 RG 1 w');
+      cmds.push(`${colX[i]} ${headerY} m ${colX[i]} ${y} l S`);
     }
-    return y - 20;
+    cmds.push(`${rightBoundary} ${headerY} m ${rightBoundary} ${y} l S`);
+
+    return headerY;
   }
 
   let y = pageHeight - marginTop;
-
-  // First page document title & timestamp
-  currentPageCommands.push('0.09 0.15 0.24 rg');
-  currentPageCommands.push(
-    `BT /F2 16 Tf ${marginLeft} ${y - 16} Td (${pdfEscape(dataset.title || dataset.reportKey || 'Report')}) Tj ET`
-  );
-  currentPageCommands.push('0.45 0.50 0.55 rg');
-  const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
-  currentPageCommands.push(
-    `BT /F1 8 Tf ${pageWidth - marginRight - 140} ${y - 14} Td (Generated: ${nowStr}) Tj ET`
-  );
-  y -= 26;
-
-  // Summary KPIs (if available)
-  if (dataset.summary && Object.keys(dataset.summary).length > 0) {
-    const summaryEntries = Object.entries(dataset.summary).filter(
-      ([k, v]) => v !== null && v !== undefined && v !== ''
-    );
-    if (summaryEntries.length > 0) {
-      const cardWidth = Math.min(
-        140,
-        Math.floor((contentWidth - (summaryEntries.length - 1) * 8) / summaryEntries.length)
-      );
-      for (let sIdx = 0; sIdx < summaryEntries.length; sIdx++) {
-        const [k, v] = summaryEntries[sIdx];
-        const cardX = marginLeft + sIdx * (cardWidth + 8);
-        if (cardX + cardWidth <= marginLeft + contentWidth) {
-          currentPageCommands.push('0.95 0.96 0.98 rg');
-          currentPageCommands.push(`${cardX} ${y - 32} ${cardWidth} 32 re f`);
-          currentPageCommands.push('0.85 0.88 0.92 RG 0.5 w');
-          currentPageCommands.push(`${cardX} ${y - 32} ${cardWidth} 32 re s`);
-
-          const keyLabel = k.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toUpperCase();
-          currentPageCommands.push('0.45 0.50 0.55 rg');
-          currentPageCommands.push(
-            `BT /F2 7 Tf ${cardX + 6} ${y - 12} Td (${pdfEscape(truncateText(keyLabel, 20))}) Tj ET`
-          );
-
-          const valStr =
-            typeof v === 'object' && v.amount
-              ? `${v.amount} ${v.currency || ''}`.trim()
-              : String(v);
-          currentPageCommands.push('0.09 0.15 0.24 rg');
-          currentPageCommands.push(
-            `BT /F2 10 Tf ${cardX + 6} ${y - 26} Td (${pdfEscape(truncateText(valStr, 18))}) Tj ET`
-          );
-        }
-      }
-      y -= 40;
-    }
-  }
-
-  y = drawHeader(y);
+  y = drawBrandHeader(y);
+  y = drawTableHeader(y);
 
   const rowHeight = 18;
-  for (let rIdx = 0; rIdx < rows.length; rIdx++) {
-    const row = rows[rIdx];
-    const isTotalsRow =
-      rIdx === rows.length - 1 && dataset.totals && Object.keys(dataset.totals).length > 0;
+  const hasTotals = Boolean(dataset.totals && Object.keys(dataset.totals).length > 0);
 
-    if (y - rowHeight < marginBottom + 16) {
-      currentPageCommands.push('0.55 0.60 0.65 rg');
-      currentPageCommands.push(
-        `BT /F1 8 Tf ${marginLeft} 18 Td (Agrivio Business Management System) Tj ET`
-      );
-      pages.push(currentPageCommands.join('\n'));
-
-      currentPageCommands = [];
-      y = pageHeight - marginTop;
-
-      currentPageCommands.push('0.3 0.35 0.4 rg');
-      currentPageCommands.push(
-        `BT /F2 9 Tf ${marginLeft} ${y - 10} Td (${pdfEscape(dataset.title || dataset.reportKey)} - Continued) Tj ET`
-      );
-      y -= 18;
-      y = drawHeader(y);
-    }
-
-    if (isTotalsRow) {
-      currentPageCommands.push('0.92 0.94 0.97 rg');
-      currentPageCommands.push(`${marginLeft} ${y - rowHeight} ${contentWidth} ${rowHeight} re f`);
-      currentPageCommands.push('0.55 0.60 0.68 RG 1 w');
-      currentPageCommands.push(`${marginLeft} ${y} m ${marginLeft + contentWidth} ${y} l S`);
-      currentPageCommands.push(
-        `${marginLeft} ${y - rowHeight} m ${marginLeft + contentWidth} ${y - rowHeight} l S`
-      );
-    } else {
-      if (rIdx % 2 === 1) {
-        currentPageCommands.push('0.97 0.98 0.99 rg');
-        currentPageCommands.push(
-          `${marginLeft} ${y - rowHeight} ${contentWidth} ${rowHeight} re f`
-        );
-      }
-      currentPageCommands.push('0.90 0.92 0.94 RG 0.5 w');
-      currentPageCommands.push(
-        `${marginLeft} ${y - rowHeight} m ${marginLeft + contentWidth} ${y - rowHeight} l S`
-      );
-    }
-
-    for (let cIdx = 0; cIdx < columns.length; cIdx++) {
-      const col = columns[cIdx];
-      const val = displayCell(row[col.key]);
-      const w = colWidths[cIdx];
-      const maxChars = Math.max(3, Math.floor((w - 8) / 4.8));
-      const text = truncateText(val, maxChars);
-      const isNum = isNumericColumnKey(col.key, row[col.key]);
-
-      const fontTag = isTotalsRow ? '/F2 8.5 Tf' : '/F1 8 Tf';
-      const textColor = isTotalsRow ? '0.05 0.10 0.18 rg' : '0.12 0.16 0.22 rg';
-      const textX = isNum ? colX[cIdx] + w - 6 - text.length * 4.8 : colX[cIdx] + 5;
-
-      currentPageCommands.push(textColor);
-      currentPageCommands.push(
-        `BT ${fontTag} ${Math.floor(textX)} ${y - 13} Td (${pdfEscape(text)}) Tj ET`
-      );
-    }
-
-    y -= rowHeight;
+  if (rows.length === 0) {
+    const rowY = y - rowHeight;
+    cmds.push('0.98 0.99 1.0 rg');
+    cmds.push(`${marginLeft} ${rowY} ${contentWidth} ${rowHeight} re f`);
+    cmds.push('0.82 0.85 0.90 RG 0.5 w');
+    cmds.push(`${marginLeft} ${rowY} m ${rightBoundary} ${rowY} l S`);
+    cmds.push('0.55 0.60 0.68 rg');
+    cmds.push(`BT /F1 8.5 Tf ${marginLeft + 12} ${rowY + 5} Td (No records found for this period) Tj ET`);
+    cmds.push('0.82 0.85 0.90 RG 0.5 w');
+    cmds.push(`${marginLeft} ${rowY} m ${marginLeft} ${y} l S`);
+    cmds.push(`${rightBoundary} ${rowY} m ${rightBoundary} ${y} l S`);
+    y = rowY;
   }
 
-  currentPageCommands.push('0.55 0.60 0.65 rg');
-  currentPageCommands.push(
-    `BT /F1 8 Tf ${marginLeft} 18 Td (Agrivio Business Management System) Tj ET`
-  );
-  pages.push(currentPageCommands.join('\n'));
+  for (let rIdx = 0; rIdx < rows.length; rIdx++) {
+    const row = rows[rIdx];
+    const isTotalsRow = hasTotals && rIdx === rows.length - 1;
 
+    // Page overflow check
+    if (y - rowHeight < marginBottom + (isTotalsRow ? 40 : 25)) {
+      cmds.push('0.25 0.30 0.38 RG 1 w');
+      cmds.push(`${marginLeft} ${y} m ${rightBoundary} ${y} l S`);
+
+      cmds.push('0.45 0.50 0.58 rg');
+      cmds.push(`BT /F1 7.5 Tf ${marginLeft} 20 Td (Agrivio Business Management System  •  Confidential) Tj ET`);
+      pages.push(cmds.join('\n'));
+
+      cmds = [];
+      y = pageHeight - marginTop;
+
+      cmds.push('0.06 0.10 0.18 rg');
+      cmds.push(`BT /F2 10 Tf ${marginLeft} ${y - 12} Td (${pdfEscape(dataset.title || dataset.reportKey || 'Report')} - Continued) Tj ET`);
+      y -= 22;
+      y = drawTableHeader(y);
+    }
+
+    const rowY = y - rowHeight;
+
+    if (isTotalsRow) {
+      cmds.push('0.92 0.94 0.97 rg');
+      cmds.push(`${marginLeft} ${rowY} ${contentWidth} ${rowHeight} re f`);
+    } else if (rIdx % 2 === 1) {
+      cmds.push('0.98 0.99 1.0 rg');
+      cmds.push(`${marginLeft} ${rowY} ${contentWidth} ${rowHeight} re f`);
+    }
+
+    // Horizontal bottom border of row
+    if (isTotalsRow) {
+      cmds.push('0.25 0.30 0.38 RG 1.5 w');
+      cmds.push(`${marginLeft} ${rowY} m ${rightBoundary} ${rowY} l S`);
+    } else {
+      cmds.push('0.82 0.85 0.90 RG 0.5 w');
+      cmds.push(`${marginLeft} ${rowY} m ${rightBoundary} ${rowY} l S`);
+    }
+
+    // Vertical grid lines for row
+    const vertBorderColor = isTotalsRow ? '0.25 0.30 0.38 RG 1 w' : '0.82 0.85 0.90 RG 0.5 w';
+    cmds.push(vertBorderColor);
+    for (let cIdx = 0; cIdx < columns.length; cIdx++) {
+      cmds.push(`${colX[cIdx]} ${rowY} m ${colX[cIdx]} ${y} l S`);
+    }
+    cmds.push(`${rightBoundary} ${rowY} m ${rightBoundary} ${y} l S`);
+
+    // Cell text
+    for (let cIdx = 0; cIdx < columns.length; cIdx++) {
+      const col = columns[cIdx];
+      const rawVal = row[col.key];
+      const valStr = displayCell(rawVal);
+      const w = colWidths[cIdx];
+      const isNum = isNumericColumnKey(col.key, rawVal);
+      const fontTag = isTotalsRow ? '/F2 8.5 Tf' : '/F1 8.5 Tf';
+      const textColor = isTotalsRow ? '0.05 0.08 0.14 rg' : '0.12 0.16 0.22 rg';
+      const maxW = w - 12;
+      const text = fitText(valStr, maxW, 8.5, isTotalsRow);
+      const textW = estimateTextWidth(text, 8.5, isTotalsRow);
+      const textX = isNum ? colX[cIdx] + w - 6 - textW : colX[cIdx] + 6;
+
+      cmds.push(textColor);
+      cmds.push(`BT ${fontTag} ${Math.floor(textX)} ${rowY + 5} Td (${pdfEscape(text)}) Tj ET`);
+    }
+
+    y = rowY;
+  }
+
+  // Draw Bottom-Right Summary Breakdown Box (matching statement reference)
+  const summaryEntries = [];
+  if (dataset.summary && Object.keys(dataset.summary).length > 0) {
+    for (const [k, v] of Object.entries(dataset.summary)) {
+      if (v !== null && v !== undefined && v !== '') {
+        const label = k.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/^./, (l) => l.toUpperCase());
+        const valStr = typeof v === 'object' && v.amount ? `${v.amount} ${v.currency || ''}`.trim() : String(v);
+        summaryEntries.push({ label, value: valStr });
+      }
+    }
+  } else if (dataset.totals && Object.keys(dataset.totals).length > 0) {
+    for (const [k, v] of Object.entries(dataset.totals)) {
+      if (v !== null && v !== undefined && v !== '' && v !== 'Totals') {
+        const col = columns.find((c) => c.key === k);
+        const label = col ? `Total ${col.label}` : k.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/^./, (l) => l.toUpperCase());
+        summaryEntries.push({ label, value: String(v) });
+      }
+    }
+  }
+
+  if (summaryEntries.length > 0) {
+    y -= 10;
+    const boxW = Math.min(240, contentWidth * 0.55);
+    const boxX = rightBoundary - boxW;
+    const labelW = boxW - 90;
+    const valueW = 90;
+    const sRowHeight = 18;
+
+    for (let sIdx = 0; sIdx < summaryEntries.length; sIdx++) {
+      const item = summaryEntries[sIdx];
+      const isLast = sIdx === summaryEntries.length - 1;
+      const sY = y - sRowHeight;
+
+      // Label (right-aligned to label cell)
+      cmds.push('0.30 0.35 0.44 rg');
+      const labelText = fitText(item.label, labelW - 10, 8.5, isLast);
+      const labelTextW = estimateTextWidth(labelText, 8.5, isLast);
+      const labelX = boxX + labelW - 8 - labelTextW;
+      cmds.push(`BT ${isLast ? '/F2 8.5 Tf' : '/F1 8.5 Tf'} ${Math.floor(labelX)} ${sY + 5} Td (${pdfEscape(labelText)}) Tj ET`);
+
+      // Value Box (enclosed in a border box, right-aligned)
+      cmds.push(isLast ? '0.92 0.94 0.97 rg' : '0.97 0.98 0.99 rg');
+      cmds.push(`${boxX + labelW} ${sY} ${valueW} ${sRowHeight} re f`);
+
+      cmds.push(isLast ? '0.25 0.30 0.38 RG 1.5 w' : '0.75 0.80 0.86 RG 0.5 w');
+      cmds.push(`${boxX + labelW} ${sY} ${valueW} ${sRowHeight} re s`);
+
+      cmds.push('0.06 0.10 0.18 rg');
+      const valText = fitText(item.value, valueW - 12, 8.5, true);
+      const valTextW = estimateTextWidth(valText, 8.5, true);
+      const valX = boxX + boxW - 6 - valTextW;
+      cmds.push(`BT /F2 8.5 Tf ${Math.floor(valX)} ${sY + 5} Td (${pdfEscape(valText)}) Tj ET`);
+
+      y = sY;
+    }
+  }
+
+  // Final Page Footer
+  cmds.push('0.45 0.50 0.58 rg');
+  cmds.push(`BT /F1 7.5 Tf ${marginLeft} 20 Td (Agrivio Business Management System  •  Confidential) Tj ET`);
+  pages.push(cmds.join('\n'));
+
+  // Stamp page numbers across all pages
   const totalPages = pages.length;
   for (let pIdx = 0; pIdx < totalPages; pIdx++) {
     const pageNumText = `Page ${pIdx + 1} of ${totalPages}`;
-    const pageNumCmd = `BT /F1 8 Tf ${pageWidth - marginRight - 60} 18 Td (${pdfEscape(pageNumText)}) Tj ET`;
+    const pageNumW = estimateTextWidth(pageNumText, 7.5);
+    const pageNumCmd = `0.45 0.50 0.58 rg\nBT /F1 7.5 Tf ${Math.floor(rightBoundary - pageNumW)} 20 Td (${pdfEscape(pageNumText)}) Tj ET`;
     pages[pIdx] += `\n${pageNumCmd}`;
   }
 
