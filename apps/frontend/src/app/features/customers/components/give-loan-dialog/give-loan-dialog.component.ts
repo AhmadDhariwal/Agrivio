@@ -8,6 +8,7 @@ import {
   ValidationErrors,
 } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
+import { Subject, catchError, debounceTime, of, switchMap } from 'rxjs';
 import { UiDialogComponent } from '../../../../shared/ui/ui-dialog/ui-dialog.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
 import {
@@ -52,6 +53,10 @@ export class GiveLoanDialogComponent {
   private readonly customersApi = inject(CustomersApi);
   private readonly customerFinanceApi = inject(CustomerFinanceApi);
 
+  private readonly customerSearch$ = new Subject<string>();
+  private readonly currentSearchTerm = signal('');
+  private readonly selectedCustomer = signal<{ id: string; name: string } | null>(null);
+
   readonly open = input(false);
   readonly customer = input<{ id: string; name: string } | null>(null);
   readonly preselectedCustomer = input<{ id: string; name: string } | null>(null);
@@ -81,9 +86,14 @@ export class GiveLoanDialogComponent {
   readonly customers = signal<CustomerRecord[]>([]);
   readonly accounts = signal<AccountRecord[]>([]);
 
-  readonly customerOptions = computed<DropdownOption[]>(() =>
-    this.customers().map(formatCustomerOption),
-  );
+  readonly customerOptions = computed<DropdownOption[]>(() => {
+    const list = this.customers().map(formatCustomerOption);
+    const sel = this.selectedCustomer();
+    if (!this.currentSearchTerm() && sel && !list.some((c) => c.value === sel.id)) {
+      return [{ value: sel.id, label: sel.name }, ...list];
+    }
+    return list;
+  });
 
   readonly accountOptions = computed<DropdownOption[]>(() =>
     this.accounts().map(formatAccountOption),
@@ -92,6 +102,8 @@ export class GiveLoanDialogComponent {
   readonly selectedCustomerName = computed(() => {
     const pre = this.targetCustomer();
     if (pre) return pre.name;
+    const sel = this.selectedCustomer();
+    if (sel) return sel.name;
     const cid = this.formValue().customerId;
     const found = this.customers().find((c) => c.id === cid);
     return found ? found.name : '—';
@@ -124,16 +136,58 @@ export class GiveLoanDialogComponent {
       this.formValue.set(this.form.getRawValue());
     });
 
+    this.form.controls.customerId.valueChanges.subscribe((cid) => {
+      if (cid) {
+        const found = this.customers().find((c) => c.id === cid);
+        if (found) {
+          this.selectedCustomer.set({ id: found.id, name: found.name });
+        }
+      } else {
+        this.selectedCustomer.set(null);
+      }
+    });
+
     effect(() => {
       if (this.open()) {
         this.reset();
         this.loadReferenceData();
       }
     });
+
+    this.customerSearch$
+      .pipe(
+        debounceTime(250),
+        switchMap((term) =>
+          this.customersApi.searchCustomerOptions(term).pipe(
+            catchError(() => of([] as CustomerRecord[])),
+          ),
+        ),
+      )
+      .subscribe((items) => {
+        this.customers.set(items.filter((c) => c.status === 'active'));
+      });
+  }
+
+  onCustomerSearch(term: string): void {
+    const query = (term ?? '').trim();
+    this.currentSearchTerm.set(query);
+    this.customerSearch$.next(query);
+  }
+
+  onCustomerDropdownOpen(open: boolean): void {
+    if (open) {
+      this.currentSearchTerm.set('');
+      this.customersApi.searchCustomerOptions('').subscribe({
+        next: (items) => this.customers.set(items.filter((c) => c.status === 'active')),
+        error: () => this.errorMessage.set('Unable to load customers.'),
+      });
+    }
   }
 
   private reset(): void {
     const pre = this.targetCustomer();
+    this.selectedCustomer.set(pre ? { id: pre.id, name: pre.name } : null);
+    this.currentSearchTerm.set('');
     this.form.reset({
       customerId: pre?.id ?? '',
       disbursementAccountId: '',
