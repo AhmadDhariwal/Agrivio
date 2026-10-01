@@ -20,7 +20,7 @@
       <!-- Customer -->
       <div class="form-field form-field--full">
         <agrivio-ui-field-label label="Customer" [required]="true" for="loan-customer" />
-        @if (preselectedCustomer(); as pre) {
+        @if (targetCustomer(); as pre) {
           <div class="static-value-box" data-testid="loan-preselected-customer">
             <strong>{{ pre.name }}</strong>
           </div>
@@ -33,7 +33,10 @@
             placeholder="Select customer"
             [searchable]="true"
             [clearable]="false"
-            [serverSearch]="false"
+            [serverSearch]="true"
+            [selectedLabel]="selectedCustomerName()"
+            (searchChange)="onCustomerSearch($event)"
+            (openChange)="onCustomerDropdownOpen($event)"
           />
         }
         @if (formSubmitAttempted() && form.controls.customerId.errors?.['required']) {
