@@ -31,6 +31,7 @@ describe('BranchFormPage', () => {
           provide: BranchesWarehousesApi,
           useValue: {
             getBranch: () => of(null),
+            listBranchOptions: () => of([]),
             createBranch: createBranchSpy,
             updateBranch: updateBranchSpy,
           },
@@ -67,6 +68,7 @@ describe('BranchFormPage', () => {
           provide: BranchesWarehousesApi,
           useValue: {
             getBranch: () => of(null),
+            listBranchOptions: () => of([]),
             createBranch: vi.fn(),
             updateBranch: vi.fn(),
           },
@@ -95,6 +97,7 @@ describe('BranchFormPage', () => {
           provide: BranchesWarehousesApi,
           useValue: {
             getBranch: () => of(null),
+            listBranchOptions: () => of([]),
             createBranch: createBranchSpy,
             updateBranch: vi.fn(),
           },
@@ -125,6 +128,7 @@ describe('BranchFormPage', () => {
           provide: BranchesWarehousesApi,
           useValue: {
             getBranch: () => of(null),
+            listBranchOptions: () => of([]),
             createBranch: createBranchSpy,
             updateBranch: vi.fn(),
           },
@@ -180,6 +184,7 @@ describe('BranchFormPage', () => {
           provide: BranchesWarehousesApi,
           useValue: {
             getBranch: () => of(existingBranch),
+            listBranchOptions: () => of([]),
             createBranch: vi.fn(),
             updateBranch: updateBranchSpy,
           },
@@ -236,6 +241,7 @@ describe('BranchFormPage', () => {
           provide: BranchesWarehousesApi,
           useValue: {
             getBranch: () => of(null),
+            listBranchOptions: () => of([]),
             createBranch: createBranchSpy,
             updateBranch: vi.fn(),
           },
@@ -424,6 +430,121 @@ describe('BranchFormPage', () => {
       expect(comp.canSave()).toBe(false);
       const saveBtn = fixture.nativeElement.querySelector('[data-testid="branch-save"]') as HTMLButtonElement;
       expect(saveBtn.disabled).toBe(true);
+    });
+  });
+
+  describe('Default Reassignment Warning', () => {
+    it('shows reassignment warning when isDefault is checked and another branch is already the default', async () => {
+      await TestBed.configureTestingModule({
+        imports: [BranchFormPage],
+        providers: [
+          provideRouter([{ path: '**', component: class {} }]),
+          {
+            provide: BranchesWarehousesApi,
+            useValue: {
+              getBranch: () => of(null),
+              listBranchOptions: () =>
+                of([
+                  {
+                    id: 'br-existing-default',
+                    organizationId: 'org-1',
+                    name: 'Karachi Head Office',
+                    code: 'KHI-01',
+                    invoicePrefix: 'KHI',
+                    status: 'active',
+                    version: 2,
+                    isDefault: true,
+                  },
+                ]),
+              createBranch: vi.fn().mockReturnValue(of({})),
+              updateBranch: vi.fn(),
+            },
+          },
+          { provide: AuthSessionStore, useValue: { hasPermission: () => true } },
+          { provide: CapabilityService, useValue: defaultCapabilityMock },
+        ],
+      }).compileComponents();
+
+      const fixture = TestBed.createComponent(BranchFormPage);
+      fixture.detectChanges();
+
+      const comp = fixture.componentInstance;
+
+      // No warning before checking isDefault
+      expect(fixture.nativeElement.querySelector('[data-testid="branch-reassignment-warning"]')).toBeNull();
+
+      // Check isDefault
+      comp.form.controls.isDefault.setValue(true);
+      fixture.detectChanges();
+
+      const warning = fixture.nativeElement.querySelector('[data-testid="branch-reassignment-warning"]');
+      expect(warning).toBeTruthy();
+      expect(warning.textContent).toContain('Default will be reassigned.');
+      expect(warning.textContent).toContain('Karachi Head Office');
+
+      // Uncheck – warning disappears
+      comp.form.controls.isDefault.setValue(false);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[data-testid="branch-reassignment-warning"]')).toBeNull();
+    });
+
+    it('does not show reassignment warning when editing the current default branch', async () => {
+      const existingBranch = {
+        id: 'br-123',
+        organizationId: 'org-1',
+        name: 'Karachi Head Office',
+        code: 'KHI-01',
+        invoicePrefix: 'KHI',
+        status: 'active',
+        version: 2,
+        isDefault: true,
+      };
+
+      await TestBed.configureTestingModule({
+        imports: [BranchFormPage],
+        providers: [
+          provideRouter([{ path: '**', component: class {} }]),
+          {
+            provide: ActivatedRoute,
+            useValue: {
+              snapshot: { paramMap: new Map([['id', 'br-123']]) },
+            },
+          },
+          {
+            provide: BranchesWarehousesApi,
+            useValue: {
+              getBranch: () => of(existingBranch),
+              listBranchOptions: () =>
+                of([
+                  {
+                    id: 'br-123',
+                    organizationId: 'org-1',
+                    name: 'Karachi Head Office',
+                    code: 'KHI-01',
+                    invoicePrefix: 'KHI',
+                    status: 'active',
+                    version: 2,
+                    isDefault: true,
+                  },
+                ]),
+              createBranch: vi.fn(),
+              updateBranch: vi.fn().mockReturnValue(of(existingBranch)),
+            },
+          },
+          { provide: AuthSessionStore, useValue: { hasPermission: () => true } },
+          { provide: CapabilityService, useValue: defaultCapabilityMock },
+        ],
+      }).compileComponents();
+
+      const fixture = TestBed.createComponent(BranchFormPage);
+      fixture.detectChanges();
+
+      const comp = fixture.componentInstance;
+      comp.form.controls.isDefault.setValue(true);
+      fixture.detectChanges();
+
+      // existingDefaultId === branchId → no warning
+      expect(fixture.nativeElement.querySelector('[data-testid="branch-reassignment-warning"]')).toBeNull();
     });
   });
 });

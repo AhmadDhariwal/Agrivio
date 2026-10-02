@@ -93,6 +93,8 @@ export class WarehouseFormPage {
 
   readonly formSubmitAttempted = signal(false);
   readonly branches = signal<BranchRecord[]>([]);
+  readonly existingDefaultId = signal<string | null>(null);
+  readonly existingDefaultName = signal<string | null>(null);
 
 
 
@@ -173,6 +175,17 @@ export class WarehouseFormPage {
         }
       },
       error: () => this.errorMessage.set('Unable to load branches.'),
+    });
+
+    this.api.listWarehouseOptions().subscribe({
+      next: (warehouses) => {
+        const existing = warehouses.find((w) => w.isDefault === true);
+        if (existing) {
+          this.existingDefaultId.set(existing.id);
+          this.existingDefaultName.set(existing.name);
+        }
+      },
+      error: () => {},
     });
 
     const id = this.route.snapshot.paramMap.get('id');
@@ -308,6 +321,12 @@ export class WarehouseFormPage {
   }
 
 
+  get showDefaultReassignmentWarning(): boolean {
+    const existingId = this.existingDefaultId();
+    if (!existingId) return false;
+    if (existingId === this.warehouseId()) return false;
+    return this.form.controls.isDefault.value === true;
+  }
 
   private mapError(error: unknown, fallback: string): string {
 
