@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
@@ -185,7 +186,6 @@ export class WarehouseFormPage {
           this.existingDefaultName.set(existing.name);
         }
       },
-      error: () => {},
     });
 
     const id = this.route.snapshot.paramMap.get('id');
@@ -321,12 +321,16 @@ export class WarehouseFormPage {
   }
 
 
-  get showDefaultReassignmentWarning(): boolean {
+  readonly isDefaultValue = toSignal(this.form.controls.isDefault.valueChanges, {
+    initialValue: this.form.controls.isDefault.value,
+  });
+
+  readonly showDefaultReassignmentWarning = computed(() => {
     const existingId = this.existingDefaultId();
     if (!existingId) return false;
     if (existingId === this.warehouseId()) return false;
-    return this.form.controls.isDefault.value === true;
-  }
+    return this.isDefaultValue() === true;
+  });
 
   private mapError(error: unknown, fallback: string): string {
 

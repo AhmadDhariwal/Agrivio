@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -97,7 +98,6 @@ export class BranchFormPage {
           this.existingDefaultName.set(existing.name);
         }
       },
-      error: () => {},
     });
 
     const id = this.route.snapshot.paramMap.get('id');
@@ -124,12 +124,16 @@ export class BranchFormPage {
     }
   }
 
-  get showDefaultReassignmentWarning(): boolean {
+  readonly isDefaultValue = toSignal(this.form.controls.isDefault.valueChanges, {
+    initialValue: this.form.controls.isDefault.value,
+  });
+
+  readonly showDefaultReassignmentWarning = computed(() => {
     const existingId = this.existingDefaultId();
     if (!existingId) return false;
     if (existingId === this.branchId()) return false;
-    return this.form.controls.isDefault.value === true;
-  }
+    return this.isDefaultValue() === true;
+  });
 
   get previewPrefix(): string {
     const raw = this.form.controls.invoicePrefix.value.trim();

@@ -275,6 +275,7 @@ describe('BranchFormPage', () => {
             provide: BranchesWarehousesApi,
             useValue: {
               getBranch: () => of(null),
+              listBranchOptions: () => of([]),
               createBranch: vi.fn(),
               updateBranch: vi.fn(),
             },
@@ -323,6 +324,7 @@ describe('BranchFormPage', () => {
             provide: BranchesWarehousesApi,
             useValue: {
               getBranch: () => of(existingBranch),
+              listBranchOptions: () => of([]),
               createBranch: vi.fn(),
               updateBranch: vi.fn(),
             },
@@ -353,6 +355,7 @@ describe('BranchFormPage', () => {
             provide: BranchesWarehousesApi,
             useValue: {
               getBranch: () => of(null),
+              listBranchOptions: () => of([]),
               createBranch: vi.fn(),
               updateBranch: vi.fn(),
             },
@@ -408,6 +411,7 @@ describe('BranchFormPage', () => {
             provide: BranchesWarehousesApi,
             useValue: {
               getBranch: () => of(existingBranch),
+              listBranchOptions: () => of([]),
               createBranch: vi.fn(),
               updateBranch: vi.fn(),
             },
