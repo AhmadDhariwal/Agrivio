@@ -440,4 +440,81 @@ describe('StockInquiryPage', () => {
     expect(moduleInfo).not.toBeNull();
     expect(moduleInfo.textContent).toContain('About Stock on Hand');
   });
+
+  it('initializes filters from route query parameters', async () => {
+    const { ActivatedRoute, convertToParamMap } = await import('@angular/router');
+    const { CapabilityService: CS } = await import('../../../capabilities/data-access/capability.service');
+    await TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [StockInquiryPage],
+      providers: [
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              queryParamMap: convertToParamMap({
+                productId: 'prod-1',
+                warehouseId: 'wh-1',
+                batchId: 'batch-1',
+                search: 'Urea',
+              }),
+            },
+            queryParamMap: of(
+              convertToParamMap({
+                productId: 'prod-1',
+                warehouseId: 'wh-1',
+                batchId: 'batch-1',
+                search: 'Urea',
+              }),
+            ),
+          },
+        },
+        {
+          provide: InventoryApi,
+          useValue: {
+            listBalances: () => of({ items: mockBalances, meta: { page: 1, pageSize: 25, total: 2 } }),
+            listBatches: () => of({ items: mockBatches, meta: { page: 1, pageSize: 100, total: 1 } }),
+            listExpiry: () => of({ items: [], businessDate: '2026-08-19', thresholdDays: 30 }),
+          },
+        },
+        {
+          provide: CatalogApi,
+          useValue: {
+            searchProductOptions: () => of(mockProducts),
+          },
+        },
+        {
+          provide: BranchesWarehousesApi,
+          useValue: {
+            listWarehouseOptions: () => of(mockWarehouses),
+          },
+        },
+        {
+          provide: AuthSessionStore,
+          useValue: {
+            hasPermission: () => true,
+          },
+        },
+        {
+          provide: CS,
+          useValue: {
+            canUseModule: () => true,
+            canUseView: () => true,
+            canShowWidget: () => true,
+            canViewField: () => true,
+            canPerformAction: () => true,
+          },
+        },
+      ],
+    }).compileComponents();
+
+    const qpFixture = TestBed.createComponent(StockInquiryPage);
+    const qpComp = qpFixture.componentInstance;
+    qpFixture.detectChanges();
+
+    expect(qpComp.productFilter()).toBe('prod-1');
+    expect(qpComp.warehouseFilter()).toBe('wh-1');
+    expect(qpComp.batchFilter()).toBe('batch-1');
+    expect(qpComp.search()).toBe('Urea');
+  });
 });
