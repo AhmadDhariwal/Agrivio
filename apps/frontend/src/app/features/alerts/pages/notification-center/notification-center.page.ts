@@ -12,7 +12,13 @@ import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.compon
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
-import { AlertSummaries, NotificationItem } from '../../models/alerts.models';
+import {
+  AlertSummaries,
+  EnrichedNotificationItem,
+  NotificationItem,
+  enrichNotificationItem,
+  parseTargetRoute,
+} from '../../models/alerts.models';
 
 export type AlertStatusFilter = 'all' | 'unacknowledged' | 'acknowledged' | 'unread' | 'read';
 export type AlertTypeFilter =
@@ -47,7 +53,7 @@ export class NotificationCenterPage {
 
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
-  readonly items = signal<NotificationItem[]>([]);
+  readonly items = signal<EnrichedNotificationItem[]>([]);
   readonly summaries = signal<AlertSummaries | null>(null);
   readonly acknowledgingId = signal<string | null>(null);
 
@@ -183,7 +189,7 @@ export class NotificationCenterPage {
       )
       .subscribe({
         next: (data) => {
-          this.items.set(data.items);
+          this.items.set(data.items.map(enrichNotificationItem));
           this.summaries.set(data.summaries);
           this.loading.set(false);
         },
@@ -336,5 +342,13 @@ export class NotificationCenterPage {
       default:
         return alertType;
     }
+  }
+
+  getTargetPath(targetRoute: string | undefined): string {
+    return parseTargetRoute(targetRoute).path;
+  }
+
+  getTargetQueryParams(targetRoute: string | undefined): Record<string, string> {
+    return parseTargetRoute(targetRoute).queryParams;
   }
 }

@@ -6,6 +6,7 @@ import { NotificationCenterPage } from './notification-center.page';
 import { AlertsApi } from '../../data-access/alerts.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { enrichNotificationItem } from '../../models/alerts.models';
 
 describe('NotificationCenterPage', () => {
   const mockPayload = {
@@ -197,21 +198,22 @@ describe('NotificationCenterPage', () => {
 
   it('reliably inverts sort order for items with identical timestamps using deterministic tie-breaker', () => {
     const identicalTimestamp = '2026-08-26T12:00:00.000Z';
-    const makeItem = (id: string, title: string): import('../../models/alerts.models').NotificationItem => ({
-      id,
-      title,
-      alertType: 'low_stock',
-      body: 'Body text',
-      subjectKey: 'key',
-      fingerprint: `fp-${id}`,
-      isRead: false,
-      active: true,
-      activatedAt: null,
-      resolvedAt: null,
-      acknowledgedAt: null,
-      acknowledgedBy: null,
-      createdAt: identicalTimestamp,
-    });
+    const makeItem = (id: string, title: string) =>
+      enrichNotificationItem({
+        id,
+        title,
+        alertType: 'low_stock',
+        body: 'Body text',
+        subjectKey: 'key',
+        fingerprint: `fp-${id}`,
+        isRead: false,
+        active: true,
+        activatedAt: null,
+        resolvedAt: null,
+        acknowledgedAt: null,
+        acknowledgedBy: null,
+        createdAt: identicalTimestamp,
+      });
 
     component.items.set([
       makeItem('notif-A', 'Alert A'),
@@ -235,21 +237,22 @@ describe('NotificationCenterPage', () => {
       id: string,
       createdAt: string | null,
       activatedAt: string | null,
-    ): import('../../models/alerts.models').NotificationItem => ({
-      id,
-      title: id,
-      alertType: 'low_stock',
-      body: 'Body text',
-      subjectKey: 'key',
-      fingerprint: `fp-${id}`,
-      isRead: false,
-      active: true,
-      activatedAt,
-      resolvedAt: null,
-      acknowledgedAt: null,
-      acknowledgedBy: null,
-      createdAt,
-    });
+    ) =>
+      enrichNotificationItem({
+        id,
+        title: id,
+        alertType: 'low_stock',
+        body: 'Body text',
+        subjectKey: 'key',
+        fingerprint: `fp-${id}`,
+        isRead: false,
+        active: true,
+        activatedAt,
+        resolvedAt: null,
+        acknowledgedAt: null,
+        acknowledgedBy: null,
+        createdAt,
+      });
 
     component.items.set([
       makeItem('notif-older', '2026-08-26T10:00:00.000Z', null),
@@ -390,5 +393,24 @@ describe('NotificationCenterPage', () => {
     expect(disabledFixture.componentInstance.canView()).toBe(false);
     expect(disabledFixture.nativeElement.querySelector('[data-testid="alerts-permission-alert"]')).toBeTruthy();
     expect(disabledFixture.nativeElement.querySelector('[data-testid="alerts-table"]')).toBeNull();
+  });
+
+  it('enriches items with pre-parsed targetPath and targetQueryParams for Open navigation', () => {
+    const firstItem = component.items()[0];
+    expect(firstItem).toBeDefined();
+    expect(firstItem?.targetPath).toBe('/app/inventory/stock');
+    expect(firstItem?.targetQueryParams).toEqual({});
+
+    expect(component.getTargetPath('/app/inventory/stock?productId=p1&warehouseId=w1')).toBe('/app/inventory/stock');
+    expect(component.getTargetQueryParams('/app/inventory/stock?productId=p1&warehouseId=w1')).toEqual({
+      productId: 'p1',
+      warehouseId: 'w1',
+    });
+
+    expect(component.getTargetPath('/app/customers/c1')).toBe('/app/customers/c1');
+    expect(component.getTargetQueryParams('/app/customers/c1')).toEqual({});
+
+    expect(component.getTargetPath(undefined)).toBe('/app/alerts');
+    expect(component.getTargetQueryParams(undefined)).toEqual({});
   });
 });

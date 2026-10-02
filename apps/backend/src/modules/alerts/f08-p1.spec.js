@@ -500,6 +500,82 @@ describe('F08 P1 inventory alerts over Inventory read contracts', () => {
     expect(recurring.items[0].isRead).toBe(false);
     expect(recurring.items[0].acknowledgedAt).toBeNull();
   });
+
+  it('resolves contextual target routes for alert notifications', async () => {
+    const alerts = createAlertsModule({
+      persistence: 'memory',
+      inventoryService: {
+        async listBalances() {
+          return { items: [{ productId: 'p1', warehouseId: 'w1', quantityBase: '1.0000' }] };
+        },
+        async queryExpiry() {
+          return {
+            thresholdDays: 30,
+            businessDate: '2026-08-14',
+            items: [
+              {
+                batchId: 'b1',
+                productId: 'p1',
+                warehouseId: 'w1',
+                batchNumber: 'LOT-EXP-123',
+                classification: 'upcoming',
+                expiryDate: '2026-08-20',
+              },
+            ],
+          };
+        },
+      },
+      paymentsService: {
+        async listCustomerReceivableBalances() {
+          return {
+            items: [
+              {
+                customerId: 'c1',
+                receivable: { amount: '500.00', currency: 'PKR' },
+                receivableMinorUnits: '50000',
+              },
+            ],
+          };
+        },
+        async listSupplierPayableBalances() {
+          return {
+            items: [
+              {
+                supplierId: 's1',
+                payable: { amount: '700.00', currency: 'PKR' },
+                payableMinorUnits: '70000',
+              },
+            ],
+          };
+        },
+      },
+      salesService: {
+        async listPostedSaleProductActivity() {
+          return { productIds: [] };
+        },
+      },
+      resolveOrganizationTimezone: async () => 'Asia/Karachi',
+      now: () => new Date('2026-08-14T05:00:00.000Z'),
+    });
+
+    const auth = ownerContext();
+    await alerts.alertsService.upsertLowStockThreshold('org-1', {
+      productId: 'p1',
+      warehouseId: 'w1',
+      thresholdQuantityBase: '10.0000',
+    });
+
+    const notifs = await alerts.alertsService.listNotifications('org-1', auth);
+    const lowStockNotif = notifs.items.find((item) => item.alertType === 'low_stock');
+    const expiryNotif = notifs.items.find((item) => item.alertType === 'upcoming_expiry');
+    const customerNotif = notifs.items.find((item) => item.alertType === 'customer_dues');
+    const supplierNotif = notifs.items.find((item) => item.alertType === 'supplier_dues');
+
+    expect(lowStockNotif.targetRoute).toBe('/app/inventory/stock?productId=p1&warehouseId=w1');
+    expect(expiryNotif.targetRoute).toBe('/app/inventory/expiry?search=LOT-EXP-123');
+    expect(customerNotif.targetRoute).toBe('/app/customers/c1');
+    expect(supplierNotif.targetRoute).toBe('/app/suppliers/s1');
+  });
 });
 
 describe('F08 P1 dashboard composition', () => {

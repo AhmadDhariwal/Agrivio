@@ -6,7 +6,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
   EMPTY,
   Subject,
@@ -87,6 +87,7 @@ export class ExpiryInquiryPage {
   private readonly locationsApi = inject(BranchesWarehousesApi);
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
+  private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly reloadRequests = new Subject<void>();
@@ -404,6 +405,47 @@ export class ExpiryInquiryPage {
   constructor() {
     this.checkViewport();
     this.loadReferenceData();
+
+    // Query parameters deep-linking (e.g. from alerts)
+    const initialParams = this.route.snapshot.queryParamMap;
+    const initialProduct = initialParams.get('productId');
+    const initialWarehouse = initialParams.get('warehouseId');
+    const initialSearch = initialParams.get('search');
+    const initialClassification = initialParams.get('classification');
+    if (initialProduct) this.productFilter.set(initialProduct);
+    if (initialWarehouse) this.warehouseFilter.set(initialWarehouse);
+    if (initialSearch) this.search.set(initialSearch);
+    if (initialClassification) this.classificationFilter.set(initialClassification);
+
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        const p = params.get('productId') ?? '';
+        const w = params.get('warehouseId') ?? '';
+        const s = params.get('search') ?? '';
+        const c = params.get('classification') ?? '';
+        let changed = false;
+        if (p !== this.productFilter()) {
+          this.productFilter.set(p);
+          changed = true;
+        }
+        if (w !== this.warehouseFilter()) {
+          this.warehouseFilter.set(w);
+          changed = true;
+        }
+        if (s !== this.search()) {
+          this.search.set(s);
+          changed = true;
+        }
+        if (c !== this.classificationFilter()) {
+          this.classificationFilter.set(c);
+          changed = true;
+        }
+        if (changed) {
+          this.page.set(1);
+          this.reload();
+        }
+      });
 
     // Debounced search handling
     this.searchChanges

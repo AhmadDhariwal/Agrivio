@@ -563,3 +563,36 @@
     }
   }
 }
+
+/* ==========================================================================
+   Reassignment Warning Callout (amber)
+   ========================================================================== */
+.reassignment-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  color: #92400e;
+  font-size: 12.5px;
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: #d97706;
+    padding-top: 1px;
+  }
+
+  &__content {
+    min-width: 0;
+  }
+
+  &__text {
+    margin: 0;
+    line-height: 1.45;
+  }
+}
